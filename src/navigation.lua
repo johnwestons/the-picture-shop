@@ -44,6 +44,22 @@ function Navigation.isWalkable(assets, x, y, obstacles)
     return feetAreOnMask(mask, x, y) and outsideFixedObstacle(x, y, obstacles)
 end
 
+function Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight)
+    local mask = assets.getData("walkmask")
+    halfWidth, halfHeight = math.max(0, halfWidth or 0), math.max(0, halfHeight or 0)
+    local samples = {
+        { 0, 0 },
+        { -halfWidth, -halfHeight }, { halfWidth, -halfHeight },
+        { -halfWidth, halfHeight }, { halfWidth, halfHeight },
+        { -halfWidth, 0 }, { halfWidth, 0 },
+        { 0, -halfHeight }, { 0, halfHeight },
+    }
+    for _, offset in ipairs(samples) do
+        if not feetAreOnMask(mask, x + offset[1], y + offset[2]) then return false end
+    end
+    return true
+end
+
 -- A saved game or a newly parked object can occasionally leave an actor just
 -- inside a collision circle. Allow movement that strictly increases distance
 -- from every overlapping obstacle so the player can always walk free.

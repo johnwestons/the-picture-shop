@@ -701,12 +701,32 @@ local function runChecks(context)
         and trackedPaper.currentSize.height == 9.5
         and context.machine.step == "cut_complete")
     check("paper_tooltip_updates_size", context.machine.paperTooltip():find("12.50 x 9.50", 1, true) ~= nil)
+    local finishedBeforeBlockedOutput = cutterState.inventory.finishedPallets
+    context.machine.setOutputResolver(function()
+        return nil, "No clear cutter output zone is available. Move pallets or equipment away from the cutter."
+    end)
+    check("cutter_full_output_zone_blocks_unload", not context.machine.keypressed("u", cutterState)
+        and context.machine.step == "cut_complete"
+        and cutterJob.pallets[1].location == "at_cutter"
+        and cutterState.inventory.finishedPallets == finishedBeforeBlockedOutput)
+    context.machine.reset(cutterState)
+    check("cutter_completed_pallet_resumes_after_console_exit", context.machine.load(cutterState)
+        and context.machine.step == "cut_complete"
+        and context.machine.paper == trackedPaper
+        and cutterJob.pallets[1].location == "at_cutter"
+        and cutterState.inventory.inProcessPallets == 1)
+    context.machine.setOutputResolver(function(targetState, pallet)
+        return context.world.findCutterOutput(targetState, context.assets, pallet and pallet.id)
+    end)
     check("cutter_unload", context.machine.keypressed("u", cutterState))
     context.machine.update(context.machine.transferTime + 0.01, cutterState)
     check("cutter_returns_to_pallet", context.machine.step == "finished"
         and cutterJob.pallets[1].status == "cut"
         and cutterJob.pallets[1].location == "cutter_output"
         and cutterState.inventory.finishedPallets == 1)
+    check("cutter_output_is_safe_floor", context.world.isPalletPlacementClear(
+        cutterState, context.assets,
+        cutterJob.pallets[1].world.x, cutterJob.pallets[1].world.y, cutterJob.pallets[1].id))
 
     context.machine.reset(cutterState)
     cutterJob.pallets[1].paper.status = "uncut"
@@ -743,6 +763,71 @@ local function runChecks(context)
         testState.jobs.active[1] = testJob
         return testState, testJob, pallet
     end
+
+    local cutterDirections = { "northwest", "northeast", "southwest", "southeast" }
+    for _, direction in ipairs(cutterDirections) do
+        local orientedState, _, orientedPallet = ownershipState("JOB-INPUT-" .. direction, 0, 0)
+        orientedState.cutter.direction = direction
+        local anchorX, anchorY = context.CutterZones.inputAnchor(
+            orientedState, context.config.cutterPlacement)
+        orientedPallet.world.x, orientedPallet.world.y = anchorX, anchorY
+        orientedPallet.world.fromX, orientedPallet.world.fromY = anchorX, anchorY
+        local candidates = context.PalletState.cutterCandidates(
+            orientedState, context.config.cutterPlacement.palletInputZoneRadius)
+        check("cutter_input_zone_" .. direction, candidates[1]
+            and candidates[1].pallet == orientedPallet)
+    end
+
+    local fartherState, fartherJob, fartherPallet = ownershipState(
+        "JOB-INPUT-FARTHER", context.config.cutterPlacement.spawnX + 116,
+        context.config.cutterPlacement.spawnY + 38)
+    local nearerJob = jobs.createOffer({
+        id = "JOB-INPUT-NEARER", company = "Nearest Input Co.",
+        sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 },
+    })
+    jobs.accept(nearerJob)
+    local nearerPallet = nearerJob.pallets[1]
+    nearerPallet.location = "warehouse"
+    nearerPallet.world = {
+        x = fartherState.cutter.x + 80, y = fartherState.cutter.y + 38,
+        direction = "northwest", rotation = 1,
+        fromX = fartherState.cutter.x + 80, fromY = fartherState.cutter.y + 38,
+        spawnProgress = 1,
+    }
+    fartherState.jobs.active[1], fartherState.jobs.active[2] = fartherJob, nearerJob
+    local sortedInputs = context.PalletState.cutterCandidates(
+        fartherState, context.config.cutterPlacement.palletInputZoneRadius)
+    check("cutter_selects_nearest_input_pallet", sortedInputs[1]
+        and sortedInputs[1].pallet == nearerPallet
+        and sortedInputs[2].pallet == fartherPallet)
+
+    local outputZoneState = context.State.new()
+    local cutterLocations = {
+        { x = context.config.cutterPlacement.spawnX, y = context.config.cutterPlacement.spawnY },
+        { x = 520, y = 460 },
+    }
+    for locationIndex, location in ipairs(cutterLocations) do
+        outputZoneState.cutter.x, outputZoneState.cutter.y = location.x, location.y
+        for _, direction in ipairs(cutterDirections) do
+            outputZoneState.cutter.direction = direction
+            local output = context.world.findCutterOutput(outputZoneState, context.assets)
+            check(string.format("cutter_output_safe_location_%d_%s", locationIndex, direction), output
+                and context.world.isPalletPlacementClear(
+                    outputZoneState, context.assets, output.x, output.y))
+        end
+    end
+
+    local blockedPreferredState, _, outputBlocker = ownershipState("JOB-OUTPUT-BLOCKER", 0, 0)
+    local preferredOutput = context.CutterZones.outputCandidates(
+        blockedPreferredState, context.config.cutterPlacement)[1]
+    outputBlocker.world.x, outputBlocker.world.y = preferredOutput.x, preferredOutput.y
+    outputBlocker.world.fromX, outputBlocker.world.fromY = preferredOutput.x, preferredOutput.y
+    local alternateOutput = context.world.findCutterOutput(blockedPreferredState, context.assets)
+    check("cutter_output_avoids_occupied_preferred_zone", alternateOutput
+        and (alternateOutput.x ~= preferredOutput.x or alternateOutput.y ~= preferredOutput.y)
+        and context.world.isPalletPlacementClear(
+            blockedPreferredState, context.assets, alternateOutput.x, alternateOutput.y))
 
     local farState, _, farPallet = ownershipState("JOB-FAR", 40, 620)
     context.machine.reset(farState)
@@ -787,7 +872,7 @@ local function runChecks(context)
     local illegalPallet = illegalJob.pallets[1]
     check("pallet_illegal_transition_rejected",
         not context.PalletState.transition(illegalState, illegalPallet, "at_cutter", {
-            cutterRadius = context.config.cutterPlacement.palletInputRadius,
+            cutterRadius = context.config.cutterPlacement.palletInputZoneRadius,
         })
         and illegalPallet.location == "awaiting_delivery"
         and illegalPallet.world == nil
@@ -809,10 +894,10 @@ local function runChecks(context)
     contestedState.jobs.active[2] = secondJob
     check("pallet_first_cutter_owner", context.PalletState.transition(
         contestedState, firstCutterPallet, "at_cutter",
-        { status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputRadius }))
+        { status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputZoneRadius }))
     check("pallet_second_cutter_owner_rejected", not context.PalletState.transition(
         contestedState, secondCutterPallet, "at_cutter",
-        { status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputRadius })
+        { status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputZoneRadius })
         and secondCutterPallet.location == "warehouse"
         and secondCutterPallet.status == "raw"
         and context.PalletState.validate(contestedState))

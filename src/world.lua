@@ -1,6 +1,7 @@
 local Config = require("src.config")
 local BayDoor = require("src.bay_door")
 local CutterPlacement = require("src.cutter_placement")
+local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local Interaction = require("src.interaction")
 local Navigation = require("src.navigation")
@@ -27,7 +28,7 @@ local World = {
     selectedInteraction = nil,
 }
 
-local function movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper)
+local function movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper, excludedPalletId)
     inflate = inflate or { x = 0, y = 0 }
     if type(inflate) == "number" then inflate = { x = inflate, y = inflate } end
     local obstacles = {}
@@ -49,7 +50,8 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
     if truckObstacle then obstacles[#obstacles + 1] = truckObstacle end
     for _, obstacle in ipairs(PalletLogistics.obstacles(state,
         Config.palletLogistics.collisionHalfWidth,
-        Config.palletLogistics.collisionHalfHeight)) do
+        Config.palletLogistics.collisionHalfHeight,
+        excludedPalletId)) do
         obstacles[#obstacles + 1] = obstacle
     end
     if not excludeJack then
@@ -67,6 +69,20 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
         end
     end
     return obstacles
+end
+
+function World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
+    local halfWidth = Config.palletLogistics.collisionHalfWidth
+    local halfHeight = Config.palletLogistics.collisionHalfHeight
+    if not Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight) then return false end
+    return Navigation.isWalkable(assets, x, y, movementObstacles(state, false,
+        { x = halfWidth, y = halfHeight }, false, false, excludedPalletId))
+end
+
+function World.findCutterOutput(state, assets, excludedPalletId)
+    return CutterZones.findOutput(state, Config.cutterPlacement, function(x, y)
+        return World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
+    end)
 end
 
 local function interactables()

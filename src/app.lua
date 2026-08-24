@@ -4,6 +4,7 @@ local CharacterAssets = require("src.character_assets")
 local ComputerScreen = require("src.screens.computer_screen")
 local Config = require("src.config")
 local CutterPlacement = require("src.cutter_placement")
+local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local Hud = require("src.screens.hud")
 local Input = require("src.input")
@@ -79,6 +80,9 @@ function App.load()
     Assets.load()
     CharacterAssets.load()
     World.load()
+    Machine.setOutputResolver(function(targetState, pallet)
+        return World.findCutterOutput(targetState, Assets, pallet and pallet.id)
+    end)
     TitleScreen.enter(startGame)
 
     if Smoke.requested() then
@@ -95,6 +99,7 @@ function App.load()
             Customer = Customer,
             config = Config,
             CutterPlacement = CutterPlacement,
+            CutterZones = CutterZones,
             machine = Machine,
             machineScreen = MachineScreen,
             PalletJack = PalletJack,

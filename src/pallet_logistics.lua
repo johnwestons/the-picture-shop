@@ -143,15 +143,17 @@ function Logistics.physicalPallets(state)
     return result
 end
 
-function Logistics.obstacles(state, halfWidth, halfHeight)
+function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId)
     local result = {}
     for _, item in ipairs(Logistics.physicalPallets(state)) do
-        result[#result + 1] = {
-            x = item.x,
-            y = item.y - 8,
-            halfWidth = halfWidth or 33,
-            halfHeight = halfHeight or 11,
-        }
+        if item.pallet.id ~= excludedPalletId then
+            result[#result + 1] = {
+                x = item.x,
+                y = item.y - 8,
+                halfWidth = halfWidth or 33,
+                halfHeight = halfHeight or 11,
+            }
+        end
     end
     return result
 end

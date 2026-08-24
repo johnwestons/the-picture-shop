@@ -1,4 +1,6 @@
 local PalletState = {}
+local Config = require("src.config")
+local CutterZones = require("src.cutter_zones")
 
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
@@ -119,25 +121,30 @@ function PalletState.reconcile(state)
 end
 
 local function nearCutter(state, pallet, radius)
-    local cutter, world = state and state.cutter, pallet and pallet.world
-    if type(cutter) ~= "table" or not validWorld(world) then return false end
-    local dx, dy = world.x - cutter.x, world.y - cutter.y
-    return dx * dx + dy * dy <= radius * radius
+    return CutterZones.inInputZone(state, pallet, Config.cutterPlacement, radius)
 end
 
 function PalletState.cutterCandidates(state, radius)
     local owned, staged = {}, {}
     for _, item in ipairs(allPallets(state)) do
         local pallet, paper = item.pallet, item.pallet.paper
-        if not item.vendor and paper and paper.status ~= "complete" then
+        if not item.vendor and paper then
             local candidate = { job = item.job, pallet = pallet, paper = paper }
             if pallet.location == "at_cutter" then
                 owned[#owned + 1] = candidate
-            elseif pallet.location == "warehouse" and nearCutter(state, pallet, radius) then
+            elseif paper.status ~= "complete" and pallet.location == "warehouse"
+                and nearCutter(state, pallet, radius)
+            then
+                candidate.inputDistance = CutterZones.inputDistanceSquared(
+                    state, pallet, Config.cutterPlacement)
                 staged[#staged + 1] = candidate
             end
         end
     end
+    table.sort(staged, function(left, right)
+        if left.inputDistance == right.inputDistance then return left.pallet.id < right.pallet.id end
+        return left.inputDistance < right.inputDistance
+    end)
     local result = {}
     for _, candidate in ipairs(owned) do result[#result + 1] = candidate end
     for _, candidate in ipairs(staged) do result[#result + 1] = candidate end
@@ -183,7 +190,7 @@ function PalletState.transition(state, pallet, target, options)
         return false, "pallet jack does not own this pallet"
     end
     if target == "at_cutter" then
-        local radius = options.cutterRadius or math.huge
+        local radius = options.cutterRadius or Config.cutterPlacement.palletInputZoneRadius
         if source ~= "warehouse" or not nearCutter(state, pallet, radius) then
             return false, "stage the pallet on clear floor beside the cutter"
         end

@@ -10,29 +10,15 @@ local Machine = {
     simultaneity = 0.30, cycleTime = 1.25, transferTime = 0.45,
     gauge = 0, programIndex = 1, savedGauge = nil,
     paper = nil, pallet = nil, job = nil, legacyPaper = false, paperTravel = 0,
+    pendingOutput = nil, outputResolver = nil,
 }
 
 local function message(state, text)
     if state then state.message = text end
 end
 
-local function cutterOutputPosition(state, palletNumber)
-    local cutter = state and state.cutter or { x = 625, y = 405, direction = "northwest" }
-    local offsets = {
-        northwest = { x = 96, y = 72, rowX = 1, rowY = 1 },
-        northeast = { x = -96, y = 72, rowX = -1, rowY = 1 },
-        southwest = { x = 96, y = -72, rowX = 1, rowY = -1 },
-        southeast = { x = -96, y = -72, rowX = -1, rowY = -1 },
-    }
-    local offset = offsets[cutter.direction] or offsets.northwest
-    local index = math.max(0, (palletNumber or 1) - 1)
-    local column, row = index % 2, math.floor(index / 2)
-    return cutter.x + offset.x + column * 58 * offset.rowX,
-        cutter.y + offset.y + row * 44 * offset.rowY
-end
-
 local function availablePapers(state)
-    return PalletState.cutterCandidates(state, Config.cutterPlacement.palletInputRadius)
+    return PalletState.cutterCandidates(state, Config.cutterPlacement.palletInputZoneRadius)
 end
 
 local function makeLegacyPaper()
@@ -52,11 +38,15 @@ function Machine.reset(state)
     Machine.barrierClear, Machine.emergencyStopped = true, false
     Machine.gauge, Machine.programIndex, Machine.savedGauge = 0, 1, nil
     Machine.paper, Machine.pallet, Machine.job = nil, nil, nil
-    Machine.legacyPaper, Machine.paperTravel = false, 0
+    Machine.legacyPaper, Machine.paperTravel, Machine.pendingOutput = false, 0, nil
     message(state, "Cutter ready. Select a pallet paper batch and load it.")
 end
 
 function Machine.availablePapers(state) return availablePapers(state) end
+
+function Machine.setOutputResolver(resolver)
+    Machine.outputResolver = type(resolver) == "function" and resolver or nil
+end
 
 function Machine.load(state)
     if Machine.step ~= "idle" and Machine.step ~= "finished" then return false end
@@ -66,7 +56,7 @@ function Machine.load(state)
         if wasWarehouse then
             local transitioned, transitionError = PalletState.transition(state, selected.pallet, "at_cutter", {
                 status = "in_process",
-                cutterRadius = Config.cutterPlacement.palletInputRadius,
+                cutterRadius = Config.cutterPlacement.palletInputZoneRadius,
             })
             if not transitioned then message(state, transitionError); return false end
         end
@@ -75,6 +65,12 @@ function Machine.load(state)
         if wasWarehouse and state and state.inventory then
             state.inventory.rawPallets = math.max(0, (state.inventory.rawPallets or 0) - 1)
             state.inventory.inProcessPallets = (state.inventory.inProcessPallets or 0) + 1
+        end
+        if selected.paper.status == "complete" then
+            Machine.loaded, Machine.step, Machine.progress, Machine.paperTravel = true, "cut_complete", 0, 1
+            syncProgram()
+            message(state, "Finished paper is still at the cutter. Press U to place its pallet in a clear output zone.")
+            return true
         end
     elseif PalletState.hasUnfinishedCustomerPaper(state) then
         message(state, "Stage an unfinished pallet on clear floor beside the cutter before loading.")
@@ -221,6 +217,15 @@ end
 
 function Machine.unload(state)
     if not Machine.paper or Machine.paper.status ~= "complete" or Machine.step ~= "cut_complete" then return false end
+    if Machine.pallet then
+        if not Machine.outputResolver then
+            message(state, "Cutter output safety is unavailable. Return to the warehouse and reopen the console.")
+            return false
+        end
+        local output, outputError = Machine.outputResolver(state, Machine.pallet)
+        if not output then message(state, outputError); return false end
+        Machine.pendingOutput = output
+    end
     Machine.step, Machine.progress = "unloading", 0
     message(state, "Pulling finished paper from the bed and returning it to its pallet.")
     return true
@@ -308,11 +313,18 @@ function Machine.update(dt, state)
                     state.inventory.paper = math.max(0, (state.inventory.paper or 0) - 1)
                     state.inventory.prints = (state.inventory.prints or 0) + 1
                 elseif Machine.pallet then
-                    local outputX, outputY = cutterOutputPosition(state, Machine.pallet.number)
+                    local output = Machine.pendingOutput
+                    if not output then
+                        Machine.step = "blocked"
+                        message(state, "Could not return the pallet: the reserved output zone was lost.")
+                        return
+                    end
                     local world = {}
                     for key, value in pairs(Machine.pallet.world or {}) do world[key] = value end
-                    world.x, world.y = outputX, outputY
-                    world.fromX, world.fromY = outputX, outputY
+                    world.x, world.y = output.x, output.y
+                    world.direction = output.direction or world.direction or "northwest"
+                    world.rotation = output.rotation or world.rotation
+                    world.fromX, world.fromY = output.x, output.y
                     world.spawnProgress = 1
                     local transitioned, transitionError = PalletState.transition(state, Machine.pallet, "cutter_output", {
                         status = "cut",
@@ -323,6 +335,7 @@ function Machine.update(dt, state)
                         message(state, "Could not return the pallet: " .. tostring(transitionError))
                         return
                     end
+                    Machine.pendingOutput = nil
                     Machine.pallet.remainingSheets = 0
                     Machine.pallet.finishedSheets = Machine.pallet.initialSheets
                     Machine.pallet.completedLifts = Machine.pallet.requiredLifts

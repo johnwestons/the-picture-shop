@@ -260,6 +260,8 @@ Acceptance: two consecutive five-pallet jobs plus vendor orders never overlap pa
 
 ### Step 7 — Validate cutter input/output zones
 
+Status: **Completed 2026-08-24.** Cutter input is now an orientation-aware feed-side zone, with the nearest eligible floor pallet selected deterministically. Output searches ordered positions around the relocated cutter and validates the full pallet footprint against the walkmask, walls, truck, cutter, wrapper, jack, and every other physical pallet. A full output area leaves production unchanged and completed work at the cutter can be resumed after the player clears space.
+
 Add nearby-pallet selection and safe output placement around every cutter orientation/location.
 
 Acceptance: no input teleporting and no output inside walls, machines, trucks, pallets, or non-walkable space.

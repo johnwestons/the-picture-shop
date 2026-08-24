@@ -67,12 +67,15 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Near an unoccupied loading bay, press **E** to open or close the roll-up door manually.
 - Near an unloaded cutter, press **M** to enter machine-relocation mode. Use **WASD/arrow keys** to
   move it slowly, **Q** to rotate it 90 degrees, and **E** to lock it in its new floor position.
-- Cutter: lower an unfinished customer pallet onto clear floor beside the cutter, then open the console. A pallet still owned by the jack or staged too far away cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
+- Cutter: lower an unfinished customer pallet into the feed-side staging area beside the cutter, then open the console. The feed side follows the cutter's current orientation; when several pallets are staged there, the nearest one loads first. A pallet still owned by the jack, on the wrong side, or too far away cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
   **L** loads the staged paper, **G** selects the next unfinished cut and loads its saved backgauge value, and **P** pushes/positions;
   **Q** rotate the paper counter-clockwise into the next front-edge cutting position, **Space** clamp,
   and **J + K** together start the guarded cut. The active margin is always nearest the screen.
 - Cutter repeat programming: **M** saves the current gauge, **V** recalls it, **[ / ]** changes the
   selected cut program, and **U** pulls completed paper off the bed and returns it to its pallet.
+- Cutter output searches the surrounding floor for a walkable position clear of walls, the truck,
+  equipment, the pallet jack, and other pallets. If every output zone is blocked, move the obstruction,
+  reopen the console, press **L** to resume the completed batch, and then press **U** again.
 - Every cutter action is also mouse-clickable. The two on-screen cut controls must be clicked within
   the same 0.30-second safety window as the keyboard controls.
 - Cutter safety: **B** toggles the light barrier; **X** triggers emergency stop; **R** resets
