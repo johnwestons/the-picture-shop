@@ -300,6 +300,8 @@ Acceptance: there is no unreachable live system; if enabled, the press produces 
 
 ### Step 12 — Correct movement footprints and animation state
 
+Status: **Completed 2026-08-24.** Cutter, wrapper, empty/loaded pallet jack, and lowered pallets now validate their full footprint—including corners and edge centers—against the walkmask and inflated obstacle bounds. Placement no longer accepts a walkable center with blocked corners, while state-normalization helpers preserve live motion flags until the frame consumes them, so equipment operators visibly walk during successful movement.
+
 Use full footprints against walkmask/obstacles and stop validation helpers from resetting frame state.
 
 Acceptance: wrapper/jack/pallet corners cannot enter blocked pixels and the operator visibly walks while moving equipment.

@@ -62,6 +62,19 @@ local function routeIsWalkable(mask, route, config)
     return true
 end
 
+local function centerOnlyWalkmaskPoint(context, halfWidth, halfHeight)
+    for y = 92, context.config.baseHeight - 48, 2 do
+        for x = 56, context.config.baseWidth - 56, 2 do
+            if context.Navigation.isWalkable(context.assets, x, y, {})
+                and not context.Navigation.isAreaWalkable(
+                    context.assets, x, y, halfWidth, halfHeight)
+            then
+                return x, y
+            end
+        end
+    end
+end
+
 local function runChecks(context)
     local healthy, failures = context.assets.assertHealthy()
     check("asset_contract", healthy, failures)
@@ -270,6 +283,29 @@ local function runChecks(context)
         context.config
     )
     check("customer_reception_route_walkable", routeValid, routeDetail)
+    do
+        local footprints = {
+            { name = "cutter", width = context.config.cutterPlacement.collisionHalfWidth,
+                height = context.config.cutterPlacement.collisionHalfHeight },
+            { name = "wrapper", width = context.config.wrapperPlacement.collisionHalfWidth,
+                height = context.config.wrapperPlacement.collisionHalfHeight },
+            { name = "loaded_jack", width = context.config.palletJack.loadedCollisionHalfWidth,
+                height = context.config.palletJack.loadedCollisionHalfHeight },
+        }
+        for _, footprint in ipairs(footprints) do
+            local edgeX, edgeY = centerOnlyWalkmaskPoint(context, footprint.width, footprint.height)
+            check(footprint.name .. "_full_footprint_rejects_blocked_corner", edgeX
+                and context.Navigation.isWalkable(context.assets, edgeX, edgeY, {})
+                and not context.Navigation.canMoveAreaFrom(context.assets,
+                    edgeX, edgeY, edgeX, edgeY, footprint.width, footprint.height, {}))
+        end
+        local palletX, palletY = centerOnlyWalkmaskPoint(context,
+            context.config.palletLogistics.collisionHalfWidth,
+            context.config.palletLogistics.collisionHalfHeight)
+        check("pallet_drop_rejects_blocked_corner", palletX
+            and not context.world.isPalletPlacementClear(
+                context.State.new(), context.assets, palletX, palletY))
+    end
 
     local door = context.BayDoor.new(context.config.loadingBay)
     check("bay_door_starts_closed", door.state == "closed"
@@ -1748,7 +1784,9 @@ local function runChecks(context)
     local beforeDriveX = context.world.palletJackSnapshot(context.state).x
     context.world.update(0.15, -1, 0, context.assets, context.state)
     check("pallet_jack_empty_drive", context.world.palletJackSnapshot(context.state).x < beforeDriveX
-        and context.world.palletJackSnapshot(context.state).direction == "southwest")
+        and context.world.palletJackSnapshot(context.state).direction == "southwest"
+        and context.world.palletJackSnapshot(context.state).moving
+        and context.world.player.moving)
     context.world.update(0.04, 1, 0, context.assets, context.state)
     check("pallet_jack_faces_northeast", context.world.palletJackSnapshot(context.state).direction == "northeast")
     context.world.update(0.04, 0, -1, context.assets, context.state)
@@ -1790,6 +1828,17 @@ local function runChecks(context)
         and pickupTarget.pallet.world.rotation == 1)
     context.input.keypressed("f", context.inputContext)
     check("pallet_jack_parks", not context.world.palletJackSnapshot(context.state).operating)
+    context.state.wrapper.x = context.config.wrapperPlacement.spawnX
+    context.state.wrapper.y = context.config.wrapperPlacement.spawnY
+    context.state.wrapper.direction = "northwest"
+    context.state.wrapper.moving, context.state.wrapper.inMotion = false, false
+    check("wrapper_relocation_motion_setup", context.world.beginWrapperMove(context.state))
+    local wrapperBeforeMove = context.world.wrapperSnapshot(context.state)
+    context.world.update(0.10, 1, 0, context.assets, context.state)
+    check("wrapper_full_footprint_move_and_operator_walk", context.world.wrapperSnapshot(context.state).x > wrapperBeforeMove.x
+        and context.world.wrapperSnapshot(context.state).inMotion
+        and context.world.player.moving)
+    check("wrapper_relocation_motion_place", context.world.placeWrapper(context.state))
     local parkedJack = context.world.palletJackSnapshot(context.state)
     context.world.player.x, context.world.player.y = parkedJack.x, parkedJack.y
     context.world.update(0.25, 1, 0, context.assets, context.state)
@@ -1811,7 +1860,9 @@ local function runChecks(context)
     check("cutter_relocation_begins", context.world.cutterSnapshot(context.state).moving)
     local cutterBeforeMove = context.world.cutterSnapshot(context.state)
     context.world.update(0.15, -1, 0, context.assets, context.state)
-    check("cutter_relocation_moves", context.world.cutterSnapshot(context.state).x < cutterBeforeMove.x)
+    check("cutter_relocation_moves", context.world.cutterSnapshot(context.state).x < cutterBeforeMove.x
+        and context.world.cutterSnapshot(context.state).inMotion
+        and context.world.player.moving)
     context.input.keypressed("q", context.inputContext)
     check("cutter_rotates_northeast", context.world.cutterSnapshot(context.state).frame == 2)
     context.input.keypressed("q", context.inputContext)

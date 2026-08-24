@@ -12,6 +12,7 @@ local JobOfferScreen = require("src.screens.job_offer_screen")
 local JobService = require("src.job_service")
 local Jobs = require("src.jobs")
 local Machine = require("src.machine")
+local Navigation = require("src.navigation")
 local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
 local MachineScreen = require("src.screens.machine_screen")
@@ -100,6 +101,7 @@ function App.load()
             CutterZones = CutterZones,
             machine = Machine,
             machineScreen = MachineScreen,
+            Navigation = Navigation,
             PalletJack = PalletJack,
             PalletState = PalletState,
             PalletLogistics = PalletLogistics,

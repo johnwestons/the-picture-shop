@@ -89,4 +89,12 @@ function Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstac
     return true
 end
 
+function Navigation.canMoveAreaFrom(assets, currentX, currentY, nextX, nextY,
+    halfWidth, halfHeight, obstacles)
+    if not Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstacles) then
+        return false
+    end
+    return Navigation.isAreaWalkable(assets, nextX, nextY, halfWidth, halfHeight)
+end
+
 return Navigation

@@ -77,7 +77,7 @@ function PalletJack.ensure(state, config)
     jack.y = type(jack.y) == "number" and jack.y or config.spawnY
     jack.direction = directionFrames[jack.direction] and jack.direction or "northwest"
     jack.operating = jack.operating == true
-    jack.moving = false
+    jack.moving = jack.moving == true
     jack.animationClock = type(jack.animationClock) == "number" and jack.animationClock or 0
     return jack
 end

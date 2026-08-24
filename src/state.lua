@@ -53,18 +53,18 @@ function State.applySave(state, payload)
         and saved.palletJack
         or PalletJack.defaultState(Config.palletJack)
     PalletJack.ensure(state, Config.palletJack)
-    state.palletJack.operating = false
+    state.palletJack.operating, state.palletJack.moving = false, false
     state.wrapper = type(saved.wrapper) == "table" and saved.wrapper or WrapperPlacement.defaultState(Config.wrapperPlacement)
     if state.wrapper.x == 825 and state.wrapper.y == 300 and not state.wrapper.moving then
         state.wrapper.x, state.wrapper.y = Config.wrapperPlacement.spawnX, Config.wrapperPlacement.spawnY
     end
     WrapperPlacement.ensure(state, Config.wrapperPlacement)
-    state.wrapper.moving = false
+    state.wrapper.moving, state.wrapper.inMotion = false, false
     state.cutter = type(saved.cutter) == "table"
         and saved.cutter
         or CutterPlacement.defaultState(Config.cutterPlacement)
     CutterPlacement.ensure(state, Config.cutterPlacement)
-    state.cutter.moving = false
+    state.cutter.moving, state.cutter.inMotion = false, false
     state.nextJobId = type(saved.nextJobId) == "number"
         and saved.nextJobId >= 1
         and saved.nextJobId == math.floor(saved.nextJobId)

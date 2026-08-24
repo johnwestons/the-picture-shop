@@ -32,7 +32,7 @@ function CutterPlacement.ensure(state, config)
     cutter.direction = directionFrames[cutter.direction] and cutter.direction
         or config.defaultDirection or "northwest"
     cutter.moving = cutter.moving == true
-    cutter.inMotion = false
+    cutter.inMotion = cutter.inMotion == true
     return cutter
 end
 

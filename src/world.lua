@@ -241,19 +241,8 @@ function World.update(dt, directionX, directionY, assets, state)
                 local halfHeight = Config.cutterPlacement.collisionHalfHeight
                 local obstacles = movementObstacles(state, false,
                     { x = halfWidth, y = halfHeight }, true)
-                if not Navigation.canMoveFrom(assets, cutter.x, cutter.y, nextX, nextY, obstacles) then
-                    return false
-                end
-                local edgeOffsets = {
-                    { x = -halfWidth, y = 0 }, { x = halfWidth, y = 0 },
-                    { x = 0, y = -halfHeight }, { x = 0, y = halfHeight },
-                }
-                for _, offset in ipairs(edgeOffsets) do
-                    if not Navigation.isWalkable(assets, nextX + offset.x, nextY + offset.y, {}) then
-                        return false
-                    end
-                end
-                return true
+                return Navigation.canMoveAreaFrom(assets, cutter.x, cutter.y, nextX, nextY,
+                    halfWidth, halfHeight, obstacles)
             end)
         player.x, player.y = CutterPlacement.operatorPosition(state, Config.cutterPlacement)
         player.moving = cutter.inMotion
@@ -261,8 +250,10 @@ function World.update(dt, directionX, directionY, assets, state)
     elseif wrapper.moving then
         WrapperPlacement.move(state, directionX, directionY, dt, Config.wrapperPlacement,
             function(nextX, nextY)
-                return Navigation.canMoveFrom(assets, wrapper.x, wrapper.y, nextX, nextY,
-                    movementObstacles(state, false, {
+                local halfWidth = Config.wrapperPlacement.collisionHalfWidth
+                local halfHeight = Config.wrapperPlacement.collisionHalfHeight
+                return Navigation.canMoveAreaFrom(assets, wrapper.x, wrapper.y, nextX, nextY,
+                    halfWidth, halfHeight, movementObstacles(state, false, {
                         x = Config.wrapperPlacement.collisionHalfWidth,
                         y = Config.wrapperPlacement.collisionHalfHeight,
                     }, false, true))
@@ -279,8 +270,8 @@ function World.update(dt, directionX, directionY, assets, state)
                 x = Config.palletJack.collisionHalfWidth,
                 y = Config.palletJack.collisionHalfHeight,
             }
-            return Navigation.canMoveFrom(assets, jack.x, jack.y, nextX, nextY,
-                movementObstacles(state, true, inflate))
+            return Navigation.canMoveAreaFrom(assets, jack.x, jack.y, nextX, nextY,
+                inflate.x, inflate.y, movementObstacles(state, true, inflate))
         end)
         player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
         player.moving = jack.moving
@@ -770,11 +761,7 @@ end
 
 function World.handlePalletJack(state, assets)
     local succeeded, action, pallet = PalletJack.use(state, Config.palletJack, function(x, y)
-        return Navigation.isWalkable(assets, x, y,
-            movementObstacles(state, true, {
-                x = Config.palletJack.loadedCollisionHalfWidth,
-                y = Config.palletJack.loadedCollisionHalfHeight,
-            }))
+        return World.isPalletPlacementClear(state, assets, x, y)
     end)
     if not succeeded then
         if state then state.message = action == "blocked"
