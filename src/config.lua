@@ -126,6 +126,7 @@ local Config = {
         collisionHalfHeight = 11,
         unloadDuration = 0.65,
         unloadOrigin = { x = 218, y = 304 },
+        receivingLaneRadius = 34,
         spawnPoints = {
             { x = 338, y = 344 },
             { x = 410, y = 374 },

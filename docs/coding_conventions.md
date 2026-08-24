@@ -25,6 +25,7 @@ These rules adapt the useful boundaries and stabilization practices from the nei
 - `src/navigation.lua`: walkmask and fixed-obstacle checks
 - `src/interaction.lua`: proximity selection and prompts
 - `src/pallet_state.lua`: legal pallet locations, ownership transitions, invariants, and reconciliation
+- `src/receiving.lua`: shared customer/vendor receiving-lane occupancy and reservation
 - `src/world.lua`: player/world update and rendering
 - `src/shop.lua`: economy rules
 - `src/machine.lua`: Polar 115 simulation state

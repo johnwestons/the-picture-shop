@@ -48,6 +48,9 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - At a parked truck's rear, press **E** to open or close its animated cargo door. The wall door cannot close while a truck occupies the bay.
 - When the truck cargo door is open, press **E** to open its manifest. Click **Unload** for each
   pallet; every click animates a uniquely tracked paper pallet from the truck onto the warehouse floor.
+- Customer and vendor pallets share five marked receiving lanes. Each unload reserves a clear lane;
+  when all five are occupied, unloading pauses without changing the job, order, stock, or money. Use
+  the pallet jack to move a staged pallet away from the dock, then return to the manifest to unload.
 - Hover a warehouse pallet to see its company, job ID, sheet count, paper ID, current dimensions,
   status, and location. Pallets are saved, depth-sorted, and block walking.
 - Near the yellow pallet jack, press **E** to operate it. Drive with **WASD/arrow keys**, press **E**

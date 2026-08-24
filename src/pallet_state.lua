@@ -31,6 +31,8 @@ local function allPallets(state)
     return result
 end
 
+function PalletState.items(state) return allPallets(state) end
+
 local function validWorld(world)
     return type(world) == "table" and type(world.x) == "number" and type(world.y) == "number"
 end

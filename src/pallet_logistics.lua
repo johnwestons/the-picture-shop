@@ -1,6 +1,8 @@
 local Logistics = {}
 local Procurement = require("src.procurement")
 local PalletState = require("src.pallet_state")
+local Receiving = require("src.receiving")
+local Config = require("src.config")
 local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
 
 local function activeJob(state, jobId)
@@ -68,7 +70,9 @@ function Logistics.unload(state, jobId, palletId, spawnPoints, origin)
             if pallet.location ~= "awaiting_delivery" then
                 return false, "That pallet has already been unloaded."
             end
-            local point = spawnPoints[((index - 1) % #spawnPoints) + 1]
+            local point, laneError = Receiving.claim(
+                state, spawnPoints, Config.palletLogistics.receivingLaneRadius, pallet.id)
+            if not point then return false, laneError end
             local world = copyPosition(point)
             world.fromX = origin and origin.x or point.x
             world.fromY = origin and origin.y or point.y
@@ -93,6 +97,10 @@ function Logistics.unload(state, jobId, palletId, spawnPoints, origin)
         end
     end
     return false, "The pallet was not found in this truck."
+end
+
+function Logistics.receivingStatus(state, spawnPoints)
+    return Receiving.snapshot(state, spawnPoints, Config.palletLogistics.receivingLaneRadius)
 end
 
 function Logistics.update(state, dt, duration)

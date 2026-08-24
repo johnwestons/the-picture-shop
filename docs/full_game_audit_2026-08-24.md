@@ -252,6 +252,8 @@ Acceptance: a pallet cannot be simultaneously on a jack, truck, cutter, wrapper/
 
 ### Step 6 — Add occupied receiving lanes
 
+Status: **Completed 2026-08-24.** Customer and vendor manifests now share five occupancy-aware receiving lanes. Full receiving blocks the unload before any job, order, inventory, or pallet mutation; the manifest reports available capacity and tells the player to move a staged pallet before retrying.
+
 Reserve clear unload slots and block unloading when the receiving area is full.
 
 Acceptance: two consecutive five-pallet jobs plus vendor orders never overlap pallets, and the UI explains how to clear the lane.

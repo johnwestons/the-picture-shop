@@ -1,5 +1,6 @@
 local Logistics = require("src.pallet_logistics")
 local BackButton = require("src.screens.back_button")
+local Config = require("src.config")
 
 local Screen = {}
 local CLOSE = { x = 744, y = 60, width = 140, height = 42 }
@@ -80,6 +81,7 @@ function Screen.draw(state, world, assets, pointerX, pointerY)
     end
 
     local remaining = Logistics.remainingOnTruck(state, snapshot.jobId)
+    local receiving = Logistics.receivingStatus(state, Config.palletLogistics.spawnPoints)
     local ready = remaining == 0 and snapshot.state == "cargo_open"
     box(DOOR.x, DOOR.y, DOOR.width, DOOR.height,
         ready and { 0.18, 0.46, 0.30, 1 } or { 0.16, 0.17, 0.18, 1 },
@@ -89,6 +91,11 @@ function Screen.draw(state, world, assets, pointerX, pointerY)
         DOOR.x, DOOR.y + 14, DOOR.width, "center")
     love.graphics.setColor(0.68, 0.75, 0.77)
     love.graphics.print("Click a manifest row to place that pallet outside the truck.", 82, 588)
+    love.graphics.print(string.format("Receiving lanes: %d / %d open", receiving.open, receiving.total), 82, 608)
+    if state.message and state.message:find("Receiving lanes", 1, true) then
+        love.graphics.setColor(0.96, 0.48, 0.34)
+        love.graphics.printf(state.message, 300, 608, 578, "right")
+    end
 end
 
 function Screen.mousepressed(state, world, x, y, button)

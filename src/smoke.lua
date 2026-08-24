@@ -490,6 +490,65 @@ local function runChecks(context)
         end
     end
 
+    local receivingState = context.State.new()
+    receivingState.money = 1000
+    local receivingJob = jobs.createOffer({
+        id = "JOB-RECEIVING",
+        company = "Receiving Lane Co.",
+        sourceSize = { width = 20, height = 16 },
+        finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500, 500, 500, 500, 500 },
+    })
+    jobs.accept(receivingJob)
+    receivingState.jobs.active[1] = receivingJob
+    for index, pallet in ipairs(receivingJob.pallets) do
+        local succeeded, unloadedPallet = context.PalletLogistics.unload(
+            receivingState, receivingJob.id, pallet.id,
+            context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
+        local lane = context.config.palletLogistics.spawnPoints[index]
+        check("receiving_lane_unique_customer_" .. index, succeeded
+            and unloadedPallet.world.x == lane.x
+            and unloadedPallet.world.y == lane.y)
+    end
+    local fullReceiving = context.Receiving.snapshot(receivingState,
+        context.config.palletLogistics.spawnPoints, context.config.palletLogistics.receivingLaneRadius)
+    check("receiving_lanes_report_full", fullReceiving.open == 0 and fullReceiving.total == 5)
+
+    local vendorBought, blockedOrder = context.procurement.buy(receivingState, 3, 1)
+    check("receiving_vendor_order_setup", vendorBought and blockedOrder.status == "awaiting_delivery")
+    local stockBeforeBlocked = receivingState.inventory.stock.shipping_cartons or 0
+    local blockedUnload, blockedReason = context.procurement.unload(
+        receivingState, blockedOrder.id, blockedOrder.pallets[1].id,
+        context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
+    check("receiving_full_blocks_vendor_unload", not blockedUnload
+        and tostring(blockedReason):find("Receiving lanes are full", 1, true) ~= nil
+        and blockedOrder.status == "awaiting_delivery"
+        and blockedOrder.delivery.status == "awaiting_schedule"
+        and blockedOrder.pallets[1].location == "awaiting_delivery"
+        and (receivingState.inventory.stock.shipping_cartons or 0) == stockBeforeBlocked)
+
+    local movedPallet = receivingJob.pallets[1]
+    check("receiving_lane_pallet_lift_for_move",
+        context.PalletState.transition(receivingState, movedPallet, "on_pallet_jack"))
+    local movedWorld = {
+        x = 820, y = 580, direction = "southeast", rotation = 4,
+        fromX = 820, fromY = 580, spawnProgress = 1,
+    }
+    check("receiving_lane_pallet_moved_clear",
+        context.PalletState.transition(receivingState, movedPallet, "warehouse", { world = movedWorld }))
+    local reopenedReceiving = context.Receiving.snapshot(receivingState,
+        context.config.palletLogistics.spawnPoints, context.config.palletLogistics.receivingLaneRadius)
+    check("receiving_lane_reopens_after_move", reopenedReceiving.open == 1
+        and not reopenedReceiving.lanes[1].occupied)
+    local vendorUnloaded, receivedVendorPallet = context.procurement.unload(
+        receivingState, blockedOrder.id, blockedOrder.pallets[1].id,
+        context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
+    check("receiving_mixed_delivery_reuses_clear_lane", vendorUnloaded
+        and receivedVendorPallet.world.x == context.config.palletLogistics.spawnPoints[1].x
+        and receivedVendorPallet.world.y == context.config.palletLogistics.spawnPoints[1].y
+        and receivingState.inventory.stock.shipping_cartons == stockBeforeBlocked + 100
+        and context.PalletState.validate(receivingState))
+
     local serviceState = context.State.new()
     serviceState.screen = "world"
     local serviceOffer = context.jobService.createNextOffer(serviceState, 111)

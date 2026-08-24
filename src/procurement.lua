@@ -1,5 +1,7 @@
 local Procurement = {}
 local PalletState = require("src.pallet_state")
+local Receiving = require("src.receiving")
+local Config = require("src.config")
 
 Procurement.categories = {
     {
@@ -108,7 +110,9 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
     for index, pallet in ipairs(order.pallets) do
         if pallet.id == palletId then
             if pallet.location ~= "awaiting_delivery" then return false, "That product pallet is already unloaded." end
-            local point = spawnPoints[((index - 1) % #spawnPoints) + 1]
+            local point, laneError = Receiving.claim(
+                state, spawnPoints, Config.palletLogistics.receivingLaneRadius, pallet.id)
+            if not point then return false, laneError end
             local world = { x = point.x, y = point.y, direction = "northwest", rotation = 1,
                 fromX = origin and origin.x or point.x, fromY = origin and origin.y or point.y, spawnProgress = 0 }
             local transitioned, transitionError = PalletState.transition(state, pallet, "warehouse", {
