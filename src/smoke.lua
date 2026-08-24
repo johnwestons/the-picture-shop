@@ -87,6 +87,93 @@ local function runChecks(context)
         and wrapperState.wrapper.direction ~= wrapperDirection)
     check("skid_wrapper_place", context.world.placeWrapper(wrapperState)
         and wrapperState.wrapper.moving == false)
+
+    local function wrapperLifecycleState(id)
+        local testState = context.State.new()
+        testState.screen = "machine"
+        testState.machineType = "skid_wrapper"
+        local pallet = {
+            id = id, number = 1, status = "cut", location = "cutter_output",
+            packaging = "boxed", wrapped = false,
+            world = { x = testState.wrapper.x - 60, y = testState.wrapper.y, spawnProgress = 1 },
+        }
+        testState.jobs.active = { { id = id .. "-JOB", packaging = "boxed", pallets = { pallet } } }
+        context.wrapper.reset(testState)
+        check(id .. "_starts", context.wrapper.start(testState))
+        return testState, pallet
+    end
+
+    local exitSamples = {
+        { name = "start", advance = 0 },
+        { name = "middle", advance = context.wrapper.cycleTime / 2 },
+        { name = "final_frame", advance = context.wrapper.cycleTime - 0.0001 },
+    }
+    for _, inputKind in ipairs({ "keyboard", "mouse" }) do
+        for _, sample in ipairs(exitSamples) do
+            local name = "wrapper_" .. inputKind .. "_" .. sample.name
+            local testState, pallet = wrapperLifecycleState(name)
+            if sample.advance > 0 then context.wrapper.update(sample.advance, testState) end
+            local progressBeforeExit = context.wrapper.progress
+            local saveCalls = 0
+            local testInputContext = {}
+            for key, value in pairs(context.inputContext) do testInputContext[key] = value end
+            testInputContext.state = testState
+            testInputContext.saveCurrent = function() saveCalls = saveCalls + 1; return true end
+            local handled
+            if inputKind == "keyboard" then
+                handled = context.input.keypressed("escape", testInputContext)
+            else
+                local exitX, exitY = context.machineScreen.exitCenter()
+                handled = context.input.mousepressed(exitX, exitY, 1, testInputContext)
+            end
+            check(name .. "_exit_blocked",
+                handled
+                and testState.screen == "machine"
+                and context.wrapper.step == "wrapping"
+                and context.wrapper.progress == progressBeforeExit
+                and testState.inventory.plasticWrapUses == 11
+                and not pallet.wrapped
+                and saveCalls == 0)
+
+            context.wrapper.update(context.wrapper.cycleTime, testState)
+            if inputKind == "keyboard" then
+                context.input.keypressed("escape", testInputContext)
+            else
+                local exitX, exitY = context.machineScreen.exitCenter()
+                context.input.mousepressed(exitX, exitY, 1, testInputContext)
+            end
+            context.wrapper.update(1, testState)
+            check(name .. "_finishes_once",
+                testState.screen == "world"
+                and context.wrapper.step == "finished"
+                and pallet.wrapped
+                and pallet.status == "wrapped"
+                and testState.inventory.plasticWrapUses == 10
+                and saveCalls == 1)
+        end
+    end
+
+    local relocationState, relocationPallet = wrapperLifecycleState("wrapper_interruption_guards")
+    context.wrapper.update(context.wrapper.cycleTime / 2, relocationState)
+    local relocationContext = {}
+    for key, value in pairs(context.inputContext) do relocationContext[key] = value end
+    relocationContext.state = relocationState
+    relocationContext.saveCurrent = function() error("blocked relocation must not save") end
+    check("skid_wrapper_reset_blocked_while_wrapping",
+        not context.wrapper.keypressed("r", relocationState)
+        and context.wrapper.step == "wrapping"
+        and not relocationPallet.wrapped)
+    check("skid_wrapper_direct_relocation_blocked_while_wrapping",
+        not context.world.beginWrapperMove(relocationState)
+        and not relocationState.wrapper.moving)
+    check("skid_wrapper_console_relocation_blocked_while_wrapping",
+        context.input.keypressed("m", relocationContext)
+        and relocationState.screen == "machine"
+        and not relocationState.wrapper.moving)
+    context.wrapper.update(context.wrapper.cycleTime, relocationState)
+    check("skid_wrapper_interruption_guards_preserve_single_use",
+        relocationPallet.wrapped and relocationState.inventory.plasticWrapUses == 10)
+    context.wrapper.reset(relocationState)
     local expectedCharacters = {
         ["tan-cat"] = { idle = 2, walk = 3, sit = 2 },
         ["green-blazer-cat"] = { idle = 2, walk = 3, sit = 2, use = 3 },

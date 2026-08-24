@@ -4,6 +4,14 @@ local WrapperPlacement = require("src.wrapper_placement")
 
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil }
 
+local function blockInterruption(state, action)
+    if Wrapper.step ~= "wrapping" then return true end
+    if state then
+        state.message = "Wrapping is in progress. Wait for the cycle to finish before " .. action .. "."
+    end
+    return false
+end
+
 local function distanceSquared(a, b)
     local dx, dy = a.x - b.x, a.y - b.y
     return dx * dx + dy * dy
@@ -24,9 +32,15 @@ function Wrapper.nearbyPallet(state)
 end
 
 function Wrapper.reset(state)
+    if not blockInterruption(state, "resetting the wrapper") then return false end
     Wrapper.step, Wrapper.progress, Wrapper.pallet, Wrapper.job = "idle", 0, nil, nil
     if state then state.message = "Skid wrapper ready. Park a finished pallet beside the turntable." end
+    return true
 end
+
+function Wrapper.isActive() return Wrapper.step == "wrapping" end
+function Wrapper.canExit(state) return blockInterruption(state, "leaving the console") end
+function Wrapper.canRelocate(state) return blockInterruption(state, "relocating the wrapper") end
 
 function Wrapper.start(state)
     if Wrapper.step ~= "idle" and Wrapper.step ~= "finished" then return false end
@@ -42,6 +56,7 @@ end
 
 function Wrapper.update(dt, state)
     if Wrapper.step ~= "wrapping" then return end
+    assert(type(state) == "table", "wrapper update requires game state")
     Wrapper.progress = math.min(Wrapper.cycleTime, Wrapper.progress + dt)
     if Wrapper.progress < Wrapper.cycleTime then return end
     local inventory = state.inventory
@@ -58,7 +73,7 @@ end
 
 function Wrapper.keypressed(key, state)
     if key == "l" or key == "space" or key == "return" or key == "kpenter" then return Wrapper.start(state) end
-    if key == "r" then Wrapper.reset(state); return true end
+    if key == "r" then return Wrapper.reset(state) end
     return false
 end
 

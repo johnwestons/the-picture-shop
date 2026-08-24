@@ -767,6 +767,7 @@ function World.cutterSnapshot(state)
 end
 
 function World.beginWrapperMove(state)
+    if not Wrapper.canRelocate(state) then return false end
     if PalletJack.ensure(state, Config.palletJack).operating then
         state.message = "Park the pallet jack before relocating the skid wrapper."
         return false

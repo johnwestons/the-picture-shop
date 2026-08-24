@@ -15,6 +15,11 @@ function Input.keypressed(key, context)
         state.message = "Choose Accept or Decline on the customer paperwork."
         return
     end
+    if key == "escape" and state.screen == "machine" and state.machineType == "skid_wrapper"
+        and not context.wrapper.canExit(state)
+    then
+        return true
+    end
     if key == "escape" and state.screen ~= "world" and state.screen ~= "title" then
         if state.screen == "vendor" then context.world.resolveVendor(state) end
         state.screen = "world"
@@ -95,9 +100,11 @@ function Input.keypressed(key, context)
         end
     elseif state.screen == "machine" then
         if state.machineType == "skid_wrapper" and key == "m" then
-            state.screen = "world"
-            if context.world.beginWrapperMove(state) then context.saveCurrent() end
-            return
+            if context.world.beginWrapperMove(state) then
+                state.screen = "world"
+                context.saveCurrent()
+            end
+            return true
         end
         if state.machineType == "skid_wrapper" and context.wrapper.keypressed(key, state) then return end
         if context.machineScreen.keypressed(state, key) then return end
@@ -146,6 +153,7 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "machine" then
         local result = context.machineScreen.mousepressed(state, x, y, button)
         if type(result) == "table" and result.action == "exit" then
+            if state.machineType == "skid_wrapper" and not context.wrapper.canExit(state) then return true end
             state.screen = "world"
             state.message = "Exited the machine console."
             context.saveCurrent()

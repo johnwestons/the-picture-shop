@@ -220,6 +220,8 @@ Acceptance: New Shop on an occupied slot cannot alter it without explicit confir
 
 ### Step 2 — Fix wrapper screen lifecycle
 
+Status: **Completed 2026-08-24.** Active wrap cycles now remain on the console until completion; Escape, mouse Exit, reset, and relocation are blocked, every update receives valid state, and start/middle/final-frame regressions verify exactly one film use.
+
 Choose and implement a single exit/update policy, pass valid state to all wrapper updates, and prevent relocation while actively wrapping.
 
 Acceptance: Escape and mouse Exit at every point in a wrap cycle never crash, duplicate film use, or lose/duplicate pallet status.

@@ -118,7 +118,7 @@ function App.update(dt)
         local directionX, directionY = Input.movement()
         World.update(dt, directionX, directionY, Assets, state)
         Press.update(dt)
-        Wrapper.update(dt)
+        Wrapper.update(dt, state)
     elseif state.screen == "truck_inventory" then
         World.update(dt, 0, 0, Assets, state)
     elseif state.screen == "machine" then
