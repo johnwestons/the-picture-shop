@@ -15,7 +15,9 @@ The title screen has three local save slots. Use **W/S** or the arrow keys to se
 
 Save format 3 retains active, completed, and declined jobs, accounts receivable, procurement,
 stock, film, machine placements, pallet-jack ownership, wrapper placement, and the next stable
-job number. Version-1 and version-2 slots migrate when loaded.
+job number. Version-1 and version-2 slots migrate when loaded. Saves are validated in a temporary
+file before promotion and retain the previous valid slot as a backup. A damaged primary recovers
+automatically; a slot with no valid recovery copy is marked as damaged instead of appearing empty.
 
 ## Job rules foundation
 

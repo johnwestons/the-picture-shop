@@ -236,6 +236,8 @@ Acceptance: new shops start with the intended film; wrapper position/direction, 
 
 ### Step 4 — Make saves crash-safe
 
+Status: **Completed 2026-08-24.** Saves now validate a temporary payload before promotion, rotate the prior valid primary into a last-known-good backup, recover from valid temporary/backup copies, and show an explicit damaged-slot state when recovery is impossible.
+
 Add temporary-write validation, last-known-good backup, recovery, and a visible corrupted-slot status.
 
 Acceptance: simulated truncated/invalid primary saves recover from backup without presenting the slot as empty.

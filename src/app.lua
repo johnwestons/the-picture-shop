@@ -39,6 +39,9 @@ local function startGame(payload, mode)
     State.applySave(state, payload)
     World.load(payload.player)
     if mode == "new" then saveCurrent() end
+    if payload.recovered then
+        state.message = "Recovered this shop from its last valid " .. tostring(payload.recoverySource) .. " copy."
+    end
 end
 
 local function returnToTitle()

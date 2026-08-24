@@ -35,9 +35,16 @@ local function startNew()
     if TitleScreen.onStart then TitleScreen.onStart(payload, "new") end
 end
 local function continueGame()
-    local payload = Save.load(TitleScreen.selected)
-    if not payload then TitleScreen.message = "That slot is empty. Choose NEW SHOP."; return false end
-    TitleScreen.message = "Continuing slot " .. TitleScreen.selected
+    local payload, status = Save.load(TitleScreen.selected)
+    if not payload then
+        TitleScreen.message = status == "corrupted"
+            and "That save is damaged and has no valid recovery copy. Delete it or choose another slot."
+            or "That slot is empty. Choose NEW SHOP."
+        return false
+    end
+    TitleScreen.message = payload.recovered
+        and ("Recovered slot " .. TitleScreen.selected .. " from its " .. payload.recoverySource .. " copy.")
+        or ("Continuing slot " .. TitleScreen.selected)
     if TitleScreen.onStart then TitleScreen.onStart(payload, "continue") end
     return true
 end
@@ -166,8 +173,11 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         love.graphics.setColor(selected and { 0.86, 0.70, 0.30, 1 } or { 0.44, 0.48, 0.46, 1 })
         love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 3, 3)
         love.graphics.setColor(0.93, 0.92, 0.84); love.graphics.print("SLOT " .. index, rect.x + 18, rect.y + 18)
-        love.graphics.setColor(0.72, 0.76, 0.73)
-        love.graphics.print(slot.empty and "EMPTY PAPER TICKET" or ("ACTIVE SHOP    CASH $" .. tostring(slot.money)), rect.x + 170, rect.y + 18)
+        love.graphics.setColor(slot.corrupted and { 0.96, 0.36, 0.30, 1 } or { 0.72, 0.76, 0.73, 1 })
+        local slotText = slot.corrupted and "SAVE DAMAGED — NO RECOVERY COPY"
+            or (slot.empty and "EMPTY PAPER TICKET"
+            or ((slot.recovered and "RECOVERED SHOP" or "ACTIVE SHOP") .. "    CASH $" .. tostring(slot.money)))
+        love.graphics.print(slotText, rect.x + 170, rect.y + 18)
     end
     if TitleScreen.mode ~= "normal" then
         local overwriting = TitleScreen.mode == "overwrite-confirm"

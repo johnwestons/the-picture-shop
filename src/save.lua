@@ -5,10 +5,17 @@ local Config = require("src.config")
 local Schema = require("src.save_schema")
 
 local save = {}
+local recoveryNotices = {}
 
-local function slotPath(slot)
+local function slotFiles(slot)
     if not Schema.validSlot(slot) then return nil end
-    return string.format("saves/slot%d.lua", slot)
+    local primary = string.format("saves/slot%d.lua", slot)
+    return {
+        primary = primary,
+        temporary = primary .. ".tmp",
+        backup = primary .. ".bak",
+        backupTemporary = primary .. ".bak.tmp",
+    }
 end
 
 local function encode(value, indent)
@@ -26,10 +33,7 @@ local function encode(value, indent)
     return table.concat(lines)
 end
 
-local function read(slot)
-    local path = slotPath(slot)
-    if not path or not love.filesystem.getInfo(path) then return nil end
-    local source = love.filesystem.read(path)
+local function parse(source)
     if not source then return nil end
     local chunk = loadstring("return " .. source)
     if not chunk then return nil end
@@ -39,18 +43,86 @@ local function read(slot)
     return Schema.migrate(payload)
 end
 
+local function readCandidate(path)
+    if not path or not love.filesystem.getInfo(path) then return nil end
+    local source = love.filesystem.read(path)
+    if not source then return nil end
+    return parse(source), source
+end
+
+local function writeValidated(path, source)
+    if not parse(source) then return false end
+    if not love.filesystem.write(path, source) then return false end
+    local payload = readCandidate(path)
+    return payload ~= nil
+end
+
+local function absolutePath(path)
+    local separator = package.config:sub(1, 1)
+    return love.filesystem.getSaveDirectory() .. separator .. path:gsub("/", separator)
+end
+
+local function promote(sourcePath, targetPath)
+    local payload, source = readCandidate(sourcePath)
+    if not payload then return false end
+    if love.filesystem.getInfo(targetPath) and not love.filesystem.remove(targetPath) then return false end
+    local renamed = os.rename(absolutePath(sourcePath), absolutePath(targetPath))
+    if not renamed then
+        if not writeValidated(targetPath, source) then return false end
+        love.filesystem.remove(sourcePath)
+    end
+    return readCandidate(targetPath) ~= nil
+end
+
+local function restore(slot, files, sourcePath, sourceName)
+    local payload, source = readCandidate(sourcePath)
+    if not payload then return nil end
+    love.filesystem.remove(files.temporary)
+    if writeValidated(files.temporary, source) then promote(files.temporary, files.primary) end
+    recoveryNotices[slot] = sourceName
+    payload.recovered = true
+    payload.recoverySource = sourceName
+    return payload
+end
+
+local function read(slot)
+    local files = slotFiles(slot)
+    if not files then return nil, "invalid" end
+    local primary = readCandidate(files.primary)
+    if primary then
+        local source = recoveryNotices[slot]
+        if source then
+            primary.recovered = true
+            primary.recoverySource = source
+            return primary, "recovered"
+        end
+        return primary, "ok"
+    end
+
+    local temporary = readCandidate(files.temporary)
+    if temporary then return restore(slot, files, files.temporary, "temporary"), "recovered" end
+    local backup = readCandidate(files.backup)
+    if backup then return restore(slot, files, files.backup, "backup"), "recovered" end
+
+    local hasFiles = love.filesystem.getInfo(files.primary)
+        or love.filesystem.getInfo(files.temporary)
+        or love.filesystem.getInfo(files.backup)
+        or love.filesystem.getInfo(files.backupTemporary)
+    return nil, hasFiles and "corrupted" or "empty"
+end
+
 function save.newGame(slot)
     return Schema.newPayload(slot)
 end
 
 function save.load(slot)
-    local payload = read(slot)
+    local payload, status = read(slot)
     if payload then payload.slot = slot end
-    return payload
+    return payload, status
 end
 
 function save.save(slot, state, worldSnapshot)
-    local path = assert(slotPath(slot), "save slot must be 1, 2, or 3")
+    local files = assert(slotFiles(slot), "save slot must be 1, 2, or 3")
     assert(type(state) == "table", "state table is required")
     local previous = read(slot)
     local payload = {
@@ -66,22 +138,41 @@ function save.save(slot, state, worldSnapshot)
     }
     if not Schema.validPayload(payload) then return false end
     love.filesystem.createDirectory("saves")
-    return love.filesystem.write(path, encode(payload))
+    local source = encode(payload)
+    love.filesystem.remove(files.temporary)
+    if not writeValidated(files.temporary, source) then return false end
+
+    local currentPayload, currentSource = readCandidate(files.primary)
+    if currentPayload then
+        love.filesystem.remove(files.backupTemporary)
+        if not writeValidated(files.backupTemporary, currentSource) then return false end
+        if not promote(files.backupTemporary, files.backup) then return false end
+    end
+    if not promote(files.temporary, files.primary) then return false end
+    recoveryNotices[slot] = nil
+    return true
 end
 
 function save.delete(slot)
-    local path = assert(slotPath(slot), "save slot must be 1, 2, or 3")
-    if love.filesystem.getInfo(path) then return love.filesystem.remove(path) end
-    return true
+    local files = assert(slotFiles(slot), "save slot must be 1, 2, or 3")
+    local succeeded = true
+    for _, path in pairs(files) do
+        if love.filesystem.getInfo(path) and not love.filesystem.remove(path) then succeeded = false end
+    end
+    recoveryNotices[slot] = nil
+    return succeeded
 end
 
 function save.listSlots()
     local slots = {}
     for slot = 1, Schema.SLOT_COUNT do
-        local payload = read(slot)
+        local payload, status = read(slot)
         slots[slot] = {
             slot = slot,
-            empty = payload == nil,
+            empty = status == "empty",
+            corrupted = status == "corrupted",
+            recovered = status == "recovered",
+            recoverySource = payload and payload.recoverySource or nil,
             updatedAt = payload and payload.updatedAt or nil,
             money = payload and payload.state.money or nil,
         }

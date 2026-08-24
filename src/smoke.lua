@@ -838,9 +838,77 @@ local function runChecks(context)
 
     local invalidNested = context.State.new()
     invalidNested.jobs.active = { { id = "BROKEN-JOB", pallets = "not-a-list" } }
+    local preservedState = context.State.new()
+    preservedState.money = 515
+    check("save_invalid_write_setup", context.save.save(1, preservedState, { x = 1, y = 1 }))
+    local beforeInvalidWrite = love.filesystem.read("saves/slot1.lua")
     check("save_nested_validation_rejects_invalid_job",
         not context.save.save(1, invalidNested, { x = 1, y = 1 })
-        and love.filesystem.getInfo("saves/slot1.lua") == nil)
+        and love.filesystem.read("saves/slot1.lua") == beforeInvalidWrite
+        and context.save.load(1).state.money == 515)
+    context.save.delete(1)
+
+    local backupState = context.State.new()
+    backupState.money = 111
+    check("save_backup_first_primary", context.save.save(1, backupState, { x = 101, y = 201 }))
+    backupState.money = 222
+    check("save_backup_second_primary", context.save.save(1, backupState, { x = 102, y = 202 }))
+    check("save_last_known_good_backup_created", love.filesystem.getInfo("saves/slot1.lua.bak") ~= nil)
+    love.filesystem.write("saves/slot1.lua", "{")
+    local recoveredBackup, backupStatus = context.save.load(1)
+    check("save_truncated_primary_recovers_backup", recoveredBackup
+        and backupStatus == "recovered"
+        and recoveredBackup.recoverySource == "backup"
+        and recoveredBackup.state.money == 111
+        and context.save.listSlots()[1].recovered)
+    local restoredBackup = context.save.load(1)
+    check("save_backup_recovery_restores_primary", restoredBackup and restoredBackup.state.money == 111)
+
+    local temporaryState = context.State.new()
+    temporaryState.money = 333
+    check("save_temporary_recovery_setup", context.save.save(1, temporaryState, { x = 103, y = 203 }))
+    local validTemporaryBytes = love.filesystem.read("saves/slot1.lua")
+    love.filesystem.write("saves/slot1.lua.tmp", validTemporaryBytes)
+    love.filesystem.write("saves/slot1.lua", "truncated")
+    love.filesystem.remove("saves/slot1.lua.bak")
+    local recoveredTemporary, temporaryStatus = context.save.load(1)
+    check("save_invalid_primary_recovers_valid_temporary", recoveredTemporary
+        and temporaryStatus == "recovered"
+        and recoveredTemporary.recoverySource == "temporary"
+        and recoveredTemporary.state.money == 333
+        and context.save.load(1).state.money == 333)
+    context.save.delete(1)
+
+    love.filesystem.createDirectory("saves")
+    love.filesystem.write("saves/slot1.lua", "{")
+    love.filesystem.write("saves/slot1.lua.tmp", "also invalid")
+    love.filesystem.write("saves/slot1.lua.bak", "still invalid")
+    local corruptedListing = context.save.listSlots()[1]
+    local corruptedPayload, corruptedStatus = context.save.load(1)
+    check("save_unrecoverable_slot_is_visible", corruptedPayload == nil
+        and corruptedStatus == "corrupted"
+        and corruptedListing.corrupted
+        and not corruptedListing.empty)
+    local corruptedBytes = love.filesystem.read("saves/slot1.lua")
+    local corruptStarts = 0
+    context.state.screen = "title"
+    context.title.enter(function() corruptStarts = corruptStarts + 1 end)
+    context.input.keypressed("c", context.inputContext)
+    check("title_corrupted_slot_cannot_continue", corruptStarts == 0
+        and context.title.message:find("damaged", 1, true) ~= nil)
+    context.input.keypressed("n", context.inputContext)
+    check("title_corrupted_slot_requires_overwrite_confirmation",
+        context.title.mode == "overwrite-confirm" and corruptStarts == 0)
+    context.input.keypressed("n", context.inputContext)
+    check("title_corrupted_overwrite_cancel_preserves_bytes",
+        context.title.mode == "normal"
+        and love.filesystem.read("saves/slot1.lua") == corruptedBytes)
+    love.filesystem.write("saves/slot1.lua.bak.tmp", "invalid backup temporary")
+    check("save_delete_removes_all_recovery_files", context.save.delete(1)
+        and love.filesystem.getInfo("saves/slot1.lua") == nil
+        and love.filesystem.getInfo("saves/slot1.lua.tmp") == nil
+        and love.filesystem.getInfo("saves/slot1.lua.bak") == nil
+        and love.filesystem.getInfo("saves/slot1.lua.bak.tmp") == nil)
 
     -- Title actions share one mouse/keyboard path. Exercise them against the
     -- smoke identity so the player's real save directory is never touched.
