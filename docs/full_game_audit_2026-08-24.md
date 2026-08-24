@@ -200,6 +200,8 @@ The picture press is different from the other backlog assets: it is already load
 
 ### Step 0 — Establish the Git baseline
 
+Status: **Completed 2026-08-24.** The project has a separate repository, documented tracking boundary, validated asset allowlist, and clean initial baseline commit.
+
 1. Add a root `.gitignore` for Python caches, smoke reports/watchdog files, temporary save/build files, and disposable audit previews.
 2. Inventory which `output/` files are canonical rebuild inputs before ignoring or moving anything.
 3. Track code, documentation, tools, launchers, active runtime assets, and approved canonical source assets.
@@ -209,6 +211,8 @@ The picture press is different from the other backlog assets: it is already load
 Acceptance: clean `git status`, reproducible runtime assets, green smoke/asset checks, and no required source hidden by ignore rules.
 
 ### Step 1 — Protect occupied save slots
+
+Status: **Completed 2026-08-24.** Occupied slots require an explicit overwrite confirmation; mouse and keyboard Cancel preserve the prior save byte-for-byte, and title actions now have keyboard parity.
 
 Add overwrite confirmation and keyboard parity on the title screen.
 

@@ -23,6 +23,11 @@ function TitleScreen.enter(onStart)
 end
 function TitleScreen.slots() return Save.listSlots() end
 function TitleScreen.update(_) end
+function TitleScreen.buttonCenter(name)
+    local rect = BUTTONS[name]
+    if not rect then return nil end
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
 
 local function startNew()
     local payload = Save.newGame(TitleScreen.selected)
@@ -37,12 +42,79 @@ local function continueGame()
     return true
 end
 
+local function requestNew()
+    local slot = TitleScreen.slots()[TitleScreen.selected]
+    if slot and not slot.empty then
+        TitleScreen.mode = "overwrite-confirm"
+        TitleScreen.message = "Slot " .. TitleScreen.selected .. " already has a shop. Confirm overwrite or cancel."
+        return true
+    end
+    startNew()
+    return true
+end
+
+local function requestDelete()
+    TitleScreen.mode = "delete-confirm"
+    TitleScreen.message = "Delete slot " .. TitleScreen.selected .. "?"
+    return true
+end
+
+local function confirmPending()
+    if TitleScreen.mode == "overwrite-confirm" then
+        TitleScreen.mode = "normal"
+        startNew()
+        return true
+    end
+    if TitleScreen.mode == "delete-confirm" then
+        Save.delete(TitleScreen.selected)
+        TitleScreen.mode = "normal"
+        TitleScreen.message = "Slot deleted."
+        return true
+    end
+    return false
+end
+
+local function cancelPending()
+    if TitleScreen.mode == "overwrite-confirm" then
+        TitleScreen.mode = "normal"
+        TitleScreen.message = "Overwrite cancelled. Existing shop preserved."
+        return true
+    end
+    if TitleScreen.mode == "delete-confirm" then
+        TitleScreen.mode = "normal"
+        TitleScreen.message = "Delete cancelled."
+        return true
+    end
+    return false
+end
+
+local function moveSelection(delta)
+    TitleScreen.selected = ((TitleScreen.selected - 1 + delta) % Save.SLOT_COUNT) + 1
+    TitleScreen.message = "Selected slot " .. TitleScreen.selected .. "."
+end
+
+function TitleScreen.keypressed(key)
+    if TitleScreen.mode ~= "normal" then
+        if key == "y" or key == "return" or key == "kpenter" then return confirmPending() end
+        if key == "n" or key == "escape" then return cancelPending() end
+        return false
+    end
+
+    if key == "up" or key == "w" then moveSelection(-1); return true end
+    if key == "down" or key == "s" then moveSelection(1); return true end
+    if key == "n" then return requestNew() end
+    if key == "c" or key == "return" or key == "kpenter" then return continueGame() end
+    if key == "d" then return requestDelete() end
+    if key == "q" or key == "escape" then love.event.quit(); return true end
+    return false
+end
+
 function TitleScreen.mousepressed(x, y, button)
     if button ~= 1 then return false end
-    if TitleScreen.mode == "delete-confirm" then
+    if TitleScreen.mode ~= "normal" then
         local action = buttonAt(x, y)
-        if action == "yes" then Save.delete(TitleScreen.selected); TitleScreen.mode = "normal"; TitleScreen.message = "Slot deleted."; return true end
-        if action == "no" then TitleScreen.mode = "normal"; TitleScreen.message = "Delete cancelled."; return true end
+        if action == "yes" then return confirmPending() end
+        if action == "no" then return cancelPending() end
         return false
     end
     for index = 1, Save.SLOT_COUNT do
@@ -50,16 +122,16 @@ function TitleScreen.mousepressed(x, y, button)
     end
     local action = buttonAt(x, y)
     TitleScreen.pressed = action
-    if action == "new" then startNew(); return true end
+    if action == "new" then return requestNew() end
     if action == "continue" then continueGame(); return true end
-    if action == "delete" then TitleScreen.mode = "delete-confirm"; TitleScreen.message = "Delete slot " .. TitleScreen.selected .. "?"; return true end
+    if action == "delete" then return requestDelete() end
     if action == "quit" then love.event.quit(); return true end
     return false
 end
 function TitleScreen.mousereleased(_, _, button) if button == 1 then TitleScreen.pressed = nil end end
 function TitleScreen.setHover(x, y) TitleScreen.hover = buttonAt(x, y) end
 
-local function drawButton(assets, name, danger)
+local function drawButton(assets, name, danger, label)
     local rect = BUTTONS[name]
     local image = assets and assets.get("cutterControlButtons")
     local frame = danger and (TitleScreen.pressed == name and 4 or 3) or (TitleScreen.pressed == name and 2 or 1)
@@ -73,7 +145,7 @@ local function drawButton(assets, name, danger)
         love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4, 4)
     end
     love.graphics.setColor(0.94, 0.96, 0.93)
-    love.graphics.printf(rect.label, rect.x, rect.y + rect.height - 17, rect.width, "center")
+    love.graphics.printf(label or rect.label, rect.x, rect.y + rect.height - 17, rect.width, "center")
 end
 
 function TitleScreen.draw(assets, mouseX, mouseY)
@@ -97,16 +169,23 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         love.graphics.setColor(0.72, 0.76, 0.73)
         love.graphics.print(slot.empty and "EMPTY PAPER TICKET" or ("ACTIVE SHOP    CASH $" .. tostring(slot.money)), rect.x + 170, rect.y + 18)
     end
-    if TitleScreen.mode == "delete-confirm" then
+    if TitleScreen.mode ~= "normal" then
+        local overwriting = TitleScreen.mode == "overwrite-confirm"
         love.graphics.setColor(0.08, 0.09, 0.09, 0.98); love.graphics.rectangle("fill", 260, 330, 440, 132, 4, 4)
-        love.graphics.setColor(0.94, 0.38, 0.30); love.graphics.printf("DELETE SLOT " .. TitleScreen.selected .. "?", 260, 348, 440, "center")
-        drawButton(assets, "yes", true); drawButton(assets, "no", false)
+        love.graphics.setColor(0.94, 0.38, 0.30)
+        love.graphics.printf((overwriting and "OVERWRITE SLOT " or "DELETE SLOT ") .. TitleScreen.selected .. "?", 260, 348, 440, "center")
+        drawButton(assets, "yes", true, overwriting and "OVERWRITE" or "DELETE")
+        drawButton(assets, "no", false, "CANCEL")
+        love.graphics.setColor(0.68, 0.72, 0.70)
+        love.graphics.printf("Y / ENTER confirm    N / ESC cancel", 260, 442, 440, "center")
     else
         drawButton(assets, "new", false); drawButton(assets, "continue", false)
         drawButton(assets, "delete", true); drawButton(assets, "quit", true)
     end
     love.graphics.setColor(0.68, 0.72, 0.70)
-    love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message or "Click a physical control to begin.", 0, 604, Config.baseWidth, "center")
+    love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message
+        or "Mouse or W/S/Arrows | N New | C/Enter Continue | D Delete | Q Quit",
+        0, 604, Config.baseWidth, "center")
 end
 
 return TitleScreen

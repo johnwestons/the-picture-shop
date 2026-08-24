@@ -102,6 +102,7 @@ function App.load()
             shop = Shop,
             state = state,
             State = State,
+            title = TitleScreen,
             Truck = Truck,
             truckInventoryScreen = TruckInventoryScreen,
             vendorScreen = VendorScreen,

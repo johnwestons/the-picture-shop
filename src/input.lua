@@ -24,8 +24,7 @@ function Input.keypressed(key, context)
     end
 
     if state.screen == "title" then
-        -- The title screen is mouse-only. Keyboard input is intentionally ignored.
-        return
+        return context.title.keypressed(key)
     elseif state.screen == "world" then
         local selected = context.world.getInteraction()
         if key == "m" and selected and selected.kind == "cutter" then
