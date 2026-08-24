@@ -150,6 +150,11 @@ function Assets.load()
     local vendorProductPallets = loadImage("vendorProductPallets", Config.paths.vendorProductPallets, false)
     local boxedPaperPalletStages = loadImage("boxedPaperPalletStages", Config.paths.boxedPaperPalletStages, false)
     local polarBackButton = loadImage("polarBackButton", Config.paths.polarBackButton, false)
+    local wrappedPalletStages = loadImage("wrappedPalletStages", Config.paths.wrappedPalletStages, false)
+    for key, path in pairs(Config.paths.artwork or {}) do
+        loadImage("artwork:" .. key, path, false)
+        validateExactPath(path, 128, 128)
+    end
 
     if warehouse and walkmask then
         local warehouseWidth, warehouseHeight = warehouse:getDimensions()
@@ -294,6 +299,14 @@ function Assets.load()
             end
         end
     end
+    if wrappedPalletStages and hasExactDimensions(
+        wrappedPalletStages, Config.paths.wrappedPalletStages, 1536, 512)
+    then
+        for frame = 1, 3 do
+            makeQuad("wrappedPalletStage" .. frame, wrappedPalletStages,
+                (frame - 1) * 512, 0, 512, 512)
+        end
+    end
     validateExactPath(Config.paths.polarOperatorConsole, 768, 512)
     validateExactPath(Config.paths.cutterControlButtons, 512, 128)
     validateExactPath(Config.paths.cutterClamp,
@@ -316,7 +329,7 @@ end
 local PACK_IMAGES = {
     menu = { "polarOperatorConsole", "cutterControlButtons" },
     cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade" },
-    wrapper = { "wrappedPalletStages", "loadedPaperPallet" },
+    wrapper = { "loadedPaperPallet" },
 }
 
 local function releaseImage(name)
@@ -336,8 +349,6 @@ local function clearPackQuads(packName)
             Assets.quads["cutterClamp" .. frame] = nil
             Assets.quads["cutterBlade" .. frame] = nil
         end
-    elseif packName == "wrapper" then
-        for frame = 1, 3 do Assets.quads["wrappedPalletStage" .. frame] = nil end
     end
 end
 
@@ -374,13 +385,8 @@ local function loadCutterPack()
 end
 
 local function loadWrapperPack()
-    local stages = loadImage("wrappedPalletStages", Config.paths.wrappedPalletStages, false)
     local loadedPallet = loadImage("loadedPaperPallet", Config.paths.loadedPaperPallet, false)
-    if not stages or not loadedPallet then return false end
-    for frame = 1, 3 do
-        makeQuad("wrappedPalletStage" .. frame, stages, (frame - 1) * 512, 0, 512, 512)
-    end
-    return true
+    return loadedPallet ~= nil and Assets.images.wrappedPalletStages ~= nil
 end
 
 function Assets.activatePack(packName)
@@ -426,6 +432,11 @@ end
 
 function Assets.getQuad(name)
     return Assets.quads[name]
+end
+
+function Assets.getArtwork(key)
+    return Assets.images["artwork:" .. tostring(key or "flower")]
+        or Assets.images["artwork:flower"]
 end
 
 function Assets.getRabbitFrame(action, frame)

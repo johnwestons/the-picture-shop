@@ -40,6 +40,7 @@ function PaperWork.create(job, pallet, difficulty, seed)
         jobId = job.id,
         palletId = pallet.id,
         artworkId = "ART-" .. job.id,
+        artworkKey = job.artworkKey or "flower",
         difficulty = difficulty,
         sourceSize = { width = source.width, height = source.height },
         finishedSize = { width = finished.width, height = finished.height },

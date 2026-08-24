@@ -1,6 +1,7 @@
 local Anchors = require("src.character_anchors")
 local Config = require("src.config")
 local ImageContract = require("src.image_contract")
+local Metrics = require("src.character_metrics")
 
 local CharacterAssets = {
     metadata = {},
@@ -30,12 +31,64 @@ local function validateAction(character, action, path)
             "%s: expected %d precomputed character anchors", path, frameCount)
         return
     end
+    local actionMetrics = Metrics[character] and Metrics[character][action]
+    if not actionMetrics or #actionMetrics ~= frameCount then
+        CharacterAssets.failures[#CharacterAssets.failures + 1] = string.format(
+            "%s: expected %d precomputed visible-frame bounds", path, frameCount)
+        return
+    end
     CharacterAssets.metadata[character][action] = {
         path = path,
         width = width,
         height = height,
         frameCount = frameCount,
     }
+end
+
+local function actionHeight(character, action)
+    local frames = Metrics[character] and Metrics[character][action]
+    local height = 0
+    for _, bounds in ipairs(frames or {}) do height = math.max(height, bounds[4] - bounds[2]) end
+    return height
+end
+
+function CharacterAssets.getNormalization(character, action)
+    local reference = actionHeight(character, "idle")
+    local height = actionHeight(character, action)
+    if reference <= 0 or height <= 0 then return 1 end
+    return reference / height
+end
+
+function CharacterAssets.getVisibleBounds(character, action, frame)
+    local frames = Metrics[character] and Metrics[character][action]
+    if not frames or #frames == 0 then return nil end
+    local bounds = frames[((frame or 1) - 1) % #frames + 1]
+    return bounds[1], bounds[2], bounds[3], bounds[4]
+end
+
+function CharacterAssets.normalizedFrameMetrics(character, action, frame)
+    local left, top, right, bottom = CharacterAssets.getVisibleBounds(character, action, frame)
+    if not left then return nil end
+    local scale = CharacterAssets.getNormalization(character, action)
+    return {
+        width = (right - left) * scale,
+        height = (bottom - top) * scale,
+        scale = scale,
+    }
+end
+
+function CharacterAssets.characterNames()
+    local result = {}
+    for character in pairs(Config.characters) do result[#result + 1] = character end
+    table.sort(result)
+    return result
+end
+
+function CharacterAssets.actions(character)
+    local result = {}
+    for action in pairs(Config.characters[character] or {}) do result[#result + 1] = action end
+    table.sort(result)
+    return result
 end
 
 function CharacterAssets.load()

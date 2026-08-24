@@ -197,6 +197,7 @@ function Instance:draw(characterAssets)
     end
     image, quad, frameCount = characterAssets.get(self.character, action, frame)
     local anchorX, anchorY = characterAssets.getAnchor(self.character, action, frame)
+    local normalization = characterAssets.getNormalization(self.character, action)
 
     if image and quad then
         love.graphics.setColor(1, 1, 1)
@@ -206,8 +207,8 @@ function Instance:draw(characterAssets)
             self.x,
             self.y,
             0,
-            self.drawScale * self.facing,
-            self.drawScale,
+            self.drawScale * normalization * self.facing,
+            self.drawScale * normalization,
             anchorX,
             anchorY
         )

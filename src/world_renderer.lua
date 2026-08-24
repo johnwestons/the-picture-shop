@@ -13,24 +13,30 @@ local function drawPalletJack(assets, state)
     local carried = loaded and PalletJack.carriedItem(state, Config.palletJack) or nil
     local vendorLoad = carried and carried.vendor
     local boxedLoad = carried and not vendorLoad and carried.pallet.packaging == "boxed"
-    local imageName = loaded and not vendorLoad and not boxedLoad and "palletJackLoaded" or "palletJack"
+    local flatWrappedLoad = carried and not vendorLoad and not boxedLoad and carried.pallet.wrapped
+    local imageName = loaded and not vendorLoad and not boxedLoad and not flatWrappedLoad
+        and "palletJackLoaded" or "palletJack"
     local quadName = imageName .. frame
     local image, sprite = assets.get(imageName), assets.getQuad(quadName)
     if not image or not sprite then return end
     local jack = state.palletJack
     local scale = Config.palletJack.drawScale
-    if vendorLoad or boxedLoad then
-        local productImage = assets.get(vendorLoad and "vendorProductPallets" or "boxedPaperPalletStages")
+    if vendorLoad or boxedLoad or flatWrappedLoad then
+        local productImage = assets.get(vendorLoad and "vendorProductPallets"
+            or (boxedLoad and "boxedPaperPalletStages" or "wrappedPalletStages"))
         local productSprite
         if vendorLoad then
             productSprite = assets.getQuad("vendorProductPallet" .. tostring(carried.pallet.assetRow or 1) .. "_" .. frame)
-        else
+        elseif boxedLoad then
             productSprite = assets.getQuad("boxedPaperPalletStage" .. (carried.pallet.wrapped and 5 or 1) .. "_" .. frame)
+        else
+            productSprite = assets.getQuad("wrappedPalletStage3")
         end
         if productImage and productSprite then
+            local productScale = Config.palletLogistics.drawScale * (flatWrappedLoad and 0.5 or 1)
             love.graphics.setColor(1, 1, 1)
             love.graphics.draw(productImage, productSprite.quad, jack.x, jack.y - 3, 0,
-                Config.palletLogistics.drawScale, Config.palletLogistics.drawScale,
+                productScale, productScale,
                 productSprite.width / 2, productSprite.height * 0.92)
         end
     end
@@ -39,7 +45,7 @@ local function drawPalletJack(assets, state)
         sprite.width / 2, sprite.height * 0.88)
 end
 
-local function drawPallet(assets, item)
+function Renderer.palletVisual(item)
     local boxed = not item.vendor and item.pallet.packaging == "boxed"
     local stage = 1
     if boxed then
@@ -48,27 +54,26 @@ local function drawPallet(assets, item)
             stage = math.max(1, math.min(5, math.floor(Wrapper.filmHeight() * 4) + 1))
         end
     end
+    local flatWrapped = not item.vendor and not boxed and item.pallet.wrapped
     local imageName = item.vendor and "vendorProductPallets"
-        or (boxed and "boxedPaperPalletStages" or "loadedPaperPalletDirections")
-    local image = assets.get(imageName)
+        or (boxed and "boxedPaperPalletStages"
+            or (flatWrapped and "wrappedPalletStages" or "loadedPaperPalletDirections"))
     local frame = PalletLogistics.directionFrame(item.pallet)
     local spriteName = item.vendor and ("vendorProductPallet" .. tostring(item.pallet.assetRow or 1) .. "_" .. frame)
-        or (boxed and ("boxedPaperPalletStage" .. stage .. "_" .. frame) or ("loadedPaperPallet" .. frame))
+        or (boxed and ("boxedPaperPalletStage" .. stage .. "_" .. frame)
+            or (flatWrapped and "wrappedPalletStage3" or ("loadedPaperPallet" .. frame)))
+    return imageName, spriteName,
+        Config.palletLogistics.drawScale * (flatWrapped and 0.5 or 1), flatWrapped
+end
+
+local function drawPallet(assets, item)
+    local imageName, spriteName, scale = Renderer.palletVisual(item)
+    local image = assets.get(imageName)
     local sprite = assets.getQuad(spriteName)
     if not image or not sprite then return end
-    local scale = Config.palletLogistics.drawScale
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, item.x, item.y, 0, scale, scale,
         sprite.width / 2, sprite.height * 0.92)
-    -- `packaging` is the requested job outcome, not the pallet's current
-    -- physical state. Only draw cartons after the wrapper has completed.
-    if item.pallet.wrapped and not boxed then
-        love.graphics.setColor(0.72, 0.90, 1.0, 0.22)
-        love.graphics.polygon("fill", item.x - 43, item.y - 68, item.x + 43, item.y - 68,
-            item.x + 48, item.y - 7, item.x - 48, item.y - 7)
-        love.graphics.setColor(0.86, 0.96, 1.0, 0.55)
-        for y = item.y - 60, item.y - 15, 12 do love.graphics.line(item.x - 42, y, item.x + 42, y) end
-    end
     love.graphics.setColor(0.12, 0.24, 0.34, 0.95)
     love.graphics.rectangle("fill", item.x - 22, item.y - 15, 44, 12)
     love.graphics.setColor(0.92, 0.96, 0.94)

@@ -35,6 +35,8 @@ function Test.run(context, check, jobs)
     for cutNumber = 1, 4 do
         context.machine.selectProgram(cutNumber, fullLoopState)
         context.machine.keypressed("q", fullLoopState)
+        context.machine.setGauge(fullLoopPallet.paper.cuts[cutNumber].gauge, fullLoopState)
+        context.machine.saveGauge(fullLoopState)
         context.machine.autoGauge(fullLoopState)
         check("full_loop_positions_cut_" .. cutNumber, context.machine.position(fullLoopState))
         context.machine.update(context.machine.transferTime + 0.01, fullLoopState)

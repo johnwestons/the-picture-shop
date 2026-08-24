@@ -39,6 +39,11 @@ end
 
 function Input.keypressed(key, context)
     local state = context.state
+    if key == "escape" and state.screen == "machine"
+        and context.machineScreen.hasModal and context.machineScreen.hasModal()
+    then
+        return context.machineScreen.keypressed(state, key)
+    end
     if key == "escape" and state.screen ~= "world" and state.screen ~= "title" then
         return Input.closeScreen(context)
     end

@@ -8,6 +8,8 @@ function Test.run(context, check)
         and fresh.version == context.save.VERSION
         and fresh.state.inventory.plasticWrapRolls == 1
         and fresh.state.inventory.plasticWrapUses == 11
+        and fresh.state.inventory.stock.shipping_cartons == 20
+        and next(fresh.state.cutterMemory) == nil
         and fresh.state.wrapper.direction == context.config.wrapperPlacement.defaultDirection)
 
     fresh.state.money = 432

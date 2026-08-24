@@ -34,6 +34,7 @@ function Test.run(context, check, economy, jobs)
     economy.inventory.plasticWrapRolls = 3
     economy.inventory.plasticWrapUses = 7
     economy.inventory.stock.shipping_cartons = 18
+    economy.cutterMemory = { ["1"] = { 12.5, 12, 11.5 }, ["2"] = { 9.5 } }
     economy.cutter.x = 590
     economy.cutter.y = 430
     economy.cutter.direction = "southeast"
@@ -76,6 +77,10 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.cutter.x == 590
         and loaded.state.cutter.y == 430
         and loaded.state.cutter.direction == "southeast")
+    check("save_cutter_measurement_memory_round_trip", loaded
+        and #loaded.state.cutterMemory["1"] == 3
+        and loaded.state.cutterMemory["1"][1] == 12.5
+        and loaded.state.cutterMemory["2"][1] == 9.5)
     check("save_wrapper_placement_round_trip", loaded
         and loaded.state.wrapper.x == 705
         and loaded.state.wrapper.y == 455
@@ -90,9 +95,29 @@ function Test.run(context, check, economy, jobs)
         and appliedRoundTrip.wrapper.x == 705
         and appliedRoundTrip.wrapper.direction == "northeast"
         and appliedRoundTrip.inventory.plasticWrapUses == 7
+        and appliedRoundTrip.cutterMemory["1"][3] == 11.5
         and appliedRoundTrip.palletJack.carriedPalletId == "JOB-0099-P01"
         and appliedRoundTrip.jobs.active[1].pallets[1].location == "on_pallet_jack")
     context.save.delete(1)
+
+    context.save.delete(2)
+    local v3State = context.State.new()
+    v3State.money = 303
+    check("save_v3_migration_fixture", context.save.save(2, v3State, { x = 430, y = 530 }))
+    local v3Source = love.filesystem.read("saves/slot2.lua")
+    local versionReplacements, memoryReplacements
+    v3Source, versionReplacements = v3Source:gsub('%["version"%]%s*=%s*4', '["version"] = 3', 1)
+    v3Source, memoryReplacements = v3Source:gsub('%s*%["cutterMemory"%]%s*=%s*{%s*},', '', 1)
+    check("save_v3_fixture_removes_new_memory_field",
+        versionReplacements == 1 and memoryReplacements == 1
+        and love.filesystem.write("saves/slot2.lua", v3Source))
+    local migratedV3 = context.save.load(2)
+    check("save_v3_migration", migratedV3
+        and migratedV3.version == context.save.VERSION
+        and migratedV3.state.money == 303
+        and next(migratedV3.state.cutterMemory) == nil
+        and migratedV3.player.x == 430)
+    context.save.delete(2)
 
     love.filesystem.createDirectory("saves")
     love.filesystem.write("saves/slot2.lua", [[{
@@ -163,6 +188,8 @@ function Test.run(context, check, economy, jobs)
             and fresh.state.inventory.paper == 40
             and fresh.state.inventory.plasticWrapRolls == 1
             and fresh.state.inventory.plasticWrapUses == 11
+            and fresh.state.inventory.stock.shipping_cartons == 20
+            and next(fresh.state.cutterMemory) == nil
             and fresh.state.wrapper.x == context.config.wrapperPlacement.spawnX
             and fresh.state.wrapper.y == context.config.wrapperPlacement.spawnY
             and fresh.state.wrapper.direction == context.config.wrapperPlacement.defaultDirection)

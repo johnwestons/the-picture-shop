@@ -1,6 +1,7 @@
 -- Connects pure job-domain rules to the game's saved shop state.
 local Jobs = require("src.jobs")
 local PalletState = require("src.pallet_state")
+local Config = require("src.config")
 
 local JobService = {}
 
@@ -12,6 +13,7 @@ local templates = {
         finishedSize = { width = 12.5, height = 9.5 },
         sheetCounts = { 1000, 750 },
         packaging = "boxed",
+        artworkKey = "flower",
         details = {
             stockDescription = "80 lb customer-supplied cover stock",
             dueDate = "Standard 5-business-day turnaround",
@@ -26,6 +28,7 @@ local templates = {
         finishedSize = { width = 11.5, height = 8.75 },
         sheetCounts = { 1500 },
         packaging = "flat",
+        artworkKey = "cat",
         details = {
             stockDescription = "100 lb gloss text",
             dueDate = "Standard 5-business-day turnaround",
@@ -40,6 +43,7 @@ local templates = {
         finishedSize = { width = 20, height = 12.5 },
         sheetCounts = { 3000, 3000, 2000 },
         packaging = "flat",
+        artworkKey = "landscape",
         details = {
             stockDescription = "Uncoated offset sheets",
             dueDate = "Standard 7-business-day turnaround",
@@ -68,6 +72,8 @@ function JobService.createNextOffer(state, timestamp)
     template.id = Jobs.formatId(sequence)
     template.sequence = sequence
     template.createdAt = timestamp
+    local artwork = Config.artworkOrder or {}
+    if #artwork > 0 then template.artworkKey = artwork[(sequence - 1) % #artwork + 1] end
     return Jobs.createOffer(template)
 end
 

@@ -85,10 +85,20 @@ function Test.run(context, check, jobs)
         and #trackedPaper.cuts == 4)
     check("hard_job_asymmetric_margins", trackedPaper.margins.left ~= trackedPaper.margins.right
         or trackedPaper.margins.top ~= trackedPaper.margins.bottom)
+    for _, orientation in ipairs({ 0, 90, 180, 270 }) do
+        check("cutter_artwork_rotation_tracks_stock_" .. orientation,
+            math.abs(context.machineScreen.artworkRotation({ orientation = orientation })
+                - math.rad(orientation)) < 0.0001)
+    end
 
     context.machine.reset(cutterState)
     check("cutter_table_starts_clear", not context.machine.loaded and context.machine.step == "idle")
-    check("cutter_load", context.machine.load(cutterState))
+    context.machineScreen.enter()
+    check("cutter_load_button_opens_pallet_menu", context.machineScreen.keypressed(cutterState, "l")
+        and context.machineScreen.hasModal()
+        and #context.machineScreen.loadMenuOptions() == 1)
+    check("cutter_load_menu_selects_named_pallet", context.machineScreen.keypressed(cutterState, "1")
+        and context.machine.pallet == cutterJob.pallets[1])
     context.machine.update(context.machine.transferTime + 0.01, cutterState)
     check("cutter_load_animation", context.machine.step == "loaded" and context.machine.paper == trackedPaper)
     check("cutter_rejects_wrong_gauge", not context.machine.position(cutterState))
@@ -100,6 +110,29 @@ function Test.run(context, check, jobs)
     end
     check("cutter_enter_commits_typed_gauge", context.machineScreen.keypressed(cutterState, "return")
         and math.abs(context.machine.gauge - trackedPaper.cuts[1].gauge) < 0.001)
+    local firstGauge = trackedPaper.cuts[1].gauge
+    check("cutter_autoset_rejects_unsaved_cut_memory",
+        context.machine.selectProgram(2, cutterState)
+        and not context.machine.autoGauge(cutterState))
+    context.machine.selectProgram(1, cutterState)
+    context.machine.setGauge(firstGauge, cutterState); context.machine.saveGauge(cutterState)
+    context.machine.setGauge(firstGauge + 0.50, cutterState); context.machine.saveGauge(cutterState)
+    context.machine.setGauge(firstGauge + 1.00, cutterState); context.machine.saveGauge(cutterState)
+    context.machine.setGauge(firstGauge + 1.50, cutterState); context.machine.saveGauge(cutterState)
+    context.machine.setGauge(firstGauge, cutterState); context.machine.saveGauge(cutterState)
+    local cutOneMemory = context.machine.savedMeasurements(cutterState, 1)
+    check("cutter_keeps_three_recent_measurements_per_cut", #cutOneMemory == 3
+        and math.abs(cutOneMemory[1] - firstGauge) < 0.001
+        and math.abs(cutOneMemory[2] - firstGauge - 1.50) < 0.001
+        and math.abs(cutOneMemory[3] - firstGauge - 1.00) < 0.001)
+    check("cutter_autoset_cycles_newest_first", context.machine.autoGauge(cutterState)
+        and math.abs(context.machine.gauge - firstGauge) < 0.001
+        and context.machine.autoGauge(cutterState)
+        and math.abs(context.machine.gauge - firstGauge - 1.50) < 0.001
+        and context.machine.autoGauge(cutterState)
+        and math.abs(context.machine.gauge - firstGauge - 1.00) < 0.001
+        and context.machine.autoGauge(cutterState)
+        and math.abs(context.machine.gauge - firstGauge) < 0.001)
     local expectedBedOrientations = { 90, 0, 270, 180 }
 
     for cutNumber = 1, 4 do
@@ -113,9 +146,12 @@ function Test.run(context, check, jobs)
             context.machineScreen.mousereleased(cutterState, autoX, autoY, 1)
         else
             check("cutter_keyboard_rotate_" .. cutNumber, context.machine.keypressed("q", cutterState))
+            check("cutter_manual_save_for_program_" .. cutNumber,
+                context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
+                and context.machine.saveGauge(cutterState))
             check("cutter_keyboard_auto_gauge_" .. cutNumber, context.machine.keypressed("g", cutterState))
         end
-        check("cutter_auto_selects_next_program_" .. cutNumber,
+        check("cutter_auto_recalls_saved_program_" .. cutNumber,
             context.machine.programIndex == cutNumber
             and math.abs(context.machine.gauge - trackedPaper.cuts[cutNumber].gauge) < 0.001)
         check("cutter_position_" .. cutNumber, context.machine.keypressed("p", cutterState))
@@ -252,6 +288,10 @@ function Test.run(context, check, jobs)
     local fartherState, fartherJob, fartherPallet = ownershipState(
         "JOB-INPUT-FARTHER", context.config.cutterPlacement.spawnX + 116,
         context.config.cutterPlacement.spawnY + 38)
+    local expandedAnchorX, expandedAnchorY = context.CutterZones.inputAnchor(
+        fartherState, context.config.cutterPlacement)
+    fartherPallet.world.x, fartherPallet.world.y = expandedAnchorX + 110, expandedAnchorY
+    fartherPallet.world.fromX, fartherPallet.world.fromY = fartherPallet.world.x, fartherPallet.world.y
     local nearerJob = jobs.createOffer({
         id = "JOB-INPUT-NEARER", company = "Nearest Input Co.",
         sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
@@ -272,6 +312,20 @@ function Test.run(context, check, jobs)
     check("cutter_selects_nearest_input_pallet", sortedInputs[1]
         and sortedInputs[1].pallet == nearerPallet
         and sortedInputs[2].pallet == fartherPallet)
+    check("cutter_expanded_radius_detects_distant_pallet",
+        context.config.cutterPlacement.palletInputZoneRadius >= 120
+        and sortedInputs[2] and sortedInputs[2].pallet == fartherPallet)
+    context.machine.reset(fartherState)
+    context.machineScreen.enter()
+    check("cutter_multi_pallet_menu_lists_every_candidate",
+        context.machineScreen.keypressed(fartherState, "l")
+        and #context.machineScreen.loadMenuOptions() == 2)
+    check("cutter_multi_pallet_menu_can_choose_non_nearest",
+        context.machineScreen.keypressed(fartherState, "2")
+        and context.machine.pallet == fartherPallet
+        and fartherPallet.location == "at_cutter"
+        and nearerPallet.location == "warehouse")
+    context.machine.reset(fartherState)
 
     local outputZoneState = context.State.new()
     local cutterLocations = {

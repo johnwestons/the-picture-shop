@@ -177,6 +177,8 @@ function Jobs.createOffer(spec)
         company = spec.company,
         sourceSize = copy(normalized.source),
         finishedSize = copy(normalized.finished),
+        artworkKey = type(spec.artworkKey) == "string" and spec.artworkKey
+            or (spec.details and spec.details.artworkKey) or "flower",
         details = copy(spec.details or {}),
         difficulty = spec.difficulty or (spec.details and spec.details.difficulty) or "easy",
         packaging = spec.packaging == "boxed" and "boxed" or "flat",

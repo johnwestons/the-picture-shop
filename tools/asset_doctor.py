@@ -44,6 +44,9 @@ def audit(root: Path) -> list[dict[str, object]]:
         "boxed_paper_pallet_stages": generated / "boxed-paper-pallet-stages-atlas.png",
         "polar_back_button": generated / "polar-back-button-states-strip.png",
     }
+    artwork_paths = sorted((generated / "artwork").glob("*.png"))
+    for artwork_path in artwork_paths:
+        paths[f"artwork_{artwork_path.stem}"] = artwork_path
     checks: list[dict[str, object]] = []
     images: dict[str, Image.Image] = {}
 
@@ -263,6 +266,15 @@ def audit(root: Path) -> list[dict[str, object]]:
                     f"size={image.size} alpha_range=({minimum}, {maximum})",
                 )
             )
+
+    for name in sorted(key for key in images if key.startswith("artwork_")):
+        image = images[name]
+        minimum, maximum = image.getchannel("A").getextrema()
+        checks.append(result(
+            f"{name}_contract",
+            image.size == (128, 128) and minimum == 0 and maximum >= 250 and image.getchannel("A").getbbox() is not None,
+            f"size={image.size} alpha_range=({minimum}, {maximum})",
+        ))
 
     wrapper = images.get("skid_wrapper_directions")
     if wrapper:

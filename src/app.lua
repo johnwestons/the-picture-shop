@@ -24,6 +24,7 @@ local Receiving = require("src.receiving")
 local Save = require("src.save")
 local Shop = require("src.shop")
 local Smoke = require("src.smoke")
+local SpriteMotionLab = require("src.screens.sprite_motion_lab")
 local State = require("src.state")
 local TitleScreen = require("src.screens.title_screen")
 local Truck = require("src.truck")
@@ -31,9 +32,11 @@ local TruckInventoryScreen = require("src.screens.truck_inventory_screen")
 local VendorScreen = require("src.screens.vendor_screen")
 local Viewport = require("src.viewport")
 local World = require("src.world")
+local WorldRenderer = require("src.world_renderer")
 
 local App = {}
 local state = State.new()
+local spriteLabActive = false
 
 local function saveCurrent()
     if not state.activeSlot then return false end
@@ -79,6 +82,7 @@ function App.load()
     if Smoke.requested() then love.filesystem.setIdentity("the-picture-shop-smoke") end
     Assets.load()
     CharacterAssets.load()
+    spriteLabActive = Smoke.spriteLabRequested()
     local startupTextureBytes = Assets.textureBytes() + CharacterAssets.textureBytes()
     local assetsHealthy, assetFailures = Assets.assertHealthy()
     local charactersHealthy, characterFailures = CharacterAssets.assertHealthy()
@@ -136,12 +140,15 @@ function App.load()
             truckInventoryScreen = TruckInventoryScreen,
             vendorScreen = VendorScreen,
             world = World,
+            worldRenderer = WorldRenderer,
             startupTextureBytes = startupTextureBytes,
         })
+        if spriteLabActive then SpriteMotionLab.enter(CharacterAssets) end
     end
 end
 
 function App.update(dt)
+    if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
     if state.screen == "asset_error" then
         return
     elseif state.screen == "title" then
@@ -168,6 +175,12 @@ end
 function App.draw()
     love.graphics.clear(0.04, 0.05, 0.07)
     Viewport.beginDraw(Config.baseWidth, Config.baseHeight)
+    if spriteLabActive then
+        SpriteMotionLab.draw(CharacterAssets)
+        Viewport.endDraw()
+        Smoke.drawn()
+        return
+    end
     local desiredPack = state.screen == "title" and "menu"
         or state.screen == "machine"
             and (state.machineType == "skid_wrapper" and "wrapper" or "cutter") or nil
@@ -210,6 +223,7 @@ function App.draw()
 end
 
 function App.keypressed(key)
+    if spriteLabActive then SpriteMotionLab.keypressed(key, CharacterAssets); return end
     if state.screen == "asset_error" then
         if key == "escape" or key == "q" then love.event.quit() end
         return
@@ -242,7 +256,7 @@ function App.mousemoved(x, y)
 end
 
 function App.quit()
-    saveCurrent()
+    if not spriteLabActive then saveCurrent() end
 end
 
 return App

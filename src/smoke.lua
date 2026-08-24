@@ -17,6 +17,10 @@ local function requested()
     return os.getenv("PICTURE_SHOP_SMOKE") == "1"
 end
 
+function Smoke.spriteLabRequested()
+    return requested() and os.getenv("PICTURE_SHOP_SPRITE_LAB") == "1"
+end
+
 local function writeLine(text)
     if not Smoke.report then return end
     Smoke.report:write(text .. "\n")
@@ -92,7 +96,7 @@ local function runChecks(context)
         string.format("%.2f MiB", context.startupTextureBytes / 1024 / 1024))
     check("screen_packs_start_unloaded", context.assets.activePackName() == nil
         and context.assets.get("polarOperatorConsole") == nil
-        and context.assets.get("wrappedPalletStages") == nil)
+        and context.assets.get("wrappedPalletStages") ~= nil)
     check("shared_back_button_stays_loaded", context.assets.get("polarBackButton") ~= nil)
     local dimensionsValid, dimensionError = context.assets.dimensionDiagnostic(
         "assets/generated/test-malformed-atlas.png", 1251, 1252, 1252, 1252)
@@ -231,8 +235,24 @@ local function runChecks(context)
         for action, count in pairs(actions) do
             local image, quad, actual = context.characterAssets.get(character, action, 1)
             check(character .. "_" .. action .. "_loaded", image ~= nil and quad ~= nil and actual == count)
+            local maximumHeight, minimumHeight = 0, math.huge
+            for frame = 1, count do
+                local metrics = context.characterAssets.normalizedFrameMetrics(character, action, frame)
+                maximumHeight = math.max(maximumHeight, metrics and metrics.height or 0)
+                minimumHeight = math.min(minimumHeight, metrics and metrics.height or math.huge)
+            end
+            check(character .. "_" .. action .. "_normalized_frame_height_stable",
+                minimumHeight > 0 and maximumHeight / minimumHeight <= 1.03)
+        end
+        local idle = context.characterAssets.normalizedFrameMetrics(character, "idle", 1)
+        for action in pairs(actions) do
+            local metrics = context.characterAssets.normalizedFrameMetrics(character, action, 1)
+            check(character .. "_" .. action .. "_matches_character_scale",
+                idle and metrics and math.abs(metrics.height - idle.height) / idle.height <= 0.03)
         end
     end
+    check("business_seated_art_receives_source_scale_correction",
+        context.characterAssets.getNormalization("business-dragon", "sit") > 3.9)
     check("character_actions_load_on_demand", context.characterAssets.residentActionCount() > 0)
     context.characterAssets.retainCharacters({ ["business-dragon"] = true })
     check("inactive_character_packs_release",
@@ -260,6 +280,30 @@ local function runChecks(context)
     check("loaded_pallet_jack_asset_loaded", context.assets.get("palletJackLoaded") ~= nil)
     check("vendor_product_pallet_atlas_loaded", context.assets.get("vendorProductPallets") ~= nil)
     check("boxed_paper_pallet_stages_loaded", context.assets.get("boxedPaperPalletStages") ~= nil)
+    for artworkKey in pairs(context.config.paths.artwork or {}) do
+        check("artwork_" .. artworkKey .. "_loaded", context.assets.getArtwork(artworkKey) ~= nil)
+    end
+    local artworkRegistry, artworkOrderValid = {}, true
+    for _, artworkKey in ipairs(context.config.artworkOrder or {}) do
+        if artworkRegistry[artworkKey] or not context.config.paths.artwork[artworkKey] then
+            artworkOrderValid = false
+        end
+        artworkRegistry[artworkKey] = true
+    end
+    local artworkPathCount = 0
+    for artworkKey in pairs(context.config.paths.artwork or {}) do
+        artworkPathCount = artworkPathCount + 1
+        if not artworkRegistry[artworkKey] then artworkOrderValid = false end
+    end
+    check("artwork_job_rotation_covers_full_registry", artworkOrderValid
+        and artworkPathCount == #(context.config.artworkOrder or {}))
+    local artworkOfferState = context.State.new()
+    for sequence, artworkKey in ipairs(context.config.artworkOrder or {}) do
+        artworkOfferState.nextJobId = sequence
+        local offer = context.jobService.createNextOffer(artworkOfferState, 1000 + sequence)
+        if not offer or offer.artworkKey ~= artworkKey then artworkOrderValid = false; break end
+    end
+    check("every_artwork_texture_reaches_a_job_offer", artworkOrderValid)
     for frame = 1, context.config.loadingBay.frameCount do
         check("loading_bay_door_frame_" .. frame,
             context.assets.getQuad("loadingBayDoor" .. frame) ~= nil)
@@ -281,6 +325,14 @@ local function runChecks(context)
                 context.assets.getQuad("vendorProductPallet" .. row .. "_" .. frame) ~= nil)
         end
     end
+    local wrappedImage, wrappedSprite, wrappedScale = context.worldRenderer.palletVisual({
+        vendor = false,
+        pallet = { packaging = "flat", wrapped = true, direction = "northwest", rotation = 1 },
+    })
+    check("wrapped_flat_pallet_uses_finished_sprite_without_overlay",
+        wrappedImage == "wrappedPalletStages"
+        and wrappedSprite == "wrappedPalletStage3"
+        and math.abs(wrappedScale - context.config.palletLogistics.drawScale * 0.5) < 0.0001)
     for stage = 1, 5 do
         for frame = 1, 4 do
             check("boxed_paper_pallet_stage_" .. stage .. "_direction_" .. frame,
@@ -318,7 +370,7 @@ local function runChecks(context)
     end
     check("screen_pack_releases_to_world", context.assets.activatePack(nil)
         and context.assets.activePackName() == nil
-        and context.assets.get("wrappedPalletStages") == nil
+        and context.assets.get("wrappedPalletStages") ~= nil
         and context.assets.get("loadedPaperPallet") == nil)
     if background and mask then
         local backgroundWidth, backgroundHeight = background:getDimensions()
@@ -390,10 +442,14 @@ local function runChecks(context)
     truck:update(context.config.truck.backingDuration * 0.5, "open")
     local midTruck = truck:snapshot()
     local startX, parkedX = context.config.truck.start.x, context.config.truck.parked.x
-    check("truck_backing_interpolates", midTruck.backingProgress > 0.45
+    local startY, parkedY = context.config.truck.start.y, context.config.truck.parked.y
+    check("truck_reverses_straight_toward_dock", midTruck.backingProgress > 0.45
         and midTruck.backingProgress < 0.55
-        and midTruck.x > math.min(startX, parkedX)
-        and midTruck.x < math.max(startX, parkedX))
+        and math.abs(midTruck.x - startX) < 0.01
+        and math.abs(startX - parkedX) < 0.01
+        and midTruck.y > math.min(startY, parkedY)
+        and midTruck.y < math.max(startY, parkedY)
+        and parkedY < startY)
     local apertureCenterX = 0
     for _, point in ipairs(context.config.truck.aperture) do apertureCenterX = apertureCenterX + point.x end
     apertureCenterX = apertureCenterX / #context.config.truck.aperture
@@ -482,7 +538,8 @@ local function runChecks(context)
     check("shop_sell_balance", economy.money == startingMoney - 13 and economy.inventory.prints == 0)
 
     local function verifyVendorInventory()
-    local vendorState = context.State.new()
+        local vendorState = context.State.new()
+        local starterCartons = vendorState.inventory.stock.shipping_cartons or 0
     vendorState.money = 500
     local moneyBeforeLockedSupply = vendorState.money
     check("vendor_blocks_supply_without_consumer", not context.procurement.buy(vendorState, 2, 1)
@@ -500,7 +557,7 @@ local function runChecks(context)
         context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
     check("vendor_product_unloads_to_pallet", unloaded and vendorRemaining == 0
         and productPallet.location == "warehouse"
-        and vendorState.inventory.stock.shipping_cartons == 100)
+        and vendorState.inventory.stock.shipping_cartons == starterCartons + 100)
     vendorState.palletJack.x, vendorState.palletJack.y = productPallet.world.x, productPallet.world.y
     check("vendor_pallet_jack_mount", context.PalletJack.use(vendorState, context.config.palletJack, function() return true end))
     local vendorLifted, vendorAction = context.PalletJack.use(vendorState, context.config.palletJack, function() return true end)
@@ -531,17 +588,18 @@ local function runChecks(context)
     check("vendor_carton_and_film_feed_wrapper", context.wrapper.start(vendorState))
     context.wrapper.update(context.wrapper.cycleTime + 0.01, vendorState)
     check("vendor_wrapper_consumes_delivered_supplies", vendorBoxedPallet.wrapped
-        and vendorState.inventory.stock.shipping_cartons == 99
+        and vendorState.inventory.stock.shipping_cartons == starterCartons + 99
         and vendorState.inventory.plasticWrapRolls == 13
         and vendorState.inventory.plasticWrapUses == 10)
     local visibleStock = context.procurement.inventoryRows(vendorState)
     check("vendor_supplies_visible_in_office_inventory", visibleStock[3].id == "shipping_cartons"
-        and visibleStock[3].quantity == 99
+        and visibleStock[3].quantity == starterCartons + 99
         and visibleStock[4].id == "stretch_film"
         and visibleStock[4].quantity == 13)
     context.wrapper.reset(vendorState)
 
     local noCartonState = context.State.new()
+    noCartonState.inventory.stock.shipping_cartons = 0
     noCartonState.jobs.active = { {
         id = "NO-CARTON-JOB", packaging = "boxed", pallets = { {
             id = "NO-CARTON-P01", number = 1, status = "cut", location = "cutter_output",
@@ -570,6 +628,8 @@ local function runChecks(context)
     for cutNumber = 1, 4 do
         context.machine.selectProgram(cutNumber, paperSupplyState)
         context.machine.keypressed("q", paperSupplyState)
+        context.machine.setGauge(context.machine.paper.cuts[cutNumber].gauge, paperSupplyState)
+        context.machine.saveGauge(paperSupplyState)
         context.machine.autoGauge(paperSupplyState)
         context.machine.position(paperSupplyState)
         context.machine.update(context.machine.transferTime + 0.01, paperSupplyState)
@@ -865,11 +925,16 @@ function Smoke.drawn()
         love.event.quit(1)
     elseif Smoke.completed and Smoke.drawCount >= 3 then
         writeLine("PASS render_three_frames")
-        writeLine("SMOKE_OK")
+        writeLine(Smoke.spriteLabRequested() and "SMOKE_OK_SPRITE_LAB" or "SMOKE_OK")
         Smoke.report:close()
+        Smoke.report = nil
         print("SMOKE_OK: module checks and three draw frames completed")
         io.flush()
-        love.event.quit(0)
+        if Smoke.spriteLabRequested() then
+            Smoke.active = false
+        else
+            love.event.quit(0)
+        end
     end
 end
 

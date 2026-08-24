@@ -18,9 +18,10 @@ The runtime boundary is organized by residency pack. `src/assets.lua` validates 
 | `palletJack` / `palletJackLoaded` | 1024x256 each, 4x1 | Pallet-jack states |
 | `vendorProductPallets` | 1252x1252, 4x4 | Delivered supply pallets |
 | `boxedPaperPalletStages` | 1400x1120, 5x4 | Boxed customer pallets |
+| `wrappedPalletStages` | 1536x512, 3x1 | Wrapper progress and completed flat pallets |
 | `polarBackButton` | 384x128, 3x1 | Shared Back/Exit control |
 
-Configured `artwork:*` images are optional library entries resolved by saved artwork key. Visitor character action strips are validated from `Config.characters`, loaded only when that action is drawn, and released when the visitor leaves.
+Configured `artwork:*` images are 128x128 library entries resolved by saved artwork key and rotated through job offers. Visitor character action strips are validated from `Config.characters`, loaded only when that action is drawn, normalized from precomputed alpha bounds, and released when the visitor leaves.
 
 ## Screen packs
 
@@ -28,9 +29,9 @@ Configured `artwork:*` images are optional library entries resolved by saved art
 |---|---|---|
 | Menu | `polarOperatorConsole` (768x512), `cutterControlButtons` (512x128) | Title only |
 | Cutter | Menu art plus `cutterClamp` and `cutterBlade` (3840x512 each) | Cutter console only |
-| Wrapper | `wrappedPalletStages` (1536x512), `loadedPaperPallet` (256x256) | Wrapper console only |
+| Wrapper | `loadedPaperPallet` (256x256) | Wrapper console only |
 
-Menu, cutter, and wrapper packs are mutually exclusive. Transition tests verify load, replacement, and release. The measured retained startup set is 42.69 MiB with no character action loaded.
+Menu, cutter, and wrapper packs are mutually exclusive. Transition tests verify load, replacement, and release. The smoke gate enforces a retained startup set below 100 MiB with no character action loaded.
 
 ## Deferred source and backlog art
 

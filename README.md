@@ -13,9 +13,9 @@ The launcher finds LÖVE on `PATH`, in a local `runtime` folder, or in the norma
 
 The title screen has three local save slots. Use **W/S** or the arrow keys to select a slot, **N** for a new shop, **C** or **Enter** to continue, **D** to delete, and **Q** or **Escape** to quit. Confirmation prompts accept **Y** or **Enter** and cancel with **N** or **Escape**. Starting a new shop in an occupied slot always shows an overwrite warning; cancelling it leaves the existing save unchanged. Saves are versioned and retain money, stock, finished prints, completed cuts, and player position.
 
-Save format 3 retains active, completed, and declined jobs, accounts receivable, procurement,
+Save format 4 retains active, completed, and declined jobs, accounts receivable, procurement,
 stock, film, machine placements, pallet-jack ownership, wrapper placement, and the next stable
-job number. Version-1 and version-2 slots migrate when loaded. Saves are validated in a temporary
+job number, plus the cutter's player-saved measurement history. Version-1 through version-3 slots migrate when loaded. Saves are validated in a temporary
 file before promotion and retain the previous valid slot as a backup. A damaged primary recovers
 automatically; a slot with no valid recovery copy is marked as damaged instead of appearing empty.
 
@@ -29,6 +29,9 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Every pallet now owns a stable paper-batch ID, job artwork ID, live width/height, orientation,
   four margins, four-cut program, and complete cut history. Easy jobs use matching opposing margins;
   medium and hard work uses asymmetric margins that require different backgauge positions.
+- Each generated job now carries an `artworkKey` and each paper batch carries the same key alongside
+  its stable artwork ID. Every 128x128 texture in `assets/generated/artwork/` is registered and rotates
+  through new job offers; the cutter preview turns the selected texture with the live paper orientation.
 - Accepting a ticket adds it to active jobs as `awaiting_delivery` and records accounts receivable;
   cash and physical pallet inventory do not increase until their later workflow events.
 - Declining archives the numbered ticket, cancels its quoted pallets, and sends the customer out.
@@ -47,7 +50,7 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Every scene and GUI has a visible mouse-clickable **Back**, **Exit**, or **Exit to Menu** control using
   the shared Polar-style physical button sprite. The visible button and **Escape** use the same close
   behavior on every screen; customer and vendor closes leave the visitor waiting.
-- Accepting a job schedules its inbound truck. The loading bay opens automatically before the truck backs in.
+- Accepting a job schedules its inbound truck. The loading bay opens automatically before the truck reverses straight down the dock centerline into the door.
 - At a parked truck's rear, press **E** to open or close its animated cargo door. The wall door cannot close while a truck occupies the bay.
 - When the truck cargo door is open, press **E** to open its manifest. Click **Unload** for each
   pallet; every click animates a uniquely tracked paper pallet from the truck onto the warehouse floor.
@@ -70,12 +73,12 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Near an unoccupied loading bay, press **E** to open or close the roll-up door manually.
 - Near an unloaded cutter, press **M** to enter machine-relocation mode. Use **WASD/arrow keys** to
   move it slowly, **Q** to rotate it 90 degrees, and **E** to lock it in its new floor position.
-- Cutter: lower an unfinished customer pallet into the feed-side staging area beside the cutter, then open the console. The feed side follows the cutter's current orientation; when several pallets are staged there, the nearest one loads first. A pallet still owned by the jack, on the wrong side, or too far away cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
-  **L** loads the staged paper, **G** selects the next unfinished cut and loads its saved backgauge value, and **P** pushes/positions;
+- Cutter: lower unfinished customer pallets into the expanded feed-side staging area beside the cutter, then open the console. The feed side follows the cutter's current orientation. **LOAD JOB** or **L** opens a nearby-pallet menu, where the operator chooses the exact pallet to load. A pallet still owned by the jack, on the wrong side, or outside the 140-pixel feed radius cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
+  **M** saves the current measurement for the selected cut number. **G / AUTO SET** recalls only player-saved measurements, newest first, and cycles through the last three values saved separately for CUT 1, CUT 2, CUT 3, or CUT 4. **P** pushes/positions;
   **Q** rotate the paper counter-clockwise into the next front-edge cutting position, **Space** clamp,
   and **J + K** together start the guarded cut. The active margin is always nearest the screen.
-- Cutter repeat programming: **M** saves the current gauge, **V** recalls it, **[ / ]** changes the
-  selected cut program, and **U** pulls completed paper off the bed and returns it to its pallet.
+- Cutter repeat programming: **V** recalls the newest measurement for the selected cut, **[ / ]** changes
+  the selected cut program, and **U** pulls completed paper off the bed and returns it to its pallet.
 - Cutter output searches the surrounding floor for a walkable position clear of walls, the truck,
   equipment, the pallet jack, and other pallets. If every output zone is blocked, move the obstruction,
   reopen the console, press **L** to resume the completed batch, and then press **U** again.
@@ -86,11 +89,21 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 
 The cutter table starts clear and paper appears only after **L**. Inventory is consumed only when a safe cut finishes.
 
+New shops begin with 20 shipping cartons and one full stretch-film roll (11 wraps), enough to run the first basic boxed and flat packaging work without an immediate supply order. A completed flat pallet uses the finished wrapped-pallet sprite in the warehouse.
+
+Artwork texture plan: keep the job's `artworkKey` as the saved identity, resolve it through the artwork
+library at load time, and composite the transparent motif into the paper surface. Cutting should preserve
+the artwork coordinates while reducing the live sheet bounds; a later press workflow can consume the same
+paper/artwork record and incrementally reveal printed sheets as the press runs. New artwork should be added
+as a 128x128 transparent nearest-filtered PNG and registered in `Config.paths.artwork`.
+
 ## Validation
 
 - Double-click `RUN_SMOKE_TEST.bat` to run the isolated domain suites, focused engine integrations,
   audit-coverage manifest, and three-frame render gate. Its report is written to
   `.stabilization/smoke-report.rpt`; the suite layout is documented in `docs/testing.md`.
+- Double-click `RUN_SPRITE_MOTION_TEST.bat` for the visible sprite motion lab. It runs the same smoke
+  checks, then keeps an animated raw-versus-normalized character comparison open until **Esc**.
 - Run `python tools/asset_doctor.py --report output/asset-audit.json` to audit the project-bound raster assets without changing them.
 - Warehouse props are ready in `assets/generated/`: `empty-pallet.png`, `paper-stack.png`, `toolbox-small.png`, `toolbox-large.png`, and the three-variant `paper-storage-boxes-strip.png`.
 - The active warehouse background is `assets/generated/warehouse-layout-final.png`: the approved 1536x1024 warehouse sprite with factory floor in front, loading dock upper-left, separate office upper-middle, and a client lounge in the upper-right with a couch, two armchairs, and a coffee table. Its matching walkmask is `warehouse-layout-final-walkmask.png`.

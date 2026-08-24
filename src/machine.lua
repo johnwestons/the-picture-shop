@@ -11,7 +11,7 @@ local Machine = {
     _leftAt = -math.huge, _rightAt = -math.huge, _clock = 0,
     simultaneity = 0.30, cycleTime = 1.25, transferTime = 0.45,
     repeatCycleTime = 1.0,
-    gauge = 0, programIndex = 1, savedGauge = nil,
+    gauge = 0, programIndex = 1, savedGauge = nil, autoCycle = {},
     paper = nil, pallet = nil, job = nil, legacyPaper = false, paperTravel = 0,
     pendingOutput = nil, outputResolver = nil,
 }
@@ -80,7 +80,7 @@ function Machine.reset(state)
     Machine.clamp, Machine.clampProgress, Machine.bladeProgress = false, 0, 0
     Machine.leftDown, Machine.rightDown = false, false
     Machine.barrierClear, Machine.emergencyStopped = true, false
-    Machine.gauge, Machine.programIndex, Machine.savedGauge = 0, 1, nil
+    Machine.gauge, Machine.programIndex, Machine.savedGauge, Machine.autoCycle = 0, 1, nil, {}
     Machine.paper, Machine.pallet, Machine.job = nil, nil, nil
     Machine.legacyPaper, Machine.paperTravel, Machine.pendingOutput = false, 0, nil
     message(state, "Cutter ready. Select a pallet paper batch and load it.")
@@ -92,9 +92,23 @@ function Machine.setOutputResolver(resolver)
     Machine.outputResolver = type(resolver) == "function" and resolver or nil
 end
 
-function Machine.load(state)
+function Machine.load(state, palletId)
     if Machine.step ~= "idle" and Machine.step ~= "finished" then return false end
-    local selected = availablePapers(state)[1]
+    local candidates = availablePapers(state)
+    local selected
+    if palletId ~= "__generic_stock__" then
+        if palletId then
+            for _, candidate in ipairs(candidates) do
+                if candidate.pallet.id == palletId then selected = candidate; break end
+            end
+            if not selected then
+                message(state, "That pallet is no longer available in the cutter load zone.")
+                return false
+            end
+        else
+            selected = candidates[1]
+        end
+    end
     if selected then
         local wasWarehouse = selected.pallet.location == "warehouse"
         if wasWarehouse then
@@ -145,6 +159,7 @@ function Machine.selectProgram(index, state)
     if not Machine.paper or type(index) ~= "number" then return false end
     index = math.max(1, math.min(#Machine.paper.cuts, math.floor(index)))
     Machine.programIndex = index
+    Machine.autoCycle[index] = 1
     local cut = Machine.paper.cuts[index]
     message(state, string.format("Program %d: trim %s margin %.2f in.", index, cut.edge, cut.margin))
     return true
@@ -169,32 +184,69 @@ function Machine.setGauge(value, state)
     return true
 end
 
+local function measurements(state, cutNumber, create)
+    if type(state) ~= "table" then return nil end
+    if type(state.cutterMemory) ~= "table" then
+        if not create then return nil end
+        state.cutterMemory = {}
+    end
+    local key = tostring(math.max(1, math.min(4, math.floor(cutNumber or 1))))
+    if type(state.cutterMemory[key]) ~= "table" then
+        if not create then return nil end
+        state.cutterMemory[key] = {}
+    end
+    return state.cutterMemory[key]
+end
+
+function Machine.savedMeasurements(state, cutNumber)
+    local source, result = measurements(state, cutNumber or Machine.programIndex, false), {}
+    for index, value in ipairs(source or {}) do result[index] = value end
+    return result
+end
+
 function Machine.autoGauge(state)
-    if not Machine.paper then return false end
-    -- AUTO SET always follows the work order.  The active cut is the next
-    -- cut that has not been completed, so the button both selects that
-    -- program number and recalls its saved backgauge setting.
-    local nextIndex = math.max(1, math.min(#Machine.paper.cuts, Machine.paper.activeCut or 1))
-    local cut = Machine.paper.cuts[nextIndex]
-    if not cut then return false end
-    Machine.programIndex = nextIndex
-    Machine.gauge = cut.gauge
-    message(state, string.format("AUTO SET selected next cut P%d and moved the backgauge to %.2f in.",
-        Machine.programIndex, Machine.gauge))
+    if not Machine.paper or Machine.clamp or Machine.step == "cutting" then return false end
+    local cutNumber = Machine.programIndex
+    local saved = measurements(state, cutNumber, false)
+    if not saved or #saved == 0 then
+        message(state, string.format(
+            "AUTO SET P%d has no player-saved measurement. Type a gauge and press SAVE first.", cutNumber))
+        return false
+    end
+    local cursor = math.max(1, math.min(#saved, Machine.autoCycle[cutNumber] or 1))
+    Machine.gauge = saved[cursor]
+    Machine.savedGauge = Machine.gauge
+    Machine.autoCycle[cutNumber] = cursor % #saved + 1
+    message(state, string.format("AUTO SET P%d recalled %.2f in. (%d of %d saved).",
+        cutNumber, Machine.gauge, cursor, #saved))
     return true
 end
 
 function Machine.saveGauge(state)
-    if not Machine.paper then return false end
+    if not Machine.paper or Machine.clamp or Machine.step == "cutting" then return false end
     Machine.savedGauge = Machine.gauge
-    message(state, string.format("Saved repeat-cut gauge %.2f in.", Machine.savedGauge))
+    local cutNumber = Machine.programIndex
+    local saved = measurements(state, cutNumber, true)
+    for index = #saved, 1, -1 do
+        if math.abs(saved[index] - Machine.gauge) < 0.001 then table.remove(saved, index) end
+    end
+    table.insert(saved, 1, Machine.gauge)
+    while #saved > 3 do table.remove(saved) end
+    Machine.autoCycle[cutNumber] = 1
+    message(state, string.format("Saved P%d gauge %.2f in. (%d of 3 memory slots used).",
+        cutNumber, Machine.savedGauge, #saved))
     return true
 end
 
 function Machine.recallGauge(state)
-    if not Machine.savedGauge or Machine.clamp then return false end
-    Machine.gauge = Machine.savedGauge
-    message(state, string.format("Recalled gauge %.2f in.", Machine.gauge))
+    if Machine.clamp then return false end
+    local saved = measurements(state, Machine.programIndex, false)
+    if not saved or #saved == 0 then
+        message(state, string.format("No saved measurement exists for P%d.", Machine.programIndex))
+        return false
+    end
+    Machine.gauge, Machine.savedGauge = saved[1], saved[1]
+    message(state, string.format("Recalled newest P%d gauge %.2f in.", Machine.programIndex, Machine.gauge))
     return true
 end
 

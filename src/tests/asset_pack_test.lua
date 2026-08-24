@@ -18,7 +18,7 @@ function Test.run(context, check)
         and context.assets.get("cutterClamp") == nil
         and context.assets.get("wrappedPalletStages") ~= nil
         and context.assets.activatePack(nil)
-        and context.assets.get("wrappedPalletStages") == nil)
+        and context.assets.get("wrappedPalletStages") ~= nil)
 end
 
 return Test

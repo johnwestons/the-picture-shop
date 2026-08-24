@@ -10,11 +10,14 @@ local Screen = {
     gaugeFocused = false,
     gaugeText = "0.00",
     gaugeReplaceOnType = true,
+    loadMenu = nil,
 }
 local buttons = {}
 local gaugeInput = { x = 55, y = 263, width = 182, height = 28 }
 local exitButton = { x = 790, y = 28, width = 132, height = 42 }
 local wrapButton = { x = 650, y = 520, width = 220, height = 54 }
+local loadMenuRect = { x = 190, y = 126, width = 580, rowHeight = 54 }
+local loadMenuPageSize = 7
 
 local function box(x, y, width, height, fill, line, radius)
     love.graphics.setColor(fill)
@@ -40,7 +43,7 @@ local function layout()
     addButton("save", "SAVE", 55, 334, 62, 28, "m")
     addButton("recall", "RECALL", 123, 334, 70, 28, "v")
     addButton("repeat", "RUN NEXT LIFT", 201, 334, 142, 28, "t")
-    addButton("load", "LOAD BED", 54, 478, 96, 34, "l")
+    addButton("load", "LOAD JOB", 54, 478, 96, 34, "l")
     addButton("position", "PUSH / POS", 158, 478, 100, 34, "p")
     addButton("rotate", "ROTATE CCW", 266, 478, 100, 34, "q")
     addButton("clamp", "CLAMP", 374, 478, 84, 34, "space")
@@ -66,7 +69,55 @@ end
 function Screen.enter()
     Screen.pressedAction = nil
     Screen.gaugeFocused = true
+    Screen.loadMenu = nil
     formatGauge()
+end
+
+local function openLoadMenu(state)
+    if Machine.step ~= "idle" and Machine.step ~= "finished" then
+        state.message = "Finish or unload the current cutter batch before choosing another pallet."
+        return false
+    end
+    local options = {}
+    for _, candidate in ipairs(Machine.availablePapers(state)) do
+        local world = candidate.pallet.world or {}
+        options[#options + 1] = {
+            palletId = candidate.pallet.id,
+            title = candidate.pallet.id .. "  |  " .. tostring(candidate.job.company or candidate.job.id),
+            detail = string.format("%s  |  %d sheets  |  %.0f px from feed zone",
+                tostring(candidate.paper.artworkKey or "artwork"),
+                candidate.pallet.remainingSheets or candidate.pallet.initialSheets or 0,
+                math.sqrt(candidate.inputDistance or 0)),
+            x = world.x, y = world.y,
+        }
+    end
+    if #options == 0 and Procurement.paperAvailable(state) > 0 then
+        options[1] = {
+            palletId = "__generic_stock__",
+            title = "GENERIC SHOP STOCK",
+            detail = string.format("%d stock sheets available", Procurement.paperAvailable(state)),
+        }
+    end
+    if #options == 0 then
+        state.message = "No unfinished pallet is inside the cutter's expanded load radius."
+        return false
+    end
+    Screen.loadMenu = { options = options, selected = 1 }
+    Screen.gaugeFocused = false
+    state.message = "Choose which nearby pallet to load onto the cutter."
+    return true
+end
+
+local function loadSelected(state, index)
+    local menu = Screen.loadMenu
+    local option = menu and menu.options[index or menu.selected]
+    if not option then return false end
+    local succeeded = Machine.load(state, option.palletId)
+    if succeeded then
+        Screen.loadMenu = nil
+        formatGauge()
+    end
+    return succeeded
 end
 
 function Screen.syncGauge()
@@ -107,7 +158,7 @@ local function artworkColor(id, offset)
     return 0.25 + (hash % 55) / 100, 0.25 + ((hash * 3) % 55) / 100, 0.25 + ((hash * 7) % 55) / 100
 end
 
-local function drawPaper()
+local function drawPaper(assets)
     local paper = Machine.paper
     if not Machine.loaded or not paper then return end
     local step, t = Machine.step, 1
@@ -161,8 +212,20 @@ local function drawPaper()
     local r2, g2, b2 = artworkColor(paper.artworkId, 2)
     love.graphics.setColor(r1, g1, b1)
     love.graphics.rectangle("fill", innerX, innerY, innerWidth, innerHeight)
-    love.graphics.setColor(r2, g2, b2)
-    love.graphics.rectangle("fill", innerX + innerWidth * 0.25, innerY + innerHeight * 0.25, innerWidth * 0.5, innerHeight * 0.5)
+    local artwork = assets and assets.getArtwork and assets.getArtwork(paper.artworkKey)
+    if artwork then
+        local angle = Screen.artworkRotation(paper)
+        local quarterTurn = paper.orientation % 180 == 90
+        local scaleX = (quarterTurn and innerHeight or innerWidth) / artwork:getWidth()
+        local scaleY = (quarterTurn and innerWidth or innerHeight) / artwork:getHeight()
+        love.graphics.setColor(1, 1, 1, 0.96)
+        love.graphics.draw(artwork, innerX + innerWidth / 2, innerY + innerHeight / 2,
+            angle, scaleX, scaleY, artwork:getWidth() / 2, artwork:getHeight() / 2)
+    else
+        love.graphics.setColor(r2, g2, b2)
+        love.graphics.rectangle("fill", innerX + innerWidth * 0.25, innerY + innerHeight * 0.25,
+            innerWidth * 0.5, innerHeight * 0.5)
+    end
     love.graphics.setColor(0.86, 0.18, 0.18, 0.9)
     love.graphics.setLineStyle("rough")
     love.graphics.rectangle("line", innerX, innerY, innerWidth, innerHeight)
@@ -186,7 +249,7 @@ local function drawMachine(assets)
         love.graphics.setColor(1, 1, 1)
         love.graphics.draw(image, 400, 78, 0, 520 / image:getWidth(), 347 / image:getHeight())
     end
-    drawPaper()
+    drawPaper(assets)
     drawMotion(assets, "cutterClamp", "cutterClamp", Machine.clampProgress)
     if Machine.step == "cutting" then drawMotion(assets, "cutterBlade", "cutterBlade", Machine.progress / Machine.cycleTime) end
 end
@@ -229,6 +292,36 @@ local function drawTouchscreen()
     love.graphics.printf(shown, gaugeInput.x + 50, gaugeInput.y + 8, gaugeInput.width - 58, "right")
     for _, button in ipairs(buttons) do
         if button.y < 400 then drawButton(button) end
+    end
+end
+
+local function drawLoadMenu()
+    local menu = Screen.loadMenu
+    if not menu then return end
+    love.graphics.setColor(0, 0, 0, 0.72)
+    love.graphics.rectangle("fill", 0, 0, Config.baseWidth, Config.baseHeight)
+    local pageStart = math.floor((menu.selected - 1) / loadMenuPageSize) * loadMenuPageSize + 1
+    local pageEnd = math.min(#menu.options, pageStart + loadMenuPageSize - 1)
+    local visibleCount = pageEnd - pageStart + 1
+    local height = 86 + visibleCount * loadMenuRect.rowHeight
+    box(loadMenuRect.x, loadMenuRect.y, loadMenuRect.width, height,
+        { 0.035, 0.07, 0.095, 0.99 }, { 0.48, 0.76, 0.83, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("SELECT A PALLET FOR THE CUTTER", loadMenuRect.x + 20, loadMenuRect.y + 16)
+    love.graphics.setColor(0.70, 0.80, 0.82)
+    love.graphics.print("Click a row or press 1-7. Up/Down pages; Esc cancels.", loadMenuRect.x + 20, loadMenuRect.y + 40)
+    for index = pageStart, pageEnd do
+        local option = menu.options[index]
+        local displayIndex = index - pageStart + 1
+        local y = loadMenuRect.y + 68 + (displayIndex - 1) * loadMenuRect.rowHeight
+        local selected = menu.selected == index
+        box(loadMenuRect.x + 16, y, loadMenuRect.width - 32, loadMenuRect.rowHeight - 6,
+            selected and { 0.12, 0.35, 0.43, 1 } or { 0.08, 0.12, 0.15, 1 },
+            selected and { 0.52, 0.88, 1, 1 } or { 0.26, 0.39, 0.43, 1 }, 3)
+        love.graphics.setColor(0.96, 0.98, 0.92)
+        love.graphics.print(tostring(displayIndex) .. ".  " .. option.title, loadMenuRect.x + 28, y + 8)
+        love.graphics.setColor(0.67, 0.78, 0.80)
+        love.graphics.print(option.detail, loadMenuRect.x + 48, y + 27)
     end
 end
 
@@ -302,11 +395,33 @@ function Screen.draw(state, assets, pointerX, pointerY)
     end
     love.graphics.setColor(0.75, 0.82, 0.83)
     love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate | SPACE clamp | J+K cut | T repeat | U unload", 48, 535)
+    local memory = Machine.savedMeasurements(state, Machine.programIndex)
+    local formattedMemory = {}
+    for index, value in ipairs(memory) do formattedMemory[index] = string.format("%.2f", value) end
+    local memoryText = #formattedMemory > 0 and table.concat(formattedMemory, " / ") or "NONE"
+    love.graphics.print(string.format("P%d SAVED: %s", Machine.programIndex, memoryText), 50, 563)
     love.graphics.print(state.message or "", 48, 635)
+    drawLoadMenu()
 end
 
 function Screen.mousepressed(state, x, y, button)
     if button ~= 1 then return false end
+    if Screen.loadMenu then
+        local pageStart = math.floor((Screen.loadMenu.selected - 1) / loadMenuPageSize)
+            * loadMenuPageSize + 1
+        local pageEnd = math.min(#Screen.loadMenu.options, pageStart + loadMenuPageSize - 1)
+        for index = pageStart, pageEnd do
+            local displayIndex = index - pageStart + 1
+            local row = {
+                x = loadMenuRect.x + 16,
+                y = loadMenuRect.y + 68 + (displayIndex - 1) * loadMenuRect.rowHeight,
+                width = loadMenuRect.width - 32,
+                height = loadMenuRect.rowHeight - 6,
+            }
+            if inside(row, x, y) then return loadSelected(state, index) end
+        end
+        return true
+    end
     if inside(exitButton, x, y) then return { action = "exit" } end
     if state.machineType == "skid_wrapper" then
         return inside(wrapButton, x, y) and Wrapper.start(state) or false
@@ -327,6 +442,7 @@ function Screen.mousepressed(state, x, y, button)
             elseif target.action == "auto" then succeeded = Machine.autoGauge(state)
             elseif target.action == "save" then succeeded = Machine.saveGauge(state)
             elseif target.action == "recall" then succeeded = Machine.recallGauge(state)
+            elseif target.action == "load" then succeeded = openLoadMenu(state)
             else succeeded = Machine.keypressed(target.key, state) end
             if succeeded and target.action ~= "program" then formatGauge() end
             return succeeded
@@ -337,6 +453,25 @@ function Screen.mousepressed(state, x, y, button)
 end
 
 function Screen.keypressed(state, key)
+    if Screen.loadMenu then
+        if key == "escape" then Screen.loadMenu = nil; return true end
+        if key == "up" then
+            Screen.loadMenu.selected = math.max(1, Screen.loadMenu.selected - 1); return true
+        elseif key == "down" then
+            Screen.loadMenu.selected = math.min(#Screen.loadMenu.options, Screen.loadMenu.selected + 1); return true
+        elseif key == "return" or key == "kpenter" then
+            return loadSelected(state)
+        end
+        local number = tonumber(key)
+        if number and number >= 1 and number <= loadMenuPageSize then
+            local pageStart = math.floor((Screen.loadMenu.selected - 1) / loadMenuPageSize)
+                * loadMenuPageSize + 1
+            local optionIndex = pageStart + number - 1
+            if optionIndex <= #Screen.loadMenu.options then return loadSelected(state, optionIndex) end
+        end
+        return true
+    end
+    if key == "l" then return openLoadMenu(state) end
     if not Screen.gaugeFocused then return false end
     if key == "backspace" then
         if Screen.gaugeReplaceOnType then
@@ -354,6 +489,7 @@ function Screen.keypressed(state, key)
 end
 
 function Screen.textinput(state, text)
+    if Screen.loadMenu then return false end
     if not Screen.gaugeFocused then return false end
     local changed = false
     for character in text:gmatch(".") do
@@ -401,6 +537,22 @@ end
 
 function Screen.exitCenter()
     return exitButton.x + exitButton.width / 2, exitButton.y + exitButton.height / 2
+end
+
+function Screen.hasModal() return Screen.loadMenu ~= nil end
+
+function Screen.loadMenuOptions()
+    return Screen.loadMenu and Screen.loadMenu.options or {}
+end
+
+function Screen.loadMenuRowCenter(index)
+    local displayIndex = ((index or 1) - 1) % loadMenuPageSize + 1
+    return loadMenuRect.x + loadMenuRect.width / 2,
+        loadMenuRect.y + 68 + (displayIndex - 0.5) * loadMenuRect.rowHeight
+end
+
+function Screen.artworkRotation(paper)
+    return math.rad(((paper and paper.orientation) or 0) % 360)
 end
 
 return Screen

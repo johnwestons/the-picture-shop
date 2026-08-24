@@ -1,7 +1,7 @@
 local Config = require("src.config")
 local PaperWork = require("src.paper_work")
 
-local Schema = { VERSION = 3, SLOT_COUNT = 3 }
+local Schema = { VERSION = 4, SLOT_COUNT = 3 }
 local directions = { northwest = true, northeast = true, southwest = true, southeast = true }
 
 local function copy(value)
@@ -78,6 +78,7 @@ local function paper(value)
         and text(value.jobId)
         and text(value.palletId)
         and text(value.artworkId)
+        and (value.artworkKey == nil or text(value.artworkKey))
         and text(value.difficulty)
         and dimensions(value.sourceSize)
         and dimensions(value.finishedSize)
@@ -157,6 +158,7 @@ local function job(value)
         and text(value.company)
         and dimensions(value.sourceSize)
         and dimensions(value.finishedSize)
+        and (value.artworkKey == nil or text(value.artworkKey))
         and type(value.details) == "table"
         and text(value.difficulty)
         and (value.packaging == "flat" or value.packaging == "boxed")
@@ -213,6 +215,22 @@ local function stock(value)
     return true
 end
 
+local function cutterMemory(value)
+    if type(value) ~= "table" then return false end
+    for key, measurements in pairs(value) do
+        local cutNumber = tonumber(key)
+        if not integer(cutNumber) or cutNumber < 1 or cutNumber > 4
+            or not array(measurements, function(measurement)
+                return nonnegative(measurement) and measurement <= 25
+            end)
+            or #measurements > 3
+        then
+            return false
+        end
+    end
+    return true
+end
+
 local function inventory(value)
     return type(value) == "table"
         and nonnegative(value.paper)
@@ -255,6 +273,7 @@ local function persistentState(value)
         and array(value.jobs.declined, job)
         and positiveInteger(value.nextJobId)
         and nonnegative(value.accountsReceivable)
+        and cutterMemory(value.cutterMemory)
         and type(value.procurement) == "table"
         and positiveInteger(value.procurement.nextOrderId)
         and array(value.procurement.orders, purchaseOrder)
@@ -288,12 +307,13 @@ function Schema.defaultState()
             finishedPallets = 0,
             plasticWrapRolls = 1,
             plasticWrapUses = 11,
-            stock = {},
+            stock = { shipping_cartons = 20 },
         },
         shopProgress = { completedCuts = 0 },
         jobs = { active = {}, completed = {}, declined = {} },
         nextJobId = 1,
         accountsReceivable = 0,
+        cutterMemory = {},
         procurement = { orders = {}, nextOrderId = 1 },
         vendorCategory = 1,
         cutter = defaultPlacement(Config.cutterPlacement),
@@ -375,6 +395,8 @@ local function normalizeState(source)
     result.nextJobId = source.nextJobId ~= nil and source.nextJobId or result.nextJobId
     result.accountsReceivable = source.accountsReceivable ~= nil
         and source.accountsReceivable or result.accountsReceivable
+    result.cutterMemory = type(source.cutterMemory) == "table"
+        and copy(source.cutterMemory) or result.cutterMemory
     result.procurement = type(source.procurement) == "table"
         and copy(source.procurement) or result.procurement
     result.procurement.orders = type(result.procurement.orders) == "table" and result.procurement.orders or {}
@@ -440,6 +462,7 @@ function Schema.reconcile(state)
     state.inventory.inProcessPallets = inProcess
     state.inventory.finishedPallets = finished
     state.inventory.stock = type(state.inventory.stock) == "table" and state.inventory.stock or {}
+    state.cutterMemory = type(state.cutterMemory) == "table" and state.cutterMemory or {}
     return true
 end
 
@@ -508,7 +531,7 @@ function Schema.migrate(payload)
     end
     if payload.version == 1 then
         if not legacyCore(payload) then return nil end
-    elseif payload.version == 2 then
+    elseif payload.version == 2 or payload.version == 3 then
         if not validV2Core(payload) then return nil end
     else
         return nil

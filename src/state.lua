@@ -33,6 +33,7 @@ function State.applySave(state, payload)
     state.inventory.plasticWrapRolls = type(state.inventory.plasticWrapRolls) == "number" and math.max(0, state.inventory.plasticWrapRolls) or 0
     state.inventory.plasticWrapUses = type(state.inventory.plasticWrapUses) == "number" and math.max(0, state.inventory.plasticWrapUses) or 0
     state.shopProgress = type(saved.shopProgress) == "table" and saved.shopProgress or { completedCuts = 0 }
+    state.cutterMemory = type(saved.cutterMemory) == "table" and saved.cutterMemory or {}
     state.jobs = type(saved.jobs) == "table" and saved.jobs or { active = {}, completed = {}, declined = {} }
     state.jobs.active = type(state.jobs.active) == "table" and state.jobs.active or {}
     state.jobs.completed = type(state.jobs.completed) == "table" and state.jobs.completed or {}

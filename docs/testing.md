@@ -2,6 +2,8 @@
 
 The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save identity. It never reads or writes the player's normal save directory.
 
+`RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. The upper row shows raw source-frame bounds; the lower row applies the same action scale normalization used in the game. This makes size mismatches and frame-to-frame silhouette jumps visible without touching a player save.
+
 ## Layers
 
 - `src/smoke.lua` owns reporting, the final three-frame render gate, and shared engine integration setup.
