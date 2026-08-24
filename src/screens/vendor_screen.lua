@@ -30,14 +30,18 @@ function Screen.draw(state, assets, pointerX, pointerY)
     BackButton.draw(assets, CLOSE, "BACK", pointerX, pointerY, false)
     for index, item in ipairs(category.items) do
         local r, buy = row(index), buyRect(index)
-        local affordable = (state.money or 0) >= item.price
+        local available = item.available ~= false
+        local affordable = available and (state.money or 0) >= item.price
         box(r, { 0.075, 0.11, 0.14, 1 }, { 0.26, 0.43, 0.49, 1 })
         love.graphics.setColor(0.94, 0.97, 0.95); love.graphics.print(item.name, r.x + 22, r.y + 20)
-        love.graphics.setColor(0.68, 0.78, 0.81); love.graphics.print("Delivered on its own labeled warehouse pallet", r.x + 22, r.y + 52)
+        love.graphics.setColor(0.68, 0.78, 0.81)
+        love.graphics.print(available and "Delivered on its own labeled warehouse pallet"
+            or item.unavailableReason, r.x + 22, r.y + 52)
         box(buy, affordable and { 0.16, 0.45, 0.31, 1 } or { 0.18, 0.19, 0.20, 1 },
             affordable and { 0.48, 0.86, 0.58, 1 } or { 0.36, 0.38, 0.40, 1 })
         love.graphics.setColor(affordable and 0.95 or 0.58, affordable and 0.98 or 0.62, affordable and 0.95 or 0.64)
-        love.graphics.printf(string.format("BUY  $%d", item.price), buy.x, buy.y + 16, buy.width, "center")
+        love.graphics.printf(available and string.format("BUY  $%d", item.price) or "LOCKED",
+            buy.x, buy.y + 16, buy.width, "center")
     end
     love.graphics.setColor(0.70, 0.78, 0.80)
     love.graphics.print("Purchases are charged now. The delivery truck will arrive at the loading dock.", 104, 548)

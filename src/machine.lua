@@ -2,6 +2,7 @@ local PaperWork = require("src.paper_work")
 local Config = require("src.config")
 local Jobs = require("src.jobs")
 local PalletState = require("src.pallet_state")
+local Procurement = require("src.procurement")
 
 local Machine = {
     step = "idle", progress = 0, loaded = false, clamp = false,
@@ -126,7 +127,7 @@ function Machine.load(state)
     elseif PalletState.hasUnfinishedCustomerPaper(state) then
         message(state, "Stage an unfinished pallet on clear floor beside the cutter before loading.")
         return false
-    elseif state and state.inventory and (state.inventory.paper or 0) > 0 then
+    elseif state and state.inventory and Procurement.paperAvailable(state) > 0 then
         Machine.paper, Machine.pallet, Machine.job = makeLegacyPaper()
         Machine.legacyPaper = true
     else
@@ -382,7 +383,12 @@ function Machine.update(dt, state)
                 message(state, "Paper is against the backgauge. Engage the clamp.")
             else
                 if Machine.legacyPaper and state and state.inventory then
-                    state.inventory.paper = math.max(0, (state.inventory.paper or 0) - 1)
+                    local consumed, consumeError = Procurement.consumePaper(state, 1)
+                    if not consumed then
+                        Machine.step = "blocked"
+                        message(state, consumeError or "Production paper is no longer available.")
+                        return
+                    end
                     state.inventory.prints = (state.inventory.prints or 0) + 1
                 elseif Machine.pallet then
                     local output = Machine.pendingOutput

@@ -1,6 +1,6 @@
 local Config = require("src.config")
 local JobService = require("src.job_service")
-local Shop = require("src.shop")
+local Procurement = require("src.procurement")
 local BackButton = require("src.screens.back_button")
 
 local ComputerScreen = {
@@ -22,7 +22,6 @@ local DETAIL = { x = 412, y = 190, width = 440, height = 408 }
 local PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }
 local NEXT = { x = 306, y = 570, width = 86, height = 30 }
 local COMPLETE = { x = 598, y = 548, width = 228, height = 36 }
-local BUY_WRAP = { x = 586, y = 462, width = 210, height = 38 }
 local ROW_HEIGHT = 46
 local JOBS_PER_PAGE = 7
 
@@ -146,9 +145,6 @@ function ComputerScreen.mousepressed(state, x, y, button)
         end
     end
     if ComputerScreen.tab == "inventory" then
-        if contains(BUY_WRAP, x, y) then
-            return { action = Shop.buyPlasticWrapRoll(state) and "buy_wrap" or "blocked" }
-        end
         return nil
     end
 
@@ -314,23 +310,27 @@ local function drawInventory(state)
         love.graphics.setColor(0.96, 0.84, 0.30)
         love.graphics.printf(tostring(card.value), card.x, 292, 224, "center")
     end
-    panel({ x = 92, y = 382, width = 740, height = 142 },
+    panel({ x = 92, y = 382, width = 740, height = 198 },
         { 0.06, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
     love.graphics.setColor(0.73, 0.80, 0.81)
     love.graphics.print("SHOP STOCK", 116, 406)
-    love.graphics.print("Loose paper sheets", 116, 446)
-    love.graphics.print("Legacy finished pieces", 116, 476)
+    love.graphics.print("Loose starter sheets", 116, 438)
+    love.graphics.print("Finished sample pieces", 116, 466)
     love.graphics.setColor(0.95, 0.84, 0.30)
-    love.graphics.print(commaNumber(inventory.paper or 0), 340, 446)
-    love.graphics.print(commaNumber(inventory.prints or 0), 340, 476)
-    love.graphics.print("Plastic wrap rolls", 440, 406)
-    love.graphics.print(string.format("%d roll(s), %d wraps on current roll", inventory.plasticWrapRolls or 0, inventory.plasticWrapUses or 0), 440, 436)
-    panel(BUY_WRAP, { 0.12, 0.28, 0.22, 1 }, { 0.34, 0.72, 0.50, 1 })
-    love.graphics.setColor(0.92, 0.98, 0.92)
-    love.graphics.printf("BUY WRAP ROLL  $20", BUY_WRAP.x, BUY_WRAP.y + 12, BUY_WRAP.width, "center")
+    love.graphics.print(commaNumber(inventory.paper or 0), 330, 438)
+    love.graphics.print(commaNumber(inventory.prints or 0), 330, 466)
+    local rows = Procurement.inventoryRows(state)
+    for index, item in ipairs(rows) do
+        local column = index <= 2 and 0 or 1
+        local row = (index - 1) % 2
+        local x, y = 116 + column * 350, 504 + row * 28
+        love.graphics.setColor(0.73, 0.80, 0.81)
+        love.graphics.print(item.label, x, y)
+        love.graphics.setColor(0.95, 0.84, 0.30)
+        love.graphics.printf(commaNumber(item.quantity) .. " " .. item.unit, x + 150, y, 175, "right")
+    end
     love.graphics.setColor(0.55, 0.63, 0.65)
-    love.graphics.printf("Pallet totals update immediately when unloading, cutting, and staging change their location.",
-        440, 441, 360, "left")
+    love.graphics.print(string.format("Current film roll: %d / 11 wraps", inventory.plasticWrapUses or 0), 466, 438)
 end
 
 function ComputerScreen.draw(state, pointerX, pointerY, assets)

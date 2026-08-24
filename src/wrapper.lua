@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local PalletLogistics = require("src.pallet_logistics")
+local Procurement = require("src.procurement")
 local WrapperPlacement = require("src.wrapper_placement")
 
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil }
@@ -47,10 +48,18 @@ function Wrapper.start(state)
     local nearby = Wrapper.nearbyPallet(state)
     if not nearby then state.message = "Move a finished, unwrapped pallet beside the skid wrapper first."; return false end
     local inventory = state.inventory or {}
-    if (inventory.plasticWrapUses or 0) < 1 then state.message = "No plastic film remains. Buy a $20 roll at the office computer."; return false end
+    if (inventory.plasticWrapUses or 0) < 1 then
+        state.message = "No stretch film remains. Order it from the packaging supplier and unload the delivery."
+        return false
+    end
+    local packaging = nearby.pallet.packaging or nearby.job.packaging or "flat"
+    if packaging == "boxed" and Procurement.cartonsAvailable(state) < 1 then
+        state.message = "This boxed pallet needs a shipping carton. Order cartons from the packaging supplier."
+        return false
+    end
     Wrapper.pallet, Wrapper.job = nearby.pallet, nearby.job
     Wrapper.step, Wrapper.progress = "wrapping", 0
-    state.message = "Wrapping " .. nearby.pallet.id .. " as a " .. (nearby.pallet.packaging or nearby.job.packaging or "flat") .. " pallet."
+    state.message = "Wrapping " .. nearby.pallet.id .. " as a " .. packaging .. " pallet."
     return true
 end
 
@@ -65,8 +74,10 @@ function Wrapper.update(dt, state)
         inventory.plasticWrapRolls = math.max(0, (inventory.plasticWrapRolls or 0) - 1)
         if inventory.plasticWrapRolls > 0 then inventory.plasticWrapUses = 11 end
     end
+    local packaging = Wrapper.pallet.packaging or (Wrapper.job and Wrapper.job.packaging) or "flat"
+    if packaging == "boxed" then Procurement.consumeCartons(state, 1) end
     Wrapper.pallet.wrapped, Wrapper.pallet.status = true, "wrapped"
-    Wrapper.pallet.packagedAs = Wrapper.pallet.packaging or (Wrapper.job and Wrapper.job.packaging) or "flat"
+    Wrapper.pallet.packagedAs = packaging
     Wrapper.step = "finished"
     state.message = Wrapper.pallet.id .. " wrapped. " .. inventory.plasticWrapUses .. " pallet wrap(s) remain on the current roll."
 end

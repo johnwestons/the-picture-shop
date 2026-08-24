@@ -70,6 +70,7 @@ local function runChecks(context)
         check("skid_wrapper_direction_" .. frame, context.assets.getQuad("skidWrapperDirection" .. frame) ~= nil)
     end
     local wrapperState = context.State.new()
+    wrapperState.inventory.stock.shipping_cartons = 1
     wrapperState.jobs.active = { { id = "WRAP-TEST", packaging = "boxed", pallets = { {
         id = "WRAP-TEST-P01", number = 1, status = "cut", location = "cutter_output",
         packaging = "boxed", wrapped = false, world = { x = wrapperState.wrapper.x - 60, y = wrapperState.wrapper.y, spawnProgress = 1 },
@@ -80,7 +81,8 @@ local function runChecks(context)
     context.wrapper.update(context.wrapper.cycleTime + 0.1, wrapperState)
     check("skid_wrapper_finished", context.wrapper.step == "finished"
         and wrapperState.jobs.active[1].pallets[1].status == "wrapped"
-        and wrapperState.inventory.plasticWrapUses == 10)
+        and wrapperState.inventory.plasticWrapUses == 10
+        and wrapperState.inventory.stock.shipping_cartons == 0)
     local wrapperDirection = wrapperState.wrapper.direction
     check("skid_wrapper_move_mode", context.world.beginWrapperMove(wrapperState))
     check("skid_wrapper_rotate", context.world.rotateWrapper(wrapperState)
@@ -92,6 +94,7 @@ local function runChecks(context)
         local testState = context.State.new()
         testState.screen = "machine"
         testState.machineType = "skid_wrapper"
+        testState.inventory.stock.shipping_cartons = 1
         local pallet = {
             id = id, number = 1, status = "cut", location = "cutter_output",
             packaging = "boxed", wrapped = false,
@@ -386,8 +389,13 @@ local function runChecks(context)
     check("shop_sell", context.shop.sellPrint(economy))
     check("shop_sell_balance", economy.money == startingMoney - 13 and economy.inventory.prints == 0)
 
+    local function verifyVendorInventory()
     local vendorState = context.State.new()
     vendorState.money = 500
+    local moneyBeforeLockedSupply = vendorState.money
+    check("vendor_blocks_supply_without_consumer", not context.procurement.buy(vendorState, 2, 1)
+        and vendorState.money == moneyBeforeLockedSupply
+        and #vendorState.procurement.orders == 0)
     local bought, purchaseOrder = context.procurement.buy(vendorState, 3, 1)
     check("vendor_catalog_purchase", bought and purchaseOrder.id == "PO-0001"
         and purchaseOrder.pallets[1].category == "packaging"
@@ -410,6 +418,86 @@ local function runChecks(context)
     local vendorLowered, vendorLowerAction = context.PalletJack.use(vendorState, context.config.palletJack, function() return true end)
     check("vendor_product_pallet_lowers_with_direction", vendorLowered and vendorLowerAction == "lowered"
         and productPallet.world.direction == "northeast")
+
+    local filmBought, filmOrder = context.procurement.buy(vendorState, 3, 2)
+    local filmUnloaded = filmBought and context.procurement.unload(vendorState,
+        filmOrder.id, filmOrder.pallets[1].id,
+        context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
+    check("vendor_film_delivery_credits_wrapper_inventory", filmUnloaded
+        and vendorState.inventory.plasticWrapRolls == 13
+        and vendorState.inventory.plasticWrapUses == 11
+        and vendorState.inventory.stock.stretch_film == nil)
+    local vendorBoxedPallet = {
+        id = "VENDOR-SUPPLY-WRAP-P01", number = 1, status = "cut", location = "cutter_output",
+        packaging = "boxed", wrapped = false,
+        world = { x = vendorState.wrapper.x - 60, y = vendorState.wrapper.y, spawnProgress = 1 },
+    }
+    vendorState.jobs.active = { {
+        id = "VENDOR-SUPPLY-WRAP", packaging = "boxed", pallets = { vendorBoxedPallet },
+    } }
+    context.wrapper.reset(vendorState)
+    check("vendor_carton_and_film_feed_wrapper", context.wrapper.start(vendorState))
+    context.wrapper.update(context.wrapper.cycleTime + 0.01, vendorState)
+    check("vendor_wrapper_consumes_delivered_supplies", vendorBoxedPallet.wrapped
+        and vendorState.inventory.stock.shipping_cartons == 99
+        and vendorState.inventory.plasticWrapRolls == 13
+        and vendorState.inventory.plasticWrapUses == 10)
+    local visibleStock = context.procurement.inventoryRows(vendorState)
+    check("vendor_supplies_visible_in_office_inventory", visibleStock[3].id == "shipping_cartons"
+        and visibleStock[3].quantity == 99
+        and visibleStock[4].id == "stretch_film"
+        and visibleStock[4].quantity == 13)
+    context.wrapper.reset(vendorState)
+
+    local noCartonState = context.State.new()
+    noCartonState.jobs.active = { {
+        id = "NO-CARTON-JOB", packaging = "boxed", pallets = { {
+            id = "NO-CARTON-P01", number = 1, status = "cut", location = "cutter_output",
+            packaging = "boxed", wrapped = false,
+            world = { x = noCartonState.wrapper.x - 60, y = noCartonState.wrapper.y, spawnProgress = 1 },
+        } },
+    } }
+    context.wrapper.reset(noCartonState)
+    check("boxed_wrapper_requires_delivered_carton", not context.wrapper.start(noCartonState)
+        and context.wrapper.step == "idle"
+        and noCartonState.inventory.plasticWrapUses == 11)
+
+    local paperSupplyState = context.State.new()
+    paperSupplyState.money = 500
+    paperSupplyState.inventory.paper = 0
+    local paperBought, paperOrder = context.procurement.buy(paperSupplyState, 1, 1)
+    local paperUnloaded = paperBought and context.procurement.unload(paperSupplyState,
+        paperOrder.id, paperOrder.pallets[1].id,
+        context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
+    check("vendor_paper_delivery_enters_production_stock", paperUnloaded
+        and context.procurement.paperAvailable(paperSupplyState) == 1000
+        and paperSupplyState.inventory.stock.house_sheets == 1000)
+    context.machine.reset(paperSupplyState)
+    check("vendor_paper_loads_sample_cutter", context.machine.load(paperSupplyState))
+    context.machine.update(context.machine.transferTime + 0.01, paperSupplyState)
+    for cutNumber = 1, 4 do
+        context.machine.selectProgram(cutNumber, paperSupplyState)
+        context.machine.keypressed("q", paperSupplyState)
+        context.machine.autoGauge(paperSupplyState)
+        context.machine.position(paperSupplyState)
+        context.machine.update(context.machine.transferTime + 0.01, paperSupplyState)
+        context.machine.toggleClamp(paperSupplyState)
+        context.machine.keypressed("j", paperSupplyState)
+        context.machine.keypressed("k", paperSupplyState)
+        context.machine.keyreleased("j")
+        context.machine.keyreleased("k")
+        context.machine.update(0.01, paperSupplyState)
+        context.machine.update(context.machine.cycleTime + 0.05, paperSupplyState)
+    end
+    check("vendor_paper_sample_cut_complete", context.machine.step == "cut_complete")
+    context.machine.keypressed("u", paperSupplyState)
+    context.machine.update(context.machine.transferTime + 0.01, paperSupplyState)
+    check("sample_cutter_consumes_delivered_paper", paperSupplyState.inventory.stock.house_sheets == 999
+        and paperSupplyState.inventory.paper == 0
+        and paperSupplyState.inventory.prints == 1)
+    context.machine.reset(paperSupplyState)
+    end
+    verifyVendorInventory()
 
     local jobs = context.jobs or context.Jobs
     check("jobs_module_loaded", jobs and type(jobs.calculateQuote) == "function")

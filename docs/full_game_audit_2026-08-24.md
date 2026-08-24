@@ -284,6 +284,8 @@ Acceptance: completed lifts and remaining sheets advance together; partial final
 
 ### Step 10 — Connect vendor inventory
 
+Status: **Completed 2026-08-24.** Functional vendor goods now enter one visible supply inventory when their pallet is unloaded. Delivered house/cover stock feeds sample cutting, boxed pallets consume one delivered shipping carton, and all wrapping consumes delivered stretch-film rolls. The instant office film purchase was removed; products without a live consumer are visibly locked instead of taking money for unusable stock.
+
 Give every purchased product a real inventory effect and consumer; merge film purchasing into the delivery system.
 
 Acceptance: delivered goods appear in office inventory and at least paper, cartons, and film are consumed by their intended workflows.

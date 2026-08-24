@@ -1,6 +1,7 @@
 local Config = require("src.config")
 local Machine = require("src.machine")
 local Press = require("src.press")
+local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
 local BackButton = require("src.screens.back_button")
 local utf8 = require("utf8")
@@ -246,6 +247,8 @@ function Screen.draw(state, assets, pointerX, pointerY)
         end
         local nearby = Wrapper.nearbyPallet(state)
         local inventory = state.inventory or {}
+        local packaging = nearby and (nearby.pallet.packaging or nearby.job.packaging or "flat") or nil
+        local hasPackaging = packaging ~= "boxed" or Procurement.cartonsAvailable(state) > 0
         if nearby then
             local palletImage, palletQuad
             if Wrapper.step == "wrapping" or Wrapper.step == "finished" then
@@ -266,10 +269,12 @@ function Screen.draw(state, assets, pointerX, pointerY)
         love.graphics.setColor(0.82, 0.88, 0.89)
         love.graphics.print("STATUS: " .. Wrapper.step:upper(), 50, 410)
         love.graphics.print("NEARBY PALLET: " .. (nearby and nearby.pallet.id or "NONE"), 50, 438)
-        love.graphics.print("PACKAGE: " .. (nearby and (nearby.pallet.packaging or nearby.job.packaging or "flat"):upper() or "--"), 50, 466)
+        love.graphics.print("PACKAGE: " .. (packaging and packaging:upper() or "--"), 50, 466)
         love.graphics.print(string.format("PLASTIC: %d ROLL(S)  |  %d / 11 WRAPS", inventory.plasticWrapRolls or 0, inventory.plasticWrapUses or 0), 50, 494)
         box(wrapButton.x, wrapButton.y, wrapButton.width, wrapButton.height,
-            nearby and (inventory.plasticWrapUses or 0) > 0 and { 0.15, 0.40, 0.27, 1 } or { 0.15, 0.17, 0.18, 1 }, { 0.35, 0.65, 0.48, 1 }, 3)
+            nearby and hasPackaging and (inventory.plasticWrapUses or 0) > 0
+                and { 0.15, 0.40, 0.27, 1 } or { 0.15, 0.17, 0.18, 1 },
+            { 0.35, 0.65, 0.48, 1 }, 3)
         love.graphics.setColor(0.95, 0.98, 0.92)
         love.graphics.printf(Wrapper.step == "wrapping" and string.format("WRAPPING %d%%", math.floor(Wrapper.progress / Wrapper.cycleTime * 100)) or "WRAP PALLET  [L]   MOVE [M]", wrapButton.x, wrapButton.y + 19, wrapButton.width, "center")
         love.graphics.print(state.message or "", 48, 635)

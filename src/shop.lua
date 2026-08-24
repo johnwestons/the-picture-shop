@@ -22,19 +22,6 @@ function Shop.sellPrint(state)
     return true
 end
 
-function Shop.buyPlasticWrapRoll(state)
-    if state.money < 20 then
-        state.message = "Not enough money for a plastic wrap roll."
-        return false
-    end
-    local inventory = state.inventory
-    state.money = state.money - 20
-    inventory.plasticWrapRolls = (inventory.plasticWrapRolls or 0) + 1
-    if (inventory.plasticWrapUses or 0) == 0 then inventory.plasticWrapUses = 11 end
-    state.message = "Bought one plastic wrap roll for $20. Each roll wraps 11 pallets."
-    return true
-end
-
 function Shop.keypressed(key, state)
     if key == "1" then
         return Shop.buyPaper(state)
