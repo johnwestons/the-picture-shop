@@ -81,7 +81,9 @@ function Input.keypressed(key, context)
                 and context.world.openTruckInventory(state)
             then
                 state.screen = "truck_inventory"
-                state.message = "Review the truck manifest and unload each pallet."
+                state.message = context.world.truckSnapshot().mode == "pickup"
+                    and "Review the outbound manifest and load each wrapped pallet."
+                    or "Review the inbound manifest and unload each pallet."
             else
                 context.world.toggleTruckCargoDoor(state)
             end
@@ -170,8 +172,14 @@ function Input.mousepressed(x, y, button, context)
             context.saveCurrent()
         elseif result.action == "completion_blocked" then
             state.message = "Every pallet must be cut, packaged, and stretch-wrapped before completion."
-        elseif result.action == "completion_ready" then
-            state.message = "Completion and pickup scheduling will be connected after production logistics."
+        elseif result.action == "pickup_ready" then
+            local scheduled, jobOrError = context.jobService.requestPickup(state, result.job, os.time())
+            if scheduled then
+                state.message = result.job.id .. " is ready. Customer pickup is awaiting a truck."
+                context.saveCurrent()
+            else
+                state.message = "Could not schedule pickup: " .. tostring(jobOrError)
+            end
         end
         return true
     end

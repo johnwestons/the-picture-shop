@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local JobService = require("src.job_service")
 local Shop = require("src.shop")
 local BackButton = require("src.screens.back_button")
 
@@ -46,6 +47,7 @@ local function statusLabel(status)
     local labels = {
         offered = "Offer",
         awaiting_delivery = "Awaiting inbound delivery",
+        in_production = "In production",
         delivered = "Delivered",
         cutting = "Cutting in progress",
         ready_for_pickup = "Ready for pickup",
@@ -105,11 +107,7 @@ local function ensureSelection(state)
 end
 
 local function completionReady(job)
-    if not job or job.status == "completed" or #job.pallets == 0 then return false end
-    for _, pallet in ipairs(job.pallets) do
-        if (pallet.remainingSheets or 0) > 0 or pallet.status ~= "wrapped" then return false end
-    end
-    return true
+    return JobService.completionReady(job)
 end
 
 function ComputerScreen.enter(state)
@@ -177,7 +175,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
     end
     local selected = findJob(jobsForTab(state, ComputerScreen.tab), ComputerScreen.selectedJobId)
     if contains(COMPLETE, x, y) then
-        return { action = completionReady(selected) and "completion_ready" or "completion_blocked",
+        return { action = completionReady(selected) and "pickup_ready" or "completion_blocked",
             job = selected }
     end
     return nil
@@ -290,7 +288,11 @@ local function drawDetail(state, pointerX, pointerY)
         ready and 0.29 or 0.16)
     love.graphics.rectangle("fill", COMPLETE.x, COMPLETE.y, COMPLETE.width, COMPLETE.height, 3, 3)
     love.graphics.setColor(ready and 0.95 or 0.48, ready and 0.96 or 0.51, ready and 0.93 or 0.51)
-    love.graphics.printf(ready and "MARK JOB COMPLETE" or "PRODUCTION NOT COMPLETE",
+    local buttonLabel = ready and "SCHEDULE CUSTOMER PICKUP" or "PRODUCTION NOT COMPLETE"
+    if selected.status == "ready_for_pickup" then buttonLabel = "PICKUP AWAITING TRUCK"
+    elseif selected.status == "pickup_in_progress" then buttonLabel = "PICKUP IN PROGRESS"
+    elseif selected.status == "completed" then buttonLabel = "PAID AND COMPLETED" end
+    love.graphics.printf(buttonLabel,
         COMPLETE.x, COMPLETE.y + 11, COMPLETE.width, "center")
 end
 

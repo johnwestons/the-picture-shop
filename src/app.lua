@@ -130,11 +130,11 @@ function App.update(dt)
         TitleScreen.update(dt)
     elseif state.screen == "world" then
         local directionX, directionY = Input.movement()
-        World.update(dt, directionX, directionY, Assets, state)
+        if World.update(dt, directionX, directionY, Assets, state) then saveCurrent() end
         Press.update(dt)
         Wrapper.update(dt, state)
     elseif state.screen == "truck_inventory" then
-        World.update(dt, 0, 0, Assets, state)
+        if World.update(dt, 0, 0, Assets, state) then saveCurrent() end
     elseif state.screen == "machine" then
         if state.machineType == "skid_wrapper" then
             local previousStep = Wrapper.step

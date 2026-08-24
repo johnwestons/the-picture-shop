@@ -118,6 +118,16 @@ local function delivery(value)
         and optionalNumber(value.receivedAt))
 end
 
+local function pickup(value)
+    return value == nil or (type(value) == "table"
+        and text(value.status)
+        and optionalNumber(value.requestedAt)
+        and optionalNumber(value.scheduledAt)
+        and optionalNumber(value.arrivedAt)
+        and optionalNumber(value.loadedAt)
+        and optionalNumber(value.completedAt))
+end
+
 local function customerPallet(value)
     return type(value) == "table"
         and text(value.id)
@@ -133,6 +143,7 @@ local function customerPallet(value)
         and (value.packaging == "flat" or value.packaging == "boxed")
         and type(value.wrapped) == "boolean"
         and (value.packagedAs == nil or value.packagedAs == "flat" or value.packagedAs == "boxed")
+        and optionalNumber(value.pickedUpAt)
         and worldPosition(value.world)
         and paper(value.paper)
 end
@@ -151,9 +162,12 @@ local function job(value)
         and optionalNumber(value.acceptedAt)
         and optionalNumber(value.declinedAt)
         and optionalNumber(value.completedAt)
+        and optionalNumber(value.paidAt)
+        and optionalNumber(value.paymentAmount)
         and quote(value.quote)
         and array(value.pallets, customerPallet)
         and delivery(value.delivery)
+        and pickup(value.pickup)
 end
 
 local function vendorPallet(value)
@@ -374,7 +388,9 @@ function Schema.reconcile(state)
         local pallets = type(savedJob) == "table" and type(savedJob.pallets) == "table"
             and savedJob.pallets or {}
         for _, pallet in ipairs(pallets) do
-            if pallet.location ~= "awaiting_delivery" and pallet.location ~= "none" then
+            if pallet.location == "warehouse" or pallet.location == "cutter_output"
+                or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
+            then
                 if pallet.status == "cut" or pallet.status == "finished" or pallet.status == "wrapped"
                     or (pallet.paper and pallet.paper.status == "complete")
                 then

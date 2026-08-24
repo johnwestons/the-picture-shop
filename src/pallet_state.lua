@@ -4,10 +4,11 @@ local CutterZones = require("src.cutter_zones")
 
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
-    warehouse = { on_pallet_jack = true, at_cutter = true, none = true },
+    warehouse = { on_pallet_jack = true, at_cutter = true, outbound_truck = true, none = true },
     on_pallet_jack = { warehouse = true },
     at_cutter = { cutter_output = true, warehouse = true },
-    cutter_output = { on_pallet_jack = true, warehouse = true, none = true },
+    cutter_output = { on_pallet_jack = true, warehouse = true, outbound_truck = true, none = true },
+    outbound_truck = { none = true },
     none = {},
 }
 
@@ -212,6 +213,7 @@ function PalletState.transition(state, pallet, target, options)
     if options.world ~= nil then pallet.world = copy(options.world) end
     if target == "on_pallet_jack" then jack.carriedPalletId = pallet.id end
     if source == "on_pallet_jack" then jack.carriedPalletId = nil end
+    if target == "outbound_truck" then pallet.world = nil end
     if target == "none" and options.keepWorld ~= true then pallet.world = nil end
 
     local valid, errors = PalletState.validate(state)

@@ -268,6 +268,8 @@ Acceptance: no input teleporting and no output inside walls, machines, trucks, p
 
 ### Step 8 — Complete the job/pickup/payment loop
 
+Status: **Completed 2026-08-24.** Fully cut and wrapped jobs can now request customer pickup from the office. A dedicated outbound manifest loads each physical pallet, survives a mid-pickup save/reload, blocks departure until the manifest is complete, and archives the job only after the truck leaves. Completion removes the pallets, settles the exact invoice from accounts receivable into cash once, populates the Completed view, and triggers save checkpoints at pickup request, truck transitions, each load, and final payment.
+
 Implement ready-for-pickup, outbound truck/manifest, job archival, pallet removal, AR settlement, and save checkpoints.
 
 Acceptance: one full accepted job can proceed from customer to inbound truck, cutting, wrapping, outbound pickup, completed list, and cash receipt.

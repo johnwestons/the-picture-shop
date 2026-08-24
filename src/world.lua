@@ -4,6 +4,7 @@ local CutterPlacement = require("src.cutter_placement")
 local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local Interaction = require("src.interaction")
+local JobService = require("src.job_service")
 local Navigation = require("src.navigation")
 local PalletLogistics = require("src.pallet_logistics")
 local PalletJack = require("src.pallet_jack")
@@ -126,15 +127,22 @@ local function activeJobById(state, jobId)
     return nil
 end
 
-local function scheduleInboundTruck(state)
-    if not state or World.truck.state ~= "absent" then return end
+local function scheduleTruck(state)
+    if not state or World.truck.state ~= "absent" then return false end
+    local pickup = JobService.nextPickup(state)
+    if pickup and World.truck:schedule(pickup.id, "pickup") then
+        JobService.schedulePickup(pickup, os.time())
+        state.message = "Customer pickup scheduled for " .. pickup.id .. "."
+        return true
+    end
     local purchase = Procurement.nextInbound(state)
     if purchase then
         if World.truck:schedule(purchase.id, "vendor_delivery") then
             purchase.delivery.status = "scheduled"
             state.message = "Vendor delivery scheduled for " .. purchase.id .. "."
+            return true
         end
-        return
+        return false
     end
     local activeJobs = state.jobs and state.jobs.active or {}
     for _, job in ipairs(activeJobs) do
@@ -144,43 +152,80 @@ local function scheduleInboundTruck(state)
                 job.delivery = job.delivery or {}
                 job.delivery.status = "scheduled"
                 state.message = "Inbound truck scheduled for " .. job.id .. "."
+                return true
             end
-            return
+            return false
         end
     end
+    return false
 end
 
 local function updateTruck(dt, state)
-    scheduleInboundTruck(state)
+    local saveNeeded = scheduleTruck(state)
+    local truckJobId, truckMode = World.truck.jobId, World.truck.mode
     local event = World.truck:update(dt, World.bayDoor.state)
-    if not event then return end
-    local job = activeJobById(state, World.truck.jobId)
-    local purchase = Procurement.orderById(state, World.truck.jobId)
+    if not event then return saveNeeded end
+    local job = activeJobById(state, truckJobId)
+    local purchase = Procurement.orderById(state, truckJobId)
+    local pickup = truckMode == "pickup" and job or nil
     if event == "request_bay_open" then
         if World.bayDoor.state == "closed" then World.bayDoor:open() end
-        if state then state.message = "Delivery truck arrived. Opening the loading bay..." end
+        if state then state.message = pickup
+            and "Pickup truck arrived. Opening the loading bay..."
+            or "Delivery truck arrived. Opening the loading bay..." end
     elseif event == "backing_started" then
-        if job and job.delivery then job.delivery.status = "backing" end
+        if pickup then
+            JobService.setPickupStatus(pickup, "backing")
+        elseif job and job.delivery then job.delivery.status = "backing" end
         if purchase and purchase.delivery then purchase.delivery.status = "backing" end
-        if state then state.message = "The delivery truck is backing into the loading bay." end
+        if state then state.message = pickup
+            and "The customer pickup truck is backing into the loading bay."
+            or "The delivery truck is backing into the loading bay." end
+        saveNeeded = true
     elseif event == "parked" then
-        if job and job.delivery then job.delivery.status = "at_bay" end
+        if pickup then
+            JobService.setPickupStatus(pickup, "at_bay", "arrivedAt", os.time())
+        elseif job and job.delivery then job.delivery.status = "at_bay" end
         if purchase and purchase.delivery then purchase.delivery.status = "at_bay" end
-        if state then state.message = "Truck parked. Open its rear cargo door to unload." end
+        if state then state.message = pickup
+            and "Pickup truck parked. Open its rear cargo door and load the wrapped pallets."
+            or "Truck parked. Open its rear cargo door to unload." end
+        saveNeeded = true
     elseif event == "cargo_opened" then
-        if state then state.message = "Truck cargo door open. Pallet inventory arrives in step seven." end
+        if pickup then JobService.setPickupStatus(pickup, "cargo_open") end
+        if state then state.message = pickup
+            and "Pickup truck cargo door open. Load every wrapped pallet on the manifest."
+            or "Truck cargo door open. Review the manifest and unload each pallet." end
+        saveNeeded = pickup ~= nil or saveNeeded
     elseif event == "cargo_closed" then
         local received = (job and job.delivery and job.delivery.status == "received")
             or (purchase and purchase.delivery and purchase.delivery.status == "received")
-        if received and World.truck:depart() then
-            if state then state.message = "Cargo secured. The empty truck is departing." end
+        local pickupLoaded = pickup and JobService.remainingPickup(state, pickup.id) == 0
+        if (received or pickupLoaded) and World.truck:depart() then
+            if pickup then JobService.setPickupStatus(pickup, "departing") end
+            if state then state.message = pickup
+                and "Pickup cargo secured. The customer truck is departing."
+                or "Cargo secured. The empty truck is departing." end
+            saveNeeded = pickup ~= nil or saveNeeded
         elseif state then
             state.message = "Truck cargo door closed."
         end
     elseif event == "departed" then
         if World.bayDoor.state == "open" then World.bayDoor:close() end
-        if state then state.message = "The truck left. Closing the loading bay door..." end
+        if pickup then
+            local completed, completedJob, payment = JobService.completePickup(state, pickup.id, os.time())
+            if completed then
+                state.message = string.format("%s picked up and paid $%d. Closing the loading bay door...",
+                    completedJob.id, payment)
+                saveNeeded = true
+            else
+                state.message = "Pickup truck left, but the job could not be archived."
+            end
+        elseif state then
+            state.message = "The truck left. Closing the loading bay door..."
+        end
     end
+    return saveNeeded
 end
 
 function World.update(dt, directionX, directionY, assets, state)
@@ -263,7 +308,7 @@ function World.update(dt, directionX, directionY, assets, state)
     elseif doorEvent == "closed" and state then
         state.message = "Loading bay door closed."
     end
-    updateTruck(dt, state)
+    local saveNeeded = updateTruck(dt, state)
     PalletLogistics.update(state, dt, Config.palletLogistics.unloadDuration)
     local customerEvent = World.customer:update(dt, player)
     if customerEvent == "arrived" and state then
@@ -291,6 +336,7 @@ function World.update(dt, directionX, directionY, assets, state)
         state.message = "The salesman left. Another supplier representative will visit soon."
     end
     World.selectedInteraction = Interaction.select(player, interactables())
+    return saveNeeded
 end
 
 local function drawPalletJack(assets, state)
@@ -671,6 +717,7 @@ function World.openTruckInventory(state)
 end
 
 function World.unloadTruckPallet(state, palletId)
+    if World.truck.mode == "pickup" then return false, "Use the outbound loading manifest for this truck." end
     if World.truck.state ~= "cargo_open" then
         if state then state.message = "Open the truck cargo door before unloading." end
         return false
@@ -690,8 +737,30 @@ function World.unloadTruckPallet(state, palletId)
     return succeeded, pallet, remaining
 end
 
+function World.loadPickupPallet(state, palletId)
+    if World.truck.state ~= "cargo_open" or World.truck.mode ~= "pickup" then
+        if state then state.message = "Open the scheduled pickup truck before loading pallets." end
+        return false
+    end
+    local succeeded, pallet, remaining = JobService.loadForPickup(
+        state, World.truck.jobId, palletId, os.time())
+    if state then
+        state.message = succeeded
+            and string.format("Loaded %s. %d pallet(s) remain on the floor.", pallet.id, remaining)
+            or tostring(pallet)
+    end
+    return succeeded, pallet, remaining
+end
+
 function World.closeTruckAfterUnload(state)
     if World.truck.state ~= "cargo_open" then return false end
+    if World.truck.mode == "pickup" then
+        if JobService.remainingPickup(state, World.truck.jobId) > 0 then
+            if state then state.message = "Load every pickup pallet before closing the cargo door." end
+            return false
+        end
+        return World.toggleTruckCargoDoor(state)
+    end
     if PalletLogistics.remainingOnTruck(state, World.truck.jobId) > 0 then
         if state then state.message = "Unload every pallet before closing the cargo door." end
         return false
