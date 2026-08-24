@@ -193,7 +193,7 @@ def audit(root: Path) -> list[dict[str, object]]:
 
     cutter_contracts = {
         "polar_directions": (2048, 512),
-        "polar_operator_console": (1536, 1024),
+        "polar_operator_console": (768, 512),
         "cutter_control_buttons": (512, 128),
         "cutter_clamp": (3840, 512),
         "cutter_blade": (3840, 512),
@@ -220,7 +220,7 @@ def audit(root: Path) -> list[dict[str, object]]:
     atlas_contracts = {
         "vendor_product_pallets": ((1252, 1252), 4, 4),
         "boxed_paper_pallet_stages": ((1400, 1120), 5, 4),
-        "polar_back_button": ((2172, 724), 3, 1),
+        "polar_back_button": ((384, 128), 3, 1),
     }
     for name, (expected_size, columns, rows) in atlas_contracts.items():
         image = images.get(name)

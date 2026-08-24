@@ -316,6 +316,8 @@ Acceptance: a deliberately missing or malformed test asset produces a readable p
 
 ### Step 14 — Reduce runtime memory and startup work
 
+Status: **Completed 2026-08-24.** The retained startup texture set is now **42.69 MiB**, down about **74.4%** from the audited ~167 MiB baseline. The CPU-only walkmask and compact shared Back control stay resident; title, cutter, and wrapper consoles use on-demand packs; visitor action strips load only when drawn and release when inactive; character anchors and PNG dimensions are read without full-image pixel scans at boot. The Polar console and Back strip were right-sized from 1536x1024 and 2172x724 to 768x512 and 384x128. Screen-pack transition regressions and all asset checks are green.
+
 Introduce screen/pack-based loading, resize/crop oversized UI/prop sheets, and precompute character anchors.
 
 Acceptance: startup and scene transitions remain green while measured texture memory drops substantially from the current ~167 MiB baseline.

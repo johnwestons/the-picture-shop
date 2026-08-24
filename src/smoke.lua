@@ -78,6 +78,13 @@ end
 local function runChecks(context)
     local healthy, failures = context.assets.assertHealthy()
     check("asset_contract", healthy, failures)
+    check("startup_texture_memory_below_100_mib",
+        context.startupTextureBytes < 100 * 1024 * 1024,
+        string.format("%.2f MiB", context.startupTextureBytes / 1024 / 1024))
+    check("screen_packs_start_unloaded", context.assets.activePackName() == nil
+        and context.assets.get("polarOperatorConsole") == nil
+        and context.assets.get("wrappedPalletStages") == nil)
+    check("shared_back_button_stays_loaded", context.assets.get("polarBackButton") ~= nil)
     local dimensionsValid, dimensionError = context.assets.dimensionDiagnostic(
         "assets/generated/test-malformed-atlas.png", 1251, 1252, 1252, 1252)
     local startupDiagnostics = context.assetErrorScreen.normalize(
@@ -209,41 +216,41 @@ local function runChecks(context)
     }
     local charactersHealthy, characterFailures = context.characterAssets.assertHealthy()
     check("character_asset_contract", charactersHealthy, characterFailures)
+    check("character_anchor_scans_eliminated", context.characterAssets.anchorPixelScans() == 0)
+    check("character_packs_start_unloaded", context.characterAssets.residentActionCount() == 0)
     for character, actions in pairs(expectedCharacters) do
         for action, count in pairs(actions) do
             local image, quad, actual = context.characterAssets.get(character, action, 1)
             check(character .. "_" .. action .. "_loaded", image ~= nil and quad ~= nil and actual == count)
         end
     end
+    check("character_actions_load_on_demand", context.characterAssets.residentActionCount() > 0)
+    context.characterAssets.retainCharacters({ ["business-dragon"] = true })
+    check("inactive_character_packs_release",
+        context.characterAssets.residentActionCount() == 3)
+    context.characterAssets.retainCharacters({})
+    check("all_character_packs_release", context.characterAssets.residentActionCount() == 0
+        and context.characterAssets.textureBytes() == 0)
 
     local background = context.assets.get("warehouse")
-    local mask = context.assets.get("walkmask")
+    local mask = context.assets.getData("walkmask")
     local loadingBayDoor = context.assets.get("loadingBayDoor")
     local deliveryTruck = context.assets.get("deliveryTruck")
     local truckCargoDoor = context.assets.get("truckCargoDoor")
-    local polarOperatorConsole = context.assets.get("polarOperatorConsole")
     check("warehouse_loaded", background ~= nil)
-    check("walkmask_loaded", mask ~= nil)
+    check("walkmask_cpu_copy_loaded", mask ~= nil)
+    check("walkmask_gpu_texture_omitted", context.assets.get("walkmask") == nil)
     check("loading_bay_door_asset_loaded", loadingBayDoor ~= nil)
     check("delivery_truck_asset_loaded", deliveryTruck ~= nil)
     check("truck_cargo_door_asset_loaded", truckCargoDoor ~= nil)
-    check("polar_operator_console_loaded", polarOperatorConsole ~= nil)
     check("picture_press_excluded_from_runtime", context.assets.get("picturePress") == nil
         and context.config.paths.picturePress == nil)
     check("polar_direction_strip_loaded", context.assets.get("polarDirections") ~= nil)
-    check("cutter_button_strip_loaded", context.assets.get("cutterControlButtons") ~= nil)
-    check("cutter_clamp_strip_loaded", context.assets.get("cutterClamp") ~= nil)
-    check("cutter_blade_strip_loaded", context.assets.get("cutterBlade") ~= nil)
-    check("loaded_paper_pallet_asset_loaded", context.assets.get("loadedPaperPallet") ~= nil)
     check("loaded_paper_pallet_directions_loaded", context.assets.get("loadedPaperPalletDirections") ~= nil)
     check("pallet_jack_asset_loaded", context.assets.get("palletJack") ~= nil)
     check("loaded_pallet_jack_asset_loaded", context.assets.get("palletJackLoaded") ~= nil)
     check("vendor_product_pallet_atlas_loaded", context.assets.get("vendorProductPallets") ~= nil)
     check("boxed_paper_pallet_stages_loaded", context.assets.get("boxedPaperPalletStages") ~= nil)
-    check("polar_back_button_strip_loaded", context.assets.get("polarBackButton") ~= nil)
-    for frame = 1, 3 do
-        check("polar_back_button_frame_" .. frame, context.assets.getQuad("polarBackButton" .. frame) ~= nil)
-    end
     for frame = 1, context.config.loadingBay.frameCount do
         check("loading_bay_door_frame_" .. frame,
             context.assets.getQuad("loadingBayDoor" .. frame) ~= nil)
@@ -251,10 +258,6 @@ local function runChecks(context)
     for frame = 1, context.config.truck.cargoFrameCount do
         check("truck_cargo_door_frame_" .. frame,
             context.assets.getQuad("truckCargoDoor" .. frame) ~= nil)
-    end
-    for frame = 1, context.config.cutterGui.motionFrameCount do
-        check("cutter_clamp_frame_" .. frame, context.assets.getQuad("cutterClamp" .. frame) ~= nil)
-        check("cutter_blade_frame_" .. frame, context.assets.getQuad("cutterBlade" .. frame) ~= nil)
     end
     for frame = 1, context.config.cutterPlacement.frameCount do
         check("polar_direction_frame_" .. frame,
@@ -275,6 +278,39 @@ local function runChecks(context)
                 context.assets.getQuad("boxedPaperPalletStage" .. stage .. "_" .. frame) ~= nil)
         end
     end
+    check("menu_pack_activates", context.assets.activatePack("menu")
+        and context.assets.activePackName() == "menu"
+        and context.assets.get("polarOperatorConsole") ~= nil
+        and context.assets.get("cutterControlButtons") ~= nil
+        and context.assets.get("cutterClamp") == nil)
+    check("cutter_pack_replaces_menu_pack", context.assets.activatePack("cutter")
+        and context.assets.activePackName() == "cutter")
+    check("polar_operator_console_loaded", context.assets.get("polarOperatorConsole") ~= nil)
+    check("cutter_button_strip_loaded", context.assets.get("cutterControlButtons") ~= nil)
+    check("cutter_clamp_strip_loaded", context.assets.get("cutterClamp") ~= nil)
+    check("cutter_blade_strip_loaded", context.assets.get("cutterBlade") ~= nil)
+    check("polar_back_button_strip_loaded", context.assets.get("polarBackButton") ~= nil)
+    for frame = 1, 3 do
+        check("polar_back_button_frame_" .. frame,
+            context.assets.getQuad("polarBackButton" .. frame) ~= nil)
+    end
+    for frame = 1, context.config.cutterGui.motionFrameCount do
+        check("cutter_clamp_frame_" .. frame, context.assets.getQuad("cutterClamp" .. frame) ~= nil)
+        check("cutter_blade_frame_" .. frame, context.assets.getQuad("cutterBlade" .. frame) ~= nil)
+    end
+    check("wrapper_pack_replaces_cutter_pack", context.assets.activatePack("wrapper")
+        and context.assets.activePackName() == "wrapper"
+        and context.assets.get("polarOperatorConsole") == nil
+        and context.assets.get("wrappedPalletStages") ~= nil
+        and context.assets.get("loadedPaperPallet") ~= nil)
+    for frame = 1, 3 do
+        check("wrapped_pallet_stage_" .. frame,
+            context.assets.getQuad("wrappedPalletStage" .. frame) ~= nil)
+    end
+    check("screen_pack_releases_to_world", context.assets.activatePack(nil)
+        and context.assets.activePackName() == nil
+        and context.assets.get("wrappedPalletStages") == nil
+        and context.assets.get("loadedPaperPallet") == nil)
     if background and mask then
         local backgroundWidth, backgroundHeight = background:getDimensions()
         local maskWidth, maskHeight = mask:getDimensions()

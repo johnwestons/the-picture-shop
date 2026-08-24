@@ -79,6 +79,7 @@ function App.load()
     if Smoke.requested() then love.filesystem.setIdentity("the-picture-shop-smoke") end
     Assets.load()
     CharacterAssets.load()
+    local startupTextureBytes = Assets.textureBytes() + CharacterAssets.textureBytes()
     local assetsHealthy, assetFailures = Assets.assertHealthy()
     local charactersHealthy, characterFailures = CharacterAssets.assertHealthy()
     state.assetErrors = AssetErrorScreen.normalize(
@@ -135,13 +136,14 @@ function App.load()
             truckInventoryScreen = TruckInventoryScreen,
             vendorScreen = VendorScreen,
             world = World,
+            startupTextureBytes = startupTextureBytes,
         })
     end
 end
 
 function App.update(dt)
     if state.screen == "asset_error" then
-        AssetErrorScreen.draw(state.assetErrors)
+        return
     elseif state.screen == "title" then
         TitleScreen.update(dt)
     elseif state.screen == "world" then
@@ -166,7 +168,20 @@ end
 function App.draw()
     love.graphics.clear(0.04, 0.05, 0.07)
     Viewport.beginDraw(Config.baseWidth, Config.baseHeight)
-    if state.screen == "title" then
+    local desiredPack = state.screen == "title" and "menu"
+        or state.screen == "machine"
+            and (state.machineType == "skid_wrapper" and "wrapper" or "cutter") or nil
+    if not Assets.activatePack(desiredPack) then
+        local _, failures = Assets.assertHealthy()
+        state.assetErrors = AssetErrorScreen.normalize(failures)
+        state.screen = "asset_error"
+        state.message = "A screen asset pack could not be loaded."
+    end
+    if state.screen == "asset_error" then
+        CharacterAssets.retainCharacters({})
+        AssetErrorScreen.draw(state.assetErrors)
+    elseif state.screen == "title" then
+        CharacterAssets.retainCharacters({})
         local mouseX, mouseY = love.mouse.getPosition()
         mouseX, mouseY = Viewport.toGame(mouseX, mouseY, Config.baseWidth, Config.baseHeight)
         TitleScreen.draw(Assets, mouseX, mouseY)

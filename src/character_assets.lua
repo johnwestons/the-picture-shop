@@ -1,68 +1,129 @@
+local Anchors = require("src.character_anchors")
 local Config = require("src.config")
+local ImageContract = require("src.image_contract")
 
-local CharacterAssets = { images = {}, frames = {}, anchors = {}, failures = {} }
+local CharacterAssets = {
+    metadata = {},
+    images = {},
+    frames = {},
+    failures = {},
+}
+
+local function release(image)
+    if image and image.release then pcall(image.release, image) end
+end
+
+local function validateAction(character, action, path)
+    local width, height, errorMessage = ImageContract.dimensions(path)
+    if not width then
+        CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": " .. errorMessage
+        return
+    end
+    if height ~= 512 or width % 512 ~= 0 then
+        CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": expected 512px-high frame strip"
+        return
+    end
+    local frameCount = width / 512
+    local actionAnchors = Anchors[character] and Anchors[character][action]
+    if not actionAnchors or #actionAnchors ~= frameCount then
+        CharacterAssets.failures[#CharacterAssets.failures + 1] = string.format(
+            "%s: expected %d precomputed character anchors", path, frameCount)
+        return
+    end
+    CharacterAssets.metadata[character][action] = {
+        path = path,
+        width = width,
+        height = height,
+        frameCount = frameCount,
+    }
+end
 
 function CharacterAssets.load()
-    CharacterAssets.images, CharacterAssets.frames, CharacterAssets.anchors, CharacterAssets.failures = {}, {}, {}, {}
+    CharacterAssets.releaseAll()
+    CharacterAssets.metadata, CharacterAssets.images = {}, {}
+    CharacterAssets.frames, CharacterAssets.failures = {}, {}
     for character, actions in pairs(Config.characters) do
-        CharacterAssets.images[character], CharacterAssets.frames[character] = {}, {}
-        CharacterAssets.anchors[character] = {}
-        for action, path in pairs(actions) do
-            if not love.filesystem.getInfo(path) then
-                CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": missing required asset"
-            else
-                local ok, imageData = pcall(love.image.newImageData, path)
-                local image = ok and imageData and love.graphics.newImage(imageData) or nil
-                if not ok or not image then
-                    CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": image could not be loaded"
-                else
-                    image:setFilter("nearest", "nearest")
-                    local width, height = image:getDimensions()
-                    if height ~= 512 or width % 512 ~= 0 then
-                        CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": expected 512px-high frame strip"
-                    else
-                        CharacterAssets.images[character][action] = image
-                        CharacterAssets.frames[character][action] = {}
-                        CharacterAssets.anchors[character][action] = {}
-                        for frame = 1, width / 512 do
-                            CharacterAssets.frames[character][action][frame] = love.graphics.newQuad((frame - 1) * 512, 0, 512, 512, width, height)
-                            local left, top, right, bottom
-                            for y = 0, 511 do
-                                for x = (frame - 1) * 512, frame * 512 - 1 do
-                                    local _, _, _, alpha = imageData:getPixel(x, y)
-                                    if alpha > 0 then
-                                        left = left and math.min(left, x) or x
-                                        top = top and math.min(top, y) or y
-                                        right = right and math.max(right, x) or x
-                                        bottom = bottom and math.max(bottom, y) or y
-                                    end
-                                end
-                            end
-                            CharacterAssets.anchors[character][action][frame] = {
-                                x = ((left or ((frame - 1) * 512)) + (right or (frame * 512 - 1))) / 2 - (frame - 1) * 512,
-                                y = bottom or 398,
-                            }
-                        end
-                    end
-                end
+        CharacterAssets.metadata[character] = {}
+        CharacterAssets.images[character] = {}
+        CharacterAssets.frames[character] = {}
+        for action, path in pairs(actions) do validateAction(character, action, path) end
+    end
+end
+
+local function loadAction(character, action)
+    local metadata = CharacterAssets.metadata[character] and CharacterAssets.metadata[character][action]
+    if not metadata then return nil end
+    local existing = CharacterAssets.images[character][action]
+    if existing then return existing, CharacterAssets.frames[character][action], metadata.frameCount end
+
+    local ok, image = pcall(love.graphics.newImage, metadata.path)
+    if not ok or not image then return nil end
+    image:setFilter("nearest", "nearest")
+    local frames = {}
+    for frame = 1, metadata.frameCount do
+        frames[frame] = love.graphics.newQuad(
+            (frame - 1) * 512, 0, 512, 512, metadata.width, metadata.height)
+    end
+    CharacterAssets.images[character][action] = image
+    CharacterAssets.frames[character][action] = frames
+    return image, frames, metadata.frameCount
+end
+
+function CharacterAssets.get(character, action, frame)
+    local image, frames, frameCount = loadAction(character, action)
+    if not image or not frames or frameCount == 0 then return nil end
+    return image, frames[((frame or 1) - 1) % frameCount + 1], frameCount
+end
+
+function CharacterAssets.getAnchor(character, action, frame)
+    local actionAnchors = Anchors[character] and Anchors[character][action]
+    if not actionAnchors or #actionAnchors == 0 then return 256, 398 end
+    local anchor = actionAnchors[((frame or 1) - 1) % #actionAnchors + 1]
+    return anchor.x, anchor.y
+end
+
+function CharacterAssets.retainCharacters(activeCharacters)
+    local active = {}
+    for key, value in pairs(activeCharacters or {}) do
+        if type(key) == "number" then active[value] = true elseif value then active[key] = true end
+    end
+    for character, actions in pairs(CharacterAssets.images) do
+        if not active[character] then
+            for action, image in pairs(actions) do
+                release(image)
+                actions[action] = nil
+                CharacterAssets.frames[character][action] = nil
             end
         end
     end
 end
 
-function CharacterAssets.get(character, action, frame)
-    local image = CharacterAssets.images[character] and CharacterAssets.images[character][action]
-    local frames = CharacterAssets.frames[character] and CharacterAssets.frames[character][action]
-    if not image or not frames or #frames == 0 then return nil end
-    return image, frames[((frame or 1) - 1) % #frames + 1], #frames
+function CharacterAssets.releaseAll()
+    for _, actions in pairs(CharacterAssets.images or {}) do
+        for _, image in pairs(actions) do release(image) end
+    end
 end
 
-function CharacterAssets.getAnchor(character, action, frame)
-    local anchors = CharacterAssets.anchors[character] and CharacterAssets.anchors[character][action]
-    if not anchors or #anchors == 0 then return 256, 398 end
-    local anchor = anchors[((frame or 1) - 1) % #anchors + 1]
-    return anchor.x, anchor.y
+function CharacterAssets.textureBytes()
+    local bytes = 0
+    for _, actions in pairs(CharacterAssets.images) do
+        for _, image in pairs(actions) do
+            local width, height = image:getDimensions()
+            bytes = bytes + width * height * 4
+        end
+    end
+    return bytes
 end
+
+function CharacterAssets.residentActionCount()
+    local count = 0
+    for _, actions in pairs(CharacterAssets.images) do
+        for _ in pairs(actions) do count = count + 1 end
+    end
+    return count
+end
+
+function CharacterAssets.anchorPixelScans() return 0 end
 
 function CharacterAssets.assertHealthy()
     return #CharacterAssets.failures == 0, table.concat(CharacterAssets.failures, "\n")

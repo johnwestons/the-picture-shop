@@ -591,6 +591,10 @@ function World.draw(assets, characterAssets, state, mouseX, mouseY)
     drawBackground(assets)
     drawBayDoor(assets)
     drawTruck(assets)
+    local visibleCharacters = {}
+    if World.customer.visible then visibleCharacters[World.customer.character] = true end
+    if World.vendor.visible then visibleCharacters[World.vendor.character] = true end
+    characterAssets.retainCharacters(visibleCharacters)
     local jack = state and PalletJack.ensure(state, Config.palletJack)
     local cutter = state and CutterPlacement.ensure(state, Config.cutterPlacement)
     local wrapper = state and WrapperPlacement.ensure(state, Config.wrapperPlacement)

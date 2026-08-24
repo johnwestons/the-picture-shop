@@ -1,10 +1,12 @@
 local Config = require("src.config")
+local ImageContract = require("src.image_contract")
 
 local Assets = {
     images = {},
     data = {},
     quads = {},
     failures = {},
+    activePack = nil,
 }
 
 local function recordFailure(path, reason)
@@ -40,8 +42,38 @@ local function loadImage(name, path, keepData)
     local image = love.graphics.newImage(imageData)
     image:setFilter("nearest", "nearest")
     Assets.images[name] = image
-    if keepData then Assets.data[name] = imageData end
+    if keepData then
+        Assets.data[name] = imageData
+    elseif imageData.release then
+        pcall(imageData.release, imageData)
+    end
     return image
+end
+
+local function loadData(name, path)
+    if not love.filesystem.getInfo(path) then
+        recordFailure(path, "missing required asset")
+        return nil
+    end
+    local ok, imageData = pcall(love.image.newImageData, path)
+    if not ok or not imageData then
+        recordFailure(path, imageData or "image data could not be loaded")
+        return nil
+    end
+    Assets.data[name] = imageData
+    return imageData
+end
+
+local function validateExactPath(path, expectedWidth, expectedHeight)
+    local width, height, errorMessage = ImageContract.dimensions(path)
+    if not width then
+        recordFailure(path, errorMessage)
+        return false
+    end
+    local valid, diagnostic = Assets.dimensionDiagnostic(
+        path, width, height, expectedWidth, expectedHeight)
+    if not valid then Assets.failures[#Assets.failures + 1] = diagnostic end
+    return valid
 end
 
 local function makeQuad(name, image, x, y, width, height)
@@ -96,38 +128,28 @@ local function registerRabbitAtlas(image)
 end
 
 function Assets.load()
+    Assets.activatePack(nil)
     Assets.images = {}
     Assets.data = {}
     Assets.quads = {}
     Assets.failures = {}
     Assets.rabbit = nil
+    Assets.activePack = nil
 
     local warehouse = loadImage("warehouse", Config.paths.warehouse, false)
-    local walkmask = loadImage("walkmask", Config.paths.walkmask, true)
-    local polar = loadImage("polar", Config.paths.polar, false)
+    local walkmask = loadData("walkmask", Config.paths.walkmask)
     local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
-    local wrappedPalletStages = loadImage("wrappedPalletStages", Config.paths.wrappedPalletStages, false)
     local rabbit = loadImage("rabbit", Config.paths.rabbit, false)
     local loadingBayDoor = loadImage("loadingBayDoor", Config.paths.loadingBayDoor, false)
     local deliveryTruck = loadImage("deliveryTruck", Config.paths.deliveryTruck, false)
     local truckCargoDoor = loadImage("truckCargoDoor", Config.paths.truckCargoDoor, false)
-    local polarOperatorConsole = loadImage("polarOperatorConsole", Config.paths.polarOperatorConsole, false)
-    local cutterControlButtons = loadImage("cutterControlButtons", Config.paths.cutterControlButtons, false)
-    local cutterClamp = loadImage("cutterClamp", Config.paths.cutterClamp, false)
-    local cutterBlade = loadImage("cutterBlade", Config.paths.cutterBlade, false)
-    local loadedPaperPallet = loadImage("loadedPaperPallet", Config.paths.loadedPaperPallet, false)
     local loadedPaperPalletDirections = loadImage("loadedPaperPalletDirections", Config.paths.loadedPaperPalletDirections, false)
     local palletJack = loadImage("palletJack", Config.paths.palletJack, false)
     local palletJackLoaded = loadImage("palletJackLoaded", Config.paths.palletJackLoaded, false)
     local vendorProductPallets = loadImage("vendorProductPallets", Config.paths.vendorProductPallets, false)
     local boxedPaperPalletStages = loadImage("boxedPaperPalletStages", Config.paths.boxedPaperPalletStages, false)
     local polarBackButton = loadImage("polarBackButton", Config.paths.polarBackButton, false)
-    loadImage("emptyPallet", Config.paths.emptyPallet, false)
-    loadImage("paperStack", Config.paths.paperStack, false)
-    loadImage("toolboxSmall", Config.paths.toolboxSmall, false)
-    loadImage("toolboxLarge", Config.paths.toolboxLarge, false)
-    local paperBoxes = loadImage("paperBoxes", Config.paths.paperBoxes, false)
 
     if warehouse and walkmask then
         local warehouseWidth, warehouseHeight = warehouse:getDimensions()
@@ -137,12 +159,6 @@ function Assets.load()
         end
     end
 
-    if polar then
-        local width, height = polar:getDimensions()
-        makeQuad("polarIso", polar, width * 0.03, height * 0.02, width * 0.46, height * 0.59)
-        makeQuad("polarFront", polar, width * 0.51, height * 0.03, width * 0.46, height * 0.57)
-        makeQuad("polarPaper", polar, width * 0.14, height * 0.71, width * 0.23, height * 0.15)
-    end
     if polarDirections then
         local size = Config.cutterPlacement.frameSize
         local width, height = polarDirections:getDimensions()
@@ -166,16 +182,6 @@ function Assets.load()
         else
             for frame = 1, Config.wrapperPlacement.frameCount do
                 makeQuad("skidWrapperDirection" .. frame, skidWrapperDirections, (frame - 1) * size, 0, size, size)
-            end
-        end
-    end
-    if wrappedPalletStages then
-        local width, height = wrappedPalletStages:getDimensions()
-        if width ~= 1536 or height ~= 512 then
-            recordFailure(Config.paths.wrappedPalletStages, "wrapped pallet stages must be a 3x1 grid of 512px cells")
-        else
-            for frame = 1, 3 do
-                makeQuad("wrappedPalletStage" .. frame, wrappedPalletStages, (frame - 1) * 512, 0, 512, 512)
             end
         end
     end
@@ -239,45 +245,6 @@ function Assets.load()
             end
         end
     end
-    if polarOperatorConsole then
-        local width, height = polarOperatorConsole:getDimensions()
-        if width ~= 1536 or height ~= 1024 then
-            recordFailure(Config.paths.polarOperatorConsole, "operator console must be 1536x1024")
-        end
-    end
-    if cutterControlButtons then
-        local size = Config.cutterGui.buttonFrameSize
-        local width, height = cutterControlButtons:getDimensions()
-        if width ~= size * Config.cutterGui.buttonFrameCount or height ~= size then
-            recordFailure(Config.paths.cutterControlButtons, "control button strip dimensions are invalid")
-        else
-            for frame = 1, Config.cutterGui.buttonFrameCount do
-                makeQuad("cutterControlButton" .. frame, cutterControlButtons,
-                    (frame - 1) * size, 0, size, size)
-            end
-        end
-    end
-    local function registerMotionStrip(name, image, path)
-        if not image then return end
-        local frameWidth = Config.cutterGui.motionFrameWidth
-        local frameHeight = Config.cutterGui.motionFrameHeight
-        local width, height = image:getDimensions()
-        if width ~= frameWidth * Config.cutterGui.motionFrameCount or height ~= frameHeight then
-            recordFailure(path, "cutter motion strip dimensions are invalid")
-            return
-        end
-        for frame = 1, Config.cutterGui.motionFrameCount do
-            makeQuad(name .. frame, image, (frame - 1) * frameWidth, 0, frameWidth, frameHeight)
-        end
-    end
-    registerMotionStrip("cutterClamp", cutterClamp, Config.paths.cutterClamp)
-    registerMotionStrip("cutterBlade", cutterBlade, Config.paths.cutterBlade)
-    if loadedPaperPallet then
-        local width, height = loadedPaperPallet:getDimensions()
-        if width ~= 256 or height ~= 256 then
-            recordFailure(Config.paths.loadedPaperPallet, "loaded paper pallet must be 256x256")
-        end
-    end
     if loadedPaperPalletDirections then
         local size = Config.palletJack.frameSize
         local width, height = loadedPaperPalletDirections:getDimensions()
@@ -327,22 +294,126 @@ function Assets.load()
             end
         end
     end
+    validateExactPath(Config.paths.polarOperatorConsole, 768, 512)
+    validateExactPath(Config.paths.cutterControlButtons, 512, 128)
+    validateExactPath(Config.paths.cutterClamp,
+        Config.cutterGui.motionFrameWidth * Config.cutterGui.motionFrameCount,
+        Config.cutterGui.motionFrameHeight)
+    validateExactPath(Config.paths.cutterBlade,
+        Config.cutterGui.motionFrameWidth * Config.cutterGui.motionFrameCount,
+        Config.cutterGui.motionFrameHeight)
+    validateExactPath(Config.paths.polarBackButton, 384, 128)
+    validateExactPath(Config.paths.wrappedPalletStages, 1536, 512)
+    validateExactPath(Config.paths.loadedPaperPallet, 256, 256)
     if polarBackButton then
-        if hasExactDimensions(polarBackButton, Config.paths.polarBackButton, 2172, 724) then
-            local cell, height = 724, 724
-            for frame = 1, 3 do
-                makeQuad("polarBackButton" .. frame, polarBackButton, (frame - 1) * cell, 0, cell, height)
-            end
+        for frame = 1, 3 do
+            makeQuad("polarBackButton" .. frame, polarBackButton, (frame - 1) * 128, 0, 128, 128)
         end
     end
-    if paperBoxes then
-        local width, height = paperBoxes:getDimensions()
-        local variantWidth = math.floor(width / 3)
-        makeQuad("paperBoxClosed", paperBoxes, 0, 0, variantWidth, height)
-        makeQuad("paperBoxOpen", paperBoxes, variantWidth, 0, variantWidth, height)
-        makeQuad("paperBoxFilled", paperBoxes, variantWidth * 2, 0, width - variantWidth * 2, height)
-    end
     registerRabbitAtlas(rabbit)
+end
+
+local PACK_IMAGES = {
+    menu = { "polarOperatorConsole", "cutterControlButtons" },
+    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade" },
+    wrapper = { "wrappedPalletStages", "loadedPaperPallet" },
+}
+
+local function releaseImage(name)
+    local image = Assets.images[name]
+    if image and image.release then pcall(image.release, image) end
+    Assets.images[name] = nil
+end
+
+local function clearPackQuads(packName)
+    if packName == "menu" or packName == "cutter" then
+        for frame = 1, Config.cutterGui.buttonFrameCount do
+            Assets.quads["cutterControlButton" .. frame] = nil
+        end
+    end
+    if packName == "cutter" then
+        for frame = 1, Config.cutterGui.motionFrameCount do
+            Assets.quads["cutterClamp" .. frame] = nil
+            Assets.quads["cutterBlade" .. frame] = nil
+        end
+    elseif packName == "wrapper" then
+        for frame = 1, 3 do Assets.quads["wrappedPalletStage" .. frame] = nil end
+    end
+end
+
+local function unloadPack(packName)
+    for _, name in ipairs(PACK_IMAGES[packName] or {}) do releaseImage(name) end
+    clearPackQuads(packName)
+end
+
+local function loadMenuPack()
+    local console = loadImage("polarOperatorConsole", Config.paths.polarOperatorConsole, false)
+    local buttons = loadImage("cutterControlButtons", Config.paths.cutterControlButtons, false)
+    if not console or not buttons then return false end
+    local buttonSize = Config.cutterGui.buttonFrameSize
+    for frame = 1, Config.cutterGui.buttonFrameCount do
+        makeQuad("cutterControlButton" .. frame, buttons, (frame - 1) * buttonSize, 0,
+            buttonSize, buttonSize)
+    end
+    return true
+end
+
+local function loadCutterPack()
+    if not loadMenuPack() then return false end
+    local clamp = loadImage("cutterClamp", Config.paths.cutterClamp, false)
+    local blade = loadImage("cutterBlade", Config.paths.cutterBlade, false)
+    if not clamp or not blade then return false end
+    for frame = 1, Config.cutterGui.motionFrameCount do
+        local x = (frame - 1) * Config.cutterGui.motionFrameWidth
+        makeQuad("cutterClamp" .. frame, clamp, x, 0,
+            Config.cutterGui.motionFrameWidth, Config.cutterGui.motionFrameHeight)
+        makeQuad("cutterBlade" .. frame, blade, x, 0,
+            Config.cutterGui.motionFrameWidth, Config.cutterGui.motionFrameHeight)
+    end
+    return true
+end
+
+local function loadWrapperPack()
+    local stages = loadImage("wrappedPalletStages", Config.paths.wrappedPalletStages, false)
+    local loadedPallet = loadImage("loadedPaperPallet", Config.paths.loadedPaperPallet, false)
+    if not stages or not loadedPallet then return false end
+    for frame = 1, 3 do
+        makeQuad("wrappedPalletStage" .. frame, stages, (frame - 1) * 512, 0, 512, 512)
+    end
+    return true
+end
+
+function Assets.activatePack(packName)
+    if packName == Assets.activePack then return true end
+    if packName ~= nil and not PACK_IMAGES[packName] then return false end
+    if Assets.activePack then unloadPack(Assets.activePack) end
+    Assets.activePack = nil
+    if not packName then return true end
+    local loaded
+    if packName == "menu" then
+        loaded = loadMenuPack()
+    elseif packName == "cutter" then
+        loaded = loadCutterPack()
+    else
+        loaded = loadWrapperPack()
+    end
+    if not loaded then
+        unloadPack(packName)
+        return false
+    end
+    Assets.activePack = packName
+    return true
+end
+
+function Assets.activePackName() return Assets.activePack end
+
+function Assets.textureBytes()
+    local bytes = 0
+    for _, image in pairs(Assets.images) do
+        local width, height = image:getDimensions()
+        bytes = bytes + width * height * 4
+    end
+    return bytes
 end
 
 function Assets.get(name)
