@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local Save = require("src.save")
+local Ui = require("src.screens.ui")
 
 local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil, hover = nil, pressed = nil }
 local BUTTONS = {
@@ -11,7 +12,7 @@ local BUTTONS = {
     no = { x = 500, y = 386, width = 130, height = 48, label = "CANCEL" },
 }
 
-local function inside(rect, x, y) return x >= rect.x and x <= rect.x + rect.width and y >= rect.y and y <= rect.y + rect.height end
+local inside = Ui.contains
 local function slotRect(index) return { x = 116, y = 236 + (index - 1) * 72, width = 728, height = 56 } end
 local function buttonAt(x, y)
     for name, rect in pairs(BUTTONS) do if inside(rect, x, y) then return name end end

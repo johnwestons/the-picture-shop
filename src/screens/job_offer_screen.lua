@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local BackButton = require("src.screens.back_button")
+local Ui = require("src.screens.ui")
 
 local JobOfferScreen = {}
 
@@ -10,24 +11,7 @@ local BUTTONS = {
     accept = { x = 542, y = 574, width = 160, height = 46 },
 }
 
-local function contains(rect, x, y)
-    return x >= rect.x and y >= rect.y
-        and x <= rect.x + rect.width
-        and y <= rect.y + rect.height
-end
-
-local function commaNumber(value)
-    local text = tostring(math.floor(value or 0))
-    local changed
-    repeat
-        text, changed = text:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
-    until changed == 0
-    return text
-end
-
-local function money(value)
-    return "$" .. commaNumber(value)
-end
+local contains, commaNumber, money = Ui.contains, Ui.commaNumber, Ui.money
 
 local function sizeText(size)
     return string.format("%g × %g inches", size.width, size.height)

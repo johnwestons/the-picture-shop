@@ -15,9 +15,9 @@ Procurement.categories = {
         id = "press", name = "PRESS SUPPLIES", salesman = "Iris Inkwell", character = "blue-coaler-cat", assetRow = 2,
         items = {
             { id = "black_ink", name = "Black ink, 6 cans", price = 84, quantity = 6, unit = "cans",
-                available = false, unavailableReason = "Available when the picture press enters production." },
+                available = false, unavailableReason = "Requires the picture-press expansion." },
             { id = "press_chemistry", name = "Press chemistry case", price = 68, quantity = 1, unit = "case",
-                available = false, unavailableReason = "Available when the picture press enters production." },
+                available = false, unavailableReason = "Requires the picture-press expansion." },
         },
     },
     {
@@ -31,9 +31,9 @@ Procurement.categories = {
         id = "equipment", name = "TOOLS & MAINTENANCE", salesman = "Otis Wrench", character = "tan-cat", assetRow = 4,
         items = {
             { id = "maintenance_kit", name = "Machine maintenance kit", price = 145, quantity = 1, unit = "kit",
-                available = false, unavailableReason = "Available when machine maintenance is implemented." },
+                available = false, unavailableReason = "Requires a machine-service contract." },
             { id = "safety_supplies", name = "Warehouse safety case", price = 110, quantity = 1, unit = "case",
-                available = false, unavailableReason = "Available when safety supplies have a consumer." },
+                available = false, unavailableReason = "Requires the warehouse safety upgrade." },
         },
     },
 }

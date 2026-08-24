@@ -2,23 +2,14 @@ local Logistics = require("src.pallet_logistics")
 local JobService = require("src.job_service")
 local BackButton = require("src.screens.back_button")
 local Config = require("src.config")
+local Ui = require("src.screens.ui")
 
 local Screen = {}
 local CLOSE = { x = 744, y = 60, width = 140, height = 42 }
 local DOOR = { x = 650, y = 570, width = 220, height = 42 }
 local ROW = { x = 82, y = 154, width = 796, height = 66, gap = 10 }
 
-local function box(x, y, width, height, fill, line, radius)
-    love.graphics.setColor(fill)
-    love.graphics.rectangle("fill", x, y, width, height, radius or 0, radius or 0)
-    love.graphics.setColor(line)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", x, y, width, height, radius or 0, radius or 0)
-end
-
-local function inside(rect, x, y)
-    return x >= rect.x and x <= rect.x + rect.width and y >= rect.y and y <= rect.y + rect.height
-end
+local box, inside = Ui.box, Ui.contains
 
 local function rowRect(index)
     return { x = ROW.x, y = ROW.y + (index - 1) * (ROW.height + ROW.gap), width = ROW.width, height = ROW.height }
@@ -29,14 +20,7 @@ local function unloadRect(index)
     return { x = row.x + row.width - 146, y = row.y + 14, width = 126, height = 38 }
 end
 
-local function commaNumber(value)
-    local text = tostring(math.floor(value or 0))
-    while true do
-        local replaced, count = text:gsub("^(%-?%d+)(%d%d%d)", "%1,%2")
-        text = replaced
-        if count == 0 then return text end
-    end
-end
+local commaNumber = Ui.commaNumber
 
 function Screen.draw(state, world, assets, pointerX, pointerY)
     local snapshot = world.truckSnapshot()

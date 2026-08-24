@@ -1,0 +1,311 @@
+local Config = require("src.config")
+local CutterPlacement = require("src.cutter_placement")
+local PalletJack = require("src.pallet_jack")
+local PalletLogistics = require("src.pallet_logistics")
+local Wrapper = require("src.wrapper")
+local WrapperPlacement = require("src.wrapper_placement")
+
+local Renderer = {}
+local World
+
+local function drawPalletJack(assets, state)
+    local frame, loaded = PalletJack.frame(state, Config.palletJack)
+    local carried = loaded and PalletJack.carriedItem(state, Config.palletJack) or nil
+    local vendorLoad = carried and carried.vendor
+    local boxedLoad = carried and not vendorLoad and carried.pallet.packaging == "boxed"
+    local imageName = loaded and not vendorLoad and not boxedLoad and "palletJackLoaded" or "palletJack"
+    local quadName = imageName .. frame
+    local image, sprite = assets.get(imageName), assets.getQuad(quadName)
+    if not image or not sprite then return end
+    local jack = state.palletJack
+    local scale = Config.palletJack.drawScale
+    if vendorLoad or boxedLoad then
+        local productImage = assets.get(vendorLoad and "vendorProductPallets" or "boxedPaperPalletStages")
+        local productSprite
+        if vendorLoad then
+            productSprite = assets.getQuad("vendorProductPallet" .. tostring(carried.pallet.assetRow or 1) .. "_" .. frame)
+        else
+            productSprite = assets.getQuad("boxedPaperPalletStage" .. (carried.pallet.wrapped and 5 or 1) .. "_" .. frame)
+        end
+        if productImage and productSprite then
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.draw(productImage, productSprite.quad, jack.x, jack.y - 3, 0,
+                Config.palletLogistics.drawScale, Config.palletLogistics.drawScale,
+                productSprite.width / 2, productSprite.height * 0.92)
+        end
+    end
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, sprite.quad, jack.x, jack.y, 0, scale, scale,
+        sprite.width / 2, sprite.height * 0.88)
+end
+
+local function drawPallet(assets, item)
+    local boxed = not item.vendor and item.pallet.packaging == "boxed"
+    local stage = 1
+    if boxed then
+        if item.pallet.wrapped then stage = 5 end
+        if Wrapper.pallet == item.pallet and Wrapper.step == "wrapping" then
+            stage = math.max(1, math.min(5, math.floor(Wrapper.filmHeight() * 4) + 1))
+        end
+    end
+    local imageName = item.vendor and "vendorProductPallets"
+        or (boxed and "boxedPaperPalletStages" or "loadedPaperPalletDirections")
+    local image = assets.get(imageName)
+    local frame = PalletLogistics.directionFrame(item.pallet)
+    local spriteName = item.vendor and ("vendorProductPallet" .. tostring(item.pallet.assetRow or 1) .. "_" .. frame)
+        or (boxed and ("boxedPaperPalletStage" .. stage .. "_" .. frame) or ("loadedPaperPallet" .. frame))
+    local sprite = assets.getQuad(spriteName)
+    if not image or not sprite then return end
+    local scale = Config.palletLogistics.drawScale
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, sprite.quad, item.x, item.y, 0, scale, scale,
+        sprite.width / 2, sprite.height * 0.92)
+    -- `packaging` is the requested job outcome, not the pallet's current
+    -- physical state. Only draw cartons after the wrapper has completed.
+    if item.pallet.wrapped and not boxed then
+        love.graphics.setColor(0.72, 0.90, 1.0, 0.22)
+        love.graphics.polygon("fill", item.x - 43, item.y - 68, item.x + 43, item.y - 68,
+            item.x + 48, item.y - 7, item.x - 48, item.y - 7)
+        love.graphics.setColor(0.86, 0.96, 1.0, 0.55)
+        for y = item.y - 60, item.y - 15, 12 do love.graphics.line(item.x - 42, y, item.x + 42, y) end
+    end
+    love.graphics.setColor(0.12, 0.24, 0.34, 0.95)
+    love.graphics.rectangle("fill", item.x - 22, item.y - 15, 44, 12)
+    love.graphics.setColor(0.92, 0.96, 0.94)
+    love.graphics.printf(item.vendor and "STOCK" or ("P" .. tostring(item.pallet.number)), item.x - 25, item.y - 14, 50, "center")
+end
+
+local function drawPalletTooltip(state, mouseX, mouseY)
+    local hovered = PalletLogistics.hovered(state, mouseX, mouseY)
+    if not hovered and state then
+        local carried = PalletJack.carriedItem(state, Config.palletJack)
+        if carried and mouseX >= carried.x - 58 and mouseX <= carried.x + 58
+            and mouseY >= carried.y - 92 and mouseY <= carried.y + 12
+        then
+            hovered = carried
+        end
+    end
+    local tooltip = PalletLogistics.tooltip(hovered)
+    if not tooltip then return end
+    local width, height = 390, 86
+    local x = math.min(Config.baseWidth - width - 12, mouseX + 16)
+    local y = math.min(Config.baseHeight - height - 12, mouseY + 16)
+    love.graphics.setColor(0.025, 0.04, 0.055, 0.96)
+    love.graphics.rectangle("fill", x, y, width, height, 4, 4)
+    love.graphics.setColor(0.42, 0.70, 0.76)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", x, y, width, height, 4, 4)
+    love.graphics.setColor(0.96, 0.84, 0.30)
+    love.graphics.print(tooltip.title, x + 12, y + 9)
+    love.graphics.setColor(0.84, 0.90, 0.91)
+    love.graphics.print(tooltip.line1, x + 12, y + 29)
+    love.graphics.print(tooltip.line2, x + 12, y + 47)
+    love.graphics.print(tooltip.line3, x + 12, y + 65)
+end
+
+local function drawTruck(assets)
+    if not World.truck:isVisible() then return end
+    local truckImage = assets.get("deliveryTruck")
+    local cargoImage = assets.get("truckCargoDoor")
+    local cargoSprite = assets.getQuad("truckCargoDoor" .. World.truck:cargoFrame())
+    if not truckImage or not cargoImage or not cargoSprite then return end
+
+    local aperture = {}
+    for _, point in ipairs(Config.truck.aperture) do
+        aperture[#aperture + 1] = point.x
+        aperture[#aperture + 1] = point.y
+    end
+    love.graphics.stencil(function()
+        love.graphics.polygon("fill", unpack(aperture))
+    end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+
+    local transform = World.truck:transform()
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(
+        truckImage,
+        transform.x,
+        transform.y,
+        0,
+        transform.scale,
+        transform.scale,
+        Config.truck.frameSize / 2,
+        Config.truck.frameSize * 0.84
+    )
+    love.graphics.draw(
+        cargoImage,
+        cargoSprite.quad,
+        transform.x,
+        transform.y,
+        0,
+        transform.scale,
+        transform.scale,
+        Config.truck.frameSize / 2,
+        Config.truck.frameSize * 0.84
+    )
+    love.graphics.setStencilTest()
+end
+
+local function drawBayDoor(assets)
+    local image = assets.get("loadingBayDoor")
+    local sprite = assets.getQuad("loadingBayDoor" .. World.bayDoor:frame())
+    local warehouse = assets.get("warehouse")
+    if not image or not sprite or not warehouse then return end
+    local scaleX = Config.baseWidth / warehouse:getWidth()
+    local scaleY = Config.baseHeight / warehouse:getHeight()
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(
+        image,
+        sprite.quad,
+        Config.loadingBay.sourceX * scaleX,
+        Config.loadingBay.sourceY * scaleY,
+        0,
+        scaleX,
+        scaleY
+    )
+end
+
+local function drawBackground(assets)
+    local background = assets.get("warehouse")
+    if background then
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(
+            background,
+            0,
+            0,
+            0,
+            Config.baseWidth / background:getWidth(),
+            Config.baseHeight / background:getHeight()
+        )
+        return
+    end
+
+    love.graphics.setColor(0.33, 0.35, 0.34)
+    love.graphics.polygon("fill", 80, 115, 480, 55, 880, 115, 480, 620)
+end
+
+local function drawCutter(assets, state)
+    local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
+    local image = assets.get("polarDirections")
+    local sprite = assets.getQuad("polarDirection" .. CutterPlacement.frame(state, Config.cutterPlacement))
+    if image and sprite then
+        local scale = Config.cutterPlacement.drawScale
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(
+            image,
+            sprite.quad,
+            cutter.x,
+            cutter.y,
+            0,
+            scale,
+            scale,
+            sprite.width / 2,
+            sprite.height * 0.96
+        )
+        return
+    end
+
+    love.graphics.setColor(0.36, 0.39, 0.43)
+    love.graphics.rectangle(
+        "fill",
+        cutter.x - 58,
+        cutter.y - 55,
+        116,
+        55
+    )
+end
+
+local function drawWrapper(assets, state)
+    local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+    local image = assets.get("skidWrapperDirections")
+    local sprite = assets.getQuad("skidWrapperDirection" .. WrapperPlacement.frame(state, Config.wrapperPlacement))
+    if not image or not sprite then return end
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, sprite.quad, wrapper.x, wrapper.y, 0,
+        Config.wrapperPlacement.drawScale, Config.wrapperPlacement.drawScale,
+        sprite.width / 2, sprite.height * 0.94)
+end
+
+local function drawPlayer(assets)
+    local player = World.player
+    local action = player.moving and "walk" or "idle"
+    -- Generated walk frames 1 and 6 contain doubled silhouettes. Loop the
+    -- four clean poses forward and back for a stable six-step walk cycle.
+    local walkFrames = { 2, 3, 4, 5, 4, 3 }
+    local frameCount = action == "walk" and #walkFrames or 2
+    local rate = action == "walk" and 9 or 2
+    local frame = math.floor(player.animationClock * rate) % frameCount + 1
+    if action == "walk" then frame = walkFrames[frame] end
+    local quad, cellWidth, cellHeight = assets.getRabbitFrame(action, frame)
+    local image = assets.get("rabbit")
+
+
+    if image and quad then
+        local scaleX = Config.player.drawScale * player.facing
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(
+            image,
+            quad,
+            player.x,
+            player.y,
+            0,
+            scaleX,
+            Config.player.drawScale,
+            cellWidth / 2,
+            cellHeight * 0.94
+        )
+        return
+    end
+
+    love.graphics.setColor(0.75, 0.58, 0.42)
+    love.graphics.rectangle("fill", player.x - 9, player.y - 38, 18, 28)
+    love.graphics.rectangle("fill", player.x - 13, player.y - 56, 9, 18)
+    love.graphics.rectangle("fill", player.x + 4, player.y - 56, 9, 18)
+    love.graphics.setColor(0.25, 0.46, 0.62)
+    love.graphics.rectangle("fill", player.x - 13, player.y - 10, 26, 18)
+end
+
+function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY)
+    World = world
+    drawBackground(assets)
+    drawBayDoor(assets)
+    drawTruck(assets)
+    local visibleCharacters = {}
+    if World.customer.visible then visibleCharacters[World.customer.character] = true end
+    if World.vendor.visible then visibleCharacters[World.vendor.character] = true end
+    characterAssets.retainCharacters(visibleCharacters)
+    local jack = state and PalletJack.ensure(state, Config.palletJack)
+    local cutter = state and CutterPlacement.ensure(state, Config.cutterPlacement)
+    local wrapper = state and WrapperPlacement.ensure(state, Config.wrapperPlacement)
+    local actors = {
+        { y = cutter.y, draw = function() drawCutter(assets, state) end },
+        { y = wrapper.y, draw = function() drawWrapper(assets, state) end },
+    }
+    if jack and jack.operating then
+        -- Separate depth entries keep the operator naturally behind or in
+        -- front of the handle as the jack changes direction.
+        actors[#actors + 1] = { y = jack.y, draw = function() drawPalletJack(assets, state) end }
+        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(assets) end }
+    else
+        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(assets) end }
+        if jack then actors[#actors + 1] = { y = jack.y, draw = function() drawPalletJack(assets, state) end } end
+    end
+    for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
+        actors[#actors + 1] = { y = item.y, draw = function() drawPallet(assets, item) end }
+    end
+    if World.customer.visible then
+        actors[#actors + 1] = {
+            y = World.customer.y,
+            draw = function() World.customer:draw(characterAssets) end,
+        }
+    end
+    if World.vendor.visible then
+        actors[#actors + 1] = { y = World.vendor.y, draw = function() World.vendor:draw(characterAssets) end }
+    end
+    table.sort(actors, function(a, b) return a.y < b.y end)
+    for _, actor in ipairs(actors) do actor.draw() end
+    drawPalletTooltip(state, mouseX, mouseY)
+end
+
+
+return Renderer

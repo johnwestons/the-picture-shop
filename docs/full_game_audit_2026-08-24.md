@@ -1,4 +1,4 @@
-# The Picture Shop — Full Game Audit and Cleanup Plan
+# The Picture Shop — Full Game Audit and Cleanup Report
 
 Date: 2026-08-24
 Engine verified: LÖVE 11.5
@@ -6,43 +6,40 @@ Audit scope: implemented runtime systems, save/state flow, input and UI routes, 
 
 ## Executive summary
 
-The vertical slice is healthy enough to boot and run its tested happy path. The current engine smoke test completed with **323 passes and 0 failures**, and the raster audit completed with **145 passes and 0 failures**. Every image registered as a required runtime asset exists and can be loaded.
+The implemented vertical slice now completes its full tested loop: protect/create a shop, accept work, receive and stage pallets, cut every lift, package, schedule pickup, load the outbound truck, collect payment, archive the job, save, and recover. All four original P0 findings, all five P1 blockers, all eight P2 integration findings, and the four P3 cleanup/scaling findings have been addressed through the ordered steps below.
 
-The green checks do not mean the game is ready for a general cleanup commit yet. The audit found four urgent state/data problems, several incomplete gameplay connections, and a large amount of asset/test material that needs a source-control boundary. The highest-risk issues are:
+The final engine run completes **559 named checks with 0 failures** plus the required three rendered frames. The raster doctor completes **162 checks with 0 failures**. An audit coverage manifest ties every resolved P0/P1/P2 finding to required regressions, and the working texture footprint at startup is **42.69 MiB**, about 74.4% below the original ~167 MiB baseline.
 
-1. Starting a new shop on an occupied slot overwrites it without confirmation.
-2. Leaving the skid-wrapper screen during a wrap can lead to a nil-state runtime crash.
-3. New-game/save payloads do not preserve the intended starter film inventory or skid-wrapper placement.
-4. The cutter can claim a pallet that is still carried by the pallet jack, leaving two systems owning the same pallet.
-5. A job cannot actually be completed, picked up, paid, or moved to the Completed list.
-
-The recommended approach is to establish a clean Git baseline first, then fix one numbered item at a time in the order given below. Each fix should include its own regression check before moving to the next item.
+The project is ready for balancing, playtesting, and carefully scoped content expansion. Remaining ideas at the end of this report are recommendations rather than known correctness blockers.
 
 ## Project snapshot
 
-- 37 Lua files and 6,790 lines of Lua.
-- 456 workspace files totaling about 144 MiB, excluding Git internals.
-- `assets/` is about 91 MiB; `output/` is about 51 MiB.
-- The configured runtime image set decodes to about 167 MiB before counting the retained walkmask CPU copy and other engine overhead.
+- 54 Lua files and about 9,900 lines of Lua after the added gameplay systems and modular regression suites.
+- 517 workspace files totaling about 144 MiB, excluding Git internals.
+- `assets/` is about 90 MiB; `output/` is about 52 MiB.
+- The retained startup texture set is 42.69 MiB; machine and visitor packs load on demand.
 - `assets/Machines/movingPicturePress_files/` alone contains 161 downloaded webpage-support files totaling about 37 MiB.
-- Git is now a separate repository rooted at The Picture Shop, on `master`, using `John <johnwestontattoos@gmail.com>`. It has no remote and no commits. It is not connected to Mouse Frontier.
+- Git is a separate repository rooted at The Picture Shop, on `master`, using `John <johnwestontattoos@gmail.com>`. It has no remote and is not connected to Mouse Frontier.
 
 ## Validation results
 
 ### Passed
 
 - LÖVE 11.5 launched the project successfully.
-- The hidden watchdog smoke test completed: 323 passes, 0 failures, three frames rendered.
+- The hidden watchdog smoke test completed: 559 passes, 0 failures, three frames rendered.
 - Required warehouse, walkmask, machine, loading-bay, truck, pallet, pallet-jack, wrapper, and registered character assets loaded.
 - Warehouse/walkmask dimensions and binary mask values passed.
-- Current sprite strips produced valid quads under the existing loader rules.
-- Job quoting, inbound delivery, pallet unloading, pallet-jack movement, cutter happy path, basic wrapper cycle, and save v1 migration passed their existing smoke checks.
+- Current sprite strips and atlases satisfy exact dimension/grid contracts with nonempty cells.
+- The full accept-to-payment loop, vendor supply consumers, receiving occupancy, multi-lift production, physical ownership, save v1/v2 migration, crash recovery, and input parity pass.
+- Focused domain suites, engine integrations, duplicate-name detection, and audit-to-regression coverage pass.
 
-### Coverage gaps
+### Intentional boundaries
 
-The smoke suite does not test occupied-slot overwrite protection, new-game film defaults, skid-wrapper save persistence, exit during a wrapper cycle, press routing, successful job completion/payment, repeated deliveries to occupied receiving points, cutter loading from a carried pallet, atomic save recovery, or title-screen keyboard controls.
+- The picture press and unplaced prop/machine art remain outside the live runtime contract until complete gameplay consumers exist.
+- The suite validates deterministic workflows and three render frames; extended human playtesting is still needed for pacing, learnability, economy balance, and visual comfort.
+- Disposable generated previews and the large downloaded press-reference mirror remain source/artifact hygiene opportunities, not runtime correctness issues.
 
-## Findings by severity
+## Original findings and resolutions
 
 Severity guide:
 
@@ -55,135 +52,177 @@ Severity guide:
 
 #### P0-01: New Shop can silently overwrite an occupied save
 
+Resolution: **Fixed in Step 1.** Occupied slots require confirmation, Cancel preserves the original bytes, and mouse/keyboard routes share the same tested action.
+
 `src/screens/title_screen.lua:27-30` creates a new payload immediately, and the New Shop click path at `src/screens/title_screen.lua:53` has no occupied-slot confirmation. The live title-screen check also confirmed that the advertised keyboard workflow is absent, making a mistaken mouse click the only active route.
 
-Expected fix: show a clear overwrite confirmation for an occupied slot, preserve the existing slot until confirmation, and add a regression check that Cancel leaves the original save byte-for-byte readable.
+Implemented scope: show a clear overwrite confirmation for an occupied slot, preserve the existing slot until confirmation, and add a regression check that Cancel leaves the original save byte-for-byte readable.
 
 #### P0-02: Exiting during skid wrapping can crash the world update
 
+Resolution: **Fixed in Step 2.** Active wrapping blocks both exit routes and relocation until the single-use cycle finishes with valid state.
+
 Escape or the Exit button returns to the world without stopping the active wrapper cycle (`src/input.lua:18-23`, `src/input.lua:147-153`). The world branch then calls `Wrapper.update(dt)` without the state object (`src/app.lua:116-120`). Once the cycle reaches completion, `src/wrapper.lua:47-48` dereferences `state.inventory`.
 
-Expected fix: define one lifecycle policy—finish in the background, pause, or prevent exit during the three-second cycle—and always update the wrapper with valid state. Test Escape and mouse Exit at the start, middle, and final frame of wrapping.
+Implemented scope: define one lifecycle policy—finish in the background, pause, or prevent exit during the three-second cycle—and always update the wrapper with valid state. Test Escape and mouse Exit at the start, middle, and final frame of wrapping.
 
 #### P0-03: Save/new-game schema loses intended state
 
+Resolution: **Fixed in Step 3.** Save format 3 owns exact defaults, migration, validation, reconciliation, film, equipment, and pallet ownership.
+
 `State.new()` supplies one plastic-wrap roll with 11 uses (`src/state.lua:13-21`), but `Save.newGame()` omits both fields (`src/save.lua:145-173`). After `State.applySave()`, a newly created shop therefore starts with zero film. The save payload also omits `state.wrapper` (`src/save.lua:193-215`), even though load code expects it (`src/state.lua:79-84`), so wrapper relocation is lost on reload.
 
-Expected fix: introduce a new save version with explicit defaults and v1/v2 migration; persist wrapper placement and film state; verify all three slot operations and round-trip every persistent field.
+Implemented scope: introduce a new save version with explicit defaults and v1/v2 migration; persist wrapper placement and film state; verify all three slot operations and round-trip every persistent field.
 
 #### P0-04: Cutter and pallet jack can own the same pallet
 
+Resolution: **Fixed in Step 5.** Central pallet transitions enforce one owner and reject cutter claims on carried or unstaged pallets.
+
 The cutter accepts any incomplete paper whose location is not `awaiting_delivery` or `none` (`src/machine.lua:32-45`). This includes `on_pallet_jack`. Loading changes the pallet to `at_cutter` (`src/machine.lua:71-90`) but does not clear the jack's `carriedPalletId`, creating contradictory ownership and allowing later movement/output code to manipulate the same pallet.
 
-Expected fix: centralize legal pallet-location transitions, reject cutter loading unless the pallet is staged on clear floor near the cutter, and add invariant checks ensuring one pallet has exactly one owner/location.
+Implemented scope: centralize legal pallet-location transitions, reject cutter loading unless the pallet is staged on clear floor near the cutter, and add invariant checks ensuring one pallet has exactly one owner/location.
 
 ### P1 — main-loop blockers
 
 #### P1-01: Jobs cannot be completed, picked up, or paid
 
+Resolution: **Fixed in Step 6.** The outbound pickup, payment, pallet removal, archive, and autosave loop is complete.
+
 The computer's completion button only returns `completion_ready` (`src/screens/computer_screen.lua:178-181`). Input then displays that completion and pickup scheduling are not connected (`src/input.lua:164-168`). No code moves a job from active to completed, removes wrapped pallets, changes accounts receivable into cash, or schedules an outbound truck.
 
-Expected fix: implement `in_production -> ready_for_pickup -> pickup_in_progress -> completed`, an outbound manifest/truck flow, active/completed collection transfer, pallet removal, AR settlement, and autosaves at each irreversible transition.
+Implemented scope: implement `in_production -> ready_for_pickup -> pickup_in_progress -> completed`, an outbound manifest/truck flow, active/completed collection transfer, pallet removal, AR settlement, and autosaves at each irreversible transition.
 
 #### P1-02: Repeated deliveries overlap pallets at fixed coordinates
 
+Resolution: **Fixed in Step 7.** Receiving lanes reserve clear positions, block atomically when full, and reopen after pallets move.
+
 Customer and vendor unloads reuse the same five configured spawn points (`src/config.lua:118-134`, `src/pallet_logistics.lua:65-76`, `src/procurement.lua:104-114`). No occupancy check reserves a receiving position. Later jobs and every single-pallet vendor order can stack directly on existing pallets, producing ambiguous tooltips and collision.
 
-Expected fix: create receiving-lane slots with occupancy checks, block an unload when no slot is clear, and guide the player to move staged pallets before continuing.
+Implemented scope: create receiving-lane slots with occupancy checks, block an unload when no slot is clear, and guide the player to move staged pallets before continuing.
 
 #### P1-03: Cutter input/output ignores physical logistics
 
+Resolution: **Fixed in Step 8.** Input requires a nearby feed-side pallet and output searches validated clear floor positions.
+
 The cutter selects the first eligible pallet anywhere in the warehouse rather than a nearby staged pallet (`src/machine.lua:32-45`, `src/machine.lua:71-78`). Finished output uses a fixed offset from the cutter without testing the walkmask or other objects (`src/machine.lua:17-29`, `src/machine.lua:316-320`). A relocated cutter can therefore teleport input or place output inside walls, machines, or other pallets.
 
-Expected fix: require a specific nearby pallet, add a pallet selector when more than one is valid, reserve a clear cutter input/output zone, and reject/redirect unsafe output placement.
+Implemented scope: require a specific nearby pallet, add a pallet selector when more than one is valid, reserve a clear cutter input/output zone, and reject/redirect unsafe output placement.
 
 #### P1-04: Quoted lift workload is bypassed
 
+Resolution: **Fixed in Step 9.** One manual verified lift establishes the program and each remaining lift advances saved sheet counts explicitly.
+
 Jobs quote one charge for every 500-sheet lift (`src/jobs.lua:13-14`, `src/jobs.lua:137-159`), but the cutter performs one four-margin program for an entire pallet and then marks every required lift complete (`src/machine.lua:273-325`). A 500-sheet pallet and a 3,000-sheet pallet require essentially the same player work despite a sixfold quote difference.
 
-Expected fix: represent the active lift and remaining sheets explicitly. To avoid excessive repetition, make the first lift a manual setup/quality check and allow safe repeat production for the remaining programmed lifts.
+Implemented scope: represent the active lift and remaining sheets explicitly. To avoid excessive repetition, make the first lift a manual setup/quality check and allow safe repeat production for the remaining programmed lifts.
 
 #### P1-05: Saves are not crash-safe
 
+Resolution: **Fixed in Step 4.** Validated temporary writes, last-known-good backup, automatic recovery, and damaged-slot display are live.
+
 `src/save.lua:221-222` writes directly over the only slot file. A crash, disk interruption, or OneDrive sync conflict during the write can turn the slot into an unreadable empty listing. Validation is also shallow and does not reconcile cached inventory totals against pallet records.
 
-Expected fix: write and validate a temporary payload, preserve a last-known-good backup, then promote it; recover automatically from a valid backup; validate nested job/pallet/paper fields; and rebuild derived inventory totals on load.
+Implemented scope: write and validate a temporary payload, preserve a last-known-good backup, then promote it; recover automatically from a valid backup; validate nested job/pallet/paper fields; and rebuild derived inventory totals on load.
 
 ### P2 — incomplete or inconsistent integrations
 
 #### P2-01: Picture press is visually present in code but unreachable and inert
 
+Resolution: **Fixed in Step 11.** The unfinished press is excluded from the runtime contract while its reference art remains available for later development.
+
 The press asset and a press UI branch exist, but the world has no press placement/interactable, input never assigns `machineType = "picture_press"`, and the machine-screen update/input routes do not run `Press.update` or `Press.keypressed`. The prototype also increments an internal sheet count without consuming inventory, producing saved output, or affecting jobs.
 
-Expected fix: either remove it from the live runtime contract until ready, or add a complete placement, interaction, update, input, inventory, save, and production flow.
+Implemented scope: either remove it from the live runtime contract until ready, or add a complete placement, interaction, update, input, inventory, save, and production flow.
 
 #### P2-02: Vendor purchases are delivered but mostly have no gameplay use
 
+Resolution: **Fixed in Step 10.** Active catalog items feed production paper, cartons, and wrapper film through the tracked delivery flow.
+
 Vendor unloading adds quantities to `inventory.stock` (`src/procurement.lua:104-117`), but that stock is not displayed in the computer inventory and is not consumed by production. Delivered `stretch_film` does not add `plasticWrapRolls`; boxed jobs do not require cartons; paper and press supplies do not feed a press. The separate computer button bypasses delivery and buys film instantly.
 
-Expected fix: give every catalog item a defined inventory effect and consumer, show all stock, and use the same delivery-based purchasing model for film instead of maintaining two unrelated film systems.
+Implemented scope: give every catalog item a defined inventory effect and consumer, show all stock, and use the same delivery-based purchasing model for film instead of maintaining two unrelated film systems.
 
 #### P2-03: Input documentation and actual behavior disagree
 
+Resolution: **Fixed in Steps 1 and 15.** Title controls, overlay closes, visible buttons, Escape, prompts, and README instructions agree.
+
 The README advertises W/S or arrows, N, C/Enter, D, and Y/N on the title screen, while `src/input.lua:26-28` intentionally ignores all title keys. The README also says Escape closes a GUI, but job paperwork blocks Escape while a clickable Back button exists.
 
-Expected fix: implement the documented keyboard routes (recommended for accessibility) or rewrite the controls section and on-screen prompts to exactly match behavior. Test mouse and keyboard parity for every screen.
+Implemented scope: implement the documented keyboard routes (recommended for accessibility) or rewrite the controls section and on-screen prompts to exactly match behavior. Test mouse and keyboard parity for every screen.
 
 #### P2-04: Vendor Back behavior is inconsistent
 
+Resolution: **Fixed in Step 15.** Back and Escape both close the catalog and leave the vendor waiting.
+
 Mouse Back cancels the vendor review and leaves the representative waiting (`src/input.lua:125-133`), but Escape calls `resolveVendor` and sends the representative away (`src/input.lua:18-23`). This conflicts with the README's statement that Back actions leave NPCs waiting.
 
-Expected fix: route Back and Escape through one screen-close action and one documented visitor policy.
+Implemented scope: route Back and Escape through one screen-close action and one documented visitor policy.
 
 #### P2-05: Moving equipment can clip the walkmask, and operator walk animation is reset
 
+Resolution: **Fixed in Step 12.** Oriented footprints validate every movable object and motion flags survive through rendering.
+
 The cutter checks several footprint edge points, but the wrapper, pallet jack, and dropped pallets mostly validate only a center point against the walkmask. Large objects can therefore cross a wall/floor boundary. Separately, `CutterPlacement.ensure()` resets `inMotion` and `PalletJack.ensure()` resets `moving`; later calls during the same update clear the values before player animation reads them.
 
-Expected fix: use oriented footprint/corner checks for every movable object and separate data validation from per-frame mutation so animation state survives through draw.
+Implemented scope: use oriented footprint/corner checks for every movable object and separate data validation from per-frame mutation so animation state survives through draw.
 
 #### P2-06: Asset load failures are recorded but hidden in normal play
 
+Resolution: **Fixed in Step 13.** Startup stops on a readable, path-specific diagnostic screen for missing or malformed required assets.
+
 `Assets` and `CharacterAssets` collect failure messages, but `src/app.lua:70-76` does not call their health assertions or show a diagnostic screen. A missing sprite can silently become an invisible object or fallback rectangle outside the smoke environment.
 
-Expected fix: fail into a readable asset-error screen in development/release startup, listing the exact missing or malformed paths, while retaining safe fallbacks only where intentional.
+Implemented scope: fail into a readable asset-error screen in development/release startup, listing the exact missing or malformed paths, while retaining safe fallbacks only where intentional.
 
 #### P2-07: Office status views are incomplete
 
+Resolution: **Fixed in Step 15.** Shared labels, customer deliveries, outbound pickups, purchase orders, and all usable stock appear in the office.
+
 The label table omits the live `in_production` status, so it appears as a raw internal string. The Deliveries tab excludes vendor purchase orders, and the Inventory tab omits `inventory.stock`. Completed jobs stay empty because completion is not connected.
 
-Expected fix: define one status vocabulary, include inbound purchase orders and outbound pickups, and display every inventory bucket the player can buy or consume.
+Implemented scope: define one status vocabulary, include inbound purchase orders and outbound pickups, and display every inventory bucket the player can buy or consume.
 
 #### P2-08: Two live atlases do not have exact grid dimensions
 
+Resolution: **Fixed in Step 13.** Promoted atlases use exact grids and both runtime and doctor validate every cell.
+
 The vendor atlas is 1254×1254 for a 4×4 grid, and the boxed-pallet atlas is 1402×1122 for a 5×4 grid. Runtime registration floors the cell dimensions and leaves edge pixels unused. The asset doctor does not currently validate these three newer contracts (vendor atlas, boxed atlas, Polar Back strip), although smoke verifies that quads exist.
 
-Expected fix: normalize the atlases to exact cell multiples, validate exact dimensions/divisibility and nonempty cells, and add the omitted contracts to the asset doctor.
+Implemented scope: normalize the atlases to exact cell multiples, validate exact dimensions/divisibility and nonempty cells, and add the omitted contracts to the asset doctor.
 
 ### P3 — cleanup and scaling debt
 
 #### P3-01: Large assets are loaded eagerly, including unused content
 
+Resolution: **Fixed in Step 14.** CPU-only collision data, on-demand screen/visitor packs, precomputed anchors, and right-sized UI art reduce startup textures by 74.4%.
+
 All configured images load at startup, roughly 167 MiB decoded. About 30 MiB comes from the unused base Polar sheet and unplaced prop sheets (empty pallet, paper stack, boxes, and toolboxes). The inaccessible press adds another 4 MiB, and an unused character `use` strip adds about 3 MiB. The retained walkmask image data adds CPU memory on top of its texture.
 
-Expected fix: separate always-on world assets from screen/machine/character packs, load on demand, release inactive packs, and stop loading assets that have no reachable renderer.
+Implemented scope: separate always-on world assets from screen/machine/character packs, load on demand, release inactive packs, and stop loading assets that have no reachable renderer.
 
 #### P3-02: Project artifact boundaries are unclear
 
+Resolution: **Fixed in Steps 0 and 17.** Git ignore/allowlist rules, source-control documentation, and the runtime asset manifest define the boundary.
+
 Runtime art, canonical sources, generated drafts, doctor previews, reports, and a downloaded webpage mirror are mixed across `assets/` and `output/`. Many files are byte-for-byte duplicates. There is no root `.gitignore`; Python bytecode is currently visible to Git. `output/` cannot simply be ignored yet because some documented build scripts treat selected files there as preserved sources.
 
-Expected fix: create an asset manifest and move canonical inputs to a stable source folder, keep promoted runtime files in `assets/generated`, route disposable previews/reports to an ignored build-output folder, ignore caches and smoke output, and archive or exclude the 37 MiB webpage mirror.
+Implemented scope: create an asset manifest and move canonical inputs to a stable source folder, keep promoted runtime files in `assets/generated`, route disposable previews/reports to an ignored build-output folder, ignore caches and smoke output, and archive or exclude the 37 MiB webpage mirror.
 
 #### P3-03: Test and UI helper code is becoming monolithic
 
+Resolution: **Fixed in Steps 16 and 17.** Domain and integration suites, audit coverage, a shared UI module, and a separate world renderer divide responsibilities.
+
 `src/smoke.lua` is 907 lines and `src/world.lua` is 840 lines. Screen modules duplicate rectangle hit tests, panels, number formatting, button rendering, and pagination behavior. `src/press.lua` and `src/wrapper_placement.lua` use dense one-line functions inconsistent with the rest of the project.
 
-Expected fix: split domain tests from rendered integration tests, extract shared UI primitives, divide world simulation/rendering/logistics, and reformat dense modules without changing behavior.
+Implemented scope: split domain tests from rendered integration tests, extract shared UI primitives, divide world simulation/rendering/logistics, and reformat dense modules without changing behavior.
 
 #### P3-04: Stale implementation text remains visible
 
+Resolution: **Fixed in Step 17.** Milestone comments, implementation-language catalog messages, and stale workflow documentation were removed or rewritten in player terms.
+
 Examples include “Pallet inventory arrives in step seven” in `src/world.lua:155`, the outdated future-popup comment in `src/customer.lua:1-3`, and the completion placeholder message in input. These make implemented features look unfinished or obscure what is truly missing.
 
-Expected fix: remove milestone language from player-facing copy and update comments/README after each completed fix.
+Implemented scope: remove milestone language from player-facing copy and update comments/README after each completed fix.
 
 ## Available assets not yet integrated
 
@@ -340,30 +379,32 @@ Acceptance: each fixed finding has a named regression test, and no single smoke 
 
 ### Step 17 — Final cleanup pass
 
+Status: **Completed 2026-08-24.** Shared geometry, number, money, panel, and box helpers now serve the title and overlay screens. World rendering is isolated from simulation/interaction state, guarded cutter scenarios have their own integration module, and the central smoke runner is reduced from 2,069 to 879 lines. Stale milestone comments and implementation-language catalog messages are gone; the runtime/deferred asset manifest and test map are documented; every resident asset has a live consumer. Final smoke and raster validation are green. The only remaining working-tree changes are the separately preserved artwork additions that predated this cleanup step.
+
 Remove stale milestone text, consolidate UI helpers, split oversized modules, document the asset manifest, and update README controls/workflows.
 
 Acceptance: no TODO-style player-facing copy, no known dead runtime load, clean Git status, and all validation green.
 
 ## Optimization suggestions
 
-1. **Lazy-load by pack:** keep the warehouse core resident; load cutter GUI, wrapper GUI, press GUI, and visitor character packs only while needed.
-2. **Crop and right-size textures:** the 2172×724 Back-button strip, 1536×1024 prop sheets, and mostly transparent 3840×512 motion strips are much larger than their display footprint.
-3. **Precompute character anchors:** store per-frame baseline/center metadata during the asset pipeline instead of scanning every pixel with Lua `getPixel` calls at startup.
-4. **Keep the walkmask CPU-only:** do not retain a GPU texture unless it is needed for a debug overlay; consider a compact occupancy representation for collision queries.
-5. **Use an asset manifest:** record stable IDs, paths, dimensions, atlas grids, source lineage, and load packs in one machine-readable file shared by runtime and asset doctor.
-6. **Add spatial indexing when pallet counts grow:** a simple grid for pallets/interactables will avoid rebuilding and scanning every obstacle list for every movement query.
-7. **Use stable depth keys:** sort by Y plus a deterministic tie-breaker to prevent equal-depth flicker.
-8. **Use integer pixel scaling where possible:** render to a fixed logical canvas and prefer integer window scales for crisp pixel art; letterbox fractional sizes deliberately.
-9. **Debounce noncritical autosaves:** save immediately for irreversible economy/production transitions, but coalesce position-only saves to reduce OneDrive churn.
-10. **Separate runtime and test code:** keep the production app lean and load large test fixtures only in the smoke identity.
+1. **Measure peak scene memory and transition time:** startup is lean now; add lightweight counters for core, menu, cutter, wrapper, and visitor peaks so new art cannot silently reverse the gain.
+2. **Trim the remaining cutter motion strips:** clamp and blade art is still 3840×512 per strip. Per-frame trimmed rectangles or a tighter atlas would reduce the cutter pack and transition decode time.
+3. **Compact the walkmask:** its GPU copy is gone; a cached bit grid or coarse occupancy grid would reduce CPU memory and speed repeated footprint queries.
+4. **Add spatial indexing when pallet counts grow:** a simple fixed grid for pallets and interactables will avoid rebuilding and scanning every obstacle list for each movement query.
+5. **Use stable depth keys:** sort by Y plus a deterministic ID/type tie-breaker to prevent equal-depth flicker as object counts increase.
+6. **Debounce noncritical autosaves:** keep immediate saves for money, production, pickup, and delivery changes, but coalesce position-only saves to reduce OneDrive churn.
+7. **Make the manifest machine-readable:** the documented manifest should eventually drive both runtime registration and the Python doctor so dimensions and pack membership have one source of truth.
+8. **Archive bulky reference mirrors:** move the 37 MiB downloaded press webpage mirror and disposable previews outside the active workspace once its useful sources are identified.
+9. **Add screenshot comparisons for key scenes:** title, world, cutter, wrapper, office, vendor, and truck views would catch sprite alignment or fallback regressions that logic checks cannot see.
+10. **Profile before deeper refactors:** capture update/draw time with 5, 20, and 50 pallets before adding caching or pooling; optimize the measured hot path rather than object count in the abstract.
 
 ## Gameplay suggestions
 
-1. **Finish one satisfying core loop before adding more machines:** accept → receive → stage → cut → package → ship → get paid should be the game's dependable heartbeat.
+1. **Teach and balance the completed core loop:** the accept → receive → stage → cut → package → ship → paid loop works; the next pass should tune timing, payout, starting stock, and a first-job tutorial around real playtests.
 2. **Add a compact current-task tracker:** show the next useful action, selected job, pallet location, due state, and blocked reason without requiring repeated computer visits.
-3. **Turn the receiving area into gameplay:** marked inbound lanes and staging zones make pallet movement legible and give the pallet jack a necessary role.
-4. **Balance lift realism with repetition:** make the first lift hands-on, then unlock programmed repeat runs with faster timing, quality checks, or optional automation.
-5. **Make supplies matter visibly:** cartons for boxed pallets, film for wrapping, paper/ink/chemistry for printing, and maintenance supplies for reliability.
+3. **Make receiving lanes visually explicit:** occupancy rules already matter; floor markings, lane numbers, and a blocked-dock indicator would make the puzzle legible before a manifest refuses an unload.
+4. **Tune lift repetition:** the first lift is hands-on and repeats are programmed; adjust repeat duration and consider optional quality checks or later automation so 3,000-sheet work feels valuable without becoming tedious.
+5. **Make supplies matter visibly:** paper, cartons, and film are consumed now; show low-stock warnings and per-job material forecasts before adding ink, chemistry, or maintenance consumers.
 6. **Add due dates and service quality gradually:** late delivery, damage/waste, correct dimensions, and packaging quality can affect payout and repeat customers after the base loop works.
 7. **Use the machine backlog as progression:** laminator, folder-gluer, die cutter, baler, and larger presses can unlock new job families rather than appearing as decorative machines all at once.
 8. **Give visitors pacing rules:** customer/vendor cooldowns, appointment windows, and a visible waiting queue will prevent constant arrivals from competing for attention.

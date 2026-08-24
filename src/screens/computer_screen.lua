@@ -3,6 +3,7 @@ local JobService = require("src.job_service")
 local Procurement = require("src.procurement")
 local BackButton = require("src.screens.back_button")
 local StatusLabels = require("src.status_labels")
+local Ui = require("src.screens.ui")
 
 local ComputerScreen = {
     tab = "active",
@@ -26,22 +27,7 @@ local COMPLETE = { x = 598, y = 548, width = 228, height = 36 }
 local ROW_HEIGHT = 46
 local JOBS_PER_PAGE = 7
 
-local function contains(rect, x, y)
-    return x >= rect.x and y >= rect.y
-        and x <= rect.x + rect.width
-        and y <= rect.y + rect.height
-end
-
-local function commaNumber(value)
-    local text = tostring(math.floor(value or 0))
-    local changed
-    repeat text, changed = text:gsub("^(-?%d+)(%d%d%d)", "%1,%2") until changed == 0
-    return text
-end
-
-local function money(value)
-    return "$" .. commaNumber(value)
-end
+local contains, commaNumber, money = Ui.contains, Ui.commaNumber, Ui.money
 
 local function isPurchaseOrder(item)
     return item and item.vendor ~= nil and item.productName ~= nil
@@ -179,13 +165,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
     return nil
 end
 
-local function panel(rect, fill, border)
-    love.graphics.setColor(fill)
-    love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4, 4)
-    love.graphics.setColor(border)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 4, 4)
-end
+local panel = Ui.panel
 
 local function drawTabs(pointerX, pointerY)
     for _, tab in ipairs(TABS) do

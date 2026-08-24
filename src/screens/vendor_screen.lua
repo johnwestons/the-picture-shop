@@ -1,17 +1,12 @@
 local Procurement = require("src.procurement")
 local BackButton = require("src.screens.back_button")
+local Ui = require("src.screens.ui")
 local Screen = {}
 local CLOSE = { x = 742, y = 70, width = 132, height = 42 }
 local ROW = { x = 104, y = 220, width = 752, height = 94, gap = 22 }
 
-local function inside(rect, x, y)
-    return x >= rect.x and x <= rect.x + rect.width and y >= rect.y and y <= rect.y + rect.height
-end
-
-local function box(rect, fill, line)
-    love.graphics.setColor(fill); love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 5, 5)
-    love.graphics.setColor(line); love.graphics.setLineWidth(2); love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 5, 5)
-end
+local inside = Ui.contains
+local function box(rect, fill, line) Ui.panel(rect, fill, line, 5, 2) end
 
 local function row(index)
     return { x = ROW.x, y = ROW.y + (index - 1) * (ROW.height + ROW.gap), width = ROW.width, height = ROW.height }

@@ -1,7 +1,9 @@
+local Ui = require("src.screens.ui")
+
 local BackButton = {}
 
 function BackButton.contains(rect, x, y)
-    return x >= rect.x and x <= rect.x + rect.width and y >= rect.y and y <= rect.y + rect.height
+    return Ui.contains(rect, x, y)
 end
 
 function BackButton.draw(assets, rect, label, pointerX, pointerY, pressed)

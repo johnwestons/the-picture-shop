@@ -68,7 +68,7 @@ Cutter position and direction are saved independently from the cutter simulation
 
 `loaded-paper-pallet-directions-strip.png` is a transparent four-frame `1024×256` strip ordered northwest, northeast, southwest, southeast. Every frame uses the same pallet and paper quantity, with the paper stack physically touching the deck boards. `loaded-paper-pallet.png` retains the northwest frame as a standalone compatibility asset. `tools/build_loaded_pallet_asset.py` extracts and normalizes the four approved generated directions.
 
-The sprite is only the visual layer. Job ID, pallet ID, sheet quantity, paper ID, dimensions, cut status, warehouse position, and unload animation progress live on the saved pallet record. This lets the truck manifest, world tooltip, cutter, office inventory, and future pallet-jack mechanic share one authoritative object.
+The sprite is only the visual layer. Job ID, pallet ID, sheet quantity, paper ID, dimensions, cut status, warehouse position, and unload animation progress live on the saved pallet record. This lets the truck manifest, world tooltip, cutter, office inventory, and pallet jack share one authoritative object.
 
 ## Pallet jack
 

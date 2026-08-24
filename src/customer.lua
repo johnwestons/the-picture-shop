@@ -1,6 +1,5 @@
--- Transient customer movement and reception behavior. Job paperwork is
--- intentionally left to the next implementation step; this module exposes
--- review/resolve transitions that the future popup can call.
+-- Transient customer movement and reception behavior. The paperwork screen
+-- drives these review/resolve transitions while the visitor remains in-world.
 local Customer = {}
 local Instance = {}
 Instance.__index = Instance

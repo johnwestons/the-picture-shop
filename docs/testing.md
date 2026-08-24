@@ -10,6 +10,7 @@ The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save ident
 - `src/tests/save_contract_test.lua` checks exact defaults, nested validation, and a focused round trip.
 - `src/tests/input_status_test.lua` checks Back/Escape parity and office projections.
 - `src/tests/job_loop_integration_test.lua` owns the accept-to-payment end-to-end workflow.
+- `src/tests/cutter_integration_test.lua` owns guarded cutting, multi-lift production, physical staging, safe output, and pallet ownership scenarios.
 - `src/tests/save_integration_test.lua` owns migration, recovery, validation, and all-slot scenarios.
 - `src/tests/ui_integration_test.lua` owns title controls and the live mouse/keyboard warehouse journey.
 - `src/tests/audit_coverage.lua` maps every fixed P0, P1, and P2 audit finding to required named checks. The run fails if a mapped regression disappears or is renamed without updating the manifest.
