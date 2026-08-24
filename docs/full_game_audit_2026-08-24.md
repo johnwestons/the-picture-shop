@@ -292,6 +292,8 @@ Acceptance: delivered goods appear in office inventory and at least paper, carto
 
 ### Step 11 — Decide the picture press boundary
 
+Status: **Completed 2026-08-24.** The unfinished picture press was removed from the live module graph, machine console, interaction vocabulary, update loop, and eager asset load. Its artwork remains available as backlog source material, but the runtime no longer carries an unreachable counter-only production system or spends texture memory presenting it as implemented.
+
 Either complete its world/input/save/economy route or remove it from runtime loading until its gameplay is ready.
 
 Acceptance: there is no unreachable live system; if enabled, the press produces saved, inventory-backed output and updates on the correct screen.

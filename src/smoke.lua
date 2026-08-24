@@ -206,6 +206,8 @@ local function runChecks(context)
     check("delivery_truck_asset_loaded", deliveryTruck ~= nil)
     check("truck_cargo_door_asset_loaded", truckCargoDoor ~= nil)
     check("polar_operator_console_loaded", polarOperatorConsole ~= nil)
+    check("picture_press_excluded_from_runtime", context.assets.get("picturePress") == nil
+        and context.config.paths.picturePress == nil)
     check("polar_direction_strip_loaded", context.assets.get("polarDirections") ~= nil)
     check("cutter_button_strip_loaded", context.assets.get("cutterControlButtons") ~= nil)
     check("cutter_clamp_strip_loaded", context.assets.get("cutterClamp") ~= nil)

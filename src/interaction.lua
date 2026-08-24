@@ -26,7 +26,6 @@ function Interaction.prompt(selected)
     if selected.target and selected.target.prompt then return selected.target.prompt end
     if selected.kind == "computer" then return "E: use office computer" end
     if selected.kind == "cutter" then return "E: use Polar 115" end
-    if selected.kind == "picturePress" then return "E: use picture press" end
     if selected.kind == "skidWrapper" then return "E: use skid wrapper" end
     return nil
 end

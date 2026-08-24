@@ -1,6 +1,5 @@
 local Config = require("src.config")
 local Machine = require("src.machine")
-local Press = require("src.press")
 local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
 local BackButton = require("src.screens.back_button")
@@ -277,27 +276,6 @@ function Screen.draw(state, assets, pointerX, pointerY)
             { 0.35, 0.65, 0.48, 1 }, 3)
         love.graphics.setColor(0.95, 0.98, 0.92)
         love.graphics.printf(Wrapper.step == "wrapping" and string.format("WRAPPING %d%%", math.floor(Wrapper.progress / Wrapper.cycleTime * 100)) or "WRAP PALLET  [L]   MOVE [M]", wrapButton.x, wrapButton.y + 19, wrapButton.width, "center")
-        love.graphics.print(state.message or "", 48, 635)
-        return
-    end
-    if state.machineType == "picture_press" then
-        box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
-        love.graphics.setColor(0.96, 0.82, 0.26)
-        love.graphics.print("TWO-COLOR PICTURE PRESS / PRODUCTION CONSOLE", 38, 30)
-        BackButton.draw(assets, exitButton, "EXIT", pointerX, pointerY, false)
-        local image = assets.get("picturePress")
-        if image then
-            love.graphics.setColor(1, 1, 1)
-            love.graphics.draw(image, 480, 350, 0, 0.48, 0.48, image:getWidth() / 2, image:getHeight() / 2)
-        end
-        local running = Press.step == "printing"
-        love.graphics.setColor(0.82, 0.88, 0.89)
-        love.graphics.print("STATUS: " .. Press.step:upper(), 50, 410)
-        love.graphics.print(string.format("SHEETS PRINTED: %d", Press.sheets), 50, 438)
-        love.graphics.print(running and string.format("ROLLER CYCLE %d%%", math.floor(Press.progress / Press.cycleTime * 100)) or "Press L / SPACE to start", 50, 466)
-        box(50, 510, 220, 54, running and { 0.18, 0.42, 0.28, 1 } or { 0.13, 0.18, 0.23, 1 }, { 0.35, 0.62, 0.48, 1 }, 3)
-        love.graphics.setColor(0.95, 0.98, 0.92)
-        love.graphics.printf("START PRESS", 50, 528, 220, "center")
         love.graphics.print(state.message or "", 48, 635)
         return
     end

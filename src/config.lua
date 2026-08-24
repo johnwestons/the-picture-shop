@@ -183,7 +183,6 @@ local Config = {
         cutterControlButtons = "assets/generated/cutter-control-buttons-strip.png",
         cutterClamp = "assets/generated/cutter-clamp-strip.png",
         cutterBlade = "assets/generated/cutter-blade-strip.png",
-        picturePress = "assets/generated/picture-press-transparent.png",
         skidWrapperDirections = "assets/generated/skid-wrapper-directions-strip.png",
         wrappedPalletStages = "assets/generated/wrapped-pallet-stages-strip.png",
         loadedPaperPallet = "assets/generated/loaded-paper-pallet.png",
