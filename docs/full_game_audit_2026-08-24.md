@@ -332,6 +332,8 @@ Acceptance: README, on-screen prompts, and actual behavior match for every scree
 
 ### Step 16 — Expand regression coverage
 
+Status: **Completed 2026-08-24.** Smoke version 3 now rejects duplicate check names and runs focused asset-pack, pallet-ownership, save-contract, and input/status domain suites. The accept-to-payment loop, save migration/recovery matrix, and live title/warehouse UI journey have separate integration modules, while the central runner retains the final three-frame engine gate. A coverage manifest maps every fixed P0, P1, and P2 audit finding to required named regressions and fails if one disappears. The reorganized run completes with **559 passes and 0 failures**.
+
 Add small deterministic domain tests plus focused engine integration tests for every issue above. Keep the three-frame render smoke as a final gate.
 
 Acceptance: each fixed finding has a named regression test, and no single smoke module owns unrelated domain/UI/save scenarios.

@@ -88,7 +88,9 @@ The cutter table starts clear and paper appears only after **L**. Inventory is c
 
 ## Validation
 
-- Double-click `RUN_SMOKE_TEST.bat` to run the hidden watchdog smoke test. It validates the asset contract, walkmask, rabbit atlas, shop economy, save round trip, guarded cutter flow, and three rendered frames. Its report is written to `.stabilization/smoke-report.rpt`.
+- Double-click `RUN_SMOKE_TEST.bat` to run the isolated domain suites, focused engine integrations,
+  audit-coverage manifest, and three-frame render gate. Its report is written to
+  `.stabilization/smoke-report.rpt`; the suite layout is documented in `docs/testing.md`.
 - Run `python tools/asset_doctor.py --report output/asset-audit.json` to audit the project-bound raster assets without changing them.
 - Warehouse props are ready in `assets/generated/`: `empty-pallet.png`, `paper-stack.png`, `toolbox-small.png`, `toolbox-large.png`, and the three-variant `paper-storage-boxes-strip.png`.
 - The active warehouse background is `assets/generated/warehouse-layout-final.png`: the approved 1536x1024 warehouse sprite with factory floor in front, loading dock upper-left, separate office upper-middle, and a client lounge in the upper-right with a couch, two armchairs, and a coffee table. Its matching walkmask is `warehouse-layout-final-walkmask.png`.
