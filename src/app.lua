@@ -1,4 +1,5 @@
 local Assets = require("src.assets")
+local AssetErrorScreen = require("src.screens.asset_error_screen")
 local BayDoor = require("src.bay_door")
 local CharacterAssets = require("src.character_assets")
 local ComputerScreen = require("src.screens.computer_screen")
@@ -78,19 +79,32 @@ function App.load()
     if Smoke.requested() then love.filesystem.setIdentity("the-picture-shop-smoke") end
     Assets.load()
     CharacterAssets.load()
-    World.load()
+    local assetsHealthy, assetFailures = Assets.assertHealthy()
+    local charactersHealthy, characterFailures = CharacterAssets.assertHealthy()
+    state.assetErrors = AssetErrorScreen.normalize(
+        assetsHealthy and nil or assetFailures,
+        charactersHealthy and nil or characterFailures)
+    if #state.assetErrors == 0 then
+        World.load()
+        TitleScreen.enter(startGame)
+    else
+        state.screen = "asset_error"
+        state.message = string.format("Startup stopped: %d required asset error(s).", #state.assetErrors)
+    end
     Machine.setOutputResolver(function(targetState, pallet)
         return World.findCutterOutput(targetState, Assets, pallet and pallet.id)
     end)
-    TitleScreen.enter(startGame)
 
     if Smoke.requested() then
-        startGame(Save.newGame(1), "smoke")
-        -- Advance the transient visitor to reception so the smoke render
-        -- includes the customer sprite and depth-sorting path.
-        World.update(10, 0, 0, Assets, state)
+        if #state.assetErrors == 0 then
+            startGame(Save.newGame(1), "smoke")
+            -- Advance the transient visitor to reception so the smoke render
+            -- includes the customer sprite and depth-sorting path.
+            World.update(10, 0, 0, Assets, state)
+        end
         Smoke.start({
             assets = Assets,
+            assetErrorScreen = AssetErrorScreen,
             BayDoor = BayDoor,
             characterAssets = CharacterAssets,
             wrapper = Wrapper,
@@ -126,7 +140,9 @@ function App.load()
 end
 
 function App.update(dt)
-    if state.screen == "title" then
+    if state.screen == "asset_error" then
+        AssetErrorScreen.draw(state.assetErrors)
+    elseif state.screen == "title" then
         TitleScreen.update(dt)
     elseif state.screen == "world" then
         local directionX, directionY = Input.movement()
@@ -179,6 +195,10 @@ function App.draw()
 end
 
 function App.keypressed(key)
+    if state.screen == "asset_error" then
+        if key == "escape" or key == "q" then love.event.quit() end
+        return
+    end
     Input.keypressed(key, inputContext)
 end
 
@@ -191,6 +211,7 @@ function App.textinput(text)
 end
 
 function App.mousepressed(x, y, button)
+    if state.screen == "asset_error" then return end
     local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
     Input.mousepressed(gameX, gameY, button, inputContext)
 end

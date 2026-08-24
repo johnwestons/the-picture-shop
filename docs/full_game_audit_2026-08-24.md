@@ -308,6 +308,8 @@ Acceptance: wrapper/jack/pallet corners cannot enter blocked pixels and the oper
 
 ### Step 13 — Surface asset failures and strengthen the doctor
 
+Status: **Completed 2026-08-24.** Startup now stops on a dedicated readable diagnostic screen that lists every missing or malformed runtime path instead of silently drawing invisible fallbacks. The vendor 4x4 atlas, boxed-pallet 5x4 atlas, and three-state Polar Back strip use exact runtime dimensions, and the asset doctor verifies exact grids plus every nonempty cell.
+
 Add startup diagnostics and exact contracts for the newer atlases/button strip.
 
 Acceptance: a deliberately missing or malformed test asset produces a readable path-specific error; all atlas cells are exact and nonempty.

@@ -11,6 +11,20 @@ local function recordFailure(path, reason)
     Assets.failures[#Assets.failures + 1] = path .. ": " .. tostring(reason)
 end
 
+function Assets.dimensionDiagnostic(path, actualWidth, actualHeight, expectedWidth, expectedHeight)
+    if actualWidth == expectedWidth and actualHeight == expectedHeight then return true end
+    return false, string.format("%s: expected %dx%d, got %dx%d",
+        tostring(path), expectedWidth, expectedHeight, actualWidth, actualHeight)
+end
+
+local function hasExactDimensions(image, path, expectedWidth, expectedHeight)
+    local width, height = image:getDimensions()
+    local valid, diagnostic = Assets.dimensionDiagnostic(
+        path, width, height, expectedWidth, expectedHeight)
+    if not valid then Assets.failures[#Assets.failures + 1] = diagnostic end
+    return valid
+end
+
 local function loadImage(name, path, keepData)
     if not love.filesystem.getInfo(path) then
         recordFailure(path, "missing required asset")
@@ -291,11 +305,8 @@ function Assets.load()
     registerJackStrip("palletJack", palletJack, Config.paths.palletJack)
     registerJackStrip("palletJackLoaded", palletJackLoaded, Config.paths.palletJackLoaded)
     if vendorProductPallets then
-        local width, height = vendorProductPallets:getDimensions()
-        if width ~= height or width < 1024 then
-            recordFailure(Config.paths.vendorProductPallets, "vendor pallet atlas must be a square 4x4 atlas")
-        else
-            local cell = math.floor(width / 4)
+        if hasExactDimensions(vendorProductPallets, Config.paths.vendorProductPallets, 1252, 1252) then
+            local cell = 313
             for row = 1, 4 do
                 for frame = 1, 4 do
                     makeQuad("vendorProductPallet" .. row .. "_" .. frame, vendorProductPallets,
@@ -305,11 +316,8 @@ function Assets.load()
         end
     end
     if boxedPaperPalletStages then
-        local width, height = boxedPaperPalletStages:getDimensions()
-        local cellWidth, cellHeight = math.floor(width / 5), math.floor(height / 4)
-        if cellWidth < 200 or cellHeight < 200 or math.abs(cellWidth - cellHeight) > 2 then
-            recordFailure(Config.paths.boxedPaperPalletStages, "boxed-pallet stage atlas must be a 5x4 square-cell atlas")
-        else
+        if hasExactDimensions(boxedPaperPalletStages, Config.paths.boxedPaperPalletStages, 1400, 1120) then
+            local cellWidth, cellHeight = 280, 280
             for stage = 1, 5 do
                 for frame = 1, 4 do
                     makeQuad("boxedPaperPalletStage" .. stage .. "_" .. frame,
@@ -320,11 +328,8 @@ function Assets.load()
         end
     end
     if polarBackButton then
-        local width, height = polarBackButton:getDimensions()
-        local cell = math.floor(width / 3)
-        if math.abs(cell - height) > 2 then
-            recordFailure(Config.paths.polarBackButton, "Polar back button must be a three-state horizontal strip")
-        else
+        if hasExactDimensions(polarBackButton, Config.paths.polarBackButton, 2172, 724) then
+            local cell, height = 724, 724
             for frame = 1, 3 do
                 makeQuad("polarBackButton" .. frame, polarBackButton, (frame - 1) * cell, 0, cell, height)
             end

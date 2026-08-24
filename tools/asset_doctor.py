@@ -40,6 +40,9 @@ def audit(root: Path) -> list[dict[str, object]]:
         "loaded_paper_pallet_directions": generated / "loaded-paper-pallet-directions-strip.png",
         "pallet_jack": generated / "pallet-jack-directions-strip.png",
         "pallet_jack_loaded": generated / "pallet-jack-loaded-directions-strip.png",
+        "vendor_product_pallets": generated / "vendor-product-pallets-atlas.png",
+        "boxed_paper_pallet_stages": generated / "boxed-paper-pallet-stages-atlas.png",
+        "polar_back_button": generated / "polar-back-button-states-strip.png",
     }
     checks: list[dict[str, object]] = []
     images: dict[str, Image.Image] = {}
@@ -213,6 +216,41 @@ def audit(root: Path) -> list[dict[str, object]]:
                 minimum == 0 and maximum >= 250,
                 f"alpha_range=({minimum}, {maximum})",
             ))
+
+    atlas_contracts = {
+        "vendor_product_pallets": ((1252, 1252), 4, 4),
+        "boxed_paper_pallet_stages": ((1400, 1120), 5, 4),
+        "polar_back_button": ((2172, 724), 3, 1),
+    }
+    for name, (expected_size, columns, rows) in atlas_contracts.items():
+        image = images.get(name)
+        if not image:
+            continue
+        exact = image.size == expected_size
+        checks.append(result(
+            f"{name}_exact_grid",
+            exact,
+            f"size={image.size} expected={expected_size} grid={columns}x{rows}",
+        ))
+        empty_cells = []
+        if exact:
+            alpha = image.getchannel("A")
+            cell_width, cell_height = image.width // columns, image.height // rows
+            for row in range(rows):
+                for column in range(columns):
+                    bounds = (
+                        column * cell_width,
+                        row * cell_height,
+                        (column + 1) * cell_width,
+                        (row + 1) * cell_height,
+                    )
+                    if alpha.crop(bounds).getbbox() is None:
+                        empty_cells.append((column + 1, row + 1))
+        checks.append(result(
+            f"{name}_cells_nonempty",
+            exact and not empty_cells,
+            f"empty_cells={empty_cells}",
+        ))
 
     for name in ("empty_pallet", "paper_stack", "toolbox_small", "toolbox_large", "paper_boxes"):
         image = images.get(name)

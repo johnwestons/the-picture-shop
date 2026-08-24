@@ -78,6 +78,15 @@ end
 local function runChecks(context)
     local healthy, failures = context.assets.assertHealthy()
     check("asset_contract", healthy, failures)
+    local dimensionsValid, dimensionError = context.assets.dimensionDiagnostic(
+        "assets/generated/test-malformed-atlas.png", 1251, 1252, 1252, 1252)
+    local startupDiagnostics = context.assetErrorScreen.normalize(
+        "assets/generated/test-missing.png: missing required asset", dimensionError)
+    check("asset_diagnostic_names_missing_path", not dimensionsValid
+        and startupDiagnostics[1]:find("assets/generated/test-missing.png", 1, true)
+        and startupDiagnostics[2]:find("assets/generated/test-malformed-atlas.png", 1, true))
+    check("asset_diagnostic_explains_malformed_dimensions",
+        startupDiagnostics[2]:find("expected 1252x1252, got 1251x1252", 1, true))
     check("skid_wrapper_loaded", context.assets.get("skidWrapperDirections") ~= nil)
     for frame = 1, context.config.wrapperPlacement.frameCount do
         check("skid_wrapper_direction_" .. frame, context.assets.getQuad("skidWrapperDirection" .. frame) ~= nil)
