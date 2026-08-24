@@ -1,0 +1,56 @@
+# Operating-system and editor metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+/.idea/
+/.vscode/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+*.pyd
+/.venv/
+/venv/
+
+# Local LÖVE/runtime packaging
+/runtime/
+/saves/
+*.love
+/build/
+/dist/
+
+# Logs, temporary files, and local backups
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Smoke-test products. Keep the runner and its local ignore policy tracked.
+/.stabilization/*.rpt
+/.stabilization/smoke-watchdog-*.txt
+
+# Disposable previews, audit reports, and sprite-doctor work products.
+# A small allowlist below preserves the approved rebuild sources that still
+# live in output/ until the asset pipeline receives a dedicated source tree.
+/output/**
+!/output/
+!/output/loading-bay-open-generated.png
+!/output/truck-open-source.png
+!/output/truck-closed-source.png
+!/output/pallet-jack-directions-source.png
+!/output/loaded-pallet-directions-source.png
+!/output/polar-cutter-console-source.png
+!/output/polar-cutter-four-directions-final-source.png
+!/output/warehouse-client-lounge-approved.png
+!/output/warehouse-client-lounge-walkmask-approved.png
+!/output/sprite-doctor/
+!/output/sprite-doctor/approved/
+!/output/sprite-doctor/approved/**
+
+# Saved webpage mirror used only as historical visual reference. It is not
+# read by the game or any current asset-building tool and is about 37 MiB.
+/assets/Machines/movingPicturePress.html
+/assets/Machines/movingPicturePress_files/

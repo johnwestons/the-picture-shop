@@ -1,0 +1,236 @@
+local Input = {}
+
+function Input.movement()
+    local x, y = 0, 0
+    if love.keyboard.isDown("a", "left") then x = x - 1 end
+    if love.keyboard.isDown("d", "right") then x = x + 1 end
+    if love.keyboard.isDown("w", "up") then y = y - 1 end
+    if love.keyboard.isDown("s", "down") then y = y + 1 end
+    return x, y
+end
+
+function Input.keypressed(key, context)
+    local state = context.state
+    if key == "escape" and state.screen == "job_offer" then
+        state.message = "Choose Accept or Decline on the customer paperwork."
+        return
+    end
+    if key == "escape" and state.screen ~= "world" and state.screen ~= "title" then
+        if state.screen == "vendor" then context.world.resolveVendor(state) end
+        state.screen = "world"
+        state.message = "Back on the warehouse floor."
+        context.saveCurrent()
+        return
+    end
+
+    if state.screen == "title" then
+        -- The title screen is mouse-only. Keyboard input is intentionally ignored.
+        return
+    elseif state.screen == "world" then
+        local selected = context.world.getInteraction()
+        if key == "m" and selected and selected.kind == "cutter" then
+            if context.world.beginCutterMove(state) then context.saveCurrent() end
+            return
+        end
+        if key == "m" and ((selected and selected.kind == "skidWrapper") or context.world.wrapperNearby(state)) then
+            if context.world.beginWrapperMove(state) then context.saveCurrent() end
+            return
+        end
+        if key == "q" and selected and selected.kind == "cutter" then
+            if context.world.rotateCutter(state) then context.saveCurrent() end
+            return
+        end
+        if key == "q" and selected and selected.kind == "skidWrapper" then
+            if context.world.rotateWrapper(state) then context.saveCurrent() end
+            return
+        end
+        if key == "f" then
+            if context.world.parkPalletJack(state) then context.saveCurrent() end
+            return
+        end
+        if key ~= "e" then return end
+        if state.cutter and state.cutter.moving then
+            if context.world.placeCutter(state) then context.saveCurrent() end
+        elseif state.wrapper and state.wrapper.moving then
+            if context.world.placeWrapper(state) then context.saveCurrent() end
+        elseif selected and selected.kind == "customer" then
+            local offer, errors = context.jobService.createNextOffer(state, os.time())
+            if not offer then
+                state.message = "Could not prepare the job: " .. table.concat(errors or {}, "; ")
+            elseif context.world.beginCustomerReview() then
+                state.currentOffer = offer
+                state.screen = "job_offer"
+                state.message = "Review the paperwork and choose Accept or Decline."
+            end
+        elseif selected and selected.kind == "computer" then
+            context.computerScreen.enter(state)
+            state.screen = "computer"
+        elseif selected and selected.kind == "vendor" then
+            if context.world.beginVendorReview() then
+                state.screen = "vendor"
+                state.message = "Review the salesperson's pallet-delivery catalog."
+            end
+        elseif selected and selected.kind == "loadingBayDoor" then
+            context.world.toggleBayDoor(state)
+        elseif selected and selected.kind == "truckCargoDoor" then
+            if context.world.truckSnapshot().state == "cargo_open"
+                and context.world.openTruckInventory(state)
+            then
+                state.screen = "truck_inventory"
+                state.message = "Review the truck manifest and unload each pallet."
+            else
+                context.world.toggleTruckCargoDoor(state)
+            end
+        elseif selected and selected.kind == "cutter" then
+            context.machine.reset(state)
+            context.machineScreen.enter()
+            state.machineType = "cutter"
+            state.screen = "machine"
+        elseif selected and selected.kind == "skidWrapper" then
+            context.wrapper.reset(state)
+            context.machineScreen.enter()
+            state.machineType = "skid_wrapper"
+            state.screen = "machine"
+        elseif selected and selected.kind == "palletJack" then
+            if context.world.handlePalletJack(state, context.assets) then context.saveCurrent() end
+        end
+    elseif state.screen == "machine" then
+        if state.machineType == "skid_wrapper" and key == "m" then
+            state.screen = "world"
+            if context.world.beginWrapperMove(state) then context.saveCurrent() end
+            return
+        end
+        if state.machineType == "skid_wrapper" and context.wrapper.keypressed(key, state) then return end
+        if context.machineScreen.keypressed(state, key) then return end
+        if context.machine.keypressed(key, state) then context.machineScreen.syncGauge() end
+    end
+end
+
+function Input.textinput(text, context)
+    if context.state.screen == "machine" then
+        return context.machineScreen.textinput(context.state, text)
+    end
+    return false
+end
+
+function Input.mousepressed(x, y, button, context)
+    local state = context.state
+    if state.screen == "title" then
+        return context.title.mousepressed(x, y, button)
+    end
+    if state.screen == "world" and button == 1 and context.hud.hitTest(x, y) == "exit" then
+        context.returnToTitle()
+        return true
+    end
+    if state.screen == "vendor" then
+        local result = context.vendorScreen.mousepressed(state, x, y, button)
+        if not result then return false end
+        if result.action == "close" then
+            context.world.cancelVendorReview(state)
+            state.screen = "world"
+        end
+        if result.action ~= "blocked" then context.saveCurrent() end
+        return true
+    end
+    if state.screen == "truck_inventory" then
+        local result = context.truckInventoryScreen.mousepressed(state, context.world, x, y, button)
+        if not result then return false end
+        if result.action == "close" then
+            state.screen = "world"
+            state.message = "Truck inventory closed. The cargo door remains open."
+        elseif result.action == "door_closing" then
+            state.screen = "world"
+        end
+        if result.action ~= "blocked" then context.saveCurrent() end
+        return true
+    end
+    if state.screen == "machine" then
+        local result = context.machineScreen.mousepressed(state, x, y, button)
+        if type(result) == "table" and result.action == "exit" then
+            state.screen = "world"
+            state.message = "Exited the machine console."
+            context.saveCurrent()
+            return true
+        end
+        return result
+    end
+    if state.screen == "computer" then
+        local result = context.computerScreen.mousepressed(state, x, y, button)
+        if not result then return false end
+        if result.action == "close" then
+            state.screen = "world"
+            state.message = "Office computer closed."
+            context.saveCurrent()
+        elseif result.action == "completion_blocked" then
+            state.message = "Every pallet must be cut, packaged, and stretch-wrapped before completion."
+        elseif result.action == "completion_ready" then
+            state.message = "Completion and pickup scheduling will be connected after production logistics."
+        end
+        return true
+    end
+    if state.screen ~= "job_offer" or button ~= 1 then return false end
+    local action = context.jobOfferScreen.hitTest(x, y)
+    if not action then return false end
+
+    if action == "back" then
+        context.world.cancelCustomerReview(state)
+        state.currentOffer = nil
+        state.screen = "world"
+        context.saveCurrent()
+        return true
+    end
+
+    local job = state.currentOffer
+    if not job then
+        state.message = "The customer paperwork is missing."
+        return false
+    end
+
+    local timestamp = os.time()
+    local succeeded, errorMessage
+    if action == "accept" then
+        succeeded, errorMessage = context.jobService.acceptOffer(state, job, timestamp)
+    else
+        succeeded, errorMessage = context.jobService.declineOffer(state, job, timestamp)
+    end
+    if not succeeded then
+        state.message = "Could not " .. action .. " the job: " .. tostring(errorMessage)
+        return false
+    end
+
+    context.world.resolveCustomer(action == "accept" and "accepted" or "declined", state)
+    state.currentOffer = nil
+    state.screen = "world"
+    state.message = action == "accept"
+        and string.format("Accepted %s for $%d. Delivery is awaiting scheduling.", job.id, job.quote.totalPrice)
+        or string.format("Declined %s. The customer is leaving.", job.id)
+    context.saveCurrent()
+    return true
+end
+
+function Input.mousereleased(x, y, button, context)
+    if context.state.screen == "title" then
+        context.title.mousereleased(x, y, button)
+        return true
+    end
+    if context.state.screen == "machine" then
+        return context.machineScreen.mousereleased(context.state, x, y, button)
+    end
+    return false
+end
+
+function Input.mousemoved(x, y, context)
+    if context.state.screen == "title" then
+        context.title.setHover(x, y)
+        return true
+    end
+    return false
+end
+
+function Input.keyreleased(key, context)
+    if context.state.screen == "machine" then
+        context.machine.keyreleased(key)
+    end
+end
+
+return Input

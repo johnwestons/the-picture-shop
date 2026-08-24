@@ -1,0 +1,112 @@
+local Config = require("src.config")
+local Save = require("src.save")
+
+local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil, hover = nil, pressed = nil }
+local BUTTONS = {
+    new = { x = 100, y = 520, width = 170, height = 54, label = "NEW SHOP" },
+    continue = { x = 290, y = 520, width = 170, height = 54, label = "CONTINUE" },
+    delete = { x = 480, y = 520, width = 170, height = 54, label = "DELETE SLOT" },
+    quit = { x = 670, y = 520, width = 170, height = 54, label = "QUIT" },
+    yes = { x = 330, y = 386, width = 130, height = 48, label = "DELETE" },
+    no = { x = 500, y = 386, width = 130, height = 48, label = "CANCEL" },
+}
+
+local function inside(rect, x, y) return x >= rect.x and x <= rect.x + rect.width and y >= rect.y and y <= rect.y + rect.height end
+local function slotRect(index) return { x = 116, y = 236 + (index - 1) * 72, width = 728, height = 56 } end
+local function buttonAt(x, y)
+    for name, rect in pairs(BUTTONS) do if inside(rect, x, y) then return name end end
+end
+
+function TitleScreen.enter(onStart)
+    TitleScreen.selected, TitleScreen.mode, TitleScreen.message = 1, "normal", ""
+    TitleScreen.hover, TitleScreen.pressed, TitleScreen.onStart = nil, nil, onStart
+end
+function TitleScreen.slots() return Save.listSlots() end
+function TitleScreen.update(_) end
+
+local function startNew()
+    local payload = Save.newGame(TitleScreen.selected)
+    TitleScreen.message = "New shop created in slot " .. TitleScreen.selected
+    if TitleScreen.onStart then TitleScreen.onStart(payload, "new") end
+end
+local function continueGame()
+    local payload = Save.load(TitleScreen.selected)
+    if not payload then TitleScreen.message = "That slot is empty. Choose NEW SHOP."; return false end
+    TitleScreen.message = "Continuing slot " .. TitleScreen.selected
+    if TitleScreen.onStart then TitleScreen.onStart(payload, "continue") end
+    return true
+end
+
+function TitleScreen.mousepressed(x, y, button)
+    if button ~= 1 then return false end
+    if TitleScreen.mode == "delete-confirm" then
+        local action = buttonAt(x, y)
+        if action == "yes" then Save.delete(TitleScreen.selected); TitleScreen.mode = "normal"; TitleScreen.message = "Slot deleted."; return true end
+        if action == "no" then TitleScreen.mode = "normal"; TitleScreen.message = "Delete cancelled."; return true end
+        return false
+    end
+    for index = 1, Save.SLOT_COUNT do
+        if inside(slotRect(index), x, y) then TitleScreen.selected = index; return true end
+    end
+    local action = buttonAt(x, y)
+    TitleScreen.pressed = action
+    if action == "new" then startNew(); return true end
+    if action == "continue" then continueGame(); return true end
+    if action == "delete" then TitleScreen.mode = "delete-confirm"; TitleScreen.message = "Delete slot " .. TitleScreen.selected .. "?"; return true end
+    if action == "quit" then love.event.quit(); return true end
+    return false
+end
+function TitleScreen.mousereleased(_, _, button) if button == 1 then TitleScreen.pressed = nil end end
+function TitleScreen.setHover(x, y) TitleScreen.hover = buttonAt(x, y) end
+
+local function drawButton(assets, name, danger)
+    local rect = BUTTONS[name]
+    local image = assets and assets.get("cutterControlButtons")
+    local frame = danger and (TitleScreen.pressed == name and 4 or 3) or (TitleScreen.pressed == name and 2 or 1)
+    local sprite = assets and assets.getQuad("cutterControlButton" .. frame)
+    if image and sprite then
+        local scale = math.min(rect.width / sprite.width, rect.height / sprite.height)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(image, sprite.quad, rect.x + rect.width / 2, rect.y, 0, scale, scale, sprite.width / 2, 0)
+    else
+        love.graphics.setColor(danger and { 0.34, 0.11, 0.10, 1 } or { 0.12, 0.24, 0.27, 1 })
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4, 4)
+    end
+    love.graphics.setColor(0.94, 0.96, 0.93)
+    love.graphics.printf(rect.label, rect.x, rect.y + rect.height - 17, rect.width, "center")
+end
+
+function TitleScreen.draw(assets, mouseX, mouseY)
+    if mouseX and mouseY then TitleScreen.setHover(mouseX, mouseY) end
+    love.graphics.clear(0.05, 0.06, 0.07)
+    local panel = assets and assets.get("polarOperatorConsole")
+    if panel then
+        love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(panel, 42, 72, 0, 876 / panel:getWidth(), 430 / panel:getHeight())
+    end
+    love.graphics.setColor(0.95, 0.82, 0.26); love.graphics.printf("THE PICTURE SHOP", 0, 12, Config.baseWidth, "center")
+    love.graphics.setColor(0.84, 0.88, 0.88); love.graphics.printf("POLAR JOB CONTROL // SELECT SHOP MEMORY", 0, 40, Config.baseWidth, "center")
+    for index, slot in ipairs(TitleScreen.slots()) do
+        local rect, selected = slotRect(index), index == TitleScreen.selected
+        love.graphics.setColor(selected and { 0.20, 0.28, 0.28, 0.98 } or { 0.10, 0.12, 0.12, 0.96 })
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.setLineWidth(selected and 3 or 1)
+        love.graphics.setColor(selected and { 0.86, 0.70, 0.30, 1 } or { 0.44, 0.48, 0.46, 1 })
+        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.setColor(0.93, 0.92, 0.84); love.graphics.print("SLOT " .. index, rect.x + 18, rect.y + 18)
+        love.graphics.setColor(0.72, 0.76, 0.73)
+        love.graphics.print(slot.empty and "EMPTY PAPER TICKET" or ("ACTIVE SHOP    CASH $" .. tostring(slot.money)), rect.x + 170, rect.y + 18)
+    end
+    if TitleScreen.mode == "delete-confirm" then
+        love.graphics.setColor(0.08, 0.09, 0.09, 0.98); love.graphics.rectangle("fill", 260, 330, 440, 132, 4, 4)
+        love.graphics.setColor(0.94, 0.38, 0.30); love.graphics.printf("DELETE SLOT " .. TitleScreen.selected .. "?", 260, 348, 440, "center")
+        drawButton(assets, "yes", true); drawButton(assets, "no", false)
+    else
+        drawButton(assets, "new", false); drawButton(assets, "continue", false)
+        drawButton(assets, "delete", true); drawButton(assets, "quit", true)
+    end
+    love.graphics.setColor(0.68, 0.72, 0.70)
+    love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message or "Click a physical control to begin.", 0, 604, Config.baseWidth, "center")
+end
+
+return TitleScreen

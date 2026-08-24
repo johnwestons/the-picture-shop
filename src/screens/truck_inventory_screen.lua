@@ -1,0 +1,131 @@
+local Logistics = require("src.pallet_logistics")
+local BackButton = require("src.screens.back_button")
+
+local Screen = {}
+local CLOSE = { x = 744, y = 60, width = 140, height = 42 }
+local DOOR = { x = 650, y = 570, width = 220, height = 42 }
+local ROW = { x = 82, y = 154, width = 796, height = 66, gap = 10 }
+
+local function box(x, y, width, height, fill, line, radius)
+    love.graphics.setColor(fill)
+    love.graphics.rectangle("fill", x, y, width, height, radius or 0, radius or 0)
+    love.graphics.setColor(line)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", x, y, width, height, radius or 0, radius or 0)
+end
+
+local function inside(rect, x, y)
+    return x >= rect.x and x <= rect.x + rect.width and y >= rect.y and y <= rect.y + rect.height
+end
+
+local function rowRect(index)
+    return { x = ROW.x, y = ROW.y + (index - 1) * (ROW.height + ROW.gap), width = ROW.width, height = ROW.height }
+end
+
+local function unloadRect(index)
+    local row = rowRect(index)
+    return { x = row.x + row.width - 146, y = row.y + 14, width = 126, height = 38 }
+end
+
+local function commaNumber(value)
+    local text = tostring(math.floor(value or 0))
+    while true do
+        local replaced, count = text:gsub("^(%-?%d+)(%d%d%d)", "%1,%2")
+        text = replaced
+        if count == 0 then return text end
+    end
+end
+
+function Screen.draw(state, world, assets, pointerX, pointerY)
+    local snapshot = world.truckSnapshot()
+    local job, inventory = Logistics.truckInventory(state, snapshot.jobId)
+    local vendorDelivery = snapshot.mode == "vendor_delivery"
+    box(52, 42, 856, 592, { 0.045, 0.06, 0.075, 0.99 }, { 0.40, 0.64, 0.70, 1 }, 6)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("TRUCK CARGO / INBOUND PALLETS", 82, 68)
+    BackButton.draw(assets, CLOSE, "BACK", pointerX, pointerY, false)
+
+    love.graphics.setColor(0.78, 0.85, 0.87)
+    if job then
+        love.graphics.print(string.format("%s  •  %s  •  %d pallet%s", job.id, job.company,
+            #inventory, #inventory == 1 and "" or "s"), 82, 105)
+    else
+        love.graphics.print("No delivery manifest is attached to this truck.", 82, 105)
+    end
+
+    for index, item in ipairs(inventory) do
+        local row, button = rowRect(index), unloadRect(index)
+        local aboard = item.location == "awaiting_delivery"
+        box(row.x, row.y, row.width, row.height,
+            aboard and { 0.08, 0.12, 0.15, 1 } or { 0.07, 0.16, 0.12, 1 },
+            aboard and { 0.25, 0.40, 0.46, 1 } or { 0.25, 0.62, 0.42, 1 }, 4)
+        love.graphics.setColor(0.94, 0.96, 0.94)
+        love.graphics.print(string.format("PALLET %d  •  %s", item.number, item.id), row.x + 18, row.y + 13)
+        love.graphics.setColor(0.70, 0.79, 0.81)
+        if vendorDelivery then
+            love.graphics.print(string.format("%s  |  %s %s", item.productName,
+                tostring(item.quantity), item.unit), row.x + 18, row.y + 38)
+        else
+            local paper = item.paper
+            local size = paper and paper.currentSize
+            love.graphics.print(string.format("%s sheets  |  Paper %s  |  %.2f x %.2f in",
+                commaNumber(item.sheets), paper and paper.id or "unassigned",
+                size and size.width or 0, size and size.height or 0), row.x + 18, row.y + 38)
+        end
+        box(button.x, button.y, button.width, button.height,
+            aboard and { 0.16, 0.42, 0.55, 1 } or { 0.11, 0.25, 0.18, 1 },
+            aboard and { 0.48, 0.82, 0.94, 1 } or { 0.25, 0.55, 0.36, 1 }, 3)
+        love.graphics.setColor(0.92, 0.96, 0.95)
+        love.graphics.printf(aboard and "UNLOAD" or "ON FLOOR", button.x, button.y + 12, button.width, "center")
+    end
+
+    local remaining = Logistics.remainingOnTruck(state, snapshot.jobId)
+    local ready = remaining == 0 and snapshot.state == "cargo_open"
+    box(DOOR.x, DOOR.y, DOOR.width, DOOR.height,
+        ready and { 0.18, 0.46, 0.30, 1 } or { 0.16, 0.17, 0.18, 1 },
+        ready and { 0.48, 0.86, 0.58, 1 } or { 0.35, 0.38, 0.40, 1 }, 4)
+    love.graphics.setColor(ready and 0.94 or 0.58, ready and 0.98 or 0.62, ready and 0.94 or 0.64)
+    love.graphics.printf(ready and "CLOSE CARGO DOOR" or (remaining .. " PALLET(S) REMAIN"),
+        DOOR.x, DOOR.y + 14, DOOR.width, "center")
+    love.graphics.setColor(0.68, 0.75, 0.77)
+    love.graphics.print("Click a manifest row to place that pallet outside the truck.", 82, 588)
+end
+
+function Screen.mousepressed(state, world, x, y, button)
+    if button ~= 1 then return nil end
+    if inside(CLOSE, x, y) then return { action = "close" } end
+    local snapshot = world.truckSnapshot()
+    local _, inventory = Logistics.truckInventory(state, snapshot.jobId)
+    for index, item in ipairs(inventory) do
+        if inside(unloadRect(index), x, y) and item.location == "awaiting_delivery" then
+            local succeeded, pallet, remaining = world.unloadTruckPallet(state, item.id)
+            if succeeded then
+                return { action = "unloaded", pallet = pallet, remaining = remaining }
+            end
+            return { action = "blocked" }
+        end
+    end
+    if inside(DOOR, x, y) then
+        if Logistics.remainingOnTruck(state, snapshot.jobId) > 0 then
+            state.message = "Unload every pallet before closing the truck cargo door."
+            return { action = "blocked" }
+        end
+        if world.closeTruckAfterUnload(state) then return { action = "door_closing" } end
+    end
+    return nil
+end
+
+function Screen.unloadButtonCenter(index)
+    local button = unloadRect(index)
+    return button.x + button.width / 2, button.y + button.height / 2
+end
+
+function Screen.closeDoorCenter()
+    return DOOR.x + DOOR.width / 2, DOOR.y + DOOR.height / 2
+end
+
+function Screen.closeCenter()
+    return CLOSE.x + CLOSE.width / 2, CLOSE.y + CLOSE.height / 2
+end
+
+return Screen
