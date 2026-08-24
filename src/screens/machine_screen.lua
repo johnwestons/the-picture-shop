@@ -39,6 +39,7 @@ local function layout()
     addButton("auto", "AUTO SET", 271, 298, 72, 28, "g")
     addButton("save", "SAVE", 55, 334, 62, 28, "m")
     addButton("recall", "RECALL", 123, 334, 70, 28, "v")
+    addButton("repeat", "RUN NEXT LIFT", 201, 334, 142, 28, "t")
     addButton("load", "LOAD BED", 54, 478, 96, 34, "l")
     addButton("position", "PUSH / POS", 158, 478, 100, 34, "p")
     addButton("rotate", "ROTATE CCW", 266, 478, 100, 34, "q")
@@ -205,9 +206,16 @@ local function drawTouchscreen()
         love.graphics.print(string.format("P%d  %-6s  trim %.2f", Machine.programIndex, cut.edge:upper(), cut.margin), 62, 126)
         love.graphics.print(string.format("TARGET %06.2f   ROT %03d", cut.gauge, cut.orientation), 62, 149)
         love.graphics.print(string.format("NOW    %.2f x %.2f in", Machine.paper.currentSize.width, Machine.paper.currentSize.height), 62, 172)
-        love.graphics.setColor(Machine.programIndex == Machine.paper.activeCut and 0.35 or 0.95,
-            Machine.programIndex == Machine.paper.activeCut and 0.95 or 0.45, 0.38)
-        love.graphics.print(Machine.programIndex == Machine.paper.activeCut and "PROGRAM READY" or "SELECT NEXT CUT", 62, 195)
+        if Machine.pallet then
+            love.graphics.setColor(0.35, 0.95, 0.38)
+            love.graphics.print(string.format("LIFT %d/%d   %d SHEETS LEFT",
+                Machine.pallet.activeLift or 1, Machine.pallet.requiredLifts or 1,
+                Machine.pallet.remainingSheets or 0), 62, 195)
+        else
+            love.graphics.setColor(Machine.programIndex == Machine.paper.activeCut and 0.35 or 0.95,
+                Machine.programIndex == Machine.paper.activeCut and 0.95 or 0.45, 0.38)
+            love.graphics.print(Machine.programIndex == Machine.paper.activeCut and "PROGRAM READY" or "SELECT NEXT CUT", 62, 195)
+        end
     else
         love.graphics.print("NO PAPER BATCH LOADED", 62, 130)
     end
@@ -310,7 +318,7 @@ function Screen.draw(state, assets, pointerX, pointerY)
         elseif button.action == "estop" then drawSpriteButton(assets, button, true, Machine.emergencyStopped) end
     end
     love.graphics.setColor(0.75, 0.82, 0.83)
-    love.graphics.print("Type gauge + ENTER  |  L load  G auto  P position  Q rotate CCW  SPACE clamp  J+K cut  U unload", 48, 535)
+    love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate | SPACE clamp | J+K cut | T repeat | U unload", 48, 535)
     love.graphics.print(state.message or "", 48, 635)
 end
 

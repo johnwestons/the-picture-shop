@@ -659,7 +659,9 @@ local function runChecks(context)
         context.machine.update(context.machine.cycleTime + 0.05, fullLoopState)
     end
     check("full_loop_finishes_cutting", fullLoopPallet.paper.status == "complete"
-        and fullLoopPallet.remainingSheets == 500
+        and fullLoopPallet.remainingSheets == 0
+        and fullLoopPallet.completedLifts == 1
+        and fullLoopPallet.lastLiftSheets == 500
         and context.machine.step == "cut_complete")
     context.machine.keypressed("u", fullLoopState)
     context.machine.update(context.machine.transferTime + 0.01, fullLoopState)
@@ -779,6 +781,62 @@ local function runChecks(context)
     end
     verifyFullJobLoop()
 
+    local function verifySixLiftRepeatRun()
+        local repeatState = context.State.new()
+        local repeatJob = jobs.createOffer({
+            id = "JOB-SIX-LIFTS", company = "Six Lift Co.",
+            sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 3000 },
+        })
+        jobs.accept(repeatJob)
+        repeatState.jobs.active[1] = repeatJob
+        context.PalletLogistics.unload(repeatState, repeatJob.id, repeatJob.pallets[1].id,
+            context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
+        local pallet = repeatJob.pallets[1]
+        local anchorX, anchorY = context.CutterZones.inputAnchor(repeatState, context.config.cutterPlacement)
+        pallet.world.x, pallet.world.y = anchorX, anchorY
+        pallet.world.fromX, pallet.world.fromY = anchorX, anchorY
+        context.PalletState.transition(repeatState, pallet, "at_cutter", {
+            status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputZoneRadius,
+        })
+        pallet.paper.status = "complete"
+        pallet.paper.activeCut = #pallet.paper.cuts + 1
+        pallet.paper.currentSize.width = pallet.paper.finishedSize.width
+        pallet.paper.currentSize.height = pallet.paper.finishedSize.height
+        pallet.completedLifts, pallet.remainingSheets, pallet.finishedSheets = 1, 2500, 500
+        pallet.activeLift, pallet.lastLiftSheets, pallet.programVerified = 2, 500, true
+        context.machine.reset(repeatState)
+        check("six_lift_program_resumes", context.machine.load(repeatState)
+            and context.machine.step == "repeat_ready")
+        for completed = 2, 6 do
+            check("six_lift_repeat_starts_" .. completed, context.machine.repeatLift(repeatState))
+            context.machine.update(context.machine.repeatCycleTime + 0.01, repeatState)
+            check("six_lift_progress_" .. completed,
+                pallet.completedLifts == completed
+                and pallet.remainingSheets == 3000 - completed * 500
+                and pallet.finishedSheets == completed * 500
+                and pallet.lastLiftSheets == 500
+                and context.machine.step == (completed == 6 and "cut_complete" or "repeat_ready"))
+            if completed == 3 then
+                check("six_lift_checkpoint_write", context.save.save(3, repeatState, { x = 400, y = 400 }))
+                local checkpoint = context.save.load(3)
+                local savedPallet = checkpoint and checkpoint.state.jobs.active[1].pallets[1]
+                check("six_lift_checkpoint_round_trip", savedPallet
+                    and savedPallet.completedLifts == 3
+                    and savedPallet.activeLift == 4
+                    and savedPallet.remainingSheets == 1500
+                    and savedPallet.finishedSheets == 1500
+                    and savedPallet.lastLiftSheets == 500
+                    and savedPallet.programVerified
+                    and checkpoint.state.inventory.inProcessPallets == 1
+                    and checkpoint.state.inventory.finishedPallets == 0)
+                context.save.delete(3)
+            end
+        end
+        context.machine.reset(repeatState)
+    end
+    verifySixLiftRepeatRun()
+
     local cutterState = context.State.new()
     cutterState.screen = "machine"
     local cutterJob = jobs.createOffer({
@@ -787,7 +845,7 @@ local function runChecks(context)
         difficulty = "hard",
         sourceSize = { width = 25, height = 19 },
         finishedSize = { width = 12.5, height = 9.5 },
-        sheetCounts = { 1000 },
+        sheetCounts = { 750 },
     })
     jobs.accept(cutterJob)
     cutterJob.pallets[1].location = "warehouse"
@@ -862,11 +920,27 @@ local function runChecks(context)
         context.machine.update(context.machine.cycleTime + 0.05, cutterState)
         check("cutter_applies_margin_" .. cutNumber, trackedPaper.activeCut == cutNumber + 1)
     end
-    check("cutter_four_sides_complete", trackedPaper.status == "complete"
+    check("cutter_manual_lift_verifies_program", trackedPaper.status == "complete"
         and trackedPaper.currentSize.width == 12.5
         and trackedPaper.currentSize.height == 9.5
-        and context.machine.step == "cut_complete")
+        and context.machine.step == "repeat_ready"
+        and cutterJob.pallets[1].completedLifts == 1
+        and cutterJob.pallets[1].remainingSheets == 250
+        and cutterJob.pallets[1].finishedSheets == 500
+        and cutterJob.pallets[1].programVerified)
     check("paper_tooltip_updates_size", context.machine.paperTooltip():find("12.50 x 9.50", 1, true) ~= nil)
+    check("cutter_blocks_early_unload_between_lifts", not context.machine.keypressed("u", cutterState)
+        and context.machine.step == "repeat_ready"
+        and cutterJob.pallets[1].remainingSheets == 250)
+    check("cutter_repeat_lift_starts", context.machine.keypressed("t", cutterState)
+        and context.machine.step == "repeat_producing")
+    context.machine.update(context.machine.repeatCycleTime + 0.01, cutterState)
+    check("cutter_partial_final_lift_completes", context.machine.step == "cut_complete"
+        and cutterJob.pallets[1].completedLifts == 2
+        and cutterJob.pallets[1].remainingSheets == 0
+        and cutterJob.pallets[1].finishedSheets == 750
+        and cutterJob.pallets[1].lastLiftSheets == 250
+        and cutterJob.pallets[1].activeLift == 2)
     local finishedBeforeBlockedOutput = cutterState.inventory.finishedPallets
     context.machine.setOutputResolver(function()
         return nil, "No clear cutter output zone is available. Move pallets or equipment away from the cutter."
@@ -898,6 +972,17 @@ local function runChecks(context)
     cutterJob.pallets[1].paper.status = "uncut"
     cutterJob.pallets[1].paper.activeCut = 1
     cutterJob.pallets[1].paper.orientation = 0
+    cutterJob.pallets[1].paper.currentSize = {
+        width = cutterJob.pallets[1].paper.sourceSize.width,
+        height = cutterJob.pallets[1].paper.sourceSize.height,
+    }
+    cutterJob.pallets[1].paper.history = {}
+    cutterJob.pallets[1].remainingSheets = cutterJob.pallets[1].initialSheets
+    cutterJob.pallets[1].finishedSheets = 0
+    cutterJob.pallets[1].completedLifts = 0
+    cutterJob.pallets[1].activeLift = 1
+    cutterJob.pallets[1].lastLiftSheets = 0
+    cutterJob.pallets[1].programVerified = false
     cutterJob.pallets[1].location = "warehouse"
     context.machine.load(cutterState)
     context.machine.update(context.machine.transferTime + 0.01, cutterState)

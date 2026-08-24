@@ -1,5 +1,6 @@
 local PaperWork = require("src.paper_work")
 local Config = require("src.config")
+local Jobs = require("src.jobs")
 local PalletState = require("src.pallet_state")
 
 local Machine = {
@@ -8,6 +9,7 @@ local Machine = {
     emergencyStopped = false, leftDown = false, rightDown = false,
     _leftAt = -math.huge, _rightAt = -math.huge, _clock = 0,
     simultaneity = 0.30, cycleTime = 1.25, transferTime = 0.45,
+    repeatCycleTime = 1.0,
     gauge = 0, programIndex = 1, savedGauge = nil,
     paper = nil, pallet = nil, job = nil, legacyPaper = false, paperTravel = 0,
     pendingOutput = nil, outputResolver = nil,
@@ -29,6 +31,47 @@ end
 
 local function syncProgram()
     if Machine.paper then Machine.programIndex = math.min(Machine.paper.activeCut, #Machine.paper.cuts) end
+end
+
+local function ensureLiftProgress(pallet)
+    if type(pallet) ~= "table" then return end
+    pallet.completedLifts = math.max(0, math.floor(pallet.completedLifts or 0))
+    pallet.remainingSheets = math.max(0, math.floor(pallet.remainingSheets or pallet.initialSheets or 0))
+    pallet.finishedSheets = math.max(0, math.floor(pallet.finishedSheets or 0))
+    pallet.activeLift = math.min(pallet.requiredLifts or 1, pallet.completedLifts + 1)
+    pallet.lastLiftSheets = math.max(0, math.floor(pallet.lastLiftSheets or 0))
+    pallet.programVerified = pallet.programVerified == true or pallet.completedLifts > 0
+end
+
+local function completeLift(state)
+    local pallet = Machine.pallet
+    if Machine.legacyPaper or not pallet then
+        Machine.step = "cut_complete"
+        return
+    end
+    ensureLiftProgress(pallet)
+    if pallet.remainingSheets <= 0 or pallet.completedLifts >= pallet.requiredLifts then
+        Machine.step = "cut_complete"
+        message(state, "All quoted lifts are complete. Press U to return the finished pallet.")
+        return
+    end
+    local sheets = math.min(Jobs.LIFT_CAPACITY, pallet.remainingSheets)
+    pallet.remainingSheets = pallet.remainingSheets - sheets
+    pallet.finishedSheets = pallet.finishedSheets + sheets
+    pallet.completedLifts = pallet.completedLifts + 1
+    pallet.lastLiftSheets = sheets
+    pallet.programVerified = true
+    pallet.activeLift = math.min(pallet.requiredLifts, pallet.completedLifts + 1)
+    if pallet.remainingSheets == 0 or pallet.completedLifts >= pallet.requiredLifts then
+        Machine.step = "cut_complete"
+        message(state, string.format("Lift %d/%d complete (%d sheets). All paper is ready to unload.",
+            pallet.completedLifts, pallet.requiredLifts, sheets))
+    else
+        Machine.step = "repeat_ready"
+        message(state, string.format(
+            "Lift %d/%d verified (%d sheets). Press T to run lift %d with the saved program.",
+            pallet.completedLifts, pallet.requiredLifts, sheets, pallet.activeLift))
+    end
 end
 
 function Machine.reset(state)
@@ -62,14 +105,22 @@ function Machine.load(state)
         end
         Machine.paper, Machine.pallet, Machine.job = selected.paper, selected.pallet, selected.job
         Machine.legacyPaper = false
+        ensureLiftProgress(selected.pallet)
         if wasWarehouse and state and state.inventory then
             state.inventory.rawPallets = math.max(0, (state.inventory.rawPallets or 0) - 1)
             state.inventory.inProcessPallets = (state.inventory.inProcessPallets or 0) + 1
         end
         if selected.paper.status == "complete" then
-            Machine.loaded, Machine.step, Machine.progress, Machine.paperTravel = true, "cut_complete", 0, 1
+            if selected.pallet.completedLifts == 0 and selected.pallet.remainingSheets > 0 then
+                completeLift(state)
+            end
+            local resumeStep = selected.pallet.remainingSheets > 0 and "repeat_ready" or "cut_complete"
+            Machine.loaded, Machine.step, Machine.progress, Machine.paperTravel = true, resumeStep, 0, 1
             syncProgram()
-            message(state, "Finished paper is still at the cutter. Press U to place its pallet in a clear output zone.")
+            message(state, resumeStep == "repeat_ready"
+                and string.format("Verified program restored. Press T to run lift %d/%d.",
+                    selected.pallet.activeLift, selected.pallet.requiredLifts)
+                or "Finished paper is still at the cutter. Press U to place its pallet in a clear output zone.")
             return true
         end
     elseif PalletState.hasUnfinishedCustomerPaper(state) then
@@ -217,6 +268,10 @@ end
 
 function Machine.unload(state)
     if not Machine.paper or Machine.paper.status ~= "complete" or Machine.step ~= "cut_complete" then return false end
+    if Machine.pallet and (Machine.pallet.remainingSheets or 0) > 0 then
+        message(state, "Complete every quoted lift before returning the pallet.")
+        return false
+    end
     if Machine.pallet then
         if not Machine.outputResolver then
             message(state, "Cutter output safety is unavailable. Return to the warehouse and reopen the console.")
@@ -231,6 +286,18 @@ function Machine.unload(state)
     return true
 end
 
+function Machine.repeatLift(state)
+    if Machine.step ~= "repeat_ready" or not Machine.pallet or not Machine.pallet.programVerified then return false end
+    if (Machine.pallet.remainingSheets or 0) <= 0 then
+        Machine.step = "cut_complete"
+        return false
+    end
+    Machine.step, Machine.progress = "repeat_producing", 0
+    message(state, string.format("Running programmed lift %d/%d...",
+        Machine.pallet.activeLift, Machine.pallet.requiredLifts))
+    return true
+end
+
 function Machine.keypressed(key, state)
     key = string.lower(key)
     if key == "l" then return Machine.load(state)
@@ -241,6 +308,7 @@ function Machine.keypressed(key, state)
     elseif key == "m" then return Machine.saveGauge(state)
     elseif key == "v" then return Machine.recallGauge(state)
     elseif key == "u" then return Machine.unload(state)
+    elseif key == "t" then return Machine.repeatLift(state)
     elseif key == "[" then return Machine.selectProgram(Machine.programIndex - 1, state)
     elseif key == "]" then return Machine.selectProgram(Machine.programIndex + 1, state)
     elseif key == "b" then Machine.setBarrier(not Machine.barrierClear, state); return true
@@ -275,9 +343,7 @@ local function finishCut(state)
     end
     Machine.clamp, Machine.leftDown, Machine.rightDown = false, false, false
     if Machine.paper.status == "complete" then
-        Machine.step = "cut_complete"
-        message(state, string.format("All margins removed. %s is now %.2f x %.2f in.",
-            Machine.paper.id, Machine.paper.currentSize.width, Machine.paper.currentSize.height))
+        completeLift(state)
     else
         Machine.step, Machine.paperTravel = "loaded", 0.35
         syncProgram()
@@ -297,6 +363,12 @@ function Machine.update(dt, state)
     local target, speed = Machine.clamp and 1 or 0, dt / 0.25
     if Machine.clampProgress < target then Machine.clampProgress = math.min(target, Machine.clampProgress + speed)
     elseif Machine.clampProgress > target then Machine.clampProgress = math.max(target, Machine.clampProgress - speed) end
+
+    if Machine.step == "repeat_producing" then
+        Machine.progress = Machine.progress + dt
+        if Machine.progress >= Machine.repeatCycleTime then completeLift(state) end
+        return
+    end
 
     if Machine.step == "loading" or Machine.step == "positioning" or Machine.step == "unloading" then
         Machine.progress = Machine.progress + dt
@@ -336,9 +408,6 @@ function Machine.update(dt, state)
                         return
                     end
                     Machine.pendingOutput = nil
-                    Machine.pallet.remainingSheets = 0
-                    Machine.pallet.finishedSheets = Machine.pallet.initialSheets
-                    Machine.pallet.completedLifts = Machine.pallet.requiredLifts
                     if state and state.inventory then
                         state.inventory.inProcessPallets = math.max(0, (state.inventory.inProcessPallets or 0) - 1)
                         state.inventory.finishedPallets = (state.inventory.finishedPallets or 0) + 1

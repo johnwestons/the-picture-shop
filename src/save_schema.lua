@@ -138,6 +138,9 @@ local function customerPallet(value)
         and nonnegative(value.damagedSheets)
         and positiveInteger(value.requiredLifts)
         and nonnegative(value.completedLifts)
+        and (value.activeLift == nil or positiveInteger(value.activeLift))
+        and (value.lastLiftSheets == nil or nonnegative(value.lastLiftSheets))
+        and (value.programVerified == nil or type(value.programVerified) == "boolean")
         and text(value.status)
         and text(value.location)
         and (value.packaging == "flat" or value.packaging == "boxed")
@@ -328,6 +331,15 @@ local function normalizeJobs(jobs)
                             if pallet.finishedSheets == nil then pallet.finishedSheets = 0 end
                             if pallet.damagedSheets == nil then pallet.damagedSheets = 0 end
                             if pallet.completedLifts == nil then pallet.completedLifts = 0 end
+                            if pallet.activeLift == nil then
+                                pallet.activeLift = math.min(pallet.requiredLifts or 1,
+                                    (pallet.completedLifts or 0) + 1)
+                            end
+                            if pallet.lastLiftSheets == nil then pallet.lastLiftSheets = 0 end
+                            if pallet.programVerified == nil then
+                                pallet.programVerified = (pallet.completedLifts or 0) > 0
+                                    or (pallet.paper and pallet.paper.status == "complete")
+                            end
                             if pallet.paper == nil and text(pallet.id)
                                 and dimensions(savedJob.sourceSize) and dimensions(savedJob.finishedSize)
                             then
@@ -388,11 +400,32 @@ function Schema.reconcile(state)
         local pallets = type(savedJob) == "table" and type(savedJob.pallets) == "table"
             and savedJob.pallets or {}
         for _, pallet in ipairs(pallets) do
+            if pallet.activeLift == nil then
+                pallet.activeLift = math.min(pallet.requiredLifts or 1, (pallet.completedLifts or 0) + 1)
+            end
+            if pallet.lastLiftSheets == nil then pallet.lastLiftSheets = 0 end
+            if pallet.programVerified == nil then
+                pallet.programVerified = (pallet.completedLifts or 0) > 0
+                    or (pallet.paper and pallet.paper.status == "complete")
+            end
+            if pallet.location == "at_cutter"
+                and pallet.paper and pallet.paper.status == "complete"
+                and (pallet.completedLifts or 0) == 0 and (pallet.remainingSheets or 0) > 0
+            then
+                local migratedSheets = math.min(500, pallet.remainingSheets)
+                pallet.completedLifts = 1
+                pallet.lastLiftSheets = migratedSheets
+                pallet.remainingSheets = pallet.remainingSheets - migratedSheets
+                pallet.finishedSheets = (pallet.finishedSheets or 0) + migratedSheets
+                pallet.activeLift = math.min(pallet.requiredLifts or 1, pallet.completedLifts + 1)
+                pallet.programVerified = true
+            end
             if pallet.location == "warehouse" or pallet.location == "cutter_output"
                 or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
             then
                 if pallet.status == "cut" or pallet.status == "finished" or pallet.status == "wrapped"
-                    or (pallet.paper and pallet.paper.status == "complete")
+                    or (pallet.paper and pallet.paper.status == "complete"
+                        and (pallet.remainingSheets or 0) == 0)
                 then
                     finished = finished + 1
                 elseif pallet.status == "in_process" or pallet.location == "at_cutter" then

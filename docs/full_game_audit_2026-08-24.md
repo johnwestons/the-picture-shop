@@ -276,6 +276,8 @@ Acceptance: one full accepted job can proceed from customer to inbound truck, cu
 
 ### Step 9 — Implement lift-level production
 
+Status: **Completed 2026-08-24.** The cutter now treats every quoted 500-sheet lift as a production unit. The first lift remains the hands-on four-cut setup and verification cycle; later lifts use a timed saved-program action, advance exactly once per cycle, persist across save/reload, block early unloading, and correctly handle a smaller final lift.
+
 Track active/remaining lifts and create a repeat-production flow after the first verified lift.
 
 Acceptance: completed lifts and remaining sheets advance together; partial final lifts work; quoted workload and production effort are meaningfully related.
