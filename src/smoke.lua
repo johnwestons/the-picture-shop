@@ -751,6 +751,8 @@ local function runChecks(context)
         and serviceState.jobs.declined[1].pallets[1].location == "none"
         and serviceState.accountsReceivable == 600
         and serviceState.nextJobId == 3)
+    local purchaseSucceeded, purchaseOrder = context.procurement.buy(serviceState, 1, 1)
+    check("office_purchase_order_setup", purchaseSucceeded and purchaseOrder.id == "PO-0001")
 
     context.computerScreen.enter(serviceState)
     local activeTabX, activeTabY = context.computerScreen.tabCenter("active")
@@ -776,13 +778,88 @@ local function runChecks(context)
     local selectedDelivery = context.computerScreen.mousepressed(serviceState, rowX, rowY, 1)
     check("computer_inbound_delivery_list", selectedDelivery
         and selectedDelivery.job.status == "awaiting_delivery")
+    local purchaseRowX, purchaseRowY = context.computerScreen.rowCenter(2)
+    local selectedPurchase = context.computerScreen.mousepressed(
+        serviceState, purchaseRowX, purchaseRowY, 1)
+    check("computer_purchase_order_delivery_list", selectedPurchase
+        and selectedPurchase.job == purchaseOrder
+        and context.computerScreen.statusLabel(purchaseOrder.delivery.status)
+            == "Awaiting truck schedule")
+    check("computer_status_vocabulary", context.computerScreen.statusLabel("in_production")
+        == "In production"
+        and context.computerScreen.statusLabel("pickup_in_progress") == "Pickup in progress"
+        and context.computerScreen.statusLabel("completed") == "Completed and paid")
     check("computer_inventory_tab_click", context.computerScreen.mousepressed(
         serviceState, inventoryTabX, inventoryTabY, 1).tab == "inventory")
+    local officeInventory = context.procurement.inventoryRows(serviceState)
+    check("computer_inventory_exposes_purchasable_stock", #officeInventory == 4
+        and officeInventory[1].id == "house_sheets"
+        and officeInventory[3].id == "shipping_cartons"
+        and officeInventory[4].id == "stretch_film")
     local closeX, closeY = context.computerScreen.closeCenter()
     check("computer_close_hit_target", context.computerScreen.mousepressed(
         serviceState, closeX, closeY, 1).action == "close")
     check("computer_ignores_outside_click", context.computerScreen.mousepressed(
         serviceState, 10, 10, 1) == nil)
+
+    local function closeRoute(screen, inputKind)
+        local closeState = context.State.new()
+        closeState.screen = screen
+        closeState.machineType = screen == "machine" and "cutter" or nil
+        closeState.currentOffer = screen == "job_offer" and { id = "CLOSE-TEST" } or nil
+        local result = { customerCancels = 0, vendorCancels = 0, vendorResolves = 0, saves = 0 }
+        local closeContext = {
+            state = closeState,
+            wrapper = { canExit = function() return true end },
+            world = {
+                cancelCustomerReview = function(testState)
+                    result.customerCancels = result.customerCancels + 1
+                    testState.message = "Customer is waiting."
+                    return true
+                end,
+                cancelVendorReview = function(testState)
+                    result.vendorCancels = result.vendorCancels + 1
+                    testState.message = "Vendor is waiting."
+                    return true
+                end,
+                resolveVendor = function() result.vendorResolves = result.vendorResolves + 1 end,
+            },
+            saveCurrent = function() result.saves = result.saves + 1; return true end,
+            jobOfferScreen = context.jobOfferScreen,
+            vendorScreen = context.vendorScreen,
+            truckInventoryScreen = context.truckInventoryScreen,
+            machineScreen = context.machineScreen,
+            computerScreen = context.computerScreen,
+        }
+        if inputKind == "keyboard" then
+            context.input.keypressed("escape", closeContext)
+        else
+            local x, y
+            if screen == "job_offer" then x, y = context.jobOfferScreen.buttonCenter("back")
+            elseif screen == "vendor" then x, y = context.vendorScreen.closeCenter()
+            elseif screen == "truck_inventory" then x, y = context.truckInventoryScreen.closeCenter()
+            elseif screen == "machine" then x, y = context.machineScreen.exitCenter()
+            else x, y = context.computerScreen.closeCenter() end
+            context.input.mousepressed(x, y, 1, closeContext)
+        end
+        result.screen = closeState.screen
+        result.message = closeState.message
+        result.offerCleared = closeState.currentOffer == nil
+        return result
+    end
+
+    for _, screen in ipairs({ "job_offer", "vendor", "truck_inventory", "machine", "computer" }) do
+        local keyboard = closeRoute(screen, "keyboard")
+        local mouse = closeRoute(screen, "mouse")
+        check(screen .. "_back_escape_parity",
+            keyboard.screen == "world" and mouse.screen == "world"
+            and keyboard.message == mouse.message
+            and keyboard.customerCancels == mouse.customerCancels
+            and keyboard.vendorCancels == mouse.vendorCancels
+            and keyboard.vendorResolves == 0 and mouse.vendorResolves == 0
+            and keyboard.saves == 1 and mouse.saves == 1
+            and keyboard.offerCleared == mouse.offerCleared)
+    end
 
     local function verifyFullJobLoop()
     local fullLoopState = context.State.new()

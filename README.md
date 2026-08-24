@@ -38,12 +38,15 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Move: **WASD** or arrow keys
 - Interact with the office computer or Polar 115: **E**
 - At reception, press **E** to open the customer's cutting-job paperwork.
-- Use the mouse to click **Accept Job** or **Decline** on the paperwork.
+- Use the mouse to click **Accept Job** or **Decline** on the paperwork. **Back** and **Escape**
+  both close the paperwork without deciding, so the customer remains available at reception.
 - At the office computer, press **E** and use the mouse to view Active Jobs, Completed Jobs,
-  Deliveries, Inventory, cash, and accounts receivable.
+  Deliveries, Inventory, cash, and accounts receivable. Deliveries includes customer inbound jobs,
+  outbound pickups, and vendor purchase orders; Inventory includes every currently usable supply.
 - Click a job row to inspect its cutting ticket and pallet progress; click **Back** to close the computer.
-- Every scene and GUI now has a visible mouse-clickable **Back**, **Exit**, or **Exit to Menu** control using
-  the shared Polar-style physical button sprite; customer and vendor Back actions leave the NPC waiting.
+- Every scene and GUI has a visible mouse-clickable **Back**, **Exit**, or **Exit to Menu** control using
+  the shared Polar-style physical button sprite. The visible button and **Escape** use the same close
+  behavior on every screen; customer and vendor closes leave the visitor waiting.
 - Accepting a job schedules its inbound truck. The loading bay opens automatically before the truck backs in.
 - At a parked truck's rear, press **E** to open or close its animated cargo door. The wall door cannot close while a truck occupies the bay.
 - When the truck cargo door is open, press **E** to open its manifest. Click **Unload** for each

@@ -2,6 +2,7 @@ local Config = require("src.config")
 local JobService = require("src.job_service")
 local Procurement = require("src.procurement")
 local BackButton = require("src.screens.back_button")
+local StatusLabels = require("src.status_labels")
 
 local ComputerScreen = {
     tab = "active",
@@ -42,19 +43,15 @@ local function money(value)
     return "$" .. commaNumber(value)
 end
 
-local function statusLabel(status)
-    local labels = {
-        offered = "Offer",
-        awaiting_delivery = "Awaiting inbound delivery",
-        in_production = "In production",
-        delivered = "Delivered",
-        cutting = "Cutting in progress",
-        ready_for_pickup = "Ready for pickup",
-        pickup_in_progress = "Pickup in progress",
-        completed = "Completed",
-        declined = "Declined",
-    }
-    return labels[status] or tostring(status or "Unknown")
+local function isPurchaseOrder(item)
+    return item and item.vendor ~= nil and item.productName ~= nil
+end
+
+local function displayStatus(item)
+    if isPurchaseOrder(item) then
+        return item.delivery and item.delivery.status or item.status
+    end
+    return item and item.status
 end
 
 local function deliveries(state)
@@ -67,8 +64,13 @@ local function deliveries(state)
             result[#result + 1] = job
         end
     end
+    local procurement = Procurement.ensure(state)
+    for _, order in ipairs(procurement.orders or {}) do result[#result + 1] = order end
     return result
 end
+
+function ComputerScreen.deliveryRows(state) return deliveries(state) end
+function ComputerScreen.statusLabel(status) return StatusLabels.get(status) end
 
 local function jobsForTab(state, tab)
     if tab == "active" then return state.jobs.active or {} end
@@ -170,7 +172,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
         end
     end
     local selected = findJob(jobsForTab(state, ComputerScreen.tab), ComputerScreen.selectedJobId)
-    if contains(COMPLETE, x, y) then
+    if ComputerScreen.tab == "active" and contains(COMPLETE, x, y) then
         return { action = completionReady(selected) and "pickup_ready" or "completion_blocked",
             job = selected }
     end
@@ -219,7 +221,7 @@ local function drawJobList(state, pointerX, pointerY)
         love.graphics.setColor(0.93, 0.94, 0.92)
         love.graphics.print(job.id .. "  " .. job.company, rect.x + 8, rect.y + 6)
         love.graphics.setColor(0.62, 0.70, 0.71)
-        love.graphics.print(statusLabel(job.status), rect.x + 8, rect.y + 21)
+        love.graphics.print(StatusLabels.get(displayStatus(job)), rect.x + 8, rect.y + 21)
     end
     love.graphics.setColor(0.55, 0.63, 0.65)
     love.graphics.printf(string.format("Page %d / %d", page, maximumPage), 168, 578, 138, "center")
@@ -246,11 +248,30 @@ local function drawDetail(state, pointerX, pointerY)
             DETAIL.x + 24, DETAIL.y + 145, DETAIL.width - 48, "center")
         return
     end
+    if isPurchaseOrder(selected) then
+        local delivery = selected.delivery or {}
+        local pallet = selected.pallets and selected.pallets[1] or {}
+        love.graphics.setColor(0.96, 0.84, 0.30)
+        love.graphics.print(selected.id .. "  •  PURCHASE ORDER", DETAIL.x + 20, DETAIL.y + 18)
+        love.graphics.setColor(0.72, 0.79, 0.80)
+        love.graphics.print(StatusLabels.get(displayStatus(selected)), DETAIL.x + 20, DETAIL.y + 44)
+        love.graphics.print("Vendor: " .. tostring(selected.vendor), DETAIL.x + 20, DETAIL.y + 82)
+        love.graphics.print("Product: " .. tostring(selected.productName), DETAIL.x + 20, DETAIL.y + 112)
+        love.graphics.print("Purchase price: " .. money(selected.price), DETAIL.x + 20, DETAIL.y + 142)
+        love.graphics.print("Order state: " .. StatusLabels.get(selected.status), DETAIL.x + 20, DETAIL.y + 182)
+        love.graphics.print("Delivery state: " .. StatusLabels.get(delivery.status), DETAIL.x + 20, DETAIL.y + 212)
+        love.graphics.print("Pallet state: " .. StatusLabels.get(pallet.status), DETAIL.x + 20, DETAIL.y + 242)
+        love.graphics.print("Pallet location: " .. StatusLabels.get(pallet.location), DETAIL.x + 20, DETAIL.y + 272)
+        love.graphics.setColor(0.55, 0.63, 0.65)
+        love.graphics.printf("Purchase orders are paid when placed. Received supplies appear in Inventory.",
+            DETAIL.x + 20, DETAIL.y + 326, DETAIL.width - 40, "left")
+        return
+    end
     local details = selected.details or {}
     love.graphics.setColor(0.96, 0.84, 0.30)
     love.graphics.print(selected.id .. "  •  " .. selected.company, DETAIL.x + 20, DETAIL.y + 18)
     love.graphics.setColor(0.72, 0.79, 0.80)
-    love.graphics.print(statusLabel(selected.status), DETAIL.x + 20, DETAIL.y + 44)
+    love.graphics.print(StatusLabels.get(selected.status), DETAIL.x + 20, DETAIL.y + 44)
     love.graphics.print(string.format("Parent: %g × %g in", selected.sourceSize.width, selected.sourceSize.height),
         DETAIL.x + 20, DETAIL.y + 76)
     love.graphics.print(string.format("Finished: %g × %g in", selected.finishedSize.width, selected.finishedSize.height),
@@ -274,9 +295,10 @@ local function drawDetail(state, pointerX, pointerY)
         love.graphics.print(tostring(pallet.number), DETAIL.x + 48, y + 7)
         love.graphics.print(commaNumber(pallet.remainingSheets), DETAIL.x + 153, y + 7)
         love.graphics.print(string.format("%d/%d", pallet.completedLifts, pallet.requiredLifts), DETAIL.x + 274, y + 7)
-        love.graphics.print(tostring(pallet.status), DETAIL.x + 340, y + 7)
+        love.graphics.print(StatusLabels.get(pallet.status), DETAIL.x + 340, y + 7)
     end
 
+    if ComputerScreen.tab ~= "active" then return end
     local ready = completionReady(selected)
     local hovered = ready and pointerX and contains(COMPLETE, pointerX, pointerY)
     love.graphics.setColor(ready and (hovered and 0.19 or 0.12) or 0.12,

@@ -324,6 +324,8 @@ Acceptance: startup and scene transitions remain green while measured texture me
 
 ### Step 15 — Unify input, status labels, and office views
 
+Status: **Completed 2026-08-24.** Every overlay now routes its visible Back/Exit control and Escape through one close policy. Customer paperwork and vendor catalogs consistently leave their visitor waiting; the active wrapper consistently blocks both routes. A shared player-facing status vocabulary covers jobs, deliveries, purchase orders, pallets, and locations. The office Deliveries tab now includes customer inbound work, outbound pickups, and vendor purchase orders with a dedicated order detail view, while Inventory exposes every usable stock bucket. Title keyboard routes and README controls match the live input paths. Five screen-parity regressions and the full 530-check smoke run are green.
+
 Make mouse/keyboard Back behavior consistent, add title keyboard controls, normalize statuses, and expose purchase-order/stock data.
 
 Acceptance: README, on-screen prompts, and actual behavior match for every screen.

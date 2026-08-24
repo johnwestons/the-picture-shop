@@ -9,23 +9,38 @@ function Input.movement()
     return x, y
 end
 
-function Input.keypressed(key, context)
+function Input.closeScreen(context)
     local state = context.state
-    if key == "escape" and state.screen == "job_offer" then
-        state.message = "Choose Accept or Decline on the customer paperwork."
-        return
-    end
-    if key == "escape" and state.screen == "machine" and state.machineType == "skid_wrapper"
+    if state.screen == "world" or state.screen == "title" then return false end
+    if state.screen == "machine" and state.machineType == "skid_wrapper"
         and not context.wrapper.canExit(state)
     then
         return true
     end
-    if key == "escape" and state.screen ~= "world" and state.screen ~= "title" then
-        if state.screen == "vendor" then context.world.resolveVendor(state) end
-        state.screen = "world"
+
+    if state.screen == "job_offer" then
+        context.world.cancelCustomerReview(state)
+        state.currentOffer = nil
+    elseif state.screen == "vendor" then
+        context.world.cancelVendorReview(state)
+    elseif state.screen == "truck_inventory" then
+        state.message = "Truck inventory closed. The cargo door remains open."
+    elseif state.screen == "machine" then
+        state.message = "Exited the machine console."
+    elseif state.screen == "computer" then
+        state.message = "Office computer closed."
+    else
         state.message = "Back on the warehouse floor."
-        context.saveCurrent()
-        return
+    end
+    state.screen = "world"
+    context.saveCurrent()
+    return true
+end
+
+function Input.keypressed(key, context)
+    local state = context.state
+    if key == "escape" and state.screen ~= "world" and state.screen ~= "title" then
+        return Input.closeScreen(context)
     end
 
     if state.screen == "title" then
@@ -134,8 +149,7 @@ function Input.mousepressed(x, y, button, context)
         local result = context.vendorScreen.mousepressed(state, x, y, button)
         if not result then return false end
         if result.action == "close" then
-            context.world.cancelVendorReview(state)
-            state.screen = "world"
+            return Input.closeScreen(context)
         end
         if result.action ~= "blocked" then context.saveCurrent() end
         return true
@@ -144,8 +158,7 @@ function Input.mousepressed(x, y, button, context)
         local result = context.truckInventoryScreen.mousepressed(state, context.world, x, y, button)
         if not result then return false end
         if result.action == "close" then
-            state.screen = "world"
-            state.message = "Truck inventory closed. The cargo door remains open."
+            return Input.closeScreen(context)
         elseif result.action == "door_closing" then
             state.screen = "world"
         end
@@ -155,10 +168,7 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "machine" then
         local result = context.machineScreen.mousepressed(state, x, y, button)
         if type(result) == "table" and result.action == "exit" then
-            if state.machineType == "skid_wrapper" and not context.wrapper.canExit(state) then return true end
-            state.screen = "world"
-            state.message = "Exited the machine console."
-            context.saveCurrent()
+            Input.closeScreen(context)
             return true
         end
         return result
@@ -167,9 +177,7 @@ function Input.mousepressed(x, y, button, context)
         local result = context.computerScreen.mousepressed(state, x, y, button)
         if not result then return false end
         if result.action == "close" then
-            state.screen = "world"
-            state.message = "Office computer closed."
-            context.saveCurrent()
+            return Input.closeScreen(context)
         elseif result.action == "completion_blocked" then
             state.message = "Every pallet must be cut, packaged, and stretch-wrapped before completion."
         elseif result.action == "pickup_ready" then
@@ -188,11 +196,7 @@ function Input.mousepressed(x, y, button, context)
     if not action then return false end
 
     if action == "back" then
-        context.world.cancelCustomerReview(state)
-        state.currentOffer = nil
-        state.screen = "world"
-        context.saveCurrent()
-        return true
+        return Input.closeScreen(context)
     end
 
     local job = state.currentOffer
