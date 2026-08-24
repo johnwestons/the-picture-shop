@@ -1,5 +1,6 @@
 local Logistics = {}
 local Procurement = require("src.procurement")
+local PalletState = require("src.pallet_state")
 local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
 
 local function activeJob(state, jobId)
@@ -68,12 +69,15 @@ function Logistics.unload(state, jobId, palletId, spawnPoints, origin)
                 return false, "That pallet has already been unloaded."
             end
             local point = spawnPoints[((index - 1) % #spawnPoints) + 1]
-            pallet.location = "warehouse"
-            pallet.status = "raw"
-            pallet.world = copyPosition(point)
-            pallet.world.fromX = origin and origin.x or point.x
-            pallet.world.fromY = origin and origin.y or point.y
-            pallet.world.spawnProgress = 0
+            local world = copyPosition(point)
+            world.fromX = origin and origin.x or point.x
+            world.fromY = origin and origin.y or point.y
+            world.spawnProgress = 0
+            local transitioned, transitionError = PalletState.transition(state, pallet, "warehouse", {
+                status = "raw",
+                world = world,
+            })
+            if not transitioned then return false, transitionError end
             state.inventory.rawPallets = (state.inventory.rawPallets or 0) + 1
             local remaining = Logistics.remainingOnTruck(state, jobId)
             if remaining == 0 then

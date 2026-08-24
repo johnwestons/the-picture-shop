@@ -1,5 +1,6 @@
 local PalletJack = {}
 local Procurement = require("src.procurement")
+local PalletState = require("src.pallet_state")
 
 local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
 local dropOffsets = {
@@ -172,20 +173,21 @@ function PalletJack.use(state, config, canPlace)
         if not canPlace(dropX, dropY) then return false, "blocked" end
         local _, pallet = findPallet(state, jack.carriedPalletId)
         if not pallet then jack.carriedPalletId = nil; return false, "missing" end
-        pallet.location = "warehouse"
-        pallet.world = pallet.world or {}
-        pallet.world.x, pallet.world.y = dropX, dropY
-        pallet.world.direction = jack.direction
-        pallet.world.rotation = directionFrames[jack.direction]
-        pallet.world.fromX, pallet.world.fromY = dropX, dropY
-        pallet.world.spawnProgress = 1
-        jack.carriedPalletId = nil
+        local world = {}
+        for key, value in pairs(pallet.world or {}) do world[key] = value end
+        world.x, world.y = dropX, dropY
+        world.direction = jack.direction
+        world.rotation = directionFrames[jack.direction]
+        world.fromX, world.fromY = dropX, dropY
+        world.spawnProgress = 1
+        local transitioned, transitionError = PalletState.transition(state, pallet, "warehouse", { world = world })
+        if not transitioned then return false, transitionError end
         return true, "lowered", pallet
     end
     local nearby = nearestPallet(state, jack.x, jack.y, config.pickupRadius)
     if nearby then
-        nearby.pallet.location = "on_pallet_jack"
-        jack.carriedPalletId = nearby.pallet.id
+        local transitioned, transitionError = PalletState.transition(state, nearby.pallet, "on_pallet_jack")
+        if not transitioned then return false, transitionError end
         nearby.pallet.world = nearby.pallet.world or {}
         nearby.pallet.world.direction = jack.direction
         nearby.pallet.world.rotation = directionFrames[jack.direction]

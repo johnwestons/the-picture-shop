@@ -16,6 +16,7 @@ local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
 local MachineScreen = require("src.screens.machine_screen")
 local PalletJack = require("src.pallet_jack")
+local PalletState = require("src.pallet_state")
 local Save = require("src.save")
 local Shop = require("src.shop")
 local Smoke = require("src.smoke")
@@ -95,6 +96,7 @@ function App.load()
             machine = Machine,
             machineScreen = MachineScreen,
             PalletJack = PalletJack,
+            PalletState = PalletState,
             procurement = Procurement,
             jobs = Jobs,
             jobOfferScreen = JobOfferScreen,

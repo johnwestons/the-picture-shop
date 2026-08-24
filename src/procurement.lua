@@ -1,4 +1,5 @@
 local Procurement = {}
+local PalletState = require("src.pallet_state")
 
 Procurement.categories = {
     {
@@ -108,9 +109,13 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
         if pallet.id == palletId then
             if pallet.location ~= "awaiting_delivery" then return false, "That product pallet is already unloaded." end
             local point = spawnPoints[((index - 1) % #spawnPoints) + 1]
-            pallet.location, pallet.status = "warehouse", "stocked"
-            pallet.world = { x = point.x, y = point.y, direction = "northwest", rotation = 1,
+            local world = { x = point.x, y = point.y, direction = "northwest", rotation = 1,
                 fromX = origin and origin.x or point.x, fromY = origin and origin.y or point.y, spawnProgress = 0 }
+            local transitioned, transitionError = PalletState.transition(state, pallet, "warehouse", {
+                status = "stocked",
+                world = world,
+            })
+            if not transitioned then return false, transitionError end
             state.inventory.stock[pallet.productId] = (state.inventory.stock[pallet.productId] or 0) + pallet.quantity
             order.status = "received"
             order.delivery.status, order.delivery.receivedAt = "received", os.time()

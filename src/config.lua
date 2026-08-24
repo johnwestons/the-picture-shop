@@ -89,6 +89,7 @@ local Config = {
         defaultDirection = "northwest",
         speed = 52,
         interactionRadius = 88,
+        palletInputRadius = 132,
         obstacleRadius = 68,
         collisionHalfWidth = 61,
         collisionHalfHeight = 19,

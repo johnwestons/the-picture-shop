@@ -1,4 +1,6 @@
 local PaperWork = require("src.paper_work")
+local Config = require("src.config")
+local PalletState = require("src.pallet_state")
 
 local Machine = {
     step = "idle", progress = 0, loaded = false, clamp = false,
@@ -30,19 +32,7 @@ local function cutterOutputPosition(state, palletNumber)
 end
 
 local function availablePapers(state)
-    local result = {}
-    local active = state and state.jobs and state.jobs.active or {}
-    for _, job in ipairs(active) do
-        for _, pallet in ipairs(job.pallets or {}) do
-            local paper, location = pallet.paper, pallet.location
-            if paper and paper.status ~= "complete"
-                and location ~= "awaiting_delivery" and location ~= "none"
-            then
-                result[#result + 1] = { job = job, pallet = pallet, paper = paper }
-            end
-        end
-    end
-    return result
+    return PalletState.cutterCandidates(state, Config.cutterPlacement.palletInputRadius)
 end
 
 local function makeLegacyPaper()
@@ -73,13 +63,22 @@ function Machine.load(state)
     local selected = availablePapers(state)[1]
     if selected then
         local wasWarehouse = selected.pallet.location == "warehouse"
+        if wasWarehouse then
+            local transitioned, transitionError = PalletState.transition(state, selected.pallet, "at_cutter", {
+                status = "in_process",
+                cutterRadius = Config.cutterPlacement.palletInputRadius,
+            })
+            if not transitioned then message(state, transitionError); return false end
+        end
         Machine.paper, Machine.pallet, Machine.job = selected.paper, selected.pallet, selected.job
         Machine.legacyPaper = false
-        selected.pallet.location, selected.pallet.status = "at_cutter", "in_process"
         if wasWarehouse and state and state.inventory then
             state.inventory.rawPallets = math.max(0, (state.inventory.rawPallets or 0) - 1)
             state.inventory.inProcessPallets = (state.inventory.inProcessPallets or 0) + 1
         end
+    elseif PalletState.hasUnfinishedCustomerPaper(state) then
+        message(state, "Stage an unfinished pallet on clear floor beside the cutter before loading.")
+        return false
     elseif state and state.inventory and (state.inventory.paper or 0) > 0 then
         Machine.paper, Machine.pallet, Machine.job = makeLegacyPaper()
         Machine.legacyPaper = true
@@ -309,15 +308,24 @@ function Machine.update(dt, state)
                     state.inventory.paper = math.max(0, (state.inventory.paper or 0) - 1)
                     state.inventory.prints = (state.inventory.prints or 0) + 1
                 elseif Machine.pallet then
-                    Machine.pallet.status, Machine.pallet.location = "cut", "cutter_output"
+                    local outputX, outputY = cutterOutputPosition(state, Machine.pallet.number)
+                    local world = {}
+                    for key, value in pairs(Machine.pallet.world or {}) do world[key] = value end
+                    world.x, world.y = outputX, outputY
+                    world.fromX, world.fromY = outputX, outputY
+                    world.spawnProgress = 1
+                    local transitioned, transitionError = PalletState.transition(state, Machine.pallet, "cutter_output", {
+                        status = "cut",
+                        world = world,
+                    })
+                    if not transitioned then
+                        Machine.step = "blocked"
+                        message(state, "Could not return the pallet: " .. tostring(transitionError))
+                        return
+                    end
                     Machine.pallet.remainingSheets = 0
                     Machine.pallet.finishedSheets = Machine.pallet.initialSheets
                     Machine.pallet.completedLifts = Machine.pallet.requiredLifts
-                    Machine.pallet.world = Machine.pallet.world or {}
-                    Machine.pallet.world.x, Machine.pallet.world.y = cutterOutputPosition(state, Machine.pallet.number)
-                    Machine.pallet.world.fromX = Machine.pallet.world.x
-                    Machine.pallet.world.fromY = Machine.pallet.world.y
-                    Machine.pallet.world.spawnProgress = 1
                     if state and state.inventory then
                         state.inventory.inProcessPallets = math.max(0, (state.inventory.inProcessPallets or 0) - 1)
                         state.inventory.finishedPallets = (state.inventory.finishedPallets or 0) + 1

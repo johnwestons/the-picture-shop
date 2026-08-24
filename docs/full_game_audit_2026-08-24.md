@@ -244,6 +244,8 @@ Acceptance: simulated truncated/invalid primary saves recover from backup withou
 
 ### Step 5 — Enforce pallet ownership/location invariants
 
+Status: **Completed 2026-08-24.** Deliveries, the pallet jack, decline handling, and the cutter now share one transition authority with rollback and whole-state invariant checks. Cutter input accepts only its existing owned pallet or an unfinished floor pallet staged nearby; carried/distant/double-owned pallets are rejected unchanged, and contradictory legacy ownership is reconciled on load.
+
 Centralize allowed location transitions and require cutter staging/proximity.
 
 Acceptance: a pallet cannot be simultaneously on a jack, truck, cutter, wrapper/output zone, or warehouse floor; invalid transitions leave all state unchanged.

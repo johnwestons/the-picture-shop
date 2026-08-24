@@ -3,6 +3,7 @@
 -- own the returned records and may serialize them as part of a save file.
 local Jobs = {}
 local PaperWork = require("src.paper_work")
+local PalletState = require("src.pallet_state")
 
 Jobs.MIN_PALLETS = 1
 Jobs.MAX_PALLETS = 5
@@ -226,8 +227,7 @@ function Jobs.decline(job, timestamp)
     if succeeded then
         job.declinedAt = timestamp
         for _, pallet in ipairs(job.pallets or {}) do
-            pallet.status = "cancelled"
-            pallet.location = "none"
+            PalletState.transitionDetached(pallet, "none", { status = "cancelled" })
         end
     end
     return succeeded, result

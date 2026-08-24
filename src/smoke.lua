@@ -566,6 +566,15 @@ local function runChecks(context)
     })
     jobs.accept(cutterJob)
     cutterJob.pallets[1].location = "warehouse"
+    cutterJob.pallets[1].world = {
+        x = cutterState.cutter.x + 82,
+        y = cutterState.cutter.y + 42,
+        direction = "northwest",
+        rotation = 1,
+        fromX = cutterState.cutter.x + 82,
+        fromY = cutterState.cutter.y + 42,
+        spawnProgress = 1,
+    }
     cutterState.jobs.active[1] = cutterJob
     local trackedPaper = cutterJob.pallets[1].paper
     check("paper_unique_id", trackedPaper.id == "JOB-CUTTER-P01-PAPER"
@@ -657,6 +666,108 @@ local function runChecks(context)
     context.machine.keypressed("k", cutterState)
     check("cutter_barrier_blocks", context.machine.step == "blocked")
     context.machine.reset(context.state)
+
+    local function ownershipState(id, x, y)
+        local testState = context.State.new()
+        local testJob = jobs.createOffer({
+            id = id,
+            company = "Ownership Test Co.",
+            sourceSize = { width = 20, height = 16 },
+            finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 500 },
+        })
+        jobs.accept(testJob)
+        local pallet = testJob.pallets[1]
+        pallet.location = "warehouse"
+        pallet.world = { x = x, y = y, direction = "northwest", rotation = 1,
+            fromX = x, fromY = y, spawnProgress = 1 }
+        testState.jobs.active[1] = testJob
+        return testState, testJob, pallet
+    end
+
+    local farState, _, farPallet = ownershipState("JOB-FAR", 40, 620)
+    context.machine.reset(farState)
+    check("cutter_rejects_far_floor_pallet", not context.machine.load(farState)
+        and farPallet.location == "warehouse"
+        and farState.palletJack.carriedPalletId == nil)
+    check("cutter_far_rejection_preserves_invariants", context.PalletState.validate(farState))
+
+    local carriedState, _, carriedPallet = ownershipState(
+        "JOB-CARRIED", context.config.cutterPlacement.spawnX + 70, context.config.cutterPlacement.spawnY + 30)
+    check("pallet_transition_to_jack", context.PalletState.transition(carriedState, carriedPallet, "on_pallet_jack"))
+    context.machine.reset(carriedState)
+    check("cutter_rejects_pallet_owned_by_jack", not context.machine.load(carriedState)
+        and carriedPallet.location == "on_pallet_jack"
+        and carriedState.palletJack.carriedPalletId == carriedPallet.id
+        and context.machine.pallet == nil)
+    check("cutter_carried_rejection_preserves_invariants", context.PalletState.validate(carriedState))
+
+    local stagedState, _, stagedPallet = ownershipState(
+        "JOB-STAGED", context.config.cutterPlacement.spawnX + 72, context.config.cutterPlacement.spawnY + 28)
+    context.machine.reset(stagedState)
+    check("cutter_accepts_nearby_floor_pallet", context.machine.load(stagedState)
+        and stagedPallet.location == "at_cutter"
+        and stagedPallet.status == "in_process"
+        and stagedState.palletJack.carriedPalletId == nil)
+    check("cutter_load_preserves_single_owner", context.PalletState.validate(stagedState))
+    context.machine.reset(stagedState)
+    check("cutter_reopens_its_owned_pallet", context.machine.load(stagedState)
+        and stagedPallet.location == "at_cutter"
+        and stagedState.inventory.inProcessPallets == 1
+        and context.PalletState.validate(stagedState))
+    context.machine.reset(stagedState)
+
+    local illegalState = context.State.new()
+    local illegalJob = jobs.createOffer({
+        id = "JOB-ILLEGAL", company = "Illegal Transition Co.",
+        sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 },
+    })
+    jobs.accept(illegalJob)
+    illegalState.jobs.active[1] = illegalJob
+    local illegalPallet = illegalJob.pallets[1]
+    check("pallet_illegal_transition_rejected",
+        not context.PalletState.transition(illegalState, illegalPallet, "at_cutter", {
+            cutterRadius = context.config.cutterPlacement.palletInputRadius,
+        })
+        and illegalPallet.location == "awaiting_delivery"
+        and illegalPallet.world == nil
+        and illegalState.palletJack.carriedPalletId == nil)
+
+    local contestedState, _, firstCutterPallet = ownershipState(
+        "JOB-FIRST-CUTTER", context.config.cutterPlacement.spawnX + 60, context.config.cutterPlacement.spawnY + 20)
+    local secondJob = jobs.createOffer({
+        id = "JOB-SECOND-CUTTER", company = "Second Cutter Co.",
+        sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 },
+    })
+    jobs.accept(secondJob)
+    local secondCutterPallet = secondJob.pallets[1]
+    secondCutterPallet.location = "warehouse"
+    secondCutterPallet.world = { x = contestedState.cutter.x + 80, y = contestedState.cutter.y + 20,
+        direction = "northwest", rotation = 1, fromX = contestedState.cutter.x + 80,
+        fromY = contestedState.cutter.y + 20, spawnProgress = 1 }
+    contestedState.jobs.active[2] = secondJob
+    check("pallet_first_cutter_owner", context.PalletState.transition(
+        contestedState, firstCutterPallet, "at_cutter",
+        { status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputRadius }))
+    check("pallet_second_cutter_owner_rejected", not context.PalletState.transition(
+        contestedState, secondCutterPallet, "at_cutter",
+        { status = "in_process", cutterRadius = context.config.cutterPlacement.palletInputRadius })
+        and secondCutterPallet.location == "warehouse"
+        and secondCutterPallet.status == "raw"
+        and context.PalletState.validate(contestedState))
+
+    local legacyOwnershipState, _, legacyOwnershipPallet = ownershipState(
+        "JOB-LEGACY-OWNER", context.config.cutterPlacement.spawnX + 50, context.config.cutterPlacement.spawnY + 20)
+    legacyOwnershipPallet.location = "at_cutter"
+    legacyOwnershipPallet.status = "in_process"
+    legacyOwnershipState.palletJack.carriedPalletId = legacyOwnershipPallet.id
+    check("pallet_legacy_double_owner_detected", not context.PalletState.validate(legacyOwnershipState))
+    check("pallet_legacy_double_owner_reconciled", context.PalletState.reconcile(legacyOwnershipState)
+        and legacyOwnershipPallet.location == "at_cutter"
+        and legacyOwnershipState.palletJack.carriedPalletId == nil
+        and context.PalletState.validate(legacyOwnershipState))
 
     local payload = context.save.newGame(1)
     economy.jobs.active[1] = jobs.createOffer({

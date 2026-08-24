@@ -64,8 +64,8 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Near an unoccupied loading bay, press **E** to open or close the roll-up door manually.
 - Near an unloaded cutter, press **M** to enter machine-relocation mode. Use **WASD/arrow keys** to
   move it slowly, **Q** to rotate it 90 degrees, and **E** to lock it in its new floor position.
-- Cutter: click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
-  **L** loads paper, **G** selects the next unfinished cut and loads its saved backgauge value, and **P** pushes/positions;
+- Cutter: lower an unfinished customer pallet onto clear floor beside the cutter, then open the console. A pallet still owned by the jack or staged too far away cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
+  **L** loads the staged paper, **G** selects the next unfinished cut and loads its saved backgauge value, and **P** pushes/positions;
   **Q** rotate the paper counter-clockwise into the next front-edge cutting position, **Space** clamp,
   and **J + K** together start the guarded cut. The active margin is always nearest the screen.
 - Cutter repeat programming: **M** saves the current gauge, **V** recalls it, **[ / ]** changes the

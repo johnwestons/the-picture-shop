@@ -6,6 +6,7 @@ local PalletJack = require("src.pallet_jack")
 local WrapperPlacement = require("src.wrapper_placement")
 local Procurement = require("src.procurement")
 local SaveSchema = require("src.save_schema")
+local PalletState = require("src.pallet_state")
 
 function State.new()
     local state = SaveSchema.defaultState()
@@ -74,6 +75,7 @@ function State.applySave(state, payload)
         or 0
     state.procurement = type(saved.procurement) == "table" and saved.procurement or { orders = {}, nextOrderId = 1 }
     Procurement.ensure(state)
+    PalletState.reconcile(state)
     SaveSchema.reconcile(state)
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.currentOffer = nil
