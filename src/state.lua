@@ -5,44 +5,21 @@ local CutterPlacement = require("src.cutter_placement")
 local PalletJack = require("src.pallet_jack")
 local WrapperPlacement = require("src.wrapper_placement")
 local Procurement = require("src.procurement")
+local SaveSchema = require("src.save_schema")
 
 function State.new()
-    return {
-        screen = "title",
-        activeSlot = nil,
-        money = 180,
-        inventory = {
-            paper = 40,
-            prints = 0,
-            rawPallets = 0,
-            inProcessPallets = 0,
-            finishedPallets = 0,
-            plasticWrapRolls = 1,
-            plasticWrapUses = 11,
-        },
-        shopProgress = {
-            completedCuts = 0,
-        },
-        jobs = {
-            active = {},
-            completed = {},
-            declined = {},
-        },
-        nextJobId = 1,
-        accountsReceivable = 0,
-        procurement = { orders = {}, nextOrderId = 1 },
-        vendorCategory = 1,
-        currentOffer = nil,
-        cutter = CutterPlacement.defaultState(Config.cutterPlacement),
-        palletJack = PalletJack.defaultState(Config.palletJack),
-        wrapper = WrapperPlacement.defaultState(Config.wrapperPlacement),
-        message = "Welcome to your new print shop!",
-    }
+    local state = SaveSchema.defaultState()
+    state.screen = "title"
+    state.activeSlot = nil
+    state.currentOffer = nil
+    state.message = "Welcome to your new print shop!"
+    return state
 end
 
 function State.applySave(state, payload)
     local saved = type(payload) == "table" and payload.state
     if type(saved) ~= "table" then return false end
+    saved = SaveSchema.copy(saved)
 
     state.activeSlot = payload.slot
     state.money = type(saved.money) == "number" and saved.money or 0
@@ -97,6 +74,7 @@ function State.applySave(state, payload)
         or 0
     state.procurement = type(saved.procurement) == "table" and saved.procurement or { orders = {}, nextOrderId = 1 }
     Procurement.ensure(state)
+    SaveSchema.reconcile(state)
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.currentOffer = nil
     state.screen = "world"

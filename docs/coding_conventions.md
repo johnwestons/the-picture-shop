@@ -19,6 +19,7 @@ These rules adapt the useful boundaries and stabilization practices from the nei
 - `src/app.lua`: composition root and screen routing
 - `src/state.lua`: new-game state and save application
 - `src/save.lua`: three versioned local save slots
+- `src/save_schema.lua`: persistent defaults, migrations, nested validation, and reconciliation
 - `src/assets.lua`: loading, validation, atlas quads, nearest filtering
 - `src/input.lua`: keyboard routing
 - `src/navigation.lua`: walkmask and fixed-obstacle checks

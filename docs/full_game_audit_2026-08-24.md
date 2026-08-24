@@ -228,6 +228,8 @@ Acceptance: Escape and mouse Exit at every point in a wrap cycle never crash, du
 
 ### Step 3 — Upgrade the save schema
 
+Status: **Completed 2026-08-24.** Save format 3 now shares exact defaults with runtime state, migrates v1/v2, persists film and wrapper placement, validates nested jobs/pallets/paper/orders, reconciles pallet totals, and round-trips every persistent field across all three slots.
+
 Add film and wrapper fields, exact defaults, v1/v2 migration, nested validation, and state reconciliation.
 
 Acceptance: new shops start with the intended film; wrapper position/direction, pallet ownership, inventory, jobs, and player position survive all round trips.

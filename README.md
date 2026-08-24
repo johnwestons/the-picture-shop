@@ -13,8 +13,9 @@ The launcher finds LÖVE on `PATH`, in a local `runtime` folder, or in the norma
 
 The title screen has three local save slots. Use **W/S** or the arrow keys to select a slot, **N** for a new shop, **C** or **Enter** to continue, **D** to delete, and **Q** or **Escape** to quit. Confirmation prompts accept **Y** or **Enter** and cancel with **N** or **Escape**. Starting a new shop in an occupied slot always shows an overwrite warning; cancelling it leaves the existing save unchanged. Saves are versioned and retain money, stock, finished prints, completed cuts, and player position.
 
-Save format 2 also retains active, completed, and declined jobs, accounts receivable,
-the next stable job number, and pallet inventory summaries. Version-1 slots migrate when loaded.
+Save format 3 retains active, completed, and declined jobs, accounts receivable, procurement,
+stock, film, machine placements, pallet-jack ownership, wrapper placement, and the next stable
+job number. Version-1 and version-2 slots migrate when loaded.
 
 ## Job rules foundation
 
