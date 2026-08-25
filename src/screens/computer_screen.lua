@@ -578,6 +578,11 @@ function ComputerScreen.textinput(state, text)
     return false
 end
 
+function ComputerScreen.wantsTextInput()
+    return ComputerScreen.promoJobId and ComputerScreen.promoFocused
+        or ComputerScreen.tab == "email" and ComputerScreen.quoteFocused
+end
+
 local panel = Ui.panel
 
 local function drawTabs(pointerX, pointerY)

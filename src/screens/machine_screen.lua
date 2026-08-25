@@ -1212,6 +1212,10 @@ function Screen.textinput(state, text)
     return changed
 end
 
+function Screen.wantsTextInput()
+    return Screen.gaugeFocused and not Screen.loadMenu
+end
+
 function Screen.gaugeInputCenter()
     return gaugeInput.x + gaugeInput.width / 2, gaugeInput.y + gaugeInput.height / 2
 end

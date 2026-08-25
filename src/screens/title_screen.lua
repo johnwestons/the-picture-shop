@@ -194,8 +194,10 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         drawButton(assets, "delete", true); drawButton(assets, "quit", true)
     end
     love.graphics.setColor(0.68, 0.72, 0.70)
+    local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
     love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message
-        or "Mouse or W/S/Arrows | N New | C/Enter Continue | D Delete | Q Quit",
+        or (mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
+            or "Mouse or W/S/Arrows | N New | C/Enter Continue | D Delete | Q Quit"),
         0, 604, Config.baseWidth, "center")
 end
 

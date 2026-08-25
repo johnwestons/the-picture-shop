@@ -1,4 +1,9 @@
 local Input = {}
+local mobileMovementProvider = nil
+
+function Input.setMobileMovementProvider(provider)
+    mobileMovementProvider = provider
+end
 
 function Input.movement()
     local x, y = 0, 0
@@ -6,6 +11,26 @@ function Input.movement()
     if love.keyboard.isDown("d", "right") then x = x + 1 end
     if love.keyboard.isDown("w", "up") then y = y - 1 end
     if love.keyboard.isDown("s", "down") then y = y + 1 end
+    if love.joystick and love.joystick.getJoysticks then
+        for _, joystick in ipairs(love.joystick.getJoysticks()) do
+            if joystick:isGamepad() then
+                local axisX = joystick:getGamepadAxis("leftx") or 0
+                local axisY = joystick:getGamepadAxis("lefty") or 0
+                if math.abs(axisX) < 0.20 then axisX = 0 end
+                if math.abs(axisY) < 0.20 then axisY = 0 end
+                if joystick:isGamepadDown("dpleft") then axisX = -1 end
+                if joystick:isGamepadDown("dpright") then axisX = 1 end
+                if joystick:isGamepadDown("dpup") then axisY = -1 end
+                if joystick:isGamepadDown("dpdown") then axisY = 1 end
+                if axisX ~= 0 or axisY ~= 0 then x, y = axisX, axisY end
+                break
+            end
+        end
+    end
+    if mobileMovementProvider then
+        local mobileX, mobileY = mobileMovementProvider()
+        if mobileX ~= 0 or mobileY ~= 0 then x, y = mobileX, mobileY end
+    end
     return x, y
 end
 

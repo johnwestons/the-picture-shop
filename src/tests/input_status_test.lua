@@ -1,4 +1,5 @@
 local Test = {}
+local Controller = require("src.controller")
 
 local function closeRoute(context, screen, inputKind)
     local closeState = context.State.new()
@@ -91,6 +92,39 @@ function Test.run(context, check)
         and inventory[5].id == "maintenance_kit"
         and inventory[6].id == "black_ink"
         and inventory[10].id == "raw_press_plates")
+
+    local pressed, released, pointerEvents = {}, {}, {}
+    local controllerScreen, controllerMachine = "world", nil
+    local controller = Controller.new({
+        pressKey = function(key) pressed[#pressed + 1] = key end,
+        releaseKey = function(key) released[#released + 1] = key end,
+        pressPointer = function(x, y) pointerEvents[#pointerEvents + 1] = { "down", x, y } end,
+        releasePointer = function(x, y) pointerEvents[#pointerEvents + 1] = { "up", x, y } end,
+        screenInfo = function() return controllerScreen, controllerMachine end,
+        worldMenuAction = function() pressed[#pressed + 1] = "menu" end,
+    })
+    local gamepad = { isGamepad = function() return true end }
+    controller:gamepadpressed(gamepad, "a")
+    controller:gamepadreleased(gamepad, "a")
+    controller:gamepadpressed(gamepad, "y")
+    controller:gamepadreleased(gamepad, "y")
+    check("controller_world_context_buttons", pressed[1] == "e" and released[1] == "e"
+        and pressed[2] == "m" and released[2] == "m")
+
+    controllerScreen, controllerMachine = "machine", "cutter"
+    controller:gamepadpressed(gamepad, "leftshoulder")
+    controller:gamepadpressed(gamepad, "rightshoulder")
+    check("controller_cutter_two_hand_guard", pressed[3] == "j" and pressed[4] == "k")
+    controller:gamepadreleased(gamepad, "leftshoulder")
+    controller:gamepadreleased(gamepad, "rightshoulder")
+
+    controllerScreen, controllerMachine = "computer", nil
+    controller:gamepadpressed(gamepad, "a")
+    controller:gamepadreleased(gamepad, "a")
+    check("controller_menu_cursor_click", #pointerEvents == 2
+        and pointerEvents[1][1] == "down" and pointerEvents[2][1] == "up"
+        and pointerEvents[1][2] == pointerEvents[2][2]
+        and pointerEvents[1][3] == pointerEvents[2][3])
 end
 
 return Test

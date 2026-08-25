@@ -76,6 +76,7 @@ function JobOfferScreen.enter(job)
 end
 
 function JobOfferScreen.quoteAmount() return tonumber(JobOfferScreen.quoteText) end
+function JobOfferScreen.wantsTextInput() return JobOfferScreen.quoteFocused end
 
 function JobOfferScreen.focusQuote()
     JobOfferScreen.quoteFocused = true

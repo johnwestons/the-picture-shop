@@ -5,6 +5,7 @@ local BusinessCalendar = require("src.business_calendar")
 local CharacterAssets = require("src.character_assets")
 local ComputerScreen = require("src.screens.computer_screen")
 local Config = require("src.config")
+local Controller = require("src.controller")
 local CutterPlacement = require("src.cutter_placement")
 local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
@@ -17,6 +18,7 @@ local Jobs = require("src.jobs")
 local Machine = require("src.machine")
 local MachineFleet = require("src.machine_fleet")
 local MachineMaintenance = require("src.machine_maintenance")
+local MobileControls = require("src.mobile_controls")
 local Navigation = require("src.navigation")
 local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
@@ -46,6 +48,8 @@ local WindmillPlacement = require("src.windmill_placement")
 local App = {}
 local state = State.new()
 local spriteLabActive = false
+local mobileControls = nil
+local controller = nil
 
 local function saveCurrent()
     if not state.activeSlot then return false end
@@ -88,8 +92,127 @@ local inputContext = {
     returnToTitle = returnToTitle,
 }
 
+local function pointerPosition()
+    if controller and controller:isActive() and state.screen ~= "world" then
+        return controller:pointer()
+    end
+    if mobileControls and mobileControls:isEnabled() then
+        local x, y = mobileControls:pointer()
+        if x and y then return x, y end
+    end
+    local x, y = love.mouse.getPosition()
+    return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+end
+
+local function dispatchGameMousePressed(gameX, gameY, button)
+    if state.screen == "asset_error" then return end
+    if button == 1 then Ui.notePress(gameX, gameY) end
+    return Input.mousepressed(gameX, gameY, button, inputContext)
+end
+
+local function dispatchGameMouseReleased(gameX, gameY, button)
+    return Input.mousereleased(gameX, gameY, button, inputContext)
+end
+
+local function dispatchMousePressed(x, y, button)
+    if state.screen == "asset_error" then return end
+    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    if button == 1 then Ui.notePress(gameX, gameY) end
+    return Input.mousepressed(gameX, gameY, button, inputContext)
+end
+
+local function dispatchMouseReleased(x, y, button)
+    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    return Input.mousereleased(gameX, gameY, button, inputContext)
+end
+
+local function dispatchMouseMoved(x, y)
+    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    return Input.mousemoved(gameX, gameY, inputContext)
+end
+
+local function wantsTextInput()
+    if state.screen == "job_offer" and JobOfferScreen.wantsTextInput then
+        return JobOfferScreen.wantsTextInput()
+    elseif state.screen == "computer" and ComputerScreen.wantsTextInput then
+        return ComputerScreen.wantsTextInput()
+    elseif state.screen == "machine" and MachineScreen.wantsTextInput then
+        return MachineScreen.wantsTextInput()
+    end
+    return false
+end
+
+local function syncMobileKeyboard()
+    if mobileControls and mobileControls:isEnabled() and love.keyboard.setTextInput then
+        love.keyboard.setTextInput(wantsTextInput())
+    end
+end
+
+local function primaryMobileAction()
+    if state.cutter and state.cutter.moving or state.wrapper and state.wrapper.moving
+        or state.windmill and state.windmill.moving
+    then
+        return "e", "PLACE"
+    end
+    local selected = World.getInteraction()
+    if not selected then return "e", "USE" end
+    local labels = {
+        customer = "QUOTE", computer = "PC", vendor = "TALK", loadingBayDoor = "DOOR",
+        truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
+        windmill = "PRESS", palletJack = state.palletJack and state.palletJack.operating and "LIFT" or "DRIVE",
+    }
+    return "e", labels[selected.kind] or "USE"
+end
+
+local function extraMobileActions()
+    local actions = {}
+    if state.cutter and state.cutter.moving or state.wrapper and state.wrapper.moving
+        or state.windmill and state.windmill.moving
+    then
+        actions[#actions + 1] = { key = "q", label = "TURN" }
+        return actions
+    end
+    if state.palletJack and state.palletJack.operating then
+        actions[#actions + 1] = { key = "f", label = "PARK" }
+        local selected = World.getInteraction()
+        local canRelocate = selected and (selected.kind == "cutter"
+            or selected.kind == "skidWrapper" or selected.kind == "windmill")
+        if not canRelocate then
+            canRelocate = World.cutterNearby and World.cutterNearby(state)
+                or World.wrapperNearby and World.wrapperNearby(state)
+                or World.windmillNearby and World.windmillNearby(state)
+        end
+        if canRelocate then actions[#actions + 1] = { key = "m", label = "MOVE" } end
+    end
+    return actions
+end
+
 function App.load()
     love.graphics.setDefaultFilter("nearest", "nearest")
+    mobileControls = MobileControls.new({
+        toGame = function(x, y) return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight) end,
+        pressKey = function(key) Input.keypressed(key, inputContext) end,
+        releaseKey = function(key) Input.keyreleased(key, inputContext) end,
+        pressPointer = dispatchMousePressed,
+        movePointer = dispatchMouseMoved,
+        releasePointer = dispatchMouseReleased,
+        gameplayActive = function() return state.screen == "world" end,
+        primaryAction = primaryMobileAction,
+        extraActions = extraMobileActions,
+        afterInput = syncMobileKeyboard,
+    })
+    controller = Controller.new({
+        pressKey = function(key) Input.keypressed(key, inputContext) end,
+        releaseKey = function(key) Input.keyreleased(key, inputContext) end,
+        pressPointer = dispatchGameMousePressed,
+        releasePointer = dispatchGameMouseReleased,
+        screenInfo = function() return state.screen, state.machineType end,
+        worldMenuAction = returnToTitle,
+    })
+    Input.setMobileMovementProvider(function()
+        if mobileControls then return mobileControls:movement() end
+        return 0, 0
+    end)
     if Smoke.requested() then love.filesystem.setIdentity("the-picture-shop-smoke") end
     Assets.load()
     CharacterAssets.load()
@@ -164,9 +287,11 @@ function App.load()
         })
         if spriteLabActive then SpriteMotionLab.enter(CharacterAssets) end
     end
+    print("[PICTURE SHOP] Startup complete")
 end
 
 function App.update(dt)
+    if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
     if state.screen ~= "title" and state.screen ~= "asset_error" then
         local calendarChanged = BusinessCalendar.update(state, dt)
@@ -224,17 +349,16 @@ function App.draw()
         AssetErrorScreen.draw(state.assetErrors)
     elseif state.screen == "title" then
         CharacterAssets.retainCharacters({})
-        local mouseX, mouseY = love.mouse.getPosition()
-        mouseX, mouseY = Viewport.toGame(mouseX, mouseY, Config.baseWidth, Config.baseHeight)
+        local mouseX, mouseY = pointerPosition()
         TitleScreen.draw(Assets, mouseX, mouseY)
     else
-        local mouseX, mouseY = love.mouse.getPosition()
-        mouseX, mouseY = Viewport.toGame(mouseX, mouseY, Config.baseWidth, Config.baseHeight)
+        local mouseX, mouseY = pointerPosition()
         World.draw(Assets, CharacterAssets, state,
             state.screen == "world" and mouseX or nil,
             state.screen == "world" and mouseY or nil)
         if state.screen == "world" then
-            Hud.draw(state, World.prompt(), Assets, mouseX, mouseY)
+            Hud.draw(state, World.prompt(), Assets, mouseX, mouseY,
+                mobileControls and mobileControls:isEnabled(), controller and controller:isActive())
         elseif state.screen == "computer" then
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "machine" then
@@ -250,6 +374,8 @@ function App.draw()
         end
     end
     Ui.drawPressFeedback()
+    if controller then controller:draw() end
+    if mobileControls then mobileControls:draw() end
     Viewport.endDraw()
     Smoke.drawn()
 end
@@ -271,25 +397,51 @@ function App.textinput(text)
     Input.textinput(text, inputContext)
 end
 
-function App.mousepressed(x, y, button)
-    if state.screen == "asset_error" then return end
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
-    if button == 1 then Ui.notePress(gameX, gameY) end
-    Input.mousepressed(gameX, gameY, button, inputContext)
+function App.mousepressed(x, y, button, isTouch)
+    if mobileControls and mobileControls:ignoreSyntheticMouse(isTouch) then return end
+    return dispatchMousePressed(x, y, button)
 end
 
-function App.mousereleased(x, y, button)
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
-    Input.mousereleased(gameX, gameY, button, inputContext)
+function App.mousereleased(x, y, button, isTouch)
+    if mobileControls and mobileControls:ignoreSyntheticMouse(isTouch) then return end
+    return dispatchMouseReleased(x, y, button)
 end
 
-function App.mousemoved(x, y)
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
-    Input.mousemoved(gameX, gameY, inputContext)
+function App.mousemoved(x, y, _, _, isTouch)
+    if mobileControls and mobileControls:ignoreSyntheticMouse(isTouch) then return end
+    return dispatchMouseMoved(x, y)
 end
 
 function App.wheelmoved(x, y)
     Input.wheelmoved(x, y, inputContext)
+end
+
+function App.touchpressed(id, x, y)
+    if mobileControls then return mobileControls:touchpressed(id, x, y) end
+end
+
+function App.touchmoved(id, x, y, dx, dy)
+    if mobileControls then return mobileControls:touchmoved(id, x, y, dx, dy) end
+end
+
+function App.touchreleased(id, x, y)
+    if mobileControls then return mobileControls:touchreleased(id, x, y) end
+end
+
+function App.gamepadpressed(joystick, button)
+    if controller then return controller:gamepadpressed(joystick, button) end
+end
+
+function App.gamepadreleased(joystick, button)
+    if controller then return controller:gamepadreleased(joystick, button) end
+end
+
+function App.focus(focused)
+    if not focused and mobileControls then
+        mobileControls:cancelAll()
+        saveCurrent()
+    end
+    if not focused and controller then controller:cancelAll() end
 end
 
 function App.quit()

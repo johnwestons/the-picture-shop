@@ -9,6 +9,28 @@ A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop managem
 
 The launcher finds LÖVE on `PATH`, in a local `runtime` folder, or in the normal Program Files locations. LÖVE must receive the whole project folder; do not open `main.lua` by itself.
 
+## Run on Android
+
+The Android edition is built from this same Lua source tree; there is no copied mobile gameplay fork.
+With one USB-debugging-enabled phone connected, run `./BUILD_ANDROID.ps1 -Install` in PowerShell.
+The command packages the current game, runs the smoke suite, builds and verifies a signed development
+APK, installs it without deleting existing saves, launches it, and verifies the Picture Shop startup marker.
+Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is needed. See
+`ANDROID_PORT.md` for the phone, controller, build, and release checklist.
+
+## Phone and controller input
+
+- Touch: drag the lower-left control to move and use the contextual lower-right work button. Extra
+  **Park**, **Move**, and **Turn** buttons appear when the pallet jack or a relocating machine needs them.
+- Touch every menu, computer, manifest, quote, and machine panel directly. Numeric/text fields open the
+  Android keyboard. Android Back closes the current panel through the same safe exit route as Escape.
+- Controller: left stick or D-pad moves; **A** uses the current shop interaction; **X** parks the pallet
+  jack; **Y** begins machine relocation; right shoulder turns a relocating machine; **Start** saves and
+  returns to the shop menu.
+- On panels and menus, either stick moves the gold controller cursor, **A** clicks, **B/Back** closes,
+  and the D-pad retains menu/help navigation. At the Polar cutter, left and right shoulder are the two
+  independent guarded cut controls; **X** clamps and **Y** rotates the sheet.
+
 ## Title and saves
 
 The title screen has three local save slots. Use **W/S** or the arrow keys to select a slot, **N** for a new shop, **C** or **Enter** to continue, **D** to delete, and **Q** or **Escape** to quit. Confirmation prompts accept **Y** or **Enter** and cancel with **N** or **Escape**. Starting a new shop in an occupied slot always shows an overwrite warning; cancelling it leaves the existing save unchanged. Saves are versioned and retain money, stock, finished prints, completed cuts, and player position.
