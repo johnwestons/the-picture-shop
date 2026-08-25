@@ -141,6 +141,20 @@ function Test.run(context, check)
     local pinched = camera:snapshot()
     check("mobile_camera_pinch_preserves_finger_anchor", pinched.zoom > initial.zoom
         and math.abs(anchorX - heldX) < 0.001 and math.abs(anchorY - heldY) < 0.001)
+    camera:endGesture()
+    camera:selectView("computer", false)
+    local computerFit = camera:snapshot()
+    camera:beginGesture(480, 339, 200)
+    camera:updateGesture(480, 339, 320)
+    camera:endGesture()
+    local computerZoomed = camera:snapshot()
+    camera:selectView("world", true)
+    local worldFill = camera:snapshot()
+    camera:selectView("computer", false)
+    local computerRestored = camera:snapshot()
+    check("mobile_gui_starts_fit_and_remembers_its_camera", computerFit.zoom == 1
+        and computerZoomed.zoom > 1.5 and worldFill.zoom > 1.52
+        and math.abs(computerRestored.zoom - computerZoomed.zoom) < 0.001)
 
     local taps, gestures = {}, { began = 0, updated = 0, ended = 0 }
     local mobile = MobileControls.new({
@@ -167,6 +181,28 @@ function Test.run(context, check)
     mobile:touchreleased("tap", 500, 250)
     check("mobile_single_world_tap_stays_clickable", #taps == 2
         and taps[1][1] == "down" and taps[2][1] == "up")
+
+    local panelTaps, panelGestures = {}, 0
+    local panelMobile = MobileControls.new({
+        enabled = true,
+        toGame = function(x, y) return x, y end,
+        pressKey = function() end,
+        releaseKey = function() end,
+        pressPointer = function() panelTaps[#panelTaps + 1] = "down" end,
+        movePointer = function() end,
+        releasePointer = function() panelTaps[#panelTaps + 1] = "up" end,
+        gameplayActive = function() return false end,
+        gestureActive = function() return true end,
+        beginGesture = function() panelGestures = panelGestures + 1 end,
+        updateGesture = function() end,
+        endGesture = function() end,
+    })
+    panelMobile:touchpressed("panel-first", 98, 574)
+    panelMobile:touchpressed("panel-second", 500, 300)
+    panelMobile:touchreleased("panel-second", 500, 300)
+    panelMobile:touchreleased("panel-first", 98, 574)
+    check("mobile_gui_gesture_works_over_world_control_positions",
+        panelGestures == 1 and #panelTaps == 0)
 end
 
 return Test

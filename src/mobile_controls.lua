@@ -23,6 +23,7 @@ function MobileControls.new(options)
     self.movePointer = assert(options.movePointer, "mobile controls require movePointer")
     self.releasePointer = assert(options.releasePointer, "mobile controls require releasePointer")
     self.gameplayActive = assert(options.gameplayActive, "mobile controls require gameplayActive")
+    self.gestureActive = options.gestureActive or self.gameplayActive
     self.primaryAction = options.primaryAction or function() return "e", "USE" end
     self.extraActions = options.extraActions or function() return {} end
     self.afterInput = options.afterInput or function() end
@@ -144,7 +145,7 @@ function MobileControls:touchpressed(id, screenX, screenY)
             return true
         end
     end
-    if self.gameplayActive() then
+    if self.gestureActive() then
         if self.gestureTouches then
             self.touches[id] = { kind = "ignored", screenX = screenX, screenY = screenY, x = x, y = y }
             return true

@@ -34,8 +34,8 @@ keystore and Android App Bundle.
 - Updating with `-Install` retains each save slot.
 - Landscape remains locked while the phone rotates between its two landscape edges.
 - Touch joystick movement is smooth and simultaneous touches do not produce duplicate mouse clicks.
-- The shop floor fills the phone width; a two-finger gesture pans and pinch-zooms without leaking taps
-  into the HUD or shop interactions.
+- The shop floor fills the phone width; two-finger pan and pinch-zoom works on every screen and GUI.
+  Each screen remembers its own camera without leaking gestures into taps, HUD actions, or shop controls.
 - Contextual Use, Park, Move, Turn, machine placement, and pallet-jack controls all work.
 - Quote, email, promotion, and cutter gauge fields summon the Android keyboard and accept input.
 - Cutter guarded controls recognize simultaneous touch and controller shoulder presses.

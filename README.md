@@ -22,8 +22,9 @@ Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is
 
 - Touch: drag the lower-left control to move and use the contextual lower-right work button. Extra
   **Park**, **Move**, and **Turn** buttons appear when the pallet jack or a relocating machine needs them.
-- The shop floor fills ultrawide phone displays. Use two fingers away from the controls to pinch-zoom
-  and pan; one-finger taps and the movement/action controls keep their normal behavior.
+- The shop floor fills ultrawide phone displays. Two-finger pinch-zoom and pan works on the title,
+  shop floor, computer, machine consoles, manifests, quotes, vendor, and press screens. Each screen
+  remembers its own view; one-finger taps and the movement/action controls keep their normal behavior.
 - Touch every menu, computer, manifest, quote, and machine panel directly. Numeric/text fields open the
   Android keyboard. Android Back closes the current panel through the same safe exit route as Escape.
 - Controller: left stick or D-pad moves; **A** uses the current shop interaction; **X** parks the pallet

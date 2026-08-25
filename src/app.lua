@@ -51,6 +51,21 @@ local spriteLabActive = false
 local mobileControls = nil
 local controller = nil
 
+local function cameraTransformsUi()
+    return App.mobileCamera and App.mobileCamera:isEnabled() and state.screen ~= "world"
+end
+
+local function cameraViewKey()
+    if state.screen == "machine" then return "machine:" .. tostring(state.machineType or "unknown") end
+    return tostring(state.screen)
+end
+
+local function toPointerCoordinates(x, y)
+    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    if cameraTransformsUi() then return App.mobileCamera:screenToWorld(gameX, gameY) end
+    return gameX, gameY
+end
+
 local function saveCurrent()
     if not state.activeSlot then return false end
     return Save.save(state.activeSlot, state, World.snapshot())
@@ -98,10 +113,13 @@ local function pointerPosition()
     end
     if mobileControls and mobileControls:isEnabled() then
         local x, y = mobileControls:pointer()
-        if x and y then return x, y end
+        if x and y then
+            if cameraTransformsUi() then return App.mobileCamera:screenToWorld(x, y) end
+            return x, y
+        end
     end
     local x, y = love.mouse.getPosition()
-    return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    return toPointerCoordinates(x, y)
 end
 
 local function dispatchGameMousePressed(gameX, gameY, button)
@@ -116,18 +134,18 @@ end
 
 local function dispatchMousePressed(x, y, button)
     if state.screen == "asset_error" then return end
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    local gameX, gameY = toPointerCoordinates(x, y)
     if button == 1 then Ui.notePress(gameX, gameY) end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
 local function dispatchMouseReleased(x, y, button)
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    local gameX, gameY = toPointerCoordinates(x, y)
     return Input.mousereleased(gameX, gameY, button, inputContext)
 end
 
 local function dispatchMouseMoved(x, y)
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
+    local gameX, gameY = toPointerCoordinates(x, y)
     return Input.mousemoved(gameX, gameY, inputContext)
 end
 
@@ -197,6 +215,9 @@ function App.load()
         movePointer = dispatchMouseMoved,
         releasePointer = dispatchMouseReleased,
         gameplayActive = function() return state.screen == "world" end,
+        gestureActive = function()
+            return App.mobileCamera and App.mobileCamera:isEnabled() and not spriteLabActive
+        end,
         primaryAction = primaryMobileAction,
         extraActions = extraMobileActions,
         afterInput = syncMobileKeyboard,
@@ -345,8 +366,11 @@ function App.draw()
     local viewBounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight)
     if mobileControls then mobileControls:setBounds(viewBounds) end
     if App.mobileCamera then App.mobileCamera:setViewport(viewBounds.width, viewBounds.height) end
-    local mobileWorld = state.screen == "world" and App.mobileCamera and App.mobileCamera:isEnabled()
-    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not mobileWorld)
+    local mobileCameraActive = App.mobileCamera and App.mobileCamera:isEnabled()
+    if mobileCameraActive then App.mobileCamera:selectView(cameraViewKey(), state.screen == "world") end
+    local mobileWorld = state.screen == "world" and mobileCameraActive
+    local mobileUi = state.screen ~= "world" and mobileCameraActive
+    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not mobileCameraActive)
     if spriteLabActive then
         SpriteMotionLab.draw(CharacterAssets)
         Viewport.endDraw()
@@ -362,6 +386,7 @@ function App.draw()
         state.screen = "asset_error"
         state.message = "A screen asset pack could not be loaded."
     end
+    if mobileUi then App.mobileCamera:beginDraw() end
     if state.screen == "asset_error" then
         CharacterAssets.retainCharacters({})
         AssetErrorScreen.draw(state.assetErrors)
@@ -400,6 +425,7 @@ function App.draw()
     end
     Ui.drawPressFeedback()
     if controller then controller:draw() end
+    if mobileUi then App.mobileCamera:endDraw() end
     if mobileControls then mobileControls:draw() end
     Viewport.endDraw()
     Smoke.drawn()

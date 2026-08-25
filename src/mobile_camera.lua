@@ -19,7 +19,36 @@ function MobileCamera.new(options)
     self.viewWidth = self.baseWidth
     self.viewHeight = self.baseHeight
     self.initialized = false
+    self.viewKey = nil
+    self.savedViews = {}
     return self
+end
+
+function MobileCamera:selectView(key, fillScreen)
+    key = key or "default"
+    if self.viewKey == key then return end
+    if self.viewKey then
+        self.savedViews[self.viewKey] = {
+            centerX = self.centerX,
+            centerY = self.centerY,
+            zoom = self.zoom,
+        }
+    end
+    self:endGesture()
+    self.viewKey = key
+    local saved = self.savedViews[key]
+    if saved then
+        self.centerX, self.centerY, self.zoom = saved.centerX, saved.centerY, saved.zoom
+    else
+        self.centerX, self.centerY = self.baseWidth / 2, self.baseHeight / 2
+        local fillZoom = math.max(
+            self.viewWidth / self.baseWidth,
+            self.viewHeight / self.baseHeight
+        )
+        self.zoom = fillScreen and fillZoom or 1
+    end
+    self.zoom = clamp(self.zoom, self.minimumZoom, self.maximumZoom)
+    self:_clampCenter()
 end
 
 function MobileCamera:isEnabled()
