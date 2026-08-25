@@ -4,6 +4,8 @@
 local Jobs = {}
 local PaperWork = require("src.paper_work")
 local PalletState = require("src.pallet_state")
+local PressEconomics = require("src.press_economics")
+local PlateService = require("src.plate_service")
 
 Jobs.MIN_PALLETS = 1
 Jobs.MAX_PALLETS = 5
@@ -132,6 +134,12 @@ function Jobs.validateSpec(spec)
     if not countsValid then
         for _, countError in ipairs(countErrors) do errors[#errors + 1] = countError end
     end
+    if spec.press ~= nil then
+        local pressValid, pressErrors = PressEconomics.validate(spec.press)
+        if not pressValid then
+            for _, pressError in ipairs(pressErrors) do errors[#errors + 1] = pressError end
+        end
+    end
     return #errors == 0, errors, { source = source, finished = finished, counts = counts }
 end
 
@@ -151,11 +159,13 @@ function Jobs.calculateQuote(sheetCounts)
             price = price,
         }
     end
+    local totalPrice = totalLifts * Jobs.PRICE_PER_LIFT
     return {
         palletCount = #pallets,
         totalSheets = totalSheets,
         totalLifts = totalLifts,
-        totalPrice = totalLifts * Jobs.PRICE_PER_LIFT,
+        totalPrice = totalPrice,
+        recommendedPrice = totalPrice,
         pallets = pallets
     }
 end
@@ -164,7 +174,20 @@ end
 function Jobs.quote(spec)
     local valid, errors, normalized = Jobs.validateSpec(spec)
     if not valid then return nil, errors end
-    return Jobs.calculateQuote(normalized.counts)
+    local quote, quoteErrors = Jobs.calculateQuote(normalized.counts)
+    if not quote then return nil, quoteErrors end
+    if spec.press then
+        local pressSpec = copy(spec.press)
+        pressSpec.impressions = quote.totalSheets
+        pressSpec.artworkSize = pressSpec.artworkSize or copy(normalized.finished)
+        local pressBudget, pressErrors = PressEconomics.calculate(pressSpec)
+        if not pressBudget then return nil, pressErrors end
+        quote.cuttingPrice = quote.totalPrice
+        quote.pressBudget = pressBudget
+        quote.totalPrice = quote.cuttingPrice + pressBudget.recommendedCharge
+        quote.recommendedPrice = quote.totalPrice
+    end
+    return quote
 end
 
 function Jobs.createOffer(spec)
@@ -179,14 +202,18 @@ function Jobs.createOffer(spec)
         finishedSize = copy(normalized.finished),
         artworkKey = type(spec.artworkKey) == "string" and spec.artworkKey
             or (spec.details and spec.details.artworkKey) or "flower",
+        deliveryService = copy(spec.deliveryService),
+        requestChannel = spec.requestChannel == "email" and "email" or "reception",
         details = copy(spec.details or {}),
         difficulty = spec.difficulty or (spec.details and spec.details.difficulty) or "easy",
         packaging = spec.packaging == "boxed" and "boxed" or "flat",
+        press = copy(spec.press),
         status = "offered",
         createdAt = spec.createdAt,
         quote = quoted,
         pallets = {}
     }
+    PlateService.ensureJob(job)
     for index, quotedPallet in ipairs(quoted.pallets) do
         job.pallets[index] = {
             id = string.format("%s-P%02d", job.id, index),
@@ -200,10 +227,15 @@ function Jobs.createOffer(spec)
             activeLift = 1,
             lastLiftSheets = 0,
             programVerified = false,
+            awaitingPalletReturn = false,
             status = "raw",
             location = "awaiting_delivery",
             packaging = spec.packaging == "boxed" and "boxed" or "flat",
             wrapped = false,
+            press = spec.press and {
+                status = "awaiting_cut", completedColors = 0, goodSheets = 0,
+                spoilage = 0, dryUntilHours = nil,
+            } or nil,
         }
         job.pallets[index].paper = PaperWork.create(job, job.pallets[index], job.difficulty, index)
     end

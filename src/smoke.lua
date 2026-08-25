@@ -111,6 +111,22 @@ local function runChecks(context)
     for frame = 1, context.config.wrapperPlacement.frameCount do
         check("skid_wrapper_direction_" .. frame, context.assets.getQuad("skidWrapperDirection" .. frame) ~= nil)
     end
+    check("wall_vent_fan_three_frame_asset", context.assets.get("wallVentFan") ~= nil
+        and context.assets.getQuad("wallVentFan1") ~= nil
+        and context.assets.getQuad("wallVentFan2") ~= nil
+        and context.assets.getQuad("wallVentFan3") ~= nil)
+    check("wall_vent_fan_is_thirty_five_percent_larger",
+        math.abs(context.config.wallVentFan.drawScale - 0.405) < 0.0001)
+    check("pallet_jack_twenty_percent_smaller_without_shrinking_loose_pallets",
+        math.abs(context.config.palletJack.drawScale - 0.416) < 0.0001
+        and math.abs(context.config.palletJack.drawScale
+            * context.config.palletJack.carriedPalletArtRatio
+            - context.config.palletLogistics.drawScale) < 0.0001)
+    local singleFrameClient = context.Customer.new(context.config.customer)
+    singleFrameClient.animationClock = 123.45
+    check("seated_clients_draw_exactly_one_atlas_frame",
+        singleFrameClient:frameForAction("sit", 2) == 1
+        and singleFrameClient:frameForAction("idle", 2) == 1)
     local wrapperState = context.State.new()
     wrapperState.inventory.stock.shipping_cartons = 1
     wrapperState.jobs.active = { { id = "WRAP-TEST", packaging = "boxed", pallets = { {
@@ -126,6 +142,9 @@ local function runChecks(context)
         and wrapperState.inventory.plasticWrapUses == 10
         and wrapperState.inventory.stock.shipping_cartons == 0)
     local wrapperDirection = wrapperState.wrapper.direction
+    wrapperState.palletJack.operating = true
+    wrapperState.palletJack.carriedPalletId = nil
+    wrapperState.palletJack.x, wrapperState.palletJack.y = wrapperState.wrapper.x, wrapperState.wrapper.y
     check("skid_wrapper_move_mode", context.world.beginWrapperMove(wrapperState))
     check("skid_wrapper_rotate", context.world.rotateWrapper(wrapperState)
         and wrapperState.wrapper.direction ~= wrapperDirection)
@@ -249,10 +268,16 @@ local function runChecks(context)
             local metrics = context.characterAssets.normalizedFrameMetrics(character, action, 1)
             check(character .. "_" .. action .. "_matches_character_scale",
                 idle and metrics and math.abs(metrics.height - idle.height) / idle.height <= 0.03)
+            check(character .. "_" .. action .. "_matches_player_world_height",
+                metrics and math.abs(
+                    metrics.height * context.config.customer.drawScale
+                    - context.config.characterRendering.referenceHeight
+                        * context.config.player.drawScale) <= 1)
         end
     end
     check("business_seated_art_receives_source_scale_correction",
-        context.characterAssets.getNormalization("business-dragon", "sit") > 3.9)
+        context.characterAssets.getNormalization("business-dragon", "sit") > 2
+        and context.characterAssets.getNormalization("business-dragon", "sit") < 3)
     check("character_actions_load_on_demand", context.characterAssets.residentActionCount() > 0)
     context.characterAssets.retainCharacters({ ["business-dragon"] = true })
     check("inactive_character_packs_release",
@@ -266,12 +291,16 @@ local function runChecks(context)
     local loadingBayDoor = context.assets.get("loadingBayDoor")
     local deliveryTruck = context.assets.get("deliveryTruck")
     local truckCargoDoor = context.assets.get("truckCargoDoor")
+    local machineFlatbedLoaded = context.assets.get("machineFlatbedLoaded")
+    local machineFlatbedEmpty = context.assets.get("machineFlatbedEmpty")
     check("warehouse_loaded", background ~= nil)
     check("walkmask_cpu_copy_loaded", mask ~= nil)
     check("walkmask_gpu_texture_omitted", context.assets.get("walkmask") == nil)
     check("loading_bay_door_asset_loaded", loadingBayDoor ~= nil)
     check("delivery_truck_asset_loaded", deliveryTruck ~= nil)
     check("truck_cargo_door_asset_loaded", truckCargoDoor ~= nil)
+    check("machine_flatbed_loaded_asset_loaded", machineFlatbedLoaded ~= nil)
+    check("machine_flatbed_empty_asset_loaded", machineFlatbedEmpty ~= nil)
     check("picture_press_excluded_from_runtime", context.assets.get("picturePress") == nil
         and context.config.paths.picturePress == nil)
     check("polar_direction_strip_loaded", context.assets.get("polarDirections") ~= nil)
@@ -298,12 +327,16 @@ local function runChecks(context)
     check("artwork_job_rotation_covers_full_registry", artworkOrderValid
         and artworkPathCount == #(context.config.artworkOrder or {}))
     local artworkOfferState = context.State.new()
-    for sequence, artworkKey in ipairs(context.config.artworkOrder or {}) do
+    local observedArtwork = {}
+    for sequence = 1, math.max(12, #(context.config.artworkOrder or {})) do
         artworkOfferState.nextJobId = sequence
         local offer = context.jobService.createNextOffer(artworkOfferState, 1000 + sequence)
-        if not offer or offer.artworkKey ~= artworkKey then artworkOrderValid = false; break end
+        if not offer or not artworkRegistry[offer.artworkKey] then artworkOrderValid = false; break end
+        observedArtwork[offer.artworkKey] = true
     end
-    check("every_artwork_texture_reaches_a_job_offer", artworkOrderValid)
+    local observedCount = 0
+    for _ in pairs(observedArtwork) do observedCount = observedCount + 1 end
+    check("randomized_artwork_reaches_job_offers", artworkOrderValid and observedCount >= 4)
     for frame = 1, context.config.loadingBay.frameCount do
         check("loading_bay_door_frame_" .. frame,
             context.assets.getQuad("loadingBayDoor" .. frame) ~= nil)
@@ -316,14 +349,16 @@ local function runChecks(context)
         check("polar_direction_frame_" .. frame,
             context.assets.getQuad("polarDirection" .. frame) ~= nil)
     end
-    for frame = 1, context.config.palletJack.frameCount do
+    for frame = 1, context.config.palletJack.palletFrameCount do
         check("loaded_pallet_direction_" .. frame, context.assets.getQuad("loadedPaperPallet" .. frame) ~= nil)
-        check("pallet_jack_direction_" .. frame, context.assets.getQuad("palletJack" .. frame) ~= nil)
-        check("loaded_pallet_jack_direction_" .. frame, context.assets.getQuad("palletJackLoaded" .. frame) ~= nil)
         for row = 1, 4 do
             check("vendor_product_pallet_" .. row .. "_direction_" .. frame,
                 context.assets.getQuad("vendorProductPallet" .. row .. "_" .. frame) ~= nil)
         end
+    end
+    for frame = 1, context.config.palletJack.frameCount do
+        check("pallet_jack_direction_" .. frame, context.assets.getQuad("palletJack" .. frame) ~= nil)
+        check("loaded_pallet_jack_direction_" .. frame, context.assets.getQuad("palletJackLoaded" .. frame) ~= nil)
     end
     local wrappedImage, wrappedSprite, wrappedScale = context.worldRenderer.palletVisual({
         vendor = false,
@@ -443,13 +478,21 @@ local function runChecks(context)
     local midTruck = truck:snapshot()
     local startX, parkedX = context.config.truck.start.x, context.config.truck.parked.x
     local startY, parkedY = context.config.truck.start.y, context.config.truck.parked.y
+    local travelX, travelY = parkedX - startX, parkedY - startY
+    local travelLength = math.sqrt(travelX * travelX + travelY * travelY)
+    local bodyAxis = context.config.truck.bodyAxis
+    local axisLength = math.sqrt(bodyAxis.x * bodyAxis.x + bodyAxis.y * bodyAxis.y)
+    local alignmentError = math.abs(travelX * bodyAxis.y - travelY * bodyAxis.x)
+        / (travelLength * axisLength)
+    local rearwardDot = travelX * bodyAxis.x + travelY * bodyAxis.y
     check("truck_reverses_straight_toward_dock", midTruck.backingProgress > 0.45
         and midTruck.backingProgress < 0.55
-        and math.abs(midTruck.x - startX) < 0.01
-        and math.abs(startX - parkedX) < 0.01
+        and midTruck.x > math.min(startX, parkedX)
+        and midTruck.x < math.max(startX, parkedX)
         and midTruck.y > math.min(startY, parkedY)
         and midTruck.y < math.max(startY, parkedY)
-        and parkedY < startY)
+        and rearwardDot > 0
+        and alignmentError < 0.02)
     local apertureCenterX = 0
     for _, point in ipairs(context.config.truck.aperture) do apertureCenterX = apertureCenterX + point.x end
     apertureCenterX = apertureCenterX / #context.config.truck.aperture
@@ -501,6 +544,20 @@ local function runChecks(context)
         and not customer.visible
         and customer.decision == "accepted")
 
+    local spacedVisitor = context.Customer.new({
+        route = { { x = 0, y = 0 }, { x = 10, y = 0 } },
+        initialArrivalDelay = 2,
+        arrivalDelayMin = 10,
+        arrivalDelayMax = 20,
+    })
+    check("visitor_uses_initial_arrival_delay", spacedVisitor.timer == 2)
+    spacedVisitor:update(1, { x = 500, y = 500 }, true)
+    check("visitor_cooldown_pauses_for_occupied_reception", spacedVisitor.timer == 2
+        and spacedVisitor.state == "scheduled")
+    spacedVisitor:reset(false)
+    check("visitor_repeat_arrival_is_randomized_in_range",
+        spacedVisitor.timer >= 10 and spacedVisitor.timer <= 20)
+
     local declinedCustomer = context.Customer.new({
         route = { { x = 0, y = 0 }, { x = 10, y = 0 } },
         speed = 100,
@@ -537,18 +594,175 @@ local function runChecks(context)
     check("shop_sell", context.shop.sellPrint(economy))
     check("shop_sell_balance", economy.money == startingMoney - 13 and economy.inventory.prints == 0)
 
+    local calendarState = context.State.new()
+    calendarState.money = 2000
+    local calendarChanged, invoice = context.businessCalendar.update(calendarState,
+        31 * context.config.businessCalendar.secondsPerDay)
+    check("calendar_five_minute_days_and_month_rollover", calendarChanged and invoice
+        and calendarState.calendar.year == 2026 and calendarState.calendar.month == 2
+        and calendarState.calendar.day == 1 and calendarState.calendar.totalDays == 31
+        and context.businessCalendar.weekNumber(calendarState) == 5
+        and context.businessCalendar.daysInMonth(2028, 2) == 29)
+    check("calendar_posts_flat_monthly_bills", invoice.total == 1650
+        and invoice.charges[1].amount == 1200 and invoice.charges[2].amount == 240
+        and invoice.charges[3].amount == 85 and invoice.charges[4].amount == 125
+        and calendarState.bills.balance == 1650)
+    local paidBills, paidAmount = context.businessCalendar.pay(calendarState)
+    check("calendar_monthly_bills_require_payment", paidBills and paidAmount == 1650
+        and calendarState.money == 350 and calendarState.bills.balance == 0
+        and calendarState.bills.ledger[1].status == "paid")
+    local calendarEvents = context.businessCalendar.events(calendarState)
+    check("calendar_automatically_lists_bill_due_dates", calendarEvents[1]
+        and calendarEvents[1].title == "Rent and bills due")
+
+    local weekendState = context.State.new()
+    context.businessCalendar.update(weekendState,
+        2 * context.config.businessCalendar.secondsPerDay)
+    local weekendVisitor = context.Customer.new({
+        route = { { x = 0, y = 0 }, { x = 10, y = 0 } }, arrivalDelay = 0,
+    })
+    weekendVisitor:update(30, { x = 500, y = 500 },
+        context.businessCalendar.isWeekend(weekendState))
+    check("weekend_pauses_client_and_salesman_arrivals",
+        context.businessCalendar.isWeekend(weekendState)
+        and weekendState.calendar.weekday == 6
+        and weekendVisitor.state == "scheduled" and weekendVisitor.timer == 0)
+    context.businessCalendar.update(weekendState,
+        2 * context.config.businessCalendar.secondsPerDay)
+    weekendVisitor:update(0.1, { x = 500, y = 500 },
+        context.businessCalendar.isWeekend(weekendState))
+    check("monday_resumes_visitor_arrivals", not context.businessCalendar.isWeekend(weekendState)
+        and weekendState.calendar.weekday == 1 and weekendVisitor.visible)
+
+    local emailState = context.State.new()
+    local priorClientJob = context.jobs.createOffer({
+        id = "PRIOR-CLIENT-JOB", company = "Returning Client Co.",
+        sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 }, packaging = "flat",
+    })
+    check("email_requires_completed_client_relationship",
+        not context.jobService.scheduleRepeatEmail(emailState, priorClientJob))
+    context.jobs.accept(priorClientJob)
+    priorClientJob.status = "completed"
+    check("completed_client_schedules_followup_email",
+        context.jobService.scheduleRepeatEmail(emailState, priorClientJob)
+        and #emailState.clientEmails.pending == 1 and #emailState.clientEmails.inbox == 0)
+    context.businessCalendar.update(emailState,
+        47 / 24 * context.config.businessCalendar.secondsPerDay)
+    check("repeat_client_email_observes_delay", not context.jobService.updateClientEmails(emailState)
+        and #emailState.clientEmails.inbox == 0)
+    context.businessCalendar.update(emailState,
+        1 / 24 * context.config.businessCalendar.secondsPerDay + 0.01)
+    check("repeat_client_email_arrives", context.jobService.updateClientEmails(emailState)
+        and #emailState.clientEmails.pending == 0 and #emailState.clientEmails.inbox == 1
+        and emailState.clientEmails.inbox[1].sender == "Returning Client Co."
+        and emailState.clientEmails.inbox[1].job.requestChannel == "email")
+    local normalSequenceBeforeEmail = emailState.nextJobId
+    context.computerScreen.enter(emailState)
+    local emailTabX, emailTabY = context.computerScreen.tabCenter("email")
+    context.computerScreen.mousepressed(emailState, emailTabX, emailTabY, 1)
+    local emailAcceptX, emailAcceptY = context.computerScreen.emailButtonCenter("accept")
+    local emailAccepted = context.computerScreen.mousepressed(emailState, emailAcceptX, emailAcceptY, 1)
+    check("computer_accepts_repeat_client_email", emailAccepted
+        and emailAccepted.action == "quote_accepted" and #emailState.jobs.active == 1
+        and emailState.jobs.active[1].company == "Returning Client Co."
+        and emailState.jobs.active[1].delivery.status == "pending_arrival"
+        and emailState.nextJobId == normalSequenceBeforeEmail
+        and #emailState.clientEmails.archive == 1)
+    priorClientJob.status = "completed"
+    check("second_completed_job_schedules_email",
+        context.jobService.scheduleRepeatEmail(emailState, priorClientJob))
+    context.businessCalendar.update(emailState,
+        3 * context.config.businessCalendar.secondsPerDay + 0.01)
+    context.jobService.updateClientEmails(emailState)
+    context.computerScreen.enter(emailState)
+    context.computerScreen.mousepressed(emailState, emailTabX, emailTabY, 1)
+    local emailDeclineX, emailDeclineY = context.computerScreen.emailButtonCenter("decline")
+    local emailDeclined = context.computerScreen.mousepressed(emailState, emailDeclineX, emailDeclineY, 1)
+    check("computer_declines_repeat_client_email", emailDeclined
+        and emailDeclined.action == "email_declined" and #emailState.jobs.declined == 1
+        and emailState.jobs.declined[1].requestChannel == "email"
+        and emailState.nextJobId == normalSequenceBeforeEmail
+        and #emailState.clientEmails.archive == 2)
+    local quoteProbe = context.jobService.createNextOffer(emailState, os.time())
+    local baseTerms = context.jobService.quoteTerms(emailState, quoteProbe, quoteProbe.quote.totalPrice)
+    local highTerms = context.jobService.quoteTerms(emailState, quoteProbe,
+        math.floor(quoteProbe.quote.totalPrice * 1.30))
+    check("client_quote_probability_uses_price_urgency_and_relationship",
+        baseTerms.acceptanceChance == 1
+        and highTerms.acceptanceChance < baseTerms.acceptanceChance
+        and type(highTerms.urgency) == "string"
+        and type(highTerms.relationshipJobs) == "number")
+    priorClientJob.status = "completed"
+    local promotionSent, promotion = context.jobService.sendPromotion(
+        emailState, priorClientJob, "We appreciated your last project.")
+    check("player_can_send_personalized_ten_percent_promotion", promotionSent
+        and promotion.discountPercent == 10
+        and promotion.customMessage == "We appreciated your last project."
+        and #emailState.clientEmails.sentPromotions == 1)
+    emailState.money = 10000
+    local productOrdered, productOrder = context.procurement.buyRetail(emailState, 1, 1)
+    local machineOrdered, machineOrder = context.machineFleet.orderOnline(emailState, 1)
+    local scheduledEvents = context.businessCalendar.events(emailState)
+    local eventIds = {}
+    for _, event in ipairs(scheduledEvents) do eventIds[event.id] = true end
+    local productShipment = context.procurement.orderById(emailState, productOrder.shipmentId)
+    local productEventDay = math.floor(productShipment.delivery.expectedAtHours / 24)
+    check("calendar_auto_adds_jobs_products_emails_and_machine_arrivals",
+        productOrdered and machineOrdered
+        and eventIds[productShipment.id .. ":expected:" .. tostring(productEventDay)]
+        and eventIds[machineOrder.id .. ":expected:" .. tostring(emailState.calendar.totalDays)]
+        and #scheduledEvents >= 4)
+
+    local artStateA, artStateB = context.State.new(), context.State.new()
+    artStateA.jobs.artworkSeed, artStateB.jobs.artworkSeed = 101, 90901
+    local differentArt = false
+    for sequence = 1, 12 do
+        artStateA.nextJobId, artStateB.nextJobId = sequence, sequence
+        local offerA = context.jobService.createNextOffer(artStateA, sequence)
+        local offerB = context.jobService.createNextOffer(artStateB, sequence)
+        if offerA.artworkKey ~= offerB.artworkKey then differentArt = true; break end
+    end
+    check("artwork_order_changes_with_each_playthrough_seed", differentArt)
+
     local function verifyVendorInventory()
         local vendorState = context.State.new()
         local starterCartons = vendorState.inventory.stock.shipping_cartons or 0
+    local pressSupplyState = context.State.new()
+    pressSupplyState.money = 500
+    local pressSupplyBought, pressSupplyOrder = context.procurement.buy(pressSupplyState, 2, 1)
+    check("vendor_sells_real_cost_press_supplies_for_windmill", pressSupplyBought
+        and pressSupplyOrder.item == "black_ink" and pressSupplyOrder.price == 168
+        and pressSupplyOrder.pallets[1].quantity == 140)
     vendorState.money = 500
-    local moneyBeforeLockedSupply = vendorState.money
-    check("vendor_blocks_supply_without_consumer", not context.procurement.buy(vendorState, 2, 1)
-        and vendorState.money == moneyBeforeLockedSupply
-        and #vendorState.procurement.orders == 0)
     local bought, purchaseOrder = context.procurement.buy(vendorState, 3, 1)
     check("vendor_catalog_purchase", bought and purchaseOrder.id == "PO-0001"
         and purchaseOrder.pallets[1].category == "packaging"
         and vendorState.money == 428)
+    local retailState = context.State.new()
+    retailState.money = 500
+    local retailBought, retailOrder = context.procurement.buyRetail(retailState, 3, 1)
+    check("computer_retail_matches_vendor_product", retailBought
+        and retailOrder.item == purchaseOrder.item
+        and retailOrder.channel == "computer"
+        and retailOrder.pallets[1].quantity == 20
+        and retailOrder.price == 20
+        and retailOrder.price / retailOrder.pallets[1].quantity
+            > purchaseOrder.price / purchaseOrder.pallets[1].quantity)
+    local groupedState = context.State.new()
+    groupedState.money = 1000
+    local groupBuyA, groupOrderA = context.procurement.buyRetail(groupedState, 1, 1)
+    local groupBuyB, groupOrderB = context.procurement.buyRetail(groupedState, 2, 4)
+    local groupedBeforeDue = context.procurement.nextInbound(groupedState)
+    context.businessCalendar.update(groupedState,
+        context.config.businessCalendar.secondsPerDay * (4 / 24) + 0.1)
+    local groupedShipment = context.procurement.nextInbound(groupedState)
+    local _, groupedInventory = context.procurement.truckInventory(
+        groupedState, groupedShipment and groupedShipment.id)
+    check("close_supply_orders_wait_and_share_one_truck",
+        groupBuyA and groupBuyB and groupOrderA.shipmentId == groupOrderB.shipmentId
+        and groupedBeforeDue == nil and groupedShipment
+        and groupedShipment.id == groupOrderA.shipmentId and #groupedInventory == 2)
     local vendorManifest, vendorItems = context.procurement.truckInventory(vendorState, purchaseOrder.id)
     check("vendor_delivery_manifest", vendorManifest == purchaseOrder and #vendorItems == 1
         and vendorItems[1].productName == "Shipping cartons, 100")
@@ -566,7 +780,8 @@ local function runChecks(context)
     context.PalletJack.move(vendorState, 1, 0, 0.1, context.config.palletJack, function() return true end)
     local vendorLowered, vendorLowerAction = context.PalletJack.use(vendorState, context.config.palletJack, function() return true end)
     check("vendor_product_pallet_lowers_with_direction", vendorLowered and vendorLowerAction == "lowered"
-        and productPallet.world.direction == "northeast")
+        and productPallet.world.direction == "east"
+        and productPallet.world.rotation == 2)
 
     local filmBought, filmOrder = context.procurement.buy(vendorState, 3, 2)
     local filmUnloaded = filmBought and context.procurement.unload(vendorState,
@@ -796,7 +1011,10 @@ local function runChecks(context)
         and serviceOffer.id == "JOB-0001"
         and serviceOffer.company == "Blue Ridge Packaging"
         and serviceOffer.quote.totalPrice == 600
-        and #serviceOffer.pallets == 2)
+        and #serviceOffer.pallets == 2
+        and serviceOffer.deliveryService.id == "express"
+        and serviceOffer.deliveryService.delayHours >= 2
+        and serviceOffer.deliveryService.delayHours <= 6)
     local acceptX, acceptY = context.jobOfferScreen.buttonCenter("accept")
     local declineX, declineY = context.jobOfferScreen.buttonCenter("decline")
     check("paperwork_accept_hit_target", context.jobOfferScreen.hitTest(acceptX, acceptY) == "accept")
@@ -806,6 +1024,8 @@ local function runChecks(context)
     check("paperwork_service_accept", context.jobService.acceptOffer(serviceState, serviceOffer, 222))
     check("paperwork_accept_records_job", #serviceState.jobs.active == 1
         and serviceState.jobs.active[1].status == "awaiting_delivery"
+        and serviceState.jobs.active[1].delivery.status == "pending_arrival"
+        and not context.jobService.deliveryReady(serviceState, serviceOffer)
         and serviceState.accountsReceivable == 600
         and serviceState.money == cashBeforeOffer
         and serviceState.nextJobId == 2)
@@ -813,6 +1033,14 @@ local function runChecks(context)
         and #serviceState.jobs.active == 1
         and serviceState.accountsReceivable == 600)
     local serviceDecline = context.jobService.createNextOffer(serviceState, 444)
+    local standardState = context.State.new()
+    standardState.nextJobId = 3
+    local standardOffer = context.jobService.createNextOffer(standardState, 445)
+    check("job_delivery_service_timeframes", serviceDecline.deliveryService.id == "quick"
+        and serviceDecline.deliveryService.delayHours == 24
+        and standardOffer.deliveryService.id == "standard"
+        and (standardOffer.deliveryService.delayHours == 48
+            or standardOffer.deliveryService.delayHours == 72))
     check("paperwork_service_decline", context.jobService.declineOffer(serviceState, serviceDecline, 555))
     check("paperwork_decline_records_job", #serviceState.jobs.declined == 1
         and serviceState.jobs.declined[1].id == "JOB-0002"
@@ -835,6 +1063,10 @@ local function runChecks(context)
     check("computer_job_row_click", selectedActive
         and selectedActive.action == "select"
         and selectedActive.job.id == "JOB-0001")
+    check("computer_job_packaging_instructions", context.computerScreen.packagingText(serviceOffer)
+        == "Boxed paper on pallets; stretch-wrap each finished pallet"
+        and context.computerScreen.packagingText({ packaging = "flat" })
+            == "Flat stacked on pallets; stretch-wrap each finished pallet")
     local completeX, completeY = context.computerScreen.completeCenter()
     local completionResult = context.computerScreen.mousepressed(serviceState, completeX, completeY, 1)
     check("computer_completion_gate", completionResult
@@ -861,15 +1093,63 @@ local function runChecks(context)
     check("computer_inventory_tab_click", context.computerScreen.mousepressed(
         serviceState, inventoryTabX, inventoryTabY, 1).tab == "inventory")
     local officeInventory = context.procurement.inventoryRows(serviceState)
-    check("computer_inventory_exposes_purchasable_stock", #officeInventory == 4
+    check("computer_inventory_exposes_purchasable_stock", #officeInventory >= 10
         and officeInventory[1].id == "house_sheets"
         and officeInventory[3].id == "shipping_cartons"
-        and officeInventory[4].id == "stretch_film")
+        and officeInventory[4].id == "stretch_film"
+        and officeInventory[5].id == "maintenance_kit"
+        and officeInventory[6].id == "black_ink"
+        and officeInventory[10].id == "raw_press_plates")
+    local retailX, retailY = context.computerScreen.retailButtonCenter(1)
+    local computerOrder = context.computerScreen.mousepressed(serviceState, retailX, retailY, 1)
+    check("computer_supply_store_places_delivery_order", computerOrder
+        and computerOrder.action == "supply_order"
+        and computerOrder.order.channel == "computer"
+        and computerOrder.order.pallets[1].quantity == 250)
     local closeX, closeY = context.computerScreen.closeCenter()
     check("computer_close_hit_target", context.computerScreen.mousepressed(
         serviceState, closeX, closeY, 1).action == "close")
     check("computer_ignores_outside_click", context.computerScreen.mousepressed(
         serviceState, 10, 10, 1) == nil)
+    local billUiState = context.State.new()
+    billUiState.money = 2000
+    context.businessCalendar.update(billUiState, 31 * context.config.businessCalendar.secondsPerDay)
+    context.computerScreen.enter(billUiState)
+    local billsTabX, billsTabY = context.computerScreen.tabCenter("bills")
+    local billsTabResult = context.computerScreen.mousepressed(billUiState, billsTabX, billsTabY, 1)
+    local payBillsX, payBillsY = context.computerScreen.payBillsCenter()
+    local billPayment = context.computerScreen.mousepressed(billUiState, payBillsX, payBillsY, 1)
+    check("computer_bills_tab_pays_monthly_expenses", billsTabResult and billsTabResult.tab == "bills"
+        and billPayment and billPayment.action == "bill_paid" and billPayment.amount == 1650
+        and billUiState.money == 350 and billUiState.bills.balance == 0)
+
+    local calendarUiState = context.State.new()
+    calendarUiState.clientEmails.pending = {}
+    for index = 1, 12 do
+        calendarUiState.clientEmails.pending[index] = {
+            id = "CAL-EMAIL-" .. index, sender = "Client " .. index, subject = "Scheduled request",
+            readyAtHours = (index - 1) * 24,
+        }
+    end
+    context.computerScreen.enter(calendarUiState)
+    local calendarTabX, calendarTabY = context.computerScreen.tabCenter("calendar")
+    context.computerScreen.mousepressed(calendarUiState, calendarTabX, calendarTabY, 1)
+    local calendarDayX, calendarDayY = context.computerScreen.calendarDayCenter(5)
+    local selectedCalendarDay = context.computerScreen.mousepressed(
+        calendarUiState, calendarDayX, calendarDayY, 1)
+    check("computer_calendar_days_are_clickable", selectedCalendarDay
+        and selectedCalendarDay.action == "calendar_day" and selectedCalendarDay.day == 5
+        and context.computerScreen.calendarSelectedDay == 5)
+    context.computerScreen.calendarScroll = 0
+    check("computer_calendar_event_list_mouse_wheel_scrolls",
+        context.computerScreen.wheelmoved(calendarUiState, 0, -1)
+        and context.computerScreen.calendarScroll == 1)
+    local calendarDownX, calendarDownY = context.computerScreen.calendarScrollCenter("down")
+    local calendarScrollResult = context.computerScreen.mousepressed(
+        calendarUiState, calendarDownX, calendarDownY, 1)
+    check("computer_calendar_event_list_buttons_scroll", calendarScrollResult
+        and calendarScrollResult.action == "calendar_scroll"
+        and context.computerScreen.calendarScroll == 2)
 
     JobLoopIntegration.run(context, check, jobs)
 
@@ -902,6 +1182,59 @@ function Smoke.start(context)
         runChecks(context)
         Suites.runDomain(context, check)
         Suites.verifyAuditCoverage(Smoke.passed, check)
+        local maintenancePreview = os.getenv("PICTURE_SHOP_CUTTER_MAINTENANCE_PREVIEW")
+        local wrapperMaintenancePreview = os.getenv("PICTURE_SHOP_WRAPPER_MAINTENANCE_PREVIEW")
+        local previewTab = os.getenv("PICTURE_SHOP_COMPUTER_ACTIVE_PREVIEW") == "1" and "active"
+            or (os.getenv("PICTURE_SHOP_COMPUTER_CALENDAR_PREVIEW") == "1" and "calendar")
+            or (os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" and "inventory")
+            or (os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" and "email")
+        if maintenancePreview == "hub" or maintenancePreview == "oil" then
+            context.state.screen = "machine"
+            context.state.machineType = "cutter"
+            context.state.inventory.stock.maintenance_kit = 2
+            context.machineScreen.enter()
+            local x, y = context.machineScreen.maintenanceCenter()
+            context.machineScreen.mousepressed(context.state, x, y, 1)
+            if maintenancePreview == "oil" then
+                x, y = context.machineScreen.maintenanceTaskCenter("oil")
+                context.machineScreen.mousepressed(context.state, x, y, 1)
+                for _, action in ipairs({ "disconnect", "key", "tag" }) do
+                    x, y = context.machineScreen.lubricationLockoutCenter(action)
+                    context.machineScreen.mousepressed(context.state, x, y, 1)
+                end
+                for _, action in ipairs({ "cartridge", "prime" }) do
+                    x, y = context.machineScreen.lubricationPrepCenter(action)
+                    context.machineScreen.mousepressed(context.state, x, y, 1)
+                end
+                x, y = context.machineScreen.lubricationPointCenter("backgauge_left")
+                context.machineScreen.mousepressed(context.state, x, y, 1)
+                local tx, ty = context.machineScreen.lubricationToolCenter("grease")
+                context.machineScreen.mousepressed(context.state, tx, ty, 1)
+                context.machineScreen.mousepressed(context.state, x, y, 1)
+                tx, ty = context.machineScreen.lubricationPumpCenter()
+                context.machineScreen.mousepressed(context.state, tx, ty, 1)
+                context.machineScreen.update(0.35)
+            end
+        elseif wrapperMaintenancePreview == "hub" or wrapperMaintenancePreview == "task" then
+            context.state.screen = "machine"
+            context.state.machineType = "skid_wrapper"
+            context.state.inventory.stock.maintenance_kit = 2
+            context.machineScreen.enter()
+            local x, y = context.machineScreen.wrapperMaintenanceCenter()
+            context.machineScreen.mousepressed(context.state, x, y, 1)
+            if wrapperMaintenancePreview == "task" then
+                x, y = context.machineScreen.wrapperServiceCenter()
+                context.machineScreen.mousepressed(context.state, x, y, 1)
+                context.machineScreen.update(0.35)
+            end
+        elseif previewTab then
+            context.state.screen = "computer"
+            context.computerScreen.enter(context.state)
+            local x, y = context.computerScreen.tabCenter(previewTab)
+            context.computerScreen.mousepressed(context.state, x, y, 1)
+        elseif os.getenv("PICTURE_SHOP_WORLD_FAN_PREVIEW") == "1" then
+            context.state.screen = "world"
+        end
     end, debug.traceback)
     if not ok then
         Smoke.failed = true

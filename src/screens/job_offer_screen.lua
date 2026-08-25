@@ -1,8 +1,10 @@
 local Config = require("src.config")
+local JobService = require("src.job_service")
 local BackButton = require("src.screens.back_button")
 local Ui = require("src.screens.ui")
+local utf8 = require("utf8")
 
-local JobOfferScreen = {}
+local JobOfferScreen = { quoteText = "", quoteFocused = true, quoteReplaceOnType = true, activeJobId = nil }
 
 local PANEL = { x = 100, y = 32, width = 760, height = 610 }
 local BUTTONS = {
@@ -10,6 +12,7 @@ local BUTTONS = {
     decline = { x = 258, y = 574, width = 160, height = 46 },
     accept = { x = 542, y = 574, width = 160, height = 46 },
 }
+local QUOTE_INPUT = { x = 542, y = 526, width = 160, height = 38 }
 
 local contains, commaNumber, money = Ui.contains, Ui.commaNumber, Ui.money
 
@@ -37,11 +40,75 @@ local function button(action, label, pointerX, pointerY)
     love.graphics.printf(label, rect.x, rect.y + 15, rect.width, "center")
 end
 
+local function drawArtworkPreview(assets, key, x, y, size)
+    love.graphics.setColor(0.78, 0.76, 0.68)
+    love.graphics.rectangle("fill", x, y, size, size, 3, 3)
+    love.graphics.setColor(0.14, 0.17, 0.18)
+    love.graphics.rectangle("line", x, y, size, size, 3, 3)
+    love.graphics.setColor(0.28, 0.30, 0.31)
+    love.graphics.printf("PRINTED ART", x - 42, y - 20, size + 84, "center")
+    local image = assets and assets.getArtwork and assets.getArtwork(key)
+    if image then
+        local imageWidth, imageHeight = image:getDimensions()
+        local scale = math.min((size - 8) / imageWidth, (size - 8) / imageHeight)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(image, x + (size - imageWidth * scale) / 2,
+            y + (size - imageHeight * scale) / 2, 0, scale, scale)
+    end
+    love.graphics.setColor(0.08, 0.09, 0.10)
+    love.graphics.printf(string.upper(key or "flower"), x - 42, y + size + 6,
+        size + 84, "center")
+end
+
 function JobOfferScreen.hitTest(x, y)
     if contains(BUTTONS.back, x, y) then return "back" end
     if contains(BUTTONS.accept, x, y) then return "accept" end
     if contains(BUTTONS.decline, x, y) then return "decline" end
+    if contains(QUOTE_INPUT, x, y) then return "quote_input" end
     return nil
+end
+
+function JobOfferScreen.enter(job)
+    JobOfferScreen.activeJobId = job and job.id or nil
+    JobOfferScreen.quoteText = job and job.quote and tostring(math.floor(job.quote.totalPrice)) or ""
+    JobOfferScreen.quoteFocused = true
+    JobOfferScreen.quoteReplaceOnType = true
+end
+
+function JobOfferScreen.quoteAmount() return tonumber(JobOfferScreen.quoteText) end
+
+function JobOfferScreen.focusQuote()
+    JobOfferScreen.quoteFocused = true
+    JobOfferScreen.quoteReplaceOnType = true
+end
+
+function JobOfferScreen.keypressed(key)
+    if not JobOfferScreen.quoteFocused then return false end
+    if key == "backspace" then
+        if JobOfferScreen.quoteReplaceOnType then
+            JobOfferScreen.quoteText = ""
+            JobOfferScreen.quoteReplaceOnType = false
+            return true
+        end
+        local offset = utf8.offset(JobOfferScreen.quoteText, -1)
+        JobOfferScreen.quoteText = offset and JobOfferScreen.quoteText:sub(1, offset - 1) or ""
+        return true
+    end
+    return false
+end
+
+function JobOfferScreen.textinput(text)
+    if not JobOfferScreen.quoteFocused then return false end
+    for character in text:gmatch(".") do
+        if character:match("%d") and #JobOfferScreen.quoteText < 8 then
+            if JobOfferScreen.quoteReplaceOnType then
+                JobOfferScreen.quoteText = ""
+                JobOfferScreen.quoteReplaceOnType = false
+            end
+            JobOfferScreen.quoteText = JobOfferScreen.quoteText .. character
+        end
+    end
+    return true
 end
 
 function JobOfferScreen.buttonCenter(action)
@@ -52,6 +119,7 @@ end
 
 function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     local job = state.currentOffer
+    if job and JobOfferScreen.activeJobId ~= job.id then JobOfferScreen.enter(job) end
     love.graphics.setColor(0.01, 0.02, 0.03, 0.72)
     love.graphics.rectangle("fill", 0, 0, Config.baseWidth, Config.baseHeight)
 
@@ -62,9 +130,10 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     love.graphics.rectangle("line", PANEL.x, PANEL.y, PANEL.width, PANEL.height, 5, 5)
     love.graphics.rectangle("fill", PANEL.x, PANEL.y, PANEL.width, 66, 5, 5)
     love.graphics.setColor(0.97, 0.84, 0.30)
-    love.graphics.printf("CUSTOMER CUTTING JOB TICKET", PANEL.x, PANEL.y + 14, PANEL.width, "center")
+    love.graphics.printf(job and job.press and "CUSTOMER CUT + PRINT JOB TICKET" or "CUSTOMER CUTTING JOB TICKET",
+        PANEL.x, PANEL.y + 14, PANEL.width, "center")
     love.graphics.setColor(0.84, 0.88, 0.88)
-    love.graphics.printf("Quote based on $150 per 500-sheet lift", PANEL.x, PANEL.y + 38, PANEL.width, "center")
+    love.graphics.printf("Review the work and choose what your shop will charge", PANEL.x, PANEL.y + 38, PANEL.width, "center")
     BackButton.draw(assets, BUTTONS.back, "BACK", pointerX, pointerY, false)
 
     if not job then
@@ -77,28 +146,37 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     line("Company", job.company, 136, 116)
     line("Job number", job.id, 136, 140)
     line("Parent sheet", sizeText(job.sourceSize), 136, 174)
-    line("Finished size", sizeText(job.finishedSize), 136, 198)
+    local finishedText = sizeText(job.finishedSize)
+    if job.press then
+        finishedText = finishedText .. string.format("  •  %d-color Windmill  •  %s",
+            job.press.colors or 1, table.concat(job.press.colorSequence or { "Black" }, " then "))
+    end
+    line("Finished size", finishedText, 136, 198)
     line("Stock", details.stockDescription or "Customer-supplied paper", 136, 222)
-    line("Packaging", job.packaging == "boxed" and "Boxes on pallet, stretch-wrapped" or "Flat on pallet, stretch-wrapped", 520, 222)
+    -- Keep the artwork in its own narrow column. Long artwork names can wrap
+    -- beneath it without covering the job fields.
+    drawArtworkPreview(assets, job.artworkKey, 738, 122, 76)
+    line("Packaging", job.packaging == "boxed" and "Boxes on pallet, stretch-wrapped" or "Flat on pallet, stretch-wrapped", 136, 246)
+    line("Stock arrival", JobService.deliverySummary(job), 136, 270)
 
-    local tableX, tableY = 136, 260
+    local tableX, tableY = 136, 294
     love.graphics.setColor(0.78, 0.76, 0.68)
-    love.graphics.rectangle("fill", tableX, tableY, 688, 28)
+    love.graphics.rectangle("fill", tableX, tableY, 688, 24)
     love.graphics.setColor(0.11, 0.12, 0.13)
-    love.graphics.print("PALLET", tableX + 16, tableY + 7)
-    love.graphics.print("SHEETS", tableX + 178, tableY + 7)
-    love.graphics.print("500-SHEET LIFTS", tableX + 342, tableY + 7)
-    love.graphics.print("PRICE", tableX + 574, tableY + 7)
+    love.graphics.print("PALLET", tableX + 16, tableY + 5)
+    love.graphics.print("SHEETS", tableX + 178, tableY + 5)
+    love.graphics.print("500-SHEET LIFTS", tableX + 342, tableY + 5)
+    love.graphics.print("PRICE", tableX + 574, tableY + 5)
 
     for index, pallet in ipairs(job.quote.pallets) do
-        local rowY = tableY + 28 + (index - 1) * 28
+        local rowY = tableY + 24 + (index - 1) * 24
         love.graphics.setColor(index % 2 == 0 and 0.88 or 0.91, 0.89, 0.82)
-        love.graphics.rectangle("fill", tableX, rowY, 688, 28)
+        love.graphics.rectangle("fill", tableX, rowY, 688, 24)
         love.graphics.setColor(0.10, 0.11, 0.12)
-        love.graphics.print(tostring(pallet.number), tableX + 35, rowY + 7)
-        love.graphics.print(commaNumber(pallet.sheetCount), tableX + 188, rowY + 7)
-        love.graphics.print(tostring(pallet.requiredLifts), tableX + 390, rowY + 7)
-        love.graphics.print(money(pallet.price), tableX + 584, rowY + 7)
+        love.graphics.print(tostring(pallet.number), tableX + 35, rowY + 5)
+        love.graphics.print(commaNumber(pallet.sheetCount), tableX + 188, rowY + 5)
+        love.graphics.print(tostring(pallet.requiredLifts), tableX + 390, rowY + 5)
+        love.graphics.print(money(pallet.price), tableX + 584, rowY + 5)
     end
 
     love.graphics.setColor(0.12, 0.14, 0.15)
@@ -106,20 +184,32 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
         string.format("TOTAL: %d pallets  •  %s sheets  •  %d lifts", job.quote.palletCount,
             commaNumber(job.quote.totalSheets), job.quote.totalLifts),
         136,
-        442
+        450
     )
     love.graphics.setColor(0.10, 0.39, 0.24)
-    love.graphics.printf("JOB VALUE  " .. money(job.quote.totalPrice), 580, 442, 244, "right")
+    love.graphics.printf("RECOMMENDED  " .. money(job.quote.recommendedPrice or job.quote.totalPrice), 540, 450, 284, "right")
 
-    line("Grain/handling", details.grainDirection or "Follow customer labels", 136, 472)
-    line("Due", details.dueDate or "Standard turnaround", 136, 496)
+    line("Grain/handling", details.grainDirection or "Follow customer labels", 136, 474)
+    line("Due", details.dueDate or "Standard turnaround", 136, 498)
     love.graphics.setColor(0.28, 0.30, 0.31)
-    love.graphics.print("Notes", 136, 520)
+    love.graphics.print("Notes", 136, 510)
     love.graphics.setColor(0.08, 0.09, 0.10)
-    love.graphics.printf(details.notes or "", 258, 520, 566, "left")
+    love.graphics.printf(details.notes or "", 258, 510, 260, "left")
+
+    love.graphics.setColor(0.28, 0.30, 0.31)
+    love.graphics.print("YOUR QUOTE", 542, 510)
+    love.graphics.setColor(0.90, 0.91, 0.85)
+    love.graphics.rectangle("fill", QUOTE_INPUT.x, QUOTE_INPUT.y, QUOTE_INPUT.width, QUOTE_INPUT.height, 3, 3)
+    love.graphics.setColor(JobOfferScreen.quoteFocused and 0.12 or 0.25,
+        JobOfferScreen.quoteFocused and 0.46 or 0.35, 0.38)
+    love.graphics.rectangle("line", QUOTE_INPUT.x, QUOTE_INPUT.y, QUOTE_INPUT.width, QUOTE_INPUT.height, 3, 3)
+    love.graphics.setColor(0.08, 0.09, 0.10)
+    love.graphics.print("$", QUOTE_INPUT.x + 10, QUOTE_INPUT.y + 12)
+    love.graphics.printf(JobOfferScreen.quoteText .. (JobOfferScreen.quoteFocused and "_" or ""),
+        QUOTE_INPUT.x + 28, QUOTE_INPUT.y + 12, QUOTE_INPUT.width - 38, "right")
 
     button("decline", "DECLINE", pointerX, pointerY)
-    button("accept", "ACCEPT JOB", pointerX, pointerY)
+    button("accept", "SEND QUOTE", pointerX, pointerY)
     love.graphics.setColor(0.32, 0.34, 0.34)
     love.graphics.printf("Accept, decline, or return to the conversation", PANEL.x, 628, PANEL.width, "center")
 end

@@ -3,6 +3,7 @@ local Config = require("src.config")
 local Jobs = require("src.jobs")
 local PalletState = require("src.pallet_state")
 local Procurement = require("src.procurement")
+local MachineFleet = require("src.machine_fleet")
 
 local Machine = {
     step = "idle", progress = 0, loaded = false, clamp = false,
@@ -42,6 +43,7 @@ local function ensureLiftProgress(pallet)
     pallet.activeLift = math.min(pallet.requiredLifts or 1, pallet.completedLifts + 1)
     pallet.lastLiftSheets = math.max(0, math.floor(pallet.lastLiftSheets or 0))
     pallet.programVerified = pallet.programVerified == true or pallet.completedLifts > 0
+    pallet.awaitingPalletReturn = pallet.awaitingPalletReturn == true
 end
 
 local function completeLift(state)
@@ -53,7 +55,8 @@ local function completeLift(state)
     ensureLiftProgress(pallet)
     if pallet.remainingSheets <= 0 or pallet.completedLifts >= pallet.requiredLifts then
         Machine.step = "cut_complete"
-        message(state, "All quoted lifts are complete. Press U to return the finished pallet.")
+        pallet.awaitingPalletReturn = true
+        message(state, "All quoted lifts are complete. Press TO PALLET to return this lift.")
         return
     end
     local sheets = math.min(Jobs.LIFT_CAPACITY, pallet.remainingSheets)
@@ -62,15 +65,15 @@ local function completeLift(state)
     pallet.completedLifts = pallet.completedLifts + 1
     pallet.lastLiftSheets = sheets
     pallet.programVerified = true
+    pallet.awaitingPalletReturn = true
     pallet.activeLift = math.min(pallet.requiredLifts, pallet.completedLifts + 1)
+    Machine.step = "cut_complete"
     if pallet.remainingSheets == 0 or pallet.completedLifts >= pallet.requiredLifts then
-        Machine.step = "cut_complete"
         message(state, string.format("Lift %d/%d complete (%d sheets). All paper is ready to unload.",
             pallet.completedLifts, pallet.requiredLifts, sheets))
     else
-        Machine.step = "repeat_ready"
         message(state, string.format(
-            "Lift %d/%d verified (%d sheets). Press T to run lift %d with the saved program.",
+            "Lift %d/%d cut (%d sheets). Press TO PALLET before loading lift %d.",
             pallet.completedLifts, pallet.requiredLifts, sheets, pallet.activeLift))
     end
 end
@@ -94,6 +97,8 @@ end
 
 function Machine.load(state, palletId)
     if Machine.step ~= "idle" and Machine.step ~= "finished" then return false end
+    local operable, machineOrError = MachineFleet.canOperate(state, "polar_115")
+    if not operable then message(state, machineOrError); return false end
     local candidates = availablePapers(state)
     local selected
     if palletId ~= "__generic_stock__" then
@@ -129,7 +134,8 @@ function Machine.load(state, palletId)
             if selected.pallet.completedLifts == 0 and selected.pallet.remainingSheets > 0 then
                 completeLift(state)
             end
-            local resumeStep = selected.pallet.remainingSheets > 0 and "repeat_ready" or "cut_complete"
+            local resumeStep = selected.pallet.awaitingPalletReturn and "cut_complete"
+                or (selected.pallet.remainingSheets > 0 and "repeat_ready" or "cut_complete")
             Machine.loaded, Machine.step, Machine.progress, Machine.paperTravel = true, resumeStep, 0, 1
             syncProgram()
             message(state, resumeStep == "repeat_ready"
@@ -301,6 +307,8 @@ end
 
 local function tryCut(state)
     if Machine.step ~= "clamped" or not Machine.loaded then return false end
+    local operable, machineOrError = MachineFleet.canOperate(state, "polar_115")
+    if not operable then message(state, machineOrError); return false end
     if not Machine.barrierClear or Machine.emergencyStopped then
         Machine.step = "blocked"
         message(state, "Cut blocked: check the safety barrier and emergency stop.")
@@ -322,8 +330,9 @@ end
 function Machine.unload(state)
     if not Machine.paper or Machine.paper.status ~= "complete" or Machine.step ~= "cut_complete" then return false end
     if Machine.pallet and (Machine.pallet.remainingSheets or 0) > 0 then
-        message(state, "Complete every quoted lift before returning the pallet.")
-        return false
+        Machine.step, Machine.progress = "lift_returning", 0
+        message(state, "Returning the completed lift to its pallet...")
+        return true
     end
     if Machine.pallet then
         if not Machine.outputResolver then
@@ -345,8 +354,11 @@ function Machine.repeatLift(state)
         Machine.step = "cut_complete"
         return false
     end
-    Machine.step, Machine.progress = "repeat_producing", 0
-    message(state, string.format("Running programmed lift %d/%d...",
+    if not PaperWork.resetForNextLift(Machine.paper) then return false end
+    Machine.programIndex, Machine.gauge = 1, 0
+    Machine.autoCycle = {}
+    Machine.loaded, Machine.step, Machine.progress, Machine.paperTravel = true, "loading", 0, 0
+    message(state, string.format("Loading lift %d/%d. Make every programmed cut again.",
         Machine.pallet.activeLift, Machine.pallet.requiredLifts))
     return true
 end
@@ -391,6 +403,7 @@ end
 local function finishCut(state)
     local succeeded, result = PaperWork.applyCut(Machine.paper, Machine.gauge)
     if not succeeded then Machine.step = "blocked"; message(state, result); return end
+    MachineFleet.recordUse(state, "polar_115", 1)
     if state and state.shopProgress then
         state.shopProgress.completedCuts = (state.shopProgress.completedCuts or 0) + 1
     end
@@ -417,13 +430,9 @@ function Machine.update(dt, state)
     if Machine.clampProgress < target then Machine.clampProgress = math.min(target, Machine.clampProgress + speed)
     elseif Machine.clampProgress > target then Machine.clampProgress = math.max(target, Machine.clampProgress - speed) end
 
-    if Machine.step == "repeat_producing" then
-        Machine.progress = Machine.progress + dt
-        if Machine.progress >= Machine.repeatCycleTime then completeLift(state) end
-        return
-    end
-
-    if Machine.step == "loading" or Machine.step == "positioning" or Machine.step == "unloading" then
+    if Machine.step == "loading" or Machine.step == "positioning" or Machine.step == "unloading"
+        or Machine.step == "lift_returning"
+    then
         Machine.progress = Machine.progress + dt
         Machine.paperTravel = math.min(1, Machine.progress / Machine.transferTime)
         if Machine.progress >= Machine.transferTime then
@@ -433,6 +442,11 @@ function Machine.update(dt, state)
             elseif Machine.step == "positioning" then
                 Machine.step, Machine.paperTravel = "positioned", 1
                 message(state, "Paper is against the backgauge. Engage the clamp.")
+            elseif Machine.step == "lift_returning" then
+                if Machine.pallet then Machine.pallet.awaitingPalletReturn = false end
+                Machine.loaded, Machine.step, Machine.paperTravel = false, "repeat_ready", 0
+                message(state, string.format("Lift returned to pallet. Press RUN NEXT LIFT for lift %d/%d.",
+                    Machine.pallet.activeLift, Machine.pallet.requiredLifts))
             else
                 if Machine.legacyPaper and state and state.inventory then
                     local consumed, consumeError = Procurement.consumePaper(state, 1)

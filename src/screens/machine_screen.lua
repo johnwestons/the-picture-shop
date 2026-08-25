@@ -1,5 +1,9 @@
 local Config = require("src.config")
 local Machine = require("src.machine")
+local MachineFleet = require("src.machine_fleet")
+local MachineMaintenance = require("src.machine_maintenance")
+local BusinessCalendar = require("src.business_calendar")
+local PalletJack = require("src.pallet_jack")
 local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
 local BackButton = require("src.screens.back_button")
@@ -11,13 +15,48 @@ local Screen = {
     gaugeText = "0.00",
     gaugeReplaceOnType = true,
     loadMenu = nil,
+    maintenanceView = nil,
+    oilSession = nil,
+    bladeStage = nil,
+    bladeBolts = nil,
+    wrapperSession = nil,
+    helpOpen = false,
+    helpStep = 1,
 }
 local buttons = {}
 local gaugeInput = { x = 55, y = 263, width = 182, height = 28 }
 local exitButton = { x = 790, y = 28, width = 132, height = 42 }
 local wrapButton = { x = 650, y = 520, width = 220, height = 54 }
+local wrapperMaintenanceButton = { x = 50, y = 520, width = 220, height = 54 }
+local helpButton = { x = 500, y = 82, width = 174, height = 40 }
+local maintenanceButton = { x = 692, y = 82, width = 198, height = 40 }
+local helpBack = { x = 72, y = 582, width = 180, height = 44 }
+local helpPrevious = { x = 280, y = 582, width = 180, height = 44 }
+local helpNext = { x = 706, y = 582, width = 180, height = 44 }
+local maintenanceBack = { x = 54, y = 594, width = 188, height = 42 }
+local oilServiceButton = { x = 92, y = 244, width = 342, height = 122 }
+local bladeServiceButton = { x = 526, y = 244, width = 342, height = 122 }
+local technicianButton = { x = 526, y = 390, width = 342, height = 72 }
+local weeklyButton = { x = 526, y = 478, width = 342, height = 82 }
+local lockoutButtons = {
+    disconnect = { x = 105, y = 235, width = 210, height = 150 },
+    key = { x = 375, y = 235, width = 210, height = 150 },
+    tag = { x = 645, y = 235, width = 210, height = 150 },
+}
+local prepButtons = {
+    cartridge = { x = 190, y = 220, width = 240, height = 220 },
+    prime = { x = 530, y = 220, width = 240, height = 220 },
+}
+local lubricationViews = { "rear", "front", "side", "central", "gear" }
+local lubricationTools = { "rag", "grease", "inspect", "gear_oil" }
+local pumpButton = { x = 670, y = 462, width = 225, height = 58 }
+local finishLubricationButton = { x = 670, y = 532, width = 225, height = 48 }
 local loadMenuRect = { x = 190, y = 126, width = 580, rowHeight = 54 }
 local loadMenuPageSize = 7
+
+local function inside(button, x, y)
+    return x >= button.x and x <= button.x + button.width and y >= button.y and y <= button.y + button.height
+end
 
 local function box(x, y, width, height, fill, line, radius)
     love.graphics.setColor(fill)
@@ -25,6 +64,22 @@ local function box(x, y, width, height, fill, line, radius)
     love.graphics.setColor(line)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", x, y, width, height, radius or 0, radius or 0)
+end
+
+local function drawCondition(state, modelId, x, y, width)
+    local item = MachineFleet.installed(state, modelId)
+    if not item then return end
+    local condition = MachineFleet.condition(item)
+    local status = MachineFleet.conditionStatus(condition)
+    love.graphics.setColor(0.72, 0.80, 0.81)
+    love.graphics.printf(string.format("%s  •  %s  •  %.1f%%", item.id, status, condition),
+        x, y, width, "right")
+    love.graphics.setColor(0.12, 0.15, 0.17)
+    love.graphics.rectangle("fill", x, y + 19, width, 7, 2, 2)
+    if condition >= 75 then love.graphics.setColor(0.28, 0.72, 0.43)
+    elseif condition >= 55 then love.graphics.setColor(0.88, 0.67, 0.22)
+    else love.graphics.setColor(0.89, 0.31, 0.22) end
+    love.graphics.rectangle("fill", x, y + 19, width * condition / 100, 7, 2, 2)
 end
 
 local function addButton(action, label, x, y, width, height, key, value)
@@ -70,7 +125,401 @@ function Screen.enter()
     Screen.pressedAction = nil
     Screen.gaugeFocused = true
     Screen.loadMenu = nil
+    Screen.maintenanceView = nil
+    Screen.oilSession = nil
+    Screen.bladeStage = nil
+    Screen.bladeBolts = nil
+    Screen.wrapperSession = nil
+    Screen.helpOpen, Screen.helpStep = false, 1
     formatGauge()
+end
+
+local cutterHelp = {
+    { "1 — REVIEW AND SAFETY", "Read the pallet tooltip and job ticket: starting size, finished size, lift count, artwork margins and packaging. Wear cut-resistant gloves only while handling the blade—not near a running cutter. Keep the light barrier clear, close the cutting area and reset E-STOP before loading." },
+    { "2 — LOAD THE CORRECT PALLET", "Move a received paper pallet to the cutter staging area. Press L or click LOAD, then choose the pallet ID that matches the job. Its unique paper record follows every size and rotation change. Wait for the stack animation to settle on the bed before setting the gauge." },
+    { "3 — READ THE CUT PROGRAM", "The active cut number identifies the margin currently nearest the operator/screen. Compare the required measurement to the job's cut list. Easy work often repeats one margin; harder work has four different values. Never guess: the displayed target and pallet ID are the source of truth." },
+    { "4 — SET OR PROGRAM THE BACK GAUGE", "Click the gauge number field, type inches with decimals, then press ENTER or SET. SAVE stores the measurement in the selected P1–P4 program. RECALL restores saved values. AUTOSET recalls the next saved cut, moves to its cut number automatically and prepares the next repeat measurement." },
+    { "5 — POSITION AND ROTATE", "Press P or POSITION to push the stack against the back gauge. The red active margin must face the operator/screen. Press Q or ROTATE for a 90-degree counter-clockwise turn between sides. Reposition against the gauge after every rotation or measurement change." },
+    { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Trigger both CUT buttons (J and K) within 0.30 seconds to use the real two-hand safety logic. The blade descends, cuts the active margin and rises. The paper record and tooltip update to the new physical size." },
+    { "7 — FINISH ALL LIFTS", "The cutter holds a maximum 500 sheets per lift. Repeat the programmed sides for each lift until the pallet's full sheet count is processed. Verify the size after every side. When all required margins are removed, press U or UNLOAD; the animated stack returns to its pallet at cutter output." },
+    { "8 — TROUBLESHOOTING", "If cutting is blocked, check: correct pallet loaded, transfer animation finished, gauge equals active cut, paper positioned, barrier clear, clamp down, both cut controls pressed together, and E-STOP reset. A wrong measurement changes the real sheet size and can create spoilage." },
+    { "9 — ROUTINE MAINTENANCE", "Unload the bed and return to IDLE. Open MAINTENANCE. Lubrication requires one delivered maintenance kit and an ordered lockout sequence: disconnect, keep the key and attach the tag. Clean and grease each marked point, inspect the gearbox sight glass, pump lubricant, then finish inspection." },
+    { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all four blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book the blade technician; the on-site technician services and reinstalls it. Never run with the blade removed." },
+}
+
+local function drawHelp(state, assets, pointerX, pointerY)
+    box(18, 18, 924, 642, { 0.035, 0.055, 0.065, 0.995 }, { 0.35, 0.68, 0.61, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("POLAR 115 OPERATOR HELP", 46, 38)
+    love.graphics.setColor(0.11, 0.15, 0.17)
+    love.graphics.rectangle("fill", 72, 104, 814, 430, 7, 7)
+    local page = cutterHelp[Screen.helpStep]
+    love.graphics.setColor(0.96, 0.82, 0.28)
+    love.graphics.printf(page[1], 108, 142, 742, "center")
+    love.graphics.setColor(0.86, 0.91, 0.90)
+    love.graphics.printf(page[2], 118, 208, 722, "left")
+    love.graphics.setColor(0.66, 0.76, 0.76)
+    love.graphics.printf(string.format("PAGE %d / %d", Screen.helpStep, #cutterHelp), 118, 490, 722, "center")
+    BackButton.draw(assets, helpBack, "BACK", pointerX, pointerY, false)
+    BackButton.draw(assets, helpPrevious, "◀ PREV", pointerX, pointerY, false)
+    BackButton.draw(assets, helpNext, Screen.helpStep == #cutterHelp and "DONE" or "NEXT ▶", pointerX, pointerY, false)
+end
+
+local function drawHelpButton(pointerX, pointerY)
+    local hovered = pointerX and inside(helpButton, pointerX, pointerY)
+    box(helpButton.x, helpButton.y, helpButton.width, helpButton.height,
+        hovered and { 0.20, 0.39, 0.49, 1 } or { 0.12, 0.27, 0.34, 1 },
+        { 0.48, 0.74, 0.80, 1 }, 3)
+    love.graphics.setColor(0.94, 0.97, 0.92)
+    love.graphics.printf("HELP / INSTRUCTIONS", helpButton.x, helpButton.y + 13, helpButton.width, "center")
+end
+
+local function drawMaintenanceButton(pointerX, pointerY)
+    local hovered = pointerX and inside(maintenanceButton, pointerX, pointerY)
+    box(maintenanceButton.x, maintenanceButton.y, maintenanceButton.width, maintenanceButton.height,
+        hovered and { 0.16, 0.43, 0.34, 1 } or { 0.11, 0.30, 0.26, 1 },
+        { 0.42, 0.72, 0.58, 1 }, 3)
+    love.graphics.setColor(0.94, 0.97, 0.92)
+    love.graphics.printf("MAINTENANCE", maintenanceButton.x, maintenanceButton.y + 13,
+        maintenanceButton.width, "center")
+end
+
+local function drawMaintenanceCard(rect, title, detail, enabled, pointerX, pointerY)
+    local hovered = enabled and pointerX and inside(rect, pointerX, pointerY)
+    box(rect.x, rect.y, rect.width, rect.height,
+        enabled and (hovered and { 0.13, 0.34, 0.31, 1 } or { 0.08, 0.20, 0.20, 1 })
+            or { 0.09, 0.10, 0.11, 1 },
+        enabled and { 0.34, 0.65, 0.57, 1 } or { 0.25, 0.29, 0.30, 1 }, 4)
+    love.graphics.setColor(enabled and 0.96 or 0.48, enabled and 0.84 or 0.53, enabled and 0.30 or 0.52)
+    love.graphics.print(title, rect.x + 18, rect.y + 16)
+    love.graphics.setColor(enabled and 0.76 or 0.46, enabled and 0.84 or 0.51, enabled and 0.83 or 0.51)
+    love.graphics.printf(detail, rect.x + 18, rect.y + 46, rect.width - 36, "left")
+end
+
+local function drawMaintenanceHub(state, assets, pointerX, pointerY)
+    local item, cutter = MachineMaintenance.cutterStatus(state)
+    local stock = state.inventory and state.inventory.stock or {}
+    box(18, 18, 924, 642, { 0.035, 0.055, 0.065, 0.995 }, { 0.35, 0.68, 0.61, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("POLAR 115 MAINTENANCE CENTER", 46, 38)
+    love.graphics.setColor(0.72, 0.82, 0.82)
+    love.graphics.print("Choose a service procedure. Each task opens its own interactive work area.", 46, 68)
+    drawCondition(state, "polar_115", 580, 36, 310)
+    box(54, 108, 836, 92, { 0.07, 0.10, 0.12, 1 }, { 0.25, 0.42, 0.43, 1 }, 3)
+    love.graphics.setColor(0.76, 0.84, 0.84)
+    love.graphics.print("MAINTENANCE KITS", 74, 126)
+    love.graphics.setColor((stock.maintenance_kit or 0) > 0 and 0.48 or 0.94,
+        (stock.maintenance_kit or 0) > 0 and 0.88 or 0.34, 0.36)
+    love.graphics.print(tostring(stock.maintenance_kit or 0) .. " AVAILABLE", 74, 153)
+    love.graphics.setColor(0.76, 0.84, 0.84)
+    love.graphics.print("BLADE", 330, 126)
+    love.graphics.print(cutter.bladeInSleeve and "SECURED IN WOODEN SLEEVE"
+        or cutter.bladeRemoved and "REMOVED" or "INSTALLED", 330, 153)
+    love.graphics.print("TECHNICIAN", 620, 126)
+    local appointment = cutter.nextTechnicianDay
+        and BusinessCalendar.dateFromTotalDay(cutter.nextTechnicianDay) or nil
+    love.graphics.print(appointment and string.format("%s %d", BusinessCalendar.monthName(appointment.month), appointment.day)
+        or "NOT SCHEDULED", 620, 153)
+    drawMaintenanceCard(oilServiceButton, "LUBRICATE THE CUTTER",
+        "Lockout, clean and grease the service fittings, then inspect the gearbox sight glass. Uses one kit.",
+        (stock.maintenance_kit or 0) > 0 and not cutter.bladeRemoved, pointerX, pointerY)
+    drawMaintenanceCard(bladeServiceButton, "REMOVE & SLEEVE BLADE",
+        cutter.bladeInSleeve and "Blade is ready for Precision Blade Service."
+            or "Release the fasteners, remove the knife, and secure it inside the wooden transport sleeve.",
+        not cutter.bladeInSleeve, pointerX, pointerY)
+    drawMaintenanceCard(technicianButton, "REQUEST TECHNICIAN",
+        cutter.bladeInSleeve and "Book the next available blade-sharpening visit."
+            or "Prepare the blade in its sleeve before booking.",
+        cutter.bladeInSleeve and not cutter.nextTechnicianDay, pointerX, pointerY)
+    drawMaintenanceCard(weeklyButton, cutter.weeklyTechnician and "WEEKLY SERVICE: ON" or "WEEKLY SERVICE: OFF",
+        cutter.weeklyTechnician and "Click to cancel the recurring appointment."
+            or "Schedule a technician every seven game days. Delays or missed visits arrive by email.",
+        true, pointerX, pointerY)
+    drawMaintenanceCard(maintenanceBack, "RETURN TO CUTTER", "", true, pointerX, pointerY)
+    love.graphics.setColor(0.70, 0.78, 0.79)
+    love.graphics.print(state.message or "", 270, 610)
+end
+
+local wrapperServiceButton = { x = 650, y = 520, width = 240, height = 54 }
+
+local function wrapperHealthColor(value)
+    if value >= 75 then return 0.30, 0.82, 0.48
+    elseif value >= 50 then return 0.94, 0.70, 0.22 end
+    return 0.92, 0.32, 0.24
+end
+
+local function drawWrapperHealthBar(x, y, width, value)
+    local r, g, b = wrapperHealthColor(value)
+    love.graphics.setColor(0.10, 0.13, 0.14)
+    love.graphics.rectangle("fill", x, y, width, 7, 2, 2)
+    love.graphics.setColor(r, g, b)
+    love.graphics.rectangle("fill", x, y, width * math.max(0, math.min(100, value)) / 100, 7, 2, 2)
+end
+
+local function drawWrapperMaintenanceHub(state, pointerX, pointerY)
+    local item = MachineFleet.installed(state, "skid_wrapper")
+    local stock = state.inventory and state.inventory.stock or {}
+    local plan = item and MachineFleet.maintenancePlan(state, item.id)
+    local nearby = Wrapper.nearbyPallet(state)
+    local safetyReady = not Wrapper.isActive() and not nearby
+    local kitReady = (stock.maintenance_kit or 0) > 0
+    box(18, 18, 924, 642, { 0.025, 0.05, 0.055, 0.995 }, { 0.35, 0.72, 0.60, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("SKID WRAPPER SERVICE BAY", 46, 36)
+    love.graphics.setColor(0.70, 0.82, 0.82)
+    love.graphics.print("Hands-on inspection follows the turntable, film carriage, drive, and controls.", 46, 66)
+    drawCondition(state, "skid_wrapper", 562, 36, 328)
+
+    box(54, 98, 836, 50, { 0.07, 0.11, 0.12, 1 }, { 0.25, 0.43, 0.43, 1 }, 3)
+    love.graphics.setColor(0.76, 0.84, 0.84)
+    love.graphics.print("SAFETY CHECK", 74, 116)
+    love.graphics.setColor(safetyReady and 0.35 or 0.94, safetyReady and 0.86 or 0.34, 0.42)
+    love.graphics.print(safetyReady and "CLEAR: STOPPED / TURNTABLE EMPTY" or
+        (Wrapper.isActive() and "BLOCKED: WRAPPING CYCLE ACTIVE" or "BLOCKED: MOVE PALLET AWAY FIRST"), 250, 116)
+    love.graphics.setColor(0.76, 0.84, 0.84)
+    love.graphics.print("KIT", 720, 116)
+    love.graphics.setColor(kitReady and 0.35 or 0.94, kitReady and 0.86 or 0.34, 0.42)
+    love.graphics.print(tostring(stock.maintenance_kit or 0), 770, 116)
+
+    if plan then
+        for index, task in ipairs(plan.tasks) do
+            local column = (index - 1) % 2
+            local row = math.floor((index - 1) / 2)
+            local x, y = 54 + column * 412, 168 + row * 142
+            local value = tonumber(item.variables[task.id]) or 0
+            local r, g, b = wrapperHealthColor(value)
+            box(x, y, 390, 122, { 0.065, 0.105, 0.11, 1 }, { 0.24, 0.40, 0.41, 1 }, 4)
+            love.graphics.setColor(0.95, 0.85, 0.38)
+            love.graphics.print(string.format("%d  %s", index, task.componentLabel:upper()), x + 16, y + 14)
+            love.graphics.setColor(0.72, 0.81, 0.81)
+            love.graphics.printf(task.label, x + 16, y + 42, 350, "left")
+            love.graphics.setColor(r, g, b)
+            love.graphics.print(string.format("HEALTH  %.1f%%", value), x + 16, y + 78)
+            drawWrapperHealthBar(x + 150, y + 84, 220, value)
+        end
+    end
+    local startEnabled = item and safetyReady and kitReady
+    local hovered = startEnabled and inside(wrapperServiceButton, pointerX or -1, pointerY or -1)
+    box(wrapperServiceButton.x, wrapperServiceButton.y, wrapperServiceButton.width, wrapperServiceButton.height,
+        startEnabled and (hovered and { 0.18, 0.50, 0.36, 1 } or { 0.12, 0.38, 0.28, 1 })
+            or { 0.14, 0.17, 0.17, 1 }, { 0.35, 0.70, 0.50, 1 }, 3)
+    love.graphics.setColor(0.95, 0.98, 0.92)
+    love.graphics.printf(startEnabled and "START FULL SERVICE" or "SERVICE LOCKED",
+        wrapperServiceButton.x, wrapperServiceButton.y + 19, wrapperServiceButton.width, "center")
+    drawMaintenanceCard(maintenanceBack, "RETURN TO WRAPPER", "", true, pointerX, pointerY)
+    love.graphics.setColor(0.70, 0.78, 0.79)
+    love.graphics.print(state.message or "", 270, 610)
+end
+
+local function drawWrapperTarget(x, y, active, complete, clock)
+    if complete then
+        love.graphics.setColor(0.24, 0.85, 0.48, 0.92)
+        love.graphics.circle("fill", x, y, 16)
+    elseif active then
+        local pulse = 24 + math.sin(clock * 6) * 5
+        love.graphics.setColor(0.98, 0.72, 0.18, 0.22)
+        love.graphics.circle("fill", x, y, pulse)
+        love.graphics.setColor(1, 0.84, 0.30, 1)
+        love.graphics.circle("line", x, y, 18)
+    else
+        love.graphics.setColor(0.42, 0.53, 0.52, 0.68)
+        love.graphics.circle("line", x, y, 13)
+    end
+    love.graphics.setColor(0.04, 0.06, 0.06, 1)
+    love.graphics.circle("fill", x, y, 5)
+end
+
+local function drawWrapperMaintenanceTask(state, assets, pointerX, pointerY)
+    local session = Screen.wrapperSession
+    local task = session and MachineMaintenance.activeTask(session)
+    local taskState = session and MachineMaintenance.wrapperTaskState(session)
+    if not session or not task or not taskState then return end
+    local image = assets.get("wrapperMaintenanceAtlas")
+    local sprite = assets.getQuad("wrapperMaintenance" .. ({
+        turntableBearing = 1, filmCarriage = 2, driveBelt = 3, controlBoard = 4,
+    })[task.id])
+    box(18, 18, 924, 642, { 0.025, 0.04, 0.05, 0.995 }, { 0.45, 0.72, 0.60, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print(string.format("WRAPPER SERVICE  /  STEP %d OF %d", session.activeIndex, #session.tasks), 42, 34)
+    love.graphics.setColor(0.72, 0.81, 0.81)
+    love.graphics.print("Use the marked service points in sequence. Every miss reduces the repair quality.", 42, 62)
+    box(54, 104, 520, 438, { 0.06, 0.075, 0.08, 1 }, { 0.25, 0.39, 0.40, 1 }, 4)
+    if image and sprite then
+        local scale = math.min(430 / sprite.width, 360 / sprite.height)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(image, sprite.quad, 314, 324, 0, scale, scale, sprite.width / 2, sprite.height / 2)
+    end
+    local targetCount = task.id == "driveBelt" and 1 or 3
+    for index = 1, targetCount do
+        local tx, ty = MachineMaintenance.wrapperTarget(session, index)
+        if tx and ty then
+            drawWrapperTarget(tx, ty, index == taskState.phase,
+                index < taskState.phase, session.animationClock)
+        end
+    end
+    local rightX, rightY, rightW = 612, 104, 278
+    box(rightX, rightY, rightW, 438, { 0.065, 0.10, 0.105, 1 }, { 0.25, 0.43, 0.42, 1 }, 4)
+    love.graphics.setColor(0.95, 0.85, 0.38)
+    love.graphics.printf(task.componentLabel:upper(), rightX + 18, rightY + 18, rightW - 36, "left")
+    love.graphics.setColor(0.82, 0.88, 0.87)
+    love.graphics.printf(task.label, rightX + 18, rightY + 52, rightW - 36, "left")
+    local instruction = task.id == "turntableBearing" and "Click the three bearing grease fittings around the turntable."
+        or task.id == "filmCarriage" and "Follow the carriage service points from the upper roller to the lower guide."
+        or task.id == "driveBelt" and "Click the moving tension target when it crosses the green timing band."
+        or "Test the control cabinet points in order: power, safety loop, then reset."
+    love.graphics.setColor(0.64, 0.75, 0.75)
+    love.graphics.printf(instruction, rightX + 18, rightY + 102, rightW - 36, "left")
+    love.graphics.setColor(0.78, 0.86, 0.84)
+    love.graphics.print(string.format("TARGET  %d / %d", math.min(taskState.phase, targetCount), targetCount), rightX + 18, rightY + 200)
+    love.graphics.print(string.format("ATTEMPTS  %d", taskState.attempts), rightX + 18, rightY + 232)
+    love.graphics.print(string.format("MISSES  %d", taskState.misses), rightX + 18, rightY + 264)
+    local progress = math.min(1, (taskState.phase - 1) / targetCount)
+    love.graphics.setColor(0.10, 0.14, 0.14)
+    love.graphics.rectangle("fill", rightX + 18, rightY + 310, rightW - 36, 12, 3, 3)
+    love.graphics.setColor(0.30, 0.82, 0.48)
+    love.graphics.rectangle("fill", rightX + 18, rightY + 310, (rightW - 36) * progress, 12, 3, 3)
+    love.graphics.setColor(0.96, 0.74, 0.24)
+    love.graphics.printf(task.id == "driveBelt" and "TIMING TARGET MOVING" or "SEQUENCE TARGET ACTIVE",
+        rightX + 18, rightY + 346, rightW - 36, "center")
+    drawMaintenanceCard(maintenanceBack, "CANCEL SERVICE", "No kit is consumed until all four tasks are complete.", true, pointerX, pointerY)
+end
+
+local function drawSmallAction(rect, label, active, complete, pointerX, pointerY)
+    local hovered = pointerX and inside(rect, pointerX, pointerY)
+    box(rect.x, rect.y, rect.width, rect.height,
+        complete and { 0.12, 0.38, 0.24, 1 } or active and { 0.12, 0.34, 0.36, 1 }
+            or hovered and { 0.15, 0.22, 0.23, 1 } or { 0.08, 0.12, 0.13, 1 },
+        complete and { 0.35, 0.88, 0.48, 1 } or { 0.34, 0.56, 0.56, 1 }, 3)
+    love.graphics.setColor(complete and { 0.55, 1, 0.65 } or { 0.88, 0.91, 0.88 })
+    love.graphics.printf(label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
+end
+
+local function drawToolSprite(assets, frame, x, y, scale)
+    local image, quad = assets.get("cutterMaintenanceTools"), assets.getQuad("cutterMaintenanceTool" .. frame)
+    if image and quad then
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(image, quad.quad, x, y, 0, scale or 0.45, scale or 0.45,
+            quad.width / 2, quad.height / 2)
+    end
+end
+
+local function drawOilingGame(state, assets, pointerX, pointerY)
+    local session = Screen.oilSession
+    box(18, 18, 924, 642, { 0.025, 0.04, 0.05, 0.995 }, { 0.42, 0.72, 0.61, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("POLAR 115 LUBRICATION PROCEDURE", 42, 34)
+    love.graphics.setColor(0.70, 0.80, 0.81)
+    love.graphics.print("Lock out power, prepare the grease gun, clean each fitting, couple, then pump 2-3 strokes.", 42, 62)
+    love.graphics.setColor(0.10, 0.14, 0.14)
+    love.graphics.rectangle("fill", 42, 88, 860, 10, 3, 3)
+    love.graphics.setColor(0.30, 0.82, 0.48)
+    love.graphics.rectangle("fill", 42, 88, 860 * MachineMaintenance.lubricationProgress(session), 10, 3, 3)
+    if session.stage == "lockout" then
+        love.graphics.setColor(0.92, 0.70, 0.22)
+        love.graphics.printf("STEP 1  /  LOCKOUT-TAGOUT — COMPLETE IN ORDER", 80, 135, 800, "center")
+        drawSmallAction(lockoutButtons.disconnect, "1. MAIN DISCONNECT OFF",
+            not session.lockout.disconnect, session.lockout.disconnect, pointerX, pointerY)
+        drawSmallAction(lockoutButtons.key, "2. REMOVE KEY",
+            session.lockout.disconnect and not session.lockout.key, session.lockout.key, pointerX, pointerY)
+        drawSmallAction(lockoutButtons.tag, "3. APPLY LOCK + TAG",
+            session.lockout.key and not session.lockout.tag, session.lockout.tag, pointerX, pointerY)
+        drawToolSprite(assets, 5, 750, 310, 0.46)
+        love.graphics.setColor(0.70, 0.78, 0.78)
+        love.graphics.printf("The cutter cannot be serviced while energized.", 170, 455, 620, "center")
+    elseif session.stage == "prep" then
+        love.graphics.setColor(0.92, 0.70, 0.22)
+        love.graphics.printf("STEP 2  /  PREPARE THE HIGH-PRESSURE GREASE GUN", 80, 135, 800, "center")
+        drawSmallAction(prepButtons.cartridge, "1. INSTALL GREASE CARTRIDGE",
+            not session.prep.cartridge, session.prep.cartridge, pointerX, pointerY)
+        drawSmallAction(prepButtons.prime, "2. PRIME THE GUN",
+            session.prep.cartridge and not session.prep.primed, session.prep.primed, pointerX, pointerY)
+        drawToolSprite(assets, 6, 310, 325, 0.55)
+        drawToolSprite(assets, session.prep.cartridge and 2 or 1, 650, 325, 0.50)
+    else
+        for index, view in ipairs(lubricationViews) do
+            local rect = { x = 42 + (index - 1) * 113, y = 112, width = 105, height = 34 }
+            local disabled = view == "central" and not session.centralInstalled
+            drawSmallAction(rect, disabled and "CENTRAL N/A" or view:upper(),
+                session.activeView == view, false, pointerX, pointerY)
+        end
+        box(42, 158, 570, 386, { 0.06, 0.075, 0.08, 1 }, { 0.25, 0.39, 0.40, 1 }, 4)
+        local sceneFrames = { rear = 1, front = 2, side = 3, central = 2, gear = 4 }
+        local image = assets.get("cutterMaintenanceScenes")
+        local quad = assets.getQuad("cutterMaintenanceScene" .. sceneFrames[session.activeView])
+        if image and quad then
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.draw(image, quad.quad, 48, 160, 0, 1.09, 1.0)
+        end
+        if session.activeView == "gear" then
+            love.graphics.setColor(session.gear.inspected and { 0.30, 0.90, 0.48 } or { 1, 0.76, 0.22 })
+            love.graphics.circle("line", 490, 340, 34 + math.sin(session.animationClock * 4) * 3)
+            love.graphics.printf(string.format("SIGHT GLASS  %d%%", math.floor(session.gear.level * 100 + 0.5)), 350, 475, 230, "center")
+        elseif session.activeView == "central" then
+            local p = session.central
+            love.graphics.setColor(p.complete and { 0.30, 0.90, 0.48 } or { 1, 0.76, 0.22 })
+            love.graphics.circle("line", 370, 330, 23 + math.sin(session.animationClock * 4) * 3)
+        else
+            for _, p in ipairs(session.points) do if p.view == session.activeView then
+                love.graphics.setColor(p.complete and { 0.30, 0.90, 0.48 }
+                    or p.cleaned and { 0.32, 0.76, 0.88 } or { 1, 0.72, 0.18 })
+                love.graphics.circle("fill", p.x, p.y, p.complete and 11 or 8)
+                love.graphics.circle("line", p.x, p.y, 18 + math.sin(session.animationClock * 5) * 3)
+            end end
+        end
+        box(632, 158, 270, 386, { 0.055, 0.09, 0.095, 1 }, { 0.25, 0.43, 0.42, 1 }, 4)
+        for index, tool in ipairs(lubricationTools) do
+            local rect = { x = 650, y = 176 + (index - 1) * 48, width = 234, height = 39 }
+            drawSmallAction(rect, ({ rag="CLEANING RAG", grease="GREASE GUN", inspect="INSPECT LIGHT", gear_oil="GEAR OIL" })[tool],
+                session.activeTool == tool, false, pointerX, pointerY)
+        end
+        local status = session.coupledPoint and (session.coupledPoint == "central" and session.central
+            or MachineMaintenance.lubricationPoint(session, session.coupledPoint)) or nil
+        love.graphics.setColor(0.72, 0.82, 0.82)
+        love.graphics.printf(status and string.format("COUPLED  /  %d STROKES", status.strokes) or
+            "RAG: clean fitting\nGUN: click fitting to couple\nINSPECT: click sight glass", 650, 372, 234, "center")
+        if status then
+            local gunFrame = session.pumpPulse and session.pumpPulse > 0
+                and (session.pumpPulse > 0.14 and 3 or 2) or 1
+            drawToolSprite(assets, gunFrame, 767, 424, 0.25)
+        end
+        drawSmallAction(pumpButton, "PUMP GREASE-GUN LEVER", status ~= nil, false, pointerX, pointerY)
+        drawSmallAction(finishLubricationButton, "RETURN TO SERVICE",
+            MachineMaintenance.canFinishCutterLubrication(session), false, pointerX, pointerY)
+    end
+    drawSmallAction(maintenanceBack, "CANCEL PROCEDURE", false, false, pointerX, pointerY)
+end
+
+local function bladeBoltPositions()
+    return { { 332, 258 }, { 628, 258 }, { 332, 350 }, { 628, 350 } }
+end
+
+local function drawBladeGame(state, pointerX, pointerY)
+    box(18, 18, 924, 642, { 0.03, 0.045, 0.055, 0.995 }, { 0.55, 0.46, 0.30, 1 }, 5)
+    love.graphics.setColor(0.96, 0.82, 0.26)
+    love.graphics.print("CUTTER BLADE REMOVAL", 42, 34)
+    love.graphics.setColor(0.72, 0.80, 0.81)
+    local instruction = Screen.bladeStage == "bolts" and "Click all four blade-carrier fasteners."
+        or Screen.bladeStage == "blade" and "Click the released steel blade to remove it."
+        or "Click the wooden sleeve to secure the blade for transport."
+    love.graphics.print(instruction, 42, 64)
+    box(140, 120, 680, 420, { 0.08, 0.09, 0.095, 1 }, { 0.34, 0.36, 0.37, 1 }, 4)
+    love.graphics.setColor(0.56, 0.59, 0.60)
+    love.graphics.rectangle("fill", 280, 220, 400, 178, 4, 4)
+    love.graphics.setColor(0.82, 0.84, 0.80)
+    love.graphics.rectangle("fill", 304, 294, 352, 34, 2, 2)
+    for index, pos in ipairs(bladeBoltPositions()) do
+        local removed = Screen.bladeBolts[index]
+        love.graphics.setColor(removed and 0.18 or 0.76, removed and 0.20 or 0.68, removed and 0.20 or 0.28)
+        love.graphics.circle("fill", pos[1], pos[2], 14)
+        love.graphics.setColor(0.15, 0.16, 0.16)
+        love.graphics.line(pos[1] - 7, pos[2], pos[1] + 7, pos[2])
+    end
+    love.graphics.setColor(0.46, 0.25, 0.10)
+    love.graphics.rectangle("fill", 330, 445, 300, 60, 5, 5)
+    love.graphics.setColor(0.72, 0.47, 0.22)
+    love.graphics.rectangle("line", 330, 445, 300, 60, 5, 5)
+    love.graphics.printf("WOODEN BLADE SLEEVE", 330, 469, 300, "center")
+    drawMaintenanceCard(maintenanceBack, "CANCEL BLADE WORK", "", true, pointerX, pointerY)
 end
 
 local function openLoadMenu(state)
@@ -122,10 +571,6 @@ end
 
 function Screen.syncGauge()
     formatGauge()
-end
-
-local function inside(button, x, y)
-    return x >= button.x and x <= button.x + button.width and y >= button.y and y <= button.y + button.height
 end
 
 local function drawButton(button)
@@ -326,10 +771,28 @@ local function drawLoadMenu()
 end
 
 function Screen.draw(state, assets, pointerX, pointerY)
+    if Screen.helpOpen then drawHelp(state, assets, pointerX, pointerY); return end
+    if Screen.maintenanceView == "hub" then
+        drawMaintenanceHub(state, assets, pointerX, pointerY)
+        return
+    elseif Screen.maintenanceView == "wrapper_hub" then
+        drawWrapperMaintenanceHub(state, pointerX, pointerY)
+        return
+    elseif Screen.maintenanceView == "wrapper_task" then
+        drawWrapperMaintenanceTask(state, assets, pointerX, pointerY)
+        return
+    elseif Screen.maintenanceView == "oil" then
+        drawOilingGame(state, assets, pointerX, pointerY)
+        return
+    elseif Screen.maintenanceView == "blade" then
+        drawBladeGame(state, pointerX, pointerY)
+        return
+    end
     if state.machineType == "skid_wrapper" then
         box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
         love.graphics.setColor(0.96, 0.82, 0.26)
         love.graphics.print("SKID WRAPPER / PALLET PACKAGING CONSOLE", 38, 30)
+        drawCondition(state, "skid_wrapper", 458, 28, 308)
         BackButton.draw(assets, exitButton, Wrapper.isActive() and "WAIT" or "EXIT", pointerX, pointerY, false)
         local image = assets.get("skidWrapperDirections")
         local sprite = assets.getQuad("skidWrapperDirection1")
@@ -363,12 +826,25 @@ function Screen.draw(state, assets, pointerX, pointerY)
         love.graphics.print("NEARBY PALLET: " .. (nearby and nearby.pallet.id or "NONE"), 50, 438)
         love.graphics.print("PACKAGE: " .. (packaging and packaging:upper() or "--"), 50, 466)
         love.graphics.print(string.format("PLASTIC: %d ROLL(S)  |  %d / 11 WRAPS", inventory.plasticWrapRolls or 0, inventory.plasticWrapUses or 0), 50, 494)
+        local serviceHovered = pointerX and inside(wrapperMaintenanceButton, pointerX, pointerY)
+        box(wrapperMaintenanceButton.x, wrapperMaintenanceButton.y,
+            wrapperMaintenanceButton.width, wrapperMaintenanceButton.height,
+            serviceHovered and { 0.16, 0.43, 0.34, 1 } or { 0.11, 0.30, 0.26, 1 },
+            { 0.42, 0.72, 0.58, 1 }, 3)
+        love.graphics.setColor(0.94, 0.97, 0.92)
+        love.graphics.printf("SERVICE MACHINE", wrapperMaintenanceButton.x,
+            wrapperMaintenanceButton.y + 19, wrapperMaintenanceButton.width, "center")
         box(wrapButton.x, wrapButton.y, wrapButton.width, wrapButton.height,
             nearby and hasPackaging and (inventory.plasticWrapUses or 0) > 0
                 and { 0.15, 0.40, 0.27, 1 } or { 0.15, 0.17, 0.18, 1 },
             { 0.35, 0.65, 0.48, 1 }, 3)
         love.graphics.setColor(0.95, 0.98, 0.92)
-        love.graphics.printf(Wrapper.step == "wrapping" and string.format("WRAPPING %d%%", math.floor(Wrapper.progress / Wrapper.cycleTime * 100)) or "WRAP PALLET  [L]   MOVE [M]", wrapButton.x, wrapButton.y + 19, wrapButton.width, "center")
+        local jackReady = PalletJack.ensure(state, Config.palletJack).operating
+            and not state.palletJack.carriedPalletId
+        local wrapLabel = Wrapper.step == "wrapping"
+            and string.format("WRAPPING %d%%", math.floor(Wrapper.progress / Wrapper.cycleTime * 100))
+            or (jackReady and "WRAP PALLET [L]  RELOCATE [M]" or "WRAP PALLET [L]")
+        love.graphics.printf(wrapLabel, wrapButton.x, wrapButton.y + 19, wrapButton.width, "center")
         love.graphics.print(state.message or "", 48, 635)
         return
     end
@@ -376,9 +852,14 @@ function Screen.draw(state, assets, pointerX, pointerY)
     box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
     love.graphics.setColor(0.96, 0.82, 0.26)
     love.graphics.print("POLAR 115 / JOB CUTTING CONSOLE", 38, 30)
+    drawCondition(state, "polar_115", 430, 28, 336)
     BackButton.draw(assets, exitButton, "EXIT", pointerX, pointerY, false)
     drawTouchscreen()
     drawMachine(assets)
+    -- Top-level controls are deliberately drawn after the machine art so the
+    -- cabinet can never cover them.
+    drawHelpButton(pointerX, pointerY)
+    drawMaintenanceButton(pointerX, pointerY)
     box(38, 400, 884, 58, { 0.075, 0.09, 0.11, 1 }, { 0.28, 0.40, 0.44, 1 }, 3)
     love.graphics.setColor(0.82, 0.88, 0.89)
     love.graphics.print("STATUS: " .. Machine.step:upper(), 50, 411)
@@ -406,6 +887,177 @@ end
 
 function Screen.mousepressed(state, x, y, button)
     if button ~= 1 then return false end
+    if Screen.helpOpen then
+        if inside(helpBack, x, y) then Screen.helpOpen = false; return { action = "help_close" } end
+        if inside(helpPrevious, x, y) then Screen.helpStep = math.max(1, Screen.helpStep - 1); return true end
+        if inside(helpNext, x, y) then
+            if Screen.helpStep < #cutterHelp then Screen.helpStep = Screen.helpStep + 1 else Screen.helpOpen = false end
+            return true
+        end
+        return true
+    end
+    if Screen.maintenanceView == "wrapper_task" then
+        if inside(maintenanceBack, x, y) then
+            Screen.maintenanceView, Screen.wrapperSession = "wrapper_hub", nil
+            return { action = "maintenance_cancel" }
+        end
+        local result = MachineMaintenance.wrapperTaskClick(Screen.wrapperSession, x, y)
+        if result.hit then
+            if result.finished then
+                local completed, itemOrError = MachineMaintenance.commit(state, Screen.wrapperSession)
+                if completed then
+                    Screen.wrapperSession, Screen.maintenanceView = nil, "wrapper_hub"
+                    state.message = string.format("Wrapper service complete. Condition is now %.1f%%.",
+                        MachineFleet.condition(itemOrError))
+                    return { action = "maintenance_completed" }
+                end
+                state.message = tostring(itemOrError)
+            elseif result.completedTask then
+                local nextTask = MachineMaintenance.activeTask(Screen.wrapperSession)
+                state.message = "Step complete. Next: " .. (nextTask and nextTask.componentLabel or "final inspection") .. "."
+            end
+        else
+            state.message = "Missed the service point. Re-align and try again."
+        end
+        return true
+    elseif Screen.maintenanceView == "wrapper_hub" then
+        local item = MachineFleet.installed(state, "skid_wrapper")
+        local stock = state.inventory and state.inventory.stock or {}
+        local safetyReady = not Wrapper.isActive() and not Wrapper.nearbyPallet(state)
+        if inside(maintenanceBack, x, y) then
+            Screen.maintenanceView = nil
+            return { action = "maintenance_close" }
+        elseif inside(wrapperServiceButton, x, y) and item and safetyReady
+            and (stock.maintenance_kit or 0) > 0 then
+            local session, errorMessage = MachineMaintenance.beginWrapperService(state)
+            if not session then state.message = tostring(errorMessage); return true end
+            Screen.wrapperSession, Screen.maintenanceView = session, "wrapper_task"
+            state.message = "Begin with the marked " .. session.tasks[1].componentLabel .. " service points."
+            return { action = "maintenance_minigame", game = "wrapper_service" }
+        end
+        return true
+    elseif Screen.maintenanceView == "oil" then
+        if inside(maintenanceBack, x, y) then
+            Screen.maintenanceView, Screen.oilSession = "hub", nil
+            return { action = "maintenance_cancel" }
+        end
+        local session = Screen.oilSession
+        if session.stage == "lockout" then
+            for action, rect in pairs(lockoutButtons) do
+                if inside(rect, x, y) then
+                    MachineMaintenance.lubricationLockout(session, action)
+                    return true
+                end
+            end
+        elseif session.stage == "prep" then
+            for action, rect in pairs(prepButtons) do
+                if inside(rect, x, y) then
+                    MachineMaintenance.lubricationPrepare(session, action)
+                    return true
+                end
+            end
+        else
+            for index, view in ipairs(lubricationViews) do
+                local rect = { x = 42 + (index - 1) * 113, y = 112, width = 105, height = 34 }
+                if inside(rect, x, y) then
+                    MachineMaintenance.selectLubricationView(session, view)
+                    return true
+                end
+            end
+            for index, tool in ipairs(lubricationTools) do
+                local rect = { x = 650, y = 176 + (index - 1) * 48, width = 234, height = 39 }
+                if inside(rect, x, y) then
+                    MachineMaintenance.selectLubricationTool(session, tool)
+                    return true
+                end
+            end
+            if inside(pumpButton, x, y) then
+                MachineMaintenance.pumpLubricationGun(session)
+                return true
+            elseif inside(finishLubricationButton, x, y) then
+                local completed, result = MachineMaintenance.finishCutterLubrication(state, session)
+                if completed then
+                    Screen.maintenanceView, Screen.oilSession = "hub", nil
+                    state.message = string.format("Cutter lubrication complete. Quality %.0f%%; condition %.1f%%.",
+                        result.maintenance.lastServiceQuality * 100, result.condition)
+                    return { action = "maintenance_completed" }
+                end
+                state.message = tostring(result)
+                return true
+            elseif session.activeView == "gear" and (x - 490) ^ 2 + (y - 340) ^ 2 <= 55 ^ 2 then
+                if session.activeTool == "inspect" then MachineMaintenance.inspectGearOil(session)
+                elseif session.activeTool == "gear_oil" then MachineMaintenance.topUpGearOil(session) end
+                return true
+            elseif session.activeView == "central" and (x - 370) ^ 2 + (y - 330) ^ 2 <= 45 ^ 2 then
+                MachineMaintenance.serviceLubricationPoint(session, "central")
+                return true
+            else
+                for _, point in ipairs(session.points) do
+                    if point.view == session.activeView
+                        and (x - point.x) ^ 2 + (y - point.y) ^ 2 <= 38 ^ 2 then
+                        MachineMaintenance.serviceLubricationPoint(session, point.id)
+                        return true
+                    end
+                end
+            end
+        end
+        return true
+    elseif Screen.maintenanceView == "blade" then
+        if inside(maintenanceBack, x, y) then
+            Screen.maintenanceView, Screen.bladeStage, Screen.bladeBolts = "hub", nil, nil
+            return { action = "maintenance_cancel" }
+        end
+        if Screen.bladeStage == "bolts" then
+            for index, pos in ipairs(bladeBoltPositions()) do
+                if not Screen.bladeBolts[index] and (x - pos[1]) ^ 2 + (y - pos[2]) ^ 2 <= 24 ^ 2 then
+                    Screen.bladeBolts[index] = true
+                    local allRemoved = true
+                    for bolt = 1, 4 do allRemoved = allRemoved and Screen.bladeBolts[bolt] end
+                    if allRemoved then Screen.bladeStage = "blade" end
+                    return true
+                end
+            end
+        elseif Screen.bladeStage == "blade" and x >= 304 and x <= 656 and y >= 280 and y <= 342 then
+            Screen.bladeStage = "sleeve"
+            return true
+        elseif Screen.bladeStage == "sleeve" and x >= 330 and x <= 630 and y >= 445 and y <= 505 then
+            local completed, result = MachineMaintenance.prepareBladeForTechnician(state)
+            if completed then
+                Screen.maintenanceView, Screen.bladeStage, Screen.bladeBolts = "hub", nil, nil
+                state.message = "Cutter blade removed and secured in its wooden sleeve. Book the technician when ready."
+                return { action = "blade_sleeved" }
+            end
+            state.message = tostring(result)
+        end
+        return true
+    elseif Screen.maintenanceView == "hub" then
+        local _, cutter = MachineMaintenance.cutterStatus(state)
+        local stock = state.inventory and state.inventory.stock or {}
+        if inside(maintenanceBack, x, y) then
+            Screen.maintenanceView = nil
+            return { action = "maintenance_close" }
+        elseif inside(oilServiceButton, x, y) and (stock.maintenance_kit or 0) > 0 and not cutter.bladeRemoved then
+            local session, errorMessage = MachineMaintenance.beginCutterLubrication(state)
+            if not session then state.message = tostring(errorMessage); return true end
+            Screen.oilSession, Screen.maintenanceView = session, "oil"
+            state.message = "Begin by locking out the cutter's main disconnect."
+            return { action = "maintenance_minigame", game = "cutter_lubrication" }
+        elseif inside(bladeServiceButton, x, y) and not cutter.bladeInSleeve then
+            Screen.maintenanceView, Screen.bladeStage = "blade", "bolts"
+            Screen.bladeBolts = { false, false, false, false }
+            return { action = "maintenance_minigame", game = "blade_removal" }
+        elseif inside(technicianButton, x, y) and cutter.bladeInSleeve and not cutter.nextTechnicianDay then
+            local booked, day = MachineMaintenance.requestTechnician(state)
+            if booked then state.message = "Blade technician booked for game day " .. tostring(day) .. "." end
+            return { action = "technician_booked" }
+        elseif inside(weeklyButton, x, y) then
+            MachineMaintenance.setWeeklyTechnician(state, not cutter.weeklyTechnician)
+            state.message = cutter.weeklyTechnician and "Weekly blade service scheduled."
+                or "Weekly blade service cancelled."
+            return { action = "technician_schedule" }
+        end
+        return true
+    end
     if Screen.loadMenu then
         local pageStart = math.floor((Screen.loadMenu.selected - 1) / loadMenuPageSize)
             * loadMenuPageSize + 1
@@ -424,7 +1076,28 @@ function Screen.mousepressed(state, x, y, button)
     end
     if inside(exitButton, x, y) then return { action = "exit" } end
     if state.machineType == "skid_wrapper" then
+        if inside(wrapperMaintenanceButton, x, y) then
+            if Wrapper.isActive() then
+                state.message = "Wait for the wrapping cycle to finish before opening maintenance."
+                return true
+            end
+            Screen.maintenanceView = "wrapper_hub"
+            return { action = "maintenance_hub" }
+        end
         return inside(wrapButton, x, y) and Wrapper.start(state) or false
+    end
+    if inside(helpButton, x, y) then
+        Screen.helpOpen, Screen.helpStep, Screen.gaugeFocused = true, 1, false
+        return { action = "help_open" }
+    end
+    if inside(maintenanceButton, x, y) then
+        if Machine.loaded or Machine.step ~= "idle" then
+            state.message = "Unload the cutter and return it to idle before opening maintenance."
+            return true
+        end
+        Screen.maintenanceView = "hub"
+        Screen.gaugeFocused = false
+        return { action = "maintenance_hub" }
     end
     layout()
     if inside(gaugeInput, x, y) then
@@ -453,6 +1126,24 @@ function Screen.mousepressed(state, x, y, button)
 end
 
 function Screen.keypressed(state, key)
+    if Screen.helpOpen then
+        if key == "escape" then Screen.helpOpen = false
+        elseif key == "left" then Screen.helpStep = math.max(1, Screen.helpStep - 1)
+        elseif key == "right" then Screen.helpStep = math.min(#cutterHelp, Screen.helpStep + 1) end
+        return true
+    end
+    if Screen.maintenanceView then
+        if key == "escape" then
+            if Screen.maintenanceView == "wrapper_hub" then
+                Screen.maintenanceView = nil
+            elseif Screen.maintenanceView == "wrapper_task" then
+                Screen.maintenanceView, Screen.wrapperSession = "wrapper_hub", nil
+            elseif Screen.maintenanceView == "hub" then Screen.maintenanceView = nil
+            else Screen.maintenanceView, Screen.oilSession, Screen.bladeStage = "hub", nil, nil end
+            return true
+        end
+        return true
+    end
     if Screen.loadMenu then
         if key == "escape" then Screen.loadMenu = nil; return true end
         if key == "up" then
@@ -484,6 +1175,15 @@ function Screen.keypressed(state, key)
         return true
     elseif key == "return" or key == "kpenter" then
         return commitGauge(state)
+    end
+    return false
+end
+
+function Screen.update(dt)
+    if Screen.maintenanceView == "wrapper_task" and Screen.wrapperSession then
+        return MachineMaintenance.update(Screen.wrapperSession, dt)
+    elseif Screen.maintenanceView == "oil" and Screen.oilSession then
+        return MachineMaintenance.update(Screen.oilSession, dt)
     end
     return false
 end
@@ -539,7 +1239,69 @@ function Screen.exitCenter()
     return exitButton.x + exitButton.width / 2, exitButton.y + exitButton.height / 2
 end
 
-function Screen.hasModal() return Screen.loadMenu ~= nil end
+function Screen.maintenanceCenter()
+    return maintenanceButton.x + maintenanceButton.width / 2,
+        maintenanceButton.y + maintenanceButton.height / 2
+end
+
+function Screen.wrapperMaintenanceCenter()
+    return wrapperMaintenanceButton.x + wrapperMaintenanceButton.width / 2,
+        wrapperMaintenanceButton.y + wrapperMaintenanceButton.height / 2
+end
+
+function Screen.wrapperServiceCenter()
+    return wrapperServiceButton.x + wrapperServiceButton.width / 2,
+        wrapperServiceButton.y + wrapperServiceButton.height / 2
+end
+
+function Screen.wrapperTaskTargetCenter()
+    return MachineMaintenance.wrapperTarget(Screen.wrapperSession)
+end
+
+function Screen.maintenanceTaskCenter(task)
+    local rect = task == "oil" and oilServiceButton
+        or task == "blade" and bladeServiceButton
+        or task == "technician" and technicianButton
+        or task == "weekly" and weeklyButton
+        or maintenanceBack
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.oilingTargetCenter(index)
+    local point = Screen.oilSession and Screen.oilSession.points[index]
+    return point and point.x, point and point.y
+end
+
+function Screen.lubricationLockoutCenter(action)
+    local rect = lockoutButtons[action]; return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+function Screen.lubricationPrepCenter(action)
+    local rect = prepButtons[action]; return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+function Screen.lubricationViewCenter(view)
+    for index, name in ipairs(lubricationViews) do if name == view then return 94.5 + (index - 1) * 113, 129 end end
+end
+function Screen.lubricationToolCenter(tool)
+    for index, name in ipairs(lubricationTools) do if name == tool then return 767, 195.5 + (index - 1) * 48 end end
+end
+function Screen.lubricationPointCenter(pointId)
+    local point = MachineMaintenance.lubricationPoint(Screen.oilSession, pointId)
+    return point and point.x, point and point.y
+end
+function Screen.lubricationPumpCenter() return pumpButton.x + pumpButton.width / 2, pumpButton.y + pumpButton.height / 2 end
+function Screen.lubricationFinishCenter() return finishLubricationButton.x + finishLubricationButton.width / 2,
+    finishLubricationButton.y + finishLubricationButton.height / 2 end
+function Screen.lubricationGearSightCenter() return 490, 340 end
+
+function Screen.bladeBoltCenter(index)
+    local position = bladeBoltPositions()[index]
+    return position[1], position[2]
+end
+
+function Screen.bladeCenter() return 480, 311 end
+function Screen.bladeSleeveCenter() return 480, 475 end
+
+function Screen.hasModal() return Screen.loadMenu ~= nil or Screen.maintenanceView ~= nil or Screen.helpOpen end
 
 function Screen.loadMenuOptions()
     return Screen.loadMenu and Screen.loadMenu.options or {}

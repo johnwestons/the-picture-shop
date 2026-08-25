@@ -2,20 +2,37 @@ local PalletJack = {}
 local Procurement = require("src.procurement")
 local PalletState = require("src.pallet_state")
 
-local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
+local directionFrames = {
+    northwest = 1, north = 2, northeast = 3, east = 4,
+    southeast = 5, south = 6, southwest = 7, west = 8,
+}
+local palletFrames = {
+    northwest = 1, north = 1,
+    northeast = 2, east = 2,
+    southeast = 4, south = 4,
+    southwest = 3, west = 3,
+}
 local dropOffsets = {
     northwest = { x = -56, y = -32 },
+    north = { x = 0, y = -48 },
     northeast = { x = 56, y = -32 },
-    southwest = { x = -56, y = 32 },
+    east = { x = 56, y = 0 },
     southeast = { x = 56, y = 32 },
+    south = { x = 0, y = 48 },
+    southwest = { x = -56, y = 32 },
+    west = { x = -56, y = 0 },
 }
 
 local operatorSigns = {
     -- The operator stands beyond the handle, opposite the fork direction.
     northwest = { x = 1, y = 1 },
+    north = { x = 0, y = 1 },
     northeast = { x = -1, y = 1 },
-    southwest = { x = 1, y = -1 },
+    east = { x = -1, y = 0 },
     southeast = { x = -1, y = -1 },
+    south = { x = 0, y = -1 },
+    southwest = { x = 1, y = -1 },
+    west = { x = 1, y = 0 },
 }
 
 local function findPallet(state, palletId)
@@ -35,7 +52,8 @@ local function nearestPallet(state, x, y, radius)
     local best, bestDistance
     for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
         for _, pallet in ipairs(job.pallets or {}) do
-            if pallet.world and (pallet.location == "warehouse" or pallet.location == "cutter_output") then
+            if pallet.world and (pallet.location == "warehouse" or pallet.location == "cutter_output"
+                or pallet.location == "press_output") then
                 local dx, dy = pallet.world.x - x, pallet.world.y - y
                 local distance = dx * dx + dy * dy
                 if distance <= radius * radius and (not bestDistance or distance < bestDistance) then
@@ -84,7 +102,8 @@ end
 
 function PalletJack.frame(state, config)
     local jack = PalletJack.ensure(state, config)
-    return directionFrames[jack.direction], jack.carriedPalletId ~= nil
+    return directionFrames[jack.direction], jack.carriedPalletId ~= nil,
+        palletFrames[jack.direction]
 end
 
 function PalletJack.operatorPosition(state, config)
@@ -130,10 +149,17 @@ end
 
 local function directionFor(dx, dy, current)
     if dx == 0 and dy == 0 then return current end
-    if math.abs(dy) >= math.abs(dx) then
-        return dy < 0 and "northwest" or "southeast"
+    if dx < 0 then
+        if dy < 0 then return "northwest" end
+        if dy > 0 then return "southwest" end
+        return "west"
     end
-    return dx > 0 and "northeast" or "southwest"
+    if dx > 0 then
+        if dy < 0 then return "northeast" end
+        if dy > 0 then return "southeast" end
+        return "east"
+    end
+    return dy < 0 and "north" or "south"
 end
 
 function PalletJack.move(state, dx, dy, dt, config, canMove)
@@ -154,7 +180,7 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
         pallet.world = pallet.world or {}
         pallet.world.x, pallet.world.y = jack.x, jack.y
         pallet.world.direction = jack.direction
-        pallet.world.rotation = directionFrames[jack.direction]
+        pallet.world.rotation = palletFrames[jack.direction]
         pallet.world.fromX, pallet.world.fromY = jack.x, jack.y
         pallet.world.spawnProgress = 1
     end
@@ -177,7 +203,7 @@ function PalletJack.use(state, config, canPlace)
         for key, value in pairs(pallet.world or {}) do world[key] = value end
         world.x, world.y = dropX, dropY
         world.direction = jack.direction
-        world.rotation = directionFrames[jack.direction]
+        world.rotation = palletFrames[jack.direction]
         world.fromX, world.fromY = dropX, dropY
         world.spawnProgress = 1
         local transitioned, transitionError = PalletState.transition(state, pallet, "warehouse", { world = world })
@@ -190,7 +216,7 @@ function PalletJack.use(state, config, canPlace)
         if not transitioned then return false, transitionError end
         nearby.pallet.world = nearby.pallet.world or {}
         nearby.pallet.world.direction = jack.direction
-        nearby.pallet.world.rotation = directionFrames[jack.direction]
+        nearby.pallet.world.rotation = palletFrames[jack.direction]
         return true, "lifted", nearby.pallet
     end
     jack.operating = false
@@ -215,7 +241,8 @@ function PalletJack.snapshot(state, config)
     local jack = PalletJack.ensure(state, config)
     return {
         x = jack.x, y = jack.y, direction = jack.direction,
-        frame = directionFrames[jack.direction], operating = jack.operating,
+        frame = directionFrames[jack.direction], palletFrame = palletFrames[jack.direction],
+        operating = jack.operating,
         moving = jack.moving, carriedPalletId = jack.carriedPalletId,
     }
 end

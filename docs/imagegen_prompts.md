@@ -2,6 +2,10 @@
 
 The project-bound raster drafts were created with the built-in ImageGen tool, not the CLI/API fallback.
 
+## Cutter maintenance oil-can animation
+
+Create a transparent 2x2 pixel-art sprite atlas showing one consistent vintage steel-and-brass pump oil can across four poses: upright, tilted, dispensing one amber droplet, and returning upright. Keep identical scale and framing in every cell, with no text, people, machine background, watermark, or extra objects. The generated source is normalized to a 512x512 atlas by `tools/build_cutter_maintenance_assets.py`.
+
 ## Warehouse
 
 Create an original cutaway isometric warehouse interior for a LÖVE print-shop management game: a large mostly empty concrete production floor, decorated industrial walls, beams, hanging lights, electrical panels, safety markings, roll-up loading door, and a compact office with desk and computer. Use crisp hand-authored 32-bit-era pixel art, hard edges, a warm industrial palette, a fixed orthographic isometric camera, and no characters, machines, boxes, UI, text, logos, or watermark. Move the office to the lower-left foreground while preserving the warehouse composition. The user selected the resulting `warehouse-selected.png` version.
@@ -51,6 +55,24 @@ Closed-door edit, built-in ImageGen precise-object-edit prompt: Close only the r
 
 The approved open and closed sources are preserved as `output/truck-open-source.png` and `output/truck-closed-source.png`. The deterministic builder installs the transparent open base and isolates/interpolates only the rear-door region into the aligned animation strip.
 
+## Machine-delivery flatbed
+
+Loaded flatbed, built-in ImageGen precise-object-edit prompt: Use the existing box truck as the exact camera,
+cab, wheel, lighting, pixel-art style, full-truck framing, ground-contact, and canvas-alignment reference. Replace
+the enclosed box body with a low steel flatbed carrying one compact commercial print-shop machine protected by a
+fitted gray-blue cover on a wooden skid, secured by two orange ratchet straps. Keep the complete truck visible on
+a genuine transparent background. No box body, cargo door, paper pallets, people, text, logos, or watermark.
+
+Empty flatbed, built-in ImageGen precise-object-edit prompt: Remove only the covered machine, wooden shipping skid,
+orange straps, hooks, and tiedowns from the approved loaded flatbed. Reconstruct the empty wood deck in the same
+perspective and preserve the exact cab, chassis, wheels, rails, rear bumper, camera, lighting, framing, and canvas
+alignment. Use genuine transparent alpha with no floor, shadow, cargo box, text, logos, or people.
+
+The generator returned a baked checkerboard despite one explicit transparency-correction edit, so the approved
+loaded and empty RGB sources are preserved as `output/machine-delivery-flatbed-loaded-source.png` and
+`output/machine-delivery-flatbed-empty-source.png`. The deterministic flatbed builder removes only the connected
+neutral matte and normalizes both sources together into the runtime pair.
+
 ## Cutter operator console
 
 Built-in ImageGen style-transfer prompt: Use the supplied cutter-layout image only as a structural reference. Create an original, brand-neutral industrial guillotine paper cutter as crisp detailed 32-bit-era pixel art, viewed straight from the operator side. Include the stainless cutting bed, centered paper opening, side guards, upper housing, touchscreen bezel with blank interface fields, two black dual-hand cut buttons, red emergency stop, and foot clamp pedal. Keep the bed empty and make the blade edge and clamp bar visually distinct for later animated overlays. Center one complete machine with genuine transparent margin; no room, paper, pallets, readable generated text, logos, brand names, or watermark.
@@ -59,7 +81,7 @@ Built-in ImageGen background-extraction prompt: Remove only the black/gray backd
 
 The selected transparent source is preserved as `output/polar-cutter-console-source.png` and installed by the deterministic cutter asset builder.
 
-## Four-direction movable cutter
+## Eight-direction movable cutter
 
 Built-in ImageGen style-transfer prompt: Using the existing Polar-style cutter sheet as the exact subject and style reference, create exactly four isolated full-machine isometric views in a 2×2 grid ordered northwest, northeast, southwest, southeast. Preserve the same white/dark-gray guillotine cutter, stainless bed, touchscreen, emergency stop, clamp opening, cabinets, scale, baseline, lighting, and crisp 32-bit-era pixel art. Rotate the whole machine and its controls correctly. Use genuine transparent alpha; no paper, operator, pallet jack, floor, external shadow, labels, text, logos, watermark, checkerboard, grid, crop, extra parts, or front-on orthographic view.
 
@@ -69,9 +91,17 @@ Built-in ImageGen background-extraction prompt: Remove only the checkerboard/bac
 
 The final source is preserved as `output/polar-cutter-four-directions-final-source.png`; `tools/build_cutter_direction_assets.py` installs the runtime strip and writes `output/polar-cutter-directions-preview.png`.
 
-## Four-direction pallet jack
+Built-in ImageGen intermediate-rotation prompt: Using the approved four-corner cutter source as the exact machine and style reference, create the four missing yaw rotations in a 2×2 sheet: direct operator/front, right side, direct rear/back, and left side. Preserve the same elevated camera pitch, white/dark-gray housing, stainless bed, controls, cabinets, proportions, line work, materials, and lighting. Use transparent alpha, equal scale, and shared baselines; include no floor, shadow, paper, people, labels, logo, watermark, grid, or crop.
+
+The generated intermediate source is preserved as `output/polar-cutter-intermediate-directions-source.png`. The deterministic builder cleans its exported checkerboard and interleaves it with the original corner frames to produce northwest, north, northeast, east, southeast, south, southwest, west.
+
+## Eight-direction pallet jack
 
 Built-in ImageGen stylized-concept prompt: Create one consistent manual hydraulic pallet jack in industrial safety yellow with dark steel forks, black load wheels, and an upright articulated handle. Arrange exactly four isolated isometric pixel-art views in a 2×2 grid: northwest, northeast, southwest, southeast. Keep identical scale, baseline, proportions, and lighting, with forks clearly pointing in each direction. Use genuine transparent alpha and no pallet, paper, operator, floor, labels, text, logos, watermark, checkerboard, or extra components.
+
+Built-in ImageGen intermediate-rotation prompt: Using the approved four-corner pallet-jack source as the exact subject and style reference, create the four missing empty-jack yaw rotations in a 2×2 sheet. Order them with forks pointing straight up, right, down, and left on the image canvas. Preserve the same yellow hydraulic body, dark forks, wheels, upright handle, elevated camera pitch, pixel-art treatment, proportions, lighting, scale, and baselines. Use transparent alpha; include no pallet, cargo, operator, floor, shadow, labels, logo, watermark, grid, crop, or extra parts.
+
+The intermediate source is preserved as `output/pallet-jack-intermediate-directions-source.png`. The runtime builder interleaves it with the original corner frames without regenerating the pallet artwork.
 
 Built-in ImageGen background-extraction prompt: Remove only the black backdrop, yellow glow, and haze; preserve the exact four jacks, positions, directions, hard edges, handles, forks, wheels, paint, and dimensions with genuine transparent alpha.
 
@@ -82,3 +112,41 @@ Built-in ImageGen style-transfer prompt: Using the pallet-jack direction sheet a
 Built-in ImageGen background-extraction prompt: Remove only the checkerboard and replace it with genuine alpha. Preserve all four loaded pallets, their touching paper stacks, directions, dimensions, scale, baseline, colors, and hard edges without moving or repainting anything.
 
 The approved sources are preserved as `output/pallet-jack-directions-source.png` and `output/loaded-pallet-directions-source.png`.
+
+## Three-frame wall vent fan
+
+Built-in ImageGen stylized-concept prompt: Create one production-ready transparent PNG sprite sheet for a
+2D pixel-art management game: exactly three equal square cells in one horizontal row. Each cell contains the
+same compact dark-charcoal wall-mounted industrial exhaust fan with a square metal housing, circular grille,
+four broad blades, restrained steel highlights, and slight isometric top/right emphasis matching the supplied
+brick loading-bay reference. Change only blade rotation between frames (0, 30, and 60 degrees); keep housing,
+position, lighting, scale, and silhouette fixed. Use crisp hand-pixelled edges, genuine alpha, and no wall,
+background, checkerboard, floor, shadow, text, labels, overlap, or duplicate sprites.
+
+ImageGen mode: stylized-concept with the approved warehouse crop as a style/location reference. The selected
+source is preserved in the Codex generated-image store; `tools/build_wall_vent_fan_asset.py` normalizes its
+three equal cells into `assets/generated/wall-vent-fan-strip.png` (288x96).
+
+## Mouse and lizard field technicians
+
+Built-in ImageGen stylized-concept prompt: Use case: stylized-concept. Asset type: game-ready NPC walk sprite
+atlas for The Picture Shop, matching the provided Mouse Frontier-inspired anthropomorphic pixel-art character
+references. Primary request: create two distinct industrial print-machine service technicians: a friendly gray
+field mouse technician and a friendly green anole/lizard technician. Input images are style, proportions, pixel
+density, camera angle, and clothing-detail references only; do not copy their identities or outfits. Use crisp
+hand-crafted anthropomorphic pixel art in the same polished isometric management-game proportions. Make an exact
+transparent 4-column by 2-row atlas: mouse in the top row and lizard in the bottom row, each with four aligned
+walking/directional phases, equal cells, scale, baseline and camera elevation. The mouse wears navy work trousers,
+brown safety shoes, light blue service shirt, orange high-visibility utility vest, tool belt and diagnostic case.
+The lizard wears charcoal trousers, black safety shoes, tan service shirt, teal work jacket, tool belt and oil/tool
+case. Require genuine transparent alpha and cell gaps, one complete character per cell, and no text, logos,
+watermark, floor, scenery, machines, extra people, cropped parts, checkerboard or baked background.
+
+Built-in ImageGen background-extraction prompt: Use case: background-extraction. Asset type: game-ready technician
+NPC sprite atlas. Remove only the light checkerboard background and replace it with genuinely transparent alpha,
+including all gaps between the eight sprite cells. Keep both technician designs, all eight poses, pixel edges,
+colors, clothing, tools, exact 4-column by 2-row layout, scale, alignment and framing unchanged. Preserve every
+whisker, tail, shoe, case and tool; add no new content, text, watermark or checkerboard pixels.
+
+The corrected source is preserved as `output/technician-npcs-source-v1.png`; the deterministic builder writes
+`assets/generated/technician-npcs-atlas-v1.png` (2048x1024).

@@ -10,6 +10,10 @@ function Test.run(context, check)
         and fresh.state.inventory.plasticWrapUses == 11
         and fresh.state.inventory.stock.shipping_cartons == 20
         and next(fresh.state.cutterMemory) == nil
+        and #fresh.state.machines.items == 2
+        and #fresh.state.machines.deliveries == 0
+        and fresh.state.machines.nextDeliveryId == 1
+        and fresh.state.machines.items[1].id == "MCH-0001"
         and fresh.state.wrapper.direction == context.config.wrapperPlacement.defaultDirection)
 
     fresh.state.money = 432

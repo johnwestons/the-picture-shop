@@ -53,7 +53,10 @@ local function actionHeight(character, action)
 end
 
 function CharacterAssets.getNormalization(character, action)
-    local reference = actionHeight(character, "idle")
+    -- Normalize every visitor action to the rabbit player's 256px source-cell
+    -- height. Per-character idle normalization made the newer business sprites
+    -- roughly twice the player's world height and greatly enlarged tiny sit art.
+    local reference = Config.characterRendering.referenceHeight
     local height = actionHeight(character, action)
     if reference <= 0 or height <= 0 then return 1 end
     return reference / height

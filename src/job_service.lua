@@ -2,8 +2,16 @@
 local Jobs = require("src.jobs")
 local PalletState = require("src.pallet_state")
 local Config = require("src.config")
+local BusinessCalendar = require("src.business_calendar")
+local MachineFleet = require("src.machine_fleet")
 
 local JobService = {}
+
+local DELIVERY_SERVICES = {
+    express = { id = "express", label = "EXPRESS / URGENT", description = "Arrives within hours" },
+    quick = { id = "quick", label = "QUICK", description = "Arrives the next day" },
+    standard = { id = "standard", label = "STANDARD", description = "Arrives in 2-3 days" },
+}
 
 local templates = {
     {
@@ -13,7 +21,6 @@ local templates = {
         finishedSize = { width = 12.5, height = 9.5 },
         sheetCounts = { 1000, 750 },
         packaging = "boxed",
-        artworkKey = "flower",
         details = {
             stockDescription = "80 lb customer-supplied cover stock",
             dueDate = "Standard 5-business-day turnaround",
@@ -28,7 +35,6 @@ local templates = {
         finishedSize = { width = 11.5, height = 8.75 },
         sheetCounts = { 1500 },
         packaging = "flat",
-        artworkKey = "cat",
         details = {
             stockDescription = "100 lb gloss text",
             dueDate = "Standard 5-business-day turnaround",
@@ -43,13 +49,39 @@ local templates = {
         finishedSize = { width = 20, height = 12.5 },
         sheetCounts = { 3000, 3000, 2000 },
         packaging = "flat",
-        artworkKey = "landscape",
         details = {
             stockDescription = "Uncoated offset sheets",
             dueDate = "Standard 7-business-day turnaround",
             grainDirection = "Grain short",
             notes = "Count and label every finished pallet separately.",
         },
+    },
+}
+
+local pressTemplates = {
+    {
+        difficulty = "easy",
+        company = "Foundry Coffee Roasters",
+        sourceSize = { width = 10, height = 15 },
+        finishedSize = { width = 5, height = 7 },
+        sheetCounts = { 1000 },
+        packaging = "flat",
+        press = { colors = 1, coverage = 0.32, artworkSize = { width = 4.25, height = 6.25 },
+            colorSequence = { "Black" } },
+        details = { stockDescription = "80 lb uncoated cover", dueDate = "Five business days",
+            grainDirection = "Grain long", notes = "Cut first, then print one black color and protect the face." },
+    },
+    {
+        difficulty = "hard",
+        company = "Lantern House Events",
+        sourceSize = { width = 10, height = 15 },
+        finishedSize = { width = 7, height = 10 },
+        sheetCounts = { 1500 },
+        packaging = "boxed",
+        press = { colors = 2, coverage = 0.48, artworkSize = { width = 6.25, height = 9 },
+            colorSequence = { "Warm Red", "Black" } },
+        details = { stockDescription = "100 lb gloss cover", dueDate = "Seven business days",
+            grainDirection = "Grain long", notes = "Two tight-register colors; allow the first pass to dry." },
     },
 }
 
@@ -65,15 +97,316 @@ local function nextSequence(state)
     return math.max(1, sequence)
 end
 
+-- Keep the choice stable for a given job number so it survives save/load,
+-- while still distributing the full artwork library unpredictably.
+local function artworkSeed(state)
+    state.jobs = type(state.jobs) == "table" and state.jobs or {}
+    if type(state.jobs.artworkSeed) ~= "number" then
+        local timerPart = love and love.timer and math.floor(love.timer.getTime() * 100000) or 0
+        state.jobs.artworkSeed = (os.time() * 1009 + timerPart) % 2147483647
+    end
+    return state.jobs.artworkSeed
+end
+
+local function artworkForSequence(state, sequence)
+    local artwork = Config.artworkOrder or {}
+    if #artwork == 0 then return "flower" end
+    local hash = (sequence * 1103515245 + artworkSeed(state) * 1664525 + 12345) % 2147483648
+    return artwork[(hash % #artwork) + 1]
+end
+
+local function stableDeliveryHash(job, sequence)
+    if type(sequence) == "number" then return math.max(1, math.floor(sequence)) end
+    local hash = 0
+    for index = 1, #(job and job.id or "job") do
+        hash = (hash * 31 + string.byte(job.id, index)) % 2147483647
+    end
+    return hash
+end
+
+local function deliveryService(job, sequence)
+    local hash = stableDeliveryHash(job, sequence)
+    local order = { "express", "quick", "standard" }
+    local id = order[(hash - 1) % #order + 1]
+    local service = copy(DELIVERY_SERVICES[id])
+    if id == "express" then
+        service.delayHours = 2 + (hash * 3) % 5 -- deterministic 2-6 hour window
+    elseif id == "quick" then
+        service.delayHours = 24
+    else
+        service.delayHours = (2 + hash % 2) * 24
+    end
+    return service
+end
+
+function JobService.deliveryServiceFor(job, sequence)
+    return deliveryService(job, sequence)
+end
+
+local function ensureEmails(state)
+    state.clientEmails = type(state.clientEmails) == "table" and state.clientEmails or {}
+    local emails = state.clientEmails
+    emails.nextEmailId = math.max(1, math.floor(tonumber(emails.nextEmailId) or 1))
+    emails.pending = type(emails.pending) == "table" and emails.pending or {}
+    emails.inbox = type(emails.inbox) == "table" and emails.inbox or {}
+    emails.archive = type(emails.archive) == "table" and emails.archive or {}
+    emails.sentPromotions = type(emails.sentPromotions) == "table" and emails.sentPromotions or {}
+    emails.nextPromotionId = math.max(1, math.floor(tonumber(emails.nextPromotionId) or 1))
+    return emails
+end
+
+local function repeatArtwork(state, sequence)
+    local artwork = Config.artworkOrder or {}
+    if #artwork == 0 then return "flower" end
+    local hash = (artworkSeed(state) + sequence * 2654435761) % 2147483647
+    return artwork[hash % #artwork + 1]
+end
+
+local function repeatOffer(state, completedJob, emailNumber)
+    local palletCount = 1 + emailNumber % 3
+    local sheetCounts = {}
+    for index = 1, palletCount do sheetCounts[index] = 500 * (1 + (emailNumber + index) % 6) end
+    local source = copy(completedJob.sourceSize)
+    local finished = copy(completedJob.finishedSize)
+    if emailNumber % 2 == 0 and source.width ~= source.height then
+        source.width, source.height = source.height, source.width
+        finished.width, finished.height = finished.height, finished.width
+    end
+    local spec = {
+        id = string.format("EMAIL-JOB-%04d", emailNumber),
+        company = completedJob.company,
+        sourceSize = source,
+        finishedSize = finished,
+        sheetCounts = sheetCounts,
+        packaging = emailNumber % 2 == 0 and "boxed" or "flat",
+        difficulty = ({ "easy", "medium", "hard" })[(emailNumber - 1) % 3 + 1],
+        artworkKey = repeatArtwork(state, emailNumber),
+        requestChannel = "email",
+        deliveryService = deliveryService(completedJob, emailNumber),
+        details = {
+            stockDescription = "Repeat-client supplied stock",
+            dueDate = emailNumber % 3 == 0 and "Priority repeat order" or "Standard repeat-order turnaround",
+            grainDirection = "Follow the new pallet labels",
+            notes = "Returning customer. Treat this as a new order and keep it separate from prior work.",
+        },
+    }
+    if completedJob.press then
+        spec.press = {
+            colors = completedJob.press.colors,
+            coverage = completedJob.press.coverage,
+            artworkSize = copy(completedJob.press.artworkSize),
+            colorSequence = copy(completedJob.press.colorSequence),
+        }
+    end
+    return Jobs.createOffer(spec)
+end
+
+function JobService.scheduleRepeatEmail(state, completedJob)
+    if type(completedJob) ~= "table" or completedJob.status ~= "completed" then return false end
+    local emails = ensureEmails(state)
+    local number = emails.nextEmailId
+    local offer = repeatOffer(state, completedJob, number)
+    if not offer then return false end
+    local followupHours = (1 + number % 3) * 24
+    emails.nextEmailId = number + 1
+    emails.pending[#emails.pending + 1] = {
+        id = string.format("EMAIL-%04d", number),
+        sender = completedJob.company,
+        subject = completedJob.press and "Request for another print job" or "Request for another cutting job",
+        body = completedJob.press
+            and "We were happy with the last order and would like a quote for another cut-and-print job."
+            or "We were happy with the last order and would like a quote for another paper-cutting job.",
+        sourceJobId = completedJob.id,
+        readyAtHours = BusinessCalendar.absoluteHours(state) + followupHours,
+        job = offer,
+    }
+    return true
+end
+
+function JobService.updateClientEmails(state)
+    local emails = ensureEmails(state)
+    local now = BusinessCalendar.absoluteHours(state)
+    local delivered = false
+    for index = #emails.pending, 1, -1 do
+        if now + 0.000001 >= emails.pending[index].readyAtHours then
+            local email = table.remove(emails.pending, index)
+            email.receivedAtHours = now
+            emails.inbox[#emails.inbox + 1] = email
+            delivered = true
+        end
+    end
+    if delivered then state.message = "A returning client sent a new job request. Check Email on the office computer." end
+    return delivered
+end
+
+function JobService.emailInbox(state)
+    local result = {}
+    for _, notice in ipairs(MachineFleet.serviceInbox(state)) do result[#result + 1] = notice end
+    for _, email in ipairs(ensureEmails(state).inbox) do result[#result + 1] = email end
+    return result
+end
+
+local function emailById(state, emailId)
+    for index, email in ipairs(ensureEmails(state).inbox) do
+        if email.id == emailId then return email, index end
+    end
+end
+
+function JobService.respondToEmail(state, emailId, response, timestamp)
+    local email, index = emailById(state, emailId)
+    if not email then return false, "email request was not found" end
+    local succeeded, result
+    if response == "accepted" then
+        succeeded, result = JobService.acceptOffer(state, email.job, timestamp)
+    elseif response == "declined" then
+        succeeded, result = JobService.declineOffer(state, email.job, timestamp)
+    else
+        return false, "email response must be accepted or declined"
+    end
+    if not succeeded then return false, result end
+    table.remove(state.clientEmails.inbox, index)
+    state.clientEmails.archive[#state.clientEmails.archive + 1] = {
+        id = email.id, sender = email.sender, subject = email.subject,
+        jobId = email.job.id, response = response,
+        respondedAtHours = BusinessCalendar.absoluteHours(state),
+    }
+    return true, email.job
+end
+
+local function completedRelationship(state, company)
+    local count = 0
+    for _, job in ipairs((state.jobs and state.jobs.completed) or {}) do
+        if job.company == company then count = count + 1 end
+    end
+    return count
+end
+
+local function quoteRoll(job, amount, relationship)
+    local hash = math.floor(amount * 100 + relationship * 7919)
+    for index = 1, #(job.id or "JOB") do
+        hash = (hash * 33 + string.byte(job.id, index)) % 2147483647
+    end
+    return (hash % 10000) / 10000
+end
+
+function JobService.quoteTerms(state, job, amount)
+    if type(job) ~= "table" or type(job.quote) ~= "table" then return nil end
+    local base = math.max(1, math.floor(tonumber(job.quote.recommendedPrice)
+        or tonumber(job.quote.totalPrice) or 1))
+    amount = math.max(1, math.floor(tonumber(amount) or base))
+    local serviceId = job.deliveryService and job.deliveryService.id or "standard"
+    local urgency = serviceId == "express" and 1.40 or serviceId == "quick" and 1.25 or 1.15
+    local relationship = completedRelationship(state, job.company)
+    local ceiling = base * (urgency + math.min(0.15, relationship * 0.03))
+    local chance
+    if amount <= base then
+        chance = 1
+    elseif amount >= ceiling then
+        chance = 0.05
+    else
+        local progress = (amount - base) / math.max(1, ceiling - base)
+        chance = 0.88 - progress * 0.73
+    end
+    return {
+        amount = amount,
+        recommendedPrice = base,
+        maximumPrice = math.floor(ceiling + 0.5),
+        acceptanceChance = math.max(0.05, math.min(1, chance)),
+        urgency = serviceId,
+        relationshipJobs = relationship,
+    }
+end
+
+function JobService.submitQuote(state, job, amount, timestamp)
+    local terms = JobService.quoteTerms(state, job, amount)
+    if not terms then return false, "quote paperwork is missing" end
+    local accepted = quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
+    job.quote.recommendedPrice = terms.recommendedPrice
+    job.quote.playerPrice = terms.amount
+    job.quote.totalPrice = terms.amount
+    job.quoteProposal = {
+        amount = terms.amount,
+        recommendedPrice = terms.recommendedPrice,
+        acceptanceChance = terms.acceptanceChance,
+        maximumPrice = terms.maximumPrice,
+        relationshipJobs = terms.relationshipJobs,
+        accepted = accepted,
+    }
+    local succeeded, result
+    if accepted then succeeded, result = JobService.acceptOffer(state, job, timestamp)
+    else succeeded, result = JobService.declineOffer(state, job, timestamp) end
+    if not succeeded then return false, result end
+    return true, {
+        accepted = accepted,
+        job = job,
+        amount = terms.amount,
+        acceptanceChance = terms.acceptanceChance,
+        recommendedPrice = terms.recommendedPrice,
+    }
+end
+
+function JobService.submitEmailQuote(state, emailId, amount, timestamp)
+    local email, index = emailById(state, emailId)
+    if not email then return false, "email request was not found" end
+    local succeeded, result = JobService.submitQuote(state, email.job, amount, timestamp)
+    if not succeeded then return false, result end
+    table.remove(state.clientEmails.inbox, index)
+    state.clientEmails.archive[#state.clientEmails.archive + 1] = {
+        id = email.id, sender = email.sender, subject = email.subject,
+        jobId = email.job.id,
+        response = result.accepted and "quote_accepted" or "quote_rejected",
+        quotedPrice = result.amount,
+        acceptanceChance = result.acceptanceChance,
+        respondedAtHours = BusinessCalendar.absoluteHours(state),
+    }
+    return true, result
+end
+
+function JobService.sendPromotion(state, sourceJob, customMessage)
+    if type(sourceJob) ~= "table" or sourceJob.status ~= "completed" then
+        return false, "choose a completed client job first"
+    end
+    local emails = ensureEmails(state)
+    local promoNumber, emailNumber = emails.nextPromotionId, emails.nextEmailId
+    customMessage = tostring(customMessage or ""):sub(1, 240)
+    local offer = repeatOffer(state, sourceJob, emailNumber)
+    if not offer then return false, "could not prepare the promotional follow-up" end
+    local standardPrice = offer.quote.totalPrice
+    offer.quote.standardPrice = standardPrice
+    offer.quote.totalPrice = math.max(1, math.floor(standardPrice * 0.90 + 0.5))
+    offer.quote.recommendedPrice = offer.quote.totalPrice
+    offer.promotionDiscount = 0.10
+    emails.nextPromotionId = promoNumber + 1
+    emails.nextEmailId = emailNumber + 1
+    local promoId = string.format("PROMO-%04d", promoNumber)
+    emails.sentPromotions[#emails.sentPromotions + 1] = {
+        id = promoId, recipient = sourceJob.company, discountPercent = 10,
+        customMessage = customMessage, sentAtHours = BusinessCalendar.absoluteHours(state),
+    }
+    emails.pending[#emails.pending + 1] = {
+        id = string.format("EMAIL-%04d", emailNumber),
+        sender = sourceJob.company,
+        subject = "Reply to your 10% returning-client offer",
+        body = "Thank you for the 10% offer. Please quote this new paper-cutting job for us.",
+        sourceJobId = sourceJob.id,
+        promotionId = promoId,
+        readyAtHours = BusinessCalendar.absoluteHours(state) + 12,
+        job = offer,
+    }
+    return true, emails.sentPromotions[#emails.sentPromotions]
+end
+
 function JobService.createNextOffer(state, timestamp)
     if type(state) ~= "table" then return nil, { "shop state is required" } end
     local sequence = nextSequence(state)
-    local template = copy(templates[(sequence - 1) % #templates + 1])
+    local pressEnabled = MachineFleet.isInstalled(state, "heidelberg_10x15") and sequence % 4 == 0
+    local sourceTemplates = pressEnabled and pressTemplates or templates
+    local template = copy(sourceTemplates[(sequence - 1) % #sourceTemplates + 1])
     template.id = Jobs.formatId(sequence)
     template.sequence = sequence
     template.createdAt = timestamp
-    local artwork = Config.artworkOrder or {}
-    if #artwork > 0 then template.artworkKey = artwork[(sequence - 1) % #artwork + 1] end
+    template.artworkKey = artworkForSequence(state, sequence)
+    template.deliveryService = deliveryService(template, sequence)
     return Jobs.createOffer(template)
 end
 
@@ -88,11 +421,40 @@ function JobService.acceptOffer(state, job, timestamp)
     if type(state) ~= "table" or type(job) ~= "table" then return false, "state and job are required" end
     local accepted, errorMessage = Jobs.accept(job, timestamp)
     if not accepted then return false, errorMessage end
+    job.deliveryService = job.deliveryService or deliveryService(job, job.sequence)
+    local acceptedGameHours = BusinessCalendar.absoluteHours(state)
+    job.delivery = {
+        status = "pending_arrival",
+        service = copy(job.deliveryService),
+        acceptedGameHours = acceptedGameHours,
+        readyAtHours = acceptedGameHours + job.deliveryService.delayHours,
+    }
     prepareCollections(state)
     state.jobs.active[#state.jobs.active + 1] = job
     state.accountsReceivable = math.max(0, state.accountsReceivable or 0) + job.quote.totalPrice
-    state.nextJobId = nextSequence(state) + 1
+    if job.requestChannel ~= "email" then state.nextJobId = nextSequence(state) + 1 end
     return true, job
+end
+
+function JobService.deliveryReady(state, job)
+    if type(job) ~= "table" or type(job.delivery) ~= "table" then return true end
+    if type(job.delivery.readyAtHours) ~= "number" then return true end
+    return BusinessCalendar.absoluteHours(state) + 0.000001 >= job.delivery.readyAtHours
+end
+
+function JobService.deliverySummary(job, state)
+    local service = job and (job.deliveryService or (job.delivery and job.delivery.service))
+    if not service then return "Delivery timing not assigned" end
+    if state and job.delivery and not JobService.deliveryReady(state, job) then
+        local remaining = math.max(0, job.delivery.readyAtHours - BusinessCalendar.absoluteHours(state))
+        if remaining < 24 then
+            return string.format("%s — about %d hour%s", service.label,
+                math.max(1, math.ceil(remaining)), remaining > 1 and "s" or "")
+        end
+        return string.format("%s — about %d day%s", service.label,
+            math.ceil(remaining / 24), remaining > 24 and "s" or "")
+    end
+    return service.label .. " — " .. service.description
 end
 
 function JobService.declineOffer(state, job, timestamp)
@@ -101,7 +463,7 @@ function JobService.declineOffer(state, job, timestamp)
     if not declined then return false, errorMessage end
     prepareCollections(state)
     state.jobs.declined[#state.jobs.declined + 1] = job
-    state.nextJobId = nextSequence(state) + 1
+    if job.requestChannel ~= "email" then state.nextJobId = nextSequence(state) + 1 end
     return true, job
 end
 
@@ -122,6 +484,9 @@ function JobService.completionReady(job)
         if (pallet.remainingSheets or 0) > 0 or pallet.status ~= "wrapped" or not pallet.wrapped then
             return false
         end
+        if job.press and (type(pallet.press) ~= "table" or pallet.press.status ~= "complete") then
+            return false
+        end
     end
     return true
 end
@@ -138,6 +503,7 @@ function JobService.requestPickup(state, job, timestamp)
         status = "awaiting_schedule",
         requestedAt = timestamp,
     }
+    job.pickupRequestedAtHours = BusinessCalendar.absoluteHours(state)
     return true, job
 end
 
@@ -205,7 +571,8 @@ function JobService.loadForPickup(state, jobId, palletId, timestamp)
         if pallet.id == palletId then
             if pallet.location == "outbound_truck" then return false, "that pallet is already on the truck" end
             if pallet.status ~= "wrapped" or not pallet.wrapped then return false, "that pallet is not wrapped" end
-            if pallet.location ~= "warehouse" and pallet.location ~= "cutter_output" then
+            if pallet.location ~= "warehouse" and pallet.location ~= "cutter_output"
+                and pallet.location ~= "press_output" then
                 return false, "lower the wrapped pallet onto the warehouse floor before loading"
             end
             local transitioned, transitionError = PalletState.transition(
@@ -237,6 +604,7 @@ function JobService.completePickup(state, jobId, timestamp)
     local payment = job.quote.totalPrice
     job.status = "completed"
     job.completedAt = timestamp
+    job.completedAtHours = BusinessCalendar.absoluteHours(state)
     job.paidAt = timestamp
     job.paymentAmount = payment
     job.pickup.status = "completed"
@@ -245,6 +613,7 @@ function JobService.completePickup(state, jobId, timestamp)
     state.jobs.completed[#state.jobs.completed + 1] = job
     state.accountsReceivable = math.max(0, (state.accountsReceivable or 0) - payment)
     state.money = math.max(0, state.money or 0) + payment
+    JobService.scheduleRepeatEmail(state, job)
     return true, job, payment
 end
 

@@ -140,13 +140,18 @@ function Assets.load()
     local walkmask = loadData("walkmask", Config.paths.walkmask)
     local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
+    local windmillDirections = loadImage("windmillDirections", Config.paths.windmillDirections, false)
+    local technicianNpcs = loadImage("technicianNpcs", Config.paths.technicianNpcs, false)
     local rabbit = loadImage("rabbit", Config.paths.rabbit, false)
     local loadingBayDoor = loadImage("loadingBayDoor", Config.paths.loadingBayDoor, false)
     local deliveryTruck = loadImage("deliveryTruck", Config.paths.deliveryTruck, false)
     local truckCargoDoor = loadImage("truckCargoDoor", Config.paths.truckCargoDoor, false)
+    local machineFlatbedLoaded = loadImage("machineFlatbedLoaded", Config.paths.machineFlatbedLoaded, false)
+    local machineFlatbedEmpty = loadImage("machineFlatbedEmpty", Config.paths.machineFlatbedEmpty, false)
     local loadedPaperPalletDirections = loadImage("loadedPaperPalletDirections", Config.paths.loadedPaperPalletDirections, false)
     local palletJack = loadImage("palletJack", Config.paths.palletJack, false)
     local palletJackLoaded = loadImage("palletJackLoaded", Config.paths.palletJackLoaded, false)
+    local wallVentFan = loadImage("wallVentFan", Config.paths.wallVentFan, false)
     local vendorProductPallets = loadImage("vendorProductPallets", Config.paths.vendorProductPallets, false)
     local boxedPaperPalletStages = loadImage("boxedPaperPalletStages", Config.paths.boxedPaperPalletStages, false)
     local polarBackButton = loadImage("polarBackButton", Config.paths.polarBackButton, false)
@@ -190,6 +195,28 @@ function Assets.load()
             end
         end
     end
+    if windmillDirections then
+        local width, height = windmillDirections:getDimensions()
+        local cellWidth, cellHeight = Config.windmillPlacement.frameWidth,
+            Config.windmillPlacement.frameHeight
+        if width ~= cellWidth * 2 or height ~= cellHeight * 2 then
+            recordFailure(Config.paths.windmillDirections, "Windmill atlas must be a 2x2 grid of 768x512 cells")
+        else
+            for frame = 1, 4 do
+                local column, row = (frame - 1) % 2, math.floor((frame - 1) / 2)
+                makeQuad("windmillDirection" .. frame, windmillDirections,
+                    column * cellWidth, row * cellHeight, cellWidth, cellHeight)
+            end
+        end
+    end
+    if technicianNpcs and hasExactDimensions(technicianNpcs, Config.paths.technicianNpcs, 2048, 1024) then
+        for species = 1, 2 do
+            for frame = 1, 4 do
+                makeQuad("technician" .. species .. "_" .. frame, technicianNpcs,
+                    (frame - 1) * 512, (species - 1) * 512, 512, 512)
+            end
+        end
+    end
     if loadingBayDoor then
         local width, height = loadingBayDoor:getDimensions()
         local expectedWidth = Config.loadingBay.frameWidth * Config.loadingBay.frameCount
@@ -226,6 +253,19 @@ function Assets.load()
             ))
         end
     end
+    for name, entry in pairs({
+        machineFlatbedLoaded = { image = machineFlatbedLoaded, path = Config.paths.machineFlatbedLoaded },
+        machineFlatbedEmpty = { image = machineFlatbedEmpty, path = Config.paths.machineFlatbedEmpty },
+    }) do
+        if entry.image then
+            local width, height = entry.image:getDimensions()
+            if width ~= Config.truck.frameSize or height ~= Config.truck.frameSize then
+                recordFailure(entry.path, string.format(
+                    "expected %dx%d %s sprite, got %dx%d",
+                    Config.truck.frameSize, Config.truck.frameSize, name, width, height))
+            end
+        end
+    end
     if truckCargoDoor then
         local width, height = truckCargoDoor:getDimensions()
         local expectedWidth = Config.truck.frameSize * Config.truck.cargoFrameCount
@@ -252,11 +292,12 @@ function Assets.load()
     end
     if loadedPaperPalletDirections then
         local size = Config.palletJack.frameSize
+        local frameCount = Config.palletJack.palletFrameCount
         local width, height = loadedPaperPalletDirections:getDimensions()
-        if width ~= size * Config.palletJack.frameCount or height ~= size then
+        if width ~= size * frameCount or height ~= size then
             recordFailure(Config.paths.loadedPaperPalletDirections, "loaded-pallet direction strip dimensions are invalid")
         else
-            for frame = 1, Config.palletJack.frameCount do
+            for frame = 1, frameCount do
                 makeQuad("loadedPaperPallet" .. frame, loadedPaperPalletDirections,
                     (frame - 1) * size, 0, size, size)
             end
@@ -276,6 +317,17 @@ function Assets.load()
     end
     registerJackStrip("palletJack", palletJack, Config.paths.palletJack)
     registerJackStrip("palletJackLoaded", palletJackLoaded, Config.paths.palletJackLoaded)
+    if wallVentFan then
+        local size = Config.wallVentFan.frameSize
+        local width, height = wallVentFan:getDimensions()
+        if width ~= size * Config.wallVentFan.frameCount or height ~= size then
+            recordFailure(Config.paths.wallVentFan, "wall vent fan must be a 3x1 strip of 96px cells")
+        else
+            for frame = 1, Config.wallVentFan.frameCount do
+                makeQuad("wallVentFan" .. frame, wallVentFan, (frame - 1) * size, 0, size, size)
+            end
+        end
+    end
     if vendorProductPallets then
         if hasExactDimensions(vendorProductPallets, Config.paths.vendorProductPallets, 1252, 1252) then
             local cell = 313
@@ -315,6 +367,9 @@ function Assets.load()
     validateExactPath(Config.paths.cutterBlade,
         Config.cutterGui.motionFrameWidth * Config.cutterGui.motionFrameCount,
         Config.cutterGui.motionFrameHeight)
+    validateExactPath(Config.paths.cutterMaintenanceOil, 512, 512)
+    validateExactPath(Config.paths.cutterMaintenanceTools, 768, 512)
+    validateExactPath(Config.paths.cutterMaintenanceScenes, 1024, 768)
     validateExactPath(Config.paths.polarBackButton, 384, 128)
     validateExactPath(Config.paths.wrappedPalletStages, 1536, 512)
     validateExactPath(Config.paths.loadedPaperPallet, 256, 256)
@@ -328,8 +383,9 @@ end
 
 local PACK_IMAGES = {
     menu = { "polarOperatorConsole", "cutterControlButtons" },
-    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade" },
-    wrapper = { "loadedPaperPallet" },
+    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
+        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes" },
+    wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
 }
 
 local function releaseImage(name)
@@ -349,6 +405,14 @@ local function clearPackQuads(packName)
             Assets.quads["cutterClamp" .. frame] = nil
             Assets.quads["cutterBlade" .. frame] = nil
         end
+        for frame = 1, Config.cutterGui.maintenanceSpriteCount do
+            Assets.quads["cutterMaintenanceOil" .. frame] = nil
+        end
+        for frame = 1, 6 do Assets.quads["cutterMaintenanceTool" .. frame] = nil end
+        for frame = 1, 4 do Assets.quads["cutterMaintenanceScene" .. frame] = nil end
+    end
+    if packName == "wrapper" then
+        for frame = 1, 4 do Assets.quads["wrapperMaintenance" .. frame] = nil end
     end
 end
 
@@ -373,7 +437,10 @@ local function loadCutterPack()
     if not loadMenuPack() then return false end
     local clamp = loadImage("cutterClamp", Config.paths.cutterClamp, false)
     local blade = loadImage("cutterBlade", Config.paths.cutterBlade, false)
-    if not clamp or not blade then return false end
+    local oil = loadImage("cutterMaintenanceOil", Config.paths.cutterMaintenanceOil, false)
+    local tools = loadImage("cutterMaintenanceTools", Config.paths.cutterMaintenanceTools, false)
+    local scenes = loadImage("cutterMaintenanceScenes", Config.paths.cutterMaintenanceScenes, false)
+    if not clamp or not blade or not oil or not tools or not scenes then return false end
     for frame = 1, Config.cutterGui.motionFrameCount do
         local x = (frame - 1) * Config.cutterGui.motionFrameWidth
         makeQuad("cutterClamp" .. frame, clamp, x, 0,
@@ -381,12 +448,53 @@ local function loadCutterPack()
         makeQuad("cutterBlade" .. frame, blade, x, 0,
             Config.cutterGui.motionFrameWidth, Config.cutterGui.motionFrameHeight)
     end
+    local oilSize = Config.cutterGui.maintenanceSpriteSize
+    makeQuad("cutterMaintenanceOil1", oil, 0, 0, oilSize, oilSize)
+    makeQuad("cutterMaintenanceOil2", oil, oilSize, 0, oilSize, oilSize)
+    makeQuad("cutterMaintenanceOil3", oil, 0, oilSize, oilSize, oilSize)
+    makeQuad("cutterMaintenanceOil4", oil, oilSize, oilSize, oilSize, oilSize)
+    local toolCell = Config.cutterGui.maintenanceToolCell
+    for row = 1, 2 do
+        for column = 1, 3 do
+            local frame = (row - 1) * 3 + column
+            makeQuad("cutterMaintenanceTool" .. frame, tools,
+                (column - 1) * toolCell, (row - 1) * toolCell, toolCell, toolCell)
+        end
+    end
+    local sceneWidth, sceneHeight = Config.cutterGui.maintenanceSceneWidth,
+        Config.cutterGui.maintenanceSceneHeight
+    for row = 1, 2 do
+        for column = 1, 2 do
+            local frame = (row - 1) * 2 + column
+            makeQuad("cutterMaintenanceScene" .. frame, scenes,
+                (column - 1) * sceneWidth, (row - 1) * sceneHeight,
+                sceneWidth, sceneHeight)
+        end
+    end
     return true
 end
 
 local function loadWrapperPack()
     local loadedPallet = loadImage("loadedPaperPallet", Config.paths.loadedPaperPallet, false)
-    return loadedPallet ~= nil and Assets.images.wrappedPalletStages ~= nil
+    local maintenance = loadImage("wrapperMaintenanceAtlas", Config.paths.wrapperMaintenanceAtlas, false)
+    if maintenance then
+        local width, height = maintenance:getDimensions()
+        if width % 2 ~= 0 or height % 2 ~= 0 then
+            recordFailure(Config.paths.wrapperMaintenanceAtlas, "wrapper maintenance atlas must be a 2x2 grid")
+            maintenance = nil
+        else
+            local cellWidth, cellHeight = width / 2, height / 2
+            for row = 1, 2 do
+                for column = 1, 2 do
+                    local frame = (row - 1) * 2 + column
+                    makeQuad("wrapperMaintenance" .. frame, maintenance,
+                        (column - 1) * cellWidth, (row - 1) * cellHeight,
+                        cellWidth, cellHeight)
+                end
+            end
+        end
+    end
+    return loadedPallet ~= nil and maintenance ~= nil and Assets.images.wrappedPalletStages ~= nil
 end
 
 function Assets.activatePack(packName)

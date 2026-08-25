@@ -60,15 +60,37 @@ function Test.run(context, check)
             and keyboard.offerCleared == mouse.offerCleared)
     end
 
+    local dismissState = context.State.new()
+    dismissState.screen = "vendor"
+    local dismissed, dismissSaves = nil, 0
+    local dismissContext = {
+        state = dismissState,
+        world = {
+            resolveVendor = function(_, decision)
+                dismissed = decision
+                return true
+            end,
+        },
+        vendorScreen = context.vendorScreen,
+        saveCurrent = function() dismissSaves = dismissSaves + 1 end,
+    }
+    local dismissX, dismissY = context.vendorScreen.noThanksCenter()
+    context.input.mousepressed(dismissX, dismissY, 1, dismissContext)
+    check("vendor_no_thanks_dismisses_and_saves", dismissed == "declined"
+        and dismissState.screen == "world" and dismissSaves == 1)
+
     local state = context.State.new()
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)
     local inventory = context.procurement.inventoryRows(state)
     check("domain_office_purchase_order_projection", bought and rows[1] == order
         and context.computerScreen.statusLabel(order.delivery.status) == "Awaiting truck schedule")
-    check("domain_office_inventory_projection", #inventory == 4
+    check("domain_office_inventory_projection", #inventory >= 10
         and inventory[1].id == "house_sheets"
-        and inventory[4].id == "stretch_film")
+        and inventory[4].id == "stretch_film"
+        and inventory[5].id == "maintenance_kit"
+        and inventory[6].id == "black_ink"
+        and inventory[10].id == "raw_press_plates")
 end
 
 return Test

@@ -8,6 +8,7 @@ end
 
 function BackButton.draw(assets, rect, label, pointerX, pointerY, pressed)
     local hovered = pointerX and pointerY and BackButton.contains(rect, pointerX, pointerY)
+    pressed = pressed or (hovered and love.mouse and love.mouse.isDown and love.mouse.isDown(1))
     local frame = pressed and 3 or (hovered and 2 or 1)
     local image = assets and assets.get("polarBackButton")
     local sprite = assets and assets.getQuad("polarBackButton" .. frame)

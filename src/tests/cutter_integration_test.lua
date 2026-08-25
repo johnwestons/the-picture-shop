@@ -25,18 +25,35 @@ function Test.run(context, check, jobs)
         pallet.paper.currentSize.height = pallet.paper.finishedSize.height
         pallet.completedLifts, pallet.remainingSheets, pallet.finishedSheets = 1, 2500, 500
         pallet.activeLift, pallet.lastLiftSheets, pallet.programVerified = 2, 500, true
+        pallet.awaitingPalletReturn = false
         context.machine.reset(repeatState)
         check("six_lift_program_resumes", context.machine.load(repeatState)
             and context.machine.step == "repeat_ready")
         for completed = 2, 6 do
             check("six_lift_repeat_starts_" .. completed, context.machine.repeatLift(repeatState))
-            context.machine.update(context.machine.repeatCycleTime + 0.01, repeatState)
+            context.machine.update(context.machine.transferTime + 0.01, repeatState)
+            check("six_lift_requires_manual_cuts_" .. completed,
+                context.machine.step == "loaded" and pallet.paper.status == "uncut")
+            for cutNumber = 1, #pallet.paper.cuts do
+                context.machine.selectProgram(cutNumber, repeatState)
+                context.machine.rotate(repeatState)
+                context.machine.setGauge(pallet.paper.cuts[cutNumber].gauge, repeatState)
+                context.machine.position(repeatState)
+                context.machine.update(context.machine.transferTime + 0.01, repeatState)
+                context.machine.toggleClamp(repeatState)
+                context.machine.keypressed("j", repeatState)
+                context.machine.keypressed("k", repeatState)
+                context.machine.update(0.01, repeatState)
+                context.machine.update(context.machine.cycleTime + 0.01, repeatState)
+                context.machine.keyreleased("j")
+                context.machine.keyreleased("k")
+            end
             check("six_lift_progress_" .. completed,
                 pallet.completedLifts == completed
                 and pallet.remainingSheets == 3000 - completed * 500
                 and pallet.finishedSheets == completed * 500
                 and pallet.lastLiftSheets == 500
-                and context.machine.step == (completed == 6 and "cut_complete" or "repeat_ready"))
+                and context.machine.step == "cut_complete")
             if completed == 3 then
                 check("six_lift_checkpoint_write", context.save.save(3, repeatState, { x = 400, y = 400 }))
                 local checkpoint = context.save.load(3)
@@ -51,6 +68,13 @@ function Test.run(context, check, jobs)
                     and checkpoint.state.inventory.inProcessPallets == 1
                     and checkpoint.state.inventory.finishedPallets == 0)
                 context.save.delete(3)
+            end
+            if completed < 6 then
+                check("six_lift_returns_to_pallet_" .. completed,
+                    context.machine.unload(repeatState))
+                context.machine.update(context.machine.transferTime + 0.01, repeatState)
+                check("six_lift_ready_after_return_" .. completed,
+                    context.machine.step == "repeat_ready" and not pallet.awaitingPalletReturn)
             end
         end
         context.machine.reset(repeatState)
@@ -179,18 +203,36 @@ function Test.run(context, check, jobs)
     check("cutter_manual_lift_verifies_program", trackedPaper.status == "complete"
         and trackedPaper.currentSize.width == 12.5
         and trackedPaper.currentSize.height == 9.5
-        and context.machine.step == "repeat_ready"
+        and context.machine.step == "cut_complete"
         and cutterJob.pallets[1].completedLifts == 1
         and cutterJob.pallets[1].remainingSheets == 250
         and cutterJob.pallets[1].finishedSheets == 500
         and cutterJob.pallets[1].programVerified)
     check("paper_tooltip_updates_size", context.machine.paperTooltip():find("12.50 x 9.50", 1, true) ~= nil)
-    check("cutter_blocks_early_unload_between_lifts", not context.machine.keypressed("u", cutterState)
-        and context.machine.step == "repeat_ready"
+    check("cutter_returns_each_lift_to_pallet", context.machine.keypressed("u", cutterState)
+        and context.machine.step == "lift_returning")
+    context.machine.update(context.machine.transferTime + 0.01, cutterState)
+    check("cutter_next_lift_waits_after_pallet_return", context.machine.step == "repeat_ready"
         and cutterJob.pallets[1].remainingSheets == 250)
     check("cutter_repeat_lift_starts", context.machine.keypressed("t", cutterState)
-        and context.machine.step == "repeat_producing")
-    context.machine.update(context.machine.repeatCycleTime + 0.01, cutterState)
+        and context.machine.step == "loading")
+    context.machine.update(context.machine.transferTime + 0.01, cutterState)
+    check("cutter_repeat_lift_requires_manual_cutting", context.machine.step == "loaded"
+        and trackedPaper.status == "uncut" and trackedPaper.activeCut == 1)
+    for cutNumber = 1, 4 do
+        context.machine.selectProgram(cutNumber, cutterState)
+        context.machine.rotate(cutterState)
+        context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
+        context.machine.position(cutterState)
+        context.machine.update(context.machine.transferTime + 0.01, cutterState)
+        context.machine.toggleClamp(cutterState)
+        context.machine.keypressed("j", cutterState)
+        context.machine.keypressed("k", cutterState)
+        context.machine.update(0.01, cutterState)
+        context.machine.update(context.machine.cycleTime + 0.01, cutterState)
+        context.machine.keyreleased("j")
+        context.machine.keyreleased("k")
+    end
     check("cutter_partial_final_lift_completes", context.machine.step == "cut_complete"
         and cutterJob.pallets[1].completedLifts == 2
         and cutterJob.pallets[1].remainingSheets == 0
@@ -271,7 +313,10 @@ function Test.run(context, check, jobs)
         return testState, testJob, pallet
     end
 
-    local cutterDirections = { "northwest", "northeast", "southwest", "southeast" }
+    local cutterDirections = {
+        "northwest", "north", "northeast", "east",
+        "southeast", "south", "southwest", "west",
+    }
     for _, direction in ipairs(cutterDirections) do
         local orientedState, _, orientedPallet = ownershipState("JOB-INPUT-" .. direction, 0, 0)
         orientedState.cutter.direction = direction

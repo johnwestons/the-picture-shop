@@ -1,18 +1,23 @@
 local Config = require("src.config")
 local BayDoor = require("src.bay_door")
+local BusinessCalendar = require("src.business_calendar")
 local CutterPlacement = require("src.cutter_placement")
 local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local Interaction = require("src.interaction")
 local JobService = require("src.job_service")
+local MachineFleet = require("src.machine_fleet")
 local Navigation = require("src.navigation")
 local PalletLogistics = require("src.pallet_logistics")
 local PalletJack = require("src.pallet_jack")
 local Procurement = require("src.procurement")
 local Truck = require("src.truck")
+local Technician = require("src.technician")
 local WrapperPlacement = require("src.wrapper_placement")
 local Wrapper = require("src.wrapper")
 local WorldRenderer = require("src.world_renderer")
+local Windmill = require("src.windmill")
+local WindmillPlacement = require("src.windmill_placement")
 
 local World = {
     player = {
@@ -30,22 +35,29 @@ local World = {
     selectedInteraction = nil,
 }
 
-local function movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper, excludedPalletId)
+local function movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper,
+    excludedPalletId, excludeWindmill)
     inflate = inflate or { x = 0, y = 0 }
     if type(inflate) == "number" then inflate = { x = inflate, y = inflate } end
     local obstacles = {}
-    if not excludeCutter then
+    if not excludeCutter and MachineFleet.isInstalled(state, "polar_115") then
         local cutterObstacle = CutterPlacement.obstacle(state, Config.cutterPlacement)
         if cutterObstacle then obstacles[#obstacles + 1] = cutterObstacle end
     end
-    if not excludeWrapper then
+    if not excludeWrapper and MachineFleet.isInstalled(state, "skid_wrapper") then
         local wrapperObstacle = WrapperPlacement.obstacle(state, Config.wrapperPlacement)
         if wrapperObstacle then obstacles[#obstacles + 1] = wrapperObstacle end
+    end
+    if not excludeWindmill and MachineFleet.isInstalled(state, "heidelberg_10x15") then
+        local pressObstacle = WindmillPlacement.obstacle(state, Config.windmillPlacement)
+        if pressObstacle then obstacles[#obstacles + 1] = pressObstacle end
     end
     local customerObstacle = World.customer:getObstacle()
     if customerObstacle then obstacles[#obstacles + 1] = customerObstacle end
     local vendorObstacle = World.vendor:getObstacle()
     if vendorObstacle then obstacles[#obstacles + 1] = vendorObstacle end
+    local technicianObstacle = Technician.obstacle(state)
+    if technicianObstacle then obstacles[#obstacles + 1] = technicianObstacle end
     local bayObstacle = World.bayDoor:getObstacle()
     if bayObstacle then obstacles[#obstacles + 1] = bayObstacle end
     local truckObstacle = World.truck:getObstacle()
@@ -102,9 +114,39 @@ local function interactables()
     local truckInteraction = World.truck:getInteraction()
     if truckInteraction then targets.truckCargoDoor = truckInteraction end
     if World._state then
-        targets.cutter = CutterPlacement.interaction(World.player, World._state, Config.cutterPlacement)
-        targets.skidWrapper = WrapperPlacement.interaction(World.player, World._state, Config.wrapperPlacement)
+        local jack = PalletJack.ensure(World._state, Config.palletJack)
+        local jackReady = jack.operating and not jack.carriedPalletId
+        if MachineFleet.isInstalled(World._state, "polar_115") then
+            targets.cutter = CutterPlacement.interaction(World.player, World._state,
+                Config.cutterPlacement, jackReady)
+        end
+        if MachineFleet.isInstalled(World._state, "skid_wrapper") then
+            targets.skidWrapper = WrapperPlacement.interaction(World.player, World._state,
+                Config.wrapperPlacement, jackReady)
+        end
+        if MachineFleet.isInstalled(World._state, "heidelberg_10x15") then
+            targets.windmill = WindmillPlacement.interaction(World.player, World._state,
+                Config.windmillPlacement, jackReady)
+        end
         targets.palletJack = PalletJack.interaction(World.player, World._state, Config.palletJack)
+        if jackReady then
+            local cutter = CutterPlacement.ensure(World._state, Config.cutterPlacement)
+            local wrapper = WrapperPlacement.ensure(World._state, Config.wrapperPlacement)
+            local windmill = WindmillPlacement.ensure(World._state, Config.windmillPlacement)
+            local cutterNear = (jack.x - cutter.x) ^ 2 + (jack.y - cutter.y) ^ 2
+                <= Config.cutterPlacement.interactionRadius ^ 2
+            local wrapperNear = (jack.x - wrapper.x) ^ 2 + (jack.y - wrapper.y) ^ 2
+                <= Config.wrapperPlacement.interactionRadius ^ 2
+            local windmillNear = (jack.x - windmill.x) ^ 2 + (jack.y - windmill.y) ^ 2
+                <= Config.windmillPlacement.interactionRadius ^ 2
+            if cutterNear then
+                targets.palletJack.prompt = "E: park pallet jack  |  M: RELOCATE CUTTER"
+            elseif wrapperNear then
+                targets.palletJack.prompt = "E: park pallet jack  |  M: RELOCATE WRAPPER"
+            elseif windmillNear then
+                targets.palletJack.prompt = "E: park pallet jack  |  M: RELOCATE WINDMILL"
+            end
+        end
     end
     return targets
 end
@@ -115,8 +157,8 @@ function World.load(position)
     World.player.animationClock = 0
     World.bayDoor:reset()
     World.truck:reset()
-    World.customer:reset()
-    World.vendor:reset()
+    World.customer:reset(true)
+    World.vendor:reset(true)
     World.selectedInteraction = nil
 end
 
@@ -136,6 +178,16 @@ local function scheduleTruck(state)
         state.message = "Customer pickup scheduled for " .. pickup.id .. "."
         return true
     end
+    local machineOrder = MachineFleet.nextInbound(state)
+    if machineOrder then
+        if World.truck:schedule(machineOrder.id, "machine_delivery") then
+            machineOrder.delivery.status = "scheduled"
+            machineOrder.delivery.scheduledAt = os.time()
+            state.message = "Machine flatbed delivery scheduled for " .. machineOrder.id .. "."
+            return true
+        end
+        return false
+    end
     local purchase = Procurement.nextInbound(state)
     if purchase then
         if World.truck:schedule(purchase.id, "vendor_delivery") then
@@ -148,7 +200,9 @@ local function scheduleTruck(state)
     local activeJobs = state.jobs and state.jobs.active or {}
     for _, job in ipairs(activeJobs) do
         local deliveryStatus = job.delivery and job.delivery.status
-        if job.status == "awaiting_delivery" and deliveryStatus ~= "received" then
+        if job.status == "awaiting_delivery" and deliveryStatus ~= "received"
+            and JobService.deliveryReady(state, job)
+        then
             if World.truck:schedule(job.id, "delivery") then
                 job.delivery = job.delivery or {}
                 job.delivery.status = "scheduled"
@@ -168,29 +222,43 @@ local function updateTruck(dt, state)
     if not event then return saveNeeded end
     local job = activeJobById(state, truckJobId)
     local purchase = Procurement.orderById(state, truckJobId)
+    local machineOrder = truckMode == "machine_delivery" and MachineFleet.orderById(state, truckJobId) or nil
     local pickup = truckMode == "pickup" and job or nil
     if event == "request_bay_open" then
         if World.bayDoor.state == "closed" then World.bayDoor:open() end
-        if state then state.message = pickup
-            and "Pickup truck arrived. Opening the loading bay..."
-            or "Delivery truck arrived. Opening the loading bay..." end
+        if state then
+            state.message = pickup and "Pickup truck arrived. Opening the loading bay..."
+                or (machineOrder and "Machine flatbed arrived. Opening the loading bay..."
+                    or "Delivery truck arrived. Opening the loading bay...")
+        end
     elseif event == "backing_started" then
         if pickup then
             JobService.setPickupStatus(pickup, "backing")
         elseif job and job.delivery then job.delivery.status = "backing" end
         if purchase and purchase.delivery then purchase.delivery.status = "backing" end
-        if state then state.message = pickup
-            and "The customer pickup truck is backing into the loading bay."
-            or "The delivery truck is backing into the loading bay." end
+        if machineOrder then machineOrder.delivery.status = "backing" end
+        if state then
+            state.message = pickup and "The customer pickup truck is backing into the loading bay."
+                or (machineOrder and "The machine flatbed is backing into the loading bay."
+                    or "The delivery truck is backing into the loading bay.")
+        end
         saveNeeded = true
     elseif event == "parked" then
         if pickup then
             JobService.setPickupStatus(pickup, "at_bay", "arrivedAt", os.time())
         elseif job and job.delivery then job.delivery.status = "at_bay" end
         if purchase and purchase.delivery then purchase.delivery.status = "at_bay" end
-        if state then state.message = pickup
-            and "Pickup truck parked. Open its rear cargo door and load the wrapped pallets."
-            or "Truck parked. Open its rear cargo door to unload." end
+        if machineOrder then
+            machineOrder.delivery.status = "at_bay"
+            machineOrder.delivery.arrivedAt = os.time()
+        end
+        if state then
+            state.message = pickup
+                and "Pickup truck parked. Open its rear cargo door and load the wrapped pallets."
+                or (machineOrder
+                    and "Machine flatbed parked. Open its manifest and unload the machine."
+                    or "Truck parked. Open its rear cargo door to unload.")
+        end
         saveNeeded = true
     elseif event == "cargo_opened" then
         if pickup then JobService.setPickupStatus(pickup, "cargo_open") end
@@ -235,6 +303,7 @@ function World.update(dt, directionX, directionY, assets, state)
     local jack = PalletJack.ensure(state, Config.palletJack)
     local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
     local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+    local windmill = WindmillPlacement.ensure(state, Config.windmillPlacement)
     if cutter.moving then
         CutterPlacement.move(state, directionX, directionY, dt, Config.cutterPlacement,
             function(nextX, nextY)
@@ -245,7 +314,10 @@ function World.update(dt, directionX, directionY, assets, state)
                 return Navigation.canMoveAreaFrom(assets, cutter.x, cutter.y, nextX, nextY,
                     halfWidth, halfHeight, obstacles)
             end)
-        player.x, player.y = CutterPlacement.operatorPosition(state, Config.cutterPlacement)
+        jack.x, jack.y = cutter.x, cutter.y + 8
+        jack.direction, jack.moving = cutter.direction, cutter.inMotion
+        jack.animationClock = jack.animationClock + math.max(0, dt)
+        player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
         player.moving = cutter.inMotion
         player.facing = player.x < cutter.x and 1 or -1
     elseif wrapper.moving then
@@ -259,9 +331,49 @@ function World.update(dt, directionX, directionY, assets, state)
                         y = Config.wrapperPlacement.collisionHalfHeight,
                     }, false, true))
             end)
-        player.x, player.y = WrapperPlacement.operatorPosition(state, Config.wrapperPlacement)
+        jack.x, jack.y = wrapper.x, wrapper.y + 8
+        jack.direction, jack.moving = wrapper.direction, wrapper.inMotion
+        jack.animationClock = jack.animationClock + math.max(0, dt)
+        player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
         player.moving = wrapper.inMotion
         player.facing = player.x < wrapper.x and 1 or -1
+    elseif windmill.moving then
+        WindmillPlacement.move(state, directionX, directionY, dt, Config.windmillPlacement,
+            function(nextX, nextY)
+                local halfWidth = Config.windmillPlacement.collisionHalfWidth
+                local halfHeight = Config.windmillPlacement.collisionHalfHeight
+                local obstacles = movementObstacles(state, false, {
+                    x = halfWidth, y = halfHeight,
+                }, false, false, nil, true)
+                if not Navigation.isAreaWalkable(assets, windmill.x, windmill.y, 0, 0) then
+                    -- The original spawn used an old floor mask and can sit on
+                    -- a newly blocked pixel. Permit controlled recovery motion
+                    -- until the machine center reaches the current walkable
+                    -- factory floor again.
+                    return nextX > halfWidth and nextX < Config.baseWidth - halfWidth
+                        and nextY > halfHeight and nextY < Config.baseHeight - halfHeight
+                end
+                if Navigation.canMoveAreaFrom(assets, windmill.x, windmill.y, nextX, nextY,
+                    halfWidth, halfHeight, obstacles)
+                then return true end
+                -- Older/default placements can begin partly inside the edge of
+                -- the walk mask. Let the operator move the machine's center
+                -- toward open floor until its full footprint clears the edge.
+                if not Navigation.isAreaWalkable(assets, windmill.x, windmill.y,
+                    halfWidth, halfHeight)
+                then
+                    return Navigation.canMoveFrom(assets, windmill.x, windmill.y,
+                        nextX, nextY, obstacles)
+                        and Navigation.isAreaWalkable(assets, nextX, nextY, 0, 0)
+                end
+                return false
+            end)
+        jack.x, jack.y = windmill.x, windmill.y + 8
+        jack.direction, jack.moving = windmill.direction, windmill.inMotion
+        jack.animationClock = jack.animationClock + math.max(0, dt)
+        player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
+        player.moving = windmill.inMotion
+        player.facing = player.x < windmill.x and 1 or -1
     elseif jack.operating then
         PalletJack.move(state, directionX, directionY, dt, Config.palletJack, function(nextX, nextY, loaded)
             local inflate = loaded and {
@@ -276,11 +388,14 @@ function World.update(dt, directionX, directionY, assets, state)
         end)
         player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
         player.moving = jack.moving
-        player.facing = (jack.direction == "northeast" or jack.direction == "southeast") and 1 or -1
+        player.facing = (jack.direction == "northeast" or jack.direction == "east"
+            or jack.direction == "southeast") and 1 or -1
     else
         player.moving = directionX ~= 0 or directionY ~= 0
     end
-    if player.moving and not jack.operating and not cutter.moving and not wrapper.moving then
+    if player.moving and not jack.operating and not cutter.moving and not wrapper.moving
+        and not windmill.moving
+    then
         local length = math.sqrt(directionX * directionX + directionY * directionY)
         local nextX = player.x + directionX / length * player.speed * dt
         local nextY = player.y + directionY / length * player.speed * dt
@@ -302,7 +417,11 @@ function World.update(dt, directionX, directionY, assets, state)
     end
     local saveNeeded = updateTruck(dt, state)
     PalletLogistics.update(state, dt, Config.palletLogistics.unloadDuration)
-    local customerEvent = World.customer:update(dt, player)
+    -- Only one reception visitor advances at a time. The other visitor keeps
+    -- their full cooldown while the entrance, lounge, or desk is occupied.
+    local receptionClosed = BusinessCalendar.isWeekend(state)
+    local customerEvent = World.customer:update(dt, player,
+        receptionClosed or World.vendor:isPresent())
     if customerEvent == "arrived" and state then
         state.message = "A customer is waiting at reception with a cutting job."
     elseif customerEvent == "timed_out" and state then
@@ -315,17 +434,21 @@ function World.update(dt, directionX, directionY, assets, state)
                 or "The customer left after you declined the job.")
         -- Bring the next business client into the arrival queue after this
         -- visit so the configured roster is experienced during one session.
-        World.customer:reset()
+        World.customer:reset(false)
     end
     local category = Procurement.category(state and state.vendorCategory)
     World.vendor.character = category.character
-    local vendorEvent = World.vendor:update(dt, player)
+    local vendorEvent = World.vendor:update(dt, player,
+        receptionClosed or World.customer:isPresent())
     if vendorEvent == "arrived" and state then
         state.message = category.salesman .. " is waiting at reception with the " .. category.name:lower() .. " catalog."
     elseif vendorEvent == "exited" and state then
         state.vendorCategory = state.vendorCategory % #Procurement.categories + 1
-        World.vendor:reset()
-        state.message = "The salesman left. Another supplier representative will visit soon."
+        World.vendor:reset(false)
+        state.message = "The salesman left. Another supplier representative will visit later."
+    end
+    if Technician.update(dt, state, World.customer:isPresent() or World.vendor:isPresent()) then
+        saveNeeded = true
     end
     World.selectedInteraction = Interaction.select(player, interactables())
     return saveNeeded
@@ -366,9 +489,14 @@ function World.cancelVendorReview(state)
     return true
 end
 
-function World.resolveVendor(state)
-    if not World.vendor:resolve("accepted") then return false end
-    if state then state.message = "The supplier representative is heading out." end
+function World.resolveVendor(state, decision)
+    decision = decision == "declined" and "declined" or "accepted"
+    if not World.vendor:resolve(decision) then return false end
+    if state then
+        state.message = decision == "declined"
+            and "You said no thanks. The supplier representative is heading out."
+            or "The supplier representative is heading out."
+    end
     return true
 end
 
@@ -400,6 +528,10 @@ function World.toggleBayDoor(state)
 end
 
 function World.toggleTruckCargoDoor(state)
+    if World.truck.mode == "machine_delivery" then
+        if state then state.message = "This flatbed has no cargo door. Open its delivery manifest instead." end
+        return false
+    end
     if not World.truck:toggleCargoDoor() then
         if state then state.message = "Wait for the truck cargo door to finish moving." end
         return false
@@ -413,9 +545,28 @@ function World.toggleTruckCargoDoor(state)
 end
 
 function World.openTruckInventory(state)
+    if World.truck.mode == "machine_delivery" then
+        return World.truck.state == "parked_closed"
+            and MachineFleet.orderById(state, World.truck.jobId) ~= nil
+    end
     if World.truck.state ~= "cargo_open" then return false end
     local job = activeJobById(state, World.truck.jobId)
     return job ~= nil or Procurement.orderById(state, World.truck.jobId) ~= nil
+end
+
+function World.unloadTruckMachine(state, machineId)
+    if World.truck.mode ~= "machine_delivery" or World.truck.state ~= "parked_closed" then
+        if state then state.message = "Wait for the machine flatbed to park before unloading." end
+        return false
+    end
+    local succeeded, machine, remaining = MachineFleet.unloadDelivery(
+        state, World.truck.jobId, machineId, os.time())
+    if state then
+        state.message = succeeded
+            and string.format("Unloaded %s. Unit %s is now %s.", machine.name, machine.id, machine.status)
+            or tostring(machine)
+    end
+    return succeeded, machine, remaining
 end
 
 function World.unloadTruckPallet(state, palletId)
@@ -455,6 +606,16 @@ function World.loadPickupPallet(state, palletId)
 end
 
 function World.closeTruckAfterUnload(state)
+    if World.truck.mode == "machine_delivery" then
+        if World.truck.state ~= "parked_closed" then return false end
+        if MachineFleet.remainingOnTruck(state, World.truck.jobId) > 0 then
+            if state then state.message = "Unload the machine before releasing the flatbed truck." end
+            return false
+        end
+        local departing = World.truck:depart()
+        if departing and state then state.message = "The empty machine flatbed is departing." end
+        return departing
+    end
     if World.truck.state ~= "cargo_open" then return false end
     if World.truck.mode == "pickup" then
         if JobService.remainingPickup(state, World.truck.jobId) > 0 then
@@ -513,9 +674,17 @@ local function cutterHasPaper(state)
 end
 
 function World.beginCutterMove(state)
+    if not MachineFleet.isInstalled(state, "polar_115") then return false end
     local jack = PalletJack.ensure(state, Config.palletJack)
-    if jack.operating then
-        state.message = "Park the pallet jack before relocating the cutter."
+    if not jack.operating or jack.carriedPalletId then
+        state.message = "Operate an empty pallet jack before relocating the cutter."
+        return false
+    end
+    local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
+    if (jack.x - cutter.x) ^ 2 + (jack.y - cutter.y) ^ 2
+        > Config.cutterPlacement.interactionRadius ^ 2
+    then
+        state.message = "Drive the empty pallet jack beside the cutter before relocating it."
         return false
     end
     if cutterHasPaper(state) then
@@ -523,8 +692,9 @@ function World.beginCutterMove(state)
         return false
     end
     if not CutterPlacement.beginMove(state, Config.cutterPlacement) then return false end
-    World.player.x, World.player.y = CutterPlacement.operatorPosition(state, Config.cutterPlacement)
-    state.message = "Cutter relocation mode: move slowly, Q rotates, and E locks it in place."
+    jack.x, jack.y, jack.direction = cutter.x, cutter.y + 8, cutter.direction
+    World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
+    state.message = "Cutter is on the pallet jack. Move slowly; Q rotates and E locks it in place."
     return true
 end
 
@@ -540,7 +710,10 @@ end
 
 function World.placeCutter(state)
     if not CutterPlacement.place(state, Config.cutterPlacement) then return false end
-    World.player.x, World.player.y = CutterPlacement.operatorPosition(state, Config.cutterPlacement)
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    jack.moving = false
+    jack.x, jack.y = state.cutter.x, state.cutter.y + 42
+    World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
     state.message = "Cutter locked in its new floor position."
     return true
 end
@@ -550,21 +723,40 @@ function World.cutterSnapshot(state)
 end
 
 function World.beginWrapperMove(state)
+    if not MachineFleet.isInstalled(state, "skid_wrapper") then return false end
     if not Wrapper.canRelocate(state) then return false end
-    if PalletJack.ensure(state, Config.palletJack).operating then
-        state.message = "Park the pallet jack before relocating the skid wrapper."
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if not jack.operating or jack.carriedPalletId then
+        state.message = "Operate an empty pallet jack before relocating the skid wrapper."
+        return false
+    end
+    local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+    if (jack.x - wrapper.x) ^ 2 + (jack.y - wrapper.y) ^ 2
+        > Config.wrapperPlacement.interactionRadius ^ 2
+    then
+        state.message = "Drive the empty pallet jack beside the skid wrapper before relocating it."
         return false
     end
     if not WrapperPlacement.beginMove(state, Config.wrapperPlacement) then return false end
-    World.player.x, World.player.y = WrapperPlacement.operatorPosition(state, Config.wrapperPlacement)
-    state.message = "Wrapper relocation mode: move slowly, Q rotates, and E locks it in place."
+    jack.x, jack.y, jack.direction = wrapper.x, wrapper.y + 8, wrapper.direction
+    World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
+    state.message = "Skid wrapper is on the pallet jack. Move slowly; Q rotates and E locks it in place."
     return true
 end
 
 function World.wrapperNearby(state)
+    if not MachineFleet.isInstalled(state, "skid_wrapper") then return false end
     local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local dx, dy = World.player.x - wrapper.x, World.player.y - wrapper.y
     return dx * dx + dy * dy <= Config.wrapperPlacement.interactionRadius ^ 2
+end
+
+function World.cutterNearby(state)
+    if not MachineFleet.isInstalled(state, "polar_115") then return false end
+    local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    return (jack.x - cutter.x) ^ 2 + (jack.y - cutter.y) ^ 2
+        <= Config.cutterPlacement.interactionRadius ^ 2
 end
 
 function World.rotateWrapper(state)
@@ -577,13 +769,71 @@ end
 
 function World.placeWrapper(state)
     if not WrapperPlacement.place(state, Config.wrapperPlacement) then return false end
-    World.player.x, World.player.y = WrapperPlacement.operatorPosition(state, Config.wrapperPlacement)
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    jack.moving = false
+    jack.x, jack.y = state.wrapper.x, state.wrapper.y + 46
+    World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
     state.message = "Skid wrapper locked in its new floor position."
     return true
 end
 
 function World.wrapperSnapshot(state)
     return WrapperPlacement.snapshot(state, Config.wrapperPlacement)
+end
+
+function World.beginWindmillMove(state)
+    if not MachineFleet.isInstalled(state, "heidelberg_10x15") then return false end
+    local process = Windmill.ensure(state)
+    if process.status ~= "idle" or process.palletId then
+        state.message = "Unload the press and return the Windmill to idle before relocating it."
+        return false
+    end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if not jack.operating or jack.carriedPalletId then
+        state.message = "Operate an empty pallet jack before relocating the Windmill."
+        return false
+    end
+    local item = WindmillPlacement.ensure(state, Config.windmillPlacement)
+    if (jack.x - item.x) ^ 2 + (jack.y - item.y) ^ 2
+        > Config.windmillPlacement.interactionRadius ^ 2
+    then
+        state.message = "Drive the empty pallet jack beside the Windmill before relocating it."
+        return false
+    end
+    if not WindmillPlacement.beginMove(state, Config.windmillPlacement) then return false end
+    jack.x, jack.y, jack.direction = item.x, item.y + 8, item.direction
+    World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
+    state.message = "Windmill is on the pallet jack. Move slowly; Q rotates and E locks it in place."
+    return true
+end
+
+function World.windmillNearby(state)
+    if not MachineFleet.isInstalled(state, "heidelberg_10x15") then return false end
+    local item = WindmillPlacement.ensure(state, Config.windmillPlacement)
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    return (jack.x - item.x) ^ 2 + (jack.y - item.y) ^ 2
+        <= Config.windmillPlacement.interactionRadius ^ 2
+end
+
+function World.rotateWindmill(state)
+    local succeeded, direction = WindmillPlacement.rotate(state, Config.windmillPlacement)
+    if not succeeded then return false end
+    state.message = "Windmill rotated " .. direction .. "."
+    return true
+end
+
+function World.placeWindmill(state)
+    if not WindmillPlacement.place(state, Config.windmillPlacement) then return false end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    jack.moving = false
+    jack.x, jack.y = state.windmill.x, state.windmill.y + 52
+    World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
+    state.message = "Windmill locked in its new floor position."
+    return true
+end
+
+function World.windmillSnapshot(state)
+    return WindmillPlacement.snapshot(state, Config.windmillPlacement)
 end
 
 function World.palletJackSnapshot(state)

@@ -74,7 +74,15 @@ function Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstac
             local nextInside = math.abs(nextDx) < obstacle.halfWidth and math.abs(nextDy) < obstacle.halfHeight
             local currentDepth = math.min(obstacle.halfWidth - math.abs(currentDx), obstacle.halfHeight - math.abs(currentDy))
             local nextDepth = math.min(obstacle.halfWidth - math.abs(nextDx), obstacle.halfHeight - math.abs(nextDy))
-            if nextInside and not (currentInside and nextDepth < currentDepth) then return false end
+            local movingAway = nextDx * nextDx + nextDy * nextDy
+                > currentDx * currentDx + currentDy * currentDy + 0.01
+            -- A wide rectangle can have the same minimum penetration while
+            -- the actor slides toward its nearest escape edge. Treat that as
+            -- valid escape movement so machines, jacks and players cannot be
+            -- permanently trapped by overlapping saved placements.
+            if nextInside and not (currentInside
+                and (nextDepth < currentDepth or (nextDepth <= currentDepth + 0.001 and movingAway)))
+            then return false end
         else
             local radiusSquared = obstacle.radius * obstacle.radius
             local currentDistance = currentDx * currentDx + currentDy * currentDy

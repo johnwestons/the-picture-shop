@@ -26,9 +26,11 @@ runtime asset:
 - `truck-open-source.png`
 - `truck-closed-source.png`
 - `pallet-jack-directions-source.png`
+- `pallet-jack-intermediate-directions-source.png`
 - `loaded-pallet-directions-source.png`
 - `polar-cutter-console-source.png`
 - `polar-cutter-four-directions-final-source.png`
+- `polar-cutter-intermediate-directions-source.png`
 - `warehouse-client-lounge-approved.png`
 - `warehouse-client-lounge-walkmask-approved.png`
 - everything under `output/sprite-doctor/approved/`

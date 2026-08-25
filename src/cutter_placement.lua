@@ -1,17 +1,34 @@
 local CutterPlacement = {}
 
-local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
+local directionFrames = {
+    northwest = 1,
+    north = 2,
+    northeast = 3,
+    east = 4,
+    southeast = 5,
+    south = 6,
+    southwest = 7,
+    west = 8,
+}
 local clockwise = {
-    northwest = "northeast",
-    northeast = "southeast",
-    southeast = "southwest",
-    southwest = "northwest",
+    northwest = "north",
+    north = "northeast",
+    northeast = "east",
+    east = "southeast",
+    southeast = "south",
+    south = "southwest",
+    southwest = "west",
+    west = "northwest",
 }
 local operatorSigns = {
     northwest = { x = 1, y = 1 },
+    north = { x = 0, y = 1 },
     northeast = { x = -1, y = 1 },
-    southwest = { x = 1, y = -1 },
+    east = { x = -1, y = 0 },
     southeast = { x = -1, y = -1 },
+    south = { x = 0, y = -1 },
+    southwest = { x = 1, y = -1 },
+    west = { x = 1, y = 0 },
 }
 
 function CutterPlacement.defaultState(config)
@@ -54,15 +71,16 @@ function CutterPlacement.obstacle(state, config)
         halfWidth = config.collisionHalfWidth, halfHeight = config.collisionHalfHeight }
 end
 
-function CutterPlacement.interaction(player, state, config)
+function CutterPlacement.interaction(player, state, config, palletJackOperating)
     local cutter = CutterPlacement.ensure(state, config)
     return {
         x = cutter.moving and player.x or cutter.x,
         y = cutter.moving and player.y or cutter.y,
         radius = config.interactionRadius,
         prompt = cutter.moving
-            and "WASD: move cutter  |  Q: rotate  |  E: lock in place"
-            or "E: use cutter  |  M: relocate  |  Q: rotate 90 degrees",
+            and "WASD: move cutter with pallet jack  |  Q: rotate  |  E: lock in place"
+            or (palletJackOperating and "E: use cutter  |  M: relocate with pallet jack"
+                or "E: use cutter  |  Operate pallet jack to relocate"),
         cutterState = cutter,
     }
 end

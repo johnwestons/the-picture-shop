@@ -1,19 +1,41 @@
 local Config = {
     baseWidth = 960,
     baseHeight = 678,
+    businessCalendar = {
+        secondsPerDay = 300,
+        monthlyExpenses = { rent = 1200, power = 240, water = 85, internet = 125 },
+    },
     player = {
         spawnX = 500,
         spawnY = 455,
         speed = 155,
         drawScale = 0.30,
     },
+    characterRendering = {
+        -- Rabbit frames are 256px high. Normalized visitors use the same source
+        -- height and world scale so every character reads at player size.
+        referenceHeight = 256,
+    },
+    wallVentFan = {
+        x = 118,
+        y = 149,
+        drawScale = 0.405,
+        frameSize = 96,
+        frameCount = 3,
+        framesPerSecond = 7,
+    },
     customer = {
         character = "business-dragon",
         characterPool = { "business-dragon", "business-fox", "business-cat" },
-        drawScale = 0.34,
+        drawScale = 0.30,
         speed = 72,
         walkAnimationRate = 4,
-        arrivalDelay = 1.25,
+        -- The first customer demonstrates the reception loop quickly. Later
+        -- clients arrive at varied business-day intervals instead of in a queue.
+        initialArrivalDelayMin = 2,
+        initialArrivalDelayMax = 6,
+        arrivalDelayMin = 60,
+        arrivalDelayMax = 150,
         maxWaitSeconds = 300,
         interactionRadius = 58,
         -- Main glass entrance to the client lounge.
@@ -36,11 +58,23 @@ local Config = {
         },
     },
     vendor = {
-        character = "tan-cat", drawScale = 0.34, speed = 68, walkAnimationRate = 4, arrivalDelay = 4.5, interactionRadius = 58,
+        character = "tan-cat", drawScale = 0.30, speed = 68, walkAnimationRate = 4,
+        initialArrivalDelayMin = 15, initialArrivalDelayMax = 35,
+        arrivalDelayMin = 120, arrivalDelayMax = 240,
+        interactionRadius = 58,
         route = {
             { x = 645, y = 235 }, { x = 650, y = 245 }, { x = 640, y = 270 },
             { x = 630, y = 295 }, { x = 635, y = 320 }, { x = 650, y = 340 },
             { x = 680, y = 350 }, { x = 710, y = 340 },
+        },
+    },
+    technician = {
+        speed = 78,
+        drawScale = 0.15,
+        serviceDuration = 4,
+        route = {
+            { x = 645, y = 235 }, { x = 650, y = 245 }, { x = 640, y = 270 },
+            { x = 630, y = 295 }, { x = 635, y = 320 }, { x = 650, y = 340 },
         },
     },
     loadingBay = {
@@ -59,10 +93,13 @@ local Config = {
         scheduleDelay = 1.25,
         backingDuration = 2.2,
         cargoDuration = 0.75,
-        -- The truck keeps one physical size and translates backward into the bay.
-        -- Approach on the dock centerline so the truck visibly reverses into
-        -- the door instead of crossing the loading bay sideways.
-        start = { x = 54, y = 620, scale = 0.94 },
+        -- The truck keeps one physical size and follows the rear-facing axis
+        -- painted into the isometric sprite. Its cab is on the left and its
+        -- cargo opening is on the right, so backing must travel rightward with
+        -- a slight downward pitch instead of sliding vertically across the
+        -- truck's body.
+        bodyAxis = { x = 1, y = 0.42 },
+        start = { x = -150, y = 232, scale = 0.94 },
         -- The truck sprite's rear opening sits to the right of its image origin.
         -- This anchor places that opening on the loading-bay aperture center.
         -- At the parked scale the rear cargo opening fills the dock aperture
@@ -84,6 +121,11 @@ local Config = {
         motionFrameWidth = 768,
         motionFrameHeight = 512,
         motionFrameCount = 5,
+        maintenanceSpriteSize = 256,
+        maintenanceSpriteCount = 4,
+        maintenanceToolCell = 256,
+        maintenanceSceneWidth = 512,
+        maintenanceSceneHeight = 384,
     },
     cutterPlacement = {
         spawnX = 625,
@@ -105,7 +147,7 @@ local Config = {
         operatorDistanceY = 48,
         drawScale = 0.34,
         frameSize = 512,
-        frameCount = 4,
+        frameCount = 8,
     },
     wrapperPlacement = {
         -- Factory-floor spawn, clear of the reception wall and lobby furniture.
@@ -123,6 +165,26 @@ local Config = {
         drawScale = 0.22,
         frameSize = 512,
         frameCount = 4,
+    },
+    windmillPlacement = {
+        spawnX = 855,
+        spawnY = 450,
+        defaultDirection = "northwest",
+        speed = 48,
+        interactionRadius = 104,
+        collisionHalfWidth = 72,
+        collisionHalfHeight = 24,
+        operatorDistanceX = 76,
+        operatorDistanceY = 46,
+        drawScale = 0.28,
+        frameWidth = 768,
+        frameHeight = 512,
+        frameCount = 4,
+    },
+    machineReceiving = {
+        polar_115 = { x = 385, y = 350, direction = "northwest" },
+        skid_wrapper = { x = 326, y = 338, direction = "northwest" },
+        heidelberg_10x15 = { x = 300, y = 330, direction = "northwest" },
     },
     palletLogistics = {
         -- The loose-pallet art fills its frame while the pallet inside the
@@ -156,12 +218,15 @@ local Config = {
         collisionHalfHeight = 10,
         loadedCollisionHalfWidth = 44,
         loadedCollisionHalfHeight = 14,
-        drawScale = 0.52,
-        carriedPalletArtRatio = 0.5,
+        drawScale = 0.416,
+        -- Keep carried pallet art at its established size while the jack itself
+        -- is reduced by twenty percent.
+        carriedPalletArtRatio = 0.625,
         operatorDistanceX = 42,
         operatorDistanceY = 24,
         frameSize = 256,
-        frameCount = 4,
+        frameCount = 8,
+        palletFrameCount = 4,
     },
     interactables = {
         computer = { x = 500, y = 185, radius = 62 },
@@ -181,19 +246,28 @@ local Config = {
         loadingBayDoor = "assets/generated/loading-bay-door-strip.png",
         deliveryTruck = "assets/generated/delivery-truck-open.png",
         truckCargoDoor = "assets/generated/truck-cargo-door-strip.png",
+        machineFlatbedLoaded = "assets/generated/machine-delivery-flatbed-loaded.png",
+        machineFlatbedEmpty = "assets/generated/machine-delivery-flatbed-empty.png",
         polarOperatorConsole = "assets/generated/polar-operator-console.png",
         cutterControlButtons = "assets/generated/cutter-control-buttons-strip.png",
         cutterClamp = "assets/generated/cutter-clamp-strip.png",
         cutterBlade = "assets/generated/cutter-blade-strip.png",
+        cutterMaintenanceOil = "assets/generated/cutter-maintenance-oil-atlas.png",
+        cutterMaintenanceTools = "assets/generated/cutter-maintenance-tools-atlas.png",
+        cutterMaintenanceScenes = "assets/generated/cutter-maintenance-scenes-atlas.png",
         skidWrapperDirections = "assets/generated/skid-wrapper-directions-strip.png",
+        wrapperMaintenanceAtlas = "assets/generated/skid-wrapper-maintenance-atlas.png",
         wrappedPalletStages = "assets/generated/wrapped-pallet-stages-strip.png",
         loadedPaperPallet = "assets/generated/loaded-paper-pallet.png",
         loadedPaperPalletDirections = "assets/generated/loaded-paper-pallet-directions-strip.png",
         palletJack = "assets/generated/pallet-jack-directions-strip.png",
         palletJackLoaded = "assets/generated/pallet-jack-loaded-directions-strip.png",
+        wallVentFan = "assets/generated/wall-vent-fan-strip.png",
         vendorProductPallets = "assets/generated/vendor-product-pallets-atlas.png",
         boxedPaperPalletStages = "assets/generated/boxed-paper-pallet-stages-atlas.png",
         polarBackButton = "assets/generated/polar-back-button-states-strip.png",
+        windmillDirections = "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
+        technicianNpcs = "assets/generated/technician-npcs-atlas-v1.png",
         artwork = {
             ["ad-clothing"] = "assets/generated/artwork/ad-clothing.png",
             ["ad-critter-tattoo"] = "assets/generated/artwork/ad-critter-tattoo.png",

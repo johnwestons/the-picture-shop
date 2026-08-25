@@ -1,8 +1,13 @@
 local Config = require("src.config")
 local PaperWork = require("src.paper_work")
+local BusinessCalendar = require("src.business_calendar")
+local MachineFleet = require("src.machine_fleet")
 
-local Schema = { VERSION = 4, SLOT_COUNT = 3 }
-local directions = { northwest = true, northeast = true, southwest = true, southeast = true }
+local Schema = { VERSION = 12, SLOT_COUNT = 3 }
+local directions = {
+    northwest = true, north = true, northeast = true, east = true,
+    southeast = true, south = true, southwest = true, west = true,
+}
 
 local function copy(value)
     if type(value) ~= "table" then return value end
@@ -109,14 +114,30 @@ local function quote(value)
         and positiveInteger(value.totalSheets)
         and positiveInteger(value.totalLifts)
         and nonnegative(value.totalPrice)
+        and optionalNumber(value.recommendedPrice)
+        and optionalNumber(value.playerPrice)
+        and optionalNumber(value.standardPrice)
         and array(value.pallets, quotePallet)
         and #value.pallets == value.palletCount
+end
+
+local function deliveryService(value)
+    return value == nil or (type(value) == "table"
+        and text(value.id)
+        and text(value.label)
+        and text(value.description)
+        and nonnegative(value.delayHours))
 end
 
 local function delivery(value)
     return value == nil or (type(value) == "table"
         and text(value.status)
-        and optionalNumber(value.receivedAt))
+        and optionalNumber(value.receivedAt)
+        and optionalNumber(value.acceptedGameHours)
+        and optionalNumber(value.readyAtHours)
+        and optionalNumber(value.expectedAtHours)
+        and optionalNumber(value.receivedAtHours)
+        and deliveryService(value.service))
 end
 
 local function pickup(value)
@@ -142,6 +163,7 @@ local function customerPallet(value)
         and (value.activeLift == nil or positiveInteger(value.activeLift))
         and (value.lastLiftSheets == nil or nonnegative(value.lastLiftSheets))
         and (value.programVerified == nil or type(value.programVerified) == "boolean")
+        and (value.awaitingPalletReturn == nil or type(value.awaitingPalletReturn) == "boolean")
         and text(value.status)
         and text(value.location)
         and (value.packaging == "flat" or value.packaging == "boxed")
@@ -159,6 +181,8 @@ local function job(value)
         and dimensions(value.sourceSize)
         and dimensions(value.finishedSize)
         and (value.artworkKey == nil or text(value.artworkKey))
+        and deliveryService(value.deliveryService)
+        and (value.requestChannel == nil or value.requestChannel == "reception" or value.requestChannel == "email")
         and type(value.details) == "table"
         and text(value.difficulty)
         and (value.packaging == "flat" or value.packaging == "boxed")
@@ -169,10 +193,41 @@ local function job(value)
         and optionalNumber(value.completedAt)
         and optionalNumber(value.paidAt)
         and optionalNumber(value.paymentAmount)
+        and optionalNumber(value.pickupRequestedAtHours)
+        and optionalNumber(value.completedAtHours)
         and quote(value.quote)
         and array(value.pallets, customerPallet)
         and delivery(value.delivery)
         and pickup(value.pickup)
+end
+
+local function clientEmails(value)
+    if type(value) ~= "table" or not positiveInteger(value.nextEmailId)
+        or not positiveInteger(value.nextPromotionId)
+        or type(value.pending) ~= "table" or type(value.inbox) ~= "table" or type(value.archive) ~= "table"
+        or type(value.sentPromotions) ~= "table"
+    then return false end
+    local function email(item, received)
+        return type(item) == "table" and text(item.id) and text(item.sender)
+            and text(item.subject) and text(item.body) and text(item.sourceJobId)
+            and nonnegative(item.readyAtHours) and (not received or nonnegative(item.receivedAtHours))
+            and job(item.job)
+    end
+    if not array(value.pending, function(item) return email(item, false) end)
+        or not array(value.inbox, function(item) return email(item, true) end)
+    then return false end
+    return array(value.archive, function(item)
+        return type(item) == "table" and text(item.id) and text(item.sender)
+            and text(item.subject) and text(item.jobId)
+            and (item.response == "accepted" or item.response == "declined"
+                or item.response == "quote_accepted" or item.response == "quote_rejected")
+            and optionalNumber(item.quotedPrice) and optionalNumber(item.acceptanceChance)
+            and optionalNumber(item.respondedAtHours)
+    end) and array(value.sentPromotions, function(item)
+        return type(item) == "table" and text(item.id) and text(item.recipient)
+            and item.discountPercent == 10 and type(item.customMessage) == "string"
+            and nonnegative(item.sentAtHours)
+    end)
 end
 
 local function vendorPallet(value)
@@ -278,9 +333,13 @@ local function persistentState(value)
         and positiveInteger(value.procurement.nextOrderId)
         and array(value.procurement.orders, purchaseOrder)
         and positiveInteger(value.vendorCategory)
+        and BusinessCalendar.valid(value.calendar, value.bills)
+        and clientEmails(value.clientEmails)
+        and MachineFleet.validState(value.machines)
         and placement(value.cutter)
         and palletJack(value.palletJack)
         and placement(value.wrapper)
+        and placement(value.windmill)
 end
 
 local function defaultPlacement(config)
@@ -314,11 +373,17 @@ function Schema.defaultState()
         nextJobId = 1,
         accountsReceivable = 0,
         cutterMemory = {},
-        procurement = { orders = {}, nextOrderId = 1 },
+        procurement = { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 },
         vendorCategory = 1,
+        calendar = BusinessCalendar.defaultCalendar(),
+        bills = BusinessCalendar.defaultBills(),
+        clientEmails = { nextEmailId = 1, nextPromotionId = 1,
+            pending = {}, inbox = {}, archive = {}, sentPromotions = {} },
+        machines = MachineFleet.defaultState(),
         cutter = defaultPlacement(Config.cutterPlacement),
         palletJack = jack,
         wrapper = defaultPlacement(Config.wrapperPlacement),
+        windmill = defaultPlacement(Config.windmillPlacement),
     }
 end
 
@@ -401,9 +466,32 @@ local function normalizeState(source)
         and copy(source.procurement) or result.procurement
     result.procurement.orders = type(result.procurement.orders) == "table" and result.procurement.orders or {}
     result.procurement.nextOrderId = result.procurement.nextOrderId or 1
+    result.procurement.shipments = type(result.procurement.shipments) == "table" and result.procurement.shipments or {}
+    result.procurement.nextShipmentId = result.procurement.nextShipmentId or 1
     result.vendorCategory = source.vendorCategory ~= nil and source.vendorCategory or result.vendorCategory
+    result.calendar = type(source.calendar) == "table" and copy(source.calendar) or result.calendar
+    result.bills = type(source.bills) == "table" and copy(source.bills) or result.bills
+    result.clientEmails = type(source.clientEmails) == "table"
+        and copy(source.clientEmails) or result.clientEmails
+    result.clientEmails.nextEmailId = math.max(1, math.floor(tonumber(result.clientEmails.nextEmailId) or 1))
+    result.clientEmails.nextPromotionId = math.max(1, math.floor(tonumber(result.clientEmails.nextPromotionId) or 1))
+    result.clientEmails.pending = type(result.clientEmails.pending) == "table" and result.clientEmails.pending or {}
+    result.clientEmails.inbox = type(result.clientEmails.inbox) == "table" and result.clientEmails.inbox or {}
+    result.clientEmails.archive = type(result.clientEmails.archive) == "table" and result.clientEmails.archive or {}
+    result.clientEmails.sentPromotions = type(result.clientEmails.sentPromotions) == "table"
+        and result.clientEmails.sentPromotions or {}
+    result.machines = type(source.machines) == "table"
+        and copy(source.machines) or result.machines
+    MachineFleet.ensure(result)
+    BusinessCalendar.ensure(result)
     result.cutter = mergePlacement(result.cutter, source.cutter)
     result.wrapper = mergePlacement(result.wrapper, source.wrapper)
+    result.windmill = mergePlacement(result.windmill, source.windmill)
+    if type(source.windmill) == "table" and type(source.windmill.process) == "table" then
+        result.windmill.process = copy(source.windmill.process)
+    end
+    result.technicianVisit = type(source.technicianVisit) == "table"
+        and copy(source.technicianVisit) or nil
     result.palletJack = mergePlacement(result.palletJack, source.palletJack)
     if type(source.palletJack) == "table" then
         result.palletJack.operating = source.palletJack.operating == true
@@ -463,6 +551,8 @@ function Schema.reconcile(state)
     state.inventory.finishedPallets = finished
     state.inventory.stock = type(state.inventory.stock) == "table" and state.inventory.stock or {}
     state.cutterMemory = type(state.cutterMemory) == "table" and state.cutterMemory or {}
+    MachineFleet.ensure(state)
+    BusinessCalendar.ensure(state)
     return true
 end
 
@@ -531,7 +621,11 @@ function Schema.migrate(payload)
     end
     if payload.version == 1 then
         if not legacyCore(payload) then return nil end
-    elseif payload.version == 2 or payload.version == 3 then
+    elseif payload.version == 2 or payload.version == 3 or payload.version == 4
+        or payload.version == 5 or payload.version == 6 or payload.version == 7
+        or payload.version == 8 or payload.version == 9 or payload.version == 10
+        or payload.version == 11
+    then
         if not validV2Core(payload) then return nil end
     else
         return nil

@@ -9,4 +9,5 @@ function love.textinput(text) app.textinput(text) end
 function love.mousepressed(x, y, button) app.mousepressed(x, y, button) end
 function love.mousereleased(x, y, button) app.mousereleased(x, y, button) end
 function love.mousemoved(x, y) app.mousemoved(x, y) end
+function love.wheelmoved(x, y) app.wheelmoved(x, y) end
 function love.quit() app.quit() end

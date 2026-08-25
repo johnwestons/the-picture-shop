@@ -52,6 +52,13 @@ The delivery vehicle is independent of the warehouse and loading-bay art. `deliv
 
 `tools/build_truck_assets.py` rebuilds both runtime files and `output/truck-cargo-door-animation-preview.png` from the preserved open and closed sources. Every cargo-door frame keeps the same full-canvas anchor, so the base and overlay use one transform without visible jitter. At runtime, the composed truck is stencil-clipped to the loading-bay aperture; this makes it appear behind the wall while backing in instead of drawing over the warehouse facade.
 
+Online machine orders use a separate flatbed vehicle contract. `machine-delivery-flatbed-loaded.png` carries one
+covered, strapped industrial machine on a skid; `machine-delivery-flatbed-empty.png` preserves the truck and deck
+after unloading. Both are transparent `512×512` frames with the same bottom anchor as the box truck. The renderer
+selects loaded versus empty from the authoritative machine-delivery manifest and never draws the box-truck cargo
+door over a flatbed. `tools/build_machine_flatbed_assets.py` removes the generated checkerboard matte, applies one
+shared crop/scale to both preserved sources, and writes the aligned runtime pair.
+
 ## Cutter operator console
 
 `polar-operator-console.png` is the transparent front-view machine base generated from the user's layout reference. Runtime text and measurements are drawn separately so work-order IDs, dimensions, rotation, and backgauge values remain exact and interactive. `cutter-control-buttons-strip.png` contains raised/pressed black dual-hand controls and raised/pressed red emergency-stop controls.
@@ -60,9 +67,9 @@ The clamp and blade are independent five-frame overlays in `cutter-clamp-strip.p
 
 ## Movable cutter floor sprites
 
-`polar-cutter-directions-strip.png` is a transparent `2048×512` strip ordered northwest, northeast, southwest, southeast. The first two frames show the operator side; the opposite rotations show the plain rear housing and service cabinets instead of incorrectly mirroring the touchscreen and controls. `tools/build_cutter_direction_assets.py` extracts the four approved generated views, removes detached residue, normalizes their baselines, and installs each in a fixed `512×512` frame.
+`polar-cutter-directions-strip.png` is a transparent `4096×512` strip ordered northwest, north, northeast, east, southeast, south, southwest, west. The corner source supplies the original four views and the intermediate source supplies the four cardinal rotations. Operator-side controls rotate with the machine; rear rotations show the plain rear housing and service cabinets instead of incorrectly mirroring the touchscreen. `tools/build_cutter_direction_assets.py` removes the generated checkerboard/residue, normalizes every baseline, and installs each view in a fixed `512×512` frame.
 
-Cutter position and direction are saved independently from the cutter simulation. Machine-relocation mode uses a large collision footprint, edge samples against the walkmask, slow movement, and blocks relocation while paper remains at the cutter. Finished pallets are staged relative to the cutter's saved direction and current floor position.
+Cutter position and eight-way direction are saved independently from the cutter simulation. Machine-relocation mode rotates in 45-degree steps, uses a large collision footprint, edge samples against the walkmask, slow movement, and blocks relocation while paper remains at the cutter. Feed and finished-pallet staging anchors follow the cutter's saved direction and current floor position.
 
 ## Loaded customer pallets
 
@@ -72,7 +79,7 @@ The sprite is only the visual layer. Job ID, pallet ID, sheet quantity, paper ID
 
 ## Pallet jack
 
-`pallet-jack-directions-strip.png` and `pallet-jack-loaded-directions-strip.png` are matching four-frame `1024×256` strips in the same direction order as the loaded pallets. The loaded strip aligns each directional pallet over both forks at a practical scale. `tools/build_pallet_jack_assets.py` removes neighboring-cell overlap from the generated 2×2 source, normalizes every direction to a fixed `256×256` anchor, and builds the loaded composites without modifying the approved sources.
+`pallet-jack-directions-strip.png` and `pallet-jack-loaded-directions-strip.png` are matching eight-frame `2048×256` strips ordered northwest, north, northeast, east, southeast, south, southwest, west. The jack follows all eight keyboard movement vectors instead of collapsing them into four angles. The loaded strip reuses the approved four pallet rotations unchanged, selecting the nearest pallet view for each intermediate jack frame. Pallets are composited or drawn after the jack layer so every carried load stays visibly above the forks. `tools/build_pallet_jack_assets.py` cleans the generated checkerboard/residue, normalizes every jack direction to a fixed `256×256` anchor, and rebuilds both strips from the two approved jack sources plus the existing pallet strip.
 
 Pallet-jack position, direction, and carried pallet ID are saved. The runtime uses a smaller empty collision footprint, a larger loaded footprint, slower loaded movement, and validates the pallet's directional drop offset before placement.
 # Sprite Grounding Rule

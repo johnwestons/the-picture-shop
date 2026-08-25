@@ -114,6 +114,19 @@ function PaperWork.applyCut(paper, gauge)
     return true, cut
 end
 
+function PaperWork.resetForNextLift(paper)
+    if not paper or type(paper.sourceSize) ~= "table" then return false end
+    paper.currentSize = {
+        width = paper.sourceSize.width,
+        height = paper.sourceSize.height,
+    }
+    paper.orientation = 0
+    paper.activeCut = 1
+    paper.status = "uncut"
+    paper.history = {}
+    return true
+end
+
 function PaperWork.tooltip(paper)
     if not paper then return "No paper selected" end
     local nextCut = PaperWork.currentCut(paper)

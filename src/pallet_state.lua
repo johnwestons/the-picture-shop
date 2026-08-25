@@ -4,10 +4,12 @@ local CutterZones = require("src.cutter_zones")
 
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
-    warehouse = { on_pallet_jack = true, at_cutter = true, outbound_truck = true, none = true },
+    warehouse = { on_pallet_jack = true, at_cutter = true, at_press = true, outbound_truck = true, none = true },
     on_pallet_jack = { warehouse = true },
     at_cutter = { cutter_output = true, warehouse = true },
-    cutter_output = { on_pallet_jack = true, warehouse = true, outbound_truck = true, none = true },
+    cutter_output = { on_pallet_jack = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
+    at_press = { press_output = true, warehouse = true },
+    press_output = { on_pallet_jack = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
     outbound_truck = { none = true },
     none = {},
 }
@@ -48,7 +50,7 @@ function PalletState.find(state, palletId)
 end
 
 function PalletState.validate(state)
-    local errors, ids, atCutter, onJack = {}, {}, 0, {}
+    local errors, ids, atCutter, atPress, onJack = {}, {}, 0, 0, {}
     local jack = state and state.palletJack or {}
     for _, item in ipairs(allPallets(state)) do
         local pallet = item.pallet
@@ -64,15 +66,18 @@ function PalletState.validate(state)
         end
         if pallet.location == "warehouse" or pallet.location == "cutter_output"
             or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
+            or pallet.location == "at_press" or pallet.location == "press_output"
         then
             if not validWorld(pallet.world) then
                 errors[#errors + 1] = tostring(pallet.id) .. " has no physical floor position"
             end
         end
         if pallet.location == "at_cutter" then atCutter = atCutter + 1 end
+        if pallet.location == "at_press" then atPress = atPress + 1 end
         if pallet.location == "on_pallet_jack" then onJack[#onJack + 1] = pallet end
     end
     if atCutter > 1 then errors[#errors + 1] = "more than one pallet is owned by the cutter" end
+    if atPress > 1 then errors[#errors + 1] = "more than one pallet is owned by the Windmill" end
     if #onJack > 1 then errors[#errors + 1] = "more than one pallet is owned by the pallet jack" end
     if jack.carriedPalletId then
         local carried = ids[jack.carriedPalletId]
@@ -93,14 +98,16 @@ end
 function PalletState.reconcile(state)
     if type(state) ~= "table" then return false end
     state.palletJack = type(state.palletJack) == "table" and state.palletJack or {}
-    local jack, atCutter, onJack = state.palletJack, {}, {}
+    local jack, atCutter, atPress, onJack = state.palletJack, {}, {}, {}
     for _, item in ipairs(allPallets(state)) do
         local pallet = item.pallet
         if pallet.location == "at_cutter" then atCutter[#atCutter + 1] = pallet end
+        if pallet.location == "at_press" then atPress[#atPress + 1] = pallet end
         if pallet.location == "on_pallet_jack" then onJack[#onJack + 1] = pallet end
     end
 
     for index = 2, #atCutter do atCutter[index].location = "warehouse" end
+    for index = 2, #atPress do atPress[index].location = "warehouse" end
     local claimed = PalletState.find(state, jack.carriedPalletId)
     if claimed and claimed.pallet.location == "at_cutter" then
         jack.carriedPalletId = nil
@@ -198,6 +205,16 @@ function PalletState.transition(state, pallet, target, options)
         for _, item in ipairs(allPallets(state)) do
             if item.pallet ~= pallet and item.pallet.location == "at_cutter" then
                 return false, "the cutter already owns another pallet"
+            end
+        end
+    end
+    if target == "at_press" then
+        if source ~= "warehouse" and source ~= "cutter_output" and source ~= "press_output" then
+            return false, "stage the pallet on the warehouse floor before press loading"
+        end
+        for _, item in ipairs(allPallets(state)) do
+            if item.pallet ~= pallet and item.pallet.location == "at_press" then
+                return false, "the Windmill already owns another pallet"
             end
         end
     end

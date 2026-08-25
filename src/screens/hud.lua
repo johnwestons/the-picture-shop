@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local BusinessCalendar = require("src.business_calendar")
 local BackButton = require("src.screens.back_button")
 
 local Hud = {}
@@ -22,6 +23,10 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY)
     shadowedPrint("$" .. state.money, 24, 20, { 0.95, 0.84, 0.30 })
     shadowedPrint("Paper: " .. state.inventory.paper, 92, 20, { 0.88, 0.92, 0.94 })
     shadowedPrint("Finished: " .. state.inventory.prints, 190, 20, { 0.88, 0.92, 0.94 })
+    shadowedPrint(BusinessCalendar.shortDate(state), 312, 20, { 0.74, 0.88, 0.89 })
+    if state.bills and state.bills.balance > 0 then
+        shadowedPrint("Bills due: $" .. state.bills.balance, 442, 20, { 0.96, 0.48, 0.30 })
+    end
     BackButton.draw(assets, EXIT, "EXIT TO MENU", pointerX, pointerY, false)
     if state.message then
         shadowedPrintf(state.message, 24, 48, Config.baseWidth - 48, { 0.88, 0.92, 0.94 })

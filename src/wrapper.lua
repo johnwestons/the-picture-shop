@@ -2,6 +2,7 @@ local Config = require("src.config")
 local PalletLogistics = require("src.pallet_logistics")
 local Procurement = require("src.procurement")
 local WrapperPlacement = require("src.wrapper_placement")
+local MachineFleet = require("src.machine_fleet")
 
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil }
 
@@ -23,7 +24,8 @@ function Wrapper.nearbyPallet(state)
     local best
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
         local pallet = item.pallet
-        local eligible = (pallet.status == "cut" or pallet.status == "finished") and not pallet.wrapped
+        local eligible = (pallet.status == "cut" or pallet.status == "finished"
+            or pallet.status == "printed") and not pallet.wrapped
         local distance = distanceSquared(wrapper, item)
         if eligible and distance <= Config.wrapperPlacement.palletRadius ^ 2 and (not best or distance < best.distance) then
             best = { pallet = pallet, job = item.job, distance = distance }
@@ -45,6 +47,8 @@ function Wrapper.canRelocate(state) return blockInterruption(state, "relocating 
 
 function Wrapper.start(state)
     if Wrapper.step ~= "idle" and Wrapper.step ~= "finished" then return false end
+    local operable, machineOrError = MachineFleet.canOperate(state, "skid_wrapper")
+    if not operable then state.message = machineOrError; return false end
     local nearby = Wrapper.nearbyPallet(state)
     if not nearby then state.message = "Move a finished, unwrapped pallet beside the skid wrapper first."; return false end
     local inventory = state.inventory or {}
@@ -78,6 +82,7 @@ function Wrapper.update(dt, state)
     if packaging == "boxed" then Procurement.consumeCartons(state, 1) end
     Wrapper.pallet.wrapped, Wrapper.pallet.status = true, "wrapped"
     Wrapper.pallet.packagedAs = packaging
+    MachineFleet.recordUse(state, "skid_wrapper", 1)
     Wrapper.step = "finished"
     state.message = Wrapper.pallet.id .. " wrapped. " .. inventory.plasticWrapUses .. " pallet wrap(s) remain on the current roll."
 end

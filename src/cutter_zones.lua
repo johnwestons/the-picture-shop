@@ -1,19 +1,32 @@
 local CutterZones = {}
 
-local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
+local palletFrames = {
+    northwest = 1, north = 1,
+    northeast = 2, east = 2,
+    southeast = 4, south = 4,
+    southwest = 3, west = 3,
+}
 
 local signs = {
     northwest = { x = 1, y = 1 },
+    north = { x = 0, y = 1 },
     northeast = { x = -1, y = 1 },
-    southwest = { x = 1, y = -1 },
+    east = { x = -1, y = 0 },
     southeast = { x = -1, y = -1 },
+    south = { x = 0, y = -1 },
+    southwest = { x = 1, y = -1 },
+    west = { x = 1, y = 0 },
 }
 
 local directionOrder = {
-    northwest = { "northwest", "northeast", "southwest", "southeast" },
-    northeast = { "northeast", "northwest", "southeast", "southwest" },
-    southwest = { "southwest", "southeast", "northwest", "northeast" },
-    southeast = { "southeast", "southwest", "northeast", "northwest" },
+    northwest = { "northwest", "north", "west", "northeast", "southwest", "east", "south", "southeast" },
+    north = { "north", "northeast", "northwest", "east", "west", "southeast", "southwest", "south" },
+    northeast = { "northeast", "east", "north", "southeast", "northwest", "south", "west", "southwest" },
+    east = { "east", "southeast", "northeast", "south", "north", "southwest", "northwest", "west" },
+    southeast = { "southeast", "south", "east", "southwest", "northeast", "west", "north", "northwest" },
+    south = { "south", "southwest", "southeast", "west", "east", "northwest", "northeast", "north" },
+    southwest = { "southwest", "west", "south", "northwest", "southeast", "north", "east", "northeast" },
+    west = { "west", "northwest", "southwest", "north", "south", "northeast", "southeast", "east" },
 }
 
 local function cutter(state, config)
@@ -56,15 +69,34 @@ function CutterZones.outputCandidates(state, config)
         { x = config.palletOutputOffsetX or 96, y = config.palletOutputSecondY or 124 },
         { x = config.palletOutputSecondX or 164, y = config.palletOutputSecondY or 124 },
     }
+    local seen = {}
+    local function add(x, y)
+        local key = string.format("%.3f,%.3f", x, y)
+        if seen[key] then return end
+        seen[key] = true
+        result[#result + 1] = {
+            x = x,
+            y = y,
+            direction = machine.direction,
+            rotation = palletFrames[machine.direction],
+        }
+    end
     for _, direction in ipairs(directionOrder[machine.direction]) do
         local sign = signs[direction]
-        for _, offset in ipairs(offsets) do
-            result[#result + 1] = {
-                x = machine.x + sign.x * offset.x,
-                y = machine.y + sign.y * offset.y,
-                direction = machine.direction,
-                rotation = directionFrames[machine.direction],
-            }
+        if sign.x == 0 then
+            add(machine.x, machine.y + sign.y * offsets[1].x)
+            add(machine.x - offsets[1].y, machine.y + sign.y * offsets[1].x)
+            add(machine.x + offsets[1].y, machine.y + sign.y * offsets[1].x)
+            add(machine.x, machine.y + sign.y * offsets[4].x)
+        elseif sign.y == 0 then
+            add(machine.x + sign.x * offsets[1].x, machine.y)
+            add(machine.x + sign.x * offsets[1].x, machine.y - offsets[1].y)
+            add(machine.x + sign.x * offsets[1].x, machine.y + offsets[1].y)
+            add(machine.x + sign.x * offsets[4].x, machine.y)
+        else
+            for _, offset in ipairs(offsets) do
+                add(machine.x + sign.x * offset.x, machine.y + sign.y * offset.y)
+            end
         end
     end
     return result

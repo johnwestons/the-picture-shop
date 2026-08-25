@@ -7,6 +7,10 @@ local WrapperPlacement = require("src.wrapper_placement")
 local Procurement = require("src.procurement")
 local SaveSchema = require("src.save_schema")
 local PalletState = require("src.pallet_state")
+local BusinessCalendar = require("src.business_calendar")
+local MachineFleet = require("src.machine_fleet")
+local WindmillPlacement = require("src.windmill_placement")
+local Windmill = require("src.windmill")
 
 function State.new()
     local state = SaveSchema.defaultState()
@@ -61,6 +65,12 @@ function State.applySave(state, payload)
     end
     WrapperPlacement.ensure(state, Config.wrapperPlacement)
     state.wrapper.moving, state.wrapper.inMotion = false, false
+    state.windmill = type(saved.windmill) == "table" and saved.windmill
+        or WindmillPlacement.defaultState(Config.windmillPlacement)
+    WindmillPlacement.ensure(state, Config.windmillPlacement)
+    state.windmill.moving, state.windmill.inMotion = false, false
+    Windmill.ensure(state)
+    state.technicianVisit = type(saved.technicianVisit) == "table" and saved.technicianVisit or nil
     state.cutter = type(saved.cutter) == "table"
         and saved.cutter
         or CutterPlacement.defaultState(Config.cutterPlacement)
@@ -74,11 +84,20 @@ function State.applySave(state, payload)
     state.accountsReceivable = type(saved.accountsReceivable) == "number"
         and math.max(0, saved.accountsReceivable)
         or 0
-    state.procurement = type(saved.procurement) == "table" and saved.procurement or { orders = {}, nextOrderId = 1 }
+    state.procurement = type(saved.procurement) == "table" and saved.procurement
+        or { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 }
+    state.vendorCategory = tonumber(saved.vendorCategory) or 1
+    state.calendar = type(saved.calendar) == "table" and saved.calendar or BusinessCalendar.defaultCalendar()
+    state.bills = type(saved.bills) == "table" and saved.bills or BusinessCalendar.defaultBills()
+    state.clientEmails = type(saved.clientEmails) == "table" and saved.clientEmails
+        or { nextEmailId = 1, nextPromotionId = 1,
+            pending = {}, inbox = {}, archive = {}, sentPromotions = {} }
+    state.machines = type(saved.machines) == "table" and saved.machines or MachineFleet.defaultState()
+    MachineFleet.ensure(state)
+    BusinessCalendar.ensure(state)
     Procurement.ensure(state)
     PalletState.reconcile(state)
     SaveSchema.reconcile(state)
-    state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.currentOffer = nil
     state.screen = "world"
     state.message = "Shop opened."

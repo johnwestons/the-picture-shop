@@ -6,6 +6,11 @@ local function lerp(a, b, amount)
     return a + (b - a) * amount
 end
 
+local function smoothstep(amount)
+    amount = math.max(0, math.min(1, amount or 0))
+    return amount * amount * (3 - 2 * amount)
+end
+
 function Truck.new(config)
     assert(type(config) == "table", "truck configuration is required")
     local instance = setmetatable({
@@ -131,6 +136,10 @@ function Instance:transform()
     local amount = (self.state == "backing" or self.state == "departing")
         and self.backingProgress
         or (self:isParked() and 1 or 0)
+    -- Ease both ends of the maneuver so the truck pulls away from rest and
+    -- settles against the dock without the visible start/stop snap produced
+    -- by a constant-speed interpolation.
+    amount = smoothstep(amount)
     return {
         x = lerp(self.start.x, self.parked.x, amount),
         y = lerp(self.start.y, self.parked.y, amount),
@@ -141,7 +150,9 @@ end
 function Instance:getInteraction()
     if not self:isParked() then return nil end
     local prompt
-    if self.state == "parked_closed" then
+    if self.mode == "machine_delivery" and self.state == "parked_closed" then
+        prompt = "E: open flatbed delivery manifest"
+    elseif self.state == "parked_closed" then
         prompt = "E: open truck cargo door"
     elseif self.state == "cargo_open" then
         prompt = "E: open truck cargo inventory"

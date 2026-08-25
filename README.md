@@ -13,9 +13,12 @@ The launcher finds LÖVE on `PATH`, in a local `runtime` folder, or in the norma
 
 The title screen has three local save slots. Use **W/S** or the arrow keys to select a slot, **N** for a new shop, **C** or **Enter** to continue, **D** to delete, and **Q** or **Escape** to quit. Confirmation prompts accept **Y** or **Enter** and cancel with **N** or **Escape**. Starting a new shop in an occupied slot always shows an overwrite warning; cancelling it leaves the existing save unchanged. Saves are versioned and retain money, stock, finished prints, completed cuts, and player position.
 
-Save format 4 retains active, completed, and declined jobs, accounts receivable, procurement,
+Save format 12 retains active, completed, and declined jobs, accounts receivable, grouped procurement shipments,
 stock, film, machine placements, pallet-jack ownership, wrapper placement, and the next stable
-job number, plus the cutter's player-saved measurement history. Version-1 through version-3 slots migrate when loaded. Saves are validated in a temporary
+job number, the cutter's player-saved measurement history, the business calendar, and unpaid bill
+ledger, pending, received, and answered client emails, sent promotions and player quotes, plus uniquely tracked machine condition,
+component wear, cycles, maintenance history, and pending machine deliveries. Version-1 through version-8 slots migrate
+when loaded. Saves are validated in a temporary
 file before promotion and retain the previous valid slot as a backup. A damaged primary recovers
 automatically; a slot with no valid recovery copy is marked as damaged instead of appearing empty.
 
@@ -25,7 +28,11 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - The largest incoming parent sheet is 25×25 inches, and the finished size must fit the parent sheet.
 - The Polar lift capacity is 500 sheets. A partial final lift is allowed and billed as a full lift.
 - Each lift is quoted at $150. Five 3,000-sheet pallets therefore quote at $4,500.
-- Job offers retain an immutable quote breakdown and separate mutable progress for every pallet.
+- Optional Original Heidelberg 10x15 printing work adds a separate cost budget for processed plates,
+  ink, chemistry, tympan, makeready, wash-up, labor and machine overhead. The machine's 5,500-impression/hour
+  maximum is retained as a specification while quotes use a conservative 3,000 sellable impressions/hour.
+  Cutting-only prices remain unchanged; see `docs/heidelberg_windmill_10x15_report.md` for the sourced model.
+- Job offers retain a recommended production estimate, the player's submitted quote, and separate mutable progress for every pallet.
 - Every pallet now owns a stable paper-batch ID, job artwork ID, live width/height, orientation,
   four margins, four-cut program, and complete cut history. Easy jobs use matching opposing margins;
   medium and hard work uses asymmetric margins that require different backgauge positions.
@@ -41,16 +48,39 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Move: **WASD** or arrow keys
 - Interact with the office computer or Polar 115: **E**
 - At reception, press **E** to open the customer's cutting-job paperwork.
-- Use the mouse to click **Accept Job** or **Decline** on the paperwork. **Back** and **Escape**
+- Type your price into the quote field and click **Send Quote**, or click **Decline**. Clients weigh price,
+  urgency, and prior completed work when responding. **Back** and **Escape**
   both close the paperwork without deciding, so the customer remains available at reception.
 - At the office computer, press **E** and use the mouse to view Active Jobs, Completed Jobs,
-  Deliveries, Inventory, cash, and accounts receivable. Deliveries includes customer inbound jobs,
+  Deliveries, Calendar, Inventory, the Online machine website, Email, Bills, cash, and accounts receivable. Deliveries includes customer inbound jobs,
   outbound pickups, and vendor purchase orders; Inventory includes every currently usable supply.
 - Click a job row to inspect its cutting ticket and pallet progress; click **Back** to close the computer.
+- Completing, delivering, and receiving payment for a client's first job establishes a repeat-client
+  relationship. That company can send a varied follow-up request by email 1-3 game days later. The
+  computer's **Email** tab shows the sender, proposed dimensions, pallet and sheet quantities,
+  packaging, and stock-arrival service. Enter and send a quote or decline the request. From a completed
+  job, **Email 10% Promo** opens a message composer where the player can add a personal note. Email jobs
+  use separate stable IDs and the same delayed truck workflow as walk-ins.
+- One in-game day lasts five real minutes. The viewable office calendar advances through weekdays, months,
+  leap years, and years and automatically projects job stock, product and machine deliveries, incoming emails,
+  pickups, completions, rent, and bills. On the first of each new month the
+  shop receives a $1,650 operating invoice: $1,200 warehouse rent, $240 power, $85 water, and $125
+  internet. Use the computer's **Bills** tab to pay the full outstanding balance; unpaid months carry forward.
 - Every scene and GUI has a visible mouse-clickable **Back**, **Exit**, or **Exit to Menu** control using
   the shared Polar-style physical button sprite. The visible button and **Escape** use the same close
-  behavior on every screen; customer and vendor closes leave the visitor waiting.
-- Accepting a job schedules its inbound truck. The loading bay opens automatically before the truck reverses straight down the dock centerline into the door.
+  behavior on every screen; customer and vendor closes leave the visitor waiting. The vendor catalog
+  also has a Polar-panel `NO THANKS` button that dismisses the salesperson without buying.
+- Reception visits begin after randomized opening intervals, then customers return after 60-150 seconds
+  and salespeople after 120-240 seconds. A waiting, reviewing, entering, or exiting visitor pauses the
+  other visitor's timer so the shared entrance and reception desk never become overcrowded.
+- Reception is closed on Saturdays and Sundays. Scheduled customer and salesperson countdowns pause
+  for the entire weekend and resume with their remaining time on Monday; no new visitor enters while closed.
+- Accepting a job records its promised stock-arrival service instead of spawning a truck immediately.
+  **Express / Urgent** deliveries arrive after 2-6 in-game hours, **Quick** deliveries arrive the next
+  day, and **Standard** deliveries arrive after 2-3 days. The service and remaining estimate appear on
+  the customer ticket and office computer. Only after that calendar window opens can the inbound truck
+  schedule; the loading bay then opens automatically before it reverses rear-first along its isometric
+  body axis into the door.
 - At a parked truck's rear, press **E** to open or close its animated cargo door. The wall door cannot close while a truck occupies the bay.
 - When the truck cargo door is open, press **E** to open its manifest. Click **Unload** for each
   pallet; every click animates a uniquely tracked paper pallet from the truck onto the warehouse floor.
@@ -68,23 +98,69 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   and maintenance representatives arrive in rotation and wait until the player talks to them with **E**.
 - Each salesperson opens a mouse-clickable category catalog. Purchases deduct cash immediately and create
   a tracked purchase order; the goods arrive later by truck at the loading dock instead of appearing instantly.
+- The office computer Inventory tab sells the same currently unlocked supplies in smaller retail quantities.
+  Salespeople offer larger pallet quantities at a lower per-unit bulk price; both channels use dock delivery.
+- The office computer's **Online** tab sells professionally inspected machines in strong condition and shows
+  every uniquely numbered shop machine, its weakest component, cycles, installation state, and condition-based
+  resale value. An online purchase reserves its unique machine immediately but does not add it to the shop yet:
+  a dedicated loaded flatbed truck brings it to the dock, where the player opens the manifest and clicks
+  **Unload**. The flatbed visibly becomes empty and can then be released. Used-machinery salesmen offer cheaper
+  units that tend to have substantially more wear.
+- Cutter and skid-wrapper use degrades model-specific components and total condition. Maintenance kits are
+  available from the tools supplier; the machine-service contract exposes stable interactive scene IDs so each
+  machine can receive its own moving-sprite maintenance minigame without changing saved machine records.
 - Vendor goods unload as distinct directional product pallets. They show product/quantity tooltips and can be
   lifted, driven, and lowered with the pallet jack while retaining their last assigned direction.
 - Near an unoccupied loading bay, press **E** to open or close the roll-up door manually.
-- Near an unloaded cutter, press **M** to enter machine-relocation mode. Use **WASD/arrow keys** to
-  move it slowly, **Q** to rotate it 90 degrees, and **E** to lock it in its new floor position.
+- Operate an empty pallet jack and drive it beside an unloaded cutter or skid wrapper to reveal **M: Relocate**.
+  Press **M** to lift the machine, use **WASD/arrow keys** to move it slowly, **Q** to rotate it, and **E**
+  to lock it in its new floor position. Relocation is unavailable without the pallet jack.
 - Cutter: lower unfinished customer pallets into the expanded feed-side staging area beside the cutter, then open the console. The feed side follows the cutter's current orientation. **LOAD JOB** or **L** opens a nearby-pallet menu, where the operator chooses the exact pallet to load. A pallet still owned by the jack, on the wrong side, or outside the 140-pixel feed radius cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
   **M** saves the current measurement for the selected cut number. **G / AUTO SET** recalls only player-saved measurements, newest first, and cycles through the last three values saved separately for CUT 1, CUT 2, CUT 3, or CUT 4. **P** pushes/positions;
   **Q** rotate the paper counter-clockwise into the next front-edge cutting position, **Space** clamp,
   and **J + K** together start the guarded cut. The active margin is always nearest the screen.
 - Cutter repeat programming: **V** recalls the newest measurement for the selected cut, **[ / ]** changes
-  the selected cut program, and **U** pulls completed paper off the bed and returns it to its pallet.
+  the selected cut program, and **U** pulls each completed lift off the bed and returns it to its pallet.
+  **Run Next Lift** reloads uncut sheets but never performs cuts automatically; every lift requires the full
+  rotate, position, clamp, and four-cut sequence.
 - Cutter output searches the surrounding floor for a walkable position clear of walls, the truck,
   equipment, the pallet jack, and other pallets. If every output zone is blocked, move the obstruction,
   reopen the console, press **L** to resume the completed batch, and then press **U** again.
 - Every cutter action is also mouse-clickable. The two on-screen cut controls must be clicked within
   the same 0.30-second safety window as the keyboard controls.
 - Cutter safety: **B** toggles the light barrier; **X** triggers emergency stop; **R** resets
+- The **Original Heidelberg 10x15 Windmill** appears in the machine website and used-machinery dealer.
+  Its flatbed delivery must be unloaded before use. The installed press has four floor-facing views and
+  a saved position. With the press idle and unloaded, operate an empty pallet jack beside it and press **M**
+  to relocate it; **WASD** moves, **Q** rotates, and **E** locks it on the floor. A carried machine renders
+  above the jack forks.
+- Open the Windmill with **E**. Its Polar-panel-inspired screen is fully mouse-clickable and contains
+  **Run, Plates, Setup, Proof, Service, Help,** and a sprite **Exit** button. Physical shortcuts use the same
+  control functions: **M** motor, **F** feeder, **I** impression, **+/-** speed, **X** emergency stop,
+  **R** reset, and **Space** start/stop production.
+- Every ink color needs its own stable, job-numbered plate. Order a processed plate with a one-day lead
+  time or use one plate-room kit to expose, wash, dry, and mount it through the timing minigame. Cut stock
+  must be staged on the floor, its next plate must be mounted, and prior colors must be dry before loading.
+- Complete chase lockup, tympan/packing, roller stripe, ink, feeder, and register checks; then run the
+  motor, feeder, and impression to pull a proof. Proofs below 82% cannot be approved. Once approved,
+  production tracks actual impressions, good sheets, spoilage, run hours, component wear, and plate life.
+  High speed, poor setup, and worn rollers, grippers, suction, or ink distribution raise waste.
+- A finished color pass requires press wash before unloading. Uncoated work dries for two game hours;
+  gloss work dries for eight. Two-color work returns for another complete plate/setup/proof/run/wash pass.
+  The office job ticket shows its press sequence, actual production totals, actual supply spend, and quoted
+  supply budget; printed pallets continue
+  through boxing/wrapping and truck pickup normally.
+- Press supplies are sold from the office computer in smaller retail packs or by the press-supply salesman
+  in discounted bulk quantities: black/color ink, press wash, tympan, and plate-room kits. Routine service
+  uses maintenance kits and an ordered lockout sequence. A $350 field technician visit restores timing,
+  suction, lubrication, and safety systems on the following game day and sends a service email.
+- Computer and salesman supply purchases wait four game-hours before dispatch. Purchases placed within one
+  game-hour share one grouped truck manifest instead of spawning separate trucks. Maintenance kits remain
+  physical product pallets until used; the empty kit pallet despawns after service.
+- Cutter and Windmill Help use forward/back pages with complete job, supply, setup, production, cleanup,
+  safety, blade-change, and maintenance instructions. Scheduled field calls spawn a differently dressed
+  mouse blade technician or lizard press technician who enters through reception, services the machine,
+  and walks back out.
 - Close a GUI: **Esc**
 
 The cutter table starts clear and paper appears only after **L**. Inventory is consumed only when a safe cut finishes.
@@ -111,14 +187,19 @@ as a 128x128 transparent nearest-filtered PNG and registered in `Config.paths.ar
 - Character sources in `assets/Characters/` are processed with the Mouse Frontier sprite doctor and installed as transparent, nearest-filtered strips in `assets/generated/characters/`. The modular loader registers the original visitor types plus the business-dragon, business-fox, and business-cat client roster with idle, walk, and sit actions. Clients rotate through the lounge seats, remain seated while waiting, and leave after five minutes without a conversation.
 - `loading-bay-door-strip.png` contains five transparent closed-to-open layers. The open state reveals the exterior parking lot while preserving the approved warehouse pixels outside the doorway.
 - `delivery-truck-open.png` is the independent open-body truck sprite. `truck-cargo-door-strip.png` supplies five aligned rear-door layers from closed to fully open.
+- `machine-delivery-flatbed-loaded.png` and `machine-delivery-flatbed-empty.png` are aligned machine-delivery
+  truck states. Machine deliveries use these instead of the box truck and switch states when the player unloads.
 - `polar-operator-console.png` supplies the new front-view machine. Separate button, clamp, and blade
   strips animate the physical controls while the touchscreen and work-order program remain interactive.
-- `polar-cutter-directions-strip.png` supplies northwest, northeast, southwest, and southeast shop-floor
-  views. The rear rotations correctly hide the operator console and show the machine's rear service panels.
+- `polar-cutter-directions-strip.png` supplies eight 45-degree shop-floor views. The cardinal intermediates
+  smooth the cutter's rotation while the rear views correctly show the machine's service panels.
 - `loaded-paper-pallet-directions-strip.png` contains four correctly oriented loaded pallets with the
-  paper resting directly on the deck. Matching empty and loaded pallet-jack strips use the same directions.
+  paper resting directly on the deck. Empty and loaded pallet-jack strips use eight movement directions
+  while reusing those approved four pallet views unchanged.
 - `vendor-product-pallets-atlas.png` contains four-direction pallet art for paper stock, press supplies,
   packaging supplies, and maintenance equipment.
+- `heidelberg-windmill-directions-atlas-v1.png` contains the four saved floor directions for the authentic
+  compact platen press. Its light generated backdrop is removed at runtime by the Windmill-only shader.
 
 LÖVE is required for the in-engine smoke test. The asset doctor can run independently with Python and Pillow.
 

@@ -17,6 +17,10 @@ function Input.closeScreen(context)
     then
         return true
     end
+    if state.screen == "press" and context.windmill and not context.windmill.canExit(state) then
+        state.message = "Stop Windmill production before leaving the console."
+        return true
+    end
 
     if state.screen == "job_offer" then
         context.world.cancelCustomerReview(state)
@@ -52,7 +56,9 @@ function Input.keypressed(key, context)
         return context.title.keypressed(key)
     elseif state.screen == "world" then
         local selected = context.world.getInteraction()
-        if key == "m" and selected and selected.kind == "cutter" then
+        if key == "m" and ((selected and selected.kind == "cutter")
+            or (context.world.cutterNearby and context.world.cutterNearby(state)))
+        then
             if context.world.beginCutterMove(state) then context.saveCurrent() end
             return
         end
@@ -60,12 +66,28 @@ function Input.keypressed(key, context)
             if context.world.beginWrapperMove(state) then context.saveCurrent() end
             return
         end
-        if key == "q" and selected and selected.kind == "cutter" then
+        if key == "m" and ((selected and selected.kind == "windmill")
+            or (context.world.windmillNearby and context.world.windmillNearby(state)))
+        then
+            if context.world.beginWindmillMove(state) then context.saveCurrent() end
+            return
+        end
+        if key == "q" and ((state.cutter and state.cutter.moving)
+            or (selected and selected.kind == "cutter"))
+        then
             if context.world.rotateCutter(state) then context.saveCurrent() end
             return
         end
-        if key == "q" and selected and selected.kind == "skidWrapper" then
+        if key == "q" and ((state.wrapper and state.wrapper.moving)
+            or (selected and selected.kind == "skidWrapper"))
+        then
             if context.world.rotateWrapper(state) then context.saveCurrent() end
+            return
+        end
+        if key == "q" and ((state.windmill and state.windmill.moving)
+            or (selected and selected.kind == "windmill"))
+        then
+            if context.world.rotateWindmill(state) then context.saveCurrent() end
             return
         end
         if key == "f" then
@@ -77,12 +99,15 @@ function Input.keypressed(key, context)
             if context.world.placeCutter(state) then context.saveCurrent() end
         elseif state.wrapper and state.wrapper.moving then
             if context.world.placeWrapper(state) then context.saveCurrent() end
+        elseif state.windmill and state.windmill.moving then
+            if context.world.placeWindmill(state) then context.saveCurrent() end
         elseif selected and selected.kind == "customer" then
             local offer, errors = context.jobService.createNextOffer(state, os.time())
             if not offer then
                 state.message = "Could not prepare the job: " .. table.concat(errors or {}, "; ")
             elseif context.world.beginCustomerReview() then
                 state.currentOffer = offer
+                if context.jobOfferScreen.enter then context.jobOfferScreen.enter(offer) end
                 state.screen = "job_offer"
                 state.message = "Review the paperwork and choose Accept or Decline."
             end
@@ -97,11 +122,15 @@ function Input.keypressed(key, context)
         elseif selected and selected.kind == "loadingBayDoor" then
             context.world.toggleBayDoor(state)
         elseif selected and selected.kind == "truckCargoDoor" then
-            if context.world.truckSnapshot().state == "cargo_open"
+            local truck = context.world.truckSnapshot()
+            if truck.mode == "machine_delivery" and context.world.openTruckInventory(state) then
+                state.screen = "truck_inventory"
+                state.message = "Review the flatbed manifest and unload the machine."
+            elseif truck.state == "cargo_open"
                 and context.world.openTruckInventory(state)
             then
                 state.screen = "truck_inventory"
-                state.message = context.world.truckSnapshot().mode == "pickup"
+                state.message = truck.mode == "pickup"
                     and "Review the outbound manifest and load each wrapped pallet."
                     or "Review the inbound manifest and unload each pallet."
             else
@@ -117,6 +146,10 @@ function Input.keypressed(key, context)
             context.machineScreen.enter()
             state.machineType = "skid_wrapper"
             state.screen = "machine"
+        elseif selected and selected.kind == "windmill" then
+            context.windmill.ensure(state)
+            context.pressScreen.enter(state)
+            state.screen = "press"
         elseif selected and selected.kind == "palletJack" then
             if context.world.handlePalletJack(state, context.assets) then context.saveCurrent() end
         end
@@ -131,12 +164,24 @@ function Input.keypressed(key, context)
         if state.machineType == "skid_wrapper" and context.wrapper.keypressed(key, state) then return end
         if context.machineScreen.keypressed(state, key) then return end
         if context.machine.keypressed(key, state) then context.machineScreen.syncGauge() end
+    elseif state.screen == "computer" then
+        return context.computerScreen.keypressed(state, key)
+    elseif state.screen == "job_offer" then
+        return context.jobOfferScreen.keypressed(key)
+    elseif state.screen == "press" then
+        local result = context.pressScreen.keypressed(state, key)
+        if type(result) == "table" and result.action == "exit" then return Input.closeScreen(context) end
+        return result
     end
 end
 
 function Input.textinput(text, context)
     if context.state.screen == "machine" then
         return context.machineScreen.textinput(context.state, text)
+    elseif context.state.screen == "computer" then
+        return context.computerScreen.textinput(context.state, text)
+    elseif context.state.screen == "job_offer" then
+        return context.jobOfferScreen.textinput(text)
     end
     return false
 end
@@ -155,6 +200,12 @@ function Input.mousepressed(x, y, button, context)
         if not result then return false end
         if result.action == "close" then
             return Input.closeScreen(context)
+        elseif result.action == "no_thanks" then
+            if context.world.resolveVendor(state, "declined") then
+                state.screen = "world"
+                context.saveCurrent()
+            end
+            return true
         end
         if result.action ~= "blocked" then context.saveCurrent() end
         return true
@@ -164,7 +215,7 @@ function Input.mousepressed(x, y, button, context)
         if not result then return false end
         if result.action == "close" then
             return Input.closeScreen(context)
-        elseif result.action == "door_closing" then
+        elseif result.action == "door_closing" or result.action == "truck_departing" then
             state.screen = "world"
         end
         if result.action ~= "blocked" then context.saveCurrent() end
@@ -176,6 +227,18 @@ function Input.mousepressed(x, y, button, context)
             Input.closeScreen(context)
             return true
         end
+        if type(result) == "table" and (result.action == "maintenance_completed"
+            or result.action == "blade_sleeved" or result.action == "technician_booked"
+            or result.action == "technician_schedule")
+        then
+            context.saveCurrent()
+        end
+        return result
+    end
+    if state.screen == "press" then
+        local result = context.pressScreen.mousepressed(state, x, y, button)
+        if type(result) == "table" and result.action == "exit" then return Input.closeScreen(context) end
+        if result then context.saveCurrent() end
         return result
     end
     if state.screen == "computer" then
@@ -183,6 +246,15 @@ function Input.mousepressed(x, y, button, context)
         if not result then return false end
         if result.action == "close" then
             return Input.closeScreen(context)
+        elseif result.action == "supply_order" or result.action == "bill_paid"
+            or result.action == "machine_bought" or result.action == "machine_ordered"
+            or result.action == "machine_sold"
+            or result.action == "email_accepted" or result.action == "email_declined"
+            or result.action == "quote_accepted" or result.action == "quote_rejected"
+            or result.action == "promotion_sent"
+            or result.action == "service_notice_dismissed"
+        then
+            context.saveCurrent()
         elseif result.action == "completion_blocked" then
             state.message = "Every pallet must be cut, packaged, and stretch-wrapped before completion."
         elseif result.action == "pickup_ready" then
@@ -203,6 +275,10 @@ function Input.mousepressed(x, y, button, context)
     if action == "back" then
         return Input.closeScreen(context)
     end
+    if action == "quote_input" then
+        context.jobOfferScreen.focusQuote()
+        return true
+    end
 
     local job = state.currentOffer
     if not job then
@@ -212,8 +288,11 @@ function Input.mousepressed(x, y, button, context)
 
     local timestamp = os.time()
     local succeeded, errorMessage
+    local quoteResult
     if action == "accept" then
-        succeeded, errorMessage = context.jobService.acceptOffer(state, job, timestamp)
+        succeeded, quoteResult = context.jobService.submitQuote(
+            state, job, context.jobOfferScreen.quoteAmount(), timestamp)
+        errorMessage = quoteResult
     else
         succeeded, errorMessage = context.jobService.declineOffer(state, job, timestamp)
     end
@@ -222,14 +301,28 @@ function Input.mousepressed(x, y, button, context)
         return false
     end
 
-    context.world.resolveCustomer(action == "accept" and "accepted" or "declined", state)
+    local accepted = action == "accept" and quoteResult.accepted
+    context.world.resolveCustomer(accepted and "accepted" or "declined", state)
     state.currentOffer = nil
     state.screen = "world"
-    state.message = action == "accept"
-        and string.format("Accepted %s for $%d. Delivery is awaiting scheduling.", job.id, job.quote.totalPrice)
-        or string.format("Declined %s. The customer is leaving.", job.id)
+    if action == "accept" then
+        state.message = quoteResult.accepted
+            and string.format("%s accepted your $%d quote. %s.", job.company, quoteResult.amount,
+                context.jobService.deliverySummary(job, state))
+            or string.format("%s declined your $%d quote. The customer is leaving.",
+                job.company, quoteResult.amount)
+    else
+        state.message = string.format("Declined %s. The customer is leaving.", job.id)
+    end
     context.saveCurrent()
     return true
+end
+
+function Input.wheelmoved(x, y, context)
+    if context.state.screen == "computer" and context.computerScreen.wheelmoved then
+        return context.computerScreen.wheelmoved(context.state, x, y)
+    end
+    return false
 end
 
 function Input.mousereleased(x, y, button, context)

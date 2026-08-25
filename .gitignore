@@ -40,10 +40,14 @@ __pycache__/
 !/output/loading-bay-open-generated.png
 !/output/truck-open-source.png
 !/output/truck-closed-source.png
+!/output/machine-delivery-flatbed-loaded-source.png
+!/output/machine-delivery-flatbed-empty-source.png
 !/output/pallet-jack-directions-source.png
+!/output/pallet-jack-intermediate-directions-source.png
 !/output/loaded-pallet-directions-source.png
 !/output/polar-cutter-console-source.png
 !/output/polar-cutter-four-directions-final-source.png
+!/output/polar-cutter-intermediate-directions-source.png
 !/output/warehouse-client-lounge-approved.png
 !/output/warehouse-client-lounge-walkmask-approved.png
 !/output/sprite-doctor/

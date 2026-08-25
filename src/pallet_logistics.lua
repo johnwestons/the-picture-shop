@@ -3,6 +3,7 @@ local Procurement = require("src.procurement")
 local PalletState = require("src.pallet_state")
 local Receiving = require("src.receiving")
 local Config = require("src.config")
+local BusinessCalendar = require("src.business_calendar")
 local directionFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
 
 local function activeJob(state, jobId)
@@ -89,6 +90,7 @@ function Logistics.unload(state, jobId, palletId, spawnPoints, origin)
                 job.delivery = job.delivery or {}
                 job.delivery.status = "received"
                 job.delivery.receivedAt = os.time()
+                job.delivery.receivedAtHours = BusinessCalendar.absoluteHours(state)
             else
                 job.delivery = job.delivery or {}
                 job.delivery.status = "unloading"
@@ -126,7 +128,8 @@ function Logistics.physicalPallets(state)
     local active = state and state.jobs and state.jobs.active or {}
     for _, job in ipairs(active) do
         for _, pallet in ipairs(job.pallets or {}) do
-            if pallet.world and (pallet.location == "warehouse" or pallet.location == "cutter_output") then
+            if pallet.world and (pallet.location == "warehouse" or pallet.location == "cutter_output"
+                or pallet.location == "press_output") then
                 local progress = pallet.world.spawnProgress or 1
                 local fromX = pallet.world.fromX or pallet.world.x
                 local fromY = pallet.world.fromY or pallet.world.y
@@ -182,11 +185,15 @@ function Logistics.tooltip(item)
     end
     local paper, pallet, job = item.pallet.paper, item.pallet, item.job
     local size = paper and paper.currentSize or job.sourceSize
+    local press = pallet.press
+    local pressText = press and string.format("  |  Press: %d color%s, %s",
+        press.completedColors or 0, (press.completedColors or 0) == 1 and "" or "s",
+        press.status or "not started") or ""
     return {
         title = pallet.id .. "  •  " .. job.company,
         line1 = string.format("Job %s  |  %s sheets", job.id, commaNumber(pallet.initialSheets)),
         line2 = string.format("Paper %s  |  %.2f x %.2f in", paper and paper.id or "unassigned", size.width, size.height),
-        line3 = string.format("Status: %s  |  Location: %s", pallet.status, pallet.location),
+        line3 = string.format("Status: %s  |  Location: %s%s", pallet.status, pallet.location, pressText),
     }
 end
 

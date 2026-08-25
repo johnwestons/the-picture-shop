@@ -2,7 +2,7 @@
 
 The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save identity. It never reads or writes the player's normal save directory.
 
-`RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. The upper row shows raw source-frame bounds; the lower row applies the same action scale normalization used in the game. This makes size mismatches and frame-to-frame silhouette jumps visible without touching a player save.
+`RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. The upper row shows raw source-frame bounds; the lower row normalizes every visitor action to the player character's 256-pixel source height. This makes size mismatches, cropped cells, and frame-to-frame silhouette jumps visible without touching a player save.
 
 ## Layers
 
@@ -11,10 +11,14 @@ The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save ident
 - `src/tests/pallet_state_test.lua` checks legal ownership transitions without rendering.
 - `src/tests/save_contract_test.lua` checks exact defaults, nested validation, and a focused round trip.
 - `src/tests/input_status_test.lua` checks Back/Escape parity and office projections.
+- `src/tests/machine_fleet_test.lua` checks condition, maintenance, online machine-order reservation, dedicated
+  flatbed scheduling, player unloading, ownership transfer, technician NPC completion, physical maintenance-kit
+  consumption/despawn, and empty-truck release.
 - `src/tests/job_loop_integration_test.lua` owns the accept-to-payment end-to-end workflow.
 - `src/tests/cutter_integration_test.lua` owns guarded cutting, multi-lift production, physical staging, safe output, and pallet ownership scenarios.
 - `src/tests/save_integration_test.lua` owns migration, recovery, validation, and all-slot scenarios.
-- `src/tests/ui_integration_test.lua` owns title controls and the live mouse/keyboard warehouse journey.
+- `src/tests/ui_integration_test.lua` owns title controls, cutter/wrapper/Windmill relocation, and the live
+  mouse/keyboard warehouse journey. The core smoke suite also verifies delayed grouped supply manifests.
 - `src/tests/audit_coverage.lua` maps every fixed P0, P1, and P2 audit finding to required named checks. The run fails if a mapped regression disappears or is renamed without updating the manifest.
 
 ## Gates

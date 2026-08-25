@@ -22,6 +22,8 @@ function Test.run(context, check, economy, jobs)
     })
     jobs.accept(economy.jobs.completed[1])
     economy.jobs.completed[1].status = "completed"
+    check("save_repeat_email_setup", context.jobService.scheduleRepeatEmail(
+        economy, economy.jobs.completed[1]))
     economy.jobs.declined[1] = jobs.createOffer({
         id = "JOB-0097", company = "Declined Save Co.",
         sourceSize = { width = 16, height = 12 }, finishedSize = { width = 8, height = 6 },
@@ -37,16 +39,23 @@ function Test.run(context, check, economy, jobs)
     economy.cutterMemory = { ["1"] = { 12.5, 12, 11.5 }, ["2"] = { 9.5 } }
     economy.cutter.x = 590
     economy.cutter.y = 430
-    economy.cutter.direction = "southeast"
+    economy.cutter.direction = "east"
     economy.palletJack.x = 612
     economy.palletJack.y = 498
-    economy.palletJack.direction = "southeast"
+    economy.palletJack.direction = "south"
     economy.palletJack.operating = true
     economy.palletJack.carriedPalletId = "JOB-0099-P01"
     economy.wrapper.x = 705
     economy.wrapper.y = 455
     economy.wrapper.direction = "northeast"
     economy.vendorCategory = 4
+    context.machineFleet.recordUse(economy, "polar_115", 12)
+    context.businessCalendar.update(economy, 31 * context.config.businessCalendar.secondsPerDay)
+    economy.money = 10000
+    local machineOrdered, machineDelivery = context.machineFleet.orderOnline(economy, 1)
+    check("save_machine_delivery_setup", machineOrdered
+        and machineDelivery.machineId == "MCH-0003"
+        and machineDelivery.delivery.status == "awaiting_delivery")
     check("save_procurement_setup", context.procurement.buy(economy, 1, 1))
     local savedPlayer = { x = 701, y = 502 }
     check("save_write_v3", context.save.save(1, economy, savedPlayer))
@@ -58,9 +67,17 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.jobs.active[1].pallets[1].remainingSheets == 1200
         and loaded.state.jobs.completed[1].id == "JOB-0098"
         and loaded.state.jobs.declined[1].id == "JOB-0097")
+    check("save_repeat_email_round_trip", loaded
+        and #loaded.state.clientEmails.pending == 1
+        and loaded.state.clientEmails.pending[1].sender == "Completed Save Co."
+        and loaded.state.clientEmails.pending[1].job.requestChannel == "email")
     check("save_finance_round_trip", loaded
         and loaded.state.accountsReceivable == 450
-        and loaded.state.nextJobId == 100)
+        and loaded.state.nextJobId == 100
+        and loaded.state.calendar.month == 2
+        and loaded.state.calendar.day == 1
+        and loaded.state.bills.balance == 1650
+        and loaded.state.bills.ledger[1].status == "unpaid")
     check("save_inventory_round_trip", loaded
         and loaded.state.inventory.plasticWrapRolls == 3
         and loaded.state.inventory.plasticWrapUses == 7
@@ -70,13 +87,13 @@ function Test.run(context, check, economy, jobs)
     check("save_pallet_jack_round_trip", loaded
         and loaded.state.palletJack.x == 612
         and loaded.state.palletJack.y == 498
-        and loaded.state.palletJack.direction == "southeast"
+        and loaded.state.palletJack.direction == "south"
         and loaded.state.palletJack.carriedPalletId == "JOB-0099-P01"
         and loaded.state.jobs.active[1].pallets[1].location == "on_pallet_jack")
     check("save_cutter_placement_round_trip", loaded
         and loaded.state.cutter.x == 590
         and loaded.state.cutter.y == 430
-        and loaded.state.cutter.direction == "southeast")
+        and loaded.state.cutter.direction == "east")
     check("save_cutter_measurement_memory_round_trip", loaded
         and #loaded.state.cutterMemory["1"] == 3
         and loaded.state.cutterMemory["1"][1] == 12.5
@@ -85,6 +102,17 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.wrapper.x == 705
         and loaded.state.wrapper.y == 455
         and loaded.state.wrapper.direction == "northeast")
+    check("save_machine_condition_round_trip", loaded
+        and loaded.state.machines.items[1].id == "MCH-0001"
+        and loaded.state.machines.items[1].cycles == 12
+        and loaded.state.machines.items[1].variables.bladeSharpness < 100
+        and context.machineFleet.validState(loaded.state.machines))
+    check("save_pending_machine_delivery_round_trip", loaded
+        and loaded.state.machines.nextDeliveryId == 2
+        and loaded.state.machines.deliveries[1].id == machineDelivery.id
+        and loaded.state.machines.deliveries[1].machineId == "MCH-0003"
+        and loaded.state.machines.deliveries[1].item.id == "MCH-0003"
+        and context.machineFleet.nextInbound(loaded.state).id == machineDelivery.id)
     check("save_procurement_round_trip", loaded
         and loaded.state.vendorCategory == 4
         and loaded.state.procurement.nextOrderId == 2
@@ -98,6 +126,8 @@ function Test.run(context, check, economy, jobs)
         and appliedRoundTrip.cutterMemory["1"][3] == 11.5
         and appliedRoundTrip.palletJack.carriedPalletId == "JOB-0099-P01"
         and appliedRoundTrip.jobs.active[1].pallets[1].location == "on_pallet_jack")
+    check("save_state_apply_restores_pending_machine_delivery",
+        context.machineFleet.nextInbound(appliedRoundTrip).machineId == "MCH-0003")
     context.save.delete(1)
 
     context.save.delete(2)
@@ -106,7 +136,8 @@ function Test.run(context, check, economy, jobs)
     check("save_v3_migration_fixture", context.save.save(2, v3State, { x = 430, y = 530 }))
     local v3Source = love.filesystem.read("saves/slot2.lua")
     local versionReplacements, memoryReplacements
-    v3Source, versionReplacements = v3Source:gsub('%["version"%]%s*=%s*4', '["version"] = 3', 1)
+    v3Source, versionReplacements = v3Source:gsub(
+        '%["version"%]%s*=%s*' .. tostring(context.save.VERSION), '["version"] = 3', 1)
     v3Source, memoryReplacements = v3Source:gsub('%s*%["cutterMemory"%]%s*=%s*{%s*},', '', 1)
     check("save_v3_fixture_removes_new_memory_field",
         versionReplacements == 1 and memoryReplacements == 1
@@ -116,6 +147,7 @@ function Test.run(context, check, economy, jobs)
         and migratedV3.version == context.save.VERSION
         and migratedV3.state.money == 303
         and next(migratedV3.state.cutterMemory) == nil
+        and #migratedV3.state.machines.items == 2
         and migratedV3.player.x == 430)
     context.save.delete(2)
 
@@ -142,6 +174,7 @@ function Test.run(context, check, economy, jobs)
         and migrated.state.inventory.plasticWrapUses == 11
         and migrated.state.wrapper.x == context.config.wrapperPlacement.spawnX
         and migrated.state.wrapper.direction == context.config.wrapperPlacement.defaultDirection
+        and #migrated.state.machines.items == 2
         and #migrated.state.jobs.active == 0
         and migrated.player.x == 444)
     context.save.delete(2)
@@ -190,6 +223,7 @@ function Test.run(context, check, economy, jobs)
             and fresh.state.inventory.plasticWrapUses == 11
             and fresh.state.inventory.stock.shipping_cartons == 20
             and next(fresh.state.cutterMemory) == nil
+            and #fresh.state.machines.items == 2
             and fresh.state.wrapper.x == context.config.wrapperPlacement.spawnX
             and fresh.state.wrapper.y == context.config.wrapperPlacement.spawnY
             and fresh.state.wrapper.direction == context.config.wrapperPlacement.defaultDirection)

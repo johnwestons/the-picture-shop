@@ -17,6 +17,15 @@ local function distanceSquared(a, b)
     return dx * dx + dy * dy
 end
 
+local function randomDelay(minimum, maximum, fallback)
+    minimum = tonumber(minimum)
+    maximum = tonumber(maximum)
+    if not minimum and not maximum then return math.max(0, tonumber(fallback) or 1) end
+    minimum = math.max(0, minimum or maximum or 0)
+    maximum = math.max(minimum, maximum or minimum)
+    return minimum + (maximum - minimum) * math.random()
+end
+
 local function moveToward(instance, target, distance)
     local dx, dy = target.x - instance.x, target.y - instance.y
     local length = math.sqrt(dx * dx + dy * dy)
@@ -41,18 +50,23 @@ function Customer.new(definition)
         seatSpots = definition.seatSpots,
         seatIndex = 0,
         maxWaitSeconds = definition.maxWaitSeconds or 300,
-        drawScale = definition.drawScale or 0.34,
+        drawScale = definition.drawScale or 0.30,
         speed = definition.speed or 72,
         walkAnimationRate = definition.walkAnimationRate or 4,
         arrivalDelay = definition.arrivalDelay or 1,
+        initialArrivalDelay = definition.initialArrivalDelay,
+        initialArrivalDelayMin = definition.initialArrivalDelayMin,
+        initialArrivalDelayMax = definition.initialArrivalDelayMax,
+        arrivalDelayMin = definition.arrivalDelayMin,
+        arrivalDelayMax = definition.arrivalDelayMax,
         interactionRadius = definition.interactionRadius or 58,
         route = copyRoute(definition.route),
     }, Instance)
-    instance:reset()
+    instance:reset(true)
     return instance
 end
 
-function Instance:reset()
+function Instance:reset(initialVisit)
     if type(self.characterPool) == "table" and #self.characterPool > 0 then
         self.characterIndex = self.characterIndex % #self.characterPool + 1
         self.character = self.characterPool[self.characterIndex]
@@ -67,7 +81,10 @@ function Instance:reset()
     self.x, self.y = spawn.x, spawn.y
     self.state = "scheduled"
     self.visible = false
-    self.timer = self.arrivalDelay
+    self.timer = initialVisit
+        and randomDelay(self.initialArrivalDelayMin, self.initialArrivalDelayMax,
+            self.initialArrivalDelay ~= nil and self.initialArrivalDelay or self.arrivalDelay)
+        or randomDelay(self.arrivalDelayMin, self.arrivalDelayMax, self.arrivalDelay)
     self.waypoint = 2
     self.facing = 1
     self.animationClock = 0
@@ -75,10 +92,11 @@ function Instance:reset()
     self.waitTimer = 0
 end
 
-function Instance:update(dt, player)
+function Instance:update(dt, player, pauseSchedule)
     dt = math.max(0, dt or 0)
     self.animationClock = self.animationClock + dt
     if self.state == "scheduled" then
+        if pauseSchedule then return nil end
         self.timer = self.timer - dt
         if self.timer > 0 then return nil end
         self.state = "entering"
@@ -127,6 +145,10 @@ function Instance:update(dt, player)
     return nil
 end
 
+function Instance:isPresent()
+    return self.state ~= "scheduled" and self.state ~= "finished"
+end
+
 function Instance:beginReview()
     if self.state ~= "waiting" then return false end
     self.state = "reviewing"
@@ -170,6 +192,15 @@ function Instance:isMoving()
     return self.state == "entering" or self.state == "exiting"
 end
 
+function Instance:frameForAction(action, frameCount)
+    frameCount = math.max(1, tonumber(frameCount) or 1)
+    if action ~= "walk" then return 1 end
+    local cycleLength = math.max(1, frameCount * 2 - 2)
+    local frame = math.floor(self.animationClock * self.walkAnimationRate) % cycleLength + 1
+    if frameCount > 1 and frame > frameCount then frame = frameCount * 2 - frame end
+    return frame
+end
+
 function Instance:snapshot()
     return {
         state = self.state,
@@ -180,6 +211,7 @@ function Instance:snapshot()
         seatIndex = self.seatIndex,
         decision = self.decision,
         waitTimer = self.waitTimer,
+        arrivalTimer = self.timer,
     }
 end
 
@@ -187,14 +219,12 @@ function Instance:draw(characterAssets)
     if not self.visible then return end
     local action = (self.state == "waiting" or self.state == "reviewing")
         and "sit" or (self:isMoving() and "walk" or "idle")
-    local rate = action == "walk" and self.walkAnimationRate or 2
     local image, quad, frameCount = characterAssets.get(self.character, action, 1)
     frameCount = frameCount or 1
-    local cycleLength = action == "walk" and math.max(1, frameCount * 2 - 2) or frameCount
-    local frame = math.floor(self.animationClock * rate) % cycleLength + 1
-    if action == "walk" and frameCount > 1 then
-        frame = frame <= frameCount and frame or frameCount * 2 - frame
-    end
+    -- Seated/idle clients use one clean atlas cell. Only walking advances
+    -- frames, preventing adjacent visitor cells from appearing to flicker or
+    -- double-draw while a client waits in the lounge.
+    local frame = self:frameForAction(action, frameCount)
     image, quad, frameCount = characterAssets.get(self.character, action, frame)
     local anchorX, anchorY = characterAssets.getAnchor(self.character, action, frame)
     local normalization = characterAssets.getNormalization(self.character, action)

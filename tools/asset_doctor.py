@@ -27,19 +27,27 @@ def audit(root: Path) -> list[dict[str, object]]:
         "toolbox_large": generated / "toolbox-large.png",
         "paper_boxes": generated / "paper-storage-boxes-strip.png",
         "picture_press": generated / "picture-press-transparent.png",
+        "windmill_directions": generated / "heidelberg-windmill-directions-atlas-v1.png",
+        "technician_npcs": generated / "technician-npcs-atlas-v1.png",
         "skid_wrapper_directions": generated / "skid-wrapper-directions-strip.png",
         "wrapped_pallet_stages": generated / "wrapped-pallet-stages-strip.png",
         "loading_bay_door": generated / "loading-bay-door-strip.png",
         "delivery_truck": generated / "delivery-truck-open.png",
         "truck_cargo_door": generated / "truck-cargo-door-strip.png",
+        "machine_flatbed_loaded": generated / "machine-delivery-flatbed-loaded.png",
+        "machine_flatbed_empty": generated / "machine-delivery-flatbed-empty.png",
         "polar_operator_console": generated / "polar-operator-console.png",
         "cutter_control_buttons": generated / "cutter-control-buttons-strip.png",
         "cutter_clamp": generated / "cutter-clamp-strip.png",
         "cutter_blade": generated / "cutter-blade-strip.png",
+        "cutter_maintenance_oil": generated / "cutter-maintenance-oil-atlas.png",
+        "cutter_maintenance_tools": generated / "cutter-maintenance-tools-atlas.png",
+        "cutter_maintenance_scenes": generated / "cutter-maintenance-scenes-atlas.png",
         "loaded_paper_pallet": generated / "loaded-paper-pallet.png",
         "loaded_paper_pallet_directions": generated / "loaded-paper-pallet-directions-strip.png",
         "pallet_jack": generated / "pallet-jack-directions-strip.png",
         "pallet_jack_loaded": generated / "pallet-jack-loaded-directions-strip.png",
+        "wall_vent_fan": generated / "wall-vent-fan-strip.png",
         "vendor_product_pallets": generated / "vendor-product-pallets-atlas.png",
         "boxed_paper_pallet_stages": generated / "boxed-paper-pallet-stages-atlas.png",
         "polar_back_button": generated / "polar-back-button-states-strip.png",
@@ -123,6 +131,44 @@ def audit(root: Path) -> list[dict[str, object]]:
             )
         )
 
+    windmill = images.get("windmill_directions")
+    if windmill:
+        checks.append(result(
+            "windmill_directions_dimensions",
+            windmill.size == (1536, 1024),
+            f"size={windmill.size} expected=(1536, 1024)",
+        ))
+        nonempty = []
+        for row in range(2):
+            for column in range(2):
+                cell = windmill.crop((column * 768, row * 512, (column + 1) * 768, (row + 1) * 512))
+                nonempty.append(cell.getbbox() is not None)
+        checks.append(result(
+            "windmill_directions_four_nonempty_views",
+            all(nonempty),
+            f"nonempty={nonempty}",
+        ))
+
+    technicians = images.get("technician_npcs")
+    if technicians:
+        checks.append(result(
+            "technician_npcs_dimensions",
+            technicians.size == (2048, 1024),
+            f"size={technicians.size} expected=(2048, 1024)",
+        ))
+        alpha = technicians.getchannel("A")
+        cells = []
+        for row in range(2):
+            for column in range(4):
+                cell = alpha.crop((column * 512, row * 512, (column + 1) * 512, (row + 1) * 512))
+                cells.append(cell.getbbox() is not None)
+        minimum, maximum = alpha.getextrema()
+        checks.append(result(
+            "technician_npcs_transparency_and_cells",
+            minimum == 0 and maximum >= 250 and all(cells),
+            f"alpha_range=({minimum}, {maximum}) nonempty={cells}",
+        ))
+
     loading_bay = images.get("loading_bay_door")
     if loading_bay:
         width, height = loading_bay.size
@@ -164,6 +210,22 @@ def audit(root: Path) -> list[dict[str, object]]:
             f"alpha_range=({minimum}, {maximum})",
         ))
 
+    for name in ("machine_flatbed_loaded", "machine_flatbed_empty"):
+        flatbed = images.get(name)
+        if flatbed:
+            minimum, maximum = flatbed.getchannel("A").getextrema()
+            checks.append(result(
+                f"{name}_sprite",
+                flatbed.size == (512, 512),
+                f"size={flatbed.size} expected=(512, 512)",
+            ))
+            if name not in {"cutter_maintenance_tools", "cutter_maintenance_scenes"}:
+                checks.append(result(
+                    f"{name}_transparency",
+                    minimum == 0 and maximum >= 250,
+                    f"alpha_range=({minimum}, {maximum})",
+                ))
+
     truck_cargo = images.get("truck_cargo_door")
     if truck_cargo:
         width, height = truck_cargo.size
@@ -195,15 +257,18 @@ def audit(root: Path) -> list[dict[str, object]]:
         ))
 
     cutter_contracts = {
-        "polar_directions": (2048, 512),
+        "polar_directions": (4096, 512),
         "polar_operator_console": (768, 512),
         "cutter_control_buttons": (512, 128),
         "cutter_clamp": (3840, 512),
         "cutter_blade": (3840, 512),
+        "cutter_maintenance_oil": (512, 512),
+        "cutter_maintenance_tools": (768, 512),
+        "cutter_maintenance_scenes": (1024, 768),
         "loaded_paper_pallet": (256, 256),
         "loaded_paper_pallet_directions": (1024, 256),
-        "pallet_jack": (1024, 256),
-        "pallet_jack_loaded": (1024, 256),
+        "pallet_jack": (2048, 256),
+        "pallet_jack_loaded": (2048, 256),
     }
     for name, expected_size in cutter_contracts.items():
         image = images.get(name)
@@ -224,6 +289,10 @@ def audit(root: Path) -> list[dict[str, object]]:
         "vendor_product_pallets": ((1252, 1252), 4, 4),
         "boxed_paper_pallet_stages": ((1400, 1120), 5, 4),
         "polar_back_button": ((384, 128), 3, 1),
+        "wall_vent_fan": ((288, 96), 3, 1),
+        "cutter_maintenance_oil": ((512, 512), 2, 2),
+        "cutter_maintenance_tools": ((768, 512), 3, 2),
+        "cutter_maintenance_scenes": ((1024, 768), 2, 2),
     }
     for name, (expected_size, columns, rows) in atlas_contracts.items():
         image = images.get(name)
@@ -338,6 +407,16 @@ def audit(root: Path) -> list[dict[str, object]]:
             checks.append(result(f"{character}_{action}_transparency", minimum == 0 and maximum >= 250, f"alpha_range=({minimum}, {maximum})"))
             empty = [frame + 1 for frame in range(actual) if alpha.crop((frame * 512, 0, (frame + 1) * 512, 512)).getbbox() is None]
             checks.append(result(f"{character}_{action}_nonempty", not empty, f"empty_frames={empty}"))
+            edge_cropped = []
+            for frame in range(actual):
+                bounds = alpha.crop((frame * 512, 0, (frame + 1) * 512, 512)).getbbox()
+                if bounds and (bounds[0] <= 0 or bounds[1] <= 0 or bounds[2] >= 512 or bounds[3] >= 512):
+                    edge_cropped.append(frame + 1)
+            checks.append(result(
+                f"{character}_{action}_clear_frame_edges",
+                not edge_cropped,
+                f"edge_cropped_frames={edge_cropped}",
+            ))
             image.close()
 
     for image in images.values():

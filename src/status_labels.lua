@@ -3,6 +3,7 @@ local StatusLabels = {}
 local LABELS = {
     offered = "Offer",
     awaiting_delivery = "Awaiting inbound delivery",
+    pending_arrival = "Waiting for promised delivery window",
     awaiting_schedule = "Awaiting truck schedule",
     scheduled = "Truck scheduled",
     arriving = "Truck en route",
