@@ -9,7 +9,7 @@ import subprocess
 import zipfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,18 +49,17 @@ def copy_runtime() -> None:
 
 
 def generate_icons() -> None:
-    source = ROOT / "assets" / "generated" / "rabbit-worker-atlas.png"
+    source = ROOT / "mobile" / "android" / "polar-cutter-launcher.png"
     icon_root = OUTPUT / "android-res"
     with Image.open(source) as opened:
-        atlas = opened.convert("RGBA")
-        frame_width = atlas.width // 4 if atlas.width >= atlas.height * 2 else atlas.width
-        character = atlas.crop((0, 0, frame_width, atlas.height))
-        character.thumbnail((350, 350), Image.Resampling.NEAREST)
-    master = Image.new("RGBA", (512, 512), "#10191d")
-    draw = ImageDraw.Draw(master)
-    draw.rounded_rectangle((18, 18, 494, 494), radius=92, fill="#18343a", outline="#f0c743", width=18)
-    draw.rectangle((72, 338, 440, 414), fill="#e8dec2", outline="#18262b", width=8)
-    master.alpha_composite(character, ((512 - character.width) // 2, 54))
+        cutter = opened.convert("RGBA")
+        scale = min(492 / cutter.width, 492 / cutter.height)
+        cutter = cutter.resize(
+            (round(cutter.width * scale), round(cutter.height * scale)),
+            Image.Resampling.LANCZOS,
+        )
+    master = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
+    master.alpha_composite(cutter, ((512 - cutter.width) // 2, (512 - cutter.height) // 2))
     for density, size in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
         destination = icon_root / f"drawable-{density}" / "love.png"
         destination.parent.mkdir(parents=True, exist_ok=True)

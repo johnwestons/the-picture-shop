@@ -200,6 +200,20 @@ function App.load()
         primaryAction = primaryMobileAction,
         extraActions = extraMobileActions,
         afterInput = syncMobileKeyboard,
+        beginGesture = function(x, y, distance)
+            if App.mobileCamera then App.mobileCamera:beginGesture(x, y, distance) end
+        end,
+        updateGesture = function(x, y, distance)
+            if App.mobileCamera then App.mobileCamera:updateGesture(x, y, distance) end
+        end,
+        endGesture = function()
+            if App.mobileCamera then App.mobileCamera:endGesture() end
+        end,
+    })
+    App.mobileCamera = require("src.mobile_camera").new({
+        enabled = mobileControls:isEnabled(),
+        baseWidth = Config.baseWidth,
+        baseHeight = Config.baseHeight,
     })
     controller = Controller.new({
         pressKey = function(key) Input.keypressed(key, inputContext) end,
@@ -328,7 +342,11 @@ end
 
 function App.draw()
     love.graphics.clear(0.04, 0.05, 0.07)
-    Viewport.beginDraw(Config.baseWidth, Config.baseHeight)
+    local viewBounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight)
+    if mobileControls then mobileControls:setBounds(viewBounds) end
+    if App.mobileCamera then App.mobileCamera:setViewport(viewBounds.width, viewBounds.height) end
+    local mobileWorld = state.screen == "world" and App.mobileCamera and App.mobileCamera:isEnabled()
+    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not mobileWorld)
     if spriteLabActive then
         SpriteMotionLab.draw(CharacterAssets)
         Viewport.endDraw()
@@ -353,12 +371,19 @@ function App.draw()
         TitleScreen.draw(Assets, mouseX, mouseY)
     else
         local mouseX, mouseY = pointerPosition()
-        World.draw(Assets, CharacterAssets, state,
-            state.screen == "world" and mouseX or nil,
-            state.screen == "world" and mouseY or nil)
+        if mobileWorld then
+            local worldX, worldY = App.mobileCamera:screenToWorld(mouseX, mouseY)
+            App.mobileCamera:beginDraw()
+            World.draw(Assets, CharacterAssets, state, worldX, worldY)
+            App.mobileCamera:endDraw()
+        else
+            World.draw(Assets, CharacterAssets, state,
+                state.screen == "world" and mouseX or nil,
+                state.screen == "world" and mouseY or nil)
+        end
         if state.screen == "world" then
             Hud.draw(state, World.prompt(), Assets, mouseX, mouseY,
-                mobileControls and mobileControls:isEnabled(), controller and controller:isActive())
+                mobileControls and mobileControls:isEnabled(), controller and controller:isActive(), viewBounds)
         elseif state.screen == "computer" then
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "machine" then

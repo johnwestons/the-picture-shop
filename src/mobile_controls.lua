@@ -26,7 +26,11 @@ function MobileControls.new(options)
     self.primaryAction = options.primaryAction or function() return "e", "USE" end
     self.extraActions = options.extraActions or function() return {} end
     self.afterInput = options.afterInput or function() end
+    self.beginGesture = options.beginGesture or function() end
+    self.updateGesture = options.updateGesture or function() end
+    self.endGesture = options.endGesture or function() end
     self.touches = {}
+    self.touchOrder = 0
     self.axisX, self.axisY = 0, 0
     self.pointerX, self.pointerY = nil, nil
     self.joystick = { x = 98, y = 574, radius = 72, knob = 29 }
@@ -42,6 +46,18 @@ function MobileControls:isEnabled() return self.enabled end
 function MobileControls:ignoreSyntheticMouse(isTouch) return self.enabled and isTouch == true end
 function MobileControls:movement() return self.axisX, self.axisY end
 function MobileControls:pointer() return self.pointerX, self.pointerY end
+
+function MobileControls:setBounds(bounds)
+    if not bounds then return end
+    self.joystick.x = bounds.left + 100
+    self.joystick.y = bounds.bottom - 104
+    self.primary.x = bounds.right - 90
+    self.primary.y = bounds.bottom - 104
+    self.extra[1].x = bounds.right - 193
+    self.extra[1].y = bounds.bottom - 74
+    self.extra[2].x = bounds.right - 193
+    self.extra[2].y = bounds.bottom - 160
+end
 
 function MobileControls:_updatePointer(screenX, screenY)
     self.pointerX, self.pointerY = self.toGame(screenX, screenY)
@@ -74,6 +90,39 @@ function MobileControls:_buttonAt(x, y)
     end
 end
 
+function MobileControls:_startGestureIfReady()
+    local candidates = {}
+    for id, touch in pairs(self.touches) do
+        if touch.kind == "pending" then
+            candidates[#candidates + 1] = { id = id, touch = touch }
+        end
+    end
+    if #candidates < 2 then return false end
+    table.sort(candidates, function(a, b) return a.touch.order < b.touch.order end)
+    local first, second = candidates[1], candidates[2]
+    first.touch.kind, second.touch.kind = "gesture", "gesture"
+    self.gestureTouches = { first.id, second.id }
+    local midX = (first.touch.x + second.touch.x) / 2
+    local midY = (first.touch.y + second.touch.y) / 2
+    local separation = distance(first.touch.screenX, first.touch.screenY,
+        second.touch.screenX, second.touch.screenY)
+    self.beginGesture(midX, midY, separation)
+    return true
+end
+
+function MobileControls:_updateGesture()
+    if not self.gestureTouches then return false end
+    local first = self.touches[self.gestureTouches[1]]
+    local second = self.touches[self.gestureTouches[2]]
+    if not first or not second then return false end
+    local midX = (first.x + second.x) / 2
+    local midY = (first.y + second.y) / 2
+    local separation = distance(first.screenX, first.screenY, second.screenX, second.screenY)
+    self.updateGesture(midX, midY, separation)
+    self.pointerX, self.pointerY = midX, midY
+    return true
+end
+
 function MobileControls:touchpressed(id, screenX, screenY)
     if not self.enabled then return false end
     local x, y = self:_updatePointer(screenX, screenY)
@@ -95,9 +144,22 @@ function MobileControls:touchpressed(id, screenX, screenY)
             return true
         end
     end
-    self.touches[id] = { kind = "pointer" }
-    self.pressPointer(screenX, screenY, 1)
-    self.afterInput(x, y)
+    if self.gameplayActive() then
+        if self.gestureTouches then
+            self.touches[id] = { kind = "ignored", screenX = screenX, screenY = screenY, x = x, y = y }
+            return true
+        end
+        self.touchOrder = self.touchOrder + 1
+        self.touches[id] = {
+            kind = "pending", order = self.touchOrder,
+            screenX = screenX, screenY = screenY, x = x, y = y,
+        }
+        self:_startGestureIfReady()
+    else
+        self.touches[id] = { kind = "pointer" }
+        self.pressPointer(screenX, screenY, 1)
+        self.afterInput(x, y)
+    end
     return true
 end
 
@@ -106,10 +168,13 @@ function MobileControls:touchmoved(id, screenX, screenY, dx, dy)
     local x, y = self:_updatePointer(screenX, screenY)
     local touch = self.touches[id]
     if not touch then return false end
+    touch.screenX, touch.screenY, touch.x, touch.y = screenX, screenY, x, y
     if touch.kind == "joystick" then
         self:_updateJoystick(x, y)
     elseif touch.kind == "pointer" then
         self.movePointer(screenX, screenY, dx or 0, dy or 0)
+    elseif touch.kind == "gesture" then
+        self:_updateGesture()
     end
     return true
 end
@@ -129,6 +194,17 @@ function MobileControls:touchreleased(id, screenX, screenY)
     elseif touch.kind == "pointer" then
         self.releasePointer(screenX, screenY, 1)
         self.afterInput(x, y)
+    elseif touch.kind == "pending" then
+        self.pressPointer(screenX, screenY, 1)
+        self.releasePointer(screenX, screenY, 1)
+        self.afterInput(x, y)
+    elseif touch.kind == "gesture" then
+        local partnerId = self.gestureTouches and (self.gestureTouches[1] == id
+            and self.gestureTouches[2] or self.gestureTouches[1])
+        local partner = partnerId and self.touches[partnerId]
+        if partner then partner.kind = "ignored" end
+        self.gestureTouches = nil
+        self.endGesture()
     end
     self.touches[id] = nil
     return true
@@ -140,6 +216,8 @@ function MobileControls:cancelAll()
     end
     self.touches = {}
     self.joystickTouch = nil
+    self.gestureTouches = nil
+    self.endGesture()
     self.axisX, self.axisY = 0, 0
 end
 

@@ -1,5 +1,7 @@
 local Test = {}
 local Controller = require("src.controller")
+local MobileCamera = require("src.mobile_camera")
+local MobileControls = require("src.mobile_controls")
 
 local function closeRoute(context, screen, inputKind)
     local closeState = context.State.new()
@@ -125,6 +127,46 @@ function Test.run(context, check)
         and pointerEvents[1][1] == "down" and pointerEvents[2][1] == "up"
         and pointerEvents[1][2] == pointerEvents[2][2]
         and pointerEvents[1][3] == pointerEvents[2][3])
+
+    local camera = MobileCamera.new({ enabled = true, baseWidth = 960, baseHeight = 678 })
+    camera:setViewport(1469, 678)
+    local initial = camera:snapshot()
+    local centerWorldX, centerWorldY = camera:screenToWorld(480, 339)
+    check("mobile_camera_fills_ultrawide_screen", initial.zoom > 1.52 and initial.zoom < 1.54
+        and math.abs(centerWorldX - 480) < 0.001 and math.abs(centerWorldY - 339) < 0.001)
+    local anchorX, anchorY = camera:screenToWorld(480, 300)
+    camera:beginGesture(480, 300, 200)
+    camera:updateGesture(520, 340, 300)
+    local heldX, heldY = camera:screenToWorld(520, 340)
+    local pinched = camera:snapshot()
+    check("mobile_camera_pinch_preserves_finger_anchor", pinched.zoom > initial.zoom
+        and math.abs(anchorX - heldX) < 0.001 and math.abs(anchorY - heldY) < 0.001)
+
+    local taps, gestures = {}, { began = 0, updated = 0, ended = 0 }
+    local mobile = MobileControls.new({
+        enabled = true,
+        toGame = function(x, y) return x, y end,
+        pressKey = function() end,
+        releaseKey = function() end,
+        pressPointer = function(x, y) taps[#taps + 1] = { "down", x, y } end,
+        movePointer = function() end,
+        releasePointer = function(x, y) taps[#taps + 1] = { "up", x, y } end,
+        gameplayActive = function() return true end,
+        beginGesture = function() gestures.began = gestures.began + 1 end,
+        updateGesture = function() gestures.updated = gestures.updated + 1 end,
+        endGesture = function() gestures.ended = gestures.ended + 1 end,
+    })
+    mobile:touchpressed("first", 400, 300)
+    mobile:touchpressed("second", 600, 300)
+    mobile:touchmoved("second", 700, 340, 100, 40)
+    mobile:touchreleased("second", 700, 340)
+    mobile:touchreleased("first", 400, 300)
+    check("mobile_two_finger_gesture_never_leaks_taps", gestures.began == 1
+        and gestures.updated == 1 and gestures.ended == 1 and #taps == 0)
+    mobile:touchpressed("tap", 500, 250)
+    mobile:touchreleased("tap", 500, 250)
+    check("mobile_single_world_tap_stays_clickable", #taps == 2
+        and taps[1][1] == "down" and taps[2][1] == "up")
 end
 
 return Test

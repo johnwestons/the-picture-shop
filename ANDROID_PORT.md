@@ -34,6 +34,8 @@ keystore and Android App Bundle.
 - Updating with `-Install` retains each save slot.
 - Landscape remains locked while the phone rotates between its two landscape edges.
 - Touch joystick movement is smooth and simultaneous touches do not produce duplicate mouse clicks.
+- The shop floor fills the phone width; a two-finger gesture pans and pinch-zooms without leaking taps
+  into the HUD or shop interactions.
 - Contextual Use, Park, Move, Turn, machine placement, and pallet-jack controls all work.
 - Quote, email, promotion, and cutter gauge fields summon the Android keyboard and accept input.
 - Cutter guarded controls recognize simultaneous touch and controller shoulder presses.
@@ -41,6 +43,9 @@ keystore and Android App Bundle.
   navigate panels with its cursor, close panels, and return safely to the title menu.
 - Home/app switching releases held touch/controller state and preserves progress.
 - Relaunch restores the latest shop state without showing the LÖVE fallback screen.
+
+The Android launcher icon is generated directly from the supplied front-facing Polar cutter image in
+`mobile/android/polar-cutter-launcher.png`. The build only resizes and centers that transparent artwork.
 
 Before a distributable update, increment both values in `mobile/config.json`, run the normal smoke suite,
 build/install, complete this checklist, and retain the APK report SHA-256.

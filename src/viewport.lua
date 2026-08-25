@@ -8,12 +8,30 @@ function Viewport.transform(baseWidth, baseHeight)
     return offsetX, offsetY, scale
 end
 
-function Viewport.beginDraw(baseWidth, baseHeight)
+function Viewport.beginDraw(baseWidth, baseHeight, clip)
     local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight)
     love.graphics.push("all")
     love.graphics.translate(offsetX, offsetY)
     love.graphics.scale(scale, scale)
-    love.graphics.setScissor(offsetX, offsetY, baseWidth * scale, baseHeight * scale)
+    if clip ~= false then
+        love.graphics.setScissor(offsetX, offsetY, baseWidth * scale, baseHeight * scale)
+    else
+        love.graphics.setScissor()
+    end
+end
+
+function Viewport.gameBounds(baseWidth, baseHeight)
+    local windowWidth, windowHeight = love.graphics.getDimensions()
+    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight)
+    return {
+        left = -offsetX / scale,
+        top = -offsetY / scale,
+        right = (windowWidth - offsetX) / scale,
+        bottom = (windowHeight - offsetY) / scale,
+        width = windowWidth / scale,
+        height = windowHeight / scale,
+        scale = scale,
+    }
 end
 
 function Viewport.endDraw()
