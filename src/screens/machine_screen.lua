@@ -28,6 +28,7 @@ local gaugeInput = { x = 55, y = 263, width = 182, height = 28 }
 local exitButton = { x = 790, y = 28, width = 132, height = 42 }
 local wrapButton = { x = 650, y = 520, width = 220, height = 54 }
 local wrapperMaintenanceButton = { x = 50, y = 520, width = 220, height = 54 }
+local wrapperPalletList = { x = 42, y = 92, width = 330, rowHeight = 48, maxRows = 5 }
 local helpButton = { x = 500, y = 82, width = 174, height = 40 }
 local maintenanceButton = { x = 692, y = 82, width = 198, height = 40 }
 local helpBack = { x = 72, y = 582, width = 180, height = 44 }
@@ -800,6 +801,7 @@ function Screen.draw(state, assets, pointerX, pointerY)
             love.graphics.setColor(1, 1, 1)
             love.graphics.draw(image, sprite.quad, 520, 360, 0, 0.72, 0.72, sprite.width / 2, sprite.height * 0.92)
         end
+        local nearbyPallets = Wrapper.nearbyPallets(state)
         local nearby = Wrapper.nearbyPallet(state)
         local inventory = state.inventory or {}
         local packaging = nearby and (nearby.pallet.packaging or nearby.job.packaging or "flat") or nil
@@ -819,6 +821,39 @@ function Screen.draw(state, assets, pointerX, pointerY)
                 love.graphics.draw(palletImage, palletQuad.quad, 450, 390, 0, 0.42, 0.42, palletQuad.width / 2, palletQuad.height * 0.94)
             elseif palletImage then
                 love.graphics.draw(palletImage, 450, 390, 0, 0.72, 0.72, palletImage:getWidth() / 2, palletImage:getHeight() * 0.94)
+            end
+        end
+        love.graphics.setColor(0.96, 0.82, 0.26)
+        love.graphics.print("CLICK A NEARBY PALLET", wrapperPalletList.x, wrapperPalletList.y - 22)
+        if #nearbyPallets == 0 then
+            box(wrapperPalletList.x, wrapperPalletList.y, wrapperPalletList.width,
+                wrapperPalletList.rowHeight - 6, { 0.09, 0.11, 0.13, 0.94 },
+                { 0.28, 0.34, 0.36, 1 }, 3)
+            love.graphics.setColor(0.58, 0.66, 0.67)
+            love.graphics.print("No finished pallets in range", wrapperPalletList.x + 12,
+                wrapperPalletList.y + 13)
+        else
+            for index = 1, math.min(#nearbyPallets, wrapperPalletList.maxRows) do
+                local option = nearbyPallets[index]
+                local y = wrapperPalletList.y + (index - 1) * wrapperPalletList.rowHeight
+                local selected = nearby and nearby.pallet.id == option.pallet.id
+                local hovered = pointerX and inside({ x = wrapperPalletList.x, y = y,
+                    width = wrapperPalletList.width, height = wrapperPalletList.rowHeight - 6 },
+                    pointerX, pointerY)
+                box(wrapperPalletList.x, y, wrapperPalletList.width,
+                    wrapperPalletList.rowHeight - 6,
+                    selected and { 0.12, 0.38, 0.27, 0.98 }
+                        or (hovered and { 0.13, 0.24, 0.27, 0.98 } or { 0.08, 0.12, 0.14, 0.96 }),
+                    selected and { 0.42, 0.90, 0.54, 1 } or { 0.28, 0.43, 0.46, 1 }, 3)
+                love.graphics.setColor(0.94, 0.98, 0.92)
+                love.graphics.print(tostring(index) .. ".  " .. option.pallet.id,
+                    wrapperPalletList.x + 12, y + 6)
+                love.graphics.setColor(0.66, 0.78, 0.78)
+                love.graphics.print(string.format("%s  |  %s  |  %d px away",
+                    tostring(option.job.company or option.job.id or "JOB"),
+                    tostring(option.pallet.packaging or option.job.packaging or "flat"):upper(),
+                    math.floor(math.sqrt(option.distance) + 0.5)),
+                    wrapperPalletList.x + 30, y + 23)
             end
         end
         love.graphics.setColor(0.82, 0.88, 0.89)
@@ -1076,6 +1111,15 @@ function Screen.mousepressed(state, x, y, button)
     end
     if inside(exitButton, x, y) then return { action = "exit" } end
     if state.machineType == "skid_wrapper" then
+        local nearbyPallets = Wrapper.nearbyPallets(state)
+        for index = 1, math.min(#nearbyPallets, wrapperPalletList.maxRows) do
+            local row = { x = wrapperPalletList.x,
+                y = wrapperPalletList.y + (index - 1) * wrapperPalletList.rowHeight,
+                width = wrapperPalletList.width, height = wrapperPalletList.rowHeight - 6 }
+            if inside(row, x, y) then
+                return Wrapper.selectPallet(state, nearbyPallets[index].pallet.id)
+            end
+        end
         if inside(wrapperMaintenanceButton, x, y) then
             if Wrapper.isActive() then
                 state.message = "Wait for the wrapping cycle to finish before opening maintenance."
@@ -1256,6 +1300,12 @@ end
 function Screen.wrapperServiceCenter()
     return wrapperServiceButton.x + wrapperServiceButton.width / 2,
         wrapperServiceButton.y + wrapperServiceButton.height / 2
+end
+
+function Screen.wrapperPalletCenter(index)
+    index = math.max(1, math.min(wrapperPalletList.maxRows, index or 1))
+    return wrapperPalletList.x + wrapperPalletList.width / 2,
+        wrapperPalletList.y + (index - 0.5) * wrapperPalletList.rowHeight - 3
 end
 
 function Screen.wrapperTaskTargetCenter()

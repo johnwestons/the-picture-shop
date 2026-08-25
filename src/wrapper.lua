@@ -4,7 +4,8 @@ local Procurement = require("src.procurement")
 local WrapperPlacement = require("src.wrapper_placement")
 local MachineFleet = require("src.machine_fleet")
 
-local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil }
+local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil,
+    selectedPalletId = nil }
 
 local function blockInterruption(state, action)
     if Wrapper.step ~= "wrapping" then return true end
@@ -19,24 +20,50 @@ local function distanceSquared(a, b)
     return dx * dx + dy * dy
 end
 
-function Wrapper.nearbyPallet(state)
+function Wrapper.nearbyPallets(state)
     local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
-    local best
+    local nearby = {}
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
         local pallet = item.pallet
         local eligible = (pallet.status == "cut" or pallet.status == "finished"
             or pallet.status == "printed") and not pallet.wrapped
         local distance = distanceSquared(wrapper, item)
-        if eligible and distance <= Config.wrapperPlacement.palletRadius ^ 2 and (not best or distance < best.distance) then
-            best = { pallet = pallet, job = item.job, distance = distance }
+        if eligible and distance <= Config.wrapperPlacement.palletRadius ^ 2 then
+            nearby[#nearby + 1] = { pallet = pallet, job = item.job, distance = distance }
         end
     end
-    return best
+    table.sort(nearby, function(a, b)
+        if a.distance == b.distance then return tostring(a.pallet.id) < tostring(b.pallet.id) end
+        return a.distance < b.distance
+    end)
+    return nearby
+end
+
+function Wrapper.nearbyPallet(state)
+    local nearby = Wrapper.nearbyPallets(state)
+    for _, item in ipairs(nearby) do
+        if item.pallet.id == Wrapper.selectedPalletId then return item end
+    end
+    return nearby[1]
+end
+
+function Wrapper.selectPallet(state, palletId)
+    if Wrapper.step == "wrapping" then return false end
+    for _, item in ipairs(Wrapper.nearbyPallets(state)) do
+        if item.pallet.id == palletId then
+            Wrapper.selectedPalletId = palletId
+            state.message = "Selected " .. palletId .. " for stretch wrapping."
+            return true
+        end
+    end
+    state.message = "That pallet is no longer close enough to the skid wrapper."
+    return false
 end
 
 function Wrapper.reset(state)
     if not blockInterruption(state, "resetting the wrapper") then return false end
     Wrapper.step, Wrapper.progress, Wrapper.pallet, Wrapper.job = "idle", 0, nil, nil
+    Wrapper.selectedPalletId = nil
     if state then state.message = "Skid wrapper ready. Park a finished pallet beside the turntable." end
     return true
 end
@@ -62,6 +89,7 @@ function Wrapper.start(state)
         return false
     end
     Wrapper.pallet, Wrapper.job = nearby.pallet, nearby.job
+    Wrapper.selectedPalletId = nearby.pallet.id
     Wrapper.step, Wrapper.progress = "wrapping", 0
     state.message = "Wrapping " .. nearby.pallet.id .. " as a " .. packaging .. " pallet."
     return true
@@ -89,6 +117,11 @@ end
 
 function Wrapper.keypressed(key, state)
     if key == "l" or key == "space" or key == "return" or key == "kpenter" then return Wrapper.start(state) end
+    local number = tonumber(key)
+    if number then
+        local nearby = Wrapper.nearbyPallets(state)
+        return nearby[number] and Wrapper.selectPallet(state, nearby[number].pallet.id) or false
+    end
     if key == "r" then return Wrapper.reset(state) end
     return false
 end

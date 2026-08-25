@@ -8,6 +8,7 @@ local Interaction = require("src.interaction")
 local JobService = require("src.job_service")
 local MachineFleet = require("src.machine_fleet")
 local Navigation = require("src.navigation")
+local PlacementGrid = require("src.placement_grid")
 local PalletLogistics = require("src.pallet_logistics")
 local PalletJack = require("src.pallet_jack")
 local Procurement = require("src.procurement")
@@ -33,6 +34,7 @@ local World = {
     customer = Customer.new(Config.customer),
     vendor = Customer.new(Config.vendor),
     selectedInteraction = nil,
+    placementSelection = nil,
 }
 
 local function movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper,
@@ -91,6 +93,74 @@ function World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
     if not Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight) then return false end
     return Navigation.isWalkable(assets, x, y, movementObstacles(state, false,
         { x = halfWidth, y = halfHeight }, false, false, excludedPalletId))
+end
+
+local function isMachinePlacementClear(state, assets, kind, x, y)
+    if not assets then return false end
+    local config = kind == "cutter" and Config.cutterPlacement
+        or (kind == "wrapper" and Config.wrapperPlacement or Config.windmillPlacement)
+    if not Navigation.isAreaWalkable(assets, x, y,
+        config.collisionHalfWidth, config.collisionHalfHeight)
+    then return false end
+    local obstacles = movementObstacles(state, true, {
+        x = config.collisionHalfWidth,
+        y = config.collisionHalfHeight,
+    }, kind == "cutter", kind == "wrapper", nil, kind == "windmill")
+    return Navigation.isWalkable(assets, x, y, obstacles)
+end
+
+local function activePlacement(state)
+    if state and state.cutter and state.cutter.moving then
+        return "cutter", state.cutter.x, state.cutter.y
+    elseif state and state.wrapper and state.wrapper.moving then
+        return "wrapper", state.wrapper.x, state.wrapper.y
+    elseif state and state.windmill and state.windmill.moving then
+        return "windmill", state.windmill.x, state.windmill.y
+    end
+    local jack = state and PalletJack.ensure(state, Config.palletJack)
+    if jack and jack.operating and jack.carriedPalletId then
+        local x, y = PalletJack.dropPosition(state, Config.palletJack)
+        return "pallet", x, y
+    end
+end
+
+function World.placementGridSnapshot(state, assets)
+    local kind, centerX, centerY = activePlacement(state)
+    if not kind then World.placementSelection = nil; return nil end
+    assets = assets or World._assets
+    local carriedId = kind == "pallet" and state.palletJack.carriedPalletId or nil
+    local cells, snappedX, snappedY = PlacementGrid.cells(
+        centerX, centerY, Config.placementGrid, function(x, y)
+            if kind == "pallet" then
+                return World.isPalletPlacementClear(state, assets, x, y, carriedId)
+            end
+            return isMachinePlacementClear(state, assets, kind, x, y)
+        end)
+    local selected = World.placementSelection
+    if not selected or selected.kind ~= kind then
+        selected = nil
+        for _, cell in ipairs(cells) do
+            if cell.x == snappedX and cell.y == snappedY and cell.valid then
+                selected = { kind = kind, x = cell.x, y = cell.y }
+                break
+            end
+        end
+    end
+    return { kind = kind, cells = cells, selected = selected, config = Config.placementGrid }
+end
+
+function World.selectPlacement(state, assets, x, y)
+    local snapshot = World.placementGridSnapshot(state, assets)
+    if not snapshot then return false end
+    local cell = PlacementGrid.hit(snapshot.cells, x, y, snapshot.config)
+    if not cell then return false end
+    if not cell.valid then
+        state.message = "That red grid space is blocked. Choose a green space."
+        return true
+    end
+    World.placementSelection = { kind = snapshot.kind, x = cell.x, y = cell.y }
+    state.message = "Placement selected. Press E to set it down, or choose another green space."
+    return true
 end
 
 function World.findCutterOutput(state, assets, excludedPalletId)
@@ -160,6 +230,7 @@ function World.load(position)
     World.customer:reset(true)
     World.vendor:reset(true)
     World.selectedInteraction = nil
+    World.placementSelection = nil
 end
 
 local function activeJobById(state, jobId)
@@ -298,6 +369,8 @@ local function updateTruck(dt, state)
 end
 
 function World.update(dt, directionX, directionY, assets, state)
+    World._assets = assets
+    if directionX ~= 0 or directionY ~= 0 then World.placementSelection = nil end
     World._state = state
     local player = World.player
     local jack = PalletJack.ensure(state, Config.palletJack)
@@ -632,9 +705,13 @@ function World.closeTruckAfterUnload(state)
 end
 
 function World.handlePalletJack(state, assets)
+    local grid = World.placementGridSnapshot(state, assets)
+    local selected = World.placementSelection or (grid and grid.selected)
+    local placementX = selected and selected.kind == "pallet" and selected.x or nil
+    local placementY = selected and selected.kind == "pallet" and selected.y or nil
     local succeeded, action, pallet = PalletJack.use(state, Config.palletJack, function(x, y)
         return World.isPalletPlacementClear(state, assets, x, y)
-    end)
+    end, placementX, placementY)
     if not succeeded then
         if state then state.message = action == "blocked"
             and "There is not enough clear floor space to lower this pallet."
@@ -646,8 +723,10 @@ function World.handlePalletJack(state, assets)
         World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
         state.message = "Operating pallet jack. Drive with movement keys; E lifts or lowers pallets."
     elseif action == "lifted" then
-        state.message = "Lifted " .. pallet.id .. ". Drive it to a clear warehouse position."
+        World.placementSelection = nil
+        state.message = "Lifted " .. pallet.id .. ". Drive it, choose a green grid space, then press E."
     elseif action == "lowered" then
+        World.placementSelection = nil
         state.message = "Lowered " .. pallet.id .. " at its new warehouse position."
     else
         state.message = "Pallet jack parked."
@@ -692,9 +771,10 @@ function World.beginCutterMove(state)
         return false
     end
     if not CutterPlacement.beginMove(state, Config.cutterPlacement) then return false end
+    World.placementSelection = nil
     jack.x, jack.y, jack.direction = cutter.x, cutter.y + 8, cutter.direction
     World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
-    state.message = "Cutter is on the pallet jack. Move slowly; Q rotates and E locks it in place."
+    state.message = "Cutter is on the pallet jack. Move, choose a green grid space, then press E. Q rotates."
     return true
 end
 
@@ -708,8 +788,23 @@ function World.rotateCutter(state)
     return true
 end
 
-function World.placeCutter(state)
+function World.placeCutter(state, assets)
+    local explicit = World.placementSelection
+    local grid = World.placementGridSnapshot(state, assets)
+    local target = explicit or (grid and grid.selected)
+    local originalX, originalY = state.cutter.x, state.cutter.y
+    local x, y = originalX, originalY
+    if target and target.kind == "cutter" then x, y = target.x, target.y end
+    if not isMachinePlacementClear(state, assets or World._assets, "cutter", x, y) then
+        if explicit then
+            state.message = "The cutter cannot be placed there. Choose a green grid space."
+            return false
+        end
+        x, y = originalX, originalY
+    end
+    state.cutter.x, state.cutter.y = x, y
     if not CutterPlacement.place(state, Config.cutterPlacement) then return false end
+    World.placementSelection = nil
     local jack = PalletJack.ensure(state, Config.palletJack)
     jack.moving = false
     jack.x, jack.y = state.cutter.x, state.cutter.y + 42
@@ -738,9 +833,10 @@ function World.beginWrapperMove(state)
         return false
     end
     if not WrapperPlacement.beginMove(state, Config.wrapperPlacement) then return false end
+    World.placementSelection = nil
     jack.x, jack.y, jack.direction = wrapper.x, wrapper.y + 8, wrapper.direction
     World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
-    state.message = "Skid wrapper is on the pallet jack. Move slowly; Q rotates and E locks it in place."
+    state.message = "Skid wrapper is on the pallet jack. Move, choose a green grid space, then press E. Q rotates."
     return true
 end
 
@@ -767,8 +863,23 @@ function World.rotateWrapper(state)
     return true
 end
 
-function World.placeWrapper(state)
+function World.placeWrapper(state, assets)
+    local explicit = World.placementSelection
+    local grid = World.placementGridSnapshot(state, assets)
+    local target = explicit or (grid and grid.selected)
+    local originalX, originalY = state.wrapper.x, state.wrapper.y
+    local x, y = originalX, originalY
+    if target and target.kind == "wrapper" then x, y = target.x, target.y end
+    if not isMachinePlacementClear(state, assets or World._assets, "wrapper", x, y) then
+        if explicit then
+            state.message = "The skid wrapper cannot be placed there. Choose a green grid space."
+            return false
+        end
+        x, y = originalX, originalY
+    end
+    state.wrapper.x, state.wrapper.y = x, y
     if not WrapperPlacement.place(state, Config.wrapperPlacement) then return false end
+    World.placementSelection = nil
     local jack = PalletJack.ensure(state, Config.palletJack)
     jack.moving = false
     jack.x, jack.y = state.wrapper.x, state.wrapper.y + 46
@@ -801,9 +912,10 @@ function World.beginWindmillMove(state)
         return false
     end
     if not WindmillPlacement.beginMove(state, Config.windmillPlacement) then return false end
+    World.placementSelection = nil
     jack.x, jack.y, jack.direction = item.x, item.y + 8, item.direction
     World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
-    state.message = "Windmill is on the pallet jack. Move slowly; Q rotates and E locks it in place."
+    state.message = "Windmill is on the pallet jack. Move, choose a green grid space, then press E. Q rotates."
     return true
 end
 
@@ -822,8 +934,23 @@ function World.rotateWindmill(state)
     return true
 end
 
-function World.placeWindmill(state)
+function World.placeWindmill(state, assets)
+    local explicit = World.placementSelection
+    local grid = World.placementGridSnapshot(state, assets)
+    local target = explicit or (grid and grid.selected)
+    local originalX, originalY = state.windmill.x, state.windmill.y
+    local x, y = originalX, originalY
+    if target and target.kind == "windmill" then x, y = target.x, target.y end
+    if not isMachinePlacementClear(state, assets or World._assets, "windmill", x, y) then
+        if explicit then
+            state.message = "The Windmill cannot be placed there. Choose a green grid space."
+            return false
+        end
+        x, y = originalX, originalY
+    end
+    state.windmill.x, state.windmill.y = x, y
     if not WindmillPlacement.place(state, Config.windmillPlacement) then return false end
+    World.placementSelection = nil
     local jack = PalletJack.ensure(state, Config.palletJack)
     jack.moving = false
     jack.x, jack.y = state.windmill.x, state.windmill.y + 52

@@ -121,11 +121,11 @@ function Input.keypressed(key, context)
         end
         if key ~= "e" then return end
         if state.cutter and state.cutter.moving then
-            if context.world.placeCutter(state) then context.saveCurrent() end
+            if context.world.placeCutter(state, context.assets) then context.saveCurrent() end
         elseif state.wrapper and state.wrapper.moving then
-            if context.world.placeWrapper(state) then context.saveCurrent() end
+            if context.world.placeWrapper(state, context.assets) then context.saveCurrent() end
         elseif state.windmill and state.windmill.moving then
-            if context.world.placeWindmill(state) then context.saveCurrent() end
+            if context.world.placeWindmill(state, context.assets) then context.saveCurrent() end
         elseif selected and selected.kind == "customer" then
             local offer, errors = context.jobService.createNextOffer(state, os.time())
             if not offer then
@@ -219,6 +219,15 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "world" and button == 1 and context.hud.hitTest(x, y) == "exit" then
         context.returnToTitle()
         return true
+    end
+    if state.screen == "world" and button == 1 then
+        local worldX, worldY = x, y
+        if context.worldPointerCoordinates then
+            worldX, worldY = context.worldPointerCoordinates(x, y)
+        end
+        if context.world.selectPlacement(state, context.assets, worldX, worldY) then
+            return true
+        end
     end
     if state.screen == "vendor" then
         local result = context.vendorScreen.mousepressed(state, x, y, button)

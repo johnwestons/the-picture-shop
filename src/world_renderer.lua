@@ -3,6 +3,7 @@ local CutterPlacement = require("src.cutter_placement")
 local PalletJack = require("src.pallet_jack")
 local PalletLogistics = require("src.pallet_logistics")
 local MachineFleet = require("src.machine_fleet")
+local PlacementGrid = require("src.placement_grid")
 local Wrapper = require("src.wrapper")
 local WrapperPlacement = require("src.wrapper_placement")
 local WindmillPlacement = require("src.windmill_placement")
@@ -341,6 +342,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY)
     drawWallVentFan(assets)
     drawBayDoor(assets)
     drawTruck(assets, state)
+    PlacementGrid.draw(World.placementGridSnapshot(state, assets))
     local visibleCharacters = {}
     if World.customer.visible then visibleCharacters[World.customer.character] = true end
     if World.vendor.visible then visibleCharacters[World.vendor.character] = true end

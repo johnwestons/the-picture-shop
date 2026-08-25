@@ -105,6 +105,12 @@ local inputContext = {
     title = TitleScreen,
     saveCurrent = saveCurrent,
     returnToTitle = returnToTitle,
+    worldPointerCoordinates = function(x, y)
+        if state.screen == "world" and App.mobileCamera and App.mobileCamera:isEnabled() then
+            return App.mobileCamera:screenToWorld(x, y)
+        end
+        return x, y
+    end,
 }
 
 local function pointerPosition()

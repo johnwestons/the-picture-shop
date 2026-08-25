@@ -2,6 +2,7 @@ local Test = {}
 local Controller = require("src.controller")
 local MobileCamera = require("src.mobile_camera")
 local MobileControls = require("src.mobile_controls")
+local PlacementGrid = require("src.placement_grid")
 
 local function closeRoute(context, screen, inputKind)
     local closeState = context.State.new()
@@ -50,6 +51,18 @@ local function closeRoute(context, screen, inputKind)
 end
 
 function Test.run(context, check)
+    local gridCells = PlacementGrid.cells(96, 96, {
+        cellWidth = 32, cellHeight = 24, previewRadius = 1, selectionRadius = 50,
+    }, function(x) return x >= 96 end)
+    local greenCell = PlacementGrid.hit(gridCells, 128, 96, {
+        cellWidth = 32, cellHeight = 24,
+    })
+    local redCell = PlacementGrid.hit(gridCells, 64, 96, {
+        cellWidth = 32, cellHeight = 24,
+    })
+    check("warehouse_placement_grid_marks_and_hits_valid_cells",
+        greenCell and greenCell.valid and redCell and not redCell.valid)
+
     for _, screen in ipairs({ "job_offer", "vendor", "truck_inventory", "machine", "computer" }) do
         local keyboard = closeRoute(context, screen, "keyboard")
         local mouse = closeRoute(context, screen, "mouse")
@@ -181,6 +194,24 @@ function Test.run(context, check)
     mobile:touchreleased("tap", 500, 250)
     check("mobile_single_world_tap_stays_clickable", #taps == 2
         and taps[1][1] == "down" and taps[2][1] == "up")
+
+    local placementTap = {}
+    local placementState = context.State.new()
+    placementState.screen = "world"
+    context.input.mousepressed(210, 140, 1, {
+        state = placementState,
+        assets = {},
+        hud = { hitTest = function() return nil end },
+        worldPointerCoordinates = function(x, y) return x + 300, y + 200 end,
+        world = {
+            selectPlacement = function(_, _, x, y)
+                placementTap.x, placementTap.y = x, y
+                return true
+            end,
+        },
+    })
+    check("mobile_world_placement_tap_uses_camera_coordinates",
+        placementTap.x == 510 and placementTap.y == 340)
 
     local panelTaps, panelGestures = {}, 0
     local panelMobile = MobileControls.new({

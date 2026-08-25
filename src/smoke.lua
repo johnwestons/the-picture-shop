@@ -141,6 +141,28 @@ local function runChecks(context)
         and wrapperState.jobs.active[1].pallets[1].status == "wrapped"
         and wrapperState.inventory.plasticWrapUses == 10
         and wrapperState.inventory.stock.shipping_cartons == 0)
+    local wrapperSelectionState = context.State.new()
+    wrapperSelectionState.jobs.active = { { id = "WRAP-SELECT", packaging = "flat", pallets = {
+        { id = "WRAP-SELECT-P01", number = 1, status = "cut", location = "warehouse",
+            packaging = "flat", wrapped = false,
+            world = { x = wrapperSelectionState.wrapper.x - 72, y = wrapperSelectionState.wrapper.y,
+                spawnProgress = 1 } },
+        { id = "WRAP-SELECT-P02", number = 2, status = "finished", location = "warehouse",
+            packaging = "flat", wrapped = false,
+            world = { x = wrapperSelectionState.wrapper.x + 72, y = wrapperSelectionState.wrapper.y,
+                spawnProgress = 1 } },
+    } } }
+    context.wrapper.reset(wrapperSelectionState)
+    check("skid_wrapper_lists_all_nearby_pallets",
+        #context.wrapper.nearbyPallets(wrapperSelectionState) == 2)
+    wrapperSelectionState.machineType = "skid_wrapper"
+    local wrapperPalletX, wrapperPalletY = context.machineScreen.wrapperPalletCenter(2)
+    check("skid_wrapper_picker_selects_clicked_or_controller_cursor_pallet",
+        context.machineScreen.mousepressed(wrapperSelectionState, wrapperPalletX, wrapperPalletY, 1)
+        and context.wrapper.start(wrapperSelectionState)
+        and context.wrapper.pallet.id == "WRAP-SELECT-P02")
+    context.wrapper.update(context.wrapper.cycleTime + 0.1, wrapperSelectionState)
+    context.wrapper.reset(wrapperSelectionState)
     local wrapperDirection = wrapperState.wrapper.direction
     wrapperState.palletJack.operating = true
     wrapperState.palletJack.carriedPalletId = nil

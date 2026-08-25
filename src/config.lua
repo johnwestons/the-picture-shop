@@ -228,6 +228,14 @@ local Config = {
         frameCount = 8,
         palletFrameCount = 4,
     },
+    placementGrid = {
+        cellWidth = 32,
+        cellHeight = 24,
+        originX = 0,
+        originY = 0,
+        previewRadius = 3,
+        selectionRadius = 104,
+    },
     interactables = {
         computer = { x = 500, y = 185, radius = 62 },
         cutter = { x = 625, y = 405, radius = 78 },

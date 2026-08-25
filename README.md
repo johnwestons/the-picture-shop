@@ -117,7 +117,7 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Hover a warehouse pallet to see its company, job ID, sheet count, paper ID, current dimensions,
   status, and location. Pallets are saved, depth-sorted, and block walking.
 - Near the yellow pallet jack, press **E** to operate it. Drive with **WASD/arrow keys**, press **E**
-  near a pallet to lift it, and press **E** again to lower it at a clear floor position.
+  near a pallet to lift it, click a green floor-grid space, and press **E** to lower it precisely.
 - Press **F** to park and release an empty pallet jack. Loaded jacks move more slowly and use a larger
   collision footprint; placement is rejected when walls, machines, trucks, or other pallets are too close.
 - After the manifest is empty, click **Close Cargo Door**. The truck leaves and the bay closes automatically.
@@ -140,8 +140,9 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   lifted, driven, and lowered with the pallet jack while retaining their last assigned direction.
 - Near an unoccupied loading bay, press **E** to open or close the roll-up door manually.
 - Operate an empty pallet jack and drive it beside an unloaded cutter or skid wrapper to reveal **M: Relocate**.
-  Press **M** to lift the machine, use **WASD/arrow keys** to move it slowly, **Q** to rotate it, and **E**
-  to lock it in its new floor position. Relocation is unavailable without the pallet jack.
+  Press **M** to lift the machine, use **WASD/arrow keys** to move it slowly, **Q** to rotate it, click a
+  green floor-grid space, and press **E** to lock it there. Red spaces are blocked. Relocation is unavailable
+  without the pallet jack.
 - Cutter: lower unfinished customer pallets into the expanded feed-side staging area beside the cutter, then open the console. The feed side follows the cutter's current orientation. **LOAD JOB** or **L** opens a nearby-pallet menu, where the operator chooses the exact pallet to load. A pallet still owned by the jack, on the wrong side, or outside the 140-pixel feed radius cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
   **M** saves the current measurement for the selected cut number. **G / AUTO SET** recalls only player-saved measurements, newest first, and cycles through the last three values saved separately for CUT 1, CUT 2, CUT 3, or CUT 4. **P** pushes/positions;
   **Q** rotate the paper counter-clockwise into the next front-edge cutting position, **Space** clamp,
@@ -210,7 +211,7 @@ as a 128x128 transparent nearest-filtered PNG and registered in `Config.paths.ar
 - Run `python tools/asset_doctor.py --report output/asset-audit.json` to audit the project-bound raster assets without changing them.
 - Warehouse props are ready in `assets/generated/`: `empty-pallet.png`, `paper-stack.png`, `toolbox-small.png`, `toolbox-large.png`, and the three-variant `paper-storage-boxes-strip.png`.
 - The active warehouse background is `assets/generated/warehouse-layout-final.png`: the approved 1536x1024 warehouse sprite with factory floor in front, loading dock upper-left, separate office upper-middle, and a client lounge in the upper-right with a couch, two armchairs, and a coffee table. Its matching walkmask is `warehouse-layout-final-walkmask.png`.
-- The starter shop includes a movable skid wrapper based on the `stretchWrapper` references. Customer paperwork specifies flat or boxed pallet packaging. Move a finished pallet beside the wrapper, press **E**, then **L** or **Space** to wrap it. Once its three-second cycle starts, finish the cycle before exiting, resetting, or relocating the wrapper. Each film roll wraps 11 pallets; order replacement rolls from the packaging salesperson and receive them at the loading bay. Use **M** near the wrapper to relocate it and **Q** to rotate it.
+- The starter shop includes a movable skid wrapper based on the `stretchWrapper` references. Customer paperwork specifies flat or boxed pallet packaging. Move finished pallets beside the wrapper, press **E**, click the exact pallet ID in the nearby-pallet list, then press **L**, **Space**, or **WRAP PALLET**. Once its three-second cycle starts, finish the cycle before exiting, resetting, or relocating the wrapper. Each film roll wraps 11 pallets; order replacement rolls from the packaging salesperson and receive them at the loading bay. Use **M** near the wrapper to relocate it and **Q** to rotate it.
 - Character sources in `assets/Characters/` are processed with the Mouse Frontier sprite doctor and installed as transparent, nearest-filtered strips in `assets/generated/characters/`. The modular loader registers the original visitor types plus the business-dragon, business-fox, and business-cat client roster with idle, walk, and sit actions. Clients rotate through the lounge seats, remain seated while waiting, and leave after five minutes without a conversation.
 - `loading-bay-door-strip.png` contains five transparent closed-to-open layers. The open state reveals the exterior parking lot while preserving the approved warehouse pixels outside the doorway.
 - `delivery-truck-open.png` is the independent open-body truck sprite. `truck-cargo-door-strip.png` supplies five aligned rear-door layers from closed to fully open.

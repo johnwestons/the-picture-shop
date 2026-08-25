@@ -35,6 +35,12 @@ local operatorSigns = {
     west = { x = 1, y = 0 },
 }
 
+function PalletJack.dropPosition(state, config)
+    local jack = PalletJack.ensure(state, config)
+    local offset = dropOffsets[jack.direction]
+    return jack.x + offset.x, jack.y + offset.y
+end
+
 local function findPallet(state, palletId)
     for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
         for _, pallet in ipairs(job.pallets or {}) do
@@ -187,15 +193,17 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
     return true
 end
 
-function PalletJack.use(state, config, canPlace)
+function PalletJack.use(state, config, canPlace, placementX, placementY)
     local jack = PalletJack.ensure(state, config)
     if not jack.operating then
         jack.operating = true
         return true, "mounted"
     end
     if jack.carriedPalletId then
-        local offset = dropOffsets[jack.direction]
-        local dropX, dropY = jack.x + offset.x, jack.y + offset.y
+        local dropX, dropY = placementX, placementY
+        if type(dropX) ~= "number" or type(dropY) ~= "number" then
+            dropX, dropY = PalletJack.dropPosition(state, config)
+        end
         if not canPlace(dropX, dropY) then return false, "blocked" end
         local _, pallet = findPallet(state, jack.carriedPalletId)
         if not pallet then jack.carriedPalletId = nil; return false, "missing" end
