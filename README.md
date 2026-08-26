@@ -215,6 +215,9 @@ should be added as a 128x128 transparent nearest-filtered PNG and registered in 
 - Double-click `RUN_SPRITE_MOTION_TEST.bat` for the visible sprite motion lab. It runs the same smoke
   checks, then keeps an animated raw-versus-normalized character comparison open until **Esc**.
 - Run `python tools/asset_doctor.py --report output/asset-audit.json` to audit the project-bound raster assets without changing them.
+- Audio credits ship in `assets/audio/SOURCES.md`. Run
+  `python tools/generate_sfx.py --verify-only` to verify every licensed source
+  recording against the release manifest without rewriting cues.
 - Warehouse props are ready in `assets/generated/`: `empty-pallet.png`, `paper-stack.png`, `toolbox-small.png`, `toolbox-large.png`, and the three-variant `paper-storage-boxes-strip.png`.
 - The active warehouse background is `assets/generated/warehouse-layout-final.png`: the approved 1536x1024 warehouse sprite with factory floor in front, loading dock upper-left, separate office upper-middle, and a client lounge in the upper-right with a couch, two armchairs, and a coffee table. Its matching walkmask is `warehouse-layout-final-walkmask.png`.
 - The starter shop includes a movable skid wrapper based on the `stretchWrapper` references. Customer paperwork specifies flat or boxed pallet packaging. Move finished pallets beside the wrapper, press **E**, click the exact pallet ID in the nearby-pallet list, then press **L**, **Space**, or **WRAP PALLET**. Once its three-second cycle starts, finish the cycle before exiting, resetting, or relocating the wrapper. Each film roll wraps 11 pallets; order replacement rolls from the packaging salesperson and receive them at the loading bay. Use **M** near the wrapper to relocate it and **Q** to rotate it.

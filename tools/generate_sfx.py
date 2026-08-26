@@ -1,13 +1,19 @@
-"""Generate the original foley-style sound palette for The Picture Shop.
+"""Generate The Picture Shop's foley-style sound palette.
 
-The cues use deterministic physical-model-inspired synthesis: filtered noise,
-damped resonances, irregular machinery, material impacts, and short room
-reflections. No third-party or copyrighted recordings are used.
+The cues combine deterministic synthesis with transformed, Creative Commons
+recordings listed in ``assets/audio/source_manifest.json``.  Source files are
+not silently optional: every required byte count and SHA-256 digest is checked
+before generation so a clean build either reproduces the palette or fails with
+an actionable error.
 """
 
 from __future__ import annotations
 
+import argparse
+import hashlib
+import json
 import math
+import os
 import random
 import struct
 import wave
@@ -18,8 +24,40 @@ RATE = 44_100
 TAU = math.tau
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets" / "audio" / "sfx"
-MOUSE_FRONTIER = ROOT.parent / "Mouse Frontier 8.10" / "sounds" / "soundEffects"
+SOURCE_MANIFEST = ROOT / "assets" / "audio" / "source_manifest.json"
+DEFAULT_SOURCE_ROOT = ROOT.parent / "Mouse Frontier 8.10" / "sounds" / "soundEffects"
+SOURCE_ROOT = DEFAULT_SOURCE_ROOT
 RNG = random.Random(260825)
+
+
+def load_source_manifest() -> dict:
+    return json.loads(SOURCE_MANIFEST.read_text(encoding="utf-8"))
+
+
+def validate_sources(source_root: Path, manifest: dict) -> None:
+    problems = []
+    for item in manifest["sources"]:
+        path = source_root / Path(item["relativePath"])
+        if not path.is_file():
+            problems.append(f"missing {item['relativePath']}")
+            continue
+        size = path.stat().st_size
+        if size != item["bytes"]:
+            problems.append(
+                f"size mismatch for {item['relativePath']}: expected {item['bytes']}, got {size}"
+            )
+            continue
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest != item["sha256"]:
+            problems.append(
+                f"SHA-256 mismatch for {item['relativePath']}: expected {item['sha256']}, got {digest}"
+            )
+    if problems:
+        detail = "\n  - ".join(problems)
+        raise SystemExit(
+            "Audio source validation failed. Set --source-root or "
+            "PICTURE_SHOP_AUDIO_SOURCES to the licensed source directory.\n  - " + detail
+        )
 
 
 def samples(seconds: float) -> int:
@@ -54,9 +92,9 @@ def white(seconds: float) -> list[float]:
 def recording(relative_path: str, start: float = 0.0,
               duration: float | None = None) -> list[float]:
     """Load, downmix, and resample a PCM WAV from the sister project."""
-    path = MOUSE_FRONTIER / relative_path
+    path = SOURCE_ROOT / relative_path
     if not path.exists():
-        return []
+        raise FileNotFoundError(f"Required audio source is missing: {path}")
     try:
         with wave.open(str(path), "rb") as source:
             channels = source.getnchannels()
@@ -543,12 +581,39 @@ def preview(cues: dict[str, list[float]]) -> list[float]:
     return output
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source-root", type=Path,
+        default=Path(os.environ.get("PICTURE_SHOP_AUDIO_SOURCES", DEFAULT_SOURCE_ROOT)),
+        help="Directory containing the relative source paths in source_manifest.json",
+    )
+    parser.add_argument(
+        "--verify-only", action="store_true",
+        help="Validate licensed source files without generating cues",
+    )
+    parser.add_argument(
+        "--preview", action="store_true",
+        help="Also create the ignored picture_shop_sfx_preview.wav audition reel",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    global SOURCE_ROOT
+    args = parse_args()
+    SOURCE_ROOT = args.source_root.resolve()
+    manifest = load_source_manifest()
+    validate_sources(SOURCE_ROOT, manifest)
+    if args.verify_only:
+        print(f"Verified {len(manifest['sources'])} licensed audio sources in {SOURCE_ROOT}")
+        return
     cues = build_cues()
     for name, source in cues.items():
         write_wav(OUT / f"{name}.wav", source)
-    write_wav(OUT / "picture_shop_sfx_preview.wav", preview(cues))
-    print(f"Generated {len(cues)} original foley-style cues and one audition reel in {OUT}")
+    if args.preview:
+        write_wav(OUT / "picture_shop_sfx_preview.wav", preview(cues))
+    print(f"Generated {len(cues)} attributed foley-style cues in {OUT}")
 
 
 if __name__ == "__main__":

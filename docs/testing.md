@@ -29,4 +29,11 @@ The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save ident
 
 Run `RUN_SMOKE_TEST.bat` for domain, integration, audit-coverage, screen-pack transitions, and three-frame render checks. Run `python tools/asset_doctor.py --report output/asset-audit.json` for full raster decoding, alpha, dimension, 2x2 press-atlas grid, and nonempty-cell checks.
 
+Before regenerating or releasing audio, run
+`python tools/generate_sfx.py --verify-only`. It validates all nine licensed
+source recordings against `assets/audio/source_manifest.json`; generation fails
+before writing cues when a source is absent or has different bytes. Android
+packages must contain `assets/audio/SOURCES.md` and the manifest, and must not
+contain the generated audition reel.
+
 Every new bug fix should add the smallest deterministic domain check possible. Add an engine integration check only when the behavior depends on LÖVE rendering, input routing, filesystem identity, scene transitions, or multiple live systems.

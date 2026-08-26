@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "sourceRootEnvironmentVariable": "PICTURE_SHOP_AUDIO_SOURCES",
+  "sources": [
+    {
+      "id": 398750,
+      "title": "door - open 01.wav",
+      "creator": "Anthousai",
+      "url": "https://freesound.org/s/398750/",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "relativePath": "doors/398750__anthousai__door-open-01.wav",
+      "bytes": 716006,
+      "sha256": "0c60119a3cf12536d8762165b374067c207fbdac54af6a8e5e3381231f10686b"
+    },
+    {
+      "id": 134715,
+      "title": "sliding_door_opening.wav",
+      "creator": "Joe DeShon (joedeshon)",
+      "url": "https://freesound.org/s/134715/",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "relativePath": "train/trainDoor/134715__joedeshon__sliding_door_opening.wav",
+      "bytes": 536104,
+      "sha256": "965881b172851c1db41dbd11cbfa55ec9c693b538d1f8dce3955c0bacc01e233"
+    },
+    {
+      "id": 733769,
+      "title": "Click menu",
+      "creator": "SLV443",
+      "url": "https://freesound.org/s/733769/",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "relativePath": "menu/733769__slv443__click-menu.wav",
+      "bytes": 12878,
+      "sha256": "9aa7f0612a29f05af2117230e5daa49dccdac29d45afb2ef727425f5e4204ba4"
+    },
+    {
+      "id": 386519,
+      "title": "left_foot_stone.wav",
+      "creator": "GlennM",
+      "url": "https://freesound.org/s/386519/",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "relativePath": "walkingSteps/386519__glennm__left_foot_stone.wav",
+      "bytes": 34570,
+      "sha256": "08191011d3e07b5401b9af348f0b2a4e425e5936377a48676c6826e1a2ed776c"
+    },
+    {
+      "id": 386522,
+      "title": "left_foot_gravel.wav",
+      "creator": "GlennM",
+      "url": "https://freesound.org/s/386522/",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "relativePath": "walkingSteps/386522__glennm__left_foot_gravel.wav",
+      "bytes": 72298,
+      "sha256": "d9ddcd4ca197abb67e055765624518620595f798e195506f0f72b0e0ff767383"
+    },
+    {
+      "id": 386525,
+      "title": "right_foot_stone.wav",
+      "creator": "GlennM",
+      "url": "https://freesound.org/s/386525/",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "relativePath": "walkingSteps/386525__glennm__right_foot_stone.wav",
+      "bytes": 59242,
+      "sha256": "bb65bab778cfaa60b851dc8b0564e56969457dab3d312f1f19dd9e1b19c3cbbe"
+    },
+    {
+      "id": 442903,
+      "title": "Slash",
+      "creator": "qubodup",
+      "url": "https://freesound.org/s/442903/",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "relativePath": "slash/442903__qubodup__slash.wav",
+      "bytes": 46542,
+      "sha256": "d665e78d62b5b33e5851a77d7877f2b5d6aff46f929903f994b7a0fe5ccce507"
+    },
+    {
+      "id": 854736,
+      "title": "260425_160902_FR_Steam train stopping at St-Valery",
+      "creator": "Kevin Luce (kevp888)",
+      "url": "https://freesound.org/s/854736/",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "relativePath": "train/trainArrive/854736__kevp888__260425_160902_fr_steam_train_stopping_at_st-valery.wav",
+      "bytes": 15246632,
+      "sha256": "3c902560f0af3746775843aa0923eb5cf0704d0d08fdcc23025dd4a80751219a"
+    },
+    {
+      "id": 855304,
+      "title": "260426_112308_FR_Steam train travelling",
+      "creator": "Kevin Luce (kevp888)",
+      "url": "https://freesound.org/s/855304/",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "relativePath": "train/trainTraveling/855304__kevp888__260426_112308_fr_steam_train_travelling.wav",
+      "bytes": 243921560,
+      "sha256": "6389c0ef4fa7babf1d7ba43fe094c1574dbd1153c102726b0dd6ece2a6269a1b"
+    }
+  ]
+}

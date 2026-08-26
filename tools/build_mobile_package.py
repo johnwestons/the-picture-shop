@@ -40,12 +40,22 @@ def safe_clean(path: Path) -> None:
 def copy_runtime() -> None:
     for source in (ROOT / "main.lua", ROOT / "conf.lua"):
         shutil.copy2(source, STAGE / source.name)
-    for source_root in (ROOT / "src", ROOT / "assets" / "generated", ROOT / "assets" / "audio"):
+    for source_root in (ROOT / "src", ROOT / "assets" / "generated"):
         for source in source_root.rglob("*"):
             if source.is_file():
                 destination = STAGE / source.relative_to(ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, destination)
+    audio_root = ROOT / "assets" / "audio"
+    audio_files = [audio_root / "SOURCES.md", audio_root / "source_manifest.json"]
+    audio_files.extend(
+        source for source in (audio_root / "sfx").glob("*.wav")
+        if source.name != "picture_shop_sfx_preview.wav"
+    )
+    for source in audio_files:
+        destination = STAGE / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
 
 
 def generate_icons() -> None:
