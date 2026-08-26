@@ -127,6 +127,11 @@ function Test.run(context, check, jobs)
     check("cutter_load_animation", context.machine.step == "loaded" and context.machine.paper == trackedPaper)
     check("cutter_rejects_wrong_gauge", not context.machine.position(cutterState))
     context.machineScreen.enter()
+    local gaugeInputX, gaugeInputY = context.machineScreen.gaugeInputCenter()
+    check("cutter_gauge_requires_explicit_field_focus",
+        not context.machineScreen.wantsTextInput()
+        and context.machineScreen.mousepressed(cutterState, gaugeInputX, gaugeInputY, 1)
+        and context.machineScreen.wantsTextInput())
     local typedGauge = string.format("%.2f", trackedPaper.cuts[1].gauge)
     for character in typedGauge:gmatch(".") do
         check("cutter_accepts_typed_character_" .. character,

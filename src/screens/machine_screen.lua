@@ -124,7 +124,7 @@ end
 
 function Screen.enter()
     Screen.pressedAction = nil
-    Screen.gaugeFocused = true
+    Screen.gaugeFocused = false
     Screen.loadMenu = nil
     Screen.maintenanceView = nil
     Screen.oilSession = nil
@@ -922,6 +922,9 @@ end
 
 function Screen.mousepressed(state, x, y, button)
     if button ~= 1 then return false end
+    -- Android text input is opt-in: every non-field tap releases the gauge
+    -- before the gauge hit target below can explicitly focus it again.
+    Screen.gaugeFocused = false
     if Screen.helpOpen then
         if inside(helpBack, x, y) then Screen.helpOpen = false; return { action = "help_close" } end
         if inside(helpPrevious, x, y) then Screen.helpStep = math.max(1, Screen.helpStep - 1); return true end

@@ -281,6 +281,11 @@ function ComputerScreen.emailButtonCenter(action)
     return rect.x + rect.width / 2, rect.y + rect.height / 2
 end
 
+function ComputerScreen.textInputCenter(kind)
+    local rect = kind == "promotion" and PROMO_INPUT or EMAIL_QUOTE_INPUT
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
 function ComputerScreen.rowCenter(row)
     return LIST.x + LIST.width / 2, LIST.y + 14 + (row - 1) * ROW_HEIGHT + 18
 end
@@ -297,6 +302,10 @@ end
 
 function ComputerScreen.mousepressed(state, x, y, button)
     if button ~= 1 then return nil end
+    -- Do not retain Android keyboard focus when the player taps elsewhere.
+    -- The quote and promotion input hit targets below explicitly opt back in.
+    ComputerScreen.quoteFocused = false
+    ComputerScreen.promoFocused = false
     if contains(CLOSE, x, y) then return { action = "close" } end
     for _, tab in ipairs(TABS) do
         if contains(tab, x, y) then
@@ -522,7 +531,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
     if ComputerScreen.tab == "completed" and selected and contains(PROMO, x, y) then
         ComputerScreen.promoJobId = selected.id
         ComputerScreen.promoText = ""
-        ComputerScreen.promoFocused = true
+        ComputerScreen.promoFocused = false
         ComputerScreen.tab = "email"
         return { action = "promotion_compose", job = selected }
     end

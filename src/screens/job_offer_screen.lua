@@ -4,7 +4,7 @@ local BackButton = require("src.screens.back_button")
 local Ui = require("src.screens.ui")
 local utf8 = require("utf8")
 
-local JobOfferScreen = { quoteText = "", quoteFocused = true, quoteReplaceOnType = true, activeJobId = nil }
+local JobOfferScreen = { quoteText = "", quoteFocused = false, quoteReplaceOnType = true, activeJobId = nil }
 
 local PANEL = { x = 100, y = 32, width = 760, height = 610 }
 local BUTTONS = {
@@ -73,7 +73,7 @@ end
 function JobOfferScreen.enter(job)
     JobOfferScreen.activeJobId = job and job.id or nil
     JobOfferScreen.quoteText = job and job.quote and tostring(math.floor(job.quote.totalPrice)) or ""
-    JobOfferScreen.quoteFocused = true
+    JobOfferScreen.quoteFocused = false
     JobOfferScreen.quoteReplaceOnType = true
 end
 
@@ -83,6 +83,10 @@ function JobOfferScreen.wantsTextInput() return JobOfferScreen.quoteFocused end
 function JobOfferScreen.focusQuote()
     JobOfferScreen.quoteFocused = true
     JobOfferScreen.quoteReplaceOnType = true
+end
+
+function JobOfferScreen.blurQuote()
+    JobOfferScreen.quoteFocused = false
 end
 
 function JobOfferScreen.keypressed(key)
@@ -118,6 +122,10 @@ function JobOfferScreen.buttonCenter(action)
     local rect = BUTTONS[action]
     if not rect then return nil end
     return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function JobOfferScreen.quoteInputCenter()
+    return QUOTE_INPUT.x + QUOTE_INPUT.width / 2, QUOTE_INPUT.y + QUOTE_INPUT.height / 2
 end
 
 function JobOfferScreen.draw(state, pointerX, pointerY, assets)

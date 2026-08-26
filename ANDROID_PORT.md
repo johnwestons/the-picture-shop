@@ -3,12 +3,12 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.3` (`versionCode` 3)
+- Version: `0.1.0-android.4` (`versionCode` 4)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Output: `output/mobile/ThePictureShop-0.1.0-android.3-debug.apk`
+- Output: `output/mobile/ThePictureShop-0.1.0-android.4-debug.apk`
 
 ## Build and install
 
@@ -40,7 +40,8 @@ keystore and Android App Bundle.
 - Moving machines or a loaded pallet jack shows the selectable green/red warehouse placement grid;
   touch selection remains aligned after zooming or panning.
 - The skid-wrapper console lists every nearby eligible pallet and allows touch or controller-cursor selection.
-- Quote, email, promotion, and cutter gauge fields summon the Android keyboard and accept input.
+- Quote, email, promotion, and cutter gauge fields summon the Android keyboard only after the field is tapped,
+  dismiss it after an outside tap, and accept input normally.
 - Cutter guarded controls recognize simultaneous touch and controller shoulder presses.
 - A Bluetooth or USB standard controller can move, interact, operate the pallet jack, relocate machines,
   navigate panels with its cursor, close panels, and return safely to the title menu.

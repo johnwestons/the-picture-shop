@@ -306,6 +306,9 @@ function Input.mousepressed(x, y, button, context)
     end
     if state.screen ~= "job_offer" or button ~= 1 then return false end
     local action = context.jobOfferScreen.hitTest(x, y)
+    if action ~= "quote_input" and context.jobOfferScreen.blurQuote then
+        context.jobOfferScreen.blurQuote()
+    end
     if not action then return false end
 
     if action == "back" then

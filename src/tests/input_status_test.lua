@@ -63,6 +63,48 @@ function Test.run(context, check)
     check("warehouse_placement_grid_marks_and_hits_valid_cells",
         greenCell and greenCell.valid and redCell and not redCell.valid)
 
+    context.jobOfferScreen.enter({ id = "KEYBOARD-FOCUS", quote = { totalPrice = 1250 } })
+    check("quote_screen_does_not_request_keyboard_on_open",
+        not context.jobOfferScreen.wantsTextInput())
+    local quoteInputX, quoteInputY = context.jobOfferScreen.quoteInputCenter()
+    context.input.mousepressed(quoteInputX, quoteInputY, 1, {
+        state = { screen = "job_offer" },
+        jobOfferScreen = context.jobOfferScreen,
+    })
+    check("quote_screen_requests_keyboard_after_field_tap",
+        context.jobOfferScreen.wantsTextInput())
+    context.input.mousepressed(10, 10, 1, {
+        state = { screen = "job_offer" },
+        jobOfferScreen = context.jobOfferScreen,
+    })
+    check("quote_screen_releases_keyboard_after_outside_tap",
+        not context.jobOfferScreen.wantsTextInput())
+
+    local keyboardState = context.State.new()
+    context.machineScreen.enter()
+    check("cutter_screen_does_not_request_keyboard_on_open",
+        not context.machineScreen.wantsTextInput())
+    local gaugeX, gaugeY = context.machineScreen.gaugeInputCenter()
+    context.machineScreen.mousepressed(keyboardState, gaugeX, gaugeY, 1)
+    check("cutter_screen_requests_keyboard_after_field_tap",
+        context.machineScreen.wantsTextInput())
+    context.machineScreen.mousepressed(keyboardState, 10, 10, 1)
+    check("cutter_screen_releases_keyboard_after_outside_tap",
+        not context.machineScreen.wantsTextInput())
+
+    context.computerScreen.enter(keyboardState)
+    context.computerScreen.tab = "email"
+    context.computerScreen.promoJobId = "PROMO-FOCUS"
+    check("promotion_composer_does_not_request_keyboard_on_open",
+        not context.computerScreen.wantsTextInput())
+    local promoX, promoY = context.computerScreen.textInputCenter("promotion")
+    context.computerScreen.mousepressed(keyboardState, promoX, promoY, 1)
+    check("promotion_composer_requests_keyboard_after_field_tap",
+        context.computerScreen.wantsTextInput())
+    context.computerScreen.mousepressed(keyboardState, 10, 10, 1)
+    check("promotion_composer_releases_keyboard_after_outside_tap",
+        not context.computerScreen.wantsTextInput())
+
     for _, screen in ipairs({ "job_offer", "vendor", "truck_inventory", "machine", "computer" }) do
         local keyboard = closeRoute(context, screen, "keyboard")
         local mouse = closeRoute(context, screen, "mouse")
