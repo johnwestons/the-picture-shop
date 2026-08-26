@@ -637,7 +637,8 @@ local function drawJobList(state, pointerX, pointerY)
     pageButton(NEXT, "NEXT", page < maximumPage)
 end
 
-local function drawArtworkPreview(assets, key, x, y, size)
+local function drawArtworkPreview(assets, job, x, y, size)
+    local key = job and job.artwork and job.artwork.key or job and job.artworkKey or "flower"
     love.graphics.setColor(0.10, 0.14, 0.16)
     love.graphics.rectangle("fill", x, y, size, size, 3, 3)
     love.graphics.setColor(0.35, 0.56, 0.58)
@@ -651,7 +652,9 @@ local function drawArtworkPreview(assets, key, x, y, size)
             y + (size - imageHeight * scale) / 2, 0, scale, scale)
     end
     love.graphics.setColor(0.72, 0.79, 0.80)
-    love.graphics.printf("PRINTED ARTWORK\n" .. string.upper(key or "flower"),
+    local name = job and job.artwork and (job.artwork.displayName or job.artwork.fileName) or key
+    love.graphics.printf((job and job.press and "CLIENT ART FILE\n" or "JOB ART\n")
+        .. string.upper(name or "artwork"),
         x - 31, y + size + 8, size + 62, "center")
 end
 
@@ -694,28 +697,30 @@ local function drawDetail(state, pointerX, pointerY, assets)
         DETAIL.x + 20, DETAIL.y + 96)
     love.graphics.print(string.format("Finished: %g × %g in", selected.finishedSize.width, selected.finishedSize.height),
         DETAIL.x + 20, DETAIL.y + 118)
-    love.graphics.printf("Stock: " .. (details.stockDescription or "Customer supplied"),
+    love.graphics.printf("Stock: " .. (selected.stockSpec and selected.stockSpec.description
+        or details.stockDescription or "Customer supplied"),
         DETAIL.x + 20, DETAIL.y + 142, 310, "left")
     love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(selected),
         DETAIL.x + 20, DETAIL.y + 166, 310, "left")
     if selected.press then
         local actual = selected.press.actual or {}
-        love.graphics.printf(string.format("Press: %d color%s • %s • %d imp / %d spoil • supplies $%.2f (budget $%.2f)",
+        love.graphics.printf(string.format("Print: %s good / %s supplied • %d color%s • %s • %d imp / %d spoil",
+            commaNumber(selected.quote.orderedCopies or selected.press.orderedQuantity or selected.quote.totalSheets),
+            commaNumber(selected.quote.suppliedSheets or selected.quote.totalSheets),
             selected.press.colors or 1, (selected.press.colors or 1) == 1 and "" or "s",
             table.concat(selected.press.colorSequence or { "Black" }, " → "),
-            actual.impressions or 0, actual.spoilage or 0, actual.supplyCost or 0,
-            selected.quote.pressBudget and selected.quote.pressBudget.suppliesCost or 0),
+            actual.impressions or 0, actual.spoilage or 0),
             DETAIL.x + 20, DETAIL.y + 187, 440, "left")
     end
     love.graphics.print("Job value: " .. money(selected.quote.totalPrice), DETAIL.x + 20, DETAIL.y + 206)
     love.graphics.print("Required lifts: " .. selected.quote.totalLifts, DETAIL.x + 190, DETAIL.y + 206)
-    drawArtworkPreview(assets, selected.artworkKey, DETAIL.x + 350, DETAIL.y + 34, 70)
+    drawArtworkPreview(assets, selected, DETAIL.x + 350, DETAIL.y + 34, 70)
 
     love.graphics.setColor(0.16, 0.22, 0.24)
     love.graphics.rectangle("fill", DETAIL.x + 18, DETAIL.y + 232, DETAIL.width - 36, 26)
     love.graphics.setColor(0.85, 0.88, 0.87)
     love.graphics.print("PALLET", DETAIL.x + 28, DETAIL.y + 239)
-    love.graphics.print("REMAINING", DETAIL.x + 132, DETAIL.y + 239)
+    love.graphics.print(selected.press and "GOOD / TARGET" or "REMAINING", DETAIL.x + 132, DETAIL.y + 239)
     love.graphics.print("LIFTS", DETAIL.x + 270, DETAIL.y + 239)
     love.graphics.print("STATE", DETAIL.x + 340, DETAIL.y + 239)
     for index, pallet in ipairs(selected.pallets or {}) do
@@ -724,7 +729,13 @@ local function drawDetail(state, pointerX, pointerY, assets)
         love.graphics.rectangle("fill", DETAIL.x + 18, y, DETAIL.width - 36, 25)
         love.graphics.setColor(0.78, 0.83, 0.83)
         love.graphics.print(tostring(pallet.number), DETAIL.x + 48, y + 7)
-        love.graphics.print(commaNumber(pallet.remainingSheets), DETAIL.x + 153, y + 7)
+        if selected.press then
+            love.graphics.print(string.format("%s / %s",
+                commaNumber(pallet.press and pallet.press.goodSheets or 0),
+                commaNumber(pallet.requestedCopies or pallet.initialSheets)), DETAIL.x + 136, y + 7)
+        else
+            love.graphics.print(commaNumber(pallet.remainingSheets), DETAIL.x + 153, y + 7)
+        end
         love.graphics.print(string.format("%d/%d", pallet.completedLifts, pallet.requiredLifts), DETAIL.x + 274, y + 7)
         love.graphics.print(StatusLabels.get(pallet.status), DETAIL.x + 340, y + 7)
     end
@@ -942,7 +953,7 @@ local function drawBills(state, pointerX, pointerY)
         PAY_BILLS.x, PAY_BILLS.y + 16, PAY_BILLS.width, "center")
 end
 
-local function drawEmail(state, pointerX, pointerY)
+local function drawEmail(state, pointerX, pointerY, assets)
     local inbox = JobService.emailInbox(state)
     panel({ x = 82, y = 190, width = 310, height = 408 },
         { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
@@ -958,7 +969,9 @@ local function drawEmail(state, pointerX, pointerY)
         love.graphics.print("NEW RETURNING-CLIENT PROMOTION", 434, 212)
         love.graphics.setColor(0.76, 0.83, 0.84)
         love.graphics.print("TO: " .. tostring(source and source.company or "--"), 434, 246)
-        love.graphics.printf("We'd like to offer you 10% off your next paper-cutting job.",
+        love.graphics.printf(source and source.press
+            and "We'd like to offer you 10% off your next custom printing job."
+            or "We'd like to offer you 10% off your next paper-cutting job.",
             434, 278, 392, "left")
         love.graphics.setColor(0.58, 0.67, 0.68)
         love.graphics.print("ADD YOUR OWN MESSAGE", 434, 320)
@@ -1033,18 +1046,27 @@ local function drawEmail(state, pointerX, pointerY)
     local job = selected.job
     love.graphics.setColor(0.86, 0.89, 0.88)
     love.graphics.print("PROPOSED JOB  " .. job.id, 434, 320)
-    love.graphics.print(string.format("Stock: %g × %g in   Finished: %g × %g in",
-        job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 346)
-    love.graphics.print(string.format("%d pallet%s   %s sheets",
-        job.quote.palletCount, job.quote.palletCount == 1 and "" or "s",
-        commaNumber(job.quote.totalSheets)), 434, 372)
-    love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(job), 434, 398, 392, "left")
+    love.graphics.print(string.format("Sheets: %g × %g in → %g × %g in",
+        job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 344)
+    love.graphics.printf("Paper: " .. (job.stockSpec and job.stockSpec.description
+        or job.details and job.details.stockDescription or "Customer supplied"), 434, 364,
+        job.press and 292 or 392, "left")
     if job.press then
+        love.graphics.print(string.format("Order: %s good / %s supplied",
+            commaNumber(job.quote.orderedCopies or job.press.orderedQuantity),
+            commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 386)
+        love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(job), 434, 406, 292, "left")
         love.graphics.printf(string.format("Press: %d color%s • %s", job.press.colors or 1,
             (job.press.colors or 1) == 1 and "" or "s",
-            table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 418, 392, "left")
+            table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 426, 292, "left")
+        drawArtworkPreview(assets, job, 766, 330, 48)
+    else
+        love.graphics.print(string.format("%d pallet%s   %s sheets",
+            job.quote.palletCount, job.quote.palletCount == 1 and "" or "s",
+            commaNumber(job.quote.totalSheets)), 434, 386)
+        love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(job), 434, 406, 392, "left")
     end
-    love.graphics.print("Stock arrival: " .. JobService.deliverySummary(job), 434, 438)
+    love.graphics.print("Stock arrival: " .. JobService.deliverySummary(job), 434, 446)
     local terms = JobService.quoteTerms(state, job, tonumber(ComputerScreen.quoteText))
     love.graphics.setColor(0.58, 0.67, 0.68)
     love.graphics.print("YOUR QUOTE", EMAIL_QUOTE_INPUT.x, 454)
@@ -1251,7 +1273,7 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
     elseif ComputerScreen.tab == "online" then
         drawOnline(state, pointerX, pointerY)
     elseif ComputerScreen.tab == "email" then
-        drawEmail(state, pointerX, pointerY)
+        drawEmail(state, pointerX, pointerY, assets)
     elseif ComputerScreen.tab == "calendar" then
         drawCalendar(state, pointerX, pointerY)
     elseif ComputerScreen.tab == "bills" then

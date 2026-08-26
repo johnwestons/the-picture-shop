@@ -201,6 +201,32 @@ function Test.run(context, check)
     check("machine_condition_controls_resale_value", sold and sale.price == saleValue
         and sale.price > 0 and fleet.byId(state, usedCutter.id) == nil)
 
+    local pressSaleState = context.State.new()
+    pressSaleState.money = 50000
+    local pressBought, installedPress = fleet.buy(pressSaleState, "dealer", 3)
+    pressSaleState.windmill.process = pressSaleState.windmill.process or {}
+    pressSaleState.windmill.process.palletId = "PRESS-SALE-P01"
+    local loadedSale, loadedReason = fleet.sell(pressSaleState, installedPress.id, "online")
+    check("loaded_windmill_cannot_be_sold", pressBought and not loadedSale
+        and loadedReason:find("Unload the Windmill", 1, true) ~= nil
+        and fleet.byId(pressSaleState, installedPress.id) == installedPress)
+
+    pressSaleState.windmill.process.palletId = nil
+    pressSaleState.jobs.active = { {
+        id = "PRESS-SALE-JOB", status = "in_production", press = { colors = 1 },
+        pallets = { { id = "PRESS-SALE-P01", press = { status = "awaiting_cut" } } },
+    } }
+    local requiredSale, requiredReason = fleet.sell(pressSaleState, installedPress.id, "dealer")
+    check("last_windmill_cannot_be_sold_while_print_work_needs_it", not requiredSale
+        and requiredReason:find("active print work", 1, true) ~= nil
+        and fleet.byId(pressSaleState, installedPress.id) == installedPress)
+
+    local spareBought, sparePress = fleet.buy(pressSaleState, "dealer", 3)
+    local replacedSale = fleet.sell(pressSaleState, installedPress.id, "dealer")
+    check("stored_windmill_replacement_allows_installed_press_sale", spareBought and replacedSale
+        and fleet.byId(pressSaleState, installedPress.id) == nil
+        and sparePress.status == "installed")
+
     local wrapperServiceState = context.State.new()
     wrapperServiceState.screen = "machine"
     wrapperServiceState.machineType = "skid_wrapper"

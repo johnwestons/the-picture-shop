@@ -2,8 +2,9 @@ local Config = require("src.config")
 local PaperWork = require("src.paper_work")
 local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
+local PalletState = require("src.pallet_state")
 
-local Schema = { VERSION = 12, SLOT_COUNT = 3 }
+local Schema = { VERSION = 13, SLOT_COUNT = 3 }
 local directions = {
     northwest = true, north = true, northeast = true, east = true,
     southeast = true, south = true, southwest = true, west = true,
@@ -22,9 +23,15 @@ end
 
 local function nonnegative(value) return number(value) and value >= 0 end
 local function integer(value) return number(value) and value == math.floor(value) end
+local function nonnegativeInteger(value) return integer(value) and value >= 0 end
 local function positiveInteger(value) return integer(value) and value >= 1 end
 local function text(value) return type(value) == "string" and value ~= "" end
 local function optionalNumber(value) return value == nil or number(value) end
+local function optionalText(value) return value == nil or text(value) end
+local function optionalNonnegative(value) return value == nil or nonnegative(value) end
+local function optionalNonnegativeInteger(value) return value == nil or nonnegativeInteger(value) end
+local function optionalPositiveInteger(value) return value == nil or positiveInteger(value) end
+local function optionalBoolean(value) return value == nil or type(value) == "boolean" end
 
 local function validSlot(slot)
     return integer(slot) and slot >= 1 and slot <= Schema.SLOT_COUNT
@@ -100,12 +107,130 @@ local function paper(value)
         and array(value.history, historyEntry)
 end
 
+local function artwork(value)
+    return value == nil or (type(value) == "table"
+        and text(value.key)
+        and text(value.displayName)
+        and text(value.fileName)
+        and value.suppliedBy == "client"
+        and (value.orientation == "portrait" or value.orientation == "landscape"))
+end
+
+local function stockSpec(value)
+    return value == nil or (type(value) == "table"
+        and value.suppliedBy == "client"
+        and text(value.grade)
+        and nonnegative(value.weight)
+        and text(value.finish)
+        and text(value.color)
+        and text(value.grain)
+        and text(value.description))
+end
+
+local function passHistoryEntry(value)
+    if type(value) ~= "table" then return false end
+    if not optionalPositiveInteger(value.colorIndex)
+        or not optionalPositiveInteger(value.passNumber)
+        or not optionalText(value.inkColor)
+        or not optionalText(value.plateId)
+        or not optionalText(value.status)
+        or not optionalNonnegativeInteger(value.requiredGoodSheets)
+        or not optionalNonnegativeInteger(value.availableSheets)
+        or not optionalNonnegativeInteger(value.impressions)
+        or not optionalNonnegativeInteger(value.goodSheets)
+        or not optionalNonnegativeInteger(value.spoilage)
+        or not optionalNonnegativeInteger(value.targetSheets)
+        or not optionalNonnegativeInteger(value.feedSheets)
+        or not optionalNonnegativeInteger(value.remainingSheets)
+        or not optionalNumber(value.startedAtHours)
+        or not optionalNumber(value.completedAtHours)
+        or not optionalNonnegative(value.pressHours)
+        or not optionalBoolean(value.artworkVerified)
+    then
+        return false
+    end
+    if value.proofQuality ~= nil
+        and (not number(value.proofQuality) or value.proofQuality < 0 or value.proofQuality > 1)
+    then
+        return false
+    end
+    return value.quality == nil or (number(value.quality) and value.quality >= 0 and value.quality <= 1)
+end
+
+local function palletPress(value)
+    return value == nil or (type(value) == "table"
+        and text(value.status)
+        and positiveInteger(value.requiredGoodSheets)
+        and nonnegativeInteger(value.availableSheets)
+        and nonnegativeInteger(value.completedColors)
+        and nonnegativeInteger(value.goodSheets)
+        and nonnegativeInteger(value.spoilage)
+        and optionalNumber(value.dryUntilHours)
+        and array(value.passHistory, passHistoryEntry))
+end
+
+local function pressPlate(value)
+    if type(value) ~= "table"
+        or not text(value.id)
+        or not text(value.jobId)
+        or not positiveInteger(value.colorIndex)
+        or not text(value.inkColor)
+        or not text(value.artworkKey)
+        or not dimensions(value.artworkSize)
+        or not text(value.status)
+        or not optionalText(value.source)
+        or not number(value.quality) or value.quality < 0 or value.quality > 1
+        or not number(value.life) or value.life < 0 or value.life > 1
+        or not positiveInteger(value.processStep)
+        or type(value.processScores) ~= "table"
+        or type(value.mounted) ~= "boolean"
+        or not optionalNumber(value.orderedAtHours)
+        or not optionalNumber(value.readyAtHours)
+        or not optionalNonnegative(value.actualCost)
+    then
+        return false
+    end
+    return array(value.processScores, function(score)
+        return number(score) and score >= 0 and score <= 1
+    end)
+end
+
+local function pressActual(value)
+    if type(value) ~= "table" then return false end
+    for _, field in ipairs({
+        "plateCost", "inHousePlates", "inkUnits", "tympanSheets", "washUnits",
+        "proofs", "impressions", "spoilage", "pressHours", "supplyCost",
+    }) do
+        if not nonnegative(value[field]) then return false end
+    end
+    return true
+end
+
+local function jobPress(value)
+    return value == nil or (type(value) == "table"
+        and positiveInteger(value.colors) and value.colors <= 4
+        and number(value.coverage) and value.coverage >= 0 and value.coverage <= 1
+        and dimensions(value.artworkSize)
+        and array(value.colorSequence, text)
+        and #value.colorSequence == value.colors
+        and array(value.requestedCopies, positiveInteger)
+        and #value.requestedCopies >= 1
+        and positiveInteger(value.orderedQuantity)
+        and positiveInteger(value.suppliedSheets)
+        and nonnegativeInteger(value.spoilageAllowance)
+        and array(value.plates, pressPlate)
+        and #value.plates == value.colors
+        and pressActual(value.actual))
+end
+
 local function quotePallet(value)
     return type(value) == "table"
         and positiveInteger(value.number)
         and positiveInteger(value.sheetCount)
         and positiveInteger(value.requiredLifts)
         and nonnegative(value.price)
+        and optionalPositiveInteger(value.requestedCopies)
+        and optionalNonnegativeInteger(value.spoilageAllowance)
 end
 
 local function quote(value)
@@ -117,6 +242,9 @@ local function quote(value)
         and optionalNumber(value.recommendedPrice)
         and optionalNumber(value.playerPrice)
         and optionalNumber(value.standardPrice)
+        and optionalPositiveInteger(value.orderedCopies)
+        and optionalPositiveInteger(value.suppliedSheets)
+        and optionalNonnegativeInteger(value.spoilageAllowance)
         and array(value.pallets, quotePallet)
         and #value.pallets == value.palletCount
 end
@@ -164,6 +292,8 @@ local function customerPallet(value)
         and (value.lastLiftSheets == nil or nonnegative(value.lastLiftSheets))
         and (value.programVerified == nil or type(value.programVerified) == "boolean")
         and (value.awaitingPalletReturn == nil or type(value.awaitingPalletReturn) == "boolean")
+        and optionalPositiveInteger(value.requestedCopies)
+        and optionalNonnegativeInteger(value.spoilageAllowance)
         and text(value.status)
         and text(value.location)
         and (value.packaging == "flat" or value.packaging == "boxed")
@@ -172,6 +302,60 @@ local function customerPallet(value)
         and optionalNumber(value.pickedUpAt)
         and worldPosition(value.world)
         and paper(value.paper)
+        and palletPress(value.press)
+end
+
+local function printQuantities(value)
+    if value.press == nil then return artwork(value.artwork) and stockSpec(value.stockSpec) end
+    if not artwork(value.artwork) or value.artwork == nil
+        or not stockSpec(value.stockSpec) or value.stockSpec == nil
+        or not jobPress(value.press)
+        or #value.press.requestedCopies ~= #value.pallets
+    then
+        return false
+    end
+    local ordered, supplied, allowance = 0, 0, 0
+    for index, pallet in ipairs(value.pallets) do
+        local requested = value.press.requestedCopies[index]
+        local quoted = value.quote.pallets[index]
+        if pallet.requestedCopies ~= requested
+            or requested > pallet.initialSheets
+            or pallet.spoilageAllowance == nil
+            or pallet.spoilageAllowance ~= pallet.initialSheets - requested
+            or type(pallet.press) ~= "table"
+            or pallet.press.requiredGoodSheets ~= requested
+            or pallet.press.availableSheets > pallet.initialSheets
+            or pallet.press.completedColors > value.press.colors
+            or not quoted
+            or quoted.sheetCount ~= pallet.initialSheets
+            or quoted.requestedCopies ~= requested
+            or quoted.spoilageAllowance ~= pallet.spoilageAllowance
+        then
+            return false
+        end
+        ordered = ordered + requested
+        supplied = supplied + pallet.initialSheets
+        allowance = allowance + pallet.spoilageAllowance
+    end
+    for colorIndex, plate in ipairs(value.press.plates) do
+        local artworkSize = plate.artworkSize
+        if plate.jobId ~= value.id
+            or plate.colorIndex ~= colorIndex
+            or plate.inkColor ~= value.press.colorSequence[colorIndex]
+            or plate.artworkKey ~= value.artwork.key
+            or artworkSize.width ~= value.press.artworkSize.width
+            or artworkSize.height ~= value.press.artworkSize.height
+        then
+            return false
+        end
+    end
+    return value.press.orderedQuantity == ordered
+        and value.press.suppliedSheets == supplied
+        and value.press.spoilageAllowance == allowance
+        and value.quote.totalSheets == supplied
+        and value.quote.orderedCopies == ordered
+        and value.quote.suppliedSheets == supplied
+        and value.quote.spoilageAllowance == allowance
 end
 
 local function job(value)
@@ -181,6 +365,9 @@ local function job(value)
         and dimensions(value.sourceSize)
         and dimensions(value.finishedSize)
         and (value.artworkKey == nil or text(value.artworkKey))
+        and artwork(value.artwork)
+        and (value.artwork == nil or value.artworkKey == value.artwork.key)
+        and stockSpec(value.stockSpec)
         and deliveryService(value.deliveryService)
         and (value.requestChannel == nil or value.requestChannel == "reception" or value.requestChannel == "email")
         and type(value.details) == "table"
@@ -199,6 +386,7 @@ local function job(value)
         and array(value.pallets, customerPallet)
         and delivery(value.delivery)
         and pickup(value.pickup)
+        and printQuantities(value)
 end
 
 local function clientEmails(value)
@@ -309,6 +497,96 @@ local function placement(value)
         and type(value.inMotion) == "boolean"
 end
 
+local function setupScores(value)
+    if type(value) ~= "table" then return false end
+    for key, score in pairs(value) do
+        if not text(key) or not number(score) or score < 0 or score > 1 then return false end
+    end
+    return true
+end
+
+local function copyQuantity(value)
+    if value == nil then return true end
+    if nonnegativeInteger(value) then return true end
+    return array(value, positiveInteger)
+end
+
+local function proofRecord(value)
+    return value == nil or (type(value) == "table"
+        and (value.quality == nil or (number(value.quality) and value.quality >= 0 and value.quality <= 1))
+        and optionalBoolean(value.approved)
+        and optionalNonnegativeInteger(value.sheets)
+        and optionalNonnegativeInteger(value.spoilage)
+        and optionalNumber(value.createdAtHours))
+end
+
+local function windmillProcess(value)
+    if value == nil then return true end
+    if type(value) ~= "table"
+        or not text(value.status)
+        or not number(value.speed) or value.speed <= 0
+        or type(value.motor) ~= "boolean"
+        or type(value.feeder) ~= "boolean"
+        or type(value.impression) ~= "boolean"
+        or type(value.emergency) ~= "boolean"
+        or not setupScores(value.setup)
+        or not nonnegative(value.counter)
+        or not nonnegative(value.goodSheets)
+        or not nonnegative(value.spoilage)
+        or not nonnegative(value.sheetAccumulator)
+        or not nonnegative(value.animationClock)
+        or not optionalText(value.jobId)
+        or not optionalText(value.palletId)
+        or not optionalPositiveInteger(value.colorIndex)
+        or not optionalBoolean(value.proofApproved)
+        or not optionalBoolean(value.artworkVerified)
+        or not optionalText(value.warning)
+        or not proofRecord(value.proof)
+        or not copyQuantity(value.requestedCopies)
+    then
+        return false
+    end
+    if value.proofQuality ~= nil
+        and (not number(value.proofQuality) or value.proofQuality < 0 or value.proofQuality > 1)
+    then
+        return false
+    end
+    for _, field in ipairs({
+        "orderedQuantity", "suppliedSheets", "spoilageAllowance", "requiredGoodSheets",
+        "availableSheets", "targetGoodSheets", "targetSheets", "remainingSheets", "proofSheets",
+        "feedStart", "feedRemaining",
+    }) do
+        if not optionalNonnegativeInteger(value[field]) then return false end
+    end
+    return value.passHistory == nil or array(value.passHistory, passHistoryEntry)
+end
+
+local function physicalOwnership(value)
+    local valid = PalletState.validate(value)
+    if not valid then return false end
+    local process = value.windmill and value.windmill.process
+    local atPress, matchedJob, matchedPallet = 0, nil, nil
+    for _, savedJob in ipairs(value.jobs and value.jobs.active or {}) do
+        for _, pallet in ipairs(savedJob.pallets or {}) do
+            if pallet.location == "at_press" then atPress = atPress + 1 end
+            if process and pallet.id == process.palletId then
+                matchedJob, matchedPallet = savedJob, pallet
+            end
+        end
+    end
+    if not process or process.palletId == nil then
+        return atPress == 0 and (not process or process.jobId == nil)
+    end
+    return atPress == 1
+        and matchedJob ~= nil and matchedPallet ~= nil
+        and process.jobId == matchedJob.id
+        and matchedPallet.location == "at_press"
+        and type(matchedJob.press) == "table"
+        and type(matchedPallet.press) == "table"
+        and positiveInteger(process.colorIndex)
+        and process.colorIndex <= matchedJob.press.colors
+end
+
 local function palletJack(value)
     return placement(value)
         and type(value.operating) == "boolean"
@@ -340,6 +618,9 @@ local function persistentState(value)
         and palletJack(value.palletJack)
         and placement(value.wrapper)
         and placement(value.windmill)
+        and optionalBoolean(value.windmill.tutorialComplete)
+        and windmillProcess(value.windmill.process)
+        and physicalOwnership(value)
 end
 
 local function defaultPlacement(config)
@@ -398,47 +679,325 @@ local function mergePlacement(fallback, source)
     return result
 end
 
+local function titleForKey(key)
+    local result = tostring(key or "client-artwork"):gsub("[_%-]+", " ")
+    return (result:gsub("(%a)([%w']*)", function(first, rest)
+        return string.upper(first) .. string.lower(rest)
+    end))
+end
+
+local function artworkOrientation(job)
+    local size = job.press and job.press.artworkSize or job.finishedSize
+    return dimensions(size) and size.width > size.height and "landscape" or "portrait"
+end
+
+local function normalizeArtwork(job, required)
+    if job.artwork == nil and not required then return end
+    if job.artwork == nil then job.artwork = {} end
+    if type(job.artwork) ~= "table" then return end
+    local key = text(job.artwork.key) and job.artwork.key
+        or text(job.artworkKey) and job.artworkKey or "client-artwork"
+    if job.artwork.key == nil then job.artwork.key = key end
+    if job.artwork.displayName == nil then job.artwork.displayName = titleForKey(key) end
+    if job.artwork.fileName == nil then job.artwork.fileName = key .. ".png" end
+    if job.artwork.suppliedBy == nil then job.artwork.suppliedBy = "client" end
+    if job.artwork.orientation == nil then job.artwork.orientation = artworkOrientation(job) end
+    if job.artworkKey == nil then job.artworkKey = key end
+end
+
+local function legacyStockDescription(job)
+    local details = type(job.details) == "table" and job.details or {}
+    return text(details.stockDescription) and details.stockDescription or "Customer supplied paper"
+end
+
+local function normalizeStockSpec(job, required)
+    if job.stockSpec == nil and not required then return end
+    if job.stockSpec == nil then job.stockSpec = {} end
+    if type(job.stockSpec) ~= "table" then return end
+    local description = legacyStockDescription(job)
+    local lower = string.lower(description)
+    if job.stockSpec.suppliedBy == nil then job.stockSpec.suppliedBy = "client" end
+    if job.stockSpec.grade == nil then
+        job.stockSpec.grade = lower:find("cover", 1, true) and "cover"
+            or lower:find("text", 1, true) and "text" or "unspecified"
+    end
+    if job.stockSpec.weight == nil then
+        job.stockSpec.weight = tonumber(lower:match("(%d+)%s*lb")) or 0
+    end
+    if job.stockSpec.finish == nil then
+        job.stockSpec.finish = lower:find("gloss", 1, true) and "gloss"
+            or lower:find("uncoated", 1, true) and "uncoated" or "unspecified"
+    end
+    if job.stockSpec.color == nil then job.stockSpec.color = "unspecified" end
+    if job.stockSpec.grain == nil then
+        local details = type(job.details) == "table" and job.details or {}
+        job.stockSpec.grain = text(details.grainDirection) and details.grainDirection or "unspecified"
+    end
+    if job.stockSpec.description == nil then job.stockSpec.description = description end
+end
+
+local actualFields = {
+    "plateCost", "inHousePlates", "inkUnits", "tympanSheets", "washUnits",
+    "proofs", "impressions", "spoilage", "pressHours", "supplyCost",
+}
+
+local function normalizePlate(job, press, colorIndex)
+    if type(press.plates) ~= "table" then return end
+    local plate = press.plates[colorIndex]
+    if plate == nil then
+        plate = {}
+        press.plates[colorIndex] = plate
+    end
+    if type(plate) ~= "table" then return end
+    local artworkKey = job.artwork and job.artwork.key or job.artworkKey or "client-artwork"
+    if plate.id == nil then plate.id = string.format("%s-PLATE-%02d", job.id or "JOB", colorIndex) end
+    if plate.jobId == nil then plate.jobId = job.id end
+    if plate.colorIndex == nil then plate.colorIndex = colorIndex end
+    if plate.inkColor == nil then
+        plate.inkColor = type(press.colorSequence) == "table" and press.colorSequence[colorIndex]
+            or (colorIndex == 1 and "Black" or "Spot " .. colorIndex)
+    end
+    if plate.artworkKey == nil then plate.artworkKey = artworkKey end
+    if plate.artworkSize == nil then plate.artworkSize = copy(press.artworkSize or job.finishedSize) end
+    if plate.status == nil then plate.status = "unprepared" end
+    if plate.quality == nil then plate.quality = 0 end
+    if plate.life == nil then plate.life = 1 end
+    if plate.processStep == nil then plate.processStep = 1 end
+    if plate.processScores == nil then plate.processScores = {} end
+    if plate.mounted == nil then plate.mounted = false end
+end
+
+local function normalizePrintJob(job)
+    local press = job.press
+    if type(press) ~= "table" then return end
+    normalizeArtwork(job, true)
+    normalizeStockSpec(job, true)
+    if press.colors == nil then press.colors = 1 end
+    if press.coverage == nil then press.coverage = 0.4 end
+    if press.artworkSize == nil then press.artworkSize = copy(job.finishedSize) end
+    if press.colorSequence == nil then press.colorSequence = {} end
+    if type(press.colorSequence) == "table" and positiveInteger(press.colors) then
+        for colorIndex = 1, press.colors do
+            if press.colorSequence[colorIndex] == nil then
+                press.colorSequence[colorIndex] = colorIndex == 1 and "Black" or "Spot " .. colorIndex
+            end
+        end
+    end
+    if press.requestedCopies == nil then press.requestedCopies = {} end
+
+    local ordered, supplied, allowance = 0, 0, 0
+    if type(job.pallets) == "table" then
+        for index, pallet in ipairs(job.pallets) do
+            if type(pallet) == "table" then
+                local quoted = type(job.quote) == "table" and type(job.quote.pallets) == "table"
+                    and job.quote.pallets[index] or nil
+                local requested = pallet.requestedCopies
+                    or (type(press.requestedCopies) == "table" and press.requestedCopies[index])
+                    or (type(quoted) == "table" and quoted.requestedCopies)
+                    or pallet.initialSheets
+                if pallet.requestedCopies == nil then pallet.requestedCopies = requested end
+                if type(press.requestedCopies) == "table" and press.requestedCopies[index] == nil then
+                    press.requestedCopies[index] = requested
+                end
+                local palletAllowance = pallet.spoilageAllowance
+                if palletAllowance == nil and number(pallet.initialSheets) and number(requested) then
+                    palletAllowance = math.max(0, pallet.initialSheets - requested)
+                    pallet.spoilageAllowance = palletAllowance
+                end
+                if type(quoted) == "table" then
+                    if quoted.requestedCopies == nil then quoted.requestedCopies = requested end
+                    if quoted.spoilageAllowance == nil then quoted.spoilageAllowance = palletAllowance or 0 end
+                end
+                if pallet.press == nil then pallet.press = {} end
+                if type(pallet.press) == "table" then
+                    if pallet.press.status == nil then pallet.press.status = "awaiting_cut" end
+                    if pallet.press.requiredGoodSheets == nil then pallet.press.requiredGoodSheets = requested end
+                    if pallet.press.completedColors == nil then pallet.press.completedColors = 0 end
+                    if pallet.press.goodSheets == nil then pallet.press.goodSheets = 0 end
+                    if pallet.press.availableSheets == nil then
+                        local priorPassSheets = number(pallet.finishedSheets)
+                            and pallet.finishedSheets > 0 and pallet.finishedSheets
+                            or pallet.press.goodSheets
+                        pallet.press.availableSheets = pallet.press.completedColors > 0
+                            and priorPassSheets or pallet.initialSheets
+                    end
+                    if pallet.press.spoilage == nil then pallet.press.spoilage = 0 end
+                    if pallet.press.passHistory == nil then pallet.press.passHistory = {} end
+                end
+                if number(requested) then ordered = ordered + requested end
+                if number(pallet.initialSheets) then supplied = supplied + pallet.initialSheets end
+                if number(palletAllowance) then allowance = allowance + palletAllowance end
+            end
+        end
+    end
+    if press.orderedQuantity == nil then press.orderedQuantity = ordered end
+    if press.suppliedSheets == nil then press.suppliedSheets = supplied end
+    if press.spoilageAllowance == nil then press.spoilageAllowance = allowance end
+    if type(job.quote) == "table" then
+        if job.quote.orderedCopies == nil then job.quote.orderedCopies = ordered end
+        if job.quote.suppliedSheets == nil then job.quote.suppliedSheets = supplied end
+        if job.quote.spoilageAllowance == nil then job.quote.spoilageAllowance = allowance end
+    end
+    if press.plates == nil then press.plates = {} end
+    if type(press.plates) == "table" and positiveInteger(press.colors) then
+        for colorIndex = 1, press.colors do normalizePlate(job, press, colorIndex) end
+    end
+    if press.actual == nil then press.actual = {} end
+    if type(press.actual) == "table" then
+        for _, field in ipairs(actualFields) do
+            if press.actual[field] == nil then press.actual[field] = 0 end
+        end
+    end
+end
+
+local function normalizeJob(savedJob)
+    if type(savedJob) ~= "table" then return end
+    if savedJob.details == nil then savedJob.details = {} end
+    if savedJob.difficulty == nil then savedJob.difficulty = "easy" end
+    if savedJob.packaging == nil then savedJob.packaging = "flat" end
+    if type(savedJob.pallets) == "table" then
+        for index, pallet in ipairs(savedJob.pallets) do
+            if type(pallet) == "table" then
+                if pallet.packaging == nil then pallet.packaging = savedJob.packaging end
+                if pallet.wrapped == nil then pallet.wrapped = pallet.status == "wrapped" end
+                if pallet.remainingSheets == nil then pallet.remainingSheets = pallet.initialSheets end
+                if pallet.finishedSheets == nil then pallet.finishedSheets = 0 end
+                if pallet.damagedSheets == nil then pallet.damagedSheets = 0 end
+                if pallet.completedLifts == nil then pallet.completedLifts = 0 end
+                if pallet.activeLift == nil then
+                    pallet.activeLift = math.min(pallet.requiredLifts or 1, (pallet.completedLifts or 0) + 1)
+                end
+                if pallet.lastLiftSheets == nil then pallet.lastLiftSheets = 0 end
+                if pallet.programVerified == nil then
+                    pallet.programVerified = (pallet.completedLifts or 0) > 0
+                        or (pallet.paper and pallet.paper.status == "complete")
+                end
+                if pallet.paper == nil and text(pallet.id)
+                    and dimensions(savedJob.sourceSize) and dimensions(savedJob.finishedSize)
+                then
+                    pallet.paper = PaperWork.create(savedJob, pallet, savedJob.difficulty, index)
+                end
+            end
+        end
+    end
+    normalizeArtwork(savedJob, false)
+    normalizeStockSpec(savedJob, false)
+    normalizePrintJob(savedJob)
+end
+
 local function normalizeJobs(jobs)
     for _, collectionName in ipairs({ "active", "completed", "declined" }) do
         local collection = type(jobs[collectionName]) == "table" and jobs[collectionName] or {}
         jobs[collectionName] = collection
-        for _, savedJob in ipairs(collection) do
-            if type(savedJob) == "table" then
-                if savedJob.details == nil then savedJob.details = {} end
-                if savedJob.difficulty == nil then savedJob.difficulty = "easy" end
-                if savedJob.packaging == nil then savedJob.packaging = "flat" end
-                if type(savedJob.pallets) == "table" then
-                    for index, pallet in ipairs(savedJob.pallets) do
-                        if type(pallet) == "table" then
-                            if pallet.packaging == nil then pallet.packaging = savedJob.packaging end
-                            if pallet.wrapped == nil then pallet.wrapped = pallet.status == "wrapped" end
-                            if pallet.remainingSheets == nil then pallet.remainingSheets = pallet.initialSheets end
-                            if pallet.finishedSheets == nil then pallet.finishedSheets = 0 end
-                            if pallet.damagedSheets == nil then pallet.damagedSheets = 0 end
-                            if pallet.completedLifts == nil then pallet.completedLifts = 0 end
-                            if pallet.activeLift == nil then
-                                pallet.activeLift = math.min(pallet.requiredLifts or 1,
-                                    (pallet.completedLifts or 0) + 1)
-                            end
-                            if pallet.lastLiftSheets == nil then pallet.lastLiftSheets = 0 end
-                            if pallet.programVerified == nil then
-                                pallet.programVerified = (pallet.completedLifts or 0) > 0
-                                    or (pallet.paper and pallet.paper.status == "complete")
-                            end
-                            if pallet.paper == nil and text(pallet.id)
-                                and dimensions(savedJob.sourceSize) and dimensions(savedJob.finishedSize)
-                            then
-                                pallet.paper = PaperWork.create(savedJob, pallet, savedJob.difficulty, index)
-                            end
-                        end
-                    end
-                end
+        for _, savedJob in ipairs(collection) do normalizeJob(savedJob) end
+    end
+end
+
+local function normalizeEmailJobs(emails)
+    if type(emails) ~= "table" then return end
+    for _, collectionName in ipairs({ "pending", "inbox" }) do
+        if type(emails[collectionName]) == "table" then
+            for _, email in ipairs(emails[collectionName]) do
+                if type(email) == "table" then normalizeJob(email.job) end
             end
         end
     end
 end
 
-local function normalizeState(source)
+local function normalizeWindmillProcess(value, state)
+    if type(value) ~= "table" then return value end
+    if value.status == nil then value.status = "idle" end
+    if value.speed == nil then value.speed = 3000 end
+    if value.motor == nil then value.motor = false end
+    if value.feeder == nil then value.feeder = false end
+    if value.impression == nil then value.impression = false end
+    if value.emergency == nil then value.emergency = false end
+    if value.setup == nil then value.setup = {} end
+    if value.counter == nil then value.counter = 0 end
+    if value.goodSheets == nil then value.goodSheets = 0 end
+    if value.spoilage == nil then value.spoilage = 0 end
+    if value.sheetAccumulator == nil then value.sheetAccumulator = 0 end
+    if value.animationClock == nil then value.animationClock = 0 end
+    local activeJob, activePallet
+    for _, savedJob in ipairs(state and state.jobs and state.jobs.active or {}) do
+        if savedJob.id == value.jobId then
+            activeJob = savedJob
+            for _, pallet in ipairs(savedJob.pallets or {}) do
+                if pallet.id == value.palletId then activePallet = pallet; break end
+            end
+            break
+        end
+    end
+    if activeJob and activePallet and type(activeJob.press) == "table"
+        and type(activePallet.press) == "table"
+    then
+        local required = activePallet.press.requiredGoodSheets or activePallet.requestedCopies
+            or activePallet.initialSheets
+        local available = activePallet.press.availableSheets or activePallet.initialSheets
+        if value.targetSheets == nil then
+            local colors = math.max(1, math.floor(tonumber(activeJob.press.colors) or 1))
+            local color = math.max(1, math.min(colors, math.floor(tonumber(value.colorIndex)
+                or (activePallet.press.completedColors or 0) + 1)))
+            local supplied = math.max(required, math.floor(tonumber(activePallet.initialSheets) or required))
+            local allowance = math.max(0, math.floor(tonumber(activePallet.spoilageAllowance)
+                or (supplied - required)))
+            local reservePerPass = math.floor(allowance / colors)
+            value.targetSheets = required + reservePerPass * (colors - color)
+        end
+        if value.feedStart == nil then value.feedStart = available end
+        if value.feedRemaining == nil and number(available) and number(value.counter) then
+            value.feedRemaining = math.max(0, available - value.counter)
+        end
+        if value.artworkVerified == nil and value.proofApproved ~= nil then
+            value.artworkVerified = value.proofApproved == true
+        end
+    end
+    return value
+end
+
+local function repairLegacyPhysicalOwnership(state)
+    local process = state.windmill and state.windmill.process
+    local selected = process and process.palletId and PalletState.find(state, process.palletId) or nil
+    if selected and (selected.vendor or selected.job.id ~= process.jobId
+        or type(selected.job.press) ~= "table" or type(selected.pallet.press) ~= "table")
+    then
+        selected = nil
+    end
+    local selectedWasAtPress = selected and selected.pallet.location == "at_press"
+    local offset = 0
+    for _, item in ipairs(PalletState.items(state)) do
+        local pallet = item.pallet
+        if pallet.location == "at_press" and (not selected or pallet ~= selected.pallet) then
+            pallet.location = "warehouse"
+        end
+        local physical = pallet.location == "warehouse" or pallet.location == "cutter_output"
+            or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
+            or pallet.location == "at_press" or pallet.location == "press_output"
+        if physical and type(pallet.world) ~= "table" then
+            offset = offset + 1
+            local anchor = (pallet.location == "at_cutter" or pallet.location == "cutter_output")
+                and state.cutter or (pallet.location == "at_press" or pallet.location == "press_output")
+                and state.windmill or state.palletJack
+            pallet.world = { x = anchor.x + offset * 8, y = anchor.y + offset * 5,
+                direction = anchor.direction or "northwest", spawnProgress = 1 }
+        end
+    end
+    if selected then
+        selected.pallet.location = "at_press"
+        if state.palletJack.carriedPalletId == selected.pallet.id then
+            state.palletJack.carriedPalletId = nil
+        end
+        if not selectedWasAtPress or type(selected.pallet.world) ~= "table" then
+            selected.pallet.world = { x = state.windmill.x, y = state.windmill.y,
+                direction = state.windmill.direction, spawnProgress = 1 }
+        end
+    elseif process and process.palletId then
+        state.windmill.process = nil
+    end
+    PalletState.reconcile(state)
+end
+
+local function normalizeState(source, repairPhysical)
     source = type(source) == "table" and source or {}
     local result = Schema.defaultState()
     if nonnegative(source.money) then result.money = source.money end
@@ -480,6 +1039,7 @@ local function normalizeState(source)
     result.clientEmails.archive = type(result.clientEmails.archive) == "table" and result.clientEmails.archive or {}
     result.clientEmails.sentPromotions = type(result.clientEmails.sentPromotions) == "table"
         and result.clientEmails.sentPromotions or {}
+    normalizeEmailJobs(result.clientEmails)
     result.machines = type(source.machines) == "table"
         and copy(source.machines) or result.machines
     MachineFleet.ensure(result)
@@ -487,8 +1047,11 @@ local function normalizeState(source)
     result.cutter = mergePlacement(result.cutter, source.cutter)
     result.wrapper = mergePlacement(result.wrapper, source.wrapper)
     result.windmill = mergePlacement(result.windmill, source.windmill)
+    if type(source.windmill) == "table" and source.windmill.tutorialComplete ~= nil then
+        result.windmill.tutorialComplete = source.windmill.tutorialComplete == true
+    end
     if type(source.windmill) == "table" and type(source.windmill.process) == "table" then
-        result.windmill.process = copy(source.windmill.process)
+        result.windmill.process = normalizeWindmillProcess(copy(source.windmill.process), result)
     end
     result.technicianVisit = type(source.technicianVisit) == "table"
         and copy(source.technicianVisit) or nil
@@ -498,6 +1061,7 @@ local function normalizeState(source)
         result.palletJack.animationClock = source.palletJack.animationClock or 0
         result.palletJack.carriedPalletId = source.palletJack.carriedPalletId
     end
+    if repairPhysical then repairLegacyPhysicalOwnership(result) end
     return result
 end
 
@@ -532,13 +1096,26 @@ function Schema.reconcile(state)
             end
             if pallet.location == "warehouse" or pallet.location == "cutter_output"
                 or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
+                or pallet.location == "at_press" or pallet.location == "press_output"
             then
-                if pallet.status == "cut" or pallet.status == "finished" or pallet.status == "wrapped"
+                local needsPrinting = type(savedJob.press) == "table"
+                local printingComplete = not needsPrinting
+                    or (type(pallet.press) == "table" and pallet.press.status == "complete")
+                local cuttingComplete = pallet.status == "cut" or pallet.status == "printed"
+                    or pallet.status == "finished" or pallet.status == "wrapped"
                     or (pallet.paper and pallet.paper.status == "complete"
                         and (pallet.remainingSheets or 0) == 0)
+                if pallet.location == "at_press"
+                    or (needsPrinting and not printingComplete and cuttingComplete)
+                    or pallet.status == "in_process" or pallet.status == "press_setup"
+                then
+                    inProcess = inProcess + 1
+                elseif pallet.status == "cut" or pallet.status == "printed"
+                    or pallet.status == "finished" or pallet.status == "wrapped"
+                    or (cuttingComplete and printingComplete)
                 then
                     finished = finished + 1
-                elseif pallet.status == "in_process" or pallet.location == "at_cutter" then
+                elseif pallet.location == "at_cutter" then
                     inProcess = inProcess + 1
                 else
                     raw = raw + 1
@@ -624,7 +1201,7 @@ function Schema.migrate(payload)
     elseif payload.version == 2 or payload.version == 3 or payload.version == 4
         or payload.version == 5 or payload.version == 6 or payload.version == 7
         or payload.version == 8 or payload.version == 9 or payload.version == 10
-        or payload.version == 11
+        or payload.version == 11 or payload.version == 12
     then
         if not validV2Core(payload) then return nil end
     else
@@ -637,7 +1214,7 @@ function Schema.migrate(payload)
         slot = payload.slot,
         createdAt = createdAt,
         updatedAt = number(payload.updatedAt) and payload.updatedAt or createdAt,
-        state = normalizeState(payload.state),
+        state = normalizeState(payload.state, true),
         player = { x = payload.player.x, y = payload.player.y },
     }
     Schema.reconcile(migrated.state)

@@ -2,6 +2,7 @@ local Suites = {}
 
 local DOMAIN_SUITES = {
     require("src.tests.asset_pack_test"),
+    require("src.tests.sound_test"),
     require("src.tests.pallet_state_test"),
     require("src.tests.save_contract_test"),
     require("src.tests.input_status_test"),

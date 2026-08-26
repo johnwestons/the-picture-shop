@@ -8,6 +8,7 @@ local CharacterAssets = {
     images = {},
     frames = {},
     failures = {},
+    loadFailures = {},
 }
 
 local function release(image)
@@ -94,14 +95,20 @@ function CharacterAssets.actions(character)
     return result
 end
 
+function CharacterAssets.hasAction(character, action)
+    return CharacterAssets.metadata[character]
+        and CharacterAssets.metadata[character][action] ~= nil
+end
+
 function CharacterAssets.load()
     CharacterAssets.releaseAll()
     CharacterAssets.metadata, CharacterAssets.images = {}, {}
-    CharacterAssets.frames, CharacterAssets.failures = {}, {}
+    CharacterAssets.frames, CharacterAssets.failures, CharacterAssets.loadFailures = {}, {}, {}
     for character, actions in pairs(Config.characters) do
         CharacterAssets.metadata[character] = {}
         CharacterAssets.images[character] = {}
         CharacterAssets.frames[character] = {}
+        CharacterAssets.loadFailures[character] = {}
         for action, path in pairs(actions) do validateAction(character, action, path) end
     end
 end
@@ -109,16 +116,30 @@ end
 local function loadAction(character, action)
     local metadata = CharacterAssets.metadata[character] and CharacterAssets.metadata[character][action]
     if not metadata then return nil end
+    if CharacterAssets.loadFailures[character]
+        and CharacterAssets.loadFailures[character][action]
+    then return nil end
     local existing = CharacterAssets.images[character][action]
     if existing then return existing, CharacterAssets.frames[character][action], metadata.frameCount end
 
-    local ok, image = pcall(love.graphics.newImage, metadata.path)
-    if not ok or not image then return nil end
-    image:setFilter("nearest", "nearest")
-    local frames = {}
-    for frame = 1, metadata.frameCount do
-        frames[frame] = love.graphics.newQuad(
-            (frame - 1) * 512, 0, 512, 512, metadata.width, metadata.height)
+    local image
+    local ok, frames = pcall(function()
+        image = love.graphics.newImage(metadata.path)
+        if not image then error("image loader returned no texture") end
+        image:setFilter("nearest", "nearest")
+        local result = {}
+        for frame = 1, metadata.frameCount do
+            result[frame] = love.graphics.newQuad(
+                (frame - 1) * 512, 0, 512, 512, metadata.width, metadata.height)
+        end
+        return result
+    end)
+    if not ok then
+        release(image)
+        local message = string.format("%s: GPU texture load failed: %s", metadata.path, tostring(frames))
+        CharacterAssets.failures[#CharacterAssets.failures + 1] = message
+        CharacterAssets.loadFailures[character][action] = message
+        return nil
     end
     CharacterAssets.images[character][action] = image
     CharacterAssets.frames[character][action] = frames

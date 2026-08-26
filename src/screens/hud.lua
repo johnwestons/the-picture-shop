@@ -27,7 +27,7 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     EXIT.x, EXIT.y = right - EXIT.width - 18, 14
     shadowedPrint("$" .. state.money, left + 24, 20, { 0.95, 0.84, 0.30 })
     shadowedPrint("Paper: " .. state.inventory.paper, left + 92, 20, { 0.88, 0.92, 0.94 })
-    shadowedPrint("Finished: " .. state.inventory.prints, left + 190, 20, { 0.88, 0.92, 0.94 })
+    shadowedPrint("Samples: " .. state.inventory.prints, left + 190, 20, { 0.88, 0.92, 0.94 })
     shadowedPrint(BusinessCalendar.shortDate(state), left + 312, 20, { 0.74, 0.88, 0.89 })
     if state.bills and state.bills.balance > 0 then
         shadowedPrint("Bills due: $" .. state.bills.balance, left + 442, 20, { 0.96, 0.48, 0.30 })

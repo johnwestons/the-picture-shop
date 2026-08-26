@@ -31,6 +31,7 @@ __pycache__/
 # Smoke-test products. Keep the runner and its local ignore policy tracked.
 /.stabilization/*.rpt
 /.stabilization/smoke-watchdog-*.txt
+/.stabilization/lan_report_render*/
 
 # Disposable previews, audit reports, and sprite-doctor work products.
 # A small allowlist below preserves the approved rebuild sources that still
@@ -58,3 +59,6 @@ __pycache__/
 # read by the game or any current asset-building tool and is about 37 MiB.
 /assets/Machines/movingPicturePress.html
 /assets/Machines/movingPicturePress_files/
+
+# Generated audio audition reel; individual runtime cues remain tracked.
+/assets/audio/sfx/picture_shop_sfx_preview.wav

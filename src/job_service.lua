@@ -64,24 +64,51 @@ local pressTemplates = {
         company = "Foundry Coffee Roasters",
         sourceSize = { width = 10, height = 15 },
         finishedSize = { width = 5, height = 7 },
-        sheetCounts = { 1000 },
+        sheetCounts = { 1050 },
         packaging = "flat",
+        artworkKey = "ad-garlic-bread",
+        artwork = { key = "ad-garlic-bread", displayName = "Foundry Coffee Table Card",
+            fileName = "foundry-coffee-table-card.png", suppliedBy = "client", orientation = "portrait" },
+        stockSpec = { suppliedBy = "client", grade = "cover", weight = 80, finish = "uncoated",
+            color = "natural white", grain = "long", description = "80 lb uncoated cover" },
         press = { colors = 1, coverage = 0.32, artworkSize = { width = 4.25, height = 6.25 },
-            colorSequence = { "Black" } },
+            colorSequence = { "Black" }, requestedCopies = { 1000 } },
         details = { stockDescription = "80 lb uncoated cover", dueDate = "Five business days",
-            grainDirection = "Grain long", notes = "Cut first, then print one black color and protect the face." },
+            grainDirection = "Grain long", notes = "Client supplied final artwork and 50 extra sheets for setup and spoilage." },
     },
     {
         difficulty = "hard",
         company = "Lantern House Events",
         sourceSize = { width = 10, height = 15 },
         finishedSize = { width = 7, height = 10 },
-        sheetCounts = { 1500 },
+        sheetCounts = { 1575 },
         packaging = "boxed",
+        artworkKey = "ad-fashion-tailored",
+        artwork = { key = "ad-fashion-tailored", displayName = "Lantern House Gala Invitation",
+            fileName = "lantern-house-gala-invitation.png", suppliedBy = "client", orientation = "portrait" },
+        stockSpec = { suppliedBy = "client", grade = "cover", weight = 100, finish = "gloss",
+            color = "bright white", grain = "long", description = "100 lb gloss cover" },
         press = { colors = 2, coverage = 0.48, artworkSize = { width = 6.25, height = 9 },
-            colorSequence = { "Warm Red", "Black" } },
+            colorSequence = { "Warm Red", "Black" }, requestedCopies = { 1500 } },
         details = { stockDescription = "100 lb gloss cover", dueDate = "Seven business days",
-            grainDirection = "Grain long", notes = "Two tight-register colors; allow the first pass to dry." },
+            grainDirection = "Grain long", notes = "Client supplied final gala artwork and 75 extra sheets; hold tight register." },
+    },
+    {
+        difficulty = "medium",
+        company = "Maple Street Books",
+        sourceSize = { width = 10, height = 15 },
+        finishedSize = { width = 6, height = 9 },
+        sheetCounts = { 2100 },
+        packaging = "flat",
+        artworkKey = "ad-photos",
+        artwork = { key = "ad-photos", displayName = "Maple Street Reading Series Poster",
+            fileName = "maple-street-reading-series.png", suppliedBy = "client", orientation = "portrait" },
+        stockSpec = { suppliedBy = "client", grade = "cover", weight = 90, finish = "uncoated",
+            color = "cream", grain = "long", description = "90 lb cream uncoated cover" },
+        press = { colors = 2, coverage = 0.42, artworkSize = { width = 5.4, height = 8.25 },
+            colorSequence = { "Forest Green", "Black" }, requestedCopies = { 2000 } },
+        details = { stockDescription = "90 lb cream uncoated cover", dueDate = "Six business days",
+            grainDirection = "Grain long", notes = "Client supplied poster art and 100 extra sheets for proofing and spoilage." },
     },
 }
 
@@ -90,6 +117,21 @@ local function copy(value)
     local result = {}
     for key, item in pairs(value) do result[key] = copy(item) end
     return result
+end
+
+local function artworkName(key)
+    local value = tostring(key or "artwork"):gsub("[-_]", " ")
+    return (value:gsub("(%a)([%w']*)", function(first, rest) return first:upper() .. rest end))
+end
+
+local function artworkRecord(key, artworkSize)
+    return {
+        key = key,
+        displayName = artworkName(key),
+        fileName = key .. ".png",
+        suppliedBy = "client",
+        orientation = artworkSize and artworkSize.width > artworkSize.height and "landscape" or "portrait",
+    }
 end
 
 local function nextSequence(state)
@@ -164,14 +206,21 @@ end
 
 local function repeatOffer(state, completedJob, emailNumber)
     local palletCount = 1 + emailNumber % 3
-    local sheetCounts = {}
+    local sheetCounts, requestedCopies = {}, {}
     for index = 1, palletCount do sheetCounts[index] = 500 * (1 + (emailNumber + index) % 6) end
+    for index, suppliedSheets in ipairs(sheetCounts) do
+        local allowance = completedJob.press and math.max(50, math.ceil(suppliedSheets * 0.03)) or 0
+        requestedCopies[index] = suppliedSheets - allowance
+    end
     local source = copy(completedJob.sourceSize)
     local finished = copy(completedJob.finishedSize)
     if emailNumber % 2 == 0 and source.width ~= source.height then
         source.width, source.height = source.height, source.width
         finished.width, finished.height = finished.height, finished.width
     end
+    local artworkKey = repeatArtwork(state, emailNumber)
+    local artworkSize = completedJob.press and copy(completedJob.press.artworkSize) or copy(finished)
+    local stockSpec = copy(completedJob.stockSpec)
     local spec = {
         id = string.format("EMAIL-JOB-%04d", emailNumber),
         company = completedJob.company,
@@ -180,23 +229,24 @@ local function repeatOffer(state, completedJob, emailNumber)
         sheetCounts = sheetCounts,
         packaging = emailNumber % 2 == 0 and "boxed" or "flat",
         difficulty = ({ "easy", "medium", "hard" })[(emailNumber - 1) % 3 + 1],
-        artworkKey = repeatArtwork(state, emailNumber),
+        artworkKey = artworkKey,
+        artwork = artworkRecord(artworkKey, artworkSize),
+        stockSpec = stockSpec,
         requestChannel = "email",
         deliveryService = deliveryService(completedJob, emailNumber),
         details = {
-            stockDescription = "Repeat-client supplied stock",
+            stockDescription = stockSpec and stockSpec.description or "Repeat-client supplied stock",
             dueDate = emailNumber % 3 == 0 and "Priority repeat order" or "Standard repeat-order turnaround",
             grainDirection = "Follow the new pallet labels",
             notes = "Returning customer. Treat this as a new order and keep it separate from prior work.",
         },
     }
     if completedJob.press then
-        spec.press = {
-            colors = completedJob.press.colors,
-            coverage = completedJob.press.coverage,
-            artworkSize = copy(completedJob.press.artworkSize),
-            colorSequence = copy(completedJob.press.colorSequence),
-        }
+        spec.press = copy(completedJob.press)
+        spec.press.plates, spec.press.actual = nil, nil
+        spec.press.orderedQuantity, spec.press.suppliedSheets, spec.press.spoilageAllowance = nil, nil, nil
+        spec.press.artworkSize = artworkSize
+        spec.press.requestedCopies = requestedCopies
     end
     return Jobs.createOffer(spec)
 end
@@ -387,7 +437,9 @@ function JobService.sendPromotion(state, sourceJob, customMessage)
         id = string.format("EMAIL-%04d", emailNumber),
         sender = sourceJob.company,
         subject = "Reply to your 10% returning-client offer",
-        body = "Thank you for the 10% offer. Please quote this new paper-cutting job for us.",
+        body = sourceJob.press
+            and "Thank you for the 10% offer. Please quote this new cut-and-print job using our attached artwork and specified stock."
+            or "Thank you for the 10% offer. Please quote this new paper-cutting job for us.",
         sourceJobId = sourceJob.id,
         promotionId = promoId,
         readyAtHours = BusinessCalendar.absoluteHours(state) + 12,
@@ -396,16 +448,44 @@ function JobService.sendPromotion(state, sourceJob, customMessage)
     return true, emails.sentPromotions[#emails.sentPromotions]
 end
 
+local function offerHistory(state)
+    local anyPrint, receptionPrintCount, latestSequence, latestJob = false, 0, 0, nil
+    for _, collectionName in ipairs({ "active", "completed", "declined" }) do
+        for _, job in ipairs((state.jobs and state.jobs[collectionName]) or {}) do
+            if type(job) == "table" and job.press then anyPrint = true end
+            if type(job) == "table" and job.requestChannel ~= "email" then
+                local sequence = tonumber(tostring(job.id or ""):match("^JOB%-(%d+)$"))
+                if sequence then
+                    if job.press then receptionPrintCount = receptionPrintCount + 1 end
+                    if sequence > latestSequence then latestSequence, latestJob = sequence, job end
+                end
+            end
+        end
+    end
+    return anyPrint, receptionPrintCount, latestJob
+end
+
 function JobService.createNextOffer(state, timestamp)
     if type(state) ~= "table" then return nil, { "shop state is required" } end
     local sequence = nextSequence(state)
-    local pressEnabled = MachineFleet.isInstalled(state, "heidelberg_10x15") and sequence % 4 == 0
-    local sourceTemplates = pressEnabled and pressTemplates or templates
-    local template = copy(sourceTemplates[(sequence - 1) % #sourceTemplates + 1])
+    local pressInstalled = MachineFleet.isInstalled(state, "heidelberg_10x15")
+    local anyPrint, receptionPrintCount, latestReceptionJob = offerHistory(state)
+    local pressEnabled = pressInstalled and (not anyPrint
+        or (latestReceptionJob and latestReceptionJob.press == nil))
+    local template
+    if pressEnabled then
+        template = copy(pressTemplates[receptionPrintCount % #pressTemplates + 1])
+    else
+        template = copy(templates[(sequence - 1) % #templates + 1])
+    end
     template.id = Jobs.formatId(sequence)
     template.sequence = sequence
     template.createdAt = timestamp
-    template.artworkKey = artworkForSequence(state, sequence)
+    if pressEnabled then
+        template.artworkKey = template.artwork.key
+    else
+        template.artworkKey = artworkForSequence(state, sequence)
+    end
     template.deliveryService = deliveryService(template, sequence)
     return Jobs.createOffer(template)
 end
@@ -619,6 +699,10 @@ end
 
 function JobService.templates()
     return copy(templates)
+end
+
+function JobService.printTemplates()
+    return copy(pressTemplates)
 end
 
 return JobService

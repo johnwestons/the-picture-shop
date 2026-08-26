@@ -644,6 +644,37 @@ local function machineOwnsCutterPallet(state, item)
     return false
 end
 
+local function installedWindmillIsLoaded(state, item)
+    if item.modelId ~= "heidelberg_10x15" or item.status ~= "installed" then return false end
+    local placement = type(state.windmill) == "table" and state.windmill or {}
+    local process = type(placement.process) == "table" and placement.process or {}
+    return process.palletId ~= nil
+end
+
+local function printWorkNeedsWindmill(state)
+    for _, job in ipairs(state.jobs and state.jobs.active or {}) do
+        if type(job.press) == "table" then
+            local pallets = type(job.pallets) == "table" and job.pallets or {}
+            if #pallets == 0 then return true end
+            for _, pallet in ipairs(pallets) do
+                if type(pallet.press) ~= "table" or pallet.press.status ~= "complete" then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function hasStoredReplacement(fleet, item)
+    for _, candidate in ipairs(fleet.items) do
+        if candidate ~= item and candidate.modelId == item.modelId and candidate.status == "stored" then
+            return true
+        end
+    end
+    return false
+end
+
 function Fleet.sell(state, machineId, channel)
     local fleet = Fleet.ensure(state)
     local foundIndex, item
@@ -653,6 +684,14 @@ function Fleet.sell(state, machineId, channel)
     if not item then return false, "That machine is no longer owned by the shop." end
     if machineOwnsCutterPallet(state, item) then
         return false, "Unload the cutter before listing it for sale."
+    end
+    if installedWindmillIsLoaded(state, item) then
+        return false, "Unload the Windmill before listing it for sale."
+    end
+    if item.modelId == "heidelberg_10x15" and item.status == "installed"
+        and printWorkNeedsWindmill(state) and not hasStoredReplacement(fleet, item)
+    then
+        return false, "Finish the active print work or keep a replacement Windmill before selling this press."
     end
     local value = Fleet.resaleValue(item, channel)
     local wasInstalled = item.status == "installed"

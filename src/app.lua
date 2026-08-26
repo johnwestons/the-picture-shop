@@ -131,6 +131,7 @@ end
 local function dispatchGameMousePressed(gameX, gameY, button)
     if state.screen == "asset_error" then return end
     if button == 1 then Ui.notePress(gameX, gameY) end
+    if App.sound then App.sound:pointerPressed(button, state.screen) end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
@@ -142,6 +143,7 @@ local function dispatchMousePressed(x, y, button)
     if state.screen == "asset_error" then return end
     local gameX, gameY = toPointerCoordinates(x, y)
     if button == 1 then Ui.notePress(gameX, gameY) end
+    if App.sound then App.sound:pointerPressed(button, state.screen) end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
@@ -212,6 +214,7 @@ local function extraMobileActions()
 end
 
 function App.load()
+    local Sound = require("src.sound")
     love.graphics.setDefaultFilter("nearest", "nearest")
     mobileControls = MobileControls.new({
         toGame = function(x, y) return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight) end,
@@ -325,8 +328,20 @@ function App.load()
             windmill = Windmill,
             WindmillPlacement = WindmillPlacement,
             startupTextureBytes = startupTextureBytes,
+            Sound = Sound,
         })
         if spriteLabActive then SpriteMotionLab.enter(CharacterAssets) end
+    end
+    App.sound = Sound.new({
+        state = state,
+        world = World,
+        machine = Machine,
+        wrapper = Wrapper,
+        windmill = Windmill,
+    })
+    local soundHealthy, soundErrors = App.sound:initialize()
+    if Smoke.requested() and not soundHealthy then
+        error("Sound startup failed: " .. table.concat(soundErrors or {}, "; "))
     end
     print("[PICTURE SHOP] Startup complete")
 end
@@ -356,6 +371,7 @@ function App.update(dt)
             local previousStep = Wrapper.step
             Wrapper.update(dt, state)
             if previousStep ~= "finished" and Wrapper.step == "finished" then saveCurrent() end
+            if App.sound then App.sound:update(dt) end
             return
         end
         local previousStep = Machine.step
@@ -365,6 +381,7 @@ function App.update(dt)
         PressScreen.update(dt, state)
         if Windmill.update(dt, state) then saveCurrent() end
     end
+    if App.sound then App.sound:update(dt) end
 end
 
 function App.draw()
@@ -385,7 +402,8 @@ function App.draw()
     end
     local desiredPack = state.screen == "title" and "menu"
         or state.screen == "machine"
-            and (state.machineType == "skid_wrapper" and "wrapper" or "cutter") or nil
+            and (state.machineType == "skid_wrapper" and "wrapper" or "cutter")
+        or state.screen == "press" and "press" or nil
     if not Assets.activatePack(desiredPack) then
         local _, failures = Assets.assertHealthy()
         state.assetErrors = AssetErrorScreen.normalize(failures)
@@ -499,10 +517,12 @@ function App.focus(focused)
         saveCurrent()
     end
     if not focused and controller then controller:cancelAll() end
+    if App.sound then App.sound:setPaused(not focused) end
 end
 
 function App.quit()
     if not spriteLabActive then saveCurrent() end
+    if App.sound then App.sound:shutdown() end
 end
 
 return App

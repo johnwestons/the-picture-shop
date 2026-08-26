@@ -127,6 +127,12 @@ local function runChecks(context)
     check("seated_clients_draw_exactly_one_atlas_frame",
         singleFrameClient:frameForAction("sit", 2) == 1
         and singleFrameClient:frameForAction("idle", 2) == 1)
+    singleFrameClient.animationClock = 0.5
+    check("explicit_use_action_animates",
+        singleFrameClient:frameForAction("use", 3) == 2)
+    check("character_action_lookup_matches_promoted_pack",
+        context.characterAssets.hasAction("green-blazer-cat", "use")
+        and not context.characterAssets.hasAction("tan-cat", "use"))
     local wrapperState = context.State.new()
     wrapperState.inventory.stock.shipping_cartons = 1
     wrapperState.jobs.active = { { id = "WRAP-TEST", packaging = "boxed", pallets = { {
@@ -141,6 +147,23 @@ local function runChecks(context)
         and wrapperState.jobs.active[1].pallets[1].status == "wrapped"
         and wrapperState.inventory.plasticWrapUses == 10
         and wrapperState.inventory.stock.shipping_cartons == 0)
+    local printWrapperState = context.State.new()
+    local printWrapperPallet = {
+        id = "WRAP-PRINT-P01", number = 1, status = "cut", location = "cutter_output",
+        packaging = "flat", wrapped = false, press = { status = "awaiting_cut" },
+        world = { x = printWrapperState.wrapper.x - 60, y = printWrapperState.wrapper.y,
+            spawnProgress = 1 },
+    }
+    printWrapperState.jobs.active = { {
+        id = "WRAP-PRINT", packaging = "flat", press = { colors = 1 },
+        pallets = { printWrapperPallet },
+    } }
+    context.wrapper.reset(printWrapperState)
+    check("print_pallet_cannot_wrap_before_press_completion",
+        context.wrapper.nearbyPallet(printWrapperState) == nil)
+    printWrapperPallet.press.status, printWrapperPallet.status = "complete", "printed"
+    check("completed_print_pallet_can_enter_wrapper",
+        context.wrapper.nearbyPallet(printWrapperState) ~= nil)
     local wrapperSelectionState = context.State.new()
     wrapperSelectionState.jobs.active = { { id = "WRAP-SELECT", packaging = "flat", pallets = {
         { id = "WRAP-SELECT-P01", number = 1, status = "cut", location = "warehouse",
@@ -425,10 +448,19 @@ local function runChecks(context)
         check("wrapped_pallet_stage_" .. frame,
             context.assets.getQuad("wrappedPalletStage" .. frame) ~= nil)
     end
+    check("press_pack_replaces_wrapper_pack", context.assets.activatePack("press")
+        and context.assets.activePackName() == "press"
+        and context.assets.get("wrapperMaintenanceAtlas") == nil
+        and context.assets.get("pressProcessStages") ~= nil)
+    for frame = 1, 4 do
+        check("press_process_stage_" .. frame,
+            context.assets.getQuad("pressProcessStage" .. frame) ~= nil)
+    end
     check("screen_pack_releases_to_world", context.assets.activatePack(nil)
         and context.assets.activePackName() == nil
         and context.assets.get("wrappedPalletStages") ~= nil
-        and context.assets.get("loadedPaperPallet") == nil)
+        and context.assets.get("loadedPaperPallet") == nil
+        and context.assets.get("pressProcessStages") == nil)
     if background and mask then
         local backgroundWidth, backgroundHeight = background:getDimensions()
         local maskWidth, maskHeight = mask:getDimensions()
@@ -589,6 +621,28 @@ local function runChecks(context)
     check("customer_decline_review", declinedCustomer:beginReview())
     check("customer_declines", declinedCustomer:resolve("declined")
         and declinedCustomer.decision == "declined")
+    local blockedCustomer = context.Customer.new({
+        route = { { x = 0, y = 0 }, { x = 100, y = 0 } },
+        speed = 100, arrivalDelay = 0,
+    })
+    blockedCustomer.state, blockedCustomer.visible = "entering", true
+    blockedCustomer:update(0.25, { x = 0, y = 0 })
+    check("blocked_customer_does_not_walk_in_place",
+        blockedCustomer.x == 0 and not blockedCustomer:isMoving()
+        and blockedCustomer.animationClock == 0)
+    blockedCustomer:update(0.25, { x = 500, y = 500 })
+    check("customer_walk_clock_tracks_real_movement",
+        blockedCustomer.x > 0 and blockedCustomer:isMoving()
+        and blockedCustomer.animationClock == 0.25)
+    local walkingX, walkingY, walkingRotation = context.Technician.pose({
+        status = "entering", animationClock = 0.1,
+    })
+    local serviceX, serviceY, serviceRotation = context.Technician.pose({
+        status = "servicing", animationClock = 0.1,
+    })
+    check("technician_walk_and_service_poses_animate",
+        walkingX == 0 and (walkingY ~= 0 or walkingRotation ~= 0)
+        and (serviceX ~= 0 or serviceY ~= 0 or serviceRotation ~= 0))
     local worldCustomer = context.world.customerSnapshot()
     local expectedSeat = context.config.customer.seatSpots[worldCustomer.seatIndex]
     check("customer_world_render_ready", worldCustomer.visible
@@ -1210,6 +1264,7 @@ function Smoke.start(context)
             or (os.getenv("PICTURE_SHOP_COMPUTER_CALENDAR_PREVIEW") == "1" and "calendar")
             or (os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" and "inventory")
             or (os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" and "email")
+        local pressPreview = os.getenv("PICTURE_SHOP_PRESS_PREVIEW")
         if maintenancePreview == "hub" or maintenancePreview == "oil" then
             context.state.screen = "machine"
             context.state.machineType = "cutter"
@@ -1249,6 +1304,47 @@ function Smoke.start(context)
                 context.machineScreen.mousepressed(context.state, x, y, 1)
                 context.machineScreen.update(0.35)
             end
+        elseif pressPreview == "world" then
+            context.state.money = 20000
+            assert(context.machineFleet.buy(context.state, "dealer", 3))
+            context.state.screen = "world"
+        elseif pressPreview == "run" or pressPreview == "plates" or pressPreview == "proof" then
+            local previewJob = assert(context.jobs.createOffer({
+                id = "PRESS-PREVIEW", company = "Harbor Pizza Club",
+                sourceSize = { width = 10, height = 15 }, finishedSize = { width = 6, height = 9 },
+                sheetCounts = { 1050 }, packaging = "flat", difficulty = "medium",
+                artworkKey = "ad-pizza",
+                artwork = { key = "ad-pizza", displayName = "Harbor Pizza Night Poster",
+                    fileName = "harbor-pizza-night-final.png", suppliedBy = "client", orientation = "portrait" },
+                stockSpec = { suppliedBy = "client", grade = "cover", weight = 80,
+                    finish = "uncoated", color = "warm white", grain = "long",
+                    description = "80 lb warm-white uncoated cover" },
+                press = { colors = 2, coverage = 0.44, artworkSize = { width = 5.4, height = 8.2 },
+                    colorSequence = { "Tomato Red", "Black" }, requestedCopies = { 1000 } },
+                details = { stockDescription = "80 lb warm-white uncoated cover" },
+            }))
+            previewJob.status = "in_production"
+            local pallet = previewJob.pallets[1]
+            pallet.paper.status, pallet.remainingSheets, pallet.finishedSheets = "complete", 0, 1050
+            pallet.location, pallet.status = "at_press", "press_setup"
+            pallet.press.status, pallet.press.availableSheets = "proof", 1050
+            context.state.jobs.active = { previewJob }
+            local plates = context.plateService.ensureJob(previewJob)
+            for _, plate in ipairs(plates) do
+                plate.status, plate.source, plate.quality, plate.mounted = "ready", "in_house", 0.94, true
+            end
+            local process = context.windmill.ensure(context.state)
+            process.jobId, process.palletId, process.colorIndex = previewJob.id, pallet.id, 1
+            process.status, process.speed = pressPreview == "run" and "production" or "proof", 3000
+            process.setup = { chase = 0.91, packing = 0.88, rollers = 0.93,
+                ink = 0.86, feeder = 0.92, register = 0.84 }
+            process.proofQuality, process.proofApproved, process.artworkVerified = 0.87, false, false
+            process.targetSheets, process.feedStart, process.feedRemaining = 1025, 1050, 1049
+            process.counter, process.goodSheets, process.spoilage = 1, 0, 1
+            process.motor, process.feeder, process.impression = true, true, true
+            context.state.screen = "press"
+            context.pressScreen.enter(context.state)
+            context.pressScreen.tab = pressPreview
         elseif previewTab then
             context.state.screen = "computer"
             context.computerScreen.enter(context.state)

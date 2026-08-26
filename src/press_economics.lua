@@ -52,6 +52,40 @@ local function dimensionsFit(size, limit)
         or size.height <= limit.width and size.width <= limit.height
 end
 
+local function validDimensions(size)
+    return type(size) == "table" and finite(size.width) and finite(size.height)
+        and size.width > 0 and size.height > 0
+end
+
+local function nonBlank(value)
+    return type(value) == "string" and not value:match("^%s*$")
+end
+
+local function validateColorSequence(sequence, colors, errors)
+    if sequence == nil then return end
+    if type(sequence) ~= "table" then
+        errors[#errors + 1] = "press colorSequence must be a sequential list"
+        return
+    end
+    local count, highest = 0, 0
+    for key in pairs(sequence) do
+        if type(key) ~= "number" or key ~= math.floor(key) or key < 1 then
+            errors[#errors + 1] = "press colorSequence must be a sequential list"
+            return
+        end
+        count, highest = count + 1, math.max(highest, key)
+    end
+    if count ~= highest or count ~= colors then
+        errors[#errors + 1] = "press colorSequence must contain exactly one named ink per color"
+        return
+    end
+    for index = 1, colors do
+        if not nonBlank(sequence[index]) then
+            errors[#errors + 1] = string.format("press color %d must have a name", index)
+        end
+    end
+end
+
 function PressEconomics.validate(spec)
     if type(spec) ~= "table" then return false, { "press must be a table" } end
     local errors = {}
@@ -59,19 +93,49 @@ function PressEconomics.validate(spec)
     if not finite(colors) or colors ~= math.floor(colors) or colors < 1 or colors > 4 then
         errors[#errors + 1] = "press colors must be a whole number from 1 to 4"
     end
+    validateColorSequence(spec.colorSequence,
+        finite(colors) and colors == math.floor(colors) and colors >= 1 and colors <= 4 and colors or 1,
+        errors)
     local coverage = spec.coverage == nil and 0.4 or spec.coverage
     if not finite(coverage) or coverage < 0 or coverage > 1 then
         errors[#errors + 1] = "press coverage must be between 0 and 1"
     end
+    local finished = spec.finishedSize
+    if finished ~= nil and not validDimensions(finished) then
+        errors[#errors + 1] = "press finishedSize must include positive width and height"
+    end
+    local sheet = spec.sheetSize or finished
+    if sheet ~= nil then
+        if not validDimensions(sheet) then
+            errors[#errors + 1] = "press sheetSize must include positive width and height"
+        elseif not dimensionsFit(sheet, PressEconomics.MAX_SHEET) then
+            errors[#errors + 1] = "press finished sheet must fit the 10.25 x 15 inch feed limit"
+        end
+    end
     if spec.artworkSize ~= nil then
-        if type(spec.artworkSize) ~= "table" or not finite(spec.artworkSize.width)
-            or not finite(spec.artworkSize.height) or spec.artworkSize.width <= 0
-            or spec.artworkSize.height <= 0
-        then
+        if not validDimensions(spec.artworkSize) then
             errors[#errors + 1] = "press artworkSize must include positive width and height"
         elseif not dimensionsFit(spec.artworkSize, PressEconomics.MAX_FORM) then
             errors[#errors + 1] = "press artwork must fit the 10.25 x 13.375 inch chase"
+        elseif validDimensions(finished) and not dimensionsFit(spec.artworkSize, finished) then
+            errors[#errors + 1] = "press artwork must fit within the finished piece"
         end
+    end
+    if spec.impressions ~= nil
+        and (not finite(spec.impressions) or spec.impressions ~= math.floor(spec.impressions)
+            or spec.impressions < 1)
+    then
+        errors[#errors + 1] = "press impressions must be a positive whole number"
+    end
+    if spec.suppliedSheets ~= nil
+        and (not finite(spec.suppliedSheets) or spec.suppliedSheets ~= math.floor(spec.suppliedSheets)
+            or spec.suppliedSheets < 1)
+    then
+        errors[#errors + 1] = "press suppliedSheets must be a positive whole number"
+    elseif finite(spec.suppliedSheets) and finite(spec.impressions)
+        and spec.suppliedSheets < spec.impressions
+    then
+        errors[#errors + 1] = "press suppliedSheets cannot be fewer than requested impressions"
     end
     if spec.stockCostPerSheet ~= nil
         and (not finite(spec.stockCostPerSheet) or spec.stockCostPerSheet < 0)
@@ -113,7 +177,9 @@ function PressEconomics.calculate(spec)
     local tympanCost = price.tympanTenPack / 10
     local spoilageSheets = math.max(assumptions.minimumSpoilageSheets,
         math.ceil(impressions * assumptions.spoilageRate))
-    local stockCost = (impressions + spoilageSheets) * (spec.stockCostPerSheet or 0)
+    local suppliedSheets = math.floor(tonumber(spec.suppliedSheets) or (impressions + spoilageSheets))
+    local spoilageAllowance = math.max(0, suppliedSheets - impressions)
+    local stockCost = suppliedSheets * (spec.stockCostPerSheet or 0)
 
     local runHours = impressions * colors / PressEconomics.QUOTING_IMPRESSIONS_PER_HOUR
     local makereadyHours = assumptions.makereadyHoursPerColor * colors
@@ -129,6 +195,9 @@ function PressEconomics.calculate(spec)
     return {
         model = PressEconomics.MODEL,
         impressions = impressions,
+        orderedCopies = impressions,
+        suppliedSheets = suppliedSheets,
+        spoilageAllowance = spoilageAllowance,
         colors = colors,
         totalPasses = impressions * colors,
         ratedImpressionsPerHour = PressEconomics.RATED_IMPRESSIONS_PER_HOUR,

@@ -30,6 +30,7 @@ local Config = {
         drawScale = 0.30,
         speed = 72,
         walkAnimationRate = 4,
+        useAnimationRate = 2.5,
         -- The first customer demonstrates the reception loop quickly. Later
         -- clients arrive at varied business-day intervals instead of in a queue.
         initialArrivalDelayMin = 2,
@@ -59,6 +60,7 @@ local Config = {
     },
     vendor = {
         character = "tan-cat", drawScale = 0.30, speed = 68, walkAnimationRate = 4,
+        useAnimationRate = 2.5,
         initialArrivalDelayMin = 15, initialArrivalDelayMax = 35,
         arrivalDelayMin = 120, arrivalDelayMax = 240,
         interactionRadius = 58,
@@ -72,6 +74,8 @@ local Config = {
         speed = 78,
         drawScale = 0.15,
         serviceDuration = 4,
+        walkAnimationRate = 9,
+        serviceAnimationRate = 5,
         route = {
             { x = 645, y = 235 }, { x = 650, y = 245 }, { x = 640, y = 270 },
             { x = 630, y = 295 }, { x = 635, y = 320 }, { x = 650, y = 340 },
@@ -171,12 +175,13 @@ local Config = {
         spawnY = 450,
         defaultDirection = "northwest",
         speed = 48,
-        interactionRadius = 104,
-        collisionHalfWidth = 72,
-        collisionHalfHeight = 24,
-        operatorDistanceX = 76,
-        operatorDistanceY = 46,
-        drawScale = 0.28,
+        interactionRadius = 88,
+        collisionHalfWidth = 50,
+        collisionHalfHeight = 17,
+        operatorDistanceX = 53,
+        operatorDistanceY = 32,
+        palletRadius = 120,
+        drawScale = 0.196,
         frameWidth = 768,
         frameHeight = 512,
         frameCount = 4,
@@ -275,6 +280,7 @@ local Config = {
         boxedPaperPalletStages = "assets/generated/boxed-paper-pallet-stages-atlas.png",
         polarBackButton = "assets/generated/polar-back-button-states-strip.png",
         windmillDirections = "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
+        pressProcessStages = "assets/generated/press-process-stages-atlas-v3.png",
         technicianNpcs = "assets/generated/technician-npcs-atlas-v1.png",
         artwork = {
             ["ad-clothing"] = "assets/generated/artwork/ad-clothing.png",

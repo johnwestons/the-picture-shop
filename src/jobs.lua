@@ -42,6 +42,72 @@ local function copy(value)
     return result
 end
 
+local function nonBlank(value)
+    return type(value) == "string" and not value:match("^%s*$")
+end
+
+local function displayNameFor(key)
+    local name = tostring(key or "artwork"):gsub("[-_]", " ")
+    return (name:gsub("(%a)([%w']*)", function(first, rest)
+        return first:upper() .. rest
+    end))
+end
+
+local function orientationFor(size)
+    return type(size) == "table" and type(size.width) == "number" and type(size.height) == "number"
+        and size.width > size.height and "landscape" or "portrait"
+end
+
+local function normalizeArtwork(spec, finished)
+    local supplied = type(spec.artwork) == "table" and spec.artwork or {}
+    local details = type(spec.details) == "table" and spec.details or {}
+    local key = nonBlank(supplied.key) and supplied.key
+        or (nonBlank(spec.artworkKey) and spec.artworkKey)
+        or (nonBlank(details.artworkKey) and details.artworkKey)
+        or "flower"
+    local size = type(spec.press) == "table" and spec.press.artworkSize or finished
+    return {
+        key = key,
+        displayName = nonBlank(supplied.displayName) and supplied.displayName or displayNameFor(key),
+        fileName = nonBlank(supplied.fileName) and supplied.fileName or (key .. ".png"),
+        suppliedBy = supplied.suppliedBy or "client",
+        orientation = supplied.orientation or orientationFor(size),
+    }
+end
+
+local function inferredStockValue(description, choices, fallback)
+    local lowered = tostring(description or ""):lower()
+    for _, choice in ipairs(choices) do
+        if lowered:find(choice, 1, true) then return choice end
+    end
+    return fallback
+end
+
+local function normalizeStockSpec(spec)
+    local supplied = type(spec.stockSpec) == "table" and spec.stockSpec or {}
+    local details = type(spec.details) == "table" and spec.details or {}
+    local description = nonBlank(supplied.description) and supplied.description
+        or (nonBlank(details.stockDescription) and details.stockDescription)
+        or "Customer-supplied paper"
+    local weight = supplied.weight
+    if weight == nil then weight = tonumber(description:lower():match("([%d%.]+)%s*lb")) or 0 end
+    local grain = supplied.grain
+    if not nonBlank(grain) then
+        grain = inferredStockValue(details.grainDirection, { "long", "short" }, "unspecified")
+    end
+    return {
+        suppliedBy = supplied.suppliedBy or "client",
+        grade = nonBlank(supplied.grade) and supplied.grade
+            or inferredStockValue(description, { "cover", "text", "offset" }, "unspecified"),
+        weight = weight,
+        finish = nonBlank(supplied.finish) and supplied.finish
+            or inferredStockValue(description, { "gloss", "uncoated", "coated" }, "unspecified"),
+        color = nonBlank(supplied.color) and supplied.color or "white",
+        grain = grain,
+        description = description,
+    }
+end
+
 local function normalizedSheetCounts(spec)
     if type(spec.sheetCounts) == "table" then return spec.sheetCounts end
     if type(spec.pallets) == "table" then
@@ -84,6 +150,73 @@ local function validateSheetCounts(counts)
         end
     end
     return #errors == 0, errors
+end
+
+local function normalizedRequestedCopies(press, counts)
+    if type(press) == "table" and press.requestedCopies ~= nil then
+        return copy(press.requestedCopies)
+    end
+    return copy(type(counts) == "table" and counts or {})
+end
+
+local function validateRequestedCopies(requested, counts)
+    local errors = {}
+    if type(requested) ~= "table" then
+        return false, { "press requestedCopies must be a list aligned with sheetCounts" }
+    end
+    local requestedCount, highestIndex = 0, 0
+    for key in pairs(requested) do
+        if not isInteger(key) or key < 1 then
+            errors[#errors + 1] = "press requestedCopies must be a sequential list"
+        else
+            requestedCount = requestedCount + 1
+            highestIndex = math.max(highestIndex, key)
+        end
+    end
+    if requestedCount ~= highestIndex then
+        errors[#errors + 1] = "press requestedCopies must not contain empty entries"
+    end
+    local suppliedCount = type(counts) == "table" and #counts or 0
+    if requestedCount ~= suppliedCount then
+        errors[#errors + 1] = "press requestedCopies must align 1:1 with sheetCounts"
+    end
+    for index = 1, highestIndex do
+        local requestedCopies = requested[index]
+        local suppliedSheets = type(counts) == "table" and counts[index] or nil
+        if not isInteger(requestedCopies) or requestedCopies < 1 then
+            errors[#errors + 1] = string.format("pallet %d requested copies must be a positive whole number", index)
+        elseif isInteger(suppliedSheets) and requestedCopies > suppliedSheets then
+            errors[#errors + 1] = string.format("pallet %d requested copies cannot exceed supplied sheets", index)
+        end
+    end
+    return #errors == 0, errors
+end
+
+local function normalizedPress(press, finished, requestedCopies, suppliedCounts)
+    if type(press) ~= "table" then return nil end
+    local result = copy(press)
+    result.colors = result.colors or 1
+    if result.coverage == nil then result.coverage = 0.4 end
+    if result.colorSequence == nil then
+        result.colorSequence = {}
+        local colors = isInteger(result.colors) and math.max(1, result.colors) or 1
+        for index = 1, colors do
+            result.colorSequence[index] = index == 1 and "Black" or ("Spot " .. index)
+        end
+    end
+    result.artworkSize = result.artworkSize or copy(finished)
+    result.requestedCopies = copy(requestedCopies)
+    local orderedQuantity, suppliedSheets = 0, 0
+    for _, amount in ipairs(type(requestedCopies) == "table" and requestedCopies or {}) do
+        if type(amount) == "number" then orderedQuantity = orderedQuantity + amount end
+    end
+    for _, amount in ipairs(type(suppliedCounts) == "table" and suppliedCounts or {}) do
+        if type(amount) == "number" then suppliedSheets = suppliedSheets + amount end
+    end
+    result.orderedQuantity = orderedQuantity
+    result.suppliedSheets = suppliedSheets
+    result.spoilageAllowance = math.max(0, suppliedSheets - orderedQuantity)
+    return result
 end
 
 local function stableId(spec, counts)
@@ -134,27 +267,86 @@ function Jobs.validateSpec(spec)
     if not countsValid then
         for _, countError in ipairs(countErrors) do errors[#errors + 1] = countError end
     end
-    if spec.press ~= nil then
-        local pressValid, pressErrors = PressEconomics.validate(spec.press)
+    local requestedCopies = normalizedRequestedCopies(spec.press, counts)
+    local requestedValid, requestedErrors = validateRequestedCopies(requestedCopies, counts)
+    if not requestedValid then
+        for _, requestedError in ipairs(requestedErrors) do errors[#errors + 1] = requestedError end
+    end
+
+    if spec.artwork ~= nil and type(spec.artwork) ~= "table" then
+        errors[#errors + 1] = "artwork must be a table"
+    end
+    if spec.stockSpec ~= nil and type(spec.stockSpec) ~= "table" then
+        errors[#errors + 1] = "stockSpec must be a table"
+    end
+    local artwork = normalizeArtwork(spec, finished)
+    if type(spec.artwork) == "table" and nonBlank(spec.artwork.key) and nonBlank(spec.artworkKey)
+        and spec.artwork.key ~= spec.artworkKey
+    then
+        errors[#errors + 1] = "artwork.key must match artworkKey"
+    end
+    if not nonBlank(artwork.key) or not nonBlank(artwork.displayName) or not nonBlank(artwork.fileName) then
+        errors[#errors + 1] = "artwork requires a key, displayName, and fileName"
+    end
+    if artwork.suppliedBy ~= "client" then errors[#errors + 1] = "artwork must be supplied by the client" end
+    if artwork.orientation ~= "portrait" and artwork.orientation ~= "landscape" then
+        errors[#errors + 1] = "artwork orientation must be portrait or landscape"
+    end
+
+    local stockSpec = normalizeStockSpec(spec)
+    if stockSpec.suppliedBy ~= "client" then errors[#errors + 1] = "stock must be supplied by the client" end
+    for _, field in ipairs({ "grade", "finish", "color", "grain", "description" }) do
+        if not nonBlank(stockSpec[field]) then errors[#errors + 1] = "stockSpec." .. field .. " is required" end
+    end
+    if type(stockSpec.weight) ~= "number" or stockSpec.weight ~= stockSpec.weight
+        or stockSpec.weight < 0 or stockSpec.weight == math.huge
+    then
+        errors[#errors + 1] = "stockSpec.weight must be a nonnegative number"
+    end
+
+    if spec.press ~= nil and type(spec.press) ~= "table" then
+        errors[#errors + 1] = "press must be a table"
+    end
+    local press = normalizedPress(spec.press, finished, requestedCopies, counts)
+    if press then
+        local validationPress = copy(press)
+        validationPress.sheetSize = copy(finished)
+        validationPress.finishedSize = copy(finished)
+        local pressValid, pressErrors = PressEconomics.validate(validationPress)
         if not pressValid then
             for _, pressError in ipairs(pressErrors) do errors[#errors + 1] = pressError end
         end
     end
-    return #errors == 0, errors, { source = source, finished = finished, counts = counts }
+    return #errors == 0, errors, {
+        source = source,
+        finished = finished,
+        counts = counts,
+        requestedCopies = requestedCopies,
+        artwork = artwork,
+        stockSpec = stockSpec,
+        press = press,
+    }
 end
 
-function Jobs.calculateQuote(sheetCounts)
+function Jobs.calculateQuote(sheetCounts, requestedCopies)
     local valid, errors = validateSheetCounts(sheetCounts)
     if not valid then return nil, errors end
+    requestedCopies = requestedCopies or copy(sheetCounts)
+    local requestedValid, requestedErrors = validateRequestedCopies(requestedCopies, sheetCounts)
+    if not requestedValid then return nil, requestedErrors end
     local pallets = {}
-    local totalLifts, totalSheets = 0, 0
+    local totalLifts, totalSheets, orderedCopies = 0, 0, 0
     for index, sheets in ipairs(sheetCounts) do
         local lifts = math.ceil(sheets / Jobs.LIFT_CAPACITY)
         local price = lifts * Jobs.PRICE_PER_LIFT
+        local requested = requestedCopies[index]
         totalLifts, totalSheets = totalLifts + lifts, totalSheets + sheets
+        orderedCopies = orderedCopies + requested
         pallets[index] = {
             number = index,
             sheetCount = sheets,
+            requestedCopies = requested,
+            spoilageAllowance = sheets - requested,
             requiredLifts = lifts,
             price = price,
         }
@@ -163,6 +355,9 @@ function Jobs.calculateQuote(sheetCounts)
     return {
         palletCount = #pallets,
         totalSheets = totalSheets,
+        suppliedSheets = totalSheets,
+        orderedCopies = orderedCopies,
+        spoilageAllowance = totalSheets - orderedCopies,
         totalLifts = totalLifts,
         totalPrice = totalPrice,
         recommendedPrice = totalPrice,
@@ -174,12 +369,14 @@ end
 function Jobs.quote(spec)
     local valid, errors, normalized = Jobs.validateSpec(spec)
     if not valid then return nil, errors end
-    local quote, quoteErrors = Jobs.calculateQuote(normalized.counts)
+    local quote, quoteErrors = Jobs.calculateQuote(normalized.counts, normalized.requestedCopies)
     if not quote then return nil, quoteErrors end
     if spec.press then
-        local pressSpec = copy(spec.press)
-        pressSpec.impressions = quote.totalSheets
-        pressSpec.artworkSize = pressSpec.artworkSize or copy(normalized.finished)
+        local pressSpec = copy(normalized.press)
+        pressSpec.impressions = quote.orderedCopies
+        pressSpec.suppliedSheets = quote.suppliedSheets
+        pressSpec.sheetSize = copy(normalized.finished)
+        pressSpec.finishedSize = copy(normalized.finished)
         local pressBudget, pressErrors = PressEconomics.calculate(pressSpec)
         if not pressBudget then return nil, pressErrors end
         quote.cuttingPrice = quote.totalPrice
@@ -200,14 +397,15 @@ function Jobs.createOffer(spec)
         company = spec.company,
         sourceSize = copy(normalized.source),
         finishedSize = copy(normalized.finished),
-        artworkKey = type(spec.artworkKey) == "string" and spec.artworkKey
-            or (spec.details and spec.details.artworkKey) or "flower",
+        artworkKey = normalized.artwork.key,
+        artwork = copy(normalized.artwork),
+        stockSpec = copy(normalized.stockSpec),
         deliveryService = copy(spec.deliveryService),
         requestChannel = spec.requestChannel == "email" and "email" or "reception",
         details = copy(spec.details or {}),
         difficulty = spec.difficulty or (spec.details and spec.details.difficulty) or "easy",
         packaging = spec.packaging == "boxed" and "boxed" or "flat",
-        press = copy(spec.press),
+        press = copy(normalized.press),
         status = "offered",
         createdAt = spec.createdAt,
         quote = quoted,
@@ -219,6 +417,8 @@ function Jobs.createOffer(spec)
             id = string.format("%s-P%02d", job.id, index),
             number = index,
             initialSheets = quotedPallet.sheetCount,
+            requestedCopies = quotedPallet.requestedCopies,
+            spoilageAllowance = quotedPallet.spoilageAllowance,
             remainingSheets = quotedPallet.sheetCount,
             finishedSheets = 0,
             damagedSheets = 0,
@@ -232,9 +432,12 @@ function Jobs.createOffer(spec)
             location = "awaiting_delivery",
             packaging = spec.packaging == "boxed" and "boxed" or "flat",
             wrapped = false,
-            press = spec.press and {
+            press = normalized.press and {
                 status = "awaiting_cut", completedColors = 0, goodSheets = 0,
                 spoilage = 0, dryUntilHours = nil,
+                requiredGoodSheets = quotedPallet.requestedCopies,
+                availableSheets = quotedPallet.sheetCount,
+                passHistory = {},
             } or nil,
         }
         job.pallets[index].paper = PaperWork.create(job, job.pallets[index], job.difficulty, index)

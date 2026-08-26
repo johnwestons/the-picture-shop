@@ -186,6 +186,19 @@ function Logistics.tooltip(item)
     local paper, pallet, job = item.pallet.paper, item.pallet, item.job
     local size = paper and paper.currentSize or job.sourceSize
     local press = pallet.press
+    if job.press and press then
+        local artwork = job.artwork or {}
+        return {
+            title = pallet.id .. "  •  " .. job.company,
+            line1 = string.format("Job %s  |  Client art: %s", job.id,
+                artwork.displayName or artwork.fileName or job.artworkKey or "artwork"),
+            line2 = string.format("%s  |  %.2f x %.2f in", job.stockSpec and job.stockSpec.description
+                or "Customer-supplied paper", size.width, size.height),
+            line3 = string.format("Good: %s/%s  |  %s  |  %s", commaNumber(press.goodSheets or 0),
+                commaNumber(pallet.requestedCopies or pallet.initialSheets),
+                press.status or "not started", pallet.location),
+        }
+    end
     local pressText = press and string.format("  |  Press: %d color%s, %s",
         press.completedColors or 0, (press.completedColors or 0) == 1 and "" or "s",
         press.status or "not started") or ""

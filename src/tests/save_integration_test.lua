@@ -211,6 +211,162 @@ function Test.run(context, check, economy, jobs)
         and migratedV2.player.y == 520)
     context.save.delete(2)
 
+    local legacyPrintJob = [[{
+        id = "JOB-0012",
+        company = "Legacy Print Client",
+        sourceSize = { width = 10, height = 15 },
+        finishedSize = { width = 5, height = 7 },
+        artworkKey = "flower",
+        details = { stockDescription = "80 lb gloss cover", grainDirection = "Grain long" },
+        difficulty = "easy",
+        packaging = "flat",
+        status = "in_production",
+        quote = {
+            palletCount = 1, totalSheets = 1050, totalLifts = 3, totalPrice = 450,
+            recommendedPrice = 450,
+            pallets = { { number = 1, sheetCount = 1050, requiredLifts = 3, price = 450 } },
+        },
+        press = {
+            colors = 1, coverage = 0.35, artworkSize = { width = 4.25, height = 6.25 },
+            colorSequence = { "Black" },
+        },
+        pallets = { {
+            id = "JOB-0012-P01", number = 1, initialSheets = 1050,
+            remainingSheets = 0, finishedSheets = 1050, damagedSheets = 0,
+            requiredLifts = 3, completedLifts = 3, activeLift = 3, lastLiftSheets = 50,
+            programVerified = true, awaitingPalletReturn = false,
+            status = "press_setup", location = "at_press", packaging = "flat", wrapped = false,
+            world = { x = 855, y = 450, direction = "northwest" },
+            press = { status = "production", completedColors = 0, goodSheets = 420, spoilage = 11 },
+        } },
+    }]]
+    local v12Source = string.format([[{
+        version = 12,
+        slot = 2,
+        createdAt = 50,
+        updatedAt = 60,
+        state = {
+            money = 612,
+            inventory = { paper = 8, prints = 2 },
+            shopProgress = { completedCuts = 4 },
+            jobs = { active = { %s }, completed = {}, declined = {} },
+            nextJobId = 13,
+            accountsReceivable = 450,
+            clientEmails = {
+                nextEmailId = 2, nextPromotionId = 1,
+                pending = { {
+                    id = "EMAIL-0001", sender = "Legacy Print Client",
+                    subject = "Repeat print request", body = "Please quote the attached repeat work.",
+                    sourceJobId = "JOB-0011", readyAtHours = 72, job = %s,
+                } },
+                inbox = {}, archive = {}, sentPromotions = {},
+            },
+            windmill = {
+                x = 855, y = 450, direction = "northwest", moving = false, inMotion = false,
+                process = {
+                    status = "production", speed = 3000, motor = true, feeder = true,
+                    impression = true, emergency = false, setup = { chase = 0.95 },
+                    counter = 431, goodSheets = 420, spoilage = 11,
+                    sheetAccumulator = 0.25, animationClock = 2,
+                    jobId = "JOB-0012", palletId = "JOB-0012-P01", colorIndex = 1,
+                    proofQuality = 0.93, proofApproved = true,
+                },
+            },
+        },
+        player = { x = 420, y = 520 },
+    }]], legacyPrintJob, legacyPrintJob)
+    love.filesystem.createDirectory("saves")
+    check("save_v12_print_fixture_write", love.filesystem.write("saves/slot2.lua", v12Source))
+    local migratedV12 = context.save.load(2)
+    local migratedPrint = migratedV12 and migratedV12.state.jobs.active[1]
+    local migratedPrintPallet = migratedPrint and migratedPrint.pallets[1]
+    check("save_v12_print_job_migration", migratedPrint and migratedPrintPallet
+        and migratedV12.version == context.save.VERSION
+        and migratedPrint.artwork.key == "flower"
+        and migratedPrint.artwork.fileName == "flower.png"
+        and migratedPrint.stockSpec.weight == 80
+        and migratedPrint.stockSpec.finish == "gloss"
+        and migratedPrint.press.requestedCopies[1] == 1050
+        and migratedPrint.press.orderedQuantity == 1050
+        and migratedPrint.press.suppliedSheets == 1050
+        and migratedPrint.press.spoilageAllowance == 0
+        and migratedPrintPallet.requestedCopies == 1050
+        and migratedPrintPallet.press.requiredGoodSheets == 1050
+        and migratedPrintPallet.press.availableSheets == 1050
+        and type(migratedPrintPallet.press.passHistory) == "table"
+        and migratedV12.state.inventory.inProcessPallets == 1)
+    local migratedEmailJob = migratedV12 and migratedV12.state.clientEmails.pending[1]
+        and migratedV12.state.clientEmails.pending[1].job
+    check("save_v12_embedded_email_print_job_migration", migratedEmailJob
+        and migratedEmailJob.artwork.key == "flower"
+        and migratedEmailJob.stockSpec.description == "80 lb gloss cover"
+        and migratedEmailJob.press.requestedCopies[1] == 1050
+        and migratedEmailJob.pallets[1].press.requiredGoodSheets == 1050)
+    check("save_v12_windmill_process_migration", migratedV12
+        and migratedV12.state.windmill.process.status == "production"
+        and migratedV12.state.windmill.process.goodSheets == 420
+        and migratedV12.state.windmill.process.proofQuality == 0.93
+        and migratedV12.state.windmill.process.targetSheets == 1050
+        and migratedV12.state.windmill.process.feedStart == 1050
+        and migratedV12.state.windmill.process.feedRemaining == 619
+        and migratedV12.state.windmill.process.artworkVerified
+        and migratedV12.state.windmill.process.jobId == "JOB-0012")
+    context.save.delete(2)
+
+    local multiState = context.State.new()
+    local multiJob = jobs.createOffer({
+        id = "JOB-LEGACY-MULTI", company = "Legacy Multicolor Client",
+        sourceSize = { width = 10, height = 15 }, finishedSize = { width = 5, height = 7 },
+        sheetCounts = { 1050, 1050 }, packaging = "flat", artworkKey = "ad-pizza",
+        press = { colors = 2, coverage = 0.4, artworkSize = { width = 4.25, height = 6.25 },
+            colorSequence = { "Red", "Black" }, requestedCopies = { 1000, 1000 } },
+    })
+    multiJob.status = "in_production"
+    multiState.jobs.active = { multiJob }
+    local firstPassPallet, priorPassPallet = multiJob.pallets[1], multiJob.pallets[2]
+    firstPassPallet.location, firstPassPallet.status = "at_press", "press_setup"
+    firstPassPallet.world = { x = multiState.windmill.x, y = multiState.windmill.y,
+        direction = "northwest", spawnProgress = 1 }
+    firstPassPallet.paper.status, firstPassPallet.remainingSheets = "complete", 0
+    firstPassPallet.finishedSheets = 1050
+    firstPassPallet.press.status, firstPassPallet.press.goodSheets = "production", 420
+    firstPassPallet.press.availableSheets = 1050
+    priorPassPallet.location, priorPassPallet.status = "press_output", "cut"
+    priorPassPallet.world = { x = multiState.windmill.x + 84, y = multiState.windmill.y + 42,
+        direction = "northwest", spawnProgress = 1 }
+    priorPassPallet.paper.status, priorPassPallet.remainingSheets = "complete", 0
+    priorPassPallet.finishedSheets = 1025
+    priorPassPallet.press.status, priorPassPallet.press.completedColors = "drying", 1
+    priorPassPallet.press.goodSheets, priorPassPallet.press.availableSheets = 1025, 1025
+    multiState.windmill.process = {
+        status = "production", speed = 3000, motor = true, feeder = true, impression = true,
+        emergency = false, setup = { chase = 0.95 }, counter = 431, goodSheets = 420,
+        spoilage = 11, sheetAccumulator = 0.25, animationClock = 2,
+        jobId = multiJob.id, palletId = firstPassPallet.id, colorIndex = 1,
+        proofQuality = 0.93, proofApproved = true, artworkVerified = true,
+        targetSheets = 1025, feedStart = 1050, feedRemaining = 619,
+    }
+    check("save_v12_multicolor_fixture", context.save.save(2, multiState, { x = 420, y = 520 }))
+    local multiSource = love.filesystem.read("saves/slot2.lua")
+    local multiVersionReplacements, availableReplacements, targetReplacements
+    multiSource, multiVersionReplacements = multiSource:gsub(
+        '%["version"%]%s*=%s*' .. tostring(context.save.VERSION), '["version"] = 12', 1)
+    multiSource, availableReplacements = multiSource:gsub(
+        '%s*%["availableSheets"%]%s*=%s*%d+%s*,', '')
+    multiSource, targetReplacements = multiSource:gsub(
+        '%s*%["targetSheets"%]%s*=%s*%d+%s*,', '', 1)
+    check("save_v12_multicolor_fixture_removes_derived_fields",
+        multiVersionReplacements == 1 and availableReplacements == 2 and targetReplacements == 1
+        and love.filesystem.write("saves/slot2.lua", multiSource))
+    local migratedMulti = context.save.load(2)
+    local migratedMultiJob = migratedMulti and migratedMulti.state.jobs.active[1]
+    check("save_v12_multicolor_preserves_physical_stock_and_pass_reserve", migratedMultiJob
+        and migratedMultiJob.pallets[1].press.availableSheets == 1050
+        and migratedMultiJob.pallets[2].press.availableSheets == 1025
+        and migratedMulti.state.windmill.process.targetSheets == 1025
+        and migratedMulti.state.windmill.process.palletId == migratedMultiJob.pallets[1].id)
+    context.save.delete(2)
+
     for slot = 1, context.save.SLOT_COUNT do
         context.save.delete(slot)
         local fresh = context.save.newGame(slot)

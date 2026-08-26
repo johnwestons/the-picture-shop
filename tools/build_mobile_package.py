@@ -40,7 +40,7 @@ def safe_clean(path: Path) -> None:
 def copy_runtime() -> None:
     for source in (ROOT / "main.lua", ROOT / "conf.lua"):
         shutil.copy2(source, STAGE / source.name)
-    for source_root in (ROOT / "src", ROOT / "assets" / "generated"):
+    for source_root in (ROOT / "src", ROOT / "assets" / "generated", ROOT / "assets" / "audio"):
         for source in source_root.rglob("*"):
             if source.is_file():
                 destination = STAGE / source.relative_to(ROOT)

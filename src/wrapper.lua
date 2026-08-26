@@ -25,8 +25,11 @@ function Wrapper.nearbyPallets(state)
     local nearby = {}
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
         local pallet = item.pallet
+        local printJob = type(item.job.press) == "table" or type(pallet.press) == "table"
+        local printComplete = not printJob
+            or (type(pallet.press) == "table" and pallet.press.status == "complete")
         local eligible = (pallet.status == "cut" or pallet.status == "finished"
-            or pallet.status == "printed") and not pallet.wrapped
+            or pallet.status == "printed") and printComplete and not pallet.wrapped
         local distance = distanceSquared(wrapper, item)
         if eligible and distance <= Config.wrapperPlacement.palletRadius ^ 2 then
             nearby[#nearby + 1] = { pallet = pallet, job = item.job, distance = distance }

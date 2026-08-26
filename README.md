@@ -40,11 +40,12 @@ Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is
 
 The title screen has three local save slots. Use **W/S** or the arrow keys to select a slot, **N** for a new shop, **C** or **Enter** to continue, **D** to delete, and **Q** or **Escape** to quit. Confirmation prompts accept **Y** or **Enter** and cancel with **N** or **Escape**. Starting a new shop in an occupied slot always shows an overwrite warning; cancelling it leaves the existing save unchanged. Saves are versioned and retain money, stock, finished prints, completed cuts, and player position.
 
-Save format 12 retains active, completed, and declined jobs, accounts receivable, grouped procurement shipments,
+Save format 13 retains active, completed, and declined jobs, accounts receivable, grouped procurement shipments,
 stock, film, machine placements, pallet-jack ownership, wrapper placement, and the next stable
 job number, the cutter's player-saved measurement history, the business calendar, and unpaid bill
 ledger, pending, received, and answered client emails, sent promotions and player quotes, plus uniquely tracked machine condition,
-component wear, cycles, maintenance history, and pending machine deliveries. Version-1 through version-8 slots migrate
+component wear, cycles, maintenance history, pending machine deliveries, client artwork and stock specifications,
+and physical press-pass progress. Version-1 through version-12 slots migrate
 when loaded. Saves are validated in a temporary
 file before promotion and retain the previous valid slot as a backup. A damaged primary recovers
 automatically; a slot with no valid recovery copy is marked as damaged instead of appearing empty.
@@ -63,9 +64,12 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Every pallet now owns a stable paper-batch ID, job artwork ID, live width/height, orientation,
   four margins, four-cut program, and complete cut history. Easy jobs use matching opposing margins;
   medium and hard work uses asymmetric margins that require different backgauge positions.
-- Each generated job now carries an `artworkKey` and each paper batch carries the same key alongside
-  its stable artwork ID. Every 128x128 texture in `assets/generated/artwork/` is registered and rotates
-  through new job offers; the cutter preview turns the selected texture with the live paper orientation.
+- Every print order names the client's supplied artwork file, exact stock grade/weight/finish/color/grain,
+  ordered copies, supplied sheets, and the allowance available for proofs and spoilage. The first offer after
+  a Windmill is installed is guaranteed to be a print order; later offers mix cutting and print work.
+- Each generated job carries a structured artwork record and compatible `artworkKey`; every paper batch keeps
+  that identity. Every 128x128 texture in `assets/generated/artwork/` is registered and rotates through new
+  print offers, proofs, plates, press sheets, pallet previews, and finished-job records.
 - Accepting a ticket adds it to active jobs as `awaiting_delivery` and records accounts receivable;
   cash and physical pallet inventory do not increase until their later workflow events.
 - Declining archives the numbered ticket, cancels its quoted pallets, and sends the customer out.
@@ -74,7 +78,7 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 
 - Move: **WASD** or arrow keys
 - Interact with the office computer or Polar 115: **E**
-- At reception, press **E** to open the customer's cutting-job paperwork.
+- At reception, press **E** to open the customer's cutting or print-order paperwork.
 - Type your price into the quote field and click **Send Quote**, or click **Decline**. Clients weigh price,
   urgency, and prior completed work when responding. **Back** and **Escape**
   both close the paperwork without deciding, so the customer remains available at reception.
@@ -168,9 +172,12 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   **R** reset, and **Space** start/stop production.
 - Every ink color needs its own stable, job-numbered plate. Order a processed plate with a one-day lead
   time or use one plate-room kit to expose, wash, dry, and mount it through the timing minigame. Cut stock
-  must be staged on the floor, its next plate must be mounted, and prior colors must be dry before loading.
+  must be staged within the marked press-side working radius, its next plate must be mounted, and prior colors
+  must be dry before loading. The load screen compares the client's ordered copies with the physically supplied sheets.
 - Complete chase lockup, tympan/packing, roller stripe, ink, feeder, and register checks; then run the
-  motor, feeder, and impression to pull a proof. Proofs below 82% cannot be approved. Once approved,
+  motor, feeder, and impression to pull a proof. Each proof consumes one supplied sheet and displays the
+  actual client artwork. Inspect it, verify the art/file match (**V**), and approve only when registration
+  reaches 82%. Once approved,
   production tracks actual impressions, good sheets, spoilage, run hours, component wear, and plate life.
   High speed, poor setup, and worn rollers, grippers, suction, or ink distribution raise waste.
 - A finished color pass requires press wash before unloading. Uncoated work dries for two game hours;
@@ -195,11 +202,10 @@ The cutter table starts clear and paper appears only after **L**. Inventory is c
 
 New shops begin with 20 shipping cartons and one full stretch-film roll (11 wraps), enough to run the first basic boxed and flat packaging work without an immediate supply order. A completed flat pallet uses the finished wrapped-pallet sprite in the warehouse.
 
-Artwork texture plan: keep the job's `artworkKey` as the saved identity, resolve it through the artwork
-library at load time, and composite the transparent motif into the paper surface. Cutting should preserve
-the artwork coordinates while reducing the live sheet bounds; a later press workflow can consume the same
-paper/artwork record and incrementally reveal printed sheets as the press runs. New artwork should be added
-as a 128x128 transparent nearest-filtered PNG and registered in `Config.paths.artwork`.
+Artwork rendering keeps the structured job artwork as the saved identity and resolves it through the artwork
+library at draw time. The same client image is composited onto the order, plate, proof, live press sheet,
+pallet, and completion views, while the reusable inspection sprites remain blank underneath. New artwork
+should be added as a 128x128 transparent nearest-filtered PNG and registered in `Config.paths.artwork`.
 
 ## Validation
 

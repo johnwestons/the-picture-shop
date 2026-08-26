@@ -2,7 +2,7 @@
 
 `src/machine_fleet.lua` is the persistent machine contract. Every physical machine has a unique `MCH-####` ID,
 serial, model ID, acquisition channel, installed/stored state, purchase price, cycles, operating time, component
-variables, calculated condition, maintenance history, technician notices, and online delivery orders. Save format 10 validates and
+variables, calculated condition, maintenance history, technician notices, and online delivery orders. Save format 13 validates and
 migrates this data.
 
 ## Adding a machine model

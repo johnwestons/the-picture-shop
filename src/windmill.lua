@@ -20,9 +20,40 @@ local function process(state)
     p.setup = type(p.setup) == "table" and p.setup or {}
     p.counter, p.goodSheets, p.spoilage = math.max(0, tonumber(p.counter) or 0),
         math.max(0, tonumber(p.goodSheets) or 0), math.max(0, tonumber(p.spoilage) or 0)
+    p.targetSheets = math.max(0, math.floor(tonumber(p.targetSheets) or 0))
+    p.feedStart = math.max(0, math.floor(tonumber(p.feedStart) or 0))
+    p.feedRemaining = math.max(0, math.floor(tonumber(p.feedRemaining) or 0))
+    p.artworkVerified = p.artworkVerified == true
     p.sheetAccumulator = math.max(0, tonumber(p.sheetAccumulator) or 0)
     p.animationClock = math.max(0, tonumber(p.animationClock) or 0)
     return p
+end
+
+local function ensurePalletPress(job, pallet)
+    pallet.press = type(pallet.press) == "table" and pallet.press or {}
+    local press = pallet.press
+    press.status = type(press.status) == "string" and press.status or "awaiting_cut"
+    press.completedColors = math.max(0, math.floor(tonumber(press.completedColors) or 0))
+    press.goodSheets = math.max(0, math.floor(tonumber(press.goodSheets) or 0))
+    press.spoilage = math.max(0, math.floor(tonumber(press.spoilage) or 0))
+    press.requiredGoodSheets = math.max(1, math.floor(tonumber(press.requiredGoodSheets)
+        or tonumber(pallet.requestedCopies) or tonumber(pallet.initialSheets) or 1))
+    press.availableSheets = math.max(0, math.floor(tonumber(press.availableSheets)
+        or tonumber(pallet.finishedSheets) or tonumber(pallet.initialSheets) or 0))
+    press.passHistory = type(press.passHistory) == "table" and press.passHistory or {}
+    return press
+end
+
+function Windmill.passTarget(job, pallet, colorIndex)
+    local press = ensurePalletPress(job, pallet)
+    local required = press.requiredGoodSheets
+    local colors = math.max(1, math.floor(tonumber(job and job.press and job.press.colors) or 1))
+    local color = clamp(math.floor(tonumber(colorIndex) or 1), 1, colors)
+    local supplied = math.max(required, math.floor(tonumber(pallet.initialSheets) or required))
+    local allowance = math.max(0, math.floor(tonumber(pallet.spoilageAllowance)
+        or (supplied - required)))
+    local reservePerPass = math.floor(allowance / colors)
+    return required + reservePerPass * (colors - color)
 end
 
 function Windmill.ensure(state)
@@ -83,11 +114,16 @@ function Windmill.candidates(state)
             Plates.ensureJob(job)
             for _, pallet in ipairs(job.pallets or {}) do
                 local paperReady = pallet.paper and pallet.paper.status == "complete"
-                local press = pallet.press
+                local press = ensurePalletPress(job, pallet)
                 local color = press and (press.completedColors or 0) + 1 or 1
                 local dry = not press or not press.dryUntilHours
                     or BusinessCalendar.absoluteHours(state) >= press.dryUntilHours
+                local world = pallet.world
+                local staged = world and ((world.x - state.windmill.x) ^ 2
+                    + (world.y - state.windmill.y) ^ 2
+                    <= (Config.windmillPlacement.palletRadius or 120) ^ 2)
                 if paperReady and dry and color <= (job.press.colors or 1)
+                    and not pallet.wrapped and staged
                     and (pallet.location == "warehouse" or pallet.location == "cutter_output"
                         or pallet.location == "press_output")
                 then result[#result + 1] = { job = job, pallet = pallet, color = color } end
@@ -104,17 +140,32 @@ function Windmill.load(state, palletId)
         if item.pallet.id == palletId then
             local ready = Plates.ready(item.job, item.color)
             if not ready then return false, "Prepare and mount the plate for this color first." end
+            local palletPress = ensurePalletPress(item.job, item.pallet)
+            local target = Windmill.passTarget(item.job, item.pallet, item.color)
+            local available = item.color == 1
+                and math.max(0, math.floor(tonumber(item.pallet.finishedSheets)
+                    or tonumber(item.pallet.initialSheets) or 0))
+                or palletPress.availableSheets
+            if available < target then
+                return false, string.format("Only %d prepared sheets remain; this pass needs %d good sheets.",
+                    available, target)
+            end
             local transitioned, errorMessage = PalletState.transition(state, item.pallet, "at_press", {
                 status = "press_setup",
             })
             if not transitioned then return false, errorMessage end
-            item.pallet.press = type(item.pallet.press) == "table" and item.pallet.press or {
-                status = "setup", completedColors = 0, goodSheets = 0, spoilage = 0,
-            }
+            palletPress.availableSheets = available
+            palletPress.status = "setup"
             p.jobId, p.palletId, p.colorIndex = item.job.id, item.pallet.id, item.color
             p.status, p.setup = "setup", {}
             p.counter, p.goodSheets, p.spoilage, p.sheetAccumulator = 0, 0, 0, 0
+            p.targetSheets, p.feedStart, p.feedRemaining = target, available, available
+            p.artworkVerified, p.proofQuality, p.proofApproved = false, nil, false
+            p.warning = nil
             p.motor, p.feeder, p.impression, p.emergency = false, false, false, false
+            state.message = string.format(
+                "Loaded %s: pass target %d, client order %d, %d sheets available.",
+                item.pallet.id, target, palletPress.requiredGoodSheets, available)
             return true, item
         end
     end
@@ -123,7 +174,9 @@ end
 
 function Windmill.completeSetup(state, task, score)
     local p = Windmill.ensure(state)
-    if p.status ~= "setup" then return false, "Load a pallet before setup." end
+    if not p.palletId or p.status == "production" or p.status == "pass_complete" then
+        return false, "Load a stopped pallet before setup."
+    end
     local valid = false
     for _, id in ipairs(setupTasks) do if id == task then valid = true end end
     if not valid then return false, "Unknown press setup task." end
@@ -152,6 +205,7 @@ function Windmill.completeSetup(state, task, score)
         end
     end
     p.setup[task] = clamp(tonumber(score) or 0, 0, 1)
+    p.status, p.proofQuality, p.proofApproved, p.artworkVerified = "setup", nil, false, false
     return true, p
 end
 
@@ -201,13 +255,17 @@ function Windmill.takeProof(state)
     if p.emergency or not p.motor or not p.feeder or not p.impression then
         return false, "Proofing requires motor, feeder, and impression on."
     end
+    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
+        return false, "No proof allowance remains. Preserve the remaining sheets for the client quantity."
+    end
     local plate = Plates.ensureJob(job)[p.colorIndex]
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
     local condition = machine and MachineFleet.condition(machine) / 100 or 0
     local quality = clamp(setupAverage(p) * 0.72 + (plate and plate.quality or 0) * 0.18
         + condition * 0.10 - math.max(0, p.speed - 3000) / 25000, 0, 1)
-    p.proofQuality, p.proofApproved, p.status = quality, false, "proof"
+    p.proofQuality, p.proofApproved, p.artworkVerified, p.status = quality, false, false, "proof"
     p.counter, p.spoilage = p.counter + 1, p.spoilage + 1
+    p.feedRemaining = math.max(0, p.feedRemaining - 1)
     pallet.press.spoilage = (pallet.press.spoilage or 0) + 1
     local totals = actual(job)
     totals.proofs = (totals.proofs or 0) + 1
@@ -216,10 +274,22 @@ function Windmill.takeProof(state)
     return true, quality
 end
 
+function Windmill.verifyArtwork(state)
+    local p, job = Windmill.current(state)
+    if not job or p.status ~= "proof" or not p.proofQuality then
+        return false, "Pull a proof before matching it to the client artwork."
+    end
+    p.artworkVerified = true
+    return true, job.artwork or { key = job.artworkKey }
+end
+
 function Windmill.approveProof(state)
     local p = Windmill.ensure(state)
     if p.status ~= "proof" or (p.proofQuality or 0) < 0.82 then
         return false, "The proof must score at least 82% before approval."
+    end
+    if not p.artworkVerified then
+        return false, "Compare the proof to the client file and verify the artwork first."
     end
     p.proofApproved, p.status = true, "approved"
     return true, p
@@ -251,7 +321,7 @@ function Windmill.update(dt, state)
     if p.status ~= "production" or not job or not pallet then return false end
     local gameHours = math.max(0, dt) * 24 / Config.businessCalendar.secondsPerDay
     p.sheetAccumulator = p.sheetAccumulator + p.speed * gameHours
-    local attempted = math.floor(p.sheetAccumulator)
+    local attempted = math.min(math.floor(p.sheetAccumulator), p.feedRemaining)
     if attempted <= 0 then return false end
     p.sheetAccumulator = p.sheetAccumulator - attempted
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
@@ -260,11 +330,18 @@ function Windmill.update(dt, state)
     local mechanicalPenalty, warning = componentPenalty(machine)
     local wasteRate = clamp(0.01 + (1 - setup) * 0.18 + (1 - condition) * 0.12 + mechanicalPenalty
         + math.max(0, p.speed - 3000) / 25000, 0.01, 0.35)
+    local needed = math.max(0, p.targetSheets - p.goodSheets)
     local waste = math.floor(attempted * wasteRate + 0.5)
+    -- Spoilage may use the customer's explicit overage, but never the sheets
+    -- reserved to satisfy the promised good-copy count.
+    waste = math.min(waste, math.max(0, p.feedRemaining - needed))
     local good = math.max(0, attempted - waste)
-    local target = pallet.initialSheets or 0
-    good = math.min(good, math.max(0, target - p.goodSheets))
+    if good > needed then
+        good = needed
+        attempted = good + waste
+    end
     p.counter, p.goodSheets, p.spoilage = p.counter + attempted, p.goodSheets + good, p.spoilage + waste
+    p.feedRemaining = math.max(0, p.feedRemaining - attempted)
     pallet.press.goodSheets = p.goodSheets
     pallet.press.spoilage = (pallet.press.spoilage or 0) + waste
     p.warning = warning
@@ -275,9 +352,15 @@ function Windmill.update(dt, state)
     MachineFleet.recordUse(state, "heidelberg_10x15", attempted / 1000)
     local plate = Plates.ensureJob(job)[p.colorIndex]
     if plate then plate.life = clamp(plate.life - attempted / 250000, 0, 1) end
-    if p.goodSheets >= target then
+    if p.goodSheets >= p.targetSheets then
         p.status, p.feeder, p.impression = "pass_complete", false, false
         pallet.press.status = "pass_complete"
+        return true
+    end
+    if p.feedRemaining <= 0 then
+        p.status, p.feeder, p.impression = "stock_shortage", false, false
+        pallet.press.status = "stock_shortage"
+        p.warning = "CLIENT STOCK EXHAUSTED"
         return true
     end
     return false
@@ -294,22 +377,48 @@ function Windmill.cleanAndUnload(state)
     totals.supplyCost = (totals.supplyCost or 0) + 34 / 6
     pallet.press.completedColors = p.colorIndex
     pallet.press.goodSheets = p.goodSheets
+    pallet.press.availableSheets = p.goodSheets
+    pallet.press.passHistory[#pallet.press.passHistory + 1] = {
+        colorIndex = p.colorIndex,
+        inkColor = (job.press.colorSequence or {})[p.colorIndex] or "Black",
+        targetSheets = p.targetSheets,
+        feedSheets = p.feedStart,
+        remainingSheets = p.feedRemaining,
+        goodSheets = p.goodSheets,
+        spoilage = p.spoilage,
+        impressions = p.counter,
+        proofQuality = p.proofQuality,
+        artworkVerified = p.artworkVerified,
+    }
+    pallet.finishedSheets = p.goodSheets
     pallet.press.status = p.colorIndex >= (job.press.colors or 1) and "complete" or "drying"
     if pallet.press.status == "drying" then
-        local coated = job.details and tostring(job.details.stockDescription or ""):lower():find("gloss", 1, true)
+        local finish = job.stockSpec and job.stockSpec.finish
+            or (job.details and tostring(job.details.stockDescription or ""))
+        local coated = tostring(finish or ""):lower():find("gloss", 1, true)
         pallet.press.dryUntilHours = BusinessCalendar.absoluteHours(state) + (coated and 8 or 2)
     else
         pallet.press.dryUntilHours = nil
         pallet.status = "printed"
     end
-    local world = pallet.world or { x = state.windmill.x + 80, y = state.windmill.y + 45,
-        direction = state.windmill.direction }
+    local world = { x = state.windmill.x + 78, y = state.windmill.y + 42,
+        direction = state.windmill.direction, spawnProgress = 1 }
     local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {
         status = pallet.status, world = world,
     })
     if not transitioned then return false, errorMessage end
+    if pallet.press.status == "complete" and state.inventory then
+        state.inventory.inProcessPallets = math.max(0,
+            (state.inventory.inProcessPallets or 0) - 1)
+        state.inventory.finishedPallets = (state.inventory.finishedPallets or 0) + 1
+    end
+    state.message = pallet.press.status == "complete"
+        and string.format("%s is fully printed. Move it to the skid wrapper for packaging.", pallet.id)
+        or string.format("Color %d is complete on %s. Let it dry before loading the next color.",
+            p.colorIndex, pallet.id)
     p.status, p.jobId, p.palletId, p.colorIndex = "idle", nil, nil, nil
     p.setup, p.motor, p.feeder, p.impression, p.proofApproved = {}, false, false, false, false
+    p.artworkVerified, p.targetSheets, p.feedStart, p.feedRemaining = false, 0, 0, 0
     return true, pallet
 end
 

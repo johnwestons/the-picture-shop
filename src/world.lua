@@ -368,6 +368,12 @@ local function updateTruck(dt, state)
     return saveNeeded
 end
 
+function World.customerArrivalMessage(state)
+    return state and state.currentOffer and state.currentOffer.press
+        and "A customer is waiting at reception with a print job."
+        or "A customer is waiting at reception with a client job."
+end
+
 function World.update(dt, directionX, directionY, assets, state)
     World._assets = assets
     if directionX ~= 0 or directionY ~= 0 then World.placementSelection = nil end
@@ -464,21 +470,21 @@ function World.update(dt, directionX, directionY, assets, state)
         player.facing = (jack.direction == "northeast" or jack.direction == "east"
             or jack.direction == "southeast") and 1 or -1
     else
-        player.moving = directionX ~= 0 or directionY ~= 0
-    end
-    if player.moving and not jack.operating and not cutter.moving and not wrapper.moving
-        and not windmill.moving
-    then
-        local length = math.sqrt(directionX * directionX + directionY * directionY)
-        local nextX = player.x + directionX / length * player.speed * dt
-        local nextY = player.y + directionY / length * player.speed * dt
-        if Navigation.canMoveFrom(assets, player.x, player.y, nextX, nextY,
-            movementObstacles(state, false))
-        then
-            player.x = nextX
-            player.y = nextY
+        player.moving = false
+        if directionX ~= 0 or directionY ~= 0 then
+            local length = math.sqrt(directionX * directionX + directionY * directionY)
+            local nextX = player.x + directionX / length * player.speed * dt
+            local nextY = player.y + directionY / length * player.speed * dt
+            if Navigation.canMoveFrom(assets, player.x, player.y, nextX, nextY,
+                movementObstacles(state, false))
+                and (nextX ~= player.x or nextY ~= player.y)
+            then
+                player.x = nextX
+                player.y = nextY
+                player.moving = true
+            end
+            if directionX ~= 0 then player.facing = directionX < 0 and -1 or 1 end
         end
-        if directionX ~= 0 then player.facing = directionX < 0 and -1 or 1 end
     end
 
     player.animationClock = player.animationClock + dt
@@ -496,7 +502,7 @@ function World.update(dt, directionX, directionY, assets, state)
     local customerEvent = World.customer:update(dt, player,
         receptionClosed or World.vendor:isPresent())
     if customerEvent == "arrived" and state then
-        state.message = "A customer is waiting at reception with a cutting job."
+        state.message = World.customerArrivalMessage(state)
     elseif customerEvent == "timed_out" and state then
         state.message = "The client waited five minutes without being seen and is leaving."
     elseif customerEvent == "exited" and state then

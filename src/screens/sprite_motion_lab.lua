@@ -1,3 +1,6 @@
+local CharacterAnimation = require("src.character_animation")
+local Config = require("src.config")
+
 local Lab = {
     clock = 0,
     selected = 1,
@@ -5,14 +8,8 @@ local Lab = {
 }
 
 local function animatedFrame(clock, action, count)
-    if count <= 1 then return 1 end
-    local raw = math.floor(clock * (action == "walk" and 5 or 2.5))
-    if action == "walk" and count > 2 then
-        local cycle = count * 2 - 2
-        local frame = raw % cycle + 1
-        return frame <= count and frame or count * 2 - frame
-    end
-    return raw % count + 1
+    return CharacterAnimation.frameForAction(action, count, clock,
+        Config.customer.walkAnimationRate, Config.vendor.useAnimationRate)
 end
 
 function Lab.enter(characterAssets)
@@ -60,7 +57,7 @@ function Lab.draw(characterAssets)
     love.graphics.print(string.format("%s  (%d of %d)", character, Lab.selected, #names), 28, 44)
     love.graphics.setColor(0.62, 0.74, 0.77)
     love.graphics.print("Left/Right: character    Space: pause    Esc: close", 28, 64)
-    love.graphics.print("Orange boxes show source size. Green boxes show game-normalized size.", 28, 84)
+    love.graphics.print("Runtime timing: walk/use animate; idle/sit hold their clean first frame.", 28, 84)
 
     local columnWidth = 900 / math.max(1, #actions)
     for index, action in ipairs(actions) do

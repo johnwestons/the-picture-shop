@@ -194,9 +194,11 @@ function Input.keypressed(key, context)
     elseif state.screen == "job_offer" then
         return context.jobOfferScreen.keypressed(key)
     elseif state.screen == "press" then
-        local result = context.pressScreen.keypressed(state, key)
+        local result, errorMessage = context.pressScreen.keypressed(state, key)
         if type(result) == "table" and result.action == "exit" then return Input.closeScreen(context) end
-        return result
+        if result == false and type(errorMessage) == "string" then state.message = errorMessage end
+        if result then context.saveCurrent() end
+        return result, errorMessage
     end
 end
 

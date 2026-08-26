@@ -95,13 +95,15 @@ end
 function CutterPlacement.move(state, dx, dy, dt, config, canMove)
     local cutter = CutterPlacement.ensure(state, config)
     if not cutter.moving then return false end
-    cutter.inMotion = dx ~= 0 or dy ~= 0
-    if not cutter.inMotion then return false end
+    cutter.inMotion = false
+    if dx == 0 and dy == 0 then return false end
     local length = math.sqrt(dx * dx + dy * dy)
     local nextX = cutter.x + dx / length * config.speed * dt
     local nextY = cutter.y + dy / length * config.speed * dt
+    if nextX == cutter.x and nextY == cutter.y then return false end
     if not canMove(nextX, nextY) then return false end
     cutter.x, cutter.y = nextX, nextY
+    cutter.inMotion = true
     return true
 end
 

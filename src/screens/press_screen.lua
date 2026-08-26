@@ -44,6 +44,62 @@ local function title(text, subtext)
     love.graphics.print(subtext or "", 40, 99)
 end
 
+local function artworkKey(job)
+    return job and job.artwork and job.artwork.key or job and job.artworkKey or "flower"
+end
+
+local function artworkName(job)
+    return job and job.artwork and (job.artwork.displayName or job.artwork.fileName)
+        or tostring(artworkKey(job)):gsub("%-", " ")
+end
+
+local function drawArtwork(assets, job, x, y, width, height, quality, angle)
+    local art = assets and assets.getArtwork and assets.getArtwork(artworkKey(job))
+    if not art then return end
+    quality = math.max(0, math.min(1, tonumber(quality) or 1))
+    local imageWidth, imageHeight = art:getDimensions()
+    local scale = math.min(width / imageWidth, height / imageHeight)
+    local drawWidth, drawHeight = imageWidth * scale, imageHeight * scale
+    local cx, cy = x + width / 2, y + height / 2
+    if quality < 0.92 then
+        local drift = 1 + (1 - quality) * 12
+        love.graphics.setColor(0.82, 0.16, 0.20, 0.34)
+        love.graphics.draw(art, cx - drift, cy, angle or 0, scale, scale,
+            imageWidth / 2, imageHeight / 2)
+        love.graphics.setColor(0.10, 0.42, 0.68, 0.28)
+        love.graphics.draw(art, cx + drift, cy, angle or 0, scale, scale,
+            imageWidth / 2, imageHeight / 2)
+    end
+    love.graphics.setColor(1, 1, 1, 0.48 + quality * 0.52)
+    love.graphics.draw(art, cx, cy, angle or 0, scale, scale,
+        imageWidth / 2, imageHeight / 2)
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- The generated atlas intentionally contains blank image areas. Every use of
+-- it receives the live job artwork here, keeping the client's design visible
+-- from intake through plate, proof, and finished stack.
+local function drawProcessStage(assets, stage, job, x, y, width, height, quality)
+    local image = assets and assets.get and assets.get("pressProcessStages")
+    local sprite = assets and assets.getQuad and assets.getQuad("pressProcessStage" .. tostring(stage))
+    if not image or not sprite then return false end
+    local scale = math.min(width / sprite.width, height / sprite.height)
+    local drawWidth, drawHeight = sprite.width * scale, sprite.height * scale
+    local left, top = x + (width - drawWidth) / 2, y + (height - drawHeight) / 2
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(image, sprite.quad, left, top, 0, scale, scale)
+    local areas = {
+        { 0.23, 0.24, 0.34, 0.32, 0.08 },
+        { 0.31, 0.24, 0.34, 0.32, 0.04 },
+        { 0.17, 0.27, 0.31, 0.28, 0.08 },
+        { 0.35, 0.20, 0.31, 0.29, 0.07 },
+    }
+    local area = areas[stage]
+    drawArtwork(assets, job, left + drawWidth * area[1], top + drawHeight * area[2],
+        drawWidth * area[3], drawHeight * area[4], quality, area[5])
+    return true
+end
+
 function Screen.enter(state)
     Screen.tab, Screen.clock, Screen.activeSetup = "run", 0, nil
     Screen.setupHits, Screen.setupMisses, Screen.maintenance, Screen.lockoutStep = 0, 0, nil, 1
@@ -85,7 +141,7 @@ local function currentPlateJob(state)
     return jobs[Screen.selectedPlateJob], jobs
 end
 
-local function drawRun(state, pointerX, pointerY)
+local function drawRun(state, assets, pointerX, pointerY)
     local p, job, pallet = Windmill.current(state)
     title("PRODUCTION", "Mechanical maximum 5,500 iph • shop quoting rate 3,000 good impressions/hour")
     love.graphics.setColor(0.10, 0.13, 0.14)
@@ -98,32 +154,24 @@ local function drawRun(state, pointerX, pointerY)
         job and tostring(job.press.colors) or "—"), 58, 276)
     love.graphics.print(string.format("SPEED: %d iph", p.speed), 360, 195)
     love.graphics.print(string.format("COUNTER: %d", p.counter), 360, 222)
-    love.graphics.print(string.format("GOOD: %d   SPOILAGE: %d", p.goodSheets, p.spoilage), 360, 249)
+    love.graphics.print(string.format("GOOD: %d / %d   SPOIL: %d", p.goodSheets,
+        p.targetSheets or 0, p.spoilage), 360, 249)
+    love.graphics.print(string.format("FEED: %d / %d", p.feedRemaining or 0, p.feedStart or 0), 360, 276)
     love.graphics.print(string.format("PROOF: %s", p.proofQuality and string.format("%d%%", p.proofQuality * 100)
-        or "NOT PULLED"), 360, 276)
+        or "NOT PULLED"), 560, 276)
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
-    love.graphics.print(string.format("CONDITION: %d%%", machine and MachineFleet.condition(machine) or 0), 700, 195)
+    love.graphics.print(string.format("CONDITION: %d%%", machine and MachineFleet.condition(machine) or 0), 580, 195)
     love.graphics.setColor(p.motor and 0.28 or 0.50, p.motor and 0.82 or 0.18, 0.18)
-    love.graphics.circle("fill", 820, 251, 14)
+    love.graphics.circle("fill", 594, 249, 11)
     love.graphics.setColor(0.82, 0.88, 0.86)
-    love.graphics.print(p.motor and "MOTOR ON" or "MOTOR OFF", 845, 244)
-
-    -- A compact operator-side mechanical view makes speed, cycling, and stops readable at a glance.
-    local phase = p.motor and p.animationClock * (p.speed / 3000) * 4.5 or 0
-    local cx, cy, arm = 746, 273, 47
-    love.graphics.setColor(0.18, 0.21, 0.21)
-    love.graphics.rectangle("fill", 680, 244, 132, 61, 5, 5)
-    love.graphics.setColor(0.65, 0.68, 0.62)
-    love.graphics.setLineWidth(7)
-    love.graphics.line(cx - math.cos(phase) * arm, cy - math.sin(phase) * arm,
-        cx + math.cos(phase) * arm, cy + math.sin(phase) * arm)
-    love.graphics.line(cx - math.cos(phase + math.pi / 2) * arm, cy - math.sin(phase + math.pi / 2) * arm,
-        cx + math.cos(phase + math.pi / 2) * arm, cy + math.sin(phase + math.pi / 2) * arm)
-    love.graphics.setColor(0.90, 0.72, 0.18)
-    love.graphics.circle("fill", cx, cy, 9)
-    love.graphics.setLineWidth(1)
+    love.graphics.print(p.motor and "MOTOR ON" or "MOTOR OFF", 613, 242)
+    local visualStage = p.status == "pass_complete" and 4
+        or (p.status == "proof" or p.status == "approved" or p.status == "production") and 3
+        or p.palletId and 2 or 1
+    if job then drawProcessStage(assets, visualStage, job, 735, 181, 166, 132,
+        p.proofQuality or (p.status == "production" and 0.96 or 1)) end
     love.graphics.setColor(p.warning and 0.94 or 0.42, p.warning and 0.46 or 0.76, 0.30)
-    love.graphics.printf(p.warning or Windmill.failureSummary(state), 650, 306, 250, "center")
+    love.graphics.printf(p.warning or Windmill.failureSummary(state), 570, 303, 330, "center")
 
     button(52, 340, 158, 54, p.motor and "STOP MOTOR" or "START MOTOR", true, pointerX, pointerY)
     button(224, 340, 158, 54, p.feeder and "FEEDER OFF" or "FEEDER ON", p.motor, pointerX, pointerY)
@@ -133,7 +181,8 @@ local function drawRun(state, pointerX, pointerY)
     button(800, 340, 104, 54, "E-STOP", true, pointerX, pointerY, true)
     button(52, 412, 158, 54, "RESET", p.status ~= "production", pointerX, pointerY)
     button(224, 412, 158, 54, "PULL PROOF", Windmill.setupComplete(state), pointerX, pointerY)
-    button(396, 412, 158, 54, "APPROVE PROOF", p.status == "proof", pointerX, pointerY)
+    button(396, 412, 158, 54, "APPROVE PROOF", p.status == "proof" and p.artworkVerified,
+        pointerX, pointerY)
     button(568, 412, 158, 54, p.status == "production" and "STOP RUN" or "START RUN",
         p.proofApproved or p.status == "production", pointerX, pointerY)
     button(740, 412, 164, 54, "CLEAN + UNLOAD", p.status == "pass_complete", pointerX, pointerY)
@@ -144,12 +193,14 @@ local function drawRun(state, pointerX, pointerY)
     if p.status == "idle" then
         for index, item in ipairs(candidates) do
             local y = 526 + (index - 1) * 45
-            button(52, y, 852, 38, string.format("LOAD %s  •  %s  •  COLOR %d", item.pallet.id,
-                item.job.company, item.color), true, pointerX, pointerY)
+            button(52, y, 852, 38, string.format("LOAD %s  •  %s  •  %s  •  %d ORDERED / %d SUPPLIED  •  COLOR %d",
+                item.pallet.id, item.job.company, artworkName(item.job):upper(),
+                item.pallet.requestedCopies or item.pallet.initialSheets,
+                item.pallet.initialSheets, item.color), true, pointerX, pointerY)
         end
         if #candidates == 0 then
             love.graphics.setColor(0.68, 0.70, 0.68)
-            love.graphics.printf("Cut the stock, prepare the correct plate, and allow prior ink to dry.", 52, 532, 852, "center")
+            love.graphics.printf("Stage cut client stock beside the press, prepare its plate, and allow prior ink to dry.", 52, 532, 852, "center")
         end
     else
         love.graphics.setColor(0.68, 0.70, 0.68)
@@ -157,7 +208,7 @@ local function drawRun(state, pointerX, pointerY)
     end
 end
 
-local function drawPlates(state, pointerX, pointerY)
+local function drawPlates(state, assets, pointerX, pointerY)
     local job, jobs = currentPlateJob(state)
     title("PLATE ROOM", "Outsource processed plates or expose, wash, dry, and mount them in-house")
     if not job then
@@ -190,6 +241,9 @@ local function drawPlates(state, pointerX, pointerY)
     elseif plate.status == "processing" then
         love.graphics.print("NEXT IN-HOUSE STEP: " .. tostring(Plates.actionFor(plate)):upper(), 72, 424)
     end
+    drawProcessStage(assets, 2, job, 662, 282, 214, 182, plate.quality > 0 and plate.quality or 0.72)
+    love.graphics.setColor(0.70, 0.77, 0.76)
+    love.graphics.printf("CLIENT ART: " .. artworkName(job):upper(), 620, 452, 280, "center")
     button(52, 492, 240, 54, "ORDER PROCESSED PLATE", plate.status == "unprepared", pointerX, pointerY)
     button(310, 492, 240, 54, "START IN-HOUSE PLATE", plate.status == "unprepared", pointerX, pointerY)
     button(568, 492, 328, 54, plate.status == "processing"
@@ -247,34 +301,44 @@ local function drawSetup(state, pointerX, pointerY)
         or "ALL SIX CHECKS ARE REQUIRED BEFORE PROOFING", 80, 565, 800, "center")
 end
 
-local function drawProof(state, pointerX, pointerY)
-    local p = Windmill.ensure(state)
-    title("PROOF INSPECTION", "Approve register, ink density, impression, feeding, and plate detail")
+local function drawProof(state, assets, pointerX, pointerY)
+    local p, job = Windmill.current(state)
+    title("PROOF INSPECTION", "Compare the live job artwork, inspect quality, then verify before approval")
     love.graphics.setColor(0.12, 0.14, 0.14)
-    love.graphics.rectangle("fill", 80, 190, 800, 320, 6, 6)
+    love.graphics.rectangle("fill", 70, 178, 820, 350, 6, 6)
     if not p.proofQuality then
         love.graphics.setColor(0.72, 0.76, 0.74)
-        love.graphics.printf("No proof available. Complete setup, turn on motor, feeder and impression, then pull a proof.",
-            130, 320, 700, "center")
+        if job then drawProcessStage(assets, 1, job, 118, 202, 310, 280, 1) end
+        love.graphics.printf("No press proof yet. Review the client file, complete setup, then turn on motor, feeder and impression.",
+            470, 300, 360, "center")
     else
         local q = p.proofQuality
+        drawProcessStage(assets, 3, job, 92, 194, 350, 312, q)
         love.graphics.setColor(q >= 0.82 and 0.28 or 0.82, q >= 0.82 and 0.82 or 0.34, 0.28)
-        love.graphics.printf(string.format("PROOF QUALITY  %d%%", q * 100), 130, 220, 700, "center")
+        love.graphics.printf(string.format("PROOF QUALITY  %d%%", q * 100), 474, 205, 360, "center")
         local labels = {
             { "REGISTER", p.setup.register }, { "INK DENSITY", p.setup.ink },
             { "IMPRESSION", (p.setup.packing + p.setup.chase) / 2 }, { "ROLLER STRIPE", p.setup.rollers },
             { "SHEET FEED", p.setup.feeder }, { "PLATE DETAIL", q },
         }
         for index, item in ipairs(labels) do
-            local y = 270 + (index - 1) * 34
+            local y = 250 + (index - 1) * 34
             love.graphics.setColor(0.84, 0.87, 0.83)
-            love.graphics.print(item[1], 180, y)
+            love.graphics.print(item[1], 478, y)
             love.graphics.setColor(item[2] >= 0.82 and 0.32 or 0.88, item[2] >= 0.82 and 0.82 or 0.42, 0.26)
-            love.graphics.rectangle("fill", 390, y + 2, 330 * item[2], 15)
+            love.graphics.rectangle("fill", 620, y + 2, 216 * item[2], 15)
         end
+        love.graphics.setColor(p.artworkVerified and 0.32 or 0.88,
+            p.artworkVerified and 0.84 or 0.52, 0.25)
+        love.graphics.printf(p.artworkVerified and "ARTWORK MATCH VERIFIED"
+            or "COMPARE IMAGE TO CLIENT FILE", 474, 462, 360, "center")
     end
-    button(230, 550, 220, 52, "PULL ANOTHER PROOF", Windmill.setupComplete(state), pointerX, pointerY)
-    button(510, 550, 220, 52, "APPROVE PROOF", p.status == "proof", pointerX, pointerY)
+    button(104, 558, 220, 52, p.proofQuality and "PULL ANOTHER PROOF" or "PULL PROOF",
+        Windmill.setupComplete(state), pointerX, pointerY)
+    button(370, 558, 220, 52, p.artworkVerified and "ARTWORK VERIFIED" or "VERIFY CLIENT ART",
+        p.status == "proof", pointerX, pointerY)
+    button(636, 558, 220, 52, "APPROVE PROOF",
+        p.status == "proof" and p.artworkVerified, pointerX, pointerY)
 end
 
 local function drawMaintenance(state, pointerX, pointerY)
@@ -330,11 +394,11 @@ local tutorial = {
     { "2 — BUY THE REQUIRED SUPPLIES", "Open the office computer and choose STOCK. Buy Black Ink for black-only work or Color Ink for each non-black color, Windmill Tympan sheets, and either Processed Plates or In-house Plate Materials. Computer purchases are delivered later by truck; unload their product pallets with the pallet jack. A press-supplies salesman may offer cheaper bulk quantities." },
     { "3 — GET AN OUTSOURCED PLATE", "Open this console's PLATES tab, select the correct job and color, then choose ORDER PROCESSED PLATE. The charge is posted to the job and the plate room needs about 24 game-hours. Return after it is ready; the processed plate is mounted for that color automatically." },
     { "4 — MAKE A PLATE IN HOUSE", "Keep In-house Plate Materials in inventory. In PLATES, select the job/color and choose START IN-HOUSE PLATE. Complete each timed quality window in order: expose the image, wash away non-image coating, dry the plate completely, then mount and lock it squarely in the chase. Poor timing lowers plate quality and print quality." },
-    { "5 — PREPARE AND STAGE STOCK", "Use the Polar cutter to finish the job's paper before printing. Confirm the pallet tooltip says the required press size and PAPER COMPLETE. Move that pallet near the Windmill output area. In RUN, choose its LOAD row. The press will reject uncut stock, wet repeat-color work, or a color without its mounted plate." },
+    { "5 — PREPARE AND STAGE STOCK", "Use the Polar cutter to finish the exact customer-supplied paper before printing. The ticket separates ordered good copies from supplied sheets; the difference is the only proof and spoilage allowance. Confirm the pallet tooltip shows the required stock, press size, and PAPER COMPLETE. Move that pallet beside the Windmill and choose its LOAD row." },
     { "6 — CHASE AND PACKING", "In SETUP, begin CHASE and hit all three inspection targets to lock the plate/chase squarely. Then run PACKING: install a clean tympan sheet and set packing thickness for even impression. Packing consumes one tympan sheet. A low score causes weak or uneven impression and more spoilage." },
     { "7 — ROLLERS AND INK", "Complete ROLLERS to set a consistent stripe. Complete INK to charge the ink train with the color named on the mounted plate. Ink is taken from warehouse inventory only when this check completes. If the game reports missing ink, buy it from STOCK or the press-supplies salesman, receive the delivery, and return." },
     { "8 — FEEDER AND REGISTER", "Complete FEEDER to set pile height, suction and double-sheet control. Complete REGISTER to align side guide and grippers to the plate. Accurate feeder setup prevents misses and doubles; accurate register keeps the image in the intended position. All six setup checks are mandatory." },
-    { "9 — START, PROOF AND APPROVE", "In RUN, START MOTOR, turn FEEDER ON, and turn IMPRESSION ON. Choose PULL PROOF, then inspect the PROOF tab. A proof must reach 82% before approval. Correct a weak setup check and pull another proof if needed. Choose APPROVE PROOF only when register, density, impression, feed and detail are acceptable." },
+    { "9 — START, PROOF AND APPROVE", "In RUN, START MOTOR, turn FEEDER ON, and turn IMPRESSION ON. Choose PULL PROOF, then inspect the PROOF tab. The client's actual supplied artwork is composited onto the blank proof sprite. A proof must reach 82%; compare it to the client file and choose VERIFY CLIENT ART before approval. Redo a weak setup check and pull another proof if needed." },
     { "10 — PRODUCTION RUN", "Set a safe speed with SPEED − / +. The shop quotes around 3,000 good impressions per hour; the mechanical ceiling is 5,500 iph, but high speed and poor setup increase spoilage. Choose START RUN and watch counter, good sheets, spoilage, warnings and machine condition. E-STOP halts an unsafe cycle; RESET is required afterward." },
     { "11 — CLEAN, DRY AND REPEAT COLORS", "When the pass is complete, choose CLEAN + UNLOAD. The pallet moves to press output and the ink train is cleaned. Multi-color work must dry before the next plate/color can load. Repeat plate selection, six setup checks, proof approval and production for every color. Do not package until every color pass is complete." },
     { "12 — SERVICE AND FINISH", "Use SERVICE only with the press idle and unloaded. Lock out power in order, use one maintenance kit, and complete every component check. BOOK TECHNICIAN schedules field service for timing, suction, lubrication and safety faults. After the last color, move the printed pallet to wrapping, apply the job's required packaging, then complete the job on the office computer." },
@@ -360,10 +424,10 @@ end
 function Screen.draw(state, assets, pointerX, pointerY)
     drawFrame()
     drawTabs(pointerX, pointerY)
-    if Screen.tab == "run" then drawRun(state, pointerX, pointerY)
-    elseif Screen.tab == "plates" then drawPlates(state, pointerX, pointerY)
+    if Screen.tab == "run" then drawRun(state, assets, pointerX, pointerY)
+    elseif Screen.tab == "plates" then drawPlates(state, assets, pointerX, pointerY)
     elseif Screen.tab == "setup" then drawSetup(state, pointerX, pointerY)
-    elseif Screen.tab == "proof" then drawProof(state, pointerX, pointerY)
+    elseif Screen.tab == "proof" then drawProof(state, assets, pointerX, pointerY)
     elseif Screen.tab == "maintenance" then drawMaintenance(state, pointerX, pointerY)
     else drawTutorial(state, pointerX, pointerY) end
     BackButton.draw(assets, BACK, "EXIT", pointerX, pointerY, false)
@@ -485,8 +549,9 @@ function Screen.mousepressed(state,x,y,button)
     elseif Screen.tab=="plates" then ok,result=plateClick(state,x,y)
     elseif Screen.tab=="setup" then ok,result=setupClick(state,x,y)
     elseif Screen.tab=="proof" then
-        if inside({x=230,y=550,width=220,height=52},x,y) then ok,result=Windmill.takeProof(state)
-        elseif inside({x=510,y=550,width=220,height=52},x,y) then ok,result=Windmill.approveProof(state) end
+        if inside({x=104,y=558,width=220,height=52},x,y) then ok,result=Windmill.takeProof(state)
+        elseif inside({x=370,y=558,width=220,height=52},x,y) then ok,result=Windmill.verifyArtwork(state)
+        elseif inside({x=636,y=558,width=220,height=52},x,y) then ok,result=Windmill.approveProof(state) end
     elseif Screen.tab=="maintenance" then ok,result=maintenanceClick(state,x,y)
     elseif inside({x=190,y=580,width=250,height=54},x,y) and Screen.tutorialStep>1 then
         Screen.tutorialStep=Screen.tutorialStep-1; ok=true
@@ -505,6 +570,7 @@ function Screen.keypressed(state,key)
     if Screen.tab=="tutorial" and key=="left" then Screen.tutorialStep=math.max(1,Screen.tutorialStep-1); return true end
     if Screen.tab=="tutorial" and key=="right" then Screen.tutorialStep=math.min(#tutorial,Screen.tutorialStep+1); return true end
     if map[key] then return Windmill.control(state,map[key]) end
+    if key=="v" and Screen.tab=="proof" then return Windmill.verifyArtwork(state) end
     if key=="space" then
         local p=Windmill.ensure(state)
         return p.status=="production" and Windmill.stopProduction(state) or Windmill.startProduction(state)

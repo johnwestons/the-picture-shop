@@ -95,6 +95,20 @@ function Test.run(context, check)
     check("vendor_no_thanks_dismisses_and_saves", dismissed == "declined"
         and dismissState.screen == "world" and dismissSaves == 1)
 
+    local pressState, pressSaves = context.State.new(), 0
+    pressState.screen = "press"
+    local pressContext = {
+        state = pressState,
+        pressScreen = { keypressed = function() return true end },
+        saveCurrent = function() pressSaves = pressSaves + 1 end,
+    }
+    context.input.keypressed("m", pressContext)
+    check("press_keyboard_action_saves_like_mouse", pressSaves == 1)
+    pressContext.pressScreen.keypressed = function() return false, "Proof allowance exhausted." end
+    context.input.keypressed("v", pressContext)
+    check("press_keyboard_error_is_visible_without_saving",
+        pressSaves == 1 and pressState.message == "Proof allowance exhausted.")
+
     local state = context.State.new()
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)

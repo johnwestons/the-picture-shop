@@ -28,6 +28,7 @@ def audit(root: Path) -> list[dict[str, object]]:
         "paper_boxes": generated / "paper-storage-boxes-strip.png",
         "picture_press": generated / "picture-press-transparent.png",
         "windmill_directions": generated / "heidelberg-windmill-directions-atlas-v1.png",
+        "press_process_stages": generated / "press-process-stages-atlas-v3.png",
         "technician_npcs": generated / "technician-npcs-atlas-v1.png",
         "skid_wrapper_directions": generated / "skid-wrapper-directions-strip.png",
         "wrapped_pallet_stages": generated / "wrapped-pallet-stages-strip.png",
@@ -147,6 +148,15 @@ def audit(root: Path) -> list[dict[str, object]]:
             "windmill_directions_four_nonempty_views",
             all(nonempty),
             f"nonempty={nonempty}",
+        ))
+
+    press_stages = images.get("press_process_stages")
+    if press_stages:
+        alpha_range = press_stages.getchannel("A").getextrema()
+        checks.append(result(
+            "press_process_stages_transparency",
+            alpha_range[0] == 0 and alpha_range[1] == 255,
+            f"alpha_range={alpha_range}",
         ))
 
     technicians = images.get("technician_npcs")
@@ -293,6 +303,7 @@ def audit(root: Path) -> list[dict[str, object]]:
         "cutter_maintenance_oil": ((512, 512), 2, 2),
         "cutter_maintenance_tools": ((768, 512), 3, 2),
         "cutter_maintenance_scenes": ((1024, 768), 2, 2),
+        "press_process_stages": ((1254, 1254), 2, 2),
     }
     for name, (expected_size, columns, rows) in atlas_contracts.items():
         image = images.get(name)

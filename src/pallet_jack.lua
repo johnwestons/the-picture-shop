@@ -171,16 +171,18 @@ end
 function PalletJack.move(state, dx, dy, dt, config, canMove)
     local jack = PalletJack.ensure(state, config)
     if not jack.operating then return false end
-    jack.moving = dx ~= 0 or dy ~= 0
+    jack.moving = false
     jack.animationClock = jack.animationClock + math.max(0, dt)
-    if not jack.moving then return false end
+    if dx == 0 and dy == 0 then return false end
     local length = math.sqrt(dx * dx + dy * dy)
     local speed = jack.carriedPalletId and config.loadedSpeed or config.speed
     local nextX = jack.x + dx / length * speed * dt
     local nextY = jack.y + dy / length * speed * dt
     jack.direction = directionFor(dx, dy, jack.direction)
+    if nextX == jack.x and nextY == jack.y then return false end
     if not canMove(nextX, nextY, jack.carriedPalletId ~= nil) then return false end
     jack.x, jack.y = nextX, nextY
+    jack.moving = true
     local _, pallet = findPallet(state, jack.carriedPalletId)
     if pallet then
         pallet.world = pallet.world or {}

@@ -34,12 +34,13 @@ Configured `artwork:*` images are 128x128 library entries resolved by saved artw
 | Menu | `polarOperatorConsole` (768x512), `cutterControlButtons` (512x128) | Title only |
 | Cutter | Menu art, `cutterClamp` / `cutterBlade` (3840x512), `cutterMaintenanceOil` (512x512), `cutterMaintenanceTools` (768x512, 3x2), and `cutterMaintenanceScenes` (1024x768, 2x2) | Cutter console and maintenance minigames |
 | Wrapper | `loadedPaperPallet` (256x256) | Wrapper console only |
+| Press | `pressProcessStage1` ... `pressProcessStage4`, cut from `press-process-stages-atlas-v3.png` (1254x1254, 2x2) | Windmill run, plate, proof, and finished-process views |
 
-Menu, cutter, and wrapper packs are mutually exclusive. Transition tests verify load, replacement, and release. The smoke gate enforces a retained startup set below 100 MiB with no character action loaded.
+Menu, cutter, wrapper, and press packs are mutually exclusive. Transition tests verify load, replacement, and release. The smoke gate enforces a retained startup set below 100 MiB with no character action loaded.
 
 ## Deferred source and backlog art
 
-The base Polar presentation sheet, empty pallet, paper stack, storage boxes, and toolbox images remain approved backlog assets but have no runtime loader until a renderer or placement system uses them. `heidelberg-windmill-plate-concept-v1.png` is the approved four-state photopolymer plate concept (blank, exposed relief, mounted, and inked) derived from the supplied tan-plate/blue-base reference. It remains outside the live contract until the guarded Windmill production scene owns a renderer. Picture-press and other machine references remain outside the live contract. Keeping them in the raster doctor catches damaged source files without spending runtime memory.
+The base Polar presentation sheet, empty pallet, paper stack, storage boxes, and toolbox images remain approved backlog assets but have no runtime loader until a renderer or placement system uses them. `heidelberg-windmill-plate-concept-v1.png` remains a source concept; the live Windmill uses the blank four-stage process atlas so each job's actual art can be composited at runtime. Other machine references remain outside the live contract. Keeping them in the raster doctor catches damaged source files without spending runtime memory.
 
 When promoting an asset, add one stable runtime ID, an exact dimension/grid contract, a real renderer, a named smoke check, and an asset-doctor check. Remove the load when its last renderer is removed.
 
@@ -50,3 +51,7 @@ Built-in ImageGen stylized-concept tool prompt: Create an exact 3x2 pixel-art ma
 Built-in ImageGen stylized-concept scene prompt: Create an exact 2x2 pixel-art service-view atlas of a powered-down Polar-style 115 cutter: rear backgauge rails with two nipples, front knife/clamp guides with two fittings, side eccentric/crank access with two fittings, and gearbox with a readable oil sight glass below midpoint. No people, tools, text, logos, or UI. The generated source is preserved in the Codex generated-image store; the builder installs it as `cutter-maintenance-scenes-atlas.png` (1024x768).
 
 The player procedure uses lockout/tagout, grease-gun preparation, fitting cleaning, coupling and 2–3 lever strokes, plus gearbox sight-glass inspection. Optional central-lubrication cutters instead require pumping until the indicator flashes twice. Hydraulic oil remains technician-only.
+
+## Windmill print-process atlas
+
+Built-in ImageGen prompt sequence: create a transparent 2x2 semi-pixel-art/isometric atlas matching the shop, with a client proof/file board, plate in chase, proof beneath a loupe, and finished stack; then remove every baked artwork mark from the four printable surfaces so the game can overlay the active job image; finally extract the checkerboard into true alpha without changing the objects, blank surfaces, crop marks, loupe, shadows, or lighting. No readable text, logos, watermark, or baked client art. The installed RGBA asset is `assets/generated/press-process-stages-atlas-v3.png`.

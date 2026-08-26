@@ -371,6 +371,20 @@ function Test.run(context, check)
     check("cutter_rotates_northwest", context.world.cutterSnapshot(context.state).frame == 1)
     context.input.keypressed("e", context.inputContext)
     check("cutter_relocation_places", not context.world.cutterSnapshot(context.state).moving)
+    check("customer_arrival_identifies_known_print_work",
+        context.world.customerArrivalMessage({ currentOffer = { press = { colors = 1 } } })
+            == "A customer is waiting at reception with a print job.")
+    check("customer_arrival_is_neutral_before_paperwork_exists",
+        context.world.customerArrivalMessage({})
+            == "A customer is waiting at reception with a client job.")
+    check("windmill_visual_and_footprint_scale_are_reduced_together",
+        math.abs(context.config.windmillPlacement.drawScale - 0.196) < 0.0001
+        and context.config.windmillPlacement.collisionHalfWidth == 50
+        and context.config.windmillPlacement.collisionHalfHeight == 17
+        and context.config.windmillPlacement.operatorDistanceX == 53
+        and context.config.windmillPlacement.operatorDistanceY == 32
+        and context.config.windmillPlacement.interactionRadius == 88
+        and context.config.windmillPlacement.palletRadius == 120)
     context.state.money = math.max(context.state.money or 0, 10000)
     local windmillOrdered, windmillOrder = context.machineFleet.orderOnline(context.state, 3)
     local windmillInstalled = windmillOrdered and context.machineFleet.unloadDelivery(

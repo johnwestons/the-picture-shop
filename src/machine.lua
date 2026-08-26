@@ -481,12 +481,19 @@ function Machine.update(dt, state)
                     end
                     Machine.pendingOutput = nil
                     if state and state.inventory then
-                        state.inventory.inProcessPallets = math.max(0, (state.inventory.inProcessPallets or 0) - 1)
-                        state.inventory.finishedPallets = (state.inventory.finishedPallets or 0) + 1
+                        -- Printed work remains in process after cutting; it is
+                        -- only finished after the final Windmill color pass.
+                        if not (Machine.job and Machine.job.press) then
+                            state.inventory.inProcessPallets = math.max(0,
+                                (state.inventory.inProcessPallets or 0) - 1)
+                            state.inventory.finishedPallets = (state.inventory.finishedPallets or 0) + 1
+                        end
                     end
                 end
                 Machine.loaded, Machine.step, Machine.paperTravel = false, "finished", 0
-                message(state, "Finished paper returned to its pallet. Reset for the next batch.")
+                message(state, Machine.job and Machine.job.press
+                    and "Cut client stock returned to its pallet. Stage it beside the Windmill for printing."
+                    or "Finished paper returned to its pallet. Reset for the next batch.")
             end
         end
         return

@@ -13,6 +13,24 @@ local Renderer = {}
 local World
 local checkerShader
 
+local function drawPrintedArtwork(assets, item, x, y, carried)
+    if not item or item.vendor or not item.job or not item.job.press then return end
+    local press = item.pallet and item.pallet.press
+    if not press or (press.completedColors or 0) <= 0 then return end
+    local key = item.job.artwork and item.job.artwork.key or item.job.artworkKey
+    local artwork = assets.getArtwork and assets.getArtwork(key)
+    if not artwork then return end
+    local width, height = carried and 24 or 28, carried and 18 or 21
+    local top = y - (carried and 60 or 58)
+    love.graphics.setColor(0.07, 0.09, 0.09, 0.92)
+    love.graphics.rectangle("fill", x - width / 2 - 2, top - 2, width + 4, height + 4, 2, 2)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(artwork, x - width / 2, top, 0,
+        width / artwork:getWidth(), height / artwork:getHeight())
+    love.graphics.setColor(0.96, 0.78, 0.22, 1)
+    love.graphics.rectangle("line", x - width / 2 - 2, top - 2, width + 4, height + 4, 2, 2)
+end
+
 local function drawWallVentFan(assets)
     local image = assets.get("wallVentFan")
     if not image then return end
@@ -68,6 +86,7 @@ local function drawPalletJack(assets, state)
                 productScale, productScale,
                 productSprite.width / 2, productSprite.height * 0.92)
         end
+        drawPrintedArtwork(assets, carried, jack.x, jack.y - 3, true)
     end
 end
 
@@ -100,6 +119,7 @@ local function drawPallet(assets, item)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, item.x, item.y, 0, scale, scale,
         sprite.width / 2, sprite.height * 0.92)
+    drawPrintedArtwork(assets, item, item.x, item.y, false)
     love.graphics.setColor(0.12, 0.24, 0.34, 0.95)
     love.graphics.rectangle("fill", item.x - 22, item.y - 15, 44, 12)
     love.graphics.setColor(0.92, 0.96, 0.94)

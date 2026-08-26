@@ -20,8 +20,14 @@ function Test.run(context, check)
         and context.assets.get("wrapperMaintenanceAtlas") ~= nil
         and context.assets.getQuad("wrapperMaintenance1") ~= nil
         and context.assets.getQuad("wrapperMaintenance4") ~= nil
+        and context.assets.activatePack("press")
+        and context.assets.get("wrapperMaintenanceAtlas") == nil
+        and context.assets.get("pressProcessStages") ~= nil
+        and context.assets.getQuad("pressProcessStage1") ~= nil
+        and context.assets.getQuad("pressProcessStage4") ~= nil
         and context.assets.activatePack(nil)
-        and context.assets.get("wrappedPalletStages") ~= nil)
+        and context.assets.get("wrappedPalletStages") ~= nil
+        and context.assets.get("pressProcessStages") == nil)
 end
 
 return Test

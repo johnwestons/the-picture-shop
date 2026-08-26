@@ -386,6 +386,7 @@ local PACK_IMAGES = {
     cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
         "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
+    press = { "pressProcessStages" },
 }
 
 local function releaseImage(name)
@@ -413,6 +414,9 @@ local function clearPackQuads(packName)
     end
     if packName == "wrapper" then
         for frame = 1, 4 do Assets.quads["wrapperMaintenance" .. frame] = nil end
+    end
+    if packName == "press" then
+        for frame = 1, 4 do Assets.quads["pressProcessStage" .. frame] = nil end
     end
 end
 
@@ -497,6 +501,27 @@ local function loadWrapperPack()
     return loadedPallet ~= nil and maintenance ~= nil and Assets.images.wrappedPalletStages ~= nil
 end
 
+local function loadPressPack()
+    local stages = loadImage("pressProcessStages", Config.paths.pressProcessStages, false)
+    if not stages then return false end
+    local width, height = stages:getDimensions()
+    if width ~= 1254 or height ~= 1254 then
+        recordFailure(Config.paths.pressProcessStages, string.format(
+            "expected 1254x1254 press-process atlas, got %dx%d", width, height))
+        return false
+    end
+    local cellWidth, cellHeight = width / 2, height / 2
+    for row = 1, 2 do
+        for column = 1, 2 do
+            local frame = (row - 1) * 2 + column
+            makeQuad("pressProcessStage" .. frame, stages,
+                (column - 1) * cellWidth, (row - 1) * cellHeight,
+                cellWidth, cellHeight)
+        end
+    end
+    return true
+end
+
 function Assets.activatePack(packName)
     if packName == Assets.activePack then return true end
     if packName ~= nil and not PACK_IMAGES[packName] then return false end
@@ -508,8 +533,10 @@ function Assets.activatePack(packName)
         loaded = loadMenuPack()
     elseif packName == "cutter" then
         loaded = loadCutterPack()
-    else
+    elseif packName == "wrapper" then
         loaded = loadWrapperPack()
+    else
+        loaded = loadPressPack()
     end
     if not loaded then
         unloadPack(packName)

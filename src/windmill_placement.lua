@@ -49,13 +49,15 @@ end
 function Placement.move(state, dx, dy, dt, config, canMove)
     local item = Placement.ensure(state, config)
     if not item.moving then return false end
-    item.inMotion = dx ~= 0 or dy ~= 0
-    if not item.inMotion then return false end
+    item.inMotion = false
+    if dx == 0 and dy == 0 then return false end
     local length = math.sqrt(dx * dx + dy * dy)
     local x = item.x + dx / length * config.speed * dt
     local y = item.y + dy / length * config.speed * dt
+    if x == item.x and y == item.y then return false end
     if not canMove(x, y) then return false end
     item.x, item.y = x, y
+    item.inMotion = true
     return true
 end
 function Placement.rotate(state, config)

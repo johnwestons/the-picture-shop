@@ -1,5 +1,7 @@
 -- Transient customer movement and reception behavior. The paperwork screen
 -- drives these review/resolve transitions while the visitor remains in-world.
+local CharacterAnimation = require("src.character_animation")
+
 local Customer = {}
 local Instance = {}
 Instance.__index = Instance
@@ -53,6 +55,7 @@ function Customer.new(definition)
         drawScale = definition.drawScale or 0.30,
         speed = definition.speed or 72,
         walkAnimationRate = definition.walkAnimationRate or 4,
+        useAnimationRate = definition.useAnimationRate or 2.5,
         arrivalDelay = definition.arrivalDelay or 1,
         initialArrivalDelay = definition.initialArrivalDelay,
         initialArrivalDelayMin = definition.initialArrivalDelayMin,
@@ -88,13 +91,14 @@ function Instance:reset(initialVisit)
     self.waypoint = 2
     self.facing = 1
     self.animationClock = 0
+    self.inMotion = false
     self.decision = nil
     self.waitTimer = 0
 end
 
 function Instance:update(dt, player, pauseSchedule)
     dt = math.max(0, dt or 0)
-    self.animationClock = self.animationClock + dt
+    self.inMotion = false
     if self.state == "scheduled" then
         if pauseSchedule then return nil end
         self.timer = self.timer - dt
@@ -114,6 +118,7 @@ function Instance:update(dt, player, pauseSchedule)
                 return "timed_out"
             end
         elseif self.state == "reviewing" then
+            self.animationClock = self.animationClock + dt
             self.facing = self.seatFacing or (player and (player.x < self.x and -1 or 1)) or 1
         end
         return nil
@@ -122,6 +127,7 @@ function Instance:update(dt, player, pauseSchedule)
     -- A customer politely pauses instead of walking through the player.
     if player and distanceSquared(self, player) < 28 * 28 then return nil end
 
+    local startX, startY = self.x, self.y
     local travel = self.speed * dt
     while travel > 0 do
         local target = self.route[self.waypoint]
@@ -142,6 +148,8 @@ function Instance:update(dt, player, pauseSchedule)
         travel = remaining
         self.waypoint = self.state == "entering" and self.waypoint + 1 or self.waypoint - 1
     end
+    self.inMotion = self.x ~= startX or self.y ~= startY
+    if self.inMotion then self.animationClock = self.animationClock + dt end
     return nil
 end
 
@@ -189,16 +197,12 @@ function Instance:getObstacle()
 end
 
 function Instance:isMoving()
-    return self.state == "entering" or self.state == "exiting"
+    return (self.state == "entering" or self.state == "exiting") and self.inMotion == true
 end
 
 function Instance:frameForAction(action, frameCount)
-    frameCount = math.max(1, tonumber(frameCount) or 1)
-    if action ~= "walk" then return 1 end
-    local cycleLength = math.max(1, frameCount * 2 - 2)
-    local frame = math.floor(self.animationClock * self.walkAnimationRate) % cycleLength + 1
-    if frameCount > 1 and frame > frameCount then frame = frameCount * 2 - frame end
-    return frame
+    return CharacterAnimation.frameForAction(action, frameCount, self.animationClock,
+        self.walkAnimationRate, self.useAnimationRate)
 end
 
 function Instance:snapshot()
@@ -217,13 +221,13 @@ end
 
 function Instance:draw(characterAssets)
     if not self.visible then return end
-    local action = (self.state == "waiting" or self.state == "reviewing")
-        and "sit" or (self:isMoving() and "walk" or "idle")
+    local action = self.state == "reviewing" and characterAssets.hasAction(self.character, "use")
+        and "use" or ((self.state == "waiting" or self.state == "reviewing")
+            and "sit" or (self:isMoving() and "walk" or "idle"))
     local image, quad, frameCount = characterAssets.get(self.character, action, 1)
     frameCount = frameCount or 1
-    -- Seated/idle clients use one clean atlas cell. Only walking advances
-    -- frames, preventing adjacent visitor cells from appearing to flicker or
-    -- double-draw while a client waits in the lounge.
+    -- Seated/idle clients use one clean atlas cell. Walking and explicit use
+    -- actions advance without making a blocked visitor slide in place.
     local frame = self:frameForAction(action, frameCount)
     image, quad, frameCount = characterAssets.get(self.character, action, frame)
     local anchorX, anchorY = characterAssets.getAnchor(self.character, action, frame)

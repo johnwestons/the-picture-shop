@@ -40,13 +40,14 @@ local function button(action, label, pointerX, pointerY)
     love.graphics.printf(label, rect.x, rect.y + 15, rect.width, "center")
 end
 
-local function drawArtworkPreview(assets, key, x, y, size)
+local function drawArtworkPreview(assets, job, x, y, size)
+    local key = job and job.artwork and job.artwork.key or job and job.artworkKey or "flower"
     love.graphics.setColor(0.78, 0.76, 0.68)
     love.graphics.rectangle("fill", x, y, size, size, 3, 3)
     love.graphics.setColor(0.14, 0.17, 0.18)
     love.graphics.rectangle("line", x, y, size, size, 3, 3)
     love.graphics.setColor(0.28, 0.30, 0.31)
-    love.graphics.printf("PRINTED ART", x - 42, y - 20, size + 84, "center")
+    love.graphics.printf(job and job.press and "CLIENT ART FILE" or "JOB ART", x - 42, y - 20, size + 84, "center")
     local image = assets and assets.getArtwork and assets.getArtwork(key)
     if image then
         local imageWidth, imageHeight = image:getDimensions()
@@ -56,7 +57,8 @@ local function drawArtworkPreview(assets, key, x, y, size)
             y + (size - imageHeight * scale) / 2, 0, scale, scale)
     end
     love.graphics.setColor(0.08, 0.09, 0.10)
-    love.graphics.printf(string.upper(key or "flower"), x - 42, y + size + 6,
+    local name = job and job.artwork and (job.artwork.displayName or job.artwork.fileName) or key
+    love.graphics.printf(string.upper(name or "artwork"), x - 42, y + size + 6,
         size + 84, "center")
 end
 
@@ -153,10 +155,11 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
             job.press.colors or 1, table.concat(job.press.colorSequence or { "Black" }, " then "))
     end
     line("Finished size", finishedText, 136, 198)
-    line("Stock", details.stockDescription or "Customer-supplied paper", 136, 222)
+    line("Stock", job.stockSpec and job.stockSpec.description
+        or details.stockDescription or "Customer-supplied paper", 136, 222)
     -- Keep the artwork in its own narrow column. Long artwork names can wrap
     -- beneath it without covering the job fields.
-    drawArtworkPreview(assets, job.artworkKey, 738, 122, 76)
+    drawArtworkPreview(assets, job, 738, 122, 76)
     line("Packaging", job.packaging == "boxed" and "Boxes on pallet, stretch-wrapped" or "Flat on pallet, stretch-wrapped", 136, 246)
     line("Stock arrival", JobService.deliverySummary(job), 136, 270)
 
@@ -165,9 +168,16 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     love.graphics.rectangle("fill", tableX, tableY, 688, 24)
     love.graphics.setColor(0.11, 0.12, 0.13)
     love.graphics.print("PALLET", tableX + 16, tableY + 5)
-    love.graphics.print("SHEETS", tableX + 178, tableY + 5)
-    love.graphics.print("500-SHEET LIFTS", tableX + 342, tableY + 5)
-    love.graphics.print("PRICE", tableX + 574, tableY + 5)
+    if job.press then
+        love.graphics.print("ORDERED", tableX + 130, tableY + 5)
+        love.graphics.print("SUPPLIED", tableX + 270, tableY + 5)
+        love.graphics.print("OVERAGE", tableX + 414, tableY + 5)
+        love.graphics.print("LIFTS", tableX + 574, tableY + 5)
+    else
+        love.graphics.print("SHEETS", tableX + 178, tableY + 5)
+        love.graphics.print("500-SHEET LIFTS", tableX + 342, tableY + 5)
+        love.graphics.print("PRICE", tableX + 574, tableY + 5)
+    end
 
     for index, pallet in ipairs(job.quote.pallets) do
         local rowY = tableY + 24 + (index - 1) * 24
@@ -175,18 +185,26 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
         love.graphics.rectangle("fill", tableX, rowY, 688, 24)
         love.graphics.setColor(0.10, 0.11, 0.12)
         love.graphics.print(tostring(pallet.number), tableX + 35, rowY + 5)
-        love.graphics.print(commaNumber(pallet.sheetCount), tableX + 188, rowY + 5)
-        love.graphics.print(tostring(pallet.requiredLifts), tableX + 390, rowY + 5)
-        love.graphics.print(money(pallet.price), tableX + 584, rowY + 5)
+        if job.press then
+            love.graphics.print(commaNumber(pallet.requestedCopies), tableX + 142, rowY + 5)
+            love.graphics.print(commaNumber(pallet.sheetCount), tableX + 282, rowY + 5)
+            love.graphics.print(commaNumber(pallet.spoilageAllowance), tableX + 432, rowY + 5)
+            love.graphics.print(tostring(pallet.requiredLifts), tableX + 588, rowY + 5)
+        else
+            love.graphics.print(commaNumber(pallet.sheetCount), tableX + 188, rowY + 5)
+            love.graphics.print(tostring(pallet.requiredLifts), tableX + 390, rowY + 5)
+            love.graphics.print(money(pallet.price), tableX + 584, rowY + 5)
+        end
     end
 
     love.graphics.setColor(0.12, 0.14, 0.15)
-    love.graphics.print(
-        string.format("TOTAL: %d pallets  •  %s sheets  •  %d lifts", job.quote.palletCount,
-            commaNumber(job.quote.totalSheets), job.quote.totalLifts),
-        136,
-        450
-    )
+    local totalText = job.press
+        and string.format("ORDER: %s good  •  SUPPLIED: %s  •  ALLOWANCE: %s",
+            commaNumber(job.quote.orderedCopies), commaNumber(job.quote.suppliedSheets),
+            commaNumber(job.quote.spoilageAllowance))
+        or string.format("TOTAL: %d pallets  •  %s sheets  •  %d lifts", job.quote.palletCount,
+            commaNumber(job.quote.totalSheets), job.quote.totalLifts)
+    love.graphics.print(totalText, 136, 450)
     love.graphics.setColor(0.10, 0.39, 0.24)
     love.graphics.printf("RECOMMENDED  " .. money(job.quote.recommendedPrice or job.quote.totalPrice), 540, 450, 284, "right")
 

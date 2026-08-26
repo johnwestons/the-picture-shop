@@ -73,7 +73,7 @@ function Technician.update(dt, state, pauseEntrance)
     visit.animationClock = visit.animationClock + dt
     if visit.status == "scheduled" then
         if pauseEntrance then return false end
-        visit.status, visit.visible = "entering", true
+        visit.status, visit.visible, visit.animationClock = "entering", true, 0
         state.message = (visit.species == "mouse" and "The mouse blade technician"
             or "The lizard press technician") .. " arrived and is walking to the machine."
         return true
@@ -81,7 +81,7 @@ function Technician.update(dt, state, pauseEntrance)
         visit.serviceTimer = visit.serviceTimer + dt
         if visit.serviceTimer < Config.technician.serviceDuration then return false end
         MachineMaintenance.completeTechnicianVisit(state, visit.kind, visit)
-        visit.status, visit.waypoint = "exiting", #visit.route - 1
+        visit.status, visit.waypoint, visit.animationClock = "exiting", #visit.route - 1, 0
         state.message = "The technician finished the service and is heading out."
         return true
     end
@@ -91,7 +91,7 @@ function Technician.update(dt, state, pauseEntrance)
         local target = visit.route[visit.waypoint]
         if not target then
             if visit.status == "entering" then
-                visit.status, visit.serviceTimer = "servicing", 0
+                visit.status, visit.serviceTimer, visit.animationClock = "servicing", 0, 0
                 state.message = "The technician is servicing the "
                     .. (visit.kind == "windmill" and "Heidelberg Windmill." or "Polar cutter blade.")
                 return true
@@ -113,6 +113,19 @@ function Technician.obstacle(state)
     return visit and visit.visible and { x = visit.x, y = visit.y, radius = 16 } or nil
 end
 
+function Technician.pose(visit)
+    if not visit then return 0, 0, 0 end
+    local clock = math.max(0, tonumber(visit.animationClock) or 0)
+    if visit.status == "entering" or visit.status == "exiting" then
+        local phase = clock * Config.technician.walkAnimationRate
+        return 0, -math.abs(math.sin(phase)) * 2, math.sin(phase) * 0.018
+    elseif visit.status == "servicing" then
+        local phase = clock * Config.technician.serviceAnimationRate
+        return math.sin(phase) * 1.5, -math.abs(math.sin(phase * 0.5)), math.sin(phase) * 0.025
+    end
+    return 0, 0, 0
+end
+
 function Technician.draw(assets, state)
     local visit = Technician.ensure(state)
     if not visit or not visit.visible then return end
@@ -120,8 +133,9 @@ function Technician.draw(assets, state)
     local species = visit.species == "lizard" and 2 or 1
     local sprite = assets.getQuad("technician" .. species .. "_" .. tostring(visit.directionFrame or 1))
     if not image or not sprite then return end
+    local offsetX, offsetY, rotation = Technician.pose(visit)
     love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(image, sprite.quad, visit.x, visit.y, 0,
+    love.graphics.draw(image, sprite.quad, visit.x + offsetX, visit.y + offsetY, rotation,
         Config.technician.drawScale, Config.technician.drawScale,
         sprite.width / 2, sprite.height * 0.96)
 end
