@@ -3,12 +3,12 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.2` (`versionCode` 2)
+- Version: `0.1.0-android.3` (`versionCode` 3)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Output: `output/mobile/ThePictureShop-0.1.0-android.2-debug.apk`
+- Output: `output/mobile/ThePictureShop-0.1.0-android.3-debug.apk`
 
 ## Build and install
 
