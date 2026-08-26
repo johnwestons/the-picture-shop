@@ -70,3 +70,8 @@ Before a baseline or asset-changing commit:
 2. Run `python tools/asset_doctor.py --report <temporary-report-path>`.
 3. Inspect `git status --short --ignored` and the staged file list.
 4. Confirm no required runtime/configured path is ignored.
+
+For a release candidate, use `RELEASE.ps1` instead of running these commands
+individually. It refuses dirty, non-`main`, untracked, unpushed, or divergent
+source and records the verified commit and artifact checksum in the ignored
+`output/release/release-report.json` file.

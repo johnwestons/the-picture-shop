@@ -18,6 +18,16 @@ APK, installs it without deleting existing saves, launches it, and verifies the 
 Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is needed. See
 `ANDROID_PORT.md` for the phone, controller, build, and release checklist.
 
+## Release gate
+
+From a clean, pushed `main` branch, run `./RELEASE.ps1`. This single command
+checks Git/upstream integrity, versions, the engine regression suite, raster
+assets, licensed audio sources, mobile-package provenance and contents, and the
+final SHA-256 checksum. It writes `output/release/release-report.json` and fails
+without producing a passing report if any gate is not satisfied. Use
+`./RELEASE.ps1 -BuildApk` to additionally build and verify the signed development
+APK; physical-device installation remains a separate release-checklist step.
+
 ## Phone and controller input
 
 - Touch: drag the lower-left control to move and use the contextual lower-right work button. Extra

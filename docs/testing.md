@@ -36,4 +36,14 @@ before writing cues when a source is absent or has different bytes. Android
 packages must contain `assets/audio/SOURCES.md` and the manifest, and must not
 contain the generated audition reel.
 
+## Unified release gate
+
+`RELEASE.ps1` is the authoritative release entry point. It requires a clean
+`main` branch synchronized with `origin/main`, runs all automated gates, builds
+and smoke-tests the Android-ready `.love` package, validates its allowlisted
+contents and provenance, and writes `output/release/release-report.json`.
+`RELEASE.ps1 -BuildApk` adds APK construction plus signature, application-ID,
+ZIP-alignment, and native-library alignment verification. Device installation
+and human playtesting are intentionally retained as manual release gates.
+
 Every new bug fix should add the smallest deterministic domain check possible. Add an engine integration check only when the behavior depends on LÖVE rendering, input routing, filesystem identity, scene transitions, or multiple live systems.
