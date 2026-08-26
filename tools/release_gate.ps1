@@ -144,7 +144,8 @@ try {
     }
 
     Invoke-GateStep 'Run engine regression suite' {
-        & (Join-Path $projectRoot '.stabilization\run-smoke.ps1')
+        & (Join-Path $projectRoot '.stabilization\run-smoke.ps1') |
+            ForEach-Object { Write-Host $_ }
         Assert-ExitCode 'engine smoke suite'
         $smokeReport = Join-Path $projectRoot '.stabilization\smoke-report.rpt'
         $failures = @(Select-String -Path $smokeReport -Pattern '^FAIL(?:\s|$)')
@@ -156,7 +157,8 @@ try {
 
     Invoke-GateStep 'Audit raster assets' {
         $assetReport = Join-Path $projectRoot 'output\asset-audit.json'
-        & $script:python (Join-Path $projectRoot 'tools\asset_doctor.py') --report $assetReport
+        & $script:python (Join-Path $projectRoot 'tools\asset_doctor.py') --report $assetReport |
+            ForEach-Object { Write-Host $_ }
         Assert-ExitCode 'asset doctor'
         $audit = Get-Content -Raw $assetReport | ConvertFrom-Json
         $failures = @($audit.checks | Where-Object { -not $_.passed })
@@ -168,14 +170,16 @@ try {
     }
 
     Invoke-GateStep 'Verify licensed audio sources' {
-        & $script:python (Join-Path $projectRoot 'tools\generate_sfx.py') --verify-only
+        & $script:python (Join-Path $projectRoot 'tools\generate_sfx.py') --verify-only |
+            ForEach-Object { Write-Host $_ }
         Assert-ExitCode 'audio source verification'
         $manifest = Get-Content -Raw (Join-Path $projectRoot 'assets\audio\source_manifest.json') | ConvertFrom-Json
         "sources=$(@($manifest.sources).Count)"
     }
 
     Invoke-GateStep 'Build and smoke-test mobile package' {
-        & (Join-Path $projectRoot 'BUILD_ANDROID.ps1') -PackageOnly
+        & (Join-Path $projectRoot 'BUILD_ANDROID.ps1') -PackageOnly |
+            ForEach-Object { Write-Host $_ }
         Assert-ExitCode 'mobile package build'
         'package smoke passed'
     }
@@ -212,7 +216,8 @@ try {
 
     if ($BuildApk) {
         Invoke-GateStep 'Build and verify Android APK' {
-            & (Join-Path $projectRoot 'tools\build_android_apk.ps1') -PackagePath ((Get-Content -Raw (Join-Path $projectRoot 'output\mobile\build-report.json') | ConvertFrom-Json).package)
+            & (Join-Path $projectRoot 'tools\build_android_apk.ps1') -PackagePath ((Get-Content -Raw (Join-Path $projectRoot 'output\mobile\build-report.json') | ConvertFrom-Json).package) |
+                ForEach-Object { Write-Host $_ }
             Assert-ExitCode 'Android APK build'
             'APK signature, package ID, ZIP alignment, and ELF alignment verified'
         }
