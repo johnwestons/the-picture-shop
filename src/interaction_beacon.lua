@@ -105,8 +105,34 @@ local function activationAmount(target, reducedMotion)
     return clamp(1 - (now() - activationTime) / 0.18, 0, 1)
 end
 
-local function drawDiamond(mode, x, y, size)
-    love.graphics.polygon(mode, x, y - size, x + size, y, x, y + size, x - size, y)
+local function drawGem(x, y, width, height, color, palette, alpha, highContrast, flash)
+    local pad = highContrast and 1.8 or 0.7
+    local centerY = y - height * 0.04
+    love.graphics.setColor(palette.outline[1], palette.outline[2], palette.outline[3], highContrast and 0.92 or 0.22)
+    love.graphics.polygon("fill",
+        x + 0.7, y - height - pad + 1, x + width + pad + 0.7, y + 1,
+        x + 0.7, y + height + pad + 1, x - width - pad + 0.7, y + 1)
+
+    love.graphics.setColor(
+        color[1] + (palette.highlight[1] - color[1]) * 0.58,
+        color[2] + (palette.highlight[2] - color[2]) * 0.58,
+        color[3] + (palette.highlight[3] - color[3]) * 0.58,
+        alpha)
+    love.graphics.polygon("fill", x, y - height, x, centerY, x - width, y)
+    love.graphics.setColor(
+        color[1] + (palette.highlight[1] - color[1]) * (0.28 + flash * 0.35),
+        color[2] + (palette.highlight[2] - color[2]) * (0.28 + flash * 0.35),
+        color[3] + (palette.highlight[3] - color[3]) * (0.28 + flash * 0.35),
+        alpha)
+    love.graphics.polygon("fill", x, y - height, x + width, y, x, centerY)
+    love.graphics.setColor(color[1] * 0.56, color[2] * 0.56, color[3] * 0.56, alpha)
+    love.graphics.polygon("fill", x, centerY, x + width, y, x, y + height)
+    love.graphics.setColor(color[1] * 0.78, color[2] * 0.78, color[3] * 0.78, alpha)
+    love.graphics.polygon("fill", x, centerY, x, y + height, x - width, y)
+
+    love.graphics.setColor(palette.highlight[1], palette.highlight[2], palette.highlight[3], 0.45 + flash * 0.35)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(x, y - height + 1, x - width + 1, y)
 end
 
 function InteractionBeacon.drawUnderlay(selected, clock, options)
@@ -123,18 +149,18 @@ function InteractionBeacon.drawUnderlay(selected, clock, options)
     local pulse = reducedMotion and 0 or math.sin((clock or 0) * 4.2) * 0.8
     local activation = activationAmount(target, reducedMotion)
     local scale = 0.90 + close * 0.10 + (hovered and 0.08 or 0) + activation * 0.10
-    local radius = (target.beaconRadius or 15) * scale + pulse
+    local radius = (target.beaconRadius or 17) * scale + pulse
     local x = snap(target.x + (target.beaconOffsetX or 0), options)
     local y = snap(target.y + (target.beaconGroundOffset or 8), options)
     local oldWidth = love.graphics.getLineWidth()
 
-    love.graphics.setColor(palette.outline[1], palette.outline[2], palette.outline[3], highContrast and 0.92 or 0.68)
-    love.graphics.setLineWidth(highContrast and 4 or 3)
-    love.graphics.ellipse("line", x, y, radius + 2, radius * 0.43 + 1)
+    love.graphics.setColor(palette.outline[1], palette.outline[2], palette.outline[3], highContrast and 0.90 or 0.22)
+    love.graphics.setLineWidth(highContrast and 4 or 2)
+    love.graphics.ellipse("line", x, y + 1, radius + 1.5, radius * 0.43 + 1)
 
     love.graphics.setColor(color[1], color[2], color[3], 0.08 + close * 0.10)
     love.graphics.ellipse("fill", x, y, radius, radius * 0.43)
-    love.graphics.setColor(color[1], color[2], color[3], 0.62 + close * 0.28)
+    love.graphics.setColor(color[1], color[2], color[3], 0.50 + close * 0.28)
     love.graphics.setLineWidth(highContrast and 2.5 or 1.5)
     love.graphics.ellipse("line", x, y, radius, radius * 0.43)
     love.graphics.setLineWidth(oldWidth)
@@ -154,21 +180,13 @@ function InteractionBeacon.drawOverlay(selected, clock, options)
     local hovered = selected.hovered == true
     local bob = reducedMotion and 0 or math.sin((clock or 0) * 3.8) * (1.2 + close * 0.8)
     local activation = activationAmount(target, reducedMotion)
-    local size = (target.beaconSize or 5) * (0.92 + close * 0.08 + (hovered and 0.12 or 0) + activation * 0.18)
+    local size = (target.beaconSize or 6) * (0.92 + close * 0.08 + (hovered and 0.12 or 0) + activation * 0.18)
     local x = snap(target.x + (target.beaconOffsetX or 0), options)
     local y = snap(target.y - (target.beaconHeight or 29) + bob, options)
     local oldWidth = love.graphics.getLineWidth()
 
-    love.graphics.setColor(palette.outline[1], palette.outline[2], palette.outline[3], highContrast and 0.95 or 0.78)
-    love.graphics.setLineWidth(highContrast and 3 or 2)
-    love.graphics.line(x, y + size + 2, x, target.y - 7)
-    drawDiamond("fill", x, y, size + (highContrast and 2.5 or 1.5))
-
-    love.graphics.setColor(color[1], color[2], color[3], 0.82 + close * 0.18)
-    drawDiamond("fill", x, y, size)
-    love.graphics.setColor(palette.highlight[1], palette.highlight[2], palette.highlight[3], 0.72 + activation * 0.28)
-    love.graphics.setLineWidth(1)
-    love.graphics.line(x, y - size + 1, x - size + 1, y)
+    drawGem(x, y, size, size * 1.45, color, palette,
+        0.82 + close * 0.18, highContrast, activation)
     love.graphics.setLineWidth(oldWidth)
     love.graphics.setColor(1, 1, 1, 1)
 end
