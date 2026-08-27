@@ -1,4 +1,6 @@
 local Config = require("src.config")
+local CharacterAnimation = require("src.character_animation")
+local InteractionBeacon = require("src.interaction_beacon")
 local CutterPlacement = require("src.cutter_placement")
 local PalletJack = require("src.pallet_jack")
 local PalletLogistics = require("src.pallet_logistics")
@@ -428,7 +430,13 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY)
         if a.y == b.y then return (a.layer or 0) < (b.layer or 0) end
         return a.y < b.y
     end)
+    InteractionBeacon.drawUnderlay(World.getInteraction(), World.player.interactionClock, {
+        player = World.player,
+    })
     for _, actor in ipairs(actors) do actor.draw() end
+    InteractionBeacon.drawOverlay(World.getInteraction(), World.player.interactionClock, {
+        player = World.player,
+    })
     drawPalletTooltip(state, mouseX, mouseY)
 end
 
