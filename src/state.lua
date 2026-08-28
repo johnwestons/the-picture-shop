@@ -12,6 +12,27 @@ local MachineFleet = require("src.machine_fleet")
 local WindmillPlacement = require("src.windmill_placement")
 local Windmill = require("src.windmill")
 
+local SHARED_FIELDS = {
+    "money",
+    "inventory",
+    "shopProgress",
+    "cutterMemory",
+    "jobs",
+    "palletJack",
+    "wrapper",
+    "windmill",
+    "technicianVisit",
+    "cutter",
+    "nextJobId",
+    "accountsReceivable",
+    "procurement",
+    "vendorCategory",
+    "calendar",
+    "bills",
+    "clientEmails",
+    "machines",
+}
+
 function State.new()
     local state = SaveSchema.defaultState()
     state.screen = "title"
@@ -101,6 +122,32 @@ function State.applySave(state, payload)
     state.currentOffer = nil
     state.screen = "world"
     state.message = "Shop opened."
+    return true
+end
+
+-- A LAN guest receives only the host's normalized persistent shop state. The
+-- guest intentionally has no local save slot, so autosave and quit can never
+-- overwrite one of its offline shops.
+function State.applySharedSnapshot(state, snapshot)
+    if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+    local staged = State.new()
+    if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
+    for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    state.activeSlot = nil
+    state.currentOffer = nil
+    state.screen = "world"
+    state.message = "Shop opened."
+    return true
+end
+
+-- Continuous authoritative updates replace only durable domain fields. The
+-- guest keeps its local screen/message/input state and never gains a save slot.
+function State.applySharedUpdate(state, snapshot)
+    if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+    local staged = State.new()
+    if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
+    for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    state.activeSlot = nil
     return true
 end
 

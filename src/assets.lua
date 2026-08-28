@@ -90,50 +90,12 @@ local function makeQuad(name, image, x, y, width, height)
     }
 end
 
-local function registerRabbitAtlas(image)
-    if not image then return end
-    local width, height = image:getDimensions()
-    if width % 6 ~= 0 or height % 4 ~= 0 then
-        recordFailure(Config.paths.rabbit, "atlas must be divisible into a 6x4 grid")
-        return
-    end
-
-    local cellWidth, cellHeight = width / 6, height / 4
-    Assets.rabbit = {
-        cellWidth = cellWidth,
-        cellHeight = cellHeight,
-        idle = {},
-        walk = {},
-    }
-    for column = 1, 2 do
-        Assets.rabbit.idle[column] = love.graphics.newQuad(
-            (column - 1) * cellWidth,
-            0,
-            cellWidth,
-            cellHeight,
-            width,
-            height
-        )
-    end
-    for column = 1, 6 do
-        Assets.rabbit.walk[column] = love.graphics.newQuad(
-            (column - 1) * cellWidth,
-            cellHeight,
-            cellWidth,
-            cellHeight,
-            width,
-            height
-        )
-    end
-end
-
 function Assets.load()
     Assets.activatePack(nil)
     Assets.images = {}
     Assets.data = {}
     Assets.quads = {}
     Assets.failures = {}
-    Assets.rabbit = nil
     Assets.activePack = nil
 
     local warehouse = loadImage("warehouse", Config.paths.warehouse, false)
@@ -142,7 +104,6 @@ function Assets.load()
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
     local windmillDirections = loadImage("windmillDirections", Config.paths.windmillDirections, false)
     local technicianNpcs = loadImage("technicianNpcs", Config.paths.technicianNpcs, false)
-    local rabbit = loadImage("rabbit", Config.paths.rabbit, false)
     local loadingBayDoor = loadImage("loadingBayDoor", Config.paths.loadingBayDoor, false)
     local deliveryTruck = loadImage("deliveryTruck", Config.paths.deliveryTruck, false)
     local truckCargoDoor = loadImage("truckCargoDoor", Config.paths.truckCargoDoor, false)
@@ -156,6 +117,7 @@ function Assets.load()
     local boxedPaperPalletStages = loadImage("boxedPaperPalletStages", Config.paths.boxedPaperPalletStages, false)
     local polarBackButton = loadImage("polarBackButton", Config.paths.polarBackButton, false)
     local wrappedPalletStages = loadImage("wrappedPalletStages", Config.paths.wrappedPalletStages, false)
+    local palletWorkOrderPaper = loadImage("palletWorkOrderPaper", Config.paths.palletWorkOrderPaper, false)
     for key, path in pairs(Config.paths.artwork or {}) do
         loadImage("artwork:" .. key, path, false)
         validateExactPath(path, 128, 128)
@@ -373,12 +335,14 @@ function Assets.load()
     validateExactPath(Config.paths.polarBackButton, 384, 128)
     validateExactPath(Config.paths.wrappedPalletStages, 1536, 512)
     validateExactPath(Config.paths.loadedPaperPallet, 256, 256)
+    if palletWorkOrderPaper then
+        hasExactDimensions(palletWorkOrderPaper, Config.paths.palletWorkOrderPaper, 1536, 1024)
+    end
     if polarBackButton then
         for frame = 1, 3 do
             makeQuad("polarBackButton" .. frame, polarBackButton, (frame - 1) * 128, 0, 128, 128)
         end
     end
-    registerRabbitAtlas(rabbit)
 end
 
 local PACK_IMAGES = {
@@ -386,7 +350,7 @@ local PACK_IMAGES = {
     cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
         "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
-    press = { "pressProcessStages" },
+    press = { "pressProcessStages", "pressOperatorHandbook", "pressSetupInteractions" },
 }
 
 local function releaseImage(name)
@@ -417,6 +381,8 @@ local function clearPackQuads(packName)
     end
     if packName == "press" then
         for frame = 1, 4 do Assets.quads["pressProcessStage" .. frame] = nil end
+        for frame = 1, 10 do Assets.quads["pressHandbookPage" .. frame] = nil end
+        for frame = 1, 6 do Assets.quads["pressSetupInteraction" .. frame] = nil end
     end
 end
 
@@ -503,7 +469,9 @@ end
 
 local function loadPressPack()
     local stages = loadImage("pressProcessStages", Config.paths.pressProcessStages, false)
-    if not stages then return false end
+    local handbook = loadImage("pressOperatorHandbook", Config.paths.pressOperatorHandbook, false)
+    local interactions = loadImage("pressSetupInteractions", Config.paths.pressSetupInteractions, false)
+    if not stages or not handbook or not interactions then return false end
     local width, height = stages:getDimensions()
     if width ~= 1254 or height ~= 1254 then
         recordFailure(Config.paths.pressProcessStages, string.format(
@@ -517,6 +485,32 @@ local function loadPressPack()
             makeQuad("pressProcessStage" .. frame, stages,
                 (column - 1) * cellWidth, (row - 1) * cellHeight,
                 cellWidth, cellHeight)
+        end
+    end
+    local handbookWidth, handbookHeight = handbook:getDimensions()
+    if handbookWidth ~= 2560 or handbookHeight ~= 1024 then
+        recordFailure(Config.paths.pressOperatorHandbook, string.format(
+            "expected 2560x1024 press-handbook atlas, got %dx%d", handbookWidth, handbookHeight))
+        return false
+    end
+    for row = 1, 2 do
+        for column = 1, 5 do
+            local frame = (row - 1) * 5 + column
+            makeQuad("pressHandbookPage" .. frame, handbook,
+                (column - 1) * 512, (row - 1) * 512, 512, 512)
+        end
+    end
+    local interactionWidth, interactionHeight = interactions:getDimensions()
+    if interactionWidth ~= 1536 or interactionHeight ~= 1024 then
+        recordFailure(Config.paths.pressSetupInteractions, string.format(
+            "expected 1536x1024 press-setup atlas, got %dx%d", interactionWidth, interactionHeight))
+        return false
+    end
+    for row = 1, 2 do
+        for column = 1, 3 do
+            local frame = (row - 1) * 3 + column
+            makeQuad("pressSetupInteraction" .. frame, interactions,
+                (column - 1) * 512, (row - 1) * 512, 512, 512)
         end
     end
     return true
@@ -572,12 +566,6 @@ end
 function Assets.getArtwork(key)
     return Assets.images["artwork:" .. tostring(key or "flower")]
         or Assets.images["artwork:flower"]
-end
-
-function Assets.getRabbitFrame(action, frame)
-    local frames = Assets.rabbit and Assets.rabbit[action]
-    if not frames or #frames == 0 then return nil end
-    return frames[((frame - 1) % #frames) + 1], Assets.rabbit.cellWidth, Assets.rabbit.cellHeight
 end
 
 function Assets.assertHealthy()

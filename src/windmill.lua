@@ -107,6 +107,46 @@ function Windmill.failureSummary(state)
     return warning or "NO ACTIVE FAULTS"
 end
 
+local function dryingDuration(job)
+    local finish = job and job.stockSpec and job.stockSpec.finish
+        or (job and job.details and tostring(job.details.stockDescription or ""))
+    return tostring(finish or ""):lower():find("gloss", 1, true) and 8 or 2
+end
+
+function Windmill.dryingStatus(state, job, pallet)
+    local press = pallet and ensurePalletPress(job, pallet)
+    if not press or press.status ~= "drying" then return nil end
+    local duration = dryingDuration(job)
+    local finish = tonumber(press.dryUntilHours)
+    if not finish then
+        return { progress = 1, remainingHours = 0, durationHours = duration, ready = true }
+    end
+    local now = BusinessCalendar.absoluteHours(state)
+    local remaining = math.max(0, finish - now)
+    local progress = clamp(1 - remaining / math.max(0.001, duration), 0, 1)
+    return {
+        progress = progress,
+        remainingHours = remaining,
+        durationHours = duration,
+        ready = remaining <= 0,
+    }
+end
+
+function Windmill.dryingPallets(state)
+    local result = {}
+    for _, job in ipairs(state.jobs and state.jobs.active or {}) do
+        if job.press then
+            for _, pallet in ipairs(job.pallets or {}) do
+                local drying = Windmill.dryingStatus(state, job, pallet)
+                if drying and not drying.ready then
+                    result[#result + 1] = { job = job, pallet = pallet, drying = drying }
+                end
+            end
+        end
+    end
+    return result
+end
+
 function Windmill.candidates(state)
     local result = {}
     for _, job in ipairs(state.jobs and state.jobs.active or {}) do
@@ -217,6 +257,24 @@ end
 
 function Windmill.setupTasks() return setupTasks end
 
+function Windmill.proofReadiness(state)
+    local p, job, pallet = Windmill.current(state)
+    if not job or not pallet then return false, "Load a print-ready pallet first." end
+    local plate = p.colorIndex and Plates.ensureJob(job)[p.colorIndex] or nil
+    if not plate or plate.status ~= "ready" or not plate.mounted then
+        return false, "Prepare and mount the plate for this color before proofing."
+    end
+    if not Windmill.setupComplete(state) then return false, "Complete all six setup checks first." end
+    if p.emergency then return false, "Reset the emergency stop before proofing." end
+    if not p.motor then return false, "Start the motor before proofing." end
+    if not p.feeder then return false, "Turn the feeder on before proofing." end
+    if not p.impression then return false, "Turn impression on before proofing." end
+    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
+        return false, "No proof allowance remains; preserve the remaining client sheets."
+    end
+    return true, "Ready to pull one proof sheet."
+end
+
 function Windmill.control(state, action)
     local p = Windmill.ensure(state)
     if action == "emergency" then
@@ -251,13 +309,8 @@ end
 
 function Windmill.takeProof(state)
     local p, job, pallet = Windmill.current(state)
-    if not job or not pallet or not Windmill.setupComplete(state) then return false, "Complete all setup tasks first." end
-    if p.emergency or not p.motor or not p.feeder or not p.impression then
-        return false, "Proofing requires motor, feeder, and impression on."
-    end
-    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
-        return false, "No proof allowance remains. Preserve the remaining sheets for the client quantity."
-    end
+    local ready, reason = Windmill.proofReadiness(state)
+    if not ready then return false, reason end
     local plate = Plates.ensureJob(job)[p.colorIndex]
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
     local condition = machine and MachineFleet.condition(machine) / 100 or 0
@@ -393,10 +446,7 @@ function Windmill.cleanAndUnload(state)
     pallet.finishedSheets = p.goodSheets
     pallet.press.status = p.colorIndex >= (job.press.colors or 1) and "complete" or "drying"
     if pallet.press.status == "drying" then
-        local finish = job.stockSpec and job.stockSpec.finish
-            or (job.details and tostring(job.details.stockDescription or ""))
-        local coated = tostring(finish or ""):lower():find("gloss", 1, true)
-        pallet.press.dryUntilHours = BusinessCalendar.absoluteHours(state) + (coated and 8 or 2)
+        pallet.press.dryUntilHours = BusinessCalendar.absoluteHours(state) + dryingDuration(job)
     else
         pallet.press.dryUntilHours = nil
         pallet.status = "printed"

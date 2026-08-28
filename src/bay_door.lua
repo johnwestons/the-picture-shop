@@ -8,7 +8,6 @@ function BayDoor.new(config)
         duration = config.duration or 0.9,
         frameCount = config.frameCount or 5,
         interaction = config.interaction,
-        obstacle = config.obstacle,
     }, Instance)
     instance:reset()
     return instance
@@ -74,12 +73,28 @@ function Instance:getInteraction()
 end
 
 function Instance:getObstacle()
-    if self.state == "open" then return nil end
-    return { x = self.obstacle.x, y = self.obstacle.y, radius = self.obstacle.radius }
+    -- The door is a vertical animated overlay. Floor access is governed by
+    -- the aligned warehouse walkmask, so the sprite must never add a circular
+    -- movement blocker in front of the loading bay.
+    return nil
 end
 
 function Instance:snapshot()
     return { state = self.state, progress = self.progress, frame = self:frame() }
+end
+
+function Instance:applySnapshot(snapshot)
+    local states = { closed = true, opening = true, open = true, closing = true }
+    if type(snapshot) ~= "table" or not states[snapshot.state]
+        or type(snapshot.progress) ~= "number" or snapshot.progress ~= snapshot.progress
+        or snapshot.progress < 0 or snapshot.progress > 1
+        or (snapshot.state == "closed" and snapshot.progress ~= 0)
+        or (snapshot.state == "open" and snapshot.progress ~= 1)
+    then
+        return false
+    end
+    self.state, self.progress = snapshot.state, snapshot.progress
+    return true
 end
 
 BayDoor.Instance = Instance

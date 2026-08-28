@@ -12,7 +12,7 @@ The runtime boundary is organized by residency pack. `src/assets.lua` validates 
 | `skidWrapperDirections` | 2048x512, 4x1 | Movable wrapper |
 | `windmillDirections` | 1536x1024, 2x2 | Four-way movable Windmill |
 | `technicianNpcs` | 2048x1024, 4x2 | Mouse and lizard field technicians |
-| `rabbit` | 1536x1024, 6x4 | Player animation |
+| `characters/rabbit-worker` directional idles / walks | five 1024x512, 2x1 / five 4096x512, 8x1 strips | Paired eight-sector streamed player movement pack |
 | `loadingBayDoor` | 1300x260, 5x1 | Loading-bay animation |
 | `deliveryTruck` | 512x512 | Truck body |
 | `truckCargoDoor` | 2560x512, 5x1 | Truck cargo animation |
@@ -24,6 +24,7 @@ The runtime boundary is organized by residency pack. `src/assets.lua` validates 
 | `boxedPaperPalletStages` | 1400x1120, 5x4 | Boxed customer pallets |
 | `wrappedPalletStages` | 1536x512, 3x1 | Wrapper progress and completed flat pallets |
 | `polarBackButton` | 384x128, 3x1 | Shared Back/Exit control |
+| `palletWorkOrderPaper` | 1536x1024 | Pallet-attached work-order screen background |
 
 Configured `artwork:*` images are 128x128 library entries resolved by saved artwork key and rotated through job offers. Visitor character action strips are validated from `Config.characters`, loaded only when that action is drawn, normalized from precomputed alpha bounds, and released when the visitor leaves.
 
@@ -34,7 +35,7 @@ Configured `artwork:*` images are 128x128 library entries resolved by saved artw
 | Menu | `polarOperatorConsole` (768x512), `cutterControlButtons` (512x128) | Title only |
 | Cutter | Menu art, `cutterClamp` / `cutterBlade` (3840x512), `cutterMaintenanceOil` (512x512), `cutterMaintenanceTools` (768x512, 3x2), and `cutterMaintenanceScenes` (1024x768, 2x2) | Cutter console and maintenance minigames |
 | Wrapper | `loadedPaperPallet` (256x256) | Wrapper console only |
-| Press | `pressProcessStage1` ... `pressProcessStage4`, cut from `press-process-stages-atlas-v3.png` (1254x1254, 2x2) | Windmill run, plate, proof, and finished-process views |
+| Press | `pressProcessStage1` ... `pressProcessStage4`, cut from `press-process-stages-atlas-v3.png` (1254x1254, 2x2); `pressHandbookPage1` ... `pressHandbookPage10`, cut from `heidelberg-operator-handbook-atlas-v2.png` (2560x1024, 5x2); `pressSetupInteraction1` ... `pressSetupInteraction6`, cut from `heidelberg-setup-interactions-atlas-v2.png` (1536x1024, 3x2) | Windmill previews, illustrated Help handbook, and six setup minigames |
 
 Menu, cutter, wrapper, and press packs are mutually exclusive. Transition tests verify load, replacement, and release. The smoke gate enforces a retained startup set below 100 MiB with no character action loaded.
 
@@ -55,3 +56,13 @@ The player procedure uses lockout/tagout, grease-gun preparation, fitting cleani
 ## Windmill print-process atlas
 
 Built-in ImageGen prompt sequence: create a transparent 2x2 semi-pixel-art/isometric atlas matching the shop, with a client proof/file board, plate in chase, proof beneath a loupe, and finished stack; then remove every baked artwork mark from the four printable surfaces so the game can overlay the active job image; finally extract the checkerboard into true alpha without changing the objects, blank surfaces, crop marks, loupe, shadows, or lighting. No readable text, logos, watermark, or baked client art. The installed RGBA asset is `assets/generated/press-process-stages-atlas-v3.png`.
+
+## Windmill operator-handbook atlas
+
+Built-in ImageGen transformed ten tightly cropped, face-free photographs from *Manual for the Operation of Heidelberg Platens* into a 5x2 educational pixel-art atlas. The original camera angles and machine geometry are retained, while every visible hand wears a fitted brown leather glove. The panels show motor controls, stock loading, chase lockup, tympan packing, form rollers, ink flow, feeder suction, register guides, washup, and lubrication. Runtime text supplies the explanations and source note so the wording remains readable and maintainable. The installed asset is `assets/generated/heidelberg-operator-handbook-atlas-v2.png`.
+
+## Pallet work-order sheet
+
+Built-in ImageGen stylized-concept prompt: create a blank vintage industrial work-order sheet that looks physically attached to a paper pallet, nearly front-facing and landscape-oriented, with warm ivory fibers, restrained age marks, worn edges, corner folds, staple marks, faint blank form rules, and generous clear regions for runtime text and client art. Match the detailed semi-pixel-art warehouse style. Use true transparency outside the paper and include no words, letters, numbers, logos, handwriting, people, or baked client artwork. The generated checkerboard border is deterministically converted to true alpha by `tools/prepare_pallet_work_order_paper.py`; the installed asset is `assets/generated/pallet-work-order-paper-v1.png`.
+
+Work-order copy uses the Apache-licensed Special Elite typeface from Google Fonts. The font and its license are bundled in `assets/fonts/` so the screen keeps its typewriter character offline.

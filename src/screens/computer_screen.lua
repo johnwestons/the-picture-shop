@@ -39,10 +39,10 @@ local TABS = {
     { id = "bills", label = "BILLS", x = 754, y = 128, width = 90, height = 40 },
 }
 local LIST = { x = 82, y = 190, width = 310, height = 370 }
-local DETAIL = { x = 412, y = 190, width = 440, height = 408 }
+local DETAIL = { x = 412, y = 190, width = 440, height = 444 }
 local PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }
 local NEXT = { x = 306, y = 570, width = 86, height = 30 }
-local COMPLETE = { x = 598, y = 548, width = 228, height = 36 }
+local COMPLETE = { x = 598, y = 598, width = 228, height = 36 }
 local RETAIL = { x = 444, y = 388, width = 378, rowHeight = 44, gap = 5 }
 local RETAIL_PREVIOUS = { x = 718, y = 354, width = 46, height = 28 }
 local RETAIL_NEXT = { x = 776, y = 354, width = 46, height = 28 }
@@ -52,6 +52,7 @@ local EMAIL_QUOTE_INPUT = { x = 434, y = 470, width = 190, height = 40 }
 local EMAIL_ACCEPT = { x = 640, y = 470, width = 186, height = 40 }
 local EMAIL_DECLINE = { x = 434, y = 526, width = 186, height = 44 }
 local PROMO = { x = 640, y = 526, width = 186, height = 44 }
+local JOB_PROMO = { x = 640, y = 590, width = 186, height = 44 }
 local PROMO_INPUT = { x = 434, y = 338, width = 392, height = 122 }
 local CAL_PREVIOUS = { x = 96, y = 202, width = 42, height = 30 }
 local CAL_NEXT = { x = 542, y = 202, width = 42, height = 30 }
@@ -528,7 +529,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
         return { action = completionReady(selected) and "pickup_ready" or "completion_blocked",
             job = selected }
     end
-    if ComputerScreen.tab == "completed" and selected and contains(PROMO, x, y) then
+    if ComputerScreen.tab == "completed" and selected and contains(JOB_PROMO, x, y) then
         ComputerScreen.promoJobId = selected.id
         ComputerScreen.promoText = ""
         ComputerScreen.promoFocused = false
@@ -662,9 +663,64 @@ local function drawArtworkPreview(assets, job, x, y, size)
     end
     love.graphics.setColor(0.72, 0.79, 0.80)
     local name = job and job.artwork and (job.artwork.displayName or job.artwork.fileName) or key
-    love.graphics.printf((job and job.press and "CLIENT ART FILE\n" or "JOB ART\n")
+    love.graphics.printf((job and job.press and "CLIENT ART\n" or "JOB ART\n")
         .. string.upper(name or "artwork"),
         x - 31, y + size + 8, size + 62, "center")
+end
+
+local function detailRows(selected)
+    local details = selected.details or {}
+    local rows = {
+        { text = string.format("Parent: %g × %g in",
+            selected.sourceSize.width, selected.sourceSize.height), width = 310 },
+        { text = string.format("Finished: %g × %g in",
+            selected.finishedSize.width, selected.finishedSize.height), width = 310 },
+        { text = "Stock: " .. (selected.stockSpec and selected.stockSpec.description
+            or details.stockDescription or "Customer supplied"), width = 310 },
+        { text = "Packaging: " .. ComputerScreen.packagingText(selected), width = 310 },
+    }
+    if selected.press then
+        local actual = selected.press.actual or {}
+        rows[#rows + 1] = {
+            text = string.format("Print: %s target • %s supplied • %d imp • %d spoil",
+                commaNumber(selected.quote.orderedCopies or selected.press.orderedQuantity
+                    or selected.quote.totalSheets),
+                commaNumber(selected.quote.suppliedSheets or selected.quote.totalSheets),
+                actual.impressions or 0, actual.spoilage or 0),
+            width = DETAIL.width - 40,
+        }
+        rows[#rows + 1] = {
+            text = string.format("Inks (%d): %s", selected.press.colors or 1,
+                table.concat(selected.press.colorSequence or { "Black" }, " → ")),
+            width = DETAIL.width - 40,
+        }
+    end
+    return rows
+end
+
+function ComputerScreen.jobDetailLayout(selected)
+    local font = love.graphics.getFont()
+    local y = DETAIL.y + 96
+    local rows = detailRows(selected)
+    for _, row in ipairs(rows) do
+        local _, wrapped = font:getWrap(row.text, row.width)
+        row.y = y
+        row.height = math.max(1, #wrapped) * font:getHeight()
+        y = y + row.height + 4
+    end
+    local valueY = y + 1
+    local tableY = valueY + font:getHeight() + 9
+    local palletCount = #(selected.pallets or {})
+    local palletRowHeight = palletCount >= 3 and 24 or 28
+    return {
+        rows = rows,
+        valueY = valueY,
+        tableY = tableY,
+        palletRowHeight = palletRowHeight,
+        textBottom = y,
+        tableBottom = tableY + 30 + palletCount * palletRowHeight,
+        actionTop = ComputerScreen.tab == "completed" and JOB_PROMO.y or COMPLETE.y,
+    }
 end
 
 local function drawDetail(state, pointerX, pointerY, assets)
@@ -695,47 +751,32 @@ local function drawDetail(state, pointerX, pointerY, assets)
             DETAIL.x + 20, DETAIL.y + 326, DETAIL.width - 40, "left")
         return
     end
-    local details = selected.details or {}
     love.graphics.setColor(0.96, 0.84, 0.30)
     love.graphics.print(selected.id .. "  •  " .. selected.company, DETAIL.x + 20, DETAIL.y + 18)
     love.graphics.setColor(0.72, 0.79, 0.80)
     love.graphics.print(StatusLabels.get(selected.status), DETAIL.x + 20, DETAIL.y + 44)
     love.graphics.printf("Inbound: " .. JobService.deliverySummary(selected, state),
         DETAIL.x + 20, DETAIL.y + 66, 310, "left")
-    love.graphics.print(string.format("Parent: %g × %g in", selected.sourceSize.width, selected.sourceSize.height),
-        DETAIL.x + 20, DETAIL.y + 96)
-    love.graphics.print(string.format("Finished: %g × %g in", selected.finishedSize.width, selected.finishedSize.height),
-        DETAIL.x + 20, DETAIL.y + 118)
-    love.graphics.printf("Stock: " .. (selected.stockSpec and selected.stockSpec.description
-        or details.stockDescription or "Customer supplied"),
-        DETAIL.x + 20, DETAIL.y + 142, 310, "left")
-    love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(selected),
-        DETAIL.x + 20, DETAIL.y + 166, 310, "left")
-    if selected.press then
-        local actual = selected.press.actual or {}
-        love.graphics.printf(string.format("Print: %s good / %s supplied • %d color%s • %s • %d imp / %d spoil",
-            commaNumber(selected.quote.orderedCopies or selected.press.orderedQuantity or selected.quote.totalSheets),
-            commaNumber(selected.quote.suppliedSheets or selected.quote.totalSheets),
-            selected.press.colors or 1, (selected.press.colors or 1) == 1 and "" or "s",
-            table.concat(selected.press.colorSequence or { "Black" }, " → "),
-            actual.impressions or 0, actual.spoilage or 0),
-            DETAIL.x + 20, DETAIL.y + 187, 440, "left")
+    local layout = ComputerScreen.jobDetailLayout(selected)
+    for _, row in ipairs(layout.rows) do
+        love.graphics.printf(row.text, DETAIL.x + 20, row.y, row.width, "left")
     end
-    love.graphics.print("Job value: " .. money(selected.quote.totalPrice), DETAIL.x + 20, DETAIL.y + 206)
-    love.graphics.print("Required lifts: " .. selected.quote.totalLifts, DETAIL.x + 190, DETAIL.y + 206)
+    love.graphics.print("Job value: " .. money(selected.quote.totalPrice), DETAIL.x + 20, layout.valueY)
+    love.graphics.print("Required lifts: " .. selected.quote.totalLifts, DETAIL.x + 190, layout.valueY)
     drawArtworkPreview(assets, selected, DETAIL.x + 350, DETAIL.y + 34, 70)
 
     love.graphics.setColor(0.16, 0.22, 0.24)
-    love.graphics.rectangle("fill", DETAIL.x + 18, DETAIL.y + 232, DETAIL.width - 36, 26)
+    love.graphics.rectangle("fill", DETAIL.x + 18, layout.tableY, DETAIL.width - 36, 26)
     love.graphics.setColor(0.85, 0.88, 0.87)
-    love.graphics.print("PALLET", DETAIL.x + 28, DETAIL.y + 239)
-    love.graphics.print(selected.press and "GOOD / TARGET" or "REMAINING", DETAIL.x + 132, DETAIL.y + 239)
-    love.graphics.print("LIFTS", DETAIL.x + 270, DETAIL.y + 239)
-    love.graphics.print("STATE", DETAIL.x + 340, DETAIL.y + 239)
+    love.graphics.print("PALLET", DETAIL.x + 28, layout.tableY + 7)
+    love.graphics.print(selected.press and "GOOD / TARGET" or "REMAINING", DETAIL.x + 132, layout.tableY + 7)
+    love.graphics.print("LIFTS", DETAIL.x + 270, layout.tableY + 7)
+    love.graphics.print("STATE", DETAIL.x + 340, layout.tableY + 7)
     for index, pallet in ipairs(selected.pallets or {}) do
-        local y = DETAIL.y + 264 + (index - 1) * 28
+        local y = layout.tableY + 30 + (index - 1) * layout.palletRowHeight
         love.graphics.setColor(0.12, 0.15, 0.17)
-        love.graphics.rectangle("fill", DETAIL.x + 18, y, DETAIL.width - 36, 25)
+        love.graphics.rectangle("fill", DETAIL.x + 18, y, DETAIL.width - 36,
+            layout.palletRowHeight - 3)
         love.graphics.setColor(0.78, 0.83, 0.83)
         love.graphics.print(tostring(pallet.number), DETAIL.x + 48, y + 7)
         if selected.press then
@@ -750,11 +791,13 @@ local function drawDetail(state, pointerX, pointerY, assets)
     end
 
     if ComputerScreen.tab == "completed" then
-        local hovered = pointerX and contains(PROMO, pointerX, pointerY)
+        local hovered = pointerX and contains(JOB_PROMO, pointerX, pointerY)
         love.graphics.setColor(hovered and 0.19 or 0.12, hovered and 0.55 or 0.42, 0.29)
-        love.graphics.rectangle("fill", PROMO.x, PROMO.y, PROMO.width, PROMO.height, 3, 3)
+        love.graphics.rectangle("fill", JOB_PROMO.x, JOB_PROMO.y,
+            JOB_PROMO.width, JOB_PROMO.height, 3, 3)
         love.graphics.setColor(0.95, 0.97, 0.94)
-        love.graphics.printf("EMAIL 10% PROMO", PROMO.x, PROMO.y + 15, PROMO.width, "center")
+        love.graphics.printf("EMAIL 10% PROMO", JOB_PROMO.x, JOB_PROMO.y + 15,
+            JOB_PROMO.width, "center")
         return
     end
     if ComputerScreen.tab ~= "active" then return end

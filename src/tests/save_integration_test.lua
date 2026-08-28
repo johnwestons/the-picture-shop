@@ -406,6 +406,35 @@ function Test.run(context, check, economy, jobs)
         not context.save.save(1, invalidNested, { x = 1, y = 1 })
         and love.filesystem.read("saves/slot1.lua") == beforeInvalidWrite
         and context.save.load(1).state.money == 515)
+
+    local writable, writableError = context.save.preflightWritable(1)
+    local probeArtifactFound = false
+    for _, item in ipairs(love.filesystem.getDirectoryItems("saves") or {}) do
+        if item:find(".host-write-probe-", 1, true) then probeArtifactFound = true end
+    end
+    check("save_host_preflight_is_non_destructive_and_cleans_probe",
+        writable == true and writableError == nil and not probeArtifactFound
+        and love.filesystem.read("saves/slot1.lua") == beforeInvalidWrite
+        and context.save.load(1).state.money == 515)
+    check("save_host_preflight_rejects_invalid_slot_without_writing",
+        context.save.preflightWritable(0) == false
+        and love.filesystem.read("saves/slot1.lua") == beforeInvalidWrite)
+
+    local originalCreateDirectory = love.filesystem.createDirectory
+    local failedPreflight, failedPreflightMessage
+    local protected = pcall(function()
+        love.filesystem.createDirectory = function(path)
+            if path == "saves" then return false, "synthetic directory failure" end
+            return originalCreateDirectory(path)
+        end
+        failedPreflight, failedPreflightMessage = context.save.preflightWritable(1)
+    end)
+    love.filesystem.createDirectory = originalCreateDirectory
+    check("save_host_preflight_reports_private_directory_failure_without_slot_damage",
+        protected and failedPreflight == false
+        and type(failedPreflightMessage) == "string"
+        and failedPreflightMessage:find("private save folder", 1, true) ~= nil
+        and love.filesystem.read("saves/slot1.lua") == beforeInvalidWrite)
     context.save.delete(1)
 
     local backupState = context.State.new()

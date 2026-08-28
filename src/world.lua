@@ -11,6 +11,7 @@ local Navigation = require("src.navigation")
 local PlacementGrid = require("src.placement_grid")
 local PalletLogistics = require("src.pallet_logistics")
 local PalletJack = require("src.pallet_jack")
+local PlayerController = require("src.player_controller")
 local Procurement = require("src.procurement")
 local Truck = require("src.truck")
 local Technician = require("src.technician")
@@ -22,12 +23,17 @@ local WindmillPlacement = require("src.windmill_placement")
 
 local World = {
     player = {
+        character = Config.player.character,
         x = Config.player.spawnX,
         y = Config.player.spawnY,
         speed = Config.player.speed,
         moving = false,
         facing = 1,
-        animationClock = 0,
+        velocityX = 0,
+        velocityY = 0,
+        animationDistance = 0,
+        idleClock = 0,
+        interactionClock = 0,
     },
     bayDoor = BayDoor.new(Config.loadingBay),
     truck = Truck.new(Config.truck),
@@ -60,8 +66,6 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
     if vendorObstacle then obstacles[#obstacles + 1] = vendorObstacle end
     local technicianObstacle = Technician.obstacle(state)
     if technicianObstacle then obstacles[#obstacles + 1] = technicianObstacle end
-    local bayObstacle = World.bayDoor:getObstacle()
-    if bayObstacle then obstacles[#obstacles + 1] = bayObstacle end
     local truckObstacle = World.truck:getObstacle()
     if truckObstacle then obstacles[#obstacles + 1] = truckObstacle end
     for _, obstacle in ipairs(PalletLogistics.obstacles(state,
@@ -169,7 +173,8 @@ function World.findCutterOutput(state, assets, excludedPalletId)
     end)
 end
 
-local function interactables()
+local function interactables(player)
+    player = player or World.player
     local targets = {
         computer = Config.interactables.computer,
     }
@@ -184,21 +189,38 @@ local function interactables()
     local truckInteraction = World.truck:getInteraction()
     if truckInteraction then targets.truckCargoDoor = truckInteraction end
     if World._state then
+        local nearestPallet
+        local nearestDistance
+        for _, item in ipairs(PalletLogistics.physicalPallets(World._state)) do
+            local distance = (player.x - item.x) ^ 2 + (player.y - item.y) ^ 2
+            local radius = Config.palletLogistics.interactionRadius or 92
+            if distance <= radius * radius and (not nearestDistance or distance < nearestDistance) then
+                nearestPallet, nearestDistance = item, distance
+            end
+        end
+        if nearestPallet then
+            targets.palletWorkOrder = {
+                x = nearestPallet.x, y = nearestPallet.y,
+                radius = Config.palletLogistics.interactionRadius or 92,
+                prompt = "E: inspect work order",
+                item = nearestPallet,
+            }
+        end
         local jack = PalletJack.ensure(World._state, Config.palletJack)
         local jackReady = jack.operating and not jack.carriedPalletId
         if MachineFleet.isInstalled(World._state, "polar_115") then
-            targets.cutter = CutterPlacement.interaction(World.player, World._state,
+            targets.cutter = CutterPlacement.interaction(player, World._state,
                 Config.cutterPlacement, jackReady)
         end
         if MachineFleet.isInstalled(World._state, "skid_wrapper") then
-            targets.skidWrapper = WrapperPlacement.interaction(World.player, World._state,
+            targets.skidWrapper = WrapperPlacement.interaction(player, World._state,
                 Config.wrapperPlacement, jackReady)
         end
         if MachineFleet.isInstalled(World._state, "heidelberg_10x15") then
-            targets.windmill = WindmillPlacement.interaction(World.player, World._state,
+            targets.windmill = WindmillPlacement.interaction(player, World._state,
                 Config.windmillPlacement, jackReady)
         end
-        targets.palletJack = PalletJack.interaction(World.player, World._state, Config.palletJack)
+        targets.palletJack = PalletJack.interaction(player, World._state, Config.palletJack)
         if jackReady then
             local cutter = CutterPlacement.ensure(World._state, Config.cutterPlacement)
             local wrapper = WrapperPlacement.ensure(World._state, Config.wrapperPlacement)
@@ -221,10 +243,30 @@ local function interactables()
     return targets
 end
 
+local function selectInteractionFor(player, previous, cursorX, cursorY)
+    return Interaction.select(player, interactables(player), cursorX, cursorY, previous, {
+        stickiness = Config.player.interactionStickiness,
+        facingWeight = Config.player.interactionFacingWeight,
+    })
+end
+
+local function selectNetworkInteractionFor(player, previous, cursorX, cursorY)
+    local previousDoor = previous and previous.kind == "loadingBayDoor" and previous or nil
+    local door = Interaction.select(player, {
+        loadingBayDoor = World.bayDoor:getInteraction(),
+    }, cursorX, cursorY, previousDoor, {
+        stickiness = Config.player.interactionStickiness,
+        facingWeight = Config.player.interactionFacingWeight,
+    })
+    -- The only guest-enabled target wins throughout its operating radius, even
+    -- when a parked truck's larger prompt overlaps the wall switch.
+    return door or selectInteractionFor(player, previous, cursorX, cursorY)
+end
+
 function World.load(position)
-    World.player.x = position and position.x or Config.player.spawnX
-    World.player.y = position and position.y or Config.player.spawnY
-    World.player.animationClock = 0
+    local character = position and position.character or Config.player.character
+    World.player.character = Config.characters[character] and character or Config.player.character
+    PlayerController.reset(World.player, position, Config.player)
     World.bayDoor:reset()
     World.truck:reset()
     World.customer:reset(true)
@@ -374,15 +416,17 @@ function World.customerArrivalMessage(state)
         or "A customer is waiting at reception with a client job."
 end
 
-function World.update(dt, directionX, directionY, assets, state)
+function World.update(dt, directionX, directionY, assets, state, cursorX, cursorY)
     World._assets = assets
     if directionX ~= 0 or directionY ~= 0 then World.placementSelection = nil end
     World._state = state
     local player = World.player
+    local playerStartX, playerStartY = player.x, player.y
     local jack = PalletJack.ensure(state, Config.palletJack)
     local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
     local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local windmill = WindmillPlacement.ensure(state, Config.windmillPlacement)
+    local externalMovement = cutter.moving or wrapper.moving or windmill.moving or jack.operating
     if cutter.moving then
         CutterPlacement.move(state, directionX, directionY, dt, Config.cutterPlacement,
             function(nextX, nextY)
@@ -470,24 +514,15 @@ function World.update(dt, directionX, directionY, assets, state)
         player.facing = (jack.direction == "northeast" or jack.direction == "east"
             or jack.direction == "southeast") and 1 or -1
     else
-        player.moving = false
-        if directionX ~= 0 or directionY ~= 0 then
-            local length = math.sqrt(directionX * directionX + directionY * directionY)
-            local nextX = player.x + directionX / length * player.speed * dt
-            local nextY = player.y + directionY / length * player.speed * dt
-            if Navigation.canMoveFrom(assets, player.x, player.y, nextX, nextY,
-                movementObstacles(state, false))
-                and (nextX ~= player.x or nextY ~= player.y)
-            then
-                player.x = nextX
-                player.y = nextY
-                player.moving = true
-            end
-            if directionX ~= 0 then player.facing = directionX < 0 and -1 or 1 end
-        end
+        PlayerController.update(player, directionX, directionY, dt,
+            function(currentX, currentY, nextX, nextY)
+                return Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY,
+                    movementObstacles(state, false))
+            end, Config.player)
     end
-
-    player.animationClock = player.animationClock + dt
+    if externalMovement then
+        PlayerController.observeExternalMove(player, playerStartX, playerStartY, player.moving, dt)
+    end
     local doorEvent = World.bayDoor:update(dt)
     if doorEvent == "opened" and state then
         state.message = "Loading bay door open. The parking lot is visible."
@@ -529,12 +564,77 @@ function World.update(dt, directionX, directionY, assets, state)
     if Technician.update(dt, state, World.customer:isPresent() or World.vendor:isPresent()) then
         saveNeeded = true
     end
-    World.selectedInteraction = Interaction.select(player, interactables())
+    World.selectedInteraction = selectInteractionFor(
+        player, World.selectedInteraction, cursorX, cursorY)
     return saveNeeded
 end
 
-function World.draw(assets, characterAssets, state, mouseX, mouseY)
-    return WorldRenderer.draw(World, assets, characterAssets, state, mouseX, mouseY)
+local function updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
+    if type(player) ~= "table" then return false end
+    PlayerController.update(player, directionX or 0, directionY or 0, dt,
+        function(currentX, currentY, nextX, nextY)
+            return Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY,
+                movementObstacles(state, false))
+        end, Config.player)
+    return true
+end
+
+-- LAN guests predict only their own walking. Durable shop systems continue to
+-- run exclusively on the authoritative host.
+function World.updateNetworkPlayer(dt, directionX, directionY, assets, state, cursorX, cursorY)
+    World._assets, World._state = assets, state
+    World.placementSelection = nil
+    local updated = updateWalkingPlayer(World.player, dt, directionX, directionY, assets, state)
+    World.selectedInteraction = selectNetworkInteractionFor(
+        World.player, World.selectedInteraction, cursorX, cursorY)
+    return updated
+end
+
+-- The host uses the same collision and gait controller for every connected
+-- worker, while leaving the original single-player World.player seam intact.
+function World.updateRemotePlayer(player, dt, directionX, directionY, assets, state)
+    World._assets, World._state = assets, state
+    return updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
+end
+
+-- Find a nearby walkable guest start without trusting a fixed offset that may
+-- land across a mask edge or inside a moved machine/pallet.
+function World.resolveNetworkSpawn(originX, originY, guestIndex, assets, state, players)
+    assets, state = assets or World._assets, state or World._state
+    originX, originY = tonumber(originX) or Config.player.spawnX,
+        tonumber(originY) or Config.player.spawnY
+    if not assets or not state then return originX, originY end
+
+    local obstacles = movementObstacles(state, false)
+    for _, player in pairs(players or {}) do
+        if type(player) == "table" and type(player.x) == "number" and type(player.y) == "number" then
+            obstacles[#obstacles + 1] = { x = player.x, y = player.y, radius = 16 }
+        end
+    end
+    local startingAngles = { [2] = 0, [3] = math.pi, [4] = math.pi / 2 }
+    local start = startingAngles[tonumber(guestIndex)] or 0
+    for _, radius in ipairs({ 32, 48, 64, 80 }) do
+        for step = 0, 7 do
+            local angle = start + step * math.pi / 4
+            local candidateX = originX + math.cos(angle) * radius
+            local candidateY = originY + math.sin(angle) * radius
+            if Navigation.isWalkable(assets, candidateX, candidateY, obstacles) then
+                return candidateX, candidateY
+            end
+        end
+    end
+
+    -- An exact overlap is preferable to trapping the guest off-mask. Normal
+    -- movement separates overlapping workers immediately.
+    if Navigation.isWalkable(assets, originX, originY, {}) then return originX, originY end
+    if Navigation.isWalkable(assets, Config.player.spawnX, Config.player.spawnY, obstacles) then
+        return Config.player.spawnX, Config.player.spawnY
+    end
+    return Config.player.spawnX, Config.player.spawnY
+end
+
+function World.draw(assets, characterAssets, state, mouseX, mouseY, remotePlayers)
+    return WorldRenderer.draw(World, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
 end
 
 function World.prompt()
@@ -543,6 +643,83 @@ end
 
 function World.getInteraction()
     return World.selectedInteraction
+end
+
+function World.interactionForPlayer(player)
+    return selectInteractionFor(player)
+end
+
+local WORKSHOP_RESOURCES = {
+    customer = "reception_customer",
+    computer = "office_computer",
+    skidWrapper = "skid_wrapper",
+}
+
+function World.workshopResourceId(interactionKind)
+    return WORKSHOP_RESOURCES[interactionKind]
+end
+
+-- Workshop requests never carry client coordinates. The host resolves the
+-- physical target from its current shop state and checks the authoritative
+-- player position directly before granting an exclusive console lease.
+function World.validateNetworkWorkshopAccess(player, state, resourceId)
+    if type(player) ~= "table" or type(state) ~= "table" then
+        return false, "invalid_player", "The host could not verify that worker's position."
+    end
+    World._state = state
+    local target, unavailableMessage
+    if resourceId == "reception_customer" then
+        target = World.customer:getInteraction()
+        if not target or target.customerState ~= "waiting" then
+            return false, "customer_unavailable", "That customer is not waiting for a conversation."
+        end
+        unavailableMessage = "Move closer to the waiting customer at reception."
+    elseif resourceId == "office_computer" then
+        target = Config.interactables.computer
+        unavailableMessage = "Move closer to the office computer."
+    elseif resourceId == "skid_wrapper" then
+        if not MachineFleet.isInstalled(state, "skid_wrapper") then
+            return false, "not_installed", "The skid wrapper is not installed in this shop."
+        end
+        local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+        if wrapper.moving then
+            return false, "machine_moving", "Lock the skid wrapper onto the floor before using it."
+        end
+        target = { x = wrapper.x, y = wrapper.y, radius = Config.wrapperPlacement.interactionRadius }
+        unavailableMessage = "Move closer to the skid wrapper controls."
+    else
+        return false, "not_allowed", "That workshop control is not available to network workers."
+    end
+    local dx = (tonumber(player.x) or 0) - target.x
+    local dy = (tonumber(player.y) or 0) - target.y
+    local radius = math.max(0, tonumber(target.radius) or 0) + 10
+    if dx * dx + dy * dy > radius * radius then
+        return false, "out_of_range", unavailableMessage
+    end
+    local length = math.sqrt(dx * dx + dy * dy)
+    if length > 0.01 then
+        player.intentX, player.intentY = -dx / length, -dy / length
+        if math.abs(dx) > 0.01 then player.facing = dx > 0 and -1 or 1 end
+    end
+    return true, "available", "Workshop control is in range."
+end
+
+function World.faceInteraction()
+    local target = World.selectedInteraction and World.selectedInteraction.target
+    if not target then return false end
+    local dx, dy = target.x - World.player.x, target.y - World.player.y
+    if math.abs(dx) > 0.01 then World.player.facing = dx < 0 and -1 or 1 end
+    local length = math.sqrt(dx * dx + dy * dy)
+    if length > 0.01 then
+        World.player.intentX, World.player.intentY = dx / length, dy / length
+    end
+    return true
+end
+
+function World.setPlayerCharacter(character)
+    if not Config.characters[character] then return false end
+    World.player.character = character
+    return true
 end
 
 function World.beginCustomerReview()
@@ -604,6 +781,54 @@ function World.toggleBayDoor(state)
             or "Closing the loading bay door..."
     end
     return true
+end
+
+-- Network workers may request only explicitly allowlisted, non-modal actions.
+-- The host resolves the target again from its authoritative worker position;
+-- client coordinates and target state are never accepted as authority.
+function World.performNetworkInteraction(player, state, requestedKind, desiredState)
+    if type(player) ~= "table" or requestedKind ~= "loadingBayDoor"
+        or (desiredState ~= "open" and desiredState ~= "closed")
+    then
+        return false, "not_allowed", "That shop control is still host-only.", requestedKind
+    end
+    World._state = state or World._state
+    local target = World.bayDoor:getInteraction()
+    local dx, dy = player.x - target.x, player.y - target.y
+    -- One 20 Hz movement sample is roughly eight pixels at normal walking
+    -- speed. A small host-side grace avoids boundary flicker without trusting
+    -- any coordinate supplied by the client.
+    local radius = math.max(0, tonumber(target.radius) or 0) + 10
+    if dx * dx + dy * dy > radius * radius then
+        return false, "out_of_range", "Move closer to the loading-bay wall switch.", requestedKind
+    end
+    local length = math.sqrt(dx * dx + dy * dy)
+    if length > 0.01 then
+        player.intentX, player.intentY = -dx / length, -dy / length
+        if math.abs(dx) > 0.01 then player.facing = dx > 0 and -1 or 1 end
+    end
+    if World.bayDoor.state == desiredState then
+        return true, "already_applied",
+            "The loading-bay door is already " .. desiredState .. ".", requestedKind
+    end
+    local movingTowardDesired = (World.bayDoor.state == "opening" and desiredState == "open")
+        or (World.bayDoor.state == "closing" and desiredState == "closed")
+    if movingTowardDesired then
+        return true, "in_progress",
+            "The loading-bay door is already moving " .. desiredState .. ".", requestedKind
+    elseif World.bayDoor.state == "opening" or World.bayDoor.state == "closing" then
+        return false, "state_changed",
+            "The loading-bay door changed state. Wait for it to finish and try again.", requestedKind
+    end
+    local accepted = World.toggleBayDoor(state)
+    if accepted then
+        return true, "accepted",
+            "Loading-bay switch activated. Door movement is synced from the host device.",
+            requestedKind
+    end
+    local code = World.bayDoor.state == "opening" or World.bayDoor.state == "closing"
+        and "busy" or "blocked"
+    return false, code, state and state.message or "The loading-bay door cannot move right now.", requestedKind
 end
 
 function World.toggleTruckCargoDoor(state)
@@ -996,12 +1221,46 @@ function World.customerSnapshot()
     return World.customer:snapshot()
 end
 
+function World.vendorSnapshot()
+    return World.vendor:snapshot()
+end
+
+function World.applyVisitorSnapshot(customer, vendor)
+    if type(customer) ~= "table" or type(vendor) ~= "table" then return false end
+    -- Network protocol validation is atomic before this seam is reached.
+    return World.customer:applySnapshot(customer) and World.vendor:applySnapshot(vendor)
+end
+
+function World.environmentSnapshot()
+    local door = World.bayDoor:snapshot()
+    local truck = World.truck:snapshot()
+    return {
+        bayDoor = { state = door.state, progress = door.progress },
+        truck = {
+            state = truck.state,
+            jobId = truck.jobId,
+            mode = truck.mode,
+            backingProgress = truck.backingProgress,
+            cargoProgress = truck.cargoProgress,
+        },
+    }
+end
+
+function World.applyEnvironmentSnapshot(bayDoor, truck)
+    if type(bayDoor) ~= "table" or type(truck) ~= "table" then return false end
+    local previousDoor = World.environmentSnapshot().bayDoor
+    if not World.bayDoor:applySnapshot(bayDoor) then return false end
+    if World.truck:applySnapshot(truck) then return true end
+    World.bayDoor:applySnapshot(previousDoor)
+    return false
+end
+
 function World.truckSnapshot()
     return World.truck:snapshot()
 end
 
 function World.snapshot()
-    return { x = World.player.x, y = World.player.y }
+    return { x = World.player.x, y = World.player.y, character = World.player.character }
 end
 
 return World

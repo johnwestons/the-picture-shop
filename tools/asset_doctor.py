@@ -18,7 +18,8 @@ def audit(root: Path) -> list[dict[str, object]]:
     paths = {
         "warehouse": generated / "warehouse-layout-final.png",
         "walkmask": generated / "warehouse-layout-final-walkmask.png",
-        "rabbit": generated / "rabbit-worker-atlas.png",
+        "rabbit_idle": generated / "characters" / "rabbit-worker" / "idle.png",
+        "rabbit_walk": generated / "characters" / "rabbit-worker" / "walk.png",
         "polar": generated / "polar-115-sprite-sheet-clear-table-transparent.png",
         "polar_directions": generated / "polar-cutter-directions-strip.png",
         "empty_pallet": generated / "empty-pallet.png",
@@ -29,6 +30,8 @@ def audit(root: Path) -> list[dict[str, object]]:
         "picture_press": generated / "picture-press-transparent.png",
         "windmill_directions": generated / "heidelberg-windmill-directions-atlas-v1.png",
         "press_process_stages": generated / "press-process-stages-atlas-v3.png",
+        "press_operator_handbook": generated / "heidelberg-operator-handbook-atlas-v2.png",
+        "press_setup_interactions": generated / "heidelberg-setup-interactions-atlas-v2.png",
         "technician_npcs": generated / "technician-npcs-atlas-v1.png",
         "skid_wrapper_directions": generated / "skid-wrapper-directions-strip.png",
         "wrapped_pallet_stages": generated / "wrapped-pallet-stages-strip.png",
@@ -52,12 +55,18 @@ def audit(root: Path) -> list[dict[str, object]]:
         "vendor_product_pallets": generated / "vendor-product-pallets-atlas.png",
         "boxed_paper_pallet_stages": generated / "boxed-paper-pallet-stages-atlas.png",
         "polar_back_button": generated / "polar-back-button-states-strip.png",
+        "pallet_work_order_paper": generated / "pallet-work-order-paper-v1.png",
     }
     artwork_paths = sorted((generated / "artwork").glob("*.png"))
     for artwork_path in artwork_paths:
         paths[f"artwork_{artwork_path.stem}"] = artwork_path
     checks: list[dict[str, object]] = []
     images: dict[str, Image.Image] = {}
+    work_order_font = root / "assets" / "fonts" / "SpecialElite-Regular.ttf"
+    work_order_font_license = root / "assets" / "fonts" / "SpecialElite-LICENSE.txt"
+    checks.append(result("work_order_font_exists", work_order_font.is_file(), str(work_order_font)))
+    checks.append(result("work_order_font_license_exists",
+        work_order_font_license.is_file(), str(work_order_font_license)))
 
     for name, path in paths.items():
         exists = path.is_file()
@@ -92,34 +101,23 @@ def audit(root: Path) -> list[dict[str, object]]:
             )
         )
 
-    rabbit = images.get("rabbit")
-    if rabbit:
-        width, height = rabbit.size
-        checks.append(result("rabbit_grid", width % 6 == 0 and height % 4 == 0, f"size={rabbit.size}"))
-        alpha = rabbit.getchannel("A")
+    for name, expected_frames in (("rabbit_idle", 2), ("rabbit_walk", 8)):
+        strip = images.get(name)
+        if not strip:
+            continue
+        expected_size = (512 * expected_frames, 512)
+        checks.append(result(f"{name}_grid", strip.size == expected_size,
+            f"size={strip.size} expected={expected_size}"))
+        alpha = strip.getchannel("A")
         minimum, maximum = alpha.getextrema()
-        checks.append(
-            result(
-                "rabbit_transparency",
-                minimum == 0 and maximum >= 250,
-                f"alpha_range=({minimum}, {maximum})",
-            )
-        )
-        cell_width, cell_height = width // 6, height // 4
-        empty_cells = []
-        for row in range(4):
-            for column in range(6):
-                cell = alpha.crop(
-                    (
-                        column * cell_width,
-                        row * cell_height,
-                        (column + 1) * cell_width,
-                        (row + 1) * cell_height,
-                    )
-                )
-                if cell.getbbox() is None:
-                    empty_cells.append((column + 1, row + 1))
-        checks.append(result("rabbit_cells_nonempty", not empty_cells, f"empty_cells={empty_cells}"))
+        checks.append(result(f"{name}_transparency", minimum == 0 and maximum >= 250,
+            f"alpha_range=({minimum}, {maximum})"))
+        empty_cells = [
+            frame + 1 for frame in range(expected_frames)
+            if alpha.crop((frame * 512, 0, (frame + 1) * 512, 512)).getbbox() is None
+        ]
+        checks.append(result(f"{name}_cells_nonempty", not empty_cells,
+            f"empty_cells={empty_cells}"))
 
     polar = images.get("polar")
     if polar:
@@ -131,6 +129,21 @@ def audit(root: Path) -> list[dict[str, object]]:
                 f"alpha_range=({minimum}, {maximum})",
             )
         )
+
+    work_order_paper = images.get("pallet_work_order_paper")
+    if work_order_paper:
+        alpha = work_order_paper.getchannel("A")
+        minimum, maximum = alpha.getextrema()
+        checks.append(result(
+            "pallet_work_order_paper_contract",
+            work_order_paper.size == (1536, 1024) and minimum == 0 and maximum == 255,
+            f"size={work_order_paper.size} alpha_range=({minimum}, {maximum})",
+        ))
+        checks.append(result(
+            "pallet_work_order_paper_center_opaque",
+            alpha.getpixel((768, 512)) == 255,
+            f"center_alpha={alpha.getpixel((768, 512))}",
+        ))
 
     windmill = images.get("windmill_directions")
     if windmill:
@@ -304,6 +317,8 @@ def audit(root: Path) -> list[dict[str, object]]:
         "cutter_maintenance_tools": ((768, 512), 3, 2),
         "cutter_maintenance_scenes": ((1024, 768), 2, 2),
         "press_process_stages": ((1254, 1254), 2, 2),
+        "press_operator_handbook": ((2560, 1024), 5, 2),
+        "press_setup_interactions": ((1536, 1024), 3, 2),
     }
     for name, (expected_size, columns, rows) in atlas_contracts.items():
         image = images.get(name)
@@ -333,6 +348,15 @@ def audit(root: Path) -> list[dict[str, object]]:
             f"{name}_cells_nonempty",
             exact and not empty_cells,
             f"empty_cells={empty_cells}",
+        ))
+
+    setup_interactions = images.get("press_setup_interactions")
+    if setup_interactions:
+        minimum, maximum = setup_interactions.getchannel("A").getextrema()
+        checks.append(result(
+            "press_setup_interactions_true_transparency",
+            minimum == 0 and maximum >= 250,
+            f"alpha_range=({minimum}, {maximum})",
         ))
 
     for name in ("empty_pallet", "paper_stack", "toolbox_small", "toolbox_large", "paper_boxes"):
@@ -395,12 +419,23 @@ def audit(root: Path) -> list[dict[str, object]]:
         checks.append(result("picture_press_transparency", alpha.getextrema() == (0, 255), f"alpha_range={alpha.getextrema()}"))
 
     character_frames = {
+        "rabbit-worker": {
+            "idle": 2, "idle_north": 2, "idle_northeast": 2,
+            "idle_southeast": 2, "idle_south": 2,
+            "walk": 8, "walk_north": 8, "walk_northeast": 8,
+            "walk_southeast": 8, "walk_south": 8,
+        },
         "tan-cat": {"idle": 2, "walk": 3, "sit": 2},
         "green-blazer-cat": {"idle": 2, "walk": 3, "sit": 2, "use": 3},
         "blue-coaler-cat": {"idle": 2, "walk": 3, "sit": 2},
         "business-dragon": {"idle": 2, "walk": 4, "sit": 2},
         "business-fox": {"idle": 2, "walk": 4, "sit": 2},
-        "business-cat": {"idle": 2, "walk": 4, "sit": 2},
+        "business-cat": {
+            "idle": 2, "idle_north": 2, "idle_northeast": 2,
+            "idle_southeast": 2, "idle_south": 2,
+            "walk": 8, "walk_north": 8, "walk_northeast": 8,
+            "walk_southeast": 8, "walk_south": 8, "sit": 2,
+        },
     }
     for character, actions in character_frames.items():
         for action, expected in actions.items():
@@ -428,6 +463,63 @@ def audit(root: Path) -> list[dict[str, object]]:
                 not edge_cropped,
                 f"edge_cropped_frames={edge_cropped}",
             ))
+            if character == "rabbit-worker" and action == "idle":
+                pixels = image.load()
+                matte_pixels = 0
+                for frame in range(2):
+                    for y in range(385, 445):
+                        for x in range(frame * 512 + 245, frame * 512 + 280):
+                            red, green, blue, pixel_alpha = pixels[x, y]
+                            if (pixel_alpha > 0 and min(red, green, blue) >= 80
+                                    and max(red, green, blue) - min(red, green, blue) <= 45):
+                                matte_pixels += 1
+                checks.append(result(
+                    "rabbit-worker_idle_leg_gap_transparency",
+                    matte_pixels == 0,
+                    f"neutral_opaque_pixels={matte_pixels}",
+                ))
+            if character == "business-cat" and action == "sit":
+                pixels = image.load()
+                eye_boxes = ((200, 150, 232, 187), (250, 150, 288, 187))
+
+                def in_eye_box(x: int, y: int) -> bool:
+                    local_x = x % 512
+                    return any(left <= local_x < right and top <= y < bottom
+                               for left, top, right, bottom in eye_boxes)
+
+                edge_matte_pixels = 0
+                for y in range(1, height - 1):
+                    for x in range(1, width - 1):
+                        red, green, blue, pixel_alpha = pixels[x, y]
+                        neutral = (pixel_alpha > 0 and min(red, green, blue) >= 130
+                                   and max(red, green, blue) - min(red, green, blue) <= 35)
+                        touches_transparency = neutral and any(
+                            pixels[nx, ny][3] == 0
+                            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
+                        )
+                        if touches_transparency and not in_eye_box(x, y):
+                            edge_matte_pixels += 1
+                checks.append(result(
+                    "business-cat_sit_white_edge_matte",
+                    edge_matte_pixels == 0,
+                    f"neutral_edge_pixels={edge_matte_pixels}",
+                ))
+                eye_white_pixels = []
+                for frame in range(2):
+                    count = 0
+                    for left, top, right, bottom in eye_boxes:
+                        for y in range(top, bottom):
+                            for x in range(frame * 512 + left, frame * 512 + right):
+                                red, green, blue, pixel_alpha = pixels[x, y]
+                                if (pixel_alpha > 0 and min(red, green, blue) >= 205
+                                        and max(red, green, blue) - min(red, green, blue) <= 35):
+                                    count += 1
+                    eye_white_pixels.append(count)
+                checks.append(result(
+                    "business-cat_sit_eye_whites_preserved",
+                    all(count >= 70 for count in eye_white_pixels),
+                    f"white_pixels_per_frame={eye_white_pixels}",
+                ))
             image.close()
 
     for image in images.values():

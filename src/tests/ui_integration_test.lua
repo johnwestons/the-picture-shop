@@ -229,6 +229,23 @@ function Test.run(context, check)
         and context.world.bayDoorSnapshot().state == "closing")
     context.world.update(context.config.loadingBay.duration + 0.1, 0, 0, context.assets, context.state)
     check("bay_auto_closes_after_delivery", context.world.bayDoorSnapshot().state == "closed")
+    local workOrderItem = context.world.palletsSnapshot(context.state)[1]
+    context.palletWorkOrderScreen.enter(workOrderItem)
+    context.state.screen = "pallet_work_order"
+    check("pallet_work_order_keeps_live_job_art",
+        context.palletWorkOrderScreen.artworkKey() == context.state.jobs.active[1].artwork.key
+        and context.assets.get("artwork:" .. context.palletWorkOrderScreen.artworkKey()) ~= nil)
+    local workOrderCloseX, workOrderCloseY = context.palletWorkOrderScreen.closeCenter()
+    check("pallet_work_order_close_hit_target",
+        context.palletWorkOrderScreen.hitTest(workOrderCloseX, workOrderCloseY) == "close")
+    check("pallet_work_order_mouse_close", context.input.mousepressed(
+        workOrderCloseX, workOrderCloseY, 1, context.inputContext)
+        and context.state.screen == "world")
+    context.palletWorkOrderScreen.enter(workOrderItem)
+    context.state.screen = "pallet_work_order"
+    check("pallet_work_order_escape_close",
+        context.input.keypressed("escape", context.inputContext)
+        and context.state.screen == "world")
     check("pallets_render_ready", context.state.screen == "world"
         and #context.world.palletsSnapshot(context.state) == 2)
     check("loose_and_carried_pallet_scale_match",

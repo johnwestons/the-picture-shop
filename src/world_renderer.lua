@@ -5,6 +5,7 @@ local CutterPlacement = require("src.cutter_placement")
 local PalletJack = require("src.pallet_jack")
 local PalletLogistics = require("src.pallet_logistics")
 local MachineFleet = require("src.machine_fleet")
+local MultiplayerAvatarRenderer = require("src.multiplayer_avatar_renderer")
 local PlacementGrid = require("src.placement_grid")
 local Wrapper = require("src.wrapper")
 local WrapperPlacement = require("src.wrapper_placement")
@@ -319,22 +320,49 @@ local function drawWindmill(assets, state, placement)
     love.graphics.setShader()
 end
 
-local function drawPlayer(assets)
+local function drawInteractionFocus()
+    local selected = World.getInteraction and World.getInteraction()
+    local target = selected and selected.target
+    if not target then return end
+    local pulse = 0.5 + 0.5 * math.sin((World.player.interactionClock or 0) * 6)
+    love.graphics.setLineWidth(2)
+    love.graphics.setColor(0.98, 0.78, 0.22, 0.30 + pulse * 0.22)
+    love.graphics.ellipse("line", target.x, target.y + 2, 13 + pulse * 2, 7 + pulse)
+    love.graphics.setColor(1.0, 0.88, 0.34, 0.70 + pulse * 0.20)
+    love.graphics.polygon("fill", target.x, target.y - 19 - pulse * 2,
+        target.x - 4, target.y - 13 - pulse * 2,
+        target.x, target.y - 9 - pulse * 2,
+        target.x + 4, target.y - 13 - pulse * 2)
+    love.graphics.setLineWidth(1)
+end
+
+local function drawPlayer(characterAssets)
     local player = World.player
     local action = player.moving and "walk" or "idle"
-    -- Generated walk frames 1 and 6 contain doubled silhouettes. Loop the
-    -- four clean poses forward and back for a stable six-step walk cycle.
-    local walkFrames = { 2, 3, 4, 5, 4, 3 }
-    local frameCount = action == "walk" and #walkFrames or 2
-    local rate = action == "walk" and 9 or 2
-    local frame = math.floor(player.animationClock * rate) % frameCount + 1
-    if action == "walk" then frame = walkFrames[frame] end
-    local quad, cellWidth, cellHeight = assets.getRabbitFrame(action, frame)
-    local image = assets.get("rabbit")
-
-
+    local character = player.character or Config.player.character
+    local directionScale = player.facing
+    if player.moving then
+        local directionalAction, mirror = CharacterAnimation.directionalWalkAction(
+            player.velocityX or player.intentX, player.velocityY or player.intentY)
+        if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
+        directionScale = mirror
+    else
+        local directionalAction, mirror = CharacterAnimation.directionalIdleAction(
+            player.intentX, player.intentY)
+        if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
+        directionScale = mirror
+    end
+    local image, quad, frameCount = characterAssets.get(character, action, 1)
+    frameCount = frameCount or 1
+    local frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
+        player.animationDistance, player.idleClock, Config.player.walkPixelsPerFrame,
+        Config.player.idleAnimationRate)
+    image, quad = characterAssets.get(character, action, frame)
     if image and quad then
-        local scaleX = Config.player.drawScale * player.facing
+        local anchorX, anchorY = characterAssets.getAnchor(character, action, frame)
+        local scale = Config.player.drawScale * characterAssets.getNormalization(character, action)
+        love.graphics.setColor(0.03, 0.04, 0.05, 0.24)
+        love.graphics.ellipse("fill", player.x, player.y + 1, 13, 5)
         love.graphics.setColor(1, 1, 1)
         love.graphics.draw(
             image,
@@ -342,10 +370,10 @@ local function drawPlayer(assets)
             player.x,
             player.y,
             0,
-            scaleX,
-            Config.player.drawScale,
-            cellWidth / 2,
-            cellHeight * 0.94
+            scale * directionScale,
+            scale,
+            anchorX,
+            anchorY
         )
         return
     end
@@ -358,7 +386,7 @@ local function drawPlayer(assets)
     love.graphics.rectangle("fill", player.x - 13, player.y - 10, 26, 18)
 end
 
-function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY)
+function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
     World = world
     drawBackground(assets)
     drawWallVentFan(assets)
@@ -366,6 +394,10 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY)
     drawTruck(assets, state)
     PlacementGrid.draw(World.placementGridSnapshot(state, assets))
     local visibleCharacters = {}
+    visibleCharacters[World.player.character or Config.player.character] = true
+    for _, remotePlayer in ipairs(remotePlayers or {}) do
+        visibleCharacters[remotePlayer.character or Config.player.character] = true
+    end
     if World.customer.visible then visibleCharacters[World.customer.character] = true end
     if World.vendor.visible then visibleCharacters[World.vendor.character] = true end
     characterAssets.retainCharacters(visibleCharacters)
@@ -405,10 +437,19 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY)
         -- Separate depth entries keep the operator naturally behind or in
         -- front of the handle as the jack changes direction.
         actors[#actors + 1] = { y = jack.y, layer = 1, draw = function() drawPalletJack(assets, state) end }
-        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(assets) end }
+        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
     else
-        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(assets) end }
+        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
         if jack then actors[#actors + 1] = { y = jack.y, draw = function() drawPalletJack(assets, state) end } end
+    end
+    for _, remotePlayer in ipairs(remotePlayers or {}) do
+        local player = remotePlayer
+        if type(player) == "table" and type(player.y) == "number" then
+            actors[#actors + 1] = {
+                y = player.y,
+                draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player }) end,
+            }
+        end
     end
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
         actors[#actors + 1] = { y = item.y, draw = function() drawPallet(assets, item) end }

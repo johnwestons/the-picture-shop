@@ -1143,6 +1143,10 @@ function Schema.snapshot(state)
     return result
 end
 
+function Schema.validState(state)
+    return persistentState(state)
+end
+
 function Schema.newPayload(slot, timestamp)
     assert(validSlot(slot), "save slot must be 1, 2, or 3")
     local now = timestamp or os.time()

@@ -1,0 +1,215 @@
+local Config = require("src.config")
+local Ui = require("src.screens.ui")
+
+local LanScreen = {
+    mode = "menu",
+    address = "",
+    message = "",
+    callbacks = nil,
+    selectedSlot = 1,
+    pressed = nil,
+}
+
+local BUTTONS = {
+    host = { x = 190, y = 260, width = 250, height = 78, label = "HOST THIS SHOP" },
+    join = { x = 520, y = 260, width = 250, height = 78, label = "JOIN A SHOP" },
+    connect = { x = 300, y = 374, width = 170, height = 58, label = "CONNECT" },
+    cancel = { x = 490, y = 374, width = 170, height = 58, label = "CANCEL" },
+    back = { x = 390, y = 500, width = 180, height = 58, label = "BACK" },
+}
+
+local function contains(rect, x, y)
+    return Ui.contains(rect, x, y)
+end
+
+local function buttonAt(x, y)
+    if LanScreen.mode == "menu" then
+        if contains(BUTTONS.host, x, y) then return "host" end
+        if contains(BUTTONS.join, x, y) then return "join" end
+        if contains(BUTTONS.back, x, y) then return "back" end
+    elseif LanScreen.mode == "join" then
+        if contains(BUTTONS.connect, x, y) then return "connect" end
+        if contains(BUTTONS.cancel, x, y) then return "cancel" end
+    elseif LanScreen.mode == "connecting" then
+        if contains(BUTTONS.cancel, x, y) then return "cancel" end
+    end
+end
+
+local function playerLabel()
+    if love.system and love.system.getOS and love.system.getOS() == "Android" then
+        return "Android Worker"
+    end
+    return "PC Worker"
+end
+
+local function requestHost()
+    if not LanScreen.callbacks or not LanScreen.callbacks.host then return false end
+    local ok, message = LanScreen.callbacks.host(LanScreen.selectedSlot, playerLabel())
+    if ok == false then LanScreen.message = tostring(message or "Could not start the LAN host.") end
+    return ok ~= false
+end
+
+local function requestJoin()
+    if LanScreen.address == "" then
+        LanScreen.message = "Enter the LAN host's local IPv4 address first."
+        return false
+    end
+    if not LanScreen.callbacks or not LanScreen.callbacks.join then return false end
+    local ok, message = LanScreen.callbacks.join(LanScreen.address, playerLabel())
+    if ok == false then
+        LanScreen.message = tostring(message or "Could not start the connection.")
+        return false
+    end
+    LanScreen.mode = "connecting"
+    LanScreen.message = "Connecting to " .. LanScreen.address .. "..."
+    return true
+end
+
+local function cancelConnection()
+    if LanScreen.callbacks and LanScreen.callbacks.cancel then LanScreen.callbacks.cancel() end
+    LanScreen.mode = "menu"
+    LanScreen.message = "Connection cancelled."
+    return true
+end
+
+local function goBack()
+    if LanScreen.callbacks and LanScreen.callbacks.back then LanScreen.callbacks.back() end
+    return true
+end
+
+function LanScreen.enter(options)
+    LanScreen.callbacks = options or {}
+    LanScreen.selectedSlot = tonumber(LanScreen.callbacks.slot) or 1
+    LanScreen.mode = "menu"
+    LanScreen.address = ""
+    LanScreen.message = "The host owns the save. Guests need only the host device's local IPv4 address."
+    LanScreen.pressed = nil
+end
+
+function LanScreen.setMessage(message, mode)
+    if mode then LanScreen.mode = mode end
+    LanScreen.message = tostring(message or "")
+end
+
+function LanScreen.showError(message)
+    LanScreen.mode = "join"
+    LanScreen.message = tostring(message or "The LAN connection ended.")
+end
+
+function LanScreen.wantsTextInput()
+    return LanScreen.mode == "join"
+end
+
+function LanScreen.update(_) end
+
+function LanScreen.keypressed(key)
+    if LanScreen.mode == "menu" then
+        if key == "h" or key == "return" or key == "kpenter" then return requestHost() end
+        if key == "j" then LanScreen.mode = "join"; LanScreen.message = "Enter the host address, then connect."; return true end
+        if key == "escape" or key == "backspace" then return goBack() end
+        return false
+    end
+    if LanScreen.mode == "join" then
+        if key == "backspace" then
+            local byteOffset = utf8 and utf8.offset and utf8.offset(LanScreen.address, -1)
+            LanScreen.address = byteOffset and LanScreen.address:sub(1, byteOffset - 1) or LanScreen.address:sub(1, -2)
+            return true
+        end
+        if key == "return" or key == "kpenter" then return requestJoin() end
+        if key == "escape" then LanScreen.mode = "menu"; LanScreen.message = "Choose a LAN role."; return true end
+        return false
+    end
+    if LanScreen.mode == "connecting" and (key == "escape" or key == "backspace") then
+        return cancelConnection()
+    end
+    return false
+end
+
+function LanScreen.textinput(text)
+    if LanScreen.mode ~= "join" or type(text) ~= "string" then return false end
+    local filtered = text:gsub("[^%w%.%-:]", "")
+    if filtered == "" then return false end
+    LanScreen.address = (LanScreen.address .. filtered):sub(1, 96)
+    return true
+end
+
+function LanScreen.mousepressed(x, y, button)
+    if button ~= 1 then return false end
+    if LanScreen.mode == "join" and contains({ x = 225, y = 270, width = 510, height = 62 }, x, y) then
+        return true
+    end
+    local action = buttonAt(x, y)
+    LanScreen.pressed = action
+    if action == "host" then return requestHost() end
+    if action == "join" then LanScreen.mode = "join"; LanScreen.message = "Enter the host address, then connect."; return true end
+    if action == "connect" then return requestJoin() end
+    if action == "cancel" then return cancelConnection() end
+    if action == "back" then return goBack() end
+    return false
+end
+
+function LanScreen.mousereleased(_, _, button)
+    if button == 1 then LanScreen.pressed = nil end
+end
+
+local function drawButton(name)
+    local rect = BUTTONS[name]
+    local active = LanScreen.pressed == name
+    love.graphics.setColor(active and { 0.33, 0.47, 0.43, 1 } or { 0.12, 0.24, 0.27, 1 })
+    love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 5, 5)
+    love.graphics.setLineWidth(2)
+    love.graphics.setColor(0.86, 0.70, 0.30, 1)
+    love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 5, 5)
+    love.graphics.setColor(0.94, 0.96, 0.93)
+    love.graphics.printf(rect.label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
+    love.graphics.setLineWidth(1)
+end
+
+function LanScreen.draw()
+    love.graphics.clear(0.05, 0.06, 0.07)
+    love.graphics.setColor(0.95, 0.82, 0.26)
+    love.graphics.printf("LOCAL SHOP NETWORK", 0, 44, Config.baseWidth, "center")
+    love.graphics.setColor(0.76, 0.82, 0.82)
+    love.graphics.printf("WINDOWS / ANDROID  •  SAME WI-FI OR PHONE HOTSPOT  •  UP TO 4 WORKERS", 0, 76, Config.baseWidth, "center")
+
+    love.graphics.setColor(0.08, 0.10, 0.11, 0.98)
+    love.graphics.rectangle("fill", 120, 118, 720, 452, 7, 7)
+    love.graphics.setColor(0.34, 0.58, 0.62)
+    love.graphics.rectangle("line", 120, 118, 720, 452, 7, 7)
+
+    if LanScreen.mode == "menu" then
+        love.graphics.setColor(0.91, 0.92, 0.86)
+        love.graphics.printf("Selected save slot: " .. tostring(LanScreen.selectedSlot), 0, 164, Config.baseWidth, "center")
+        love.graphics.setColor(0.68, 0.74, 0.73)
+        love.graphics.printf("The host runs the shop and keeps the save. Guests join as additional workers.", 170, 198, 620, "center")
+        drawButton("host")
+        drawButton("join")
+        drawButton("back")
+        love.graphics.setColor(0.62, 0.68, 0.67)
+        love.graphics.printf("Keyboard: H Host  •  J Join  •  Esc Back", 0, 462, Config.baseWidth, "center")
+    elseif LanScreen.mode == "join" then
+        love.graphics.setColor(0.91, 0.92, 0.86)
+        love.graphics.printf("LAN HOST LOCAL IPv4 ADDRESS", 0, 184, Config.baseWidth, "center")
+        love.graphics.setColor(0.035, 0.045, 0.05, 1)
+        love.graphics.rectangle("fill", 225, 270, 510, 62, 4, 4)
+        love.graphics.setColor(0.86, 0.70, 0.30, 1)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", 225, 270, 510, 62, 4, 4)
+        love.graphics.setLineWidth(1)
+        love.graphics.setColor(LanScreen.address == "" and { 0.48, 0.54, 0.54 } or { 0.94, 0.96, 0.93 })
+        love.graphics.print(LanScreen.address == "" and "Example: 192.168.1.246" or LanScreen.address, 246, 292)
+        drawButton("connect")
+        drawButton("cancel")
+    else
+        love.graphics.setColor(0.91, 0.92, 0.86)
+        love.graphics.printf("CONNECTING TO THE HOST", 0, 220, Config.baseWidth, "center")
+        love.graphics.setColor(0.66, 0.76, 0.75)
+        love.graphics.printf("The game is exchanging a compatible protocol hello and shop snapshot.", 190, 268, 580, "center")
+        drawButton("cancel")
+    end
+
+    love.graphics.setColor(0.82, 0.88, 0.88)
+    love.graphics.printf(LanScreen.message, 150, 598, 660, "center")
+end
+
+return LanScreen

@@ -1,6 +1,14 @@
 local Suites = {}
 
 local DOMAIN_SUITES = {
+    require("src.tests.network_protocol_test"),
+    require("src.tests.multiplayer_session_test"),
+    require("src.tests.workshop_authority_test"),
+    require("src.tests.lan_screen_test"),
+    require("src.tests.transport_enet_test"),
+    require("src.tests.interaction_test"),
+    require("src.tests.player_controller_test"),
+    require("src.tests.customer_motion_test"),
     require("src.tests.asset_pack_test"),
     require("src.tests.sound_test"),
     require("src.tests.pallet_state_test"),

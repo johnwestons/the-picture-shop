@@ -1,6 +1,7 @@
 param(
     [switch]$PackageOnly,
-    [switch]$Install
+    [switch]$Install,
+    [string]$DeviceSerial
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,5 +35,6 @@ if (Test-Path -LiteralPath $loveExecutable) {
 if (-not $PackageOnly) {
     $arguments = @{ PackagePath = $report.package }
     if ($Install) { $arguments.Install = $true }
+    if ($DeviceSerial) { $arguments.DeviceSerial = $DeviceSerial }
     & (Join-Path $projectRoot 'tools\build_android_apk.ps1') @arguments
 }

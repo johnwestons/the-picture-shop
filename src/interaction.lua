@@ -1,21 +1,59 @@
 local Interaction = {}
 
-local function distanceSquared(a, b)
-    local dx = a.x - b.x
-    local dy = a.y - b.y
-    return dx * dx + dy * dy
+local function distance(a, b)
+    local dx = (tonumber(a and a.x) or 0) - (tonumber(b and b.x) or 0)
+    local dy = (tonumber(a and a.y) or 0) - (tonumber(b and b.y) or 0)
+    return math.sqrt(dx * dx + dy * dy)
 end
 
-function Interaction.select(player, interactables)
-    local best
+-- Adapted from Mouse Frontier's interaction chooser. Only targets within the
+-- player's operating radius are candidates. A hovered target wins strongly;
+-- otherwise cursor proximity leads and player proximity breaks close ties.
+-- When no cursor is supplied, its position falls back to the player so
+-- keyboard, touch-button, and controller interaction remains nearest-first.
+function Interaction.select(player, interactables, cursorX, cursorY, previous, options)
+    options = options or {}
+    local cursorSupplied = tonumber(cursorX) ~= nil and tonumber(cursorY) ~= nil
+    local cursor = {
+        x = tonumber(cursorX) or tonumber(player and player.x) or 0,
+        y = tonumber(cursorY) or tonumber(player and player.y) or 0,
+    }
+    local intentX = tonumber(player and player.intentX) or tonumber(player and player.facing) or 1
+    local intentY = tonumber(player and player.intentY) or 0
+    local intentLength = math.sqrt(intentX * intentX + intentY * intentY)
+    if intentLength > 0 then intentX, intentY = intentX / intentLength, intentY / intentLength end
+    local best, bestScore
     for name, target in pairs(interactables) do
-        local distance = distanceSquared(player, target)
-        if distance <= target.radius * target.radius and (not best or distance < best.distance) then
-            best = {
-                kind = name,
-                distance = distance,
-                target = target,
-            }
+        local playerDistance = distance(player, target)
+        local radius = math.max(0, tonumber(target.radius) or 0)
+        if playerDistance <= radius then
+            local cursorDistance = distance(cursor, target)
+            local hovered = cursorDistance <= math.max(0, tonumber(target.hoverRadius) or 42)
+            local facingPenalty = 0
+            if not cursorSupplied and playerDistance > 0 and intentLength > 0 then
+                local targetX = (target.x - player.x) / playerDistance
+                local targetY = (target.y - player.y) / playerDistance
+                local alignment = targetX * intentX + targetY * intentY
+                facingPenalty = (1 - alignment) * math.max(0, tonumber(options.facingWeight) or 0)
+            end
+            local sticky = previous and previous.kind == name
+                and math.max(0, tonumber(options.stickiness) or 0) or 0
+            local score = cursorDistance + playerDistance * 0.001 + facingPenalty
+                - (hovered and 10000 or 0) - sticky
+            if not bestScore or score < bestScore
+                or (score == bestScore and tostring(name) < tostring(best.kind))
+            then
+                bestScore = score
+                best = {
+                    kind = name,
+                    distance = playerDistance * playerDistance,
+                    playerDistance = playerDistance,
+                    cursorDistance = cursorDistance,
+                    hovered = hovered,
+                    score = score,
+                    target = target,
+                }
+            end
         end
     end
     return best

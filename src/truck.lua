@@ -193,5 +193,44 @@ function Instance:snapshot()
     }
 end
 
+function Instance:applySnapshot(snapshot)
+    local states = {
+        absent = true, scheduled = true, waiting_for_bay = true, backing = true,
+        parked_closed = true, cargo_opening = true, cargo_open = true,
+        cargo_closing = true, departing = true,
+    }
+    local modes = {
+        delivery = true, vendor_delivery = true, machine_delivery = true, pickup = true,
+    }
+    if type(snapshot) ~= "table" or not states[snapshot.state]
+        or type(snapshot.backingProgress) ~= "number"
+        or snapshot.backingProgress ~= snapshot.backingProgress
+        or snapshot.backingProgress < 0 or snapshot.backingProgress > 1
+        or type(snapshot.cargoProgress) ~= "number"
+        or snapshot.cargoProgress ~= snapshot.cargoProgress
+        or snapshot.cargoProgress < 0 or snapshot.cargoProgress > 1
+    then
+        return false
+    end
+    if snapshot.state == "absent" then
+        if snapshot.jobId ~= nil or snapshot.mode ~= nil
+            or snapshot.backingProgress ~= 0 or snapshot.cargoProgress ~= 0
+        then
+            return false
+        end
+    elseif type(snapshot.jobId) ~= "string" or snapshot.jobId == ""
+        or not modes[snapshot.mode]
+    then
+        return false
+    end
+    self.state = snapshot.state
+    self.jobId = snapshot.jobId
+    self.mode = snapshot.mode
+    self.backingProgress = snapshot.backingProgress
+    self.cargoProgress = snapshot.cargoProgress
+    self.timer = 0
+    return true
+end
+
 Truck.Instance = Instance
 return Truck

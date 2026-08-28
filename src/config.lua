@@ -6,10 +6,24 @@ local Config = {
         monthlyExpenses = { rent = 1200, power = 240, water = 85, internet = 125 },
     },
     player = {
+        character = "rabbit-worker",
         spawnX = 500,
         spawnY = 455,
         speed = 155,
         drawScale = 0.30,
+        acceleration = 1050,
+        deceleration = 1350,
+        maxFrameTime = 0.10,
+        maxStepDistance = 5,
+        walkPixelsPerFrame = 20,
+        -- One value per gait pose: contact, weight-down, passing, knee-up,
+        -- then the mirrored four-pose step. Both curves average to 1.0 so
+        -- gait weight transfer does not change the player's overall pace.
+        gaitSpeedMultipliers = { 0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06 },
+        gaitAccelerationMultipliers = { 0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10 },
+        idleAnimationRate = 0.65,
+        interactionStickiness = 14,
+        interactionFacingWeight = 18,
     },
     characterRendering = {
         -- Rabbit frames are 256px high. Normalized visitors use the same source
@@ -30,7 +44,17 @@ local Config = {
         drawScale = 0.30,
         speed = 72,
         walkAnimationRate = 4,
+        idleAnimationRate = 0.65,
         useAnimationRate = 2.5,
+        motionProfiles = {
+            ["business-cat"] = {
+                walkPixelsPerFrame = 13,
+                acceleration = 420,
+                deceleration = 620,
+                gaitSpeedMultipliers = { 0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06 },
+                gaitAccelerationMultipliers = { 0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10 },
+            },
+        },
         -- The first customer demonstrates the reception loop quickly. Later
         -- clients arrive at varied business-day intervals instead of in a queue.
         initialArrivalDelayMin = 2,
@@ -89,7 +113,6 @@ local Config = {
         frameCount = 5,
         duration = 0.9,
         interaction = { x = 300, y = 285, radius = 62 },
-        obstacle = { x = 215, y = 267, radius = 55 },
     },
     truck = {
         frameSize = 512,
@@ -202,6 +225,7 @@ local Config = {
         unloadDuration = 0.65,
         unloadOrigin = { x = 218, y = 304 },
         receivingLaneRadius = 34,
+        interactionRadius = 86,
         spawnPoints = {
             { x = 338, y = 344 },
             { x = 410, y = 374 },
@@ -250,7 +274,6 @@ local Config = {
         walkmask = "assets/generated/warehouse-layout-final-walkmask.png",
         polar = "assets/generated/polar-115-sprite-sheet-clear-table-transparent.png",
         polarDirections = "assets/generated/polar-cutter-directions-strip.png",
-        rabbit = "assets/generated/rabbit-worker-atlas.png",
         emptyPallet = "assets/generated/empty-pallet.png",
         paperStack = "assets/generated/paper-stack.png",
         toolboxSmall = "assets/generated/toolbox-small.png",
@@ -281,7 +304,11 @@ local Config = {
         polarBackButton = "assets/generated/polar-back-button-states-strip.png",
         windmillDirections = "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
         pressProcessStages = "assets/generated/press-process-stages-atlas-v3.png",
+        pressOperatorHandbook = "assets/generated/heidelberg-operator-handbook-atlas-v2.png",
+        pressSetupInteractions = "assets/generated/heidelberg-setup-interactions-atlas-v2.png",
         technicianNpcs = "assets/generated/technician-npcs-atlas-v1.png",
+        palletWorkOrderPaper = "assets/generated/pallet-work-order-paper-v1.png",
+        workOrderFont = "assets/fonts/SpecialElite-Regular.ttf",
         artwork = {
             ["ad-clothing"] = "assets/generated/artwork/ad-clothing.png",
             ["ad-critter-tattoo"] = "assets/generated/artwork/ad-critter-tattoo.png",
@@ -331,12 +358,36 @@ local Config = {
         "motorcycle-gsxr-600-poster", "motorcycle-gsxr-600-side",
     },
     characters = {
+        ["rabbit-worker"] = {
+            idle = "assets/generated/characters/rabbit-worker/idle.png",
+            idle_north = "assets/generated/characters/rabbit-worker/idle_north.png",
+            idle_northeast = "assets/generated/characters/rabbit-worker/idle_northeast.png",
+            idle_southeast = "assets/generated/characters/rabbit-worker/idle_southeast.png",
+            idle_south = "assets/generated/characters/rabbit-worker/idle_south.png",
+            walk = "assets/generated/characters/rabbit-worker/walk.png",
+            walk_north = "assets/generated/characters/rabbit-worker/walk_north.png",
+            walk_northeast = "assets/generated/characters/rabbit-worker/walk_northeast.png",
+            walk_southeast = "assets/generated/characters/rabbit-worker/walk_southeast.png",
+            walk_south = "assets/generated/characters/rabbit-worker/walk_south.png",
+        },
         ["tan-cat"] = { idle = "assets/generated/characters/tan-cat/idle.png", walk = "assets/generated/characters/tan-cat/walk.png", sit = "assets/generated/characters/tan-cat/sit.png" },
         ["green-blazer-cat"] = { idle = "assets/generated/characters/green-blazer-cat/idle.png", walk = "assets/generated/characters/green-blazer-cat/walk.png", sit = "assets/generated/characters/green-blazer-cat/sit.png", use = "assets/generated/characters/green-blazer-cat/use.png" },
         ["blue-coaler-cat"] = { idle = "assets/generated/characters/blue-coaler-cat/idle.png", walk = "assets/generated/characters/blue-coaler-cat/walk.png", sit = "assets/generated/characters/blue-coaler-cat/sit.png" },
         ["business-dragon"] = { idle = "assets/generated/characters/business-dragon/idle.png", walk = "assets/generated/characters/business-dragon/walk.png", sit = "assets/generated/characters/business-dragon/sit.png" },
         ["business-fox"] = { idle = "assets/generated/characters/business-fox/idle.png", walk = "assets/generated/characters/business-fox/walk.png", sit = "assets/generated/characters/business-fox/sit.png" },
-        ["business-cat"] = { idle = "assets/generated/characters/business-cat/idle.png", walk = "assets/generated/characters/business-cat/walk.png", sit = "assets/generated/characters/business-cat/sit.png" },
+        ["business-cat"] = {
+            idle = "assets/generated/characters/business-cat/idle.png",
+            idle_north = "assets/generated/characters/business-cat/idle_north.png",
+            idle_northeast = "assets/generated/characters/business-cat/idle_northeast.png",
+            idle_southeast = "assets/generated/characters/business-cat/idle_southeast.png",
+            idle_south = "assets/generated/characters/business-cat/idle_south.png",
+            walk = "assets/generated/characters/business-cat/walk.png",
+            walk_north = "assets/generated/characters/business-cat/walk_north.png",
+            walk_northeast = "assets/generated/characters/business-cat/walk_northeast.png",
+            walk_southeast = "assets/generated/characters/business-cat/walk_southeast.png",
+            walk_south = "assets/generated/characters/business-cat/walk_south.png",
+            sit = "assets/generated/characters/business-cat/sit.png",
+        },
     },
 }
 

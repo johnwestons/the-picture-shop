@@ -1,9 +1,17 @@
 param(
     [Parameter(Mandatory=$true)][string]$PackagePath,
-    [switch]$Install
+    [switch]$Install,
+    [string]$DeviceSerial
 )
 
 $ErrorActionPreference = 'Stop'
+if ($DeviceSerial) {
+    $DeviceSerial = $DeviceSerial.Trim()
+    if (-not $Install) { throw '-DeviceSerial requires -Install.' }
+    if (-not $DeviceSerial -or $DeviceSerial -match '\s|[\x00-\x1F\x7F]') {
+        throw 'Android device serial contains invalid characters.'
+    }
+}
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $outputRoot = Join-Path $projectRoot 'output\mobile'
 $toolingRoot = Join-Path $outputRoot 'tooling'
@@ -233,6 +241,13 @@ finally { $env:JAVA_HOME = $signatureJavaHome }
 $aapt = Join-Path $buildToolsRoot 'aapt.exe'
 $badging = & $aapt dump badging $apkPath | Out-String
 if ($badging -notmatch [regex]::Escape("package: name='$($config.applicationId)'")) { throw 'APK application ID verification failed' }
+$permissionDump = & $aapt dump permissions $apkPath | Out-String
+if ($LASTEXITCODE -ne 0) { throw 'APK permission inspection failed' }
+$internetPermission = [regex]::IsMatch(
+    $permissionDump,
+    "(?m)^uses-permission(?:-sdk-\d+)?: name='android\.permission\.INTERNET'\s*$"
+)
+if (-not $internetPermission) { throw 'APK is missing required android.permission.INTERNET permission' }
 $zipalign = Join-Path $buildToolsRoot 'zipalign.exe'
 & $zipalign -c -P 16 -v 4 $apkPath | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'APK ZIP alignment is not compatible with 16 KB page-size devices' }
@@ -251,18 +266,32 @@ foreach ($library in $arm64Libraries) {
 
 $adb = Join-Path $androidRoot 'platform-tools\adb.exe'
 $devices = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
+$authorizedDeviceSerials = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
 $deviceLaunchVerified = $false
+$installedDeviceSerial = $null
 if ($Install) {
-    if ($devices.Count -ne 1) { throw "Expected one authorized Android device, found $($devices.Count)" }
-    & $adb install -r $apkPath
+    if ($DeviceSerial) {
+        if ($authorizedDeviceSerials -notcontains $DeviceSerial) {
+            throw "Requested Android device '$DeviceSerial' is not authorized or connected."
+        }
+        $installedDeviceSerial = $DeviceSerial
+    }
+    else {
+        if ($authorizedDeviceSerials.Count -ne 1) {
+            throw "Expected one authorized Android device or -DeviceSerial, found $($authorizedDeviceSerials.Count)"
+        }
+        $installedDeviceSerial = $authorizedDeviceSerials[0]
+    }
+    $adbTarget = @('-s', $installedDeviceSerial)
+    & $adb @adbTarget install -r $apkPath
     if ($LASTEXITCODE -ne 0) { throw 'APK installation failed' }
-    & $adb shell am force-stop $config.applicationId
-    & $adb logcat -c
-    & $adb shell am start -W -n "$($config.applicationId)/org.love2d.android.GameActivity"
+    & $adb @adbTarget shell am force-stop $config.applicationId
+    & $adb @adbTarget logcat -c
+    & $adb @adbTarget shell am start -W -n "$($config.applicationId)/org.love2d.android.GameActivity"
     if ($LASTEXITCODE -ne 0) { throw 'Installed APK did not launch' }
     for ($attempt = 1; $attempt -le 45; $attempt++) {
-        $deviceProcessId = (& $adb shell pidof $config.applicationId | Out-String).Trim()
-        $log = (& $adb logcat -d -v brief | Out-String)
+        $deviceProcessId = (& $adb @adbTarget shell pidof $config.applicationId | Out-String).Trim()
+        $log = (& $adb @adbTarget logcat -d -v brief | Out-String)
         if ($log -match '\[PICTURE SHOP\] Startup complete') { $deviceLaunchVerified = $true; break }
         if ($log -match 'FATAL EXCEPTION|stack traceback|Lua error') { throw 'Installed APK reported a startup error' }
         if (-not $deviceProcessId) { throw 'The Picture Shop process stopped during startup' }
@@ -279,11 +308,15 @@ $report = [ordered]@{
     apkBytes = (Get-Item -LiteralPath $apkPath).Length
     sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $apkPath).Hash.ToLowerInvariant()
     signed = $true
+    internetPermission = $internetPermission
     sixteenKbCompatible = $true
     connectedAndroidDevices = $devices.Count
+    installedDeviceSerial = $installedDeviceSerial
     deviceLaunchVerified = $deviceLaunchVerified
 }
 [System.IO.File]::WriteAllText((Join-Path $outputRoot 'apk-report.json'),($report | ConvertTo-Json) + "`n",[System.Text.UTF8Encoding]::new($false))
 Write-Output "ANDROID_APK=$apkPath"
+Write-Output "INTERNET_PERMISSION=$internetPermission"
 Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)"
+if ($installedDeviceSerial) { Write-Output "INSTALLED_DEVICE_SERIAL=$installedDeviceSerial" }
 Write-Output "DEVICE_LAUNCH_VERIFIED=$deviceLaunchVerified"

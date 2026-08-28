@@ -150,3 +150,53 @@ whisker, tail, shoe, case and tool; add no new content, text, watermark or check
 
 The corrected source is preserved as `output/technician-npcs-source-v1.png`; the deterministic builder writes
 `assets/generated/technician-npcs-atlas-v1.png` (2048x1024).
+
+## Rabbit worker directional walk cycle
+
+Built-in ImageGen style-transfer prompt: use the approved rabbit-worker walk strip as the exact identity and
+rendering reference. Create a genuinely transparent 4-column by 4-row atlas with coherent four-frame loops:
+north/back, northeast/rear three-quarter, southeast/front three-quarter, and south/front. Preserve the orange-brown
+rabbit, white muzzle, pink nose and inner ears, gray rolled-sleeve shirt, blue bib overalls, brown belt, left-side
+tool pouch and boots; keep identical scale, baseline, camera elevation, hard pixel-like edges, outline, shading and
+palette. Require exactly sixteen isolated full-body sprites with complete anatomy, no grid, text, labels, scenery,
+checkerboard or watermark. The source is `assets/Characters/Player/rabbit-worker-directional-walk-v1.png`;
+`tools/build_player_character_assets.py` removes the connected checker field, normalizes every frame, and emits
+the four directional runtime strips. The existing east strip plus horizontal mirroring provides eight visual sectors.
+
+Built-in ImageGen eight-frame expansion prompt: use each approved directional strip as the exact identity, outfit,
+camera, palette, and angle reference. Expand it into a 4-column by 2-row row-major gait containing left contact,
+weight-down, right passing, right knee-up, right contact, opposite weight-down, left passing, and left knee-up.
+Require opposite arm swing, small temporal changes between neighbors, a smooth frame-eight-to-frame-one loop,
+fixed scale/baseline, complete anatomy, isolated sprites, and true transparency with no floor, grid, text, extra
+character, fused legs, duplicated limbs, crop, checkerboard, or watermark. Straight north and south were regenerated
+with an additional constraint that only frames one and five may use long strides; passing frames must overlap the
+boots beneath the body. Reviewed sources are stored as `rabbit-worker-walk-*-8frame-v1.png`, with the approved
+straight views promoted to `rabbit-worker-walk-north-8frame-v2.png` and `rabbit-worker-walk-south-8frame-v2.png`.
+The builder emits five 4096x512 strips; mirroring supplies southwest, west, and northwest.
+
+The side and diagonal v2 correction uses the approved north/south v2 sheets as phase-order references and each
+direction's earlier sheet as its identity/camera reference. Each output frame is explicitly phase-locked to the
+corresponding approved contact/down/passing/up pose, with only frames one and five allowed a long stride. The
+promoted sources are `rabbit-worker-walk-east-8frame-v2.png`, `rabbit-worker-walk-northeast-8frame-v2.png`, and
+`rabbit-worker-walk-southeast-8frame-v2.png`. The builder also removes large enclosed neutral checker remnants
+from the lower-leg region before scaling, and runtime playback uses 129 ms per pose at full speed.
+
+## Directional idle standard and business cat overhaul
+
+Built-in ImageGen directional-idle prompt: preserve the approved rabbit worker's identity, outfit, pixel density,
+camera, palette, outline and proportions while creating an exact transparent 5-column by 2-row atlas. Columns are
+north, northeast, east, southeast and south; the first row is a neutral standing pose and the second row is the
+same pose with a subtle blink/settle only. Keep a fixed foot baseline, complete anatomy and consistent scale, with
+no floor, scenery, labels, grid, checkerboard or watermark. The reviewed source is
+`assets/Characters/Player/rabbit-worker-directional-idle-v1.png`; the builder emits five paired two-frame idles.
+
+Built-in ImageGen business-cat direction and gait prompts: use the supplied seated orange tabby in the tan fedora,
+cream rolled-sleeve shirt, dark green vest, red tie, brown trousers and brown shoes as the exact identity and outfit.
+First create five approved full-body standing views (north, northeast, east, southeast, south), then an exact
+5-column by 2-row neutral/blink directional-idle atlas. For each approved direction, create a transparent 4-column
+by 2-row row-major gait: left contact, left weight-down, right passing, right knee-up, right contact, right
+weight-down, left passing, left knee-up. Preserve opposite arm swing, readable alternating feet, fixed scale and
+baseline, consistent hat/tail/clothing details, and a smooth loop; exclude floor, scenery, text, grid, checkerboard,
+watermark, fused limbs and duplicated characters. Reviewed sources are stored under
+`assets/Characters/BusinessCat/`; `tools/build_business_cat_character_assets.py` normalizes and installs the five
+idle and five walk strips after contact-sheet review.

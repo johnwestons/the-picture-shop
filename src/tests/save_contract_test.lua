@@ -1,3 +1,5 @@
+local SaveSchema = require("src.save_schema")
+
 local Test = {}
 
 function Test.run(context, check)
@@ -126,6 +128,93 @@ function Test.run(context, check)
     end
     check("domain_save_rejects_multiple_windmill_owned_pallets",
         not context.save.save(slot, ownershipState, fresh.player))
+
+    local hostState = context.State.new()
+    hostState.money = 925
+    hostState.inventory.paper = 2375
+    hostState.inventory.prints = 18
+    hostState.inventory.stock.shipping_cartons = 5
+    hostState.calendar = {
+        year = 2026, month = 1, day = 5, weekday = 1, elapsed = 45, totalDays = 4,
+    }
+    local sharedJob = context.jobs.createOffer({
+        id = "LAN-SHARED-001", company = "Cross-platform Customer",
+        sourceSize = { width = 20, height = 16 },
+        finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 }, packaging = "flat",
+    })
+    context.jobs.accept(sharedJob, 123)
+    hostState.jobs.active = { sharedJob }
+    hostState.nextJobId = 2
+    hostState.clientEmails.nextEmailId = 2
+    hostState.clientEmails.inbox = {
+        {
+            id = "EMAIL-LAN-001",
+            sender = "Cross-platform Customer",
+            subject = "Print quote",
+            body = "Please quote our next run.",
+            sourceJobId = sharedJob.id,
+            readyAtHours = 96,
+            receivedAtHours = 97,
+            job = sharedJob,
+        },
+    }
+    local sharedSnapshot = SaveSchema.snapshot(hostState)
+    local guestState = context.State.new()
+    guestState.activeSlot = 3
+    guestState.money = 1
+    guestState.inventory.paper = 1
+    guestState.calendar.day = 1
+    local sharedApplied = context.State.applySharedSnapshot(guestState, sharedSnapshot)
+    local guestPaper = guestState.inventory.paper
+    local guestJobId = guestState.jobs.active[1] and guestState.jobs.active[1].id
+    sharedSnapshot.inventory.paper = 0
+    sharedSnapshot.jobs.active[1].id = "MUTATED-AFTER-APPLY"
+    check("domain_guest_applies_detached_host_authoritative_shop_snapshot",
+        sharedApplied and guestState.activeSlot == nil and guestState.screen == "world"
+        and guestState.money == 925 and guestPaper == 2375
+        and guestState.inventory.paper == 2375 and guestState.inventory.prints == 18
+        and guestState.inventory.stock.shipping_cartons == 5
+        and guestState.calendar.year == 2026 and guestState.calendar.day == 5
+        and guestState.calendar.totalDays == 4
+        and guestJobId == "LAN-SHARED-001"
+        and guestState.jobs.active[1].id == "LAN-SHARED-001"
+        and guestState.jobs.active[1].status == "awaiting_delivery"
+        and guestState.clientEmails.inbox[1].sender == "Cross-platform Customer")
+
+    check("domain_guest_rejects_non_table_shared_shop_snapshot_without_mutation",
+        not context.State.applySharedSnapshot(guestState, "forged-state")
+        and guestState.money == 925 and guestState.activeSlot == nil)
+
+    hostState.money = 1110
+    hostState.inventory.paper = 2125
+    hostState.inventory.prints = 44
+    hostState.calendar.day = 6
+    hostState.calendar.weekday = 2
+    hostState.calendar.totalDays = 5
+    local sharedUpdate = SaveSchema.snapshot(hostState)
+    local localOffer = { id = "LOCAL-PANEL-OFFER" }
+    guestState.screen = "computer"
+    guestState.message = "Reviewing the host shop"
+    guestState.currentOffer = localOffer
+    guestState.activeSlot = 2
+    check("domain_guest_live_update_preserves_local_ui_and_replaces_durable_state",
+        context.State.applySharedUpdate(guestState, sharedUpdate)
+        and guestState.money == 1110 and guestState.inventory.paper == 2125
+        and guestState.inventory.prints == 44 and guestState.calendar.day == 6
+        and guestState.jobs.active[1].id == "LAN-SHARED-001"
+        and guestState.screen == "computer"
+        and guestState.message == "Reviewing the host shop"
+        and guestState.currentOffer == localOffer and guestState.activeSlot == nil)
+
+    local invalidSemanticUpdate = SaveSchema.snapshot(hostState)
+    invalidSemanticUpdate.money = -1
+    invalidSemanticUpdate.calendar.day = 99
+    check("domain_guest_rejects_invalid_semantic_live_update_atomically",
+        not context.State.applySharedUpdate(guestState, invalidSemanticUpdate)
+        and guestState.money == 1110 and guestState.inventory.paper == 2125
+        and guestState.calendar.day == 6 and guestState.screen == "computer"
+        and guestState.currentOffer == localOffer and guestState.activeSlot == nil)
     context.save.delete(slot)
 end
 

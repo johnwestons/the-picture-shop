@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "character": "business-cat",
+  "animations": {
+    "idle_east": { "path": "assets/generated/characters/business-cat/idle.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_north": { "path": "assets/generated/characters/business-cat/idle_north.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_northeast": { "path": "assets/generated/characters/business-cat/idle_northeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_southeast": { "path": "assets/generated/characters/business-cat/idle_southeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_south": { "path": "assets/generated/characters/business-cat/idle_south.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "walk_east": { "path": "assets/generated/characters/business-cat/walk.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 5.54 },
+    "walk_north": { "path": "assets/generated/characters/business-cat/walk_north.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 5.54 },
+    "walk_northeast": { "path": "assets/generated/characters/business-cat/walk_northeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 5.54 },
+    "walk_southeast": { "path": "assets/generated/characters/business-cat/walk_southeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 5.54 },
+    "walk_south": { "path": "assets/generated/characters/business-cat/walk_south.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 5.54 },
+    "sit": { "path": "assets/generated/characters/business-cat/sit.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": false, "fps": 0 }
+  },
+  "directions": {
+    "north": { "walk_animation": "walk_north", "idle_animation": "idle_north", "mirror_x": false },
+    "northeast": { "walk_animation": "walk_northeast", "idle_animation": "idle_northeast", "mirror_x": false },
+    "east": { "walk_animation": "walk_east", "idle_animation": "idle_east", "mirror_x": false },
+    "southeast": { "walk_animation": "walk_southeast", "idle_animation": "idle_southeast", "mirror_x": false },
+    "south": { "walk_animation": "walk_south", "idle_animation": "idle_south", "mirror_x": false },
+    "southwest": { "walk_animation": "walk_southeast", "idle_animation": "idle_southeast", "mirror_x": true },
+    "west": { "walk_animation": "walk_east", "idle_animation": "idle_east", "mirror_x": true },
+    "northwest": { "walk_animation": "walk_northeast", "idle_animation": "idle_northeast", "mirror_x": true }
+  },
+  "gait": {
+    "pose_order": ["left_contact", "left_weight_down", "right_passing", "right_knee_up", "right_contact", "right_weight_down", "left_passing", "left_knee_up"],
+    "pixels_per_frame": 13,
+    "base_speed": 72,
+    "speed_multipliers": [0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06],
+    "acceleration_multipliers": [0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10]
+  },
+  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 14, "center_tolerance": 30 }
+}

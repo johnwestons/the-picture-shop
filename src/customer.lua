@@ -1,10 +1,27 @@
 -- Transient customer movement and reception behavior. The paperwork screen
 -- drives these review/resolve transitions while the visitor remains in-world.
 local CharacterAnimation = require("src.character_animation")
+local GaitMotion = require("src.gait_motion")
 
 local Customer = {}
 local Instance = {}
 Instance.__index = Instance
+
+local NETWORK_STATES = {
+    scheduled = true,
+    entering = true,
+    waiting = true,
+    reviewing = true,
+    exiting = true,
+    finished = true,
+}
+
+local NETWORK_DECISIONS = { accepted = true, declined = true, timed_out = true }
+
+local function finite(value)
+    return type(value) == "number" and value == value
+        and value ~= math.huge and value ~= -math.huge
+end
 
 local function copyRoute(route)
     local result = {}
@@ -26,6 +43,12 @@ local function randomDelay(minimum, maximum, fallback)
     minimum = math.max(0, minimum or maximum or 0)
     maximum = math.max(minimum, maximum or minimum)
     return minimum + (maximum - minimum) * math.random()
+end
+
+local function approach(value, target, amount)
+    if value < target then return math.min(target, value + amount) end
+    if value > target then return math.max(target, value - amount) end
+    return target
 end
 
 local function moveToward(instance, target, distance)
@@ -55,7 +78,9 @@ function Customer.new(definition)
         drawScale = definition.drawScale or 0.30,
         speed = definition.speed or 72,
         walkAnimationRate = definition.walkAnimationRate or 4,
+        idleAnimationRate = definition.idleAnimationRate or 0.65,
         useAnimationRate = definition.useAnimationRate or 2.5,
+        motionProfiles = definition.motionProfiles or {},
         arrivalDelay = definition.arrivalDelay or 1,
         initialArrivalDelay = definition.initialArrivalDelay,
         initialArrivalDelayMin = definition.initialArrivalDelayMin,
@@ -90,7 +115,13 @@ function Instance:reset(initialVisit)
         or randomDelay(self.arrivalDelayMin, self.arrivalDelayMax, self.arrivalDelay)
     self.waypoint = 2
     self.facing = 1
+    self.intentX, self.intentY = 1, 0
+    self.motionX, self.motionY = 0, 0
+    self.currentSpeed = 0
+    self.animationDistance = 0
+    self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
     self.animationClock = 0
+    self.idleClock = 0
     self.inMotion = false
     self.decision = nil
     self.waitTimer = 0
@@ -99,6 +130,7 @@ end
 function Instance:update(dt, player, pauseSchedule)
     dt = math.max(0, dt or 0)
     self.inMotion = false
+    self.motionX, self.motionY = 0, 0
     if self.state == "scheduled" then
         if pauseSchedule then return nil end
         self.timer = self.timer - dt
@@ -108,6 +140,9 @@ function Instance:update(dt, player, pauseSchedule)
     end
 
     if self.state ~= "entering" and self.state ~= "exiting" then
+        self.currentSpeed = 0
+        self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
+        self.idleClock = self.idleClock + dt
         if self.state == "waiting" then
             self.waitTimer = self.waitTimer + dt
             self.facing = self.seatFacing or (player and (player.x < self.x and -1 or 1)) or 1
@@ -125,10 +160,31 @@ function Instance:update(dt, player, pauseSchedule)
     end
 
     -- A customer politely pauses instead of walking through the player.
-    if player and distanceSquared(self, player) < 28 * 28 then return nil end
+    if player and distanceSquared(self, player) < 28 * 28 then
+        self.currentSpeed = 0
+        self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
+        self.idleClock = self.idleClock + dt
+        return nil
+    end
 
     local startX, startY = self.x, self.y
-    local travel = self.speed * dt
+    local motionProfile = self.motionProfiles[self.character]
+    local travel
+    if motionProfile then
+        local gaitSpeed, gaitAcceleration = GaitMotion.sample(
+            self.animationDistance, motionProfile)
+        self.gaitSpeedMultiplier = gaitSpeed
+        self.gaitAccelerationMultiplier = gaitAcceleration
+        local targetSpeed = self.speed * gaitSpeed
+        self.currentSpeed = approach(self.currentSpeed, targetSpeed,
+            (motionProfile.acceleration or 420) * gaitAcceleration * dt)
+        travel = self.currentSpeed * dt
+    else
+        self.currentSpeed = self.speed
+        self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
+        travel = self.speed * dt
+    end
+    local event
     while travel > 0 do
         local target = self.route[self.waypoint]
         if not target then
@@ -136,21 +192,36 @@ function Instance:update(dt, player, pauseSchedule)
                 self.state = "waiting"
                 self.waypoint = #self.route
                 self.waitTimer = 0
-                return "arrived"
+                self.currentSpeed = 0
+                event = "arrived"
+                break
             end
             self.state = "finished"
             self.visible = false
             self.waypoint = 1
-            return "exited"
+            self.currentSpeed = 0
+            event = "exited"
+            break
         end
         local reached, remaining = moveToward(self, target, travel)
         if not reached then break end
         travel = remaining
         self.waypoint = self.state == "entering" and self.waypoint + 1 or self.waypoint - 1
     end
-    self.inMotion = self.x ~= startX or self.y ~= startY
-    if self.inMotion then self.animationClock = self.animationClock + dt end
-    return nil
+    local movedX, movedY = self.x - startX, self.y - startY
+    local distance = math.sqrt(movedX * movedX + movedY * movedY)
+    self.inMotion = distance > 0.0001
+    if self.inMotion then
+        self.animationClock = self.animationClock + dt
+        self.idleClock = 0
+        self.motionX, self.motionY = movedX / distance, movedY / distance
+        self.intentX, self.intentY = self.motionX, self.motionY
+        self.animationDistance = self.animationDistance + distance
+        if math.abs(self.motionX) > 0.08 then self.facing = self.motionX < 0 and -1 or 1 end
+    else
+        self.idleClock = self.idleClock + dt
+    end
+    return event
 end
 
 function Instance:isPresent()
@@ -201,6 +272,15 @@ function Instance:isMoving()
 end
 
 function Instance:frameForAction(action, frameCount)
+    local motionProfile = self.motionProfiles[self.character]
+    if motionProfile and CharacterAnimation.isWalkAction(action) then
+        return CharacterAnimation.frameForDistance(frameCount, self.animationDistance,
+            motionProfile.walkPixelsPerFrame)
+    end
+    if type(action) == "string" and (action == "idle" or action:match("^idle_")) then
+        return CharacterAnimation.frameForClock(frameCount, self.idleClock,
+            self.idleAnimationRate)
+    end
     return CharacterAnimation.frameForAction(action, frameCount, self.animationClock,
         self.walkAnimationRate, self.useAnimationRate)
 end
@@ -213,10 +293,77 @@ function Instance:snapshot()
         y = self.y,
         waypoint = self.waypoint,
         seatIndex = self.seatIndex,
+        character = self.character,
+        facing = self.facing,
+        intentX = self.intentX,
+        intentY = self.intentY,
+        motionX = self.motionX,
+        motionY = self.motionY,
+        currentSpeed = self.currentSpeed,
+        animationDistance = self.animationDistance,
+        animationClock = self.animationClock,
+        idleClock = self.idleClock,
+        inMotion = self.inMotion,
         decision = self.decision,
         waitTimer = self.waitTimer,
         arrivalTimer = self.timer,
     }
+end
+
+-- LAN guests do not simulate reception schedules. They install the host's
+-- validated visitor pose instead, keeping both devices on the same customer
+-- and vendor without granting the guest authority over either state machine.
+function Instance:applySnapshot(snapshot)
+    if type(snapshot) ~= "table" or not NETWORK_STATES[snapshot.state]
+        or type(snapshot.visible) ~= "boolean"
+        or not finite(snapshot.x) or not finite(snapshot.y)
+        or type(snapshot.waypoint) ~= "number" or snapshot.waypoint % 1 ~= 0
+        or snapshot.waypoint < 1 or snapshot.waypoint > #self.route
+        or type(snapshot.seatIndex) ~= "number" or snapshot.seatIndex % 1 ~= 0
+        or snapshot.seatIndex < 0
+        or (type(self.seatSpots) == "table" and snapshot.seatIndex > #self.seatSpots)
+        or type(snapshot.character) ~= "string" or snapshot.character == ""
+        or (snapshot.facing ~= -1 and snapshot.facing ~= 1)
+        or type(snapshot.inMotion) ~= "boolean"
+        or (snapshot.decision ~= nil and not NETWORK_DECISIONS[snapshot.decision])
+    then
+        return false
+    end
+    for _, field in ipairs({
+        "intentX", "intentY", "motionX", "motionY", "currentSpeed",
+        "animationDistance", "animationClock", "idleClock", "waitTimer", "arrivalTimer",
+    }) do
+        if not finite(snapshot[field]) then return false end
+    end
+    if snapshot.currentSpeed < 0 or snapshot.animationDistance < 0
+        or snapshot.animationClock < 0 or snapshot.idleClock < 0 or snapshot.waitTimer < 0
+    then
+        return false
+    end
+
+    self.state = snapshot.state
+    self.visible = snapshot.visible
+    self.x, self.y = snapshot.x, snapshot.y
+    self.waypoint = snapshot.waypoint
+    self.seatIndex = snapshot.seatIndex
+    self.character = snapshot.character
+    self.facing = snapshot.facing
+    self.intentX, self.intentY = snapshot.intentX, snapshot.intentY
+    self.motionX, self.motionY = snapshot.motionX, snapshot.motionY
+    self.currentSpeed = snapshot.currentSpeed
+    self.animationDistance = snapshot.animationDistance
+    self.animationClock = snapshot.animationClock
+    self.idleClock = snapshot.idleClock
+    self.inMotion = snapshot.inMotion
+    self.decision = snapshot.decision
+    self.waitTimer = snapshot.waitTimer
+    self.timer = snapshot.arrivalTimer
+    if type(self.seatSpots) == "table" and self.seatSpots[self.seatIndex] then
+        self.seat = self.seatSpots[self.seatIndex]
+        self.seatFacing = self.seat.facing or 1
+        self.route[#self.route] = { x = self.seat.x, y = self.seat.y }
+    end
+    return true
 end
 
 function Instance:draw(characterAssets)
@@ -224,6 +371,19 @@ function Instance:draw(characterAssets)
     local action = self.state == "reviewing" and characterAssets.hasAction(self.character, "use")
         and "use" or ((self.state == "waiting" or self.state == "reviewing")
             and "sit" or (self:isMoving() and "walk" or "idle"))
+    local directionScale = self.facing
+    if CharacterAnimation.isWalkAction(action) then
+        local directionalAction, mirror = CharacterAnimation.directionalWalkAction(
+            self.motionX ~= 0 and self.motionX or self.intentX,
+            self.motionY ~= 0 and self.motionY or self.intentY)
+        if characterAssets.hasAction(self.character, directionalAction) then action = directionalAction end
+        directionScale = mirror
+    elseif action == "idle" then
+        local directionalAction, mirror = CharacterAnimation.directionalIdleAction(
+            self.intentX, self.intentY)
+        if characterAssets.hasAction(self.character, directionalAction) then action = directionalAction end
+        directionScale = mirror
+    end
     local image, quad, frameCount = characterAssets.get(self.character, action, 1)
     frameCount = frameCount or 1
     -- Seated/idle clients use one clean atlas cell. Walking and explicit use
@@ -241,7 +401,7 @@ function Instance:draw(characterAssets)
             self.x,
             self.y,
             0,
-            self.drawScale * normalization * self.facing,
+            self.drawScale * normalization * directionScale,
             self.drawScale * normalization,
             anchorX,
             anchorY

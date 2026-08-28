@@ -6,6 +6,7 @@ local Schema = require("src.save_schema")
 
 local save = {}
 local recoveryNotices = {}
+local writableProbeCounter = 0
 
 local function slotFiles(slot)
     if not Schema.validSlot(slot) then return nil end
@@ -60,6 +61,91 @@ end
 local function absolutePath(path)
     local separator = package.config:sub(1, 1)
     return love.filesystem.getSaveDirectory() .. separator .. path:gsub("/", separator)
+end
+
+local function removeIfPresent(path)
+    local inspected, info = pcall(love.filesystem.getInfo, path)
+    if not inspected then return false end
+    if not info then return true end
+    local removed, result = pcall(love.filesystem.remove, path)
+    return removed and result ~= false and result ~= nil
+end
+
+local function reserveWritableProbe(slot)
+    for _ = 1, 64 do
+        writableProbeCounter = writableProbeCounter + 1
+        local stem = string.format("saves/.host-write-probe-%d-%d-%d",
+            slot, tonumber(os.time()) or 0, writableProbeCounter)
+        local temporary, promoted = stem .. ".tmp", stem .. ".ready"
+        local inspectedTemporary, temporaryInfo = pcall(love.filesystem.getInfo, temporary)
+        local inspectedPromoted, promotedInfo = pcall(love.filesystem.getInfo, promoted)
+        if not inspectedTemporary or not inspectedPromoted then return nil end
+        if not temporaryInfo and not promotedInfo then return temporary, promoted end
+    end
+end
+
+-- Hosting makes this device the sole owner of the durable shop. Verify the
+-- complete private save path without touching any slot or recovery file: make
+-- the directory, write/read a unique marker, promote it by the same
+-- rename-or-copy strategy used by saves, then remove every probe artifact.
+function save.preflightWritable(slot)
+    if not Schema.validSlot(slot) then return false, "Save slot must be 1, 2, or 3." end
+
+    local created, createResult = pcall(love.filesystem.createDirectory, "saves")
+    if not created or createResult == false or createResult == nil then
+        return false, "This device could not create the private save folder."
+    end
+
+    local temporary, promoted = reserveWritableProbe(slot)
+    if not temporary then
+        return false, "This device could not reserve a private host-save check."
+    end
+    local marker = string.format("picture-shop-host-save-check:%d:%d",
+        slot, writableProbeCounter)
+    local function cleanup()
+        local temporaryRemoved = removeIfPresent(temporary)
+        local promotedRemoved = removeIfPresent(promoted)
+        return temporaryRemoved and promotedRemoved
+    end
+    local function fail(message)
+        local cleaned = cleanup()
+        return false, cleaned and message
+            or (message .. " The temporary save check could not be removed.")
+    end
+
+    local wrote, writeResult = pcall(love.filesystem.write, temporary, marker)
+    if not wrote or writeResult == false or writeResult == nil then
+        return fail("This device could not write a private host save.")
+    end
+    local readTemporary, temporaryBytes = pcall(love.filesystem.read, temporary)
+    if not readTemporary or temporaryBytes ~= marker then
+        return fail("This device could not verify a private host save.")
+    end
+
+    local resolvedTemporary, temporaryPath = pcall(absolutePath, temporary)
+    local resolvedPromoted, promotedPath = pcall(absolutePath, promoted)
+    local renamed, renameResult = false, nil
+    if resolvedTemporary and resolvedPromoted then
+        renamed, renameResult = pcall(os.rename, temporaryPath, promotedPath)
+    end
+    if not renamed or renameResult == false or renameResult == nil then
+        local copied, copyResult = pcall(love.filesystem.write, promoted, marker)
+        if not copied or copyResult == false or copyResult == nil then
+            return fail("This device could not promote a private host save.")
+        end
+        if not removeIfPresent(temporary) then
+            return fail("This device could not replace a private host save safely.")
+        end
+    end
+
+    local readPromoted, promotedBytes = pcall(love.filesystem.read, promoted)
+    if not readPromoted or promotedBytes ~= marker then
+        return fail("This device could not verify a promoted host save.")
+    end
+    if not cleanup() then
+        return false, "This device wrote a host-save check but could not clean it up."
+    end
+    return true
 end
 
 local function promote(sourcePath, targetPath)
@@ -137,7 +223,7 @@ function save.save(slot, state, worldSnapshot)
         },
     }
     if not Schema.validPayload(payload) then return false end
-    love.filesystem.createDirectory("saves")
+    if not love.filesystem.createDirectory("saves") then return false end
     local source = encode(payload)
     love.filesystem.remove(files.temporary)
     if not writeValidated(files.temporary, source) then return false end

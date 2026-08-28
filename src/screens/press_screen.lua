@@ -3,15 +3,18 @@ local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
 local MachineMaintenance = require("src.machine_maintenance")
 local Plates = require("src.plate_service")
+local PressArtworkCompositor = require("src.press_artwork_compositor")
+local PressSetupGames = require("src.press_setup_games")
 local Windmill = require("src.windmill")
 
 local Screen = {
     tab = "run", clock = 0, activeSetup = nil, setupHits = 0, setupMisses = 0,
     selectedCandidate = 1, selectedPlateJob = 1, selectedPlate = 1,
-    maintenance = nil, lockoutStep = 1, tutorialStep = 1,
+    maintenance = nil, lockoutStep = 1, tutorialStep = 1, buttonFlash = nil,
+    feedbackText = nil, feedbackTone = "info", setupGame = nil,
 }
 
-local BACK = { x = 34, y = 700, width = 150, height = 44 }
+local BACK = { x = 34, y = 630, width = 150, height = 36 }
 local tabs = {
     { id = "run", label = "RUN", x = 34 }, { id = "plates", label = "PLATES", x = 170 },
     { id = "setup", label = "SETUP", x = 306 }, { id = "proof", label = "PROOF", x = 442 },
@@ -23,18 +26,37 @@ local function inside(rect, x, y)
 end
 
 local function button(x, y, width, height, label, enabled, pointerX, pointerY, danger)
-    local hovered = pointerX and inside({ x = x, y = y, width = width, height = height }, pointerX, pointerY)
+    local rect = { x = x, y = y, width = width, height = height }
+    local hovered = pointerX and inside(rect, pointerX, pointerY)
     local pressed = hovered and love.mouse and love.mouse.isDown and love.mouse.isDown(1)
-    y = y + (pressed and 2 or 0)
-    love.graphics.setColor(enabled == false and 0.16 or danger and 0.48 or hovered and 0.24 or 0.18,
-        enabled == false and 0.17 or danger and 0.13 or hovered and 0.42 or 0.31,
-        enabled == false and 0.18 or danger and 0.12 or hovered and 0.45 or 0.36, 1)
+    local flashed = Screen.buttonFlash and Screen.clock <= Screen.buttonFlash.expires
+        and inside(rect, Screen.buttonFlash.x, Screen.buttonFlash.y)
+    local down = pressed or flashed
+    y = y + (down and 2 or 0)
+    love.graphics.setColor(enabled == false and flashed and 0.46 or enabled == false and 0.16
+            or flashed and 0.42 or danger and 0.48 or hovered and 0.24 or 0.18,
+        enabled == false and flashed and 0.15 or enabled == false and 0.17
+            or flashed and 0.48 or danger and 0.13 or hovered and 0.42 or 0.31,
+        enabled == false and flashed and 0.12 or enabled == false and 0.18
+            or flashed and 0.16 or danger and 0.12 or hovered and 0.45 or 0.36, 1)
     love.graphics.rectangle("fill", x, y, width, height, 5, 5)
-    love.graphics.setColor(enabled == false and 0.45 or 0.90, enabled == false and 0.45 or 0.94,
-        enabled == false and 0.45 or 0.88, 1)
+    love.graphics.setLineWidth(flashed and 4 or 1)
+    love.graphics.setColor(enabled == false and flashed and 0.98 or enabled == false and 0.45
+            or flashed and 1.00 or 0.90,
+        enabled == false and flashed and 0.36 or enabled == false and 0.45
+            or flashed and 0.84 or 0.94,
+        enabled == false and flashed and 0.22 or enabled == false and 0.45
+            or flashed and 0.24 or 0.88, 1)
     love.graphics.rectangle("line", x, y, width, height, 5, 5)
+    if flashed then
+        love.graphics.setColor(enabled == false and 0.98 or 1.0, enabled == false and 0.30 or 0.86, 0.20, 0.75)
+        love.graphics.rectangle("line", x - 3, y - 3, width + 6, height + 6, 7, 7)
+    end
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(enabled == false and 0.45 or 0.94, enabled == false and 0.45 or 0.96,
+        enabled == false and 0.45 or 0.90, 1)
     love.graphics.printf(label, x, y + height / 2 - 7, width, "center")
-    return { x = x, y = y, width = width, height = height }
+    return rect
 end
 
 local function title(text, subtext)
@@ -44,6 +66,27 @@ local function title(text, subtext)
     love.graphics.print(subtext or "", 40, 99)
 end
 
+local function setFeedback(state, text, tone)
+    Screen.feedbackText = tostring(text or "Press console ready.")
+    Screen.feedbackTone = tone or "info"
+    if state then state.message = Screen.feedbackText end
+end
+
+local function drawFeedback(state)
+    local text = Screen.feedbackText or state.message or "Press console ready."
+    local tone = Screen.feedbackTone
+    local color = tone == "error" and { 0.94, 0.32, 0.22 }
+        or tone == "success" and { 0.30, 0.86, 0.38 }
+        or { 0.90, 0.72, 0.22 }
+    love.graphics.setColor(0.07, 0.09, 0.09, 0.98)
+    love.graphics.rectangle("fill", 202, 630, 718, 36, 5, 5)
+    love.graphics.setColor(color)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", 202, 630, 718, 36, 5, 5)
+    love.graphics.setLineWidth(1)
+    love.graphics.printf(text, 216, 641, 690, "center")
+end
+
 local function artworkKey(job)
     return job and job.artwork and job.artwork.key or job and job.artworkKey or "flower"
 end
@@ -51,29 +94,6 @@ end
 local function artworkName(job)
     return job and job.artwork and (job.artwork.displayName or job.artwork.fileName)
         or tostring(artworkKey(job)):gsub("%-", " ")
-end
-
-local function drawArtwork(assets, job, x, y, width, height, quality, angle)
-    local art = assets and assets.getArtwork and assets.getArtwork(artworkKey(job))
-    if not art then return end
-    quality = math.max(0, math.min(1, tonumber(quality) or 1))
-    local imageWidth, imageHeight = art:getDimensions()
-    local scale = math.min(width / imageWidth, height / imageHeight)
-    local drawWidth, drawHeight = imageWidth * scale, imageHeight * scale
-    local cx, cy = x + width / 2, y + height / 2
-    if quality < 0.92 then
-        local drift = 1 + (1 - quality) * 12
-        love.graphics.setColor(0.82, 0.16, 0.20, 0.34)
-        love.graphics.draw(art, cx - drift, cy, angle or 0, scale, scale,
-            imageWidth / 2, imageHeight / 2)
-        love.graphics.setColor(0.10, 0.42, 0.68, 0.28)
-        love.graphics.draw(art, cx + drift, cy, angle or 0, scale, scale,
-            imageWidth / 2, imageHeight / 2)
-    end
-    love.graphics.setColor(1, 1, 1, 0.48 + quality * 0.52)
-    love.graphics.draw(art, cx, cy, angle or 0, scale, scale,
-        imageWidth / 2, imageHeight / 2)
-    love.graphics.setColor(1, 1, 1, 1)
 end
 
 -- The generated atlas intentionally contains blank image areas. Every use of
@@ -88,22 +108,17 @@ local function drawProcessStage(assets, stage, job, x, y, width, height, quality
     local left, top = x + (width - drawWidth) / 2, y + (height - drawHeight) / 2
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(image, sprite.quad, left, top, 0, scale, scale)
-    local areas = {
-        { 0.23, 0.24, 0.34, 0.32, 0.08 },
-        { 0.31, 0.24, 0.34, 0.32, 0.04 },
-        { 0.17, 0.27, 0.31, 0.28, 0.08 },
-        { 0.35, 0.20, 0.31, 0.29, 0.07 },
-    }
-    local area = areas[stage]
-    drawArtwork(assets, job, left + drawWidth * area[1], top + drawHeight * area[2],
-        drawWidth * area[3], drawHeight * area[4], quality, area[5])
+    local art = assets and assets.getArtwork and assets.getArtwork(artworkKey(job))
+    PressArtworkCompositor.draw(art, job, stage, left, top, drawWidth, drawHeight, quality)
     return true
 end
 
 function Screen.enter(state)
     Screen.tab, Screen.clock, Screen.activeSetup = "run", 0, nil
+    Screen.setupGame = nil
     Screen.setupHits, Screen.setupMisses, Screen.maintenance, Screen.lockoutStep = 0, 0, nil, 1
-    Screen.tutorialStep = (state.windmill and state.windmill.tutorialComplete) and 8 or 1
+    Screen.tutorialStep, Screen.buttonFlash = 1, nil
+    Screen.feedbackText, Screen.feedbackTone = "Press console ready.", "info"
 end
 
 function Screen.update(dt, state)
@@ -113,10 +128,10 @@ end
 
 local function drawFrame()
     love.graphics.setColor(0.035, 0.045, 0.05, 0.98)
-    love.graphics.rectangle("fill", 20, 20, 920, 744, 10, 10)
+    love.graphics.rectangle("fill", 20, 20, 920, 648, 10, 10)
     love.graphics.setColor(0.44, 0.52, 0.52)
     love.graphics.setLineWidth(3)
-    love.graphics.rectangle("line", 20, 20, 920, 744, 10, 10)
+    love.graphics.rectangle("line", 20, 20, 920, 648, 10, 10)
     love.graphics.setColor(0.90, 0.90, 0.84)
     love.graphics.print("ORIGINAL HEIDELBERG 10 x 15  •  WINDMILL CONTROL", 40, 40)
 end
@@ -143,6 +158,7 @@ end
 
 local function drawRun(state, assets, pointerX, pointerY)
     local p, job, pallet = Windmill.current(state)
+    local proofReady = Windmill.proofReadiness(state)
     title("PRODUCTION", "Mechanical maximum 5,500 iph • shop quoting rate 3,000 good impressions/hour")
     love.graphics.setColor(0.10, 0.13, 0.14)
     love.graphics.rectangle("fill", 40, 178, 880, 140, 6, 6)
@@ -180,7 +196,7 @@ local function drawRun(state, assets, pointerX, pointerY)
     button(684, 340, 104, 54, "SPEED +", true, pointerX, pointerY)
     button(800, 340, 104, 54, "E-STOP", true, pointerX, pointerY, true)
     button(52, 412, 158, 54, "RESET", p.status ~= "production", pointerX, pointerY)
-    button(224, 412, 158, 54, "PULL PROOF", Windmill.setupComplete(state), pointerX, pointerY)
+    button(224, 412, 158, 54, "PULL PROOF", proofReady, pointerX, pointerY)
     button(396, 412, 158, 54, "APPROVE PROOF", p.status == "proof" and p.artworkVerified,
         pointerX, pointerY)
     button(568, 412, 158, 54, p.status == "production" and "STOP RUN" or "START RUN",
@@ -188,8 +204,10 @@ local function drawRun(state, assets, pointerX, pointerY)
     button(740, 412, 164, 54, "CLEAN + UNLOAD", p.status == "pass_complete", pointerX, pointerY)
 
     local candidates = Windmill.candidates(state)
+    local dryingPallets = Windmill.dryingPallets(state)
     love.graphics.setColor(0.82, 0.88, 0.86)
-    love.graphics.print("PRINT-READY PALLETS", 52, 498)
+    love.graphics.print(#dryingPallets > 0 and "PRESS OUTPUT — READY + DRYING"
+        or "PRINT-READY PALLETS", 52, 498)
     if p.status == "idle" then
         for index, item in ipairs(candidates) do
             local y = 526 + (index - 1) * 45
@@ -198,7 +216,28 @@ local function drawRun(state, assets, pointerX, pointerY)
                 item.pallet.requestedCopies or item.pallet.initialSheets,
                 item.pallet.initialSheets, item.color), true, pointerX, pointerY)
         end
-        if #candidates == 0 then
+        for index, item in ipairs(dryingPallets) do
+            local y = 526 + (#candidates + index - 1) * 45
+            if y <= 646 then
+                local drying = item.drying
+                local totalMinutes = math.max(0, math.ceil(drying.remainingHours * 60))
+                local hours, minutes = math.floor(totalMinutes / 60), totalMinutes % 60
+                love.graphics.setColor(0.10, 0.13, 0.14)
+                love.graphics.rectangle("fill", 52, y, 852, 38, 4, 4)
+                love.graphics.setColor(0.86, 0.78, 0.38)
+                love.graphics.print(string.format("DRYING %s  •  COLOR %d / %d  •  %dh %02dm",
+                    item.pallet.id, item.pallet.press.completedColors or 0,
+                    item.job.press.colors or 1, hours, minutes), 62, y + 5)
+                love.graphics.setColor(0.18, 0.22, 0.22)
+                love.graphics.rectangle("fill", 548, y + 12, 336, 14, 3, 3)
+                love.graphics.setColor(0.88, 0.64, 0.18)
+                love.graphics.rectangle("fill", 548, y + 12, 336 * drying.progress, 14, 3, 3)
+                love.graphics.setColor(0.96, 0.94, 0.84)
+                love.graphics.printf(string.format("%d%%", math.floor(drying.progress * 100 + 0.5)),
+                    548, y + 11, 336, "center")
+            end
+        end
+        if #candidates == 0 and #dryingPallets == 0 then
             love.graphics.setColor(0.68, 0.70, 0.68)
             love.graphics.printf("Stage cut client stock beside the press, prepare its plate, and allow prior ink to dry.", 52, 532, 852, "center")
         end
@@ -262,11 +301,47 @@ local function drawPlates(state, assets, pointerX, pointerY)
     end
 end
 
-local function setupTarget()
-    return 490 + math.sin(Screen.clock * 1.7) * 210, 488 + math.cos(Screen.clock * 1.3) * 74
+local SETUP_VISUALS = {
+    chase = { manual = 3, interaction = 1, hint = "ALIGN + SQUARE THE FORM BEFORE TIGHTENING BOTH QUOINS" },
+    packing = { manual = 4, interaction = 2, hint = "TARGET: 3 PACKING LAYERS, SMOOTH TYMPAN, CLAMP CLOSED" },
+    rollers = { manual = 5, interaction = 3, hint = "ADJUST BOTH ROLLER STRIPES INTO THE MANUAL'S 10–12 PT RANGE" },
+    ink = { manual = 6, interaction = 4, hint = "BALANCE ALL THREE FOUNTAIN ZONES, THEN ENGAGE THE DUCTOR" },
+    feeder = { manual = 7, interaction = 5, hint = "MATCH THE STOCK RESPONSE, THEN LIFT 3 SINGLE SHEETS" },
+    register = { manual = 8, interaction = 6, hint = "MOVE THE GUIDES UNTIL X 0 / Y 0, THEN PULL A REGISTER TEST" },
+}
+
+local function drawQuadFit(image, sprite, x, y, width, height)
+    if not image or not sprite then return false end
+    local scale = math.min(width / sprite.width, height / sprite.height)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(image, sprite.quad, x + (width - sprite.width * scale) / 2,
+        y + (height - sprite.height * scale) / 2, 0, scale, scale)
+    return true
 end
 
-local function drawSetup(state, pointerX, pointerY)
+local function setupControlRects(game)
+    local controls = PressSetupGames.controls(game.task)
+    local gap, totalWidth = 8, 840
+    local width = math.floor((totalWidth - gap * (#controls - 1)) / #controls)
+    local result = {}
+    for index, control in ipairs(controls) do
+        result[index] = {
+            action = control[1], label = control[2],
+            x = 60 + (index - 1) * (width + gap), y = 574, width = width, height = 48,
+        }
+    end
+    return result
+end
+
+function Screen.beginSetup(state, task)
+    if not SETUP_VISUALS[task] then return false, "Unknown press setup task." end
+    local p, job = Windmill.current(state)
+    if not p.palletId or not job then return false, "Load a print-ready pallet before setup." end
+    Screen.activeSetup, Screen.setupGame = task, PressSetupGames.new(task, job)
+    return true, Screen.setupGame
+end
+
+local function drawSetup(state, assets, pointerX, pointerY)
     local p = Windmill.ensure(state)
     title("PRESS SETUP", "Complete chase, packing, roller, ink, feeder, and register checks")
     if not p.palletId then
@@ -274,18 +349,42 @@ local function drawSetup(state, pointerX, pointerY)
         love.graphics.printf("Load a print-ready pallet from the RUN tab first.", 80, 250, 800, "center")
         return
     end
-    if Screen.activeSetup then
+    if Screen.activeSetup and Screen.setupGame then
+        local game, visual = Screen.setupGame, SETUP_VISUALS[Screen.activeSetup]
         love.graphics.setColor(0.84, 0.88, 0.84)
-        love.graphics.printf("" .. Screen.activeSetup:upper() .. " MINIGAME", 80, 190, 800, "center")
-        love.graphics.printf("Click the moving inspection target three times. Misses reduce setup quality.", 80, 220, 800, "center")
-        local tx, ty = setupTarget()
-        love.graphics.setColor(0.92, 0.72, 0.18)
-        love.graphics.circle("fill", tx, ty, 23)
-        love.graphics.setColor(0.12, 0.18, 0.18)
-        love.graphics.circle("fill", tx, ty, 9)
-        love.graphics.setColor(0.80, 0.84, 0.82)
-        love.graphics.printf(string.format("HITS %d / 3   •   MISSES %d", Screen.setupHits, Screen.setupMisses), 80, 610, 800, "center")
-        button(380, 650, 200, 42, "CANCEL TASK", true, pointerX, pointerY)
+        love.graphics.printf(Screen.activeSetup:upper() .. " SETUP", 80, 184, 800, "center")
+        love.graphics.setColor(0.62, 0.70, 0.69)
+        love.graphics.printf(visual.hint, 80, 207, 800, "center")
+        local manualImage = assets and assets.get and assets.get("pressOperatorHandbook")
+        local manualSprite = assets and assets.getQuad and assets.getQuad("pressHandbookPage" .. visual.manual)
+        drawQuadFit(manualImage, manualSprite, 62, 230, 390, 282)
+        local interactionImage = assets and assets.get and assets.get("pressSetupInteractions")
+        local interactionSprite = assets and assets.getQuad
+            and assets.getQuad("pressSetupInteraction" .. visual.interaction)
+        if interactionImage and interactionSprite then
+            local angle, dx, dy = 0, 0, 0
+            if game.task == "chase" then angle, dx = math.rad(game.angle * 3), game.offset * 8
+            elseif game.task == "packing" then dy = game.clamped and 10 or -8
+            elseif game.task == "rollers" then dx = math.sin(Screen.clock * 4) * (game.leftStripe + game.rightStripe) / 4
+            elseif game.task == "ink" and game.ductor then angle = math.sin(Screen.clock * 5) * 0.035
+            elseif game.task == "feeder" then dy = -game.tests * 6 + math.sin(Screen.clock * 6) * 3
+            elseif game.task == "register" then dx, dy = game.xOffset * 6, game.yOffset * 6 end
+            local scale = math.min(360 / interactionSprite.width, 282 / interactionSprite.height)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(interactionImage, interactionSprite.quad, 680 + dx, 371 + dy,
+                angle, scale, scale, interactionSprite.width / 2, interactionSprite.height / 2)
+        end
+        love.graphics.setColor(0.92, 0.76, 0.28)
+        love.graphics.printf(PressSetupGames.summary(game), 80, 526, 800, "center")
+        if game.task == "feeder" then
+            love.graphics.setColor(0.70, 0.78, 0.78)
+            love.graphics.printf(game.target.hint, 80, 548, 800, "center")
+        end
+        for _, control in ipairs(setupControlRects(game)) do
+            button(control.x, control.y, control.width, control.height, control.label,
+                true, pointerX, pointerY)
+        end
+        button(40, 174, 130, 38, "CANCEL", true, pointerX, pointerY)
         return
     end
     for index, task in ipairs(Windmill.setupTasks()) do
@@ -295,32 +394,48 @@ local function drawSetup(state, pointerX, pointerY)
         button(x, y, 408, 90, string.format("%s\n%s", task:upper(), score and string.format("COMPLETE %d%%", score * 100)
             or "BEGIN CHECK"), true, pointerX, pointerY)
     end
-    love.graphics.setColor(Windmill.setupComplete(state) and 0.32 or 0.70,
-        Windmill.setupComplete(state) and 0.85 or 0.74, 0.32)
-    love.graphics.printf(Windmill.setupComplete(state) and "SETUP COMPLETE — PULL A PROOF"
-        or "ALL SIX CHECKS ARE REQUIRED BEFORE PROOFING", 80, 565, 800, "center")
+    local setupComplete = Windmill.setupComplete(state)
+    local proofReady = Windmill.proofReadiness(state)
+    button(300, 552, 360, 56, not setupComplete and "FINISH ALL SIX CHECKS"
+        or proofReady and "PULL PROOF" or "GO TO RUN CONTROLS",
+        setupComplete, pointerX, pointerY)
+end
+
+local function setupScore(p, task)
+    local score = p and p.setup and tonumber(p.setup[task]) or 0
+    return math.max(0, math.min(1, score))
+end
+
+function Screen.proofMetrics(state)
+    local p = Windmill.ensure(state)
+    local quality = math.max(0, math.min(1, tonumber(p.proofQuality) or 0))
+    return {
+        { "REGISTER", setupScore(p, "register") },
+        { "INK DENSITY", setupScore(p, "ink") },
+        { "IMPRESSION", (setupScore(p, "packing") + setupScore(p, "chase")) / 2 },
+        { "ROLLER STRIPE", setupScore(p, "rollers") },
+        { "SHEET FEED", setupScore(p, "feeder") },
+        { "PLATE DETAIL", quality },
+    }
 end
 
 local function drawProof(state, assets, pointerX, pointerY)
     local p, job = Windmill.current(state)
+    local proofReady, proofReason = Windmill.proofReadiness(state)
     title("PROOF INSPECTION", "Compare the live job artwork, inspect quality, then verify before approval")
     love.graphics.setColor(0.12, 0.14, 0.14)
     love.graphics.rectangle("fill", 70, 178, 820, 350, 6, 6)
     if not p.proofQuality then
         love.graphics.setColor(0.72, 0.76, 0.74)
         if job then drawProcessStage(assets, 1, job, 118, 202, 310, 280, 1) end
-        love.graphics.printf("No press proof yet. Review the client file, complete setup, then turn on motor, feeder and impression.",
+        love.graphics.printf("No press proof yet. " .. proofReason,
             470, 300, 360, "center")
     else
         local q = p.proofQuality
         drawProcessStage(assets, 3, job, 92, 194, 350, 312, q)
         love.graphics.setColor(q >= 0.82 and 0.28 or 0.82, q >= 0.82 and 0.82 or 0.34, 0.28)
         love.graphics.printf(string.format("PROOF QUALITY  %d%%", q * 100), 474, 205, 360, "center")
-        local labels = {
-            { "REGISTER", p.setup.register }, { "INK DENSITY", p.setup.ink },
-            { "IMPRESSION", (p.setup.packing + p.setup.chase) / 2 }, { "ROLLER STRIPE", p.setup.rollers },
-            { "SHEET FEED", p.setup.feeder }, { "PLATE DETAIL", q },
-        }
+        local labels = Screen.proofMetrics(state)
         for index, item in ipairs(labels) do
             local y = 250 + (index - 1) * 34
             love.graphics.setColor(0.84, 0.87, 0.83)
@@ -334,7 +449,7 @@ local function drawProof(state, assets, pointerX, pointerY)
             or "COMPARE IMAGE TO CLIENT FILE", 474, 462, 360, "center")
     end
     button(104, 558, 220, 52, p.proofQuality and "PULL ANOTHER PROOF" or "PULL PROOF",
-        Windmill.setupComplete(state), pointerX, pointerY)
+        proofReady, pointerX, pointerY)
     button(370, 558, 220, 52, p.artworkVerified and "ARTWORK VERIFIED" or "VERIFY CLIENT ART",
         p.status == "proof", pointerX, pointerY)
     button(636, 558, 220, 52, "APPROVE PROOF",
@@ -357,13 +472,13 @@ local function drawMaintenance(state, pointerX, pointerY)
             love.graphics.rectangle("fill", 390, y + 2, 390 * task.health / 100, 14)
             love.graphics.setColor(0.82, 0.86, 0.82)
         end
-        button(330, 590, 300, 56, "BEGIN LOCKOUT + SERVICE", (state.inventory.stock.maintenance_kit or 0) > 0
+        button(330, 570, 300, 56, "BEGIN LOCKOUT + SERVICE", (state.inventory.stock.maintenance_kit or 0) > 0
             and Windmill.ensure(state).status == "idle", pointerX, pointerY)
         local press = machine.maintenance.windmill
         love.graphics.setColor(0.70, 0.76, 0.74)
         love.graphics.printf(press.technicianDueDay and ("TECHNICIAN DUE DAY " .. press.technicianDueDay)
             or "Field service covers timing, lubrication, suction, and safety circuits.", 620, 535, 270, "center")
-        button(650, 590, 240, 56, "BOOK TECHNICIAN  $350", not press.technicianDueDay
+        button(650, 570, 240, 56, "BOOK TECHNICIAN  $350", not press.technicianDueDay
             and Windmill.ensure(state).status == "idle", pointerX, pointerY)
         return
     end
@@ -390,22 +505,25 @@ local function drawMaintenance(state, pointerX, pointerY)
 end
 
 local tutorial = {
-    { "1 — SAFETY AND JOB REVIEW", "Read the office job ticket first: finished size, stock, quantity, colors and packaging. Keep hands, tools and loose clothing outside the guarded platen area. Confirm the press is idle, the emergency stop is reset and no lockout tag is attached. Never bypass a guard or reach into a cycling Windmill." },
-    { "2 — BUY THE REQUIRED SUPPLIES", "Open the office computer and choose STOCK. Buy Black Ink for black-only work or Color Ink for each non-black color, Windmill Tympan sheets, and either Processed Plates or In-house Plate Materials. Computer purchases are delivered later by truck; unload their product pallets with the pallet jack. A press-supplies salesman may offer cheaper bulk quantities." },
-    { "3 — GET AN OUTSOURCED PLATE", "Open this console's PLATES tab, select the correct job and color, then choose ORDER PROCESSED PLATE. The charge is posted to the job and the plate room needs about 24 game-hours. Return after it is ready; the processed plate is mounted for that color automatically." },
-    { "4 — MAKE A PLATE IN HOUSE", "Keep In-house Plate Materials in inventory. In PLATES, select the job/color and choose START IN-HOUSE PLATE. Complete each timed quality window in order: expose the image, wash away non-image coating, dry the plate completely, then mount and lock it squarely in the chase. Poor timing lowers plate quality and print quality." },
-    { "5 — PREPARE AND STAGE STOCK", "Use the Polar cutter to finish the exact customer-supplied paper before printing. The ticket separates ordered good copies from supplied sheets; the difference is the only proof and spoilage allowance. Confirm the pallet tooltip shows the required stock, press size, and PAPER COMPLETE. Move that pallet beside the Windmill and choose its LOAD row." },
-    { "6 — CHASE AND PACKING", "In SETUP, begin CHASE and hit all three inspection targets to lock the plate/chase squarely. Then run PACKING: install a clean tympan sheet and set packing thickness for even impression. Packing consumes one tympan sheet. A low score causes weak or uneven impression and more spoilage." },
-    { "7 — ROLLERS AND INK", "Complete ROLLERS to set a consistent stripe. Complete INK to charge the ink train with the color named on the mounted plate. Ink is taken from warehouse inventory only when this check completes. If the game reports missing ink, buy it from STOCK or the press-supplies salesman, receive the delivery, and return." },
-    { "8 — FEEDER AND REGISTER", "Complete FEEDER to set pile height, suction and double-sheet control. Complete REGISTER to align side guide and grippers to the plate. Accurate feeder setup prevents misses and doubles; accurate register keeps the image in the intended position. All six setup checks are mandatory." },
-    { "9 — START, PROOF AND APPROVE", "In RUN, START MOTOR, turn FEEDER ON, and turn IMPRESSION ON. Choose PULL PROOF, then inspect the PROOF tab. The client's actual supplied artwork is composited onto the blank proof sprite. A proof must reach 82%; compare it to the client file and choose VERIFY CLIENT ART before approval. Redo a weak setup check and pull another proof if needed." },
-    { "10 — PRODUCTION RUN", "Set a safe speed with SPEED − / +. The shop quotes around 3,000 good impressions per hour; the mechanical ceiling is 5,500 iph, but high speed and poor setup increase spoilage. Choose START RUN and watch counter, good sheets, spoilage, warnings and machine condition. E-STOP halts an unsafe cycle; RESET is required afterward." },
-    { "11 — CLEAN, DRY AND REPEAT COLORS", "When the pass is complete, choose CLEAN + UNLOAD. The pallet moves to press output and the ink train is cleaned. Multi-color work must dry before the next plate/color can load. Repeat plate selection, six setup checks, proof approval and production for every color. Do not package until every color pass is complete." },
-    { "12 — SERVICE AND FINISH", "Use SERVICE only with the press idle and unloaded. Lock out power in order, use one maintenance kit, and complete every component check. BOOK TECHNICIAN schedules field service for timing, suction, lubrication and safety faults. After the last color, move the printed pallet to wrapping, apply the job's required packaging, then complete the job on the office computer." },
+    { "1 — SAFETY AND JOB REVIEW", "GAMEPLAY: Read the office ticket for size, stock, quantity, colors, artwork and packaging. At the press, RESET clears an E-STOP only after the cause is safe. SERVICE requires the press idle and unloaded. REAL PRESS: keep hands, tools, jewelry and loose clothing outside the platen area; never bypass a guard or reach into a cycling Windmill." },
+    { "2 — SUPPLIES AND PLATES", "GAMEPLAY: Stock the correct black or color ink, tympan sheets and press wash. In PLATES, choose a job/color and order a processed plate, or use in-house materials and lock four quality windows in order: EXPOSE, WASH, DRY and MOUNT. A mounted plate is required before the matching pallet can load." },
+    { "3 — PREPARE AND STAGE STOCK", "GAMEPLAY: Finish the customer stock on the Polar, move the PAPER COMPLETE pallet beside the Windmill, then select its LOAD row in RUN. Supplied sheets minus ordered copies are the only allowance for proofs and spoilage. The next color cannot load until the prior pass has dried.", 2, "MANUAL PP. 64-65" },
+    { "4 — CHASE LOCKUP", "GAMEPLAY: Use ALIGN FORM until the offset is zero, SQUARE FORM until rotation is zero, then TIGHTEN QUOINS twice. Tightening early records a fault and lowers the score. REAL PRESS: keep the gripper edge clear, position the form with furniture and tighten the quoins evenly so no type or plate can shift.", 3, "MANUAL PP. 43-45" },
+    { "5 — TYMPAN AND PACKING", "GAMEPLAY: Set three packing layers, smooth both wrinkles, then close the clamp. Completing this check the first time consumes one clean tympan sheet. REAL PRESS: clamp a smooth tympan and full-size packing firmly. The manual's 10x15 total is 0.040 inch including the sheet being printed.", 4, "MANUAL PP. 46-51" },
+    { "6 — FORM ROLLER HEIGHT", "GAMEPLAY: Use the four end-adjustment controls until both displayed stripes read 10–12 points. The result becomes the proof's roller-stripe rating. REAL PRESS: gauge both ends of both form rollers; correct unequal contact at the tracks.", 5, "MANUAL PP. 84-85" },
+    { "7 — INK FOUNTAIN AND DISTRIBUTION", "GAMEPLAY: Cycle the three fountain keys until their values are balanced at 2–3, then engage the ductor. The first completion consumes the mounted plate's ink color. REAL PRESS: form a thin even film, use fountain keys for cross-sheet zones and the fountain lever for overall flow.", 6, "MANUAL PP. 86-89" },
+    { "8 — FEEDER AND SUCTION", "GAMEPLAY: Match pile height, suction and air blast to the displayed stock hint, then pass three single-sheet tests. A bad test resets the count and lowers the score. REAL PRESS: fan and square the pile, center the sucker bar, disable suckers outside the sheet, and balance suction and air so exactly one sheet lifts.", 7, "MANUAL PP. 63-74" },
+    { "9 — GUIDES AND REGISTER", "GAMEPLAY: Move the guides until the display reads X 0 and Y 0, then pull a register test. Testing while misaligned records a fault. REAL PRESS: choose gripper and guide edges, bring every sheet to the same guide corner and verify clearance from the form and grippers.", 8, "MANUAL PP. 52-60" },
+    { "10 — START AND PULL A PROOF", "GAMEPLAY: All six setup checks must be complete. In RUN, START MOTOR, turn FEEDER ON, then turn ON IMPRESSION. PULL PROOF enables only when those controls are on, E-STOP is clear and at least one allowance sheet remains. Each proof consumes one sheet.", 1, "MANUAL PP. 38-39" },
+    { "11 — INSPECT AND MAKEREADY", "GAMEPLAY: In PROOF, review register, ink density, impression, roller stripe, sheet feed and plate detail. Quality must reach 82%. Rerun weak setup checks and pull another proof if needed. Compare the live proof image with the client file, choose VERIFY CLIENT ART, then APPROVE PROOF." },
+    { "12 — PRODUCTION RUN", "GAMEPLAY: After approval, choose START RUN. SPEED − / + ranges from 1,000 to 5,500 impressions per hour; speed above 3,000 and weak setup increase spoilage. Watch GOOD, SPOIL, FEED, warnings and condition. E-STOP halts the run; investigate, RESET and re-enable the operating controls." },
+    { "13 — CLEAN, DRY AND REPEAT COLORS", "GAMEPLAY: When the pass reaches its target, use CLEAN + UNLOAD. Cleanup consumes press wash and returns the pallet to press output. RUN shows a live drying percentage and countdown: uncoated stock takes 2 game-hours and gloss stock takes 8. At 100%, load the next mounted color and repeat the workflow.", 9, "MANUAL PP. 90-94" },
+    { "14 — SERVICE AND FINISH", "GAMEPLAY: With the press idle and unloaded, SERVICE consumes one maintenance kit. Complete DISCONNECT POWER, REMOVE + KEEP KEY and ATTACH LOCKOUT TAG in order, then finish each component check. BOOK TECHNICIAN handles field-service faults. Package the final printed pallet and close the job in the office.", 10, "MANUAL PP. 10-16" },
+    { "15 — HANDBOOK SOURCES", "The face-free pixel illustrations are transformations of mechanic-specific photographs in Manual for the Operation of Heidelberg Platens for the 10x15 and 13x18 Original Heidelberg. Gameplay notes describe this build; REAL PRESS notes summarize the historical manual. This educational game is not a substitute for hands-on training, modern guarding, local safety rules or a qualified operator." },
 }
 
-local function drawTutorial(state, pointerX, pointerY)
-    title("OPERATOR TRAINING", "First-job guide for guarded Windmill production")
+local function drawTutorial(state, assets, pointerX, pointerY)
+    title("WINDMILL OPERATOR HANDBOOK", "Pixel-art field guide grounded in the Original Heidelberg operating manual")
     love.graphics.setColor(0.12, 0.14, 0.14)
     love.graphics.rectangle("fill", 82, 190, 796, 360, 8, 8)
     love.graphics.setColor(0.90, 0.90, 0.84)
@@ -413,11 +531,27 @@ local function drawTutorial(state, pointerX, pointerY)
     love.graphics.setColor(0.96, 0.82, 0.28)
     love.graphics.printf(page[1], 112, 222, 736, "center")
     love.graphics.setColor(0.88, 0.91, 0.87)
-    love.graphics.printf(page[2], 122, 274, 716, "left")
+    local manualFrame = page[3]
+    if manualFrame then
+        local image = assets and assets.get and assets.get("pressOperatorHandbook")
+        local sprite = assets and assets.getQuad and assets.getQuad("pressHandbookPage" .. manualFrame)
+        if image and sprite then
+            local scale = math.min(276 / sprite.width, 258 / sprite.height)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(image, sprite.quad, 108, 272, 0, scale, scale)
+            love.graphics.setColor(0.62, 0.70, 0.69)
+            love.graphics.printf("PIXEL ART  •  " .. tostring(page[4] or "MANUAL REFERENCE"),
+                108, 536, 276, "center")
+        end
+        love.graphics.setColor(0.88, 0.91, 0.87)
+        love.graphics.printf(page[2], 410, 274, 428, "left")
+    else
+        love.graphics.printf(page[2], 122, 274, 716, "left")
+    end
     love.graphics.setColor(0.70, 0.78, 0.78)
     love.graphics.printf(string.format("PAGE %d / %d", Screen.tutorialStep, #tutorial), 160, 516, 640, "center")
-    button(190, 580, 250, 54, "◀ PREVIOUS", Screen.tutorialStep > 1, pointerX, pointerY)
-    button(520, 580, 250, 54, Screen.tutorialStep == #tutorial and "FINISH TRAINING" or "NEXT ▶",
+    button(190, 568, 250, 54, "< PREVIOUS", Screen.tutorialStep > 1, pointerX, pointerY)
+    button(520, 568, 250, 54, Screen.tutorialStep == #tutorial and "FINISH TRAINING" or "NEXT >",
         true, pointerX, pointerY)
 end
 
@@ -426,11 +560,20 @@ function Screen.draw(state, assets, pointerX, pointerY)
     drawTabs(pointerX, pointerY)
     if Screen.tab == "run" then drawRun(state, assets, pointerX, pointerY)
     elseif Screen.tab == "plates" then drawPlates(state, assets, pointerX, pointerY)
-    elseif Screen.tab == "setup" then drawSetup(state, pointerX, pointerY)
+    elseif Screen.tab == "setup" then drawSetup(state, assets, pointerX, pointerY)
     elseif Screen.tab == "proof" then drawProof(state, assets, pointerX, pointerY)
     elseif Screen.tab == "maintenance" then drawMaintenance(state, pointerX, pointerY)
-    else drawTutorial(state, pointerX, pointerY) end
+    else drawTutorial(state, assets, pointerX, pointerY) end
     BackButton.draw(assets, BACK, "EXIT", pointerX, pointerY, false)
+    drawFeedback(state)
+end
+
+local function pullProof(state)
+    local ready, reason = Windmill.proofReadiness(state)
+    if not ready then return false, reason, "proof" end
+    local ok, result = Windmill.takeProof(state)
+    if ok then Screen.tab = "proof" end
+    return ok, result, "proof"
 end
 
 local function runClick(state, x, y)
@@ -445,8 +588,12 @@ local function runClick(state, x, y)
         local r = { x=entry[1][1], y=entry[1][2], width=entry[1][3], height=entry[1][4] }
         if inside(r,x,y) then return Windmill.control(state, entry[2]) end
     end
-    if inside({x=224,y=412,width=158,height=54},x,y) then return Windmill.takeProof(state) end
-    if inside({x=396,y=412,width=158,height=54},x,y) then return Windmill.approveProof(state) end
+    if inside({x=224,y=412,width=158,height=54},x,y) then return pullProof(state) end
+    if inside({x=396,y=412,width=158,height=54},x,y) then
+        if p.status ~= "proof" then return false, "Pull a proof before approval." end
+        if not p.artworkVerified then return false, "Verify the client artwork before approval." end
+        return Windmill.approveProof(state)
+    end
     if inside({x=568,y=412,width=158,height=54},x,y) then
         return p.status == "production" and Windmill.stopProduction(state) or Windmill.startProduction(state)
     end
@@ -478,27 +625,45 @@ local function plateClick(state, x, y)
 end
 
 local function setupClick(state, x, y)
-    if Screen.activeSetup then
-        if inside({x=380,y=650,width=200,height=42},x,y) then Screen.activeSetup=nil; return true end
-        local tx,ty=setupTarget()
-        if (x-tx)^2+(y-ty)^2<=32^2 then Screen.setupHits=Screen.setupHits+1 else Screen.setupMisses=Screen.setupMisses+1 end
-        if Screen.setupHits>=3 then
-            local score=math.max(0.55,1-Screen.setupMisses*0.1)
-            local ok, result = Windmill.completeSetup(state,Screen.activeSetup,score)
-            if ok then
-                Screen.activeSetup,Screen.setupHits,Screen.setupMisses=nil,0,0
-            else
-                state.message = result
-                Screen.setupHits = 0
+    if Screen.activeSetup and Screen.setupGame then
+        if inside({x=40,y=174,width=130,height=38},x,y) then
+            Screen.activeSetup, Screen.setupGame = nil, nil
+            return true, "Setup check cancelled.", "setup_cancel"
+        end
+        for _, control in ipairs(setupControlRects(Screen.setupGame)) do
+            if inside(control, x, y) then
+                local complete, score = PressSetupGames.apply(Screen.setupGame, control.action)
+                if complete then
+                    local task = Screen.activeSetup
+                    local ok, result = Windmill.completeSetup(state, task, score)
+                    if ok then
+                        Screen.activeSetup, Screen.setupGame = nil, nil
+                        return true, string.format("%s check complete at %d%%.", task:upper(), score * 100),
+                            "setup_complete"
+                    end
+                    return false, result, "setup_error"
+                end
+                return true, PressSetupGames.summary(Screen.setupGame), "setup_progress"
             end
         end
-        return true
+        return false
     end
     for index,task in ipairs(Windmill.setupTasks()) do
         local row,column=math.floor((index-1)/2),(index-1)%2
         if inside({x=52+column*426,y=190+row*112,width=408,height=90},x,y) then
-            Screen.activeSetup,Screen.setupHits,Screen.setupMisses=task,0,0; return true
+            local ok, result = Screen.beginSetup(state, task)
+            if not ok then return false, result, "setup_error" end
+            return true, task:upper() .. " setup opened.", "setup_open"
         end
+    end
+    if inside({x=300,y=552,width=360,height=56},x,y) then
+        if not Windmill.setupComplete(state) then
+            return false, "Complete all six setup checks first.", "setup_footer"
+        end
+        local ready, reason = Windmill.proofReadiness(state)
+        if ready then return pullProof(state) end
+        Screen.tab = "run"
+        return true, reason, "run_controls"
     end
     return false
 end
@@ -507,14 +672,14 @@ local function maintenanceClick(state,x,y)
     local machine=MachineFleet.installed(state,"heidelberg_10x15")
     if not machine then return false end
     if not Screen.maintenance then
-        if inside({x=330,y=590,width=300,height=56},x,y) then
+        if inside({x=330,y=570,width=300,height=56},x,y) then
             local session,errorMessage=MachineMaintenance.begin(state,machine.id)
             if not session then state.message=errorMessage; return false end
             Screen.maintenance,Screen.lockoutStep=session,1
             Windmill.ensure(state).motor=false
             return true
         end
-        if inside({x=650,y=590,width=240,height=56},x,y) then
+        if inside({x=650,y=570,width=240,height=56},x,y) then
             return MachineMaintenance.requestWindmillTechnician(state)
         end
         return false
@@ -540,27 +705,46 @@ end
 
 function Screen.mousepressed(state,x,y,button)
     if button~=1 then return false end
+    Screen.buttonFlash = { x = x, y = y, expires = Screen.clock + 0.22 }
     if BackButton.contains(BACK,x,y) then return {action="exit"} end
     for _,tab in ipairs(tabs) do
-        if inside({x=tab.x,y=120,width=122,height=38},x,y) then Screen.tab=tab.id; return {action="tab",tab=tab.id} end
+        if inside({x=tab.x,y=120,width=122,height=38},x,y) then
+            Screen.tab=tab.id
+            setFeedback(state, tab.label .. " opened.", "info")
+            return {action="tab",tab=tab.id}
+        end
     end
-    local ok,result
-    if Screen.tab=="run" then ok,result=runClick(state,x,y)
-    elseif Screen.tab=="plates" then ok,result=plateClick(state,x,y)
-    elseif Screen.tab=="setup" then ok,result=setupClick(state,x,y)
+    local ok,result,intent
+    if Screen.tab=="run" then ok,result,intent=runClick(state,x,y)
+    elseif Screen.tab=="plates" then ok,result,intent=plateClick(state,x,y)
+    elseif Screen.tab=="setup" then ok,result,intent=setupClick(state,x,y)
     elseif Screen.tab=="proof" then
-        if inside({x=104,y=558,width=220,height=52},x,y) then ok,result=Windmill.takeProof(state)
+        if inside({x=104,y=558,width=220,height=52},x,y) then ok,result,intent=pullProof(state)
         elseif inside({x=370,y=558,width=220,height=52},x,y) then ok,result=Windmill.verifyArtwork(state)
         elseif inside({x=636,y=558,width=220,height=52},x,y) then ok,result=Windmill.approveProof(state) end
     elseif Screen.tab=="maintenance" then ok,result=maintenanceClick(state,x,y)
-    elseif inside({x=190,y=580,width=250,height=54},x,y) and Screen.tutorialStep>1 then
+    elseif inside({x=190,y=568,width=250,height=54},x,y) and Screen.tutorialStep>1 then
         Screen.tutorialStep=Screen.tutorialStep-1; ok=true
-    elseif inside({x=520,y=580,width=250,height=54},x,y) then
+    elseif inside({x=520,y=568,width=250,height=54},x,y) then
         if Screen.tutorialStep<#tutorial then Screen.tutorialStep=Screen.tutorialStep+1
         else state.windmill.tutorialComplete=true; Screen.tab="run" end
         ok=true
     end
-    if ok==false and type(result)=="string" then state.message=result end
+    if ok==false and type(result)=="string" then
+        setFeedback(state, result, "error")
+    elseif ok then
+        if intent=="proof" then
+            setFeedback(state, "Proof pulled successfully. Inspect it before approval.", "success")
+        elseif intent=="run_controls" then
+            setFeedback(state, result, "info")
+        elseif intent=="setup_progress" or intent=="setup_open" or intent=="setup_cancel" then
+            setFeedback(state, result, "info")
+        elseif intent=="setup_complete" then
+            setFeedback(state, result, "success")
+        else
+            setFeedback(state, "Press action completed.", "success")
+        end
+    end
     return ok and {action="press_action",result=result} or false
 end
 
@@ -569,13 +753,20 @@ function Screen.keypressed(state,key)
     if key=="escape" then return {action="exit"} end
     if Screen.tab=="tutorial" and key=="left" then Screen.tutorialStep=math.max(1,Screen.tutorialStep-1); return true end
     if Screen.tab=="tutorial" and key=="right" then Screen.tutorialStep=math.min(#tutorial,Screen.tutorialStep+1); return true end
-    if map[key] then return Windmill.control(state,map[key]) end
-    if key=="v" and Screen.tab=="proof" then return Windmill.verifyArtwork(state) end
+    local ok, result, intent
+    if map[key] then ok,result=Windmill.control(state,map[key])
+    elseif key=="p" and (Screen.tab=="run" or Screen.tab=="proof" or Screen.tab=="setup") then
+        ok,result,intent=pullProof(state)
+    elseif key=="v" and Screen.tab=="proof" then ok,result=Windmill.verifyArtwork(state)
+    end
     if key=="space" then
         local p=Windmill.ensure(state)
-        return p.status=="production" and Windmill.stopProduction(state) or Windmill.startProduction(state)
+        ok,result=p.status=="production" and Windmill.stopProduction(state) or Windmill.startProduction(state)
     end
-    return false
+    if ok==false and type(result)=="string" then setFeedback(state,result,"error")
+    elseif ok then setFeedback(state,intent=="proof" and "Proof pulled successfully. Inspect it before approval."
+        or "Press action completed.","success") end
+    return ok,result
 end
 
 function Screen.hasModal() return Screen.activeSetup~=nil or Screen.maintenance~=nil end

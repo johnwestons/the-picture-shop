@@ -1,4 +1,6 @@
 local Test = {}
+local PressArtworkCompositor = require("src.press_artwork_compositor")
+local PressSetupGames = require("src.press_setup_games")
 
 local function makePressJob()
     return require("src.jobs").createOffer({
@@ -12,6 +14,69 @@ local function makePressJob()
 end
 
 function Test.run(context, check)
+    local setupSequences = {
+        chase = { "align", "align", "square", "square", "tighten", "tighten" },
+        packing = { "layer", "layer", "layer", "smooth", "smooth", "clamp" },
+        rollers = { "left_up", "left_up", "right_down", "right_down" },
+        ink = { "key_1", "key_1", "key_2", "key_2", "key_2", "key_2", "key_3", "ductor" },
+        feeder = { "pile", "pile", "suction", "suction", "suction", "blast", "test", "test", "test" },
+        register = { "left", "left", "left", "down", "down", "test" },
+    }
+    local setupGamesComplete, controlSignatures = true, {}
+    for task, sequence in pairs(setupSequences) do
+        local game = PressSetupGames.new(task, { stockSpec = { grade = "cover", weight = 100 } })
+        local complete, score = false, nil
+        for _, action in ipairs(sequence) do complete, score = PressSetupGames.apply(game, action) end
+        setupGamesComplete = setupGamesComplete and complete and score == 1
+        local labels = {}
+        for _, control in ipairs(PressSetupGames.controls(task)) do labels[#labels + 1] = control[2] end
+        controlSignatures[table.concat(labels, "|")] = true
+    end
+    local signatureCount = 0
+    for _ in pairs(controlSignatures) do signatureCount = signatureCount + 1 end
+    local lightFeeder = PressSetupGames.new("feeder", { stockSpec = { grade = "text", weight = 50 } })
+    local coverFeeder = PressSetupGames.new("feeder", { stockSpec = { grade = "cover", weight = 100 } })
+    check("six_manual_based_press_setup_games_have_distinct_controls_and_solvable_scoring",
+        setupGamesComplete and signatureCount == 6)
+    check("feeder_setup_changes_pile_suction_and_air_targets_for_light_and_cover_stock",
+        lightFeeder.target.pile ~= coverFeeder.target.pile
+        and lightFeeder.target.suction ~= coverFeeder.target.suction
+        and lightFeeder.target.blast ~= coverFeeder.target.blast)
+
+    local compositorCases = {
+        { finishedSize = { width = 6, height = 9 }, press = { artworkSize = { width = 5.4, height = 8.2 } } },
+        { finishedSize = { width = 9, height = 6 }, press = { artworkSize = { width = 8, height = 4 } } },
+        { finishedSize = { width = 6, height = 6 }, press = { artworkSize = { width = 4, height = 4 } } },
+        { finishedSize = { width = 10, height = 15 }, press = { artworkSize = { width = 0.5, height = 0.5 } } },
+        { finishedSize = { width = 5, height = 7 }, press = { artworkSize = { width = 12, height = 18 } } },
+    }
+    local compositorSafe = true
+    for _, jobCase in ipairs(compositorCases) do
+        for stage = 1, 4 do
+            local layout = PressArtworkCompositor.layout(jobCase, stage, 0.7)
+            local bounds = layout.bounds
+            compositorSafe = compositorSafe and bounds.u0 >= 0.08 and bounds.u1 <= 0.92
+                and bounds.v0 >= 0.14 and bounds.v1 <= 0.92
+                and bounds.u0 < bounds.u1 and bounds.v0 < bounds.v1
+            for _, corner in ipairs(layout.corners) do
+                compositorSafe = compositorSafe and corner[1] >= 0 and corner[1] <= 1
+                    and corner[2] >= 0 and corner[2] <= 1
+            end
+        end
+    end
+    check("press_artwork_compositor_clips_portrait_landscape_square_minimum_and_maximum_art",
+        compositorSafe and PressArtworkCompositor.layout(compositorCases[1], 2, 1).reversed)
+
+    local partialSetupState = context.State.new()
+    local partialProcess = context.windmill.ensure(partialSetupState)
+    partialProcess.proofQuality = 0.91
+    partialProcess.setup = { chase = 0.96 }
+    local partialMetrics = context.pressScreen.proofMetrics(partialSetupState)
+    check("proof_display_tolerates_partial_setup_scores_from_older_saves",
+        partialMetrics[1][2] == 0 and partialMetrics[2][2] == 0
+        and partialMetrics[3][2] == 0.48 and partialMetrics[4][2] == 0
+        and partialMetrics[5][2] == 0 and partialMetrics[6][2] == 0.91)
+
     local state = context.State.new()
     state.money = 20000
     local bought, machine = context.machineFleet.buy(state, "dealer", 3)
@@ -51,13 +116,57 @@ function Test.run(context, check)
         and plate.mounted and plate.quality == 0.98 and job.press.actual.inHousePlates == 1)
 
     local loaded = context.windmill.load(state, pallet.id)
-    for _, task in ipairs(context.windmill.setupTasks()) do
-        context.windmill.completeSetup(state, task, 0.98)
+    context.pressScreen.enter(state)
+    context.pressScreen.tab = "setup"
+    local setupUiComplete = true
+    for taskIndex, task in ipairs(context.windmill.setupTasks()) do
+        local row, column = math.floor((taskIndex - 1) / 2), (taskIndex - 1) % 2
+        local opened = context.pressScreen.mousepressed(state, 256 + column * 426, 235 + row * 112, 1)
+        setupUiComplete = setupUiComplete and type(opened) == "table"
+        local controls = PressSetupGames.controls(task)
+        local controlWidth = math.floor((840 - 8 * (#controls - 1)) / #controls)
+        for _, action in ipairs(setupSequences[task]) do
+            local controlIndex
+            for index, control in ipairs(controls) do
+                if control[1] == action then controlIndex = index; break end
+            end
+            local controlX = 60 + (controlIndex - 1) * (controlWidth + 8) + controlWidth / 2
+            local clicked = context.pressScreen.mousepressed(state, controlX, 598, 1)
+            setupUiComplete = setupUiComplete and type(clicked) == "table"
+        end
+        setupUiComplete = setupUiComplete and context.windmill.ensure(state).setup[task] == 1
     end
-    context.windmill.control(state, "motor")
-    context.windmill.control(state, "feeder")
-    context.windmill.control(state, "impression")
-    local proofed, proofQuality = context.windmill.takeProof(state)
+    check("all_six_manual_based_setup_games_complete_through_the_visible_gui_buttons", setupUiComplete)
+    context.pressScreen.enter(state)
+    context.pressScreen.tab = "setup"
+    local setupFooter = context.pressScreen.mousepressed(state, 480, 580, 1)
+    check("setup_footer_routes_to_run_controls_with_specific_proof_feedback",
+        setupFooter and context.pressScreen.tab == "run"
+        and state.message == "Start the motor before proofing.")
+    local readyBeforeMotor, beforeMotorReason = context.windmill.proofReadiness(state)
+    local motorClick = context.pressScreen.mousepressed(state, 131, 367, 1)
+    local readyBeforeFeeder, beforeFeederReason = context.windmill.proofReadiness(state)
+    local feederClick = context.pressScreen.mousepressed(state, 303, 367, 1)
+    local readyBeforeImpression, beforeImpressionReason = context.windmill.proofReadiness(state)
+    local impressionClick = context.pressScreen.mousepressed(state, 475, 367, 1)
+    local proofReady, proofReadyReason = context.windmill.proofReadiness(state)
+    check("pull_proof_readiness_matches_motor_feeder_and_impression_controls",
+        motorClick and feederClick and impressionClick
+        and not readyBeforeMotor and beforeMotorReason == "Start the motor before proofing."
+        and not readyBeforeFeeder and beforeFeederReason == "Turn the feeder on before proofing."
+        and not readyBeforeImpression and beforeImpressionReason == "Turn impression on before proofing."
+        and proofReady and proofReadyReason == "Ready to pull one proof sheet.")
+    local proofClick = context.pressScreen.mousepressed(state, 303, 439, 1)
+    local proofed, proofQuality = type(proofClick) == "table", context.windmill.ensure(state).proofQuality
+    check("pull_proof_mouse_button_opens_the_proof_tab_and_consumes_one_sheet",
+        proofed and context.pressScreen.tab == "proof" and proofQuality
+        and context.windmill.ensure(state).counter == 1
+        and context.windmill.ensure(state).feedRemaining == 1049)
+    local beforeKeyboardProof = context.windmill.ensure(state).feedRemaining
+    local keyboardProof = context.pressScreen.keypressed(state, "p")
+    check("pull_proof_keyboard_path_uses_the_same_readiness_and_opens_proof",
+        keyboardProof and context.pressScreen.tab == "proof"
+        and context.windmill.ensure(state).feedRemaining == beforeKeyboardProof - 1)
     local verified = context.windmill.verifyArtwork(state)
     local approved = context.windmill.approveProof(state)
     local started = context.windmill.startProduction(state)
@@ -116,12 +225,25 @@ function Test.run(context, check)
         return true, target
     end
     local firstColor, firstTarget = runColorPass()
+    local initialDrying = firstColor and context.windmill.dryingStatus(multiState, multiJob, multiPallet)
     local heldDuringDrying = firstColor and multiPallet.press.status == "drying"
         and multiPallet.press.completedColors == 1 and multiPallet.press.availableSheets == 1025
         and multiPallet.finishedSheets == 1025
         and multiState.inventory.inProcessPallets == 1 and multiState.inventory.finishedPallets == 0
     context.businessCalendar.update(multiState,
-        context.config.businessCalendar.secondsPerDay * 2 / 24 + 0.01)
+        context.config.businessCalendar.secondsPerDay / 24)
+    local halfwayDrying = context.windmill.dryingStatus(multiState, multiJob, multiPallet)
+    local blockedHalfway = #context.windmill.candidates(multiState) == 0
+    context.businessCalendar.update(multiState,
+        context.config.businessCalendar.secondsPerDay / 24 + 0.01)
+    local finishedDrying = context.windmill.dryingStatus(multiState, multiJob, multiPallet)
+    local loadableAfterDrying = #context.windmill.candidates(multiState) == 1
+    check("windmill_drying_progress_counts_down_and_unlocks_the_next_color",
+        initialDrying and initialDrying.progress == 0 and initialDrying.remainingHours == 2
+        and halfwayDrying and math.abs(halfwayDrying.progress - 0.5) < 0.001
+        and math.abs(halfwayDrying.remainingHours - 1) < 0.001 and blockedHalfway
+        and finishedDrying and finishedDrying.ready and finishedDrying.progress == 1
+        and finishedDrying.remainingHours == 0 and loadableAfterDrying)
     local secondColor, secondTarget = runColorPass()
     check("windmill_multicolor_reserves_stock_between_passes_and_finishes_exact_order",
         firstColor and secondColor and firstTarget == 1025 and secondTarget == 1000

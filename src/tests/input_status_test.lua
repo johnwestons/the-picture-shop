@@ -151,6 +151,49 @@ function Test.run(context, check)
     check("press_keyboard_error_is_visible_without_saving",
         pressSaves == 1 and pressState.message == "Proof allowance exhausted.")
 
+    local guestUseState = context.State.new()
+    guestUseState.screen = "world"
+    local guestSelected = {
+        kind = "loadingBayDoor",
+        target = { x = 300, y = 285, radius = 62 },
+    }
+    local networkUseCalls, localDoorCalls, faceCalls = {}, 0, 0
+    local guestUseContext = {
+        state = guestUseState,
+        assets = {},
+        world = {
+            getInteraction = function() return guestSelected end,
+            faceInteraction = function() faceCalls = faceCalls + 1; return true end,
+            toggleBayDoor = function()
+                localDoorCalls = localDoorCalls + 1
+                return true
+            end,
+        },
+        networkInteraction = function(selected)
+            networkUseCalls[#networkUseCalls + 1] = selected
+            return true
+        end,
+        saveCurrent = function() error("network USE must not save locally") end,
+    }
+    local guestUseHandled = context.input.keypressed("e", guestUseContext)
+    check("guest_use_routes_selected_target_through_network_hook_once",
+        guestUseHandled and #networkUseCalls == 1
+        and networkUseCalls[1] == guestSelected
+        and networkUseCalls[1].kind == "loadingBayDoor"
+        and faceCalls == 1)
+    check("guest_use_never_executes_local_world_interaction",
+        localDoorCalls == 0 and guestUseState.screen == "world")
+
+    local computerOpenCalls = 0
+    guestSelected = { kind = "computer", target = { x = 500, y = 235, radius = 58 } }
+    guestUseContext.computerScreen = {
+        enter = function() computerOpenCalls = computerOpenCalls + 1 end,
+    }
+    context.input.keypressed("e", guestUseContext)
+    check("guest_nonallowlisted_use_remains_host_only",
+        #networkUseCalls == 2 and networkUseCalls[2] == guestSelected
+        and computerOpenCalls == 0 and guestUseState.screen == "world")
+
     local state = context.State.new()
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)

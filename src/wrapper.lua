@@ -54,6 +54,9 @@ function Wrapper.selectPallet(state, palletId)
     if Wrapper.step == "wrapping" then return false end
     for _, item in ipairs(Wrapper.nearbyPallets(state)) do
         if item.pallet.id == palletId then
+            if Wrapper.step == "finished" then
+                Wrapper.step, Wrapper.progress, Wrapper.pallet, Wrapper.job = "idle", 0, nil, nil
+            end
             Wrapper.selectedPalletId = palletId
             state.message = "Selected " .. palletId .. " for stretch wrapping."
             return true
@@ -99,10 +102,10 @@ function Wrapper.start(state)
 end
 
 function Wrapper.update(dt, state)
-    if Wrapper.step ~= "wrapping" then return end
+    if Wrapper.step ~= "wrapping" then return false end
     assert(type(state) == "table", "wrapper update requires game state")
     Wrapper.progress = math.min(Wrapper.cycleTime, Wrapper.progress + dt)
-    if Wrapper.progress < Wrapper.cycleTime then return end
+    if Wrapper.progress < Wrapper.cycleTime then return false end
     local inventory = state.inventory
     inventory.plasticWrapUses = math.max(0, (inventory.plasticWrapUses or 0) - 1)
     if inventory.plasticWrapUses == 0 then
@@ -116,6 +119,47 @@ function Wrapper.update(dt, state)
     MachineFleet.recordUse(state, "skid_wrapper", 1)
     Wrapper.step = "finished"
     state.message = Wrapper.pallet.id .. " wrapped. " .. inventory.plasticWrapUses .. " pallet wrap(s) remain on the current roll."
+    return true
+end
+
+-- The wrapper animation/runtime lives outside the durable save table. LAN
+-- workers receive this small authoritative view so the console and cycle sound
+-- follow the host without gaining references to mutable host objects.
+function Wrapper.snapshot()
+    return {
+        step = Wrapper.step,
+        progress = Wrapper.progress,
+        cycleTime = Wrapper.cycleTime,
+        selectedPalletId = Wrapper.selectedPalletId,
+        palletId = Wrapper.pallet and Wrapper.pallet.id or nil,
+    }
+end
+
+function Wrapper.applySnapshot(snapshot, state)
+    if type(snapshot) ~= "table"
+        or (snapshot.step ~= "idle" and snapshot.step ~= "wrapping"
+            and snapshot.step ~= "finished")
+        or type(snapshot.progress) ~= "number" or snapshot.progress < 0
+        or type(snapshot.cycleTime) ~= "number" or snapshot.cycleTime <= 0
+        or (snapshot.selectedPalletId ~= nil and type(snapshot.selectedPalletId) ~= "string")
+        or (snapshot.palletId ~= nil and type(snapshot.palletId) ~= "string")
+    then
+        return false
+    end
+    Wrapper.step = snapshot.step
+    Wrapper.cycleTime = snapshot.cycleTime
+    Wrapper.progress = math.min(snapshot.cycleTime, snapshot.progress)
+    Wrapper.selectedPalletId = snapshot.selectedPalletId
+    Wrapper.pallet, Wrapper.job = nil, nil
+    if state and snapshot.palletId then
+        for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
+            if item.pallet and item.pallet.id == snapshot.palletId then
+                Wrapper.pallet, Wrapper.job = item.pallet, item.job
+                break
+            end
+        end
+    end
+    return true
 end
 
 function Wrapper.keypressed(key, state)

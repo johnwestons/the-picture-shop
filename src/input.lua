@@ -1,6 +1,13 @@
 local Input = {}
 local mobileMovementProvider = nil
 
+local function radialDeadzone(x, y, deadzone)
+    local magnitude = math.sqrt(x * x + y * y)
+    if magnitude <= deadzone then return 0, 0 end
+    local strength = math.min(1, (magnitude - deadzone) / (1 - deadzone))
+    return x / magnitude * strength, y / magnitude * strength
+end
+
 function Input.setMobileMovementProvider(provider)
     mobileMovementProvider = provider
 end
@@ -16,8 +23,7 @@ function Input.movement()
             if joystick:isGamepad() then
                 local axisX = joystick:getGamepadAxis("leftx") or 0
                 local axisY = joystick:getGamepadAxis("lefty") or 0
-                if math.abs(axisX) < 0.20 then axisX = 0 end
-                if math.abs(axisY) < 0.20 then axisY = 0 end
+                axisX, axisY = radialDeadzone(axisX, axisY, 0.20)
                 if joystick:isGamepadDown("dpleft") then axisX = -1 end
                 if joystick:isGamepadDown("dpright") then axisX = 1 end
                 if joystick:isGamepadDown("dpup") then axisY = -1 end
@@ -37,6 +43,17 @@ end
 function Input.closeScreen(context)
     local state = context.state
     if state.screen == "world" or state.screen == "title" then return false end
+    if state.screen == "workshop_remote" then
+        if context.workshopRemoteScreen and not context.workshopRemoteScreen.canClose() then
+            state.message = "Wait for the host device to finish the current workshop action."
+            return true
+        end
+        if context.releaseWorkshopInteraction then context.releaseWorkshopInteraction("closed") end
+        if context.workshopRemoteScreen then context.workshopRemoteScreen.clear() end
+        state.screen = "world"
+        state.message = "Remote workshop console closed."
+        return true
+    end
     if state.screen == "machine" and state.machineType == "skid_wrapper"
         and not context.wrapper.canExit(state)
     then
@@ -60,6 +77,12 @@ function Input.closeScreen(context)
         state.message = "Office computer closed."
     else
         state.message = "Back on the warehouse floor."
+    end
+    if context.releaseWorkshopInteraction
+        and (state.screen == "job_offer" or state.screen == "computer"
+            or (state.screen == "machine" and state.machineType == "skid_wrapper"))
+    then
+        context.releaseWorkshopInteraction("closed")
     end
     state.screen = "world"
     context.saveCurrent()
@@ -120,6 +143,8 @@ function Input.keypressed(key, context)
             return
         end
         if key ~= "e" then return end
+        if context.world.faceInteraction then context.world.faceInteraction() end
+        if context.networkInteraction and context.networkInteraction(selected) then return true end
         if state.cutter and state.cutter.moving then
             if context.world.placeCutter(state, context.assets) then context.saveCurrent() end
         elseif state.wrapper and state.wrapper.moving then
@@ -130,15 +155,24 @@ function Input.keypressed(key, context)
             local offer, errors = context.jobService.createNextOffer(state, os.time())
             if not offer then
                 state.message = "Could not prepare the job: " .. table.concat(errors or {}, "; ")
+                if context.releaseWorkshopInteraction then
+                    context.releaseWorkshopInteraction("cancelled")
+                end
             elseif context.world.beginCustomerReview() then
                 state.currentOffer = offer
                 if context.jobOfferScreen.enter then context.jobOfferScreen.enter(offer) end
                 state.screen = "job_offer"
                 state.message = "Review the paperwork and choose Accept or Decline."
+            elseif context.releaseWorkshopInteraction then
+                context.releaseWorkshopInteraction("cancelled")
             end
         elseif selected and selected.kind == "computer" then
             context.computerScreen.enter(state)
             state.screen = "computer"
+        elseif selected and selected.kind == "palletWorkOrder" then
+            context.palletWorkOrderScreen.enter(selected.target.item)
+            state.screen = "pallet_work_order"
+            state.message = "Inspecting the paper work order attached to the pallet."
         elseif selected and selected.kind == "vendor" then
             if context.world.beginVendorReview() then
                 state.screen = "vendor"
@@ -182,6 +216,9 @@ function Input.keypressed(key, context)
         if state.machineType == "skid_wrapper" and key == "m" then
             if context.world.beginWrapperMove(state) then
                 state.screen = "world"
+                if context.releaseWorkshopInteraction then
+                    context.releaseWorkshopInteraction("closed")
+                end
                 context.saveCurrent()
             end
             return true
@@ -191,8 +228,12 @@ function Input.keypressed(key, context)
         if context.machine.keypressed(key, state) then context.machineScreen.syncGauge() end
     elseif state.screen == "computer" then
         return context.computerScreen.keypressed(state, key)
+    elseif state.screen == "pallet_work_order" then
+        return false
     elseif state.screen == "job_offer" then
         return context.jobOfferScreen.keypressed(key)
+    elseif state.screen == "workshop_remote" then
+        return context.workshopRemoteScreen.keypressed(key)
     elseif state.screen == "press" then
         local result, errorMessage = context.pressScreen.keypressed(state, key)
         if type(result) == "table" and result.action == "exit" then return Input.closeScreen(context) end
@@ -209,6 +250,8 @@ function Input.textinput(text, context)
         return context.computerScreen.textinput(context.state, text)
     elseif context.state.screen == "job_offer" then
         return context.jobOfferScreen.textinput(text)
+    elseif context.state.screen == "workshop_remote" then
+        return context.workshopRemoteScreen.textinput(text)
     end
     return false
 end
@@ -229,6 +272,10 @@ function Input.mousepressed(x, y, button, context)
         end
         if context.world.selectPlacement(state, context.assets, worldX, worldY) then
             return true
+        end
+        local selected = context.world.getInteraction()
+        if selected and selected.hovered then
+            return Input.keypressed("e", context)
         end
     end
     if state.screen == "vendor" then
@@ -277,6 +324,14 @@ function Input.mousepressed(x, y, button, context)
         if result then context.saveCurrent() end
         return result
     end
+    if state.screen == "workshop_remote" then
+        local result = context.workshopRemoteScreen.mousepressed(state, x, y, button,
+            context.requestWorkshopCommand)
+        if type(result) == "table" and result.action == "close" then
+            return Input.closeScreen(context)
+        end
+        return result
+    end
     if state.screen == "computer" then
         local result = context.computerScreen.mousepressed(state, x, y, button)
         if not result then return false end
@@ -303,6 +358,11 @@ function Input.mousepressed(x, y, button, context)
             end
         end
         return true
+    end
+    if state.screen == "pallet_work_order" then
+        local result = context.palletWorkOrderScreen.mousepressed(x, y, button)
+        if result and result.action == "close" then return Input.closeScreen(context) end
+        return result or false
     end
     if state.screen ~= "job_offer" or button ~= 1 then return false end
     local action = context.jobOfferScreen.hitTest(x, y)
@@ -344,6 +404,7 @@ function Input.mousepressed(x, y, button, context)
     context.world.resolveCustomer(accepted and "accepted" or "declined", state)
     state.currentOffer = nil
     state.screen = "world"
+    if context.releaseWorkshopInteraction then context.releaseWorkshopInteraction("closed") end
     if action == "accept" then
         state.message = quoteResult.accepted
             and string.format("%s accepted your $%d quote. %s.", job.company, quoteResult.amount,

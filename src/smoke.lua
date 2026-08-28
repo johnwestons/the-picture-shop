@@ -289,7 +289,12 @@ local function runChecks(context)
         ["blue-coaler-cat"] = { idle = 2, walk = 3, sit = 2 },
         ["business-dragon"] = { idle = 2, walk = 4, sit = 2 },
         ["business-fox"] = { idle = 2, walk = 4, sit = 2 },
-        ["business-cat"] = { idle = 2, walk = 4, sit = 2 },
+        ["business-cat"] = {
+            idle = 2, idle_north = 2, idle_northeast = 2,
+            idle_southeast = 2, idle_south = 2,
+            walk = 8, walk_north = 8, walk_northeast = 8,
+            walk_southeast = 8, walk_south = 8, sit = 2,
+        },
     }
     local charactersHealthy, characterFailures = context.characterAssets.assertHealthy()
     check("character_asset_contract", charactersHealthy, characterFailures)
@@ -451,16 +456,22 @@ local function runChecks(context)
     check("press_pack_replaces_wrapper_pack", context.assets.activatePack("press")
         and context.assets.activePackName() == "press"
         and context.assets.get("wrapperMaintenanceAtlas") == nil
-        and context.assets.get("pressProcessStages") ~= nil)
+        and context.assets.get("pressProcessStages") ~= nil
+        and context.assets.get("pressOperatorHandbook") ~= nil)
     for frame = 1, 4 do
         check("press_process_stage_" .. frame,
             context.assets.getQuad("pressProcessStage" .. frame) ~= nil)
+    end
+    for frame = 1, 6 do
+        check("press_handbook_page_" .. frame,
+            context.assets.getQuad("pressHandbookPage" .. frame) ~= nil)
     end
     check("screen_pack_releases_to_world", context.assets.activatePack(nil)
         and context.assets.activePackName() == nil
         and context.assets.get("wrappedPalletStages") ~= nil
         and context.assets.get("loadedPaperPallet") == nil
-        and context.assets.get("pressProcessStages") == nil)
+        and context.assets.get("pressProcessStages") == nil
+        and context.assets.get("pressOperatorHandbook") == nil)
     if background and mask then
         local backgroundWidth, backgroundHeight = background:getDimensions()
         local maskWidth, maskHeight = mask:getDimensions()
@@ -504,16 +515,19 @@ local function runChecks(context)
 
     local door = context.BayDoor.new(context.config.loadingBay)
     check("bay_door_starts_closed", door.state == "closed"
-        and door:frame() == 1
-        and door:getObstacle() ~= nil)
+        and door:frame() == 1)
+    check("bay_door_sprite_never_blocks_floor_movement", door:getObstacle() == nil)
+    local doorObstacles = {}
+    if door:getObstacle() then doorObstacles[1] = door:getObstacle() end
+    check("closed_bay_apron_uses_walkmask_only",
+        context.Navigation.canMoveFrom(context.assets, 170, 267, 180, 267, doorObstacles))
     check("bay_door_begins_opening", door:open() and door.state == "opening")
     check("bay_door_ignores_toggle_while_moving", not door:toggle())
     door:update(context.config.loadingBay.duration * 0.5)
     check("bay_door_half_open_frame", door.state == "opening" and door:frame() == 3)
     door:update(context.config.loadingBay.duration * 0.5)
     check("bay_door_opens", door.state == "open"
-        and door:frame() == context.config.loadingBay.frameCount
-        and door:getObstacle() == nil)
+        and door:frame() == context.config.loadingBay.frameCount)
     check("bay_door_begins_closing", door:close() and door.state == "closing")
     door:update(context.config.loadingBay.duration)
     check("bay_door_closes", door.state == "closed" and door:frame() == 1)
@@ -571,11 +585,22 @@ local function runChecks(context)
     check("truck_departure_finishes", truck:update(context.config.truck.backingDuration, "open")
         == "departed" and truck.state == "absent" and not truck:isVisible())
 
-    local rabbit = context.assets.get("rabbit")
-    if rabbit then
-        local width, height = rabbit:getDimensions()
-        check("rabbit_atlas_6x4", width % 6 == 0 and height % 4 == 0)
+    local _, _, rabbitIdleFrames = context.characterAssets.get("rabbit-worker", "idle", 1)
+    local _, _, rabbitWalkFrames = context.characterAssets.get("rabbit-worker", "walk", 1)
+    local directionalFramesHealthy = true
+    for _, action in ipairs({
+        "walk_north", "walk_northeast", "walk_southeast", "walk_south",
+        "idle_north", "idle_northeast", "idle_southeast", "idle_south",
+    }) do
+        local _, _, frameCount = context.characterAssets.get("rabbit-worker", action, 1)
+        directionalFramesHealthy = directionalFramesHealthy
+            and frameCount == (action:match("^walk") and 8 or 2)
+            and context.characterAssets.hasAction("rabbit-worker", action)
     end
+    check("rabbit_player_character_pack",
+        rabbitIdleFrames == 2 and rabbitWalkFrames == 8 and directionalFramesHealthy
+        and context.characterAssets.hasAction("rabbit-worker", "idle")
+        and context.characterAssets.hasAction("rabbit-worker", "walk"))
 
     local customer = context.Customer.new({
         character = "green-blazer-cat",
@@ -1143,6 +1168,27 @@ local function runChecks(context)
         == "Boxed paper on pallets; stretch-wrap each finished pallet"
         and context.computerScreen.packagingText({ packaging = "flat" })
             == "Flat stacked on pallets; stretch-wrap each finished pallet")
+    local layoutPallets = {}
+    for index = 1, 5 do layoutPallets[index] = { number = index } end
+    local printDetailLayout = context.computerScreen.jobDetailLayout({
+        sourceSize = { width = 10, height = 15 },
+        finishedSize = { width = 7, height = 10 },
+        stockSpec = { description = "100 lb gloss cover" },
+        packaging = "boxed",
+        press = {
+            colors = 4,
+            colorSequence = { "Warm Red", "Process Blue", "Metallic Gold", "Black" },
+            actual = { impressions = 1575, spoilage = 75 },
+        },
+        quote = { orderedCopies = 1500, suppliedSheets = 1575, totalSheets = 1575 },
+        pallets = layoutPallets,
+    })
+    check("computer_print_job_detail_text_clears_pallet_table",
+        printDetailLayout.textBottom < printDetailLayout.tableY)
+    check("computer_print_job_detail_table_clears_action_button",
+        printDetailLayout.tableBottom + 4 <= printDetailLayout.actionTop,
+        string.format("tableBottom=%.1f actionTop=%.1f",
+            printDetailLayout.tableBottom, printDetailLayout.actionTop))
     local completeX, completeY = context.computerScreen.completeCenter()
     local completionResult = context.computerScreen.mousepressed(serviceState, completeX, completeY, 1)
     check("computer_completion_gate", completionResult
@@ -1265,7 +1311,29 @@ function Smoke.start(context)
             or (os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" and "inventory")
             or (os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" and "email")
         local pressPreview = os.getenv("PICTURE_SHOP_PRESS_PREVIEW")
-        if maintenancePreview == "hub" or maintenancePreview == "oil" then
+        if os.getenv("PICTURE_SHOP_WORK_ORDER_PREVIEW") == "1" then
+            local previewJob = assert(context.jobs.createOffer({
+                id = "JOB-0042", company = "Blue Ridge Packaging",
+                sourceSize = { width = 25, height = 19 },
+                finishedSize = { width = 12.5, height = 9.5 },
+                sheetCounts = { 1000 }, packaging = "boxed", difficulty = "medium",
+                artworkKey = "ad-pizza",
+                artwork = { key = "ad-pizza", displayName = "Blue Ridge Pizza Card",
+                    fileName = "blue-ridge-pizza-final.png", suppliedBy = "client" },
+                stockSpec = { suppliedBy = "client", grade = "cover", weight = 80,
+                    finish = "uncoated", color = "warm white", grain = "long",
+                    description = "80 lb customer-supplied cover stock" },
+                details = { stockDescription = "80 lb customer-supplied cover stock" },
+            }))
+            previewJob.status = "in_production"
+            previewJob.delivery = previewJob.delivery or {}
+            previewJob.delivery.status = "received"
+            local pallet = previewJob.pallets[1]
+            pallet.location, pallet.status = "warehouse", "raw"
+            context.state.jobs.active = { previewJob }
+            context.palletWorkOrderScreen.enter({ job = previewJob, pallet = pallet })
+            context.state.screen = "pallet_work_order"
+        elseif maintenancePreview == "hub" or maintenancePreview == "oil" then
             context.state.screen = "machine"
             context.state.machineType = "cutter"
             context.state.inventory.stock.maintenance_kit = 2
@@ -1308,7 +1376,11 @@ function Smoke.start(context)
             context.state.money = 20000
             assert(context.machineFleet.buy(context.state, "dealer", 3))
             context.state.screen = "world"
-        elseif pressPreview == "run" or pressPreview == "plates" or pressPreview == "proof" then
+        elseif pressPreview == "run" or pressPreview == "plates" or pressPreview == "proof"
+            or pressPreview == "finished" or (pressPreview and pressPreview:match("^setup_"))
+            or pressPreview == "drying"
+            or pressPreview == "help"
+        then
             local previewJob = assert(context.jobs.createOffer({
                 id = "PRESS-PREVIEW", company = "Harbor Pizza Club",
                 sourceSize = { width = 10, height = 15 }, finishedSize = { width = 6, height = 9 },
@@ -1335,16 +1407,34 @@ function Smoke.start(context)
             end
             local process = context.windmill.ensure(context.state)
             process.jobId, process.palletId, process.colorIndex = previewJob.id, pallet.id, 1
-            process.status, process.speed = pressPreview == "run" and "production" or "proof", 3000
+            process.status, process.speed = pressPreview == "run" and "production"
+                or pressPreview == "finished" and "pass_complete"
+                or (pressPreview and pressPreview:match("^setup_")) and "setup" or "proof", 3000
             process.setup = { chase = 0.91, packing = 0.88, rollers = 0.93,
                 ink = 0.86, feeder = 0.92, register = 0.84 }
             process.proofQuality, process.proofApproved, process.artworkVerified = 0.87, false, false
             process.targetSheets, process.feedStart, process.feedRemaining = 1025, 1050, 1049
             process.counter, process.goodSheets, process.spoilage = 1, 0, 1
             process.motor, process.feeder, process.impression = true, true, true
+            if pressPreview == "drying" then
+                pallet.location, pallet.status = "press_output", "press_setup"
+                pallet.press.status, pallet.press.completedColors = "drying", 1
+                pallet.press.availableSheets, pallet.press.goodSheets = 1025, 1025
+                pallet.press.dryUntilHours = context.businessCalendar.absoluteHours(context.state) + 1
+                process.status, process.jobId, process.palletId, process.colorIndex = "idle", nil, nil, nil
+                process.setup, process.motor, process.feeder, process.impression = {}, false, false, false
+            end
             context.state.screen = "press"
             context.pressScreen.enter(context.state)
-            context.pressScreen.tab = pressPreview
+            local setupTask = pressPreview and pressPreview:match("^setup_(.+)$")
+            context.pressScreen.tab = pressPreview == "drying" and "run"
+                or pressPreview == "finished" and "run"
+                or setupTask and "setup" or pressPreview
+            if setupTask then assert(context.pressScreen.beginSetup(context.state, setupTask)) end
+            if pressPreview == "help" then
+                context.pressScreen.tutorialStep = math.max(1, math.min(15,
+                    tonumber(os.getenv("PICTURE_SHOP_PRESS_HELP_PAGE")) or 4))
+            end
         elseif previewTab then
             context.state.screen = "computer"
             context.computerScreen.enter(context.state)

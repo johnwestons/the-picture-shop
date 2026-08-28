@@ -2,12 +2,14 @@ local Config = require("src.config")
 local Save = require("src.save")
 local Ui = require("src.screens.ui")
 
-local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil, hover = nil, pressed = nil }
+local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil,
+    onLocal = nil, hover = nil, pressed = nil }
 local BUTTONS = {
     new = { x = 100, y = 520, width = 170, height = 54, label = "NEW SHOP" },
     continue = { x = 290, y = 520, width = 170, height = 54, label = "CONTINUE" },
     delete = { x = 480, y = 520, width = 170, height = 54, label = "DELETE SLOT" },
     quit = { x = 670, y = 520, width = 170, height = 54, label = "QUIT" },
+    localPlay = { x = 365, y = 582, width = 230, height = 50, label = "LOCAL PLAY" },
     yes = { x = 330, y = 386, width = 130, height = 48, label = "DELETE" },
     no = { x = 500, y = 386, width = 130, height = 48, label = "CANCEL" },
 }
@@ -18,9 +20,10 @@ local function buttonAt(x, y)
     for name, rect in pairs(BUTTONS) do if inside(rect, x, y) then return name end end
 end
 
-function TitleScreen.enter(onStart)
+function TitleScreen.enter(onStart, onLocal)
     TitleScreen.selected, TitleScreen.mode, TitleScreen.message = 1, "normal", ""
-    TitleScreen.hover, TitleScreen.pressed, TitleScreen.onStart = nil, nil, onStart
+    TitleScreen.hover, TitleScreen.pressed = nil, nil
+    TitleScreen.onStart, TitleScreen.onLocal = onStart, onLocal
 end
 function TitleScreen.slots() return Save.listSlots() end
 function TitleScreen.update(_) end
@@ -101,6 +104,15 @@ local function moveSelection(delta)
     TitleScreen.message = "Selected slot " .. TitleScreen.selected .. "."
 end
 
+local function openLocalPlay()
+    if not TitleScreen.onLocal then
+        TitleScreen.message = "Local Play is unavailable in this build."
+        return false
+    end
+    TitleScreen.onLocal(TitleScreen.selected)
+    return true
+end
+
 function TitleScreen.keypressed(key)
     if TitleScreen.mode ~= "normal" then
         if key == "y" or key == "return" or key == "kpenter" then return confirmPending() end
@@ -113,6 +125,7 @@ function TitleScreen.keypressed(key)
     if key == "n" then return requestNew() end
     if key == "c" or key == "return" or key == "kpenter" then return continueGame() end
     if key == "d" then return requestDelete() end
+    if key == "l" then return openLocalPlay() end
     if key == "q" or key == "escape" then love.event.quit(); return true end
     return false
 end
@@ -133,6 +146,7 @@ function TitleScreen.mousepressed(x, y, button)
     if action == "new" then return requestNew() end
     if action == "continue" then continueGame(); return true end
     if action == "delete" then return requestDelete() end
+    if action == "localPlay" then return openLocalPlay() end
     if action == "quit" then love.event.quit(); return true end
     return false
 end
@@ -192,13 +206,14 @@ function TitleScreen.draw(assets, mouseX, mouseY)
     else
         drawButton(assets, "new", false); drawButton(assets, "continue", false)
         drawButton(assets, "delete", true); drawButton(assets, "quit", true)
+        drawButton(assets, "localPlay", false)
     end
     love.graphics.setColor(0.68, 0.72, 0.70)
     local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
     love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message
         or (mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
-            or "Mouse or W/S/Arrows | N New | C/Enter Continue | D Delete | Q Quit"),
-        0, 604, Config.baseWidth, "center")
+            or "Mouse or W/S/Arrows | N New | C Continue | D Delete | L Local | Q Quit"),
+        0, 648, Config.baseWidth, "center")
 end
 
 return TitleScreen
