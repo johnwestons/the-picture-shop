@@ -18,6 +18,15 @@ APK, installs it without deleting existing saves, launches it, and verifies the 
 Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is needed. See
 `ANDROID_PORT.md` for the phone, controller, build, and release checklist.
 
+## Local multiplayer
+
+Choose a writable save, then use **LOCAL PLAY > HOST THIS SHOP** on Windows or Android. Up to three
+Windows/Android workers can join the host's displayed IPv4 address over normal Wi-Fi or a compatible
+phone hotspot. The host alone owns and saves the shop; guests receive the live shop and can move,
+operate the dock door, talk to clients, use the office computer and skid wrapper, inspect pallet work
+orders read-only, and share the host-authoritative pallet jack. See `docs/lan_multiplayer_slice.md` for
+the supported protocol-v5 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
+
 ## Release gate
 
 From a clean, pushed `main` branch, run `./RELEASE.ps1`. This single command

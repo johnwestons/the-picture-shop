@@ -198,6 +198,11 @@ function Test.run(context, check)
     guestState.message = "Reviewing the host shop"
     guestState.currentOffer = localOffer
     guestState.activeSlot = 2
+    guestState.palletJack.x, guestState.palletJack.y = 612, 488
+    guestState.palletJack.direction = "east"
+    guestState.palletJack.operating = true
+    guestState.palletJack.operatorPlayerId = 3
+    guestState.palletJack.moving = true
     check("domain_guest_live_update_preserves_local_ui_and_replaces_durable_state",
         context.State.applySharedUpdate(guestState, sharedUpdate)
         and guestState.money == 1110 and guestState.inventory.paper == 2125
@@ -205,7 +210,11 @@ function Test.run(context, check)
         and guestState.jobs.active[1].id == "LAN-SHARED-001"
         and guestState.screen == "computer"
         and guestState.message == "Reviewing the host shop"
-        and guestState.currentOffer == localOffer and guestState.activeSlot == nil)
+        and guestState.currentOffer == localOffer and guestState.activeSlot == nil
+        and guestState.palletJack.x == 612 and guestState.palletJack.y == 488
+        and guestState.palletJack.direction == "east"
+        and guestState.palletJack.operating and guestState.palletJack.moving
+        and guestState.palletJack.operatorPlayerId == 3)
 
     local invalidSemanticUpdate = SaveSchema.snapshot(hostState)
     invalidSemanticUpdate.money = -1

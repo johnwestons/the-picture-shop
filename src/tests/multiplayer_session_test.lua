@@ -193,6 +193,18 @@ local function visitorState(state, visible, x, y, character)
     }
 end
 
+local function palletJackState(overrides)
+    local jack = {
+        x = 560,
+        y = 520,
+        direction = "north",
+        operating = false,
+        moving = false,
+    }
+    for key, value in pairs(overrides or {}) do jack[key] = value end
+    return jack
+end
+
 local function eventNamed(events, name)
     for _, event in ipairs(events or {}) do
         if event.type == name then return event end
@@ -593,8 +605,12 @@ function Test.run(_, check)
         if operation == "workshop_acquire" then
             workshopRevision = workshopRevision + 1
             workshopResource = payload.resourceId
-            workshopLease = workshopResource == "skid_wrapper"
-                and "lease-wrapper-test" or "lease-office-test"
+            local leases = {
+                office_computer = "lease-office-test",
+                skid_wrapper = "lease-wrapper-test",
+                pallet_jack = "lease-jack-test",
+            }
+            workshopLease = leases[workshopResource] or "lease-workshop-test"
             local data = {}
             if workshopResource == "skid_wrapper" then
                 data = {
@@ -634,6 +650,10 @@ function Test.run(_, check)
                 { resourceId = "skid_wrapper", revision = workshopRevision,
                     occupied = workshopLease ~= nil and workshopResource == "skid_wrapper",
                     ownerPlayerId = workshopLease and workshopResource == "skid_wrapper"
+                        and 2 or nil },
+                { resourceId = "pallet_jack", revision = workshopRevision,
+                    occupied = workshopLease ~= nil and workshopResource == "pallet_jack",
+                    ownerPlayerId = workshopLease and workshopResource == "pallet_jack"
                         and 2 or nil },
             },
             wrapper = {
@@ -712,6 +732,91 @@ function Test.run(_, check)
         and client:workshopInfo() and client:workshopInfo().resourceId == "skid_wrapper")
     client:releaseWorkshop("closed")
     host:update(0, hostContext)
+
+    local jackRequested = client:requestWorkshopAcquire("pallet_jack")
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local jackGrant = eventNamed(client:drainEvents(), "workshop_grant")
+    local jackInfo = client:workshopInfo()
+    check("multiplayer_session_worker_acquires_host_owned_pallet_jack_control",
+        jackRequested and jackGrant and jackGrant.granted
+        and jackGrant.resourceId == "pallet_jack"
+        and jackGrant.leaseId == "lease-jack-test"
+        and jackGrant.view and next(jackGrant.view) == nil
+        and jackInfo and jackInfo.resourceId == "pallet_jack"
+        and jackInfo.leaseId == "lease-jack-test")
+
+    local commandsBeforeJack = #network:messages("client_to_host", "workshop_command")
+    local liftRequested = client:requestWorkshopCommand(
+        "lift_pallet", { palletId = "JOB-LIFT-P01" })
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local liftResult = eventNamed(client:drainEvents(), "workshop_result")
+    local commandPackets = network:messages("client_to_host", "workshop_command")
+    local liftPacket = commandPackets[commandsBeforeJack + 1]
+    local liftWire = decodedPayload(liftPacket)
+    local liftRevision = liftResult and liftResult.revision
+
+    local lowerRequested = client:requestWorkshopCommand(
+        "lower_pallet", { palletId = "JOB-LIFT-P01" })
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local lowerResult = eventNamed(client:drainEvents(), "workshop_result")
+    commandPackets = network:messages("client_to_host", "workshop_command")
+    local lowerPacket = commandPackets[commandsBeforeJack + 2]
+    local lowerWire = decodedPayload(lowerPacket)
+    local lowerRevision = lowerResult and lowerResult.revision
+
+    -- Even if a caller accidentally supplies an argument, the session emits
+    -- the closed park command shape: no coordinates and no pallet identity.
+    local parkRequested = client:requestWorkshopCommand(
+        "park_jack", { palletId = "MUST-NOT-REACH-HOST", x = 999, y = 999 })
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local parkResult = eventNamed(client:drainEvents(), "workshop_result")
+    commandPackets = network:messages("client_to_host", "workshop_command")
+    local parkPacket = commandPackets[commandsBeforeJack + 3]
+    local parkWire = decodedPayload(parkPacket)
+
+    local jackCalls = {
+        workshopCalls[#workshopCalls - 2],
+        workshopCalls[#workshopCalls - 1],
+        workshopCalls[#workshopCalls],
+    }
+    check("multiplayer_session_pallet_jack_commands_serialize_exact_lift_lower_and_park_intent",
+        liftRequested and lowerRequested and parkRequested
+        and liftResult and liftResult.accepted and liftResult.action == "lift_pallet"
+        and lowerResult and lowerResult.accepted and lowerResult.action == "lower_pallet"
+        and parkResult and parkResult.accepted and parkResult.action == "park_jack"
+        and liftPacket and liftPacket.channel == Protocol.CHANNEL_CONTROL and liftPacket.reliable
+        and lowerPacket and lowerPacket.channel == Protocol.CHANNEL_CONTROL and lowerPacket.reliable
+        and parkPacket and parkPacket.channel == Protocol.CHANNEL_CONTROL and parkPacket.reliable
+        and liftWire and liftWire.resourceId == "pallet_jack"
+        and liftWire.leaseId == "lease-jack-test"
+        and liftWire.action == "lift_pallet" and liftWire.palletId == "JOB-LIFT-P01"
+        and lowerWire and lowerWire.resourceId == "pallet_jack"
+        and lowerWire.leaseId == "lease-jack-test"
+        and lowerWire.action == "lower_pallet" and lowerWire.palletId == "JOB-LIFT-P01"
+        and lowerWire.expectedRevision == liftRevision
+        and parkWire and parkWire.resourceId == "pallet_jack"
+        and parkWire.leaseId == "lease-jack-test"
+        and parkWire.action == "park_jack" and parkWire.palletId == nil
+        and parkWire.x == nil and parkWire.y == nil
+        and parkWire.expectedRevision == lowerRevision
+        and liftWire.commandId < lowerWire.commandId
+        and lowerWire.commandId < parkWire.commandId
+        and jackCalls[1] and jackCalls[1].payload.action == "lift_pallet"
+        and jackCalls[1].payload.palletId == "JOB-LIFT-P01"
+        and jackCalls[2] and jackCalls[2].payload.action == "lower_pallet"
+        and jackCalls[2].payload.palletId == "JOB-LIFT-P01"
+        and jackCalls[3] and jackCalls[3].payload.action == "park_jack"
+        and jackCalls[3].payload.palletId == nil)
+
+    local jackReleased = client:releaseWorkshop("closed")
+    host:update(0, hostContext)
+    check("multiplayer_session_worker_releases_pallet_jack_after_parking",
+        jackReleased and client:workshopInfo() == nil
+        and workshopLease == nil and workshopResource == nil)
 
     client:stop("Guest signed off")
     host:update(0, hostContext)
@@ -828,6 +933,7 @@ function Test.run(_, check)
         bayDoor = { state = "closed", progress = 0 },
         truck = { state = "absent", backingProgress = 0, cargoProgress = 0 },
     }
+    local authoritativePalletJack = palletJackState()
     local syncHostContext = {
         localPlayer = syncHostPlayer,
         resolveGuestSpawn = function() return 530, 520 end,
@@ -840,6 +946,7 @@ function Test.run(_, check)
         end,
         getVisitorSnapshot = function() return authoritativeVisitors end,
         getEnvironmentSnapshot = function() return authoritativeEnvironment end,
+        getPalletJackSnapshot = function() return authoritativePalletJack end,
         moveRemote = function() end,
     }
     local syncClientContext = {
@@ -897,6 +1004,15 @@ function Test.run(_, check)
         state = "parked_closed", jobId = "LAN-JOB-0001", mode = "delivery",
         backingProgress = 1, cargoProgress = 0,
     }
+    authoritativePalletJack = palletJackState({
+        x = 552,
+        y = 490,
+        direction = "west",
+        operating = true,
+        moving = true,
+        operatorPlayerId = 2,
+        carriedPalletId = "LAN-JOB-0001-P01",
+    })
     syncHost:markShopDirty()
     syncHost:update(1, syncHostContext)
     syncClient:update(0, syncClientContext)
@@ -904,9 +1020,11 @@ function Test.run(_, check)
     local changed = eventNamed(changedEvents, "shop_state")
     local visitorChanged = eventNamed(changedEvents, "visitor_state")
     local environmentChanged = eventNamed(changedEvents, "environment_state")
+    local palletJackChanged = eventNamed(changedEvents, "pallet_jack_state")
     local durablePackets = syncNetwork:messages("host_to_client", "shop_state")
     local visitorPackets = syncNetwork:messages("host_to_client", "visitor_snapshot")
     local environmentPackets = syncNetwork:messages("host_to_client", "environment_snapshot")
+    local palletJackPackets = syncNetwork:messages("host_to_client", "pallet_jack_snapshot")
     check("multiplayer_session_host_broadcasts_authoritative_shop_state_to_guest",
         #durablePackets == baselineStatePackets + 1
         and durablePackets[#durablePackets].channel == Protocol.CHANNEL_DURABLE
@@ -942,6 +1060,19 @@ function Test.run(_, check)
         and environmentChanged.truck.backingProgress == 1
         and environmentChanged.truck.cargoProgress == 0
         and syncClient.lastEnvironmentTick == environmentChanged.serverTick)
+    check("multiplayer_session_host_streams_authoritative_pallet_jack_state_to_guest",
+        #palletJackPackets > 0
+        and palletJackPackets[#palletJackPackets].channel == Protocol.CHANNEL_STATE
+        and not palletJackPackets[#palletJackPackets].reliable
+        and palletJackChanged and palletJackChanged.serverTick == syncHost.serverTick
+        and palletJackChanged.serverTick == syncClient.lastServerTick
+        and palletJackChanged.jack.x == 552 and palletJackChanged.jack.y == 490
+        and palletJackChanged.jack.direction == "west"
+        and palletJackChanged.jack.operating and palletJackChanged.jack.moving
+        and palletJackChanged.jack.operatorPlayerId == 2
+        and palletJackChanged.jack.carriedPalletId == "LAN-JOB-0001-P01"
+        and palletJackChanged.jack.candidatePalletId == nil
+        and syncClient.lastPalletJackTick == palletJackChanged.serverTick)
 
     local deliveredRevision = changed and changed.revision or 1
     local stalePacket = Protocol.encode("shop_state", {
@@ -979,6 +1110,19 @@ function Test.run(_, check)
         bayDoor = { state = "open", progress = 1 },
         truck = authoritativeEnvironment.truck,
     })
+    local stalePalletJackPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = syncHost.sessionId,
+        serverTick = palletJackChanged and palletJackChanged.serverTick or syncHost.serverTick,
+        jack = palletJackState({ x = 1, y = 2 }),
+    })
+    local wrongSessionPalletJackPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "other-shop",
+        serverTick = (palletJackChanged and palletJackChanged.serverTick
+            or syncHost.serverTick) + 1,
+        jack = palletJackState({
+            x = 3, y = 4, operating = true, operatorPlayerId = 2,
+        }),
+    })
     syncNetwork.host:send(syncNetwork.peer, stalePacket,
         Protocol.CHANNEL_DURABLE, true)
     syncNetwork.host:send(syncNetwork.peer, wrongSessionPacket,
@@ -991,6 +1135,10 @@ function Test.run(_, check)
         Protocol.CHANNEL_STATE, false)
     syncNetwork.host:send(syncNetwork.peer, wrongSessionEnvironmentPacket,
         Protocol.CHANNEL_STATE, false)
+    syncNetwork.host:send(syncNetwork.peer, stalePalletJackPacket,
+        Protocol.CHANNEL_STATE, false)
+    syncNetwork.host:send(syncNetwork.peer, wrongSessionPalletJackPacket,
+        Protocol.CHANNEL_STATE, false)
     syncClient:update(0, syncClientContext)
     local rejectedStateEvents = syncClient:drainEvents()
     check("multiplayer_session_guest_ignores_stale_and_wrong_session_shop_state",
@@ -1001,6 +1149,9 @@ function Test.run(_, check)
     check("multiplayer_session_guest_ignores_stale_and_wrong_session_environment_state",
         eventNamed(rejectedStateEvents, "environment_state") == nil
         and syncClient.lastEnvironmentTick == environmentChanged.serverTick)
+    check("multiplayer_session_guest_ignores_stale_and_wrong_session_pallet_jack_state",
+        eventNamed(rejectedStateEvents, "pallet_jack_state") == nil
+        and syncClient.lastPalletJackTick == palletJackChanged.serverTick)
 
     local forgedStatePacket = Protocol.encode("shop_state", {
         sessionId = syncHost.sessionId,

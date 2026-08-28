@@ -19,12 +19,14 @@ Authority.RESOURCE_ORDER = {
     "reception_customer",
     "office_computer",
     "skid_wrapper",
+    "pallet_jack",
 }
 
 Authority.RESOURCES = {
     reception_customer = true,
     office_computer = true,
     skid_wrapper = true,
+    pallet_jack = true,
 }
 
 Authority.ACTIONS = {
@@ -38,6 +40,11 @@ Authority.ACTIONS = {
     skid_wrapper = {
         select_pallet = true,
         start_cycle = true,
+    },
+    pallet_jack = {
+        lift_pallet = true,
+        lower_pallet = true,
+        park_jack = true,
     },
 }
 

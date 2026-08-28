@@ -194,6 +194,68 @@ function Test.run(context, check)
         #networkUseCalls == 2 and networkUseCalls[2] == guestSelected
         and computerOpenCalls == 0 and guestUseState.screen == "world")
 
+    local mirroredWorkOrder = {
+        job = { id = "LAN-JOB-READ-ONLY", company = "Mirror Print Co." },
+        pallet = { id = "LAN-JOB-READ-ONLY-P01", location = "warehouse" },
+    }
+    local openedWorkOrder, workOrderSaves = nil, 0
+    guestSelected = {
+        kind = "palletWorkOrder",
+        target = { x = 420, y = 360, radius = 92, item = mirroredWorkOrder },
+    }
+    guestUseContext.palletWorkOrderScreen = {
+        enter = function(item) openedWorkOrder = item end,
+        mousepressed = function() return { action = "close" } end,
+    }
+    guestUseContext.saveCurrent = function() workOrderSaves = workOrderSaves + 1 end
+    local networkCallsBeforePaperwork = #networkUseCalls
+    check("guest_pallet_work_order_opens_mirrored_record_without_network_request",
+        context.input.keypressed("e", guestUseContext)
+        and guestUseState.screen == "pallet_work_order"
+        and openedWorkOrder == mirroredWorkOrder
+        and #networkUseCalls == networkCallsBeforePaperwork
+        and workOrderSaves == 0)
+    check("guest_pallet_work_order_close_is_read_only_and_save_free",
+        context.input.mousepressed(0, 0, 1, guestUseContext)
+        and guestUseState.screen == "world"
+        and #networkUseCalls == networkCallsBeforePaperwork
+        and workOrderSaves == 0)
+
+    local relocationState = context.State.new()
+    relocationState.screen = "world"
+    relocationState.cutter.moving = true
+    local relocationPlaced, relocationSaves = 0, 0
+    local relocationJackRoutes, relocationNetworkRoutes = 0, 0
+    local relocationFaces = 0
+    local relocationHandled = context.input.keypressed("e", {
+        state = relocationState,
+        assets = {},
+        world = {
+            getInteraction = function()
+                return { kind = "palletJack", target = relocationState.palletJack }
+            end,
+            faceInteraction = function() relocationFaces = relocationFaces + 1 end,
+            placeCutter = function()
+                relocationPlaced = relocationPlaced + 1
+                relocationState.cutter.moving = false
+                return true
+            end,
+        },
+        palletJackControl = function()
+            relocationJackRoutes = relocationJackRoutes + 1
+            return true
+        end,
+        networkInteraction = function()
+            relocationNetworkRoutes = relocationNetworkRoutes + 1
+            return true
+        end,
+        saveCurrent = function() relocationSaves = relocationSaves + 1 end,
+    })
+    check("moving_machine_place_owns_use_before_pallet_jack_routing",
+        relocationHandled and relocationPlaced == 1 and relocationSaves == 1
+        and relocationFaces == 1 and relocationJackRoutes == 0
+        and relocationNetworkRoutes == 0 and not relocationState.cutter.moving)
+
     local state = context.State.new()
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)
@@ -303,14 +365,16 @@ function Test.run(context, check)
         hud = { hitTest = function() return nil end },
         worldPointerCoordinates = function(x, y) return x + 300, y + 200 end,
         world = {
-            selectPlacement = function(_, _, x, y)
-                placementTap.x, placementTap.y = x, y
+            selectPlacement = function(_, _, x, y, readOnly)
+                placementTap.x, placementTap.y, placementTap.readOnly = x, y, readOnly
                 return true
             end,
         },
+        isNetworkClient = function() return true end,
     })
-    check("mobile_world_placement_tap_uses_camera_coordinates",
-        placementTap.x == 510 and placementTap.y == 340)
+    check("mobile_guest_placement_tap_uses_camera_coordinates_read_only",
+        placementTap.x == 510 and placementTap.y == 340
+        and placementTap.readOnly == true)
 
     local panelTaps, panelGestures = {}, 0
     local panelMobile = MobileControls.new({

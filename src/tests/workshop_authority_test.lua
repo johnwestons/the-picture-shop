@@ -136,6 +136,54 @@ local function specs(calls)
                 },
             },
         },
+        pallet_jack = {
+            canAcquire = canAcquire,
+            onRelease = released,
+            commands = {
+                lift_pallet = {
+                    normalize = function(args)
+                        local normalized = exactArgs(args, { "palletId" })
+                        if not normalized or type(normalized.palletId) ~= "string"
+                            or not normalized.palletId:match("^[A-Za-z0-9_.%-]+$")
+                        then
+                            return nil, "invalid_arguments", "Pallet ID is invalid."
+                        end
+                        return normalized
+                    end,
+                    perform = function(_, _, args)
+                        calls.command.lift_pallet = calls.command.lift_pallet + 1
+                        return true, "pallet_lifted", "Pallet lifted.",
+                            { palletId = args.palletId }
+                    end,
+                },
+                lower_pallet = {
+                    normalize = function(args)
+                        local normalized = exactArgs(args, { "palletId" })
+                        if not normalized or type(normalized.palletId) ~= "string"
+                            or not normalized.palletId:match("^[A-Za-z0-9_.%-]+$")
+                        then
+                            return nil, "invalid_arguments", "Pallet ID is invalid."
+                        end
+                        return normalized
+                    end,
+                    perform = function(_, _, args)
+                        calls.command.lower_pallet = calls.command.lower_pallet + 1
+                        return true, "pallet_lowered", "Pallet lowered.",
+                            { palletId = args.palletId }
+                    end,
+                },
+                park_jack = {
+                    normalize = function(args)
+                        return exactArgs(args, {}) or nil, "invalid_arguments",
+                            "Park jack does not accept arguments."
+                    end,
+                    perform = function()
+                        calls.command.park_jack = calls.command.park_jack + 1
+                        return true, "jack_parked", "Pallet jack parked."
+                    end,
+                },
+            },
+        },
     }
 end
 
@@ -147,6 +195,7 @@ function Test.run(_, check)
         command = {
             submit_quote = 0, decline = 0, request_pickup = 0,
             select_pallet = 0, start_cycle = 0,
+            lift_pallet = 0, lower_pallet = 0, park_jack = 0,
         },
         release = {},
     }
@@ -154,6 +203,7 @@ function Test.run(_, check)
         reception_customer = { x = 10, y = 10, radius = 20 },
         office_computer = { x = 100, y = 10, radius = 20 },
         skid_wrapper = { x = 200, y = 10, radius = 20 },
+        pallet_jack = { x = 300, y = 10, radius = 20 },
     } }
     local authority = WorkshopAuthority.new({
         clock = function() return now end,
@@ -166,14 +216,16 @@ function Test.run(_, check)
     })
 
     local initial = authority:snapshot()
-    check("workshop_authority_snapshot_has_three_vacant_resources",
-        #initial == 3
+    check("workshop_authority_snapshot_has_four_vacant_resources",
+        #initial == 4
         and initial[1].resourceId == "reception_customer" and not initial[1].occupied
         and initial[1].ownerPlayerId == nil and initial[1].revision == 0
         and initial[2].resourceId == "office_computer" and not initial[2].occupied
         and initial[2].revision == 0
         and initial[3].resourceId == "skid_wrapper" and not initial[3].occupied
-        and initial[3].revision == 0)
+        and initial[3].revision == 0
+        and initial[4].resourceId == "pallet_jack" and not initial[4].occupied
+        and initial[4].revision == 0)
 
     local farWorker = { id = 1, x = 200, y = 200 }
     local far = authority:acquire(farWorker,
@@ -287,15 +339,62 @@ function Test.run(_, check)
     local thirdWorker = { id = 3, x = 200, y = 10 }
     local wrapper = authority:acquire(thirdWorker,
         { requestId = 1, resourceId = "skid_wrapper" }, context)
+    local fourthWorker = { id = 4, x = 300, y = 10 }
+    local palletJack = authority:acquire(fourthWorker,
+        { requestId = 1, resourceId = "pallet_jack" }, context)
     local occupied = authority:snapshot()
     check("workshop_authority_allows_different_resources_concurrently",
-        computer.accepted and wrapper.accepted
+        computer.accepted and wrapper.accepted and palletJack.accepted
         and not occupied[1].occupied
         and occupied[1].revision == 3
         and occupied[2].occupied and occupied[2].ownerPlayerId == 2
         and occupied[2].revision == 1
         and occupied[3].occupied and occupied[3].ownerPlayerId == 3
-        and occupied[3].revision == 1)
+        and occupied[3].revision == 1
+        and occupied[4].occupied and occupied[4].ownerPlayerId == 4
+        and occupied[4].revision == 1)
+
+    farWorker.x, farWorker.y = 300, 10
+    local busyPalletJack = authority:acquire(farWorker,
+        { requestId = 8, resourceId = "pallet_jack" }, context)
+    check("workshop_authority_pallet_jack_is_exclusive",
+        not busyPalletJack.accepted and busyPalletJack.code == "resource_busy")
+
+    local crossResourceAction = authority:command(fourthWorker, {
+        requestId = 2, resourceId = "pallet_jack", leaseId = palletJack.leaseId,
+        action = "start_cycle", args = {}, expectedRevision = 1,
+    }, context)
+    check("workshop_authority_pallet_jack_rejects_cross_resource_actions",
+        not crossResourceAction.accepted and crossResourceAction.code == "action_not_allowed")
+
+    local lifted = authority:command(fourthWorker, {
+        requestId = 3, resourceId = "pallet_jack", leaseId = palletJack.leaseId,
+        action = "lift_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 1,
+    }, context)
+    local liftedReplay = authority:command(fourthWorker, {
+        requestId = 3, resourceId = "pallet_jack", leaseId = palletJack.leaseId,
+        action = "lift_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 1,
+    }, context)
+    local lowered = authority:command(fourthWorker, {
+        requestId = 4, resourceId = "pallet_jack", leaseId = palletJack.leaseId,
+        action = "lower_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 2,
+    }, context)
+    local parked = authority:command(fourthWorker, {
+        requestId = 5, resourceId = "pallet_jack", leaseId = palletJack.leaseId,
+        action = "park_jack", args = {}, expectedRevision = 3,
+    }, context)
+    check("workshop_authority_pallet_jack_actions_are_allowlisted_and_replay_safe",
+        lifted.accepted and lifted.code == "pallet_lifted" and lifted.revision == 2
+        and lifted.data.palletId == "JOB-0001-P01"
+        and liftedReplay.accepted and liftedReplay.revision == 2
+        and lowered.accepted and lowered.code == "pallet_lowered" and lowered.revision == 3
+        and lowered.data.palletId == "JOB-0001-P01"
+        and parked.accepted and parked.code == "jack_parked" and parked.revision == 4
+        and calls.command.lift_pallet == 1
+        and calls.command.lower_pallet == 1 and calls.command.park_jack == 1)
 
     local secondResource = authority:acquire(secondWorker,
         { requestId = 5, resourceId = "skid_wrapper" }, context)
@@ -304,19 +403,24 @@ function Test.run(_, check)
 
     now = 106
     check("workshop_authority_touch_renews_active_lease",
-        authority:touchPlayer(thirdWorker) and authority:touchPlayer(secondWorker))
+        authority:touchPlayer(thirdWorker) and authority:touchPlayer(secondWorker)
+        and authority:touchPlayer(fourthWorker))
     now = 115
     check("workshop_authority_does_not_expire_before_timeout",
         #authority:update(context) == 0 and authority:leaseForPlayer(thirdWorker) ~= nil)
     now = 116
     authority:touchPlayer(secondWorker)
     local timeoutEvents = authority:update(context)
-    check("workshop_authority_timeout_releases_with_cleanup",
-        #timeoutEvents == 1 and timeoutEvents[1].reason == "timeout"
+    check("workshop_authority_timeout_releases_all_expired_resources_with_cleanup",
+        #timeoutEvents == 2 and timeoutEvents[1].reason == "timeout"
         and timeoutEvents[1].resourceId == "skid_wrapper"
         and timeoutEvents[1].cleanupAccepted
+        and timeoutEvents[2].reason == "timeout"
+        and timeoutEvents[2].resourceId == "pallet_jack"
+        and timeoutEvents[2].cleanupAccepted
         and authority:leaseForPlayer(thirdWorker) == nil
-        and calls.release.skid_wrapper == 1)
+        and authority:leaseForPlayer(fourthWorker) == nil
+        and calls.release.skid_wrapper == 1 and calls.release.pallet_jack == 1)
 
     local cleanupEvents = authority:cleanupPlayer(secondWorker, "disconnected", context)
     secondWorker.x, secondWorker.y = 100, 10

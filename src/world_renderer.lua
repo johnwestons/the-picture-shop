@@ -433,14 +433,17 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             end
         end
     end
-    if jack and jack.operating then
-        -- Separate depth entries keep the operator naturally behind or in
-        -- front of the handle as the jack changes direction.
-        actors[#actors + 1] = { y = jack.y, layer = 1, draw = function() drawPalletJack(assets, state) end }
-        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
-    else
-        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
-        if jack then actors[#actors + 1] = { y = jack.y, draw = function() drawPalletJack(assets, state) end } end
+    -- Every worker is entered exactly once below. The authoritative jack owner
+    -- is already attached to the handle by World.update/applyNetworkPalletJackSnapshot,
+    -- so assuming World.player is the operator would duplicate a remote owner
+    -- and incorrectly move the host avatar.
+    actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
+    if jack then
+        actors[#actors + 1] = {
+            y = jack.y,
+            layer = jack.operating and 1 or 0,
+            draw = function() drawPalletJack(assets, state) end,
+        }
     end
     for _, remotePlayer in ipairs(remotePlayers or {}) do
         local player = remotePlayer
@@ -452,7 +455,12 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         end
     end
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
-        actors[#actors + 1] = { y = item.y, draw = function() drawPallet(assets, item) end }
+        -- A realtime jack snapshot can arrive just before its reliable durable
+        -- pallet transition. Suppress the host-declared carried ID immediately
+        -- so the load never appears both on the floor and on the forks.
+        if not jack or item.pallet.id ~= jack.carriedPalletId then
+            actors[#actors + 1] = { y = item.y, draw = function() drawPallet(assets, item) end }
+        end
     end
     if World.customer.visible then
         actors[#actors + 1] = {

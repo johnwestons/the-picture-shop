@@ -154,6 +154,7 @@ function Session.new(options)
         lastShopRevision = -1,
         lastVisitorTick = -1,
         lastEnvironmentTick = -1,
+        lastPalletJackTick = -1,
         shopDirty = false,
         connectedAt = nil,
         ready = false,
@@ -216,6 +217,7 @@ function Session:_resetRuntime()
     self.lastShopRevision = -1
     self.lastVisitorTick = -1
     self.lastEnvironmentTick = -1
+    self.lastPalletJackTick = -1
     self.shopDirty = false
     self.connectedAt = nil
     self.ready = false
@@ -832,6 +834,16 @@ function Session:_handleClientEnvelope(envelope)
                 truck = payload.truck,
             })
         end
+    elseif envelope.type == "pallet_jack_snapshot" then
+        if self.ready and payload.sessionId == self.sessionId
+            and payload.serverTick > self.lastPalletJackTick
+        then
+            self.lastPalletJackTick = payload.serverTick
+            self:_queue("pallet_jack_state", {
+                serverTick = payload.serverTick,
+                jack = payload.jack,
+            })
+        end
     elseif envelope.type == "interaction_result" then
         local pending = self.pendingInteraction
         if self.ready and payload.sessionId == self.sessionId and pending
@@ -1112,6 +1124,17 @@ function Session:_updateHost(dt, context)
                 })
             if not environmentOk then self:_queue("error", { message = environmentError }) end
         end
+        local palletJack = context and context.getPalletJackSnapshot
+            and context.getPalletJackSnapshot() or nil
+        if type(palletJack) == "table" then
+            local palletJackOk, palletJackError = self:_broadcastJoined(
+                "pallet_jack_snapshot", {
+                    sessionId = self.sessionId,
+                    serverTick = self.serverTick,
+                    jack = palletJack,
+                })
+            if not palletJackOk then self:_queue("error", { message = palletJackError }) end
+        end
         local workshop = context and context.getWorkshopSnapshot
             and context.getWorkshopSnapshot() or nil
         if type(workshop) == "table" and type(workshop.resources) == "table"
@@ -1349,7 +1372,9 @@ function Session:requestWorkshopCommand(action, arguments)
     }
     if action == "submit_quote" then request.amount = arguments.amount
     elseif action == "request_pickup" then request.jobId = arguments.jobId
-    elseif action == "select_pallet" or action == "start_cycle" then
+    elseif action == "select_pallet" or action == "start_cycle"
+        or action == "lift_pallet" or action == "lower_pallet"
+    then
         request.palletId = arguments.palletId
     end
     local ok, errorMessage = self:_sendToServer("workshop_command", request)
@@ -1394,9 +1419,10 @@ function Session:workshopInfo()
     }
 end
 
-function Session:markShopDirty()
+function Session:markShopDirty(urgent)
     if not self:isHost() or self.terminal then return false end
     self.shopDirty = true
+    if urgent == true then self.shopStateAccumulator = SHOP_STATE_INTERVAL end
     return true
 end
 

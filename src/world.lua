@@ -23,6 +23,7 @@ local WindmillPlacement = require("src.windmill_placement")
 
 local World = {
     player = {
+        id = nil,
         character = Config.player.character,
         x = Config.player.spawnX,
         y = Config.player.spawnY,
@@ -153,13 +154,17 @@ function World.placementGridSnapshot(state, assets)
     return { kind = kind, cells = cells, selected = selected, config = Config.placementGrid }
 end
 
-function World.selectPlacement(state, assets, x, y)
+function World.selectPlacement(state, assets, x, y, readOnly)
     local snapshot = World.placementGridSnapshot(state, assets)
     if not snapshot then return false end
     local cell = PlacementGrid.hit(snapshot.cells, x, y, snapshot.config)
     if not cell then return false end
     if not cell.valid then
         state.message = "That red grid space is blocked. Choose a green space."
+        return true
+    end
+    if readOnly == true and snapshot.kind == "pallet" then
+        state.message = "The host will validate the highlighted drop cell."
         return true
     end
     World.placementSelection = { kind = snapshot.kind, x = cell.x, y = cell.y }
@@ -207,7 +212,10 @@ local function interactables(player)
             }
         end
         local jack = PalletJack.ensure(World._state, Config.palletJack)
+        local playerId = type(player.id) == "number" and player.id
+            or (player == World.player and 1 or nil)
         local jackReady = jack.operating and not jack.carriedPalletId
+            and jack.operatorPlayerId == playerId
         if MachineFleet.isInstalled(World._state, "polar_115") then
             targets.cutter = CutterPlacement.interaction(player, World._state,
                 Config.cutterPlacement, jackReady)
@@ -265,6 +273,9 @@ end
 
 function World.load(position)
     local character = position and position.character or Config.player.character
+    local playerId = position and tonumber(position.id) or nil
+    World.player.id = playerId and playerId >= 1 and playerId <= 4
+        and playerId == math.floor(playerId) and playerId or nil
     World.player.character = Config.characters[character] and character or Config.player.character
     PlayerController.reset(World.player, position, Config.player)
     World.bayDoor:reset()
@@ -426,7 +437,9 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
     local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
     local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local windmill = WindmillPlacement.ensure(state, Config.windmillPlacement)
-    local externalMovement = cutter.moving or wrapper.moving or windmill.moving or jack.operating
+    local localOperatesJack = jack.operating and jack.operatorPlayerId == 1
+    local externalMovement = cutter.moving or wrapper.moving or windmill.moving
+        or localOperatesJack
     if cutter.moving then
         CutterPlacement.move(state, directionX, directionY, dt, Config.cutterPlacement,
             function(nextX, nextY)
@@ -497,7 +510,7 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
         player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
         player.moving = windmill.inMotion
         player.facing = player.x < windmill.x and 1 or -1
-    elseif jack.operating then
+    elseif localOperatesJack then
         PalletJack.move(state, directionX, directionY, dt, Config.palletJack, function(nextX, nextY, loaded)
             local inflate = loaded and {
                 x = Config.palletJack.loadedCollisionHalfWidth,
@@ -592,8 +605,44 @@ end
 
 -- The host uses the same collision and gait controller for every connected
 -- worker, while leaving the original single-player World.player seam intact.
+function World.updateNetworkPalletJack(
+    player, dt, directionX, directionY, assets, state, cursorX, cursorY)
+    if type(player) ~= "table" or type(state) ~= "table" then return false end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if not PalletJack.isOperator(state, Config.palletJack, player.id) then return false end
+    World._assets, World._state = assets, state
+    local playerStartX, playerStartY = player.x, player.y
+    PalletJack.move(state, directionX or 0, directionY or 0, dt, Config.palletJack,
+        function(nextX, nextY, loaded)
+            local footprint = loaded and {
+                x = Config.palletJack.loadedCollisionHalfWidth,
+                y = Config.palletJack.loadedCollisionHalfHeight,
+            } or {
+                x = Config.palletJack.collisionHalfWidth,
+                y = Config.palletJack.collisionHalfHeight,
+            }
+            return Navigation.canMoveAreaFrom(assets, jack.x, jack.y, nextX, nextY,
+                footprint.x, footprint.y, movementObstacles(state, true, footprint))
+        end)
+    player.x, player.y = PalletJack.operatorPosition(state, Config.palletJack)
+    PlayerController.observeExternalMove(
+        player, playerStartX, playerStartY, jack.moving, dt)
+    player.facing = (jack.direction == "northeast" or jack.direction == "east"
+        or jack.direction == "southeast") and 1 or -1
+    if player == World.player then
+        World.selectedInteraction = selectNetworkInteractionFor(
+            player, World.selectedInteraction, cursorX, cursorY)
+    end
+    return true
+end
+
 function World.updateRemotePlayer(player, dt, directionX, directionY, assets, state)
     World._assets, World._state = assets, state
+    local jack = type(state) == "table" and PalletJack.ensure(state, Config.palletJack) or nil
+    if jack and jack.operating and jack.operatorPlayerId == player.id then
+        return World.updateNetworkPalletJack(
+            player, dt, directionX, directionY, assets, state)
+    end
     return updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
 end
 
@@ -653,6 +702,7 @@ local WORKSHOP_RESOURCES = {
     customer = "reception_customer",
     computer = "office_computer",
     skidWrapper = "skid_wrapper",
+    palletJack = "pallet_jack",
 }
 
 function World.workshopResourceId(interactionKind)
@@ -687,6 +737,17 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         end
         target = { x = wrapper.x, y = wrapper.y, radius = Config.wrapperPlacement.interactionRadius }
         unavailableMessage = "Move closer to the skid wrapper controls."
+    elseif resourceId == "pallet_jack" then
+        local jack = PalletJack.ensure(state, Config.palletJack)
+        local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
+        local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+        local windmill = WindmillPlacement.ensure(state, Config.windmillPlacement)
+        if cutter.moving or wrapper.moving or windmill.moving then
+            return false, "equipment_moving",
+                "Finish placing the equipment before operating the pallet jack."
+        end
+        target = { x = jack.x, y = jack.y, radius = Config.palletJack.interactionRadius }
+        unavailableMessage = "Move closer to the pallet jack handle."
     else
         return false, "not_allowed", "That workshop control is not available to network workers."
     end
@@ -935,14 +996,149 @@ function World.closeTruckAfterUnload(state)
     return World.toggleTruckCargoDoor(state)
 end
 
+local function validNetworkPlayerId(player)
+    local id = type(player) == "table" and tonumber(player.id) or nil
+    return id and id == math.floor(id) and id >= 1 and id <= 4 and id or nil
+end
+
+local function palletJackHasAttachedMachine(state)
+    return type(state) == "table" and ((state.cutter and state.cutter.moving)
+        or (state.wrapper and state.wrapper.moving)
+        or (state.windmill and state.windmill.moving))
+end
+
+function World.operateNetworkPalletJack(player, state)
+    local playerId = validNetworkPlayerId(player)
+    if not playerId or type(state) ~= "table" then
+        return false, "invalid_player", "The host could not identify that worker."
+    end
+    local mounted, mountCode = PalletJack.mount(state, Config.palletJack, playerId)
+    if not mounted then
+        return false, mountCode, mountCode == "busy"
+            and "Another worker is operating the pallet jack."
+            or "The pallet jack could not be mounted safely."
+    end
+    local operatorX, operatorY = PalletJack.operatorPosition(state, Config.palletJack)
+    player.x, player.y = operatorX, operatorY
+    if playerId == 1 then World.player.x, World.player.y = operatorX, operatorY end
+    state.message = "Operating pallet jack. Drive with movement controls; use it to lift or lower pallets."
+    return true, mountCode, state.message, World.networkPalletJackSnapshot(state)
+end
+
+function World.releaseNetworkPalletJack(player, state, force)
+    local playerId = validNetworkPlayerId(player)
+    if not playerId or type(state) ~= "table" then
+        return false, "invalid_player", "The host could not identify that worker."
+    end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if jack.operatorPlayerId ~= playerId then
+        return false, "not_owner", "Another worker owns the pallet jack."
+    end
+    if not force and palletJackHasAttachedMachine(state) then
+        return false, "equipment_moving",
+            "Place the moving machine before parking the pallet jack."
+    end
+    local released, releaseCode
+    if force then
+        released, releaseCode = PalletJack.forceRelease(
+            state, Config.palletJack, playerId)
+    else
+        released = PalletJack.park(state, Config.palletJack)
+        releaseCode = released and "parked" or "loaded"
+    end
+    if not released then
+        local message = releaseCode == "loaded"
+            and "Lower the carried pallet before parking the jack."
+            or "The pallet jack could not be released safely."
+        state.message = message
+        return false, releaseCode, message
+    end
+    state.message = releaseCode == "parked_loaded"
+        and "The disconnected worker's loaded pallet jack was parked safely."
+        or "Pallet jack parked."
+    return true, releaseCode, state.message, World.networkPalletJackSnapshot(state)
+end
+
+function World.liftNetworkPallet(player, state, palletId)
+    local playerId = validNetworkPlayerId(player)
+    if not playerId or not PalletJack.isOperator(state, Config.palletJack, playerId) then
+        return false, "not_owner", "Acquire the pallet jack before lifting a pallet."
+    end
+    if palletJackHasAttachedMachine(state) then
+        return false, "equipment_moving",
+            "Place the moving machine before lifting a pallet."
+    end
+    local lifted, liftCode, pallet = PalletJack.lift(
+        state, Config.palletJack, palletId)
+    if not lifted then
+        local messages = {
+            missing = "That pallet no longer exists.",
+            unavailable = "That pallet is no longer staged on movable floor space.",
+            out_of_range = "Drive the forks closer to that exact pallet.",
+            already_loaded = "The pallet jack is already carrying a pallet.",
+            invalid_pallet = "Choose a valid pallet.",
+        }
+        state.message = messages[liftCode] or tostring(liftCode)
+        return false, liftCode, state.message
+    end
+    local operatorX, operatorY = PalletJack.operatorPosition(state, Config.palletJack)
+    player.x, player.y = operatorX, operatorY
+    state.message = "Lifted " .. pallet.id .. ". Drive it into position, then lower it."
+    return true, liftCode, state.message, pallet
+end
+
+function World.lowerNetworkPallet(player, state, assets, palletId)
+    local playerId = validNetworkPlayerId(player)
+    if not playerId or not PalletJack.isOperator(state, Config.palletJack, playerId) then
+        return false, "not_owner", "Acquire the pallet jack before lowering a pallet."
+    end
+    if palletJackHasAttachedMachine(state) then
+        return false, "equipment_moving",
+            "Place the moving machine before lowering a pallet."
+    end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if jack.carriedPalletId ~= palletId then
+        return false, "wrong_pallet", "The pallet on the forks changed; try again."
+    end
+    local dropX, dropY = PalletJack.dropPosition(state, Config.palletJack)
+    -- LAN workers choose the semantic action, never coordinates. Snap the
+    -- host's current fork position to the same deterministic grid cell shown
+    -- as selected on clients, then validate that exact cell authoritatively.
+    dropX, dropY = PlacementGrid.snap(dropX, dropY, Config.placementGrid)
+    local lowered, lowerCode, pallet = PalletJack.lower(
+        state, Config.palletJack, function(x, y)
+            return World.isPalletPlacementClear(
+                state, assets or World._assets, x, y, palletId)
+        end, dropX, dropY, palletId)
+    if not lowered then
+        state.message = lowerCode == "blocked"
+            and "There is not enough clear floor space to lower this pallet."
+            or (lowerCode == "missing" and "The carried pallet could not be found."
+                or "The pallet could not be lowered safely.")
+        return false, lowerCode, state.message
+    end
+    state.message = "Lowered " .. pallet.id .. " at its host-validated warehouse position."
+    return true, lowerCode, state.message, pallet
+end
+
 function World.handlePalletJack(state, assets)
+    local localPlayerId = tonumber(World.player.id) or 1
+    local currentJack = PalletJack.ensure(state, Config.palletJack)
+    if palletJackHasAttachedMachine(state) then
+        state.message = "Place the moving machine before using the pallet jack."
+        return false
+    end
+    if currentJack.operating and currentJack.operatorPlayerId ~= localPlayerId then
+        state.message = "Another worker is operating the pallet jack."
+        return false
+    end
     local grid = World.placementGridSnapshot(state, assets)
     local selected = World.placementSelection or (grid and grid.selected)
     local placementX = selected and selected.kind == "pallet" and selected.x or nil
     local placementY = selected and selected.kind == "pallet" and selected.y or nil
     local succeeded, action, pallet = PalletJack.use(state, Config.palletJack, function(x, y)
         return World.isPalletPlacementClear(state, assets, x, y)
-    end, placementX, placementY)
+    end, placementX, placementY, localPlayerId)
     if not succeeded then
         if state then state.message = action == "blocked"
             and "There is not enough clear floor space to lower this pallet."
@@ -966,6 +1162,16 @@ function World.handlePalletJack(state, assets)
 end
 
 function World.parkPalletJack(state)
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if palletJackHasAttachedMachine(state) then
+        if state then state.message = "Place the moving machine before parking the pallet jack." end
+        return false
+    end
+    local localPlayerId = tonumber(World.player.id) or 1
+    if jack.operating and jack.operatorPlayerId ~= localPlayerId then
+        if state then state.message = "Another worker is operating the pallet jack." end
+        return false
+    end
     if not PalletJack.park(state, Config.palletJack) then
         if state then state.message = "Lower the carried pallet before parking the jack." end
         return false
@@ -986,6 +1192,10 @@ end
 function World.beginCutterMove(state)
     if not MachineFleet.isInstalled(state, "polar_115") then return false end
     local jack = PalletJack.ensure(state, Config.palletJack)
+    if jack.operating and jack.operatorPlayerId ~= 1 then
+        state.message = "Another worker is operating the pallet jack."
+        return false
+    end
     if not jack.operating or jack.carriedPalletId then
         state.message = "Operate an empty pallet jack before relocating the cutter."
         return false
@@ -1052,6 +1262,10 @@ function World.beginWrapperMove(state)
     if not MachineFleet.isInstalled(state, "skid_wrapper") then return false end
     if not Wrapper.canRelocate(state) then return false end
     local jack = PalletJack.ensure(state, Config.palletJack)
+    if jack.operating and jack.operatorPlayerId ~= 1 then
+        state.message = "Another worker is operating the pallet jack."
+        return false
+    end
     if not jack.operating or jack.carriedPalletId then
         state.message = "Operate an empty pallet jack before relocating the skid wrapper."
         return false
@@ -1131,6 +1345,10 @@ function World.beginWindmillMove(state)
         return false
     end
     local jack = PalletJack.ensure(state, Config.palletJack)
+    if jack.operating and jack.operatorPlayerId ~= 1 then
+        state.message = "Another worker is operating the pallet jack."
+        return false
+    end
     if not jack.operating or jack.carriedPalletId then
         state.message = "Operate an empty pallet jack before relocating the Windmill."
         return false
@@ -1196,6 +1414,35 @@ end
 
 function World.palletJackSnapshot(state)
     return PalletJack.snapshot(state, Config.palletJack)
+end
+
+function World.networkPalletJackSnapshot(state)
+    local snapshot = PalletJack.snapshot(state, Config.palletJack)
+    return {
+        x = snapshot.x,
+        y = snapshot.y,
+        direction = snapshot.direction,
+        operating = snapshot.operating,
+        moving = snapshot.moving,
+        operatorPlayerId = snapshot.operatorPlayerId,
+        carriedPalletId = snapshot.carriedPalletId,
+        candidatePalletId = snapshot.candidatePalletId,
+    }
+end
+
+function World.applyNetworkPalletJackSnapshot(state, snapshot)
+    local applied, applyError = PalletJack.applySnapshot(
+        state, snapshot, Config.palletJack)
+    if not applied then return false, applyError end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    local localPlayerId = tonumber(World.player.id) or 1
+    if jack.operating and jack.operatorPlayerId == localPlayerId then
+        World.player.x, World.player.y = PalletJack.operatorPosition(state, Config.palletJack)
+        World.player.moving = jack.moving
+        World.player.facing = (jack.direction == "northeast" or jack.direction == "east"
+            or jack.direction == "southeast") and 1 or -1
+    end
+    return true
 end
 
 function World.palletsSnapshot(state)

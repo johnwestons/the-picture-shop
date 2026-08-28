@@ -86,7 +86,7 @@ local function saveCurrent()
     if multiplayer:isClient() then return false end
     if not state.activeSlot then return false end
     local saved = Save.save(state.activeSlot, state, World.snapshot())
-    if saved and multiplayer:isHost() then multiplayer:markShopDirty() end
+    if saved and multiplayer:isHost() then multiplayer:markShopDirty(true) end
     return saved
 end
 
@@ -116,6 +116,12 @@ local function exactArguments(arguments, required)
         if arguments[name] == nil then return false end
     end
     return true
+end
+
+local function machineRelocationActive()
+    return state.cutter and state.cutter.moving
+        or state.wrapper and state.wrapper.moving
+        or state.windmill and state.windmill.moving
 end
 
 local function customerView(offer)
@@ -363,6 +369,97 @@ local function createWorkshopAuthority()
                     },
                 },
             },
+            pallet_jack = {
+                canAcquire = function(player)
+                    local allowed, code, message = World.validateNetworkWorkshopAccess(
+                        player, state, "pallet_jack")
+                    if not allowed then return false, code, message end
+                    if machineRelocationActive() then
+                        return false, "machine_moving",
+                            "Finish locking the moving machine onto the floor first."
+                    end
+                    return true
+                end,
+                onAcquire = function(_, player)
+                    local accepted, code, message = World.operateNetworkPalletJack(
+                        player, state)
+                    return accepted, code, message, accepted and {} or nil
+                end,
+                onRelease = function(lease)
+                    -- Timeout, disconnect, and normal release all use the same
+                    -- safe recovery: stop the jack without inventing a drop.
+                    PalletJack.forceRelease(state, Config.palletJack,
+                        lease and lease.ownerPlayerId or nil)
+                    saveCurrent()
+                    return true, "released", state.palletJack.carriedPalletId
+                        and "Loaded pallet jack parked safely."
+                        or "Pallet jack parked."
+                end,
+                commands = {
+                    lift_pallet = {
+                        normalize = function(arguments)
+                            local palletId = type(arguments) == "table" and arguments.palletId
+                            if not exactArguments(arguments, { "palletId" })
+                                or type(palletId) ~= "string" or #palletId < 1 or #palletId > 64
+                                or not palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
+                            then
+                                return nil, "invalid_pallet", "Choose a valid nearby pallet."
+                            end
+                            return { palletId = palletId }
+                        end,
+                        perform = function(_, player, arguments)
+                            if machineRelocationActive() then
+                                return false, "equipment_moving",
+                                    "Place the moving machine before lifting a pallet."
+                            end
+                            local accepted, code, message = World.liftNetworkPallet(
+                                player, state, arguments.palletId)
+                            if accepted then saveCurrent() end
+                            return accepted, code, message
+                        end,
+                    },
+                    lower_pallet = {
+                        normalize = function(arguments)
+                            local palletId = type(arguments) == "table" and arguments.palletId
+                            if not exactArguments(arguments, { "palletId" })
+                                or type(palletId) ~= "string" or #palletId < 1 or #palletId > 64
+                                or not palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
+                            then
+                                return nil, "invalid_pallet", "Choose the pallet currently on the forks."
+                            end
+                            return { palletId = palletId }
+                        end,
+                        perform = function(_, player, arguments)
+                            if machineRelocationActive() then
+                                return false, "equipment_moving",
+                                    "Place the moving machine before lowering a pallet."
+                            end
+                            local accepted, code, message = World.lowerNetworkPallet(
+                                player, state, Assets, arguments.palletId)
+                            if accepted then saveCurrent() end
+                            return accepted, code, message
+                        end,
+                    },
+                    park_jack = {
+                        normalize = function(arguments)
+                            if not exactArguments(arguments, {}) then
+                                return nil, "invalid_arguments", "Parking takes no additional data."
+                            end
+                            return {}
+                        end,
+                        perform = function(_, player)
+                            if machineRelocationActive() then
+                                return false, "equipment_moving",
+                                    "Place the moving machine before parking the jack."
+                            end
+                            local accepted, code, message = World.releaseNetworkPalletJack(
+                                player, state, false)
+                            if accepted then saveCurrent() end
+                            return accepted, code, message
+                        end,
+                    },
+                },
+            },
         },
     })
 end
@@ -387,6 +484,23 @@ local function acquireLocalWorkshop(resourceId)
     }, { state = state })
     if result.accepted then localWorkshopLease = result end
     return result.accepted, result.message
+end
+
+local function commandLocalWorkshop(action, arguments)
+    if not workshopAuthority or not localWorkshopLease then
+        return false, "No host-authorized workshop control is active."
+    end
+    localWorkshopRequestId = localWorkshopRequestId + 1
+    local result = workshopAuthority:command(localAuthorityPlayer(), {
+        requestId = localWorkshopRequestId,
+        resourceId = localWorkshopLease.resourceId,
+        leaseId = localWorkshopLease.leaseId,
+        action = action,
+        args = type(arguments) == "table" and arguments or {},
+        expectedRevision = localWorkshopLease.revision,
+    }, { state = state })
+    if result.accepted then localWorkshopLease.revision = result.revision end
+    return result.accepted, result.message, result
 end
 
 local function releaseLocalWorkshop(reason)
@@ -485,6 +599,61 @@ returnToTitle = function()
     TitleScreen.enter(startGame, openLocalPlay)
 end
 
+local function palletJackCommandFor(action)
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if action == "park" then return "park_jack", {} end
+    if jack.carriedPalletId then
+        return "lower_pallet", { palletId = jack.carriedPalletId }
+    end
+    local candidateId = jack.candidatePalletId
+        or World.networkPalletJackSnapshot(state).candidatePalletId
+    if candidateId then return "lift_pallet", { palletId = candidateId } end
+    return "park_jack", {}
+end
+
+local function handlePalletJackControl(action)
+    if machineRelocationActive() then
+        state.message = "Place the moving machine before using or parking the pallet jack."
+        return true
+    end
+    if multiplayer:isClient() then
+        local info = multiplayer:workshopInfo()
+        if not info or info.resourceId ~= "pallet_jack" then
+            if action == "park" then
+                state.message = state.palletJack and state.palletJack.operating
+                    and "Another worker is operating the pallet jack."
+                    or "Acquire the pallet jack before parking it."
+                return true
+            end
+            return false
+        end
+        local command, arguments = palletJackCommandFor(action)
+        local requested, errorMessage = multiplayer:requestWorkshopCommand(
+            command, arguments)
+        state.message = requested
+            and (command == "lift_pallet" and "Waiting for the host to verify that exact pallet..."
+                or command == "lower_pallet" and "Waiting for the host to verify the drop space..."
+                or "Waiting for the host to park the pallet jack...")
+            or tostring(errorMessage or "The pallet-jack request could not be sent.")
+        return true
+    end
+    if not multiplayer:isHost() then return false end
+    if localWorkshopLease and localWorkshopLease.resourceId == "pallet_jack" then
+        local command, arguments = palletJackCommandFor(action)
+        local accepted, message = commandLocalWorkshop(command, arguments)
+        state.message = tostring(message or (accepted
+            and "Pallet-jack action completed." or "Pallet-jack action was rejected."))
+        if accepted and command == "park_jack" then releaseLocalWorkshop("closed") end
+        return true
+    end
+    local jack = PalletJack.ensure(state, Config.palletJack)
+    if action == "park" and jack.operating and jack.operatorPlayerId ~= 1 then
+        state.message = "Another worker is operating the pallet jack."
+        return true
+    end
+    return false
+end
+
 local inputContext = {
     state = state,
     assets = Assets,
@@ -505,6 +674,8 @@ local inputContext = {
     windmill = Windmill,
     title = TitleScreen,
     saveCurrent = saveCurrent,
+    isNetworkClient = function() return multiplayer:isClient() end,
+    palletJackControl = handlePalletJackControl,
     networkInteraction = function(selected)
         if not multiplayer:isActive() then return false end
         if not selected then
@@ -524,6 +695,11 @@ local inputContext = {
             local acquired, acquireMessage = acquireLocalWorkshop(resourceId)
             if not acquired then
                 state.message = tostring(acquireMessage or "That workshop control is unavailable.")
+                return true
+            end
+            if resourceId == "pallet_jack" then
+                state.message = tostring(acquireMessage
+                    or "Operating pallet jack. Drive with movement controls.")
                 return true
             end
             return false
@@ -656,7 +832,7 @@ local function dispatchKeyPressed(key)
         return result
     end
     if multiplayer:isClient() and state.screen == "world"
-        and (key == "m" or key == "q" or key == "f")
+        and (key == "m" or key == "q")
     then
         state.message = "Shop status is live. Relocation and vehicle controls remain host-owned."
         return true
@@ -677,24 +853,44 @@ local function primaryMobileAction()
     then
         return "e", "HOST"
     end
+    local jackLabel = "DRIVE"
+    if state.palletJack and state.palletJack.operating then
+        local localPlayerId = tonumber(World.player.id) or 1
+        if state.palletJack.operatorPlayerId ~= localPlayerId then
+            jackLabel = "BUSY"
+        else
+            local candidateId = state.palletJack.candidatePalletId
+                or World.networkPalletJackSnapshot(state).candidatePalletId
+            jackLabel = state.palletJack.carriedPalletId and "LOWER"
+                or candidateId and "LIFT" or "PARK"
+        end
+    end
     local labels = {
         customer = "QUOTE", computer = "PC", vendor = "TALK", loadingBayDoor = "DOOR",
         truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
-        windmill = "PRESS", palletJack = state.palletJack and state.palletJack.operating and "LIFT" or "DRIVE",
+        windmill = "PRESS", palletJack = jackLabel,
     }
     return "e", labels[selected.kind] or "USE"
 end
 
 local function extraMobileActions()
     local actions = {}
-    if multiplayer:isClient() then return actions end
+    if multiplayer:isClient() then
+        local info = multiplayer:workshopInfo()
+        if info and info.resourceId == "pallet_jack" then
+            actions[#actions + 1] = { key = "f", label = "PARK" }
+        end
+        return actions
+    end
     if state.cutter and state.cutter.moving or state.wrapper and state.wrapper.moving
         or state.windmill and state.windmill.moving
     then
         actions[#actions + 1] = { key = "q", label = "TURN" }
         return actions
     end
-    if state.palletJack and state.palletJack.operating then
+    if state.palletJack and state.palletJack.operating
+        and state.palletJack.operatorPlayerId == 1
+    then
         actions[#actions + 1] = { key = "f", label = "PARK" }
         local selected = World.getInteraction()
         local canRelocate = selected and (selected.kind == "cutter"
@@ -866,6 +1062,15 @@ local function handleMultiplayerEvents()
                 LanScreen.showError("The host sent a shop update this build could not apply.")
                 syncMobileKeyboard()
             end
+        elseif event.type == "pallet_jack_state" then
+            local applied, applyError = World.applyNetworkPalletJackSnapshot(
+                state, event.jack)
+            if not applied and applyError ~= "awaiting_durable" then
+                multiplayer:stop("Invalid pallet-jack update")
+                state.screen = "lan"
+                LanScreen.showError("The host sent a pallet-jack update this build could not apply.")
+                syncMobileKeyboard()
+            end
         elseif event.type == "visitor_state" then
             if not World.applyVisitorSnapshot(event.customer, event.vendor) then
                 multiplayer:stop("Invalid visitor update")
@@ -891,20 +1096,30 @@ local function handleMultiplayerEvents()
                 if event.resourceId == "skid_wrapper" and event.view then
                     Wrapper.applySnapshot(event.view, state)
                 end
-                WorkshopRemoteScreen.enter(event, state)
+                if event.resourceId == "pallet_jack" then
+                    state.screen = "world"
+                else
+                    WorkshopRemoteScreen.enter(event, state)
+                end
             end
             syncMobileKeyboard()
         elseif event.type == "workshop_result" then
             if event.resourceId == "skid_wrapper" and event.view then
                 Wrapper.applySnapshot(event.view, state)
             end
-            WorkshopRemoteScreen.applyResult(event)
+            if event.resourceId ~= "pallet_jack" then
+                WorkshopRemoteScreen.applyResult(event)
+            end
             state.message = tostring(event.message or (event.accepted
                 and "Workshop action completed." or "Workshop action was rejected."))
             if event.accepted and event.resourceId == "reception_customer" then
                 multiplayer:releaseWorkshop("closed")
                 WorkshopRemoteScreen.clear()
                 state.screen = "world"
+            elseif event.accepted and event.resourceId == "pallet_jack"
+                and event.action == "park_jack"
+            then
+                multiplayer:releaseWorkshop("closed")
             end
             syncMobileKeyboard()
         elseif event.type == "workshop_snapshot" then
@@ -919,6 +1134,13 @@ local function handleMultiplayerEvents()
             if state.screen == "workshop_remote" then
                 WorkshopRemoteScreen.clear()
                 state.screen = "world"
+            end
+            if event.resourceId == "pallet_jack" then
+                local jack = PalletJack.ensure(state, Config.palletJack)
+                local localId = tonumber(World.player.id)
+                if jack.operatorPlayerId == localId then
+                    PalletJack.forceRelease(state, Config.palletJack, localId)
+                end
             end
             state.message = tostring(event.message or "The host released that workshop control.")
             syncMobileKeyboard()
@@ -1024,6 +1246,9 @@ local function updateMultiplayer(dt, inputX, inputY)
         getEnvironmentSnapshot = function()
             return World.environmentSnapshot()
         end,
+        getPalletJackSnapshot = function()
+            return World.networkPalletJackSnapshot(state)
+        end,
         getWorkshopSnapshot = function()
             return {
                 resources = workshopAuthority and workshopAuthority:snapshot() or {},
@@ -1048,6 +1273,23 @@ local function updateMultiplayer(dt, inputX, inputY)
         end,
     })
     handleMultiplayerEvents()
+    if multiplayer:isClient() then
+        local jack = PalletJack.ensure(state, Config.palletJack)
+        if jack.operating and jack.operatorPlayerId ~= World.player.id then
+            local operatorX, operatorY = PalletJack.operatorPosition(
+                state, Config.palletJack)
+            for _, player in ipairs(multiplayer:remotePlayers()) do
+                if player.id == jack.operatorPlayerId then
+                    player.x, player.y = operatorX, operatorY
+                    player.moving = jack.moving
+                    player.facing = (jack.direction == "northeast"
+                        or jack.direction == "east" or jack.direction == "southeast")
+                        and 1 or -1
+                    break
+                end
+            end
+        end
+    end
 end
 
 function App.update(dt)
@@ -1079,8 +1321,19 @@ function App.update(dt)
                     cursorX, cursorY = App.mobileCamera:screenToWorld(cursorX, cursorY)
                 end
             end
-            World.updateNetworkPlayer(
-                dt, directionX, directionY, Assets, state, cursorX, cursorY)
+            local workshopInfo = multiplayer:workshopInfo()
+            local jack = PalletJack.ensure(state, Config.palletJack)
+            local controlsJack = workshopInfo
+                and workshopInfo.resourceId == "pallet_jack"
+                and jack.operatorPlayerId == World.player.id
+            if controlsJack then
+                World.updateNetworkPalletJack(
+                    World.player, dt, directionX, directionY,
+                    Assets, state, cursorX, cursorY)
+            else
+                World.updateNetworkPlayer(
+                    dt, directionX, directionY, Assets, state, cursorX, cursorY)
+            end
         else
             local cursorX, cursorY
             if not (controller and controller:isActive()) then

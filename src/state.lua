@@ -144,9 +144,19 @@ end
 -- guest keeps its local screen/message/input state and never gains a save slot.
 function State.applySharedUpdate(state, snapshot)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+    local livePalletJack = state.palletJack and state.palletJack.operating
+        and PalletJack.snapshot(state, Config.palletJack) or nil
     local staged = State.new()
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    -- Durable saves intentionally strip active-operation flags. Reapply the
+    -- newer realtime view so a reliable shop update cannot visually park a
+    -- jack that a LAN worker is still driving.
+    if livePalletJack then
+        livePalletJack.carriedPalletId = state.palletJack.carriedPalletId
+        livePalletJack.candidatePalletId = nil
+        PalletJack.applySnapshot(state, livePalletJack, Config.palletJack)
+    end
     state.activeSlot = nil
     return true
 end

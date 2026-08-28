@@ -1,7 +1,7 @@
 local Codec = require("src.net.codec")
 
 local Protocol = {
-    VERSION = 4,
+    VERSION = 5,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -63,6 +63,7 @@ local ROUTES = {
     workshop_result = { channel = Protocol.CHANNEL_CONTROL, delivery = "reliable" },
     workshop_release = { channel = Protocol.CHANNEL_CONTROL, delivery = "reliable" },
     workshop_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
+    pallet_jack_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     input = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     visitor_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -76,7 +77,8 @@ local ROUTES = {
 Protocol.MESSAGE_TYPES = {
     "hello", "welcome", "shop_snapshot", "shop_state", "interaction_request",
     "interaction_result", "workshop_acquire", "workshop_grant", "workshop_command",
-    "workshop_result", "workshop_release", "workshop_snapshot", "input", "snapshot",
+    "workshop_result", "workshop_release", "workshop_snapshot", "pallet_jack_snapshot",
+    "input", "snapshot",
     "visitor_snapshot", "environment_snapshot", "ping", "pong", "leave", "error",
 }
 
@@ -392,6 +394,7 @@ local WORKSHOP_RESOURCES = {
     reception_customer = true,
     office_computer = true,
     skid_wrapper = true,
+    pallet_jack = true,
 }
 
 local WORKSHOP_ACTION_ARGUMENTS = {
@@ -405,6 +408,11 @@ local WORKSHOP_ACTION_ARGUMENTS = {
     skid_wrapper = {
         select_pallet = "palletId",
         start_cycle = "palletId",
+    },
+    pallet_jack = {
+        lift_pallet = "palletId",
+        lower_pallet = "palletId",
+        park_jack = false,
     },
 }
 
@@ -700,6 +708,10 @@ local function normalizeWorkshopView(value, resourceId, label)
         return {}
     elseif resourceId == "skid_wrapper" then
         return normalizeWrapperWorkshopView(value, label)
+    elseif resourceId == "pallet_jack" then
+        local valid, shapeError = shape(value, label, {})
+        if not valid then return nil, shapeError end
+        return {}
     end
     return nil, label .. " has no resource validator"
 end
@@ -918,7 +930,7 @@ end
 
 local function normalizeWorkshopResources(value, label)
     if not Codec.isArray(value) then return nil, label .. " must be an array" end
-    if #value ~= 3 then return nil, label .. " must contain all 3 workshop resources" end
+    if #value ~= 4 then return nil, label .. " must contain all 4 workshop resources" end
     local resources, seen = {}, {}
     for index = 1, #value do
         local resourceLabel = label .. "[" .. index .. "]"
@@ -956,6 +968,89 @@ local function normalizeWorkshopResources(value, label)
     end
     table.sort(resources, function(a, b) return a.resourceId < b.resourceId end)
     return Codec.array(resources)
+end
+
+local PALLET_JACK_DIRECTIONS = {
+    northwest = true, north = true, northeast = true, east = true,
+    southeast = true, south = true, southwest = true, west = true,
+}
+
+local function normalizePalletJackState(value, label)
+    local valid, shapeError = shape(value, label,
+        { "x", "y", "direction", "operating", "moving" },
+        { "operatorPlayerId", "carriedPalletId", "candidatePalletId" })
+    if not valid then return nil, shapeError end
+    local x, fieldError = numberInRange(
+        value.x, -MAX_COORDINATE, MAX_COORDINATE, label .. ".x")
+    if x == nil then return nil, fieldError end
+    local y
+    y, fieldError = numberInRange(
+        value.y, -MAX_COORDINATE, MAX_COORDINATE, label .. ".y")
+    if y == nil then return nil, fieldError end
+    if type(value.direction) ~= "string" or not PALLET_JACK_DIRECTIONS[value.direction] then
+        return nil, label .. ".direction is invalid"
+    end
+    if type(value.operating) ~= "boolean" then
+        return nil, label .. ".operating must be boolean"
+    end
+    if type(value.moving) ~= "boolean" then
+        return nil, label .. ".moving must be boolean"
+    end
+    if value.moving and not value.operating then
+        return nil, label .. ".moving requires an operator"
+    end
+    local operatorPlayerId
+    if value.operatorPlayerId ~= nil then
+        operatorPlayerId, fieldError = integerInRange(
+            value.operatorPlayerId, 1, Protocol.MAX_PLAYERS, label .. ".operatorPlayerId")
+        if not operatorPlayerId then return nil, fieldError end
+    end
+    if value.operating ~= (operatorPlayerId ~= nil) then
+        return nil, label .. ".operatorPlayerId must be present exactly when operating"
+    end
+    local carriedPalletId
+    if value.carriedPalletId ~= nil then
+        carriedPalletId, fieldError = token(
+            value.carriedPalletId, MAX_TOKEN_BYTES, label .. ".carriedPalletId")
+        if not carriedPalletId then return nil, fieldError end
+    end
+    local candidatePalletId
+    if value.candidatePalletId ~= nil then
+        candidatePalletId, fieldError = token(
+            value.candidatePalletId, MAX_TOKEN_BYTES, label .. ".candidatePalletId")
+        if not candidatePalletId then return nil, fieldError end
+        if not value.operating or carriedPalletId then
+            return nil, label .. ".candidatePalletId requires an operating empty jack"
+        end
+    end
+    return {
+        x = x,
+        y = y,
+        direction = value.direction,
+        operating = value.operating,
+        moving = value.moving,
+        operatorPlayerId = operatorPlayerId,
+        carriedPalletId = carriedPalletId,
+        candidatePalletId = candidatePalletId,
+    }
+end
+
+local function normalizePalletJackSnapshot(payload)
+    local valid, shapeError = shape(payload, "pallet_jack_snapshot payload",
+        { "sessionId", "serverTick", "jack" })
+    if not valid then return nil, shapeError end
+    local sessionId, fieldError = token(
+        payload.sessionId, MAX_TOKEN_BYTES, "pallet_jack_snapshot.sessionId")
+    if not sessionId then return nil, fieldError end
+    local serverTick
+    serverTick, fieldError = integerInRange(
+        payload.serverTick, 0, UINT32_MAX, "pallet_jack_snapshot.serverTick")
+    if serverTick == nil then return nil, fieldError end
+    local jack
+    jack, fieldError = normalizePalletJackState(
+        payload.jack, "pallet_jack_snapshot.jack")
+    if not jack then return nil, fieldError end
+    return { sessionId = sessionId, serverTick = serverTick, jack = jack }
 end
 
 local function normalizeWorkshopSnapshot(payload)
@@ -1275,6 +1370,7 @@ local PAYLOAD_NORMALIZERS = {
     workshop_result = normalizeWorkshopResult,
     workshop_release = normalizeWorkshopRelease,
     workshop_snapshot = normalizeWorkshopSnapshot,
+    pallet_jack_snapshot = normalizePalletJackSnapshot,
     input = normalizeInput,
     snapshot = normalizeSnapshot,
     visitor_snapshot = normalizeVisitorSnapshot,

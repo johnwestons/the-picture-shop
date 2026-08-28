@@ -1,6 +1,6 @@
 # LAN multiplayer slice
 
-Protocol v4 makes LAN hosting device-neutral. Any Windows or Android device that can open and write its selected local save may host the authoritative shop; up to three Windows or Android workers can join over the same local network. The host owns the save and advances every durable shop system regardless of which device is hosting.
+Protocol v5 makes LAN hosting device-neutral. Any Windows or Android device that can open and write its selected local save may host the authoritative shop; up to three Windows or Android workers can join over the same local network. The host owns the save and advances every durable shop system regardless of which device is hosting.
 
 ## What works now
 
@@ -16,6 +16,9 @@ Protocol v4 makes LAN hosting device-neutral. Any Windows or Android device that
 - A nearby guest can talk to the reception customer and submit the displayed quote or decline the job.
 - A nearby guest can use the office computer to inspect host-owned shop/job information and request an eligible pickup.
 - A nearby guest can use the skid-wrapper console, inspect eligible finished pallets, select one, and request a wrap cycle.
+- A guest can inspect a pallet's mirrored paper work order locally without taking a workshop lease, sending a mutation request, or writing a guest save.
+- The pallet jack is a host-authoritative shared vehicle. One worker at a time may acquire it, drive it with predicted local input, lift an exact host-validated pallet, carry it across the shop, lower it on a host-snapped clear grid cell, and park it. Other devices receive the live jack, operator, candidate, and carried-pallet view.
+- Pallet-jack ownership is cleaned up on timeout or disconnect. A loaded jack is parked without losing or duplicating its pallet, then can be reclaimed by another worker.
 - Workshop resources use exclusive, expiring host-side leases, range checks, revisions, request deduplication, and disconnect cleanup. The host device follows the same ownership rules as remote workers.
 - Durable changes are accepted and saved only by the host and are sent only to fully joined peers. A shop-state update never resets or teleports a guest worker.
 - Android hosting performs a writable-save preflight before opening the LAN session, keeps the display awake while hosting, and safely ends the session if the game loses foreground focus. This avoids silently suspending an authoritative mobile host.
@@ -23,7 +26,16 @@ Protocol v4 makes LAN hosting device-neutral. Any Windows or Android device that
 
 ## Physical acceptance status — August 28, 2026
 
-The new Android-host direction was exercised with protocol v4 and APK `0.1.0-android.7`:
+The pallet-logistics slice was exercised with protocol v5 and APK `0.1.0-android.9`:
+
+- Samsung SM-S938U hosted its writable slot 3 shop at `192.168.1.137:22122`; a Windows PC and Samsung SM-J410G joined simultaneously and every active device reported `3/4 WORKERS`.
+- The older Android worker acquired the pallet jack, drove it across the workshop, lifted exact pallet `JOB-0001-P02`, moved it while loaded, and lowered it on the host-validated grid. The host and PC observer stayed synchronized throughout.
+- While the older phone owned the loaded jack, the Android host displayed **BUSY** and its acquisition attempt was rejected without changing ownership.
+- The PC observer kept the remote operator attached to the moving jack and showed the carried/lowered pallet in the same position. It also opened and closed P2's mirrored paper work order read-only.
+- The older phone was force-stopped while carrying P2. After disconnect detection the worker disappeared, the loaded jack remained safely parked, the Android host reclaimed it, lowered P2, and parked the empty jack.
+- The tested `.9` APK SHA-256 is `09e789a567b7c6e40c08d2d46639d651ee7e5dad0e8ad458b74919aadfa2ba76`.
+
+The preceding Android-host workshop pass used protocol v4 and APK `0.1.0-android.7`/`.8`:
 
 - A Samsung SM-S938U hosted its writable local shop at `192.168.1.137:22122`.
 - The Windows PC joined as a worker and passed join, movement, and loading-bay door control.
@@ -32,7 +44,7 @@ The new Android-host direction was exercised with protocol v4 and APK `0.1.0-and
 - After the PC worker accepted Blue Ridge `JOB-0001`, the Android host received and cut pallet `JOB-0001-P01`, then parked it at the wrapper. The PC worker selected it and started the wrap cycle successfully. The Android save records `status = "wrapped"`, `wrapped = true`, film uses reduced from 11 to 10, and one wrapper cycle.
 - APK `0.1.0-android.8` was installed on both phones. The SM-S938U resumed hosting and the Windows PC plus older Samsung SM-J410G joined simultaneously; every device reported `3/4 WORKERS`.
 - The older phone held the office-computer lease while the PC was correctly refused, then released it and the PC acquired the computer normally. This physically validates two-guest workshop contention and handoff on the Android host.
-- Build `.8` also disables **START CYCLE** until an eligible pallet is selected and refreshes an open wrapper panel as host-side pallets move in or out of range. Those presentation refinements have automated coverage; their dedicated physical wrapper-panel check is still pending.
+- Build `.8` also disables **START CYCLE** until an eligible pallet is selected and refreshes an open wrapper panel as host-side pallets move in or out of range. The later physical wrapper pass completed successfully, including the synchronized cycle result and sound.
 
 The earlier, fully verified Windows-PC-host plus two-Android-guest baseline remains valid and is recorded separately in `docs/lan_multiplayer_device_test.md`.
 
@@ -43,18 +55,26 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 3. Read the address from the host HUD. The normal endpoint is `<host IPv4>:22122`.
 4. On each worker device, choose **LOCAL PLAY > JOIN A SHOP**, enter that address, and connect.
 5. Keep an Android host awake and in the game. Backgrounding it deliberately ends the LAN session; workers can then return and manually reconnect after a new host session starts.
-6. Move a worker into interaction range and press **USE**. The worker waits for the host's decision before a door, client, computer, or skid-wrapper action changes authoritative state.
+6. Move a worker into interaction range and press **USE**. The worker waits for the host's decision before a door, client, computer, skid-wrapper, or pallet-jack action changes authoritative state.
 
 ## Deliberate boundaries
 
 - No internet matchmaking, relay, or NAT traversal.
 - No automatic host discovery yet; manual address entry is the dependable fallback.
 - No automatic reconnect or host migration.
-- Guest-safe workshop access currently covers the loading-bay door, reception customer quote/decline actions, office-computer inspection and pickup request, and skid-wrapper selection/start request.
-- The pallet jack, cutter, windmill, vendor, and delivery truck remain host-only. Their movement, minigames, inventories, or multi-step transactions need their own authority rules before guest control is enabled.
-- The skid-wrapper control path has completed one physical Android-host/PC-worker cycle. Additional-device contention and disconnect scenarios remain in the acceptance matrix.
+- Guest-safe workshop access currently covers the loading-bay door, reception customer quote/decline actions, office-computer inspection and pickup request, skid-wrapper selection/start request, read-only pallet paperwork, and pallet-jack transport.
+- Cutter, windmill, vendor, delivery-truck inventory/actions, and machine relocation remain host-only. Their minigames, inventories, or multi-step transactions need their own authority rules before guest control is enabled.
+- Host machine relocation can be observed through its final durable placement, but the attached machine does not yet receive its own realtime pose stream while the host is driving the jack. Observers may therefore see the jack move and the machine appear at its final location after placement.
 - A device that cannot pass the writable-save preflight cannot host. It may still join as a worker; this is the expected role for the older Android phone with its known local-save-directory limitation.
-- All devices must run the same protocol-compatible build. APK `.8` has passed the Android-host three-worker join and office-resource contention checks; its live wrapper-list presentation still needs a dedicated physical pass.
+- All devices must run the same protocol-compatible build. APK `.9` has passed the Android-host three-worker pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks.
 - A router's guest-network or client-isolation setting can block LAN traffic even when every device has internet access.
+
+## Next roadmap targets
+
+1. Replicate the live pose of a host-relocated cutter, wrapper, or windmill so observers see the machine remain attached to the jack throughout relocation.
+2. Add a host-authoritative cutter console for guest loading, setup, guarded cutting, repeat lifts, unload, and maintenance transitions.
+3. Add the Windmill console with the same explicit lease, command, revision, and disconnect rules.
+4. Add vendor and delivery-truck interactions, including inventory and manifest operations, without allowing guest-side durable writes.
+5. Improve session convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, and eventually deliberate host migration.
 
 Use `docs/lan_multiplayer_device_test.md` for the exact acceptance matrix and the preserved PC-host three-device results.

@@ -121,7 +121,28 @@ local function workshopResources()
         { resourceId = "reception_customer", revision = 4,
             occupied = true, ownerPlayerId = 2 },
         { resourceId = "office_computer", revision = 1, occupied = false },
+        { resourceId = "pallet_jack", revision = 3, occupied = false },
     })
+end
+
+local function palletJackSnapshot(overrides)
+    local snapshot = {
+        x = 560,
+        y = 520,
+        direction = "northwest",
+        operating = true,
+        moving = false,
+        operatorPlayerId = 2,
+        candidatePalletId = "JOB-0001-P01",
+    }
+    for key, value in pairs(overrides or {}) do snapshot[key] = value end
+    if overrides and overrides.clearCandidate then
+        snapshot.clearCandidate, snapshot.candidatePalletId = nil, nil
+    end
+    if overrides and overrides.clearOwner then
+        snapshot.clearOwner, snapshot.operatorPlayerId = nil, nil
+    end
+    return snapshot
 end
 
 function Test.run(context, check)
@@ -229,6 +250,10 @@ function Test.run(context, check)
             sessionId = "session-001", revision = 5, resources = workshopResources(),
             wrapper = wrapperSnapshot("wrapping"),
         } },
+        { "pallet_jack_snapshot", {
+            sessionId = "session-001", serverTick = 31,
+            jack = palletJackSnapshot(),
+        } },
         { "input", {
             sessionId = "session-001", sequence = 17, moveX = 1, moveY = -1,
         } },
@@ -268,7 +293,7 @@ function Test.run(context, check)
             and envelope.version == Protocol.VERSION and envelope.type == message[1]
             and #packet <= packetLimit
     end
-    check("network_protocol_all_v4_envelopes_round_trip", roundTrips)
+    check("network_protocol_all_v5_envelopes_round_trip", roundTrips)
 
     local orderedPacket = Protocol.encode("snapshot", {
         sessionId = "session-001", serverTick = 40, players = roster(),
@@ -407,6 +432,9 @@ function Test.run(context, check)
         { resourceId = "office_computer", action = "request_pickup", jobId = "JOB-0001" },
         { resourceId = "skid_wrapper", action = "select_pallet", palletId = "JOB-0001-P01" },
         { resourceId = "skid_wrapper", action = "start_cycle", palletId = "JOB-0001-P01" },
+        { resourceId = "pallet_jack", action = "lift_pallet", palletId = "JOB-0001-P01" },
+        { resourceId = "pallet_jack", action = "lower_pallet", palletId = "JOB-0001-P01" },
+        { resourceId = "pallet_jack", action = "park_jack" },
     }
     local workshopCommandsValid = true
     for index, command in ipairs(validWorkshopCommands) do
@@ -440,6 +468,24 @@ function Test.run(context, check)
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
         resourceId = "skid_wrapper", action = "start_cycle", expectedRevision = 0,
     })
+    local missingLiftPallet = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "pallet_jack", action = "lift_pallet", expectedRevision = 0,
+    })
+    local missingLowerPallet = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "pallet_jack", action = "lower_pallet", expectedRevision = 0,
+    })
+    local extraParkPallet = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "pallet_jack", action = "park_jack", expectedRevision = 0,
+        palletId = "JOB-0001-P01",
+    })
+    local jackActionOnWrapper = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "skid_wrapper", action = "lift_pallet", expectedRevision = 0,
+        palletId = "JOB-0001-P01",
+    })
     local extraDeclineArgument = Protocol.encode("workshop_command", {
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
         resourceId = "reception_customer", action = "decline", expectedRevision = 0,
@@ -466,6 +512,8 @@ function Test.run(context, check)
     })
     check("network_protocol_workshop_commands_use_closed_resource_action_scalar_unions",
         workshopCommandsValid and wrongResourceAction == nil and missingActionArgument == nil
+        and missingLiftPallet == nil and missingLowerPallet == nil
+        and extraParkPallet == nil and jackActionOnWrapper == nil
         and extraDeclineArgument == nil and arbitraryArguments == nil
         and spoofedWorkshopCommand == nil and invalidQuoteAmount == nil
         and fractionalWorkshopRevision == nil)
@@ -492,6 +540,11 @@ function Test.run(context, check)
         sessionId = "session-001", requestId = 15, resourceId = "office_computer",
         granted = true, leaseId = "lease-office-2", code = "granted",
         message = "Office computer acquired.", revision = 10, view = {},
+    })
+    local jackGrantPacket = Protocol.encode("workshop_grant", {
+        sessionId = "session-001", requestId = 16, resourceId = "pallet_jack",
+        granted = true, leaseId = "lease-jack-2", code = "granted",
+        message = "Pallet jack acquired.", revision = 10, view = {},
     })
     local deniedGrantPacket = Protocol.encode("workshop_grant", {
         sessionId = "session-001", requestId = 16, resourceId = "office_computer",
@@ -523,6 +576,11 @@ function Test.run(context, check)
         granted = true, leaseId = "lease-office-2", code = "granted",
         message = "Granted.", revision = 10, view = { state = {} },
     })
+    local invalidJackView = Protocol.encode("workshop_grant", {
+        sessionId = "session-001", requestId = 16, resourceId = "pallet_jack",
+        granted = true, leaseId = "lease-jack-2", code = "granted",
+        message = "Granted.", revision = 10, view = { x = 560, y = 520 },
+    })
     local invalidQuoteView = receptionView(true)
     invalidQuoteView.quoteRows[1].spoilageAllowance = 24
     local inconsistentQuoteView = Protocol.encode("workshop_result", {
@@ -549,13 +607,15 @@ function Test.run(context, check)
         and printResult.payload.view.quoteRows[1].requestedCopies == 500
         and wrapperResult and wrapperResult.payload.view.step == "wrapping"
         and wrapperResult.payload.view.pallets[2].palletId == "JOB-0002-P01"
-        and officeGrantPacket ~= nil and deniedGrantPacket ~= nil and fivePalletGrantPacket ~= nil
+        and officeGrantPacket ~= nil and jackGrantPacket ~= nil
+        and deniedGrantPacket ~= nil and fivePalletGrantPacket ~= nil
         and #customerGrantPacket <= Protocol.MAX_PACKET_BYTES
         and #printResultPacket <= Protocol.MAX_PACKET_BYTES
         and #wrapperResultPacket <= Protocol.MAX_PACKET_BYTES
         and #fivePalletGrantPacket <= Protocol.MAX_PACKET_BYTES
         and missingGrantedLease == nil and deniedWithLease == nil
-        and invalidOfficeView == nil and inconsistentQuoteView == nil
+        and invalidOfficeView == nil and invalidJackView == nil
+        and inconsistentQuoteView == nil
         and inconsistentWrapperView == nil and arbitraryResultState == nil)
 
     local acquirePacket = Protocol.encode("workshop_acquire", {
@@ -612,6 +672,7 @@ function Test.run(context, check)
         resources = Codec.array({
             { resourceId = "reception_customer", revision = 4, occupied = false },
             { resourceId = "office_computer", revision = 1, occupied = false },
+            { resourceId = "skid_wrapper", revision = 2, occupied = false },
         }),
         wrapper = wrapperSnapshot("idle", {}),
     })
@@ -622,6 +683,7 @@ function Test.run(context, check)
                 occupied = false, ownerPlayerId = 2 },
             { resourceId = "office_computer", revision = 1, occupied = false },
             { resourceId = "skid_wrapper", revision = 2, occupied = false },
+            { resourceId = "pallet_jack", revision = 3, occupied = false },
         }),
         wrapper = wrapperSnapshot("idle", {}),
     })
@@ -669,9 +731,12 @@ function Test.run(context, check)
     })
     check("network_protocol_workshop_snapshot_repairs_occupancy_runtime_and_live_pallets",
         workshopSnapshot and workshopSnapshot.payload.revision == 11
+        and #workshopSnapshot.payload.resources == 4
         and workshopSnapshot.payload.resources[1].resourceId == "office_computer"
         and workshopSnapshot.payload.resources[1].revision == 1
-        and workshopSnapshot.payload.resources[2].ownerPlayerId == 2
+        and workshopSnapshot.payload.resources[2].resourceId == "pallet_jack"
+        and workshopSnapshot.payload.resources[3].ownerPlayerId == 2
+        and workshopSnapshot.payload.resources[4].resourceId == "skid_wrapper"
         and workshopSnapshot.payload.wrapper.step == "wrapping"
         and workshopSnapshot.payload.wrapper.progress == 1.5
         and #workshopSnapshot.payload.wrapper.pallets == 2
@@ -720,6 +785,67 @@ function Test.run(context, check)
         and #environmentPacket <= Protocol.MAX_PACKET_BYTES
         and invalidClosedDoor == nil and invalidAbsentTruck == nil
         and invalidTruckProgress == nil and extraEnvironmentField == nil)
+
+    local palletJackPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ moving = true, clearCandidate = true,
+            carriedPalletId = "JOB-0001-P01" }),
+    })
+    local palletJackEnvelope = palletJackPacket and Protocol.decode(palletJackPacket)
+    local missingJackOwner = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ clearOwner = true }),
+    })
+    local parkedMovingJack = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ operating = false, clearOwner = true,
+            moving = true, clearCandidate = true }),
+    })
+    local loadedCandidateJack = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ carriedPalletId = "JOB-0001-P01" }),
+    })
+    local spoofedJack = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ playerX = 1 }),
+    })
+    local invalidJackDirection = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ direction = "up" }),
+    })
+    local candidateOnParkedJack = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ operating = false, moving = false,
+            clearOwner = true }),
+    })
+    local invalidJackOwner = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43,
+        jack = palletJackSnapshot({ operatorPlayerId = Protocol.MAX_PLAYERS + 1 }),
+    })
+    local fractionalJackTick = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 43.5,
+        jack = palletJackSnapshot(),
+    })
+    local parkedLoadedPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 44,
+        jack = palletJackSnapshot({ operating = false, moving = false,
+            clearOwner = true, clearCandidate = true,
+            carriedPalletId = "JOB-0001-P01" }),
+    })
+    local parkedLoadedEnvelope = parkedLoadedPacket and Protocol.decode(parkedLoadedPacket)
+    check("network_protocol_pallet_jack_snapshot_is_strict_owner_aware_and_bounded",
+        palletJackEnvelope and palletJackEnvelope.payload.serverTick == 43
+        and palletJackEnvelope.payload.jack.operatorPlayerId == 2
+        and palletJackEnvelope.payload.jack.carriedPalletId == "JOB-0001-P01"
+        and parkedLoadedEnvelope and not parkedLoadedEnvelope.payload.jack.operating
+        and parkedLoadedEnvelope.payload.jack.operatorPlayerId == nil
+        and parkedLoadedEnvelope.payload.jack.carriedPalletId == "JOB-0001-P01"
+        and #palletJackPacket <= Protocol.MAX_PACKET_BYTES
+        and #parkedLoadedPacket <= Protocol.MAX_PACKET_BYTES
+        and missingJackOwner == nil and parkedMovingJack == nil
+        and loadedCandidateJack == nil and spoofedJack == nil
+        and invalidJackDirection == nil and candidateOnParkedJack == nil
+        and invalidJackOwner == nil and fractionalJackTick == nil)
 
     local safeShopPacket = Protocol.encode("shop_snapshot", {
         sessionId = "session-001",
@@ -815,7 +941,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 4 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 5 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}
@@ -831,7 +957,7 @@ function Test.run(context, check)
     end
     for _, kind in ipairs({
         "input", "snapshot", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
-        "ping", "pong",
+        "pallet_jack_snapshot", "ping", "pong",
     }) do
         local channel, delivery = Protocol.route(kind)
         routeSummary[#routeSummary + 1] = kind .. "=" .. tostring(channel) .. "/" .. tostring(delivery)
@@ -845,7 +971,7 @@ function Test.run(context, check)
         and joinStateChannel == Protocol.CHANNEL_DURABLE and joinStateDelivery == "reliable"
     for _, kind in ipairs({
         "workshop_acquire", "workshop_grant", "workshop_command", "workshop_result",
-        "workshop_release", "workshop_snapshot",
+        "workshop_release", "workshop_snapshot", "pallet_jack_snapshot",
     }) do
         routesCorrect = routesCorrect
             and Protocol.packetLimitFor(kind) == Protocol.MAX_PACKET_BYTES
