@@ -1,6 +1,6 @@
 # LAN multiplayer slice
 
-Protocol v5 makes LAN hosting device-neutral. Any Windows or Android device that can open and write its selected local save may host the authoritative shop; up to three Windows or Android workers can join over the same local network. The host owns the save and advances every durable shop system regardless of which device is hosting.
+Protocol v6 makes LAN hosting device-neutral. Any Windows or Android device that can open and write its selected local save may host the authoritative shop; up to three Windows or Android workers can join over the same local network. The host owns the save and advances every durable shop system regardless of which device is hosting.
 
 ## What works now
 
@@ -8,7 +8,7 @@ Protocol v5 makes LAN hosting device-neutral. Any Windows or Android device that
 - One authoritative host plus up to three guests.
 - Versioned, bounded, data-only protocol messages; received packets are never executed as Lua.
 - Reliable connection, welcome, initial shop snapshot, leave, interaction result, and error messages.
-- Unreliable realtime input, movement snapshots, and live shop state on separate ENet channels.
+- Unreliable realtime input, movement snapshots, pallet-jack state, and machine poses on separate ENet channels.
 - The selected host save is copied to each guest when it joins. Guests do not write a second multiplayer save.
 - Host-authoritative worker movement with client prediction, correction, collision, directional gait animation, name labels, and shared roster visibility.
 - Revisioned synchronization of the host's date, money, inventory, jobs, pallets, machines, procurement, bills, client-email state, visitors, loading-bay door, and delivery truck.
@@ -18,6 +18,8 @@ Protocol v5 makes LAN hosting device-neutral. Any Windows or Android device that
 - A nearby guest can use the skid-wrapper console, inspect eligible finished pallets, select one, and request a wrap cycle.
 - A guest can inspect a pallet's mirrored paper work order locally without taking a workshop lease, sending a mutation request, or writing a guest save.
 - The pallet jack is a host-authoritative shared vehicle. One worker at a time may acquire it, drive it with predicted local input, lift an exact host-validated pallet, carry it across the shop, lower it on a host-snapped clear grid cell, and park it. Other devices receive the live jack, operator, candidate, and carried-pallet view.
+- When the host relocates the cutter, skid wrapper, or Windmill, protocol v6 sends all three terminal/live machine poses at a fixed 12 Hz in the pallet-jack snapshot. The machine pose and jack share one authoritative server tick, so peers validate and render the active machine attached to the empty host-owned jack throughout movement, stops, and turns.
+- Relocation remains a host-only floor operation. While a machine is moving, durable snapshots and saves retain its last committed floor pose. A successful green-cell placement commits the new pose; an interrupted or rejected placement cannot persist an in-transit machine.
 - Pallet-jack ownership is cleaned up on timeout or disconnect. A loaded jack is parked without losing or duplicating its pallet, then can be reclaimed by another worker.
 - Workshop resources use exclusive, expiring host-side leases, range checks, revisions, request deduplication, and disconnect cleanup. The host device follows the same ownership rules as remote workers.
 - Durable changes are accepted and saved only by the host and are sent only to fully joined peers. A shop-state update never resets or teleports a guest worker.
@@ -26,7 +28,9 @@ Protocol v5 makes LAN hosting device-neutral. Any Windows or Android device that
 
 ## Physical acceptance status — August 28, 2026
 
-The pallet-logistics slice was exercised with protocol v5 and APK `0.1.0-android.9`:
+Protocol v6 and Android build `0.1.0-android.10` implement live host-relocation poses, but their Android-host three-device pass is still pending. No physical pass is claimed for `.10` yet; use the pending checklist in `docs/lan_multiplayer_device_test.md` and record the exact APK SHA-256 before promoting it.
+
+The last completed physical acceptance remains the pallet-logistics slice exercised with protocol v5 and APK `0.1.0-android.9`:
 
 - Samsung SM-S938U hosted its writable slot 3 shop at `192.168.1.137:22122`; a Windows PC and Samsung SM-J410G joined simultaneously and every active device reported `3/4 WORKERS`.
 - The older Android worker acquired the pallet jack, drove it across the workshop, lifted exact pallet `JOB-0001-P02`, moved it while loaded, and lowered it on the host-validated grid. The host and PC observer stayed synchronized throughout.
@@ -63,18 +67,21 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 - No automatic host discovery yet; manual address entry is the dependable fallback.
 - No automatic reconnect or host migration.
 - Guest-safe workshop access currently covers the loading-bay door, reception customer quote/decline actions, office-computer inspection and pickup request, skid-wrapper selection/start request, read-only pallet paperwork, and pallet-jack transport.
-- Cutter, windmill, vendor, delivery-truck inventory/actions, and machine relocation remain host-only. Their minigames, inventories, or multi-step transactions need their own authority rules before guest control is enabled.
-- Host machine relocation can be observed through its final durable placement, but the attached machine does not yet receive its own realtime pose stream while the host is driving the jack. Observers may therefore see the jack move and the machine appear at its final location after placement.
+- Cutter and Windmill consoles, vendor and delivery-truck inventory/actions, and initiating or placing a machine relocation remain host-only. Their minigames, inventories, or multi-step transactions need their own authority rules before guest control is enabled.
+- Protocol v6 peers observe the host's live cutter, wrapper, or Windmill relocation, including its final stationary pose, on the pallet-jack tick. Observation does not grant a guest relocation control or write authority.
 - A device that cannot pass the writable-save preflight cannot host. It may still join as a worker; this is the expected role for the older Android phone with its known local-save-directory limitation.
-- All devices must run the same protocol-compatible build. APK `.9` has passed the Android-host three-worker pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks.
+- All devices must run the same protocol-compatible build. APK `.9` has passed the Android-host three-worker pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks; `.10` remains pending its machine-relocation device pass.
 - A router's guest-network or client-isolation setting can block LAN traffic even when every device has internet access.
+
+## Completed roadmap target
+
+- Protocol v6 replicates the fixed-rate live and terminal pose of a host-relocated cutter, skid wrapper, or Windmill, tied to the same authoritative tick as the pallet jack. Automated coverage is complete; the `.10` three-device physical pass remains pending.
 
 ## Next roadmap targets
 
-1. Replicate the live pose of a host-relocated cutter, wrapper, or windmill so observers see the machine remain attached to the jack throughout relocation.
-2. Add a host-authoritative cutter console for guest loading, setup, guarded cutting, repeat lifts, unload, and maintenance transitions.
-3. Add the Windmill console with the same explicit lease, command, revision, and disconnect rules.
-4. Add vendor and delivery-truck interactions, including inventory and manifest operations, without allowing guest-side durable writes.
-5. Improve session convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, and eventually deliberate host migration.
+1. Add a host-authoritative cutter console for guest loading, setup, guarded cutting, repeat lifts, unload, and maintenance transitions.
+2. Add the Windmill console with the same explicit lease, command, revision, and disconnect rules.
+3. Add vendor and delivery-truck interactions, including inventory and manifest operations, without allowing guest-side durable writes.
+4. Improve session convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, and eventually deliberate host migration.
 
 Use `docs/lan_multiplayer_device_test.md` for the exact acceptance matrix and the preserved PC-host three-device results.

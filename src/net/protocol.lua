@@ -1,7 +1,8 @@
 local Codec = require("src.net.codec")
+local MachinePose = require("src.machine_pose")
 
 local Protocol = {
-    VERSION = 5,
+    VERSION = 6,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -1037,7 +1038,7 @@ end
 
 local function normalizePalletJackSnapshot(payload)
     local valid, shapeError = shape(payload, "pallet_jack_snapshot payload",
-        { "sessionId", "serverTick", "jack" })
+        { "sessionId", "serverTick", "jack", "machines" })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(
         payload.sessionId, MAX_TOKEN_BYTES, "pallet_jack_snapshot.sessionId")
@@ -1050,7 +1051,16 @@ local function normalizePalletJackSnapshot(payload)
     jack, fieldError = normalizePalletJackState(
         payload.jack, "pallet_jack_snapshot.jack")
     if not jack then return nil, fieldError end
-    return { sessionId = sessionId, serverTick = serverTick, jack = jack }
+    local machines
+    machines, fieldError = MachinePose.normalize(
+        payload.machines, jack, MAX_COORDINATE, "pallet_jack_snapshot.machines")
+    if not machines then return nil, fieldError end
+    return {
+        sessionId = sessionId,
+        serverTick = serverTick,
+        jack = jack,
+        machines = machines,
+    }
 end
 
 local function normalizeWorkshopSnapshot(payload)

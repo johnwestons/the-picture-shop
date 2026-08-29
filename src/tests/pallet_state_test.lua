@@ -123,17 +123,120 @@ function Test.run(context, check)
         and networkPallet.location == "on_pallet_jack"
         and context.PalletState.validate(networkState))
 
+    local networkMachinePoses = context.world.networkMachinePoseSnapshot(networkState)
     local applied = context.world.applyNetworkPalletJackSnapshot(networkState, {
         x = 540, y = 510, direction = "east", operating = true, moving = false,
         operatorPlayerId = 3, carriedPalletId = networkPallet.id,
-    })
+    }, networkMachinePoses)
     local malformedApplied = context.world.applyNetworkPalletJackSnapshot(networkState, {
         x = 540, y = 510, direction = "east", operating = false, moving = true,
-    })
+    }, networkMachinePoses)
     check("domain_network_jack_snapshot_apply_is_owner_aware_and_strict",
         applied and not malformedApplied
         and networkState.palletJack.operatorPlayerId == 3
         and networkState.palletJack.x == 540 and networkState.palletJack.y == 510)
+
+    local relocationSource = context.State.new()
+    local sourceCutter = relocationSource.cutter
+    local sourceJack = context.PalletJack.ensure(relocationSource, context.config.palletJack)
+    sourceJack.x, sourceJack.y = sourceCutter.x, sourceCutter.y
+    context.PalletJack.mount(relocationSource, context.config.palletJack, 1)
+    local relocationBegan = context.world.beginCutterMove(relocationSource)
+    context.world.update(0.1, 1, 0, context.assets, relocationSource)
+    local sourceJackSnapshot = context.world.networkPalletJackSnapshot(relocationSource)
+    local sourceMachinePoses = context.world.networkMachinePoseSnapshot(relocationSource)
+    check("domain_network_machine_snapshot_tracks_host_owned_empty_jack_exactly",
+        relocationBegan and sourceMachinePoses.cutter.moving
+        and sourceMachinePoses.cutter.inMotion == sourceJackSnapshot.moving
+        and sourceMachinePoses.cutter.x == sourceJackSnapshot.x
+        and sourceMachinePoses.cutter.y == sourceJackSnapshot.y - 8
+        and sourceMachinePoses.cutter.direction == sourceJackSnapshot.direction
+        and sourceJackSnapshot.operatorPlayerId == 1
+        and sourceJackSnapshot.carriedPalletId == nil)
+
+    local secondRelocationBlocked = not context.world.beginWrapperMove(relocationSource)
+    check("domain_machine_relocation_allows_only_one_attached_machine",
+        secondRelocationBlocked and relocationSource.cutter.moving
+        and not relocationSource.wrapper.moving)
+
+    local releaseWhileAttached, attachedReleaseCode = context.world.releaseNetworkPalletJack(
+        { id = 1 }, relocationSource, false)
+    check("domain_attached_machine_prevents_orphaning_jack_release",
+        not releaseWhileAttached and attachedReleaseCode == "equipment_moving"
+        and relocationSource.cutter.moving and relocationSource.palletJack.operating
+        and relocationSource.palletJack.operatorPlayerId == 1)
+
+    local guestOwnedRelocation = context.State.new()
+    guestOwnedRelocation.palletJack.x = guestOwnedRelocation.cutter.x
+    guestOwnedRelocation.palletJack.y = guestOwnedRelocation.cutter.y
+    context.PalletJack.mount(guestOwnedRelocation, context.config.palletJack, 2)
+    check("domain_machine_relocation_remains_host_owned_when_guest_has_jack",
+        not context.world.beginCutterMove(guestOwnedRelocation)
+        and not guestOwnedRelocation.cutter.moving
+        and guestOwnedRelocation.palletJack.operating
+        and guestOwnedRelocation.palletJack.operatorPlayerId == 2)
+
+    local observerState = context.State.new()
+    local activeJack = {
+        x = 640, y = 508, direction = "east", operating = true, moving = true,
+        operatorPlayerId = 1,
+    }
+    local activeMachines = context.world.networkMachinePoseSnapshot(observerState)
+    activeMachines.cutter = {
+        x = 640, y = 500, direction = "east", moving = true, inMotion = true,
+    }
+    local activeApplied = context.world.applyNetworkPalletJackSnapshot(
+        observerState, activeJack, activeMachines)
+    check("domain_network_machine_pose_applies_attached_view_atomically",
+        activeApplied and observerState.cutter.x == 640 and observerState.cutter.y == 500
+        and observerState.cutter.direction == "east" and observerState.cutter.moving
+        and observerState.cutter.inMotion
+        and observerState.palletJack.x == 640 and observerState.palletJack.y == 508
+        and observerState.palletJack.operatorPlayerId == 1)
+    context.world.placementSelection = nil
+    check("domain_network_machine_observer_has_no_local_placement_grid",
+        context.world.placementGridSnapshot(observerState, context.assets) == nil
+        and context.world.placementSelection == nil)
+
+    local beforeInvalidJackX, beforeInvalidJackY = observerState.palletJack.x,
+        observerState.palletJack.y
+    local beforeInvalidCutterX, beforeInvalidCutterY = observerState.cutter.x,
+        observerState.cutter.y
+    local mismatchedMachines = context.world.networkMachinePoseSnapshot(observerState)
+    mismatchedMachines.cutter.x = 701
+    local mismatchedApplied = context.world.applyNetworkPalletJackSnapshot(observerState, {
+        x = 700, y = 608, direction = "east", operating = true, moving = true,
+        operatorPlayerId = 1,
+    }, mismatchedMachines)
+    check("domain_network_machine_relation_rejection_is_atomic",
+        not mismatchedApplied
+        and observerState.palletJack.x == beforeInvalidJackX
+        and observerState.palletJack.y == beforeInvalidJackY
+        and observerState.cutter.x == beforeInvalidCutterX
+        and observerState.cutter.y == beforeInvalidCutterY
+        and observerState.cutter.moving)
+
+    local guestOwnedMachines = context.world.networkMachinePoseSnapshot(observerState)
+    local guestOwnedApplied = context.world.applyNetworkPalletJackSnapshot(observerState, {
+        x = 640, y = 508, direction = "east", operating = true, moving = true,
+        operatorPlayerId = 2,
+    }, guestOwnedMachines)
+    check("domain_network_machine_pose_rejects_non_host_owner_without_mutation",
+        not guestOwnedApplied and observerState.palletJack.operatorPlayerId == 1
+        and observerState.cutter.moving and observerState.cutter.x == 640)
+
+    local terminalMachines = context.world.networkMachinePoseSnapshot(observerState)
+    terminalMachines.cutter = {
+        x = 680, y = 500, direction = "northeast", moving = false, inMotion = false,
+    }
+    local terminalApplied = context.world.applyNetworkPalletJackSnapshot(observerState, {
+        x = 680, y = 542, direction = "northeast", operating = true, moving = false,
+        operatorPlayerId = 1,
+    }, terminalMachines)
+    check("domain_network_machine_terminal_pose_clears_attachment_and_keeps_final_pose",
+        terminalApplied and observerState.cutter.x == 680 and observerState.cutter.y == 500
+        and observerState.cutter.direction == "northeast"
+        and not observerState.cutter.moving and not observerState.cutter.inMotion)
 
     context.world.placementSelection = nil
     local placementGrid = context.world.placementGridSnapshot(networkState, context.assets)
@@ -167,11 +270,13 @@ function Test.run(context, check)
         operatorPlayerId = 2, carriedPalletId = orderingPallet.id,
     }
     local earlyApplied, earlyCode = context.world.applyNetworkPalletJackSnapshot(
-        orderingState, loadedRealtime)
+        orderingState, loadedRealtime,
+        context.world.networkMachinePoseSnapshot(orderingState))
     local durableLifted = context.PalletState.transition(
         orderingState, orderingPallet, "on_pallet_jack")
     local orderedApplied = context.world.applyNetworkPalletJackSnapshot(
-        orderingState, loadedRealtime)
+        orderingState, loadedRealtime,
+        context.world.networkMachinePoseSnapshot(orderingState))
     local durableLowered = context.PalletState.transition(
         orderingState, orderingPallet, "warehouse", {
             world = {
@@ -180,7 +285,8 @@ function Test.run(context, check)
             },
         })
     local staleApplied, staleCode = context.world.applyNetworkPalletJackSnapshot(
-        orderingState, loadedRealtime)
+        orderingState, loadedRealtime,
+        context.world.networkMachinePoseSnapshot(orderingState))
     check("domain_network_jack_cross_channel_ordering_waits_for_durable_state",
         not earlyApplied and earlyCode == "awaiting_durable"
         and durableLifted and orderedApplied and durableLowered

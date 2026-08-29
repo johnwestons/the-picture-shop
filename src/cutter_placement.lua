@@ -88,6 +88,11 @@ end
 function CutterPlacement.beginMove(state, config)
     local cutter = CutterPlacement.ensure(state, config)
     if cutter.moving then return false end
+    cutter._relocationOrigin = {
+        x = cutter.x,
+        y = cutter.y,
+        direction = cutter.direction,
+    }
     cutter.moving = true
     return true
 end
@@ -117,6 +122,7 @@ function CutterPlacement.place(state, config)
     local cutter = CutterPlacement.ensure(state, config)
     if not cutter.moving then return false end
     cutter.moving, cutter.inMotion = false, false
+    cutter._relocationOrigin = nil
     return true
 end
 

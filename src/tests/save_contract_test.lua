@@ -18,6 +18,68 @@ function Test.run(context, check)
         and fresh.state.machines.items[1].id == "MCH-0001"
         and fresh.state.wrapper.direction == context.config.wrapperPlacement.defaultDirection)
 
+    local transientState = context.State.new()
+    transientState.cutter.moving, transientState.cutter.inMotion = true, true
+    transientState.wrapper.moving, transientState.wrapper.inMotion = true, true
+    transientState.windmill.moving, transientState.windmill.inMotion = true, true
+    local transientSnapshot = SaveSchema.snapshot(transientState)
+    check("domain_save_snapshot_strips_every_machine_relocation_flag",
+        not transientSnapshot.cutter.moving and not transientSnapshot.cutter.inMotion
+        and not transientSnapshot.wrapper.moving and not transientSnapshot.wrapper.inMotion
+        and not transientSnapshot.windmill.moving and not transientSnapshot.windmill.inMotion)
+
+    local function relocationSnapshotContract(kind, beginName, rotateName, placeName)
+        local relocationState = context.State.new()
+        if kind == "wrapper" then context.wrapper.reset(relocationState) end
+        if kind == "windmill" then
+            relocationState.money = 20000
+            local installed = context.machineFleet.buy(relocationState, "dealer", 3)
+            if not installed then return false, "windmill install failed" end
+            context.windmill.ensure(relocationState)
+        end
+        local item = relocationState[kind]
+        local original = { x = item.x, y = item.y, direction = item.direction }
+        local jack = context.PalletJack.ensure(relocationState, context.config.palletJack)
+        jack.x, jack.y = item.x, item.y
+        local mounted = context.PalletJack.mount(
+            relocationState, context.config.palletJack, 1)
+        context.world.placementSelection = nil
+        local began = mounted and context.world[beginName](relocationState)
+        if not began then return false, "relocation begin failed" end
+        item.x, item.y = item.x + 12, item.y + 9
+        item.inMotion = true
+        local rotated = context.world[rotateName](relocationState)
+        local activeSnapshot = SaveSchema.snapshot(relocationState)
+        local activeCommitted = activeSnapshot[kind].x == original.x
+            and activeSnapshot[kind].y == original.y
+            and activeSnapshot[kind].direction == original.direction
+            and not activeSnapshot[kind].moving and not activeSnapshot[kind].inMotion
+        local placed = context.world[placeName](relocationState, context.assets)
+        local finalPose = { x = item.x, y = item.y, direction = item.direction }
+        local placedSnapshot = SaveSchema.snapshot(relocationState)
+        local finalChanged = finalPose.x ~= original.x or finalPose.y ~= original.y
+            or finalPose.direction ~= original.direction
+        local finalCommitted = finalChanged
+            and placedSnapshot[kind].x == finalPose.x
+            and placedSnapshot[kind].y == finalPose.y
+            and placedSnapshot[kind].direction == finalPose.direction
+            and not placedSnapshot[kind].moving and not placedSnapshot[kind].inMotion
+            and relocationState[kind]._relocationOrigin == nil
+        return rotated and activeCommitted and placed and finalCommitted,
+            string.format("active=%s placed=%s", tostring(activeCommitted), tostring(finalCommitted))
+    end
+
+    local cutterContract, cutterContractError = relocationSnapshotContract(
+        "cutter", "beginCutterMove", "rotateCutter", "placeCutter")
+    local wrapperContract, wrapperContractError = relocationSnapshotContract(
+        "wrapper", "beginWrapperMove", "rotateWrapper", "placeWrapper")
+    local windmillContract, windmillContractError = relocationSnapshotContract(
+        "windmill", "beginWindmillMove", "rotateWindmill", "placeWindmill")
+    check("domain_save_snapshot_commits_only_placed_machine_poses",
+        cutterContract and wrapperContract and windmillContract,
+        table.concat({ tostring(cutterContractError), tostring(wrapperContractError),
+            tostring(windmillContractError) }, "; "))
+
     fresh.state.money = 432
     fresh.state.wrapper.x = fresh.state.wrapper.x + 17
     check("domain_save_round_trip_write", context.save.save(slot, fresh.state, fresh.player))
@@ -215,6 +277,98 @@ function Test.run(context, check)
         and guestState.palletJack.direction == "east"
         and guestState.palletJack.operating and guestState.palletJack.moving
         and guestState.palletJack.operatorPlayerId == 3)
+
+    local machineRaceState = context.State.new()
+    machineRaceState.screen = "computer"
+    machineRaceState.message = "Watching the relocation"
+    local activeMachinePoses = context.world.networkMachinePoseSnapshot(machineRaceState)
+    activeMachinePoses.cutter = {
+        x = 640, y = 500, direction = "east", moving = true, inMotion = true,
+    }
+    local activeMachineApplied = context.world.applyNetworkPalletJackSnapshot(
+        machineRaceState, {
+            x = 640, y = 508, direction = "east", operating = true, moving = true,
+            operatorPlayerId = 1,
+        }, activeMachinePoses)
+    local olderDurable = SaveSchema.snapshot(hostState)
+    olderDurable.cutter.x, olderDurable.cutter.y = 700, 420
+    olderDurable.cutter.direction = "northwest"
+    local olderDurableApplied = context.State.applySharedUpdate(machineRaceState, olderDurable)
+    local activeSurvivedDurable = machineRaceState.cutter.x == 640
+        and machineRaceState.cutter.y == 500
+        and machineRaceState.cutter.direction == "east"
+        and machineRaceState.cutter.moving and machineRaceState.cutter.inMotion
+
+    local conflictHost = context.State.new()
+    local conflictJob = context.jobs.createOffer({
+        id = "LAN-MACHINE-CONFLICT", company = "Composite State Test",
+        sourceSize = { width = 20, height = 16 },
+        finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 },
+    })
+    context.jobs.accept(conflictJob)
+    conflictHost.jobs.active = { conflictJob }
+    local conflictPallet = conflictJob.pallets[1]
+    conflictPallet.location, conflictPallet.status = "warehouse", "raw"
+    conflictPallet.world = {
+        x = 420, y = 420, fromX = 420, fromY = 420,
+        direction = "northwest", rotation = 1, spawnProgress = 1,
+    }
+    local conflictCarried = context.PalletState.transition(
+        conflictHost, conflictPallet, "on_pallet_jack")
+    local conflictDurable = SaveSchema.snapshot(conflictHost)
+    local conflictObserver = context.State.new()
+    local conflictPoses = context.world.networkMachinePoseSnapshot(conflictObserver)
+    conflictPoses.cutter = {
+        x = 640, y = 500, direction = "east", moving = true, inMotion = true,
+    }
+    local conflictRealtime = context.world.applyNetworkPalletJackSnapshot(
+        conflictObserver, {
+            x = 640, y = 508, direction = "east", operating = true, moving = true,
+            operatorPlayerId = 1,
+        }, conflictPoses)
+    local conflictApplied = context.State.applySharedUpdate(conflictObserver, conflictDurable)
+    check("domain_guest_drops_active_machine_cache_on_durable_loaded_jack_conflict",
+        conflictCarried and conflictRealtime and conflictApplied
+        and conflictObserver.palletJack.carriedPalletId == conflictPallet.id
+        and not conflictObserver.palletJack.operating
+        and not conflictObserver.cutter.moving
+        and conflictObserver._networkMachinePoses == nil)
+
+    local terminalMachinePoses = context.world.networkMachinePoseSnapshot(machineRaceState)
+    terminalMachinePoses.cutter = {
+        x = 680, y = 500, direction = "northeast", moving = false, inMotion = false,
+    }
+    local terminalMachineApplied = context.world.applyNetworkPalletJackSnapshot(
+        machineRaceState, {
+            x = 680, y = 542, direction = "northeast", operating = true, moving = false,
+            operatorPlayerId = 1,
+        }, terminalMachinePoses)
+    local terminalCacheCleared = machineRaceState._networkMachinePoses == nil
+    -- Model the opposite cross-channel order: the repeated terminal realtime
+    -- pose arrives, followed by an older relocation-begin durable revision.
+    local delayedOlderDurableApplied = context.State.applySharedUpdate(
+        machineRaceState, olderDurable)
+    local terminalTemporarilySuperseded = machineRaceState.cutter.x == 700
+        and machineRaceState.cutter.y == 420
+        and machineRaceState._networkMachinePoses == nil
+    local repeatedTerminalApplied = context.world.applyNetworkPalletJackSnapshot(
+        machineRaceState, {
+            x = 680, y = 542, direction = "northeast", operating = true, moving = false,
+            operatorPlayerId = 1,
+        }, terminalMachinePoses)
+    local repeatedTerminalHealedDurable = machineRaceState.cutter.x == 680
+        and machineRaceState.cutter.y == 500
+        and machineRaceState.cutter.direction == "northeast"
+        and not machineRaceState.cutter.moving and not machineRaceState.cutter.inMotion
+        and machineRaceState._networkMachinePoses == nil
+    check("domain_guest_active_pose_cache_and_repeated_terminal_heal_both_channel_orders",
+        activeMachineApplied and olderDurableApplied and activeSurvivedDurable
+        and terminalMachineApplied and terminalCacheCleared
+        and delayedOlderDurableApplied and terminalTemporarilySuperseded
+        and repeatedTerminalApplied and repeatedTerminalHealedDurable
+        and machineRaceState.screen == "computer"
+        and machineRaceState.message == "Watching the relocation")
 
     local invalidSemanticUpdate = SaveSchema.snapshot(hostState)
     invalidSemanticUpdate.money = -1

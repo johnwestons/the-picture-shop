@@ -145,6 +145,28 @@ local function palletJackSnapshot(overrides)
     return snapshot
 end
 
+local function machinePoses(overrides)
+    local poses = {
+        cutter = {
+            x = 700, y = 420, direction = "northwest",
+            moving = false, inMotion = false,
+        },
+        wrapper = {
+            x = 820, y = 360, direction = "northwest",
+            moving = false, inMotion = false,
+        },
+        windmill = {
+            x = 850, y = 450, direction = "northwest",
+            moving = false, inMotion = false,
+        },
+    }
+    for machine, fields in pairs(overrides or {}) do
+        poses[machine] = poses[machine] or {}
+        for key, value in pairs(fields) do poses[machine][key] = value end
+    end
+    return poses
+end
+
 function Test.run(context, check)
     local first = {
         zeta = 12.5,
@@ -253,6 +275,7 @@ function Test.run(context, check)
         { "pallet_jack_snapshot", {
             sessionId = "session-001", serverTick = 31,
             jack = palletJackSnapshot(),
+            machines = machinePoses(),
         } },
         { "input", {
             sessionId = "session-001", sequence = 17, moveX = 1, moveY = -1,
@@ -293,7 +316,7 @@ function Test.run(context, check)
             and envelope.version == Protocol.VERSION and envelope.type == message[1]
             and #packet <= packetLimit
     end
-    check("network_protocol_all_v5_envelopes_round_trip", roundTrips)
+    check("network_protocol_all_v6_envelopes_round_trip", roundTrips)
 
     local orderedPacket = Protocol.encode("snapshot", {
         sessionId = "session-001", serverTick = 40, players = roster(),
@@ -790,49 +813,205 @@ function Test.run(context, check)
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ moving = true, clearCandidate = true,
             carriedPalletId = "JOB-0001-P01" }),
+        machines = machinePoses(),
     })
     local palletJackEnvelope = palletJackPacket and Protocol.decode(palletJackPacket)
     local missingJackOwner = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ clearOwner = true }),
+        machines = machinePoses(),
     })
     local parkedMovingJack = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ operating = false, clearOwner = true,
             moving = true, clearCandidate = true }),
+        machines = machinePoses(),
     })
     local loadedCandidateJack = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ carriedPalletId = "JOB-0001-P01" }),
+        machines = machinePoses(),
     })
     local spoofedJack = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ playerX = 1 }),
+        machines = machinePoses(),
     })
     local invalidJackDirection = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ direction = "up" }),
+        machines = machinePoses(),
     })
     local candidateOnParkedJack = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ operating = false, moving = false,
             clearOwner = true }),
+        machines = machinePoses(),
     })
     local invalidJackOwner = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43,
         jack = palletJackSnapshot({ operatorPlayerId = Protocol.MAX_PLAYERS + 1 }),
+        machines = machinePoses(),
     })
     local fractionalJackTick = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 43.5,
         jack = palletJackSnapshot(),
+        machines = machinePoses(),
     })
     local parkedLoadedPacket = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 44,
         jack = palletJackSnapshot({ operating = false, moving = false,
             clearOwner = true, clearCandidate = true,
             carriedPalletId = "JOB-0001-P01" }),
+        machines = machinePoses(),
     })
     local parkedLoadedEnvelope = parkedLoadedPacket and Protocol.decode(parkedLoadedPacket)
+
+    local relocatingJack = palletJackSnapshot({
+        x = 640, y = 508, direction = "east", moving = true,
+        operatorPlayerId = 1, clearCandidate = true,
+    })
+    local relocatingMachines = machinePoses({
+        cutter = {
+            x = 640, y = 500, direction = "east",
+            moving = true, inMotion = true,
+        },
+    })
+    local relocatingPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = relocatingMachines,
+    })
+    local relocatingEnvelope = relocatingPacket and Protocol.decode(relocatingPacket)
+
+    local incompleteMachines = machinePoses()
+    incompleteMachines.windmill = nil
+    local missingMachines = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45, jack = relocatingJack,
+    })
+    local missingMachinePose = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = incompleteMachines,
+    })
+    local unknownMachine = machinePoses()
+    unknownMachine.folder = {
+        x = 1, y = 2, direction = "northwest", moving = false, inMotion = false,
+    }
+    local unknownMachinePacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = unknownMachine,
+    })
+    local extraPoseField = machinePoses()
+    extraPoseField.cutter.frame = 4
+    local extraPoseFieldPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = extraPoseField,
+    })
+    local incompletePose = machinePoses()
+    incompletePose.cutter.inMotion = nil
+    local incompletePosePacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = incompletePose,
+    })
+    local invalidWrapperDirection = machinePoses()
+    invalidWrapperDirection.wrapper.direction = "north"
+    local invalidWrapperDirectionPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = invalidWrapperDirection,
+    })
+    local invalidWindmillDirection = machinePoses()
+    invalidWindmillDirection.windmill.direction = "west"
+    local invalidWindmillDirectionPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = invalidWindmillDirection,
+    })
+    local invalidMotionFlag = machinePoses()
+    invalidMotionFlag.cutter.moving = 1
+    local invalidMotionFlagPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = invalidMotionFlag,
+    })
+    local motionWithoutAttachment = machinePoses()
+    motionWithoutAttachment.wrapper.inMotion = true
+    local motionWithoutAttachmentPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = motionWithoutAttachment,
+    })
+    local twoMovingJack = palletJackSnapshot({
+        x = 640, y = 508, direction = "northwest", moving = true,
+        operatorPlayerId = 1, clearCandidate = true,
+    })
+    local twoMovingMachines = machinePoses({
+        cutter = { x = 640, y = 500, direction = "northwest",
+            moving = true, inMotion = true },
+        wrapper = { x = 640, y = 500, direction = "northwest",
+            moving = true, inMotion = true },
+    })
+    local twoMovingMachinesPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = twoMovingJack, machines = twoMovingMachines,
+    })
+    local guestOwnedRelocation = palletJackSnapshot({
+        x = 640, y = 508, direction = "east", moving = true,
+        operatorPlayerId = 2, clearCandidate = true,
+    })
+    local guestOwnedRelocationPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = guestOwnedRelocation, machines = relocatingMachines,
+    })
+    local loadedRelocation = palletJackSnapshot({
+        x = 640, y = 508, direction = "east", moving = true,
+        operatorPlayerId = 1, carriedPalletId = "JOB-0001-P01", clearCandidate = true,
+    })
+    local loadedRelocationPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = loadedRelocation, machines = relocatingMachines,
+    })
+    local candidateRelocation = palletJackSnapshot({
+        x = 640, y = 508, direction = "east", moving = true,
+        operatorPlayerId = 1,
+    })
+    local candidateRelocationPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = candidateRelocation, machines = relocatingMachines,
+    })
+    local mismatchedMachineX = machinePoses({
+        cutter = { x = 641, y = 500, direction = "east",
+            moving = true, inMotion = true },
+    })
+    local mismatchedMachineXPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = mismatchedMachineX,
+    })
+    local mismatchedMachineY = machinePoses({
+        cutter = { x = 640, y = 499, direction = "east",
+            moving = true, inMotion = true },
+    })
+    local mismatchedMachineYPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = mismatchedMachineY,
+    })
+    local mismatchedMachineDirection = machinePoses({
+        cutter = { x = 640, y = 500, direction = "north",
+            moving = true, inMotion = true },
+    })
+    local mismatchedMachineDirectionPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = mismatchedMachineDirection,
+    })
+    local mismatchedMachineMotion = machinePoses({
+        cutter = { x = 640, y = 500, direction = "east",
+            moving = true, inMotion = false },
+    })
+    local mismatchedMachineMotionPacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = mismatchedMachineMotion,
+    })
+    local unboundedMachinePose = machinePoses()
+    unboundedMachinePose.cutter.x = math.huge
+    local unboundedMachinePosePacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = "session-001", serverTick = 45,
+        jack = relocatingJack, machines = unboundedMachinePose,
+    })
     check("network_protocol_pallet_jack_snapshot_is_strict_owner_aware_and_bounded",
         palletJackEnvelope and palletJackEnvelope.payload.serverTick == 43
         and palletJackEnvelope.payload.jack.operatorPlayerId == 2
@@ -846,6 +1025,27 @@ function Test.run(context, check)
         and loadedCandidateJack == nil and spoofedJack == nil
         and invalidJackDirection == nil and candidateOnParkedJack == nil
         and invalidJackOwner == nil and fractionalJackTick == nil)
+
+    check("network_protocol_machine_poses_are_complete_strict_and_jack_coherent",
+        relocatingEnvelope
+        and relocatingEnvelope.payload.machines.cutter.x == 640
+        and relocatingEnvelope.payload.machines.cutter.y == 500
+        and relocatingEnvelope.payload.machines.cutter.direction == "east"
+        and relocatingEnvelope.payload.machines.cutter.moving
+        and relocatingEnvelope.payload.machines.cutter.inMotion
+        and not relocatingEnvelope.payload.machines.wrapper.moving
+        and not relocatingEnvelope.payload.machines.windmill.moving
+        and #relocatingPacket <= Protocol.MAX_PACKET_BYTES
+        and missingMachines == nil and missingMachinePose == nil
+        and unknownMachinePacket == nil and extraPoseFieldPacket == nil
+        and incompletePosePacket == nil and invalidWrapperDirectionPacket == nil
+        and invalidWindmillDirectionPacket == nil and invalidMotionFlagPacket == nil
+        and motionWithoutAttachmentPacket == nil and twoMovingMachinesPacket == nil
+        and guestOwnedRelocationPacket == nil and loadedRelocationPacket == nil
+        and candidateRelocationPacket == nil
+        and mismatchedMachineXPacket == nil and mismatchedMachineYPacket == nil
+        and mismatchedMachineDirectionPacket == nil
+        and mismatchedMachineMotionPacket == nil and unboundedMachinePosePacket == nil)
 
     local safeShopPacket = Protocol.encode("shop_snapshot", {
         sessionId = "session-001",
@@ -941,7 +1141,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 5 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 6 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}

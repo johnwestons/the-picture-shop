@@ -7,6 +7,7 @@ local Customer = require("src.customer")
 local Interaction = require("src.interaction")
 local JobService = require("src.job_service")
 local MachineFleet = require("src.machine_fleet")
+local MachinePose = require("src.machine_pose")
 local Navigation = require("src.navigation")
 local PlacementGrid = require("src.placement_grid")
 local PalletLogistics = require("src.pallet_logistics")
@@ -115,11 +116,12 @@ local function isMachinePlacementClear(state, assets, kind, x, y)
 end
 
 local function activePlacement(state)
-    if state and state.cutter and state.cutter.moving then
+    local networkMachineView = state and state._networkMachinePoses ~= nil
+    if not networkMachineView and state and state.cutter and state.cutter.moving then
         return "cutter", state.cutter.x, state.cutter.y
-    elseif state and state.wrapper and state.wrapper.moving then
+    elseif not networkMachineView and state and state.wrapper and state.wrapper.moving then
         return "wrapper", state.wrapper.x, state.wrapper.y
-    elseif state and state.windmill and state.windmill.moving then
+    elseif not networkMachineView and state and state.windmill and state.windmill.moving then
         return "windmill", state.windmill.x, state.windmill.y
     end
     local jack = state and PalletJack.ensure(state, Config.palletJack)
@@ -194,6 +196,7 @@ local function interactables(player)
     local truckInteraction = World.truck:getInteraction()
     if truckInteraction then targets.truckCargoDoor = truckInteraction end
     if World._state then
+        local networkMachineView = World._state._networkMachinePoses ~= nil
         local nearestPallet
         local nearestDistance
         for _, item in ipairs(PalletLogistics.physicalPallets(World._state)) do
@@ -216,15 +219,21 @@ local function interactables(player)
             or (player == World.player and 1 or nil)
         local jackReady = jack.operating and not jack.carriedPalletId
             and jack.operatorPlayerId == playerId
-        if MachineFleet.isInstalled(World._state, "polar_115") then
+        if MachineFleet.isInstalled(World._state, "polar_115")
+            and not (networkMachineView and World._state.cutter.moving)
+        then
             targets.cutter = CutterPlacement.interaction(player, World._state,
                 Config.cutterPlacement, jackReady)
         end
-        if MachineFleet.isInstalled(World._state, "skid_wrapper") then
+        if MachineFleet.isInstalled(World._state, "skid_wrapper")
+            and not (networkMachineView and World._state.wrapper.moving)
+        then
             targets.skidWrapper = WrapperPlacement.interaction(player, World._state,
                 Config.wrapperPlacement, jackReady)
         end
-        if MachineFleet.isInstalled(World._state, "heidelberg_10x15") then
+        if MachineFleet.isInstalled(World._state, "heidelberg_10x15")
+            and not (networkMachineView and World._state.windmill.moving)
+        then
             targets.windmill = WindmillPlacement.interaction(player, World._state,
                 Config.windmillPlacement, jackReady)
         end
@@ -1190,6 +1199,10 @@ local function cutterHasPaper(state)
 end
 
 function World.beginCutterMove(state)
+    if palletJackHasAttachedMachine(state) then
+        state.message = "Lock the moving machine onto the floor before relocating another one."
+        return false
+    end
     if not MachineFleet.isInstalled(state, "polar_115") then return false end
     local jack = PalletJack.ensure(state, Config.palletJack)
     if jack.operating and jack.operatorPlayerId ~= 1 then
@@ -1259,6 +1272,10 @@ function World.cutterSnapshot(state)
 end
 
 function World.beginWrapperMove(state)
+    if palletJackHasAttachedMachine(state) then
+        state.message = "Lock the moving machine onto the floor before relocating another one."
+        return false
+    end
     if not MachineFleet.isInstalled(state, "skid_wrapper") then return false end
     if not Wrapper.canRelocate(state) then return false end
     local jack = PalletJack.ensure(state, Config.palletJack)
@@ -1338,6 +1355,10 @@ function World.wrapperSnapshot(state)
 end
 
 function World.beginWindmillMove(state)
+    if palletJackHasAttachedMachine(state) then
+        state.message = "Lock the moving machine onto the floor before relocating another one."
+        return false
+    end
     if not MachineFleet.isInstalled(state, "heidelberg_10x15") then return false end
     local process = Windmill.ensure(state)
     if process.status ~= "idle" or process.palletId then
@@ -1418,6 +1439,7 @@ end
 
 function World.networkPalletJackSnapshot(state)
     local snapshot = PalletJack.snapshot(state, Config.palletJack)
+    local machineAttached = palletJackHasAttachedMachine(state)
     return {
         x = snapshot.x,
         y = snapshot.y,
@@ -1426,14 +1448,25 @@ function World.networkPalletJackSnapshot(state)
         moving = snapshot.moving,
         operatorPlayerId = snapshot.operatorPlayerId,
         carriedPalletId = snapshot.carriedPalletId,
-        candidatePalletId = snapshot.candidatePalletId,
+        candidatePalletId = machineAttached and nil or snapshot.candidatePalletId,
     }
 end
 
-function World.applyNetworkPalletJackSnapshot(state, snapshot)
+function World.networkMachinePoseSnapshot(state)
+    return MachinePose.snapshot(state)
+end
+
+function World.applyNetworkPalletJackSnapshot(state, snapshot, machinePoses)
+    local normalizedMachinePoses, machinePoseError = MachinePose.normalize(
+        machinePoses, snapshot, 100000, "network machine poses")
+    if not normalizedMachinePoses then return false, machinePoseError end
     local applied, applyError = PalletJack.applySnapshot(
         state, snapshot, Config.palletJack)
     if not applied then return false, applyError end
+    local posesApplied, posesError = MachinePose.apply(state, normalizedMachinePoses)
+    if not posesApplied then return false, posesError end
+    state._networkMachinePoses = MachinePose.activeKind(normalizedMachinePoses)
+        and assert(MachinePose.copy(normalizedMachinePoses)) or nil
     local jack = PalletJack.ensure(state, Config.palletJack)
     local localPlayerId = tonumber(World.player.id) or 1
     if jack.operating and jack.operatorPlayerId == localPlayerId then

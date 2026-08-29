@@ -1,6 +1,6 @@
 # LAN multiplayer device test
 
-Use this checklist for protocol v5's supported LAN direction: any Windows or Android device with a writable selected save can host and own the authoritative shop, while up to three PC or Android devices join as workers. Use the same protocol-compatible game build throughout one pass.
+Use this checklist for protocol v6's supported LAN direction: any Windows or Android device with a writable selected save can host and own the authoritative shop, while up to three PC or Android devices join as workers. Use the same protocol-compatible game build throughout one pass.
 
 ## Prepare the build and devices
 
@@ -25,7 +25,7 @@ Use this checklist for protocol v5's supported LAN direction: any Windows or And
 3. Backgrounding or unfocusing the Android game intentionally ends the authoritative LAN session. This is a safety rule, not automatic reconnect behavior.
 4. Record the Android host address shown in the HUD, including UDP port `22122`.
 
-## Protocol v5 interaction pass
+## Protocol v6 interaction pass
 
 1. On the chosen host, select the save slot and choose **LOCAL PLAY > HOST THIS SHOP**.
 2. On each worker, choose **LOCAL PLAY > JOIN A SHOP**, enter the host's IPv4 address manually, and join. Entering `address:port` is also supported.
@@ -38,9 +38,24 @@ Use this checklist for protocol v5's supported LAN direction: any Windows or And
 9. At the skid wrapper, use it as a guest. Confirm the console shows the host's live cycle and eligible-pallet state. When no pallet is eligible, the list must explain that condition and **START CYCLE** must be disabled in build `.8` or later. While the panel stays open, park and remove an eligible pallet on the host and confirm the row appears and disappears live. Select an available pallet, start once, and verify the host owns the cycle and saved result.
 10. Inspect a nearby pallet's paper work order as a guest. Confirm it uses the host-mirrored record, closes locally, sends no mutation request, and creates no guest save.
 11. At the pallet jack, acquire it as a guest and confirm no blocking console opens. Drive empty, lift one exact eligible pallet, drive loaded, and lower it on a green cell. Verify the host validates every action, all observers keep the operator attached to the jack, the pallet never duplicates or disappears, and a non-owner sees **BUSY** and cannot take control.
-12. Try the cutter, windmill, vendor, delivery truck, and machine relocation as a guest. Each must remain host-only and must not open an unsafe guest screen, alter the shop, or create a guest save.
-13. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
-14. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
+12. Have the host relocate the cutter, skid wrapper, and Windmill in turn. On every guest, confirm each machine leaves its old rendered position once, remains attached to the pallet jack through movement, stops, and turns, then changes to the same terminal pose after a successful placement. Fixed-rate poses must not snap back when a durable shop update arrives.
+13. Try to initiate or place a machine relocation as a guest, then try the cutter, Windmill, vendor, and delivery-truck actions. Each must remain host-only and must not open an unsafe guest screen, alter the shop, or create a guest save. Guests may observe a host relocation without gaining control.
+14. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
+15. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
+
+## Pending protocol v6 three-device machine-pose pass
+
+Status: **pending**. This section is an acceptance checklist for APK `0.1.0-android.10` (`versionCode` 10), not a claimed physical result.
+
+Exact APK under test: SHA-256 `b6a2872f5c0dbce5167c0af2886501fc2e3b999183ff8ed1c66209a851f093e2` (102,481,339 bytes).
+
+- Build the APK once, record its SHA-256, and install that unchanged artifact on both phones.
+- Use the Samsung SM-S938U as the writable Android host, the Samsung SM-J410G as an Android worker, and the Windows PC as the second worker/observer. Confirm every screen reports `3/4 WORKERS`.
+- For the cutter, skid wrapper, and Windmill, have the Android host acquire an empty pallet jack and begin relocation. The Android worker and PC must show one attached machine at the host's live position with the same direction and motion state; neither guest may initiate or place it. While the host keeps the relocation active, verify each guest can still use an unrelated supported door, computer, client, or workstation interaction.
+- Drive straight and diagonally, stop and restart, and rotate through all eight cutter directions and all four wrapper/Windmill directions. Keep one relocation active beyond the 30-second durable-state fallback and confirm neither observer snaps to the last committed floor pose.
+- Reject one blocked/red placement, then complete one valid green placement. The rejected attempt must leave the live machine attached; the accepted attempt must give all devices the same stationary terminal pose without a late remount or duplicate sprite.
+- Rejoin the PC for a fresh snapshot, then end the host session and reload the host save offline. Only successfully placed poses may persist; an in-progress relocation must retain the previously committed floor pose.
+- Record the host address, device versions and roles, APK SHA-256, per-machine pass/fail result, and representative start, moving/rotated, and final-placement captures.
 
 ## Disconnect and hotspot matrix
 

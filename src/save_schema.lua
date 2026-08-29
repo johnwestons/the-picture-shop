@@ -1134,9 +1134,29 @@ function Schema.reconcile(state)
 end
 
 function Schema.snapshot(state)
+    local committedPlacements = {}
+    for _, kind in ipairs({ "cutter", "wrapper", "windmill" }) do
+        local item = type(state) == "table" and state[kind] or nil
+        local origin = type(item) == "table" and item.moving == true
+            and item._relocationOrigin or nil
+        if type(origin) == "table" and number(origin.x) and number(origin.y)
+            and directions[origin.direction]
+        then
+            committedPlacements[kind] = {
+                x = origin.x,
+                y = origin.y,
+                direction = origin.direction,
+            }
+        end
+    end
     local result = normalizeState(state)
+    for kind, origin in pairs(committedPlacements) do
+        result[kind].x, result[kind].y = origin.x, origin.y
+        result[kind].direction = origin.direction
+    end
     result.cutter.moving, result.cutter.inMotion = false, false
     result.wrapper.moving, result.wrapper.inMotion = false, false
+    result.windmill.moving, result.windmill.inMotion = false, false
     result.palletJack.operating = false
     result.palletJack.moving, result.palletJack.inMotion = false, false
     Schema.reconcile(result)

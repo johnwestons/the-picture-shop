@@ -43,6 +43,7 @@ end
 function Placement.beginMove(state, config)
     local item = Placement.ensure(state, config)
     if item.moving then return false end
+    item._relocationOrigin = { x = item.x, y = item.y, direction = item.direction }
     item.moving = true
     return true
 end
@@ -69,6 +70,7 @@ function Placement.place(state, config)
     local item = Placement.ensure(state, config)
     if not item.moving then return false end
     item.moving, item.inMotion = false, false
+    item._relocationOrigin = nil
     return true
 end
 function Placement.snapshot(state, config)

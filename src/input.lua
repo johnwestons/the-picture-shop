@@ -156,16 +156,20 @@ function Input.keypressed(key, context)
         end
         if key ~= "e" then return end
         if context.world.faceInteraction then context.world.faceInteraction() end
-        -- A moving machine owns E until it is placed. Pallet-jack command
-        -- routing must never park or load the jack while equipment is still
-        -- attached to it.
-        if state.cutter and state.cutter.moving then
+        -- On the authoritative host, a moving machine owns E until it is
+        -- placed. Network observers cannot place that machine, so their E
+        -- press must continue to the unrelated interaction they selected.
+        -- Host pallet-jack command routing must never park or load the jack
+        -- while equipment is still attached to it.
+        local observesNetworkRelocation = context.isNetworkClient
+            and context.isNetworkClient()
+        if not observesNetworkRelocation and state.cutter and state.cutter.moving then
             if context.world.placeCutter(state, context.assets) then context.saveCurrent() end
             return true
-        elseif state.wrapper and state.wrapper.moving then
+        elseif not observesNetworkRelocation and state.wrapper and state.wrapper.moving then
             if context.world.placeWrapper(state, context.assets) then context.saveCurrent() end
             return true
-        elseif state.windmill and state.windmill.moving then
+        elseif not observesNetworkRelocation and state.windmill and state.windmill.moving then
             if context.world.placeWindmill(state, context.assets) then context.saveCurrent() end
             return true
         end

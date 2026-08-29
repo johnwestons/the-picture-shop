@@ -9,6 +9,7 @@ local SaveSchema = require("src.save_schema")
 local PalletState = require("src.pallet_state")
 local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
+local MachinePose = require("src.machine_pose")
 local WindmillPlacement = require("src.windmill_placement")
 local Windmill = require("src.windmill")
 
@@ -120,6 +121,7 @@ function State.applySave(state, payload)
     PalletState.reconcile(state)
     SaveSchema.reconcile(state)
     state.currentOffer = nil
+    state._networkMachinePoses = nil
     state.screen = "world"
     state.message = "Shop opened."
     return true
@@ -135,6 +137,7 @@ function State.applySharedSnapshot(state, snapshot)
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
     state.activeSlot = nil
     state.currentOffer = nil
+    state._networkMachinePoses = nil
     state.screen = "world"
     state.message = "Shop opened."
     return true
@@ -146,16 +149,28 @@ function State.applySharedUpdate(state, snapshot)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
     local livePalletJack = state.palletJack and state.palletJack.operating
         and PalletJack.snapshot(state, Config.palletJack) or nil
+    local liveMachinePoses = state._networkMachinePoses
+        and MachinePose.copy(state._networkMachinePoses) or nil
     local staged = State.new()
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    state._networkMachinePoses = nil
     -- Durable saves intentionally strip active-operation flags. Reapply the
     -- newer realtime view so a reliable shop update cannot visually park a
     -- jack that a LAN worker is still driving.
-    if livePalletJack then
+    local compositeMachinePoses
+    if liveMachinePoses and livePalletJack then
         livePalletJack.carriedPalletId = state.palletJack.carriedPalletId
         livePalletJack.candidatePalletId = nil
+        compositeMachinePoses = MachinePose.normalize(
+            liveMachinePoses, livePalletJack, 100000, "cached network machine poses")
+    end
+    if livePalletJack and (not liveMachinePoses or compositeMachinePoses) then
         PalletJack.applySnapshot(state, livePalletJack, Config.palletJack)
+    end
+    if compositeMachinePoses then
+        MachinePose.apply(state, compositeMachinePoses)
+        state._networkMachinePoses = compositeMachinePoses
     end
     state.activeSlot = nil
     return true

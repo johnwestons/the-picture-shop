@@ -842,6 +842,7 @@ function Session:_handleClientEnvelope(envelope)
             self:_queue("pallet_jack_state", {
                 serverTick = payload.serverTick,
                 jack = payload.jack,
+                machines = payload.machines,
             })
         end
     elseif envelope.type == "interaction_result" then
@@ -1126,12 +1127,15 @@ function Session:_updateHost(dt, context)
         end
         local palletJack = context and context.getPalletJackSnapshot
             and context.getPalletJackSnapshot() or nil
-        if type(palletJack) == "table" then
+        local machinePoses = context and context.getMachinePoseSnapshot
+            and context.getMachinePoseSnapshot() or nil
+        if type(palletJack) == "table" and type(machinePoses) == "table" then
             local palletJackOk, palletJackError = self:_broadcastJoined(
                 "pallet_jack_snapshot", {
                     sessionId = self.sessionId,
                     serverTick = self.serverTick,
                     jack = palletJack,
+                    machines = machinePoses,
                 })
             if not palletJackOk then self:_queue("error", { message = palletJackError }) end
         end

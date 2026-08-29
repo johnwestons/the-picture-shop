@@ -611,10 +611,15 @@ local function palletJackCommandFor(action)
     return "park_jack", {}
 end
 
-local function handlePalletJackControl(action)
+local function handlePalletJackControl(action, selected)
     if machineRelocationActive() then
-        state.message = "Place the moving machine before using or parking the pallet jack."
-        return true
+        local targetsPalletJack = action == "park"
+            or (action == "use" and selected and selected.kind == "palletJack")
+        if targetsPalletJack then
+            state.message = "Place the moving machine before using or parking the pallet jack."
+            return true
+        end
+        return false
     end
     if multiplayer:isClient() then
         local info = multiplayer:workshopInfo()
@@ -1064,7 +1069,7 @@ local function handleMultiplayerEvents()
             end
         elseif event.type == "pallet_jack_state" then
             local applied, applyError = World.applyNetworkPalletJackSnapshot(
-                state, event.jack)
+                state, event.jack, event.machines)
             if not applied and applyError ~= "awaiting_durable" then
                 multiplayer:stop("Invalid pallet-jack update")
                 state.screen = "lan"
@@ -1221,6 +1226,9 @@ end
 
 local function updateMultiplayer(dt, inputX, inputY)
     if not multiplayer:isActive() then return end
+    if workshopAuthority and localWorkshopLease then
+        workshopAuthority:touchPlayer(localAuthorityPlayer())
+    end
     multiplayer:update(dt, {
         localPlayer = World.player,
         inputX = inputX or 0,
@@ -1248,6 +1256,9 @@ local function updateMultiplayer(dt, inputX, inputY)
         end,
         getPalletJackSnapshot = function()
             return World.networkPalletJackSnapshot(state)
+        end,
+        getMachinePoseSnapshot = function()
+            return World.networkMachinePoseSnapshot(state)
         end,
         getWorkshopSnapshot = function()
             return {

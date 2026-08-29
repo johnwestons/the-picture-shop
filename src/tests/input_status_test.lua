@@ -256,6 +256,47 @@ function Test.run(context, check)
         and relocationFaces == 1 and relocationJackRoutes == 0
         and relocationNetworkRoutes == 0 and not relocationState.cutter.moving)
 
+    local guestRelocationState = context.State.new()
+    guestRelocationState.screen = "world"
+    guestRelocationState.cutter.moving = true
+    local guestPlacements, guestRelocationSaves = 0, 0
+    local guestNetworkRoutes = 0
+    local guestJackRoutes, guestJackBlocks = 0, 0
+    local guestRelocationHandled = context.input.keypressed("e", {
+        state = guestRelocationState,
+        assets = {},
+        isNetworkClient = function() return true end,
+        world = {
+            getInteraction = function()
+                return { kind = "loadingBayDoor", target = {} }
+            end,
+            placeCutter = function()
+                guestPlacements = guestPlacements + 1
+                guestRelocationState.cutter.moving = false
+                return true
+            end,
+        },
+        networkInteraction = function(selected)
+            guestNetworkRoutes = guestNetworkRoutes + 1
+            return selected and selected.kind == "loadingBayDoor"
+        end,
+        palletJackControl = function(action, selected)
+            guestJackRoutes = guestJackRoutes + 1
+            local targetsPalletJack = action == "park"
+                or (action == "use" and selected and selected.kind == "palletJack")
+            if guestRelocationState.cutter.moving and targetsPalletJack then
+                guestJackBlocks = guestJackBlocks + 1
+                return true
+            end
+            return false
+        end,
+        saveCurrent = function() guestRelocationSaves = guestRelocationSaves + 1 end,
+    })
+    check("guest_observer_routes_unrelated_use_during_host_machine_move",
+        guestRelocationHandled and guestPlacements == 0 and guestRelocationSaves == 0
+        and guestJackRoutes == 1 and guestJackBlocks == 0
+        and guestNetworkRoutes == 1 and guestRelocationState.cutter.moving)
+
     local state = context.State.new()
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)

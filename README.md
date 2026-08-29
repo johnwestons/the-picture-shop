@@ -24,8 +24,12 @@ Choose a writable save, then use **LOCAL PLAY > HOST THIS SHOP** on Windows or A
 Windows/Android workers can join the host's displayed IPv4 address over normal Wi-Fi or a compatible
 phone hotspot. The host alone owns and saves the shop; guests receive the live shop and can move,
 operate the dock door, talk to clients, use the office computer and skid wrapper, inspect pallet work
-orders read-only, and share the host-authoritative pallet jack. See `docs/lan_multiplayer_slice.md` for
-the supported protocol-v5 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
+orders read-only, and share the host-authoritative pallet jack. Protocol v6 also sends the live and
+terminal poses of a host-relocated cutter, skid wrapper, or Windmill at a fixed 12 Hz on the pallet
+jack's authoritative tick, so every worker sees the machine remain mounted while it moves. Guests can
+observe relocation but cannot initiate or place a machine. The durable save retains the last committed
+floor pose until the host completes a valid placement. See `docs/lan_multiplayer_slice.md` for the
+supported protocol-v6 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
 
 ## Release gate
 

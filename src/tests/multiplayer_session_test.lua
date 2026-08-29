@@ -205,6 +205,22 @@ local function palletJackState(overrides)
     return jack
 end
 
+local function machinePoseState(overrides)
+    local machines = {
+        cutter = { x = 700, y = 420, direction = "northwest",
+            moving = false, inMotion = false },
+        wrapper = { x = 820, y = 360, direction = "northwest",
+            moving = false, inMotion = false },
+        windmill = { x = 850, y = 450, direction = "northwest",
+            moving = false, inMotion = false },
+    }
+    for machine, fields in pairs(overrides or {}) do
+        machines[machine] = machines[machine] or {}
+        for key, value in pairs(fields) do machines[machine][key] = value end
+    end
+    return machines
+end
+
 local function eventNamed(events, name)
     for _, event in ipairs(events or {}) do
         if event.type == name then return event end
@@ -934,6 +950,7 @@ function Test.run(_, check)
         truck = { state = "absent", backingProgress = 0, cargoProgress = 0 },
     }
     local authoritativePalletJack = palletJackState()
+    local authoritativeMachinePoses = machinePoseState()
     local syncHostContext = {
         localPlayer = syncHostPlayer,
         resolveGuestSpawn = function() return 530, 520 end,
@@ -947,6 +964,7 @@ function Test.run(_, check)
         getVisitorSnapshot = function() return authoritativeVisitors end,
         getEnvironmentSnapshot = function() return authoritativeEnvironment end,
         getPalletJackSnapshot = function() return authoritativePalletJack end,
+        getMachinePoseSnapshot = function() return authoritativeMachinePoses end,
         moveRemote = function() end,
     }
     local syncClientContext = {
@@ -1072,7 +1090,62 @@ function Test.run(_, check)
         and palletJackChanged.jack.operatorPlayerId == 2
         and palletJackChanged.jack.carriedPalletId == "LAN-JOB-0001-P01"
         and palletJackChanged.jack.candidatePalletId == nil
+        and palletJackChanged.machines.cutter.x == 700
+        and palletJackChanged.machines.wrapper.x == 820
+        and palletJackChanged.machines.windmill.x == 850
+        and not palletJackChanged.machines.cutter.moving
         and syncClient.lastPalletJackTick == palletJackChanged.serverTick)
+
+    authoritativePalletJack = palletJackState({
+        x = 640, y = 508, direction = "east",
+        operating = true, moving = true, operatorPlayerId = 1,
+    })
+    authoritativeMachinePoses = machinePoseState({
+        cutter = { x = 640, y = 500, direction = "east",
+            moving = true, inMotion = true },
+    })
+    syncHost:update(0.1, syncHostContext)
+    syncClient:update(0, syncClientContext)
+    local activeRelocationEvents = syncClient:drainEvents()
+    local activeRelocation = eventNamed(activeRelocationEvents, "pallet_jack_state")
+
+    authoritativePalletJack = palletJackState({
+        x = 680, y = 542, direction = "northeast",
+        operating = true, moving = false, operatorPlayerId = 1,
+    })
+    authoritativeMachinePoses = machinePoseState({
+        cutter = { x = 680, y = 500, direction = "northeast",
+            moving = false, inMotion = false },
+    })
+    syncHost:update(0.1, syncHostContext)
+    syncClient:update(0, syncClientContext)
+    local terminalRelocationEvents = syncClient:drainEvents()
+    local terminalRelocation = eventNamed(terminalRelocationEvents, "pallet_jack_state")
+
+    -- Terminal poses keep streaming after placement. This makes the final
+    -- machine location self-healing even if the first unreliable terminal
+    -- packet was dropped or crossed a reliable durable update.
+    syncHost:update(0.1, syncHostContext)
+    syncClient:update(0, syncClientContext)
+    local repeatedTerminalEvents = syncClient:drainEvents()
+    local repeatedTerminal = eventNamed(repeatedTerminalEvents, "pallet_jack_state")
+    check("multiplayer_session_streams_active_and_repeated_terminal_machine_poses",
+        activeRelocation and activeRelocation.machines.cutter.moving
+        and activeRelocation.machines.cutter.inMotion
+        and activeRelocation.machines.cutter.x == activeRelocation.jack.x
+        and activeRelocation.machines.cutter.y == activeRelocation.jack.y - 8
+        and activeRelocation.machines.cutter.direction == activeRelocation.jack.direction
+        and terminalRelocation
+        and terminalRelocation.serverTick > activeRelocation.serverTick
+        and not terminalRelocation.machines.cutter.moving
+        and not terminalRelocation.machines.cutter.inMotion
+        and terminalRelocation.machines.cutter.x == 680
+        and terminalRelocation.machines.cutter.y == 500
+        and repeatedTerminal
+        and repeatedTerminal.serverTick > terminalRelocation.serverTick
+        and repeatedTerminal.machines.cutter.x == 680
+        and repeatedTerminal.machines.cutter.y == 500
+        and syncClient.lastPalletJackTick == repeatedTerminal.serverTick)
 
     local deliveredRevision = changed and changed.revision or 1
     local stalePacket = Protocol.encode("shop_state", {
@@ -1099,29 +1172,36 @@ function Test.run(_, check)
     })
     local staleEnvironmentPacket = Protocol.encode("environment_snapshot", {
         sessionId = syncHost.sessionId,
-        serverTick = environmentChanged and environmentChanged.serverTick or syncHost.serverTick,
+        serverTick = syncClient.lastEnvironmentTick,
         bayDoor = { state = "closed", progress = 0 },
         truck = { state = "absent", backingProgress = 0, cargoProgress = 0 },
     })
     local wrongSessionEnvironmentPacket = Protocol.encode("environment_snapshot", {
         sessionId = "other-shop",
-        serverTick = (environmentChanged and environmentChanged.serverTick
-            or syncHost.serverTick) + 1,
+        serverTick = syncClient.lastEnvironmentTick + 1,
         bayDoor = { state = "open", progress = 1 },
         truck = authoritativeEnvironment.truck,
     })
     local stalePalletJackPacket = Protocol.encode("pallet_jack_snapshot", {
         sessionId = syncHost.sessionId,
-        serverTick = palletJackChanged and palletJackChanged.serverTick or syncHost.serverTick,
-        jack = palletJackState({ x = 1, y = 2 }),
+        serverTick = activeRelocation and activeRelocation.serverTick or syncHost.serverTick - 2,
+        jack = palletJackState({
+            x = 640, y = 508, direction = "east",
+            operating = true, moving = true, operatorPlayerId = 1,
+        }),
+        machines = machinePoseState({
+            cutter = { x = 640, y = 500, direction = "east",
+                moving = true, inMotion = true },
+        }),
     })
     local wrongSessionPalletJackPacket = Protocol.encode("pallet_jack_snapshot", {
         sessionId = "other-shop",
-        serverTick = (palletJackChanged and palletJackChanged.serverTick
+        serverTick = (repeatedTerminal and repeatedTerminal.serverTick
             or syncHost.serverTick) + 1,
         jack = palletJackState({
             x = 3, y = 4, operating = true, operatorPlayerId = 2,
         }),
+        machines = machinePoseState(),
     })
     syncNetwork.host:send(syncNetwork.peer, stalePacket,
         Protocol.CHANNEL_DURABLE, true)
@@ -1148,30 +1228,49 @@ function Test.run(_, check)
         eventNamed(rejectedStateEvents, "visitor_state") == nil)
     check("multiplayer_session_guest_ignores_stale_and_wrong_session_environment_state",
         eventNamed(rejectedStateEvents, "environment_state") == nil
-        and syncClient.lastEnvironmentTick == environmentChanged.serverTick)
+        and syncClient.lastEnvironmentTick == syncHost.serverTick)
     check("multiplayer_session_guest_ignores_stale_and_wrong_session_pallet_jack_state",
         eventNamed(rejectedStateEvents, "pallet_jack_state") == nil
-        and syncClient.lastPalletJackTick == palletJackChanged.serverTick)
+        and syncClient.lastPalletJackTick == repeatedTerminal.serverTick)
 
     local forgedStatePacket = Protocol.encode("shop_state", {
         sessionId = syncHost.sessionId,
         revision = deliveredRevision + 100,
         state = { money = 999999, inventory = { paper = 999999 } },
     })
+    local forgedMachinePacket = Protocol.encode("pallet_jack_snapshot", {
+        sessionId = syncHost.sessionId,
+        serverTick = syncHost.serverTick + 100,
+        jack = palletJackState({
+            x = 900, y = 708, direction = "east",
+            operating = true, moving = true, operatorPlayerId = 1,
+        }),
+        machines = machinePoseState({
+            cutter = { x = 900, y = 700, direction = "east",
+                moving = true, inMotion = true },
+        }),
+    })
     syncNetwork:sendRawToHost(forgedStatePacket, Protocol.CHANNEL_DURABLE, true)
+    syncNetwork:sendRawToHost(forgedMachinePacket, Protocol.CHANNEL_STATE, false)
     syncHost:update(0, syncHostContext)
     syncClient:update(0, syncClientContext)
     local rejectionEvents = syncClient:drainEvents()
     local rejected = eventNamed(rejectionEvents, "error")
     local forgedPackets = syncNetwork:messages("client_to_host", "shop_state")
+    local forgedMachinePackets = syncNetwork:messages("client_to_host", "pallet_jack_snapshot")
     check("multiplayer_session_guest_cannot_mutate_authoritative_shop_state",
         #forgedPackets == 1
         and forgedPackets[1].channel == Protocol.CHANNEL_DURABLE
         and forgedPackets[1].reliable
+        and #forgedMachinePackets == 1
+        and forgedMachinePackets[1].channel == Protocol.CHANNEL_STATE
+        and not forgedMachinePackets[1].reliable
         and rejected and rejected.code == "message_not_allowed"
         and authoritativeState.money == 925
         and authoritativeState.inventory.paper == 2375
-        and authoritativeState.jobs.active[1].id == "LAN-JOB-0001")
+        and authoritativeState.jobs.active[1].id == "LAN-JOB-0001"
+        and authoritativeMachinePoses.cutter.x == 680
+        and not authoritativeMachinePoses.cutter.moving)
 
     syncClient:stop("State sync test complete")
     syncHost:update(0, syncHostContext)
