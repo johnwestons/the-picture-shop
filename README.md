@@ -42,6 +42,12 @@ Android host, two Android workers, and a Windows worker reached `4/4 WORKERS`, p
 movement and live cutter/wrapper/Windmill observation, and returned cleanly to `4/4` after the SM-J410G
 left and rejoined. The broader 15-minute, hotspot, and offline-reload checks remain unclaimed.
 
+The protocol-v8 / Android `.13` targeted cutter pass completed on August 29, 2026: an SM-S938U Android
+host, an SM-J410G worker, and a Windows worker reached `3/4 WORKERS` and passed the full remote cutter
+workflow, host and guest one-button cuts, two-worker contention, urgent E-STOP, disconnect/reacquire,
+and clean rejoin. It also fixed and physically verified the carried-pallet/background-overlay crash found
+in `.12`. A fourth device, the 15-minute soak, hotspot coverage, and the final offline reload remain open.
+
 ## Release gate
 
 From a clean, pushed `main` branch, run `./RELEASE.ps1`. This single command

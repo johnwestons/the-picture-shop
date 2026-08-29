@@ -46,11 +46,39 @@ Windows remains the recommended host when the host operator must switch applicat
 15. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
 16. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
 
-## Protocol v8 cutter acceptance — pending physical pass
+## Verified protocol v8 three-device cutter pass — August 29, 2026
 
-Protocol v8 / Android build `0.1.0-android.13` is the current cutter acceptance candidate and has completed its automated gate with 1,217 passes and 0 failures. Record its clean-build APK size, SHA-256, embedded source commit, device roles, full cutter workflow, contention, urgent safety, disconnect/reacquire, and offline host-save result here after the physical run. Until then, the protocol-v7 `.11` four-device result below remains the latest completed physical acceptance.
+Status: **completed for the targeted cutter scope below** using APK `0.1.0-android.13`
+(`versionCode` 13).
 
-Build `.12` reached an SM-S938U Android host with Windows and SM-J410G workers at `3/4`, but was not accepted. While the Windows worker had the remote cutter open, the Android host lifted a pallet; the Windows background-world tooltip evaluated that carried pallet without hover coordinates and stopped in `world_renderer.lua`. Build `.13` guards that cross-snapshot overlay frame and changes multiplayer cutting so either host or guest cut button sends one host-validated cut request.
+- Exact APK: `output/mobile/ThePictureShop-0.1.0-android.13-debug.apk`, 102,505,718 bytes,
+  SHA-256 `a22ec171cdd8983e549902b4c3179c60e0854e58da08c9f8b70882b4d9fd871f`.
+- The embedded mobile package reports clean source commit
+  `941e2060a125c0195de1c941c2c1079e95b833b3`. The Windows PC ran that same source.
+- Automated smoke completed 1,217 passes with 0 failures.
+- Samsung SM-S938U hosted at `192.168.1.137:22122`; Samsung SM-J410G and the Windows PC joined as
+  workers. Every screen reached `3/4 WORKERS`.
+- The host initially advertised its cellular address, `10.11.148.123`, so both workers timed out.
+  Enabling Wi-Fi on the host and rehosting on the same `192.168.1.x` LAN resolved both connections.
+- With the Windows worker's remote cutter console open, the Android host lifted and moved a loaded pallet.
+  The Windows world continued rendering without the `.12` nil-hover-coordinate crash.
+- The Windows worker completed the cutter load/setup/run path with one cut button. The Android host also
+  completed its local multiplayer cut with one cut button. Multiplayer therefore accepts either cutter
+  button as one host-validated action; ordinary offline play retains the two-control requirement.
+- Two-worker contention kept the second operator out with the expected busy state while the first worker
+  held the cutter lease.
+- The urgent E-STOP path passed while an ordinary cutter request was active, and the cutter recovered
+  through its safe reset path.
+- Closing the Windows worker while it held the cutter released the lease safely. The Android host
+  reacquired the same safe batch, and the Windows worker rejoined cleanly at `3/4 WORKERS`.
+
+Build `.12` reached the same Android-host topology but was not accepted. While the Windows worker had the
+remote cutter open, the Android host lifted a pallet; the Windows background-world tooltip evaluated that
+carried pallet without hover coordinates and stopped in `world_renderer.lua`. Build `.13` is the verified
+regression fix.
+
+Not exercised in this targeted pass: a fourth device, the full 15-minute soak, the hotspot matrix, and the
+final offline save reload. Those checklist items remain open; this result does not claim them.
 
 ## Verified protocol v7 four-device machine-pose pass — August 28, 2026
 

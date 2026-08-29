@@ -100,13 +100,13 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 - Cutter maintenance, the Windmill console, vendor and delivery-truck inventory/actions, and initiating or placing a machine relocation remain host-only. Their remaining minigames, inventories, or multi-step transactions need their own authority rules before guest control is enabled.
 - Protocol v7 peers observe the host's live cutter, wrapper, or Windmill relocation, including its final stationary pose, on the pallet-jack tick. Observation does not grant a guest relocation control or write authority.
 - A device that cannot pass the writable-save preflight cannot host. It may still join as a worker; this is the expected role for the older Android phone with its known local-save-directory limitation.
-- All devices must run the same protocol-compatible build. APK `.9` passed the Android-host three-device pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks. `.10` was not accepted after its fourth-player overflow. `.11` passed the targeted four-device join, independent-movement, machine-relocation observation, concurrent guest-interaction, and clean leave/rejoin scope described above.
+- All devices must run the same protocol-compatible build. APK `.9` passed the Android-host three-device pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks. `.10` was not accepted after its fourth-player overflow. `.11` passed the targeted four-device join, independent-movement, machine-relocation observation, concurrent guest-interaction, and clean leave/rejoin scope. `.12` was rejected after its cross-snapshot overlay crash. `.13` passed the targeted Android-host three-device cutter workflow, contention, urgent E-stop, disconnect/reacquire, and rejoin checks.
 - A router's guest-network or client-isolation setting can block LAN traffic even when every device has internet access.
 
 ## Completed roadmap target
 
 - Protocol v7 replicates the fixed-rate live and terminal pose of a host-relocated cutter, skid wrapper, or Windmill, tied to the same authoritative tick as the pallet jack. Automated coverage includes the MTU-safe one-player motion shards, and the targeted `.11` four-device physical pass is complete.
-- Protocol v8 adds the host-authoritative remote cutter production console, bounded live runtime/candidate snapshots, exact resource revisions, urgent safety preemption, safe disconnect/reset behavior, and sale/relocation interlocks. Automated coverage is complete; the `.13` physical cutter pass is the current acceptance gate.
+- Protocol v8 adds the host-authoritative remote cutter production console, bounded live runtime/candidate snapshots, exact resource revisions, urgent safety preemption, safe disconnect/reset behavior, and sale/relocation interlocks. Automated coverage completed with 1,217 passes and 0 failures, and the targeted `.13` Android-host three-device cutter pass is complete.
 
 ## Next roadmap targets
 
@@ -114,4 +114,4 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 2. Add vendor and delivery-truck interactions, including inventory and manifest operations, without allowing guest-side durable writes.
 3. Improve session resilience and convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, an Android foreground-service host mode, and eventually deliberate host migration.
 
-Use `docs/lan_multiplayer_device_test.md` for the exact verified four-device result, its remaining untested matrix items, and the preserved historical three-device results.
+Use `docs/lan_multiplayer_device_test.md` for the exact verified device results, their remaining untested matrix items, and the preserved historical diagnostics.
