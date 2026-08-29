@@ -3,14 +3,16 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.10` (`versionCode` 10)
+- Version: `0.1.0-android.11` (`versionCode` 11)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Output: `output/mobile/ThePictureShop-0.1.0-android.10-debug.apk`
-- LAN: protocol v6 includes fixed 12 Hz terminal/live poses for a host-relocated cutter, skid wrapper,
-  or Windmill on the authoritative pallet-jack tick. The `.10` three-device physical pass is pending.
+- Output: `output/mobile/ThePictureShop-0.1.0-android.11-debug.apk`
+- LAN: protocol v7 fixes protocol v6's fourth-player 1,200-byte roster overflow. Each reliable welcome
+  contains the host and assigned worker; fixed 12 Hz movement uses MTU-safe one-player shards merged by
+  player ID, while cutter, skid-wrapper, and Windmill poses remain on the authoritative pallet-jack tick.
+  The `.11` four-device physical pass and its exact APK SHA-256 are pending.
 
 ## Build and install
 
@@ -41,9 +43,13 @@ keystore and Android App Bundle.
 - Contextual Use, Park, Move, Turn, machine placement, and pallet-jack controls all work.
 - Moving machines or a loaded pallet jack shows the selectable green/red warehouse placement grid;
   touch selection remains aligned after zooming or panning.
-- With an Android host, a connected Android worker and PC observer show a host-relocated cutter, skid
+- With an Android host, two connected Android workers and a PC observer, confirm every screen reaches
+  `4/4 WORKERS` without a packet-size error. Confirm all three guests show a host-relocated cutter, skid
   wrapper, or Windmill attached to the pallet jack throughout movement and rotation. Guests cannot
   initiate or place the relocation, and only a successful placement replaces the durable floor pose.
+- Disconnect and rejoin one worker. The remaining roster falls cleanly to `3/4 WORKERS`, the returning
+  worker receives a fresh host-plus-assigned welcome, and every screen returns to `4/4 WORKERS` without
+  stale or duplicated players.
 - The skid-wrapper console lists every nearby eligible pallet and allows touch or controller-cursor selection.
 - Quote, email, promotion, and cutter gauge fields summon the Android keyboard only after the field is tapped,
   dismiss it after an outside tap, and accept input normally.

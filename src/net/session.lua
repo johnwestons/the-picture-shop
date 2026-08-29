@@ -145,6 +145,7 @@ function Session.new(options)
         port = Address.DEFAULT_PORT,
         serverTick = 0,
         lastServerTick = -1,
+        lastPlayerTicks = {},
         inputSequence = 0,
         inputAccumulator = 0,
         snapshotAccumulator = 0,
@@ -208,6 +209,7 @@ function Session:_resetRuntime()
     self.hostAddress = nil
     self.serverTick = 0
     self.lastServerTick = -1
+    self.lastPlayerTicks = {}
     self.inputSequence = 0
     self.inputAccumulator = 0
     self.snapshotAccumulator = 0
@@ -256,6 +258,7 @@ function Session:stop(reason)
             sessionId = self.sessionId,
             playerId = self.localId,
             reason = reason,
+            serverTick = math.max(0, self.lastServerTick),
         })
         self.transport:flush()
     elseif self.transport and self.mode == "host" and self.sessionId then
@@ -263,6 +266,7 @@ function Session:stop(reason)
             sessionId = self.sessionId,
             playerId = self.localId or 1,
             reason = reason,
+            serverTick = self.serverTick,
         })
         self.transport:flush()
     end
@@ -602,11 +606,19 @@ function Session:_hostWelcome(peer, hello, context)
     self.idToPeer[id] = peer
     self.pendingPeers[peer] = nil
 
+    -- The joining worker needs its own spawn plus the host immediately. Other
+    -- workers arrive through the next sharded motion tick. Keeping this roster
+    -- bounded prevents real-world floating-point poses from exceeding the
+    -- realtime packet ceiling when the fourth worker joins.
+    local welcomePlayers = Codec.array({
+        playerRecord(host),
+        playerRecord(player),
+    })
     local welcomeOk, welcomeError = self:_send(peer, "welcome", {
         sessionId = self.sessionId,
         playerId = id,
         serverTick = self.serverTick,
-        players = self:_records(),
+        players = welcomePlayers,
     })
     local shop = context and context.getShopSnapshot and context.getShopSnapshot() or nil
     local shopOk, shopError
@@ -643,6 +655,7 @@ function Session:_removePeer(peer, reason)
         sessionId = self.sessionId,
         playerId = id,
         reason = tostring(reason or "Disconnected"),
+        serverTick = self.serverTick,
     })
     self.status = tostring(countEntries(self.players)) .. "/4 workers connected"
     self:_queue("player_left", { playerId = id, name = player and player.name, reason = reason })
@@ -708,12 +721,15 @@ function Session:_handleHostEnvelope(peer, envelope, context)
     end
 end
 
-function Session:_installRoster(records)
+function Session:_installRoster(records, serverTick)
     local installed = {}
+    local ticks = {}
     for _, record in ipairs(records or {}) do
         installed[record.id] = newPlayer(record)
+        if serverTick ~= nil then ticks[record.id] = serverTick end
     end
     self.players = installed
+    self.lastPlayerTicks = ticks
 end
 
 function Session:_acceptShopState(payload)
@@ -759,29 +775,28 @@ function Session:_bufferShopState(payload)
 end
 
 function Session:_applySnapshot(payload)
-    if payload.sessionId ~= self.sessionId or payload.serverTick <= self.lastServerTick then return end
-    self.lastServerTick = payload.serverTick
-    local seen = {}
+    if payload.sessionId ~= self.sessionId then return end
+    self.lastServerTick = math.max(self.lastServerTick, payload.serverTick)
     for _, record in ipairs(payload.players or {}) do
-        seen[record.id] = true
-        local player = self.players[record.id]
-        if not player then
-            player = newPlayer(record)
-            self.players[record.id] = player
+        local previousTick = self.lastPlayerTicks[record.id] or -1
+        if payload.serverTick > previousTick then
+            self.lastPlayerTicks[record.id] = payload.serverTick
+            local player = self.players[record.id]
+            if not player then
+                player = newPlayer(record)
+                self.players[record.id] = player
+            end
+            player.name, player.character = record.name, record.character
+            player._targetX, player._targetY = record.x, record.y
+            player._targetRecord = record
+            if record.id == self.localId then
+                self.localTarget = record
+            elseif (player.x - record.x) ^ 2 + (player.y - record.y) ^ 2
+                > TELEPORT_DISTANCE * TELEPORT_DISTANCE
+            then
+                copyMotion(player, record, true)
+            end
         end
-        player.name, player.character = record.name, record.character
-        player._targetX, player._targetY = record.x, record.y
-        player._targetRecord = record
-        if record.id == self.localId then
-            self.localTarget = record
-        elseif (player.x - record.x) ^ 2 + (player.y - record.y) ^ 2
-            > TELEPORT_DISTANCE * TELEPORT_DISTANCE
-        then
-            copyMotion(player, record, true)
-        end
-    end
-    for id in pairs(self.players) do
-        if id ~= self.localId and not seen[id] then self.players[id] = nil end
     end
 end
 
@@ -791,7 +806,7 @@ function Session:_handleClientEnvelope(envelope)
         self.sessionId = payload.sessionId
         self.localId = payload.playerId
         self.lastServerTick = payload.serverTick - 1
-        self:_installRoster(payload.players)
+        self:_installRoster(payload.players, payload.serverTick)
         self.status = "Receiving the host shop..."
         local pending = self.pendingShopSnapshot
         self.pendingShopSnapshot = nil
@@ -953,6 +968,9 @@ function Session:_handleClientEnvelope(envelope)
             self:_markDisconnected(payload.reason or "The host closed the shop.")
         else
             self.players[payload.playerId] = nil
+            self.lastPlayerTicks[payload.playerId] = math.max(
+                self.lastPlayerTicks[payload.playerId] or -1,
+                payload.serverTick or self.lastServerTick)
             self:_queue("player_left", { playerId = payload.playerId, reason = payload.reason })
         end
     elseif envelope.type == "error" then
@@ -1092,12 +1110,20 @@ function Session:_updateHost(dt, context)
     if self.snapshotAccumulator >= SNAPSHOT_INTERVAL then
         self.snapshotAccumulator = self.snapshotAccumulator % SNAPSHOT_INTERVAL
         self.serverTick = self.serverTick + 1
-        local ok, errorMessage = self:_broadcast("snapshot", {
-            sessionId = self.sessionId,
-            serverTick = self.serverTick,
-            players = self:_records(),
-        })
-        if not ok then self:_queue("error", { message = errorMessage }) end
+        -- Motion is intentionally sent as one player per packet. Every shard
+        -- shares the tick, and clients merge them by player id. This keeps four
+        -- real, full-precision poses under the 1,200-byte unreliable limit.
+        for _, record in ipairs(self:_records()) do
+            local ok, errorMessage = self:_broadcastJoined("snapshot", {
+                sessionId = self.sessionId,
+                serverTick = self.serverTick,
+                players = Codec.array({ record }),
+            })
+            if not ok then
+                self:_queue("error", { message = errorMessage })
+                break
+            end
+        end
         local visitors = context and context.getVisitorSnapshot
             and context.getVisitorSnapshot() or nil
         if type(visitors) == "table" and type(visitors.customer) == "table"

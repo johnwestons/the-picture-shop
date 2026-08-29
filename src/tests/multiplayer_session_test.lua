@@ -154,6 +154,85 @@ local function fakeNetwork()
     return network
 end
 
+local function captureHostNetwork()
+    local network = {
+        log = {},
+        disconnects = {},
+        closes = {},
+        flushes = 0,
+        factory = {},
+        peers = {
+            { id = "phone-worker-2" },
+            { id = "phone-worker-3" },
+            { id = "pc-worker-4" },
+        },
+    }
+
+    local function record(direction, peer, payload, channel, reliable)
+        local envelope = Protocol.decode(payload)
+        network.log[#network.log + 1] = {
+            direction = direction,
+            peer = peer,
+            kind = envelope and envelope.type or "invalid",
+            payload = payload,
+            channel = channel,
+            reliable = reliable == true,
+        }
+    end
+
+    function network.factory.createHost(options)
+        network.hostOptions = options
+        local transport = { closed = false }
+        function transport:service() return {} end
+        function transport:send(peer, payload, channel, reliable)
+            if self.closed then return false, "fake host is unavailable" end
+            record("host_to_client", peer, payload, channel, reliable)
+            return true
+        end
+        function transport:broadcast(payload, channel, reliable)
+            if self.closed then return false, "fake host is unavailable" end
+            record("host_broadcast", nil, payload, channel, reliable)
+            return true
+        end
+        function transport:disconnect(peer, code, immediate)
+            network.disconnects[#network.disconnects + 1] = {
+                peer = peer,
+                code = code,
+                immediate = immediate == true,
+            }
+            return true
+        end
+        function transport:flush()
+            network.flushes = network.flushes + 1
+            return true
+        end
+        function transport:close(code, immediate)
+            self.closed = true
+            network.closes[#network.closes + 1] = {
+                code = code,
+                immediate = immediate == true,
+            }
+            return true
+        end
+        network.host = transport
+        return transport
+    end
+
+    function network:messages(direction, kind)
+        local matches = {}
+        for _, item in ipairs(self.log) do
+            if (not direction or item.direction == direction)
+                and (not kind or item.kind == kind)
+            then
+                matches[#matches + 1] = item
+            end
+        end
+        return matches
+    end
+
+    return network
+end
+
 local function motionPlayer(x, y)
     return {
         x = x,
@@ -167,6 +246,36 @@ local function motionPlayer(x, y)
         animationDistance = 0,
         character = "rabbit-worker",
     }
+end
+
+local function floatHeavyPlayerRecord(id, x, y)
+    return {
+        id = id,
+        name = id == 1 and "LAN Host" or ("LAN Worker " .. tostring(id)),
+        x = x or (420.12345678901235 + id * 0.9876543210987654),
+        y = y or (520.98765432109872 - id * 0.12345678901234567),
+        velocityX = 123.45678901234567,
+        velocityY = -98.765432109876543,
+        intentX = 0.70710678118654757,
+        intentY = -0.70710678118654757,
+        moving = true,
+        facing = id % 2 == 0 and -1 or 1,
+        animationDistance = 123456789.12345679 + id * 0.00000011920928955,
+        character = "rabbit-worker",
+        inputSequence = 4000000000 + id,
+    }
+end
+
+local function applyFloatHeavyMotion(target, id)
+    if type(target) ~= "table" then return target end
+    local source = floatHeavyPlayerRecord(id)
+    for _, field in ipairs({
+        "x", "y", "velocityX", "velocityY", "intentX", "intentY", "moving",
+        "facing", "animationDistance", "character", "inputSequence",
+    }) do
+        target[field] = source[field]
+    end
+    return target
 end
 
 local function visitorState(state, visible, x, y, character)
@@ -230,6 +339,230 @@ end
 local function decodedPayload(message)
     local envelope = message and Protocol.decode(message.payload)
     return envelope and envelope.payload
+end
+
+local function runFourDeviceShardingRegression(check, clock, addressOptions)
+    local network = captureHostNetwork()
+    local host = Session.new({ transportFactory = network.factory, clock = clock })
+    local context = {
+        localPlayer = floatHeavyPlayerRecord(1),
+        resolveGuestSpawn = function(hostX, hostY, guestIndex)
+            return hostX + guestIndex * 7.1234567890123457,
+                hostY - guestIndex * 3.9876543210987654
+        end,
+        getShopSnapshot = function()
+            return {
+                state = {
+                    money = 2345,
+                    inventory = { paper = 2500 },
+                    jobs = { active = {}, completed = {} },
+                },
+                player = { x = 420.12345678901235, y = 520.98765432109872,
+                    character = "rabbit-worker" },
+            }
+        end,
+        moveRemote = function() end,
+    }
+    host:startHost({
+        name = "LAN Host",
+        character = "rabbit-worker",
+        x = context.localPlayer.x,
+        y = context.localPlayer.y,
+        addressOptions = addressOptions,
+    })
+    host.sessionId = "four-device-shards"
+    applyFloatHeavyMotion(host.players[1], 1)
+
+    local function helloEnvelope(id)
+        local packet = Protocol.encode("hello", {
+            clientNonce = "float-worker-" .. tostring(id),
+            name = "LAN Worker " .. tostring(id),
+            character = "rabbit-worker",
+        })
+        return packet and Protocol.decode(packet)
+    end
+
+    for id = 2, 3 do
+        host:_handleHostEnvelope(network.peers[id - 1], helloEnvelope(id), context)
+        applyFloatHeavyMotion(host.players[id], id)
+    end
+    host:drainEvents()
+    network.log = {}
+
+    host:_handleHostEnvelope(network.peers[3], helloEnvelope(4), context)
+    local fourthJoinEvents = host:drainEvents()
+    local fourthJoined = eventNamed(fourthJoinEvents, "player_joined")
+    local fourthJoinError = eventNamed(fourthJoinEvents, "error")
+    local fourthWelcomes = network:messages("host_to_client", "welcome")
+    local fourthShops = network:messages("host_to_client", "shop_snapshot")
+    local fourthWelcome = decodedPayload(fourthWelcomes[1])
+    check("multiplayer_session_fourth_float_heavy_worker_receives_mtu_safe_welcome",
+        fourthJoined and fourthJoined.playerId == 4 and fourthJoinError == nil
+        and host.players[4]
+        and host.peerToId[network.peers[3]] == 4
+        and host.idToPeer[4] == network.peers[3]
+        and #fourthWelcomes == 1 and #fourthShops == 1
+        and #fourthWelcomes[1].payload <= Protocol.MAX_PACKET_BYTES
+        and fourthWelcome and fourthWelcome.playerId == 4
+        and #fourthWelcome.players == 2
+        and fourthWelcome.players[1].id == 1
+        and fourthWelcome.players[2].id == 4
+        and #network.disconnects == 0)
+
+    applyFloatHeavyMotion(host.players[4], 4)
+    local pendingSnapshotPeer = { id = "pending-no-hello" }
+    host.pendingPeers[pendingSnapshotPeer] = clock()
+    network.log = {}
+    host:update(0.1, context)
+    local allSnapshots = network:messages("host_to_client", "snapshot")
+    local selectedSnapshots, snapshotsByPeer = {}, {}
+    local pendingPeerReceivedSnapshot = false
+    for _, message in ipairs(allSnapshots) do
+        snapshotsByPeer[message.peer] = (snapshotsByPeer[message.peer] or 0) + 1
+        if message.peer == network.peers[3] then
+            selectedSnapshots[#selectedSnapshots + 1] = message
+        elseif message.peer == pendingSnapshotPeer then
+            pendingPeerReceivedSnapshot = true
+        end
+    end
+    local shardTick, seenShardIds = nil, {}
+    local shardsValid = #allSnapshots == 12
+        and #selectedSnapshots == 4
+        and snapshotsByPeer[network.peers[1]] == 4
+        and snapshotsByPeer[network.peers[2]] == 4
+        and snapshotsByPeer[network.peers[3]] == 4
+        and not pendingPeerReceivedSnapshot
+    for _, message in ipairs(selectedSnapshots) do
+        local payload = decodedPayload(message)
+        shardsValid = shardsValid and payload ~= nil
+            and #payload.players == 1
+            and #message.payload <= Protocol.MAX_PACKET_BYTES
+            and message.channel == Protocol.CHANNEL_STATE
+            and not message.reliable
+        if payload then
+            shardTick = shardTick or payload.serverTick
+            local id = payload.players[1].id
+            shardsValid = shardsValid
+                and payload.serverTick == shardTick and not seenShardIds[id]
+            seenShardIds[id] = true
+        end
+    end
+    check("multiplayer_session_four_player_tick_emits_four_same_tick_snapshot_shards",
+        shardsValid and shardTick == host.serverTick
+        and seenShardIds[1] and seenShardIds[2] and seenShardIds[3] and seenShardIds[4])
+
+    local mergeClient = Session.new({ clock = clock })
+    mergeClient.mode = "client"
+    mergeClient.sessionId = "merge-snapshot-shards"
+    mergeClient.localId = 4
+    mergeClient.ready = true
+    mergeClient:_installRoster(Codec.array({
+        floatHeavyPlayerRecord(1),
+        floatHeavyPlayerRecord(4),
+    }))
+
+    local function deliverShard(record, tick)
+        local packet = Protocol.encode("snapshot", {
+            sessionId = mergeClient.sessionId,
+            serverTick = tick,
+            players = Codec.array({ record }),
+        })
+        local envelope = packet and Protocol.decode(packet)
+        if not envelope then return false end
+        mergeClient:_handleClientEnvelope(envelope)
+        return true
+    end
+
+    local mergeDelivered = true
+    for id = 1, 4 do
+        mergeDelivered = deliverShard(floatHeavyPlayerRecord(
+            id, 500 + id * 10.123456789012346, 600 + id * 0.9876543210987654), 70)
+            and mergeDelivered
+    end
+    mergeDelivered = deliverShard(floatHeavyPlayerRecord(2, 620.25, 602.25), 71)
+        and mergeDelivered
+    mergeDelivered = deliverShard(floatHeavyPlayerRecord(1, 510.5, 601.5), 72)
+        and mergeDelivered
+    -- This is older than the latest global tick, but newer for player 3.
+    mergeDelivered = deliverShard(floatHeavyPlayerRecord(3, 630.75, 603.75), 71)
+        and mergeDelivered
+    -- Player 2 already has tick 71; delayed tick 70 must not regress it.
+    mergeDelivered = deliverShard(floatHeavyPlayerRecord(2, 99, 99), 70)
+        and mergeDelivered
+    check("multiplayer_session_client_merges_same_tick_shards_with_per_player_freshness",
+        mergeDelivered
+        and mergeClient.players[1] and mergeClient.players[2]
+        and mergeClient.players[3] and mergeClient.players[4]
+        and mergeClient.players[1]._targetX == 510.5
+        and mergeClient.players[2]._targetX == 620.25
+        and mergeClient.players[3]._targetX == 630.75
+        and mergeClient.localTarget and mergeClient.localTarget.id == 4
+        and mergeClient.lastServerTick == 72)
+
+    local leavePacket = Protocol.encode("leave", {
+        sessionId = mergeClient.sessionId,
+        playerId = 3,
+        reason = "Connection lost",
+        serverTick = 73,
+    })
+    local leaveEnvelope = leavePacket and Protocol.decode(leavePacket)
+    if leaveEnvelope then mergeClient:_handleClientEnvelope(leaveEnvelope) end
+    local leaveEvents = mergeClient:drainEvents()
+    local playerLeft = eventNamed(leaveEvents, "player_left")
+    local tombstoneInstalled = playerLeft and playerLeft.playerId == 3
+        and mergeClient.players[3] == nil
+        and mergeClient.lastPlayerTicks[3] == 73
+    local staleDepartedShardDelivered = deliverShard(
+        floatHeavyPlayerRecord(3, 333, 333), 72)
+    local staleDepartedShardBlocked = mergeClient.players[3] == nil
+        and mergeClient.lastPlayerTicks[3] == 73
+    local reusedIdShardDelivered = deliverShard(
+        floatHeavyPlayerRecord(3, 734, 734), 74)
+    check("multiplayer_session_leave_tombstone_blocks_delayed_shard_until_id_is_newer",
+        leaveEnvelope and tombstoneInstalled and staleDepartedShardDelivered
+        and staleDepartedShardBlocked and reusedIdShardDelivered
+        and mergeClient.players[3]
+        and mergeClient.players[3]._targetX == 734
+        and mergeClient.lastPlayerTicks[3] == 74)
+
+    local seedClient = Session.new({ clock = clock })
+    seedClient.mode = "client"
+    local seedHost = floatHeavyPlayerRecord(1, 501, 601)
+    local seedSelf = floatHeavyPlayerRecord(4, 504, 604)
+    local seedWelcomePacket = Protocol.encode("welcome", {
+        sessionId = "welcome-seed-ticks",
+        playerId = 4,
+        serverTick = 80,
+        players = Codec.array({ seedHost, seedSelf }),
+    })
+    local seedWelcome = seedWelcomePacket and Protocol.decode(seedWelcomePacket)
+    if seedWelcome then seedClient:_handleClientEnvelope(seedWelcome) end
+    seedClient.ready = seedWelcome ~= nil
+    local function deliverSeedShard(record, tick)
+        local packet = Protocol.encode("snapshot", {
+            sessionId = seedClient.sessionId,
+            serverTick = tick,
+            players = Codec.array({ record }),
+        })
+        local envelope = packet and Protocol.decode(packet)
+        if not envelope then return false end
+        seedClient:_handleClientEnvelope(envelope)
+        return true
+    end
+    local sameTickSeedDelivered = deliverSeedShard(
+        floatHeavyPlayerRecord(1, 999, 999), 80)
+    local sameTickSeedBlocked = seedClient.players[1]
+        and seedClient.players[1].x == 501
+        and seedClient.players[1]._targetX == 501
+    local newerSeedDelivered = deliverSeedShard(
+        floatHeavyPlayerRecord(1, 811, 611), 81)
+    check("multiplayer_session_welcome_seeds_per_player_snapshot_ticks",
+        seedWelcome and seedClient.lastPlayerTicks[4] == 80
+        and sameTickSeedDelivered and sameTickSeedBlocked and newerSeedDelivered
+        and seedClient.players[1]._targetX == 811
+        and seedClient.lastPlayerTicks[1] == 81)
+
+    host:stop("Four-device shard test complete")
 end
 
 function Test.run(_, check)
@@ -366,13 +699,30 @@ function Test.run(_, check)
     host:update(0.04, hostContext)
     client:update(0, clientContext)
     local authoritativeX, authoritativeY = host.players[2].x, host.players[2].y
-    local snapshots = network:messages("host_broadcast", "snapshot")
+    local snapshots = network:messages("host_to_client", "snapshot")
+    local guestSnapshot, sharedSnapshotTick
+    local snapshotShardsValid = #snapshots == 2
+    for _, message in ipairs(snapshots) do
+        local payload = decodedPayload(message)
+        snapshotShardsValid = snapshotShardsValid and payload ~= nil
+            and #payload.players == 1
+            and #message.payload <= Protocol.MAX_PACKET_BYTES
+        if payload then
+            sharedSnapshotTick = sharedSnapshotTick or payload.serverTick
+            snapshotShardsValid = snapshotShardsValid
+                and payload.serverTick == sharedSnapshotTick
+            if payload.players[1].id == 2 then guestSnapshot = payload end
+        end
+    end
     check("multiplayer_session_host_snapshot_returns_guest_motion_to_client",
-        #snapshots == 1 and snapshots[1].channel == Protocol.CHANNEL_STATE
+        snapshotShardsValid and guestSnapshot
+        and snapshots[1].channel == Protocol.CHANNEL_STATE
         and not snapshots[1].reliable and host.serverTick == 1 and client.lastServerTick == 1
         and client.localTarget and client.localTarget.id == 2
         and math.abs(client.localTarget.x - authoritativeX) < 0.0001
         and math.abs(client.localTarget.y - authoritativeY) < 0.0001)
+
+    runFourDeviceShardingRegression(check, clock, addressOptions)
 
     local staleInput = Protocol.encode("input", {
         sessionId = host.sessionId,
@@ -603,7 +953,8 @@ function Test.run(_, check)
     client:update(0, clientContext)
     local oversizedGuestError = eventNamed(client:drainEvents(), "error")
     check("multiplayer_session_guest_packets_are_capped_before_large_codec_decode",
-        oversizedGuestError and oversizedGuestError.code == "bad_packet"
+        Protocol.MAX_PACKET_BYTES == 1200
+        and oversizedGuestError and oversizedGuestError.code == "bad_packet"
         and #network:messages("host_to_client", "error") == oversizedCount + 1
         and host.players[2].lastInteractionRequestId == 5
         and #interactionCalls == 4 and interactionMutations == 3)

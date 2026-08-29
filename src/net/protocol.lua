@@ -2,7 +2,7 @@ local Codec = require("src.net.codec")
 local MachinePose = require("src.machine_pose")
 
 local Protocol = {
-    VERSION = 6,
+    VERSION = 7,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -1117,6 +1117,9 @@ local function normalizeSnapshot(payload)
     local serverTick
     serverTick, fieldError = integerInRange(payload.serverTick, 0, UINT32_MAX, "snapshot.serverTick")
     if not serverTick then return nil, fieldError end
+    if not Codec.isArray(payload.players) or #payload.players ~= 1 then
+        return nil, "snapshot.players must contain exactly one player"
+    end
     local players
     players, fieldError = normalizePlayers(payload.players, "snapshot.players")
     if not players then return nil, fieldError end
@@ -1334,7 +1337,7 @@ end
 
 local function normalizeLeave(payload)
     local valid, shapeError = shape(payload, "leave payload",
-        { "sessionId", "playerId", "reason" })
+        { "sessionId", "playerId", "reason" }, { "serverTick" })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(payload.sessionId, MAX_TOKEN_BYTES, "leave.sessionId")
     if not sessionId then return nil, fieldError end
@@ -1345,7 +1348,13 @@ local function normalizeLeave(payload)
     local reason
     reason, fieldError = printableString(payload.reason, 1, MAX_REASON_BYTES, "leave.reason")
     if not reason then return nil, fieldError end
-    return { sessionId = sessionId, playerId = playerId, reason = reason }
+    local normalized = { sessionId = sessionId, playerId = playerId, reason = reason }
+    if payload.serverTick ~= nil then
+        normalized.serverTick, fieldError = integerInRange(
+            payload.serverTick, 0, UINT32_MAX, "leave.serverTick")
+        if not normalized.serverTick then return nil, fieldError end
+    end
+    return normalized
 end
 
 local function normalizeError(payload)

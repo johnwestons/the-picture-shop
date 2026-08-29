@@ -1,6 +1,6 @@
 # LAN multiplayer device test
 
-Use this checklist for protocol v6's supported LAN direction: any Windows or Android device with a writable selected save can host and own the authoritative shop, while up to three PC or Android devices join as workers. Use the same protocol-compatible game build throughout one pass.
+Use this checklist for protocol v7's supported LAN direction: any Windows or Android device with a writable selected save can host and own the authoritative shop, while up to three PC or Android devices join as workers. Use the same protocol-compatible game build throughout one pass.
 
 ## Prepare the build and devices
 
@@ -25,7 +25,7 @@ Use this checklist for protocol v6's supported LAN direction: any Windows or And
 3. Backgrounding or unfocusing the Android game intentionally ends the authoritative LAN session. This is a safety rule, not automatic reconnect behavior.
 4. Record the Android host address shown in the HUD, including UDP port `22122`.
 
-## Protocol v6 interaction pass
+## Protocol v7 interaction pass
 
 1. On the chosen host, select the save slot and choose **LOCAL PLAY > HOST THIS SHOP**.
 2. On each worker, choose **LOCAL PLAY > JOIN A SHOP**, enter the host's IPv4 address manually, and join. Entering `address:port` is also supported.
@@ -43,19 +43,50 @@ Use this checklist for protocol v6's supported LAN direction: any Windows or And
 14. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
 15. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
 
-## Pending protocol v6 three-device machine-pose pass
+## Pending protocol v7 four-device machine-pose pass
 
-Status: **pending**. This section is an acceptance checklist for APK `0.1.0-android.10` (`versionCode` 10), not a claimed physical result.
+Status: **pending**. This section is an acceptance checklist for APK `0.1.0-android.11` (`versionCode` 11), not a claimed physical result.
 
-Exact APK under test: SHA-256 `b6a2872f5c0dbce5167c0af2886501fc2e3b999183ff8ed1c66209a851f093e2` (102,481,339 bytes).
+Exact APK for the pending pass: SHA-256 **pending**. Record the value and byte count from
+`output/mobile/apk-report.json` after building the one artifact used for the pass.
 
-- Build the APK once, record its SHA-256, and install that unchanged artifact on both phones.
-- Use the Samsung SM-S938U as the writable Android host, the Samsung SM-J410G as an Android worker, and the Windows PC as the second worker/observer. Confirm every screen reports `3/4 WORKERS`.
-- For the cutter, skid wrapper, and Windmill, have the Android host acquire an empty pallet jack and begin relocation. The Android worker and PC must show one attached machine at the host's live position with the same direction and motion state; neither guest may initiate or place it. While the host keeps the relocation active, verify each guest can still use an unrelated supported door, computer, client, or workstation interaction.
-- Drive straight and diagonally, stop and restart, and rotate through all eight cutter directions and all four wrapper/Windmill directions. Keep one relocation active beyond the 30-second durable-state fallback and confirm neither observer snaps to the last committed floor pose.
-- Reject one blocked/red placement, then complete one valid green placement. The rejected attempt must leave the live machine attached; the accepted attempt must give all devices the same stationary terminal pose without a late remount or duplicate sprite.
-- Rejoin the PC for a fresh snapshot, then end the host session and reload the host save offline. Only successfully placed poses may persist; an in-progress relocation must retain the previously committed floor pose.
-- Record the host address, device versions and roles, APK SHA-256, per-machine pass/fail result, and representative start, moving/rotated, and final-placement captures.
+Protocol v7 replaces the overflowing protocol-v6 full roster with a reliable welcome containing the host
+and assigned worker, followed by 12 Hz one-player MTU-safe motion shards that clients merge by player ID.
+The pass must prove the fourth join no longer exceeds the 1,200-byte realtime packet ceiling.
+
+- Build the APK once, record its SHA-256 and byte count, and install that unchanged artifact on all three
+  phones. Run the Windows PC from the same protocol-v7 source revision and record that revision.
+- Use the Samsung SM-S938U as the writable Android host, the Samsung SM-S928U1 and Samsung SM-J410G as
+  Android workers, and the Windows PC as the third worker/observer.
+- Join both Android workers first and confirm every active screen reports `3/4 WORKERS`. Join the Windows
+  PC last. Confirm its host-plus-assigned welcome completes, every screen reaches `4/4 WORKERS`, all four
+  workers remain visible and independently movable, and no codec, `maxBytes`, protocol, or packet-size
+  error appears.
+- For the cutter, skid wrapper, and Windmill, have the Android host acquire an empty pallet jack and begin
+  relocation. Both Android workers and the PC must show one attached machine at the host's live position
+  with the same direction and motion state; no guest may initiate or place it. While the host keeps each
+  relocation active, verify a guest can still use an unrelated supported door, computer, client, or
+  workstation interaction.
+- Drive straight and diagonally, stop and restart, and rotate through all eight cutter directions and all
+  four wrapper/Windmill directions. Keep one relocation active beyond the 30-second durable-state fallback
+  and confirm none of the three observers snaps to the last committed floor pose.
+- Reject one blocked/red placement, then complete one valid green placement for each machine. The rejected
+  attempt must leave the live machine attached; the accepted attempt must give all four devices the same
+  stationary terminal pose without a late remount or duplicate sprite.
+- Disconnect one worker and confirm every remaining screen falls cleanly to `3/4 WORKERS` without a stale
+  avatar. Rejoin that worker as the fourth participant, confirm a fresh host-plus-assigned welcome, and
+  verify every screen returns to `4/4 WORKERS` with the full roster and current machine poses intact.
+- End the host session and reload the host save offline. Only successfully placed poses may persist; an
+  in-progress relocation must retain the previously committed floor pose.
+- Record the host address, all device versions and roles, source revision, APK SHA-256 and byte count,
+  fourth-join and rejoin results, per-machine pass/fail result, representative start/moving/rotated/final
+  captures from all device classes, and post-test runtime logs.
+
+The superseded protocol-v6 APK `0.1.0-android.10` (`versionCode` 10), SHA-256
+`151a0958d0d8215ee3c38c64cbf35db3af9a58d5182d01d2e2018cd824159155` (102,481,341 bytes),
+reached the SM-S938U host plus the two Android workers at `3/4 WORKERS`. The Windows PC's fourth join
+then exposed `protocol: codec encode failed: encoded value exceeds maxBytes`. This diagnostic result is
+retained to explain the v7 hotfix; it is not a physical acceptance pass.
 
 ## Disconnect and hotspot matrix
 

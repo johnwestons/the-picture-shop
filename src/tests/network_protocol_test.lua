@@ -31,6 +31,36 @@ local function roster()
     })
 end
 
+-- Runtime movement accumulates binary floating-point values rather than the
+-- compact integers used by most protocol fixtures. These records model the
+-- wire cost that exposed the four-device v6 roster overflow.
+local function fullPrecisionPlayer(id)
+    return {
+        id = id,
+        name = id == 1 and "LAN Host" or ("LAN Worker " .. tostring(id)),
+        x = 420.12345678901235 + id * 0.9876543210987654,
+        y = 520.98765432109872 - id * 0.12345678901234567,
+        velocityX = 123.45678901234567,
+        velocityY = -98.765432109876543,
+        intentX = 0.70710678118654757,
+        intentY = -0.70710678118654757,
+        moving = true,
+        facing = id % 2 == 0 and -1 or 1,
+        animationDistance = 123456789.12345679 + id * 0.00000011920928955,
+        character = "rabbit-worker",
+        inputSequence = 4000000000 + id,
+    }
+end
+
+local function fullPrecisionRoster()
+    return Codec.array({
+        fullPrecisionPlayer(1),
+        fullPrecisionPlayer(2),
+        fullPrecisionPlayer(3),
+        fullPrecisionPlayer(4),
+    })
+end
+
 local function visitor(state, visible, x, y)
     return {
         state = state,
@@ -167,6 +197,90 @@ local function machinePoses(overrides)
     return poses
 end
 
+local function runShardedPlayerProtocolRegression(check)
+    local precisionRoster = fullPrecisionRoster()
+    local combinedRosterBytes = Codec.encode({
+        version = Protocol.VERSION,
+        type = "snapshot",
+        payload = {
+            sessionId = "session-full-precision",
+            serverTick = 4000000000,
+            players = precisionRoster,
+        },
+    }, {
+        maxBytes = 64 * 1024,
+        maxDepth = 8,
+        maxEntries = 128,
+        maxStringBytes = 160,
+        maxNumberBytes = 32,
+    })
+    local welcomePacket = Protocol.encode("welcome", {
+        sessionId = "session-full-precision",
+        playerId = 4,
+        serverTick = 4000000000,
+        players = Codec.array({ precisionRoster[4], precisionRoster[1] }),
+    })
+    local welcomeEnvelope = welcomePacket and Protocol.decode(welcomePacket)
+    local shardPackets, shardsBounded = {}, true
+    for id = 1, 4 do
+        shardPackets[id] = Protocol.encode("snapshot", {
+            sessionId = "session-full-precision",
+            serverTick = 4000000000,
+            players = Codec.array({ precisionRoster[id] }),
+        })
+        shardsBounded = shardsBounded and shardPackets[id] ~= nil
+            and #shardPackets[id] <= Protocol.MAX_PACKET_BYTES
+    end
+    local combinedSnapshot = Protocol.encode("snapshot", {
+        sessionId = "session-full-precision",
+        serverTick = 4000000000,
+        players = Codec.array({ precisionRoster[1], precisionRoster[2] }),
+    })
+    check("network_protocol_v7_player_updates_are_mtu_safe_shards",
+        combinedRosterBytes and #combinedRosterBytes > 1200
+        and Protocol.MAX_PACKET_BYTES == 1200
+        and welcomeEnvelope and welcomeEnvelope.payload.playerId == 4
+        and #welcomeEnvelope.payload.players == 2
+        and welcomeEnvelope.payload.players[1].id == 1
+        and welcomeEnvelope.payload.players[2].id == 4
+        and #welcomePacket <= Protocol.MAX_PACKET_BYTES
+        and shardsBounded
+        and combinedSnapshot == nil,
+        string.format("combined=%s welcome=%s shards=%s/%s/%s/%s limit=%s",
+            tostring(combinedRosterBytes and #combinedRosterBytes),
+            tostring(welcomePacket and #welcomePacket),
+            tostring(shardPackets[1] and #shardPackets[1]),
+            tostring(shardPackets[2] and #shardPackets[2]),
+            tostring(shardPackets[3] and #shardPackets[3]),
+            tostring(shardPackets[4] and #shardPackets[4]),
+            tostring(Protocol.MAX_PACKET_BYTES)))
+end
+
+local function runLeaveTickProtocolRegression(check)
+    local legacyLeavePacket = Protocol.encode("leave", {
+        sessionId = "session-001", playerId = 3, reason = "Connection lost",
+    })
+    local timedLeavePacket = Protocol.encode("leave", {
+        sessionId = "session-001", playerId = 3, reason = "Connection lost",
+        serverTick = 4294967295,
+    })
+    local timedLeave = timedLeavePacket and Protocol.decode(timedLeavePacket)
+    local fractionalLeaveTick = Protocol.encode("leave", {
+        sessionId = "session-001", playerId = 3, reason = "Connection lost",
+        serverTick = 4.5,
+    })
+    local overflowingLeaveTick = Protocol.encode("leave", {
+        sessionId = "session-001", playerId = 3, reason = "Connection lost",
+        serverTick = 4294967296,
+    })
+    check("network_protocol_leave_accepts_optional_bounded_server_tick",
+        legacyLeavePacket and timedLeavePacket and timedLeave
+        and #legacyLeavePacket <= Protocol.MAX_PACKET_BYTES
+        and #timedLeavePacket <= Protocol.MAX_PACKET_BYTES
+        and timedLeave.payload.serverTick == 4294967295
+        and fractionalLeaveTick == nil and overflowingLeaveTick == nil)
+end
+
 function Test.run(context, check)
     local first = {
         zeta = 12.5,
@@ -213,7 +327,8 @@ function Test.run(context, check)
             clientNonce = "phone-001", name = "Phone One", character = "rabbit-worker",
         } },
         { "welcome", {
-            sessionId = "session-001", playerId = 2, serverTick = 30, players = players,
+            sessionId = "session-001", playerId = 2, serverTick = 30,
+            players = Codec.array({ players[1], players[2] }),
         } },
         { "shop_snapshot", {
             sessionId = "session-001",
@@ -281,7 +396,8 @@ function Test.run(context, check)
             sessionId = "session-001", sequence = 17, moveX = 1, moveY = -1,
         } },
         { "snapshot", {
-            sessionId = "session-001", serverTick = 31, players = players,
+            sessionId = "session-001", serverTick = 31,
+            players = Codec.array({ players[2] }),
         } },
         { "visitor_snapshot", {
             sessionId = "session-001",
@@ -316,28 +432,9 @@ function Test.run(context, check)
             and envelope.version == Protocol.VERSION and envelope.type == message[1]
             and #packet <= packetLimit
     end
-    check("network_protocol_all_v6_envelopes_round_trip", roundTrips)
+    check("network_protocol_all_v7_envelopes_round_trip", roundTrips)
 
-    local orderedPacket = Protocol.encode("snapshot", {
-        sessionId = "session-001", serverTick = 40, players = roster(),
-    })
-    local reversePlayers = roster()
-    local reversedPacket = Protocol.encode("snapshot", {
-        sessionId = "session-001",
-        serverTick = 40,
-        players = Codec.array({ reversePlayers[4], reversePlayers[3], reversePlayers[2], reversePlayers[1] }),
-    })
-    local welcomePacket = Protocol.encode("welcome", {
-        sessionId = "session-001", playerId = 4, serverTick = 40, players = roster(),
-    })
-    local normalizedRoster = reversedPacket and Protocol.decode(reversedPacket)
-    check("network_protocol_player_rosters_are_canonical_and_bounded",
-        orderedPacket and reversedPacket == orderedPacket and welcomePacket
-        and #orderedPacket <= Protocol.MAX_PACKET_BYTES
-        and #welcomePacket <= Protocol.MAX_PACKET_BYTES
-        and normalizedRoster.payload.players[1].id == 1
-        and normalizedRoster.payload.players[4].id == 4
-        and normalizedRoster.payload.players[3].name == "Phone Two")
+    runShardedPlayerProtocolRegression(check)
 
     local wrongVersion = Protocol.validate({
         version = Protocol.VERSION + 1,
@@ -350,10 +447,13 @@ function Test.run(context, check)
     local invalidAxis = Protocol.encode("input", {
         sessionId = "session-001", sequence = 1, moveX = 1.01, moveY = 0,
     })
-    local duplicatePlayers = roster()
-    duplicatePlayers[4].id = 3
-    local duplicateRoster = Protocol.encode("snapshot", {
-        sessionId = "session-001", serverTick = 1, players = duplicatePlayers,
+    local duplicatePlayers = Codec.array({
+        player(1, "Host", 420, 520),
+        player(1, "Duplicate", 500, 500),
+    })
+    local duplicateRoster = Protocol.encode("welcome", {
+        sessionId = "session-001", playerId = 1, serverTick = 1,
+        players = duplicatePlayers,
     })
     local tooManyPlayers = roster()
     tooManyPlayers[5] = player(4, "Duplicate", 500, 500)
@@ -366,8 +466,7 @@ function Test.run(context, check)
         serverTick = 1,
         players = Codec.array({ player(1, "Host", 1, 1), player(2, "Guest", 2, 2) }),
     })
-    local badNamePlayers = roster()
-    badNamePlayers[2].name = "bad\nname"
+    local badNamePlayers = Codec.array({ player(2, "bad\nname", 445, 520) })
     local badName = Protocol.encode("snapshot", {
         sessionId = "session-001", serverTick = 1, players = badNamePlayers,
     })
@@ -375,6 +474,8 @@ function Test.run(context, check)
         wrongVersion == nil and extraField == nil and invalidAxis == nil
         and duplicateRoster == nil and fullRoster == nil
         and missingAssignedPlayer == nil and badName == nil)
+
+    runLeaveTickProtocolRegression(check)
 
     local safeInteractionRequest = Protocol.encode("interaction_request", {
         sessionId = "session-001", requestId = 8, targetKind = "loadingBayDoor",
@@ -1141,7 +1242,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 6 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 7 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}
