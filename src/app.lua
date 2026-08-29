@@ -61,6 +61,13 @@ local multiplayer = MultiplayerSession.new()
 local workshopAuthority = nil
 local localWorkshopLease = nil
 local localWorkshopRequestId = 0
+local serviceNetworkBeforeMachine
+
+MachineFleet.setSaleGuard(function(_, item)
+    local cutterLeaseActive = workshopAuthority
+        and workshopAuthority:leaseForResource("cutter") ~= nil
+    return Machine.validateSale(item, cutterLeaseActive)
+end)
 
 local function isAndroidPlatform()
     return love and love.system and love.system.getOS
@@ -93,6 +100,7 @@ end
 local function startGame(payload, mode)
     if not State.applySave(state, payload) then return false, "That shop save could not be opened safely." end
     World.load(payload.player)
+    Machine.reset()
     if mode == "new" and not saveCurrent() then
         return false, "This device could not create the new shop save."
     end
@@ -194,6 +202,36 @@ local function wrapperSnapshotView()
     local runtime = Wrapper.snapshot()
     runtime.pallets = wrapperPalletView()
     return runtime
+end
+
+local function cutterView(includeCandidates)
+    return Machine.networkView(state, includeCandidates == true)
+end
+
+local function cutterNoArguments(arguments)
+    if not exactArguments(arguments, {}) then
+        return nil, "invalid_arguments", "That cutter action takes no additional data."
+    end
+    return {}
+end
+
+local function performCutterAction(player, operation, durable)
+    local allowed, code, accessMessage = World.validateNetworkWorkshopAccess(
+        player, state, "cutter")
+    if not allowed then
+        return false, code, accessMessage, cutterView(true)
+    end
+    local previousMessage = state.message
+    local accepted = operation() == true
+    local resultMessage = state.message
+    if resultMessage == nil or resultMessage == previousMessage then
+        resultMessage = accepted and "Cutter action completed."
+            or "The cutter is not ready for that action."
+    end
+    if accepted and durable then saveCurrent() end
+    return accepted, accepted and "completed" or "machine_blocked",
+        tostring(resultMessage or (accepted and "Cutter action completed."
+            or "The cutter rejected that action.")), cutterView(true)
 end
 
 local function findActiveJob(jobId)
@@ -311,6 +349,177 @@ local function createWorkshopAuthority()
                             end
                             saveCurrent()
                             return true, "pickup_requested", job.id .. " is awaiting customer pickup.", {}
+                        end,
+                    },
+                },
+            },
+            cutter = {
+                canAcquire = function(player)
+                    return World.validateNetworkWorkshopAccess(player, state, "cutter")
+                end,
+                onAcquire = function()
+                    Machine.open(state)
+                    return true, "acquired", "Cutter console connected.", cutterView(true)
+                end,
+                onRelease = function()
+                    Machine.releaseOperator(state)
+                    return true, "released", "Cutter controls released safely."
+                end,
+                commands = {
+                    load_pallet = {
+                        normalize = function(arguments)
+                            local palletId = type(arguments) == "table" and arguments.palletId
+                            if not exactArguments(arguments, { "palletId" })
+                                or type(palletId) ~= "string" or #palletId < 1 or #palletId > 64
+                                or not palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
+                            then
+                                return nil, "invalid_pallet", "Choose a valid nearby pallet."
+                            end
+                            return { palletId = palletId }
+                        end,
+                        perform = function(_, player, arguments)
+                            return performCutterAction(player,
+                                function() return Machine.load(state, arguments.palletId) end, true)
+                        end,
+                    },
+                    load_stock = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.load(state, "__generic_stock__") end, false)
+                        end,
+                    },
+                    select_program = {
+                        normalize = function(arguments)
+                            local index = type(arguments) == "table" and arguments.programIndex
+                            if not exactArguments(arguments, { "programIndex" })
+                                or type(index) ~= "number" or index ~= math.floor(index)
+                                or index < 1 or index > 4
+                            then
+                                return nil, "invalid_program", "Choose cutter program 1 through 4."
+                            end
+                            return { programIndex = index }
+                        end,
+                        perform = function(_, player, arguments)
+                            return performCutterAction(player, function()
+                                return Machine.selectProgram(arguments.programIndex, state)
+                            end, false)
+                        end,
+                    },
+                    set_gauge = {
+                        normalize = function(arguments)
+                            local gauge = type(arguments) == "table" and arguments.gaugeCentiInch
+                            if not exactArguments(arguments, { "gaugeCentiInch" })
+                                or type(gauge) ~= "number" or gauge ~= math.floor(gauge)
+                                or gauge < 0 or gauge > 2500
+                            then
+                                return nil, "invalid_gauge", "Enter a gauge from 0.00 to 25.00 inches."
+                            end
+                            return { gaugeCentiInch = gauge }
+                        end,
+                        perform = function(_, player, arguments)
+                            return performCutterAction(player, function()
+                                return Machine.setGauge(arguments.gaugeCentiInch / 100, state)
+                            end, false)
+                        end,
+                    },
+                    auto_gauge = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.autoGauge(state) end, false)
+                        end,
+                    },
+                    save_gauge = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.saveGauge(state) end, true)
+                        end,
+                    },
+                    recall_gauge = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.recallGauge(state) end, false)
+                        end,
+                    },
+                    rotate_paper = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.rotate(state) end, true)
+                        end,
+                    },
+                    position_paper = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.position(state) end, false)
+                        end,
+                    },
+                    set_clamp = {
+                        normalize = function(arguments)
+                            local clamp = type(arguments) == "table" and arguments.clamp
+                            if not exactArguments(arguments, { "clamp" }) or type(clamp) ~= "boolean" then
+                                return nil, "invalid_clamp", "Clamp state must be true or false."
+                            end
+                            return { clamp = clamp }
+                        end,
+                        perform = function(_, player, arguments)
+                            return performCutterAction(player,
+                                function() return Machine.setClamp(arguments.clamp, state) end, false)
+                        end,
+                    },
+                    set_barrier = {
+                        normalize = function(arguments)
+                            local clear = type(arguments) == "table" and arguments.barrierClear
+                            if not exactArguments(arguments, { "barrierClear" })
+                                or type(clear) ~= "boolean"
+                            then
+                                return nil, "invalid_barrier", "Barrier state must be true or false."
+                            end
+                            return { barrierClear = clear }
+                        end,
+                        perform = function(_, player, arguments)
+                            return performCutterAction(player, function()
+                                return Machine.setBarrier(arguments.barrierClear, state)
+                            end, false)
+                        end,
+                    },
+                    guarded_cut = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.guardedCut(state) end, false)
+                        end,
+                    },
+                    emergency_stop = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.emergencyStop(state) end, false)
+                        end,
+                    },
+                    reset_safety = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.resetSafety(state) end, false)
+                        end,
+                    },
+                    return_to_pallet = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.unload(state) end, false)
+                        end,
+                    },
+                    run_next_lift = {
+                        normalize = cutterNoArguments,
+                        perform = function(_, player)
+                            return performCutterAction(player,
+                                function() return Machine.repeatLift(state) end, true)
                         end,
                     },
                 },
@@ -680,6 +889,10 @@ local inputContext = {
     title = TitleScreen,
     saveCurrent = saveCurrent,
     isNetworkClient = function() return multiplayer:isClient() end,
+    cutterControlOccupied = function()
+        return workshopAuthority
+            and workshopAuthority:leaseForResource("cutter") ~= nil
+    end,
     palletJackControl = handlePalletJackControl,
     networkInteraction = function(selected)
         if not multiplayer:isActive() then return false end
@@ -931,6 +1144,7 @@ local function runSmoke(startupTextureBytes, Sound)
         CutterPlacement = CutterPlacement,
         CutterZones = CutterZones,
         machine = Machine,
+        serviceNetworkBeforeMachine = serviceNetworkBeforeMachine,
         machineFleet = MachineFleet,
         machineMaintenance = MachineMaintenance,
         machineScreen = MachineScreen,
@@ -1050,6 +1264,7 @@ end
 local function handleMultiplayerEvents()
     for _, event in ipairs(multiplayer:drainEvents()) do
         if event.type == "ready" then
+            Machine.resetNetworkReplica()
             if not State.applySharedSnapshot(state, event.state) then
                 multiplayer:stop("Invalid shared shop snapshot")
                 state.screen = "lan"
@@ -1100,6 +1315,8 @@ local function handleMultiplayerEvents()
             if event.granted then
                 if event.resourceId == "skid_wrapper" and event.view then
                     Wrapper.applySnapshot(event.view, state)
+                elseif event.resourceId == "cutter" and event.view then
+                    Machine.applyNetworkView(event.view)
                 end
                 if event.resourceId == "pallet_jack" then
                     state.screen = "world"
@@ -1111,6 +1328,8 @@ local function handleMultiplayerEvents()
         elseif event.type == "workshop_result" then
             if event.resourceId == "skid_wrapper" and event.view then
                 Wrapper.applySnapshot(event.view, state)
+            elseif event.resourceId == "cutter" and event.view then
+                Machine.applyNetworkView(event.view)
             end
             if event.resourceId ~= "pallet_jack" then
                 WorkshopRemoteScreen.applyResult(event)
@@ -1134,6 +1353,11 @@ local function handleMultiplayerEvents()
                 LanScreen.showError("The host sent a workshop update this build could not apply.")
             else
                 WorkshopRemoteScreen.applySnapshot(event)
+            end
+        elseif event.type == "cutter_state" then
+            Machine.applyNetworkView(event.view)
+            if WorkshopRemoteScreen.applyCutterSnapshot then
+                WorkshopRemoteScreen.applyCutterSnapshot(event)
             end
         elseif event.type == "workshop_lost" then
             if state.screen == "workshop_remote" then
@@ -1202,6 +1426,12 @@ local function performWorkshopRequest(player, operation, payload)
         if payload.amount ~= nil then arguments.amount = payload.amount end
         if payload.jobId ~= nil then arguments.jobId = payload.jobId end
         if payload.palletId ~= nil then arguments.palletId = payload.palletId end
+        if payload.programIndex ~= nil then arguments.programIndex = payload.programIndex end
+        if payload.gaugeCentiInch ~= nil then
+            arguments.gaugeCentiInch = payload.gaugeCentiInch
+        end
+        if payload.clamp ~= nil then arguments.clamp = payload.clamp end
+        if payload.barrierClear ~= nil then arguments.barrierClear = payload.barrierClear end
         return workshopAuthority:command(player, {
             requestId = payload.commandId,
             resourceId = payload.resourceId,
@@ -1266,6 +1496,13 @@ local function updateMultiplayer(dt, inputX, inputY)
                 wrapper = wrapperSnapshotView(),
             }
         end,
+        getCutterSnapshot = function()
+            return {
+                resourceRevision = workshopAuthority
+                    and workshopAuthority:resourceRevision("cutter") or 0,
+                view = cutterView(true),
+            }
+        end,
         performWorkshop = performWorkshopRequest,
         touchWorkshop = function(player)
             if workshopAuthority then workshopAuthority:touchPlayer(player) end
@@ -1301,6 +1538,11 @@ local function updateMultiplayer(dt, inputX, inputY)
             end
         end
     end
+end
+
+serviceNetworkBeforeMachine = function(dt, targetState, networkService)
+    networkService()
+    return Machine.update(dt, targetState)
 end
 
 function App.update(dt)
@@ -1359,21 +1601,27 @@ function App.update(dt)
         if World.update(dt, 0, 0, Assets, state) then saveCurrent() end
     elseif state.screen == "machine" and not multiplayer:isClient() then
         MachineScreen.update(dt)
-        if state.machineType ~= "skid_wrapper" then
-            local previousStep = Machine.step
-            Machine.update(dt, state)
-            if previousStep ~= "finished" and Machine.step == "finished" then saveCurrent() end
-        end
     elseif state.screen == "press" and not multiplayer:isClient() then
         PressScreen.update(dt, state)
         if Windmill.update(dt, state) then saveCurrent() end
+    end
+    local advanceAuthoritativeMachines = not multiplayer:isClient()
+        and state.screen ~= "title" and state.screen ~= "lan"
+        and state.screen ~= "asset_error"
+    if advanceAuthoritativeMachines then
+        if serviceNetworkBeforeMachine(dt, state, function()
+            updateMultiplayer(dt, networkInputX, networkInputY)
+        end) then
+            saveCurrent()
+        end
+    else
+        updateMultiplayer(dt, networkInputX, networkInputY)
     end
     if not multiplayer:isClient() and state.screen ~= "title" and state.screen ~= "lan"
         and state.screen ~= "asset_error" and Wrapper.update(dt, state)
     then
         saveCurrent()
     end
-    updateMultiplayer(dt, networkInputX, networkInputY)
     if App.sound then App.sound:update(dt) end
 end
 

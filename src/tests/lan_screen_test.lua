@@ -130,6 +130,198 @@ function Test.run(context, check)
         and sent[2].args.palletId == "JOB-0001-P01")
     WorkshopRemoteScreen.clear()
     context.wrapper.reset(wrapperState)
+
+    local cutterState = {
+        screen = "world",
+        jobs = { active = {
+            { id = "JOB-CUT", company = "Remote Client", pallets = { { id = "JOB-CUT-P01" } } },
+        } },
+    }
+    local cutterView = {
+        runtimeRevision = 1, step = "idle", phasePermille = 0,
+        loaded = false, clamp = false, clampPermille = 0, bladePermille = 0,
+        barrierClear = true, emergencyStopped = false,
+        gaugeCentiInch = 0, programIndex = 1, memoryCentiInch = {},
+        candidates = { { palletId = "JOB-CUT-P01", distancePixels = 22 } },
+        genericSheets = 100,
+    }
+    WorkshopRemoteScreen.enter({
+        resourceId = "cutter", leaseId = "cutter-test", revision = 4, view = cutterView,
+    }, cutterState)
+    sent = {}
+    local candidateX, candidateY = WorkshopRemoteScreen.cutterCandidateCenter(1)
+    local loadRequested = WorkshopRemoteScreen.mousepressed(
+        cutterState, candidateX, candidateY, 1, sendWrapperCommand)
+    check("remote_cutter_candidate_sends_exact_host_load_request",
+        loadRequested == true and #sent == 1 and sent[1].action == "load_pallet"
+        and sent[1].args.palletId == "JOB-CUT-P01")
+
+    local loadedView = {
+        runtimeRevision = 2, step = "positioned", phasePermille = 1000,
+        loaded = true, clamp = false, clampPermille = 0, bladePermille = 0,
+        barrierClear = true, emergencyStopped = false,
+        gaugeCentiInch = 0, programIndex = 1, memoryCentiInch = {},
+        paper = { palletId = "JOB-CUT-P01", orientation = 0, status = "uncut",
+            activeCut = 1, cutCount = 0, activeLift = 1, requiredLifts = 1,
+            remainingSheets = 100,
+            selectedCut = { number = 1, edge = "right", marginCentiInch = 25,
+                gaugeCentiInch = 1234, orientation = 0, active = true } },
+    }
+    WorkshopRemoteScreen.applyResult({
+        resourceId = "cutter", action = "load_pallet", accepted = true,
+        revision = 5, view = loadedView,
+    })
+    local loadedMergeClearedIdleChoices = WorkshopRemoteScreen.view.candidates == nil
+        and WorkshopRemoteScreen.view.genericSheets == nil
+    WorkshopRemoteScreen.applyResult({
+        resourceId = "cutter", action = "select_program", accepted = true,
+        revision = 6, view = {
+            runtimeRevision = 1, gaugeCentiInch = 999, step = "loaded", loaded = true,
+        },
+    })
+    local staleResource = WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 5,
+        view = { runtimeRevision = 3, gaugeCentiInch = 777, step = "loaded", loaded = true },
+    })
+    local freshSnapshot = WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = { runtimeRevision = 3, gaugeCentiInch = 500, step = "positioned", loaded = true },
+    })
+    WorkshopRemoteScreen.applySnapshot({ revision = 9000, wrapper = {} })
+    local interleavedCutterSnapshot = WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = { runtimeRevision = 4, gaugeCentiInch = 625, step = "positioned", loaded = true },
+    })
+    sent = {}
+    local positionX, positionY = WorkshopRemoteScreen.cutterButtonCenter("position_paper")
+    WorkshopRemoteScreen.mousepressed(
+        cutterState, positionX, positionY, 1, sendWrapperCommand)
+    WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = { runtimeRevision = 5, gaugeCentiInch = 625, step = "loading", loaded = true },
+    })
+    local rotateX, rotateY = WorkshopRemoteScreen.cutterButtonCenter("rotate_paper")
+    WorkshopRemoteScreen.mousepressed(cutterState, rotateX, rotateY, 1, sendWrapperCommand)
+    WorkshopRemoteScreen.mousepressed(cutterState, positionX, positionY, 1, sendWrapperCommand)
+    local transitionControlsStayedDisabled = #sent == 0
+    WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = { runtimeRevision = 6, gaugeCentiInch = 625, step = "positioned", loaded = true },
+    })
+    check("remote_cutter_rejects_stale_result_and_resource_snapshot_views",
+        loadedMergeClearedIdleChoices and not staleResource and freshSnapshot
+        and interleavedCutterSnapshot and transitionControlsStayedDisabled
+        and WorkshopRemoteScreen.workshopTick == 9000
+        and WorkshopRemoteScreen.revision == 6
+        and WorkshopRemoteScreen.view.runtimeRevision == 6
+        and WorkshopRemoteScreen.view.gaugeCentiInch == 625)
+
+    WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = {
+            runtimeRevision = 7, step = "repeat_ready", loaded = false,
+            paper = loadedView.paper, candidates = nil, genericSheets = nil,
+        },
+    })
+    local repeatReadyKeptPaperWithoutIdleChoices = WorkshopRemoteScreen.view.paper ~= nil
+        and WorkshopRemoteScreen.view.candidates == nil
+        and WorkshopRemoteScreen.view.genericSheets == nil
+    WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = {
+            runtimeRevision = 8, step = "idle", loaded = false,
+            candidates = {}, genericSheets = nil,
+        },
+    })
+    check("remote_cutter_merge_clears_stale_candidates_and_generic_stock",
+        repeatReadyKeptPaperWithoutIdleChoices
+        and WorkshopRemoteScreen.view.paper == nil
+        and type(WorkshopRemoteScreen.view.candidates) == "table"
+        and #WorkshopRemoteScreen.view.candidates == 0
+        and WorkshopRemoteScreen.view.genericSheets == nil)
+
+    WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 6,
+        view = { runtimeRevision = 9, gaugeCentiInch = 625, step = "positioned", loaded = true,
+            paper = loadedView.paper },
+    })
+
+    sent = {}
+    local gaugeX, gaugeY = WorkshopRemoteScreen.cutterGaugeInputCenter()
+    WorkshopRemoteScreen.mousepressed(cutterState, gaugeX, gaugeY, 1, sendWrapperCommand)
+    local gaugeTyped = WorkshopRemoteScreen.textinput("12.34")
+    local setX, setY = WorkshopRemoteScreen.cutterButtonCenter("set_gauge")
+    WorkshopRemoteScreen.mousepressed(cutterState, setX, setY, 1, sendWrapperCommand)
+    check("remote_cutter_gauge_entry_uses_wire_safe_centi_inches",
+        gaugeTyped and #sent == 1 and sent[1].action == "set_gauge"
+        and sent[1].args.gaugeCentiInch == 1234)
+
+    WorkshopRemoteScreen.applyResult({
+        resourceId = "cutter", action = "set_gauge", accepted = true,
+        revision = 7, view = {
+            runtimeRevision = 10, gaugeCentiInch = 1234, step = "clamped",
+            loaded = true, clamp = true, barrierClear = true, emergencyStopped = false,
+        },
+    })
+    sent = {}
+    local now = 10
+    WorkshopRemoteScreen.setClockForTests(function() return now end)
+    local leftX, leftY = WorkshopRemoteScreen.cutterButtonCenter("cut_left")
+    local rightX, rightY = WorkshopRemoteScreen.cutterButtonCenter("cut_right")
+    WorkshopRemoteScreen.mousepressed(cutterState, leftX, leftY, 1, sendWrapperCommand)
+    local oneSideSentNothing = #sent == 0
+    now = 10.2
+    WorkshopRemoteScreen.mousepressed(cutterState, rightX, rightY, 1, sendWrapperCommand)
+    check("remote_cutter_two_hand_taps_send_one_guarded_cut_only",
+        oneSideSentNothing and #sent == 1 and sent[1].action == "guarded_cut")
+
+    local emergencyX, emergencyY = WorkshopRemoteScreen.cutterButtonCenter("emergency_stop")
+    WorkshopRemoteScreen.mousepressed(
+        cutterState, emergencyX, emergencyY, 1, sendWrapperCommand)
+    local safetySentDuringOrdinaryWait = #sent == 2
+        and sent[2].action == "emergency_stop"
+        and WorkshopRemoteScreen.waiting and WorkshopRemoteScreen.safetyWaiting
+
+    WorkshopRemoteScreen.applyResult({
+        resourceId = "cutter", action = "guarded_cut", accepted = false,
+        revision = 8, view = {
+            runtimeRevision = 11, gaugeCentiInch = 1234, step = "clamped",
+            loaded = true, clamp = true, barrierClear = true, emergencyStopped = false,
+        },
+    })
+    local ordinaryReplyKeptSafetyPending = not WorkshopRemoteScreen.waiting
+        and WorkshopRemoteScreen.safetyWaiting
+    WorkshopRemoteScreen.applyResult({
+        resourceId = "cutter", action = "emergency_stop", accepted = true,
+        urgentSafety = true, revision = 9, view = {
+            runtimeRevision = 12, gaugeCentiInch = 1234, step = "blocked",
+            loaded = true, clamp = true, barrierClear = true, emergencyStopped = true,
+        },
+    })
+    local safetyReplyClearedOnlySafetyWait = not WorkshopRemoteScreen.waiting
+        and not WorkshopRemoteScreen.safetyWaiting
+    WorkshopRemoteScreen.applyCutterSnapshot({
+        resourceRevision = 9,
+        view = {
+            runtimeRevision = 13, gaugeCentiInch = 1234, step = "clamped",
+            loaded = true, clamp = true, barrierClear = true, emergencyStopped = false,
+        },
+    })
+    check("remote_cutter_estop_bypasses_ordinary_wait_with_independent_result_tracking",
+        safetySentDuringOrdinaryWait and ordinaryReplyKeptSafetyPending
+        and safetyReplyClearedOnlySafetyWait)
+    sent = {}
+    now = 20
+    WorkshopRemoteScreen.keypressed("j", cutterState, sendWrapperCommand)
+    now = 20.31
+    WorkshopRemoteScreen.keypressed("k", cutterState, sendWrapperCommand)
+    check("remote_cutter_expired_two_hand_input_sends_no_command", #sent == 0)
+    now = 20.5
+    WorkshopRemoteScreen.keypressed("j", cutterState, sendWrapperCommand)
+    check("remote_cutter_keyboard_two_hand_input_sends_one_guarded_cut",
+        #sent == 1 and sent[1].action == "guarded_cut")
+    WorkshopRemoteScreen.setClockForTests(nil)
+    WorkshopRemoteScreen.clear()
 end
 
 return Test

@@ -19,6 +19,12 @@ local INTERACTION_RATE_LIMIT = 0.20
 local INTERACTION_TIMEOUT = 3
 local WORKSHOP_TIMEOUT = 4
 
+local function urgentCutterSafety(resourceId, action, arguments)
+    return resourceId == "cutter" and (action == "emergency_stop"
+        or (action == "set_barrier" and type(arguments) == "table"
+            and arguments.barrierClear == false))
+end
+
 local function defaultClock()
     if love and love.timer and love.timer.getTime then return love.timer.getTime() end
     return os.clock()
@@ -49,6 +55,15 @@ local function wireWorkshopView(resourceId, view)
     elseif resourceId == "skid_wrapper" and type(view.pallets) == "table" then
         if not Codec.isArray(view.pallets) then
             view.pallets = Codec.array(view.pallets)
+        end
+    elseif resourceId == "cutter" then
+        if type(view.memoryCentiInch) == "table"
+            and not Codec.isArray(view.memoryCentiInch)
+        then
+            view.memoryCentiInch = Codec.array(view.memoryCentiInch)
+        end
+        if type(view.candidates) == "table" and not Codec.isArray(view.candidates) then
+            view.candidates = Codec.array(view.candidates)
         end
     end
     return view
@@ -156,6 +171,7 @@ function Session.new(options)
         lastVisitorTick = -1,
         lastEnvironmentTick = -1,
         lastPalletJackTick = -1,
+        lastCutterTick = -1,
         shopDirty = false,
         connectedAt = nil,
         ready = false,
@@ -167,6 +183,7 @@ function Session.new(options)
         pendingHostInteractions = {},
         workshopRequestId = 0,
         pendingWorkshop = nil,
+        pendingWorkshopSafety = nil,
         activeWorkshop = nil,
         workshopRevisions = {},
         pendingHostWorkshop = {},
@@ -220,6 +237,7 @@ function Session:_resetRuntime()
     self.lastVisitorTick = -1
     self.lastEnvironmentTick = -1
     self.lastPalletJackTick = -1
+    self.lastCutterTick = -1
     self.shopDirty = false
     self.connectedAt = nil
     self.ready = false
@@ -231,6 +249,7 @@ function Session:_resetRuntime()
     self.pendingHostInteractions = {}
     self.workshopRequestId = 0
     self.pendingWorkshop = nil
+    self.pendingWorkshopSafety = nil
     self.activeWorkshop = nil
     self.workshopRevisions = {}
     self.pendingHostWorkshop = {}
@@ -701,8 +720,15 @@ function Session:_handleHostEnvelope(peer, envelope, context)
         or envelope.type == "workshop_release"
     then
         if payload.sessionId ~= self.sessionId then return end
+        local incomingSafety = envelope.type == "workshop_command"
+            and urgentCutterSafety(payload.resourceId, payload.action, payload)
         for _, pending in ipairs(self.pendingHostWorkshop) do
-            if pending.peer == peer then return end
+            if pending.peer == peer then
+                local queuedSafety = pending.operation == "workshop_command"
+                    and urgentCutterSafety(
+                        pending.payload.resourceId, pending.payload.action, pending.payload)
+                if not incomingSafety or queuedSafety then return end
+            end
         end
         self.pendingHostWorkshop[#self.pendingHostWorkshop + 1] = {
             peer = peer,
@@ -860,6 +886,23 @@ function Session:_handleClientEnvelope(envelope)
                 machines = payload.machines,
             })
         end
+    elseif envelope.type == "cutter_snapshot" then
+        if self.ready and payload.sessionId == self.sessionId
+            and payload.serverTick > self.lastCutterTick
+        then
+            self.lastCutterTick = payload.serverTick
+            self.workshopRevisions.cutter = math.max(
+                self.workshopRevisions.cutter or 0, payload.resourceRevision)
+            if self.activeWorkshop and self.activeWorkshop.resourceId == "cutter" then
+                self.activeWorkshop.revision = math.max(
+                    self.activeWorkshop.revision, payload.resourceRevision)
+            end
+            self:_queue("cutter_state", {
+                serverTick = payload.serverTick,
+                resourceRevision = payload.resourceRevision,
+                view = payload.view,
+            })
+        end
     elseif envelope.type == "interaction_result" then
         local pending = self.pendingInteraction
         if self.ready and payload.sessionId == self.sessionId and pending
@@ -904,16 +947,38 @@ function Session:_handleClientEnvelope(envelope)
         end
     elseif envelope.type == "workshop_result" then
         local pending = self.pendingWorkshop
+        local pendingSafety = self.pendingWorkshopSafety
         local active = self.activeWorkshop
-        if self.ready and payload.sessionId == self.sessionId and pending and active
+        if self.ready and payload.sessionId == self.sessionId and pendingSafety and active
+            and payload.commandId == pendingSafety.commandId
+            and payload.resourceId == active.resourceId
+            and payload.action == pendingSafety.action
+        then
+            self.pendingWorkshopSafety = nil
+            active.revision = math.max(active.revision, payload.revision)
+            self.workshopRevisions[payload.resourceId] = math.max(
+                self.workshopRevisions[payload.resourceId] or 0, payload.revision)
+            self:_queue("workshop_result", {
+                commandId = payload.commandId,
+                resourceId = payload.resourceId,
+                action = payload.action,
+                accepted = payload.accepted,
+                revision = payload.revision,
+                code = payload.code,
+                message = payload.message,
+                view = payload.view,
+                urgentSafety = true,
+            })
+        elseif self.ready and payload.sessionId == self.sessionId and pending and active
             and pending.operation == "command"
             and payload.commandId == pending.commandId
             and payload.resourceId == active.resourceId
             and payload.action == pending.action
         then
             self.pendingWorkshop = nil
-            active.revision = payload.revision
-            self.workshopRevisions[payload.resourceId] = payload.revision
+            active.revision = math.max(active.revision, payload.revision)
+            self.workshopRevisions[payload.resourceId] = math.max(
+                self.workshopRevisions[payload.resourceId] or 0, payload.revision)
             self:_queue("workshop_result", {
                 commandId = payload.commandId,
                 resourceId = payload.resourceId,
@@ -930,21 +995,26 @@ function Session:_handleClientEnvelope(envelope)
             and payload.revision > self.lastWorkshopSnapshotRevision
         then
             self.lastWorkshopSnapshotRevision = payload.revision
-            local activeRecord
+            local activeRecord, activeRecordAuthoritative
             for _, record in ipairs(payload.resources) do
-                self.workshopRevisions[record.resourceId] = record.revision
+                self.workshopRevisions[record.resourceId] = math.max(
+                    self.workshopRevisions[record.resourceId] or 0, record.revision)
                 if self.activeWorkshop and record.resourceId == self.activeWorkshop.resourceId then
                     activeRecord = record
-                    if record.occupied and record.ownerPlayerId == self.localId then
-                        self.activeWorkshop.revision = record.revision
+                    activeRecordAuthoritative = record.revision >= self.activeWorkshop.revision
+                    if activeRecordAuthoritative
+                        and record.occupied and record.ownerPlayerId == self.localId
+                    then
+                        self.activeWorkshop.revision = math.max(
+                            self.activeWorkshop.revision, record.revision)
                     end
                 end
             end
-            if self.activeWorkshop and (not activeRecord or not activeRecord.occupied
-                or activeRecord.ownerPlayerId ~= self.localId)
+            if self.activeWorkshop and activeRecordAuthoritative
+                and (not activeRecord.occupied or activeRecord.ownerPlayerId ~= self.localId)
             then
                 local lost = self.activeWorkshop
-                self.activeWorkshop, self.pendingWorkshop = nil, nil
+                self.activeWorkshop, self.pendingWorkshop, self.pendingWorkshopSafety = nil, nil, nil
                 self:_queue("workshop_lost", {
                     resourceId = lost.resourceId,
                     message = "The host device released this workshop control.",
@@ -1165,6 +1235,17 @@ function Session:_updateHost(dt, context)
                 })
             if not palletJackOk then self:_queue("error", { message = palletJackError }) end
         end
+        local cutter = context and context.getCutterSnapshot
+            and context.getCutterSnapshot() or nil
+        if type(cutter) == "table" and type(cutter.view) == "table" then
+            local cutterOk, cutterError = self:_broadcastJoined("cutter_snapshot", {
+                sessionId = self.sessionId,
+                serverTick = self.serverTick,
+                resourceRevision = cutter.resourceRevision,
+                view = wireWorkshopView("cutter", cutter.view),
+            })
+            if not cutterOk then self:_queue("error", { message = cutterError }) end
+        end
         local workshop = context and context.getWorkshopSnapshot
             and context.getWorkshopSnapshot() or nil
         if type(workshop) == "table" and type(workshop.resources) == "table"
@@ -1306,6 +1387,22 @@ function Session:update(dt, context)
                 })
             end
         end
+        if self.pendingWorkshopSafety
+            and self.clock() - self.pendingWorkshopSafety.sentAt > WORKSHOP_TIMEOUT
+        then
+            local timedOut = self.pendingWorkshopSafety
+            self.pendingWorkshopSafety = nil
+            self:_queue("workshop_result", {
+                commandId = timedOut.commandId,
+                resourceId = timedOut.resourceId,
+                action = timedOut.action,
+                accepted = false,
+                code = "timeout",
+                message = "The host did not answer the urgent cutter safety action.",
+                revision = self.workshopRevisions[timedOut.resourceId] or 0,
+                urgentSafety = true,
+            })
+        end
         if not self.ready and self.connectedAt and self.clock() - self.connectedAt > CONNECT_TIMEOUT then
             self:_markDisconnected("Connection timed out. Check the host address and host-device network access.")
             self:_closeTransport(1, true)
@@ -1387,10 +1484,14 @@ function Session:requestWorkshopCommand(action, arguments)
     then
         return false, "No host-authorized workshop console is open."
     end
-    if self.pendingWorkshop then
+    arguments = type(arguments) == "table" and arguments or {}
+    local urgentSafety = urgentCutterSafety(active.resourceId, action, arguments)
+    if self.pendingWorkshopSafety then
+        return false, "Waiting for the host to confirm the urgent cutter safety action."
+    end
+    if self.pendingWorkshop and not urgentSafety then
         return false, "Waiting for the host to answer the previous workshop action."
     end
-    arguments = type(arguments) == "table" and arguments or {}
     self.workshopRequestId = self.workshopRequestId + 1
     local request = {
         sessionId = self.sessionId,
@@ -1404,18 +1505,32 @@ function Session:requestWorkshopCommand(action, arguments)
     elseif action == "request_pickup" then request.jobId = arguments.jobId
     elseif action == "select_pallet" or action == "start_cycle"
         or action == "lift_pallet" or action == "lower_pallet"
+        or action == "load_pallet"
     then
         request.palletId = arguments.palletId
+    elseif action == "select_program" then
+        request.programIndex = arguments.programIndex
+    elseif action == "set_gauge" then
+        request.gaugeCentiInch = arguments.gaugeCentiInch
+    elseif action == "set_clamp" then
+        request.clamp = arguments.clamp
+    elseif action == "set_barrier" then
+        request.barrierClear = arguments.barrierClear
     end
     local ok, errorMessage = self:_sendToServer("workshop_command", request)
     if not ok then return false, errorMessage end
-    self.pendingWorkshop = {
+    local pending = {
         operation = "command",
         commandId = request.commandId,
         resourceId = request.resourceId,
         action = request.action,
         sentAt = self.clock(),
     }
+    if urgentSafety then
+        self.pendingWorkshopSafety = pending
+    else
+        self.pendingWorkshop = pending
+    end
     return true
 end
 
@@ -1436,7 +1551,7 @@ function Session:releaseWorkshop(reason)
     }
     local ok, errorMessage = self:_sendToServer("workshop_release", request)
     if not ok then return false, errorMessage end
-    self.activeWorkshop, self.pendingWorkshop = nil, nil
+    self.activeWorkshop, self.pendingWorkshop, self.pendingWorkshopSafety = nil, nil, nil
     return true
 end
 

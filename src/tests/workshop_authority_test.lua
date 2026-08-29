@@ -31,6 +31,101 @@ local function specs(calls)
         return true
     end
 
+    local function cutterNoArguments(args)
+        return exactArgs(args, {}) or nil, "invalid_arguments",
+            "This cutter action does not accept arguments."
+    end
+
+    local function performCutter(action, dataBuilder)
+        return function(_, _, args)
+            calls.command[action] = calls.command[action] + 1
+            local data = dataBuilder and dataBuilder(args) or { action = action }
+            return true, action .. "_accepted", "Cutter action accepted.", data
+        end
+    end
+
+    local cutterCommands = {
+        load_pallet = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "palletId" })
+                if not normalized or type(normalized.palletId) ~= "string"
+                    or #normalized.palletId < 1 or #normalized.palletId > 64
+                    or not normalized.palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
+                then
+                    return nil, "invalid_arguments", "Pallet ID is invalid."
+                end
+                return normalized
+            end,
+            perform = performCutter("load_pallet", function(args)
+                return { palletId = args.palletId }
+            end),
+        },
+        select_program = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "programIndex" })
+                if not normalized or type(normalized.programIndex) ~= "number"
+                    or normalized.programIndex ~= math.floor(normalized.programIndex)
+                    or normalized.programIndex < 1 or normalized.programIndex > 4
+                then
+                    return nil, "invalid_arguments", "Program index is invalid."
+                end
+                return normalized
+            end,
+            perform = performCutter("select_program", function(args)
+                return { programIndex = args.programIndex }
+            end),
+        },
+        set_gauge = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "gaugeCentiInch" })
+                if not normalized or type(normalized.gaugeCentiInch) ~= "number"
+                    or normalized.gaugeCentiInch ~= math.floor(normalized.gaugeCentiInch)
+                    or normalized.gaugeCentiInch < 0 or normalized.gaugeCentiInch > 2500
+                then
+                    return nil, "invalid_arguments", "Gauge value is invalid."
+                end
+                return normalized
+            end,
+            perform = performCutter("set_gauge", function(args)
+                return { gaugeCentiInch = args.gaugeCentiInch }
+            end),
+        },
+        set_clamp = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "clamp" })
+                if not normalized or type(normalized.clamp) ~= "boolean" then
+                    return nil, "invalid_arguments", "Clamp state is invalid."
+                end
+                return normalized
+            end,
+            perform = performCutter("set_clamp", function(args)
+                return { clamp = args.clamp }
+            end),
+        },
+        set_barrier = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "barrierClear" })
+                if not normalized or type(normalized.barrierClear) ~= "boolean" then
+                    return nil, "invalid_arguments", "Barrier state is invalid."
+                end
+                return normalized
+            end,
+            perform = performCutter("set_barrier", function(args)
+                return { barrierClear = args.barrierClear }
+            end),
+        },
+    }
+    for _, action in ipairs({
+        "load_stock", "auto_gauge", "save_gauge", "recall_gauge", "rotate_paper",
+        "position_paper", "guarded_cut", "emergency_stop", "reset_safety",
+        "return_to_pallet", "run_next_lift",
+    }) do
+        cutterCommands[action] = {
+            normalize = cutterNoArguments,
+            perform = performCutter(action),
+        }
+    end
+
     return {
         reception_customer = {
             canAcquire = canAcquire,
@@ -97,6 +192,16 @@ local function specs(calls)
                     end,
                 },
             },
+        },
+        cutter = {
+            canAcquire = canAcquire,
+            onAcquire = function()
+                calls.acquire.cutter = calls.acquire.cutter + 1
+                return true, "acquired", "Cutter console connected.",
+                    { step = "idle", barrierClear = true }
+            end,
+            onRelease = released,
+            commands = cutterCommands,
         },
         skid_wrapper = {
             canAcquire = canAcquire,
@@ -191,9 +296,14 @@ function Test.run(_, check)
     local now = 100
     local calls = {
         range = {},
-        acquire = { reception_customer = 0 },
+        acquire = { reception_customer = 0, cutter = 0 },
         command = {
             submit_quote = 0, decline = 0, request_pickup = 0,
+            load_pallet = 0, load_stock = 0, select_program = 0, set_gauge = 0,
+            auto_gauge = 0, save_gauge = 0, recall_gauge = 0, rotate_paper = 0,
+            position_paper = 0, set_clamp = 0, set_barrier = 0, guarded_cut = 0,
+            emergency_stop = 0, reset_safety = 0, return_to_pallet = 0,
+            run_next_lift = 0,
             select_pallet = 0, start_cycle = 0,
             lift_pallet = 0, lower_pallet = 0, park_jack = 0,
         },
@@ -202,6 +312,7 @@ function Test.run(_, check)
     local context = { targets = {
         reception_customer = { x = 10, y = 10, radius = 20 },
         office_computer = { x = 100, y = 10, radius = 20 },
+        cutter = { x = 150, y = 10, radius = 20 },
         skid_wrapper = { x = 200, y = 10, radius = 20 },
         pallet_jack = { x = 300, y = 10, radius = 20 },
     } }
@@ -216,16 +327,18 @@ function Test.run(_, check)
     })
 
     local initial = authority:snapshot()
-    check("workshop_authority_snapshot_has_four_vacant_resources",
-        #initial == 4
+    check("workshop_authority_snapshot_has_five_vacant_resources",
+        #initial == 5
         and initial[1].resourceId == "reception_customer" and not initial[1].occupied
         and initial[1].ownerPlayerId == nil and initial[1].revision == 0
         and initial[2].resourceId == "office_computer" and not initial[2].occupied
         and initial[2].revision == 0
-        and initial[3].resourceId == "skid_wrapper" and not initial[3].occupied
+        and initial[3].resourceId == "cutter" and not initial[3].occupied
         and initial[3].revision == 0
-        and initial[4].resourceId == "pallet_jack" and not initial[4].occupied
-        and initial[4].revision == 0)
+        and initial[4].resourceId == "skid_wrapper" and not initial[4].occupied
+        and initial[4].revision == 0
+        and initial[5].resourceId == "pallet_jack" and not initial[5].occupied
+        and initial[5].revision == 0)
 
     local farWorker = { id = 1, x = 200, y = 200 }
     local far = authority:acquire(farWorker,
@@ -333,32 +446,163 @@ function Test.run(_, check)
         and calls.lastRelease.reason == "cancelled"
         and calls.lastRelease.private.authoritativeOffer)
 
+    farWorker.x, farWorker.y = 150, 10
+    local cutter = authority:acquire(farWorker,
+        { requestId = 8, resourceId = "cutter" }, context)
+    local thirdWorker = { id = 3, x = 150, y = 10 }
+    local busyCutter = authority:acquire(thirdWorker,
+        { requestId = 1, resourceId = "cutter" }, context)
+    local wrongCutterOwner = authority:command(secondWorker, {
+        requestId = 4, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "set_barrier", args = { barrierClear = false }, expectedRevision = 1,
+    }, context)
+    check("workshop_authority_cutter_lease_is_exclusive_and_owner_bound",
+        cutter.accepted and cutter.revision == 1 and cutter.data.step == "idle"
+        and calls.acquire.cutter == 1
+        and not busyCutter.accepted and busyCutter.code == "resource_busy"
+        and not wrongCutterOwner.accepted and wrongCutterOwner.code == "not_owner"
+        and calls.command.set_barrier == 0)
+
+    local malformedCutterLoad = authority:command(farWorker, {
+        requestId = 9, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0001-P01", force = true },
+        expectedRevision = 1,
+    }, context)
+    local malformedCutterGauge = authority:command(farWorker, {
+        requestId = 10, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "set_gauge", args = { gaugeCentiInch = 125.5 }, expectedRevision = 1,
+    }, context)
+    local malformedCutterBarrier = authority:command(farWorker, {
+        requestId = 11, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "set_barrier", args = { barrierClear = true, override = true },
+        expectedRevision = 1,
+    }, context)
+    local malformedGuardedCut = authority:command(farWorker, {
+        requestId = 12, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "guarded_cut", args = { bypass = true }, expectedRevision = 1,
+    }, context)
+    local malformedSafetyReset = authority:command(farWorker, {
+        requestId = 13, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "reset_safety", args = { force = true }, expectedRevision = 1,
+    }, context)
+    check("workshop_authority_cutter_normalizers_reject_malformed_or_extra_arguments",
+        not malformedCutterLoad.accepted and malformedCutterLoad.code == "invalid_arguments"
+        and not malformedCutterGauge.accepted and malformedCutterGauge.code == "invalid_arguments"
+        and not malformedCutterBarrier.accepted
+        and malformedCutterBarrier.code == "invalid_arguments"
+        and not malformedGuardedCut.accepted and malformedGuardedCut.code == "invalid_arguments"
+        and not malformedSafetyReset.accepted
+        and malformedSafetyReset.code == "invalid_arguments"
+        and calls.command.load_pallet == 0 and calls.command.set_gauge == 0
+        and calls.command.set_barrier == 0 and calls.command.guarded_cut == 0
+        and calls.command.reset_safety == 0)
+
+    local staleCutterRevision = authority:command(farWorker, {
+        requestId = 14, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "set_gauge", args = { gaugeCentiInch = 1250 }, expectedRevision = 0,
+    }, context)
+    check("workshop_authority_cutter_rejects_stale_resource_revision",
+        not staleCutterRevision.accepted and staleCutterRevision.code == "revision_conflict"
+        and calls.command.set_gauge == 0)
+
+    local loadedCutter = authority:command(farWorker, {
+        requestId = 15, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 1,
+    }, context)
+    local loadedCutterReplay = authority:command(farWorker, {
+        requestId = 15, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 1,
+    }, context)
+    local gaugedCutter = authority:command(farWorker, {
+        requestId = 16, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "set_gauge", args = { gaugeCentiInch = 1250 }, expectedRevision = 2,
+    }, context)
+    local barrierCutter = authority:command(farWorker, {
+        requestId = 17, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "set_barrier", args = { barrierClear = true }, expectedRevision = 3,
+    }, context)
+    local cutCutter = authority:command(farWorker, {
+        requestId = 18, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "guarded_cut", args = {}, expectedRevision = 4,
+    }, context)
+    local cutCutterReplay = authority:command(farWorker, {
+        requestId = 18, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "guarded_cut", args = {}, expectedRevision = 4,
+    }, context)
+    local resetCutter = authority:command(farWorker, {
+        requestId = 19, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "reset_safety", args = {}, expectedRevision = 5,
+    }, context)
+    check("workshop_authority_cutter_actions_are_revisioned_and_replay_safe",
+        loadedCutter.accepted and loadedCutter.revision == 2
+        and loadedCutter.data.palletId == "JOB-0001-P01"
+        and loadedCutterReplay.accepted and loadedCutterReplay.revision == 2
+        and gaugedCutter.accepted and gaugedCutter.revision == 3
+        and gaugedCutter.data.gaugeCentiInch == 1250
+        and barrierCutter.accepted and barrierCutter.revision == 4
+        and barrierCutter.data.barrierClear
+        and cutCutter.accepted and cutCutter.revision == 5
+        and cutCutterReplay.accepted and cutCutterReplay.revision == 5
+        and resetCutter.accepted and resetCutter.revision == 6
+        and calls.command.load_pallet == 1 and calls.command.set_gauge == 1
+        and calls.command.set_barrier == 1 and calls.command.guarded_cut == 1
+        and calls.command.reset_safety == 1)
+
+    local cutterCrossResourceAction = authority:command(farWorker, {
+        requestId = 20, resourceId = "cutter", leaseId = cutter.leaseId,
+        action = "start_cycle", args = {}, expectedRevision = 6,
+    }, context)
+    check("workshop_authority_cutter_rejects_cross_resource_actions",
+        not cutterCrossResourceAction.accepted
+        and cutterCrossResourceAction.code == "action_not_allowed")
+
+    local cutterCleanup = authority:cleanupPlayer(farWorker, "disconnected", context)
+    local cutterAfterDisconnect = authority:acquire(farWorker,
+        { requestId = 1, resourceId = "cutter" }, context)
+    check("workshop_authority_cutter_disconnect_cleanup_releases_and_resets_replay_identity",
+        #cutterCleanup == 1 and cutterCleanup[1].resourceId == "cutter"
+        and cutterCleanup[1].reason == "disconnected" and cutterCleanup[1].revision == 7
+        and cutterCleanup[1].cleanupAccepted and calls.release.cutter == 1
+        and cutterAfterDisconnect.accepted and cutterAfterDisconnect.revision == 8
+        and calls.acquire.cutter == 2)
+
     secondWorker.x, secondWorker.y = 100, 10
     local computer = authority:acquire(secondWorker,
-        { requestId = 4, resourceId = "office_computer" }, context)
-    local thirdWorker = { id = 3, x = 200, y = 10 }
+        { requestId = 5, resourceId = "office_computer" }, context)
+    thirdWorker.x, thirdWorker.y = 200, 10
     local wrapper = authority:acquire(thirdWorker,
-        { requestId = 1, resourceId = "skid_wrapper" }, context)
+        { requestId = 2, resourceId = "skid_wrapper" }, context)
     local fourthWorker = { id = 4, x = 300, y = 10 }
     local palletJack = authority:acquire(fourthWorker,
         { requestId = 1, resourceId = "pallet_jack" }, context)
     local occupied = authority:snapshot()
     check("workshop_authority_allows_different_resources_concurrently",
-        computer.accepted and wrapper.accepted and palletJack.accepted
+        computer.accepted and cutterAfterDisconnect.accepted
+        and wrapper.accepted and palletJack.accepted
         and not occupied[1].occupied
         and occupied[1].revision == 3
         and occupied[2].occupied and occupied[2].ownerPlayerId == 2
         and occupied[2].revision == 1
-        and occupied[3].occupied and occupied[3].ownerPlayerId == 3
-        and occupied[3].revision == 1
-        and occupied[4].occupied and occupied[4].ownerPlayerId == 4
-        and occupied[4].revision == 1)
+        and occupied[3].occupied and occupied[3].ownerPlayerId == 1
+        and occupied[3].revision == 8
+        and occupied[4].occupied and occupied[4].ownerPlayerId == 3
+        and occupied[4].revision == 1
+        and occupied[5].occupied and occupied[5].ownerPlayerId == 4
+        and occupied[5].revision == 1)
+
+    local cutterReleasedForContention = authority:release(farWorker, {
+        requestId = 2, resourceId = "cutter", leaseId = cutterAfterDisconnect.leaseId,
+        reason = "closed",
+    }, context)
 
     farWorker.x, farWorker.y = 300, 10
     local busyPalletJack = authority:acquire(farWorker,
-        { requestId = 8, resourceId = "pallet_jack" }, context)
+        { requestId = 3, resourceId = "pallet_jack" }, context)
     check("workshop_authority_pallet_jack_is_exclusive",
-        not busyPalletJack.accepted and busyPalletJack.code == "resource_busy")
+        cutterReleasedForContention.accepted
+        and not busyPalletJack.accepted and busyPalletJack.code == "resource_busy")
 
     local crossResourceAction = authority:command(fourthWorker, {
         requestId = 2, resourceId = "pallet_jack", leaseId = palletJack.leaseId,
@@ -397,7 +641,7 @@ function Test.run(_, check)
         and calls.command.lower_pallet == 1 and calls.command.park_jack == 1)
 
     local secondResource = authority:acquire(secondWorker,
-        { requestId = 5, resourceId = "skid_wrapper" }, context)
+        { requestId = 6, resourceId = "skid_wrapper" }, context)
     check("workshop_authority_allows_only_one_lease_per_player",
         not secondResource.accepted and secondResource.code == "player_busy")
 
@@ -431,6 +675,35 @@ function Test.run(_, check)
         and calls.release.office_computer == 1
         and reusedAfterDisconnect.accepted)
     authority:cleanupPlayer(secondWorker, "test_complete", context)
+
+    local urgentAuthority = WorkshopAuthority.new({
+        tokenGenerator = function() return "urgent-cutter-lease" end,
+        resources = specs(calls),
+    })
+    local urgentPlayer = { id = 1, x = 150, y = 10 }
+    local urgentLease = urgentAuthority:acquire(urgentPlayer,
+        { requestId = 1, resourceId = "cutter" }, context)
+    local revisionAdvance = urgentAuthority:command(urgentPlayer, {
+        requestId = 2, resourceId = "cutter", leaseId = urgentLease.leaseId,
+        action = "set_gauge", args = { gaugeCentiInch = 625 }, expectedRevision = 1,
+    }, context)
+    local staleEmergency = urgentAuthority:command(urgentPlayer, {
+        requestId = 3, resourceId = "cutter", leaseId = urgentLease.leaseId,
+        action = "emergency_stop", args = {}, expectedRevision = 1,
+    }, context)
+    local staleBarrierBlock = urgentAuthority:command(urgentPlayer, {
+        requestId = 4, resourceId = "cutter", leaseId = urgentLease.leaseId,
+        action = "set_barrier", args = { barrierClear = false }, expectedRevision = 1,
+    }, context)
+    local staleBarrierClear = urgentAuthority:command(urgentPlayer, {
+        requestId = 5, resourceId = "cutter", leaseId = urgentLease.leaseId,
+        action = "set_barrier", args = { barrierClear = true }, expectedRevision = 1,
+    }, context)
+    check("workshop_authority_stale_owner_safety_commands_preempt_but_clear_does_not",
+        urgentLease.accepted and revisionAdvance.accepted and revisionAdvance.revision == 2
+        and staleEmergency.accepted and staleEmergency.revision == 3
+        and staleBarrierBlock.accepted and staleBarrierBlock.revision == 4
+        and not staleBarrierClear.accepted and staleBarrierClear.code == "revision_conflict")
 
     local replayNow = 0
     local replayCalls = { range = 0 }

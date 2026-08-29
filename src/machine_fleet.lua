@@ -3,6 +3,8 @@ local BusinessCalendar = require("src.business_calendar")
 local Procurement = require("src.procurement")
 local Config = require("src.config")
 
+local saleGuard = nil
+
 local deliveryStatuses = {
     awaiting_delivery = true,
     scheduled = true,
@@ -682,6 +684,12 @@ function Fleet.sell(state, machineId, channel)
         if candidate.id == machineId then foundIndex, item = index, candidate; break end
     end
     if not item then return false, "That machine is no longer owned by the shop." end
+    if saleGuard then
+        local allowed, reason = saleGuard(state, item)
+        if allowed == false then
+            return false, tostring(reason or "That machine is currently in use.")
+        end
+    end
     if machineOwnsCutterPallet(state, item) then
         return false, "Unload the cutter before listing it for sale."
     end
@@ -706,6 +714,12 @@ function Fleet.sell(state, machineId, channel)
     end
     state.money = (state.money or 0) + value
     return true, { machine = item, price = value, channel = channel == "dealer" and "dealer" or "online" }
+end
+
+function Fleet.setSaleGuard(guard)
+    local previous = saleGuard
+    saleGuard = type(guard) == "function" and guard or nil
+    return previous
 end
 
 function Fleet.weakestComponent(item)

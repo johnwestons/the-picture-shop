@@ -2,7 +2,7 @@ local Codec = require("src.net.codec")
 local MachinePose = require("src.machine_pose")
 
 local Protocol = {
-    VERSION = 7,
+    VERSION = 8,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -64,6 +64,7 @@ local ROUTES = {
     workshop_result = { channel = Protocol.CHANNEL_CONTROL, delivery = "reliable" },
     workshop_release = { channel = Protocol.CHANNEL_CONTROL, delivery = "reliable" },
     workshop_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
+    cutter_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     pallet_jack_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     input = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -78,8 +79,8 @@ local ROUTES = {
 Protocol.MESSAGE_TYPES = {
     "hello", "welcome", "shop_snapshot", "shop_state", "interaction_request",
     "interaction_result", "workshop_acquire", "workshop_grant", "workshop_command",
-    "workshop_result", "workshop_release", "workshop_snapshot", "pallet_jack_snapshot",
-    "input", "snapshot",
+    "workshop_result", "workshop_release", "workshop_snapshot", "cutter_snapshot",
+    "pallet_jack_snapshot", "input", "snapshot",
     "visitor_snapshot", "environment_snapshot", "ping", "pong", "leave", "error",
 }
 
@@ -396,6 +397,7 @@ local WORKSHOP_RESOURCES = {
     office_computer = true,
     skid_wrapper = true,
     pallet_jack = true,
+    cutter = true,
 }
 
 local WORKSHOP_ACTION_ARGUMENTS = {
@@ -415,6 +417,24 @@ local WORKSHOP_ACTION_ARGUMENTS = {
         lower_pallet = "palletId",
         park_jack = false,
     },
+    cutter = {
+        load_pallet = "palletId",
+        load_stock = false,
+        select_program = "programIndex",
+        set_gauge = "gaugeCentiInch",
+        auto_gauge = false,
+        save_gauge = false,
+        recall_gauge = false,
+        rotate_paper = false,
+        position_paper = false,
+        set_clamp = "clamp",
+        set_barrier = "barrierClear",
+        guarded_cut = false,
+        emergency_stop = false,
+        reset_safety = false,
+        return_to_pallet = false,
+        run_next_lift = false,
+    },
 }
 
 local WORKSHOP_RELEASE_REASONS = {
@@ -431,6 +451,44 @@ local WORKSHOP_WRAPPER_STEPS = {
     idle = true,
     wrapping = true,
     finished = true,
+}
+
+local WORKSHOP_CUTTER_STEPS = {
+    idle = true,
+    loading = true,
+    loaded = true,
+    positioning = true,
+    positioned = true,
+    clamped = true,
+    armed = true,
+    cutting = true,
+    cut_complete = true,
+    lift_returning = true,
+    repeat_ready = true,
+    unloading = true,
+    finished = true,
+    blocked = true,
+    resetting = true,
+}
+
+local WORKSHOP_CUTTER_ORIENTATIONS = {
+    [0] = true,
+    [90] = true,
+    [180] = true,
+    [270] = true,
+}
+
+local WORKSHOP_CUTTER_PAPER_STATUSES = {
+    uncut = true,
+    in_process = true,
+    complete = true,
+}
+
+local WORKSHOP_CUTTER_EDGES = {
+    right = true,
+    bottom = true,
+    left = true,
+    top = true,
 }
 
 local function workshopResource(value, label)
@@ -700,6 +758,212 @@ local function normalizeWrapperWorkshopView(value, label)
     return runtime
 end
 
+local function normalizeCutterMemory(value, label)
+    if not Codec.isArray(value) then return nil, label .. " must be an array" end
+    if #value > 3 then return nil, label .. " must contain at most 3 measurements" end
+    local memory = {}
+    for index = 1, #value do
+        local measurement, fieldError = integerInRange(
+            value[index], 0, 2500, label .. "[" .. index .. "]")
+        if measurement == nil then return nil, fieldError end
+        memory[#memory + 1] = measurement
+    end
+    return Codec.array(memory)
+end
+
+local function normalizeCutterSelectedCut(value, label)
+    local valid, shapeError = shape(value, label, {
+        "number", "edge", "marginCentiInch", "gaugeCentiInch", "orientation", "active",
+    })
+    if not valid then return nil, shapeError end
+    local number, fieldError = integerInRange(value.number, 1, 4, label .. ".number")
+    if not number then return nil, fieldError end
+    if type(value.edge) ~= "string" or not WORKSHOP_CUTTER_EDGES[value.edge] then
+        return nil, label .. ".edge is invalid"
+    end
+    local marginCentiInch
+    marginCentiInch, fieldError = integerInRange(
+        value.marginCentiInch, 0, 100000, label .. ".marginCentiInch")
+    if marginCentiInch == nil then return nil, fieldError end
+    local gaugeCentiInch
+    gaugeCentiInch, fieldError = integerInRange(
+        value.gaugeCentiInch, 0, 2500, label .. ".gaugeCentiInch")
+    if gaugeCentiInch == nil then return nil, fieldError end
+    local orientation
+    orientation, fieldError = integerInRange(
+        value.orientation, 0, 270, label .. ".orientation")
+    if orientation == nil then return nil, fieldError end
+    if not WORKSHOP_CUTTER_ORIENTATIONS[orientation] then
+        return nil, label .. ".orientation is invalid"
+    end
+    if type(value.active) ~= "boolean" then return nil, label .. ".active must be boolean" end
+    return {
+        number = number,
+        edge = value.edge,
+        marginCentiInch = marginCentiInch,
+        gaugeCentiInch = gaugeCentiInch,
+        orientation = orientation,
+        active = value.active,
+    }
+end
+
+local function normalizeCutterPaper(value, label)
+    local valid, shapeError = shape(value, label, {
+        "palletId", "orientation", "status", "activeCut", "cutCount", "activeLift",
+        "requiredLifts", "remainingSheets",
+    }, { "selectedCut" })
+    if not valid then return nil, shapeError end
+    local palletId, fieldError = token(value.palletId, MAX_TOKEN_BYTES, label .. ".palletId")
+    if not palletId then return nil, fieldError end
+    local orientation
+    orientation, fieldError = integerInRange(value.orientation, 0, 270, label .. ".orientation")
+    if orientation == nil then return nil, fieldError end
+    if not WORKSHOP_CUTTER_ORIENTATIONS[orientation] then
+        return nil, label .. ".orientation is invalid"
+    end
+    if type(value.status) ~= "string" or not WORKSHOP_CUTTER_PAPER_STATUSES[value.status] then
+        return nil, label .. ".status is invalid"
+    end
+    local activeCut
+    activeCut, fieldError = integerInRange(value.activeCut, 1, 5, label .. ".activeCut")
+    if not activeCut then return nil, fieldError end
+    local cutCount
+    cutCount, fieldError = integerInRange(value.cutCount, 1, 4, label .. ".cutCount")
+    if not cutCount then return nil, fieldError end
+    local activeLift
+    activeLift, fieldError = integerInRange(value.activeLift, 1, 1000, label .. ".activeLift")
+    if not activeLift then return nil, fieldError end
+    local requiredLifts
+    requiredLifts, fieldError = integerInRange(
+        value.requiredLifts, 1, 1000, label .. ".requiredLifts")
+    if not requiredLifts then return nil, fieldError end
+    local remainingSheets
+    remainingSheets, fieldError = integerInRange(
+        value.remainingSheets, 0, 100000, label .. ".remainingSheets")
+    if remainingSheets == nil then return nil, fieldError end
+    local paper = {
+        palletId = palletId,
+        orientation = orientation,
+        status = value.status,
+        activeCut = activeCut,
+        cutCount = cutCount,
+        activeLift = activeLift,
+        requiredLifts = requiredLifts,
+        remainingSheets = remainingSheets,
+    }
+    if value.selectedCut ~= nil then
+        paper.selectedCut, fieldError = normalizeCutterSelectedCut(
+            value.selectedCut, label .. ".selectedCut")
+        if not paper.selectedCut then return nil, fieldError end
+    end
+    return paper
+end
+
+local function normalizeCutterCandidates(value, label)
+    if not Codec.isArray(value) then return nil, label .. " must be an array" end
+    if #value > 3 then return nil, label .. " must contain at most 3 pallets" end
+    local candidates, seen = {}, {}
+    for index = 1, #value do
+        local candidateLabel = label .. "[" .. index .. "]"
+        local valid, shapeError = shape(
+            value[index], candidateLabel, { "palletId", "distancePixels" })
+        if not valid then return nil, shapeError end
+        local palletId, fieldError = token(
+            value[index].palletId, MAX_TOKEN_BYTES, candidateLabel .. ".palletId")
+        if not palletId then return nil, fieldError end
+        if seen[palletId] then return nil, label .. " contains a duplicate palletId" end
+        seen[palletId] = true
+        local distancePixels
+        distancePixels, fieldError = integerInRange(
+            value[index].distancePixels, 0, 100000, candidateLabel .. ".distancePixels")
+        if distancePixels == nil then return nil, fieldError end
+        candidates[#candidates + 1] = {
+            palletId = palletId,
+            distancePixels = distancePixels,
+        }
+    end
+    return Codec.array(candidates)
+end
+
+local function normalizeCutterWorkshopView(value, label)
+    local valid, shapeError = shape(value, label, {
+        "runtimeRevision", "step", "phasePermille", "loaded", "clamp", "clampPermille",
+        "bladePermille", "barrierClear", "emergencyStopped", "gaugeCentiInch",
+        "programIndex", "memoryCentiInch",
+    }, { "paper", "candidates", "genericSheets" })
+    if not valid then return nil, shapeError end
+    local runtimeRevision, fieldError = integerInRange(
+        value.runtimeRevision, 0, UINT32_MAX, label .. ".runtimeRevision")
+    if runtimeRevision == nil then return nil, fieldError end
+    if type(value.step) ~= "string" or not WORKSHOP_CUTTER_STEPS[value.step] then
+        return nil, label .. ".step is invalid"
+    end
+    local phasePermille
+    phasePermille, fieldError = integerInRange(
+        value.phasePermille, 0, 1000, label .. ".phasePermille")
+    if phasePermille == nil then return nil, fieldError end
+    if type(value.loaded) ~= "boolean" then return nil, label .. ".loaded must be boolean" end
+    if type(value.clamp) ~= "boolean" then return nil, label .. ".clamp must be boolean" end
+    local clampPermille
+    clampPermille, fieldError = integerInRange(
+        value.clampPermille, 0, 1000, label .. ".clampPermille")
+    if clampPermille == nil then return nil, fieldError end
+    local bladePermille
+    bladePermille, fieldError = integerInRange(
+        value.bladePermille, 0, 1000, label .. ".bladePermille")
+    if bladePermille == nil then return nil, fieldError end
+    if type(value.barrierClear) ~= "boolean" then
+        return nil, label .. ".barrierClear must be boolean"
+    end
+    if type(value.emergencyStopped) ~= "boolean" then
+        return nil, label .. ".emergencyStopped must be boolean"
+    end
+    local gaugeCentiInch
+    gaugeCentiInch, fieldError = integerInRange(
+        value.gaugeCentiInch, 0, 2500, label .. ".gaugeCentiInch")
+    if gaugeCentiInch == nil then return nil, fieldError end
+    local programIndex
+    programIndex, fieldError = integerInRange(
+        value.programIndex, 1, 4, label .. ".programIndex")
+    if not programIndex then return nil, fieldError end
+    local memoryCentiInch
+    memoryCentiInch, fieldError = normalizeCutterMemory(
+        value.memoryCentiInch, label .. ".memoryCentiInch")
+    if not memoryCentiInch then return nil, fieldError end
+    if value.paper ~= nil and (value.candidates ~= nil or value.genericSheets ~= nil) then
+        return nil, label .. " cannot include load candidates while paper is present"
+    end
+    local normalized = {
+        runtimeRevision = runtimeRevision,
+        step = value.step,
+        phasePermille = phasePermille,
+        loaded = value.loaded,
+        clamp = value.clamp,
+        clampPermille = clampPermille,
+        bladePermille = bladePermille,
+        barrierClear = value.barrierClear,
+        emergencyStopped = value.emergencyStopped,
+        gaugeCentiInch = gaugeCentiInch,
+        programIndex = programIndex,
+        memoryCentiInch = memoryCentiInch,
+    }
+    if value.paper ~= nil then
+        normalized.paper, fieldError = normalizeCutterPaper(value.paper, label .. ".paper")
+        if not normalized.paper then return nil, fieldError end
+    end
+    if value.candidates ~= nil then
+        normalized.candidates, fieldError = normalizeCutterCandidates(
+            value.candidates, label .. ".candidates")
+        if not normalized.candidates then return nil, fieldError end
+    end
+    if value.genericSheets ~= nil then
+        normalized.genericSheets, fieldError = integerInRange(
+            value.genericSheets, 0, 100000, label .. ".genericSheets")
+        if normalized.genericSheets == nil then return nil, fieldError end
+    end
+    return normalized
+end
+
 local function normalizeWorkshopView(value, resourceId, label)
     if resourceId == "reception_customer" then
         return normalizeReceptionWorkshopView(value, label)
@@ -713,6 +977,8 @@ local function normalizeWorkshopView(value, resourceId, label)
         local valid, shapeError = shape(value, label, {})
         if not valid then return nil, shapeError end
         return {}
+    elseif resourceId == "cutter" then
+        return normalizeCutterWorkshopView(value, label)
     end
     return nil, label .. " has no resource validator"
 end
@@ -802,7 +1068,10 @@ end
 local function normalizeWorkshopCommand(payload)
     local valid, shapeError = shape(payload, "workshop_command payload", {
         "sessionId", "commandId", "leaseId", "resourceId", "action", "expectedRevision",
-    }, { "amount", "jobId", "palletId" })
+    }, {
+        "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
+        "barrierClear",
+    })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(
         payload.sessionId, MAX_TOKEN_BYTES, "workshop_command.sessionId")
@@ -824,7 +1093,10 @@ local function normalizeWorkshopCommand(payload)
     expectedRevision, fieldError = integerInRange(
         payload.expectedRevision, 0, UINT32_MAX, "workshop_command.expectedRevision")
     if expectedRevision == nil then return nil, fieldError end
-    for _, field in ipairs({ "amount", "jobId", "palletId" }) do
+    for _, field in ipairs({
+        "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
+        "barrierClear",
+    }) do
         if field ~= argumentField and payload[field] ~= nil then
             return nil, "workshop_command." .. field .. " is invalid for " .. action
         end
@@ -841,6 +1113,19 @@ local function normalizeWorkshopCommand(payload)
         normalized.amount, fieldError = integerInRange(
             payload.amount, 1, MAX_WORKSHOP_AMOUNT, "workshop_command.amount")
         if not normalized.amount then return nil, fieldError end
+    elseif argumentField == "programIndex" then
+        normalized.programIndex, fieldError = integerInRange(
+            payload.programIndex, 1, 4, "workshop_command.programIndex")
+        if not normalized.programIndex then return nil, fieldError end
+    elseif argumentField == "gaugeCentiInch" then
+        normalized.gaugeCentiInch, fieldError = integerInRange(
+            payload.gaugeCentiInch, 0, 2500, "workshop_command.gaugeCentiInch")
+        if normalized.gaugeCentiInch == nil then return nil, fieldError end
+    elseif argumentField == "clamp" or argumentField == "barrierClear" then
+        if type(payload[argumentField]) ~= "boolean" then
+            return nil, "workshop_command." .. argumentField .. " must be boolean"
+        end
+        normalized[argumentField] = payload[argumentField]
     elseif argumentField then
         normalized[argumentField], fieldError = token(
             payload[argumentField], MAX_TOKEN_BYTES, "workshop_command." .. argumentField)
@@ -931,7 +1216,7 @@ end
 
 local function normalizeWorkshopResources(value, label)
     if not Codec.isArray(value) then return nil, label .. " must be an array" end
-    if #value ~= 4 then return nil, label .. " must contain all 4 workshop resources" end
+    if #value ~= 5 then return nil, label .. " must contain all 5 workshop resources" end
     local resources, seen = {}, {}
     for index = 1, #value do
         local resourceLabel = label .. "[" .. index .. "]"
@@ -1087,6 +1372,33 @@ local function normalizeWorkshopSnapshot(payload)
         revision = revision,
         resources = resources,
         wrapper = wrapper,
+    }
+end
+
+local function normalizeCutterSnapshot(payload)
+    local valid, shapeError = shape(payload, "cutter_snapshot payload",
+        { "sessionId", "serverTick", "resourceRevision", "view" })
+    if not valid then return nil, shapeError end
+    local sessionId, fieldError = token(
+        payload.sessionId, MAX_TOKEN_BYTES, "cutter_snapshot.sessionId")
+    if not sessionId then return nil, fieldError end
+    local serverTick
+    serverTick, fieldError = integerInRange(
+        payload.serverTick, 0, UINT32_MAX, "cutter_snapshot.serverTick")
+    if serverTick == nil then return nil, fieldError end
+    local resourceRevision
+    resourceRevision, fieldError = integerInRange(
+        payload.resourceRevision, 0, UINT32_MAX, "cutter_snapshot.resourceRevision")
+    if resourceRevision == nil then return nil, fieldError end
+    local view
+    view, fieldError = normalizeCutterWorkshopView(
+        payload.view, "cutter_snapshot.view")
+    if not view then return nil, fieldError end
+    return {
+        sessionId = sessionId,
+        serverTick = serverTick,
+        resourceRevision = resourceRevision,
+        view = view,
     }
 end
 
@@ -1389,6 +1701,7 @@ local PAYLOAD_NORMALIZERS = {
     workshop_result = normalizeWorkshopResult,
     workshop_release = normalizeWorkshopRelease,
     workshop_snapshot = normalizeWorkshopSnapshot,
+    cutter_snapshot = normalizeCutterSnapshot,
     pallet_jack_snapshot = normalizePalletJackSnapshot,
     input = normalizeInput,
     snapshot = normalizeSnapshot,

@@ -1,4 +1,5 @@
 local Codec = require("src.net.codec")
+local Codec = require("src.net.codec")
 local Protocol = require("src.net.protocol")
 local Session = require("src.net.session")
 
@@ -330,6 +331,29 @@ local function machinePoseState(overrides)
     return machines
 end
 
+local function cutterState(overrides)
+    local view = {
+        runtimeRevision = 1,
+        step = "idle",
+        phasePermille = 0,
+        loaded = false,
+        clamp = false,
+        clampPermille = 0,
+        bladePermille = 0,
+        barrierClear = true,
+        emergencyStopped = false,
+        gaugeCentiInch = 0,
+        programIndex = 1,
+        memoryCentiInch = {},
+        candidates = {
+            { palletId = "JOB-CUT-P01", distancePixels = 24 },
+        },
+        genericSheets = 2500,
+    }
+    for key, value in pairs(overrides or {}) do view[key] = value end
+    return view
+end
+
 local function eventNamed(events, name)
     for _, event in ipairs(events or {}) do
         if event.type == name then return event end
@@ -339,6 +363,99 @@ end
 local function decodedPayload(message)
     local envelope = message and Protocol.decode(message.payload)
     return envelope and envelope.payload
+end
+
+local function runCutterSafetyOrderingRegression(args)
+    local client, host, network = args.client, args.host, args.network
+    local previousWorkshopTick = client.lastWorkshopSnapshotRevision
+    local grantRevision = client:workshopInfo().revision
+    local preGrantSnapshot = Protocol.encode("workshop_snapshot", {
+        sessionId = host.sessionId,
+        revision = previousWorkshopTick + 1,
+        resources = Codec.array({
+            { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "office_computer", revision = 0, occupied = false },
+            { resourceId = "cutter", revision = math.max(0, grantRevision - 1),
+                occupied = false },
+            { resourceId = "skid_wrapper", revision = 0, occupied = false },
+            { resourceId = "pallet_jack", revision = 0, occupied = false },
+        }),
+        wrapper = { step = "idle", progress = 0, cycleTime = 3,
+            pallets = Codec.array({}) },
+    })
+    network.host:send(network.peer, preGrantSnapshot, Protocol.CHANNEL_STATE, false)
+    client:update(0, args.clientContext)
+    local preGrantEvents = client:drainEvents()
+    args.check("multiplayer_session_stale_pregrant_snapshot_cannot_revoke_new_cutter_lease",
+        eventNamed(preGrantEvents, "workshop_lost") == nil
+        and client:workshopInfo() and client:workshopInfo().revision == grantRevision)
+
+    local ordinaryPending = client:requestWorkshopCommand(
+        "set_gauge", { gaugeCentiInch = 500 })
+    local urgentWhilePending = client:requestWorkshopCommand("emergency_stop", {})
+    local duplicateSafetyRejected = not client:requestWorkshopCommand(
+        "set_barrier", { barrierClear = false })
+    local safetyWires = network:messages("client_to_host", "workshop_command")
+    local ordinarySafetyWire = decodedPayload(safetyWires[#safetyWires - 1])
+    local emergencySafetyWire = decodedPayload(safetyWires[#safetyWires])
+    host:update(0, args.hostContext)
+    client:update(0, args.clientContext)
+    local concurrentResults = client:drainEvents()
+    local ordinaryResult, emergencyResult
+    for _, event in ipairs(concurrentResults) do
+        if event.type == "workshop_result" and event.action == "set_gauge" then
+            ordinaryResult = event
+        elseif event.type == "workshop_result" and event.action == "emergency_stop" then
+            emergencyResult = event
+        end
+    end
+    args.check("multiplayer_session_cutter_safety_preempts_ordinary_pending_command",
+        ordinaryPending and urgentWhilePending and duplicateSafetyRejected
+        and ordinarySafetyWire and ordinarySafetyWire.action == "set_gauge"
+        and emergencySafetyWire and emergencySafetyWire.action == "emergency_stop"
+        and ordinarySafetyWire.expectedRevision == emergencySafetyWire.expectedRevision
+        and ordinaryResult and ordinaryResult.accepted and not ordinaryResult.urgentSafety
+        and emergencyResult and emergencyResult.accepted and emergencyResult.urgentSafety
+        and client.pendingWorkshop == nil and client.pendingWorkshopSafety == nil
+        and client:workshopInfo().revision == args.revision())
+
+    local authoritativeRevision = args.revision()
+    local previousCutterTick = client.lastCutterTick
+    client.activeWorkshop.revision = authoritativeRevision - 1
+    client.workshopRevisions.cutter = authoritativeRevision - 1
+    local repairCutterPacket = Protocol.encode("cutter_snapshot", {
+        sessionId = host.sessionId,
+        serverTick = previousCutterTick + 1,
+        resourceRevision = authoritativeRevision,
+        view = args.view,
+    })
+    network.host:send(network.peer, repairCutterPacket, Protocol.CHANNEL_STATE, false)
+    client:update(0, args.clientContext)
+    local repairEvent = eventNamed(client:drainEvents(), "cutter_state")
+    local staleRevision = math.max(0, authoritativeRevision - 1)
+    local staleWorkshopPacket = Protocol.encode("workshop_snapshot", {
+        sessionId = host.sessionId,
+        revision = previousWorkshopTick + 2,
+        resources = Codec.array({
+            { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "office_computer", revision = 0, occupied = false },
+            { resourceId = "cutter", revision = staleRevision, occupied = true,
+                ownerPlayerId = client.localId },
+            { resourceId = "skid_wrapper", revision = 0, occupied = false },
+            { resourceId = "pallet_jack", revision = 0, occupied = false },
+        }),
+        wrapper = { step = "idle", progress = 0, cycleTime = 3,
+            pallets = Codec.array({}) },
+    })
+    network.host:send(network.peer, staleWorkshopPacket, Protocol.CHANNEL_STATE, false)
+    client:update(0, args.clientContext)
+    client:drainEvents()
+    args.check("multiplayer_session_cutter_live_revision_repairs_and_stale_workshop_cannot_roll_back",
+        repairEvent and repairEvent.resourceRevision == authoritativeRevision
+        and client:workshopInfo().revision == authoritativeRevision
+        and client.workshopRevisions.cutter == authoritativeRevision)
+    client.lastCutterTick = previousCutterTick
+    client.lastWorkshopSnapshotRevision = previousWorkshopTick
 end
 
 local function runFourDeviceShardingRegression(check, clock, addressOptions)
@@ -960,6 +1077,7 @@ function Test.run(_, check)
         and #interactionCalls == 4 and interactionMutations == 3)
 
     local workshopRevision, workshopLease, workshopResource, workshopMutation = 0, nil, nil, 0
+    local authoritativeCutter
     local workshopPallets = {}
     local workshopCalls, workshopTouches = {}, 0
     hostContext.touchWorkshop = function(player)
@@ -976,6 +1094,7 @@ function Test.run(_, check)
                 office_computer = "lease-office-test",
                 skid_wrapper = "lease-wrapper-test",
                 pallet_jack = "lease-jack-test",
+                cutter = "lease-cutter-test",
             }
             workshopLease = leases[workshopResource] or "lease-workshop-test"
             local data = {}
@@ -985,6 +1104,8 @@ function Test.run(_, check)
                     plasticWrapRolls = 2, plasticWrapUses = 8,
                     pallets = workshopPallets,
                 }
+            elseif workshopResource == "cutter" then
+                data = authoritativeCutter or cutterState()
             end
             return {
                 accepted = true, code = "acquired", message = "Workshop console connected.",
@@ -996,9 +1117,11 @@ function Test.run(_, check)
                     revision = workshopRevision }
             end
             workshopRevision, workshopMutation = workshopRevision + 1, workshopMutation + 1
+            local data = workshopResource == "cutter"
+                and (authoritativeCutter or cutterState()) or {}
             return {
                 accepted = true, code = "pickup_requested", message = "Pickup requested.",
-                revision = workshopRevision, data = {},
+                revision = workshopRevision, data = data,
             }
         elseif operation == "workshop_release" then
             workshopRevision, workshopLease, workshopResource = workshopRevision + 1, nil, nil
@@ -1021,6 +1144,10 @@ function Test.run(_, check)
                 { resourceId = "pallet_jack", revision = workshopRevision,
                     occupied = workshopLease ~= nil and workshopResource == "pallet_jack",
                     ownerPlayerId = workshopLease and workshopResource == "pallet_jack"
+                        and 2 or nil },
+                { resourceId = "cutter", revision = workshopRevision,
+                    occupied = workshopLease ~= nil and workshopResource == "cutter",
+                    ownerPlayerId = workshopLease and workshopResource == "cutter"
                         and 2 or nil },
             },
             wrapper = {
@@ -1183,6 +1310,99 @@ function Test.run(_, check)
     host:update(0, hostContext)
     check("multiplayer_session_worker_releases_pallet_jack_after_parking",
         jackReleased and client:workshopInfo() == nil
+        and workshopLease == nil and workshopResource == nil)
+
+    authoritativeCutter = cutterState()
+    hostContext.getCutterSnapshot = function()
+        return {
+            resourceRevision = workshopRevision,
+            view = authoritativeCutter,
+        }
+    end
+    local cutterRequested = client:requestWorkshopAcquire("cutter")
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local cutterGrant = eventNamed(client:drainEvents(), "workshop_grant")
+    local cutterGrantWireMessages = network:messages("host_to_client", "workshop_grant")
+    local cutterGrantWire = decodedPayload(cutterGrantWireMessages[#cutterGrantWireMessages])
+
+    runCutterSafetyOrderingRegression({
+        client = client,
+        host = host,
+        network = network,
+        hostContext = hostContext,
+        clientContext = clientContext,
+        view = authoritativeCutter,
+        revision = function() return workshopRevision end,
+        check = check,
+    })
+
+    local cutterWires = {}
+    local function sendCutterCommand(action, arguments)
+        local before = #network:messages("client_to_host", "workshop_command")
+        local requested = client:requestWorkshopCommand(action, arguments)
+        host:update(0, hostContext)
+        client:update(0, clientContext)
+        local result = eventNamed(client:drainEvents(), "workshop_result")
+        local packets = network:messages("client_to_host", "workshop_command")
+        cutterWires[#cutterWires + 1] = decodedPayload(packets[before + 1])
+        return requested and result and result.accepted
+    end
+
+    local cutterCommandsAccepted = sendCutterCommand(
+        "load_pallet", { palletId = "JOB-CUT-P01" })
+        and sendCutterCommand("select_program", { programIndex = 4 })
+        and sendCutterCommand("set_gauge", { gaugeCentiInch = 625 })
+        and sendCutterCommand("set_clamp", { clamp = true })
+        and sendCutterCommand("set_barrier", { barrierClear = false })
+        and sendCutterCommand("guarded_cut", {
+            palletId = "MUST-NOT-REACH-HOST", clamp = true,
+        })
+
+    host:update(0.09, hostContext)
+    client:update(0, clientContext)
+    local cutterStateEvent = eventNamed(client:drainEvents(), "cutter_state")
+    local cutterPackets = network:messages("host_to_client", "cutter_snapshot")
+    local latestCutterWire = decodedPayload(cutterPackets[#cutterPackets])
+    local cutterTick = client.lastCutterTick
+    local staleCutterPacket = Protocol.encode("cutter_snapshot", {
+        sessionId = host.sessionId,
+        serverTick = cutterTick,
+        resourceRevision = workshopRevision,
+        view = authoritativeCutter,
+    })
+    network.host:send(network.peer, staleCutterPacket, Protocol.CHANNEL_STATE, false)
+    client:update(0, clientContext)
+    local staleCutterEvent = eventNamed(client:drainEvents(), "cutter_state")
+
+    check("multiplayer_session_cutter_commands_and_live_state_use_closed_revisioned_shapes",
+        cutterRequested and cutterGrant and cutterGrant.granted
+        and cutterGrant.resourceId == "cutter" and cutterGrant.view
+        and #cutterGrant.view.candidates == 1
+        and cutterGrantWire and cutterGrantWire.view
+        and Codec.isArray(cutterGrantWire.view.memoryCentiInch)
+        and Codec.isArray(cutterGrantWire.view.candidates)
+        and cutterCommandsAccepted and #cutterWires == 6
+        and cutterWires[1].palletId == "JOB-CUT-P01"
+        and cutterWires[1].programIndex == nil
+        and cutterWires[2].programIndex == 4 and cutterWires[2].palletId == nil
+        and cutterWires[3].gaugeCentiInch == 625
+        and cutterWires[4].clamp == true
+        and cutterWires[5].barrierClear == false
+        and cutterWires[6].palletId == nil and cutterWires[6].clamp == nil
+        and cutterStateEvent and cutterStateEvent.serverTick == cutterTick
+        and cutterStateEvent.resourceRevision == workshopRevision
+        and cutterStateEvent.view.runtimeRevision == 1
+        and latestCutterWire and latestCutterWire.serverTick == cutterTick
+        and cutterPackets[#cutterPackets].channel == Protocol.CHANNEL_STATE
+        and not cutterPackets[#cutterPackets].reliable
+        and #cutterPackets[#cutterPackets].payload <= Protocol.MAX_PACKET_BYTES
+        and staleCutterEvent == nil and client.lastCutterTick == cutterTick)
+
+    local cutterReleased = client:releaseWorkshop("closed")
+    host:update(0, hostContext)
+    check("multiplayer_session_worker_releases_cutter_console",
+        cutterReleased and client:workshopInfo() == nil
         and workshopLease == nil and workshopResource == nil)
 
     client:stop("Guest signed off")

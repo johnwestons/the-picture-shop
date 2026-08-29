@@ -6,6 +6,7 @@ local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local Interaction = require("src.interaction")
 local JobService = require("src.job_service")
+local Machine = require("src.machine")
 local MachineFleet = require("src.machine_fleet")
 local MachinePose = require("src.machine_pose")
 local Navigation = require("src.navigation")
@@ -710,6 +711,7 @@ end
 local WORKSHOP_RESOURCES = {
     customer = "reception_customer",
     computer = "office_computer",
+    cutter = "cutter",
     skidWrapper = "skid_wrapper",
     palletJack = "pallet_jack",
 }
@@ -736,6 +738,16 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
     elseif resourceId == "office_computer" then
         target = Config.interactables.computer
         unavailableMessage = "Move closer to the office computer."
+    elseif resourceId == "cutter" then
+        if not MachineFleet.isInstalled(state, "polar_115") then
+            return false, "not_installed", "The paper cutter is not installed in this shop."
+        end
+        local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
+        if cutter.moving then
+            return false, "machine_moving", "Lock the cutter onto the floor before using it."
+        end
+        target = { x = cutter.x, y = cutter.y, radius = Config.cutterPlacement.interactionRadius }
+        unavailableMessage = "Move closer to the cutter controls."
     elseif resourceId == "skid_wrapper" then
         if not MachineFleet.isInstalled(state, "skid_wrapper") then
             return false, "not_installed", "The skid wrapper is not installed in this shop."
@@ -1198,7 +1210,15 @@ local function cutterHasPaper(state)
     return false
 end
 
-function World.beginCutterMove(state)
+function World.beginCutterMove(state, cutterControlOccupied)
+    if cutterControlOccupied then
+        state.message = "Close the active cutter console before relocating the machine."
+        return false
+    end
+    if Machine.hasActiveBatch() then
+        state.message = "Finish or safely unload the cutter batch before relocating the machine."
+        return false
+    end
     if palletJackHasAttachedMachine(state) then
         state.message = "Lock the moving machine onto the floor before relocating another one."
         return false
@@ -1232,7 +1252,19 @@ function World.beginCutterMove(state)
     return true
 end
 
-function World.rotateCutter(state)
+function World.rotateCutter(state, cutterControlOccupied)
+    if cutterControlOccupied then
+        state.message = "Close the active cutter console before rotating the machine."
+        return false
+    end
+    if Machine.hasActiveBatch() then
+        state.message = "Finish or safely unload the cutter batch before rotating the machine."
+        return false
+    end
+    if cutterHasPaper(state) then
+        state.message = "Unload the paper and clear the cutting bed before rotating the cutter."
+        return false
+    end
     local succeeded, direction = CutterPlacement.rotate(state, Config.cutterPlacement)
     if not succeeded then return false end
     if state.cutter.moving then

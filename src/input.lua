@@ -81,7 +81,8 @@ function Input.closeScreen(context)
     end
     if context.releaseWorkshopInteraction
         and (state.screen == "job_offer" or state.screen == "computer"
-            or (state.screen == "machine" and state.machineType == "skid_wrapper"))
+            or (state.screen == "machine"
+                and (state.machineType == "skid_wrapper" or state.machineType == "cutter")))
     then
         context.releaseWorkshopInteraction("closed")
     end
@@ -114,7 +115,8 @@ function Input.keypressed(key, context)
         if key == "m" and ((selected and selected.kind == "cutter")
             or (context.world.cutterNearby and context.world.cutterNearby(state)))
         then
-            if context.world.beginCutterMove(state) then context.saveCurrent() end
+            local occupied = context.cutterControlOccupied and context.cutterControlOccupied()
+            if context.world.beginCutterMove(state, occupied) then context.saveCurrent() end
             return
         end
         if key == "m" and ((selected and selected.kind == "skidWrapper") or context.world.wrapperNearby(state)) then
@@ -130,7 +132,12 @@ function Input.keypressed(key, context)
         if key == "q" and ((state.cutter and state.cutter.moving)
             or (selected and selected.kind == "cutter"))
         then
-            if context.world.rotateCutter(state) then context.saveCurrent() end
+            if context.cutterControlOccupied and context.cutterControlOccupied() then
+                state.message = "Close the active cutter console before rotating the machine."
+                return true
+            end
+            local occupied = context.cutterControlOccupied and context.cutterControlOccupied()
+            if context.world.rotateCutter(state, occupied) then context.saveCurrent() end
             return
         end
         if key == "q" and ((state.wrapper and state.wrapper.moving)
@@ -230,7 +237,7 @@ function Input.keypressed(key, context)
                 context.world.toggleTruckCargoDoor(state)
             end
         elseif selected and selected.kind == "cutter" then
-            context.machine.reset(state)
+            context.machine.open(state)
             context.machineScreen.enter()
             state.machineType = "cutter"
             state.screen = "machine"
@@ -258,8 +265,14 @@ function Input.keypressed(key, context)
             return true
         end
         if state.machineType == "skid_wrapper" and context.wrapper.keypressed(key, state) then return end
-        if context.machineScreen.keypressed(state, key) then return end
-        if context.machine.keypressed(key, state) then context.machineScreen.syncGauge() end
+        if context.machineScreen.keypressed(state, key) then
+            if state.machineType == "cutter" then context.saveCurrent() end
+            return
+        end
+        if context.machine.keypressed(key, state) then
+            context.machineScreen.syncGauge()
+            if state.machineType == "cutter" then context.saveCurrent() end
+        end
     elseif state.screen == "computer" then
         return context.computerScreen.keypressed(state, key)
     elseif state.screen == "pallet_work_order" then
@@ -267,7 +280,8 @@ function Input.keypressed(key, context)
     elseif state.screen == "job_offer" then
         return context.jobOfferScreen.keypressed(key)
     elseif state.screen == "workshop_remote" then
-        return context.workshopRemoteScreen.keypressed(key)
+        return context.workshopRemoteScreen.keypressed(
+            key, state, context.requestWorkshopCommand)
     elseif state.screen == "press" then
         local result, errorMessage = context.pressScreen.keypressed(state, key)
         if type(result) == "table" and result.action == "exit" then return Input.closeScreen(context) end
@@ -351,6 +365,8 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "blade_sleeved" or result.action == "technician_booked"
             or result.action == "technician_schedule")
         then
+            context.saveCurrent()
+        elseif result and state.machineType == "cutter" then
             context.saveCurrent()
         end
         return result

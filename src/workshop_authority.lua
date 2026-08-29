@@ -18,6 +18,7 @@ Authority.__index = Authority
 Authority.RESOURCE_ORDER = {
     "reception_customer",
     "office_computer",
+    "cutter",
     "skid_wrapper",
     "pallet_jack",
 }
@@ -25,6 +26,7 @@ Authority.RESOURCE_ORDER = {
 Authority.RESOURCES = {
     reception_customer = true,
     office_computer = true,
+    cutter = true,
     skid_wrapper = true,
     pallet_jack = true,
 }
@@ -36,6 +38,24 @@ Authority.ACTIONS = {
     },
     office_computer = {
         request_pickup = true,
+    },
+    cutter = {
+        load_pallet = true,
+        load_stock = true,
+        select_program = true,
+        set_gauge = true,
+        auto_gauge = true,
+        save_gauge = true,
+        recall_gauge = true,
+        rotate_paper = true,
+        position_paper = true,
+        set_clamp = true,
+        set_barrier = true,
+        guarded_cut = true,
+        emergency_stop = true,
+        reset_safety = true,
+        return_to_pallet = true,
+        run_next_lift = true,
     },
     skid_wrapper = {
         select_pallet = true,
@@ -49,6 +69,13 @@ Authority.ACTIONS = {
 }
 
 local UINT32_MAX = 4294967295
+
+local function urgentSafetyCommand(request)
+    return type(request) == "table" and request.resourceId == "cutter"
+        and (request.action == "emergency_stop"
+            or (request.action == "set_barrier" and type(request.args) == "table"
+                and request.args.barrierClear == false))
+end
 local MAX_PLAYER_ID = 4
 local DEFAULT_LEASE_TIMEOUT = 10
 local DEFAULT_REPLAY_LIMIT = 64
@@ -480,6 +507,7 @@ function Authority:command(player, request, context)
     end
     if request.expectedRevision ~= nil
         and request.expectedRevision ~= self.revisions[request.resourceId]
+        and not urgentSafetyCommand(request)
     then
         return self:_rejectNew(playerKey, "command", request, fingerprint,
             "revision_conflict", "The resource changed; refresh before trying again.")

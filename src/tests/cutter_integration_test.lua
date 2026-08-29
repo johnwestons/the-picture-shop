@@ -81,6 +81,314 @@ function Test.run(context, check, jobs)
     end
     verifySixLiftRepeatRun()
 
+    local function verifyMultiplayerSafeMachineLifecycle()
+        local saleState = context.State.new()
+        local installedCutter = context.machineFleet.installed(saleState, "polar_115")
+        local idleLeaseSaleAllowed, idleLeaseSaleReason = context.machine.validateSale(
+            installedCutter, true)
+        check("cutter_active_lease_blocks_installed_machine_sale",
+            not idleLeaseSaleAllowed
+            and idleLeaseSaleReason:find("active cutter console", 1, true) ~= nil)
+        saleState.inventory.paper = 100
+        context.machine.reset(saleState)
+        check("cutter_generic_stock_loads_for_sale_contention_test",
+            context.machine.load(saleState, "__generic_stock__"))
+        check("cutter_generic_batch_blocks_relocation_without_active_lease",
+            not context.world.beginCutterMove(saleState, false)
+            and saleState.message:find("cutter batch", 1, true) ~= nil)
+        check("cutter_generic_batch_blocks_rotation_without_active_lease",
+            not context.world.rotateCutter(saleState, false)
+            and saleState.message:find("cutter batch", 1, true) ~= nil)
+        local activeSale, activeSaleReason = context.machineFleet.sell(
+            saleState, installedCutter.id, "online")
+        check("cutter_active_generic_batch_blocks_installed_machine_sale",
+            not activeSale and activeSaleReason:find("cutter batch", 1, true) ~= nil
+            and context.machineFleet.byId(saleState, installedCutter.id) == installedCutter)
+        context.machine.reset(saleState)
+
+        local coldState = context.State.new()
+        local coldJob = jobs.createOffer({
+            id = "JOB-COLD-CUTTER", company = "Cold State Co.",
+            sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 500 },
+        })
+        jobs.accept(coldJob)
+        coldState.jobs.active[1] = coldJob
+        coldJob.pallets[1].location = "at_cutter"
+        context.machine.reset(coldState)
+        local coldDirection = coldState.cutter.direction
+        check("cutter_persisted_pallet_blocks_rotation_after_cold_reset",
+            not context.world.rotateCutter(coldState, false)
+            and coldState.cutter.direction == coldDirection
+            and coldState.message:find("clear the cutting bed", 1, true) ~= nil)
+
+        local networkState = context.State.new()
+        local networkJob = jobs.createOffer({
+            id = "JOB-CUTTER-NETWORK", company = "Network Cutter Co.",
+            sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 750 },
+        })
+        jobs.accept(networkJob)
+        networkState.jobs.active[1] = networkJob
+        local networkPallet = networkJob.pallets[1]
+        local networkPaper = networkPallet.paper
+        local anchorX, anchorY = context.CutterZones.inputAnchor(
+            networkState, context.config.cutterPlacement)
+        networkPallet.location = "warehouse"
+        networkPallet.world = {
+            x = anchorX, y = anchorY, direction = "northwest", rotation = 1,
+            fromX = anchorX, fromY = anchorY, spawnProgress = 1,
+        }
+
+        context.machine.reset(networkState)
+        local availableView = context.machine.networkView(networkState, true)
+        check("cutter_network_view_idle_shape", availableView.step == "idle"
+            and type(availableView.runtimeRevision) == "number"
+            and type(availableView.phasePermille) == "number"
+            and type(availableView.memoryCentiInch) == "table"
+            and availableView.paper == nil)
+        check("cutter_network_view_lists_load_candidates", type(availableView.candidates) == "table"
+            and #availableView.candidates == 1
+            and availableView.candidates[1].palletId == networkPallet.id
+            and availableView.candidates[1].distancePixels == 0)
+
+        networkState.inventory.paper = 100
+        networkPallet.world.x, networkPallet.world.y = anchorX + 1000, anchorY + 1000
+        local unstagedView = context.machine.networkView(networkState, true)
+        check("cutter_network_view_does_not_offer_blocked_generic_stock",
+            type(unstagedView.candidates) == "table" and #unstagedView.candidates == 0
+            and unstagedView.genericSheets == nil)
+        networkPallet.world.x, networkPallet.world.y = anchorX, anchorY
+
+        local bulkStockState = context.State.new()
+        bulkStockState.inventory.paper = 100001
+        context.machine.reset(bulkStockState)
+        local bulkStockView = context.machine.networkView(bulkStockState, true)
+        check("cutter_network_view_clamps_bulk_generic_stock_to_wire_limit",
+            bulkStockView.genericSheets == 100000)
+        context.machine.reset(networkState)
+
+        check("cutter_network_loads_named_candidate",
+            context.machine.load(networkState, networkPallet.id))
+        check("cutter_network_load_transition_not_durable",
+            not context.machine.update(context.machine.transferTime + 0.01, networkState)
+            and context.machine.step == "loaded")
+        local activeView = context.machine.networkView(networkState, true)
+        check("cutter_network_view_active_paper_shape", activeView.loaded
+            and activeView.candidates == nil
+            and activeView.paper
+            and activeView.paper.palletId == networkPallet.id
+            and activeView.paper.activeCut == 1
+            and activeView.paper.cutCount == #networkPaper.cuts
+            and activeView.paper.activeLift == 1
+            and activeView.paper.requiredLifts == 2
+            and activeView.paper.remainingSheets == 750
+            and activeView.paper.selectedCut
+            and activeView.paper.selectedCut.active)
+
+        local preservedStep = context.machine.step
+        local preservedRevision = context.machine.runtimeRevision
+        check("cutter_open_preserves_live_runtime", context.machine.open(networkState)
+            and context.machine.paper == networkPaper
+            and context.machine.pallet == networkPallet
+            and context.machine.step == preservedStep
+            and context.machine.runtimeRevision == preservedRevision)
+        networkState.screen = "world"
+        context.input.keypressed("e", {
+            state = networkState,
+            assets = context.assets,
+            world = {
+                getInteraction = function() return { kind = "cutter" } end,
+                faceInteraction = function() end,
+            },
+            machine = context.machine,
+            machineScreen = { enter = function() end },
+            isNetworkClient = function() return false end,
+            networkInteraction = function() return false end,
+        })
+        check("cutter_local_console_reentry_preserves_live_runtime",
+            networkState.screen == "machine" and networkState.machineType == "cutter"
+            and context.machine.paper == networkPaper
+            and context.machine.pallet == networkPallet
+            and context.machine.step == preservedStep
+            and context.machine.runtimeRevision == preservedRevision)
+        context.machine.reset(networkState)
+        check("cutter_reset_leaves_owned_pallet_recoverable",
+            networkPallet.location == "at_cutter" and context.machine.paper == nil)
+        check("cutter_open_restores_at_cutter_pallet", context.machine.open(networkState)
+            and context.machine.paper == networkPaper
+            and context.machine.pallet == networkPallet
+            and context.machine.step == "loading")
+        check("cutter_restored_pallet_finishes_safe_load",
+            not context.machine.update(context.machine.transferTime + 0.01, networkState)
+            and context.machine.step == "loaded")
+
+        check("cutter_guarded_cut_requires_clamped_work", not context.machine.guardedCut(networkState)
+            and context.machine.step == "loaded")
+        local firstCut = networkPaper.cuts[1]
+        context.machine.selectProgram(1, networkState)
+        context.machine.rotate(networkState)
+        context.machine.setGauge(firstCut.gauge, networkState)
+        context.machine.position(networkState)
+        context.machine.update(context.machine.transferTime + 0.01, networkState)
+        context.machine.toggleClamp(networkState)
+        context.machine.gauge = firstCut.gauge + 0.25
+        check("cutter_guarded_cut_revalidates_host_gauge", not context.machine.guardedCut(networkState)
+            and context.machine.step == "clamped")
+        context.machine.gauge = firstCut.gauge
+        context.machine.programIndex = 2
+        check("cutter_guarded_cut_revalidates_host_program", not context.machine.guardedCut(networkState)
+            and context.machine.step == "clamped")
+        context.machine.programIndex = 1
+        context.machine.setBarrier(false, networkState)
+        check("cutter_guarded_cut_revalidates_host_safety", not context.machine.guardedCut(networkState)
+            and context.machine.step == "blocked")
+
+        local blockedPaper, blockedPallet = context.machine.paper, context.machine.pallet
+        check("cutter_reset_safety_starts_without_orphaning", context.machine.resetSafety(networkState)
+            and context.machine.step == "resetting"
+            and context.machine.paper == blockedPaper
+            and context.machine.pallet == blockedPallet
+            and networkPallet.location == "at_cutter")
+        check("cutter_reset_safety_resumes_loaded_work",
+            not context.machine.update(0.36, networkState)
+            and context.machine.step == "loaded"
+            and context.machine.loaded
+            and not context.machine.clamp
+            and context.machine.barrierClear
+            and not context.machine.emergencyStopped
+            and context.machine.paper == blockedPaper
+            and context.machine.pallet == blockedPallet)
+
+        context.machine.position(networkState)
+        context.machine.update(context.machine.transferTime + 0.01, networkState)
+        context.machine.toggleClamp(networkState)
+        context.machine.keypressed("j", networkState)
+        check("cutter_release_operator_raises_stable_clamp",
+            context.machine.releaseOperator(networkState)
+            and not context.machine.leftDown and not context.machine.rightDown
+            and not context.machine.clamp and context.machine.step == "positioned")
+        check("cutter_release_operator_is_idempotent", not context.machine.releaseOperator(networkState))
+
+        context.machine.toggleClamp(networkState)
+        context.machine.keypressed("j", networkState)
+        context.machine.keypressed("k", networkState)
+        check("cutter_release_operator_does_not_abort_inflight_cut",
+            context.machine.step == "armed"
+            and context.machine.releaseOperator(networkState)
+            and context.machine.step == "armed"
+            and context.machine.clamp
+            and not context.machine.leftDown and not context.machine.rightDown)
+        check("cutter_cut_update_is_not_early",
+            not context.machine.update(0.01, networkState) and context.machine.step == "cutting")
+        context.machine.progress = context.machine.cycleTime - 0.005
+        local activeCutBeforeStop = networkPaper.activeCut
+        local preemptedDirty = context.serviceNetworkBeforeMachine(
+            0.02, networkState, function()
+                context.machine.emergencyStop(networkState)
+            end)
+        check("cutter_network_safety_is_serviced_before_near_complete_blade_frame",
+            not preemptedDirty and context.machine.step == "blocked"
+            and networkPaper.activeCut == activeCutBeforeStop)
+        check("cutter_network_preempted_cut_resumes_safely",
+            context.machine.resetSafety(networkState)
+            and not context.machine.update(0.36, networkState)
+            and context.machine.step == "loaded")
+        context.machine.position(networkState)
+        context.machine.update(context.machine.transferTime + 0.01, networkState)
+        context.machine.toggleClamp(networkState)
+        context.machine.guardedCut(networkState)
+        context.machine.update(0.01, networkState)
+        check("cutter_cut_update_reports_durable_milestone",
+            context.machine.update(context.machine.cycleTime + 0.01, networkState)
+            and networkPaper.activeCut == 2)
+        check("cutter_cut_update_reports_milestone_once", not context.machine.update(0, networkState))
+
+        local function finishRemainingCuts(firstNumber)
+            local liftNumber = networkPallet.activeLift
+            for cutNumber = firstNumber, #networkPaper.cuts do
+                local cut = networkPaper.cuts[cutNumber]
+                context.machine.selectProgram(cutNumber, networkState)
+                context.machine.rotate(networkState)
+                context.machine.setGauge(cut.gauge, networkState)
+                context.machine.position(networkState)
+                check("cutter_network_position_update_not_durable_" .. liftNumber .. "_" .. cutNumber,
+                    not context.machine.update(context.machine.transferTime + 0.01, networkState))
+                context.machine.toggleClamp(networkState)
+                check("cutter_network_guarded_cut_accepted_" .. liftNumber .. "_" .. cutNumber,
+                    context.machine.guardedCut(networkState))
+                check("cutter_network_cut_arming_not_durable_" .. liftNumber .. "_" .. cutNumber,
+                    not context.machine.update(0.01, networkState))
+                check("cutter_network_cut_durable_" .. liftNumber .. "_" .. cutNumber,
+                    context.machine.update(context.machine.cycleTime + 0.01, networkState))
+                check("cutter_network_cut_durable_once_" .. liftNumber .. "_" .. cutNumber,
+                    not context.machine.update(0, networkState))
+            end
+        end
+
+        finishRemainingCuts(2)
+        check("cutter_network_first_lift_complete", context.machine.step == "cut_complete"
+            and networkPallet.completedLifts == 1 and networkPallet.remainingSheets == 250)
+        context.machine.emergencyStop(networkState)
+        check("cutter_reset_safety_preserves_complete_lift",
+            context.machine.resetSafety(networkState)
+            and context.machine.paper == networkPaper and context.machine.pallet == networkPallet)
+        check("cutter_reset_safety_resumes_cut_complete",
+            not context.machine.update(0.36, networkState)
+            and context.machine.step == "cut_complete"
+            and context.machine.loaded and networkPallet.location == "at_cutter")
+
+        check("cutter_network_starts_lift_return", context.machine.unload(networkState)
+            and context.machine.step == "lift_returning")
+        check("cutter_lift_return_update_is_not_early",
+            not context.machine.update(context.machine.transferTime / 2, networkState))
+        check("cutter_lift_return_update_reports_durable_milestone",
+            context.machine.update(context.machine.transferTime / 2 + 0.01, networkState)
+            and context.machine.step == "repeat_ready"
+            and not networkPallet.awaitingPalletReturn)
+        check("cutter_lift_return_update_reports_milestone_once",
+            not context.machine.update(0, networkState))
+
+        context.machine.emergencyStop(networkState)
+        check("cutter_repeat_ready_estop_resets_without_bogus_return",
+            context.machine.resetSafety(networkState)
+            and not context.machine.update(0.36, networkState)
+            and context.machine.step == "repeat_ready"
+            and not context.machine.loaded
+            and not networkPallet.awaitingPalletReturn
+            and networkPallet.remainingSheets == 250)
+
+        context.machine.repeatLift(networkState)
+        context.machine.update(context.machine.transferTime + 0.01, networkState)
+        finishRemainingCuts(1)
+        check("cutter_network_final_lift_complete", context.machine.step == "cut_complete"
+            and networkPallet.completedLifts == 2 and networkPallet.remainingSheets == 0)
+        context.machine.setOutputResolver(function(targetState, pallet)
+            return context.world.findCutterOutput(targetState, context.assets, pallet and pallet.id)
+        end)
+        check("cutter_network_starts_final_unload", context.machine.unload(networkState)
+            and context.machine.step == "unloading")
+        check("cutter_unload_update_is_not_early",
+            not context.machine.update(context.machine.transferTime / 2, networkState))
+        check("cutter_unload_update_reports_durable_milestone",
+            context.machine.update(context.machine.transferTime / 2 + 0.01, networkState)
+            and context.machine.step == "finished"
+            and networkPallet.location == "cutter_output")
+        check("cutter_unload_update_reports_milestone_once", not context.machine.update(0, networkState))
+
+        context.machine.emergencyStop(networkState)
+        check("cutter_finished_estop_reset_does_not_resurrect_unloaded_pallet",
+            context.machine.resetSafety(networkState)
+            and not context.machine.update(0.36, networkState)
+            and context.machine.step == "idle" and not context.machine.loaded
+            and context.machine.paper == nil and context.machine.pallet == nil
+            and networkPallet.location == "cutter_output")
+
+        context.machine.setOutputResolver(nil)
+        context.machine.reset(context.state)
+    end
+    verifyMultiplayerSafeMachineLifecycle()
+
     local cutterState = context.State.new()
     cutterState.screen = "machine"
     local cutterJob = jobs.createOffer({

@@ -1,6 +1,6 @@
 # LAN multiplayer device test
 
-Use this checklist for protocol v7's supported LAN direction: any Windows or Android device with a writable selected save can host and own the authoritative shop, while up to three PC or Android devices join as workers. Use the same protocol-compatible game build throughout one pass.
+Use this checklist for protocol v8's supported LAN direction: any Windows or Android device with a writable selected save can host and own the authoritative shop, while up to three PC or Android devices join as workers. Use the same protocol-compatible game build throughout one pass.
 
 ## Prepare the build and devices
 
@@ -25,7 +25,7 @@ Use this checklist for protocol v7's supported LAN direction: any Windows or And
 3. Backgrounding or unfocusing the Android game intentionally ends the authoritative LAN session. This is a safety rule, not automatic reconnect behavior.
 4. Record the Android host address shown in the HUD, including UDP port `22122`.
 
-## Protocol v7 interaction pass
+## Protocol v8 interaction pass
 
 1. On the chosen host, select the save slot and choose **LOCAL PLAY > HOST THIS SHOP**.
 2. On each worker, choose **LOCAL PLAY > JOIN A SHOP**, enter the host's IPv4 address manually, and join. Entering `address:port` is also supported.
@@ -37,11 +37,16 @@ Use this checklist for protocol v7's supported LAN direction: any Windows or And
 8. At the office computer, use it as a guest. Confirm the GUI shows host-owned read-only shop/job information and that only an eligible pickup request can change state.
 9. At the skid wrapper, use it as a guest. Confirm the console shows the host's live cycle and eligible-pallet state. When no pallet is eligible, the list must explain that condition and **START CYCLE** must be disabled in build `.8` or later. While the panel stays open, park and remove an eligible pallet on the host and confirm the row appears and disappears live. Select an available pallet, start once, and verify the host owns the cycle and saved result.
 10. Inspect a nearby pallet's paper work order as a guest. Confirm it uses the host-mirrored record, closes locally, sends no mutation request, and creates no guest save.
-11. At the pallet jack, acquire it as a guest and confirm no blocking console opens. Drive empty, lift one exact eligible pallet, drive loaded, and lower it on a green cell. Verify the host validates every action, all observers keep the operator attached to the jack, the pallet never duplicates or disappears, and a non-owner sees **BUSY** and cannot take control.
-12. Have the host relocate the cutter, skid wrapper, and Windmill in turn. On every guest, confirm each machine leaves its old rendered position once, remains attached to the pallet jack through movement, stops, and turns, then changes to the same terminal pose after a successful placement. Fixed-rate poses must not snap back when a durable shop update arrives.
-13. Try to initiate or place a machine relocation as a guest, then try the cutter, Windmill, vendor, and delivery-truck actions. Each must remain host-only and must not open an unsafe guest screen, alter the shop, or create a guest save. Guests may observe a host relocation without gaining control.
-14. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
-15. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
+11. At the Polar cutter, acquire the console as a guest. Confirm nearby staged pallets appear live, then load an exact pallet, select the highlighted program, set/auto-set the backgauge, rotate, position, clamp, and perform one two-control cut. Verify every screen shows the same cycle and sound. While an ordinary reply is pending, E-STOP or block the barrier; the host must stop before another cut completes. Reset safely, finish all cuts, return/repeat any remaining lift, and unload. A second worker must see **BUSY**, and the host must not sell, rotate, or relocate the cutter while its lease or batch is active.
+12. At the pallet jack, acquire it as a guest and confirm no blocking console opens. Drive empty, lift one exact eligible pallet, drive loaded, and lower it on a green cell. Verify the host validates every action, all observers keep the operator attached to the jack, the pallet never duplicates or disappears, and a non-owner sees **BUSY** and cannot take control.
+13. Have the host relocate the cutter, skid wrapper, and Windmill in turn. On every guest, confirm each machine leaves its old rendered position once, remains attached to the pallet jack through movement, stops, and turns, then changes to the same terminal pose after a successful placement. Fixed-rate poses must not snap back when a durable shop update arrives.
+14. Try to initiate or place a machine relocation as a guest, then try cutter maintenance, Windmill, vendor, and delivery-truck actions. Each must remain host-only and must not open an unsafe guest screen, alter the shop, or create a guest save. Guests may observe a host relocation without gaining control.
+15. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
+16. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
+
+## Protocol v8 cutter acceptance — pending physical pass
+
+Protocol v8 / Android build `0.1.0-android.12` has completed the automated cutter gate with 1,215 passes and 0 failures. Record the clean-build APK size, SHA-256, embedded source commit, device roles, full cutter workflow, contention, urgent safety, disconnect/reacquire, and offline host-save result here after the physical run. Until then, the protocol-v7 `.11` four-device result below remains the latest completed physical acceptance.
 
 ## Verified protocol v7 four-device machine-pose pass — August 28, 2026
 
