@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 if ($DeviceSerial) {
     $DeviceSerial = $DeviceSerial.Trim()
     if (-not $Install) { throw '-DeviceSerial requires -Install.' }
