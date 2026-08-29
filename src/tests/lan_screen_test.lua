@@ -264,16 +264,11 @@ function Test.run(context, check)
         },
     })
     sent = {}
-    local now = 10
-    WorkshopRemoteScreen.setClockForTests(function() return now end)
     local leftX, leftY = WorkshopRemoteScreen.cutterButtonCenter("cut_left")
     local rightX, rightY = WorkshopRemoteScreen.cutterButtonCenter("cut_right")
     WorkshopRemoteScreen.mousepressed(cutterState, leftX, leftY, 1, sendWrapperCommand)
-    local oneSideSentNothing = #sent == 0
-    now = 10.2
-    WorkshopRemoteScreen.mousepressed(cutterState, rightX, rightY, 1, sendWrapperCommand)
-    check("remote_cutter_two_hand_taps_send_one_guarded_cut_only",
-        oneSideSentNothing and #sent == 1 and sent[1].action == "guarded_cut")
+    check("remote_cutter_left_button_sends_one_guarded_cut",
+        #sent == 1 and sent[1].action == "guarded_cut")
 
     local emergencyX, emergencyY = WorkshopRemoteScreen.cutterButtonCenter("emergency_stop")
     WorkshopRemoteScreen.mousepressed(
@@ -311,16 +306,9 @@ function Test.run(context, check)
         safetySentDuringOrdinaryWait and ordinaryReplyKeptSafetyPending
         and safetyReplyClearedOnlySafetyWait)
     sent = {}
-    now = 20
-    WorkshopRemoteScreen.keypressed("j", cutterState, sendWrapperCommand)
-    now = 20.31
-    WorkshopRemoteScreen.keypressed("k", cutterState, sendWrapperCommand)
-    check("remote_cutter_expired_two_hand_input_sends_no_command", #sent == 0)
-    now = 20.5
-    WorkshopRemoteScreen.keypressed("j", cutterState, sendWrapperCommand)
-    check("remote_cutter_keyboard_two_hand_input_sends_one_guarded_cut",
+    WorkshopRemoteScreen.mousepressed(cutterState, rightX, rightY, 1, sendWrapperCommand)
+    check("remote_cutter_right_button_sends_one_guarded_cut",
         #sent == 1 and sent[1].action == "guarded_cut")
-    WorkshopRemoteScreen.setClockForTests(nil)
     WorkshopRemoteScreen.clear()
 end
 

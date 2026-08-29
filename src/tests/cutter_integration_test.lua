@@ -297,7 +297,12 @@ function Test.run(context, check, jobs)
         context.machine.position(networkState)
         context.machine.update(context.machine.transferTime + 0.01, networkState)
         context.machine.toggleClamp(networkState)
-        context.machine.guardedCut(networkState)
+        context.machine.setMultiplayerSingleControl(true)
+        local hostLeftCutHandled = context.machine.keypressed("j", networkState)
+        context.machine.setMultiplayerSingleControl(false)
+        check("cutter_multiplayer_host_left_control_starts_single_action_cut",
+            hostLeftCutHandled and context.machine.step == "armed"
+            and not context.machine.leftDown and not context.machine.rightDown)
         context.machine.update(0.01, networkState)
         check("cutter_cut_update_reports_durable_milestone",
             context.machine.update(context.machine.cycleTime + 0.01, networkState)
@@ -315,8 +320,19 @@ function Test.run(context, check, jobs)
                 check("cutter_network_position_update_not_durable_" .. liftNumber .. "_" .. cutNumber,
                     not context.machine.update(context.machine.transferTime + 0.01, networkState))
                 context.machine.toggleClamp(networkState)
+                local cutAccepted
+                if liftNumber == 1 and cutNumber == 2 then
+                    context.machine.setMultiplayerSingleControl(true)
+                    cutAccepted = context.machine.keypressed("k", networkState)
+                        and context.machine.step == "armed"
+                    context.machine.setMultiplayerSingleControl(false)
+                    check("cutter_multiplayer_host_right_control_starts_single_action_cut",
+                        cutAccepted and not context.machine.leftDown and not context.machine.rightDown)
+                else
+                    cutAccepted = context.machine.guardedCut(networkState)
+                end
                 check("cutter_network_guarded_cut_accepted_" .. liftNumber .. "_" .. cutNumber,
-                    context.machine.guardedCut(networkState))
+                    cutAccepted)
                 check("cutter_network_cut_arming_not_durable_" .. liftNumber .. "_" .. cutNumber,
                     not context.machine.update(0.01, networkState))
                 check("cutter_network_cut_durable_" .. liftNumber .. "_" .. cutNumber,

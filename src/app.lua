@@ -1548,6 +1548,7 @@ end
 function App.update(dt)
     if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
+    Machine.setMultiplayerSingleControl(multiplayer:isActive())
     local networkInputX, networkInputY = 0, 0
     if not multiplayer:isClient() and state.screen ~= "title"
         and state.screen ~= "lan" and state.screen ~= "asset_error"

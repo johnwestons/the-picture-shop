@@ -141,9 +141,9 @@ local cutterHelp = {
     { "3 — READ THE CUT PROGRAM", "The active cut number identifies the margin currently nearest the operator/screen. Compare the required measurement to the job's cut list. Easy work often repeats one margin; harder work has four different values. Never guess: the displayed target and pallet ID are the source of truth." },
     { "4 — SET OR PROGRAM THE BACK GAUGE", "Click the gauge number field, type inches with decimals, then press ENTER or SET. SAVE stores the measurement in the selected P1–P4 program. RECALL restores saved values. AUTOSET recalls the next saved cut, moves to its cut number automatically and prepares the next repeat measurement." },
     { "5 — POSITION AND ROTATE", "Press P or POSITION to push the stack against the back gauge. The red active margin must face the operator/screen. Press Q or ROTATE for a 90-degree counter-clockwise turn between sides. Reposition against the gauge after every rotation or measurement change." },
-    { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Trigger both CUT buttons (J and K) within 0.30 seconds to use the real two-hand safety logic. The blade descends, cuts the active margin and rises. The paper record and tooltip update to the new physical size." },
+    { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Offline, trigger both CUT buttons (J and K) within 0.30 seconds. During the current multiplayer slice, either CUT button starts the host-validated cycle. The blade descends, cuts the active margin and rises." },
     { "7 — FINISH ALL LIFTS", "The cutter holds a maximum 500 sheets per lift. Repeat the programmed sides for each lift until the pallet's full sheet count is processed. Verify the size after every side. When all required margins are removed, press U or UNLOAD; the animated stack returns to its pallet at cutter output." },
-    { "8 — TROUBLESHOOTING", "If cutting is blocked, check: correct pallet loaded, transfer animation finished, gauge equals active cut, paper positioned, barrier clear, clamp down, both cut controls pressed together, and E-STOP reset. A wrong measurement changes the real sheet size and can create spoilage." },
+    { "8 — TROUBLESHOOTING", "If cutting is blocked, check: correct pallet loaded, transfer animation finished, gauge equals active cut, paper positioned, barrier clear, clamp down, the required offline or multiplayer cut control pressed, and E-STOP reset. A wrong measurement changes the real sheet size and can create spoilage." },
     { "9 — ROUTINE MAINTENANCE", "Unload the bed and return to IDLE. Open MAINTENANCE. Lubrication requires one delivered maintenance kit and an ordered lockout sequence: disconnect, keep the key and attach the tag. Clean and grease each marked point, inspect the gearbox sight glass, pump lubricant, then finish inspection." },
     { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all four blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book the blade technician; the on-site technician services and reinstalls it. Never run with the blade removed." },
 }
@@ -910,7 +910,9 @@ function Screen.draw(state, assets, pointerX, pointerY)
         elseif button.action == "estop" then drawSpriteButton(assets, button, true, Machine.emergencyStopped) end
     end
     love.graphics.setColor(0.75, 0.82, 0.83)
-    love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate | SPACE clamp | J+K cut | T repeat | U unload", 48, 535)
+    love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate | SPACE clamp | "
+        .. (Machine.multiplayerSingleControl and "J or K cut" or "J+K cut")
+        .. " | T repeat | U unload", 48, 535)
     local memory = Machine.savedMeasurements(state, Machine.programIndex)
     local formattedMemory = {}
     for index, value in ipairs(memory) do formattedMemory[index] = string.format("%.2f", value) end
@@ -1271,8 +1273,9 @@ function Screen.mousereleased(state, x, y, button)
     if button ~= 1 then return false end
     local action = Screen.pressedAction
     Screen.pressedAction = nil
-    -- Mouse cut controls stay latched for the same 0.30-second simultaneity
-    -- window used by the physical keys, making a quick J-then-K click valid.
+    -- Offline mouse cut controls stay latched for the same 0.30-second
+    -- simultaneity window used by the physical keys. Multiplayer input starts
+    -- the cut during mousepressed, so release only clears the visual action.
     if action == "cut_left" or action == "cut_right" then return true end
     return action ~= nil
 end

@@ -313,6 +313,8 @@ function Test.run(context, check)
     local carriedTooltip = context.world.palletTooltipAt(context.state, loadedJack.x, loadedJack.y - 40)
     check("carried_pallet_tooltip", carriedTooltip
         and carriedTooltip.title:find(pickupTarget.pallet.id, 1, true))
+    check("carried_pallet_tooltip_ignores_missing_overlay_pointer",
+        context.world.palletTooltipAt(context.state, nil, nil) == nil)
     if os.getenv("PICTURE_SHOP_PALLET_JACK_PREVIEW") == "1" then return end
     context.world.update(0, 0, 0, context.assets, context.state)
     context.input.keypressed("e", context.inputContext)

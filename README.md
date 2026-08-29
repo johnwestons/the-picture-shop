@@ -32,7 +32,8 @@ merges by player ID. The same authoritative tick carries the live and terminal p
 cutter, skid wrapper, or Windmill, so every worker sees the machine remain mounted while it moves.
 Guests can observe relocation but cannot initiate or place a machine. The durable save retains the last
 committed floor pose until the host completes a valid placement. The cutter uses its own 12 Hz bounded
-runtime stream, an exclusive host lease, host-validated setup/cut commands, an urgent E-STOP/barrier lane,
+runtime stream, an exclusive host lease, host-validated setup/cut commands, either-button multiplayer cutting,
+an urgent E-STOP/barrier lane,
 and safe disconnect/revision recovery. See `docs/lan_multiplayer_slice.md` for the supported protocol-v8
 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
 

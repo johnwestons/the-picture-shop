@@ -16,6 +16,7 @@ local Machine = {
     paper = nil, pallet = nil, job = nil, legacyPaper = false, paperTravel = 0,
     pendingOutput = nil, outputResolver = nil,
     runtimeRevision = 0, _resetResume = nil, _blockedResume = nil,
+    multiplayerSingleControl = false,
 }
 
 local UINT32_MODULUS = 4294967296
@@ -358,7 +359,11 @@ function Machine.toggleClamp(state)
     if Machine.step ~= "positioned" and Machine.step ~= "clamped" then return false end
     Machine.clamp = not Machine.clamp
     Machine.step = Machine.clamp and "clamped" or "positioned"
-    message(state, Machine.clamp and "Clamp engaged. Hold both cut controls." or "Clamp released.")
+    message(state, Machine.clamp
+        and (Machine.multiplayerSingleControl
+            and "Clamp engaged. Press either cut control."
+            or "Clamp engaged. Hold both cut controls.")
+        or "Clamp released.")
     bumpRevision()
     return true
 end
@@ -403,13 +408,17 @@ local function tryCut(state)
         return false
     end
     Machine.step, Machine.progress = "armed", 0
-    message(state, "Both cut controls acknowledged. Blade cycle starting.")
+    message(state, "Cut controls validated. Blade cycle starting.")
     bumpRevision()
     return true
 end
 
 function Machine.guardedCut(state)
     return tryCut(state)
+end
+
+function Machine.setMultiplayerSingleControl(enabled)
+    Machine.multiplayerSingleControl = enabled == true
 end
 
 function Machine.resetSafety(state)
@@ -495,6 +504,10 @@ function Machine.keypressed(key, state)
         return Machine.resetSafety(state)
     end
     if Machine.step ~= "clamped" then return false end
+    if Machine.multiplayerSingleControl and (key == "j" or key == "k") then
+        tryCut(state)
+        return true
+    end
     if key == "j" then Machine.leftDown, Machine._leftAt = true, Machine._clock
     elseif key == "k" then Machine.rightDown, Machine._rightAt = true, Machine._clock
     else return false end

@@ -1515,6 +1515,7 @@ function World.palletsSnapshot(state)
 end
 
 function World.palletTooltipAt(state, x, y)
+    if type(x) ~= "number" or type(y) ~= "number" then return nil end
     local hovered = PalletLogistics.hovered(state, x, y)
     if not hovered then
         local carried = PalletJack.carriedItem(state, Config.palletJack)

@@ -25,6 +25,8 @@ Use this checklist for protocol v8's supported LAN direction: any Windows or And
 3. Backgrounding or unfocusing the Android game intentionally ends the authoritative LAN session. This is a safety rule, not automatic reconnect behavior.
 4. Record the Android host address shown in the HUD, including UDP port `22122`.
 
+Windows remains the recommended host when the host operator must switch applications. Keeping an Android host alive while backgrounded requires a future foreground-service/network-loop implementation rather than merely removing the focus-loss shutdown.
+
 ## Protocol v8 interaction pass
 
 1. On the chosen host, select the save slot and choose **LOCAL PLAY > HOST THIS SHOP**.
@@ -37,7 +39,7 @@ Use this checklist for protocol v8's supported LAN direction: any Windows or And
 8. At the office computer, use it as a guest. Confirm the GUI shows host-owned read-only shop/job information and that only an eligible pickup request can change state.
 9. At the skid wrapper, use it as a guest. Confirm the console shows the host's live cycle and eligible-pallet state. When no pallet is eligible, the list must explain that condition and **START CYCLE** must be disabled in build `.8` or later. While the panel stays open, park and remove an eligible pallet on the host and confirm the row appears and disappears live. Select an available pallet, start once, and verify the host owns the cycle and saved result.
 10. Inspect a nearby pallet's paper work order as a guest. Confirm it uses the host-mirrored record, closes locally, sends no mutation request, and creates no guest save.
-11. At the Polar cutter, acquire the console as a guest. Confirm nearby staged pallets appear live, then load an exact pallet, select the highlighted program, set/auto-set the backgauge, rotate, position, clamp, and perform one two-control cut. Verify every screen shows the same cycle and sound. While an ordinary reply is pending, E-STOP or block the barrier; the host must stop before another cut completes. Reset safely, finish all cuts, return/repeat any remaining lift, and unload. A second worker must see **BUSY**, and the host must not sell, rotate, or relocate the cutter while its lease or batch is active.
+11. At the Polar cutter, acquire the console as a guest. Confirm nearby staged pallets appear live, then load an exact pallet, select the highlighted program, set/auto-set the backgauge, rotate, position, clamp, and perform one cut with either multiplayer cut button. Repeat once from the Android host's local cutter screen and confirm either local button also starts one cut. Verify every screen shows the same cycle and sound. While an ordinary reply is pending, E-STOP or block the barrier; the host must stop before another cut completes. Reset safely, finish all cuts, return/repeat any remaining lift, and unload. A second worker must see **BUSY**, and the host must not sell, rotate, or relocate the cutter while its lease or batch is active.
 12. At the pallet jack, acquire it as a guest and confirm no blocking console opens. Drive empty, lift one exact eligible pallet, drive loaded, and lower it on a green cell. Verify the host validates every action, all observers keep the operator attached to the jack, the pallet never duplicates or disappears, and a non-owner sees **BUSY** and cannot take control.
 13. Have the host relocate the cutter, skid wrapper, and Windmill in turn. On every guest, confirm each machine leaves its old rendered position once, remains attached to the pallet jack through movement, stops, and turns, then changes to the same terminal pose after a successful placement. Fixed-rate poses must not snap back when a durable shop update arrives.
 14. Try to initiate or place a machine relocation as a guest, then try cutter maintenance, Windmill, vendor, and delivery-truck actions. Each must remain host-only and must not open an unsafe guest screen, alter the shop, or create a guest save. Guests may observe a host relocation without gaining control.
@@ -46,7 +48,9 @@ Use this checklist for protocol v8's supported LAN direction: any Windows or And
 
 ## Protocol v8 cutter acceptance — pending physical pass
 
-Protocol v8 / Android build `0.1.0-android.12` has completed the automated cutter gate with 1,215 passes and 0 failures. Record the clean-build APK size, SHA-256, embedded source commit, device roles, full cutter workflow, contention, urgent safety, disconnect/reacquire, and offline host-save result here after the physical run. Until then, the protocol-v7 `.11` four-device result below remains the latest completed physical acceptance.
+Protocol v8 / Android build `0.1.0-android.13` is the current cutter acceptance candidate and has completed its automated gate with 1,217 passes and 0 failures. Record its clean-build APK size, SHA-256, embedded source commit, device roles, full cutter workflow, contention, urgent safety, disconnect/reacquire, and offline host-save result here after the physical run. Until then, the protocol-v7 `.11` four-device result below remains the latest completed physical acceptance.
+
+Build `.12` reached an SM-S938U Android host with Windows and SM-J410G workers at `3/4`, but was not accepted. While the Windows worker had the remote cutter open, the Android host lifted a pallet; the Windows background-world tooltip evaluated that carried pallet without hover coordinates and stopped in `world_renderer.lua`. Build `.13` guards that cross-snapshot overlay frame and changes multiplayer cutting so either host or guest cut button sends one host-validated cut request.
 
 ## Verified protocol v7 four-device machine-pose pass — August 28, 2026
 

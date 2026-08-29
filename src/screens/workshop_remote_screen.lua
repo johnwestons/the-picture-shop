@@ -5,11 +5,6 @@ local Ui = require("src.screens.ui")
 local Wrapper = require("src.wrapper")
 local utf8 = require("utf8")
 
-local function defaultClock()
-    if love and love.timer and love.timer.getTime then return love.timer.getTime() end
-    return os.clock()
-end
-
 local Screen = {
     resourceId = nil,
     leaseId = nil,
@@ -27,10 +22,6 @@ local Screen = {
     gaugeText = "0.00",
     gaugeFocused = false,
     gaugeReplaceOnType = true,
-    cutLeftAt = nil,
-    cutRightAt = nil,
-    cutGestureWindow = 0.30,
-    clock = defaultClock,
 }
 
 local PANEL = { x = 92, y = 44, width = 776, height = 590 }
@@ -241,7 +232,6 @@ function Screen.enter(grant, state)
     Screen.status = tostring(grant and grant.message or "Remote console ready.")
     Screen.gaugeFocused = false
     Screen.gaugeReplaceOnType = true
-    Screen.cutLeftAt, Screen.cutRightAt = nil, nil
     syncCutterGauge(true)
     if state then state.screen = "workshop_remote" end
     return Screen.resourceId ~= nil and Screen.leaseId ~= nil
@@ -252,7 +242,6 @@ function Screen.clear()
     Screen.quoteFocused, Screen.waiting, Screen.safetyWaiting = false, false, false
     Screen.selectedJobId, Screen.selectedPalletId = nil, nil
     Screen.gaugeFocused, Screen.gaugeReplaceOnType = false, true
-    Screen.cutLeftAt, Screen.cutRightAt = nil, nil
     Screen.workshopTick = 0
 end
 
@@ -284,7 +273,6 @@ function Screen.applyResult(result)
     Screen.status = tostring(result.message or (result.accepted and "Action completed." or "Action rejected."))
     if Screen.resourceId == "cutter" then
         mergeCutterView(result.view or result.data)
-        Screen.cutLeftAt, Screen.cutRightAt = nil, nil
     elseif result.view or result.data then
         Screen.view = result.view or result.data
     end
@@ -368,42 +356,20 @@ local function cutterCutReady()
         and view.step == "clamped"
 end
 
-local function expireCutGesture(now)
-    if Screen.cutLeftAt and now - Screen.cutLeftAt > Screen.cutGestureWindow then
-        Screen.cutLeftAt = nil
-    end
-    if Screen.cutRightAt and now - Screen.cutRightAt > Screen.cutGestureWindow then
-        Screen.cutRightAt = nil
-    end
-end
-
-local function handleCutterCut(side, sendCommand)
+local function handleCutterCut(sendCommand)
     if not cutterCutReady() then
-        Screen.cutLeftAt, Screen.cutRightAt = nil, nil
         Screen.status = (Screen.waiting or Screen.safetyWaiting)
             and "Wait for the host to finish verifying the previous action."
             or "Position the paper, lower the clamp, clear the barrier, and reset E-STOP first."
         return true
     end
-    local now = (Screen.clock or defaultClock)()
-    expireCutGesture(now)
-    if side == "left" then Screen.cutLeftAt = now else Screen.cutRightAt = now end
-    if Screen.cutLeftAt and Screen.cutRightAt
-        and math.abs(Screen.cutLeftAt - Screen.cutRightAt) <= Screen.cutGestureWindow
-    then
-        Screen.cutLeftAt, Screen.cutRightAt = nil, nil
-        return request(sendCommand, "guarded_cut", {})
-    end
-    Screen.status = string.format("%s cut control held — press the other control within %.2f seconds.",
-        side == "left" and "Left" or "Right", Screen.cutGestureWindow)
-    return true
+    return request(sendCommand, "guarded_cut", {})
 end
 
 function Screen.keypressed(key, state, sendCommand)
     key = string.lower(tostring(key or ""))
     if Screen.resourceId == "cutter" then
-        if key == "j" then return handleCutterCut("left", sendCommand)
-        elseif key == "k" then return handleCutterCut("right", sendCommand) end
+        if key == "j" or key == "k" then return handleCutterCut(sendCommand) end
         if not Screen.gaugeFocused then return false end
         if key == "backspace" then
             if Screen.gaugeReplaceOnType then
@@ -633,9 +599,9 @@ function Screen.mousepressed(state, x, y, button, sendCommand)
             return cutterButtonEnabled("run_next_lift")
                 and request(sendCommand, "run_next_lift", {}) or true
         elseif contains(CUTTER_CONTROLS.cut_left, x, y) then
-            return handleCutterCut("left", sendCommand)
+            return handleCutterCut(sendCommand)
         elseif contains(CUTTER_CONTROLS.cut_right, x, y) then
-            return handleCutterCut("right", sendCommand)
+            return handleCutterCut(sendCommand)
         end
     end
     return false
@@ -859,11 +825,10 @@ local function drawCutter(state, pointerX, pointerY)
     button(CUTTER_CONTROLS.run_next_lift, "RUN NEXT LIFT", pointerX, pointerY,
         cutterButtonEnabled("run_next_lift"), true)
 
-    expireCutGesture((Screen.clock or defaultClock)())
-    button(CUTTER_CONTROLS.cut_left, Screen.cutLeftAt and "LEFT HELD" or "LEFT CUT  ·  J",
-        pointerX, pointerY, cutterButtonEnabled("cut_left"), Screen.cutLeftAt ~= nil)
-    button(CUTTER_CONTROLS.cut_right, Screen.cutRightAt and "RIGHT HELD" or "RIGHT CUT  ·  K",
-        pointerX, pointerY, cutterButtonEnabled("cut_right"), Screen.cutRightAt ~= nil)
+    button(CUTTER_CONTROLS.cut_left, "CUT  ·  J",
+        pointerX, pointerY, cutterButtonEnabled("cut_left"), false)
+    button(CUTTER_CONTROLS.cut_right, "CUT  ·  K",
+        pointerX, pointerY, cutterButtonEnabled("cut_right"), false)
 end
 
 function Screen.draw(state, pointerX, pointerY, assets)
@@ -923,10 +888,6 @@ end
 function Screen.cutterCandidateCenter(index)
     local rect = cutterCandidateRect(index)
     return rect.x + rect.width / 2, rect.y + rect.height / 2
-end
-
-function Screen.setClockForTests(clock)
-    Screen.clock = type(clock) == "function" and clock or defaultClock
 end
 
 return Screen

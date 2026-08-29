@@ -130,16 +130,11 @@ local function drawPallet(assets, item)
 end
 
 local function drawPalletTooltip(state, mouseX, mouseY)
-    local hovered = PalletLogistics.hovered(state, mouseX, mouseY)
-    if not hovered and state then
-        local carried = PalletJack.carriedItem(state, Config.palletJack)
-        if carried and mouseX >= carried.x - 58 and mouseX <= carried.x + 58
-            and mouseY >= carried.y - 92 and mouseY <= carried.y + 12
-        then
-            hovered = carried
-        end
-    end
-    local tooltip = PalletLogistics.tooltip(hovered)
+    -- Non-world screens still render the live shop as a backdrop, but App
+    -- deliberately withholds hover coordinates from that backdrop. A pallet
+    -- can become carried between reliable and realtime snapshots, so never
+    -- enter the carried-item hit test without an actual pointer position.
+    local tooltip = World and World.palletTooltipAt(state, mouseX, mouseY) or nil
     if not tooltip then return end
     local width, height = 390, 86
     local x = math.min(Config.baseWidth - width - 12, mouseX + 16)

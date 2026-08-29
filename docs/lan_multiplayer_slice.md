@@ -20,7 +20,7 @@ Protocol v8 makes LAN hosting device-neutral. Any Windows or Android device that
 - A nearby guest can talk to the reception customer and submit the displayed quote or decline the job.
 - A nearby guest can use the office computer to inspect host-owned shop/job information and request an eligible pickup.
 - A nearby guest can use the skid-wrapper console, inspect eligible finished pallets, select one, and request a wrap cycle.
-- A nearby guest can use the Polar cutter console. The host owns pallet/generic-stock loading, program and backgauge setup, rotation, positioning, clamp and guarded two-hand cut validation, safety reset, lift return/repeat, and final unload. Idle load candidates and the live machine cycle refresh at 12 Hz. E-STOP and barrier-block use a separate urgent pending lane, remain available while an ordinary command reply is delayed, and are serviced before the host advances the blade that frame.
+- A nearby guest can use the Polar cutter console. The host owns pallet/generic-stock loading, program and backgauge setup, rotation, positioning, clamp and guarded cut validation, safety reset, lift return/repeat, and final unload. During multiplayer, either cut button on the host or a guest sends the same single host-validated cut request; ordinary offline play retains the original two-control operation. Idle load candidates and the live machine cycle refresh at 12 Hz. E-STOP and barrier-block use a separate urgent pending lane, remain available while an ordinary command reply is delayed, and are serviced before the host advances the blade that frame.
 - A guest can inspect a pallet's mirrored paper work order locally without taking a workshop lease, sending a mutation request, or writing a guest save.
 - The pallet jack is a host-authoritative shared vehicle. One worker at a time may acquire it, drive it with predicted local input, lift an exact host-validated pallet, carry it across the shop, lower it on a host-snapped clear grid cell, and park it. Other devices receive the live jack, operator, candidate, and carried-pallet view.
 - When the host relocates the cutter, skid wrapper, or Windmill, protocol v7 sends all three terminal/live machine poses at a fixed 12 Hz in the pallet-jack snapshot. The machine pose and jack share one authoritative server tick, so peers validate and render the active machine attached to the empty host-owned jack throughout movement, stops, and turns.
@@ -28,7 +28,7 @@ Protocol v8 makes LAN hosting device-neutral. Any Windows or Android device that
 - Pallet-jack ownership is cleaned up on timeout or disconnect. A loaded jack is parked without losing or duplicating its pallet, then can be reclaimed by another worker.
 - Workshop resources use exclusive, expiring host-side leases, range checks, revisions, request deduplication, and disconnect cleanup. The host device follows the same ownership rules as remote workers.
 - Durable changes are accepted and saved only by the host and are sent only to fully joined peers. A shop-state update never resets or teleports a guest worker.
-- Android hosting performs a writable-save preflight before opening the LAN session, keeps the display awake while hosting, and safely ends the session if the game loses foreground focus. This avoids silently suspending an authoritative mobile host.
+- Android hosting performs a writable-save preflight before opening the LAN session, keeps the display awake while hosting, and safely ends the session if the game loses foreground focus. This avoids silently suspending an authoritative mobile host. Windows is therefore the recommended stable host whenever the host may need to switch apps; true Android background hosting remains a separate foreground-service task.
 - Android packaging asserts that the final APK contains the `INTERNET` permission.
 
 ## Physical acceptance status — August 28, 2026
@@ -106,12 +106,12 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 ## Completed roadmap target
 
 - Protocol v7 replicates the fixed-rate live and terminal pose of a host-relocated cutter, skid wrapper, or Windmill, tied to the same authoritative tick as the pallet jack. Automated coverage includes the MTU-safe one-player motion shards, and the targeted `.11` four-device physical pass is complete.
-- Protocol v8 adds the host-authoritative remote cutter production console, bounded live runtime/candidate snapshots, exact resource revisions, urgent safety preemption, safe disconnect/reset behavior, and sale/relocation interlocks. Automated coverage is complete; the `.12` physical cutter pass is the current acceptance gate.
+- Protocol v8 adds the host-authoritative remote cutter production console, bounded live runtime/candidate snapshots, exact resource revisions, urgent safety preemption, safe disconnect/reset behavior, and sale/relocation interlocks. Automated coverage is complete; the `.13` physical cutter pass is the current acceptance gate.
 
 ## Next roadmap targets
 
 1. Add the Windmill console with the same explicit lease, command, revision, urgent-safety, and disconnect rules.
 2. Add vendor and delivery-truck interactions, including inventory and manifest operations, without allowing guest-side durable writes.
-3. Improve session convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, and eventually deliberate host migration.
+3. Improve session resilience and convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, an Android foreground-service host mode, and eventually deliberate host migration.
 
 Use `docs/lan_multiplayer_device_test.md` for the exact verified four-device result, its remaining untested matrix items, and the preserved historical three-device results.
