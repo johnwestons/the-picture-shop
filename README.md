@@ -33,6 +33,11 @@ Guests can observe relocation but cannot initiate or place a machine. The durabl
 committed floor pose until the host completes a valid placement. See `docs/lan_multiplayer_slice.md` for
 the supported protocol-v7 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
 
+The protocol-v7 / Android `.11` targeted four-device pass completed on August 28, 2026: an SM-S938U
+Android host, two Android workers, and a Windows worker reached `4/4 WORKERS`, passed independent
+movement and live cutter/wrapper/Windmill observation, and returned cleanly to `4/4` after the SM-J410G
+left and rejoined. The broader 15-minute, hotspot, and offline-reload checks remain unclaimed.
+
 ## Release gate
 
 From a clean, pushed `main` branch, run `./RELEASE.ps1`. This single command

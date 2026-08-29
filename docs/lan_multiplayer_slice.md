@@ -32,18 +32,34 @@ Protocol v7 makes LAN hosting device-neutral. Any Windows or Android device that
 
 ## Physical acceptance status — August 28, 2026
 
-Protocol v7 and Android build `0.1.0-android.11` retain the live host-relocation poses and replace protocol
-v6's full-roster movement packet with one-player MTU-safe shards merged by player ID. The reliable welcome
-now contains only the host and assigned worker. This fixes the fourth-player join path that could exceed
-the 1,200-byte realtime limit in `.10`. The `.11` Android-host four-device pass is still pending, its exact
-APK SHA-256 has not yet been recorded, and no physical pass is claimed for it. Use the pending checklist in
-`docs/lan_multiplayer_device_test.md` before promotion.
+Protocol v7 and Android build `0.1.0-android.11` completed their targeted Android-host four-device physical
+acceptance on August 28, 2026. The exact APK is
+`output/mobile/ThePictureShop-0.1.0-android.11-debug.apk`, 102,485,249 bytes, SHA-256
+`88549621c829201171475cb38513ac1433b3292595b32cc3b0dd30fb67017940`; its mobile package reports clean
+source commit `8b5b80d28334853986a30e5e84b42ed88c53cbce`. Automated smoke completed 1,113 passes with 0 failures.
 
-The superseded `.10` artifact reached an Android host plus two Android guests (`3/4 WORKERS`), but adding
-the Windows PC as the fourth participant exposed the roster overflow. That diagnostic run is not a
-physical acceptance result.
+- Samsung SM-S938U hosted at `192.168.1.137:22122`; Samsung SM-S928U1, Samsung SM-J410G, and a Windows PC
+  worker ran the same protocol-v7 source. Every device reached `4/4 WORKERS`, and all participants moved
+  independently.
+- Cutter, skid-wrapper, and Windmill live relocation remained synchronized across the host and all three
+  observers through rotations, stop/restart transitions, and placement. The cutter stayed live beyond the
+  30-second durable fallback; a red placement rejection followed by a green placement produced no snap-back
+  or duplicate sprite.
+- A guest operated the dock door during wrapper relocation and opened the computer/client screen during
+  Windmill relocation without disturbing the live machine pose.
+- The SM-J410G exited cleanly: every remaining screen showed `3/4 WORKERS` with no stale avatar. Rejoining
+  restored exactly one avatar, `4/4 WORKERS`, and independent movement.
+- Android LÖVE logs were clean.
 
-The last completed physical acceptance remains the pallet-logistics slice exercised with protocol v5 and APK `0.1.0-android.9`:
+This was a targeted join, movement, machine-pose, concurrent-interaction, and rejoin pass. It did not run
+the full 15-minute soak, hotspot matrix, or final offline save reload, so those broader checks remain open.
+
+The superseded `.10` APK, SHA-256
+`151a0958d0d8215ee3c38c64cbf35db3af9a58d5182d01d2e2018cd824159155` (102,481,341 bytes), reached an
+Android host plus two Android guests (`3/4 WORKERS`), but adding the Windows PC as the fourth participant
+exposed the roster overflow. That diagnostic run is not a physical acceptance result.
+
+The previous completed physical acceptance was the pallet-logistics slice exercised with protocol v5 and APK `0.1.0-android.9`:
 
 - Samsung SM-S938U hosted its writable slot 3 shop at `192.168.1.137:22122`; a Windows PC and Samsung SM-J410G joined simultaneously and every active device reported `3/4 WORKERS`.
 - The older Android worker acquired the pallet jack, drove it across the workshop, lifted exact pallet `JOB-0001-P02`, moved it while loaded, and lowered it on the host-validated grid. The host and PC observer stayed synchronized throughout.
@@ -83,12 +99,12 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 - Cutter and Windmill consoles, vendor and delivery-truck inventory/actions, and initiating or placing a machine relocation remain host-only. Their minigames, inventories, or multi-step transactions need their own authority rules before guest control is enabled.
 - Protocol v7 peers observe the host's live cutter, wrapper, or Windmill relocation, including its final stationary pose, on the pallet-jack tick. Observation does not grant a guest relocation control or write authority.
 - A device that cannot pass the writable-save preflight cannot host. It may still join as a worker; this is the expected role for the older Android phone with its known local-save-directory limitation.
-- All devices must run the same protocol-compatible build. APK `.9` has passed the Android-host three-device pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks. `.10` was not accepted after its fourth-player overflow; `.11` remains pending its four-device join, machine-relocation, and reconnect pass.
+- All devices must run the same protocol-compatible build. APK `.9` passed the Android-host three-device pallet-logistics, contention, read-only paperwork, and loaded-disconnect recovery checks. `.10` was not accepted after its fourth-player overflow. `.11` passed the targeted four-device join, independent-movement, machine-relocation observation, concurrent guest-interaction, and clean leave/rejoin scope described above.
 - A router's guest-network or client-isolation setting can block LAN traffic even when every device has internet access.
 
 ## Completed roadmap target
 
-- Protocol v7 replicates the fixed-rate live and terminal pose of a host-relocated cutter, skid wrapper, or Windmill, tied to the same authoritative tick as the pallet jack. Automated coverage includes the MTU-safe one-player motion shards; the `.11` four-device physical pass remains pending.
+- Protocol v7 replicates the fixed-rate live and terminal pose of a host-relocated cutter, skid wrapper, or Windmill, tied to the same authoritative tick as the pallet jack. Automated coverage includes the MTU-safe one-player motion shards, and the targeted `.11` four-device physical pass is complete.
 
 ## Next roadmap targets
 
@@ -97,4 +113,4 @@ The earlier, fully verified Windows-PC-host plus two-Android-guest baseline rema
 3. Add vendor and delivery-truck interactions, including inventory and manifest operations, without allowing guest-side durable writes.
 4. Improve session convenience after the gameplay systems are covered: LAN discovery, reconnect/resume, and eventually deliberate host migration.
 
-Use `docs/lan_multiplayer_device_test.md` for the exact pending four-device acceptance matrix and the preserved historical three-device results.
+Use `docs/lan_multiplayer_device_test.md` for the exact verified four-device result, its remaining untested matrix items, and the preserved historical three-device results.

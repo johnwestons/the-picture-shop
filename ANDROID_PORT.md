@@ -12,7 +12,7 @@
 - LAN: protocol v7 fixes protocol v6's fourth-player 1,200-byte roster overflow. Each reliable welcome
   contains the host and assigned worker; fixed 12 Hz movement uses MTU-safe one-player shards merged by
   player ID, while cutter, skid-wrapper, and Windmill poses remain on the authoritative pallet-jack tick.
-  The `.11` four-device physical pass and its exact APK SHA-256 are pending.
+  The targeted `.11` four-device physical pass completed on August 28, 2026.
 
 ## Build and install
 
@@ -31,6 +31,26 @@ builds and verifies an APK without installing it.
 
 The APK is development/debug signed for direct testing. A store release needs a protected release
 keystore and Android App Bundle.
+
+## Verified four-device acceptance — August 28, 2026
+
+- Exact APK: `output/mobile/ThePictureShop-0.1.0-android.11-debug.apk`, 102,485,249 bytes,
+  SHA-256 `88549621c829201171475cb38513ac1433b3292595b32cc3b0dd30fb67017940`.
+- The packaged build reports clean source commit `8b5b80d28334853986a30e5e84b42ed88c53cbce`.
+- Samsung SM-S938U hosted at `192.168.1.137:22122`; Samsung SM-S928U1, Samsung SM-J410G,
+  and the Windows PC joined from the same protocol-v7 source. Every screen reached `4/4 WORKERS`, and
+  all four participants moved independently.
+- The cutter, skid wrapper, and Windmill stayed attached and synchronized on all three observers through
+  live relocation, rotation, stops, restarts, and placement. The cutter remained live beyond 30 seconds;
+  a red placement was rejected before a green placement succeeded, with no snap-back or duplicate sprite.
+- A guest used the dock door during wrapper relocation and opened the computer/client screen during
+  Windmill relocation without disturbing either live machine pose.
+- When the SM-J410G left, every remaining device fell cleanly to `3/4 WORKERS` with no stale avatar. Its
+  rejoin restored exactly one avatar, `4/4 WORKERS`, and independent movement.
+- Android LÖVE logs were clean. The automated smoke suite completed 1,113 passes with 0 failures.
+
+This targeted pass did not include the full 15-minute soak, hotspot matrix, or final offline save reload;
+those broader checklist items remain open and are not implied by this acceptance record.
 
 ## Physical device checklist
 

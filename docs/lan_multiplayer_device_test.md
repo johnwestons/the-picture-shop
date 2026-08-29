@@ -43,44 +43,35 @@ Use this checklist for protocol v7's supported LAN direction: any Windows or And
 14. Disconnect a worker while it owns a workshop console, then have another worker acquire it. Repeat while the worker owns a loaded pallet jack: the loaded jack must park safely, keep its pallet, and be reclaimable.
 15. Play for 15 minutes, watching for warping, stuck input, stale shop values, duplicate actions, mismatched sound/animation, or a visitor that appears on only one device. End the host session, reload the host's save offline, and verify the final durable state.
 
-## Pending protocol v7 four-device machine-pose pass
+## Verified protocol v7 four-device machine-pose pass — August 28, 2026
 
-Status: **pending**. This section is an acceptance checklist for APK `0.1.0-android.11` (`versionCode` 11), not a claimed physical result.
+Status: **completed for the targeted scope below** using APK `0.1.0-android.11` (`versionCode` 11).
 
-Exact APK for the pending pass: SHA-256 **pending**. Record the value and byte count from
-`output/mobile/apk-report.json` after building the one artifact used for the pass.
+- Exact APK: `output/mobile/ThePictureShop-0.1.0-android.11-debug.apk`, 102,485,249 bytes,
+  SHA-256 `88549621c829201171475cb38513ac1433b3292595b32cc3b0dd30fb67017940`.
+- The embedded mobile package reports clean source commit
+  `8b5b80d28334853986a30e5e84b42ed88c53cbce`. The Windows PC ran that same source.
+- Automated smoke completed 1,113 passes with 0 failures.
+- Samsung SM-S938U hosted at `192.168.1.137:22122`; Samsung SM-S928U1 and Samsung SM-J410G joined as
+  Android workers, and the Windows PC joined as the third worker. Every screen reached `4/4 WORKERS`
+  and showed independent movement.
+- The cutter, skid wrapper, and Windmill stayed attached to the host-operated pallet jack and remained
+  synchronized on both Android observers and the PC through live movement, rotations, stops, restarts,
+  and placement. The cutter remained active beyond the 30-second durable-state fallback. A red placement
+  was rejected before a green placement succeeded; no observer showed snap-back or a duplicate machine.
+- A guest operated the dock door while the wrapper relocation remained active. During Windmill relocation,
+  a guest opened the computer/client screen. Neither concurrent interaction disturbed the machine pose.
+- The SM-J410G exited and every remaining screen fell cleanly to `3/4 WORKERS` with no stale avatar. It
+  rejoined through the host-plus-assigned welcome, restored exactly one avatar and `4/4 WORKERS`, and moved
+  independently after rejoining.
+- Android LÖVE logs were clean.
 
-Protocol v7 replaces the overflowing protocol-v6 full roster with a reliable welcome containing the host
-and assigned worker, followed by 12 Hz one-player MTU-safe motion shards that clients merge by player ID.
-The pass must prove the fourth join no longer exceeds the 1,200-byte realtime packet ceiling.
+Protocol v7 therefore physically verifies the fourth-player fix: the bounded host-plus-assigned welcome
+and 12 Hz one-player MTU-safe motion shards merged by player ID no longer trigger protocol v6's 1,200-byte
+full-roster overflow in this four-device topology.
 
-- Build the APK once, record its SHA-256 and byte count, and install that unchanged artifact on all three
-  phones. Run the Windows PC from the same protocol-v7 source revision and record that revision.
-- Use the Samsung SM-S938U as the writable Android host, the Samsung SM-S928U1 and Samsung SM-J410G as
-  Android workers, and the Windows PC as the third worker/observer.
-- Join both Android workers first and confirm every active screen reports `3/4 WORKERS`. Join the Windows
-  PC last. Confirm its host-plus-assigned welcome completes, every screen reaches `4/4 WORKERS`, all four
-  workers remain visible and independently movable, and no codec, `maxBytes`, protocol, or packet-size
-  error appears.
-- For the cutter, skid wrapper, and Windmill, have the Android host acquire an empty pallet jack and begin
-  relocation. Both Android workers and the PC must show one attached machine at the host's live position
-  with the same direction and motion state; no guest may initiate or place it. While the host keeps each
-  relocation active, verify a guest can still use an unrelated supported door, computer, client, or
-  workstation interaction.
-- Drive straight and diagonally, stop and restart, and rotate through all eight cutter directions and all
-  four wrapper/Windmill directions. Keep one relocation active beyond the 30-second durable-state fallback
-  and confirm none of the three observers snaps to the last committed floor pose.
-- Reject one blocked/red placement, then complete one valid green placement for each machine. The rejected
-  attempt must leave the live machine attached; the accepted attempt must give all four devices the same
-  stationary terminal pose without a late remount or duplicate sprite.
-- Disconnect one worker and confirm every remaining screen falls cleanly to `3/4 WORKERS` without a stale
-  avatar. Rejoin that worker as the fourth participant, confirm a fresh host-plus-assigned welcome, and
-  verify every screen returns to `4/4 WORKERS` with the full roster and current machine poses intact.
-- End the host session and reload the host save offline. Only successfully placed poses may persist; an
-  in-progress relocation must retain the previously committed floor pose.
-- Record the host address, all device versions and roles, source revision, APK SHA-256 and byte count,
-  fourth-join and rejoin results, per-machine pass/fail result, representative start/moving/rotated/final
-  captures from all device classes, and post-test runtime logs.
+Not exercised in this targeted pass: the full 15-minute soak, the hotspot matrix, and the final offline
+save reload. Those checklist items remain open; this result does not claim them.
 
 The superseded protocol-v6 APK `0.1.0-android.10` (`versionCode` 10), SHA-256
 `151a0958d0d8215ee3c38c64cbf35db3af9a58d5182d01d2e2018cd824159155` (102,481,341 bytes),
