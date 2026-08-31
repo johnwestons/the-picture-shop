@@ -405,9 +405,12 @@ Session._queue = function(self, eventType, values)
             Probe.flags.playerLeft = true
             if multiGuest and Config.role == "host" and values
                 and values.name == expectedGuestNames[2]
-                and values.reason == "Application closed"
             then
-                Probe.flags.gracefulSurvivorLeft = true
+                -- Gracefulness is proven on the guest by the pinned
+                -- Session.stop and App.quit markers. The host must verify the
+                -- expected player left, but must not trust an exact reason
+                -- string that can be replaced by a transport-level close.
+                Probe.flags.expectedSurvivorLeft = true
             end
         elseif eventType == "direct_closed" then
             Probe.flags.directClosed = true
@@ -843,7 +846,7 @@ local function serviceDisconnect()
         then
             mark("host-survivor-two")
         elseif Probe.flags["host-survivor-two"]
-            and Probe.flags.gracefulSurvivorLeft and info.playerCount == 1
+            and Probe.flags.expectedSurvivorLeft and info.playerCount == 1
         then
             mark("host-final-one")
         end

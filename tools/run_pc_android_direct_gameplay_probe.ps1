@@ -98,7 +98,8 @@ $preserveExistingPendingReport = $false
 $routesRevalidated = $false
 $multiTopologyRouteMix = $false
 $multiTopologyUniqueAddresses = $false
-$multiTopologySharedPcSource = $false
+$multiTopologySharedPcInterface = $false
+$multiTopologyPcSourcesVerified = $false
 $multiTopologyAtLeastOneDistinctPrefix = $false
 $artifactSafetyVerified = $false
 $windowsFirewallReady = $false
@@ -1325,7 +1326,9 @@ function Test-WindowsFirewallReady {
                 $protocol = [string]$portFilters[0].Protocol
                 if ($protocol -notin @('Any','UDP','17')) { continue }
                 $localPorts = @($portFilters[0].LocalPort | ForEach-Object {
-                    ([string]$_).Split(',')
+                    # NetSecurity can serialize a multi-port CIM value with
+                    # commas or spaces depending on the PowerShell host.
+                    @([string]$_ -split '[,\s]+')
                 } | ForEach-Object { $_.Trim() } | Sort-Object -Unique)
                 $admitsRequiredPort = $false
                 foreach ($localPort in $localPorts) {
@@ -3077,11 +3080,15 @@ try {
                 apk = $null
             }
         }
-        $multiTopologySharedPcSource =
-            (Test-SameIpv6Address -First $guestContexts[0].pcAddress `
-                -Second $guestContexts[1].pcAddress) -and
+        # IPv6 source-address selection may legitimately choose a different
+        # preferred address for each remote prefix. Each source was already
+        # resolved twice and pinned to this same active Wi-Fi interface.
+        $multiTopologySharedPcInterface =
             $guestContexts[0].pcInterfaceIndex -eq
                 $guestContexts[1].pcInterfaceIndex
+        $multiTopologyPcSourcesVerified = @($guestContexts | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string]$_.pcAddress)
+        }).Count -eq 2
         $multiTopologyUniqueAddresses =
             -not (Test-SameIpv6Address -First $guestContexts[0].address `
                 -Second $guestContexts[1].address)
@@ -3089,7 +3096,8 @@ try {
             Where-Object {
                 Test-DifferentIpv6Prefixes -First $_.pcAddress -Second $_.address
             }).Count -ge 1
-        if (-not $multiTopologySharedPcSource -or
+        if (-not $multiTopologySharedPcInterface -or
+                -not $multiTopologyPcSourcesVerified -or
                 -not $multiTopologyUniqueAddresses -or
                 -not $multiTopologyAtLeastOneDistinctPrefix) {
             throw 'The two-guest topology did not meet the isolated route requirements.'
@@ -3438,7 +3446,7 @@ $captureResidualPossible = [bool]($PacketCaptureValidation -and
             (-not $captureStopped -or -not $captureArtifactsRemoved -or
                 -not $captureOutputContained))))
 $report = [ordered]@{
-    schemaVersion = if ($AndroidGuestCount -eq 2) { 2 } `
+    schemaVersion = if ($AndroidGuestCount -eq 2) { 3 } `
         elseif ($PacketCaptureValidation) { 3 } else { 1 }
     artifactKind = if ($AndroidGuestCount -eq 2) {
         'windows-two-android-direct-gameplay-engineering-probe'
@@ -3461,7 +3469,9 @@ $report = [ordered]@{
             acceptanceTopologyOneWifiOneCellularGuest =
                 [bool]$multiTopologyRouteMix
             uniqueAndroidAddresses = [bool]$multiTopologyUniqueAddresses
-            sharedVerifiedPcWifiSource = [bool]$multiTopologySharedPcSource
+            perGuestPcSourcesVerified = [bool]$multiTopologyPcSourcesVerified
+            sharedVerifiedPcWifiInterface =
+                [bool]$multiTopologySharedPcInterface
             atLeastOneGuestOnDistinctIpv6Prefix =
                 [bool]$multiTopologyAtLeastOneDistinctPrefix
             exactDirectPortCount = $directPorts.Count

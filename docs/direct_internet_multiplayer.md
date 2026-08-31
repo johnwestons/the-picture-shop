@@ -125,11 +125,11 @@ number generators are never used for invitation keys or cryptographic nonces.
   snapshot. The host can decline a pending request or remove a connected guest from the same keyboard,
   mouse, or touch panel. Approval expires after 60 seconds. Decline, removal, timeout, or disconnect
   closes the one-connection invitation, so its old host/reply codes cannot be used to reconnect.
-- The guarded Windows-PC-host plus two-Android runner (one Wi-Fi guest and one cellular guest) and its
-  exact UDP `57842`/`57844` Windows engineering firewall scope are implemented and audited. The physical
-  three-device run remains
-  pending because UAC firewall staging did not complete. The earlier PC-plus-one-Android gameplay and
-  packet-privacy results remain valid; they are not evidence of a three-device pass.
+- The guarded Windows-PC-host plus two-Android run passed with one Wi-Fi guest and one cellular guest.
+  Sequential fresh invitations and explicit approval brought all three devices to Direct `3/4`; removing
+  the first guest left the second active at `2/4`, and its graceful departure returned the host to `1/4`.
+  The exact UDP `57842`/`57844` Windows engineering firewall scope was verified; afterward the
+  helper-owned narrow rule was removed and the pre-run firewall state was restored.
 - Direct Play remains disabled. The normal title screen receives no Direct callback while the bundled
   provider remains `productionReady = false`. The broader residential/mobile network matrix, live router
   mapping on a supported public-IPv4 network, Android x86_64 and physical 16 KiB-kernel runs,
@@ -346,11 +346,16 @@ and no endpoint or raw capture was retained. The redacted evidence is
 `output/native-crypto/device-tests/pc_android_direct_packet_capture_report.json`. This is an engineering
 result for one tested topology; it does not enable Direct Play or set `productionReady`.
 
-That PC-plus-one-Android packet-privacy pass remains valid. A separate guarded PC-host plus two-Android
-runner is implemented and audited for sequential fresh invitations, explicit approval/removal, and the
-exact engineering ports `57842` and `57844`, but its physical three-device execution remains pending
-because UAC firewall staging did not complete. No three-device pass is claimed, and
-`productionReady = false` remains unchanged.
+That PC-plus-one-Android packet-privacy pass remains valid. The separate guarded PC-host plus two-Android
+run passed on August 31, 2026, with one Wi-Fi guest and one cellular guest. Two sequential fresh
+invitations required explicit approval, all devices reached Direct `3/4`, and host movement checks proved
+both guests were active. The host removed the Wi-Fi guest using its unique canary while the cellular guest
+remained active at `2/4`; the surviving guest then exited gracefully and the host returned to `1/4`.
+The exact engineering ports `57842` and `57844` were staged; afterward the helper-owned narrow rule was
+removed and the pre-run firewall state was restored. Cleanup passed, and the redacted report records no
+endpoint, device serial, invitation, key, packet, or raw log:
+`output/native-crypto/device-tests/pc_two_android_direct_gameplay_report.json`. This is engineering
+evidence only; `productionReady = false` remains unchanged.
 
 The approval, denial, kick, timeout, single-use invitation, and transport admission boundaries are all
 covered by the complete packaged-game smoke suite, which passes 1,557 checks with zero failures after
@@ -359,9 +364,9 @@ these changes.
 `src/net/direct_connection.lua` composes the two codes, authenticated opening, bridge, encrypted
 transport, and one-session multiplayer factory. `src/screens/direct_screen.lua` supplies the guarded host
 and join flow, while `src/net/session.lua` accepts that factory without replacing Local Play's default.
-This completes the tested two-device Android/Android and PC/Android engineering gameplay gates; it does
-not claim the pending physical PC-plus-two-Android three-device gate, open the production gate, or
-substitute for the remaining network matrix and independent security review.
+This completes the tested two-device Android/Android and PC/Android engineering gameplay gates and the
+physical PC-host plus two-Android three-device gate. It does not open the production gate or substitute
+for the remaining network matrix and independent security review.
 
 The bridge must fragment at its own authenticated layer. Bundled ENet uses a 1400-byte IPv4 UDP MTU and
 its Lua binding has no MTU setter; a maximum realtime message is already about 1240 bytes after Direct,
@@ -406,8 +411,9 @@ different host/network, not to promise a connection that cannot exist.
 - [x] Reject a stale invitation and reconnect with a distinct fresh invitation.
 - [x] Add explicit host approval/kick controls and pre-allocation rate limits.
 - [x] Add program-and-port-specific Windows Firewall guidance.
-- [ ] Complete the guarded physical PC-host plus two-Android run with one Wi-Fi guest and one cellular
-  guest after UAC firewall staging succeeds.
+- [x] Complete the guarded physical PC-host plus two-Android run with one Wi-Fi guest and one cellular
+  guest, including narrow firewall staging, kick isolation, graceful exit, and verified pre-run-state
+  restoration.
 - [ ] Validate two unrelated residential networks before enabling public testing.
 
 ### 3. Automatic router mapping

@@ -1313,11 +1313,15 @@ local function runDirectAdmissionControls(options)
         and multiHost:hudInfo().playerCount == 3
         and not multiHost.terminal and multiHost.transport ~= nil)
 
+    local disconnectingPlayerId = multiHost.peerToId[multiNetwork.peers[3]]
     multiNetwork:queue({ type = "disconnect", peer = multiNetwork.peers[3] })
     multiHost:update(0, multiContext)
     local disconnectedEvents = multiHost:drainEvents()
+    local disconnectedPlayer = eventNamed(disconnectedEvents, "player_left")
     check("multiplayer_session_direct_multi_guest_disconnect_preserves_other_links",
-        eventNamed(disconnectedEvents, "player_left")
+        disconnectedPlayer and disconnectedPlayer.playerId == disconnectingPlayerId
+        and disconnectedPlayer.name == "Direct Worker 4"
+        and disconnectedPlayer.reason == "Connection lost"
         and eventNamed(disconnectedEvents, "direct_closed") == nil
         and multiHost.peerToId[multiNetwork.peers[3]] == nil
         and multiHost.peerToId[multiNetwork.peers[4]] ~= nil
@@ -2135,6 +2139,7 @@ function Test.run(_, check)
     check("multiplayer_session_disconnect_leave_cleans_guest_once",
         #leavePackets == 1 and #hostLeaveBroadcasts == 0 and #hostLeaveDirect == 0
         and left and left.playerId == 2 and left.name == "Phone Guest"
+        and left.reason == "Guest signed off"
         and leftCount == 1 and host.players[2] == nil
         and host.peerToId[network.peer] == nil and host.idToPeer[2] == nil
         and host:hudInfo().playerCount == 1 and not client:isActive()

@@ -266,7 +266,9 @@ function Get-NormalizedTokens {
     )
     $tokens = @()
     foreach ($raw in @($Value | ForEach-Object { [string]$_ })) {
-        $parts = $SplitComma ? $raw.Split(',') : @($raw)
+        # NetSecurity may serialize multi-value CIM fields with commas or
+        # spaces. Both forms must canonicalize to the same rule snapshot.
+        $parts = $SplitComma ? @($raw -split '[,\s]+') : @($raw)
         foreach ($part in $parts) {
             $trimmed = $part.Trim()
             if (-not [string]::IsNullOrEmpty($trimmed)) {
@@ -1005,6 +1007,9 @@ function Invoke-SelfTest {
     }
     $script:selfTestChecks = 0
     Assert-Check (Test-ExactDirectScope $exact $context) 'exact-scope'
+    Assert-Check (
+        (@(Get-NormalizedTokens '57842 57844' -SplitComma) -join ',') -eq
+            '57842,57844') 'normalize-space-delimited-port-list'
     Assert-Check ((Get-RuleDisposition $exact $context) -eq 'exact') 'exact-disposition'
     $broad = $exact.PSObject.Copy()
     $broad.LocalPort = @('any')

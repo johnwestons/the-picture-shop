@@ -47,7 +47,9 @@ function Get-PortTokens {
     param([AllowNull()]$Value)
     $tokens = @()
     foreach ($rawValue in @($Value | ForEach-Object { [string]$_ })) {
-        foreach ($partValue in $rawValue.Split(',')) {
+        # NetSecurity can return multiple ports as separate values, a
+        # comma-delimited string, or a space-delimited string.
+        foreach ($partValue in @($rawValue -split '[,\s]+')) {
             $part = $partValue.Trim()
             if (-not [string]::IsNullOrWhiteSpace($part)) { $tokens += $part }
         }
@@ -575,6 +577,10 @@ function Invoke-SelfTest {
     $reversedPorts.LocalPort = @('57844','57842')
     Assert-Test (Test-ExactDirectPortSet $reversedPorts.LocalPort) `
         'accept-exact-port-set-in-any-order'
+    $spaceDelimitedPorts = Copy-TestDescriptor $exact
+    $spaceDelimitedPorts.LocalPort = @('57842 57844')
+    Assert-Test (Test-ExactDirectPortSet $spaceDelimitedPorts.LocalPort) `
+        'accept-netsecurity-space-delimited-direct-ports'
     $missingSecondPort = Copy-TestDescriptor $exact
     $missingSecondPort.LocalPort = @('57842')
     Assert-Test (-not (Test-OwnedNarrowDescriptor $missingSecondPort)) `

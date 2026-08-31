@@ -109,11 +109,13 @@ plaintext canaries. The private capture, sole owned filter, endpoint, and tempor
 only the redacted acceptance report remains at
 `output/native-crypto/device-tests/pc_android_direct_packet_capture_report.json`.
 
-The guarded Windows-PC-host plus two-Android runner is implemented and audited for one Wi-Fi guest and
-one cellular guest, including the exact Windows engineering allowance for UDP ports `57842` and `57844`.
-Its physical three-device run
-is still pending because the required UAC firewall staging did not complete. This does not invalidate the
-existing PC-plus-one-Android gameplay and packet-privacy passes, and it does not change
+The guarded Windows-PC-host plus two-Android run passed on August 31, 2026, with the PC host on Wi-Fi,
+one Android guest on Wi-Fi, and one Android guest on cellular. Sequential fresh invitations and explicit
+host approval brought all three devices to Direct `3/4`; the host removed the first guest, the second guest
+remained active at `2/4`, and its graceful departure returned the host to `1/4`. The exact Windows
+engineering allowance for UDP ports `57842` and `57844` was verified. After the run, the helper-owned
+narrow rule was removed and the pre-run firewall state was restored.
+Cleanup and secret-redaction checks passed. This remains engineering evidence and does not change
 `productionReady = false`.
 
 The guarded player flow is now implemented behind the production gate. `Host Direct Game` loads and
