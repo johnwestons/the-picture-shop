@@ -11,7 +11,15 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $adb = Join-Path $projectRoot 'output\mobile\tooling\android-sdk\platform-tools\adb.exe'
 $builder = Join-Path $PSScriptRoot 'build_android_apk.ps1'
 $probeMain = Join-Path $PSScriptRoot 'probes\android_direct_gameplay\main.lua'
-$basePackage = Join-Path $projectRoot 'output\mobile\the-picture-shop-0.1.0-android.14.love'
+$mobileConfigPath = Join-Path $projectRoot 'mobile\config.json'
+$mobileVersion = if (Test-Path -LiteralPath $mobileConfigPath -PathType Leaf) {
+    (Get-Content -LiteralPath $mobileConfigPath -Raw | ConvertFrom-Json).versionName
+} else { $null }
+if ($mobileVersion -isnot [string] -or
+    $mobileVersion -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') {
+    throw 'The current Android versionName is missing or unsafe.'
+}
+$basePackage = Join-Path $projectRoot ("output\mobile\the-picture-shop-{0}.love" -f $mobileVersion)
 $evidenceRoot = Join-Path $projectRoot 'output\native-crypto\device-tests'
 $evidencePath = Join-Path $evidenceRoot 'android_two_device_direct_gameplay_report.json'
 $pendingPath = Join-Path $evidenceRoot 'android_two_device_direct_gameplay_report.pending.json'

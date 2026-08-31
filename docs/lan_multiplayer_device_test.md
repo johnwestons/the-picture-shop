@@ -53,12 +53,14 @@ Windows remains the recommended host when the host operator must switch applicat
 
 ## Protocol v9 Windmill candidate — physical pass pending
 
-Android build `0.1.0-android.14` (`versionCode` 14) is reserved for this protocol-v9 Windmill slice.
+Android build `0.1.0-android.15` (`versionCode` 15) is the current protocol-v9 Windmill candidate and
+also packages the non-production, read-only default-gateway discovery foundation.
 Automated coverage exercises the full command/view schema, 12 Hz bounded runtime stream, host-owned setup
 and plate scoring, urgent E-STOP preemption, stale-snapshot repair, lease contention, timeout/disconnect
-release, and global host advancement. A signed `.14` debug APK exists and passes its Internet-permission
-and 16 KiB package checks, but its report records no normal-app device launch and its build report comes
-from a dirty development tree. No normal `.14` LAN/Windmill physical-device result is claimed yet. The
+release, and global host advancement. A signed `.15` debug APK exists and passes its Internet/network-state,
+gateway-bridge, native-ABI, and 16 KiB package checks, but its report records no normal-app device launch
+and its build report comes from a dirty development tree. No normal `.15` LAN/Windmill physical-device
+result is claimed yet. The
 isolated Direct engineering guest is a different package and does not satisfy this acceptance; complete
 step 12 and the shared reconnect/soak checks before promoting this section to verified status.
 

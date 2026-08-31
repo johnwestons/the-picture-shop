@@ -3,22 +3,24 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.14` (`versionCode` 14)
+- Version: `0.1.0-android.15` (`versionCode` 15)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.14-debug.apk`
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.15-debug.apk`
 - LAN: protocol v9 adds the host-authoritative Windmill console, bounded 12 Hz runtime snapshots,
   host-owned plate/setup/service sessions, urgent E-STOP preemption, and safe disconnect recovery on top
   of the existing MTU-safe four-worker movement, cutter, wrapper, pallet-jack, and machine-pose systems.
-- Status: a signed `.14` debug APK is packaged, and `output/mobile/apk-report.json` verifies its Internet
-  permission and 16 KiB compatibility. The report records no normal-app device launch, the Windmill
-  physical-device checklist remains pending, and the build report identifies a dirty development tree;
-  this is not a release artifact.
+- Status: a signed `.15` debug APK is packaged, and `output/mobile/apk-report.json` verifies its Internet
+  and network-state permissions, audited Android gateway bridge ABI/lifecycle call sites, three exact native
+  gateway ABIs, and 16 KiB compatibility. The read-only gateway foundation remains non-production and
+  sends no traffic.
+  The report records no normal-app device launch, the Windmill physical-device checklist remains pending,
+  and the build report identifies a dirty development tree; this is not a release artifact.
 - Direct engineering: isolated Android/Android and PC/Android guests have passed separate-network
   gameplay, and the PC/Android repeat also passed guarded packet-privacy validation. Those engineering
-  packages were removed after testing; they do not count as normal `.14` app acceptance, expose Direct
+  packages were removed after testing; they do not count as normal `.15` app acceptance, expose Direct
   Play, or change the bundled provider's `productionReady = false` state. The latest redacted evidence is
   `output/native-crypto/device-tests/pc_android_direct_packet_capture_report.json`.
 

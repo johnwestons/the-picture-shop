@@ -7,6 +7,7 @@ param(
     [ValidateSet('host','client')][string]$DirectTransportProbeRole,
     [switch]$EngineeringIpv6UdpProbe,
     [ValidateSet('host','client')][string]$Ipv6UdpProbeRole,
+    [switch]$EngineeringGatewayDiscoveryProbe,
     [string]$SensitiveBuildRoot
 )
 
@@ -47,7 +48,8 @@ if ($DeviceSerial) {
 $engineeringProbeCount = @(
     $EngineeringNativeCryptoProbe,
     $EngineeringDirectTransportProbe,
-    $EngineeringIpv6UdpProbe
+    $EngineeringIpv6UdpProbe,
+    $EngineeringGatewayDiscoveryProbe
 ).Where({ $_ }).Count
 if ($engineeringProbeCount -gt 1) {
     throw 'Select only one engineering probe type.'
@@ -129,7 +131,11 @@ $apkFileName = "ThePictureShop-$($config.versionName)-debug.apk"
 $reportFileName = 'apk-report.json'
 $artifactKind = 'game-debug'
 $requiresInternetPermission = $true
-$exactPermissions = $null
+$requiresNetworkStatePermission = $true
+$exactPermissions = @(
+    'android.permission.ACCESS_NETWORK_STATE',
+    'android.permission.INTERNET'
+)
 if ($EngineeringNativeCryptoProbe) {
     $config = [pscustomobject]@{
         applicationId = 'com.thepictureshop.crypto_probe'
@@ -143,6 +149,7 @@ if ($EngineeringNativeCryptoProbe) {
     $reportFileName = 'native-crypto-probe-apk-report.json'
     $artifactKind = 'native-crypto-engineering-probe'
     $requiresInternetPermission = $false
+    $requiresNetworkStatePermission = $false
     $exactPermissions = @()
 }
 elseif ($EngineeringDirectTransportProbe) {
@@ -158,6 +165,7 @@ elseif ($EngineeringDirectTransportProbe) {
     $reportFileName = "direct-transport-probe-$DirectTransportProbeRole-apk-report.json"
     $artifactKind = "direct-transport-engineering-probe-$DirectTransportProbeRole"
     $requiresInternetPermission = $true
+    $requiresNetworkStatePermission = $false
     $exactPermissions = @('android.permission.INTERNET')
 }
 elseif ($EngineeringIpv6UdpProbe) {
@@ -173,7 +181,25 @@ elseif ($EngineeringIpv6UdpProbe) {
     $reportFileName = "ipv6-udp-probe-$Ipv6UdpProbeRole-apk-report.json"
     $artifactKind = "ipv6-udp-engineering-probe-$Ipv6UdpProbeRole"
     $requiresInternetPermission = $true
+    $requiresNetworkStatePermission = $false
     $exactPermissions = @('android.permission.INTERNET')
+}
+elseif ($EngineeringGatewayDiscoveryProbe) {
+    $config = [pscustomobject]@{
+        applicationId = 'com.thepictureshop.gateway_probe'
+        applicationName = 'The Picture Shop Gateway Probe'
+        versionName = '0.1.0-engineering-gateway-probe'
+        versionCode = 1
+        loveVersion = [string]$config.loveVersion
+    }
+    $manifestPath = Join-Path $projectRoot `
+        'mobile\android\GatewayDiscoveryProbeManifest.xml'
+    $apkFileName = 'ThePictureShop-GatewayDiscoveryProbe-engineering.apk'
+    $reportFileName = 'gateway-discovery-probe-apk-report.json'
+    $artifactKind = 'gateway-discovery-engineering-probe'
+    $requiresInternetPermission = $false
+    $requiresNetworkStatePermission = $true
+    $exactPermissions = @('android.permission.ACCESS_NETWORK_STATE')
 }
 $resolvedPackage = (Resolve-Path -LiteralPath $PackagePath).Path
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
@@ -327,6 +353,125 @@ foreach ($abi in $requiredNativeCryptoAbis) {
     }
 }
 
+$androidGatewayBuildScript = Join-Path $PSScriptRoot `
+    'build_android_gateway.ps1'
+if (-not (Test-Path -LiteralPath $androidGatewayBuildScript -PathType Leaf)) {
+    throw "Android gateway build script is missing: $androidGatewayBuildScript"
+}
+Write-Output 'Building the non-production Android gateway-discovery foundation...'
+& $androidGatewayBuildScript -NdkPath $nativeCryptoNdkPath
+if (-not $?) { throw 'Android gateway-discovery foundation build failed.' }
+
+$androidGatewayReportPath = Join-Path $projectRoot `
+    'output\native-route\build\android\android_gateway_report.json'
+if (-not (Test-Path -LiteralPath $androidGatewayReportPath -PathType Leaf)) {
+    throw "Android gateway build report is missing: $androidGatewayReportPath"
+}
+$androidGatewayReport = Get-Content -Raw -LiteralPath `
+    $androidGatewayReportPath | ConvertFrom-Json
+$gatewayBridgeSource = Join-Path $projectRoot `
+    'mobile\android\java\com\thepictureshop\net\GatewayDiscoveryBridge.java'
+if (-not (Test-Path -LiteralPath $gatewayBridgeSource -PathType Leaf)) {
+    throw "Tracked Android gateway bridge is missing: $gatewayBridgeSource"
+}
+$gatewayBridgeSourceHash = Get-LowerSha256 -Path $gatewayBridgeSource
+$reportedGatewayBridgeSourceHash =
+    [string]$androidGatewayReport.inputs.javaBridgeSourceSha256
+$reportedAndroidGatewayAbis = @(
+    $androidGatewayReport.artifacts.PSObject.Properties.Name | Sort-Object)
+if (Compare-Object ($requiredNativeCryptoAbis | Sort-Object) `
+        $reportedAndroidGatewayAbis) {
+    throw 'Android gateway report does not contain exactly the required ABIs.'
+}
+if ([int]$androidGatewayReport.schemaVersion -ne 1 -or
+        $androidGatewayReport.status -cne 'engineering-foundation' -or
+        $androidGatewayReport.productionReady -ne $false -or
+        $androidGatewayReport.networkTrafficSent -ne $false -or
+        $androidGatewayReport.addressesRecorded -ne $false -or
+        [int]$androidGatewayReport.abiVersion -ne 2 -or
+        [int]$androidGatewayReport.minAndroidApi -ne 26 -or
+        $reportedGatewayBridgeSourceHash -cnotmatch '^[0-9a-f]{64}$' -or
+        $reportedGatewayBridgeSourceHash -cne $gatewayBridgeSourceHash) {
+    throw 'Android gateway report must remain a source-bound non-production ABI-v2 engineering foundation.'
+}
+if ([int]$androidGatewayReport.androidSignalCoverage.minBridgeApi -ne 26 -or
+        [int]$androidGatewayReport.androidSignalCoverage.suspensionCheckedFromApi -ne 28 -or
+        [int]$androidGatewayReport.androidSignalCoverage.blockedStatusCheckedFromApi -ne 29 -or
+        $androidGatewayReport.androidSignalCoverage.unavailablePreApiSignalsClaimed -ne
+            $false) {
+    throw 'Android gateway report has an invalid platform-signal coverage claim.'
+}
+foreach ($checkName in @('hostStateUnitTest','nativeConcurrentSnapshotTest',
+        'javaFailClosedContract',
+        'javaExactNetworkHandleContract','javaCellularTransportRejected',
+        'sourceSocketAndLoggingReferenceAudit',
+        'allRequiredAbisBuilt','elf16KiBLoadAlignment',
+        'exactAbiExportSurface','exactDynamicUndefinedSymbolAllowlist',
+        'gnuRelro','bindNow')) {
+    if ($androidGatewayReport.checks.$checkName -cne 'pass') {
+        throw "Android gateway prerequisite did not pass: $checkName"
+    }
+}
+$requiredAndroidGatewayExports = @(
+    'Java_com_thepictureshop_net_GatewayDiscoveryBridge_nativeClearDefaultIpv4',
+    'Java_com_thepictureshop_net_GatewayDiscoveryBridge_nativePublishDefaultIpv4',
+    'tps_android_gateway_abi_version',
+    'tps_android_gateway_default_ipv4'
+) | Sort-Object
+$commonAndroidGatewayUndefinedSymbols = @(
+    '__cxa_atexit',
+    '__cxa_finalize',
+    'memcpy',
+    'pthread_mutex_lock',
+    'pthread_mutex_unlock',
+    'strlen'
+) | Sort-Object
+$requiredAndroidGatewayUndefinedSymbols = [ordered]@{
+    'armeabi-v7a' = @($commonAndroidGatewayUndefinedSymbols + 'memcmp' |
+        Sort-Object)
+    'arm64-v8a' = @($commonAndroidGatewayUndefinedSymbols)
+    'x86_64' = @($commonAndroidGatewayUndefinedSymbols)
+}
+$androidGatewayArtifacts = [ordered]@{}
+foreach ($abi in $requiredNativeCryptoAbis) {
+    $artifact = $androidGatewayReport.artifacts.PSObject.Properties[$abi].Value
+    $expectedRelativePath =
+        "output/native-route/build/android/$abi/libtps_android_gateway.so"
+    if (([string]$artifact.path).Replace('\','/') -cne $expectedRelativePath) {
+        throw "Android gateway report has an unexpected path for $abi."
+    }
+    $sourcePath = Join-Path $projectRoot ($expectedRelativePath.Replace('/','\'))
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Android gateway artifact is missing for ${abi}: $sourcePath"
+    }
+    $sourceHash = Get-LowerSha256 -Path $sourcePath
+    $reportedExports = @($artifact.exports | Sort-Object)
+    $reportedUndefinedSymbols = @($artifact.dynamicUndefinedSymbols |
+        Sort-Object)
+    $requiredUndefinedSymbols =
+        @($requiredAndroidGatewayUndefinedSymbols[$abi])
+    if ($sourceHash -cne ([string]$artifact.sha256).ToLowerInvariant() -or
+            (Get-Item -LiteralPath $sourcePath).Length -ne [long]$artifact.bytes -or
+            $artifact.gnuRelro -ne $true -or
+            [int]$artifact.exportCount -ne $requiredAndroidGatewayExports.Count -or
+            $reportedExports.Count -ne $requiredAndroidGatewayExports.Count -or
+            [int]$artifact.dynamicUndefinedSymbolCount -ne
+                $requiredUndefinedSymbols.Count -or
+            $reportedUndefinedSymbols.Count -ne
+                $requiredUndefinedSymbols.Count -or
+            (Compare-Object $requiredAndroidGatewayExports $reportedExports `
+                -CaseSensitive) -or
+            (Compare-Object $requiredUndefinedSymbols `
+                $reportedUndefinedSymbols -CaseSensitive)) {
+        throw "Android gateway artifact does not match its report for $abi."
+    }
+    $androidGatewayArtifacts[$abi] = [ordered]@{
+        sourcePath = $sourcePath
+        sha256 = $sourceHash
+        bytes = [long]$artifact.bytes
+    }
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $loveAndroidRoot 'gradlew.bat'))) {
     $gitExecutable = Resolve-GitExecutable
     if ($SensitiveBuildRoot -and
@@ -365,8 +510,98 @@ foreach ($abi in $requiredNativeCryptoAbis) {
     $nativeCryptoArtifacts[$abi].stagedPath = $stagedLibrary
 }
 
+$staleAndroidGatewayLibraries = @(Get-ChildItem -LiteralPath `
+    $loveAppSourceRoot -Recurse -File -Filter 'libtps_android_gateway.so' `
+    -ErrorAction SilentlyContinue)
+foreach ($staleLibrary in $staleAndroidGatewayLibraries) {
+    $stalePath = [System.IO.Path]::GetFullPath($staleLibrary.FullName)
+    if (-not $stalePath.StartsWith($loveAppSourcePrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove an Android gateway library outside the LÖVE app sources: $stalePath"
+    }
+    Remove-Item -LiteralPath $stalePath -Force
+}
+$androidGatewayJniRoot = Join-Path $loveAppSourceRoot 'main\jniLibs'
+foreach ($abi in $requiredNativeCryptoAbis) {
+    $abiJniRoot = Join-Path $androidGatewayJniRoot $abi
+    New-Item -ItemType Directory -Force -Path $abiJniRoot | Out-Null
+    $stagedLibrary = Join-Path $abiJniRoot 'libtps_android_gateway.so'
+    Copy-Item -LiteralPath $androidGatewayArtifacts[$abi].sourcePath `
+        -Destination $stagedLibrary -Force
+    if ((Get-LowerSha256 -Path $stagedLibrary) -cne
+            $androidGatewayArtifacts[$abi].sha256) {
+        throw "Staged Android gateway library does not match its report for $abi."
+    }
+    $androidGatewayArtifacts[$abi].stagedPath = $stagedLibrary
+}
+
+$loveSourceRoot = [System.IO.Path]::GetFullPath(
+    (Join-Path $loveAndroidRoot 'love\src'))
+$loveSourcePrefix = $loveSourceRoot.TrimEnd('\') + '\'
+$gatewayBridgeDestination = [System.IO.Path]::GetFullPath(
+    (Join-Path $loveSourceRoot `
+        'main\java\com\thepictureshop\net\GatewayDiscoveryBridge.java'))
+if (-not $gatewayBridgeDestination.StartsWith($loveSourcePrefix,
+        [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Android gateway bridge destination escapes the LÖVE source root.'
+}
+$staleGatewayBridgeSources = @(Get-ChildItem -LiteralPath @(
+        $loveAppSourceRoot, $loveSourceRoot) -Recurse -File `
+        -Filter 'GatewayDiscoveryBridge.java' -ErrorAction SilentlyContinue)
+$wrapperRootPrefix = [System.IO.Path]::GetFullPath($loveAndroidRoot).TrimEnd('\') + '\'
+foreach ($staleSource in $staleGatewayBridgeSources) {
+    $stalePath = [System.IO.Path]::GetFullPath($staleSource.FullName)
+    if (-not $stalePath.StartsWith($wrapperRootPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove an Android gateway bridge outside the wrapper: $stalePath"
+    }
+    Remove-Item -LiteralPath $stalePath -Force
+}
+New-Item -ItemType Directory -Force `
+    -Path (Split-Path $gatewayBridgeDestination -Parent) | Out-Null
+Copy-Item -LiteralPath $gatewayBridgeSource `
+    -Destination $gatewayBridgeDestination -Force
+$gatewayBridgeStagedSourceHash = Get-LowerSha256 -Path `
+    $gatewayBridgeDestination
+if ($gatewayBridgeStagedSourceHash -cne $gatewayBridgeSourceHash) {
+    throw 'Staged Android gateway bridge does not match its tracked source.'
+}
+
 $gameActivityPath = Join-Path $loveAndroidRoot 'love\src\main\java\org\love2d\android\GameActivity.java'
 $gameActivity = Get-Content -Raw -LiteralPath $gameActivityPath
+if ($gameActivity -notmatch 'PICTURE_SHOP_ANDROID_GATEWAY_LIFECYCLE') {
+    $replacement = @'
+    private static native void nativeSetDefaultStreamValues(int sampleRate, int framesPerBurst);
+
+    // PICTURE_SHOP_ANDROID_GATEWAY_LIFECYCLE
+    @Override
+    public void loadLibraries() {
+        super.loadLibraries();
+        com.thepictureshop.net.GatewayDiscoveryBridge.start(this);
+    }
+'@
+    $gameActivity = $gameActivity.Replace(
+        '    private static native void nativeSetDefaultStreamValues(int sampleRate, int framesPerBurst);',
+        $replacement.TrimEnd())
+}
+if ($gameActivity -notmatch 'PICTURE_SHOP_ANDROID_GATEWAY_LIBRARY') {
+    $replacement = @'
+            "openal",
+            // PICTURE_SHOP_ANDROID_GATEWAY_LIBRARY
+            "tps_android_gateway",
+'@
+    $gameActivity = $gameActivity.Replace('            "openal",',
+        $replacement.TrimEnd())
+}
+if ($gameActivity -notmatch 'PICTURE_SHOP_ANDROID_GATEWAY_STOP') {
+    $replacement = @'
+    protected void onDestroy() {
+        // PICTURE_SHOP_ANDROID_GATEWAY_STOP
+        com.thepictureshop.net.GatewayDiscoveryBridge.stop();
+'@
+    $gameActivity = $gameActivity.Replace('    protected void onDestroy() {',
+        $replacement.TrimEnd())
+}
 if ($gameActivity -notmatch 'PICTURE_SHOP_LANDSCAPE_LOCK') {
     $replacement = @'
 public class GameActivity extends SDLActivity {
@@ -407,7 +642,11 @@ if ($gameActivity -notmatch 'PICTURE_SHOP_STATIC_LIBCPP') {
     $gameActivity = $gameActivity.Replace('            "c++_shared",',
         '            // PICTURE_SHOP_STATIC_LIBCPP: linked into each native library.')
 }
-foreach ($marker in @('PICTURE_SHOP_LANDSCAPE_LOCK','PICTURE_SHOP_EMBEDDED_GAME','PICTURE_SHOP_GAME_CACHE','PICTURE_SHOP_STATIC_LIBCPP')) {
+foreach ($marker in @('PICTURE_SHOP_ANDROID_GATEWAY_LIFECYCLE',
+        'PICTURE_SHOP_ANDROID_GATEWAY_LIBRARY',
+        'PICTURE_SHOP_ANDROID_GATEWAY_STOP','PICTURE_SHOP_LANDSCAPE_LOCK',
+        'PICTURE_SHOP_EMBEDDED_GAME','PICTURE_SHOP_GAME_CACHE',
+        'PICTURE_SHOP_STATIC_LIBCPP')) {
     if ($gameActivity -notmatch $marker) { throw "Android wrapper patch failed: $marker" }
 }
 [System.IO.File]::WriteAllText($gameActivityPath,$gameActivity,[System.Text.UTF8Encoding]::new($false))
@@ -448,6 +687,20 @@ $properties = $properties -replace '(?m)^app\.version_name=.*$',("app.version_na
 if ($properties -notmatch '(?m)^org\.gradle\.jvmargs=') { $properties += "`r`norg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8`r`n" }
 [System.IO.File]::WriteAllText($propertiesPath,$properties,[System.Text.UTF8Encoding]::new($false))
 
+$appProguardPath = Join-Path $loveAndroidRoot 'app\proguard-rules.pro'
+$appProguard = Get-Content -Raw -LiteralPath $appProguardPath
+if ($appProguard -notmatch 'PICTURE_SHOP_KEEP_GATEWAY_BRIDGE') {
+    $appProguard = $appProguard.TrimEnd() + @'
+
+
+# PICTURE_SHOP_KEEP_GATEWAY_BRIDGE: invoked through JNI and activity lifecycle.
+-keep class com.thepictureshop.net.GatewayDiscoveryBridge { *; }
+'@
+    [System.IO.File]::WriteAllText($appProguardPath,
+        $appProguard.TrimEnd() + "`r`n",
+        [System.Text.UTF8Encoding]::new($false))
+}
+
 $appBuildPath = Join-Path $loveAndroidRoot 'app\build.gradle'
 $appBuild = Get-Content -Raw $appBuildPath
 $appBuildChanged = $false
@@ -461,12 +714,21 @@ android {
     // PICTURE_SHOP_PRESERVE_NATIVE_CRYPTO: final APK bytes must match the audited build report.
     packagingOptions {
         jniLibs {
-            keepDebugSymbols += ['**/libtps_crypto.so']
+            keepDebugSymbols += ['**/libtps_crypto.so', '**/libtps_android_gateway.so']
         }
     }
 '@
     $appBuild = $appBuild -replace 'android \{',$nativeCryptoPackaging.TrimEnd()
     $appBuildChanged = $true
+}
+elseif ($appBuild -notmatch 'libtps_android_gateway\.so') {
+    $appBuild = $appBuild.Replace(
+        "keepDebugSymbols += ['**/libtps_crypto.so']",
+        "keepDebugSymbols += ['**/libtps_crypto.so', '**/libtps_android_gateway.so']")
+    $appBuildChanged = $true
+}
+if ($appBuild -notmatch 'libtps_android_gateway\.so') {
+    throw 'Unable to preserve Android gateway symbols in the APK.'
 }
 if ($appBuildChanged) {
     [System.IO.File]::WriteAllText($appBuildPath,$appBuild,[System.Text.UTF8Encoding]::new($false))
@@ -519,6 +781,8 @@ try {
         "engineering Direct-transport $DirectTransportProbeRole probe"
     } elseif ($EngineeringIpv6UdpProbe) {
         "engineering IPv6 UDP $Ipv6UdpProbeRole probe"
+    } elseif ($EngineeringGatewayDiscoveryProbe) {
+        'engineering Android gateway-discovery probe'
     } else {
         'Picture Shop Android APK'
     }
@@ -534,6 +798,20 @@ finally {
     if ($substDrive) { & subst.exe $substDrive /D | Out-Null }
 }
 
+$gatewayBridgeFinalTrackedSourceHash = Get-LowerSha256 -Path `
+    $gatewayBridgeSource
+$gatewayBridgeFinalStagedSourceHash = Get-LowerSha256 -Path `
+    $gatewayBridgeDestination
+if ($gatewayBridgeFinalTrackedSourceHash -cne $gatewayBridgeSourceHash -or
+        $gatewayBridgeFinalStagedSourceHash -cne
+            $gatewayBridgeStagedSourceHash -or
+        $gatewayBridgeFinalStagedSourceHash -cne
+            $gatewayBridgeFinalTrackedSourceHash -or
+        [string]$androidGatewayReport.inputs.javaBridgeSourceSha256 -cne
+            $gatewayBridgeFinalTrackedSourceHash) {
+    throw 'Android gateway Java source changed during the audited APK build.'
+}
+
 $builtApk = Get-ChildItem (Join-Path $loveAndroidRoot 'app\build\outputs\apk') -Recurse -Filter '*embed-noRecord-debug*.apk' | Select-Object -First 1
 if (-not $builtApk) { $builtApk = Get-ChildItem (Join-Path $loveAndroidRoot 'app\build\outputs\apk') -Recurse -Filter '*.apk' | Select-Object -First 1 }
 if (-not $builtApk) { throw 'Gradle completed without producing an APK' }
@@ -542,6 +820,7 @@ Copy-Item -LiteralPath $builtApk.FullName -Destination $apkPath -Force
 
 $archive = [System.IO.Compression.ZipFile]::OpenRead($apkPath)
 $packagedNativeCrypto = [ordered]@{}
+$packagedAndroidGateway = [ordered]@{}
 try {
     $embeddedGame = $archive.GetEntry('assets/game.love')
     if (-not $embeddedGame) { throw 'APK is missing assets/game.love' }
@@ -573,6 +852,31 @@ try {
             bytes = [long]$entry.Length
         }
     }
+
+    $expectedAndroidGatewayEntries = @($requiredNativeCryptoAbis |
+        ForEach-Object { "lib/$_/libtps_android_gateway.so" } | Sort-Object)
+    $actualAndroidGatewayEntries = @($archive.Entries |
+        Where-Object { $_.Name -ceq 'libtps_android_gateway.so' } |
+        Select-Object -ExpandProperty FullName | Sort-Object)
+    if (Compare-Object $expectedAndroidGatewayEntries `
+            $actualAndroidGatewayEntries) {
+        throw 'APK does not contain exactly one Android gateway library for each required ABI.'
+    }
+    foreach ($abi in $requiredNativeCryptoAbis) {
+        $entryName = "lib/$abi/libtps_android_gateway.so"
+        $entry = $archive.GetEntry($entryName)
+        if (-not $entry) { throw "APK is missing $entryName" }
+        $entryHash = Get-ZipEntryLowerSha256 -Entry $entry
+        if ($entryHash -cne $androidGatewayArtifacts[$abi].sha256 -or
+                $entry.Length -ne $androidGatewayArtifacts[$abi].bytes) {
+            throw "Packaged Android gateway library does not match its report for $abi."
+        }
+        $packagedAndroidGateway[$abi] = [ordered]@{
+            apkEntry = $entryName
+            sha256 = $entryHash
+            bytes = [long]$entry.Length
+        }
+    }
 }
 finally { $archive.Dispose() }
 
@@ -588,17 +892,199 @@ finally { $env:JAVA_HOME = $signatureJavaHome }
 $aapt = Join-Path $buildToolsRoot 'aapt.exe'
 $badging = & $aapt dump badging $apkPath | Out-String
 if ($badging -notmatch [regex]::Escape("package: name='$($config.applicationId)'")) { throw 'APK application ID verification failed' }
+$analyzerRoot = Join-Path $androidRoot 'cmdline-tools\12.0'
+$analyzerClasspath = Join-Path $analyzerRoot 'lib\apkanalyzer-classpath.jar'
+if (-not (Test-Path -LiteralPath $analyzerClasspath -PathType Leaf)) {
+    throw 'APK analyzer classpath is unavailable.'
+}
+$analyzerToolProperty = "-Dcom.android.sdklib.toolsdir=$analyzerRoot"
+function Get-ApkDexCode(
+    [string] $ClassName,
+    [string] $Method
+) {
+    $arguments = @(
+        $analyzerToolProperty,
+        '-classpath',
+        $analyzerClasspath,
+        'com.android.tools.apk.analyzer.ApkAnalyzerCli',
+        'dex',
+        'code',
+        '--class',
+        $ClassName
+    )
+    if ($Method) { $arguments += @('--method', $Method) }
+    $arguments += $apkPath
+    $lines = @(& $javaExecutable @arguments 2>&1 |
+        ForEach-Object { [string]$_ })
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0 -or $lines.Count -lt 1) {
+        throw "APK compiled-code inspection failed for $ClassName."
+    }
+    return [string]::Join("`n", $lines)
+}
+
+$dexPackages = @(& $javaExecutable $analyzerToolProperty `
+    -classpath $analyzerClasspath `
+    com.android.tools.apk.analyzer.ApkAnalyzerCli `
+    dex packages $apkPath 2>&1 | ForEach-Object { [string]$_ })
+if ($LASTEXITCODE -ne 0) { throw 'APK class inspection failed.' }
+$gatewayBridgeClass = 'com.thepictureshop.net.GatewayDiscoveryBridge'
+$gatewayBridgeClassPattern = '^C\s+.*\s' +
+    [regex]::Escape($gatewayBridgeClass) + '\s*$'
+$gatewayBridgeStartPattern = '^M\s+.*\s' +
+    [regex]::Escape($gatewayBridgeClass) +
+    '\s+void\s+start\(android\.content\.Context\)\s*$'
+$gatewayBridgeStopPattern = '^M\s+.*\s' +
+    [regex]::Escape($gatewayBridgeClass) + '\s+void\s+stop\(\)\s*$'
+$gatewayBridgePublishPattern = '^M\s+.*\s' +
+    [regex]::Escape($gatewayBridgeClass) +
+    '\s+boolean\s+nativePublishDefaultIpv4\(' +
+    'java\.lang\.String,java\.lang\.String,long\)\s*$'
+$gatewayBridgeClearPattern = '^M\s+.*\s' +
+    [regex]::Escape($gatewayBridgeClass) +
+    '\s+void\s+nativeClearDefaultIpv4\(\)\s*$'
+$gatewayBridgeClassLines = @($dexPackages | Where-Object {
+    $_ -cmatch $gatewayBridgeClassPattern })
+$gatewayBridgeStartLines = @($dexPackages | Where-Object {
+    $_ -cmatch $gatewayBridgeStartPattern })
+$gatewayBridgeStopLines = @($dexPackages | Where-Object {
+    $_ -cmatch $gatewayBridgeStopPattern })
+$gatewayBridgePublishLines = @($dexPackages | Where-Object {
+    $_ -cmatch $gatewayBridgePublishPattern })
+$gatewayBridgeClearLines = @($dexPackages | Where-Object {
+    $_ -cmatch $gatewayBridgeClearPattern })
+if ($gatewayBridgeClassLines.Count -ne 1 -or
+        $gatewayBridgeStartLines.Count -ne 1 -or
+        $gatewayBridgeStopLines.Count -ne 1 -or
+        $gatewayBridgePublishLines.Count -ne 1 -or
+        $gatewayBridgeClearLines.Count -ne 1) {
+    throw 'APK is missing the exact Android gateway bridge Java/JNI ABI.'
+}
+$gatewayBridgeClassPackaged = $true
+
+$loadLibrariesCode = Get-ApkDexCode `
+    -ClassName 'org.love2d.android.GameActivity' `
+    -Method 'loadLibraries()V'
+$onDestroyCode = Get-ApkDexCode `
+    -ClassName 'org.love2d.android.GameActivity' `
+    -Method 'onDestroy()V'
+$superLoadInstruction =
+    'invoke-super {p0}, Lorg/libsdl/app/SDLActivity;->loadLibraries()V'
+$gatewayStartInstruction =
+    'invoke-static {p0}, Lcom/thepictureshop/net/GatewayDiscoveryBridge;->start(Landroid/content/Context;)V'
+$gatewayStopInstruction =
+    'invoke-static {}, Lcom/thepictureshop/net/GatewayDiscoveryBridge;->stop()V'
+$superDestroyInstruction =
+    'invoke-super {p0}, Lorg/libsdl/app/SDLActivity;->onDestroy()V'
+$superLoadMatches = [regex]::Matches($loadLibrariesCode,
+    [regex]::Escape($superLoadInstruction))
+$gatewayStartMatches = [regex]::Matches($loadLibrariesCode,
+    [regex]::Escape($gatewayStartInstruction))
+$gatewayStopMatches = [regex]::Matches($onDestroyCode,
+    [regex]::Escape($gatewayStopInstruction))
+$superDestroyMatches = [regex]::Matches($onDestroyCode,
+    [regex]::Escape($superDestroyInstruction))
+if ($loadLibrariesCode -cnotmatch '(?m)^\.method public loadLibraries\(\)V$' -or
+        $onDestroyCode -cnotmatch '(?m)^\.method protected onDestroy\(\)V$' -or
+        $superLoadMatches.Count -ne 1 -or
+        $gatewayStartMatches.Count -ne 1 -or
+        $superLoadMatches[0].Index -ge $gatewayStartMatches[0].Index -or
+        $gatewayStopMatches.Count -ne 1 -or
+        $superDestroyMatches.Count -ne 1 -or
+        $gatewayStopMatches[0].Index -ge $superDestroyMatches[0].Index) {
+    throw 'APK GameActivity does not contain the exact gateway lifecycle hooks.'
+}
+$packagedGatewayLifecycleHooksVerified = $true
+
+$gatewayImplementationClassPattern = '^C\s+.*\s' +
+    '(?<name>com\.thepictureshop\.net\.GatewayDiscoveryBridge' +
+    '(?:\$[A-Za-z0-9_$]+)?)\s*$'
+$gatewayImplementationClasses = @($dexPackages | ForEach-Object {
+    if ($_ -cmatch $gatewayImplementationClassPattern) {
+        $Matches['name']
+    }
+} | Sort-Object -Unique)
+$requiredGatewayImplementationClasses = @(
+    'com.thepictureshop.net.GatewayDiscoveryBridge',
+    'com.thepictureshop.net.GatewayDiscoveryBridge$Api26State',
+    'com.thepictureshop.net.GatewayDiscoveryBridge$Candidate'
+)
+foreach ($requiredClass in $requiredGatewayImplementationClasses) {
+    if ($gatewayImplementationClasses -cnotcontains $requiredClass) {
+        throw "APK is missing a gateway implementation class: $requiredClass"
+    }
+}
+$gatewayImplementationCodeParts = @($gatewayImplementationClasses |
+    ForEach-Object { Get-ApkDexCode -ClassName $_ -Method $null })
+$gatewayImplementationCode =
+    [string]::Join("`n", $gatewayImplementationCodeParts)
+foreach ($requiredReference in @(
+    'Landroid/net/Network;->getNetworkHandle()J',
+    'Landroid/net/ConnectivityManager;->registerDefaultNetworkCallback(Landroid/net/ConnectivityManager$NetworkCallback;)V',
+    'Lcom/thepictureshop/net/GatewayDiscoveryBridge;->nativePublishDefaultIpv4(Ljava/lang/String;Ljava/lang/String;J)Z',
+    'Lcom/thepictureshop/net/GatewayDiscoveryBridge;->nativeClearDefaultIpv4()V'
+)) {
+    if ($gatewayImplementationCode.IndexOf(
+            $requiredReference, [StringComparison]::Ordinal) -lt 0) {
+        throw "APK gateway implementation is missing a required reference: $requiredReference"
+    }
+}
+$forbiddenGatewayCodePatterns = @(
+    'Ljava/net/(?:Socket|DatagramSocket|ServerSocket|URLConnection|HttpURLConnection);',
+    'Landroid/util/Log;',
+    'Ljava/util/logging/',
+    'L(?:okhttp3|org/slf4j|timber/log)/',
+    'Ljava/io/PrintStream;',
+    'Ljava/lang/System;->(?:out|err):'
+)
+foreach ($pattern in $forbiddenGatewayCodePatterns) {
+    if ($gatewayImplementationCode -cmatch $pattern) {
+        throw 'APK gateway implementation contains a forbidden socket or logging reference.'
+    }
+}
+$usableCapabilitiesCode = Get-ApkDexCode `
+    -ClassName 'com.thepictureshop.net.GatewayDiscoveryBridge$Api26State' `
+    -Method 'usableCapabilities(Landroid/net/NetworkCapabilities;)Z'
+$cellularRejectionPattern =
+    '(?ms)^\s*const(?:/4|/16|/high16)? ' +
+    '(?<transport>v[0-9]+), (?:0x0|0)\s*$' +
+    '.*?^\s*invoke-virtual \{p0, \k<transport>\}, ' +
+    'Landroid/net/NetworkCapabilities;->hasTransport\(I\)Z\s*$' +
+    '\s*^\s*move-result (?<result>v[0-9]+)\s*$' +
+    '\s*^\s*if-nez \k<result>,'
+if ($usableCapabilitiesCode -cnotmatch $cellularRejectionPattern) {
+    throw 'APK gateway implementation does not explicitly reject cellular transport.'
+}
+$packagedGatewayImplementationReferencesVerified = $true
+$packagedGatewayCellularRejectionVerified = $true
+$packagedGatewayForbiddenReferencesAbsent = $true
+$dexPackages = $null
+$loadLibrariesCode = $null
+$onDestroyCode = $null
+$gatewayImplementationCodeParts = $null
+$gatewayImplementationCode = $null
+$usableCapabilitiesCode = $null
 $permissionDump = & $aapt dump permissions $apkPath | Out-String
 if ($LASTEXITCODE -ne 0) { throw 'APK permission inspection failed' }
 $internetPermission = [regex]::IsMatch(
     $permissionDump,
     "(?m)^uses-permission(?:-sdk-\d+)?: name='android\.permission\.INTERNET'\s*$"
 )
+$networkStatePermission = [regex]::IsMatch(
+    $permissionDump,
+    "(?m)^uses-permission(?:-sdk-\d+)?: name='android\.permission\.ACCESS_NETWORK_STATE'\s*$"
+)
 if ($requiresInternetPermission -and -not $internetPermission) {
     throw 'APK is missing required android.permission.INTERNET permission'
 }
 if (-not $requiresInternetPermission -and $internetPermission) {
-    throw 'Engineering native-crypto probe APK must not request android.permission.INTERNET'
+    throw 'This APK must not request android.permission.INTERNET'
+}
+if ($requiresNetworkStatePermission -and -not $networkStatePermission) {
+    throw 'APK is missing required android.permission.ACCESS_NETWORK_STATE permission'
+}
+if (-not $requiresNetworkStatePermission -and $networkStatePermission) {
+    throw 'This APK must not request android.permission.ACCESS_NETWORK_STATE'
 }
 if ($null -ne $exactPermissions) {
     $actualPermissions = @([regex]::Matches(
@@ -651,12 +1137,15 @@ if ($Install) {
     & $adb @adbTarget install -r $apkPath
     if ($LASTEXITCODE -ne 0) { throw 'APK installation failed' }
     & $adb @adbTarget shell am force-stop $config.applicationId
-    & $adb @adbTarget logcat -c
     & $adb @adbTarget shell am start -W -n "$($config.applicationId)/org.love2d.android.GameActivity"
     if ($LASTEXITCODE -ne 0) { throw 'Installed APK did not launch' }
     for ($attempt = 1; $attempt -le 45; $attempt++) {
         $deviceProcessId = (& $adb @adbTarget shell pidof $config.applicationId | Out-String).Trim()
-        $log = (& $adb @adbTarget logcat -d -v brief | Out-String)
+        $log = ''
+        if ($deviceProcessId -cmatch '^[1-9][0-9]{0,9}$') {
+            $log = (& $adb @adbTarget shell logcat `
+                "--pid=$deviceProcessId" -d -t 4096 -v brief | Out-String)
+        }
         if ($log -match '\[PICTURE SHOP\] Startup complete') { $deviceLaunchVerified = $true; break }
         if ($log -match 'FATAL EXCEPTION|stack traceback|Lua error') { throw 'Installed APK reported a startup error' }
         if (-not $deviceProcessId) { throw 'The Picture Shop process stopped during startup' }
@@ -681,6 +1170,7 @@ $report = [ordered]@{
     sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $apkPath).Hash.ToLowerInvariant()
     signed = $true
     internetPermission = $internetPermission
+    accessNetworkStatePermission = $networkStatePermission
     sixteenKbCompatible = $true
     embeddedLove = [ordered]@{
         sha256 = $resolvedPackageHash
@@ -694,6 +1184,37 @@ $report = [ordered]@{
         buildReportSha256 = Get-LowerSha256 -Path $nativeCryptoReportPath
         packagedArtifacts = $packagedNativeCrypto
     }
+    androidGatewayDiscovery = [ordered]@{
+        bundled = $true
+        status = [string]$androidGatewayReport.status
+        productionReady = [bool]$androidGatewayReport.productionReady
+        abiVersion = [int]$androidGatewayReport.abiVersion
+        minAndroidApi = [int]$androidGatewayReport.minAndroidApi
+        networkTrafficSent = $false
+        addressesRecorded = $false
+        bridgeClass = $gatewayBridgeClass
+        bridgeClassPackaged = $gatewayBridgeClassPackaged
+        trackedBridgeSourceSha256 = $gatewayBridgeFinalTrackedSourceHash
+        stagedBridgeSourceSha256 = $gatewayBridgeFinalStagedSourceHash
+        nativeReportTrackedBridgeSourceSha256 =
+            [string]$androidGatewayReport.inputs.javaBridgeSourceSha256
+        trackedAndStagedSourceMatchNativeReport = $true
+        trackedSourceStableThroughBuild = $true
+        stagedSourceStableThroughBuild = $true
+        packagedBridgeClassAndNativeMethodsVerified = $true
+        packagedLifecycleHooksVerified =
+            $packagedGatewayLifecycleHooksVerified
+        packagedImplementationReferencesVerified =
+            $packagedGatewayImplementationReferencesVerified
+        packagedCellularRejectionVerified =
+            $packagedGatewayCellularRejectionVerified
+        packagedForbiddenSocketAndLoggingReferencesAbsent =
+            $packagedGatewayForbiddenReferencesAbsent
+        nativeArtifactSecurityMetadataVerified = $true
+        buildReport = $androidGatewayReportPath
+        buildReportSha256 = Get-LowerSha256 -Path $androidGatewayReportPath
+        packagedArtifacts = $packagedAndroidGateway
+    }
     connectedAndroidDevices = $devices.Count
     installedDeviceSerial = $installedDeviceSerial
     deviceLaunchVerified = $deviceLaunchVerified
@@ -702,8 +1223,12 @@ $report = [ordered]@{
 Write-Output "ANDROID_APK=$apkPath"
 Write-Output "ANDROID_ARTIFACT_KIND=$artifactKind"
 Write-Output "INTERNET_PERMISSION=$internetPermission"
+Write-Output "ACCESS_NETWORK_STATE_PERMISSION=$networkStatePermission"
 Write-Output 'NATIVE_CRYPTO_BUNDLED=True'
 Write-Output "NATIVE_CRYPTO_PRODUCTION_READY=$($nativeCryptoReport.productionReady)"
+Write-Output 'ANDROID_GATEWAY_BRIDGE_PACKAGED=True'
+Write-Output 'ANDROID_GATEWAY_NETWORK_TRAFFIC_SENT=False'
+Write-Output "ANDROID_GATEWAY_PRODUCTION_READY=$($androidGatewayReport.productionReady)"
 Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)"
 if ($installedDeviceSerial) { Write-Output "INSTALLED_DEVICE_SERIAL=$installedDeviceSerial" }
 Write-Output "DEVICE_LAUNCH_VERIFIED=$deviceLaunchVerified"

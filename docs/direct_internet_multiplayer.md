@@ -95,8 +95,9 @@ number generators are never used for invitation keys or cryptographic nonces.
   reserved sequence exhaustion, bounded cross-channel reordering, opening-packet tampering/replay,
   restart replay, final-flight loss, wrong-source floods, and cleanup on every tested failure path.
 - Engineering-only automatic-reachability layers now include bounded PCP and NAT-PMP codecs, a
-  serialized finite-lease coordinator, and strict pure UPnP IGD parsing/request construction. These
-  components do not yet have a live router socket adapter and are not production router-mapping support.
+  serialized finite-lease coordinator, strict pure UPnP IGD parsing/request construction, and read-only
+  Windows and Android default-gateway providers. These components do not yet have a live router socket
+  adapter and are not production router-mapping support.
 - A same-port simultaneous IPv6 opening passes between the physical Wi-Fi and cellular phones with
   authenticated proof in both directions and complete redacted cleanup. A subsequent guarded run
   transferred those exact sockets into the authenticated bridge and encrypted ENet transport, moved game
@@ -159,9 +160,10 @@ Reachability is being developed in this order:
 
 The PCP/NAT-PMP wire codecs, serialized coordinator, and strict pure UPnP IGD layer are implemented and
 covered by engineering tests. They deliberately do not open a socket or change a router by themselves.
-Windows now has a local-only, read-only default-route discovery foundation and strict Lua validation.
-Android discovery, live transport adapters, renewal/deletion integration, and physical-router proof are
-still open; automatic mapping must therefore be treated as unavailable in production.
+Windows and Android now have local-only, read-only default-route discovery foundations with strict Lua
+validation. Live transport adapters, Windows network-generation support, renewal/deletion integration,
+and physical-router proof are still open; automatic mapping must therefore be treated as unavailable in
+production.
 
 No method receives the invitation secret or contacts a matchmaking, STUN, relay, telemetry, or public-IP
 service. The secure listener must exist before its exact UDP port is mapped; invitation generation occurs
@@ -197,11 +199,55 @@ Build and physically verify the Windows foundation with:
 
 Both tools print only pass/fail properties, never the discovered local addresses. This foundation is not
 wired to the player flow yet: the current secure Direct transport is IPv6-only, while PCP/NAT-PMP/UPnP
-mapping creates an IPv4 endpoint. A reviewed IPv4/dual-stack Direct listener and Android's
-`ConnectivityManager`/`LinkProperties` bridge must land before automatic mapping can be enabled.
+mapping creates an IPv4 endpoint. A reviewed IPv4/dual-stack Direct listener and live platform-bound
+router adapters must land before automatic mapping can be enabled.
 The engineering adapter also permits an explicit test-library override and source/output lookup. A release
 build must remove those development paths and load only the packaged, integrity-verified same-directory
 DLL before this provider can become a player-facing dependency.
+
+### Android local gateway discovery foundation
+
+Android API 26 and newer now use a small `ConnectivityManager`/`LinkProperties` bridge to observe the
+application's default network without opening a socket. It accepts only a validated Wi-Fi or Ethernet
+network, explicitly rejects VPN and cellular transports, and requires exactly one interface-matched IPv4
+default route plus one usable IPv4 source address. Android 28 and newer additionally reject a reported
+suspended network; Android 29 and newer wait for and enforce the per-network blocked-state callback.
+Android 26–27 do not expose those two signals, so their acceptance claim is limited to the capabilities
+the platform reports. Missing, ambiguous, malformed, or changing route state invalidates the snapshot;
+duplicate same-network callbacks are idempotent and stale callbacks are ignored.
+
+The bridge carries the exact opaque 64-bit Android `Network` handle through JNI as two unsigned 32-bit
+words plus a nonzero route revision. Lua never converts that handle to an imprecise 64-bit number and
+does not expose the raw words; it emits one bounded generation value and requires it to remain unchanged
+during revalidation. Future Android PCP/NAT-PMP/UPnP sockets must bind to that exact network handle and
+revalidate both the handle and revision before creating, renewing, or deleting a lease. There is no
+`NetworkInterface`/`if_nametoindex` fallback because that path can itself require a control socket.
+
+The native ABI-v2 candidates build for `armeabi-v7a`, `arm64-v8a`, and `x86_64`, have an exact four-symbol
+export surface, an exact non-network dynamic-symbol allowlist, 16 KiB-aligned load segments, RELRO, and
+immediate binding. The source and packaged-bytecode audits reject the networking and logging references
+covered by their explicit deny lists; those audits are regression gates for this reviewed implementation,
+not a general proof about every possible Android API. The concurrency test stresses simultaneous publish,
+clear, and read operations. A physical API 27 ARM32 Wi-Fi phone passed module load,
+native ABI, callback publication, route validation, and immediate revalidation. Its dedicated probe APK
+had no `INTERNET` permission, sent no traffic, retained no address or network identifier, read only its
+own process logs, cleared no global log buffer, and was removed afterward. The probe's only external
+Android capability is `ACCESS_NETWORK_STATE`; the wrapper also declares its generated app-specific
+receiver permission.
+
+Build and run the bounded Android proof with:
+
+```powershell
+& '.\tools\build_android_gateway_discovery_probe.ps1'
+& '.\tools\run_android_gateway_discovery_probe.ps1'
+```
+
+The normal Android package includes the same audited bridge and three native libraries. Its build binds
+the tracked and staged Java source hashes to the native report, then inspects packaged bytecode for the
+bridge ABI, required network-state references, and Activity start/stop call sites; it does not claim a
+byte-for-byte Java-source equivalence proof. The provider remains `productionReady = false`. Android
+versions below API 26 fail closed, and this foundation neither discovers a public address nor creates or
+removes a router mapping.
 
 ### Windows Firewall guidance
 
@@ -394,7 +440,7 @@ endpoint, device serial, invitation, key, packet, or raw log:
 evidence only; `productionReady = false` remains unchanged.
 
 The approval, denial, kick, timeout, single-use invitation, and transport admission boundaries are all
-covered by the complete packaged-game smoke suite, which passes 1,565 checks with zero failures after
+covered by the complete packaged-game smoke suite, which passes 1,574 checks with zero failures after
 these changes.
 
 `src/net/direct_connection.lua` composes the two codes, authenticated opening, bridge, encrypted
@@ -455,8 +501,8 @@ different host/network, not to promise a connection that cannot exist.
 ### 3. Automatic router mapping
 
 - [x] Add bounded PCP/NAT-PMP codecs, a serialized finite-lease coordinator, and strict pure UPnP IGD handling.
-- [ ] Complete default-gateway discovery without contacting an Internet service on every shipping platform;
-  the Windows native/Lua foundation is implemented and physically verified, while Android is pending.
+- [x] Complete read-only default-gateway discovery without contacting an Internet service on Windows and
+  Android; Windows and Android ARM32 are physically verified, with all three Android ABIs statically audited.
 - [ ] Restrict release loading to the packaged, integrity-verified native route provider.
 - [ ] Add a real platform network generation and a unique per-mapping ownership token.
 - [ ] Connect PCP, NAT-PMP, and UPnP IGD to live router adapters and try them in that order.

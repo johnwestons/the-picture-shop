@@ -1,5 +1,6 @@
 local GatewayDiscovery = require("src.net.gateway_discovery")
 local GatewayNative = require("src.net.gateway_native")
+local GatewayAndroid = require("src.net.gateway_android")
 
 local Test = {}
 
@@ -18,6 +19,20 @@ end
 
 local function provider(value)
     return function() return value end
+end
+
+local function androidRoute(overrides)
+    local value = {
+        family = 4,
+        internalAddress = "192.168.1.50",
+        gatewayAddress = "192.168.1.1",
+        routePrefixLength = 0,
+        networkGeneration =
+            "android-route-v2-0000000000000001-00000001",
+        ignoredProviderField = "must-not-cross-boundary",
+    }
+    for key, item in pairs(overrides or {}) do value[key] = item end
+    return value
 end
 
 function Test.run(_, check)
@@ -50,6 +65,94 @@ function Test.run(_, check)
         and unavailable == nil and unavailableError == "native_route_unavailable"
         and not thrownError:find("secret", 1, true)
         and not unavailableError:find("provider", 1, true))
+
+    local androidNative, androidNativeError = GatewayAndroid.discover({
+        invoke = function()
+            return 0, "100.64.1.2", "10.0.0.1",
+                0x1234abcd, 0x89abcdef, 0x01020304
+        end,
+    })
+    check("gateway_android_exposes_only_the_atomic_bounded_route_and_generation",
+        androidNativeError == nil and androidNative.family == 4
+        and androidNative.internalAddress == "100.64.1.2"
+        and androidNative.gatewayAddress == "10.0.0.1"
+        and androidNative.interfaceIndex == nil
+        and androidNative.routePrefixLength == 0
+        and androidNative.networkGeneration ==
+            "android-route-v2-1234abcd89abcdef-01020304"
+        and androidNative.networkHandleHigh == nil
+        and androidNative.networkHandleLow == nil
+        and androidNative.routeRevision == nil
+        and GatewayAndroid.expectedAbiVersion == 2
+        and GatewayAndroid.readOnly == true
+        and GatewayAndroid.networkTrafficSent == false)
+
+    local highZero = GatewayAndroid.discover({
+        invoke = function()
+            return 0, "192.168.1.2", "192.168.1.1", 0, 1, 1
+        end,
+    })
+    local lowZero = GatewayAndroid.discover({
+        invoke = function()
+            return 0, "192.168.1.2", "192.168.1.1", 1, 0, 1
+        end,
+    })
+    check("gateway_android_preserves_each_uint32_handle_half_exactly",
+        highZero ~= nil and highZero.networkGeneration ==
+            "android-route-v2-0000000000000001-00000001"
+        and lowZero ~= nil and lowZero.networkGeneration ==
+            "android-route-v2-0000000100000000-00000001")
+
+    local androidStatusesFailClosed = true
+    for _, status in ipairs({ -1, -2, -3, -99 }) do
+        local statusRoute, statusError = GatewayAndroid.discover({
+            invoke = function()
+                return status, "invitation-secret", "raw-vpn-name",
+                    1, 2, 7
+            end,
+        })
+        androidStatusesFailClosed = androidStatusesFailClosed
+            and statusRoute == nil
+            and statusError == "android_gateway_unavailable"
+            and not statusError:find("secret", 1, true)
+            and not statusError:find("vpn", 1, true)
+    end
+    local androidThrown, androidThrownError = GatewayAndroid.discover({
+        invoke = function() error("private-network-details") end,
+    })
+    check("gateway_android_sanitizes_every_native_failure_status_and_exception",
+        androidStatusesFailClosed and androidThrown == nil
+        and androidThrownError == "android_gateway_unavailable"
+        and not androidThrownError:find("private", 1, true))
+
+    local invalidAndroidNative = {
+        { 0, "192.168.001.2", "192.168.1.1", 1, 2, 1 },
+        { 0, "192.168.1.2", "192.168.001.1", 1, 2, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 0, 0, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", -1, 2, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 1.5, 2, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 4294967296, 2, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, -1, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, 1.5, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, 4294967296, 1 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, 2, 0 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, 2, -1 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, 2, 1.5 },
+        { 0, "192.168.1.2", "192.168.1.1", 1, 2, 4294967296 },
+    }
+    local invalidAndroidNativeRejected = true
+    for _, values in ipairs(invalidAndroidNative) do
+        local invalidRoute, invalidError = GatewayAndroid.discover({
+            invoke = function()
+                return values[1], values[2], values[3], values[4], values[5],
+                    values[6]
+            end,
+        })
+        invalidAndroidNativeRejected = invalidAndroidNativeRejected
+            and invalidRoute == nil and invalidError == "invalid_android_route"
+    end
+    check("gateway_android_rejects_noncanonical_or_out_of_range_success_output",
+        invalidAndroidNativeRejected)
 
     local candidate = route()
     setmetatable(candidate, {
@@ -142,9 +245,104 @@ function Test.run(_, check)
     local unsupported, unsupportedError = GatewayDiscovery.discover({
         platform = "Linux",
     })
-    check("gateway_discovery_fails_closed_without_a_platform_bridge",
-        android == nil and androidError == "platform_bridge_unavailable"
+    check("gateway_discovery_fails_closed_without_an_available_platform_provider",
+        android == nil and androidError == "gateway_discovery_unavailable"
         and unsupported == nil and unsupportedError == "unsupported_platform")
+
+    local androidSnapshot, androidSnapshotError = GatewayDiscovery.discover({
+        platform = "Android",
+        provider = provider(androidRoute()),
+    })
+    check("gateway_discovery_accepts_an_allowlisted_android_network_generation",
+        androidSnapshotError == nil and androidSnapshot ~= nil
+        and androidSnapshot.platform == "Android"
+        and androidSnapshot.interfaceIndex == nil
+        and androidSnapshot.networkGeneration ==
+            "android-route-v2-0000000000000001-00000001"
+        and type(androidSnapshot.routeFingerprint) == "string"
+        and androidSnapshot.routeFingerprint:match(
+            "^route%-v1%-%x%x%x%x%x%x%x%x$") ~= nil
+        and androidSnapshot.ignoredProviderField == nil)
+
+    local missingAndroidGeneration = androidRoute()
+    missingAndroidGeneration.networkGeneration = nil
+    local invalidAndroidGenerations = {
+        missingAndroidGeneration,
+        androidRoute({ networkGeneration = false }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v2-0000000000000000-00000001",
+        }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v2-0000000000000001-00000000",
+        }),
+        androidRoute({ networkGeneration = "android-route-v2-1-1" }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v2-000000000000000g-00000001",
+        }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v2-000000000000000A-00000001",
+        }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v1-0000000000000001-00000001",
+        }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v2-0000000000000001-00000001-extra",
+        }),
+        androidRoute({
+            networkGeneration =
+                "android-route-v2-0000000000000001_00000001",
+        }),
+        androidRoute({ interfaceIndex = 7 }),
+        androidRoute({ internalAddress = "169.254.1.2" }),
+    }
+    local invalidAndroidGenerationsRejected = true
+    for _, value in ipairs(invalidAndroidGenerations) do
+        local invalidAndroid, invalidAndroidError = GatewayDiscovery.discover({
+            platform = "Android",
+            provider = provider(value),
+        })
+        invalidAndroidGenerationsRejected = invalidAndroidGenerationsRejected
+            and invalidAndroid == nil
+            and invalidAndroidError == "invalid_default_route"
+    end
+    check("gateway_discovery_rejects_invalid_android_generations_and_link_local_sources",
+        invalidAndroidGenerationsRejected)
+
+    local androidActive = androidRoute()
+    local androidOptions = {
+        platform = "Android",
+        provider = function() return androidActive end,
+    }
+    local androidOriginal = GatewayDiscovery.discover(androidOptions)
+    local androidUnchanged, androidUnchangedError =
+        GatewayDiscovery.revalidate(androidOriginal, androidOptions)
+    androidActive = androidRoute({
+        networkGeneration =
+            "android-route-v2-0000000000000002-00000001",
+    })
+    local androidHandleChanged, androidHandleChangedError =
+        GatewayDiscovery.revalidate(androidOriginal, androidOptions)
+    androidActive = androidRoute({
+        networkGeneration =
+            "android-route-v2-0000000000000001-00000002",
+    })
+    local androidRevisionChanged, androidRevisionChangedError =
+        GatewayDiscovery.revalidate(androidOriginal, androidOptions)
+    check("gateway_discovery_invalidates_the_same_android_tuple_on_a_new_network_handle",
+        androidUnchangedError == nil and androidUnchanged ~= nil
+        and androidUnchanged.routeFingerprint ==
+            androidOriginal.routeFingerprint
+        and androidHandleChanged == false
+        and androidHandleChangedError == "network_changed")
+    check("gateway_discovery_invalidates_the_same_android_network_on_a_new_route_revision",
+        androidRevisionChanged == false
+        and androidRevisionChangedError == "network_changed")
 
     local active = route()
     local discoveryOptions = {
@@ -168,6 +366,25 @@ function Test.run(_, check)
         and changed == false and changedError == "network_changed"
         and invalidSnapshot == nil
         and invalidSnapshotError == "invalid_snapshot")
+
+    local windowsGenerationOne = route({
+        networkGeneration = "android-route-v1-00000001",
+    })
+    local windowsGenerationTwo = route({
+        networkGeneration = "android-route-v1-00000002",
+    })
+    local windowsOriginal = GatewayDiscovery.discover({
+        platform = "Windows", provider = provider(windowsGenerationOne),
+    })
+    local windowsStillCurrent, windowsGenerationError =
+        GatewayDiscovery.revalidate(windowsOriginal, {
+            platform = "Windows", provider = provider(windowsGenerationTwo),
+        })
+    check("gateway_discovery_keeps_the_existing_windows_tuple_contract_unchanged",
+        windowsGenerationError == nil and windowsStillCurrent ~= nil
+        and windowsOriginal.networkGeneration == nil
+        and windowsStillCurrent.routeFingerprint ==
+            windowsOriginal.routeFingerprint)
 end
 
 return Test
