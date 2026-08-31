@@ -127,6 +127,14 @@ function State.applySave(state, payload)
     return true
 end
 
+-- Local disk loads are a crash-recovery boundary. A shared LAN snapshot is
+-- allowed to describe a live host-run press, but a shop reopened from disk
+-- must never resume unattended motion.
+function State.applyLocalSave(state, payload)
+    if not State.applySave(state, payload) then return false, false end
+    return true, Windmill.releaseOperator(state)
+end
+
 -- A LAN guest receives only the host's normalized persistent shop state. The
 -- guest intentionally has no local save slot, so autosave and quit can never
 -- overwrite one of its offline shops.

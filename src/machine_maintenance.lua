@@ -48,6 +48,20 @@ function Maintenance.submitTask(session, taskId, score)
     return true
 end
 
+function Maintenance.rollbackLastTask(session, taskId)
+    if type(session) ~= "table" or type(session.tasks) ~= "table"
+        or type(session.scores) ~= "table" or session.finished ~= true
+        or session.activeIndex ~= #session.tasks + 1
+    then
+        return false
+    end
+    local task = session.tasks[#session.tasks]
+    if not task or task.id ~= taskId then return false end
+    session.activeIndex, session.finished = #session.tasks, false
+    session.scores[taskId] = nil
+    return true
+end
+
 function Maintenance.progress(session)
     if type(session) ~= "table" or #session.tasks == 0 then return 0 end
     local completed = math.min(#session.tasks, session.activeIndex - 1)
@@ -124,6 +138,7 @@ function Maintenance.wrapperTaskClick(session, x, y)
     end
     local task = Maintenance.activeTask(session)
     local taskState = Maintenance.wrapperTaskState(session)
+        or (task and prepareWrapperTask(session))
     if not task or not taskState then return { hit = false, ignored = true } end
     taskState.attempts = taskState.attempts + 1
     local tx, ty = wrapperTarget(session, task.id, taskState.phase)
@@ -333,8 +348,10 @@ function Maintenance.finishCutterLubrication(state, session)
     end
     local score = clamp(0.55 + correct * 0.35 - session.errors * 0.025 - session.overgrease * 0.08)
     session.finished = true
-    return MachineFleet.completeCutterLubrication(state, session.machineId,
+    local completed, result = MachineFleet.completeCutterLubrication(state, session.machineId,
         { score = score, gearOilLevel = session.gear.level })
+    if not completed then session.finished = false end
+    return completed, result
 end
 
 Maintenance.finishCutterOiling = Maintenance.finishCutterLubrication

@@ -4,6 +4,243 @@ local WorkshopRemoteScreen = require("src.screens.workshop_remote_screen")
 
 local Test = {}
 
+local function windmillView(overrides)
+    local view = {
+        runtimeRevision = 1,
+        status = "idle",
+        speed = 3000,
+        motor = false,
+        feeder = false,
+        impression = false,
+        emergency = false,
+        counter = 0,
+        goodSheets = 0,
+        spoilage = 0,
+        targetSheets = 250,
+        feedStart = 300,
+        feedRemaining = 300,
+        proofApproved = false,
+        artworkVerified = false,
+        setupPermille = { 0, 0, 0, 0, 0, 0 },
+        candidates = {
+            { palletId = "JOB-WIND-P01", colorIndex = 1 },
+        },
+        serviceStep = "idle",
+        servicePermille = 0,
+        plateMarkerPermille = 670,
+    }
+    for key, value in pairs(overrides or {}) do view[key] = value end
+    return view
+end
+
+local function runWindmillRemoteTests(check)
+    local plate = {
+        id = "JOB-WIND-PLATE-01",
+        status = "unprepared",
+        mounted = false,
+        life = 1,
+    }
+    local state = {
+        screen = "world",
+        money = 1000,
+        inventory = { stock = { maintenance_kit = 1 } },
+        machines = { items = {
+            { modelId = "heidelberg_10x15", status = "installed", maintenance = { windmill = {} } },
+        } },
+        jobs = { active = {
+            {
+                id = "JOB-WIND",
+                company = "Remote Press Client",
+                pallets = { { id = "JOB-WIND-P01" } },
+                press = { colors = 1, plates = { plate } },
+            },
+        } },
+    }
+    local sent = {}
+    local function sendCommand(action, args)
+        sent[#sent + 1] = { action = action, args = args }
+        return true
+    end
+    local function applyResult(action, revision, view, urgentSafety)
+        return WorkshopRemoteScreen.applyResult({
+            resourceId = "windmill",
+            action = action,
+            accepted = true,
+            urgentSafety = urgentSafety,
+            revision = revision,
+            view = view,
+        })
+    end
+
+    WorkshopRemoteScreen.enter({
+        resourceId = "windmill",
+        leaseId = "windmill-test",
+        revision = 1,
+        view = windmillView(),
+    }, state)
+    local loadX, loadY = WorkshopRemoteScreen.windmillButtonCenter("load_pallet", "JOB-WIND-P01")
+    local loaded = WorkshopRemoteScreen.mousepressed(state, loadX, loadY, 1, sendCommand)
+    check("remote_windmill_candidate_sends_exact_host_load_request",
+        loaded == true and #sent == 1 and sent[1].action == "load_pallet"
+        and sent[1].args.palletId == "JOB-WIND-P01")
+
+    applyResult("load_pallet", 2, windmillView({
+        runtimeRevision = 2,
+        status = "setup",
+        jobId = "JOB-WIND",
+        palletId = "JOB-WIND-P01",
+        colorIndex = 1,
+        colorCount = 1,
+        candidates = {},
+    }))
+    local setupTabX, setupTabY = WorkshopRemoteScreen.windmillTabCenter("setup")
+    WorkshopRemoteScreen.mousepressed(state, setupTabX, setupTabY, 1, sendCommand)
+    local beginSetupX, beginSetupY = WorkshopRemoteScreen.windmillButtonCenter("begin_setup", "chase")
+    WorkshopRemoteScreen.mousepressed(state, beginSetupX, beginSetupY, 1, sendCommand)
+    local beginSetup = sent[#sent]
+    check("remote_windmill_setup_tab_sends_host_owned_task",
+        beginSetup.action == "begin_setup" and beginSetup.args.setupTask == "chase")
+
+    applyResult("begin_setup", 3, windmillView({
+        runtimeRevision = 3,
+        status = "setup",
+        jobId = "JOB-WIND",
+        palletId = "JOB-WIND-P01",
+        colorIndex = 1,
+        colorCount = 1,
+        setupTask = "chase",
+        setupSummary = "FORM OFFSET 2",
+        candidates = {},
+    }))
+    local setupActionX, setupActionY = WorkshopRemoteScreen.windmillButtonCenter("setup_action", "align")
+    WorkshopRemoteScreen.mousepressed(state, setupActionX, setupActionY, 1, sendCommand)
+    local setupAction = sent[#sent]
+    check("remote_windmill_setup_control_sends_action_only",
+        setupAction.action == "setup_action" and setupAction.args.setupAction == "align"
+        and setupAction.args.score == nil and setupAction.args.accuracy == nil)
+    applyResult("setup_action", 4, windmillView({
+        runtimeRevision = 4,
+        status = "setup",
+        jobId = "JOB-WIND",
+        palletId = "JOB-WIND-P01",
+        colorIndex = 1,
+        colorCount = 1,
+        candidates = {},
+    }))
+
+    local platesTabX, platesTabY = WorkshopRemoteScreen.windmillTabCenter("plates")
+    WorkshopRemoteScreen.mousepressed(state, platesTabX, platesTabY, 1, sendCommand)
+    local plateX, plateY = WorkshopRemoteScreen.windmillButtonCenter("select_plate", 1)
+    WorkshopRemoteScreen.mousepressed(state, plateX, plateY, 1, sendCommand)
+    local beginPlateX, beginPlateY = WorkshopRemoteScreen.windmillButtonCenter("begin_plate")
+    WorkshopRemoteScreen.mousepressed(state, beginPlateX, beginPlateY, 1, sendCommand)
+    local beginPlate = sent[#sent]
+    check("remote_windmill_platemaking_sends_selected_plate_id",
+        beginPlate.action == "begin_plate" and beginPlate.args.plateId == plate.id)
+
+    plate.status = "processing"
+    applyResult("begin_plate", 5, windmillView({ runtimeRevision = 5 }))
+    local processPlateX, processPlateY = WorkshopRemoteScreen.windmillButtonCenter("process_plate")
+    WorkshopRemoteScreen.mousepressed(state, processPlateX, processPlateY, 1, sendCommand)
+    local processPlate = sent[#sent]
+    check("remote_windmill_plate_step_never_accepts_client_accuracy",
+        processPlate.action == "process_plate" and processPlate.args.plateId == plate.id
+        and processPlate.args.accuracy == nil)
+    applyResult("process_plate", 6, windmillView({ runtimeRevision = 6 }))
+
+    local serviceTabX, serviceTabY = WorkshopRemoteScreen.windmillTabCenter("service")
+    WorkshopRemoteScreen.mousepressed(state, serviceTabX, serviceTabY, 1, sendCommand)
+    local beginServiceX, beginServiceY = WorkshopRemoteScreen.windmillButtonCenter("begin_service")
+    WorkshopRemoteScreen.mousepressed(state, beginServiceX, beginServiceY, 1, sendCommand)
+    local beginService = sent[#sent]
+    check("remote_windmill_service_starts_without_client_scoring",
+        beginService.action == "begin_service" and next(beginService.args) == nil)
+    applyResult("begin_service", 7, windmillView({
+        runtimeRevision = 7,
+        serviceStep = "lockout_disconnect",
+    }))
+    local serviceRunTabX, serviceRunTabY = WorkshopRemoteScreen.windmillTabCenter("run")
+    WorkshopRemoteScreen.mousepressed(state, serviceRunTabX, serviceRunTabY, 1, sendCommand)
+    local sentBeforeServiceOperation = #sent
+    local serviceMotorX, serviceMotorY = WorkshopRemoteScreen.windmillButtonCenter("toggle_motor")
+    WorkshopRemoteScreen.mousepressed(state, serviceMotorX, serviceMotorY, 1, sendCommand)
+    WorkshopRemoteScreen.mousepressed(state, serviceTabX, serviceTabY, 1, sendCommand)
+    check("remote_windmill_service_lockout_disables_normal_press_controls",
+        #sent == sentBeforeServiceOperation)
+    local lockoutX, lockoutY = WorkshopRemoteScreen.windmillButtonCenter("service_lockout")
+    WorkshopRemoteScreen.mousepressed(state, lockoutX, lockoutY, 1, sendCommand)
+    local lockout = sent[#sent]
+    check("remote_windmill_service_lockout_sends_host_verified_step",
+        lockout.action == "service_lockout" and next(lockout.args) == nil)
+    applyResult("service_lockout", 8, windmillView({ runtimeRevision = 8 }))
+
+    local staleResource = WorkshopRemoteScreen.applyWindmillSnapshot({
+        resourceRevision = 7,
+        view = windmillView({ runtimeRevision = 20, speed = 5000 }),
+    })
+    local staleRuntime = WorkshopRemoteScreen.applyWindmillSnapshot({
+        resourceRevision = 8,
+        view = windmillView({ runtimeRevision = 7, speed = 4500 }),
+    })
+    local freshRuntime = WorkshopRemoteScreen.applyWindmillSnapshot({
+        resourceRevision = 8,
+        view = windmillView({ runtimeRevision = 9, speed = 3500 }),
+    })
+    check("remote_windmill_rejects_resource_and_runtime_snapshot_races",
+        not staleResource and not staleRuntime and freshRuntime
+        and WorkshopRemoteScreen.view.runtimeRevision == 9
+        and WorkshopRemoteScreen.view.speed == 3500)
+
+    local runTabX, runTabY = WorkshopRemoteScreen.windmillTabCenter("run")
+    WorkshopRemoteScreen.mousepressed(state, runTabX, runTabY, 1, sendCommand)
+    WorkshopRemoteScreen.applyWindmillSnapshot({
+        resourceRevision = 8,
+        view = windmillView({
+            runtimeRevision = 10,
+            status = "production",
+            jobId = "JOB-WIND",
+            palletId = "JOB-WIND-P01",
+            colorIndex = 1,
+            colorCount = 1,
+            motor = true,
+            feeder = true,
+            impression = true,
+            setupPermille = { 1000, 1000, 1000, 1000, 1000, 1000 },
+        }),
+    })
+    local sentBeforeProductionProof = #sent
+    local productionProofX, productionProofY = WorkshopRemoteScreen.windmillButtonCenter("take_proof")
+    WorkshopRemoteScreen.mousepressed(
+        state, productionProofX, productionProofY, 1, sendCommand)
+    check("remote_windmill_cannot_close_or_pull_a_proof_during_production",
+        WorkshopRemoteScreen.canClose() == false and #sent == sentBeforeProductionProof)
+
+    WorkshopRemoteScreen.applyWindmillSnapshot({
+        resourceRevision = 8,
+        view = windmillView({ runtimeRevision = 11, status = "idle" }),
+    })
+    sent = {}
+    local motorX, motorY = WorkshopRemoteScreen.windmillButtonCenter("toggle_motor")
+    WorkshopRemoteScreen.mousepressed(state, motorX, motorY, 1, sendCommand)
+    local emergencyX, emergencyY = WorkshopRemoteScreen.windmillButtonCenter("emergency_stop")
+    WorkshopRemoteScreen.mousepressed(state, emergencyX, emergencyY, 1, sendCommand)
+    local safetyBypassedWait = #sent == 2 and sent[1].action == "toggle_motor"
+        and sent[2].action == "emergency_stop"
+        and WorkshopRemoteScreen.waiting and WorkshopRemoteScreen.safetyWaiting
+    applyResult("toggle_motor", 9, windmillView({ runtimeRevision = 12 }))
+    local ordinaryClearedAlone = not WorkshopRemoteScreen.waiting
+        and WorkshopRemoteScreen.safetyWaiting
+    applyResult("emergency_stop", 10, windmillView({
+        runtimeRevision = 13,
+        status = "stopped",
+        emergency = true,
+    }), true)
+    check("remote_windmill_estop_has_an_independent_urgent_lane",
+        safetyBypassedWait and ordinaryClearedAlone
+        and not WorkshopRemoteScreen.waiting and not WorkshopRemoteScreen.safetyWaiting)
+    WorkshopRemoteScreen.clear()
+end
+
 function Test.run(context, check)
     local selectedSlot
     TitleScreen.enter(function() end, function(slot) selectedSlot = slot end)
@@ -310,6 +547,7 @@ function Test.run(context, check)
     check("remote_cutter_right_button_sends_one_guarded_cut",
         #sent == 1 and sent[1].action == "guarded_cut")
     WorkshopRemoteScreen.clear()
+    runWindmillRemoteTests(check)
 end
 
 return Test

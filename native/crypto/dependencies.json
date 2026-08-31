@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "status": "engineering-candidate-non-production",
+  "verifiedAt": "2026-08-30",
+  "dependencies": [
+    {
+      "name": "Zig",
+      "purpose": "Pinned build tool for the Windows x64 native candidate",
+      "runtimeDependency": false,
+      "version": "0.16.0",
+      "sourceUrl": "https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip",
+      "archiveFile": "zig-x86_64-windows-0.16.0.zip",
+      "sha256": "68659eb5f1e4eb1437a722f1dd889c5a322c9954607f5edcf337bc3684a75a7e",
+      "license": "MIT (Expat)",
+      "licenseFile": "licenses/Zig-LICENSE.txt"
+    },
+    {
+      "name": "Noise Protocol Framework specification",
+      "purpose": "Pinned normative protocol reference and vector source",
+      "runtimeDependency": false,
+      "version": "revision 34",
+      "gitRepository": "https://github.com/noiseprotocol/noise_spec.git",
+      "gitRef": "v34",
+      "gitCommit": "ecdf084ece2bf92b16b1201b6ae5c99d23fb4151",
+      "sourceUrl": "https://codeload.github.com/noiseprotocol/noise_spec/tar.gz/ecdf084ece2bf92b16b1201b6ae5c99d23fb4151",
+      "archiveFile": "noise_spec-ecdf084ece2bf92b16b1201b6ae5c99d23fb4151.tar.gz",
+      "sha256": "992e27784cf48ad3bb93213b26f82e5fe5e3175f8274fc11922bff48ecbf9383",
+      "license": "Public domain (specification IPR section)",
+      "licenseFile": "licenses/noise-spec-IPR.txt"
+    },
+    {
+      "name": "Cacophony Noise test vectors",
+      "purpose": "Pinned independent known-answer vector for the exact NNpsk0 suite",
+      "runtimeDependency": false,
+      "version": "master snapshot 2026-08-30",
+      "gitRepository": "https://github.com/centromere/cacophony.git",
+      "gitRef": "master",
+      "gitCommit": "8ee9d41e34a1a596cfa3ab12aa4069ff87dc1247",
+      "sourceUrl": "https://codeload.github.com/centromere/cacophony/tar.gz/8ee9d41e34a1a596cfa3ab12aa4069ff87dc1247",
+      "archiveFile": "cacophony-8ee9d41e34a1a596cfa3ab12aa4069ff87dc1247.tar.gz",
+      "sha256": "55f86375f5ed487b9426603e42e8f42344e9bb34e3dcd05bd2c47855037e2123",
+      "license": "The Unlicense / public domain dedication",
+      "licenseFile": "licenses/cacophony-UNLICENSE.txt"
+    },
+    {
+      "name": "Noise-C",
+      "purpose": "Noise handshake implementation statically linked into the native provider candidate",
+      "runtimeDependency": true,
+      "version": "rev32 branch snapshot",
+      "gitRepository": "https://github.com/rweather/noise-c.git",
+      "gitRef": "rev32",
+      "gitCommit": "4c02abf6e097f33991fd6799d65c4a96083bf8fe",
+      "sourceUrl": "https://codeload.github.com/rweather/noise-c/tar.gz/4c02abf6e097f33991fd6799d65c4a96083bf8fe",
+      "archiveFile": "noise-c-rev32.tar.gz",
+      "sha256": "94c010364df4e141cde13b8ff9d69e08bcf2572134a6f6aa5d154d36d239165c",
+      "license": "MIT",
+      "licenseFile": "licenses/noise-c-COPYING.txt",
+      "candidateCaveat": "Unreleased and stale upstream snapshot; the maintained patch adds the standard PSK ephemeral-mixing rule, fixes failed-decrypt nonce advancement, narrows algorithms, replaces Curve25519-DONNA, and still requires regression coverage and external review."
+    },
+    {
+      "name": "libsodium",
+      "purpose": "CSPRNG, transcript-bound root derivation, per-channel KDF, XChaCha20-Poly1305, constant-time helpers, and zeroization",
+      "runtimeDependency": true,
+      "version": "1.0.22-stable snapshot 2026-08-27",
+      "gitRepository": "https://github.com/jedisct1/libsodium.git",
+      "gitRef": "stable",
+      "gitCommit": "e1eba1452823e9a9105dc574f57cd29b4524e87e",
+      "sourceUrl": "https://download.libsodium.org/libsodium/releases/libsodium-1.0.22-stable.tar.gz",
+      "archiveFile": "libsodium-1.0.22-stable.tar.gz",
+      "sha256": "3f909c648c5b6391f121cc7d1a979504c2a601f47c7aefe6140d47e81c7f0339",
+      "license": "ISC",
+      "licenseFile": "licenses/libsodium-LICENSE.txt"
+    }
+  ]
+}

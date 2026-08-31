@@ -2,7 +2,7 @@ local Codec = require("src.net.codec")
 local MachinePose = require("src.machine_pose")
 
 local Protocol = {
-    VERSION = 8,
+    VERSION = 9,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -34,6 +34,8 @@ local MAX_WORKSHOP_VIEW_TEXT_BYTES = 96
 local MAX_WORKSHOP_CYCLE_TIME = 600
 local MAX_WORKSHOP_DISTANCE = 100000
 local MAX_WORKSHOP_INVENTORY = 100000
+local MAX_WINDMILL_ID_BYTES = 24
+local MAX_WINDMILL_VIEW_TEXT_TOTAL_BYTES = 96
 
 local REALTIME_CODEC_LIMITS = {
     maxBytes = Protocol.MAX_PACKET_BYTES,
@@ -65,6 +67,7 @@ local ROUTES = {
     workshop_release = { channel = Protocol.CHANNEL_CONTROL, delivery = "reliable" },
     workshop_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     cutter_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
+    windmill_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     pallet_jack_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     input = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -80,7 +83,7 @@ Protocol.MESSAGE_TYPES = {
     "hello", "welcome", "shop_snapshot", "shop_state", "interaction_request",
     "interaction_result", "workshop_acquire", "workshop_grant", "workshop_command",
     "workshop_result", "workshop_release", "workshop_snapshot", "cutter_snapshot",
-    "pallet_jack_snapshot", "input", "snapshot",
+    "windmill_snapshot", "pallet_jack_snapshot", "input", "snapshot",
     "visitor_snapshot", "environment_snapshot", "ping", "pong", "leave", "error",
 }
 
@@ -398,6 +401,7 @@ local WORKSHOP_RESOURCES = {
     skid_wrapper = true,
     pallet_jack = true,
     cutter = true,
+    windmill = true,
 }
 
 local WORKSHOP_ACTION_ARGUMENTS = {
@@ -434,6 +438,32 @@ local WORKSHOP_ACTION_ARGUMENTS = {
         reset_safety = false,
         return_to_pallet = false,
         run_next_lift = false,
+    },
+    windmill = {
+        load_pallet = "palletId",
+        toggle_motor = false,
+        toggle_feeder = false,
+        toggle_impression = false,
+        speed_up = false,
+        speed_down = false,
+        emergency_stop = false,
+        reset_safety = false,
+        take_proof = false,
+        verify_artwork = false,
+        approve_proof = false,
+        start_run = false,
+        stop_run = false,
+        clean_unload = false,
+        order_plate = "plateId",
+        begin_plate = "plateId",
+        process_plate = "plateId",
+        begin_setup = "setupTask",
+        setup_action = "setupAction",
+        cancel_setup = false,
+        begin_service = false,
+        service_lockout = false,
+        service_task = false,
+        book_technician = false,
     },
 }
 
@@ -489,6 +519,59 @@ local WORKSHOP_CUTTER_EDGES = {
     bottom = true,
     left = true,
     top = true,
+}
+
+local WORKSHOP_WINDMILL_STATUSES = {
+    idle = true,
+    setup = true,
+    proof = true,
+    approved = true,
+    production = true,
+    pass_complete = true,
+    stock_shortage = true,
+    stopped = true,
+}
+
+local WORKSHOP_WINDMILL_SETUP_TASKS = {
+    chase = true,
+    packing = true,
+    rollers = true,
+    ink = true,
+    feeder = true,
+    register = true,
+}
+
+local WORKSHOP_WINDMILL_SETUP_ACTIONS = {
+    align = true,
+    square = true,
+    tighten = true,
+    layer = true,
+    smooth = true,
+    clamp = true,
+    left_down = true,
+    left_up = true,
+    right_down = true,
+    right_up = true,
+    key_1 = true,
+    key_2 = true,
+    key_3 = true,
+    ductor = true,
+    pile = true,
+    suction = true,
+    blast = true,
+    test = true,
+    left = true,
+    right = true,
+    up = true,
+    down = true,
+}
+
+local WORKSHOP_WINDMILL_SERVICE_STEPS = {
+    idle = true,
+    lockout_disconnect = true,
+    lockout_key = true,
+    lockout_tag = true,
+    task = true,
 }
 
 local function workshopResource(value, label)
@@ -964,6 +1047,144 @@ local function normalizeCutterWorkshopView(value, label)
     return normalized
 end
 
+local function normalizeWindmillSetupPermille(value, label)
+    if not Codec.isArray(value) then return nil, label .. " must be an array" end
+    if #value ~= 6 then return nil, label .. " must contain exactly 6 setup values" end
+    local setup = {}
+    for index = 1, 6 do
+        local progress, fieldError = integerInRange(
+            value[index], 0, 1000, label .. "[" .. index .. "]")
+        if progress == nil then return nil, fieldError end
+        setup[index] = progress
+    end
+    return Codec.array(setup)
+end
+
+local function normalizeWindmillCandidates(value, label)
+    if not Codec.isArray(value) then return nil, label .. " must be an array" end
+    if #value > 3 then return nil, label .. " must contain at most 3 pallets" end
+    local candidates, seen = {}, {}
+    for index = 1, #value do
+        local candidateLabel = label .. "[" .. index .. "]"
+        local valid, shapeError = shape(
+            value[index], candidateLabel, { "palletId", "colorIndex" })
+        if not valid then return nil, shapeError end
+        local palletId, fieldError = token(
+            value[index].palletId, MAX_WINDMILL_ID_BYTES, candidateLabel .. ".palletId")
+        if not palletId then return nil, fieldError end
+        if seen[palletId] then return nil, label .. " contains a duplicate palletId" end
+        seen[palletId] = true
+        local colorIndex
+        colorIndex, fieldError = integerInRange(
+            value[index].colorIndex, 1, 4, candidateLabel .. ".colorIndex")
+        if not colorIndex then return nil, fieldError end
+        candidates[#candidates + 1] = {
+            palletId = palletId,
+            colorIndex = colorIndex,
+        }
+    end
+    return Codec.array(candidates)
+end
+
+local function normalizeWindmillWorkshopView(value, label)
+    local valid, shapeError = shape(value, label, {
+        "runtimeRevision", "status", "speed", "motor", "feeder", "impression",
+        "emergency", "counter", "goodSheets", "spoilage", "targetSheets", "feedStart",
+        "feedRemaining", "proofApproved", "artworkVerified", "setupPermille", "candidates",
+        "serviceStep", "servicePermille", "plateMarkerPermille",
+    }, {
+        "jobId", "palletId", "colorIndex", "colorCount", "proofPermille", "warning",
+        "setupTask", "setupSummary", "serviceTask",
+    })
+    if not valid then return nil, shapeError end
+    local normalized, fieldError = {}
+    normalized.runtimeRevision, fieldError = integerInRange(
+        value.runtimeRevision, 0, UINT32_MAX, label .. ".runtimeRevision")
+    if normalized.runtimeRevision == nil then return nil, fieldError end
+    if type(value.status) ~= "string" or not WORKSHOP_WINDMILL_STATUSES[value.status] then
+        return nil, label .. ".status is invalid"
+    end
+    normalized.status = value.status
+    normalized.speed, fieldError = integerInRange(value.speed, 1000, 5500, label .. ".speed")
+    if normalized.speed == nil then return nil, fieldError end
+    for _, field in ipairs({
+        "motor", "feeder", "impression", "emergency", "proofApproved", "artworkVerified",
+    }) do
+        if type(value[field]) ~= "boolean" then
+            return nil, label .. "." .. field .. " must be boolean"
+        end
+        normalized[field] = value[field]
+    end
+    for _, field in ipairs({
+        "counter", "goodSheets", "spoilage", "targetSheets", "feedStart", "feedRemaining",
+    }) do
+        normalized[field], fieldError = integerInRange(
+            value[field], 0, UINT32_MAX, label .. "." .. field)
+        if normalized[field] == nil then return nil, fieldError end
+    end
+    normalized.setupPermille, fieldError = normalizeWindmillSetupPermille(
+        value.setupPermille, label .. ".setupPermille")
+    if not normalized.setupPermille then return nil, fieldError end
+    normalized.candidates, fieldError = normalizeWindmillCandidates(
+        value.candidates, label .. ".candidates")
+    if not normalized.candidates then return nil, fieldError end
+    if type(value.serviceStep) ~= "string"
+        or not WORKSHOP_WINDMILL_SERVICE_STEPS[value.serviceStep]
+    then
+        return nil, label .. ".serviceStep is invalid"
+    end
+    normalized.serviceStep = value.serviceStep
+    normalized.servicePermille, fieldError = integerInRange(
+        value.servicePermille, 0, 1000, label .. ".servicePermille")
+    if normalized.servicePermille == nil then return nil, fieldError end
+    normalized.plateMarkerPermille, fieldError = integerInRange(
+        value.plateMarkerPermille, 0, 1000, label .. ".plateMarkerPermille")
+    if normalized.plateMarkerPermille == nil then return nil, fieldError end
+
+    for _, field in ipairs({ "jobId", "palletId" }) do
+        if value[field] ~= nil then
+            normalized[field], fieldError = token(
+                value[field], MAX_WINDMILL_ID_BYTES, label .. "." .. field)
+            if not normalized[field] then return nil, fieldError end
+        end
+    end
+    for _, field in ipairs({ "colorIndex", "colorCount" }) do
+        if value[field] ~= nil then
+            normalized[field], fieldError = integerInRange(
+                value[field], 1, 4, label .. "." .. field)
+            if not normalized[field] then return nil, fieldError end
+        end
+    end
+    if value.proofPermille ~= nil then
+        normalized.proofPermille, fieldError = integerInRange(
+            value.proofPermille, 0, 1000, label .. ".proofPermille")
+        if normalized.proofPermille == nil then return nil, fieldError end
+    end
+    local viewTextBytes = 0
+    for _, field in ipairs({ "warning", "setupSummary", "serviceTask" }) do
+        if value[field] ~= nil then
+            normalized[field], fieldError = printableString(
+                value[field], 1, MAX_WINDMILL_VIEW_TEXT_TOTAL_BYTES,
+                label .. "." .. field)
+            if not normalized[field] then return nil, fieldError end
+            viewTextBytes = viewTextBytes + #normalized[field]
+        end
+    end
+    if viewTextBytes > MAX_WINDMILL_VIEW_TEXT_TOTAL_BYTES then
+        return nil, label .. " optional display text exceeds "
+            .. MAX_WINDMILL_VIEW_TEXT_TOTAL_BYTES .. " bytes"
+    end
+    if value.setupTask ~= nil then
+        if type(value.setupTask) ~= "string"
+            or not WORKSHOP_WINDMILL_SETUP_TASKS[value.setupTask]
+        then
+            return nil, label .. ".setupTask is invalid"
+        end
+        normalized.setupTask = value.setupTask
+    end
+    return normalized
+end
+
 local function normalizeWorkshopView(value, resourceId, label)
     if resourceId == "reception_customer" then
         return normalizeReceptionWorkshopView(value, label)
@@ -979,6 +1200,8 @@ local function normalizeWorkshopView(value, resourceId, label)
         return {}
     elseif resourceId == "cutter" then
         return normalizeCutterWorkshopView(value, label)
+    elseif resourceId == "windmill" then
+        return normalizeWindmillWorkshopView(value, label)
     end
     return nil, label .. " has no resource validator"
 end
@@ -1070,7 +1293,7 @@ local function normalizeWorkshopCommand(payload)
         "sessionId", "commandId", "leaseId", "resourceId", "action", "expectedRevision",
     }, {
         "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
-        "barrierClear",
+        "barrierClear", "plateId", "setupTask", "setupAction",
     })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(
@@ -1095,7 +1318,7 @@ local function normalizeWorkshopCommand(payload)
     if expectedRevision == nil then return nil, fieldError end
     for _, field in ipairs({
         "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
-        "barrierClear",
+        "barrierClear", "plateId", "setupTask", "setupAction",
     }) do
         if field ~= argumentField and payload[field] ~= nil then
             return nil, "workshop_command." .. field .. " is invalid for " .. action
@@ -1126,6 +1349,20 @@ local function normalizeWorkshopCommand(payload)
             return nil, "workshop_command." .. argumentField .. " must be boolean"
         end
         normalized[argumentField] = payload[argumentField]
+    elseif argumentField == "setupTask" then
+        if type(payload.setupTask) ~= "string"
+            or not WORKSHOP_WINDMILL_SETUP_TASKS[payload.setupTask]
+        then
+            return nil, "workshop_command.setupTask is invalid"
+        end
+        normalized.setupTask = payload.setupTask
+    elseif argumentField == "setupAction" then
+        if type(payload.setupAction) ~= "string"
+            or not WORKSHOP_WINDMILL_SETUP_ACTIONS[payload.setupAction]
+        then
+            return nil, "workshop_command.setupAction is invalid"
+        end
+        normalized.setupAction = payload.setupAction
     elseif argumentField then
         normalized[argumentField], fieldError = token(
             payload[argumentField], MAX_TOKEN_BYTES, "workshop_command." .. argumentField)
@@ -1216,7 +1453,7 @@ end
 
 local function normalizeWorkshopResources(value, label)
     if not Codec.isArray(value) then return nil, label .. " must be an array" end
-    if #value ~= 5 then return nil, label .. " must contain all 5 workshop resources" end
+    if #value ~= 6 then return nil, label .. " must contain all 6 workshop resources" end
     local resources, seen = {}, {}
     for index = 1, #value do
         local resourceLabel = label .. "[" .. index .. "]"
@@ -1393,6 +1630,33 @@ local function normalizeCutterSnapshot(payload)
     local view
     view, fieldError = normalizeCutterWorkshopView(
         payload.view, "cutter_snapshot.view")
+    if not view then return nil, fieldError end
+    return {
+        sessionId = sessionId,
+        serverTick = serverTick,
+        resourceRevision = resourceRevision,
+        view = view,
+    }
+end
+
+local function normalizeWindmillSnapshot(payload)
+    local valid, shapeError = shape(payload, "windmill_snapshot payload",
+        { "sessionId", "serverTick", "resourceRevision", "view" })
+    if not valid then return nil, shapeError end
+    local sessionId, fieldError = token(
+        payload.sessionId, MAX_TOKEN_BYTES, "windmill_snapshot.sessionId")
+    if not sessionId then return nil, fieldError end
+    local serverTick
+    serverTick, fieldError = integerInRange(
+        payload.serverTick, 0, UINT32_MAX, "windmill_snapshot.serverTick")
+    if serverTick == nil then return nil, fieldError end
+    local resourceRevision
+    resourceRevision, fieldError = integerInRange(
+        payload.resourceRevision, 0, UINT32_MAX, "windmill_snapshot.resourceRevision")
+    if resourceRevision == nil then return nil, fieldError end
+    local view
+    view, fieldError = normalizeWindmillWorkshopView(
+        payload.view, "windmill_snapshot.view")
     if not view then return nil, fieldError end
     return {
         sessionId = sessionId,
@@ -1702,6 +1966,7 @@ local PAYLOAD_NORMALIZERS = {
     workshop_release = normalizeWorkshopRelease,
     workshop_snapshot = normalizeWorkshopSnapshot,
     cutter_snapshot = normalizeCutterSnapshot,
+    windmill_snapshot = normalizeWindmillSnapshot,
     pallet_jack_snapshot = normalizePalletJackSnapshot,
     input = normalizeInput,
     snapshot = normalizeSnapshot,

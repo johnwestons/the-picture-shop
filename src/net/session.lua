@@ -12,17 +12,23 @@ local SHOP_STATE_INTERVAL = 0.25
 local SHOP_STATE_FALLBACK_INTERVAL = 30
 local INPUT_HOLD_TIMEOUT = 0.35
 local CONNECT_TIMEOUT = 10
+local DIRECT_APPROVAL_TIMEOUT = 60
+local DIRECT_CLIENT_TIMEOUT = CONNECT_TIMEOUT + DIRECT_APPROVAL_TIMEOUT
 local TELEPORT_DISTANCE = 140
 local CORRECTION_RATE = 12
 local REMOTE_SMOOTH_RATE = 14
 local INTERACTION_RATE_LIMIT = 0.20
 local INTERACTION_TIMEOUT = 3
 local WORKSHOP_TIMEOUT = 4
+local NETWORK_CLEANUP_ERROR =
+    "Network cleanup could not be verified; restart the game before starting another session."
 
-local function urgentCutterSafety(resourceId, action, arguments)
-    return resourceId == "cutter" and (action == "emergency_stop"
-        or (action == "set_barrier" and type(arguments) == "table"
-            and arguments.barrierClear == false))
+local function urgentWorkshopSafety(resourceId, action, arguments)
+    if action == "emergency_stop" then
+        return resourceId == "cutter" or resourceId == "windmill"
+    end
+    return resourceId == "cutter" and action == "set_barrier"
+        and type(arguments) == "table" and arguments.barrierClear == false
 end
 
 local function defaultClock()
@@ -46,6 +52,35 @@ local function countEntries(values)
     return count
 end
 
+local function directDisplayName(value)
+    if type(value) ~= "string" or #value < 1 or #value > Protocol.MAX_NAME_BYTES then
+        return nil
+    end
+    -- Direct join names are self-asserted and cross an Internet trust boundary.
+    -- Keep the first approval UI deliberately ASCII-only so malformed UTF-8,
+    -- bidi controls, and invisible formatting cannot spoof another worker.
+    for index = 1, #value do
+        local byte = value:byte(index)
+        if byte < 32 or byte > 126 then return nil end
+    end
+    return value
+end
+
+local function sameHello(left, right)
+    return type(left) == "table" and type(right) == "table"
+        and left.clientNonce == right.clientNonce
+        and left.name == right.name
+        and left.character == right.character
+end
+
+local function removePeerItems(items, peer)
+    local kept = {}
+    for _, item in ipairs(items or {}) do
+        if item.peer ~= peer then kept[#kept + 1] = item end
+    end
+    return kept
+end
+
 local function wireWorkshopView(resourceId, view)
     if type(view) ~= "table" then return view end
     if resourceId == "reception_customer" and type(view.quoteRows) == "table" then
@@ -61,6 +96,13 @@ local function wireWorkshopView(resourceId, view)
             and not Codec.isArray(view.memoryCentiInch)
         then
             view.memoryCentiInch = Codec.array(view.memoryCentiInch)
+        end
+        if type(view.candidates) == "table" and not Codec.isArray(view.candidates) then
+            view.candidates = Codec.array(view.candidates)
+        end
+    elseif resourceId == "windmill" then
+        if type(view.setupPermille) == "table" and not Codec.isArray(view.setupPermille) then
+            view.setupPermille = Codec.array(view.setupPermille)
         end
         if type(view.candidates) == "table" and not Codec.isArray(view.candidates) then
             view.candidates = Codec.array(view.candidates)
@@ -144,6 +186,7 @@ function Session.new(options)
     return setmetatable({
         mode = "offline",
         status = "Offline",
+        networkKind = "lan",
         transportFactory = options.transportFactory or Transport,
         clock = options.clock or defaultClock,
         transport = nil,
@@ -151,6 +194,9 @@ function Session.new(options)
         peerToId = {},
         idToPeer = {},
         pendingPeers = {},
+        approvalRequests = {},
+        nextConnectionGeneration = 0,
+        nextJoinRequestId = 0,
         pendingEvents = {},
         sessionId = nil,
         localId = nil,
@@ -172,9 +218,13 @@ function Session.new(options)
         lastEnvironmentTick = -1,
         lastPalletJackTick = -1,
         lastCutterTick = -1,
+        lastWindmillTick = -1,
         shopDirty = false,
         connectedAt = nil,
         ready = false,
+        requireHostApproval = false,
+        clientConnectTimeout = CONNECT_TIMEOUT,
+        disconnectReason = nil,
         localTarget = nil,
         pendingShopSnapshot = nil,
         pendingShopState = nil,
@@ -208,8 +258,17 @@ function Session:isClient() return self.mode == "client" end
 function Session:isActive() return self.mode ~= "offline" end
 
 function Session:_closeTransport(code, immediate)
-    if self.transport then self.transport:close(code or 0, immediate == true) end
-    self.transport = nil
+    local transport = self.transport
+    if not transport then return true end
+    local called, cleaned = pcall(transport.close, transport,
+        code or 0, immediate == true)
+    if called and cleaned == true then
+        self.transport = nil
+        return true
+    end
+    -- Keep the owner reachable. A failed close cannot be upgraded to success
+    -- merely because a later idempotent call observes an already-closed wrapper.
+    return false, NETWORK_CLEANUP_ERROR
 end
 
 function Session:_resetRuntime()
@@ -217,6 +276,7 @@ function Session:_resetRuntime()
     self.peerToId = {}
     self.idToPeer = {}
     self.pendingPeers = {}
+    self.approvalRequests = {}
     self.pendingEvents = {}
     self.sessionId = nil
     self.localId = nil
@@ -224,6 +284,7 @@ function Session:_resetRuntime()
     self.localCharacter = nil
     self.localAddress = nil
     self.hostAddress = nil
+    self.networkKind = "lan"
     self.serverTick = 0
     self.lastServerTick = -1
     self.lastPlayerTicks = {}
@@ -238,9 +299,13 @@ function Session:_resetRuntime()
     self.lastEnvironmentTick = -1
     self.lastPalletJackTick = -1
     self.lastCutterTick = -1
+    self.lastWindmillTick = -1
     self.shopDirty = false
     self.connectedAt = nil
     self.ready = false
+    self.requireHostApproval = false
+    self.clientConnectTimeout = CONNECT_TIMEOUT
+    self.disconnectReason = nil
     self.localTarget = nil
     self.pendingShopSnapshot = nil
     self.pendingShopState = nil
@@ -265,7 +330,7 @@ function Session:_markDisconnected(message)
     self.terminal = true
     self.ready = false
     self.connectedAt = nil
-    self.status = tostring(message or "The LAN connection ended.")
+    self.status = tostring(message or "The multiplayer connection ended.")
     self:_queue("disconnected", { message = self.status })
     return true
 end
@@ -281,7 +346,7 @@ function Session:stop(reason)
         })
         self.transport:flush()
     elseif self.transport and self.mode == "host" and self.sessionId then
-        self:_broadcast("leave", {
+        self:_broadcastJoined("leave", {
             sessionId = self.sessionId,
             playerId = self.localId or 1,
             reason = reason,
@@ -289,17 +354,28 @@ function Session:stop(reason)
         })
         self.transport:flush()
     end
-    self:_closeTransport(0, false)
+    local cleaned, cleanupError = self:_closeTransport(0, false)
     self.mode, self.status = "offline", "Offline"
     self:_resetRuntime()
-    return true
+    return cleaned, cleanupError
 end
 
 function Session:startHost(options)
     options = options or {}
-    if self:isActive() then self:stop("Starting another session") end
+    if self:isActive() then
+        local stopped, stopError = self:stop("Starting another session")
+        if not stopped then return false, stopError end
+    elseif self.transport then
+        local cleaned, cleanupError = self:_closeTransport(0, true)
+        if not cleaned then return false, cleanupError end
+    end
     local port = tonumber(options.port) or Address.DEFAULT_PORT
-    local transport, errorMessage = self.transportFactory.createHost({
+    local transportFactory = options.transportFactory or self.transportFactory
+    if type(transportFactory) ~= "table"
+        or type(transportFactory.createHost) ~= "function" then
+        return false, "Network transport is unavailable."
+    end
+    local transport, errorMessage = transportFactory.createHost({
         port = port,
         bind = options.bind or "*",
         maxGuests = Protocol.MAX_PLAYERS - 1,
@@ -310,32 +386,52 @@ function Session:startHost(options)
     self:_resetRuntime()
     self.transport = transport
     self.mode = "host"
+    self.networkKind = options.networkKind == "direct" and "direct" or "lan"
+    -- Internet Direct always requires a final, in-game host decision. This is
+    -- intentionally not controlled by a caller option: no production path may
+    -- silently auto-admit an Internet peer and disclose the host save.
+    self.requireHostApproval = self.networkKind == "direct"
     self.port = port
     self.sessionId = identifier("s", self.clock)
     self.localId = 1
     self.localName = tostring(options.name or "LAN Host")
     self.localCharacter = tostring(options.character or "rabbit-worker")
-    self.localAddress = Address.detectLanAddress(options.addressOptions or {})
+    self.localAddress = self.networkKind == "lan"
+        and Address.detectLanAddress(options.addressOptions or {}) or nil
     self.players[1] = newPlayer({
         id = 1, name = self.localName, character = self.localCharacter,
         x = tonumber(options.x) or 0, y = tonumber(options.y) or 0,
     })
     self.ready = true
-    self.status = "Hosting on " .. tostring(self.localAddress or "local network")
+    self.status = self.networkKind == "direct"
+        and "Hosting a Direct Internet shop"
+        or ("Hosting on " .. tostring(self.localAddress or "local network"))
     self:_queue("host_started", {
         address = self.localAddress,
         port = self.port,
         sessionId = self.sessionId,
+        networkKind = self.networkKind,
     })
     return true
 end
 
 function Session:startClient(address, options)
     options = options or {}
-    if self:isActive() then self:stop("Starting another session") end
+    if self:isActive() then
+        local stopped, stopError = self:stop("Starting another session")
+        if not stopped then return false, stopError end
+    elseif self.transport then
+        local cleaned, cleanupError = self:_closeTransport(0, true)
+        if not cleaned then return false, cleanupError end
+    end
     local parsed, addressError = Address.parse(address, options.port)
     if not parsed then return false, addressError end
-    local transport, errorMessage = self.transportFactory.createClient(parsed.endpoint, {
+    local transportFactory = options.transportFactory or self.transportFactory
+    if type(transportFactory) ~= "table"
+        or type(transportFactory.createClient) ~= "function" then
+        return false, "Network transport is unavailable."
+    end
+    local transport, errorMessage = transportFactory.createClient(parsed.endpoint, {
         channels = Protocol.CHANNEL_COUNT,
         enet = options.enet,
     })
@@ -343,13 +439,18 @@ function Session:startClient(address, options)
     self:_resetRuntime()
     self.transport = transport
     self.mode = "client"
+    self.networkKind = options.networkKind == "direct" and "direct" or "lan"
+    self.clientConnectTimeout = self.networkKind == "direct"
+        and DIRECT_CLIENT_TIMEOUT or CONNECT_TIMEOUT
     self.port = parsed.port
     self.hostAddress = parsed.host
     self.localName = tostring(options.name or "LAN Worker")
     self.localCharacter = tostring(options.character or "rabbit-worker")
     self.clientNonce = identifier("n", self.clock)
     self.connectedAt = self.clock()
-    self.status = "Connecting to " .. parsed.endpoint
+    self.status = self.networkKind == "direct"
+        and "Connecting to the Direct Internet host"
+        or ("Connecting to " .. parsed.endpoint)
     return true
 end
 
@@ -506,7 +607,24 @@ end
 function Session:_processHostWorkshop(context)
     local queued = self.pendingHostWorkshop
     self.pendingHostWorkshop = {}
+    local ordered = {}
     for _, item in ipairs(queued) do
+        local payload = item.payload
+        if item.operation == "workshop_command"
+            and urgentWorkshopSafety(payload.resourceId, payload.action, payload)
+        then
+            ordered[#ordered + 1] = item
+        end
+    end
+    for _, item in ipairs(queued) do
+        local payload = item.payload
+        if item.operation ~= "workshop_command"
+            or not urgentWorkshopSafety(payload.resourceId, payload.action, payload)
+        then
+            ordered[#ordered + 1] = item
+        end
+    end
+    for _, item in ipairs(ordered) do
         local peer, payload = item.peer, item.payload
         local id = self.peerToId[peer]
         local player = id and self.players[id]
@@ -586,19 +704,201 @@ function Session:_nextPlayerId()
     end
 end
 
+function Session:_nextRuntimeHandle(field)
+    local current = self[field]
+    if type(current) ~= "number" or current ~= math.floor(current)
+        or current < 0 or current >= 9007199254740991
+    then
+        return nil
+    end
+    current = current + 1
+    self[field] = current
+    return current
+end
+
+function Session:_discardPendingPeer(peer)
+    local pending = self.pendingPeers[peer]
+    self.pendingPeers[peer] = nil
+    if type(pending) == "table" and pending.requestId then
+        if self.approvalRequests[pending.requestId] == pending then
+            self.approvalRequests[pending.requestId] = nil
+        end
+    end
+    return pending
+end
+
+function Session:_purgePeerWork(peer)
+    self.pendingHostInteractions = removePeerItems(self.pendingHostInteractions, peer)
+    self.pendingHostWorkshop = removePeerItems(self.pendingHostWorkshop, peer)
+end
+
+function Session:_rejectDirectPending(peer, code, guestMessage, hostMessage, eventType)
+    local pending = self:_discardPendingPeer(peer)
+    if not pending then return false end
+    self:_purgePeerWork(peer)
+    if self.transport then
+        self:_sendError(peer, tostring(code or "join_rejected"),
+            tostring(guestMessage or "The host did not admit this Direct connection."))
+        self.transport:flush()
+        self.transport:disconnect(peer, 7, false)
+    end
+    self:_queue(eventType or "join_rejected", {
+        requestId = type(pending) == "table" and pending.requestId or nil,
+        name = type(pending) == "table" and pending.name or nil,
+    })
+    self.status = tostring(hostMessage or "Direct join request closed safely.")
+    return true
+end
+
+function Session:_queueDirectApproval(peer, hello)
+    local pending = self.pendingPeers[peer]
+    if type(pending) ~= "table" or pending.stage ~= "hello" then return false end
+    local name = directDisplayName(hello and hello.payload and hello.payload.name)
+    if not name then
+        return self:_rejectDirectPending(peer, "invalid_join",
+            "That Direct player name cannot be displayed safely.",
+            "One Direct join was rejected because its player name was invalid.")
+    end
+    if countEntries(self.players) >= Protocol.MAX_PLAYERS then
+        return self:_rejectDirectPending(peer, "shop_full",
+            "This Direct shop already has four workers.",
+            "Direct join declined because the shop is full.")
+    end
+    local requestId = self:_nextRuntimeHandle("nextJoinRequestId")
+    if not requestId then
+        return self:_rejectDirectPending(peer, "join_unavailable",
+            "The Direct invitation cannot accept this request.",
+            "That Direct join could not be tracked safely.")
+    end
+    local now = self.clock()
+    if not finite(now) then
+        return self:_rejectDirectPending(peer, "join_unavailable",
+            "The Direct invitation cannot accept this request.",
+            "That Direct join was declined because its approval clock was unavailable.")
+    end
+    pending.stage = "approval"
+    pending.requestId = requestId
+    pending.requestedAt = now
+    pending.hello = {
+        type = "hello",
+        payload = {
+            clientNonce = hello.payload.clientNonce,
+            name = name,
+            character = hello.payload.character,
+        },
+    }
+    pending.name = name
+    pending.character = hello.payload.character
+    self.approvalRequests[requestId] = pending
+    self.status = "Direct worker waiting for host approval"
+    self:_queue("join_requested", {
+        requestId = requestId,
+        name = name,
+        character = pending.character,
+        expiresIn = DIRECT_APPROVAL_TIMEOUT,
+    })
+    return true
+end
+
+function Session:approveJoin(requestId)
+    if not self:isHost() or self.networkKind ~= "direct" or self.terminal then
+        return false, "No Direct join request is available."
+    end
+    if type(requestId) ~= "number" or requestId ~= math.floor(requestId) then
+        return false, "That Direct join request is no longer available."
+    end
+    local pending = self.approvalRequests[requestId]
+    if type(pending) ~= "table" or pending.stage ~= "approval"
+        or self.pendingPeers[pending.peer] ~= pending
+    then
+        return false, "That Direct join request is no longer available."
+    end
+    local now = self.clock()
+    if not finite(now) or now < pending.requestedAt
+        or now - pending.requestedAt > DIRECT_APPROVAL_TIMEOUT
+    then
+        self:_rejectDirectPending(pending.peer, "approval_timeout",
+            "The host did not approve this Direct request in time.",
+            "One Direct approval timed out; the host remains open.", "join_expired")
+        return false, "That Direct join request expired."
+    end
+    if countEntries(self.players) >= Protocol.MAX_PLAYERS then
+        self:_rejectDirectPending(pending.peer, "shop_full",
+            "This Direct shop already has four workers.",
+            "One Direct join was declined because the shop is full.")
+        return false, "The Direct shop is full."
+    end
+    pending.decision = "approved"
+    self.status = "Approving Direct worker"
+    return true, "Worker approved. Finishing the encrypted join."
+end
+
+function Session:rejectJoin(requestId)
+    if not self:isHost() or self.networkKind ~= "direct" or self.terminal then
+        return false, "No Direct join request is available."
+    end
+    local pending = type(requestId) == "number" and self.approvalRequests[requestId] or nil
+    if type(pending) ~= "table" or self.pendingPeers[pending.peer] ~= pending then
+        return false, "That Direct join request is no longer available."
+    end
+    self:_rejectDirectPending(pending.peer, "join_rejected",
+        "The host declined this Direct join request.",
+        "One Direct join was declined; the host remains open.")
+    return true, "Join declined. That Direct connection is closed."
+end
+
+function Session:kickPlayer(playerId)
+    if not self:isHost() or self.networkKind ~= "direct" or self.terminal then
+        return false, "Direct player controls are unavailable."
+    end
+    if type(playerId) ~= "number" or playerId ~= math.floor(playerId)
+        or playerId == self.localId
+    then
+        return false, "The host cannot be removed."
+    end
+    local peer = self.idToPeer[playerId]
+    local player = peer and self.players[playerId] or nil
+    if not peer or not player then return false, "That worker is no longer connected." end
+    self:_purgePeerWork(peer)
+    self:_removePeer(peer, "Removed by the host")
+    if self.transport then
+        self:_sendError(peer, "kicked",
+            "The host removed this worker. A fresh Direct invitation is required.")
+        self.transport:flush()
+        self.transport:disconnect(peer, 7, false)
+    end
+    self:_queue("player_kicked", { playerId = playerId, name = player.name })
+    return true, tostring(player.name or "Worker") .. " was removed."
+end
+
 function Session:_hostWelcome(peer, hello, context)
     if self.peerToId[peer] then
         self:_sendError(peer, "already_joined", "This peer already joined the shop.")
-        return
+        return false
+    end
+    local pending = self.pendingPeers[peer]
+    if self.requireHostApproval and (type(pending) ~= "table"
+        or pending.stage ~= "approval" or pending.decision ~= "approved"
+        or pending.hello ~= hello)
+    then
+        self:_sendError(peer, "approval_required",
+            "The Direct host must approve this join before shop data is available.")
+        return false
     end
     if countEntries(self.players) >= Protocol.MAX_PLAYERS then
         self:_sendError(peer, "shop_full", "This shop already has four workers.")
         self.transport:disconnect(peer, 4, false)
-        return
+        self:_discardPendingPeer(peer)
+        return false
     end
 
     local id, index = self:_nextPlayerId()
-    if not id then return end
+    if not id then
+        self:_sendError(peer, "shop_full", "This shop already has four workers.")
+        self.transport:disconnect(peer, 4, false)
+        self:_discardPendingPeer(peer)
+        return false
+    end
     local host = self.players[1] or newPlayer({ x = 0, y = 0 })
     local offsets = { { 28, 0 }, { -28, 0 }, { 0, 28 } }
     local offset = offsets[(index or 2) - 1] or { 0, 0 }
@@ -623,7 +923,7 @@ function Session:_hostWelcome(peer, hello, context)
     self.players[id] = player
     self.peerToId[peer] = id
     self.idToPeer[id] = peer
-    self.pendingPeers[peer] = nil
+    self:_discardPendingPeer(peer)
 
     -- The joining worker needs its own spawn plus the host immediately. Other
     -- workers arrive through the next sharded motion tick. Keeping this roster
@@ -658,19 +958,35 @@ function Session:_hostWelcome(peer, hello, context)
         self:_sendError(peer, "snapshot_failed", tostring(welcomeError or shopError))
         self.transport:disconnect(peer, 5, false)
         self.players[id], self.peerToId[peer], self.idToPeer[id] = nil, nil, nil
-        return
+        self.status = tostring(countEntries(self.players)) .. "/4 workers connected"
+        return false
     end
     self.status = tostring(countEntries(self.players)) .. "/4 workers connected"
     self:_queue("player_joined", { playerId = id, name = player.name })
+    return true
 end
 
 function Session:_removePeer(peer, reason)
-    self.pendingPeers[peer] = nil
+    local pending = self:_discardPendingPeer(peer)
+    self:_purgePeerWork(peer)
     local id = self.peerToId[peer]
-    if not id then return false end
+    if not id then
+        if type(pending) == "table" and pending.stage == "approval" then
+            self:_queue("join_cancelled", {
+                requestId = pending.requestId,
+                name = pending.name,
+            })
+        end
+        if pending ~= nil and self.networkKind == "direct" then
+            self.status = countEntries(self.approvalRequests) > 0
+                and "Direct worker waiting for host approval"
+                or (tostring(countEntries(self.players)) .. "/4 workers connected")
+        end
+        return pending ~= nil
+    end
     local player = self.players[id]
     self.peerToId[peer], self.idToPeer[id], self.players[id] = nil, nil, nil
-    self:_broadcast("leave", {
+    self:_broadcastJoined("leave", {
         sessionId = self.sessionId,
         playerId = id,
         reason = tostring(reason or "Disconnected"),
@@ -683,12 +999,46 @@ end
 
 function Session:_handleHostEnvelope(peer, envelope, context)
     if envelope.type == "hello" then
-        self:_hostWelcome(peer, envelope, context)
+        if self.networkKind ~= "direct" then
+            self:_hostWelcome(peer, envelope, context)
+            return
+        end
+        local joinedId = self.peerToId[peer]
+        if joinedId then
+            self:kickPlayer(joinedId)
+            return
+        end
+        local pending = self.pendingPeers[peer]
+        if type(pending) ~= "table" then
+            if self.transport then self.transport:disconnect(peer, 7, true) end
+            return
+        end
+        if pending.stage == "hello" then
+            self:_queueDirectApproval(peer, envelope)
+        elseif pending.stage == "approval" then
+            -- ENet reliable delivery does not duplicate messages. Still ignore
+            -- an exact replay defensively and revoke on any attempted rewrite.
+            if not sameHello(pending.hello and pending.hello.payload, envelope.payload) then
+                self:_rejectDirectPending(peer, "invalid_join",
+                    "The Direct join request changed while awaiting approval.",
+                    "One Direct join was rejected because its request changed.")
+            end
+        else
+            self:_rejectDirectPending(peer, "invalid_join",
+                "The Direct join request is not valid.",
+                "One invalid Direct join was rejected.")
+        end
         return
     end
     local id = self.peerToId[peer]
     if not id then
-        self:_sendError(peer, "hello_required", "Send a compatible hello before gameplay data.")
+        if self.networkKind == "direct" and self.pendingPeers[peer] then
+            self:_rejectDirectPending(peer, "approval_required",
+                "Wait for host approval before sending gameplay data.",
+                "One Direct join sent gameplay data before approval and was rejected.")
+        else
+            self:_sendError(peer, "hello_required", "Send a compatible hello before gameplay data.")
+        end
         return
     end
     local payload = envelope.payload
@@ -721,11 +1071,11 @@ function Session:_handleHostEnvelope(peer, envelope, context)
     then
         if payload.sessionId ~= self.sessionId then return end
         local incomingSafety = envelope.type == "workshop_command"
-            and urgentCutterSafety(payload.resourceId, payload.action, payload)
+            and urgentWorkshopSafety(payload.resourceId, payload.action, payload)
         for _, pending in ipairs(self.pendingHostWorkshop) do
             if pending.peer == peer then
                 local queuedSafety = pending.operation == "workshop_command"
-                    and urgentCutterSafety(
+                    and urgentWorkshopSafety(
                         pending.payload.resourceId, pending.payload.action, pending.payload)
                 if not incomingSafety or queuedSafety then return end
             end
@@ -740,7 +1090,7 @@ function Session:_handleHostEnvelope(peer, envelope, context)
         self:_send(peer, "pong", { sessionId = self.sessionId, nonce = payload.nonce })
     elseif envelope.type == "leave" and payload.sessionId == self.sessionId then
         self:_removePeer(peer, payload.reason)
-        self.transport:disconnect(peer, 0, false)
+        if self.transport then self.transport:disconnect(peer, 0, false) end
     else
         self:_sendError(peer, "message_not_allowed",
             "Guests may send only input, workshop, interaction, ping, or leave messages.")
@@ -903,6 +1253,23 @@ function Session:_handleClientEnvelope(envelope)
                 view = payload.view,
             })
         end
+    elseif envelope.type == "windmill_snapshot" then
+        if self.ready and payload.sessionId == self.sessionId
+            and payload.serverTick > self.lastWindmillTick
+        then
+            self.lastWindmillTick = payload.serverTick
+            self.workshopRevisions.windmill = math.max(
+                self.workshopRevisions.windmill or 0, payload.resourceRevision)
+            if self.activeWorkshop and self.activeWorkshop.resourceId == "windmill" then
+                self.activeWorkshop.revision = math.max(
+                    self.activeWorkshop.revision, payload.resourceRevision)
+            end
+            self:_queue("windmill_state", {
+                serverTick = payload.serverTick,
+                resourceRevision = payload.resourceRevision,
+                view = payload.view,
+            })
+        end
     elseif envelope.type == "interaction_result" then
         local pending = self.pendingInteraction
         if self.ready and payload.sessionId == self.sessionId and pending
@@ -926,23 +1293,29 @@ function Session:_handleClientEnvelope(envelope)
             and payload.resourceId == pending.resourceId
         then
             self.pendingWorkshop = nil
-            self.workshopRevisions[payload.resourceId] = payload.revision
-            if payload.granted then
+            local knownRevision = self.workshopRevisions[payload.resourceId] or 0
+            local staleGrant = payload.granted and payload.revision < knownRevision
+            local granted = payload.granted and not staleGrant
+            local acceptedRevision = math.max(knownRevision, payload.revision)
+            self.workshopRevisions[payload.resourceId] = acceptedRevision
+            if granted then
                 self.activeWorkshop = {
                     resourceId = payload.resourceId,
                     leaseId = payload.leaseId,
-                    revision = payload.revision,
+                    revision = acceptedRevision,
                 }
             end
             self:_queue("workshop_grant", {
                 requestId = payload.requestId,
                 resourceId = payload.resourceId,
-                granted = payload.granted,
-                leaseId = payload.leaseId,
-                revision = payload.revision,
-                code = payload.code,
-                message = payload.message,
-                view = payload.view,
+                granted = granted,
+                leaseId = granted and payload.leaseId or nil,
+                revision = acceptedRevision,
+                code = staleGrant and "stale_grant" or payload.code,
+                message = staleGrant
+                    and "Workshop state changed before the control grant arrived. Try again."
+                    or payload.message,
+                view = granted and payload.view or nil,
             })
         end
     elseif envelope.type == "workshop_result" then
@@ -1045,6 +1418,12 @@ function Session:_handleClientEnvelope(envelope)
         end
     elseif envelope.type == "error" then
         self.status = payload.message
+        if self.networkKind == "direct" and (payload.code == "join_rejected"
+            or payload.code == "approval_timeout" or payload.code == "kicked"
+            or payload.code == "invalid_join" or payload.code == "approval_required")
+        then
+            self.disconnectReason = payload.message
+        end
         self:_queue("error", { code = payload.code, message = payload.message })
     end
 end
@@ -1060,7 +1439,23 @@ function Session:_service(context)
     for _, event in ipairs(events or {}) do
         if self.mode == "host" then
             if event.type == "connect" then
-                self.pendingPeers[event.peer] = self.clock()
+                local now = self.clock()
+                local generation = self:_nextRuntimeHandle("nextConnectionGeneration")
+                if not event.peer or not finite(now) or not generation then
+                    if event.peer then self.transport:disconnect(event.peer, 7, true) end
+                elseif self.pendingPeers[event.peer] or self.peerToId[event.peer] then
+                    -- One authenticated link generation may create only one
+                    -- Session admission. A fresh single-use invitation arrives
+                    -- as a distinct link after the prior generation is gone.
+                    self.transport:disconnect(event.peer, 7, true)
+                else
+                    self.pendingPeers[event.peer] = {
+                        peer = event.peer,
+                        connectedAt = now,
+                        generation = generation,
+                        stage = "hello",
+                    }
+                end
             elseif event.type == "disconnect" then
                 self:_removePeer(event.peer, "Connection lost")
             elseif event.type == "receive" then
@@ -1090,7 +1485,13 @@ function Session:_service(context)
                     end
                 end
                 if not envelope then
-                    self:_sendError(event.peer, "bad_packet", decodeError)
+                    if self.networkKind == "direct" and self.pendingPeers[event.peer] then
+                        self:_rejectDirectPending(event.peer, "invalid_join",
+                            "The Direct join request was not valid.",
+                            "One invalid Direct join was rejected.")
+                    else
+                        self:_sendError(event.peer, "bad_packet", decodeError)
+                    end
                 else
                     self:_handleHostEnvelope(event.peer, envelope, context)
                 end
@@ -1103,9 +1504,15 @@ function Session:_service(context)
                     character = self.localCharacter,
                 })
                 if not ok then self:_queue("error", { message = helloError }) end
+                self.connectedAt = self.clock()
                 self.status = "Connected; waiting for host approval"
+                if self.networkKind == "direct" and ok then
+                    self:_queue("approval_waiting", {
+                        message = "Encrypted request sent. Waiting for the host to approve this player.",
+                    })
+                end
             elseif event.type == "disconnect" then
-                self:_markDisconnected("The host connection ended.")
+                self:_markDisconnected(self.disconnectReason or "The host connection ended.")
             elseif event.type == "receive" then
                 local packet = event.data or event.payload
                 local channel = tonumber(event.channel)
@@ -1152,13 +1559,48 @@ function Session:_updateHost(dt, context)
     end
     local now = self.clock()
     local expiredPeers = {}
-    for peer, connectedAt in pairs(self.pendingPeers) do
-        if now - connectedAt > CONNECT_TIMEOUT then expiredPeers[#expiredPeers + 1] = peer end
+    local approvedPeers = {}
+    for peer, pending in pairs(self.pendingPeers) do
+        local connectedAt = type(pending) == "table" and pending.connectedAt or pending
+        local stage = type(pending) == "table" and pending.stage or "hello"
+        local requestedAt = type(pending) == "table" and pending.requestedAt or nil
+        if not finite(now) or not finite(connectedAt) or now < connectedAt
+            or (stage == "approval" and (not finite(requestedAt) or now < requestedAt))
+        then
+            expiredPeers[#expiredPeers + 1] = { peer = peer, stage = stage, invalidClock = true }
+        elseif stage == "approval" and now - requestedAt > DIRECT_APPROVAL_TIMEOUT then
+            expiredPeers[#expiredPeers + 1] = { peer = peer, stage = stage }
+        elseif stage == "hello" and now - connectedAt > CONNECT_TIMEOUT then
+            expiredPeers[#expiredPeers + 1] = { peer = peer, stage = stage }
+        elseif stage == "approval" and pending.decision == "approved" then
+            approvedPeers[#approvedPeers + 1] = { peer = peer, pending = pending }
+        end
     end
-    for _, peer in ipairs(expiredPeers) do
-        self.pendingPeers[peer] = nil
-        self:_sendError(peer, "hello_timeout", "The client did not complete the LAN hello in time.")
-        self.transport:disconnect(peer, 3, false)
+    for _, expired in ipairs(expiredPeers) do
+        local peer = expired.peer
+        if self.networkKind == "direct" then
+            local approval = expired.stage == "approval"
+            self:_rejectDirectPending(peer,
+                approval and "approval_timeout" or "hello_timeout",
+                approval and "The host did not approve this Direct request in time."
+                    or "The Direct join request did not finish in time.",
+                approval and "One Direct approval timed out; the host remains open."
+                    or "One Direct join timed out; the host remains open.",
+                approval and "join_expired" or "join_cancelled")
+        else
+            self:_discardPendingPeer(peer)
+            self:_sendError(peer, "hello_timeout", "The client did not complete the LAN hello in time.")
+            self.transport:disconnect(peer, 3, false)
+        end
+    end
+    for _, approved in ipairs(approvedPeers) do
+        local pending = approved.pending
+        if self.pendingPeers[approved.peer] == pending
+            and self.approvalRequests[pending.requestId] == pending
+            and pending.decision == "approved"
+        then
+            self:_hostWelcome(approved.peer, pending.hello, context)
+        end
     end
     for id, player in pairs(self.players) do
         if id ~= self.localId then
@@ -1245,6 +1687,17 @@ function Session:_updateHost(dt, context)
                 view = wireWorkshopView("cutter", cutter.view),
             })
             if not cutterOk then self:_queue("error", { message = cutterError }) end
+        end
+        local windmill = context and context.getWindmillSnapshot
+            and context.getWindmillSnapshot() or nil
+        if type(windmill) == "table" and type(windmill.view) == "table" then
+            local windmillOk, windmillError = self:_broadcastJoined("windmill_snapshot", {
+                sessionId = self.sessionId,
+                serverTick = self.serverTick,
+                resourceRevision = windmill.resourceRevision,
+                view = wireWorkshopView("windmill", windmill.view),
+            })
+            if not windmillOk then self:_queue("error", { message = windmillError }) end
         end
         local workshop = context and context.getWorkshopSnapshot
             and context.getWorkshopSnapshot() or nil
@@ -1398,12 +1851,14 @@ function Session:update(dt, context)
                 action = timedOut.action,
                 accepted = false,
                 code = "timeout",
-                message = "The host did not answer the urgent cutter safety action.",
+                message = "The host did not answer the urgent workshop safety action.",
                 revision = self.workshopRevisions[timedOut.resourceId] or 0,
                 urgentSafety = true,
             })
         end
-        if not self.ready and self.connectedAt and self.clock() - self.connectedAt > CONNECT_TIMEOUT then
+        if not self.ready and self.connectedAt
+            and self.clock() - self.connectedAt > self.clientConnectTimeout
+        then
             self:_markDisconnected("Connection timed out. Check the host address and host-device network access.")
             self:_closeTransport(1, true)
             return
@@ -1485,9 +1940,9 @@ function Session:requestWorkshopCommand(action, arguments)
         return false, "No host-authorized workshop console is open."
     end
     arguments = type(arguments) == "table" and arguments or {}
-    local urgentSafety = urgentCutterSafety(active.resourceId, action, arguments)
+    local urgentSafety = urgentWorkshopSafety(active.resourceId, action, arguments)
     if self.pendingWorkshopSafety then
-        return false, "Waiting for the host to confirm the urgent cutter safety action."
+        return false, "Waiting for the host to confirm the urgent workshop safety action."
     end
     if self.pendingWorkshop and not urgentSafety then
         return false, "Waiting for the host to answer the previous workshop action."
@@ -1516,6 +1971,12 @@ function Session:requestWorkshopCommand(action, arguments)
         request.clamp = arguments.clamp
     elseif action == "set_barrier" then
         request.barrierClear = arguments.barrierClear
+    elseif action == "order_plate" or action == "begin_plate" or action == "process_plate" then
+        request.plateId = arguments.plateId
+    elseif action == "begin_setup" then
+        request.setupTask = arguments.setupTask
+    elseif action == "setup_action" then
+        request.setupAction = arguments.setupAction
     end
     local ok, errorMessage = self:_sendToServer("workshop_command", request)
     if not ok then return false, errorMessage end
@@ -1581,13 +2042,52 @@ function Session:remotePlayers()
 end
 
 function Session:hudInfo()
+    local pendingJoins = {}
+    if self:isHost() and self.networkKind == "direct" and not self.terminal then
+        local now = self.clock()
+        for requestId, pending in pairs(self.approvalRequests) do
+            if type(pending) == "table" and pending.stage == "approval" then
+                local remaining = finite(now) and finite(pending.requestedAt)
+                    and math.max(0, DIRECT_APPROVAL_TIMEOUT - (now - pending.requestedAt)) or 0
+                pendingJoins[#pendingJoins + 1] = {
+                    requestId = requestId,
+                    name = pending.name,
+                    character = pending.character,
+                    expiresIn = math.floor(remaining + 0.5),
+                }
+            end
+        end
+        table.sort(pendingJoins, function(left, right)
+            return left.requestId < right.requestId
+        end)
+    end
+    local connectedGuests = {}
+    if self:isHost() and self.networkKind == "direct" then
+        for id, player in pairs(self.players) do
+            if id ~= self.localId then
+                connectedGuests[#connectedGuests + 1] = {
+                    playerId = id,
+                    name = tostring(player.name or "Worker"),
+                    character = tostring(player.character or "rabbit-worker"),
+                }
+            end
+        end
+        table.sort(connectedGuests, function(left, right)
+            return left.playerId < right.playerId
+        end)
+    end
     return {
         mode = self.mode,
+        networkKind = self.networkKind,
         status = self.status,
         playerCount = countEntries(self.players),
         address = self.localAddress,
         port = self.port,
         rtt = self.rtt,
+        canManage = self:isHost() and self.networkKind == "direct" and not self.terminal,
+        pendingJoinCount = #pendingJoins,
+        pendingJoins = pendingJoins,
+        connectedGuests = connectedGuests,
     }
 end
 

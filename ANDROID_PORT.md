@@ -3,16 +3,24 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.11` (`versionCode` 11)
+- Version: `0.1.0-android.14` (`versionCode` 14)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Output: `output/mobile/ThePictureShop-0.1.0-android.11-debug.apk`
-- LAN: protocol v7 fixes protocol v6's fourth-player 1,200-byte roster overflow. Each reliable welcome
-  contains the host and assigned worker; fixed 12 Hz movement uses MTU-safe one-player shards merged by
-  player ID, while cutter, skid-wrapper, and Windmill poses remain on the authoritative pallet-jack tick.
-  The targeted `.11` four-device physical pass completed on August 28, 2026.
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.14-debug.apk`
+- LAN: protocol v9 adds the host-authoritative Windmill console, bounded 12 Hz runtime snapshots,
+  host-owned plate/setup/service sessions, urgent E-STOP preemption, and safe disconnect recovery on top
+  of the existing MTU-safe four-worker movement, cutter, wrapper, pallet-jack, and machine-pose systems.
+- Status: a signed `.14` debug APK is packaged, and `output/mobile/apk-report.json` verifies its Internet
+  permission and 16 KiB compatibility. The report records no normal-app device launch, the Windmill
+  physical-device checklist remains pending, and the build report identifies a dirty development tree;
+  this is not a release artifact.
+- Direct engineering: isolated Android/Android and PC/Android guests have passed separate-network
+  gameplay, and the PC/Android repeat also passed guarded packet-privacy validation. Those engineering
+  packages were removed after testing; they do not count as normal `.14` app acceptance, expose Direct
+  Play, or change the bundled provider's `productionReady = false` state. The latest redacted evidence is
+  `output/native-crypto/device-tests/pc_android_direct_packet_capture_report.json`.
 
 ## Build and install
 
@@ -71,6 +79,8 @@ those broader checklist items remain open and are not implied by this acceptance
   worker receives a fresh host-plus-assigned welcome, and every screen returns to `4/4 WORKERS` without
   stale or duplicated players.
 - The skid-wrapper console lists every nearby eligible pallet and allows touch or controller-cursor selection.
+- The remote Windmill console completes plate, setup, proof, production, cleanup, service, urgent E-STOP,
+  disconnect/reacquire, and lease-contention checks on touch and controller cursor without client-authored scores.
 - Quote, email, promotion, and cutter gauge fields summon the Android keyboard only after the field is tapped,
   dismiss it after an outside tap, and accept input normally.
 - Cutter guarded controls recognize simultaneous touch and controller shoulder presses.

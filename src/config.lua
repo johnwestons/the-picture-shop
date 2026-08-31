@@ -172,7 +172,7 @@ local Config = {
         collisionHalfHeight = 19,
         operatorDistanceX = 82,
         operatorDistanceY = 48,
-        drawScale = 0.34,
+        drawScale = 0.272,
         frameSize = 512,
         frameCount = 8,
     },

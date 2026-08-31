@@ -1,4 +1,5 @@
 local Test = {}
+local PalletState = require("src.pallet_state")
 local PressArtworkCompositor = require("src.press_artwork_compositor")
 local PressSetupGames = require("src.press_setup_games")
 
@@ -11,6 +12,201 @@ local function makePressJob()
             colorSequence = { "Black" }, requestedCopies = { 1000 } },
         details = { stockDescription = "80 lb uncoated cover" },
     })
+end
+
+local function emergencyResetPreservesTerminalState(context)
+    local state = context.State.new()
+    local process = context.windmill.ensure(state)
+    process.palletId = "RESET-PALLET"
+    process.status, process.targetSheets, process.goodSheets = "pass_complete", 100, 100
+    process.feedRemaining = 12
+    local resetWithoutStop, resetReason = context.windmill.control(state, "reset")
+    local stopped = context.windmill.control(state, "emergency")
+    local restoredPass = context.windmill.control(state, "reset")
+    local passPreserved = process.status == "pass_complete" and not process.emergency
+
+    process.status, process.targetSheets, process.goodSheets = "stopped", 100, 90
+    process.feedRemaining, process.emergency, process.proofApproved = 0, true, false
+    local restoredShortage = context.windmill.control(state, "reset")
+    local shortagePreserved = process.status == "stock_shortage" and not process.emergency
+    return not resetWithoutStop and resetReason == "E-STOP is not active."
+        and stopped and restoredPass and passPreserved
+        and restoredShortage and shortagePreserved
+end
+
+local function nativeServiceInterlockWorks(context, state)
+    state.inventory.stock.maintenance_kit = math.max(
+        1, tonumber(state.inventory.stock.maintenance_kit) or 0)
+    local process = context.windmill.ensure(state)
+    if not context.windmill.control(state, "motor")
+        or not context.windmill.control(state, "feeder")
+        or not context.windmill.control(state, "impression")
+    then
+        return false
+    end
+    context.pressScreen.enter(state)
+    context.pressScreen.tab = "maintenance"
+    local serviceStarted = context.pressScreen.mousepressed(state, 480, 598, 1)
+    local modalActive = context.pressScreen.hasModal()
+    local tabBlocked = context.pressScreen.mousepressed(state, 95, 139, 1)
+    local remainedOnService = context.pressScreen.tab == "maintenance"
+    context.pressScreen.tab = "run"
+    local clickBlocked = context.pressScreen.mousepressed(state, 131, 367, 1)
+    local keyBlocked = context.pressScreen.keypressed(state, "m")
+    local emergencyAccepted = context.pressScreen.keypressed(state, "x")
+    local safeDuringService = not process.motor and not process.feeder
+        and not process.impression and process.emergency
+    local resetAccepted = context.windmill.control(state, "reset")
+    context.pressScreen.enter(state)
+    return type(serviceStarted) == "table" and modalActive
+        and not tabBlocked and remainedOnService and not clickBlocked and not keyBlocked
+        and emergencyAccepted and safeDuringService and resetAccepted
+        and process.status == "idle" and not context.pressScreen.hasModal()
+end
+
+local function remoteServiceKitRaceRecovers(context)
+    -- App workshop callbacks close over the live app state, so exercise that
+    -- exact authority boundary instead of an isolated state passed as context.
+    local state = context.state
+    state.money = math.max(20000, tonumber(state.money) or 0)
+    state.inventory.stock.maintenance_kit = 1
+    if not context.machineFleet.installed(state, "heidelberg_10x15")
+        and not context.machineFleet.buy(state, "dealer", 3)
+    then
+        return false, "buy"
+    end
+    local process = context.windmill.ensure(state)
+    process.status, process.jobId, process.palletId = "idle", nil, nil
+    process.motor, process.feeder, process.impression, process.emergency = false, false, false, false
+    local authority = context.createWorkshopAuthority()
+    local player = { id = 2, x = state.windmill.x, y = state.windmill.y }
+    local requestId = 1
+    local lease = authority:acquire(player, {
+        requestId = requestId, resourceId = "windmill",
+    }, { state = state })
+    if not lease.accepted then return false, "acquire:" .. tostring(lease.message) end
+    local function command(action)
+        requestId = requestId + 1
+        local result = authority:command(player, {
+            requestId = requestId,
+            resourceId = "windmill",
+            leaseId = lease.leaseId,
+            action = action,
+            args = {},
+            expectedRevision = lease.revision,
+        }, { state = state })
+        if result.accepted then lease.revision = result.revision end
+        return result
+    end
+    local started = command("begin_service")
+    if not started.accepted then return false, "begin:" .. tostring(started.message) end
+    for _ = 1, 3 do
+        local locked = command("service_lockout")
+        if not locked.accepted then return false, "lockout:" .. tostring(locked.message) end
+    end
+    state.inventory.stock.maintenance_kit = 0
+    local kitFailure
+    for _ = 1, 12 do
+        local result = command("service_task")
+        if not result.accepted then kitFailure = result; break end
+    end
+    if not kitFailure or kitFailure.message ~= "A machine maintenance kit is required."
+        or not kitFailure.data or kitFailure.data.serviceStep ~= "task"
+    then
+        return false, string.format("failure=%s/%s/%s",
+            tostring(kitFailure and kitFailure.code),
+            tostring(kitFailure and kitFailure.message),
+            tostring(kitFailure and kitFailure.data and kitFailure.data.serviceStep))
+    end
+    state.inventory.stock.maintenance_kit = 1
+    local completed = command("service_task")
+    requestId = requestId + 1
+    local released = authority:release(player, {
+        requestId = requestId,
+        resourceId = "windmill",
+        leaseId = lease.leaseId,
+        reason = "closed",
+    }, { state = state })
+    local passed = completed.accepted and completed.data and completed.data.serviceStep == "idle"
+        and state.inventory.stock.maintenance_kit == 0 and released.accepted
+    return passed, string.format("complete=%s/%s/%s kit=%s release=%s/%s",
+        tostring(completed.accepted), tostring(completed.code),
+        tostring(completed.data and completed.data.serviceStep),
+        tostring(state.inventory.stock.maintenance_kit), tostring(released.accepted),
+        tostring(released.message))
+end
+
+local function upvalue(fn, targetName)
+    if type(fn) ~= "function" or not debug or not debug.getupvalue then return nil end
+    for index = 1, 64 do
+        local name, value = debug.getupvalue(fn, index)
+        if not name then break end
+        if name == targetName then return index, value end
+    end
+end
+
+local function runHostTransportFailureCleanupRegression(context, check)
+    local App = require("src.app")
+    local _, updateMultiplayer = upvalue(App.update, "updateMultiplayer")
+    local _, handleMultiplayerEvents = upvalue(
+        updateMultiplayer, "handleMultiplayerEvents")
+    local authorityIndex, previousAuthority = upvalue(
+        handleMultiplayerEvents, "workshopAuthority")
+    local authority = context.createWorkshopAuthority()
+    local player = {
+        id = 2,
+        x = context.state.windmill.x,
+        y = context.state.windmill.y,
+    }
+    local lease = authority:acquire(player, {
+        requestId = 1,
+        resourceId = "windmill",
+    }, { state = context.state })
+    local process = context.windmill.ensure(context.state)
+    process.status = "production"
+    process.motor, process.feeder, process.impression = true, true, true
+    process.emergency = false
+
+    local multiplayer = App.multiplayer
+    local originalDrainEvents, originalStop = multiplayer.drainEvents, multiplayer.stop
+    local previousScreen = context.state.screen
+    local stopCalled = false
+    if authorityIndex and lease.accepted then
+        debug.setupvalue(handleMultiplayerEvents, authorityIndex, authority)
+    end
+    multiplayer.drainEvents = function()
+        return { { type = "disconnected", message = "Synthetic host transport failure" } }
+    end
+    multiplayer.stop = function(_, reason)
+        stopCalled = reason == "Host disconnected"
+        return true
+    end
+    local handled, handleError = pcall(handleMultiplayerEvents)
+    local authorityAfterEvent
+    if authorityIndex then
+        local ignored
+        ignored, authorityAfterEvent = debug.getupvalue(
+            handleMultiplayerEvents, authorityIndex)
+    end
+    local authorityCleared = authorityAfterEvent == nil
+        and authority:leaseForResource("windmill") == nil
+    local stoppedSafely = process.status == "approved"
+        and not process.motor and not process.feeder and not process.impression
+    local routedToLan = context.state.screen == "lan"
+
+    multiplayer.drainEvents, multiplayer.stop = originalDrainEvents, originalStop
+    if authorityIndex then
+        debug.setupvalue(handleMultiplayerEvents, authorityIndex, previousAuthority)
+    end
+    context.state.screen = previousScreen
+    process.status = "idle"
+    process.motor, process.feeder, process.impression = false, false, false
+
+    check("app_host_transport_failure_clears_authority_and_stops_windmill_controls",
+        updateMultiplayer and handleMultiplayerEvents and authorityIndex
+        and lease.accepted and handled and handleError == nil
+        and stopCalled and routedToLan and authorityCleared and stoppedSafely,
+        tostring(handleError))
 end
 
 function Test.run(context, check)
@@ -76,6 +272,128 @@ function Test.run(context, check)
         partialMetrics[1][2] == 0 and partialMetrics[2][2] == 0
         and partialMetrics[3][2] == 0.48 and partialMetrics[4][2] == 0
         and partialMetrics[5][2] == 0 and partialMetrics[6][2] == 0.91)
+
+    local networkRuntimeState = context.State.new()
+    context.windmill.resetNetworkRuntime()
+    local emergencyAccepted = context.windmill.control(networkRuntimeState, "emergency")
+    local emergencyRevision = context.windmill.networkRuntimeRevision()
+    local networkProcess = context.windmill.ensure(networkRuntimeState)
+    networkProcess.status = "production"
+    networkProcess.motor, networkProcess.feeder, networkProcess.impression = true, true, true
+    local released = context.windmill.releaseOperator(networkRuntimeState)
+    local releaseRevision = context.windmill.networkRuntimeRevision()
+    local releasedAgain = context.windmill.releaseOperator(networkRuntimeState)
+    check("windmill_network_revision_and_release_preserve_emergency_while_stopping_motion",
+        emergencyAccepted and emergencyRevision == 1 and released and not releasedAgain
+        and releaseRevision == 2 and context.windmill.networkRuntimeRevision() == 2
+        and networkProcess.status == "approved" and not networkProcess.motor
+        and not networkProcess.feeder and not networkProcess.impression
+        and networkProcess.emergency)
+    check("windmill_reset_requires_an_active_estop_and_preserves_terminal_run_states",
+        emergencyResetPreservesTerminalState(context))
+
+    local plateRuntimeState = context.State.new()
+    local plateRuntimeJob = makePressJob()
+    plateRuntimeState.jobs.active = { plateRuntimeJob }
+    local runtimePlate = context.plateService.ensureJob(plateRuntimeJob)[1]
+    runtimePlate.status, runtimePlate.source, runtimePlate.readyAtHours = "ordered", "outsourced", 0
+    context.windmill.resetNetworkRuntime()
+    context.pressScreen.update(0, plateRuntimeState)
+    local plateChanged, plateDurable = context.windmill.update(0, plateRuntimeState)
+    check("windmill_global_runtime_owns_and_saves_outsourced_plate_readiness",
+        plateChanged and plateDurable and runtimePlate.status == "ready"
+        and runtimePlate.mounted and context.windmill.networkRuntimeRevision() == 1)
+
+    local updateOrder = {}
+    local machineOrDurable, windmillLive, windmillDurable = context.serviceNetworkBeforeMachine(
+        0, context.State.new(),
+        function() updateOrder[#updateOrder + 1] = "network" end,
+        function()
+            updateOrder[#updateOrder + 1] = "windmill"
+            return true, false
+        end)
+    local terminalDirty = context.serviceNetworkBeforeMachine(
+        0, context.State.new(), function() end, function() return true, true end)
+    check("network_safety_is_serviced_before_global_windmill_advancement",
+        updateOrder[1] == "network" and updateOrder[2] == "windmill"
+        and not machineOrDurable and windmillLive and not windmillDurable and terminalDirty)
+
+    local appAuthority = context.createWorkshopAuthority()
+    local appWindmillPlayer = {
+        id = 2,
+        x = context.state.windmill.x,
+        y = context.state.windmill.y,
+    }
+    local appWindmillLease = appAuthority:acquire(appWindmillPlayer, {
+        requestId = 1, resourceId = "windmill",
+    }, { state = context.state })
+    local staleOrdinary = appWindmillLease.accepted and appAuthority:command(appWindmillPlayer, {
+        requestId = 2, resourceId = "windmill", leaseId = appWindmillLease.leaseId,
+        action = "speed_up", args = {}, expectedRevision = 0,
+    }, { state = context.state }) or {}
+    local urgentStop = appWindmillLease.accepted and appAuthority:command(appWindmillPlayer, {
+        requestId = 3, resourceId = "windmill", leaseId = appWindmillLease.leaseId,
+        action = "emergency_stop", args = {}, expectedRevision = 0,
+    }, { state = context.state }) or {}
+    local releasedWindmillLease = appWindmillLease.accepted and appAuthority:release(
+        appWindmillPlayer, {
+            requestId = 4, resourceId = "windmill", leaseId = appWindmillLease.leaseId,
+            reason = "closed",
+        }, { state = context.state }) or {}
+    local appWindmillProcess = context.windmill.ensure(context.state)
+    check("app_windmill_authority_builds_a_bounded_view_and_preempts_stale_commands_for_estop",
+        appWindmillLease.accepted and appWindmillLease.data
+        and type(appWindmillLease.data.setupPermille) == "table"
+        and #appWindmillLease.data.setupPermille == 6
+        and type(appWindmillLease.data.plateMarkerPermille) == "number"
+        and not staleOrdinary.accepted and staleOrdinary.code == "revision_conflict"
+        and urgentStop.accepted and urgentStop.data and urgentStop.data.emergency
+        and releasedWindmillLease.accepted
+        and appAuthority:leaseForResource("windmill") == nil
+        and appWindmillProcess.emergency and not appWindmillProcess.motor
+        and not appWindmillProcess.feeder and not appWindmillProcess.impression)
+    runHostTransportFailureCleanupRegression(context, check)
+
+    context.state.inventory.stock.maintenance_kit = 1
+    appWindmillProcess.status, appWindmillProcess.jobId, appWindmillProcess.palletId = "idle", nil, nil
+    appWindmillProcess.emergency = false
+    appWindmillProcess.motor, appWindmillProcess.feeder, appWindmillProcess.impression = true, true, true
+    local serviceAuthority = context.createWorkshopAuthority()
+    local serviceLease = serviceAuthority:acquire(appWindmillPlayer, {
+        requestId = 1, resourceId = "windmill",
+    }, { state = context.state })
+    local serviceStarted = serviceLease.accepted and serviceAuthority:command(appWindmillPlayer, {
+        requestId = 2, resourceId = "windmill", leaseId = serviceLease.leaseId,
+        action = "begin_service", args = {}, expectedRevision = serviceLease.revision,
+    }, { state = context.state }) or {}
+    local operationBlocked = serviceStarted.accepted and serviceAuthority:command(appWindmillPlayer, {
+        requestId = 3, resourceId = "windmill", leaseId = serviceLease.leaseId,
+        action = "toggle_motor", args = {}, expectedRevision = serviceStarted.revision,
+    }, { state = context.state }) or {}
+    local serviceEmergency = serviceStarted.accepted and serviceAuthority:command(appWindmillPlayer, {
+        requestId = 4, resourceId = "windmill", leaseId = serviceLease.leaseId,
+        action = "emergency_stop", args = {}, expectedRevision = serviceStarted.revision,
+    }, { state = context.state }) or {}
+    local lockoutAdvanced = serviceEmergency.accepted and serviceAuthority:command(appWindmillPlayer, {
+        requestId = 5, resourceId = "windmill", leaseId = serviceLease.leaseId,
+        action = "service_lockout", args = {}, expectedRevision = serviceEmergency.revision,
+    }, { state = context.state }) or {}
+    local serviceReleased = serviceLease.accepted and serviceAuthority:release(appWindmillPlayer, {
+        requestId = 6, resourceId = "windmill", leaseId = serviceLease.leaseId,
+        reason = "closed",
+    }, { state = context.state }) or {}
+    check("windmill_service_lockout_blocks_operation_but_preserves_estop_and_service_controls",
+        serviceStarted.accepted and serviceStarted.data
+        and serviceStarted.data.serviceStep == "lockout_disconnect"
+        and not appWindmillProcess.motor and not appWindmillProcess.feeder
+        and not appWindmillProcess.impression
+        and not operationBlocked.accepted and operationBlocked.code == "service_active"
+        and serviceEmergency.accepted and serviceEmergency.data.emergency
+        and lockoutAdvanced.accepted and lockoutAdvanced.data.serviceStep == "lockout_key"
+        and serviceReleased.accepted and serviceAuthority:leaseForResource("windmill") == nil)
+    local serviceRacePassed, serviceRaceDetail = remoteServiceKitRaceRecovers(context)
+    check("windmill_remote_service_can_retry_if_another_machine_consumes_the_shared_kit",
+        serviceRacePassed, serviceRaceDetail)
 
     local state = context.State.new()
     state.money = 20000
@@ -170,7 +488,40 @@ function Test.run(context, check)
     local verified = context.windmill.verifyArtwork(state)
     local approved = context.windmill.approveProof(state)
     local started = context.windmill.startProduction(state)
+    local proofCounterBeforeRun = context.windmill.ensure(state).counter
+    local proofDuringRun, proofDuringRunReason = context.windmill.takeProof(state)
+    check("windmill_rejects_proof_pull_during_a_live_production_run",
+        started and not proofDuringRun
+        and proofDuringRunReason == "Stop production before pulling another proof."
+        and context.windmill.ensure(state).status == "production"
+        and context.windmill.ensure(state).counter == proofCounterBeforeRun)
+    local feederPaused = context.windmill.control(state, "feeder")
+    local counterBeforePause = context.windmill.ensure(state).counter
+    local pauseChanged, pauseDurable = context.windmill.update(1, state)
+    local feederResumed = context.windmill.control(state, "feeder")
+    check("windmill_production_does_not_consume_sheets_with_a_required_control_off",
+        feederPaused and feederResumed and not pauseChanged and not pauseDurable
+        and context.windmill.ensure(state).status == "production"
+        and context.windmill.ensure(state).counter == counterBeforePause)
     local finishedPass = context.windmill.update(10, state)
+    local restartedPass, restartedPassReason = context.windmill.startProduction(state)
+    check("windmill_completed_pass_cannot_restart_without_a_new_approved_workflow",
+        finishedPass and not restartedPass
+        and restartedPassReason == "Approve a proof before starting or resuming production."
+        and context.windmill.ensure(state).status == "pass_complete")
+    local washBeforeRejectedCleanup = stock.press_wash
+    local washUnitsBeforeRejectedCleanup = job.press.actual.washUnits
+    local historyBeforeRejectedCleanup = #pallet.press.passHistory
+    local originalTransition = PalletState.transition
+    PalletState.transition = function() return false, "forced transition rejection" end
+    local rejectedCleanup, rejectedCleanupReason = context.windmill.cleanAndUnload(state)
+    PalletState.transition = originalTransition
+    check("windmill_cleanup_transition_rejection_is_atomic_and_retry_safe",
+        not rejectedCleanup and rejectedCleanupReason == "forced transition rejection"
+        and stock.press_wash == washBeforeRejectedCleanup
+        and job.press.actual.washUnits == washUnitsBeforeRejectedCleanup
+        and #pallet.press.passHistory == historyBeforeRejectedCleanup
+        and context.windmill.ensure(state).status == "pass_complete")
     local unloaded = context.windmill.cleanAndUnload(state)
     check("windmill_full_operator_loop_runs_setup_proof_production_and_cleanup", loaded and proofed
         and proofQuality >= 0.82 and verified and approved and started and finishedPass and unloaded
@@ -180,6 +531,8 @@ function Test.run(context, check)
         and state.inventory.inProcessPallets == 0 and state.inventory.finishedPallets == 1
         and job.press.actual.inkUnits == 1 and job.press.actual.tympanSheets == 1
         and job.press.actual.washUnits == 1)
+    check("native_windmill_service_lockout_stops_motion_and_blocks_normal_controls",
+        nativeServiceInterlockWorks(context, state))
 
     local multiState = context.State.new()
     multiState.money = 20000

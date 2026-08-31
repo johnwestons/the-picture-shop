@@ -126,6 +126,119 @@ local function specs(calls)
         }
     end
 
+    local windmillSetupTasks = {
+        chase = true, packing = true, rollers = true,
+        ink = true, feeder = true, register = true,
+    }
+    local windmillSetupActions = {
+        align = true, square = true, tighten = true,
+        layer = true, smooth = true, clamp = true,
+        left_down = true, left_up = true, right_down = true, right_up = true,
+        key_1 = true, key_2 = true, key_3 = true, ductor = true,
+        pile = true, suction = true, blast = true, test = true,
+        left = true, right = true, up = true, down = true,
+    }
+    local function windmillNoArguments(args)
+        return exactArgs(args, {}) or nil, "invalid_arguments",
+            "This Windmill action does not accept arguments."
+    end
+    local function performWindmill(action, dataBuilder)
+        return function(_, _, args)
+            calls.command[action] = (calls.command[action] or 0) + 1
+            local state = calls.windmillState
+            if action == "load_pallet" then
+                state.jobId, state.palletId = "JOB-0001", args.palletId
+            elseif action == "toggle_motor" then
+                state.motor = not state.motor
+            elseif action == "toggle_feeder" then
+                state.feeder = not state.feeder
+            elseif action == "toggle_impression" then
+                state.impression = not state.impression
+            elseif action == "start_run" then
+                state.running, state.motor, state.feeder, state.impression = true, true, true, true
+            elseif action == "stop_run" or action == "emergency_stop" then
+                state.running, state.motor, state.feeder, state.impression = false, false, false, false
+                state.emergency = action == "emergency_stop"
+            elseif action == "reset_safety" then
+                state.emergency = false
+            elseif action == "begin_setup" then
+                state.setupTask = args.setupTask
+            elseif action == "setup_action" then
+                state.lastSetupAction = args.setupAction
+            end
+            local data = dataBuilder and dataBuilder(args) or { action = action }
+            return true, action .. "_accepted", "Windmill action accepted.", data
+        end
+    end
+    local windmillCommands = {
+        load_pallet = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "palletId" })
+                if not normalized or type(normalized.palletId) ~= "string"
+                    or #normalized.palletId < 1 or #normalized.palletId > 64
+                    or not normalized.palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
+                then
+                    return nil, "invalid_arguments", "Pallet ID is invalid."
+                end
+                return normalized
+            end,
+            perform = performWindmill("load_pallet", function(args)
+                return { palletId = args.palletId }
+            end),
+        },
+        begin_setup = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "setupTask" })
+                if not normalized or not windmillSetupTasks[normalized.setupTask] then
+                    return nil, "invalid_arguments", "Setup task is invalid."
+                end
+                return normalized
+            end,
+            perform = performWindmill("begin_setup", function(args)
+                return { setupTask = args.setupTask }
+            end),
+        },
+        setup_action = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "setupAction" })
+                if not normalized or not windmillSetupActions[normalized.setupAction] then
+                    return nil, "invalid_arguments", "Setup action is invalid."
+                end
+                return normalized
+            end,
+            perform = performWindmill("setup_action", function(args)
+                return { setupAction = args.setupAction }
+            end),
+        },
+    }
+    for _, action in ipairs({
+        "toggle_motor", "toggle_feeder", "toggle_impression", "speed_up", "speed_down",
+        "emergency_stop", "reset_safety", "take_proof", "verify_artwork",
+        "approve_proof", "start_run", "stop_run", "clean_unload", "cancel_setup",
+        "begin_service", "service_lockout", "service_task", "book_technician",
+    }) do
+        windmillCommands[action] = {
+            normalize = windmillNoArguments,
+            perform = performWindmill(action),
+        }
+    end
+    for _, action in ipairs({ "order_plate", "begin_plate", "process_plate" }) do
+        windmillCommands[action] = {
+            normalize = function(args)
+                local normalized = exactArgs(args, { "plateId" })
+                if not normalized or type(normalized.plateId) ~= "string"
+                    or not normalized.plateId:match("^[A-Za-z0-9_.%-]+$")
+                then
+                    return nil, "invalid_arguments", "Plate ID is invalid."
+                end
+                return normalized
+            end,
+            perform = performWindmill(action, function(args)
+                return { plateId = args.plateId }
+            end),
+        }
+    end
+
     return {
         reception_customer = {
             canAcquire = canAcquire,
@@ -202,6 +315,25 @@ local function specs(calls)
             end,
             onRelease = released,
             commands = cutterCommands,
+        },
+        windmill = {
+            canAcquire = canAcquire,
+            onAcquire = function()
+                calls.acquire.windmill = calls.acquire.windmill + 1
+                return true, "acquired", "Windmill console connected.", {
+                    status = calls.windmillState.running and "production" or "idle",
+                    jobId = calls.windmillState.jobId,
+                    palletId = calls.windmillState.palletId,
+                }
+            end,
+            onRelease = function(lease, player, reason)
+                local accepted, code, message = released(lease, player, reason)
+                local state = calls.windmillState
+                state.running, state.motor, state.feeder, state.impression =
+                    false, false, false, false
+                return accepted, code, message
+            end,
+            commands = windmillCommands,
         },
         skid_wrapper = {
             canAcquire = canAcquire,
@@ -296,7 +428,7 @@ function Test.run(_, check)
     local now = 100
     local calls = {
         range = {},
-        acquire = { reception_customer = 0, cutter = 0 },
+        acquire = { reception_customer = 0, cutter = 0, windmill = 0 },
         command = {
             submit_quote = 0, decline = 0, request_pickup = 0,
             load_pallet = 0, load_stock = 0, select_program = 0, set_gauge = 0,
@@ -307,12 +439,18 @@ function Test.run(_, check)
             select_pallet = 0, start_cycle = 0,
             lift_pallet = 0, lower_pallet = 0, park_jack = 0,
         },
+        windmillState = {
+            jobId = "JOB-0001", palletId = "JOB-0001-P01",
+            running = false, motor = false, feeder = false, impression = false,
+            emergency = false, setupTask = nil, lastSetupAction = nil,
+        },
         release = {},
     }
     local context = { targets = {
         reception_customer = { x = 10, y = 10, radius = 20 },
         office_computer = { x = 100, y = 10, radius = 20 },
         cutter = { x = 150, y = 10, radius = 20 },
+        windmill = { x = 175, y = 10, radius = 20 },
         skid_wrapper = { x = 200, y = 10, radius = 20 },
         pallet_jack = { x = 300, y = 10, radius = 20 },
     } }
@@ -327,18 +465,20 @@ function Test.run(_, check)
     })
 
     local initial = authority:snapshot()
-    check("workshop_authority_snapshot_has_five_vacant_resources",
-        #initial == 5
+    check("workshop_authority_snapshot_has_six_vacant_resources",
+        #initial == 6
         and initial[1].resourceId == "reception_customer" and not initial[1].occupied
         and initial[1].ownerPlayerId == nil and initial[1].revision == 0
         and initial[2].resourceId == "office_computer" and not initial[2].occupied
         and initial[2].revision == 0
         and initial[3].resourceId == "cutter" and not initial[3].occupied
         and initial[3].revision == 0
-        and initial[4].resourceId == "skid_wrapper" and not initial[4].occupied
+        and initial[4].resourceId == "windmill" and not initial[4].occupied
         and initial[4].revision == 0
-        and initial[5].resourceId == "pallet_jack" and not initial[5].occupied
-        and initial[5].revision == 0)
+        and initial[5].resourceId == "skid_wrapper" and not initial[5].occupied
+        and initial[5].revision == 0
+        and initial[6].resourceId == "pallet_jack" and not initial[6].occupied
+        and initial[6].revision == 0)
 
     local farWorker = { id = 1, x = 200, y = 200 }
     local far = authority:acquire(farWorker,
@@ -587,10 +727,11 @@ function Test.run(_, check)
         and occupied[2].revision == 1
         and occupied[3].occupied and occupied[3].ownerPlayerId == 1
         and occupied[3].revision == 8
-        and occupied[4].occupied and occupied[4].ownerPlayerId == 3
-        and occupied[4].revision == 1
-        and occupied[5].occupied and occupied[5].ownerPlayerId == 4
-        and occupied[5].revision == 1)
+        and not occupied[4].occupied and occupied[4].revision == 0
+        and occupied[5].occupied and occupied[5].ownerPlayerId == 3
+        and occupied[5].revision == 1
+        and occupied[6].occupied and occupied[6].ownerPlayerId == 4
+        and occupied[6].revision == 1)
 
     local cutterReleasedForContention = authority:release(farWorker, {
         requestId = 2, resourceId = "cutter", leaseId = cutterAfterDisconnect.leaseId,
@@ -704,6 +845,144 @@ function Test.run(_, check)
         and staleEmergency.accepted and staleEmergency.revision == 3
         and staleBarrierBlock.accepted and staleBarrierBlock.revision == 4
         and not staleBarrierClear.accepted and staleBarrierClear.code == "revision_conflict")
+
+    local windmillAuthority = WorkshopAuthority.new({
+        tokenGenerator = function() return "urgent-windmill-lease" end,
+        resources = specs(calls),
+    })
+    local windmillWorker = { id = 1, x = 175, y = 10 }
+    local competingWorker = { id = 2, x = 175, y = 10 }
+    local windmillLease = windmillAuthority:acquire(windmillWorker,
+        { requestId = 1, resourceId = "windmill" }, context)
+    local windmillLeaseReplay = windmillAuthority:acquire(windmillWorker,
+        { requestId = 1, resourceId = "windmill" }, context)
+    local busyWindmill = windmillAuthority:acquire(competingWorker,
+        { requestId = 1, resourceId = "windmill" }, context)
+    local wrongWindmillOwner = windmillAuthority:command(competingWorker, {
+        requestId = 2, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "toggle_motor", args = {}, expectedRevision = 1,
+    }, context)
+    check("workshop_authority_windmill_lease_is_exclusive_owner_bound_and_replay_safe",
+        windmillLease.accepted and windmillLease.revision == 1
+        and windmillLease.leaseId == "urgent-windmill-lease"
+        and windmillLeaseReplay.accepted
+        and windmillLeaseReplay.leaseId == windmillLease.leaseId
+        and calls.acquire.windmill == 1
+        and not busyWindmill.accepted and busyWindmill.code == "resource_busy"
+        and not wrongWindmillOwner.accepted and wrongWindmillOwner.code == "not_owner")
+
+    local clientScoredSetup = windmillAuthority:command(windmillWorker, {
+        requestId = 2, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "setup_action", args = { setupAction = "align", score = 1 },
+        expectedRevision = 1,
+    }, context)
+    local clientPlateAccuracy = windmillAuthority:command(windmillWorker, {
+        requestId = 3, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "process_plate", args = { plateId = "PLATE-0001", accuracy = 1 },
+        expectedRevision = 1,
+    }, context)
+    local unknownSetupTask = windmillAuthority:command(windmillWorker, {
+        requestId = 4, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "begin_setup", args = { setupTask = "guarding" }, expectedRevision = 1,
+    }, context)
+    check("workshop_authority_windmill_rejects_client_scored_and_malformed_actions",
+        not clientScoredSetup.accepted and clientScoredSetup.code == "invalid_arguments"
+        and not clientPlateAccuracy.accepted
+        and clientPlateAccuracy.code == "invalid_arguments"
+        and not unknownSetupTask.accepted and unknownSetupTask.code == "invalid_arguments"
+        and (calls.command.setup_action or 0) == 0
+        and (calls.command.process_plate or 0) == 0
+        and (calls.command.begin_setup or 0) == 0)
+
+    local staleWindmillLoad = windmillAuthority:command(windmillWorker, {
+        requestId = 5, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 0,
+    }, context)
+    local loadedWindmill = windmillAuthority:command(windmillWorker, {
+        requestId = 6, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 1,
+    }, context)
+    local loadedWindmillReplay = windmillAuthority:command(windmillWorker, {
+        requestId = 6, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0001-P01" },
+        expectedRevision = 1,
+    }, context)
+    local reusedWindmillCommand = windmillAuthority:command(windmillWorker, {
+        requestId = 6, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "load_pallet", args = { palletId = "JOB-0002-P01" },
+        expectedRevision = 1,
+    }, context)
+    local beganSetup = windmillAuthority:command(windmillWorker, {
+        requestId = 7, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "begin_setup", args = { setupTask = "chase" }, expectedRevision = 2,
+    }, context)
+    local setupInput = windmillAuthority:command(windmillWorker, {
+        requestId = 8, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "setup_action", args = { setupAction = "align" }, expectedRevision = 3,
+    }, context)
+    check("workshop_authority_windmill_commands_are_revisioned_and_exactly_once",
+        not staleWindmillLoad.accepted and staleWindmillLoad.code == "revision_conflict"
+        and loadedWindmill.accepted and loadedWindmill.revision == 2
+        and loadedWindmill.data.palletId == "JOB-0001-P01"
+        and loadedWindmillReplay.accepted and loadedWindmillReplay.revision == 2
+        and not reusedWindmillCommand.accepted
+        and reusedWindmillCommand.code == "request_id_reused"
+        and beganSetup.accepted and beganSetup.revision == 3
+        and beganSetup.data.setupTask == "chase"
+        and setupInput.accepted and setupInput.revision == 4
+        and setupInput.data.setupAction == "align"
+        and calls.command.load_pallet == 2
+        and calls.command.begin_setup == 1 and calls.command.setup_action == 1)
+
+    local windmillMotor = windmillAuthority:command(windmillWorker, {
+        requestId = 9, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "toggle_motor", args = {}, expectedRevision = 4,
+    }, context)
+    local staleWindmillEmergency = windmillAuthority:command(windmillWorker, {
+        requestId = 10, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "emergency_stop", args = {}, expectedRevision = 4,
+    }, context)
+    local staleWindmillReset = windmillAuthority:command(windmillWorker, {
+        requestId = 11, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "reset_safety", args = {}, expectedRevision = 4,
+    }, context)
+    check("workshop_authority_windmill_stale_emergency_preempts_but_reset_does_not",
+        windmillMotor.accepted and windmillMotor.revision == 5
+        and staleWindmillEmergency.accepted and staleWindmillEmergency.revision == 6
+        and not staleWindmillReset.accepted and staleWindmillReset.code == "revision_conflict"
+        and calls.windmillState.emergency and not calls.windmillState.motor
+        and not calls.windmillState.feeder and not calls.windmillState.impression)
+
+    local resetWindmill = windmillAuthority:command(windmillWorker, {
+        requestId = 12, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "reset_safety", args = {}, expectedRevision = 6,
+    }, context)
+    local startedWindmill = windmillAuthority:command(windmillWorker, {
+        requestId = 13, resourceId = "windmill", leaseId = windmillLease.leaseId,
+        action = "start_run", args = {}, expectedRevision = 7,
+    }, context)
+    local disconnectedWindmill = windmillAuthority:cleanupPlayer(
+        windmillWorker, "disconnected", context)
+    local windmillAfterDisconnect = windmillAuthority:acquire(windmillWorker,
+        { requestId = 1, resourceId = "windmill" }, context)
+    check("workshop_authority_windmill_disconnect_stops_run_preserves_batch_and_resets_replay",
+        resetWindmill.accepted and resetWindmill.revision == 7
+        and startedWindmill.accepted and startedWindmill.revision == 8
+        and #disconnectedWindmill == 1
+        and disconnectedWindmill[1].resourceId == "windmill"
+        and disconnectedWindmill[1].reason == "disconnected"
+        and disconnectedWindmill[1].revision == 9
+        and disconnectedWindmill[1].cleanupAccepted
+        and calls.release.windmill == 1
+        and not calls.windmillState.running and not calls.windmillState.motor
+        and not calls.windmillState.feeder and not calls.windmillState.impression
+        and calls.windmillState.jobId == "JOB-0001"
+        and calls.windmillState.palletId == "JOB-0001-P01"
+        and calls.windmillState.setupTask == "chase"
+        and windmillAfterDisconnect.accepted and windmillAfterDisconnect.revision == 10)
+    windmillAuthority:cleanupPlayer(windmillWorker, "test_complete", context)
 
     local replayNow = 0
     local replayCalls = { range = 0 }

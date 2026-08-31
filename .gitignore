@@ -28,6 +28,10 @@ __pycache__/
 *.temp
 *.bak
 
+# One-time, machine-specific packet-capture recovery helper. Its exact
+# incident timestamps and hashes are local evidence, not reusable source.
+/tools/inspect_windows_direct_orphan_filter.ps1
+
 # Smoke-test products. Keep the runner and its local ignore policy tracked.
 /.stabilization/*.rpt
 /.stabilization/smoke-watchdog-*.txt

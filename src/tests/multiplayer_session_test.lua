@@ -1,5 +1,4 @@
 local Codec = require("src.net.codec")
-local Codec = require("src.net.codec")
 local Protocol = require("src.net.protocol")
 local Session = require("src.net.session")
 
@@ -166,6 +165,9 @@ local function captureHostNetwork()
             { id = "phone-worker-2" },
             { id = "phone-worker-3" },
             { id = "pc-worker-4" },
+            { id = "tablet-worker-5" },
+            { id = "phone-worker-6" },
+            { id = "pc-worker-7" },
         },
     }
 
@@ -183,8 +185,14 @@ local function captureHostNetwork()
 
     function network.factory.createHost(options)
         network.hostOptions = options
-        local transport = { closed = false }
-        function transport:service() return {} end
+        local transport = { closed = false, inbound = {} }
+        function transport:service(maxEvents)
+            local events = {}
+            for _ = 1, math.min(tonumber(maxEvents) or 0, #self.inbound) do
+                events[#events + 1] = table.remove(self.inbound, 1)
+            end
+            return events
+        end
         function transport:send(peer, payload, channel, reliable)
             if self.closed then return false, "fake host is unavailable" end
             record("host_to_client", peer, payload, channel, reliable)
@@ -217,6 +225,10 @@ local function captureHostNetwork()
         end
         network.host = transport
         return transport
+    end
+
+    function network:queue(event)
+        self.host.inbound[#self.host.inbound + 1] = event
     end
 
     function network:messages(direction, kind)
@@ -354,6 +366,35 @@ local function cutterState(overrides)
     return view
 end
 
+local function windmillState(overrides)
+    local view = {
+        runtimeRevision = 1,
+        status = "idle",
+        speed = 2800,
+        motor = false,
+        feeder = false,
+        impression = false,
+        emergency = false,
+        counter = 0,
+        goodSheets = 0,
+        spoilage = 0,
+        targetSheets = 525,
+        feedStart = 525,
+        feedRemaining = 525,
+        proofApproved = false,
+        artworkVerified = false,
+        setupPermille = { 0, 0, 0, 0, 0, 0 },
+        candidates = {
+            { palletId = "JOB-PRESS-P01", colorIndex = 1 },
+        },
+        serviceStep = "idle",
+        servicePermille = 0,
+        plateMarkerPermille = 0,
+    }
+    for key, value in pairs(overrides or {}) do view[key] = value end
+    return view
+end
+
 local function eventNamed(events, name)
     for _, event in ipairs(events or {}) do
         if event.type == name then return event end
@@ -379,6 +420,7 @@ local function runCutterSafetyOrderingRegression(args)
                 occupied = false },
             { resourceId = "skid_wrapper", revision = 0, occupied = false },
             { resourceId = "pallet_jack", revision = 0, occupied = false },
+            { resourceId = "windmill", revision = 0, occupied = false },
         }),
         wrapper = { step = "idle", progress = 0, cycleTime = 3,
             pallets = Codec.array({}) },
@@ -390,6 +432,7 @@ local function runCutterSafetyOrderingRegression(args)
         eventNamed(preGrantEvents, "workshop_lost") == nil
         and client:workshopInfo() and client:workshopInfo().revision == grantRevision)
 
+    local workshopCallStart = #args.workshopCalls
     local ordinaryPending = client:requestWorkshopCommand(
         "set_gauge", { gaugeCentiInch = 500 })
     local urgentWhilePending = client:requestWorkshopCommand("emergency_stop", {})
@@ -401,6 +444,8 @@ local function runCutterSafetyOrderingRegression(args)
     host:update(0, args.hostContext)
     client:update(0, args.clientContext)
     local concurrentResults = client:drainEvents()
+    local firstConcurrentCall = args.workshopCalls[workshopCallStart + 1]
+    local secondConcurrentCall = args.workshopCalls[workshopCallStart + 2]
     local ordinaryResult, emergencyResult
     for _, event in ipairs(concurrentResults) do
         if event.type == "workshop_result" and event.action == "set_gauge" then
@@ -414,6 +459,8 @@ local function runCutterSafetyOrderingRegression(args)
         and ordinarySafetyWire and ordinarySafetyWire.action == "set_gauge"
         and emergencySafetyWire and emergencySafetyWire.action == "emergency_stop"
         and ordinarySafetyWire.expectedRevision == emergencySafetyWire.expectedRevision
+        and firstConcurrentCall and firstConcurrentCall.payload.action == "emergency_stop"
+        and secondConcurrentCall and secondConcurrentCall.payload.action == "set_gauge"
         and ordinaryResult and ordinaryResult.accepted and not ordinaryResult.urgentSafety
         and emergencyResult and emergencyResult.accepted and emergencyResult.urgentSafety
         and client.pendingWorkshop == nil and client.pendingWorkshopSafety == nil
@@ -443,6 +490,7 @@ local function runCutterSafetyOrderingRegression(args)
                 ownerPlayerId = client.localId },
             { resourceId = "skid_wrapper", revision = 0, occupied = false },
             { resourceId = "pallet_jack", revision = 0, occupied = false },
+            { resourceId = "windmill", revision = 0, occupied = false },
         }),
         wrapper = { step = "idle", progress = 0, cycleTime = 3,
             pallets = Codec.array({}) },
@@ -456,6 +504,294 @@ local function runCutterSafetyOrderingRegression(args)
         and client.workshopRevisions.cutter == authoritativeRevision)
     client.lastCutterTick = previousCutterTick
     client.lastWorkshopSnapshotRevision = previousWorkshopTick
+end
+
+local function runWindmillSessionRegression(args)
+    local client, host, network = args.client, args.host, args.network
+    local hostContext, clientContext, check =
+        args.hostContext, args.clientContext, args.check
+    local view = windmillState()
+    args.setView(view)
+    hostContext.getWindmillSnapshot = function()
+        return { resourceRevision = args.revision(), view = view }
+    end
+
+    local requested = client:requestWorkshopAcquire("windmill")
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local grant = eventNamed(client:drainEvents(), "workshop_grant")
+    local grantPackets = network:messages("host_to_client", "workshop_grant")
+    local grantWire = decodedPayload(grantPackets[#grantPackets])
+    local grantRevision = grant and grant.revision
+    check("multiplayer_session_worker_acquires_host_owned_windmill_console",
+        requested and grant and grant.granted and grant.resourceId == "windmill"
+        and grant.leaseId == "lease-windmill-test"
+        and grant.view and grant.view.status == "idle"
+        and grantWire and grantWire.view
+        and Codec.isArray(grantWire.view.setupPermille)
+        and Codec.isArray(grantWire.view.candidates)
+        and client:workshopInfo().revision == args.revision())
+
+    local previousWorkshopTick = client.lastWorkshopSnapshotRevision
+    local stalePregrant = Protocol.encode("workshop_snapshot", {
+        sessionId = host.sessionId,
+        revision = previousWorkshopTick + 1,
+        resources = Codec.array({
+            { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "office_computer", revision = 0, occupied = false },
+            { resourceId = "cutter", revision = 0, occupied = false },
+            { resourceId = "windmill", revision = math.max(0, grantRevision - 1),
+                occupied = false },
+            { resourceId = "skid_wrapper", revision = 0, occupied = false },
+            { resourceId = "pallet_jack", revision = 0, occupied = false },
+        }),
+        wrapper = { step = "idle", progress = 0, cycleTime = 3,
+            pallets = Codec.array({}) },
+    })
+    network.host:send(network.peer, stalePregrant, Protocol.CHANNEL_STATE, false)
+    client:update(0, clientContext)
+    local pregrantEvents = client:drainEvents()
+    check("multiplayer_session_stale_pregrant_snapshot_cannot_revoke_new_windmill_lease",
+        eventNamed(pregrantEvents, "workshop_lost") == nil
+        and client:workshopInfo() and client:workshopInfo().revision == grantRevision)
+
+    local wires = {}
+    local function sendCommand(action, arguments)
+        local before = #network:messages("client_to_host", "workshop_command")
+        local sent = client:requestWorkshopCommand(action, arguments)
+        host:update(0, hostContext)
+        client:update(0, clientContext)
+        local result = eventNamed(client:drainEvents(), "workshop_result")
+        local packets = network:messages("client_to_host", "workshop_command")
+        wires[#wires + 1] = decodedPayload(packets[before + 1])
+        return sent and result and result.accepted
+    end
+    local commandsAccepted = sendCommand(
+        "load_pallet", { palletId = "JOB-PRESS-P01", state = { forged = true } })
+        and sendCommand("begin_setup", {
+            setupTask = "chase", score = 1000, playerId = 2,
+        })
+        and sendCommand("setup_action", {
+            setupAction = "align", score = 1000, accuracy = 1,
+        })
+        and sendCommand("process_plate", {
+            plateId = "PLATE-PRESS-C01", accuracy = 1,
+        })
+        and sendCommand("toggle_motor", { motor = true, state = { forged = true } })
+    local semanticWires = #wires == 5
+        and wires[1].palletId == "JOB-PRESS-P01" and wires[1].state == nil
+        and wires[2].setupTask == "chase"
+        and wires[2].score == nil and wires[2].playerId == nil
+        and wires[3].setupAction == "align"
+        and wires[3].score == nil and wires[3].accuracy == nil
+        and wires[4].plateId == "PLATE-PRESS-C01" and wires[4].accuracy == nil
+        and wires[5].motor == nil and wires[5].state == nil
+    for index = 2, #wires do
+        semanticWires = semanticWires
+            and wires[index - 1].commandId < wires[index].commandId
+            and wires[index].expectedRevision == wires[index - 1].expectedRevision + 1
+    end
+    check("multiplayer_session_windmill_commands_use_closed_host_authored_shapes",
+        commandsAccepted and semanticWires and view.palletId == "JOB-PRESS-P01"
+        and view.setupTask == "chase" and view.setupPermille[1] == 250)
+
+    local safetySeenBeforeSimulation = false
+    hostContext.updateWorkshop = function()
+        if args.resource() == "windmill" then
+            safetySeenBeforeSimulation = view.emergency and not view.motor
+                and not view.feeder and not view.impression
+        end
+    end
+    local safetyWireStart = #network:messages("client_to_host", "workshop_command")
+    local workshopCallStart = #args.workshopCalls
+    local ordinaryPending = client:requestWorkshopCommand("speed_up", {})
+    local safetyPending = client:requestWorkshopCommand("emergency_stop", {})
+    local duplicateSafetyRejected = not client:requestWorkshopCommand("emergency_stop", {})
+    local safetyPackets = network:messages("client_to_host", "workshop_command")
+    local ordinaryWire = decodedPayload(safetyPackets[safetyWireStart + 1])
+    local emergencyWire = decodedPayload(safetyPackets[safetyWireStart + 2])
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local safetyEvents = client:drainEvents()
+    local firstSafetyCall = args.workshopCalls[workshopCallStart + 1]
+    local secondSafetyCall = args.workshopCalls[workshopCallStart + 2]
+    local ordinaryResult, emergencyResult
+    for _, event in ipairs(safetyEvents) do
+        if event.type == "workshop_result" and event.action == "speed_up" then
+            ordinaryResult = event
+        elseif event.type == "workshop_result" and event.action == "emergency_stop" then
+            emergencyResult = event
+        end
+    end
+    hostContext.updateWorkshop = nil
+    check("multiplayer_session_windmill_emergency_uses_separate_preemptive_safety_lane",
+        ordinaryPending and safetyPending and duplicateSafetyRejected
+        and ordinaryWire and ordinaryWire.action == "speed_up"
+        and emergencyWire and emergencyWire.action == "emergency_stop"
+        and ordinaryWire.expectedRevision == emergencyWire.expectedRevision
+        and firstSafetyCall and firstSafetyCall.payload.action == "emergency_stop"
+        and secondSafetyCall and secondSafetyCall.payload.action == "speed_up"
+        and ordinaryResult and ordinaryResult.accepted and not ordinaryResult.urgentSafety
+        and emergencyResult and emergencyResult.accepted and emergencyResult.urgentSafety
+        and client.pendingWorkshop == nil and client.pendingWorkshopSafety == nil
+        and safetySeenBeforeSimulation)
+
+    host:update(0.09, hostContext)
+    client:update(0, clientContext)
+    local stateEvent = eventNamed(client:drainEvents(), "windmill_state")
+    local snapshotPackets = network:messages("host_to_client", "windmill_snapshot")
+    local latestPacket = snapshotPackets[#snapshotPackets]
+    local latestWire = decodedPayload(latestPacket)
+    local liveTick = client.lastWindmillTick
+    local stalePacket = Protocol.encode("windmill_snapshot", {
+        sessionId = host.sessionId, serverTick = liveTick,
+        resourceRevision = args.revision(), view = view,
+    })
+    local wrongSessionPacket = Protocol.encode("windmill_snapshot", {
+        sessionId = "spoofed-session", serverTick = liveTick + 1,
+        resourceRevision = args.revision(), view = view,
+    })
+    network.host:send(network.peer, stalePacket, Protocol.CHANNEL_STATE, false)
+    network.host:send(network.peer, wrongSessionPacket, Protocol.CHANNEL_STATE, false)
+    client:update(0, clientContext)
+    local ignoredEvents = client:drainEvents()
+    check("multiplayer_session_windmill_live_state_is_12hz_mtu_safe_and_monotonic",
+        stateEvent and stateEvent.serverTick == liveTick
+        and stateEvent.resourceRevision == args.revision() and stateEvent.view.emergency
+        and latestWire and latestWire.view.status == "stopped"
+        and Codec.isArray(latestWire.view.setupPermille)
+        and Codec.isArray(latestWire.view.candidates)
+        and latestPacket.channel == Protocol.CHANNEL_STATE and not latestPacket.reliable
+        and #latestPacket.payload <= Protocol.MAX_PACKET_BYTES
+        and eventNamed(ignoredEvents, "windmill_state") == nil
+        and client.lastWindmillTick == liveTick)
+
+    local currentRevision = args.revision()
+    client.activeWorkshop.revision = currentRevision - 1
+    client.workshopRevisions.windmill = currentRevision - 1
+    local repairPacket = Protocol.encode("windmill_snapshot", {
+        sessionId = host.sessionId, serverTick = liveTick + 1,
+        resourceRevision = currentRevision, view = view,
+    })
+    network.host:send(network.peer, repairPacket, Protocol.CHANNEL_STATE, false)
+    client:update(0, clientContext)
+    local repaired = eventNamed(client:drainEvents(), "windmill_state")
+    local staleWorkshop = Protocol.encode("workshop_snapshot", {
+        sessionId = host.sessionId,
+        revision = client.lastWorkshopSnapshotRevision + 1,
+        resources = Codec.array({
+            { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "office_computer", revision = 0, occupied = false },
+            { resourceId = "cutter", revision = 0, occupied = false },
+            { resourceId = "windmill", revision = currentRevision - 1,
+                occupied = true, ownerPlayerId = client.localId },
+            { resourceId = "skid_wrapper", revision = 0, occupied = false },
+            { resourceId = "pallet_jack", revision = 0, occupied = false },
+        }),
+        wrapper = { step = "idle", progress = 0, cycleTime = 3,
+            pallets = Codec.array({}) },
+    })
+    network.host:send(network.peer, staleWorkshop, Protocol.CHANNEL_STATE, false)
+    client:update(0, clientContext)
+    local staleWorkshopEvents = client:drainEvents()
+    check("multiplayer_session_windmill_live_revision_repairs_and_stale_occupancy_cannot_rollback",
+        repaired and repaired.resourceRevision == currentRevision
+        and eventNamed(staleWorkshopEvents, "workshop_lost") == nil
+        and client:workshopInfo().revision == currentRevision
+        and client.workshopRevisions.windmill == currentRevision)
+
+    local released = client:releaseWorkshop("closed")
+    host:update(0, hostContext)
+    check("multiplayer_session_worker_releases_windmill_console",
+        released and client:workshopInfo() == nil
+        and args.lease() == nil and args.resource() == nil)
+
+    local reacquired = client:requestWorkshopAcquire("windmill")
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local reacquiredGrant = eventNamed(client:drainEvents(), "workshop_grant")
+    local mutationBeforeTimeout = args.mutation()
+    local ordinaryTimeout = client:requestWorkshopCommand("toggle_feeder", {})
+    local safetyTimeout = client:requestWorkshopCommand("emergency_stop", {})
+    args.advanceClock(4.01)
+    client:update(0, clientContext)
+    local timeoutEvents = client:drainEvents()
+    local timedOutOrdinary, timedOutSafety
+    for _, event in ipairs(timeoutEvents) do
+        if event.type == "workshop_result" and event.action == "toggle_feeder" then
+            timedOutOrdinary = event
+        elseif event.type == "workshop_result" and event.action == "emergency_stop" then
+            timedOutSafety = event
+        end
+    end
+    check("multiplayer_session_windmill_ordinary_and_safety_timeouts_clear_independently",
+        reacquired and reacquiredGrant and reacquiredGrant.granted
+        and ordinaryTimeout and safetyTimeout
+        and timedOutOrdinary and not timedOutOrdinary.accepted
+        and timedOutOrdinary.code == "timeout" and not timedOutOrdinary.urgentSafety
+        and timedOutSafety and not timedOutSafety.accepted
+        and timedOutSafety.code == "timeout" and timedOutSafety.urgentSafety
+        and client.pendingWorkshop == nil and client.pendingWorkshopSafety == nil
+        and client:workshopInfo() and client:workshopInfo().resourceId == "windmill")
+    return mutationBeforeTimeout
+end
+
+local function runStaleWorkshopGrantRevisionRegression(check)
+    local function pendingClient(knownRevision, requestId)
+        local client = Session.new({ clock = function() return 100 end })
+        client.mode = "client"
+        client.ready = true
+        client.sessionId = "grant-revision-test"
+        client.localId = 2
+        client.workshopRevisions.windmill = knownRevision
+        client.pendingWorkshop = {
+            operation = "acquire",
+            requestId = requestId,
+            resourceId = "windmill",
+            sentAt = 100,
+        }
+        return client
+    end
+
+    local function deliver(client, requestId, revision, granted)
+        local packet = Protocol.encode("workshop_grant", {
+            sessionId = client.sessionId,
+            requestId = requestId,
+            resourceId = "windmill",
+            granted = granted,
+            leaseId = granted and ("lease-stale-" .. tostring(requestId)) or nil,
+            code = granted and "granted" or "revision_conflict",
+            message = granted and "Windmill control granted." or "Revision changed.",
+            revision = revision,
+        })
+        local envelope = packet and Protocol.decode(packet)
+        if envelope then client:_handleClientEnvelope(envelope) end
+        return envelope, client:drainEvents()
+    end
+
+    local rejectionClient = pendingClient(9, 1)
+    local rejectionEnvelope, rejectionEvents = deliver(rejectionClient, 1, 7, false)
+    local rejection = eventNamed(rejectionEvents, "workshop_grant")
+
+    local staleGrantClient = pendingClient(9, 2)
+    local staleGrantEnvelope, staleGrantEvents = deliver(staleGrantClient, 2, 8, true)
+    local staleGrant = eventNamed(staleGrantEvents, "workshop_grant")
+
+    local currentGrantClient = pendingClient(9, 3)
+    local currentGrantEnvelope, currentGrantEvents = deliver(currentGrantClient, 3, 9, true)
+    local currentGrant = eventNamed(currentGrantEvents, "workshop_grant")
+
+    check("multiplayer_session_stale_workshop_grants_and_rejections_never_roll_back_revision",
+        rejectionEnvelope and rejection and not rejection.granted
+        and rejectionClient.workshopRevisions.windmill == 9
+        and rejectionClient.activeWorkshop == nil
+        and staleGrantEnvelope and staleGrantClient.workshopRevisions.windmill == 9
+        and staleGrantClient.activeWorkshop == nil
+        and (staleGrant == nil or not staleGrant.granted)
+        and currentGrantEnvelope and currentGrant and currentGrant.granted
+        and currentGrantClient.activeWorkshop
+        and currentGrantClient.activeWorkshop.leaseId == "lease-stale-3"
+        and currentGrantClient.activeWorkshop.revision == 9)
 end
 
 local function runFourDeviceShardingRegression(check, clock, addressOptions)
@@ -682,7 +1018,334 @@ local function runFourDeviceShardingRegression(check, clock, addressOptions)
     host:stop("Four-device shard test complete")
 end
 
+local function runDirectAdmissionControls(options)
+    local clock, check = options.clock, options.check
+    local network = fakeNetwork()
+    local host = Session.new({ transportFactory = network.factory, clock = clock })
+    local client = Session.new({ transportFactory = network.factory, clock = clock })
+    local snapshots = 0
+    local context = {
+        localPlayer = motionPlayer(400, 500),
+        resolveGuestSpawn = function() return 430, 500 end,
+        getShopSnapshot = function()
+            snapshots = snapshots + 1
+            return {
+                state = { money = 777, inventory = {}, jobs = {} },
+                player = { x = 400, y = 500, character = "rabbit-worker" },
+            }
+        end,
+    }
+    host:startHost({
+        name = "Direct Approval Host", character = "rabbit-worker",
+        networkKind = "direct", transportFactory = network.factory,
+    })
+    client:startClient("192.0.2.10:22122", {
+        name = "PC Direct Guest", character = "rabbit-worker",
+        networkKind = "direct", transportFactory = network.factory,
+    })
+    host:update(0, context)
+    client:update(0, { localPlayer = motionPlayer(430, 500), inputX = 0, inputY = 0 })
+    host:update(0, context)
+    local request = eventNamed(host:drainEvents(), "join_requested")
+    local hud = host:hudInfo()
+    check("multiplayer_session_direct_request_discloses_no_save_before_host_decision",
+        request and request.name == "PC Direct Guest"
+        and snapshots == 0 and host.players[2] == nil
+        and #network:messages("host_to_client", "welcome") == 0
+        and #network:messages("host_to_client", "shop_snapshot") == 0
+        and hud.canManage and hud.pendingJoinCount == 1
+        and hud.pendingJoins[1].requestId == request.requestId
+        and hud.pendingJoins[1].name == "PC Direct Guest"
+        and hud.pendingJoins[1].peer == nil)
+
+    local rejected, rejectionMessage = host:rejectJoin(request.requestId)
+    local rejectionEvents = host:drainEvents()
+    client:update(0, { localPlayer = motionPlayer(430, 500), inputX = 0, inputY = 0 })
+    local clientEvents = client:drainEvents()
+    check("multiplayer_session_direct_denial_closes_only_that_link_without_allocating_player",
+        rejected and rejectionMessage:find("connection is closed", 1, true)
+        and eventNamed(rejectionEvents, "join_rejected")
+        and eventNamed(rejectionEvents, "direct_closed") == nil
+        and eventNamed(clientEvents, "error")
+        and not host.terminal and host.transport ~= nil and host.ready
+        and host.players[1] ~= nil and host.players[2] == nil
+        and host.peerToId[network.peer] == nil
+        and #network:messages("host_to_client", "welcome") == 0
+        and #network:messages("host_to_client", "shop_snapshot") == 0
+        and not host:approveJoin(request.requestId))
+
+    host:stop("Fresh Direct invitation test")
+    client:stop("Fresh Direct invitation test")
+    local freshNetwork = fakeNetwork()
+    local freshClient = Session.new({ transportFactory = freshNetwork.factory, clock = clock })
+    host:startHost({
+        name = "Fresh Direct Host", character = "rabbit-worker",
+        networkKind = "direct", transportFactory = freshNetwork.factory,
+    })
+    freshClient:startClient("192.0.2.11:22122", {
+        name = "Android Direct Guest", character = "rabbit-worker",
+        networkKind = "direct", transportFactory = freshNetwork.factory,
+    })
+    host:update(0, context)
+    freshClient:update(0, { localPlayer = motionPlayer(430, 500), inputX = 0, inputY = 0 })
+    host:update(0, context)
+    local freshRequest = eventNamed(host:drainEvents(), "join_requested")
+    local staleRejected = host:approveJoin(request.requestId) == false
+    local freshApproved = freshRequest and host:approveJoin(freshRequest.requestId)
+    host:update(0, context)
+    freshClient:update(0, { localPlayer = motionPlayer(430, 500), inputX = 0, inputY = 0 })
+    check("multiplayer_session_fresh_invite_uses_new_handle_and_approves_atomically",
+        freshRequest and freshRequest.requestId > request.requestId
+        and staleRejected and freshApproved and snapshots == 1
+        and host.players[2] and host.players[2].name == "Android Direct Guest"
+        and freshClient.ready)
+
+    local cannotKickHost = host:kickPlayer(1) == false
+    local kicked, kickMessage = host:kickPlayer(2)
+    local kickEvents = host:drainEvents()
+    local leftCount = 0
+    for _, event in ipairs(kickEvents) do
+        if event.type == "player_left" then leftCount = leftCount + 1 end
+    end
+    check("multiplayer_session_direct_kick_is_confirmable_host_only_and_link_scoped",
+        cannotKickHost and kicked and kickMessage:find("removed", 1, true)
+        and leftCount == 1 and eventNamed(kickEvents, "player_kicked")
+        and eventNamed(kickEvents, "direct_closed") == nil
+        and host.players[2] == nil and host.idToPeer[2] == nil
+        and host.peerToId[freshNetwork.peer] == nil
+        and not host.terminal and host.transport ~= nil and host.ready
+        and #freshNetwork:messages("host_broadcast", "leave") == 0
+        and #freshNetwork:messages("host_to_client", "leave") == 0
+        and #freshNetwork:messages("host_to_client", "error") == 1)
+    freshClient:stop("Kick test complete")
+    host:stop("Kick test complete")
+
+    local timeoutNetwork = fakeNetwork()
+    local timeoutHost = Session.new({ transportFactory = timeoutNetwork.factory, clock = clock })
+    local timeoutClient = Session.new({ transportFactory = timeoutNetwork.factory, clock = clock })
+    timeoutHost:startHost({
+        name = "Approval Timeout Host", character = "rabbit-worker", networkKind = "direct",
+    })
+    timeoutClient:startClient("192.0.2.12:22122", {
+        name = "Waiting Direct Guest", character = "rabbit-worker", networkKind = "direct",
+    })
+    timeoutHost:update(0, context)
+    timeoutClient:update(0, { localPlayer = motionPlayer(430, 500), inputX = 0, inputY = 0 })
+    timeoutHost:update(0, context)
+    local timeoutRequest = eventNamed(timeoutHost:drainEvents(), "join_requested")
+    options.advanceClock(60.01)
+    timeoutHost:update(0, context)
+    local timeoutEvents = timeoutHost:drainEvents()
+    check("multiplayer_session_direct_approval_timeout_denies_only_that_link",
+        timeoutRequest and eventNamed(timeoutEvents, "join_expired")
+        and eventNamed(timeoutEvents, "direct_closed") == nil
+        and timeoutHost.players[2] == nil and timeoutHost:hudInfo().pendingJoinCount == 0
+        and not timeoutHost.terminal and timeoutHost.transport ~= nil and timeoutHost.ready)
+    timeoutClient:stop("Approval timeout complete")
+    timeoutHost:stop("Approval timeout complete")
+
+    local multiNetwork = captureHostNetwork()
+    local multiHost = Session.new({ transportFactory = multiNetwork.factory, clock = clock })
+    local multiSnapshots = 0
+    local multiContext = {
+        localPlayer = motionPlayer(400, 500),
+        resolveGuestSpawn = function(hostX, hostY, guestIndex)
+            return hostX + guestIndex * 10, hostY
+        end,
+        getShopSnapshot = function()
+            multiSnapshots = multiSnapshots + 1
+            return {
+                state = { money = 888, inventory = {}, jobs = {} },
+                player = { x = 400, y = 500, character = "rabbit-worker" },
+            }
+        end,
+        moveRemote = function() end,
+    }
+    multiHost:startHost({
+        name = "Multi Direct Host",
+        character = "rabbit-worker",
+        networkKind = "direct",
+    })
+    multiHost.sessionId = "multi-direct-session"
+    multiHost:drainEvents()
+
+    local function queueConnect(peer)
+        multiNetwork:queue({ type = "connect", peer = peer })
+    end
+
+    local function queueHello(peer, workerNumber)
+        local packet = assert(Protocol.encode("hello", {
+            clientNonce = "multi-direct-nonce-" .. tostring(workerNumber),
+            name = "Direct Worker " .. tostring(workerNumber),
+            character = "rabbit-worker",
+        }))
+        local channel = Protocol.route("hello")
+        multiNetwork:queue({
+            type = "receive",
+            peer = peer,
+            data = packet,
+            channel = channel,
+        })
+    end
+
+    for index = 1, 3 do queueConnect(multiNetwork.peers[index]) end
+    multiHost:update(0, multiContext)
+    local generations = {}
+    local generationCount = 0
+    for index = 1, 3 do
+        local pending = multiHost.pendingPeers[multiNetwork.peers[index]]
+        if pending and not generations[pending.generation] then
+            generations[pending.generation] = true
+            generationCount = generationCount + 1
+        end
+    end
+    check("multiplayer_session_direct_links_receive_distinct_single_use_generations",
+        generationCount == 3 and multiHost.nextConnectionGeneration == 3
+        and multiHost:hudInfo().playerCount == 1
+        and not multiHost.terminal and multiHost.transport ~= nil)
+
+    for index = 1, 3 do queueHello(multiNetwork.peers[index], index + 1) end
+    multiHost:update(0, multiContext)
+    local requestEvents = multiHost:drainEvents()
+    local requestsByName, requestCount = {}, 0
+    for _, event in ipairs(requestEvents) do
+        if event.type == "join_requested" then
+            requestsByName[event.name] = event
+            requestCount = requestCount + 1
+        end
+    end
+    local pendingHud = multiHost:hudInfo()
+    check("multiplayer_session_direct_three_guests_wait_for_individual_approval_without_snapshot",
+        requestCount == 3 and pendingHud.pendingJoinCount == 3
+        and pendingHud.playerCount == 1 and multiSnapshots == 0
+        and #multiNetwork:messages("host_to_client", "welcome") == 0
+        and #multiNetwork:messages("host_to_client", "shop_snapshot") == 0)
+
+    queueHello(multiNetwork.peers[2], 3)
+    multiHost:update(0, multiContext)
+    local replayEvents = multiHost:drainEvents()
+    check("multiplayer_session_direct_generation_emits_only_one_approval_request",
+        eventNamed(replayEvents, "join_requested") == nil
+        and multiHost:hudInfo().pendingJoinCount == 3
+        and multiHost.nextConnectionGeneration == 3 and multiSnapshots == 0)
+
+    local deniedRequest = requestsByName["Direct Worker 2"]
+    local denied = deniedRequest and multiHost:rejectJoin(deniedRequest.requestId)
+    local deniedEvents = multiHost:drainEvents()
+    check("multiplayer_session_direct_multi_guest_denial_is_link_scoped",
+        denied and eventNamed(deniedEvents, "join_rejected")
+        and eventNamed(deniedEvents, "direct_closed") == nil
+        and multiHost.pendingPeers[multiNetwork.peers[1]] == nil
+        and multiHost.pendingPeers[multiNetwork.peers[2]] ~= nil
+        and multiHost.pendingPeers[multiNetwork.peers[3]] ~= nil
+        and multiHost:hudInfo().pendingJoinCount == 2
+        and multiHost:hudInfo().playerCount == 1
+        and not multiHost.terminal and multiHost.transport ~= nil)
+
+    local approvedSecond = multiHost:approveJoin(
+        requestsByName["Direct Worker 3"].requestId)
+    local approvedThird = multiHost:approveJoin(
+        requestsByName["Direct Worker 4"].requestId)
+    multiHost:update(0, multiContext)
+    local firstJoinEvents = multiHost:drainEvents()
+    local firstJoinCount = 0
+    for _, event in ipairs(firstJoinEvents) do
+        if event.type == "player_joined" then firstJoinCount = firstJoinCount + 1 end
+    end
+    check("multiplayer_session_direct_two_approved_guests_join_same_host",
+        approvedSecond and approvedThird and firstJoinCount == 2
+        and multiHost:hudInfo().playerCount == 3 and multiSnapshots == 2
+        and multiHost.peerToId[multiNetwork.peers[2]] ~= nil
+        and multiHost.peerToId[multiNetwork.peers[3]] ~= nil
+        and #multiNetwork:messages("host_to_client", "welcome") == 2
+        and #multiNetwork:messages("host_to_client", "shop_snapshot") == 2
+        and not multiHost.terminal and multiHost.transport ~= nil)
+
+    queueConnect(multiNetwork.peers[4])
+    multiHost:update(0, multiContext)
+    local fourthPending = multiHost.pendingPeers[multiNetwork.peers[4]]
+    queueHello(multiNetwork.peers[4], 5)
+    multiHost:update(0, multiContext)
+    local fourthRequest = eventNamed(multiHost:drainEvents(), "join_requested")
+    local fourthPreApprovalSnapshots = multiSnapshots
+    local fourthApproved = fourthRequest and multiHost:approveJoin(fourthRequest.requestId)
+    multiHost:update(0, multiContext)
+    local fourthJoined = eventNamed(multiHost:drainEvents(), "player_joined")
+    check("multiplayer_session_direct_fourth_player_joins_with_fresh_connection_generation",
+        fourthPending and fourthPending.generation == 4
+        and fourthPreApprovalSnapshots == 2
+        and fourthApproved and fourthJoined and fourthJoined.playerId ~= 1
+        and multiHost:hudInfo().playerCount == Protocol.MAX_PLAYERS
+        and multiSnapshots == 3 and not multiHost.terminal and multiHost.transport ~= nil)
+
+    queueConnect(multiNetwork.peers[5])
+    multiHost:update(0, multiContext)
+    queueHello(multiNetwork.peers[5], 6)
+    multiHost:update(0, multiContext)
+    local fullEvents = multiHost:drainEvents()
+    check("multiplayer_session_direct_fifth_player_is_denied_without_closing_full_host",
+        eventNamed(fullEvents, "join_rejected")
+        and eventNamed(fullEvents, "join_requested") == nil
+        and multiHost.pendingPeers[multiNetwork.peers[5]] == nil
+        and multiHost.peerToId[multiNetwork.peers[5]] == nil
+        and multiHost:hudInfo().playerCount == Protocol.MAX_PLAYERS
+        and multiSnapshots == 3 and not multiHost.terminal and multiHost.transport ~= nil)
+
+    local leaveCountBeforeKick = #multiNetwork:messages("host_to_client", "leave")
+    local kickedId = multiHost.peerToId[multiNetwork.peers[2]]
+    local kickedMulti = kickedId and multiHost:kickPlayer(kickedId)
+    local kickedMultiEvents = multiHost:drainEvents()
+    local leaveRecipients = {}
+    local leaveMessages = multiNetwork:messages("host_to_client", "leave")
+    for index = leaveCountBeforeKick + 1, #leaveMessages do
+        leaveRecipients[leaveMessages[index].peer] = true
+    end
+    check("multiplayer_session_direct_multi_guest_kick_preserves_other_links",
+        kickedMulti and eventNamed(kickedMultiEvents, "player_kicked")
+        and eventNamed(kickedMultiEvents, "direct_closed") == nil
+        and multiHost.peerToId[multiNetwork.peers[2]] == nil
+        and multiHost.peerToId[multiNetwork.peers[3]] ~= nil
+        and multiHost.peerToId[multiNetwork.peers[4]] ~= nil
+        and #leaveMessages - leaveCountBeforeKick == 2
+        and not leaveRecipients[multiNetwork.peers[2]]
+        and leaveRecipients[multiNetwork.peers[3]]
+        and leaveRecipients[multiNetwork.peers[4]]
+        and multiHost:hudInfo().playerCount == 3
+        and not multiHost.terminal and multiHost.transport ~= nil)
+
+    multiNetwork:queue({ type = "disconnect", peer = multiNetwork.peers[3] })
+    multiHost:update(0, multiContext)
+    local disconnectedEvents = multiHost:drainEvents()
+    check("multiplayer_session_direct_multi_guest_disconnect_preserves_other_links",
+        eventNamed(disconnectedEvents, "player_left")
+        and eventNamed(disconnectedEvents, "direct_closed") == nil
+        and multiHost.peerToId[multiNetwork.peers[3]] == nil
+        and multiHost.peerToId[multiNetwork.peers[4]] ~= nil
+        and multiHost:hudInfo().playerCount == 2
+        and not multiHost.terminal and multiHost.transport ~= nil)
+
+    queueConnect(multiNetwork.peers[6])
+    multiHost:update(0, multiContext)
+    queueHello(multiNetwork.peers[6], 7)
+    multiHost:update(0, multiContext)
+    local lastRequest = eventNamed(multiHost:drainEvents(), "join_requested")
+    local survivingPlayerId = multiHost.peerToId[multiNetwork.peers[4]]
+    options.advanceClock(60.01)
+    multiHost:update(0, multiContext)
+    local multiTimeoutEvents = multiHost:drainEvents()
+    check("multiplayer_session_direct_multi_guest_timeout_preserves_joined_player",
+        lastRequest and eventNamed(multiTimeoutEvents, "join_expired")
+        and eventNamed(multiTimeoutEvents, "direct_closed") == nil
+        and multiHost.pendingPeers[multiNetwork.peers[6]] == nil
+        and multiHost.peerToId[multiNetwork.peers[4]] == survivingPlayerId
+        and multiHost.players[survivingPlayerId] ~= nil
+        and multiHost:hudInfo().playerCount == 2
+        and not multiHost.terminal and multiHost.transport ~= nil)
+    multiHost:stop("Multi-guest Direct controls complete")
+end
+
 function Test.run(_, check)
+    runStaleWorkshopGrantRevisionRegression(check)
     local now = 100
     local clock = function() return now end
     local network = fakeNetwork()
@@ -1095,6 +1758,7 @@ function Test.run(_, check)
                 skid_wrapper = "lease-wrapper-test",
                 pallet_jack = "lease-jack-test",
                 cutter = "lease-cutter-test",
+                windmill = "lease-windmill-test",
             }
             workshopLease = leases[workshopResource] or "lease-workshop-test"
             local data = {}
@@ -1106,6 +1770,8 @@ function Test.run(_, check)
                 }
             elseif workshopResource == "cutter" then
                 data = authoritativeCutter or cutterState()
+            elseif workshopResource == "windmill" then
+                data = hostContext.windmillTestView or windmillState()
             end
             return {
                 accepted = true, code = "acquired", message = "Workshop console connected.",
@@ -1117,8 +1783,37 @@ function Test.run(_, check)
                     revision = workshopRevision }
             end
             workshopRevision, workshopMutation = workshopRevision + 1, workshopMutation + 1
+            if workshopResource == "windmill" then
+                local windmill = hostContext.windmillTestView or windmillState()
+                hostContext.windmillTestView = windmill
+                windmill.runtimeRevision = windmill.runtimeRevision + 1
+                if payload.action == "load_pallet" then
+                    windmill.jobId = "JOB-PRESS"
+                    windmill.palletId = payload.palletId
+                    windmill.colorIndex = 1
+                    windmill.colorCount = 4
+                    windmill.candidates = {}
+                elseif payload.action == "begin_setup" then
+                    windmill.status = "setup"
+                    windmill.setupTask = payload.setupTask
+                elseif payload.action == "setup_action" then
+                    windmill.setupPermille[1] = 250
+                elseif payload.action == "toggle_motor" then
+                    windmill.motor = not windmill.motor
+                elseif payload.action == "speed_up" then
+                    windmill.speed = windmill.speed + 100
+                elseif payload.action == "emergency_stop" then
+                    windmill.status = "stopped"
+                    windmill.motor = false
+                    windmill.feeder = false
+                    windmill.impression = false
+                    windmill.emergency = true
+                end
+            end
             local data = workshopResource == "cutter"
-                and (authoritativeCutter or cutterState()) or {}
+                and (authoritativeCutter or cutterState())
+                or workshopResource == "windmill"
+                    and (hostContext.windmillTestView or windmillState()) or {}
             return {
                 accepted = true, code = "pickup_requested", message = "Pickup requested.",
                 revision = workshopRevision, data = data,
@@ -1148,6 +1843,10 @@ function Test.run(_, check)
                 { resourceId = "cutter", revision = workshopRevision,
                     occupied = workshopLease ~= nil and workshopResource == "cutter",
                     ownerPlayerId = workshopLease and workshopResource == "cutter"
+                        and 2 or nil },
+                { resourceId = "windmill", revision = workshopRevision,
+                    occupied = workshopLease ~= nil and workshopResource == "windmill",
+                    ownerPlayerId = workshopLease and workshopResource == "windmill"
                         and 2 or nil },
             },
             wrapper = {
@@ -1333,6 +2032,7 @@ function Test.run(_, check)
         hostContext = hostContext,
         clientContext = clientContext,
         view = authoritativeCutter,
+        workshopCalls = workshopCalls,
         revision = function() return workshopRevision end,
         check = check,
     })
@@ -1405,10 +2105,27 @@ function Test.run(_, check)
         cutterReleased and client:workshopInfo() == nil
         and workshopLease == nil and workshopResource == nil)
 
+    hostContext.windmillMutationBeforeTimeout = runWindmillSessionRegression({
+        client = client,
+        host = host,
+        network = network,
+        hostContext = hostContext,
+        clientContext = clientContext,
+        workshopCalls = workshopCalls,
+        check = check,
+        setView = function(value) hostContext.windmillTestView = value end,
+        revision = function() return workshopRevision end,
+        mutation = function() return workshopMutation end,
+        lease = function() return workshopLease end,
+        resource = function() return workshopResource end,
+        advanceClock = function(seconds) now = now + seconds end,
+    })
+
     client:stop("Guest signed off")
     host:update(0, hostContext)
     local leavePackets = network:messages("client_to_host", "leave")
     local hostLeaveBroadcasts = network:messages("host_broadcast", "leave")
+    local hostLeaveDirect = network:messages("host_to_client", "leave")
     local finalHostEvents = host:drainEvents()
     local left = eventNamed(finalHostEvents, "player_left")
     local leftCount = 0
@@ -1416,19 +2133,30 @@ function Test.run(_, check)
         if event.type == "player_left" then leftCount = leftCount + 1 end
     end
     check("multiplayer_session_disconnect_leave_cleans_guest_once",
-        #leavePackets == 1 and #hostLeaveBroadcasts == 1
+        #leavePackets == 1 and #hostLeaveBroadcasts == 0 and #hostLeaveDirect == 0
         and left and left.playerId == 2 and left.name == "Phone Guest"
         and leftCount == 1 and host.players[2] == nil
         and host.peerToId[network.peer] == nil and host.idToPeer[2] == nil
-        and host:hudInfo().playerCount == 1 and not client:isActive())
+        and host:hudInfo().playerCount == 1 and not client:isActive()
+        and workshopMutation == hostContext.windmillMutationBeforeTimeout)
 
     host:stop("Test complete")
+    runDirectAdmissionControls({
+        clock = clock,
+        check = check,
+        advanceClock = function(seconds) now = now + seconds end,
+    })
 
     local expiryNetwork = fakeNetwork()
     local expiryHost = Session.new({ transportFactory = expiryNetwork.factory, clock = clock })
     expiryHost:startHost({ name = "Expiry Host", character = "rabbit-worker",
         addressOptions = addressOptions })
-    expiryHost.pendingPeers[expiryNetwork.peer] = now - 11
+    expiryHost.pendingPeers[expiryNetwork.peer] = {
+        peer = expiryNetwork.peer,
+        connectedAt = now - 11,
+        generation = 1,
+        stage = "hello",
+    }
     expiryHost:update(0, { localPlayer = motionPlayer(400, 500) })
     check("multiplayer_session_silent_prehello_peer_expires",
         expiryHost.pendingPeers[expiryNetwork.peer] == nil

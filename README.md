@@ -25,7 +25,8 @@ Windows/Android workers can join the host's displayed IPv4 address over normal W
 phone hotspot. The host alone owns and saves the shop; guests receive the live shop and can move,
 operate the dock door, talk to clients, use the office computer and skid wrapper, inspect pallet work
 orders read-only, run the Polar cutter's production and safety controls, and share the host-authoritative
-pallet jack. Protocol v8 keeps a full four-device
+pallet jack. They can also operate the complete Windmill console: plate preparation, six host-scored setup
+checks, proof approval, production, cleanup, maintenance, and technician booking. Protocol v9 keeps a full four-device
 session within the 1,200-byte realtime packet ceiling: a reliable welcome contains the host and the
 newly assigned worker, then fixed 12 Hz motion arrives as MTU-safe one-player shards that each client
 merges by player ID. The same authoritative tick carries the live and terminal poses of a host-relocated
@@ -34,7 +35,9 @@ Guests can observe relocation but cannot initiate or place a machine. The durabl
 committed floor pose until the host completes a valid placement. The cutter uses its own 12 Hz bounded
 runtime stream, an exclusive host lease, host-validated setup/cut commands, either-button multiplayer cutting,
 an urgent E-STOP/barrier lane,
-and safe disconnect/revision recovery. See `docs/lan_multiplayer_slice.md` for the supported protocol-v8
+and safe disconnect/revision recovery. The Windmill has the same exclusive lease and its own 12 Hz bounded
+runtime stream; plate timing and setup scores are calculated only by the host, and urgent E-STOP is serviced
+before another sheet advances. See `docs/lan_multiplayer_slice.md` for the supported protocol-v9
 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
 
 The protocol-v7 / Android `.11` targeted four-device pass completed on August 28, 2026: an SM-S938U
@@ -47,6 +50,100 @@ host, an SM-J410G worker, and a Windows worker reached `3/4 WORKERS` and passed 
 workflow, host and guest one-button cuts, two-worker contention, urgent E-STOP, disconnect/reacquire,
 and clean rejoin. It also fixed and physically verified the carried-pallet/background-overlay crash found
 in `.12`. A fourth device, the 15-minute soak, hotspot coverage, and the final offline reload remain open.
+
+Protocol v9 / Android `.14` is the current development target for multiplayer Windmill controls. Automated
+coverage is complete, but no physical-device acceptance is claimed for `.14` until the Windmill checklist is
+run on the Android-host/worker matrix.
+
+## Direct Internet multiplayer (engineering)
+
+Accountless, no-fee Direct Play for players on separate networks is under active development but is not
+yet selectable in a production build. It is designed without an operated matchmaking or relay service,
+so it cannot be universal: one player's router or IPv6 connection must be reachable, and restrictive
+CGNAT or double NAT cannot always be crossed without a relay. The encrypted transport and reproducible
+Windows/Android native candidates are present and intentionally fail closed. Physical ARM32 and ARM64
+Android devices pass the native/Lua conformance checks, a same-LAN encrypted ENet/Direct exchange, and
+an encrypted bridge exchange across separate Wi-Fi and cellular routes on all three game channels. An
+isolated full-game acceptance now also passes the actual two-code player flow across those routes.
+
+Bounded PCP/NAT-PMP codecs, a serialized finite-lease coordinator, and strict pure UPnP IGD handling are
+covered by engineering tests, but they are non-production layers with no live router adapter yet. The
+current residential gateway did not answer PCP, NAT-PMP, or SSDP discovery. A guarded cellular-to-Wi-Fi
+IPv4 run then classified the gateway-reported WAN address as carrier-grade NAT and stopped before any
+package, listener, or router rule was created. Manual IPv4 forwarding cannot cross that upstream NAT.
+Both physical phones have global IPv6 addresses and IPv6 default routes. A temporary LuaSocket UDP6
+probe proved that both app runtimes can bind/use IPv6 while the host stays on Wi-Fi and the client stays
+on cellular, although the first one-way-listener attempt timed out. The live BGW530 Firewall menu then
+confirmed that its dormant IPv6 `PinHole` chain is not exposed; Packet Filter is not a safe substitute.
+A second guarded probe bound the same UDP6 port on both phones and sent one-time-token checks in both
+directions from the final sockets. That simultaneous opening passed across Wi-Fi and cellular without a
+router change: both phones received the authenticated hello and acknowledgement, the separate routes
+were reverified, both diagnostic packages were removed, the sensitive build tree was deleted, and no
+public IPv6 address or token was retained. This proves a free two-code IPv6 path on the tested networks.
+A strict IPv6 parser/classifier and fixed binary `TPS2H` host-code / `TPS2R` reply-code codec are now
+joined by ABI-v3 native response authentication, a replay-safe simultaneous-opening controller, and an
+authenticated fragmenting IPv6-to-loopback bridge for the existing ENet transport. The reproducible
+provider has exactly 24 exports. Its no-network response/opening/bridge conformance probe passes on both
+physical ARM32 and ARM64 phones with verified package removal. The guarded physical bridge probe has now
+also passed: authenticated opening transferred the final sockets into encrypted ENet, game traffic moved
+in both directions while exercising channels 0, 1, and 2, and both phones observed authenticated bridge
+fragmentation. The routes
+were reverified, the diagnostic packages and sensitive tree were removed, and the retained report holds
+no public address or one-time credential. The subsequent full-game run opened the host save, applied the
+protocol-v9 snapshot, reached Direct 2/4, moved the remote player, executed loading-bay and cutter actions,
+cleaned up a departing guest, rejected a stale invitation, and reconnected with a fresh invitation. Its
+redacted report likewise retains no address, code, or key.
+
+The PC version is now included in this engineering gate. A Windows PC hosting over Wi-Fi and an Android
+guest on cellular passed two fresh full-game Direct sessions on August 31, 2026. Both used the real host
+approval panel and completed authenticated opening, snapshot/HUD synchronization, movement, loading-bay
+control, and cutter safety control. One ended through the PC host's confirmed removal control and the
+phone observed the kick; the other ended through a graceful phone departure. Secret scanning and cleanup
+passed, and the redacted report retains no endpoint, device serial, invitation, key, packet, raw log, or
+internal run identifier. The complete packaged smoke suite passes 1,557 checks with zero failures.
+
+A guarded repeat of both PC-host/Android-cellular sessions also passed the packet-privacy gate. Capture
+was limited to full IPv6 UDP packet bytes on the selected NIC and Direct port, showed authenticated bridge
+traffic in both directions, and contained none of the registered invitation, player-name, or gameplay
+plaintext canaries. The private capture, sole owned filter, endpoint, and temporary artifacts were removed;
+only the redacted acceptance report remains at
+`output/native-crypto/device-tests/pc_android_direct_packet_capture_report.json`.
+
+The guarded Windows-PC-host plus two-Android runner is implemented and audited for one Wi-Fi guest and
+one cellular guest, including the exact Windows engineering allowance for UDP ports `57842` and `57844`.
+Its physical three-device run
+is still pending because the required UAC firewall staging did not complete. This does not invalidate the
+existing PC-plus-one-Android gameplay and packet-privacy passes, and it does not change
+`productionReady = false`.
+
+The guarded player flow is now implemented behind the production gate. `Host Direct Game` loads and
+preflights the selected host save, binds the IPv6 socket before creating an expiring `TPS2H` code, and
+accepts only its matching authenticated `TPS2R` reply. `Join Direct Game` returns that reply and keeps the
+same socket alive until it transfers into encrypted protocol-v9 transport. The screen supports deliberate
+copy/paste, clears a code it placed on the clipboard after use or cancellation, never includes a code in
+status/error text, and requires each player to enter the global IPv6 address shown by their own device.
+After encrypted authentication, the joining worker remains quarantined until the host approves the
+in-game request; no player slot or shop snapshot is disclosed first. Hosts can also decline or remove a
+worker from the keyboard/mouse/touch panel. Decline, removal, timeout, and disconnect close that
+one-connection invitation, so reconnecting requires fresh codes. Valid authentication attempts are
+rate-limited before native handshake allocation, while wrong invitation prefilters allocate no crypto state.
+One Direct host supports up to three guests, for four players total. Each guest is admitted with a
+sequential fresh invitation; an invitation is not shared across multiple joins.
+Local Play still uses its original transport. The normal title screen does not expose Direct Play while
+the bundled native provider remains `productionReady = false`.
+
+The guarded IPv4 flow remains available for a different host network with a public address. It uses a
+random port and matching temporary rule name,
+a hidden WAN-address prompt, an endpoint/key-bearing build tree outside the OneDrive project that is
+removed after installation, process-scoped Android logs, and a 12-minute watchdog. It verifies before
+and after the exchange that the host remains on Wi-Fi and the client remains on cellular with Wi-Fi
+off. Completion must prove both probe packages are absent and the host socket is released, and the user
+must confirm removal of the temporary router rule. The guarded encrypted IPv6 bridge runner is
+`tools/run_android_ipv6_bridge_probe.ps1`; its live separate-network transport gate has passed. The
+production gate remains closed pending the broader network and Android runtime matrix, packet-capture
+coverage across the remaining network/runtime matrix, hardening, and external security review. See
+`docs/direct_internet_multiplayer.md` for the current evidence, cleanup requirements, and honest
+limitations.
 
 ## Release gate
 

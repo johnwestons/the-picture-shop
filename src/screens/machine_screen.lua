@@ -951,6 +951,8 @@ function Screen.mousepressed(state, x, y, button)
                         MachineFleet.condition(itemOrError))
                     return { action = "maintenance_completed" }
                 end
+                MachineMaintenance.rollbackLastTask(Screen.wrapperSession, result.task.id)
+                Screen.wrapperSession.taskState[result.task.id] = nil
                 state.message = tostring(itemOrError)
             elseif result.completedTask then
                 local nextTask = MachineMaintenance.activeTask(Screen.wrapperSession)

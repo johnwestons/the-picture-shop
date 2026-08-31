@@ -371,6 +371,8 @@ function Test.run(context, check)
     check("cutter_relocation_moves", context.world.cutterSnapshot(context.state).x < cutterBeforeMove.x
         and context.world.cutterSnapshot(context.state).inMotion
         and context.world.player.moving)
+    check("cutter_floor_sprites_are_twenty_percent_smaller",
+        math.abs(context.config.cutterPlacement.drawScale - 0.272) < 0.0001)
     context.input.keypressed("q", context.inputContext)
     check("cutter_rotates_north", context.world.cutterSnapshot(context.state).frame == 2)
     context.input.keypressed("q", context.inputContext)
@@ -416,9 +418,29 @@ function Test.run(context, check)
     context.state.windmill.moving, context.state.windmill.inMotion = false, false
     context.windmill.ensure(context.state).status = "idle"
     context.windmill.ensure(context.state).palletId = nil
+    local windmillAccess = context.world.validateNetworkWorkshopAccess({
+        id = 2, x = context.state.windmill.x, y = context.state.windmill.y,
+    }, context.state, "windmill")
+    check("windmill_interaction_maps_to_a_host_validated_workshop_resource",
+        context.world.workshopResourceId("windmill") == "windmill" and windmillAccess)
     context.state.palletJack.operating = true
     context.state.palletJack.carriedPalletId = nil
     context.state.palletJack.x, context.state.palletJack.y = context.state.windmill.x, context.state.windmill.y
+    local occupiedWindmillMove = context.world.beginWindmillMove(context.state, true)
+    local occupiedWindmillRotate = context.world.rotateWindmill(context.state, true)
+    check("windmill_relocation_and_rotation_wait_for_the_active_console_lease",
+        not occupiedWindmillMove and not occupiedWindmillRotate
+        and not context.world.windmillSnapshot(context.state).moving
+        and context.world.windmillSnapshot(context.state).direction == "northwest")
+    local windmillProcess = context.windmill.ensure(context.state)
+    windmillProcess.status, windmillProcess.palletId = "setup", "LOADED-PRESS-PALLET"
+    local loadedWindmillMove = context.world.beginWindmillMove(context.state)
+    local loadedWindmillRotate = context.world.rotateWindmill(context.state)
+    check("loaded_windmill_cannot_relocate_or_rotate_after_the_console_closes",
+        not loadedWindmillMove and not loadedWindmillRotate
+        and not context.world.windmillSnapshot(context.state).moving
+        and context.world.windmillSnapshot(context.state).direction == "northwest")
+    windmillProcess.status, windmillProcess.palletId = "idle", nil
     check("windmill_relocation_begins_with_empty_jack", context.world.beginWindmillMove(context.state))
     local windmillBeforeMove = context.world.windmillSnapshot(context.state)
     context.world.update(0.1, 0, -1, context.assets, context.state)

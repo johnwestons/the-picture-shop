@@ -81,6 +81,7 @@ function Input.closeScreen(context)
     end
     if context.releaseWorkshopInteraction
         and (state.screen == "job_offer" or state.screen == "computer"
+            or state.screen == "press"
             or (state.screen == "machine"
                 and (state.machineType == "skid_wrapper" or state.machineType == "cutter")))
     then
@@ -126,7 +127,8 @@ function Input.keypressed(key, context)
         if key == "m" and ((selected and selected.kind == "windmill")
             or (context.world.windmillNearby and context.world.windmillNearby(state)))
         then
-            if context.world.beginWindmillMove(state) then context.saveCurrent() end
+            local occupied = context.windmillControlOccupied and context.windmillControlOccupied()
+            if context.world.beginWindmillMove(state, occupied) then context.saveCurrent() end
             return
         end
         if key == "q" and ((state.cutter and state.cutter.moving)
@@ -149,7 +151,8 @@ function Input.keypressed(key, context)
         if key == "q" and ((state.windmill and state.windmill.moving)
             or (selected and selected.kind == "windmill"))
         then
-            if context.world.rotateWindmill(state) then context.saveCurrent() end
+            local occupied = context.windmillControlOccupied and context.windmillControlOccupied()
+            if context.world.rotateWindmill(state, occupied) then context.saveCurrent() end
             return
         end
         if key == "f" then

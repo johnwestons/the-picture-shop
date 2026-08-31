@@ -1,11 +1,42 @@
 param(
     [Parameter(Mandatory=$true)][string]$PackagePath,
     [switch]$Install,
-    [string]$DeviceSerial
+    [string]$DeviceSerial,
+    [switch]$EngineeringNativeCryptoProbe,
+    [switch]$EngineeringDirectTransportProbe,
+    [ValidateSet('host','client')][string]$DirectTransportProbeRole,
+    [switch]$EngineeringIpv6UdpProbe,
+    [ValidateSet('host','client')][string]$Ipv6UdpProbeRole,
+    [string]$SensitiveBuildRoot
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+function Resolve-GitExecutable {
+    $command = Get-Command git.exe -CommandType Application `
+        -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($command -and (Test-Path -LiteralPath $command.Source -PathType Leaf)) {
+        return [System.IO.Path]::GetFullPath($command.Source)
+    }
+
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    if ($PSHOME) {
+        $candidates.Add((Join-Path $PSHOME '..\git\cmd\git.exe'))
+    }
+    if ($env:ProgramFiles) {
+        $candidates.Add((Join-Path $env:ProgramFiles 'Git\cmd\git.exe'))
+    }
+    if ($env:LOCALAPPDATA) {
+        $candidates.Add((Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe'))
+    }
+    foreach ($candidate in $candidates) {
+        $full = [System.IO.Path]::GetFullPath($candidate)
+        if (Test-Path -LiteralPath $full -PathType Leaf) { return $full }
+    }
+    throw 'Git could not be located for the isolated Android wrapper build.'
+}
+
 if ($DeviceSerial) {
     $DeviceSerial = $DeviceSerial.Trim()
     if (-not $Install) { throw '-DeviceSerial requires -Install.' }
@@ -13,17 +44,165 @@ if ($DeviceSerial) {
         throw 'Android device serial contains invalid characters.'
     }
 }
+$engineeringProbeCount = @(
+    $EngineeringNativeCryptoProbe,
+    $EngineeringDirectTransportProbe,
+    $EngineeringIpv6UdpProbe
+).Where({ $_ }).Count
+if ($engineeringProbeCount -gt 1) {
+    throw 'Select only one engineering probe type.'
+}
+if ($engineeringProbeCount -gt 0 -and $Install) {
+    throw 'Engineering probe builders never install to devices.'
+}
+if ($EngineeringDirectTransportProbe -and -not $DirectTransportProbeRole) {
+    throw '-EngineeringDirectTransportProbe requires -DirectTransportProbeRole.'
+}
+if ($DirectTransportProbeRole -and -not $EngineeringDirectTransportProbe) {
+    throw '-DirectTransportProbeRole requires -EngineeringDirectTransportProbe.'
+}
+if ($EngineeringIpv6UdpProbe -and -not $Ipv6UdpProbeRole) {
+    throw '-EngineeringIpv6UdpProbe requires -Ipv6UdpProbeRole.'
+}
+if ($Ipv6UdpProbeRole -and -not $EngineeringIpv6UdpProbe) {
+    throw '-Ipv6UdpProbeRole requires -EngineeringIpv6UdpProbe.'
+}
+if ($SensitiveBuildRoot -and
+        -not ($EngineeringDirectTransportProbe -or $EngineeringIpv6UdpProbe)) {
+    throw '-SensitiveBuildRoot is restricted to an engineering Internet probe.'
+}
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $outputRoot = Join-Path $projectRoot 'output\mobile'
 $toolingRoot = Join-Path $outputRoot 'tooling'
 $androidRoot = Join-Path $toolingRoot 'android-sdk'
 $jdkRoot = Join-Path $toolingRoot 'jdk-17'
-$loveAndroidRoot = Join-Path $outputRoot 'love-android'
+$workspaceLoveAndroidRoot = Join-Path $outputRoot 'love-android'
+$artifactOutputRoot = $outputRoot
+$loveAndroidRoot = $workspaceLoveAndroidRoot
+if ($SensitiveBuildRoot) {
+    $sensitiveFullPath = [System.IO.Path]::GetFullPath($SensitiveBuildRoot)
+    $temporaryRoot = [System.IO.Path]::GetFullPath(
+        [System.IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    $projectPrefix = [System.IO.Path]::GetFullPath($projectRoot).TrimEnd('\') + '\'
+    if (-not $sensitiveFullPath.StartsWith($temporaryRoot,
+            [System.StringComparison]::OrdinalIgnoreCase) -or
+            $sensitiveFullPath.StartsWith($projectPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'SensitiveBuildRoot must be a dedicated directory under the local temporary root and outside the project.'
+    }
+    $temporaryRootWithoutSlash = $temporaryRoot.TrimEnd('\')
+    # Validate every existing ancestor before creation so New-Item cannot
+    # traverse a junction planted below the temporary root.
+    $candidate = $sensitiveFullPath
+    while ($candidate -and -not (Test-Path -LiteralPath $candidate)) {
+        $candidate = Split-Path $candidate -Parent
+    }
+    while ($candidate -and ($candidate -ceq $temporaryRootWithoutSlash -or
+            $candidate.StartsWith($temporaryRoot,
+                [System.StringComparison]::OrdinalIgnoreCase))) {
+        $item = Get-Item -LiteralPath $candidate -Force
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'SensitiveBuildRoot and its temporary ancestors must not be reparse points.'
+        }
+        if ($candidate -ceq $temporaryRootWithoutSlash) { break }
+        $candidate = Split-Path $candidate -Parent
+    }
+    New-Item -ItemType Directory -Path $sensitiveFullPath -Force | Out-Null
+    # Revalidate after creation to fail closed on a race during New-Item.
+    $candidate = $sensitiveFullPath
+    while ($candidate -and ($candidate -ceq $temporaryRootWithoutSlash -or
+            $candidate.StartsWith($temporaryRoot,
+                [System.StringComparison]::OrdinalIgnoreCase))) {
+        $item = Get-Item -LiteralPath $candidate -Force
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'SensitiveBuildRoot and its temporary ancestors must not be reparse points.'
+        }
+        if ($candidate -ceq $temporaryRootWithoutSlash) { break }
+        $candidate = Split-Path $candidate -Parent
+    }
+    $artifactOutputRoot = Join-Path $sensitiveFullPath 'artifacts'
+    $loveAndroidRoot = Join-Path $sensitiveFullPath 'love-android'
+}
 $config = Get-Content -Raw (Join-Path $projectRoot 'mobile\config.json') | ConvertFrom-Json
+$manifestPath = Join-Path $projectRoot 'mobile\android\AndroidManifest.xml'
+$apkFileName = "ThePictureShop-$($config.versionName)-debug.apk"
+$reportFileName = 'apk-report.json'
+$artifactKind = 'game-debug'
+$requiresInternetPermission = $true
+$exactPermissions = $null
+if ($EngineeringNativeCryptoProbe) {
+    $config = [pscustomobject]@{
+        applicationId = 'com.thepictureshop.crypto_probe'
+        applicationName = 'The Picture Shop Crypto Probe'
+        versionName = '0.1.0-engineering-probe'
+        versionCode = 1
+        loveVersion = [string]$config.loveVersion
+    }
+    $manifestPath = Join-Path $projectRoot 'mobile\android\NativeCryptoProbeManifest.xml'
+    $apkFileName = 'ThePictureShop-CryptoProbe-engineering.apk'
+    $reportFileName = 'native-crypto-probe-apk-report.json'
+    $artifactKind = 'native-crypto-engineering-probe'
+    $requiresInternetPermission = $false
+    $exactPermissions = @()
+}
+elseif ($EngineeringDirectTransportProbe) {
+    $config = [pscustomobject]@{
+        applicationId = "com.thepictureshop.direct_probe.$DirectTransportProbeRole"
+        applicationName = "The Picture Shop Direct Probe $DirectTransportProbeRole"
+        versionName = '0.1.0-engineering-direct-probe'
+        versionCode = 1
+        loveVersion = [string]$config.loveVersion
+    }
+    $manifestPath = Join-Path $projectRoot 'mobile\android\DirectTransportProbeManifest.xml'
+    $apkFileName = "ThePictureShop-DirectTransportProbe-$DirectTransportProbeRole-engineering.apk"
+    $reportFileName = "direct-transport-probe-$DirectTransportProbeRole-apk-report.json"
+    $artifactKind = "direct-transport-engineering-probe-$DirectTransportProbeRole"
+    $requiresInternetPermission = $true
+    $exactPermissions = @('android.permission.INTERNET')
+}
+elseif ($EngineeringIpv6UdpProbe) {
+    $config = [pscustomobject]@{
+        applicationId = "com.thepictureshop.ipv6_udp_probe.$Ipv6UdpProbeRole"
+        applicationName = "The Picture Shop IPv6 UDP Probe $Ipv6UdpProbeRole"
+        versionName = '0.1.0-engineering-ipv6-udp-probe'
+        versionCode = 1
+        loveVersion = [string]$config.loveVersion
+    }
+    $manifestPath = Join-Path $projectRoot 'mobile\android\Ipv6UdpProbeManifest.xml'
+    $apkFileName = "ThePictureShop-Ipv6UdpProbe-$Ipv6UdpProbeRole-engineering.apk"
+    $reportFileName = "ipv6-udp-probe-$Ipv6UdpProbeRole-apk-report.json"
+    $artifactKind = "ipv6-udp-engineering-probe-$Ipv6UdpProbeRole"
+    $requiresInternetPermission = $true
+    $exactPermissions = @('android.permission.INTERNET')
+}
 $resolvedPackage = (Resolve-Path -LiteralPath $PackagePath).Path
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    throw "Android manifest is missing: $manifestPath"
+}
 $sharedMobile = Join-Path (Split-Path $projectRoot -Parent) 'Mouse Frontier 8.10\output\mobile'
 
-New-Item -ItemType Directory -Force -Path $outputRoot,$toolingRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $outputRoot,$toolingRoot,$artifactOutputRoot | Out-Null
+
+function Get-LowerSha256 {
+    param([Parameter(Mandatory=$true)][string]$Path)
+    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+}
+
+function Get-ZipEntryLowerSha256 {
+    param([Parameter(Mandatory=$true)][System.IO.Compression.ZipArchiveEntry]$Entry)
+    $stream = $Entry.Open()
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = $sha256.ComputeHash($stream)
+        return ([System.BitConverter]::ToString($bytes)).Replace('-','').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+}
+
+$resolvedPackageHash = Get-LowerSha256 -Path $resolvedPackage
 
 function Get-VerifiedDownload {
     param([string]$Uri,[string]$Destination,[string]$Hash)
@@ -75,7 +254,13 @@ $javaExecutable = Get-ChildItem $jdkRoot -Recurse -Filter java.exe | Select-Obje
 if (-not $javaExecutable) { throw 'JDK 17 could not be located' }
 $javaHome = Split-Path (Split-Path $javaExecutable -Parent) -Parent
 $sdkManager = Join-Path $androidRoot 'cmdline-tools\12.0\bin\sdkmanager.bat'
-if (-not (Test-Path -LiteralPath (Join-Path $androidRoot 'platform-tools\adb.exe'))) {
+$requiredAndroidTools = @(
+    (Join-Path $androidRoot 'platform-tools\adb.exe'),
+    (Join-Path $androidRoot 'platforms\android-34\android.jar'),
+    (Join-Path $androidRoot 'build-tools\35.0.0\aapt.exe'),
+    (Join-Path $androidRoot 'ndk\25.2.9519653\source.properties')
+)
+if (@($requiredAndroidTools | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }).Count -gt 0) {
     $previousJavaHome = $env:JAVA_HOME
     try {
         $env:JAVA_HOME = $javaHome
@@ -86,10 +271,98 @@ if (-not (Test-Path -LiteralPath (Join-Path $androidRoot 'platform-tools\adb.exe
     finally { $env:JAVA_HOME = $previousJavaHome }
 }
 
+$nativeCryptoNdkPath = Join-Path $androidRoot 'ndk\25.2.9519653'
+$nativeCryptoBuildScript = Join-Path $PSScriptRoot 'build_native_crypto_android.ps1'
+if (-not (Test-Path -LiteralPath $nativeCryptoBuildScript -PathType Leaf)) {
+    throw "Android native crypto build script is missing: $nativeCryptoBuildScript"
+}
+Write-Output 'Building the non-production Android native crypto candidate...'
+& $nativeCryptoBuildScript -NdkPath $nativeCryptoNdkPath
+if (-not $?) { throw 'Android native crypto candidate build failed.' }
+
+$nativeCryptoReportPath = Join-Path $projectRoot 'output\native-crypto\build\android\native_crypto_android_report.json'
+if (-not (Test-Path -LiteralPath $nativeCryptoReportPath -PathType Leaf)) {
+    throw "Android native crypto report is missing: $nativeCryptoReportPath"
+}
+$nativeCryptoReport = Get-Content -Raw -LiteralPath $nativeCryptoReportPath | ConvertFrom-Json
+$requiredNativeCryptoAbis = @('armeabi-v7a','arm64-v8a','x86_64')
+$reportedNativeCryptoAbis = @($nativeCryptoReport.artifacts.PSObject.Properties.Name | Sort-Object)
+if (Compare-Object ($requiredNativeCryptoAbis | Sort-Object) $reportedNativeCryptoAbis) {
+    throw 'Android native crypto report does not contain exactly the required ABIs.'
+}
+if ($nativeCryptoReport.status -cne 'engineering-candidate-non-production' -or
+        $nativeCryptoReport.productionReady -ne $false -or
+        [int]$nativeCryptoReport.abiVersion -ne 3) {
+    throw 'Android native crypto report must remain a non-production engineering candidate.'
+}
+foreach ($checkName in @('cleanPinnedSourcePreparation','allRequiredAbisBuilt','elf16KiBLoadAlignment','hiddenDependencySymbols','exactAbiExportSurface','bindNow')) {
+    if ($nativeCryptoReport.checks.$checkName -cne 'pass') {
+        throw "Android native crypto prerequisite did not pass: $checkName"
+    }
+}
+
+$nativeCryptoArtifacts = [ordered]@{}
+foreach ($abi in $requiredNativeCryptoAbis) {
+    $artifact = $nativeCryptoReport.artifacts.PSObject.Properties[$abi].Value
+    if ([int]$artifact.exportCount -ne 24) {
+        throw "Android native crypto artifact has an unexpected ABI export count for $abi."
+    }
+    $expectedRelativePath = "output/native-crypto/build/android/$abi/libtps_crypto.so"
+    if (([string]$artifact.path).Replace('\','/') -cne $expectedRelativePath) {
+        throw "Android native crypto report has an unexpected path for $abi."
+    }
+    $sourcePath = Join-Path $projectRoot ($expectedRelativePath.Replace('/','\'))
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Android native crypto artifact is missing for ${abi}: $sourcePath"
+    }
+    $sourceHash = Get-LowerSha256 -Path $sourcePath
+    if ($sourceHash -cne ([string]$artifact.sha256).ToLowerInvariant() -or
+            (Get-Item -LiteralPath $sourcePath).Length -ne [long]$artifact.bytes) {
+        throw "Android native crypto artifact does not match its report for $abi."
+    }
+    $nativeCryptoArtifacts[$abi] = [ordered]@{
+        sourcePath = $sourcePath
+        sha256 = $sourceHash
+        bytes = [long]$artifact.bytes
+    }
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $loveAndroidRoot 'gradlew.bat'))) {
-    Write-Output 'Creating the local LÖVE Android wrapper...'
-    & git clone --recurse-submodules --depth 1 --branch $config.loveVersion https://github.com/love2d/love-android.git $loveAndroidRoot
+    $gitExecutable = Resolve-GitExecutable
+    if ($SensitiveBuildRoot -and
+            (Test-Path -LiteralPath (Join-Path $workspaceLoveAndroidRoot 'gradlew.bat') -PathType Leaf)) {
+        Write-Output 'Creating an isolated local LÖVE Android wrapper...'
+        & $gitExecutable clone --recurse-submodules --local --no-hardlinks `
+            $workspaceLoveAndroidRoot $loveAndroidRoot
+    }
+    else {
+        Write-Output 'Creating the local LÖVE Android wrapper...'
+        & $gitExecutable clone --recurse-submodules --depth 1 --branch $config.loveVersion `
+            https://github.com/love2d/love-android.git $loveAndroidRoot
+    }
     if ($LASTEXITCODE -ne 0) { throw "LÖVE Android checkout failed with exit code $LASTEXITCODE" }
+}
+
+$loveAppSourceRoot = [System.IO.Path]::GetFullPath((Join-Path $loveAndroidRoot 'app\src'))
+$loveAppSourcePrefix = $loveAppSourceRoot.TrimEnd('\') + '\'
+$staleNativeCryptoLibraries = @(Get-ChildItem -LiteralPath $loveAppSourceRoot -Recurse -File -Filter 'libtps_crypto.so' -ErrorAction SilentlyContinue)
+foreach ($staleLibrary in $staleNativeCryptoLibraries) {
+    $stalePath = [System.IO.Path]::GetFullPath($staleLibrary.FullName)
+    if (-not $stalePath.StartsWith($loveAppSourcePrefix,[System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove a native crypto library outside the LÖVE app sources: $stalePath"
+    }
+    Remove-Item -LiteralPath $stalePath -Force
+}
+$nativeCryptoJniRoot = Join-Path $loveAppSourceRoot 'main\jniLibs'
+foreach ($abi in $requiredNativeCryptoAbis) {
+    $abiJniRoot = Join-Path $nativeCryptoJniRoot $abi
+    New-Item -ItemType Directory -Force -Path $abiJniRoot | Out-Null
+    $stagedLibrary = Join-Path $abiJniRoot 'libtps_crypto.so'
+    Copy-Item -LiteralPath $nativeCryptoArtifacts[$abi].sourcePath -Destination $stagedLibrary -Force
+    if ((Get-LowerSha256 -Path $stagedLibrary) -cne $nativeCryptoArtifacts[$abi].sha256) {
+        throw "Staged Android native crypto library does not match its report for $abi."
+    }
+    $nativeCryptoArtifacts[$abi].stagedPath = $stagedLibrary
 }
 
 $gameActivityPath = Join-Path $loveAndroidRoot 'love\src\main\java\org\love2d\android\GameActivity.java'
@@ -158,7 +431,7 @@ if ($applicationMk -ne $originalApplicationMk) {
 $embedAssets = Join-Path $loveAndroidRoot 'app\src\embed\assets'
 New-Item -ItemType Directory -Force -Path $embedAssets | Out-Null
 Copy-Item -LiteralPath $resolvedPackage -Destination (Join-Path $embedAssets 'game.love') -Force
-Copy-Item -LiteralPath (Join-Path $projectRoot 'mobile\android\AndroidManifest.xml') -Destination (Join-Path $loveAndroidRoot 'app\src\embed\AndroidManifest.xml') -Force
+Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $loveAndroidRoot 'app\src\embed\AndroidManifest.xml') -Force
 $androidResources = Join-Path $outputRoot 'android-res'
 if (Test-Path -LiteralPath $androidResources) {
     Copy-Item -Path (Join-Path $androidResources '*') -Destination (Join-Path $loveAndroidRoot 'app\src\main\res') -Recurse -Force
@@ -177,8 +450,25 @@ if ($properties -notmatch '(?m)^org\.gradle\.jvmargs=') { $properties += "`r`nor
 
 $appBuildPath = Join-Path $loveAndroidRoot 'app\build.gradle'
 $appBuild = Get-Content -Raw $appBuildPath
+$appBuildChanged = $false
 if ($appBuild -notmatch "noCompress 'love'") {
     $appBuild = $appBuild -replace 'android \{',"android {`r`n    aaptOptions { noCompress 'love' }"
+    $appBuildChanged = $true
+}
+if ($appBuild -notmatch 'PICTURE_SHOP_PRESERVE_NATIVE_CRYPTO') {
+    $nativeCryptoPackaging = @'
+android {
+    // PICTURE_SHOP_PRESERVE_NATIVE_CRYPTO: final APK bytes must match the audited build report.
+    packagingOptions {
+        jniLibs {
+            keepDebugSymbols += ['**/libtps_crypto.so']
+        }
+    }
+'@
+    $appBuild = $appBuild -replace 'android \{',$nativeCryptoPackaging.TrimEnd()
+    $appBuildChanged = $true
+}
+if ($appBuildChanged) {
     [System.IO.File]::WriteAllText($appBuildPath,$appBuild,[System.Text.UTF8Encoding]::new($false))
 }
 
@@ -186,6 +476,7 @@ $previousJavaHome = $env:JAVA_HOME
 $previousAndroidHome = $env:ANDROID_HOME
 $previousAndroidSdkRoot = $env:ANDROID_SDK_ROOT
 $substDrive = $null
+$sensitiveSubstDrive = $null
 $buildLoveRoot = $loveAndroidRoot
 $buildAndroidRoot = $androidRoot
 $buildJavaHome = $javaHome
@@ -196,8 +487,25 @@ try {
             if ($LASTEXITCODE -eq 0) { $substDrive = $candidate; break }
         }
     }
+    if ($SensitiveBuildRoot) {
+        foreach ($candidate in @('Q:','R:','S:','T:')) {
+            if (-not (Test-Path ($candidate + '\'))) {
+                & subst.exe $candidate $SensitiveBuildRoot
+                if ($LASTEXITCODE -eq 0) {
+                    $sensitiveSubstDrive = $candidate
+                    $buildLoveRoot = $candidate + '\love-android'
+                    break
+                }
+            }
+        }
+        if (-not $sensitiveSubstDrive) {
+            throw 'A short isolated build mount is required for the sensitive Android probe.'
+        }
+    }
     if ($substDrive) {
-        $buildLoveRoot = $substDrive + '\love-android'
+        if (-not $SensitiveBuildRoot) {
+            $buildLoveRoot = $substDrive + '\love-android'
+        }
         $buildAndroidRoot = $substDrive + '\tooling\android-sdk'
         $buildJavaHome = (Get-ChildItem ($substDrive + '\tooling\jdk-17') -Recurse -Filter java.exe | Select-Object -First 1).Directory.Parent.FullName
     }
@@ -205,7 +513,16 @@ try {
     $env:ANDROID_HOME = $buildAndroidRoot
     $env:ANDROID_SDK_ROOT = $buildAndroidRoot
 
-    Write-Output 'Building the Picture Shop Android APK...'
+    $buildLabel = if ($EngineeringNativeCryptoProbe) {
+        'engineering native-crypto probe'
+    } elseif ($EngineeringDirectTransportProbe) {
+        "engineering Direct-transport $DirectTransportProbeRole probe"
+    } elseif ($EngineeringIpv6UdpProbe) {
+        "engineering IPv6 UDP $Ipv6UdpProbeRole probe"
+    } else {
+        'Picture Shop Android APK'
+    }
+    Write-Output "Building the $buildLabel..."
     & (Join-Path $buildLoveRoot 'gradlew.bat') --project-dir $buildLoveRoot --no-daemon :app:clean assembleEmbedNoRecordDebug
     if ($LASTEXITCODE -ne 0) { throw "Android APK build failed with exit code $LASTEXITCODE" }
 }
@@ -213,20 +530,49 @@ finally {
     $env:JAVA_HOME = $previousJavaHome
     $env:ANDROID_HOME = $previousAndroidHome
     $env:ANDROID_SDK_ROOT = $previousAndroidSdkRoot
+    if ($sensitiveSubstDrive) { & subst.exe $sensitiveSubstDrive /D | Out-Null }
     if ($substDrive) { & subst.exe $substDrive /D | Out-Null }
 }
 
 $builtApk = Get-ChildItem (Join-Path $loveAndroidRoot 'app\build\outputs\apk') -Recurse -Filter '*embed-noRecord-debug*.apk' | Select-Object -First 1
 if (-not $builtApk) { $builtApk = Get-ChildItem (Join-Path $loveAndroidRoot 'app\build\outputs\apk') -Recurse -Filter '*.apk' | Select-Object -First 1 }
 if (-not $builtApk) { throw 'Gradle completed without producing an APK' }
-$apkPath = Join-Path $outputRoot ("ThePictureShop-" + $config.versionName + "-debug.apk")
+$apkPath = Join-Path $artifactOutputRoot $apkFileName
 Copy-Item -LiteralPath $builtApk.FullName -Destination $apkPath -Force
 
 $archive = [System.IO.Compression.ZipFile]::OpenRead($apkPath)
+$packagedNativeCrypto = [ordered]@{}
 try {
     $embeddedGame = $archive.GetEntry('assets/game.love')
     if (-not $embeddedGame) { throw 'APK is missing assets/game.love' }
     if ($embeddedGame.Length -ne (Get-Item -LiteralPath $resolvedPackage).Length) { throw 'Embedded game size does not match the package' }
+    if ((Get-ZipEntryLowerSha256 -Entry $embeddedGame) -cne $resolvedPackageHash) {
+        throw 'Embedded game bytes do not match the selected package.'
+    }
+
+    $expectedNativeCryptoEntries = @($requiredNativeCryptoAbis | ForEach-Object { "lib/$_/libtps_crypto.so" } | Sort-Object)
+    $actualNativeCryptoEntries = @($archive.Entries |
+        Where-Object { $_.Name -ceq 'libtps_crypto.so' } |
+        Select-Object -ExpandProperty FullName |
+        Sort-Object)
+    if (Compare-Object $expectedNativeCryptoEntries $actualNativeCryptoEntries) {
+        throw 'APK does not contain exactly one native crypto library for each required ABI.'
+    }
+    foreach ($abi in $requiredNativeCryptoAbis) {
+        $entryName = "lib/$abi/libtps_crypto.so"
+        $entry = $archive.GetEntry($entryName)
+        if (-not $entry) { throw "APK is missing $entryName" }
+        $entryHash = Get-ZipEntryLowerSha256 -Entry $entry
+        if ($entryHash -cne $nativeCryptoArtifacts[$abi].sha256 -or
+                $entry.Length -ne $nativeCryptoArtifacts[$abi].bytes) {
+            throw "Packaged native crypto library does not match its report for $abi."
+        }
+        $packagedNativeCrypto[$abi] = [ordered]@{
+            apkEntry = $entryName
+            sha256 = $entryHash
+            bytes = [long]$entry.Length
+        }
+    }
 }
 finally { $archive.Dispose() }
 
@@ -248,7 +594,25 @@ $internetPermission = [regex]::IsMatch(
     $permissionDump,
     "(?m)^uses-permission(?:-sdk-\d+)?: name='android\.permission\.INTERNET'\s*$"
 )
-if (-not $internetPermission) { throw 'APK is missing required android.permission.INTERNET permission' }
+if ($requiresInternetPermission -and -not $internetPermission) {
+    throw 'APK is missing required android.permission.INTERNET permission'
+}
+if (-not $requiresInternetPermission -and $internetPermission) {
+    throw 'Engineering native-crypto probe APK must not request android.permission.INTERNET'
+}
+if ($null -ne $exactPermissions) {
+    $actualPermissions = @([regex]::Matches(
+        $permissionDump,
+        "(?m)^uses-permission(?:-sdk-\d+)?: name='([^']+)'\s*$"
+    ) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    $generatedReceiverPermission =
+        "$($config.applicationId).DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    $allowedPermissions = @($exactPermissions + $generatedReceiverPermission |
+        Sort-Object -Unique)
+    if (Compare-Object $allowedPermissions $actualPermissions) {
+        throw 'Engineering probe APK permissions do not exactly match its allowlist.'
+    }
+}
 $zipalign = Join-Path $buildToolsRoot 'zipalign.exe'
 & $zipalign -c -P 16 -v 4 $apkPath | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'APK ZIP alignment is not compatible with 16 KB page-size devices' }
@@ -302,6 +666,13 @@ if ($Install) {
 }
 
 $report = [ordered]@{
+    artifactKind = $artifactKind
+    engineeringProbe = [bool]($engineeringProbeCount -gt 0)
+    engineeringProbeRole = if ($EngineeringDirectTransportProbe) {
+        $DirectTransportProbeRole
+    } elseif ($EngineeringIpv6UdpProbe) {
+        $Ipv6UdpProbeRole
+    } else { $null }
     applicationId = $config.applicationId
     versionName = $config.versionName
     versionCode = $config.versionCode
@@ -311,13 +682,28 @@ $report = [ordered]@{
     signed = $true
     internetPermission = $internetPermission
     sixteenKbCompatible = $true
+    embeddedLove = [ordered]@{
+        sha256 = $resolvedPackageHash
+        bytes = (Get-Item -LiteralPath $resolvedPackage).Length
+    }
+    nativeCrypto = [ordered]@{
+        bundled = $true
+        status = [string]$nativeCryptoReport.status
+        productionReady = [bool]$nativeCryptoReport.productionReady
+        buildReport = $nativeCryptoReportPath
+        buildReportSha256 = Get-LowerSha256 -Path $nativeCryptoReportPath
+        packagedArtifacts = $packagedNativeCrypto
+    }
     connectedAndroidDevices = $devices.Count
     installedDeviceSerial = $installedDeviceSerial
     deviceLaunchVerified = $deviceLaunchVerified
 }
-[System.IO.File]::WriteAllText((Join-Path $outputRoot 'apk-report.json'),($report | ConvertTo-Json) + "`n",[System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText((Join-Path $artifactOutputRoot $reportFileName),($report | ConvertTo-Json -Depth 10) + "`n",[System.Text.UTF8Encoding]::new($false))
 Write-Output "ANDROID_APK=$apkPath"
+Write-Output "ANDROID_ARTIFACT_KIND=$artifactKind"
 Write-Output "INTERNET_PERMISSION=$internetPermission"
+Write-Output 'NATIVE_CRYPTO_BUNDLED=True'
+Write-Output "NATIVE_CRYPTO_PRODUCTION_READY=$($nativeCryptoReport.productionReady)"
 Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)"
 if ($installedDeviceSerial) { Write-Output "INSTALLED_DEVICE_SERIAL=$installedDeviceSerial" }
 Write-Output "DEVICE_LAUNCH_VERIFIED=$deviceLaunchVerified"

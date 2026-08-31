@@ -1,4 +1,5 @@
 local Address = require("src.net.address")
+local DirectTransport = require("src.net.transport_direct")
 local Transport = require("src.net.transport_enet")
 
 local Test = {}
@@ -36,7 +37,10 @@ local function fakeEnet()
             self.log[#self.log + 1] = { "broadcast", payload, channel, flag }
         end
         function host:flush() self.log[#self.log + 1] = { "flush" } end
-        function host:destroy() self.log[#self.log + 1] = { "destroy" } end
+        function host:destroy()
+            self.log[#self.log + 1] = { "destroy" }
+            if result.failDestroy then error("synthetic destroy failure") end
+        end
         result.creations[#result.creations + 1] = {
             endpoint = endpoint, peers = peers, channels = channels,
         }
@@ -116,7 +120,19 @@ function Test.run(_, check)
     local peer = native and native.peer
     check("enet_host_caps_guests_and_uses_three_channels",
         transport and hostEnet.creations[1].endpoint == "*:22122"
-        and hostEnet.creations[1].peers == 3 and hostEnet.creations[1].channels == 3)
+        and hostEnet.creations[1].peers == 3 and hostEnet.creations[1].channels == 3
+        and transport.maxGuests == 3 and transport.peerCapacity == 3)
+
+    local directCapacityEnet = fakeEnet()
+    local directCapacity = Transport.createHost({
+        enet = directCapacityEnet,
+        maxGuests = 3,
+        peerCapacity = 12,
+    })
+    check("enet_direct_host_can_reserve_separate_pre_auth_peer_capacity",
+        directCapacity and directCapacityEnet.creations[1].peers == 12
+        and directCapacity.maxGuests == 3 and directCapacity.peerCapacity == 12)
+    if directCapacity then directCapacity:close() end
 
     native.events = {
         { type = "connect", peer = peer, data = 4 },
@@ -131,6 +147,7 @@ function Test.run(_, check)
     check("enet_service_normalizes_events_and_never_blocks",
         events and #events == 3 and allNonblocking
         and events[1].type == "connect" and events[1].connectionId == 77
+        and events[1].code == 4
         and events[2].type == "receive" and events[2].payload == "hello"
         and events[2].channel == 2 and events[3].code == 9)
 
@@ -157,6 +174,20 @@ function Test.run(_, check)
         and callNamed(native.log, "flush") and callNamed(native.log, "destroy")
         and transport.closed and transport.nativeHost == nil)
 
+    local failingEnet = fakeEnet()
+    failingEnet.failDestroy = true
+    local failingTransport = assert(Transport.createHost({ enet = failingEnet }))
+    local firstFailedClose, firstFailedError = failingTransport:close()
+    local secondFailedClose, secondFailedError = failingTransport:close()
+    local destroyCalls = 0
+    for _, call in ipairs(failingEnet.hosts[1].log) do
+        if call[1] == "destroy" then destroyCalls = destroyCalls + 1 end
+    end
+    check("enet_repeated_close_never_upgrades_unverified_native_cleanup",
+        firstFailedClose == false and type(firstFailedError) == "string"
+        and secondFailedClose == false and secondFailedError == firstFailedError
+        and destroyCalls == 1)
+
     local clientEnet = fakeEnet()
     local client = Transport.createClient("game-pc.local", { enet = clientEnet })
     local clientHost = clientEnet.hosts[1]
@@ -165,6 +196,49 @@ function Test.run(_, check)
         client and clientEnet.creations[1].endpoint == nil
         and connect and connect[2] == "game-pc.local:22122" and connect[3] == 3)
     if client then client:close() end
+
+    local directKey = string.rep("d", DirectTransport.KEY_BYTES)
+    local admissionTokenKey
+    local expectedAdmissionToken = 1357911
+    local provider = {
+        productionReady = true,
+        admissionToken = function(key)
+            admissionTokenKey = key
+            return expectedAdmissionToken
+        end,
+        newInitiator = function() return nil end,
+        newResponder = function() return nil end,
+    }
+    local directHostFactory = DirectTransport.newFactory({
+        baseFactory = Transport,
+        cryptoProvider = provider,
+        key = directKey,
+    })
+    local directHostEnet = fakeEnet()
+    local directHost = directHostFactory.createHost({
+        enet = directHostEnet,
+        maxGuests = 3,
+        channels = 3,
+    })
+    local directClientFactory = DirectTransport.newFactory({
+        baseFactory = Transport,
+        cryptoProvider = provider,
+        key = directKey,
+    })
+    local directClientEnet = fakeEnet()
+    local directClient = directClientFactory.createClient("direct.example:22122", {
+        enet = directClientEnet,
+        channels = 3,
+    })
+    local directConnect = directClientEnet.hosts[1]
+        and callNamed(directClientEnet.hosts[1].log, "connect")
+    check("enet_direct_wrapper_reserves_peers_and_carries_invitation_prefilter",
+        directHost and directHostEnet.creations[1].peers
+            == DirectTransport.DEFAULT_PEER_CAPACITY
+        and admissionTokenKey == directKey
+        and directConnect and directConnect[4] == expectedAdmissionToken)
+    if directClient then directClient:close() end
+    if directHost then directHost:close() end
 end
 
 return Test

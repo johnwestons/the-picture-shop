@@ -19,6 +19,7 @@ Authority.RESOURCE_ORDER = {
     "reception_customer",
     "office_computer",
     "cutter",
+    "windmill",
     "skid_wrapper",
     "pallet_jack",
 }
@@ -27,6 +28,7 @@ Authority.RESOURCES = {
     reception_customer = true,
     office_computer = true,
     cutter = true,
+    windmill = true,
     skid_wrapper = true,
     pallet_jack = true,
 }
@@ -57,6 +59,32 @@ Authority.ACTIONS = {
         return_to_pallet = true,
         run_next_lift = true,
     },
+    windmill = {
+        load_pallet = true,
+        toggle_motor = true,
+        toggle_feeder = true,
+        toggle_impression = true,
+        speed_up = true,
+        speed_down = true,
+        emergency_stop = true,
+        reset_safety = true,
+        take_proof = true,
+        verify_artwork = true,
+        approve_proof = true,
+        start_run = true,
+        stop_run = true,
+        clean_unload = true,
+        order_plate = true,
+        begin_plate = true,
+        process_plate = true,
+        begin_setup = true,
+        setup_action = true,
+        cancel_setup = true,
+        begin_service = true,
+        service_lockout = true,
+        service_task = true,
+        book_technician = true,
+    },
     skid_wrapper = {
         select_pallet = true,
         start_cycle = true,
@@ -71,10 +99,12 @@ Authority.ACTIONS = {
 local UINT32_MAX = 4294967295
 
 local function urgentSafetyCommand(request)
-    return type(request) == "table" and request.resourceId == "cutter"
-        and (request.action == "emergency_stop"
-            or (request.action == "set_barrier" and type(request.args) == "table"
-                and request.args.barrierClear == false))
+    if type(request) ~= "table" then return false end
+    if request.action == "emergency_stop" then
+        return request.resourceId == "cutter" or request.resourceId == "windmill"
+    end
+    return request.resourceId == "cutter" and request.action == "set_barrier"
+        and type(request.args) == "table" and request.args.barrierClear == false
 end
 local MAX_PLAYER_ID = 4
 local DEFAULT_LEASE_TIMEOUT = 10

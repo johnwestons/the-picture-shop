@@ -200,6 +200,65 @@ local function loadedCutterView()
     return view
 end
 
+local function windmillView(overrides)
+    local view = {
+        runtimeRevision = 21,
+        status = "idle",
+        speed = 2800,
+        motor = false,
+        feeder = false,
+        impression = false,
+        emergency = false,
+        counter = 0,
+        goodSheets = 0,
+        spoilage = 0,
+        targetSheets = 525,
+        feedStart = 525,
+        feedRemaining = 525,
+        proofApproved = false,
+        artworkVerified = false,
+        setupPermille = Codec.array({ 0, 0, 0, 0, 0, 0 }),
+        candidates = Codec.array({
+            { palletId = "JOB-0001-P01", colorIndex = 1 },
+        }),
+        serviceStep = "idle",
+        servicePermille = 0,
+        plateMarkerPermille = 0,
+    }
+    for key, value in pairs(overrides or {}) do view[key] = value end
+    return view
+end
+
+local function runningWindmillView(overrides)
+    local view = windmillView({
+        runtimeRevision = 22,
+        status = "production",
+        speed = 3600,
+        motor = true,
+        feeder = true,
+        impression = true,
+        counter = 125,
+        goodSheets = 120,
+        spoilage = 5,
+        targetSheets = 525,
+        feedStart = 550,
+        feedRemaining = 425,
+        proofApproved = true,
+        artworkVerified = true,
+        setupPermille = Codec.array({ 1000, 1000, 1000, 1000, 1000, 1000 }),
+        candidates = Codec.array({}),
+        jobId = "JOB-0001",
+        palletId = "JOB-0001-P01",
+        colorIndex = 1,
+        colorCount = 4,
+        proofPermille = 940,
+        warning = "Keep hands clear",
+        setupSummary = "Setup complete",
+    })
+    for key, value in pairs(overrides or {}) do view[key] = value end
+    return view
+end
+
 local function workshopResources()
     return Codec.array({
         { resourceId = "skid_wrapper", revision = 2, occupied = false },
@@ -208,6 +267,7 @@ local function workshopResources()
         { resourceId = "office_computer", revision = 1, occupied = false },
         { resourceId = "pallet_jack", revision = 3, occupied = false },
         { resourceId = "cutter", revision = 5, occupied = false },
+        { resourceId = "windmill", revision = 6, occupied = false },
     })
 end
 
@@ -447,6 +507,10 @@ function Test.run(context, check)
             sessionId = "session-001", serverTick = 31, resourceRevision = 5,
             view = cutterView(),
         } },
+        { "windmill_snapshot", {
+            sessionId = "session-001", serverTick = 31, resourceRevision = 6,
+            view = runningWindmillView(),
+        } },
         { "pallet_jack_snapshot", {
             sessionId = "session-001", serverTick = 31,
             jack = palletJackSnapshot(),
@@ -492,7 +556,7 @@ function Test.run(context, check)
             and envelope.version == Protocol.VERSION and envelope.type == message[1]
             and #packet <= packetLimit
     end
-    check("network_protocol_all_v8_envelopes_round_trip", roundTrips)
+    check("network_protocol_all_v9_envelopes_round_trip", roundTrips)
 
     runShardedPlayerProtocolRegression(check)
 
@@ -635,6 +699,30 @@ function Test.run(context, check)
         { resourceId = "cutter", action = "reset_safety" },
         { resourceId = "cutter", action = "return_to_pallet" },
         { resourceId = "cutter", action = "run_next_lift" },
+        { resourceId = "windmill", action = "load_pallet", palletId = "JOB-0001-P01" },
+        { resourceId = "windmill", action = "toggle_motor" },
+        { resourceId = "windmill", action = "toggle_feeder" },
+        { resourceId = "windmill", action = "toggle_impression" },
+        { resourceId = "windmill", action = "speed_up" },
+        { resourceId = "windmill", action = "speed_down" },
+        { resourceId = "windmill", action = "emergency_stop" },
+        { resourceId = "windmill", action = "reset_safety" },
+        { resourceId = "windmill", action = "take_proof" },
+        { resourceId = "windmill", action = "verify_artwork" },
+        { resourceId = "windmill", action = "approve_proof" },
+        { resourceId = "windmill", action = "start_run" },
+        { resourceId = "windmill", action = "stop_run" },
+        { resourceId = "windmill", action = "clean_unload" },
+        { resourceId = "windmill", action = "order_plate", plateId = "PLATE-0001-C01" },
+        { resourceId = "windmill", action = "begin_plate", plateId = "PLATE-0001-C01" },
+        { resourceId = "windmill", action = "process_plate", plateId = "PLATE-0001-C01" },
+        { resourceId = "windmill", action = "begin_setup", setupTask = "chase" },
+        { resourceId = "windmill", action = "setup_action", setupAction = "align" },
+        { resourceId = "windmill", action = "cancel_setup" },
+        { resourceId = "windmill", action = "begin_service" },
+        { resourceId = "windmill", action = "service_lockout" },
+        { resourceId = "windmill", action = "service_task" },
+        { resourceId = "windmill", action = "book_technician" },
     }
     local workshopCommandsValid = true
     for index, command in ipairs(validWorkshopCommands) do
@@ -652,6 +740,9 @@ function Test.run(context, check)
             gaugeCentiInch = command.gaugeCentiInch,
             clamp = command.clamp,
             barrierClear = command.barrierClear,
+            plateId = command.plateId,
+            setupTask = command.setupTask,
+            setupAction = command.setupAction,
         }
         local packet = Protocol.encode("workshop_command", payload)
         local envelope = packet and Protocol.decode(packet)
@@ -665,6 +756,9 @@ function Test.run(context, check)
             and envelope.payload.gaugeCentiInch == command.gaugeCentiInch
             and envelope.payload.clamp == command.clamp
             and envelope.payload.barrierClear == command.barrierClear
+            and envelope.payload.plateId == command.plateId
+            and envelope.payload.setupTask == command.setupTask
+            and envelope.payload.setupAction == command.setupAction
             and #packet <= Protocol.MAX_PACKET_BYTES
     end
     local wrongResourceAction = Protocol.encode("workshop_command", {
@@ -743,6 +837,52 @@ function Test.run(context, check)
         resourceId = "cutter", action = "guarded_cut", expectedRevision = 0,
         clamp = true,
     })
+    local invalidWindmillCommands = {}
+    invalidWindmillCommands.missingPallet = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "load_pallet", expectedRevision = 0,
+    })
+    invalidWindmillCommands.missingSetupTask = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "begin_setup", expectedRevision = 0,
+    })
+    invalidWindmillCommands.unknownSetupTask = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "begin_setup", expectedRevision = 0,
+        setupTask = "guarding",
+    })
+    invalidWindmillCommands.missingSetupAction = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "setup_action", expectedRevision = 0,
+    })
+    invalidWindmillCommands.unknownSetupAction = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "setup_action", expectedRevision = 0,
+        setupAction = "perfect_score",
+    })
+    invalidWindmillCommands.clientScoredSetup = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "setup_action", expectedRevision = 0,
+        setupAction = "align", score = 1,
+    })
+    invalidWindmillCommands.missingPlate = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "process_plate", expectedRevision = 0,
+    })
+    invalidWindmillCommands.clientPlateAccuracy = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "process_plate", expectedRevision = 0,
+        plateId = "PLATE-0001-C01", accuracy = 1,
+    })
+    invalidWindmillCommands.extraNoArgument = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "windmill", action = "emergency_stop", expectedRevision = 0,
+        palletId = "JOB-0001-P01",
+    })
+    invalidWindmillCommands.crossResource = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "cutter", action = "toggle_motor", expectedRevision = 0,
+    })
     check("network_protocol_workshop_commands_use_closed_resource_action_scalar_unions",
         workshopCommandsValid and wrongResourceAction == nil and missingActionArgument == nil
         and missingLiftPallet == nil and missingLowerPallet == nil
@@ -754,7 +894,17 @@ function Test.run(context, check)
         and invalidCutterCommands.fractionalProgramIndex == nil
         and invalidCutterCommands.invalidGauge == nil
         and invalidCutterCommands.invalidClamp == nil
-        and invalidCutterCommands.extraGuardedCutArgument == nil)
+        and invalidCutterCommands.extraGuardedCutArgument == nil
+        and invalidWindmillCommands.missingPallet == nil
+        and invalidWindmillCommands.missingSetupTask == nil
+        and invalidWindmillCommands.unknownSetupTask == nil
+        and invalidWindmillCommands.missingSetupAction == nil
+        and invalidWindmillCommands.unknownSetupAction == nil
+        and invalidWindmillCommands.clientScoredSetup == nil
+        and invalidWindmillCommands.missingPlate == nil
+        and invalidWindmillCommands.clientPlateAccuracy == nil
+        and invalidWindmillCommands.extraNoArgument == nil
+        and invalidWindmillCommands.crossResource == nil)
 
     local customerGrantPacket = Protocol.encode("workshop_grant", {
         sessionId = "session-001", requestId = 12, resourceId = "reception_customer",
@@ -917,9 +1067,124 @@ function Test.run(context, check)
         and cutterViews.invalidMemoryGrant == nil
         and cutterViews.tooManyCandidatesGrant == nil)
 
+    do
+        local function grant(view, resourceId)
+            return Protocol.encode("workshop_grant", {
+                sessionId = "session-001", requestId = 18,
+                resourceId = resourceId or "windmill", granted = true,
+                leaseId = "lease-windmill-2", code = "granted",
+                message = "Windmill console acquired.", revision = 12, view = view,
+            })
+        end
+
+        local validGrantPacket = grant(runningWindmillView())
+        local validGrant = validGrantPacket and Protocol.decode(validGrantPacket)
+        local validResultPacket = Protocol.encode("workshop_result", {
+            sessionId = "session-001", commandId = 19, resourceId = "windmill",
+            action = "setup_action", accepted = true, code = "accepted",
+            message = "Setup input accepted.", revision = 13,
+            view = windmillView({
+                status = "setup", setupTask = "chase",
+                setupPermille = Codec.array({ 250, 0, 0, 0, 0, 0 }),
+            }),
+        })
+        local validResult = validResultPacket and Protocol.decode(validResultPacket)
+        local maximumView = windmillView({
+            runtimeRevision = 4294967295,
+            status = "stock_shortage",
+            speed = 5500,
+            counter = 4294967295,
+            goodSheets = 4294967295,
+            spoilage = 4294967295,
+            targetSheets = 4294967295,
+            feedStart = 4294967295,
+            feedRemaining = 4294967295,
+            setupPermille = Codec.array({ 1000, 1000, 1000, 1000, 1000, 1000 }),
+            candidates = Codec.array({
+                { palletId = "JOB-MAX-01", colorIndex = 1 },
+                { palletId = "JOB-MAX-02", colorIndex = 2 },
+                { palletId = "JOB-MAX-03", colorIndex = 4 },
+            }),
+            serviceStep = "task",
+            servicePermille = 1000,
+            plateMarkerPermille = 1000,
+            colorIndex = 4,
+            colorCount = 4,
+            proofPermille = 1000,
+            setupTask = "register",
+            setupSummary = "Maximum safe setup",
+            serviceTask = "Lubrication",
+        })
+        local maximumGrantPacket = grant(maximumView)
+
+        local invalid = {}
+        invalid.missingRequired = windmillView()
+        invalid.missingRequired.motor = nil
+        invalid.missingRequired = grant(invalid.missingRequired)
+        invalid.extraField = windmillView({ operatorPlayerId = 2 })
+        invalid.extraField = grant(invalid.extraField)
+        invalid.status = grant(windmillView({ status = "maintenance" }))
+        invalid.lowSpeed = grant(windmillView({ speed = 999 }))
+        invalid.highSpeed = grant(windmillView({ speed = 5501 }))
+        invalid.fractionalSpeed = grant(windmillView({ speed = 2800.5 }))
+        invalid.boolean = grant(windmillView({ motor = 1 }))
+        invalid.negativeCounter = grant(windmillView({ counter = -1 }))
+        invalid.overflowCounter = grant(windmillView({ counter = 4294967296 }))
+        invalid.fractionalCounter = grant(windmillView({ counter = 1.5 }))
+        invalid.shortSetup = grant(windmillView({
+            setupPermille = Codec.array({ 0, 0, 0, 0, 0 }),
+        }))
+        invalid.fractionalSetup = grant(windmillView({
+            setupPermille = Codec.array({ 0, 0, 0, 0, 0, 1.5 }),
+        }))
+        invalid.tooManyCandidates = grant(windmillView({
+            candidates = Codec.array({
+                { palletId = "JOB-1", colorIndex = 1 },
+                { palletId = "JOB-2", colorIndex = 2 },
+                { palletId = "JOB-3", colorIndex = 3 },
+                { palletId = "JOB-4", colorIndex = 4 },
+            }),
+        }))
+        invalid.duplicateCandidate = grant(windmillView({
+            candidates = Codec.array({
+                { palletId = "JOB-DUP", colorIndex = 1 },
+                { palletId = "JOB-DUP", colorIndex = 2 },
+            }),
+        }))
+        invalid.candidateColor = grant(windmillView({
+            candidates = Codec.array({ { palletId = "JOB-1", colorIndex = 5 } }),
+        }))
+        invalid.optionalColor = grant(windmillView({ colorIndex = 5 }))
+        invalid.serviceStep = grant(windmillView({ serviceStep = "running" }))
+        invalid.servicePermille = grant(windmillView({ servicePermille = 1001 }))
+        invalid.platePermille = grant(windmillView({ plateMarkerPermille = -1 }))
+        invalid.setupTask = grant(windmillView({ setupTask = "guarding" }))
+        invalid.resourceSpecific = grant(windmillView(), "office_computer")
+
+        local allInvalid = true
+        for _, packet in pairs(invalid) do allInvalid = allInvalid and packet == nil end
+        check("network_protocol_windmill_views_are_strict_bounded_and_resource_specific",
+            validGrant and validGrant.payload.view.status == "production"
+            and validGrant.payload.view.counter == 125
+            and validGrant.payload.view.colorCount == 4
+            and Codec.isArray(validGrant.payload.view.setupPermille)
+            and Codec.isArray(validGrant.payload.view.candidates)
+            and validResult and validResult.payload.view.setupTask == "chase"
+            and validResult.payload.view.setupPermille[1] == 250
+            and #validGrantPacket <= Protocol.MAX_PACKET_BYTES
+            and #validResultPacket <= Protocol.MAX_PACKET_BYTES
+            and maximumGrantPacket ~= nil
+            and #maximumGrantPacket <= Protocol.MAX_PACKET_BYTES
+            and allInvalid)
+    end
+
     local acquirePacket = Protocol.encode("workshop_acquire", {
         sessionId = "session-001", requestId = 19,
         resourceId = "skid_wrapper", expectedRevision = 10,
+    })
+    local windmillAcquirePacket = Protocol.encode("workshop_acquire", {
+        sessionId = "session-001", requestId = 20,
+        resourceId = "windmill", expectedRevision = 6,
     })
     local invalidAcquireResource = Protocol.encode("workshop_acquire", {
         sessionId = "session-001", requestId = 19,
@@ -932,6 +1197,10 @@ function Test.run(context, check)
     local releasePacket = Protocol.encode("workshop_release", {
         sessionId = "session-001", requestId = 20, leaseId = "lease-wrapper-2",
         resourceId = "skid_wrapper", reason = "cancelled",
+    })
+    local windmillReleasePacket = Protocol.encode("workshop_release", {
+        sessionId = "session-001", requestId = 21, leaseId = "lease-windmill-2",
+        resourceId = "windmill", reason = "closed",
     })
     local invalidReleaseReason = Protocol.encode("workshop_release", {
         sessionId = "session-001", requestId = 20, leaseId = "lease-wrapper-2",
@@ -947,7 +1216,8 @@ function Test.run(context, check)
         message = "Rejected.", revision = 10,
     })
     check("network_protocol_workshop_lifecycle_messages_are_correlated_and_unspoofable",
-        acquirePacket ~= nil and releasePacket ~= nil
+        acquirePacket ~= nil and windmillAcquirePacket ~= nil
+        and releasePacket ~= nil and windmillReleasePacket ~= nil
         and invalidAcquireResource == nil and spoofedAcquire == nil
         and invalidReleaseReason == nil and spoofedRelease == nil and wrongResultAction == nil)
 
@@ -984,6 +1254,7 @@ function Test.run(context, check)
             { resourceId = "skid_wrapper", revision = 2, occupied = false },
             { resourceId = "pallet_jack", revision = 3, occupied = false },
             { resourceId = "cutter", revision = 5, occupied = false },
+            { resourceId = "windmill", revision = 6, occupied = false },
         }),
         wrapper = wrapperSnapshot("idle", {}),
     })
@@ -1031,13 +1302,15 @@ function Test.run(context, check)
     })
     check("network_protocol_workshop_snapshot_repairs_occupancy_runtime_and_live_pallets",
         workshopSnapshot and workshopSnapshot.payload.revision == 11
-        and #workshopSnapshot.payload.resources == 5
+        and #workshopSnapshot.payload.resources == 6
         and workshopSnapshot.payload.resources[1].resourceId == "cutter"
         and workshopSnapshot.payload.resources[2].resourceId == "office_computer"
         and workshopSnapshot.payload.resources[2].revision == 1
         and workshopSnapshot.payload.resources[3].resourceId == "pallet_jack"
         and workshopSnapshot.payload.resources[4].ownerPlayerId == 2
         and workshopSnapshot.payload.resources[5].resourceId == "skid_wrapper"
+        and workshopSnapshot.payload.resources[6].resourceId == "windmill"
+        and workshopSnapshot.payload.resources[6].revision == 6
         and workshopSnapshot.payload.wrapper.step == "wrapping"
         and workshopSnapshot.payload.wrapper.progress == 1.5
         and #workshopSnapshot.payload.wrapper.pallets == 2
@@ -1080,7 +1353,66 @@ function Test.run(context, check)
             and packets.maximum ~= nil
             and #packets.maximum <= Protocol.MAX_PACKET_BYTES
             and packets.invalidStep == nil and packets.invalidTick == nil
-            and packets.extraField == nil)
+                and packets.extraField == nil)
+    end
+
+    do
+        local maximumView = windmillView({
+            runtimeRevision = 4294967295,
+            status = "pass_complete",
+            speed = 5500,
+            counter = 4294967295,
+            goodSheets = 4294967295,
+            spoilage = 4294967295,
+            targetSheets = 4294967295,
+            feedStart = 4294967295,
+            feedRemaining = 4294967295,
+            setupPermille = Codec.array({ 1000, 1000, 1000, 1000, 1000, 1000 }),
+            candidates = Codec.array({
+                { palletId = "JOB-MAX-1", colorIndex = 1 },
+                { palletId = "JOB-MAX-2", colorIndex = 2 },
+                { palletId = "JOB-MAX-3", colorIndex = 4 },
+            }),
+            serviceStep = "task",
+            servicePermille = 1000,
+            plateMarkerPermille = 1000,
+        })
+        local packets = {}
+        packets.valid = Protocol.encode("windmill_snapshot", {
+            sessionId = "session-001", serverTick = 43, resourceRevision = 12,
+            view = runningWindmillView(),
+        })
+        packets.maximum = Protocol.encode("windmill_snapshot", {
+            sessionId = string.rep("S", 64), serverTick = 4294967295,
+            resourceRevision = 4294967295, view = maximumView,
+        })
+        packets.decoded = packets.valid and Protocol.decode(packets.valid)
+        packets.invalidStatus = Protocol.encode("windmill_snapshot", {
+            sessionId = "session-001", serverTick = 43, resourceRevision = 12,
+            view = windmillView({ status = "running" }),
+        })
+        packets.invalidTick = Protocol.encode("windmill_snapshot", {
+            sessionId = "session-001", serverTick = 43.5, resourceRevision = 12,
+            view = windmillView(),
+        })
+        packets.invalidRevision = Protocol.encode("windmill_snapshot", {
+            sessionId = "session-001", serverTick = 43, resourceRevision = -1,
+            view = windmillView(),
+        })
+        packets.extraField = Protocol.encode("windmill_snapshot", {
+            sessionId = "session-001", serverTick = 43, resourceRevision = 12,
+            view = windmillView(), operatorPlayerId = 2,
+        })
+        check("network_protocol_windmill_snapshot_is_strict_bounded_and_revisioned",
+            packets.decoded and packets.decoded.payload.serverTick == 43
+            and packets.decoded.payload.resourceRevision == 12
+            and packets.decoded.payload.view.status == "production"
+            and packets.decoded.payload.view.counter == 125
+            and #packets.valid <= Protocol.MAX_PACKET_BYTES
+            and packets.maximum ~= nil
+            and #packets.maximum <= Protocol.MAX_PACKET_BYTES
+            and packets.invalidStatus == nil and packets.invalidTick == nil
+            and packets.invalidRevision == nil and packets.extraField == nil)
     end
 
     local environmentPacket = Protocol.encode("environment_snapshot", {
@@ -1453,7 +1785,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 8 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 9 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}
@@ -1469,7 +1801,7 @@ function Test.run(context, check)
     end
     for _, kind in ipairs({
         "input", "snapshot", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
-        "pallet_jack_snapshot", "cutter_snapshot", "ping", "pong",
+        "pallet_jack_snapshot", "cutter_snapshot", "windmill_snapshot", "ping", "pong",
     }) do
         local channel, delivery = Protocol.route(kind)
         routeSummary[#routeSummary + 1] = kind .. "=" .. tostring(channel) .. "/" .. tostring(delivery)
@@ -1484,6 +1816,7 @@ function Test.run(context, check)
     for _, kind in ipairs({
         "workshop_acquire", "workshop_grant", "workshop_command", "workshop_result",
         "workshop_release", "workshop_snapshot", "pallet_jack_snapshot", "cutter_snapshot",
+        "windmill_snapshot",
     }) do
         routesCorrect = routesCorrect
             and Protocol.packetLimitFor(kind) == Protocol.MAX_PACKET_BYTES

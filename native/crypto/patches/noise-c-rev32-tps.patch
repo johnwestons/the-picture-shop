@@ -1,0 +1,177 @@
+diff --git a/src/protocol/cipherstate.c b/src/protocol/cipherstate.c
+index bd3bd03..c83a71d 100644
+--- a/src/protocol/cipherstate.c
++++ b/src/protocol/cipherstate.c
+@@ -400,9 +400,9 @@ int noise_cipherstate_decrypt_with_ad
+     /* Decrypt the ciphertext and check the MAC */
+     err = (*(state->decrypt))
+         (state, ad, ad_len, buffer->data, buffer->size - state->mac_len);
+-    ++(state->n);
+     if (err != NOISE_ERROR_NONE)
+         return err;
++    ++(state->n);
+ 
+     /* Adjust the output length for the MAC and return */
+     buffer->size -= state->mac_len;
+diff --git a/src/backend/sodium/dh-curve25519.c b/src/backend/sodium/dh-curve25519.c
+index 38ec501..0b631c6 100644
+--- a/src/backend/sodium/dh-curve25519.c
++++ b/src/backend/sodium/dh-curve25519.c
+@@ -26,13 +26,6 @@
+ #include <sodium.h>
+ #include <string.h>
+ 
+-/* We use ed25519's faster curved25519_scalarmult_basepoint() function
+-   when deriving a public key from a private key.  Unfortunately ed25519
+-   doesn't have an equivalent function for general curve25519 calculations
+-   so we fall back to the curve25519-donna implementation for that. */
+-
+-int curve25519_donna(uint8_t *mypublic, const uint8_t *secret, const uint8_t *basepoint);
+-
+ typedef struct
+ {
+     struct NoiseDHState_s parent;
+@@ -102,10 +95,12 @@ static int noise_curve25519_calculate
+      const NoiseDHState *public_key_state,
+      uint8_t *shared_key)
+ {
+-    /* Do we need to check that the public key is less than 2^255 - 19? */
+-    curve25519_donna(shared_key, private_key_state->private_key,
+-                     public_key_state->public_key);
+-    return NOISE_ERROR_NONE;
++    if (crypto_scalarmult_curve25519
++            (shared_key, private_key_state->private_key,
++             public_key_state->public_key) == 0)
++        return NOISE_ERROR_NONE;
++    noise_clean(shared_key, 32);
++    return NOISE_ERROR_INVALID_PUBLIC_KEY;
+ }
+ 
+ NoiseDHState *noise_curve25519_new(void)
+@@ -133,10 +127,3 @@ NoiseDHState *noise_curve25519_new(void)
+     state->parent.calculate = noise_curve25519_calculate;
+     return &(state->parent);
+ }
+-
+-/* Choose the version of curve25519-donna based on the word size */
+-#if __WORDSIZE == 64 && defined(__GNUC__)
+-#include "crypto/donna/curve25519-donna-c64.c"
+-#else
+-#include "crypto/donna/curve25519-donna.c"
+-#endif
+diff --git a/src/protocol/cipherstate.c b/src/protocol/cipherstate.c
+index c83a71d..8bba0fb 100644
+--- a/src/protocol/cipherstate.c
++++ b/src/protocol/cipherstate.c
+@@ -87,10 +87,6 @@ int noise_cipherstate_new_by_id(NoiseCipherState **state, int id)
+         *state = noise_chachapoly_new();
+         break;
+ 
+-    case NOISE_CIPHER_AESGCM:
+-        *state = noise_aesgcm_new();
+-        break;
+-
+     default:
+         return NOISE_ERROR_UNKNOWN_ID;
+     }
+diff --git a/src/protocol/dhstate.c b/src/protocol/dhstate.c
+index 2852d4c..bb28e9a 100644
+--- a/src/protocol/dhstate.c
++++ b/src/protocol/dhstate.c
+@@ -87,14 +87,6 @@ int noise_dhstate_new_by_id(NoiseDHState **state, int id)
+         *state = noise_curve25519_new();
+         break;
+ 
+-    case NOISE_DH_CURVE448:
+-        *state = noise_curve448_new();
+-        break;
+-
+-    case NOISE_DH_NEWHOPE:
+-        *state = noise_newhope_new();
+-        break;
+-
+     default:
+         return NOISE_ERROR_UNKNOWN_ID;
+     }
+diff --git a/src/protocol/hashstate.c b/src/protocol/hashstate.c
+index 715ea83..9ec283f 100644
+--- a/src/protocol/hashstate.c
++++ b/src/protocol/hashstate.c
+@@ -87,18 +87,6 @@ int noise_hashstate_new_by_id(NoiseHashState **state, int id)
+         *state = noise_blake2s_new();
+         break;
+ 
+-    case NOISE_HASH_BLAKE2b:
+-        *state = noise_blake2b_new();
+-        break;
+-
+-    case NOISE_HASH_SHA256:
+-        *state = noise_sha256_new();
+-        break;
+-
+-    case NOISE_HASH_SHA512:
+-        *state = noise_sha512_new();
+-        break;
+-
+     default:
+         return NOISE_ERROR_UNKNOWN_ID;
+     }
+diff --git a/src/protocol/handshakestate.c b/src/protocol/handshakestate.c
+index 0c370b8..1753603 100644
+--- a/src/protocol/handshakestate.c
++++ b/src/protocol/handshakestate.c
+@@ -24,6 +24,26 @@
+ #include <string.h>
+ #include <stdlib.h>
+ 
++static int noise_handshakestate_has_psk_modifier
++    (const NoiseHandshakeState *state)
++{
++    size_t index;
++    for (index = 0; index < NOISE_MAX_MODIFIER_IDS; ++index) {
++        switch (state->symmetric->id.modifier_ids[index]) {
++        case NOISE_MODIFIER_PSK0:
++        case NOISE_MODIFIER_PSK1:
++        case NOISE_MODIFIER_PSK2:
++        case NOISE_MODIFIER_PSK3:
++            return 1;
++        case NOISE_MODIFIER_NONE:
++            return 0;
++        default:
++            break;
++        }
++    }
++    return 0;
++}
++
+ /**
+  * \file handshakestate.h
+  * \brief HandshakeState interface
+@@ -1212,7 +1232,13 @@ static int noise_handshakestate_write
+             if (rest.max_size < len)
+                 return NOISE_ERROR_INVALID_LENGTH;
+             memcpy(rest.data, state->dh_local_ephemeral->public_key, len);
+-            noise_symmetricstate_mix_hash(state->symmetric, rest.data, len);
++            err = noise_symmetricstate_mix_hash
++                (state->symmetric, rest.data, len);
++            if (err == NOISE_ERROR_NONE &&
++                    noise_handshakestate_has_psk_modifier(state)) {
++                err = noise_symmetricstate_mix_key
++                    (state->symmetric, rest.data, len);
++            }
+             rest.size += len;
+             break;
+         case NOISE_TOKEN_S:
+@@ -1476,6 +1502,12 @@ static int noise_handshakestate_read
+                 (state->symmetric, msg.data, len);
+             if (err != NOISE_ERROR_NONE)
+                 break;
++            if (noise_handshakestate_has_psk_modifier(state)) {
++                err = noise_symmetricstate_mix_key
++                    (state->symmetric, msg.data, len);
++                if (err != NOISE_ERROR_NONE)
++                    break;
++            }
+             err = noise_dhstate_set_public_key
+                 (state->dh_remote_ephemeral, msg.data, len);
+             if (err != NOISE_ERROR_NONE)

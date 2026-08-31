@@ -6,6 +6,7 @@ Instance.__index = Instance
 
 Transport.DEFAULT_PORT = Address.DEFAULT_PORT
 Transport.MAX_GUESTS = 3
+Transport.MAX_PEERS = 16
 Transport.MIN_CHANNELS = 3
 Transport.DEFAULT_CHANNELS = 3
 Transport.MAX_EVENTS_PER_SERVICE = 64
@@ -80,9 +81,12 @@ local function newInstance(mode, nativeHost, options)
         endpoint = options.endpoint,
         channels = options.channels,
         maxGuests = options.maxGuests,
+        peerCapacity = options.peerCapacity,
         peer = options.peer,
         nativeHost = nativeHost,
         closed = false,
+        _closeOk = nil,
+        _closeError = nil,
         _peers = {},
     }, Instance)
 end
@@ -111,15 +115,20 @@ function Transport.createHost(options)
     if not channels then return nil, "ENet sessions require between 3 and 255 channels." end
     local maxGuests = wholeNumber(options.maxGuests or Transport.MAX_GUESTS, 1, Transport.MAX_GUESTS)
     if not maxGuests then return nil, "LAN hosting supports one to three guests." end
+    local peerCapacity = wholeNumber(options.peerCapacity or maxGuests, maxGuests, Transport.MAX_PEERS)
+    if not peerCapacity then
+        return nil, "Network peer capacity must include every guest and be at most 16."
+    end
     local endpoint, endpointError = hostEndpoint(options)
     if not endpoint then return nil, endpointError end
-    local nativeHost, createError = createNativeHost(enet, endpoint, maxGuests, channels,
+    local nativeHost, createError = createNativeHost(enet, endpoint, peerCapacity, channels,
         tonumber(options.incomingBandwidth) or 0, tonumber(options.outgoingBandwidth) or 0)
     if not nativeHost then return nil, createError end
     return newInstance("host", nativeHost, {
         endpoint = endpoint,
         channels = channels,
         maxGuests = maxGuests,
+        peerCapacity = peerCapacity,
     })
 end
 
@@ -241,7 +250,8 @@ end
 function Instance:flush()
     if self.closed or not self.nativeHost then return true end
     local ok, result = protectedMethod(self.nativeHost, "flush")
-    return ok, ok and nil or "ENet flush failed: " .. tostring(result)
+    if ok then return true end
+    return false, "ENet flush failed: " .. tostring(result)
 end
 
 function Instance:disconnect(peer, code, immediate)
@@ -261,7 +271,10 @@ function Instance:disconnect(peer, code, immediate)
 end
 
 function Instance:close(code, immediate)
-    if self.closed then return true end
+    if self.closed then
+        if self._closeOk == true then return true end
+        return false, self._closeError or "ENet cleanup failed."
+    end
     code = wholeNumber(code or 0, 0, 2147483647)
     if not code then return false, "Disconnect code must be a nonnegative whole number." end
     local errors = {}
@@ -285,7 +298,11 @@ function Instance:close(code, immediate)
     self.peer = nil
     self.nativeHost = nil
     self.closed = true
-    return #errors == 0, #errors > 0 and table.concat(errors, "; ") or nil
+    self._closeOk = #errors == 0
+    self._closeError = nil
+    if not self._closeOk then self._closeError = table.concat(errors, "; ") end
+    if self._closeOk then return true end
+    return false, self._closeError
 end
 
 Instance.destroy = Instance.close

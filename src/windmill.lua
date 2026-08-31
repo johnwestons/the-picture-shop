@@ -6,6 +6,22 @@ local Plates = require("src.plate_service")
 
 local Windmill = {}
 local setupTasks = { "chase", "packing", "rollers", "ink", "feeder", "register" }
+local UINT32_MODULUS = 4294967296
+local runtimeRevision = 0
+
+function Windmill.bumpNetworkRevision()
+    runtimeRevision = (runtimeRevision + 1) % UINT32_MODULUS
+    return runtimeRevision
+end
+
+function Windmill.networkRuntimeRevision()
+    return runtimeRevision
+end
+
+function Windmill.resetNetworkRuntime()
+    runtimeRevision = 0
+    return runtimeRevision
+end
 
 local function clamp(value, low, high) return math.max(low, math.min(high, value)) end
 
@@ -206,6 +222,7 @@ function Windmill.load(state, palletId)
             state.message = string.format(
                 "Loaded %s: pass target %d, client order %d, %d sheets available.",
                 item.pallet.id, target, palletPress.requiredGoodSheets, available)
+            Windmill.bumpNetworkRevision()
             return true, item
         end
     end
@@ -246,6 +263,7 @@ function Windmill.completeSetup(state, task, score)
     end
     p.setup[task] = clamp(tonumber(score) or 0, 0, 1)
     p.status, p.proofQuality, p.proofApproved, p.artworkVerified = "setup", nil, false, false
+    Windmill.bumpNetworkRevision()
     return true, p
 end
 
@@ -260,6 +278,11 @@ function Windmill.setupTasks() return setupTasks end
 function Windmill.proofReadiness(state)
     local p, job, pallet = Windmill.current(state)
     if not job or not pallet then return false, "Load a print-ready pallet first." end
+    if p.status ~= "setup" and p.status ~= "proof" and p.status ~= "approved" then
+        return false, p.status == "production"
+            and "Stop production before pulling another proof."
+            or "Return the loaded press to setup or proof approval before pulling a proof."
+    end
     local plate = p.colorIndex and Plates.ensureJob(job)[p.colorIndex] or nil
     if not plate or plate.status ~= "ready" or not plate.mounted then
         return false, "Prepare and mount the plate for this color before proofing."
@@ -279,11 +302,23 @@ function Windmill.control(state, action)
     local p = Windmill.ensure(state)
     if action == "emergency" then
         p.emergency, p.motor, p.feeder, p.impression, p.status = true, false, false, false, "stopped"
+        Windmill.bumpNetworkRevision()
         return true
     elseif action == "reset" then
-        if p.status == "production" then return false, "Stop production before resetting." end
+        if not p.emergency then return false, "E-STOP is not active." end
         p.emergency = false
-        if p.palletId then p.status = Windmill.setupComplete(state) and "proof" or "setup" else p.status = "idle" end
+        if not p.palletId then
+            p.status = "idle"
+        elseif p.targetSheets > 0 and p.goodSheets >= p.targetSheets then
+            p.status = "pass_complete"
+        elseif p.feedRemaining <= 0 and p.goodSheets < p.targetSheets then
+            p.status = "stock_shortage"
+        elseif p.proofApproved then
+            p.status = "approved"
+        else
+            p.status = Windmill.setupComplete(state) and "proof" or "setup"
+        end
+        Windmill.bumpNetworkRevision()
         return true
     elseif p.emergency then return false, "Emergency stop is active. Reset the press first." end
     if action == "motor" then
@@ -298,6 +333,7 @@ function Windmill.control(state, action)
     elseif action == "speed_up" then p.speed = clamp(p.speed + 500, 1000, 5500)
     elseif action == "speed_down" then p.speed = clamp(p.speed - 500, 1000, 5500)
     else return false, "Unknown press control." end
+    Windmill.bumpNetworkRevision()
     return true, p
 end
 
@@ -324,6 +360,7 @@ function Windmill.takeProof(state)
     totals.proofs = (totals.proofs or 0) + 1
     totals.impressions = (totals.impressions or 0) + 1
     totals.spoilage = (totals.spoilage or 0) + 1
+    Windmill.bumpNetworkRevision()
     return true, quality
 end
 
@@ -333,6 +370,7 @@ function Windmill.verifyArtwork(state)
         return false, "Pull a proof before matching it to the client artwork."
     end
     p.artworkVerified = true
+    Windmill.bumpNetworkRevision()
     return true, job.artwork or { key = job.artworkKey }
 end
 
@@ -345,18 +383,22 @@ function Windmill.approveProof(state)
         return false, "Compare the proof to the client file and verify the artwork first."
     end
     p.proofApproved, p.status = true, "approved"
+    Windmill.bumpNetworkRevision()
     return true, p
 end
 
 function Windmill.startProduction(state)
     local p = Windmill.ensure(state)
-    if not p.proofApproved then return false, "Approve a proof first." end
+    if p.status ~= "approved" or not p.proofApproved then
+        return false, "Approve a proof before starting or resuming production."
+    end
     if p.emergency or not p.motor or not p.feeder or not p.impression then
         return false, "Production requires motor, feeder, and impression on."
     end
     local operable, reason = MachineFleet.canOperate(state, "heidelberg_10x15")
     if not operable then return false, reason end
     p.status = "production"
+    Windmill.bumpNetworkRevision()
     return true, p
 end
 
@@ -364,18 +406,25 @@ function Windmill.stopProduction(state)
     local p = Windmill.ensure(state)
     if p.status ~= "production" then return false end
     p.status, p.feeder, p.impression = "approved", false, false
+    Windmill.bumpNetworkRevision()
     return true, p
 end
 
 function Windmill.update(dt, state)
+    local platesChanged = Plates.update(state)
+    if platesChanged then Windmill.bumpNetworkRevision() end
     local p, job, pallet = Windmill.current(state)
     p.animationClock = p.animationClock + math.max(0, dt)
-    Plates.update(state)
-    if p.status ~= "production" or not job or not pallet then return false end
+    if p.status ~= "production" or not job or not pallet then
+        return platesChanged, platesChanged
+    end
+    if p.emergency or not p.motor or not p.feeder or not p.impression then
+        return platesChanged, platesChanged
+    end
     local gameHours = math.max(0, dt) * 24 / Config.businessCalendar.secondsPerDay
     p.sheetAccumulator = p.sheetAccumulator + p.speed * gameHours
     local attempted = math.min(math.floor(p.sheetAccumulator), p.feedRemaining)
-    if attempted <= 0 then return false end
+    if attempted <= 0 then return platesChanged, platesChanged end
     p.sheetAccumulator = p.sheetAccumulator - attempted
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
     local condition = machine and MachineFleet.condition(machine) / 100 or 0
@@ -405,18 +454,19 @@ function Windmill.update(dt, state)
     MachineFleet.recordUse(state, "heidelberg_10x15", attempted / 1000)
     local plate = Plates.ensureJob(job)[p.colorIndex]
     if plate then plate.life = clamp(plate.life - attempted / 250000, 0, 1) end
+    Windmill.bumpNetworkRevision()
     if p.goodSheets >= p.targetSheets then
         p.status, p.feeder, p.impression = "pass_complete", false, false
         pallet.press.status = "pass_complete"
-        return true
+        return true, true
     end
     if p.feedRemaining <= 0 then
         p.status, p.feeder, p.impression = "stock_shortage", false, false
         pallet.press.status = "stock_shortage"
         p.warning = "CLIENT STOCK EXHAUSTED"
-        return true
+        return true, true
     end
-    return false
+    return true, platesChanged
 end
 
 function Windmill.cleanAndUnload(state)
@@ -424,6 +474,14 @@ function Windmill.cleanAndUnload(state)
     if p.status ~= "pass_complete" then return false, "Finish the color pass before cleanup." end
     local stock = state.inventory and state.inventory.stock or {}
     if (stock.press_wash or 0) < 1 then return false, "Press wash is required for cleanup." end
+    local nextPressStatus = p.colorIndex >= (job.press.colors or 1) and "complete" or "drying"
+    local nextPalletStatus = nextPressStatus == "complete" and "printed" or pallet.status
+    local world = { x = state.windmill.x + 78, y = state.windmill.y + 42,
+        direction = state.windmill.direction, spawnProgress = 1 }
+    local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {
+        status = nextPalletStatus, world = world,
+    })
+    if not transitioned then return false, errorMessage end
     stock.press_wash = stock.press_wash - 1
     local totals = actual(job)
     totals.washUnits = (totals.washUnits or 0) + 1
@@ -444,19 +502,12 @@ function Windmill.cleanAndUnload(state)
         artworkVerified = p.artworkVerified,
     }
     pallet.finishedSheets = p.goodSheets
-    pallet.press.status = p.colorIndex >= (job.press.colors or 1) and "complete" or "drying"
+    pallet.press.status = nextPressStatus
     if pallet.press.status == "drying" then
         pallet.press.dryUntilHours = BusinessCalendar.absoluteHours(state) + dryingDuration(job)
     else
         pallet.press.dryUntilHours = nil
-        pallet.status = "printed"
     end
-    local world = { x = state.windmill.x + 78, y = state.windmill.y + 42,
-        direction = state.windmill.direction, spawnProgress = 1 }
-    local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {
-        status = pallet.status, world = world,
-    })
-    if not transitioned then return false, errorMessage end
     if pallet.press.status == "complete" and state.inventory then
         state.inventory.inProcessPallets = math.max(0,
             (state.inventory.inProcessPallets or 0) - 1)
@@ -469,7 +520,17 @@ function Windmill.cleanAndUnload(state)
     p.status, p.jobId, p.palletId, p.colorIndex = "idle", nil, nil, nil
     p.setup, p.motor, p.feeder, p.impression, p.proofApproved = {}, false, false, false, false
     p.artworkVerified, p.targetSheets, p.feedStart, p.feedRemaining = false, 0, 0, 0
+    Windmill.bumpNetworkRevision()
     return true, pallet
+end
+
+function Windmill.releaseOperator(state)
+    local p = Windmill.ensure(state)
+    local changed = p.motor or p.feeder or p.impression or p.status == "production"
+    p.motor, p.feeder, p.impression = false, false, false
+    if p.status == "production" then p.status = "approved" end
+    if changed then Windmill.bumpNetworkRevision() end
+    return changed, p
 end
 
 function Windmill.canExit(state) return Windmill.ensure(state).status ~= "production" end

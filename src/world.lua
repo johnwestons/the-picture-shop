@@ -713,6 +713,7 @@ local WORKSHOP_RESOURCES = {
     computer = "office_computer",
     cutter = "cutter",
     skidWrapper = "skid_wrapper",
+    windmill = "windmill",
     palletJack = "pallet_jack",
 }
 
@@ -758,6 +759,20 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         end
         target = { x = wrapper.x, y = wrapper.y, radius = Config.wrapperPlacement.interactionRadius }
         unavailableMessage = "Move closer to the skid wrapper controls."
+    elseif resourceId == "windmill" then
+        if not MachineFleet.isInstalled(state, "heidelberg_10x15") then
+            return false, "not_installed", "The Heidelberg Windmill is not installed in this shop."
+        end
+        local windmill = WindmillPlacement.ensure(state, Config.windmillPlacement)
+        if windmill.moving then
+            return false, "machine_moving", "Lock the Windmill onto the floor before using it."
+        end
+        target = {
+            x = windmill.x,
+            y = windmill.y,
+            radius = Config.windmillPlacement.interactionRadius,
+        }
+        unavailableMessage = "Move closer to the Windmill controls."
     elseif resourceId == "pallet_jack" then
         local jack = PalletJack.ensure(state, Config.palletJack)
         local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
@@ -1386,7 +1401,11 @@ function World.wrapperSnapshot(state)
     return WrapperPlacement.snapshot(state, Config.wrapperPlacement)
 end
 
-function World.beginWindmillMove(state)
+function World.beginWindmillMove(state, windmillControlOccupied)
+    if windmillControlOccupied then
+        state.message = "Close the active Windmill console before relocating the press."
+        return false
+    end
     if palletJackHasAttachedMachine(state) then
         state.message = "Lock the moving machine onto the floor before relocating another one."
         return false
@@ -1429,7 +1448,16 @@ function World.windmillNearby(state)
         <= Config.windmillPlacement.interactionRadius ^ 2
 end
 
-function World.rotateWindmill(state)
+function World.rotateWindmill(state, windmillControlOccupied)
+    if windmillControlOccupied then
+        state.message = "Close the active Windmill console before rotating the press."
+        return false
+    end
+    local process = Windmill.ensure(state)
+    if process.status ~= "idle" or process.palletId then
+        state.message = "Unload the press and return the Windmill to idle before rotating it."
+        return false
+    end
     local succeeded, direction = WindmillPlacement.rotate(state, Config.windmillPlacement)
     if not succeeded then return false end
     state.message = "Windmill rotated " .. direction .. "."

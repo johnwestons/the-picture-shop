@@ -2,6 +2,47 @@ local SaveSchema = require("src.save_schema")
 
 local Test = {}
 
+local function checkWindmillProductionResumeSanitization(context, check, payload)
+    local resumed = context.State.new()
+    local rawProcess = payload and payload.state and payload.state.windmill
+        and payload.state.windmill.process
+    local rawStatus = rawProcess and rawProcess.status
+    local rawMotor = rawProcess and rawProcess.motor
+    local rawFeeder = rawProcess and rawProcess.feeder
+    local rawImpression = rawProcess and rawProcess.impression
+    local rawJobId, rawPalletId = rawProcess and rawProcess.jobId,
+        rawProcess and rawProcess.palletId
+    local rawCounter, rawGoodSheets = rawProcess and rawProcess.counter,
+        rawProcess and rawProcess.goodSheets
+    local rawSpoilage, rawFeedRemaining = rawProcess and rawProcess.spoilage,
+        rawProcess and rawProcess.feedRemaining
+    local applied, sanitized
+    if payload then
+        applied, sanitized = context.State.applyLocalSave(resumed, payload)
+    end
+    local process = applied and context.windmill.ensure(resumed) or nil
+    check("domain_loading_live_windmill_run_resumes_approved_with_controls_off",
+        rawStatus == "production" and rawMotor and rawFeeder and rawImpression
+        and sanitized and process and process.status == "approved"
+        and not process.motor and not process.feeder and not process.impression
+        and not process.emergency
+        and process.jobId == rawJobId and process.palletId == rawPalletId
+        and process.counter == rawCounter and process.goodSheets == rawGoodSheets
+        and process.spoilage == rawSpoilage
+        and process.feedRemaining == rawFeedRemaining
+        and resumed.screen == "world",
+        string.format("raw=%s/%s/%s/%s applied=%s sanitized=%s resumed=%s/%s/%s/%s emergency=%s ids=%s:%s/%s:%s counts=%s:%s:%s:%s/%s:%s:%s:%s screen=%s",
+            tostring(rawStatus), tostring(rawMotor), tostring(rawFeeder), tostring(rawImpression),
+            tostring(applied), tostring(sanitized), tostring(process and process.status),
+            tostring(process and process.motor), tostring(process and process.feeder),
+            tostring(process and process.impression), tostring(process and process.emergency),
+            tostring(rawJobId), tostring(rawPalletId), tostring(process and process.jobId),
+            tostring(process and process.palletId), tostring(rawCounter), tostring(rawGoodSheets),
+            tostring(rawSpoilage), tostring(rawFeedRemaining), tostring(process and process.counter),
+            tostring(process and process.goodSheets), tostring(process and process.spoilage),
+            tostring(process and process.feedRemaining), tostring(resumed.screen)))
+end
+
 function Test.run(context, check)
     local slot = 2
     context.save.delete(slot)
@@ -146,6 +187,7 @@ function Test.run(context, check)
         and printLoaded.state.windmill.tutorialComplete == true
         and printLoaded.state.inventory.inProcessPallets == 1
         and printLoaded.state.inventory.finishedPallets == 0)
+    checkWindmillProductionResumeSanitization(context, check, printLoaded)
 
     printPallet.location, printPallet.status = "press_output", "printed"
     printPallet.press.status, printPallet.press.completedColors = "complete", 1

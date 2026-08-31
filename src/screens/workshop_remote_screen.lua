@@ -1,6 +1,7 @@
 local BackButton = require("src.screens.back_button")
 local Config = require("src.config")
 local JobService = require("src.job_service")
+local PressSetupGames = require("src.press_setup_games")
 local Ui = require("src.screens.ui")
 local Wrapper = require("src.wrapper")
 local utf8 = require("utf8")
@@ -22,6 +23,9 @@ local Screen = {
     gaugeText = "0.00",
     gaugeFocused = false,
     gaugeReplaceOnType = true,
+    windmillTab = "run",
+    windmillJobId = nil,
+    windmillPlateId = nil,
 }
 
 local PANEL = { x = 92, y = 44, width = 776, height = 590 }
@@ -64,6 +68,71 @@ local CUTTER_PROGRAMS = {
     { x = 346, y = 198, width = 104, height = 38 },
     { x = 458, y = 198, width = 104, height = 38 },
 }
+
+local WINDMILL_TAB_ORDER = { "run", "plates", "setup", "service" }
+local WINDMILL_TABS = {
+    run = { x = 112, y = 124, width = 172, height = 34 },
+    plates = { x = 292, y = 124, width = 172, height = 34 },
+    setup = { x = 472, y = 124, width = 172, height = 34 },
+    service = { x = 652, y = 124, width = 176, height = 34 },
+}
+
+local WINDMILL_RUN_CONTROLS = {
+    toggle_motor = { x = 112, y = 252, width = 116, height = 42 },
+    toggle_feeder = { x = 236, y = 252, width = 116, height = 42 },
+    toggle_impression = { x = 360, y = 252, width = 132, height = 42 },
+    speed_down = { x = 500, y = 252, width = 92, height = 42 },
+    speed_up = { x = 600, y = 252, width = 92, height = 42 },
+    emergency_stop = { x = 700, y = 252, width = 128, height = 42 },
+    reset_safety = { x = 112, y = 302, width = 120, height = 42 },
+    take_proof = { x = 240, y = 302, width = 140, height = 42 },
+    verify_artwork = { x = 388, y = 302, width = 140, height = 42 },
+    approve_proof = { x = 536, y = 302, width = 140, height = 42 },
+    run = { x = 684, y = 302, width = 144, height = 42 },
+    clean_unload = { x = 112, y = 352, width = 220, height = 44 },
+}
+
+local WINDMILL_PLATE_CONTROLS = {
+    order_plate = { x = 112, y = 430, width = 220, height = 46 },
+    begin_plate = { x = 354, y = 430, width = 220, height = 46 },
+    process_plate = { x = 596, y = 430, width = 232, height = 46 },
+}
+
+local WINDMILL_SERVICE_CONTROLS = {
+    begin_service = { x = 180, y = 432, width = 280, height = 50 },
+    book_technician = { x = 500, y = 432, width = 280, height = 50 },
+    service_lockout = { x = 260, y = 338, width = 440, height = 58 },
+    service_task = { x = 260, y = 338, width = 440, height = 72 },
+}
+
+local WINDMILL_SETUP_TASKS = { "chase", "packing", "rollers", "ink", "feeder", "register" }
+
+local function windmillCandidateRect(index)
+    return { x = 112, y = 430 + (index - 1) * 42, width = 716, height = 34 }
+end
+
+local function windmillPlateJobRect(index)
+    return { x = 112, y = 184 + (index - 1) * 42, width = 220, height = 36 }
+end
+
+local function windmillPlateRect(index)
+    return { x = 344, y = 184 + (index - 1) * 48, width = 484, height = 42 }
+end
+
+local function windmillSetupTaskRect(index)
+    local column = (index - 1) % 2
+    local row = math.floor((index - 1) / 2)
+    return { x = 112 + column * 366, y = 198 + row * 82, width = 350, height = 64 }
+end
+
+local function windmillSetupControlRect(task, index)
+    local controls = PressSetupGames.controls(task)
+    local gap, totalWidth = 8, 716
+    local width = math.floor((totalWidth - gap * (#controls - 1)) / math.max(1, #controls))
+    return { x = 112 + (index - 1) * (width + gap), y = 350, width = width, height = 50 }
+end
+
+local WINDMILL_SETUP_CANCEL = { x = 330, y = 426, width = 300, height = 48 }
 
 local function cutterCandidateRect(index)
     local column = (index - 1) % 2
@@ -203,6 +272,95 @@ local function cutterResourceRevision(snapshot)
     return nil
 end
 
+local function windmillRuntimeRevision(view)
+    return type(view) == "table" and tonumber(view.runtimeRevision) or nil
+end
+
+local function mergeWindmillView(incoming)
+    if type(incoming) ~= "table" then return false end
+    local incomingRevision = windmillRuntimeRevision(incoming)
+    local currentRevision = windmillRuntimeRevision(Screen.view) or -1
+    if incomingRevision == nil or incomingRevision < currentRevision then return false end
+    local merged = {}
+    for key, value in pairs(incoming) do merged[key] = value end
+    Screen.view = merged
+    return true
+end
+
+local function windmillResourceRevision(snapshot)
+    local direct = tonumber(snapshot.resourceRevision)
+    if direct then return direct end
+    local windmill = snapshot.windmill or snapshot.view or snapshot.data
+    direct = type(windmill) == "table" and tonumber(windmill.resourceRevision) or nil
+    if direct then return direct end
+    for _, record in ipairs(snapshot.resources or {}) do
+        if record.resourceId == "windmill" then return tonumber(record.revision) end
+    end
+    return nil
+end
+
+local function windmillCandidates()
+    local rows = {}
+    for _, candidate in ipairs((Screen.view and Screen.view.candidates) or {}) do
+        rows[#rows + 1] = candidate
+        if #rows >= 3 then break end
+    end
+    return rows
+end
+
+local function windmillPressJobs(state)
+    local rows = {}
+    for _, job in ipairs((state and state.jobs and state.jobs.active) or {}) do
+        if type(job.press) == "table" then
+            rows[#rows + 1] = job
+            if #rows >= 5 then break end
+        end
+    end
+    return rows
+end
+
+local function windmillSelectedJob(state)
+    local jobs = windmillPressJobs(state)
+    local selected
+    for _, job in ipairs(jobs) do
+        if job.id == Screen.windmillJobId then selected = job; break end
+    end
+    selected = selected or jobs[1]
+    Screen.windmillJobId = selected and selected.id or nil
+    return selected, jobs
+end
+
+local function windmillSelectedPlate(state)
+    local job, jobs = windmillSelectedJob(state)
+    local plates = job and job.press and job.press.plates or {}
+    local selected
+    for _, plate in ipairs(plates) do
+        if plate.id == Screen.windmillPlateId then selected = plate; break end
+    end
+    selected = selected or plates[1]
+    Screen.windmillPlateId = selected and selected.id or nil
+    return selected, plates, job, jobs
+end
+
+local function windmillSetupComplete(view)
+    for _, score in ipairs((view and view.setupPermille) or {}) do
+        if (tonumber(score) or 0) <= 0 then return false end
+    end
+    return type(view and view.setupPermille) == "table" and #view.setupPermille == 6
+end
+
+local function windmillActivePlateReady(state, view)
+    if not view or not view.jobId or not view.colorIndex then return false end
+    for _, job in ipairs((state and state.jobs and state.jobs.active) or {}) do
+        if job.id == view.jobId then
+            local plate = job.press and job.press.plates and job.press.plates[view.colorIndex]
+            return type(plate) == "table" and plate.status == "ready"
+                and plate.mounted == true and (tonumber(plate.life) or 0) > 0
+        end
+    end
+    return false
+end
+
 local function cutterCandidates()
     local rows = {}
     for _, candidate in ipairs((Screen.view and Screen.view.candidates) or {}) do
@@ -221,7 +379,13 @@ function Screen.enter(grant, state)
     Screen.leaseId = grant and grant.leaseId or nil
     Screen.revision = tonumber(grant and grant.revision) or 0
     Screen.workshopTick = 0
-    Screen.view = grant and (grant.view or grant.data) or nil
+    local incomingView = grant and (grant.view or grant.data) or nil
+    Screen.view = nil
+    if Screen.resourceId == "windmill" then
+        mergeWindmillView(incomingView)
+    else
+        Screen.view = incomingView
+    end
     Screen.quoteText = tostring(Screen.view and Screen.view.recommendedTotal or "")
     Screen.quoteFocused = false
     Screen.quoteReplaceOnType = true
@@ -232,6 +396,8 @@ function Screen.enter(grant, state)
     Screen.status = tostring(grant and grant.message or "Remote console ready.")
     Screen.gaugeFocused = false
     Screen.gaugeReplaceOnType = true
+    Screen.windmillTab = "run"
+    Screen.windmillJobId, Screen.windmillPlateId = nil, nil
     syncCutterGauge(true)
     if state then state.screen = "workshop_remote" end
     return Screen.resourceId ~= nil and Screen.leaseId ~= nil
@@ -242,6 +408,8 @@ function Screen.clear()
     Screen.quoteFocused, Screen.waiting, Screen.safetyWaiting = false, false, false
     Screen.selectedJobId, Screen.selectedPalletId = nil, nil
     Screen.gaugeFocused, Screen.gaugeReplaceOnType = false, true
+    Screen.windmillTab = "run"
+    Screen.windmillJobId, Screen.windmillPlateId = nil, nil
     Screen.workshopTick = 0
 end
 
@@ -249,6 +417,8 @@ function Screen.isOpen() return Screen.resourceId ~= nil and Screen.leaseId ~= n
 function Screen.canClose()
     return not Screen.waiting and not Screen.safetyWaiting
         and (Screen.resourceId ~= "skid_wrapper" or Wrapper.step ~= "wrapping")
+        and (Screen.resourceId ~= "windmill"
+            or not Screen.view or Screen.view.status ~= "production")
 end
 function Screen.wantsTextInput()
     return (Screen.resourceId == "reception_customer" and Screen.quoteFocused)
@@ -269,10 +439,15 @@ function Screen.applyResult(result)
     else
         Screen.waiting = false
     end
-    Screen.revision = math.max(Screen.revision, tonumber(result.revision) or Screen.revision)
+    local priorRevision = Screen.revision
+    local resultRevision = tonumber(result.revision)
+    local resourceCurrent = resultRevision ~= nil and resultRevision >= priorRevision
+    Screen.revision = math.max(priorRevision, resultRevision or priorRevision)
     Screen.status = tostring(result.message or (result.accepted and "Action completed." or "Action rejected."))
     if Screen.resourceId == "cutter" then
         mergeCutterView(result.view or result.data)
+    elseif Screen.resourceId == "windmill" then
+        if resourceCurrent then mergeWindmillView(result.view or result.data) end
     elseif result.view or result.data then
         Screen.view = result.view or result.data
     end
@@ -291,6 +466,14 @@ function Screen.applySnapshot(snapshot)
         Screen.selectedPalletId = wrapper.selectedPalletId
         Screen.view = Screen.view or {}
         for key, value in pairs(wrapper) do Screen.view[key] = value end
+    elseif Screen.resourceId == "windmill" then
+        local resourceRevision = windmillResourceRevision(snapshot)
+        if resourceRevision and resourceRevision >= Screen.revision then
+            local windmill = snapshot.windmill
+            if windmill == nil or mergeWindmillView(windmill) then
+                Screen.revision = resourceRevision
+            end
+        end
     end
     return true
 end
@@ -305,15 +488,27 @@ function Screen.applyCutterSnapshot(snapshot)
     return true
 end
 
-local function urgentCutterSafety(action, args)
-    return Screen.resourceId == "cutter" and (action == "emergency_stop"
-        or (action == "set_barrier" and type(args) == "table"
-            and args.barrierClear == false))
+function Screen.applyWindmillSnapshot(snapshot)
+    if Screen.resourceId ~= "windmill" or type(snapshot) ~= "table" then return false end
+    local resourceRevision = windmillResourceRevision(snapshot)
+    if resourceRevision == nil or resourceRevision < Screen.revision then return false end
+    local windmill = snapshot.view or snapshot.windmill or snapshot.data
+    if type(windmill) ~= "table" or not mergeWindmillView(windmill) then return false end
+    Screen.revision = resourceRevision
+    return true
+end
+
+local function urgentWorkshopSafety(action, args)
+    if action == "emergency_stop" then
+        return Screen.resourceId == "cutter" or Screen.resourceId == "windmill"
+    end
+    return Screen.resourceId == "cutter" and action == "set_barrier"
+        and type(args) == "table" and args.barrierClear == false
 end
 
 local function request(sendCommand, action, args)
     args = args or {}
-    local urgentSafety = urgentCutterSafety(action, args)
+    local urgentSafety = urgentWorkshopSafety(action, args)
     if Screen.safetyWaiting or (Screen.waiting and not urgentSafety) then return false end
     if type(sendCommand) ~= "function" then
         Screen.status = "The remote console is not connected to the host command channel."
@@ -323,7 +518,9 @@ local function request(sendCommand, action, args)
     if ok then
         if urgentSafety then
             Screen.safetyWaiting = true
-            Screen.status = "Urgent cutter safety action sent to the host device..."
+            Screen.status = Screen.resourceId == "windmill"
+                and "Urgent Windmill safety action sent to the host device..."
+                or "Urgent cutter safety action sent to the host device..."
         else
             Screen.waiting = true
             Screen.status = "Waiting for the host device to verify that action..."
@@ -366,8 +563,38 @@ local function handleCutterCut(sendCommand)
     return request(sendCommand, "guarded_cut", {})
 end
 
+local windmillButtonEnabled
+
 function Screen.keypressed(key, state, sendCommand)
     key = string.lower(tostring(key or ""))
+    if Screen.resourceId == "windmill" then
+        local view = Screen.view or {}
+        local action = ({
+            m = "toggle_motor",
+            f = "toggle_feeder",
+            i = "toggle_impression",
+            ["-"] = "speed_down",
+            ["kp-"] = "speed_down",
+            ["+"] = "speed_up",
+            ["="] = "speed_up",
+            ["kp+"] = "speed_up",
+            x = "emergency_stop",
+            r = "reset_safety",
+            p = "take_proof",
+            v = "verify_artwork",
+        })[key]
+        if key == "space" then
+            action = view.status == "production" and "stop_run" or "start_run"
+        end
+        if action then
+            if windmillButtonEnabled and windmillButtonEnabled(action, state) then
+                return request(sendCommand, action, {})
+            end
+            Screen.status = "The Windmill is not ready for that control."
+            return true
+        end
+        return false
+    end
     if Screen.resourceId == "cutter" then
         if key == "j" or key == "k" then return handleCutterCut(sendCommand) end
         if not Screen.gaugeFocused then return false end
@@ -467,9 +694,186 @@ local function cutterButtonEnabled(action)
     return false
 end
 
+windmillButtonEnabled = function(action, state)
+    local view = Screen.view or {}
+    if Screen.safetyWaiting then return false end
+    if Screen.waiting then return action == "emergency_stop" end
+    local serviceActive = tostring(view.serviceStep or "idle") ~= "idle"
+    if serviceActive and action ~= "emergency_stop"
+        and action ~= "service_lockout" and action ~= "service_task"
+    then
+        return false
+    end
+    if action == "emergency_stop" then return true end
+    if action == "reset_safety" then return view.emergency == true end
+    if action == "toggle_motor" or action == "speed_up" or action == "speed_down" then
+        return view.emergency ~= true
+    elseif action == "toggle_feeder" or action == "toggle_impression" then
+        return view.emergency ~= true and view.motor == true
+    elseif action == "load_pallet" then
+        return view.status == "idle"
+    elseif action == "take_proof" then
+        local needed = math.max(0, (tonumber(view.targetSheets) or 0)
+            - (tonumber(view.goodSheets) or 0))
+        local proofState = view.status == "setup" or view.status == "proof"
+            or view.status == "approved"
+        return proofState and view.jobId ~= nil and view.palletId ~= nil
+            and windmillActivePlateReady(state, view) and windmillSetupComplete(view)
+            and view.emergency ~= true and view.motor == true and view.feeder == true
+            and view.impression == true and (tonumber(view.feedRemaining) or 0) > needed
+    elseif action == "verify_artwork" then
+        return view.status == "proof" and view.proofPermille ~= nil
+    elseif action == "approve_proof" then
+        return view.status == "proof" and view.artworkVerified == true
+            and (tonumber(view.proofPermille) or 0) >= 820
+    elseif action == "start_run" then
+        return view.status == "approved" and view.proofApproved == true
+            and view.emergency ~= true and view.motor == true and view.feeder == true
+            and view.impression == true
+    elseif action == "stop_run" then
+        return view.status == "production"
+    elseif action == "clean_unload" then
+        return view.status == "pass_complete"
+    elseif action == "begin_setup" then
+        return view.palletId ~= nil and view.setupTask == nil
+            and view.status ~= "production" and view.status ~= "pass_complete"
+    elseif action == "setup_action" or action == "cancel_setup" then
+        return view.setupTask ~= nil
+    elseif action == "begin_service" then
+        local stock = state and state.inventory and state.inventory.stock or {}
+        return view.serviceStep == "idle" and view.status == "idle"
+            and (tonumber(stock.maintenance_kit) or 0) > 0
+    elseif action == "service_lockout" then
+        return view.serviceStep == "lockout_disconnect"
+            or view.serviceStep == "lockout_key" or view.serviceStep == "lockout_tag"
+    elseif action == "service_task" then
+        return view.serviceStep == "task"
+    elseif action == "book_technician" then
+        local scheduled = false
+        for _, item in ipairs(state and state.machines and state.machines.items or {}) do
+            if item.modelId == "heidelberg_10x15" and item.status == "installed" then
+                local maintenance = item.maintenance and item.maintenance.windmill or {}
+                scheduled = maintenance.technicianDueDay ~= nil
+                break
+            end
+        end
+        return view.serviceStep == "idle" and view.status == "idle" and not scheduled
+            and (tonumber(state and state.money) or 0) >= 350
+    elseif action == "order_plate" or action == "begin_plate" or action == "process_plate" then
+        local plate = windmillSelectedPlate(state)
+        if not plate then return false end
+        if action == "process_plate" then return plate.status == "processing" end
+        return plate.status == "unprepared"
+    end
+    return false
+end
+
+local function windmillMousepressed(state, x, y, sendCommand)
+    for _, tab in ipairs(WINDMILL_TAB_ORDER) do
+        if contains(WINDMILL_TABS[tab], x, y) then
+            Screen.windmillTab = tab
+            Screen.status = tab:sub(1, 1):upper() .. tab:sub(2) .. " controls opened."
+            return true
+        end
+    end
+
+    local view = Screen.view or {}
+    if Screen.windmillTab == "run" then
+        if view.status == "idle" then
+            for index, candidate in ipairs(windmillCandidates()) do
+                if contains(windmillCandidateRect(index), x, y) then
+                    return windmillButtonEnabled("load_pallet", state)
+                        and request(sendCommand, "load_pallet", { palletId = candidate.palletId }) or true
+                end
+            end
+        end
+        for action, rect in pairs(WINDMILL_RUN_CONTROLS) do
+            if contains(rect, x, y) then
+                local command = action
+                if action == "run" then
+                    command = view.status == "production" and "stop_run" or "start_run"
+                end
+                return windmillButtonEnabled(command, state)
+                    and request(sendCommand, command, {}) or true
+            end
+        end
+    elseif Screen.windmillTab == "plates" then
+        local selected, plates, _, jobs = windmillSelectedPlate(state)
+        for index, job in ipairs(jobs) do
+            if contains(windmillPlateJobRect(index), x, y) then
+                Screen.windmillJobId, Screen.windmillPlateId = job.id, nil
+                windmillSelectedPlate(state)
+                Screen.status = "Selected plate job " .. tostring(job.id) .. "."
+                return true
+            end
+        end
+        for index, plate in ipairs(plates) do
+            if contains(windmillPlateRect(index), x, y) then
+                Screen.windmillPlateId = plate.id
+                Screen.status = "Selected " .. tostring(plate.id) .. "."
+                return true
+            end
+        end
+        for action, rect in pairs(WINDMILL_PLATE_CONTROLS) do
+            if contains(rect, x, y) then
+                if not selected or not windmillButtonEnabled(action, state) then return true end
+                return request(sendCommand, action, { plateId = selected.id })
+            end
+        end
+    elseif Screen.windmillTab == "setup" then
+        if view.setupTask then
+            if contains(WINDMILL_SETUP_CANCEL, x, y) then
+                return windmillButtonEnabled("cancel_setup", state)
+                    and request(sendCommand, "cancel_setup", {}) or true
+            end
+            for index, control in ipairs(PressSetupGames.controls(view.setupTask)) do
+                if contains(windmillSetupControlRect(view.setupTask, index), x, y) then
+                    return windmillButtonEnabled("setup_action", state)
+                        and request(sendCommand, "setup_action", { setupAction = control[1] }) or true
+                end
+            end
+        else
+            for index, task in ipairs(WINDMILL_SETUP_TASKS) do
+                if contains(windmillSetupTaskRect(index), x, y) then
+                    return windmillButtonEnabled("begin_setup", state)
+                        and request(sendCommand, "begin_setup", { setupTask = task }) or true
+                end
+            end
+        end
+    elseif Screen.windmillTab == "service" then
+        local step = tostring(view.serviceStep or "idle")
+        if step == "idle" then
+            if contains(WINDMILL_SERVICE_CONTROLS.begin_service, x, y) then
+                return windmillButtonEnabled("begin_service", state)
+                    and request(sendCommand, "begin_service", {}) or true
+            elseif contains(WINDMILL_SERVICE_CONTROLS.book_technician, x, y) then
+                return windmillButtonEnabled("book_technician", state)
+                    and request(sendCommand, "book_technician", {}) or true
+            end
+        elseif step == "task" then
+            if contains(WINDMILL_SERVICE_CONTROLS.service_task, x, y) then
+                return windmillButtonEnabled("service_task", state)
+                    and request(sendCommand, "service_task", {}) or true
+            end
+        elseif contains(WINDMILL_SERVICE_CONTROLS.service_lockout, x, y) then
+            return windmillButtonEnabled("service_lockout", state)
+                and request(sendCommand, "service_lockout", {}) or true
+        end
+    end
+    return false
+end
+
 function Screen.mousepressed(state, x, y, button, sendCommand)
     if button ~= 1 or not Screen:isOpen() then return false end
-    if contains(BACK, x, y) then return Screen.canClose() and { action = "close" } or true end
+    if contains(BACK, x, y) then
+        if Screen.canClose() then return { action = "close" } end
+        if Screen.resourceId == "windmill" and Screen.view
+            and Screen.view.status == "production"
+        then
+            Screen.status = "Stop the production run before closing the remote Windmill console."
+        end
+        return true
+    end
     if Screen.resourceId == "reception_customer" then
         if contains(QUOTE_INPUT, x, y) then
             Screen.quoteFocused, Screen.quoteReplaceOnType = true, true
@@ -521,6 +925,8 @@ function Screen.mousepressed(state, x, y, button, sendCommand)
             end
             return request(sendCommand, "start_cycle", { palletId = selected.palletId })
         end
+    elseif Screen.resourceId == "windmill" then
+        return windmillMousepressed(state, x, y, sendCommand)
     elseif Screen.resourceId == "cutter" then
         local view = Screen.view or {}
         if view.loaded ~= true then
@@ -831,19 +1237,238 @@ local function drawCutter(state, pointerX, pointerY)
         pointerX, pointerY, cutterButtonEnabled("cut_right"), false)
 end
 
+local function drawWindmillTabs(pointerX, pointerY)
+    for _, tab in ipairs(WINDMILL_TAB_ORDER) do
+        button(WINDMILL_TABS[tab], tab:upper(), pointerX, pointerY, true,
+            Screen.windmillTab == tab)
+    end
+end
+
+local function drawWindmillRun(state, pointerX, pointerY)
+    local view = Screen.view or {}
+    local proof = view.proofPermille and string.format("%d%%",
+        math.floor((tonumber(view.proofPermille) or 0) / 10 + 0.5)) or "NOT PULLED"
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print("STATUS  " .. tostring(view.status or "idle"):gsub("_", " "):upper(), 112, 170)
+    love.graphics.printf(string.format("SPEED  %d IPH", tonumber(view.speed) or 3000), 592, 170, 236, "right")
+    love.graphics.print("JOB  " .. tostring(view.jobId or "NO PALLET LOADED"), 112, 194)
+    love.graphics.printf(string.format("COLOR  %s / %s", tostring(view.colorIndex or "—"),
+        tostring(view.colorCount or "—")), 592, 194, 236, "right")
+    love.graphics.print(string.format("COUNTER  %d   GOOD  %d / %d   SPOIL  %d",
+        tonumber(view.counter) or 0, tonumber(view.goodSheets) or 0,
+        tonumber(view.targetSheets) or 0, tonumber(view.spoilage) or 0), 112, 218)
+    love.graphics.printf(string.format("FEED  %d / %d   PROOF  %s",
+        tonumber(view.feedRemaining) or 0, tonumber(view.feedStart) or 0, proof),
+        468, 218, 360, "right")
+    if view.warning then
+        love.graphics.setColor(0.78, 0.24, 0.18)
+        love.graphics.printf(tostring(view.warning), 112, 235, 716, "center")
+    end
+
+    button(WINDMILL_RUN_CONTROLS.toggle_motor, view.motor and "STOP MOTOR" or "START MOTOR",
+        pointerX, pointerY, windmillButtonEnabled("toggle_motor", state), true)
+    button(WINDMILL_RUN_CONTROLS.toggle_feeder, view.feeder and "FEEDER OFF" or "FEEDER ON",
+        pointerX, pointerY, windmillButtonEnabled("toggle_feeder", state), true)
+    button(WINDMILL_RUN_CONTROLS.toggle_impression,
+        view.impression and "IMPRESSION OFF" or "IMPRESSION ON",
+        pointerX, pointerY, windmillButtonEnabled("toggle_impression", state), true)
+    button(WINDMILL_RUN_CONTROLS.speed_down, "SPEED −", pointerX, pointerY,
+        windmillButtonEnabled("speed_down", state), true)
+    button(WINDMILL_RUN_CONTROLS.speed_up, "SPEED +", pointerX, pointerY,
+        windmillButtonEnabled("speed_up", state), true)
+    button(WINDMILL_RUN_CONTROLS.emergency_stop, "E-STOP", pointerX, pointerY,
+        windmillButtonEnabled("emergency_stop", state), false)
+    button(WINDMILL_RUN_CONTROLS.reset_safety, "RESET", pointerX, pointerY,
+        windmillButtonEnabled("reset_safety", state), true)
+    button(WINDMILL_RUN_CONTROLS.take_proof, "PULL PROOF", pointerX, pointerY,
+        windmillButtonEnabled("take_proof", state), true)
+    button(WINDMILL_RUN_CONTROLS.verify_artwork,
+        view.artworkVerified and "ART VERIFIED" or "VERIFY ART", pointerX, pointerY,
+        windmillButtonEnabled("verify_artwork", state), true)
+    button(WINDMILL_RUN_CONTROLS.approve_proof,
+        view.proofApproved and "APPROVED" or "APPROVE", pointerX, pointerY,
+        windmillButtonEnabled("approve_proof", state), true)
+    local runAction = view.status == "production" and "stop_run" or "start_run"
+    button(WINDMILL_RUN_CONTROLS.run, view.status == "production" and "STOP RUN" or "START RUN",
+        pointerX, pointerY, windmillButtonEnabled(runAction, state), true)
+    button(WINDMILL_RUN_CONTROLS.clean_unload, "CLEAN + UNLOAD", pointerX, pointerY,
+        windmillButtonEnabled("clean_unload", state), true)
+
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print(view.status == "idle" and "PRINT-READY PALLETS" or "ACTIVE PRESS PASS",
+        112, 408)
+    if view.status == "idle" then
+        local candidates = windmillCandidates()
+        if #candidates == 0 then
+            love.graphics.setColor(0.40, 0.42, 0.43)
+            love.graphics.printf("Stage cut stock beside the press and prepare its mounted plate.",
+                112, 456, 716, "center")
+        end
+        for index, candidate in ipairs(candidates) do
+            local label = string.format("LOAD %s  ·  COLOR %d",
+                compactLabel(cutterPalletLabel(state, candidate.palletId), 44),
+                tonumber(candidate.colorIndex) or 1)
+            button(windmillCandidateRect(index), label, pointerX, pointerY,
+                windmillButtonEnabled("load_pallet", state), true)
+        end
+    else
+        love.graphics.setColor(0.40, 0.42, 0.43)
+        love.graphics.printf(tostring(view.palletId or "The host owns the active pallet."),
+            112, 448, 716, "center")
+    end
+end
+
+local function drawWindmillPlates(state, pointerX, pointerY)
+    local selected, plates, job, jobs = windmillSelectedPlate(state)
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print("ACTIVE PRINT JOBS", 112, 164)
+    love.graphics.print("JOB PLATES", 344, 164)
+    if #jobs == 0 then
+        love.graphics.setColor(0.40, 0.42, 0.43)
+        love.graphics.printf("No active Windmill jobs require plates.", 112, 260, 716, "center")
+        return
+    end
+    for index, item in ipairs(jobs) do
+        button(windmillPlateJobRect(index), compactLabel(tostring(item.id), 24), pointerX, pointerY,
+            not Screen.waiting, item.id == Screen.windmillJobId)
+    end
+    for index, plate in ipairs(plates) do
+        if index > 4 then break end
+        local quality = math.floor((tonumber(plate.quality) or 0) * 100 + 0.5)
+        local label = string.format("%s  ·  %s  ·  %d%%  ·  %s",
+            compactLabel(plate.id, 25), tostring(plate.status or "unprepared"):upper(), quality,
+            plate.mounted and "MOUNTED" or tostring(plate.inkColor or "INK"))
+        button(windmillPlateRect(index), label, pointerX, pointerY, not Screen.waiting,
+            plate.id == Screen.windmillPlateId)
+    end
+    if not selected then return end
+    button(WINDMILL_PLATE_CONTROLS.order_plate, "ORDER PROCESSED PLATE", pointerX, pointerY,
+        windmillButtonEnabled("order_plate", state), true)
+    button(WINDMILL_PLATE_CONTROLS.begin_plate, "START IN-HOUSE PLATE", pointerX, pointerY,
+        windmillButtonEnabled("begin_plate", state), true)
+    local processNames = { "EXPOSE", "WASH", "DRY", "MOUNT" }
+    local processLabel = processNames[math.max(1, math.min(4,
+        math.floor(tonumber(selected.processStep) or 1)))]
+    button(WINDMILL_PLATE_CONTROLS.process_plate, "TIME + LOCK " .. processLabel,
+        pointerX, pointerY, windmillButtonEnabled("process_plate", state), true)
+
+    love.graphics.setColor(0.18, 0.21, 0.22)
+    love.graphics.rectangle("fill", 112, 508, 716, 24, 3, 3)
+    love.graphics.setColor(0.18, 0.58, 0.29)
+    love.graphics.rectangle("fill", 112 + 716 * 0.58, 508, 716 * 0.18, 24, 3, 3)
+    local marker = math.max(0, math.min(1000,
+        tonumber(Screen.view and Screen.view.plateMarkerPermille) or 0)) / 1000
+    love.graphics.setColor(0.92, 0.72, 0.20)
+    love.graphics.rectangle("fill", 108 + 716 * marker, 502, 8, 36)
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.printf("Lock the host-timed marker inside the green quality window.",
+        112, 544, 716, "center")
+    if job then
+        love.graphics.printf(compactLabel(tostring(job.company or job.id), 56), 112, 570, 716, "center")
+    end
+end
+
+local function drawWindmillSetup(state, pointerX, pointerY)
+    local view = Screen.view or {}
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.printf("Host-verified chase, packing, roller, ink, feeder, and register checks",
+        112, 170, 716, "center")
+    if view.setupTask then
+        love.graphics.setColor(0.10, 0.12, 0.13)
+        love.graphics.printf(tostring(view.setupTask):upper() .. " SETUP", 112, 218, 716, "center")
+        love.graphics.setColor(0.40, 0.42, 0.43)
+        love.graphics.printf(tostring(view.setupSummary or "Use the controls to finish this check."),
+            112, 260, 716, "center")
+        for index, control in ipairs(PressSetupGames.controls(view.setupTask)) do
+            button(windmillSetupControlRect(view.setupTask, index), control[2], pointerX, pointerY,
+                windmillButtonEnabled("setup_action", state), true)
+        end
+        button(WINDMILL_SETUP_CANCEL, "CANCEL SETUP", pointerX, pointerY,
+            windmillButtonEnabled("cancel_setup", state), false)
+        return
+    end
+    for index, task in ipairs(WINDMILL_SETUP_TASKS) do
+        local score = tonumber((view.setupPermille or {})[index]) or 0
+        local label = task:upper() .. "\n" .. (score > 0
+            and string.format("COMPLETE %d%%", math.floor(score / 10 + 0.5)) or "BEGIN CHECK")
+        button(windmillSetupTaskRect(index), label, pointerX, pointerY,
+            windmillButtonEnabled("begin_setup", state), score > 0)
+    end
+    if not view.palletId then
+        love.graphics.setColor(0.40, 0.42, 0.43)
+        love.graphics.printf("Load a print-ready pallet from RUN before beginning setup.",
+            112, 470, 716, "center")
+    end
+end
+
+local function drawWindmillService(state, pointerX, pointerY)
+    local view = Screen.view or {}
+    local machine
+    for _, item in ipairs(state and state.machines and state.machines.items or {}) do
+        if item.modelId == "heidelberg_10x15" and item.status == "installed" then machine = item; break end
+    end
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.printf(string.format("MACHINE CONDITION  %d%%   ·   MAINTENANCE KITS  %d",
+        tonumber(machine and machine.condition) or 0,
+        tonumber(state and state.inventory and state.inventory.stock
+            and state.inventory.stock.maintenance_kit) or 0), 112, 176, 716, "center")
+    love.graphics.setColor(0.18, 0.21, 0.22)
+    love.graphics.rectangle("fill", 160, 224, 640, 20, 3, 3)
+    love.graphics.setColor(0.18, 0.58, 0.29)
+    love.graphics.rectangle("fill", 160, 224, 640 * math.max(0, math.min(1000,
+        tonumber(view.servicePermille) or 0)) / 1000, 20, 3, 3)
+    local step = tostring(view.serviceStep or "idle")
+    if step == "idle" then
+        love.graphics.setColor(0.40, 0.42, 0.43)
+        love.graphics.printf("Routine service requires an idle, unloaded press and one maintenance kit.",
+            112, 300, 716, "center")
+        button(WINDMILL_SERVICE_CONTROLS.begin_service, "BEGIN LOCKOUT + SERVICE",
+            pointerX, pointerY, windmillButtonEnabled("begin_service", state), true)
+        button(WINDMILL_SERVICE_CONTROLS.book_technician, "BOOK TECHNICIAN  $350",
+            pointerX, pointerY, windmillButtonEnabled("book_technician", state), true)
+    elseif step == "task" then
+        love.graphics.setColor(0.10, 0.12, 0.13)
+        love.graphics.printf(tostring(view.serviceTask or "Inspect and service the active component."),
+            160, 282, 640, "center")
+        button(WINDMILL_SERVICE_CONTROLS.service_task, "COMPLETE INTERACTIVE CHECK",
+            pointerX, pointerY, windmillButtonEnabled("service_task", state), true)
+    else
+        local labels = {
+            lockout_disconnect = "1. DISCONNECT POWER",
+            lockout_key = "2. REMOVE + KEEP KEY",
+            lockout_tag = "3. ATTACH LOCKOUT TAG",
+        }
+        love.graphics.setColor(0.10, 0.12, 0.13)
+        love.graphics.printf("Complete energy isolation in the host-verified order.",
+            160, 282, 640, "center")
+        button(WINDMILL_SERVICE_CONTROLS.service_lockout, labels[step] or "ADVANCE LOCKOUT",
+            pointerX, pointerY, windmillButtonEnabled("service_lockout", state), true)
+    end
+end
+
+local function drawWindmill(state, pointerX, pointerY)
+    drawWindmillTabs(pointerX, pointerY)
+    if Screen.windmillTab == "run" then drawWindmillRun(state, pointerX, pointerY)
+    elseif Screen.windmillTab == "plates" then drawWindmillPlates(state, pointerX, pointerY)
+    elseif Screen.windmillTab == "setup" then drawWindmillSetup(state, pointerX, pointerY)
+    else drawWindmillService(state, pointerX, pointerY) end
+end
+
 function Screen.draw(state, pointerX, pointerY, assets)
     local titles = {
         reception_customer = { "REMOTE RECEPTION", "The host device owns the customer and verifies your quote" },
         office_computer = { "REMOTE OFFICE COMPUTER", "Shared shop records are live; transactions run on the host device" },
         skid_wrapper = { "REMOTE SKID WRAPPER", "The host device owns the machine cycle and saved pallet state" },
         cutter = { "REMOTE POLAR CUTTER", "The host device owns the blade cycle and saved paper state" },
+        windmill = { "REMOTE HEIDELBERG WINDMILL", "The host device owns press safety, production, and saved paper state" },
     }
     local copy = titles[Screen.resourceId] or { "REMOTE WORKSHOP", "Host-authoritative console" }
     header(copy[1], copy[2], pointerX, pointerY, assets)
     if Screen.resourceId == "reception_customer" then drawCustomer(pointerX, pointerY)
     elseif Screen.resourceId == "office_computer" then drawComputer(state, pointerX, pointerY)
     elseif Screen.resourceId == "skid_wrapper" then drawWrapper(state, pointerX, pointerY)
-    elseif Screen.resourceId == "cutter" then drawCutter(state, pointerX, pointerY) end
+    elseif Screen.resourceId == "cutter" then drawCutter(state, pointerX, pointerY)
+    elseif Screen.resourceId == "windmill" then drawWindmill(state, pointerX, pointerY) end
     love.graphics.setColor(0.18, 0.21, 0.22)
     love.graphics.printf(Screen.status, PANEL.x + 24, PANEL.y + PANEL.height - 30,
         PANEL.width - 48, "center")
@@ -876,7 +1501,62 @@ function Screen.cutterButtonCenter(action, value)
     return rect.x + rect.width / 2, rect.y + rect.height / 2
 end
 
+function Screen.windmillButtonCenter(action, value)
+    local rect
+    if action == "load_pallet" then
+        local index = tonumber(value)
+        if not index and value ~= nil then
+            for candidateIndex, candidate in ipairs(windmillCandidates()) do
+                if candidate.palletId == value then index = candidateIndex; break end
+            end
+        end
+        rect = windmillCandidateRect(index or 1)
+    elseif action == "start_run" or action == "stop_run" or action == "run" then
+        rect = WINDMILL_RUN_CONTROLS.run
+    elseif action == "begin_setup" then
+        local index = tonumber(value)
+        if not index and value ~= nil then
+            for taskIndex, task in ipairs(WINDMILL_SETUP_TASKS) do
+                if task == value then index = taskIndex; break end
+            end
+        end
+        rect = windmillSetupTaskRect(index or 1)
+    elseif action == "setup_action" then
+        local task = Screen.view and Screen.view.setupTask
+        if not task then return nil end
+        local controls = PressSetupGames.controls(task)
+        local index = tonumber(value)
+        if not index and value ~= nil then
+            for controlIndex, control in ipairs(controls) do
+                if control[1] == value then index = controlIndex; break end
+            end
+        end
+        if #controls > 0 then rect = windmillSetupControlRect(task, index or 1) end
+    elseif action == "cancel_setup" then
+        rect = WINDMILL_SETUP_CANCEL
+    elseif action == "select_job" or action == "select_plate_job" then
+        rect = windmillPlateJobRect(tonumber(value) or 1)
+    elseif action == "select_plate" then
+        rect = windmillPlateRect(tonumber(value) or 1)
+    else
+        rect = WINDMILL_RUN_CONTROLS[action]
+            or WINDMILL_PLATE_CONTROLS[action]
+            or WINDMILL_SERVICE_CONTROLS[action]
+    end
+    if not rect then return nil end
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.windmillTabCenter(tab)
+    local rect = WINDMILL_TABS[tab]
+    if not rect then return nil end
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
 function Screen.buttonCenter(action, value)
+    if Screen.resourceId == "windmill" then
+        return Screen.windmillButtonCenter(action, value)
+    end
     return Screen.cutterButtonCenter(action, value)
 end
 

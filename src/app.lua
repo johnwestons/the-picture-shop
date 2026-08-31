@@ -9,6 +9,10 @@ local Controller = require("src.controller")
 local CutterPlacement = require("src.cutter_placement")
 local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
+local CryptoNative = require("src.net.crypto_native")
+local DirectConnection = require("src.net.direct_connection")
+local DirectCompositeTransport = require("src.net.transport_direct_composite")
+local DirectScreen = require("src.screens.direct_screen")
 local Hud = require("src.screens.hud")
 local Input = require("src.input")
 local Ui = require("src.screens.ui")
@@ -31,6 +35,7 @@ local PalletJack = require("src.pallet_jack")
 local PalletState = require("src.pallet_state")
 local PalletLogistics = require("src.pallet_logistics")
 local PlateService = require("src.plate_service")
+local PressSetupGames = require("src.press_setup_games")
 local PressScreen = require("src.screens.press_screen")
 local Receiving = require("src.receiving")
 local Save = require("src.save")
@@ -61,9 +66,22 @@ local multiplayer = MultiplayerSession.new()
 local workshopAuthority = nil
 local localWorkshopLease = nil
 local localWorkshopRequestId = 0
+local activeWindmillRemote = nil
+local directConnection = nil
+local pendingDirectSession = nil
+local directHostComposite = nil
+local directHostInvitationGeneration = 0
+local lastDirectSlot = 1
 local serviceNetworkBeforeMachine
 
 MachineFleet.setSaleGuard(function(_, item)
+    local windmillLeaseActive = workshopAuthority
+        and workshopAuthority:leaseForResource("windmill") ~= nil
+    if windmillLeaseActive and item and item.modelId == "heidelberg_10x15"
+        and item.status == "installed"
+    then
+        return false, "Close the active Windmill console before listing the press for sale."
+    end
     local cutterLeaseActive = workshopAuthority
         and workshopAuthority:leaseForResource("cutter") ~= nil
     return Machine.validateSale(item, cutterLeaseActive)
@@ -98,11 +116,16 @@ local function saveCurrent()
 end
 
 local function startGame(payload, mode)
-    if not State.applySave(state, payload) then return false, "That shop save could not be opened safely." end
+    local applied, windmillSanitized = State.applyLocalSave(state, payload)
+    if not applied then return false, "That shop save could not be opened safely." end
     World.load(payload.player)
     Machine.reset()
-    if mode == "new" and not saveCurrent() then
-        return false, "This device could not create the new shop save."
+    Windmill.resetNetworkRuntime()
+    activeWindmillRemote = nil
+    if (mode == "new" or windmillSanitized) and not saveCurrent() then
+        return false, mode == "new"
+            and "This device could not create the new shop save."
+            or "This device could not save the safely stopped Windmill state."
     end
     if payload.recovered then
         state.message = "Recovered this shop from its last valid " .. tostring(payload.recoverySource) .. " copy."
@@ -112,6 +135,11 @@ end
 
 local returnToTitle
 local openLocalPlay
+local openDirectPlay
+local openDirectInvite
+local closeDirectConnection
+local closeDirectHostComposite
+local syncMobileKeyboard
 
 local function exactArguments(arguments, required)
     if type(arguments) ~= "table" then return false end
@@ -238,6 +266,410 @@ local function findActiveJob(jobId)
     for _, job in ipairs((state.jobs and state.jobs.active) or {}) do
         if job.id == jobId then return job end
     end
+end
+
+local UINT32_MAX = 4294967295
+
+local function uint32(value)
+    return math.max(0, math.min(UINT32_MAX, math.floor(tonumber(value) or 0)))
+end
+
+local function windmillRuntimeClock()
+    if love and love.timer and love.timer.getTime then return love.timer.getTime() end
+    return os.clock()
+end
+
+local function windmillPlateMarkerPermille()
+    return math.max(0, math.min(1000,
+        math.floor(((math.sin(windmillRuntimeClock() * 2.2) + 1) * 500) + 0.5)))
+end
+
+local function findPlateById(plateId)
+    for _, job in ipairs((state.jobs and state.jobs.active) or {}) do
+        if job.press then
+            for colorIndex, plate in ipairs(PlateService.ensureJob(job)) do
+                if plate.id == plateId then return job, plate, colorIndex end
+            end
+        end
+    end
+end
+
+local function windmillView(session)
+    local process, job = Windmill.current(state)
+    local setupPermille = {}
+    for index, task in ipairs(Windmill.setupTasks()) do
+        setupPermille[index] = math.max(0, math.min(1000,
+            math.floor((tonumber(process.setup[task]) or 0) * 1000 + 0.5)))
+    end
+    local candidates = {}
+    for _, item in ipairs(Windmill.candidates(state)) do
+        candidates[#candidates + 1] = {
+            palletId = tostring(item.pallet.id),
+            colorIndex = math.max(1, math.min(4, math.floor(tonumber(item.color) or 1))),
+        }
+        if #candidates >= 3 then break end
+    end
+    local view = {
+        runtimeRevision = uint32(Windmill.networkRuntimeRevision()),
+        status = tostring(process.status),
+        speed = math.max(1000, math.min(5500, math.floor(tonumber(process.speed) or 3000))),
+        motor = process.motor == true,
+        feeder = process.feeder == true,
+        impression = process.impression == true,
+        emergency = process.emergency == true,
+        counter = uint32(process.counter),
+        goodSheets = uint32(process.goodSheets),
+        spoilage = uint32(process.spoilage),
+        targetSheets = uint32(process.targetSheets),
+        feedStart = uint32(process.feedStart),
+        feedRemaining = uint32(process.feedRemaining),
+        proofApproved = process.proofApproved == true,
+        artworkVerified = process.artworkVerified == true,
+        setupPermille = setupPermille,
+        candidates = candidates,
+        serviceStep = "idle",
+        servicePermille = 0,
+        plateMarkerPermille = windmillPlateMarkerPermille(),
+    }
+    if process.jobId then view.jobId = tostring(process.jobId) end
+    if process.palletId then view.palletId = tostring(process.palletId) end
+    if process.colorIndex then
+        view.colorIndex = math.max(1, math.min(4, math.floor(process.colorIndex)))
+    end
+    if job and job.press then
+        view.colorCount = math.max(1, math.min(4,
+            math.floor(tonumber(job.press.colors) or 1)))
+    end
+    if process.proofQuality ~= nil then
+        view.proofPermille = math.max(0, math.min(1000,
+            math.floor((tonumber(process.proofQuality) or 0) * 1000 + 0.5)))
+    end
+    local warning = process.warning or Windmill.failureSummary(state)
+    if warning then view.warning = tostring(warning) end
+    if type(session) == "table" then
+        if session.setupGame and session.setupTask then
+            view.warning = nil
+            view.setupTask = session.setupTask
+            view.setupSummary = PressSetupGames.summary(session.setupGame)
+        end
+        if session.maintenance then
+            view.warning = nil
+            local step = math.max(1, math.floor(tonumber(session.lockoutStep) or 1))
+            if step == 1 then view.serviceStep = "lockout_disconnect"
+            elseif step == 2 then view.serviceStep = "lockout_key"
+            elseif step == 3 then view.serviceStep = "lockout_tag"
+            else view.serviceStep = "task" end
+            if step <= 3 then
+                view.servicePermille = (step - 1) * 80
+            else
+                view.servicePermille = math.max(0, math.min(1000,
+                    math.floor(250 + MachineMaintenance.progress(session.maintenance) * 750 + 0.5)))
+                local task = MachineMaintenance.activeTask(session.maintenance)
+                if task then view.serviceTask = tostring(task.label or task.id) end
+            end
+        end
+    end
+    return view
+end
+
+local function windmillNoArguments(arguments)
+    if not exactArguments(arguments, {}) then
+        return nil, "invalid_arguments", "That Windmill action takes no additional data."
+    end
+    return {}
+end
+
+local function windmillTokenArguments(field, invalidCode, invalidMessage)
+    return function(arguments)
+        local value = type(arguments) == "table" and arguments[field]
+        if not exactArguments(arguments, { field }) or type(value) ~= "string"
+            or #value < 1 or #value > 64
+            or not value:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
+        then
+            return nil, invalidCode, invalidMessage
+        end
+        return { [field] = value }
+    end
+end
+
+local function performWindmillAction(player, lease, operation, durable, allowDuringService)
+    local allowed, code, accessMessage = World.validateNetworkWorkshopAccess(
+        player, state, "windmill")
+    if not allowed then
+        return false, code, accessMessage, windmillView(lease and lease.private)
+    end
+    local session = lease and lease.private
+    if session and session.maintenance and not allowDuringService then
+        return false, "service_active",
+            "Finish or release the active Windmill service lockout before operating the press.",
+            windmillView(session)
+    end
+    local previousMessage = state.message
+    local accepted, detail = operation()
+    accepted = accepted == true
+    local resultMessage
+    if type(detail) == "string" then resultMessage = detail end
+    if not resultMessage and state.message ~= nil and state.message ~= previousMessage then
+        resultMessage = tostring(state.message)
+    end
+    if not resultMessage then
+        resultMessage = accepted and "Windmill action completed."
+            or "The Windmill is not ready for that action."
+    end
+    state.message = resultMessage
+    if accepted and durable then saveCurrent() end
+    return accepted, accepted and "completed" or "machine_blocked",
+        resultMessage, windmillView(lease and lease.private)
+end
+
+local function windmillSimpleCommand(operation, durable, allowDuringService)
+    return {
+        normalize = windmillNoArguments,
+        perform = function(lease, player)
+            return performWindmillAction(player, lease,
+                function() return operation(state) end, durable ~= false,
+                allowDuringService == true)
+        end,
+    }
+end
+
+local function createWindmillCommands()
+    local commands = {
+        load_pallet = {
+            normalize = windmillTokenArguments("palletId", "invalid_pallet",
+                "Choose a valid nearby print pallet."),
+            perform = function(lease, player, arguments)
+                return performWindmillAction(player, lease,
+                    function() return Windmill.load(state, arguments.palletId) end, true)
+            end,
+        },
+        toggle_motor = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "motor")
+        end),
+        toggle_feeder = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "feeder")
+        end),
+        toggle_impression = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "impression")
+        end),
+        speed_up = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "speed_up")
+        end),
+        speed_down = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "speed_down")
+        end),
+        emergency_stop = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "emergency")
+        end, nil, true),
+        reset_safety = windmillSimpleCommand(function(targetState)
+            return Windmill.control(targetState, "reset")
+        end),
+        take_proof = windmillSimpleCommand(Windmill.takeProof),
+        verify_artwork = windmillSimpleCommand(Windmill.verifyArtwork),
+        approve_proof = windmillSimpleCommand(Windmill.approveProof),
+        start_run = windmillSimpleCommand(Windmill.startProduction),
+        stop_run = windmillSimpleCommand(Windmill.stopProduction),
+        clean_unload = windmillSimpleCommand(Windmill.cleanAndUnload),
+        order_plate = {
+            normalize = windmillTokenArguments("plateId", "invalid_plate",
+                "Choose a valid press plate."),
+            perform = function(lease, player, arguments)
+                return performWindmillAction(player, lease, function()
+                    local job, plate, colorIndex = findPlateById(arguments.plateId)
+                    if not job or not plate then return false, "That press plate no longer exists." end
+                    local accepted, result = PlateService.order(state, job, colorIndex)
+                    if not accepted then return false, result end
+                    Windmill.bumpNetworkRevision()
+                    return true, "Plate ordered from the trade platemaker."
+                end, true)
+            end,
+        },
+        begin_plate = {
+            normalize = windmillTokenArguments("plateId", "invalid_plate",
+                "Choose a valid press plate."),
+            perform = function(lease, player, arguments)
+                return performWindmillAction(player, lease, function()
+                    local job, plate, colorIndex = findPlateById(arguments.plateId)
+                    if not job or not plate then return false, "That press plate no longer exists." end
+                    local accepted, result = PlateService.beginInHouse(state, job, colorIndex)
+                    if not accepted then return false, result end
+                    Windmill.bumpNetworkRevision()
+                    return true, "In-house platemaking started."
+                end, true)
+            end,
+        },
+        process_plate = {
+            normalize = windmillTokenArguments("plateId", "invalid_plate",
+                "Choose a valid press plate."),
+            perform = function(lease, player, arguments)
+                return performWindmillAction(player, lease, function()
+                    local _, plate = findPlateById(arguments.plateId)
+                    if not plate then return false, "That press plate no longer exists." end
+                    local action = PlateService.actionFor(plate)
+                    if not action then return false, "That plate is already complete." end
+                    local marker = windmillPlateMarkerPermille()
+                    local accuracy = math.max(0, math.min(1,
+                        1 - math.abs(marker - 670) / 330))
+                    local accepted, result = PlateService.process(plate, action, accuracy)
+                    if not accepted then return false, result end
+                    Windmill.bumpNetworkRevision()
+                    return true, string.format("%s step completed at %d%% accuracy.",
+                        action:gsub("^%l", string.upper), math.floor(accuracy * 100 + 0.5))
+                end, true)
+            end,
+        },
+    }
+
+    local setupTasks = {}
+    for _, task in ipairs(Windmill.setupTasks()) do setupTasks[task] = true end
+    commands.begin_setup = {
+        normalize = function(arguments)
+            local task = type(arguments) == "table" and arguments.setupTask
+            if not exactArguments(arguments, { "setupTask" }) or not setupTasks[task] then
+                return nil, "invalid_setup", "Choose one of the six Windmill setup checks."
+            end
+            return { setupTask = task }
+        end,
+        perform = function(lease, player, arguments)
+            return performWindmillAction(player, lease, function()
+                local process, job = Windmill.current(state)
+                if not process.palletId or not job then
+                    return false, "Load a print-ready pallet before setup."
+                end
+                local session = lease.private
+                if session.setupGame then return false, "Finish or cancel the open setup check first." end
+                session.setupTask = arguments.setupTask
+                session.setupGame = PressSetupGames.new(arguments.setupTask, job)
+                Windmill.bumpNetworkRevision()
+                return true, arguments.setupTask:upper() .. " setup check opened."
+            end, false)
+        end,
+    }
+
+    local setupActions = {}
+    for _, task in ipairs(Windmill.setupTasks()) do
+        for _, control in ipairs(PressSetupGames.controls(task)) do
+            setupActions[control[1]] = true
+        end
+    end
+    commands.setup_action = {
+        normalize = function(arguments)
+            local action = type(arguments) == "table" and arguments.setupAction
+            if not exactArguments(arguments, { "setupAction" }) or not setupActions[action] then
+                return nil, "invalid_setup_action", "Choose a valid setup control."
+            end
+            return { setupAction = action }
+        end,
+        perform = function(lease, player, arguments)
+            return performWindmillAction(player, lease, function()
+                local session = lease.private
+                local game, task = session.setupGame, session.setupTask
+                if not game or not task then return false, "Open a setup check first." end
+                local valid = false
+                for _, control in ipairs(PressSetupGames.controls(task)) do
+                    if control[1] == arguments.setupAction then valid = true; break end
+                end
+                if not valid then return false, "That control does not belong to this setup check." end
+                local complete, score = PressSetupGames.apply(game, arguments.setupAction)
+                if complete then
+                    local accepted, result = Windmill.completeSetup(state, task, score)
+                    session.setupGame, session.setupTask = nil, nil
+                    if not accepted then return false, result end
+                    saveCurrent()
+                    return true, task:upper() .. " setup check completed."
+                end
+                Windmill.bumpNetworkRevision()
+                return true, PressSetupGames.summary(game)
+            end, false)
+        end,
+    }
+    commands.cancel_setup = {
+        normalize = windmillNoArguments,
+        perform = function(lease, player)
+            return performWindmillAction(player, lease, function()
+                local session = lease.private
+                if not session or not session.setupGame then
+                    return false, "No setup check is open."
+                end
+                session.setupGame, session.setupTask = nil, nil
+                Windmill.bumpNetworkRevision()
+                return true, "Setup check cancelled."
+            end, false)
+        end,
+    }
+
+    commands.begin_service = {
+        normalize = windmillNoArguments,
+        perform = function(lease, player)
+            return performWindmillAction(player, lease, function()
+                local process = Windmill.ensure(state)
+                if process.status ~= "idle" or process.palletId then
+                    return false, "Unload the Windmill and return it to idle before service."
+                end
+                if lease.private.maintenance then return false, "Windmill service is already open." end
+                local item = MachineFleet.installed(state, "heidelberg_10x15")
+                if not item then return false, "No Heidelberg Windmill is installed." end
+                local maintenance, errorMessage = MachineMaintenance.begin(state, item.id)
+                if not maintenance then return false, errorMessage end
+                Windmill.releaseOperator(state)
+                lease.private.setupGame, lease.private.setupTask = nil, nil
+                lease.private.maintenance, lease.private.lockoutStep = maintenance, 1
+                Windmill.bumpNetworkRevision()
+                return true, "Windmill service opened. Begin the lockout sequence."
+            end, true)
+        end,
+    }
+    commands.service_lockout = {
+        normalize = windmillNoArguments,
+        perform = function(lease, player)
+            return performWindmillAction(player, lease, function()
+                local session = lease.private
+                if not session.maintenance then return false, "Begin Windmill service first." end
+                local step = math.max(1, math.floor(tonumber(session.lockoutStep) or 1))
+                if step > 3 then return false, "The service lockout is already complete." end
+                local labels = { "Disconnect opened.", "Lockout key secured.", "Service tag attached." }
+                session.lockoutStep = step + 1
+                Windmill.bumpNetworkRevision()
+                return true, labels[step]
+            end, false, true)
+        end,
+    }
+    commands.service_task = {
+        normalize = windmillNoArguments,
+        perform = function(lease, player)
+            return performWindmillAction(player, lease, function()
+                local session, maintenance = lease.private, lease.private.maintenance
+                if not maintenance then return false, "Begin Windmill service first." end
+                if (session.lockoutStep or 1) <= 3 then
+                    return false, "Complete disconnect, key, and tag lockout first."
+                end
+                local task = MachineMaintenance.activeTask(maintenance)
+                if not task then return false, "No maintenance task is ready." end
+                if not MachineMaintenance.submitTask(maintenance, task.id, 0.92) then
+                    return false, "That maintenance task could not be completed."
+                end
+                if maintenance.finished then
+                    local accepted, result = MachineMaintenance.commit(state, maintenance)
+                    if not accepted then
+                        MachineMaintenance.rollbackLastTask(maintenance, task.id)
+                        return false, result
+                    end
+                    session.maintenance, session.lockoutStep = nil, nil
+                    Windmill.bumpNetworkRevision()
+                    saveCurrent()
+                    return true, "Windmill maintenance completed and returned to service."
+                end
+                Windmill.bumpNetworkRevision()
+                return true, tostring(task.label or task.id) .. " completed."
+            end, false, true)
+        end,
+    }
+    commands.book_technician = windmillSimpleCommand(function(targetState)
+        local accepted, result = MachineMaintenance.requestWindmillTechnician(targetState)
+        if accepted then Windmill.bumpNetworkRevision() end
+        return accepted, accepted and "Windmill field technician booked for the next business day." or result
+    end)
+    return commands
 end
 
 local function createWorkshopAuthority()
@@ -524,6 +956,31 @@ local function createWorkshopAuthority()
                     },
                 },
             },
+            windmill = {
+                canAcquire = function(player)
+                    return World.validateNetworkWorkshopAccess(player, state, "windmill")
+                end,
+                onAcquire = function(lease)
+                    local session = {
+                        setupTask = nil,
+                        setupGame = nil,
+                        maintenance = nil,
+                        lockoutStep = nil,
+                    }
+                    activeWindmillRemote = session
+                    return true, "acquired", "Windmill console connected.",
+                        windmillView(session), session
+                end,
+                onRelease = function(lease)
+                    local changed = Windmill.releaseOperator(state)
+                    if activeWindmillRemote == (lease and lease.private) then
+                        activeWindmillRemote = nil
+                    end
+                    if changed then saveCurrent() end
+                    return true, "released", "Windmill controls released safely."
+                end,
+                commands = createWindmillCommands(),
+            },
             skid_wrapper = {
                 canAcquire = function(player)
                     local allowed, code, message = World.validateNetworkWorkshopAccess(
@@ -734,21 +1191,29 @@ local function clearWorkshopAuthority(reason)
     end
     workshopAuthority = nil
     localWorkshopLease = nil
+    activeWindmillRemote = nil
 end
 
-local function startLanHost(slot, playerName)
+local function prepareHostSave(slot)
     local payload, status = Save.load(slot)
     local mode = "continue"
     if not payload and status == "empty" then
         payload, mode = Save.newGame(slot), "new"
     elseif not payload then
-        return false, "That host save is damaged. Choose another slot or delete it first."
+        return nil, nil, "That host save is damaged. Choose another slot or delete it first."
     end
     local writable, writableError = Save.preflightWritable(slot)
-    if not writable then return false, writableError end
+    if not writable then return nil, nil, writableError end
+    return payload, mode
+end
+
+local function startLanHost(slot, playerName)
+    local payload, mode, loadError = prepareHostSave(slot)
+    if not payload then return false, loadError end
     workshopAuthority = createWorkshopAuthority()
     localWorkshopLease = nil
     localWorkshopRequestId = 0
+    activeWindmillRemote = nil
     local hostName = tostring(playerName or "LAN Worker"):gsub("Worker", "Host")
     local ok, errorMessage = multiplayer:startHost({
         port = 22122,
@@ -781,8 +1246,15 @@ local function startLanClient(address, playerName)
 end
 
 openLocalPlay = function(slot)
-    multiplayer:stop("Opening Local Play")
+    local sessionClean, sessionError = multiplayer:stop("Opening Local Play")
     clearWorkshopAuthority("session_closed")
+    local connectionClean, connectionError = closeDirectConnection()
+    local hostClean, hostError = closeDirectHostComposite()
+    if not sessionClean or not connectionClean or not hostClean then
+        state.screen = "direct"
+        DirectScreen.showCleanupError(sessionError or connectionError or hostError)
+        return false
+    end
     state.screen = "lan"
     LanScreen.enter({
         slot = slot,
@@ -792,20 +1264,264 @@ openLocalPlay = function(slot)
         back = function()
             multiplayer:stop("Leaving Local Play")
             state.screen = "title"
-            TitleScreen.enter(startGame, openLocalPlay)
+            TitleScreen.enter(startGame, openLocalPlay,
+                CryptoNative.productionReady == true and openDirectPlay or nil)
         end,
     })
 end
 
+closeDirectConnection = function()
+    local connection = directConnection
+    if not connection then
+        pendingDirectSession = nil
+        return true
+    end
+    local called, cleaned = pcall(connection.close, connection)
+    if not called or cleaned ~= true then
+        return false,
+            "Direct connection cleanup could not be verified; restart the game before creating another invitation."
+    end
+    directConnection = nil
+    pendingDirectSession = nil
+    return true
+end
+
+closeDirectHostComposite = function()
+    local controller = directHostComposite
+    if not controller then
+        directHostInvitationGeneration = 0
+        return true
+    end
+    local called, cleaned = pcall(controller.close, controller)
+    if not called or cleaned ~= true then
+        return false,
+            "Direct host cleanup could not be verified; restart the game before hosting again."
+    end
+    directHostComposite = nil
+    directHostInvitationGeneration = 0
+    return true
+end
+
+local function disposeDirectTransportFactory(factory)
+    if type(factory) ~= "table" or type(factory.close) ~= "function" then
+        return false
+    end
+    local called, cleaned = pcall(factory.close, factory)
+    return called and cleaned == true
+end
+
+local DIRECT_HOST_PORT_SLOTS = {
+    { loopback = 22122, outer = 22123 },
+    { loopback = 22124, outer = 22125 },
+    { loopback = 22126, outer = 22127 },
+}
+
+local function directHostCanInvite()
+    if directConnection or not directHostComposite
+        or not multiplayer:isHost() or multiplayer.networkKind ~= "direct"
+    then
+        return false
+    end
+    local countOk, count = pcall(directHostComposite.linkCount, directHostComposite)
+    local capacityOk, capacity = pcall(directHostComposite.capacity, directHostComposite)
+    local hudOk, info = pcall(multiplayer.hudInfo, multiplayer)
+    return countOk and capacityOk and type(count) == "number" and type(capacity) == "number"
+        and hudOk and type(info) == "table"
+        and (tonumber(info.pendingJoinCount) or 0) == 0
+        and count >= 0 and count < capacity
+end
+
+local function createDirectConnection(loopbackHostPort)
+    local ok, socketModule = pcall(require, "socket")
+    if not ok then return nil, "Direct Internet sockets are unavailable on this device." end
+    return DirectConnection.new({
+        provider = CryptoNative,
+        socketModule = socketModule,
+        loopbackHostPort = loopbackHostPort,
+    })
+end
+
+local function startDirectHostConnection(localAddress)
+    local slotCount = #DIRECT_HOST_PORT_SLOTS
+    local firstSlot = (directHostInvitationGeneration % slotCount) + 1
+    local lastError = "No Direct guest port slot is available."
+    for offset = 0, slotCount - 1 do
+        local slotIndex = ((firstSlot + offset - 1) % slotCount) + 1
+        local slot = DIRECT_HOST_PORT_SLOTS[slotIndex]
+        local connection, connectionError = createDirectConnection(slot.loopback)
+        if not connection then return nil, connectionError end
+        local started, codeOrError = connection:startHost(localAddress, slot.outer)
+        if started then
+            directHostInvitationGeneration = slotIndex
+            return connection, codeOrError
+        end
+        lastError = codeOrError or lastError
+        local closeOk, cleaned = pcall(connection.close, connection)
+        if not closeOk or cleaned ~= true then
+            return nil,
+                "A Direct port attempt could not be cleaned up safely; restart the game before hosting again.",
+                connection
+        end
+    end
+    return nil, lastError
+end
+
+local function prepareDirectHost(slot, playerName, localAddress)
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    local hostClean, hostError = closeDirectHostComposite()
+    if not hostClean then return false, hostError end
+    local payload, mode, loadError = prepareHostSave(slot)
+    if not payload then return false, loadError end
+    local connection, codeOrError, cleanupOwner = startDirectHostConnection(localAddress)
+    if not connection then
+        if cleanupOwner then directConnection = cleanupOwner end
+        return false, codeOrError
+    end
+    directConnection = connection
+    pendingDirectSession = {
+        role = "host",
+        kind = "initial_host",
+        payload = payload,
+        saveMode = mode,
+        name = tostring(playerName or "Direct Worker"):gsub("Worker", "Host"),
+    }
+    return true, codeOrError
+end
+
+local function prepareDirectGuest(hostCode, localAddress, playerName)
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    local hostClean, hostError = closeDirectHostComposite()
+    if not hostClean then return false, hostError end
+    local connection, connectionError = createDirectConnection()
+    if not connection then return false, connectionError end
+    local started, codeOrError = connection:startGuest(hostCode, localAddress)
+    if not started then
+        local closeCalled, cleaned = pcall(connection.close, connection)
+        if not closeCalled or cleaned ~= true then
+            directConnection = connection
+            return false,
+                "Direct guest setup failed and its cleanup could not be verified; restart the game before trying again."
+        end
+        return false, codeOrError
+    end
+    directConnection = connection
+    pendingDirectSession = {
+        role = "guest",
+        name = tostring(playerName or "Direct Worker"),
+    }
+    return true, codeOrError
+end
+
+local function prepareAdditionalDirectHost(_, _, localAddress)
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    if not directHostCanInvite() then
+        return false, "Direct guest capacity is full or another invitation is still being prepared."
+    end
+    local connection, codeOrError, cleanupOwner = startDirectHostConnection(localAddress)
+    if not connection then
+        if cleanupOwner then directConnection = cleanupOwner end
+        return false, codeOrError
+    end
+    directConnection = connection
+    pendingDirectSession = {
+        role = "host",
+        kind = "additional_host",
+    }
+    return true, codeOrError
+end
+
+local function submitDirectResponse(responseCode)
+    if not directConnection or not pendingDirectSession
+        or pendingDirectSession.role ~= "host" then
+        return false, "No Direct host invitation is waiting for a reply."
+    end
+    return directConnection:submitResponse(responseCode)
+end
+
+openDirectPlay = function(slot)
+    local sessionClean, sessionError = multiplayer:stop("Opening Direct Play")
+    clearWorkshopAuthority("session_closed")
+    local connectionClean, connectionError = closeDirectConnection()
+    local hostClean, hostError = closeDirectHostComposite()
+    if not sessionClean or not connectionClean or not hostClean then
+        state.screen = "direct"
+        DirectScreen.showCleanupError(sessionError or connectionError or hostError)
+        return false
+    end
+    DirectScreen.leave()
+    lastDirectSlot = tonumber(slot) or lastDirectSlot or 1
+    state.screen = "direct"
+    DirectScreen.enter({
+        slot = lastDirectSlot,
+        host = prepareDirectHost,
+        join = prepareDirectGuest,
+        response = submitDirectResponse,
+        cancel = closeDirectConnection,
+        back = function()
+            local cleaned, cleanupError = closeDirectConnection()
+            if not cleaned then
+                DirectScreen.showCleanupError(cleanupError)
+                return false, cleanupError
+            end
+            state.screen = "title"
+            TitleScreen.enter(startGame, openLocalPlay,
+                CryptoNative.productionReady == true and openDirectPlay or nil)
+            return true
+        end,
+    })
+end
+
+openDirectInvite = function()
+    if not directHostCanInvite() then
+        state.message = "Direct guest capacity is full or another invitation is still active."
+        return false
+    end
+    MultiplayerHud.close()
+    state.screen = "direct"
+    DirectScreen.enter({
+        slot = lastDirectSlot,
+        inviteOnly = true,
+        host = prepareAdditionalDirectHost,
+        response = submitDirectResponse,
+        cancel = function()
+            local cleaned, cleanupError = closeDirectConnection()
+            if not cleaned then return false, cleanupError end
+            DirectScreen.leave()
+            state.screen = "world"
+            state.message = "The pending Direct invitation was cancelled; connected workers stayed online."
+            return true
+        end,
+        back = function()
+            local cleaned, cleanupError = closeDirectConnection()
+            if not cleaned then return false, cleanupError end
+            DirectScreen.leave()
+            state.screen = "world"
+            return true
+        end,
+    })
+    if syncMobileKeyboard then syncMobileKeyboard() end
+    return true
+end
+
 returnToTitle = function()
     saveCurrent()
-    multiplayer:stop("Returned to title")
+    local sessionClean, sessionError = multiplayer:stop("Returned to title")
     clearWorkshopAuthority("session_closed")
+    local connectionClean, connectionError = closeDirectConnection()
+    local hostClean, hostError = closeDirectHostComposite()
+    DirectScreen.leave()
     if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
         love.window.setDisplaySleepEnabled(true)
     end
     state.screen = "title"
-    TitleScreen.enter(startGame, openLocalPlay)
+    if not sessionClean or not connectionClean or not hostClean then
+        state.message = sessionError or connectionError or hostError
+    end
+    TitleScreen.enter(startGame, openLocalPlay,
+        CryptoNative.productionReady == true and openDirectPlay or nil)
 end
 
 local function palletJackCommandFor(action)
@@ -893,6 +1609,10 @@ local inputContext = {
         return workshopAuthority
             and workshopAuthority:leaseForResource("cutter") ~= nil
     end,
+    windmillControlOccupied = function()
+        return workshopAuthority
+            and workshopAuthority:leaseForResource("windmill") ~= nil
+    end,
     palletJackControl = handlePalletJackControl,
     networkInteraction = function(selected)
         if not multiplayer:isActive() then return false end
@@ -979,7 +1699,47 @@ local function pointerPosition()
     return toPointerCoordinates(x, y)
 end
 
-local syncMobileKeyboard
+local function multiplayerHudInfo()
+    local info = multiplayer:hudInfo()
+    info.canInvite = directHostCanInvite()
+    return info
+end
+
+local function handleMultiplayerHudAction(action)
+    if action == true then return true end
+    if type(action) ~= "table" then return false end
+    local ok, message
+    if action.kind == "approve" then
+        ok, message = multiplayer:approveJoin(action.requestId)
+    elseif action.kind == "deny" then
+        ok, message = multiplayer:rejectJoin(action.requestId)
+    elseif action.kind == "remove" then
+        ok, message = multiplayer:kickPlayer(action.playerId)
+    elseif action.kind == "invite" then
+        openDirectInvite()
+        return true
+    else
+        return true
+    end
+    state.message = tostring(message or (ok
+        and "Direct player control completed."
+        or "That Direct player action is no longer available."))
+    return true
+end
+
+local function multiplayerHudMousepressed(gameX, gameY, button)
+    if state.screen ~= "world" then return false end
+    local action = MultiplayerHud.mousepressed(
+        gameX, gameY, button, multiplayerHudInfo())
+    if not action then return false end
+    return handleMultiplayerHudAction(action)
+end
+
+local function multiplayerHudMousereleased(gameX, gameY, button)
+    if state.screen ~= "world" then return false end
+    return MultiplayerHud.mousereleased(
+        gameX, gameY, button, multiplayerHudInfo()) == true
+end
 
 local function dispatchGameMousePressed(gameX, gameY, button)
     if state.screen == "asset_error" then return end
@@ -989,12 +1749,19 @@ local function dispatchGameMousePressed(gameX, gameY, button)
         local result = LanScreen.mousepressed(gameX, gameY, button)
         syncMobileKeyboard()
         return result
+    elseif state.screen == "direct" then
+        local result = DirectScreen.mousepressed(gameX, gameY, button)
+        syncMobileKeyboard()
+        return result
     end
+    if multiplayerHudMousepressed(gameX, gameY, button) then return true end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
 local function dispatchGameMouseReleased(gameX, gameY, button)
     if state.screen == "lan" then return LanScreen.mousereleased(gameX, gameY, button) end
+    if state.screen == "direct" then return DirectScreen.mousereleased(gameX, gameY, button) end
+    if multiplayerHudMousereleased(gameX, gameY, button) then return true end
     return Input.mousereleased(gameX, gameY, button, inputContext)
 end
 
@@ -1007,13 +1774,20 @@ local function dispatchMousePressed(x, y, button)
         local result = LanScreen.mousepressed(gameX, gameY, button)
         syncMobileKeyboard()
         return result
+    elseif state.screen == "direct" then
+        local result = DirectScreen.mousepressed(gameX, gameY, button)
+        syncMobileKeyboard()
+        return result
     end
+    if multiplayerHudMousepressed(gameX, gameY, button) then return true end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
 local function dispatchMouseReleased(x, y, button)
     local gameX, gameY = toPointerCoordinates(x, y)
     if state.screen == "lan" then return LanScreen.mousereleased(gameX, gameY, button) end
+    if state.screen == "direct" then return DirectScreen.mousereleased(gameX, gameY, button) end
+    if multiplayerHudMousereleased(gameX, gameY, button) then return true end
     return Input.mousereleased(gameX, gameY, button, inputContext)
 end
 
@@ -1031,6 +1805,8 @@ local function wantsTextInput()
         return MachineScreen.wantsTextInput()
     elseif state.screen == "lan" then
         return LanScreen.wantsTextInput()
+    elseif state.screen == "direct" then
+        return DirectScreen.wantsTextInput()
     elseif state.screen == "workshop_remote" then
         return WorkshopRemoteScreen.wantsTextInput()
     end
@@ -1048,6 +1824,15 @@ local function dispatchKeyPressed(key)
         local result = LanScreen.keypressed(key)
         syncMobileKeyboard()
         return result
+    elseif state.screen == "direct" then
+        local result = DirectScreen.keypressed(key)
+        syncMobileKeyboard()
+        return result
+    end
+    if state.screen == "world"
+        and MultiplayerHud.keypressed(key, multiplayerHudInfo())
+    then
+        return true
     end
     if multiplayer:isClient() and state.screen == "world"
         and (key == "m" or key == "q")
@@ -1174,6 +1959,8 @@ local function runSmoke(startupTextureBytes, Sound)
         world = World,
         worldRenderer = WorldRenderer,
         windmill = Windmill,
+        createWorkshopAuthority = createWorkshopAuthority,
+        windmillNetworkView = windmillView,
         WindmillPlacement = WindmillPlacement,
         startupTextureBytes = startupTextureBytes,
         Sound = Sound,
@@ -1237,7 +2024,8 @@ function App.load()
         charactersHealthy and nil or characterFailures)
     if #state.assetErrors == 0 then
         World.load()
-        TitleScreen.enter(startGame, openLocalPlay)
+        TitleScreen.enter(startGame, openLocalPlay,
+            CryptoNative.productionReady == true and openDirectPlay or nil)
     else
         state.screen = "asset_error"
         state.message = string.format("Startup stopped: %d required asset error(s).", #state.assetErrors)
@@ -1261,49 +2049,70 @@ function App.load()
     print("[PICTURE SHOP] Startup complete")
 end
 
+local function showConnectionError(message, stopReason)
+    local direct = multiplayer.networkKind == "direct"
+    local cleaned, cleanupError = multiplayer:stop(stopReason or "Connection error")
+    if not cleaned then
+        if direct then
+            state.screen = "direct"
+            DirectScreen.showCleanupError(cleanupError)
+        else
+            state.screen = "lan"
+            LanScreen.showError(cleanupError)
+        end
+        syncMobileKeyboard()
+        return
+    end
+    if direct then
+        openDirectPlay(lastDirectSlot)
+        DirectScreen.showError(message or "The Direct connection ended.")
+    else
+        state.screen = "lan"
+        LanScreen.showError(message or "The LAN connection ended.")
+    end
+    syncMobileKeyboard()
+end
+
 local function handleMultiplayerEvents()
     for _, event in ipairs(multiplayer:drainEvents()) do
         if event.type == "ready" then
             Machine.resetNetworkReplica()
             if not State.applySharedSnapshot(state, event.state) then
-                multiplayer:stop("Invalid shared shop snapshot")
-                state.screen = "lan"
-                LanScreen.showError("The host sent a shop snapshot this build could not apply.")
+                showConnectionError(
+                    "The host sent a shop snapshot this build could not apply.",
+                    "Invalid shared shop snapshot")
             else
                 World.load(event.spawn)
                 state.screen = "world"
-                state.message = "Joined the host shop. Movement, doors, reception, office, and worker consoles are live."
+                state.message = "Joined the host shop. Movement, doors, reception, office, cutter, wrapper, and Windmill controls are live."
+                DirectScreen.leave()
             end
             syncMobileKeyboard()
         elseif event.type == "shop_state" then
             if not State.applySharedUpdate(state, event.state) then
-                multiplayer:stop("Invalid durable shop update")
-                state.screen = "lan"
-                LanScreen.showError("The host sent a shop update this build could not apply.")
-                syncMobileKeyboard()
+                showConnectionError(
+                    "The host sent a shop update this build could not apply.",
+                    "Invalid durable shop update")
             end
         elseif event.type == "pallet_jack_state" then
             local applied, applyError = World.applyNetworkPalletJackSnapshot(
                 state, event.jack, event.machines)
             if not applied and applyError ~= "awaiting_durable" then
-                multiplayer:stop("Invalid pallet-jack update")
-                state.screen = "lan"
-                LanScreen.showError("The host sent a pallet-jack update this build could not apply.")
-                syncMobileKeyboard()
+                showConnectionError(
+                    "The host sent a pallet-jack update this build could not apply.",
+                    "Invalid pallet-jack update")
             end
         elseif event.type == "visitor_state" then
             if not World.applyVisitorSnapshot(event.customer, event.vendor) then
-                multiplayer:stop("Invalid visitor update")
-                state.screen = "lan"
-                LanScreen.showError("The host sent a visitor update this build could not apply.")
-                syncMobileKeyboard()
+                showConnectionError(
+                    "The host sent a visitor update this build could not apply.",
+                    "Invalid visitor update")
             end
         elseif event.type == "environment_state" then
             if not World.applyEnvironmentSnapshot(event.bayDoor, event.truck) then
-                multiplayer:stop("Invalid environment update")
-                state.screen = "lan"
-                LanScreen.showError("The host sent an environment update this build could not apply.")
-                syncMobileKeyboard()
+                showConnectionError(
+                    "The host sent an environment update this build could not apply.",
+                    "Invalid environment update")
             end
         elseif event.type == "interaction_result" then
             state.message = tostring(event.message or (event.accepted
@@ -1348,9 +2157,9 @@ local function handleMultiplayerEvents()
             syncMobileKeyboard()
         elseif event.type == "workshop_snapshot" then
             if not Wrapper.applySnapshot(event.wrapper, state) then
-                multiplayer:stop("Invalid workshop runtime")
-                state.screen = "lan"
-                LanScreen.showError("The host sent a workshop update this build could not apply.")
+                showConnectionError(
+                    "The host sent a workshop update this build could not apply.",
+                    "Invalid workshop runtime")
             else
                 WorkshopRemoteScreen.applySnapshot(event)
             end
@@ -1358,6 +2167,10 @@ local function handleMultiplayerEvents()
             Machine.applyNetworkView(event.view)
             if WorkshopRemoteScreen.applyCutterSnapshot then
                 WorkshopRemoteScreen.applyCutterSnapshot(event)
+            end
+        elseif event.type == "windmill_state" then
+            if WorkshopRemoteScreen.applyWindmillSnapshot then
+                WorkshopRemoteScreen.applyWindmillSnapshot(event)
             end
         elseif event.type == "workshop_lost" then
             if state.screen == "workshop_remote" then
@@ -1374,29 +2187,68 @@ local function handleMultiplayerEvents()
             state.message = tostring(event.message or "The host released that workshop control.")
             syncMobileKeyboard()
         elseif event.type == "host_started" then
-            local address = event.address or "the host device's Wi-Fi IPv4"
-            state.message = "LAN host: guests join " .. tostring(address) .. ":" .. tostring(event.port or 22122) .. "."
+            if event.networkKind == "direct" then
+                state.message = "Direct host active. Each invited worker needs separate approval before any shop data is shared."
+            else
+                local address = event.address or "the host device's Wi-Fi IPv4"
+                state.message = "LAN host: guests join " .. tostring(address) .. ":" .. tostring(event.port or 22122) .. "."
+            end
+        elseif event.type == "approval_waiting" then
+            DirectScreen.setMessage(event.message
+                or "Encrypted request sent. Waiting for the host to approve this player.",
+                "connecting")
+        elseif event.type == "join_requested" then
+            MultiplayerHud.open(multiplayerHudInfo())
+            state.message = tostring(event.name or "A player")
+                .. " requested access. Choose APPROVE or DENY in the Players panel."
+        elseif event.type == "join_cancelled" then
+            state.message = "The pending Direct player disconnected. That invitation is now closed."
+        elseif event.type == "join_rejected" then
+            state.message = "Join declined. The old Direct codes can no longer be used."
+        elseif event.type == "join_expired" then
+            state.message = "The Direct join request expired. Create fresh codes to try again."
         elseif event.type == "player_joined" then
-            state.message = tostring(event.name or "A worker") .. " joined the LAN shop."
+            state.message = tostring(event.name or "A worker") .. " joined the shop."
         elseif event.type == "player_left" then
             if workshopAuthority then
                 workshopAuthority:cleanupPlayer({ id = event.playerId }, "disconnected",
                     { state = state })
             end
-            state.message = tostring(event.name or "A worker") .. " left the LAN shop."
+            local label = multiplayer.networkKind == "direct" and "Direct" or "LAN"
+            state.message = tostring(event.name or "A worker") .. " left the " .. label .. " shop."
+        elseif event.type == "player_kicked" then
+            state.message = tostring(event.name or "A worker") .. " was removed by the host."
+        elseif event.type == "direct_closed" then
+            local message = tostring(event.message or
+                "This Direct invitation is closed. Create fresh codes before reconnecting.")
+            multiplayer:stop("Direct invitation closed")
+            clearWorkshopAuthority("direct_invitation_closed")
+            MultiplayerHud.reset()
+            state.message = message
         elseif event.type == "disconnected" then
-            multiplayer:stop("Host disconnected")
+            -- A host transport failure is terminal too. Release every workshop
+            -- lease before leaving gameplay so its safety callback stops the
+            -- Windmill and persists that stopped state.
+            clearWorkshopAuthority("transport_failed")
             WorkshopRemoteScreen.clear()
-            state.screen = "lan"
-            LanScreen.showError(event.message or "The host connection ended.")
-            syncMobileKeyboard()
+            showConnectionError(event.message or "The host connection ended.", "Host disconnected")
         elseif event.type == "error" then
-            if state.screen == "lan" then
-                multiplayer:stop("Connection error")
-                LanScreen.showError(event.message or "The LAN connection failed.")
-                syncMobileKeyboard()
+            local addingDirectWorker = state.screen == "direct"
+                and multiplayer:isHost() and multiplayer.networkKind == "direct"
+                and DirectScreen.inviteOnly == true
+            if addingDirectWorker then
+                -- A joined worker can fail while the host is exchanging a
+                -- different worker's invitation.  Keep both the authoritative
+                -- shop and the fresh invitation alive; the Session/composite
+                -- transport isolates and retires only the failed link.
+                DirectScreen.setMessage(
+                    "One existing worker link ended; this fresh invitation is still active.")
+            elseif state.screen == "lan" or state.screen == "direct" then
+                showConnectionError(event.message or "The multiplayer connection failed.",
+                    "Connection error")
             else
-                state.message = "LAN: " .. tostring(event.message or "network error")
+                local label = multiplayer.networkKind == "direct" and "Direct" or "LAN"
+                state.message = label .. ": " .. tostring(event.message or "network error")
             end
         end
     end
@@ -1426,6 +2278,9 @@ local function performWorkshopRequest(player, operation, payload)
         if payload.amount ~= nil then arguments.amount = payload.amount end
         if payload.jobId ~= nil then arguments.jobId = payload.jobId end
         if payload.palletId ~= nil then arguments.palletId = payload.palletId end
+        if payload.plateId ~= nil then arguments.plateId = payload.plateId end
+        if payload.setupTask ~= nil then arguments.setupTask = payload.setupTask end
+        if payload.setupAction ~= nil then arguments.setupAction = payload.setupAction end
         if payload.programIndex ~= nil then arguments.programIndex = payload.programIndex end
         if payload.gaugeCentiInch ~= nil then
             arguments.gaugeCentiInch = payload.gaugeCentiInch
@@ -1503,6 +2358,13 @@ local function updateMultiplayer(dt, inputX, inputY)
                 view = cutterView(true),
             }
         end,
+        getWindmillSnapshot = function()
+            return {
+                resourceRevision = workshopAuthority
+                    and workshopAuthority:resourceRevision("windmill") or 0,
+                view = windmillView(activeWindmillRemote),
+            }
+        end,
         performWorkshop = performWorkshopRequest,
         touchWorkshop = function(player)
             if workshopAuthority then workshopAuthority:touchPlayer(player) end
@@ -1540,18 +2402,187 @@ local function updateMultiplayer(dt, inputX, inputY)
     end
 end
 
-serviceNetworkBeforeMachine = function(dt, targetState, networkService)
+local function directScreenError(message, keepActiveHost)
+    local cleaned, cleanupError = closeDirectConnection()
+    if not cleaned then
+        state.screen = "direct"
+        DirectScreen.showCleanupError(cleanupError)
+        if syncMobileKeyboard then syncMobileKeyboard() end
+        return
+    end
+    if keepActiveHost and multiplayer:isHost() and multiplayer.networkKind == "direct" then
+        DirectScreen.leave()
+        state.screen = "world"
+        state.message = tostring(message or "The additional Direct invitation could not start.")
+        if syncMobileKeyboard then syncMobileKeyboard() end
+        return
+    end
+    state.screen = "direct"
+    DirectScreen.showError(message or "The Direct connection could not start.")
+    if syncMobileKeyboard then syncMobileKeyboard() end
+end
+
+local function updateDirectConnection()
+    local connection = directConnection
+    if not connection then return end
+    local connectionState, connectionError = connection:update()
+    if connectionState == "failed" then
+        directScreenError(connectionError,
+            pendingDirectSession and pendingDirectSession.kind == "additional_host")
+        return
+    end
+    if connectionState ~= "ready" then return end
+
+    local transportFactory, roleOrError = connection:takeTransportFactory()
+    if not transportFactory then
+        directScreenError(roleOrError,
+            pendingDirectSession and pendingDirectSession.kind == "additional_host")
+        return
+    end
+    local pending = pendingDirectSession
+    directConnection = nil
+    pendingDirectSession = nil
+    connection:close()
+    if not pending or pending.role ~= roleOrError then
+        local disposed = disposeDirectTransportFactory(transportFactory)
+        if not disposed then
+            DirectScreen.showCleanupError(
+                "The Direct connection role failed and its cleanup could not be verified; restart the game.")
+            return
+        end
+        directScreenError("The Direct connection role could not be verified.",
+            pending and pending.kind == "additional_host")
+        return
+    end
+
+    if roleOrError == "host" then
+        if pending.kind == "additional_host" then
+            if not directHostComposite or type(directHostComposite.attachFactory) ~= "function" then
+                if not disposeDirectTransportFactory(transportFactory) then
+                    DirectScreen.showCleanupError(
+                        "The additional Direct link could not be attached or cleaned up; restart the game.")
+                    return
+                end
+                directScreenError("The active Direct host cannot accept another encrypted link.", true)
+                return
+            end
+            local attached, attachError = directHostComposite:attachFactory(
+                transportFactory, { channels = 3 })
+            if not attached then
+                directScreenError(attachError or
+                    "The additional encrypted Direct link could not start.", true)
+                return
+            end
+            DirectScreen.leave()
+            state.screen = "world"
+            state.message = "The new encrypted link is ready. Approve that worker in the Players panel when requested."
+            if syncMobileKeyboard then syncMobileKeyboard() end
+            return
+        end
+
+        local compositeFactory, compositeController = DirectCompositeTransport.newFactory({
+            maxGuests = 3,
+            channels = 3,
+        })
+        if not compositeFactory or not compositeController then
+            if not disposeDirectTransportFactory(transportFactory) then
+                DirectScreen.showCleanupError(
+                    "The first Direct link could not be attached or cleaned up; restart the game.")
+                return
+            end
+            directScreenError(compositeController or
+                "The multi-worker Direct host transport could not start.")
+            return
+        end
+        -- Retain the controller before attachment so any unverified cleanup
+        -- remains owned and blocks another invitation until process restart.
+        directHostComposite = compositeController
+        local attached, attachError = compositeController:attachFactory(
+            transportFactory, { channels = 3 })
+        if not attached then
+            local cleaned, cleanupError = closeDirectHostComposite()
+            if not cleaned then
+                DirectScreen.showCleanupError(cleanupError)
+                return
+            end
+            directScreenError(attachError or "The first encrypted Direct link could not start.")
+            return
+        end
+        workshopAuthority = createWorkshopAuthority()
+        localWorkshopLease = nil
+        localWorkshopRequestId = 0
+        activeWindmillRemote = nil
+        local hosted, hostError = multiplayer:startHost({
+            port = 22122,
+            name = pending.name,
+            character = Config.player.character,
+            networkKind = "direct",
+            transportFactory = compositeFactory,
+        })
+        if not hosted then
+            local cleaned, cleanupError = closeDirectHostComposite()
+            clearWorkshopAuthority("host_start_failed")
+            if not cleaned then
+                DirectScreen.showCleanupError(cleanupError)
+                return
+            end
+            directScreenError(hostError)
+            return
+        end
+        local started, startError = startGame(pending.payload, pending.saveMode)
+        if not started then
+            multiplayer:stop("Direct host save could not be opened")
+            local cleaned, cleanupError = closeDirectHostComposite()
+            clearWorkshopAuthority("host_save_failed")
+            if not cleaned then
+                DirectScreen.showCleanupError(cleanupError)
+                return
+            end
+            directScreenError(startError)
+            return
+        end
+        DirectScreen.leave()
+        if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
+            love.window.setDisplaySleepEnabled(false)
+        end
+        state.message = "Direct host active. Each worker uses a fresh invitation and must be approved before joining."
+    else
+        local joined, joinError = multiplayer:startClient("127.0.0.1:22122", {
+            name = pending.name,
+            character = Config.player.character,
+            networkKind = "direct",
+            transportFactory = transportFactory,
+        })
+        if not joined then
+            directScreenError(joinError)
+            return
+        end
+        state.screen = "direct"
+        DirectScreen.setMessage(
+            "Encrypted request is ready. Waiting for the host to approve this player.",
+            "connecting")
+        if syncMobileKeyboard then syncMobileKeyboard() end
+    end
+end
+
+serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmillService)
     networkService()
-    return Machine.update(dt, targetState)
+    local machineDurable = Machine.update(dt, targetState)
+    local windmillChanged, windmillDurable = false, false
+    if windmillService then
+        windmillChanged, windmillDurable = windmillService(dt, targetState)
+    end
+    return machineDurable or windmillDurable, windmillChanged, windmillDurable
 end
 
 function App.update(dt)
     if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
+    updateDirectConnection()
     Machine.setMultiplayerSingleControl(multiplayer:isActive())
     local networkInputX, networkInputY = 0, 0
     if not multiplayer:isClient() and state.screen ~= "title"
-        and state.screen ~= "lan" and state.screen ~= "asset_error"
+        and state.screen ~= "lan" and state.screen ~= "direct" and state.screen ~= "asset_error"
     then
         local calendarChanged = BusinessCalendar.update(state, dt)
         local emailArrived = JobService.updateClientEmails(state)
@@ -1564,6 +2595,8 @@ function App.update(dt)
         TitleScreen.update(dt)
     elseif state.screen == "lan" then
         LanScreen.update(dt)
+    elseif state.screen == "direct" then
+        DirectScreen.update(dt)
     elseif state.screen == "world" then
         local directionX, directionY = Input.movement()
         networkInputX, networkInputY = directionX, directionY
@@ -1604,14 +2637,15 @@ function App.update(dt)
         MachineScreen.update(dt)
     elseif state.screen == "press" and not multiplayer:isClient() then
         PressScreen.update(dt, state)
-        if Windmill.update(dt, state) then saveCurrent() end
     end
     local advanceAuthoritativeMachines = not multiplayer:isClient()
-        and state.screen ~= "title" and state.screen ~= "lan"
+        and state.screen ~= "title" and state.screen ~= "lan" and state.screen ~= "direct"
         and state.screen ~= "asset_error"
     if advanceAuthoritativeMachines then
         if serviceNetworkBeforeMachine(dt, state, function()
             updateMultiplayer(dt, networkInputX, networkInputY)
+        end, function(machineDt, targetState)
+            return Windmill.update(machineDt, targetState)
         end) then
             saveCurrent()
         end
@@ -1619,6 +2653,7 @@ function App.update(dt)
         updateMultiplayer(dt, networkInputX, networkInputY)
     end
     if not multiplayer:isClient() and state.screen ~= "title" and state.screen ~= "lan"
+        and state.screen ~= "direct"
         and state.screen ~= "asset_error" and Wrapper.update(dt, state)
     then
         saveCurrent()
@@ -1642,7 +2677,8 @@ function App.draw()
         Smoke.drawn()
         return
     end
-    local desiredPack = (state.screen == "title" or state.screen == "lan") and "menu"
+    local desiredPack = (state.screen == "title" or state.screen == "lan"
+        or state.screen == "direct") and "menu"
         or state.screen == "machine"
             and (state.machineType == "skid_wrapper" and "wrapper" or "cutter")
         or state.screen == "press" and "press" or nil
@@ -1663,6 +2699,9 @@ function App.draw()
     elseif state.screen == "lan" then
         CharacterAssets.retainCharacters({})
         LanScreen.draw()
+    elseif state.screen == "direct" then
+        CharacterAssets.retainCharacters({})
+        DirectScreen.draw()
     else
         local mouseX, mouseY = pointerPosition()
         if mobileWorld then
@@ -1679,7 +2718,7 @@ function App.draw()
         if state.screen == "world" then
             Hud.draw(state, World.prompt(), Assets, mouseX, mouseY,
                 mobileControls and mobileControls:isEnabled(), controller and controller:isActive(), viewBounds)
-            MultiplayerHud.draw(multiplayer:hudInfo())
+            MultiplayerHud.draw(multiplayerHudInfo())
         elseif state.screen == "computer" then
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "machine" then
@@ -1716,13 +2755,17 @@ function App.keypressed(key)
 end
 
 function App.keyreleased(key)
-    if state.screen == "lan" then return false end
+    if state.screen == "lan" or state.screen == "direct" then return false end
     Input.keyreleased(key, inputContext)
 end
 
 function App.textinput(text)
     if state.screen == "lan" then
         local result = LanScreen.textinput(text)
+        syncMobileKeyboard()
+        return result
+    elseif state.screen == "direct" then
+        local result = DirectScreen.textinput(text)
         syncMobileKeyboard()
         return result
     end
@@ -1745,7 +2788,7 @@ function App.mousemoved(x, y, _, _, isTouch)
 end
 
 function App.wheelmoved(x, y)
-    if state.screen == "lan" then return false end
+    if state.screen == "lan" or state.screen == "direct" then return false end
     Input.wheelmoved(x, y, inputContext)
 end
 
@@ -1777,11 +2820,43 @@ function App.focus(focused)
         multiplayer:sendNeutralInput()
         if controller then controller:cancelAll() end
         saveCurrent()
+        local activeDirectHost = multiplayer:isHost()
+            and multiplayer.networkKind == "direct"
+        if directConnection then
+            local cleaned, cleanupError = closeDirectConnection()
+            if not cleaned then
+                state.screen = "direct"
+                DirectScreen.showCleanupError(cleanupError)
+            elseif activeDirectHost and not isAndroidPlatform() then
+                DirectScreen.leave()
+                state.screen = "world"
+                state.message = "The pending Direct invitation was cancelled because the app lost focus; connected workers stayed online."
+            elseif not activeDirectHost then
+                state.screen = "direct"
+                DirectScreen.showError(
+                    "Direct setup was cancelled safely because the app left the foreground.")
+            end
+            syncMobileKeyboard()
+        elseif state.screen == "direct" and multiplayer:isClient()
+            and multiplayer.networkKind == "direct" then
+            multiplayer:stop("Direct client left the foreground during setup")
+            openDirectPlay(lastDirectSlot)
+            DirectScreen.showError(
+                "Direct setup ended safely because this device left the foreground.")
+            syncMobileKeyboard()
+        end
         if isAndroidPlatform() and multiplayer:isHost() then
+            local direct = multiplayer.networkKind == "direct"
             multiplayer:stop("Android host left the foreground")
             clearWorkshopAuthority("host_backgrounded")
-            state.screen = "lan"
-            LanScreen.showError("Hosting ended safely because the host phone left the foreground.")
+            if direct then
+                openDirectPlay(lastDirectSlot)
+                DirectScreen.showError(
+                    "Direct hosting ended safely because the host phone left the foreground.")
+            else
+                state.screen = "lan"
+                LanScreen.showError("Hosting ended safely because the host phone left the foreground.")
+            end
             if love.window and love.window.setDisplaySleepEnabled then
                 love.window.setDisplaySleepEnabled(true)
             end
@@ -1795,6 +2870,9 @@ function App.quit()
     if not spriteLabActive then saveCurrent() end
     multiplayer:stop("Application closed")
     clearWorkshopAuthority("application_closed")
+    closeDirectConnection()
+    closeDirectHostComposite()
+    DirectScreen.leave()
     if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
         love.window.setDisplaySleepEnabled(true)
     end

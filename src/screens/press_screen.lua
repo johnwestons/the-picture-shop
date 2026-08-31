@@ -123,7 +123,6 @@ end
 
 function Screen.update(dt, state)
     Screen.clock = Screen.clock + math.max(0, dt or 0)
-    Plates.update(state)
 end
 
 local function drawFrame()
@@ -195,12 +194,13 @@ local function drawRun(state, assets, pointerX, pointerY)
     button(568, 340, 104, 54, "SPEED −", true, pointerX, pointerY)
     button(684, 340, 104, 54, "SPEED +", true, pointerX, pointerY)
     button(800, 340, 104, 54, "E-STOP", true, pointerX, pointerY, true)
-    button(52, 412, 158, 54, "RESET", p.status ~= "production", pointerX, pointerY)
+    button(52, 412, 158, 54, "RESET", p.emergency, pointerX, pointerY)
     button(224, 412, 158, 54, "PULL PROOF", proofReady, pointerX, pointerY)
     button(396, 412, 158, 54, "APPROVE PROOF", p.status == "proof" and p.artworkVerified,
         pointerX, pointerY)
     button(568, 412, 158, 54, p.status == "production" and "STOP RUN" or "START RUN",
-        p.proofApproved or p.status == "production", pointerX, pointerY)
+        (p.status == "approved" and p.proofApproved) or p.status == "production",
+        pointerX, pointerY)
     button(740, 412, 164, 54, "CLEAN + UNLOAD", p.status == "pass_complete", pointerX, pointerY)
 
     local candidates = Windmill.candidates(state)
@@ -673,13 +673,22 @@ local function maintenanceClick(state,x,y)
     if not machine then return false end
     if not Screen.maintenance then
         if inside({x=330,y=570,width=300,height=56},x,y) then
+            local process = Windmill.ensure(state)
+            if process.status ~= "idle" or process.palletId then
+                return false, "Unload the Windmill and return it to idle before service."
+            end
             local session,errorMessage=MachineMaintenance.begin(state,machine.id)
             if not session then state.message=errorMessage; return false end
             Screen.maintenance,Screen.lockoutStep=session,1
-            Windmill.ensure(state).motor=false
+            Screen.activeSetup, Screen.setupGame = nil, nil
+            Windmill.releaseOperator(state)
             return true
         end
         if inside({x=650,y=570,width=240,height=56},x,y) then
+            local process = Windmill.ensure(state)
+            if process.status ~= "idle" or process.palletId then
+                return false, "Unload the Windmill before booking press service."
+            end
             return MachineMaintenance.requestWindmillTechnician(state)
         end
         return false
@@ -695,6 +704,10 @@ local function maintenanceClick(state,x,y)
         MachineMaintenance.submitTask(Screen.maintenance,task.id,0.92)
         if Screen.maintenance.finished then
             local ok,result=MachineMaintenance.commit(state,Screen.maintenance)
+            if not ok then
+                MachineMaintenance.rollbackLastTask(Screen.maintenance,task.id)
+                return false,result
+            end
             Screen.maintenance,Screen.lockoutStep=nil,1
             return ok,result
         end
@@ -709,10 +722,18 @@ function Screen.mousepressed(state,x,y,button)
     if BackButton.contains(BACK,x,y) then return {action="exit"} end
     for _,tab in ipairs(tabs) do
         if inside({x=tab.x,y=120,width=122,height=38},x,y) then
+            if Screen.maintenance and tab.id ~= "maintenance" then
+                setFeedback(state, "Finish or exit the active service lockout before operating the press.", "error")
+                return false
+            end
             Screen.tab=tab.id
             setFeedback(state, tab.label .. " opened.", "info")
             return {action="tab",tab=tab.id}
         end
+    end
+    if Screen.maintenance and Screen.tab ~= "maintenance" then
+        setFeedback(state, "Finish or exit the active service lockout before operating the press.", "error")
+        return false
     end
     local ok,result,intent
     if Screen.tab=="run" then ok,result,intent=runClick(state,x,y)
@@ -751,6 +772,12 @@ end
 function Screen.keypressed(state,key)
     local map={m="motor",f="feeder",i="impression",["-"]="speed_down",["+"]="speed_up",x="emergency",r="reset"}
     if key=="escape" then return {action="exit"} end
+    if Screen.maintenance then
+        if key == "x" then return Windmill.control(state, "emergency") end
+        local message = "Finish or exit the active service lockout before operating the press."
+        setFeedback(state, message, "error")
+        return false, message
+    end
     if Screen.tab=="tutorial" and key=="left" then Screen.tutorialStep=math.max(1,Screen.tutorialStep-1); return true end
     if Screen.tab=="tutorial" and key=="right" then Screen.tutorialStep=math.min(#tutorial,Screen.tutorialStep+1); return true end
     local ok, result, intent
