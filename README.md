@@ -100,7 +100,7 @@ approval panel and completed authenticated opening, snapshot/HUD synchronization
 control, and cutter safety control. One ended through the PC host's confirmed removal control and the
 phone observed the kick; the other ended through a graceful phone departure. Secret scanning and cleanup
 passed, and the redacted report retains no endpoint, device serial, invitation, key, packet, raw log, or
-internal run identifier. The complete packaged smoke suite passes 1,557 checks with zero failures.
+internal run identifier. The complete packaged smoke suite passes 1,565 checks with zero failures.
 
 A guarded repeat of both PC-host/Android-cellular sessions also passed the packet-privacy gate. Capture
 was limited to full IPv6 UDP packet bytes on the selected NIC and Direct port, showed authenticated bridge

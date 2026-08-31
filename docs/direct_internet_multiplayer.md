@@ -159,13 +159,49 @@ Reachability is being developed in this order:
 
 The PCP/NAT-PMP wire codecs, serialized coordinator, and strict pure UPnP IGD layer are implemented and
 covered by engineering tests. They deliberately do not open a socket or change a router by themselves.
-Live gateway discovery, transport adapters, renewal/deletion integration, and physical-router proof are
+Windows now has a local-only, read-only default-route discovery foundation and strict Lua validation.
+Android discovery, live transport adapters, renewal/deletion integration, and physical-router proof are
 still open; automatic mapping must therefore be treated as unavailable in production.
 
 No method receives the invitation secret or contacts a matchmaking, STUN, relay, telemetry, or public-IP
 service. The secure listener must exist before its exact UDP port is mapped; invitation generation occurs
 only after the router returns a globally usable public-unicast endpoint. Shutdown closes the listener first,
 then best-effort deletes the finite mapping.
+
+### Windows local gateway discovery foundation
+
+The engineering-only `tps_route.dll` asks Windows' local route APIs for the selected IPv4 source,
+default next hop, and interface index. Selecting a route does not send a probe or contact the destination.
+The shim requires an exact indirect `/0` route and compares two route views before returning; an on-link
+route, missing gateway, route change, or a destination-specific VPN override fails closed as unavailable.
+Win32 route structures never cross into Lua.
+
+The Lua boundary accepts only canonical IPv4 text, a positive bounded interface index, and prefix length
+zero. It rejects unspecified, loopback, multicast, documentation, reserved, malformed, and same-address
+pairs; copies only the approved snapshot fields; converts platform failures to fixed error codes; and
+provides exact-tuple revalidation exercised by the local probe. It does not open a socket, create a mapping,
+learn the public address, or change the router or firewall.
+
+The opaque route fingerprint is only a non-authoritative consistency checksum that does not directly
+embed the address/interface tuple. It is kept out of reports and logs, is not a privacy credential, and is
+not a network generation or mapping-ownership token. A same-address reconnect can repeat the fingerprint.
+Live renewal/deletion work must therefore add a real platform network generation and a per-mapping
+ownership token before this discovery result can control a router lease.
+
+Build and physically verify the Windows foundation with:
+
+```powershell
+& '.\tools\build_native_route.ps1' -RequireLiveRoute
+& '.\tools\run_windows_gateway_discovery_probe.ps1'
+```
+
+Both tools print only pass/fail properties, never the discovered local addresses. This foundation is not
+wired to the player flow yet: the current secure Direct transport is IPv6-only, while PCP/NAT-PMP/UPnP
+mapping creates an IPv4 endpoint. A reviewed IPv4/dual-stack Direct listener and Android's
+`ConnectivityManager`/`LinkProperties` bridge must land before automatic mapping can be enabled.
+The engineering adapter also permits an explicit test-library override and source/output lookup. A release
+build must remove those development paths and load only the packaged, integrity-verified same-directory
+DLL before this provider can become a player-facing dependency.
 
 ### Windows Firewall guidance
 
@@ -358,7 +394,7 @@ endpoint, device serial, invitation, key, packet, or raw log:
 evidence only; `productionReady = false` remains unchanged.
 
 The approval, denial, kick, timeout, single-use invitation, and transport admission boundaries are all
-covered by the complete packaged-game smoke suite, which passes 1,557 checks with zero failures after
+covered by the complete packaged-game smoke suite, which passes 1,565 checks with zero failures after
 these changes.
 
 `src/net/direct_connection.lua` composes the two codes, authenticated opening, bridge, encrypted
@@ -419,7 +455,10 @@ different host/network, not to promise a connection that cannot exist.
 ### 3. Automatic router mapping
 
 - [x] Add bounded PCP/NAT-PMP codecs, a serialized finite-lease coordinator, and strict pure UPnP IGD handling.
-- [ ] Discover the default gateway without contacting an Internet service.
+- [ ] Complete default-gateway discovery without contacting an Internet service on every shipping platform;
+  the Windows native/Lua foundation is implemented and physically verified, while Android is pending.
+- [ ] Restrict release loading to the packaged, integrity-verified native route provider.
+- [ ] Add a real platform network generation and a unique per-mapping ownership token.
 - [ ] Connect PCP, NAT-PMP, and UPnP IGD to live router adapters and try them in that order.
 - [ ] Accept a router-selected external port, renew the finite lease, and remove it on shutdown.
 - [x] Detect private and carrier-grade-NAT WAN addresses and explain the limitation clearly.

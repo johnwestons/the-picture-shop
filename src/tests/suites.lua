@@ -3,6 +3,7 @@ local Suites = {}
 local DOMAIN_SUITES = {
     require("src.tests.ip_scope_test"),
     require("src.tests.ipv6_address_test"),
+    require("src.tests.gateway_discovery_test"),
     require("src.tests.pcp_test"),
     require("src.tests.nat_pmp_test"),
     require("src.tests.reachability_test"),
