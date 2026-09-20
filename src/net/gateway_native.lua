@@ -1,16 +1,18 @@
 -- Narrow LuaJIT FFI boundary for read-only Windows default-route discovery.
 -- The native side owns all operating-system structures.  Lua receives only
--- bounded text and one interface index, and every failure is sanitized.
+-- bounded text, one interface index, and one opaque OS-backed generation;
+-- every failure is sanitized.
 local IpScope = require("src.net.ip_scope")
 
 local GatewayNative = {
-    expectedAbiVersion = 1,
+    expectedAbiVersion = 2,
     readOnly = true,
     networkTrafficSent = false,
 }
 
 local ADDRESS_BYTES = 16
 local MAX_INTERFACE_INDEX = 4294967295
+local MAX_UINT32 = 4294967295
 local ffi
 local nativeLibrary
 local loadAttempted = false
@@ -110,7 +112,11 @@ local function bindLibrary()
     local cdefOk = pcall(ffi.cdef, [[
         uint32_t tps_route_abi_version(void);
         int32_t tps_route_default_ipv4(
-            char source[16], char gateway[16], uint32_t *interface_index);
+            char source[16],
+            char gateway[16],
+            uint32_t *interface_index,
+            uint32_t *network_generation_high,
+            uint32_t *network_generation_low);
     ]])
     if not cdefOk then return nil end
 
@@ -143,18 +149,33 @@ local function defaultInvoke()
     local source = ffiModule.new("char[16]")
     local gateway = ffiModule.new("char[16]")
     local interfaceIndex = ffiModule.new("uint32_t[1]")
+    local generationHigh = ffiModule.new("uint32_t[1]")
+    local generationLow = ffiModule.new("uint32_t[1]")
     local result = tonumber(library.tps_route_default_ipv4(
-        source, gateway, interfaceIndex))
+        source, gateway, interfaceIndex, generationHigh, generationLow))
     if result ~= 0 then return result end
     return result,
         decodeBoundedCString(source, ffiModule),
         decodeBoundedCString(gateway, ffiModule),
-        tonumber(interfaceIndex[0])
+        tonumber(interfaceIndex[0]),
+        tonumber(generationHigh[0]),
+        tonumber(generationLow[0])
 end
 
 local function validInterfaceIndex(value)
     return type(value) == "number" and value == math.floor(value)
         and value >= 1 and value <= MAX_INTERFACE_INDEX
+end
+
+local function boundedUnsignedInteger(value)
+    return type(value) == "number" and value == math.floor(value)
+        and value >= 0 and value <= MAX_UINT32
+end
+
+local function uint32Hex(value)
+    local high = math.floor(value / 65536)
+    local low = value % 65536
+    return string.format("%04x%04x", high, low)
 end
 
 function GatewayNative.discover(options)
@@ -164,12 +185,17 @@ function GatewayNative.discover(options)
         return nil, "native_route_unavailable"
     end
 
-    local ok, result, source, gateway, interfaceIndex = pcall(invoke)
+    local ok, result, source, gateway, interfaceIndex, generationHigh,
+        generationLow = pcall(invoke)
     if not ok or result ~= 0 then
         return nil, "native_route_unavailable"
     end
-    if not IpScope.parse(source) or not IpScope.parse(gateway) or
-        not validInterfaceIndex(interfaceIndex) then
+    if not IpScope.parse(source) or not IpScope.parse(gateway)
+        or not validInterfaceIndex(interfaceIndex)
+        or not boundedUnsignedInteger(generationHigh)
+        or not boundedUnsignedInteger(generationLow)
+        or (generationHigh == 0 and generationLow == 0)
+    then
         return nil, "invalid_native_route"
     end
 
@@ -179,6 +205,8 @@ function GatewayNative.discover(options)
         gatewayAddress = gateway,
         interfaceIndex = interfaceIndex,
         routePrefixLength = 0,
+        networkGeneration = "windows-route-v2-" ..
+            uint32Hex(generationHigh) .. uint32Hex(generationLow),
     }
 end
 

@@ -167,9 +167,9 @@ end
 
 function Calendar.pay(state)
     local date, bills = Calendar.ensure(state)
-    if bills.balance <= 0 then return false, "No monthly bills are currently due." end
+    if bills.balance <= 0 then return false, "No bills or customer claims are currently due." end
     if (state.money or 0) < bills.balance then
-        return false, string.format("Bills total $%d, but only $%d is available.", bills.balance, state.money or 0)
+        return false, string.format("Bills and claims total $%d, but only $%d is available.", bills.balance, state.money or 0)
     end
     local amount = bills.balance
     state.money = state.money - amount
@@ -181,6 +181,27 @@ function Calendar.pay(state)
         end
     end
     return true, amount
+end
+
+function Calendar.addCharge(state, label, amount, reference)
+    local date, bills = Calendar.ensure(state)
+    amount = math.max(1, math.floor(tonumber(amount) or 1))
+    local invoice = {
+        id = string.format("CLAIM-%04d", bills.nextInvoiceId),
+        year = date.year,
+        month = date.month,
+        charges = { { id = "customer_stock", label = tostring(label or "Customer stock replacement"), amount = amount } },
+        total = amount,
+        status = "unpaid",
+        issuedOnDay = date.totalDays,
+        dueOnDay = date.totalDays,
+        reference = reference,
+        kind = "spoil_claim",
+    }
+    bills.nextInvoiceId = bills.nextInvoiceId + 1
+    bills.balance = bills.balance + amount
+    bills.ledger[#bills.ledger + 1] = invoice
+    return invoice
 end
 
 function Calendar.dateText(state)
@@ -303,10 +324,9 @@ function Calendar.events(state)
         end
     end
     local emails = state.clientEmails or {}
-    for _, email in ipairs(emails.pending or {}) do
-        addHours(email.readyAtHours, "Incoming email: " .. email.sender, "email", email.subject,
-            email.id .. ":ready")
-    end
+    -- Pending client messages are intentionally omitted. The player should
+    -- discover estimate details, reminders, and decisions only after they
+    -- actually arrive, not by reading their hidden delivery time here.
     for _, email in ipairs(emails.inbox or {}) do
         addHours(email.receivedAtHours, "Email received: " .. email.sender, "email", email.subject,
             email.id .. ":received")
@@ -320,7 +340,8 @@ function Calendar.events(state)
             promotion.customMessage, promotion.id .. ":sent")
     end
     for _, invoice in ipairs((state.bills and state.bills.ledger) or {}) do
-        add(invoice.dueOnDay or invoice.issuedOnDay, "Rent and bills due", "bill",
+        add(invoice.dueOnDay or invoice.issuedOnDay,
+            invoice.kind == "spoil_claim" and "Customer stock claim due" or "Rent and bills due", "bill",
             string.format("%s • $%d • %s", invoice.id, invoice.total, invoice.status), invoice.id)
     end
     local nextYear, nextMonth = Calendar.shiftMonth(state.calendar.year, state.calendar.month, 1)

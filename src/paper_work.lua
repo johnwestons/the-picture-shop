@@ -1,5 +1,12 @@
 local PaperWork = {}
 
+function PaperWork.createStockPaper()
+    local job = { id = "STOCK", sourceSize = { width = 13, height = 10 },
+        finishedSize = { width = 12, height = 9 } }
+    local pallet = { id = "STOCK-P01" }
+    return PaperWork.create(job, pallet, "easy", 1), pallet, job
+end
+
 local function round(value)
     return math.floor(value * 100 + 0.5) / 100
 end
@@ -82,27 +89,50 @@ function PaperWork.gaugeMatches(paper, gauge)
     return cut ~= nil and math.abs((gauge or 0) - cut.gauge) < 0.011
 end
 
-function PaperWork.applyCut(paper, gauge)
+function PaperWork.applyCut(paper, gauge, programIndex)
     local cut = PaperWork.currentCut(paper)
     if not cut then return false, "No remaining programmed cut." end
-    if paper.orientation ~= cut.orientation then
-        return false, string.format("Rotate paper to %d degrees for the %s margin.", cut.orientation, cut.edge)
-    end
-    if not PaperWork.gaugeMatches(paper, gauge) then
-        return false, string.format("Backgauge must be %.2f in for this cut.", cut.gauge)
-    end
-    if cut.edge == "left" or cut.edge == "right" then
-        paper.currentSize.width = round(paper.currentSize.width - cut.margin)
+    gauge = round(tonumber(gauge) or 0)
+    local correctProgram = programIndex == nil or programIndex == paper.activeCut
+    local expectedProgram = paper.activeCut
+    local correctRotation = paper.orientation == cut.orientation
+    local correctGauge = PaperWork.gaugeMatches(paper, gauge)
+    local offSpec = not correctProgram or not correctRotation or not correctGauge
+    local horizontal = correctRotation and (cut.edge == "left" or cut.edge == "right")
+        or paper.orientation == 90 or paper.orientation == 270
+    if horizontal then
+        local original = paper.currentSize.width
+        paper.currentSize.width = math.max(0.01, math.min(original, gauge))
     else
-        paper.currentSize.height = round(paper.currentSize.height - cut.margin)
+        local original = paper.currentSize.height
+        paper.currentSize.height = math.max(0.01, math.min(original, gauge))
     end
     paper.history[#paper.history + 1] = {
         number = cut.number,
         edge = cut.edge,
-        margin = cut.margin,
+        margin = horizontal
+            and round(math.max(0, paper.sourceSize.width - paper.currentSize.width))
+            or round(math.max(0, paper.sourceSize.height - paper.currentSize.height)),
         gauge = gauge,
         resultingSize = { width = paper.currentSize.width, height = paper.currentSize.height },
+        offSpec = offSpec,
+        expectedGauge = cut.gauge,
+        selectedProgram = programIndex,
     }
+    if offSpec then
+        paper.offSpec = true
+        paper.status = "complete"
+        paper.activeCut = #paper.cuts + 1
+        return true, {
+            offSpec = true,
+            expectedGauge = cut.gauge,
+            actualGauge = gauge,
+            expectedOrientation = cut.orientation,
+            actualOrientation = paper.orientation,
+            expectedProgram = expectedProgram,
+            selectedProgram = programIndex,
+        }
+    end
     paper.activeCut = paper.activeCut + 1
     if paper.activeCut > #paper.cuts then
         paper.status = "complete"
@@ -123,6 +153,7 @@ function PaperWork.resetForNextLift(paper)
     paper.orientation = 0
     paper.activeCut = 1
     paper.status = "uncut"
+    paper.offSpec = nil
     paper.history = {}
     return true
 end

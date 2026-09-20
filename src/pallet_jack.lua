@@ -122,6 +122,11 @@ end
 function PalletJack.mount(state, config, operatorPlayerId)
     local jack = PalletJack.ensure(state, config)
     if not validOperatorId(operatorPlayerId) then return false, "invalid_operator" end
+    local forklift = state.forklift
+    if type(forklift) == "table" and forklift.operating
+        and forklift.operatorPlayerId == operatorPlayerId then
+        return false, "operating_forklift"
+    end
     if jack.operating then
         if jack.operatorPlayerId == operatorPlayerId then return true, "already_mounted" end
         return false, "busy"
@@ -186,15 +191,18 @@ function PalletJack.interaction(player, state, config)
     elseif not ownsJack then
         prompt = "Pallet jack in use by another worker"
     elseif jack.carriedPalletId then
-        prompt = "E: lower pallet at this position"
+        prompt = "L: lower pallet at the selected position"
     elseif nearby then
-        prompt = "E: lift " .. nearby.pallet.id .. "  |  F: park jack"
+        prompt = "Tap skid or L: lift " .. nearby.pallet.id .. "  |  F: park jack"
     else
-        prompt = "E or F: park pallet jack"
+        prompt = "F: park pallet jack"
     end
     return {
-        x = ownsJack and player.x or jack.x,
-        y = ownsJack and player.y or jack.y,
+        -- Keep the jack anchored to its own hit target while it is moving.
+        -- Centering this interaction on the operator made it hide nearby
+        -- computers, doors, machines, and customers from the normal USE key.
+        x = jack.x,
+        y = jack.y,
         radius = config.interactionRadius,
         prompt = prompt,
         jackState = jack,

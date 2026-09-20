@@ -17,16 +17,24 @@ Authority.__index = Authority
 
 Authority.RESOURCE_ORDER = {
     "reception_customer",
+    "vendor",
+    "truck",
     "office_computer",
     "cutter",
     "windmill",
     "skid_wrapper",
     "pallet_jack",
+    "work_phone",
+    "warehouse",
 }
 
 Authority.RESOURCES = {
+    warehouse = true,
     reception_customer = true,
+    vendor = true,
+    truck = true,
     office_computer = true,
+    work_phone = true,
     cutter = true,
     windmill = true,
     skid_wrapper = true,
@@ -34,12 +42,27 @@ Authority.RESOURCES = {
 }
 
 Authority.ACTIONS = {
+    warehouse = { warehouse_action = true },
+    work_phone = { phone_answer = true, phone_respond = true, phone_dismiss = true },
     reception_customer = {
+        request_details = true,
         submit_quote = true,
         decline = true,
     },
+    vendor = {
+        purchase_stock = true,
+        purchase_machine = true,
+        dismiss = true,
+    },
+    truck = {
+        move_item = true,
+        page_next = true,
+        page_previous = true,
+        close_truck = true,
+    },
     office_computer = {
         request_pickup = true,
+        office_action = true,
     },
     cutter = {
         load_pallet = true,
@@ -58,6 +81,21 @@ Authority.ACTIONS = {
         reset_safety = true,
         return_to_pallet = true,
         run_next_lift = true,
+        begin_lubrication = true,
+        service_advance = true,
+        service_view = true,
+        service_tool = true,
+        service_point = true,
+        service_pump = true,
+        service_gear = true,
+        finish_lubrication = true,
+        cancel_service = true,
+        begin_blade = true,
+        remove_blade_bolt = true,
+        lift_blade = true,
+        sleeve_blade = true,
+        book_blade_technician = true,
+        set_weekly_technician = true,
     },
     windmill = {
         load_pallet = true,
@@ -88,11 +126,19 @@ Authority.ACTIONS = {
     skid_wrapper = {
         select_pallet = true,
         start_cycle = true,
+        begin_service = true,
+        service_target = true,
+        service_miss = true,
+        cancel_service = true,
     },
     pallet_jack = {
+        warehouse_action = true,
         lift_pallet = true,
         lower_pallet = true,
         park_jack = true,
+        move_machine = true,
+        rotate_machine = true,
+        place_machine = true,
     },
 }
 
@@ -176,7 +222,7 @@ local function fingerprintValue(value, depth, seen, budget)
         return "n" .. string.format("%.17g", value)
     end
     if kind == "string" then
-        if #value > MAX_FINGERPRINT_STRING_BYTES then
+        if #value > (budget.stringBytes or MAX_FINGERPRINT_STRING_BYTES) then
             return nil, "request string exceeds the authority limit"
         end
         return "s" .. tostring(#value) .. ":" .. value
@@ -219,7 +265,19 @@ local function fingerprintValue(value, depth, seen, budget)
 end
 
 local function requestFingerprint(operation, request)
-    local encoded, encodeError = fingerprintValue(request, 0, {}, { count = 0 })
+    local budget={count=0}
+    if operation=="command" and request.resourceId=="office_computer" and request.action=="office_action" then
+        -- Normalize the bounded cart/message before recording its replay identity.
+        -- Other workshop requests retain the original shallow-map limits.
+        local intent,errorMessage=require("src.office_intent").normalize(request.args and request.args.officeIntent)
+        if not intent then return nil,errorMessage end
+        local encodedIntent,encodeError=require("src.net.codec").encode(intent,{maxBytes=1200})
+        if not encodedIntent then return nil,encodeError end
+        request=copy(request)
+        request.args.officeIntent=encodedIntent
+        budget.stringBytes=1200
+    end
+    local encoded, encodeError = fingerprintValue(request, 0, {}, budget)
     if not encoded then return nil, encodeError end
     return operation .. ":" .. encoded
 end

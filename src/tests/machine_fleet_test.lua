@@ -272,18 +272,29 @@ function Test.run(context, check)
     local websiteState = context.State.new()
     websiteState.money = 10000
     context.computerScreen.enter(websiteState)
-    local websiteX, websiteY = context.computerScreen.tabCenter("online")
+    local dropdownX, dropdownY = context.computerScreen.dropdownCenter()
+    context.computerScreen.mousepressed(websiteState, dropdownX, dropdownY, 1)
+    local websiteX, websiteY = context.computerScreen.tabCenter("www")
     local websiteTab = context.computerScreen.mousepressed(websiteState, websiteX, websiteY, 1)
+    local machineSiteX, machineSiteY = context.computerScreen.wwwSiteCenter(5)
+    local machineSite = context.computerScreen.mousepressed(websiteState, machineSiteX, machineSiteY, 1)
     local buyX, buyY = context.computerScreen.machineBuyCenter(1)
-    local websitePurchase = context.computerScreen.mousepressed(websiteState, buyX, buyY, 1)
-    local onlineOrder = websitePurchase and websitePurchase.order
-    check("computer_online_website_orders_machine_delivery", websiteTab and websiteTab.tab == "online"
-        and websitePurchase and websitePurchase.action == "machine_ordered"
+    local websiteCartAdd = context.computerScreen.mousepressed(websiteState, buyX, buyY, 1)
+    local cartX, cartY = context.computerScreen.cartButtonCenter()
+    context.computerScreen.mousepressed(websiteState, cartX, cartY, 1)
+    local checkoutX, checkoutY = context.computerScreen.cartCheckoutCenter()
+    local websitePurchase = context.computerScreen.mousepressed(websiteState, checkoutX, checkoutY, 1)
+    local onlineOrder = websitePurchase and websitePurchase.result.orders[1]
+    check("computer_online_website_orders_machine_delivery", websiteTab and websiteTab.tab == "www"
+        and machineSite and machineSite.site.url == "www.thecritternet.com/machines"
+        and websiteCartAdd and websiteCartAdd.action == "cart_item_added"
+        and websitePurchase and websitePurchase.action == "cart_checked_out"
         and onlineOrder and onlineOrder.item.source == "online"
         and onlineOrder.item.status == "stored"
         and onlineOrder.delivery.status == "awaiting_delivery"
         and #fleet.owned(websiteState) == 2
         and #fleet.pendingDeliveries(websiteState) == 1
+        and websiteState.clientEmails.inbox[1].orderId == onlineOrder.id
         and fleet.validState(websiteState.machines))
 
     context.world.load()

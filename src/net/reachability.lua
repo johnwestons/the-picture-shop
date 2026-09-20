@@ -308,6 +308,20 @@ function Reachability:_requestAutomaticDeletion(now)
     active.deletionRequested = true
     active.deleteAttempts = (active.deleteAttempts or 0) + 1
     local called, result = pcall(active.handle.delete, active.handle, now)
+    -- Stream protocols can know that a finite renewal request left the local
+    -- socket even when its response was lost. Let the owning adapter extend
+    -- the conservative cleanup horizon, but never beyond the configured
+    -- finite lease bound.
+    if type(active.handle.cleanupExpiresAt) == "function" then
+        local expiryCalled, expiry = pcall(
+            active.handle.cleanupExpiresAt, active.handle)
+        if expiryCalled and finite(expiry) and expiry >= now
+            and expiry <= now + self.maxLeaseSeconds
+            and (not active.mappingExpiresAt or expiry > active.mappingExpiresAt)
+        then
+            active.mappingExpiresAt = expiry
+        end
+    end
     if called and result == true then
         -- Literal true is reserved for an exact, validated deletion
         -- acknowledgement (or adapter proof that no mapping was created).

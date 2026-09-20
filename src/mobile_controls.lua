@@ -1,6 +1,28 @@
 local MobileControls = {}
 MobileControls.__index = MobileControls
 
+local TAP_SLOP_PIXELS = 18
+local DEFAULT_LAYOUT = {
+    joystick = { x = 0.105, y = 0.846 },
+    primary = { x = 0.906, y = 0.846 },
+    extra1 = { x = 0.799, y = 0.891 },
+    extra2 = { x = 0.799, y = 0.764 },
+}
+
+local function copyLayout(layout)
+    layout = type(layout) == "table" and layout or DEFAULT_LAYOUT
+    local result = {}
+    for _, key in ipairs({ "joystick", "primary", "extra1", "extra2" }) do
+        local fallback = DEFAULT_LAYOUT[key]
+        local point = type(layout[key]) == "table" and layout[key] or fallback
+        result[key] = {
+            x = math.max(0.05, math.min(0.95, tonumber(point.x) or fallback.x)),
+            y = math.max(0.08, math.min(0.92, tonumber(point.y) or fallback.y)),
+        }
+    end
+    return result
+end
+
 local function defaultEnabled()
     if os.getenv("PICTURE_SHOP_MOBILE") == "1" then return true end
     return love and love.system and love.system.getOS and love.system.getOS() == "Android"
@@ -40,6 +62,9 @@ function MobileControls.new(options)
         { x = 767, y = 604, radius = 36 },
         { x = 767, y = 518, radius = 36 },
     }
+    self.controlLayout = copyLayout(options.layout)
+    self.bounds = { left = 0, top = 0, right = 960, bottom = 678, width = 960, height = 678 }
+    self:setBounds(self.bounds)
     return self
 end
 
@@ -48,16 +73,35 @@ function MobileControls:ignoreSyntheticMouse(isTouch) return self.enabled and is
 function MobileControls:movement() return self.axisX, self.axisY end
 function MobileControls:pointer() return self.pointerX, self.pointerY end
 
+function MobileControls.defaultLayout()
+    return copyLayout(DEFAULT_LAYOUT)
+end
+
+function MobileControls:layout()
+    return copyLayout(self.controlLayout)
+end
+
+function MobileControls:setLayout(layout)
+    self.controlLayout = copyLayout(layout)
+    self:setBounds(self.bounds)
+    return self:layout()
+end
+
+local function place(button, point, bounds)
+    local margin = button.radius + 8
+    button.x = math.max(bounds.left + margin,
+        math.min(bounds.right - margin, bounds.left + point.x * bounds.width))
+    button.y = math.max(bounds.top + margin,
+        math.min(bounds.bottom - margin, bounds.top + point.y * bounds.height))
+end
+
 function MobileControls:setBounds(bounds)
     if not bounds then return end
-    self.joystick.x = bounds.left + 100
-    self.joystick.y = bounds.bottom - 104
-    self.primary.x = bounds.right - 90
-    self.primary.y = bounds.bottom - 104
-    self.extra[1].x = bounds.right - 193
-    self.extra[1].y = bounds.bottom - 74
-    self.extra[2].x = bounds.right - 193
-    self.extra[2].y = bounds.bottom - 160
+    self.bounds = bounds
+    place(self.joystick, self.controlLayout.joystick, bounds)
+    place(self.primary, self.controlLayout.primary, bounds)
+    place(self.extra[1], self.controlLayout.extra1, bounds)
+    place(self.extra[2], self.controlLayout.extra2, bounds)
 end
 
 function MobileControls:_updatePointer(screenX, screenY)
@@ -154,6 +198,8 @@ function MobileControls:touchpressed(id, screenX, screenY)
         self.touches[id] = {
             kind = "pending", order = self.touchOrder,
             screenX = screenX, screenY = screenY, x = x, y = y,
+            startScreenX = screenX, startScreenY = screenY,
+            startX = x, startY = y, moved = false,
         }
         self:_startGestureIfReady()
     else
@@ -169,6 +215,11 @@ function MobileControls:touchmoved(id, screenX, screenY, dx, dy)
     local x, y = self:_updatePointer(screenX, screenY)
     local touch = self.touches[id]
     if not touch then return false end
+    if touch.kind == "pending" and distance(screenX, screenY,
+        touch.startScreenX or screenX, touch.startScreenY or screenY) > TAP_SLOP_PIXELS
+    then
+        touch.moved = true
+    end
     touch.screenX, touch.screenY, touch.x, touch.y = screenX, screenY, x, y
     if touch.kind == "joystick" then
         self:_updateJoystick(x, y)
@@ -196,9 +247,18 @@ function MobileControls:touchreleased(id, screenX, screenY)
         self.releasePointer(screenX, screenY, 1)
         self.afterInput(x, y)
     elseif touch.kind == "pending" then
-        self.pressPointer(screenX, screenY, 1)
-        self.releasePointer(screenX, screenY, 1)
-        self.afterInput(x, y)
+        local moved = touch.moved or distance(screenX, screenY,
+            touch.startScreenX or screenX, touch.startScreenY or screenY) > TAP_SLOP_PIXELS
+        if not moved then
+            -- A phone tap belongs to the object where the finger went down.
+            -- Never turn the release point into a second or different click.
+            local tapScreenX = touch.startScreenX or screenX
+            local tapScreenY = touch.startScreenY or screenY
+            self.pressPointer(tapScreenX, tapScreenY, 1)
+            self.releasePointer(tapScreenX, tapScreenY, 1)
+            self.pointerX, self.pointerY = touch.startX or x, touch.startY or y
+            self.afterInput(self.pointerX, self.pointerY)
+        end
     elseif touch.kind == "gesture" then
         local partnerId = self.gestureTouches and (self.gestureTouches[1] == id
             and self.gestureTouches[2] or self.gestureTouches[1])

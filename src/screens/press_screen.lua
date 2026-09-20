@@ -1,11 +1,13 @@
+local function create(dependencies)
+dependencies = dependencies or {}
 local BackButton = require("src.screens.back_button")
 local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
 local MachineMaintenance = require("src.machine_maintenance")
-local Plates = require("src.plate_service")
+local Plates = dependencies.Plates or require("src.plate_service")
 local PressArtworkCompositor = require("src.press_artwork_compositor")
 local PressSetupGames = require("src.press_setup_games")
-local Windmill = require("src.windmill")
+local Windmill = dependencies.Windmill or require("src.windmill")
 
 local Screen = {
     tab = "run", clock = 0, activeSetup = nil, setupHits = 0, setupMisses = 0,
@@ -289,7 +291,8 @@ local function drawPlates(state, assets, pointerX, pointerY)
         and ("TIME + LOCK " .. tostring(Plates.actionFor(plate)):upper()) or "IN-HOUSE PROCESS",
         plate.status == "processing", pointerX, pointerY)
     if plate.status == "processing" then
-        local marker = (math.sin(Screen.clock * 2.2) + 1) / 2
+        local marker = Screen.remoteView and Screen.remoteView.plateMarkerPermille / 1000
+            or (math.sin(Screen.clock * 2.2) + 1) / 2
         love.graphics.setColor(0.18, 0.20, 0.20)
         love.graphics.rectangle("fill", 130, 580, 690, 30)
         love.graphics.setColor(0.28, 0.70, 0.38)
@@ -306,7 +309,8 @@ local SETUP_VISUALS = {
     packing = { manual = 4, interaction = 2, hint = "TARGET: 3 PACKING LAYERS, SMOOTH TYMPAN, CLAMP CLOSED" },
     rollers = { manual = 5, interaction = 3, hint = "ADJUST BOTH ROLLER STRIPES INTO THE MANUAL'S 10–12 PT RANGE" },
     ink = { manual = 6, interaction = 4, hint = "BALANCE ALL THREE FOUNTAIN ZONES, THEN ENGAGE THE DUCTOR" },
-    feeder = { manual = 7, interaction = 5, hint = "MATCH THE STOCK RESPONSE, THEN LIFT 3 SINGLE SHEETS" },
+    feeder = { manual = 7, interaction = 5,
+        hint = "FAN + LOAD, TEST ONE SHEET, ADJUST FROM THE RESULT, THEN PROVE 3 CLEAN FEEDS" },
     register = { manual = 8, interaction = 6, hint = "MOVE THE GUIDES UNTIL X 0 / Y 0, THEN PULL A REGISTER TEST" },
 }
 
@@ -335,6 +339,7 @@ end
 
 function Screen.beginSetup(state, task)
     if not SETUP_VISUALS[task] then return false, "Unknown press setup task." end
+    if dependencies.remoteCommand then return dependencies.remoteCommand("begin_setup", {setupTask=task}) end
     local p, job = Windmill.current(state)
     if not p.palletId or not job then return false, "Load a print-ready pallet before setup." end
     Screen.activeSetup, Screen.setupGame = task, PressSetupGames.new(task, job)
@@ -367,7 +372,8 @@ local function drawSetup(state, assets, pointerX, pointerY)
             elseif game.task == "packing" then dy = game.clamped and 10 or -8
             elseif game.task == "rollers" then dx = math.sin(Screen.clock * 4) * (game.leftStripe + game.rightStripe) / 4
             elseif game.task == "ink" and game.ductor then angle = math.sin(Screen.clock * 5) * 0.035
-            elseif game.task == "feeder" then dy = -game.tests * 6 + math.sin(Screen.clock * 6) * 3
+            elseif game.task == "feeder" then
+                dy = -game.cleanFeeds * 6 + math.sin(Screen.clock * 6) * 3
             elseif game.task == "register" then dx, dy = game.xOffset * 6, game.yOffset * 6 end
             local scale = math.min(360 / interactionSprite.width, 282 / interactionSprite.height)
             love.graphics.setColor(1, 1, 1, 1)
@@ -375,10 +381,11 @@ local function drawSetup(state, assets, pointerX, pointerY)
                 angle, scale, scale, interactionSprite.width / 2, interactionSprite.height / 2)
         end
         love.graphics.setColor(0.92, 0.76, 0.28)
-        love.graphics.printf(PressSetupGames.summary(game), 80, 526, 800, "center")
+        love.graphics.printf(game.task == "feeder" and PressSetupGames.feederStatus(game)
+            or PressSetupGames.summary(game), 80, 526, 800, "center")
         if game.task == "feeder" then
             love.graphics.setColor(0.70, 0.78, 0.78)
-            love.graphics.printf(game.target.hint, 80, 548, 800, "center")
+            love.graphics.printf(PressSetupGames.instruction(game), 80, 548, 800, "center")
         end
         for _, control in ipairs(setupControlRects(game)) do
             button(control.x, control.y, control.width, control.height, control.label,
@@ -627,11 +634,13 @@ end
 local function setupClick(state, x, y)
     if Screen.activeSetup and Screen.setupGame then
         if inside({x=40,y=174,width=130,height=38},x,y) then
+            if dependencies.remoteCommand then return dependencies.remoteCommand("cancel_setup", {}) end
             Screen.activeSetup, Screen.setupGame = nil, nil
             return true, "Setup check cancelled.", "setup_cancel"
         end
         for _, control in ipairs(setupControlRects(Screen.setupGame)) do
             if inside(control, x, y) then
+                if dependencies.remoteCommand then return dependencies.remoteCommand("setup_action", {setupAction=control.action}) end
                 local complete, score = PressSetupGames.apply(Screen.setupGame, control.action)
                 if complete then
                     local task = Screen.activeSetup
@@ -673,6 +682,7 @@ local function maintenanceClick(state,x,y)
     if not machine then return false end
     if not Screen.maintenance then
         if inside({x=330,y=570,width=300,height=56},x,y) then
+            if dependencies.remoteCommand then return dependencies.remoteCommand("begin_service", {}) end
             local process = Windmill.ensure(state)
             if process.status ~= "idle" or process.palletId then
                 return false, "Unload the Windmill and return it to idle before service."
@@ -685,6 +695,7 @@ local function maintenanceClick(state,x,y)
             return true
         end
         if inside({x=650,y=570,width=240,height=56},x,y) then
+            if dependencies.remoteCommand then return dependencies.remoteCommand("book_technician", {}) end
             local process = Windmill.ensure(state)
             if process.status ~= "idle" or process.palletId then
                 return false, "Unload the Windmill before booking press service."
@@ -695,10 +706,14 @@ local function maintenanceClick(state,x,y)
     end
     if Screen.lockoutStep<=3 then
         local y=290+(Screen.lockoutStep-1)*82
-        if inside({x=280,y=y,width=400,height=58},x,y) then Screen.lockoutStep=Screen.lockoutStep+1; return true end
+        if inside({x=280,y=y,width=400,height=58},x,y) then
+            if dependencies.remoteCommand then return dependencies.remoteCommand("service_lockout", {}) end
+            Screen.lockoutStep=Screen.lockoutStep+1; return true
+        end
         return false
     end
     if inside({x=300,y=370,width=360,height=90},x,y) then
+        if dependencies.remoteCommand then return dependencies.remoteCommand("service_task", {}) end
         local task=MachineMaintenance.activeTask(Screen.maintenance)
         if not task then return false end
         MachineMaintenance.submitTask(Screen.maintenance,task.id,0.92)
@@ -751,7 +766,9 @@ function Screen.mousepressed(state,x,y,button)
         else state.windmill.tutorialComplete=true; Screen.tab="run" end
         ok=true
     end
-    if ok==false and type(result)=="string" then
+    if dependencies.remoteCommand and ok then
+        setFeedback(state, "Waiting for host confirmation.", "info")
+    elseif ok==false and type(result)=="string" then
         setFeedback(state, result, "error")
     elseif ok then
         if intent=="proof" then
@@ -790,7 +807,8 @@ function Screen.keypressed(state,key)
         local p=Windmill.ensure(state)
         ok,result=p.status=="production" and Windmill.stopProduction(state) or Windmill.startProduction(state)
     end
-    if ok==false and type(result)=="string" then setFeedback(state,result,"error")
+    if dependencies.remoteCommand and ok then setFeedback(state,"Waiting for host confirmation.","info")
+    elseif ok==false and type(result)=="string" then setFeedback(state,result,"error")
     elseif ok then setFeedback(state,intent=="proof" and "Proof pulled successfully. Inspect it before approval."
         or "Press action completed.","success") end
     return ok,result
@@ -799,3 +817,8 @@ end
 function Screen.hasModal() return Screen.activeSetup~=nil or Screen.maintenance~=nil end
 
 return Screen
+end
+
+local default = create()
+default.new = create
+return default

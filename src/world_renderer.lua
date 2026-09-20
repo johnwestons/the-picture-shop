@@ -11,6 +11,9 @@ local Wrapper = require("src.wrapper")
 local WrapperPlacement = require("src.wrapper_placement")
 local WindmillPlacement = require("src.windmill_placement")
 local Technician = require("src.technician")
+local WorkPhone = require("src.work_phone")
+local WarehouseRenderer = require("src.warehouse_renderer")
+local WarehouseScene = require("src.warehouse_scene")
 
 local Renderer = {}
 local World
@@ -45,6 +48,29 @@ local function drawWallVentFan(assets)
     love.graphics.draw(image, sprite.quad, Config.wallVentFan.x, Config.wallVentFan.y, 0,
         Config.wallVentFan.drawScale, Config.wallVentFan.drawScale,
         sprite.width / 2, sprite.height / 2)
+end
+
+local function drawWorkPhone(assets, state)
+    local config = Config.interactables.workPhone
+    local image = assets.get("workPhone")
+    local sprite = assets.getQuad(
+        "workPhone" .. WorkPhone.spriteFrame(state, love.timer.getTime()))
+    if not image or not sprite then return end
+    local light = WorkPhone.lightIndex(state)
+    if light > 1 then
+        local colors = {
+            [2] = { 0.08, 0.92, 0.84 },
+            [3] = { 1.00, 0.66, 0.08 },
+            [4] = { 1.00, 0.15, 0.38 },
+        }
+        local color = colors[light]
+        local pulse = 0.5 + 0.5 * math.sin(love.timer.getTime() * 10)
+        love.graphics.setColor(color[1], color[2], color[3], 0.10 + pulse * 0.12)
+        love.graphics.ellipse("fill", config.wallX, config.wallY, 18, 22)
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(image, sprite.quad, config.wallX, config.wallY, 0,
+        config.drawScale, config.drawScale, sprite.width / 2, sprite.height / 2)
 end
 
 local function drawPalletJack(assets, state)
@@ -227,6 +253,7 @@ end
 local function drawBackground(assets)
     local background = assets.get("warehouse")
     if background then
+        WarehouseScene.drawArchitecture(assets)
         love.graphics.setColor(1, 1, 1)
         love.graphics.draw(
             background,
@@ -241,6 +268,18 @@ local function drawBackground(assets)
 
     love.graphics.setColor(0.33, 0.35, 0.34)
     love.graphics.polygon("fill", 80, 115, 480, 55, 880, 115, 480, 620)
+end
+
+local function drawLoungeForeground(assets, seat)
+    local key = seat and seat.foreground
+    local foreground = key and Config.loungeSeating.foregrounds[key]
+    local image = foreground and assets.get(foreground.asset)
+    if not image then return end
+    local scaleX = Config.baseWidth / Config.loungeSeating.sourceWidth
+    local scaleY = Config.baseHeight / Config.loungeSeating.sourceHeight
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, foreground.sourceX * scaleX,
+        foreground.sourceY * scaleY, 0, scaleX, scaleY)
 end
 
 local function drawCutter(assets, state, placement)
@@ -384,6 +423,8 @@ end
 function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
     World = world
     drawBackground(assets)
+    WarehouseRenderer.drawFloors(assets, state)
+    drawWorkPhone(assets, state)
     drawWallVentFan(assets)
     drawBayDoor(assets)
     drawTruck(assets, state)
@@ -401,6 +442,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local wrapper = state and WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local windmill = state and WindmillPlacement.ensure(state, Config.windmillPlacement)
     local actors = {}
+    WarehouseRenderer.addActors(actors, assets, state, drawPallet)
     if MachineFleet.isInstalled(state, "polar_115") then
         actors[#actors + 1] = { y = cutter.moving and jack.y or cutter.y,
             layer = cutter.moving and 2 or 0, draw = function() drawCutter(assets, state) end }
@@ -432,7 +474,19 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     -- is already attached to the handle by World.update/applyNetworkPalletJackSnapshot,
     -- so assuming World.player is the operator would duplicate a remote owner
     -- and incorrectly move the host avatar.
-    actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
+    local forklift = state and state.forklift
+    local forkliftDriver = forklift and forklift.owned and forklift.operating and forklift.operatorPlayerId
+    if forkliftDriver ~= (tonumber(World.player.id) or 1) then
+        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
+    end
+    if forklift and forklift.owned then
+        actors[#actors + 1] = { y=forklift.y, layer=1,
+            draw=function() WarehouseRenderer.drawForklift(assets,state,drawPallet) end }
+    end
+    if state and state.constructionWorker and state.constructionWorker.phase~="hidden" then
+        local worker=state.constructionWorker
+        actors[#actors+1]={y=worker.y,draw=function() WarehouseRenderer.drawConstructionWorker(worker,state) end}
+    end
     if jack then
         actors[#actors + 1] = {
             y = jack.y,
@@ -442,7 +496,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     end
     for _, remotePlayer in ipairs(remotePlayers or {}) do
         local player = remotePlayer
-        if type(player) == "table" and type(player.y) == "number" then
+        if type(player) == "table" and type(player.y) == "number"
+            and forkliftDriver ~= tonumber(player.id) then
             actors[#actors + 1] = {
                 y = player.y,
                 draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player }) end,
@@ -453,14 +508,20 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         -- A realtime jack snapshot can arrive just before its reliable durable
         -- pallet transition. Suppress the host-declared carried ID immediately
         -- so the load never appears both on the floor and on the forks.
-        if not jack or item.pallet.id ~= jack.carriedPalletId then
+        if (not jack or item.pallet.id ~= jack.carriedPalletId)
+            and (not forklift or item.pallet.id ~= forklift.carriedPalletId) then
             actors[#actors + 1] = { y = item.y, draw = function() drawPallet(assets, item) end }
         end
     end
     if World.customer.visible then
         actors[#actors + 1] = {
             y = World.customer.y,
-            draw = function() World.customer:draw(characterAssets) end,
+            draw = function()
+                World.customer:draw(characterAssets)
+                if World.customer.state == "waiting" or World.customer.state == "reviewing" then
+                    drawLoungeForeground(assets, World.customer.seat)
+                end
+            end,
         }
     end
     if World.vendor.visible then
@@ -482,6 +543,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         player = World.player,
     })
     drawPalletTooltip(state, mouseX, mouseY)
+    WarehouseRenderer.drawVehicleStatus(state)
+    WarehouseRenderer.drawDevelopmentNotice(state)
 end
 
 

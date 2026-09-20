@@ -36,16 +36,25 @@ function Logistics.truckInventory(state, jobId)
     if purchase then return Procurement.truckInventory(state, jobId) end
     local job = activeJob(state, jobId)
     local inventory = {}
+    local replacementIds
+    if job and job.delivery and job.delivery.kind == "replacement"
+        and type(job.delivery.palletIds) == "table"
+    then
+        replacementIds = {}
+        for _, id in ipairs(job.delivery.palletIds) do replacementIds[id] = true end
+    end
     for _, pallet in ipairs(job and job.pallets or {}) do
-        inventory[#inventory + 1] = {
-            id = pallet.id,
-            number = pallet.number,
-            sheets = pallet.initialSheets,
-            location = pallet.location,
-            status = pallet.status,
-            paper = pallet.paper,
-            pallet = pallet,
-        }
+        if not replacementIds or replacementIds[pallet.id] then
+            inventory[#inventory + 1] = {
+                id = pallet.id,
+                number = pallet.number,
+                sheets = pallet.initialSheets,
+                location = pallet.location,
+                status = pallet.status,
+                paper = pallet.paper,
+                pallet = pallet,
+            }
+        end
     end
     return job, inventory
 end

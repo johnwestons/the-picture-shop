@@ -496,6 +496,43 @@ function UpnpIgd.parseHttpResponse(data, maxBodyBytes)
     }
 end
 
+function UpnpIgd.buildDescriptionRequest(discovery)
+    local trust = type(discovery) == "table" and TRUSTED_DISCOVERIES[discovery] or nil
+    if not trust or type(discovery.location) ~= "table"
+        or discovery.gatewayAddress ~= trust.gatewayAddress
+        or discovery.searchTarget ~= trust.searchTarget
+        or discovery.usn ~= trust.usn
+        or discovery.udn ~= trust.udn
+        or discovery.location.url ~= trust.locationUrl
+        or discovery.location.origin ~= trust.locationOrigin
+        or discovery.location.host ~= trust.locationHost
+        or discovery.location.port ~= trust.locationPort
+        or discovery.location.hostHeader ~= trust.locationHostHeader
+        or discovery.location.path ~= trust.locationPath
+        or discovery.location.pathOnly ~= trust.locationPathOnly
+        or discovery.location.query ~= trust.locationQuery
+    then
+        return nil, "trusted SSDP discovery context is required"
+    end
+    local wire = table.concat({
+        "GET " .. discovery.location.path .. " HTTP/1.1",
+        "HOST: " .. discovery.location.hostHeader,
+        "ACCEPT: text/xml, application/xml",
+        "CONNECTION: close",
+        "",
+        "",
+    }, "\r\n")
+    return {
+        method = "GET",
+        url = discovery.location.url,
+        path = discovery.location.path,
+        host = discovery.location.host,
+        port = discovery.location.port,
+        wire = wire,
+        context = { kind = "description" },
+    }
+end
+
 local XML_NAME = "[%a_:][%w_.:%-]*"
 
 local function encodeUtf8(codepoint)
@@ -1042,9 +1079,12 @@ end
 
 local function mappingOptions(options)
     if type(options) ~= "table" then return nil, "UPnP mapping options are required" end
-    local port = options.port
-    if not integerInRange(port, UpnpIgd.MIN_UNPRIVILEGED_PORT, 65535) then
-        return nil, "UPnP mapping port must be between 1024 and 65535"
+    local internalPort = options.internalPort or options.port
+    local externalPort = options.externalPort or options.port
+    if not integerInRange(internalPort, UpnpIgd.MIN_UNPRIVILEGED_PORT, 65535)
+        or not integerInRange(externalPort, UpnpIgd.MIN_UNPRIVILEGED_PORT, 65535)
+    then
+        return nil, "UPnP mapping ports must be between 1024 and 65535"
     end
     if not isLocalGatewayAddress(options.controlPointAddress) then
         return nil, "UPnP control point address must be canonical private or link-local IPv4"
@@ -1066,7 +1106,8 @@ local function mappingOptions(options)
         return nil, "UPnP mapping description is invalid"
     end
     return {
-        port = port,
+        externalPort = externalPort,
+        internalPort = internalPort,
         internalClient = options.internalClient,
         controlPointAddress = options.controlPointAddress,
         leaseSeconds = lease,
@@ -1135,9 +1176,9 @@ end
 local function mappingArguments(mapping)
     return {
         { "NewRemoteHost", "" },
-        { "NewExternalPort", mapping.port },
+        { "NewExternalPort", mapping.externalPort },
         { "NewProtocol", "UDP" },
-        { "NewInternalPort", mapping.port },
+        { "NewInternalPort", mapping.internalPort },
         { "NewInternalClient", mapping.internalClient },
         { "NewEnabled", 1 },
         { "NewPortMappingDescription", mapping.description },
@@ -1151,8 +1192,8 @@ function UpnpIgd.buildAddAnyPortMapping(service, options)
     local mapping, mappingError = mappingOptions(options)
     if not mapping then return nil, mappingError end
     return buildSoapRequest(service, "AddAnyPortMapping", mappingArguments(mapping), {
-        requestedPort = mapping.port,
-        internalPort = mapping.port,
+        requestedPort = mapping.externalPort,
+        internalPort = mapping.internalPort,
         internalClient = mapping.internalClient,
         controlPointAddress = mapping.controlPointAddress,
         leaseSeconds = mapping.leaseSeconds,
@@ -1168,8 +1209,8 @@ function UpnpIgd.buildAddPortMapping(service, options)
     local mapping, mappingError = mappingOptions(options)
     if not mapping then return nil, mappingError end
     return buildSoapRequest(service, "AddPortMapping", mappingArguments(mapping), {
-        requestedPort = mapping.port,
-        internalPort = mapping.port,
+        requestedPort = mapping.externalPort,
+        internalPort = mapping.internalPort,
         internalClient = mapping.internalClient,
         controlPointAddress = mapping.controlPointAddress,
         leaseSeconds = mapping.leaseSeconds,

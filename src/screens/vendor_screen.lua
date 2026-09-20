@@ -120,6 +120,18 @@ function Screen.mousepressed(state, x, y, button)
     end
 end
 
+function Screen.remoteIntent(state, x, y)
+    if inside(CLOSE,x,y) then return "close" end
+    if inside(NO_THANKS,x,y) then return "dismiss",{} end
+    local category=Procurement.category(state.vendorCategory)
+    local machines=category.kind=="machines"
+    for index=1, machines and #MachineFleet.offers("dealer") or #category.items do
+        if inside(machines and machineBuyRect(index) or buyRect(index),x,y) then
+            return machines and "purchase_machine" or "purchase_stock",{itemIndex=index}
+        end
+    end
+end
+
 function Screen.buyButtonCenter(index)
     local r = machineBuyRect(index); return r.x + r.width / 2, r.y + r.height / 2
 end

@@ -64,20 +64,7 @@ function Test.run(context, check)
         greenCell and greenCell.valid and redCell and not redCell.valid)
 
     context.jobOfferScreen.enter({ id = "KEYBOARD-FOCUS", quote = { totalPrice = 1250 } })
-    check("quote_screen_does_not_request_keyboard_on_open",
-        not context.jobOfferScreen.wantsTextInput())
-    local quoteInputX, quoteInputY = context.jobOfferScreen.quoteInputCenter()
-    context.input.mousepressed(quoteInputX, quoteInputY, 1, {
-        state = { screen = "job_offer" },
-        jobOfferScreen = context.jobOfferScreen,
-    })
-    check("quote_screen_requests_keyboard_after_field_tap",
-        context.jobOfferScreen.wantsTextInput())
-    context.input.mousepressed(10, 10, 1, {
-        state = { screen = "job_offer" },
-        jobOfferScreen = context.jobOfferScreen,
-    })
-    check("quote_screen_releases_keyboard_after_outside_tap",
+    check("counter_job_review_never_requests_quote_keyboard",
         not context.jobOfferScreen.wantsTextInput())
 
     local keyboardState = context.State.new()
@@ -220,6 +207,20 @@ function Test.run(context, check)
         and guestUseState.screen == "world"
         and #networkUseCalls == networkCallsBeforePaperwork
         and workOrderSaves == 0)
+    local paperworkJackRoutes = 0
+    guestUseState.palletJack.operating = true
+    guestUseState.palletJack.operatorPlayerId = 2
+    guestUseContext.world.player = { id = 2 }
+    guestUseContext.palletJackControl = function()
+        paperworkJackRoutes = paperworkJackRoutes + 1
+        return true
+    end
+    openedWorkOrder = nil
+    check("pallet_work_order_use_remains_available_while_pushing_jack",
+        context.input.keypressed("e", guestUseContext)
+        and guestUseState.screen == "pallet_work_order"
+        and openedWorkOrder == mirroredWorkOrder
+        and paperworkJackRoutes == 0)
 
     local relocationState = context.State.new()
     relocationState.screen = "world"
@@ -294,15 +295,44 @@ function Test.run(context, check)
     })
     check("guest_observer_routes_unrelated_use_during_host_machine_move",
         guestRelocationHandled and guestPlacements == 0 and guestRelocationSaves == 0
-        and guestJackRoutes == 1 and guestJackBlocks == 0
+        and guestJackRoutes == 0 and guestJackBlocks == 0
         and guestNetworkRoutes == 1 and guestRelocationState.cutter.moving)
+
+    local ownerState = context.State.new()
+    ownerState.screen = "world"
+    ownerState.palletJack.operating = true
+    ownerState.palletJack.operatorPlayerId = 2
+    local routedActions = {}
+    local ownerContext = {
+        state = ownerState,
+        assets = {},
+        isNetworkClient = function() return true end,
+        world = {
+            player = { id = 2 },
+            getInteraction = function() return { kind = "cutter", target = {} } end,
+        },
+        palletJackControl = function(action)
+            routedActions[#routedActions + 1] = action
+            return true
+        end,
+    }
+    context.input.keypressed("m", ownerContext)
+    ownerState.cutter.moving = true
+    context.input.keypressed("q", ownerContext)
+    context.input.keypressed("e", ownerContext)
+    check("guest_relocation_owner_routes_move_turn_and_place_intent",
+        routedActions[1] == "move_machine"
+        and routedActions[2] == "rotate_machine"
+        and routedActions[3] == "place_machine")
 
     local state = context.State.new()
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)
     local inventory = context.procurement.inventoryRows(state)
     check("domain_office_purchase_order_projection", bought and rows[1] == order
-        and context.computerScreen.statusLabel(order.delivery.status) == "Awaiting truck schedule")
+        and context.computerScreen.statusLabel(order.delivery.status) == "Awaiting truck schedule"
+        and state.clientEmails.inbox[1].noticeKind == "salesman_confirmation"
+        and state.clientEmails.inbox[1].body:find("Thanks so much", 1, true))
     check("domain_office_inventory_projection", #inventory >= 10
         and inventory[1].id == "house_sheets"
         and inventory[4].id == "stretch_film"
@@ -327,15 +357,20 @@ function Test.run(context, check)
     controller:gamepadreleased(gamepad, "y")
     check("controller_world_context_buttons", pressed[1] == "e" and released[1] == "e"
         and pressed[2] == "m" and released[2] == "m")
+    controller:gamepadpressed(gamepad, "leftshoulder")
+    controller:gamepadreleased(gamepad, "leftshoulder")
+    check("controller_world_fork_button", pressed[3] == "l" and released[3] == "l")
 
     controllerScreen, controllerMachine = "machine", "cutter"
     controller:gamepadpressed(gamepad, "leftshoulder")
     controller:gamepadpressed(gamepad, "rightshoulder")
-    check("controller_cutter_two_hand_guard", pressed[3] == "j" and pressed[4] == "k")
+    check("controller_cutter_two_hand_guard", pressed[4] == "j" and pressed[5] == "k")
     controller:gamepadreleased(gamepad, "leftshoulder")
     controller:gamepadreleased(gamepad, "rightshoulder")
 
     controllerScreen, controllerMachine = "computer", nil
+    controller:gamepadpressed(gamepad, "start")
+    check("controller_start_opens_options_from_any_screen", pressed[#pressed] == "menu")
     controller:gamepadpressed(gamepad, "a")
     controller:gamepadreleased(gamepad, "a")
     check("controller_menu_cursor_click", #pointerEvents == 2
@@ -396,6 +431,16 @@ function Test.run(context, check)
     mobile:touchreleased("tap", 500, 250)
     check("mobile_single_world_tap_stays_clickable", #taps == 2
         and taps[1][1] == "down" and taps[2][1] == "up")
+    mobile:touchpressed("small-move", 310, 210)
+    mobile:touchmoved("small-move", 318, 216, 8, 6)
+    mobile:touchreleased("small-move", 318, 216)
+    check("mobile_tap_activates_press_origin_not_release_target", #taps == 4
+        and taps[3][2] == 310 and taps[3][3] == 210
+        and taps[4][2] == 310 and taps[4][3] == 210)
+    mobile:touchpressed("drag-release", 120, 180)
+    mobile:touchmoved("drag-release", 520, 360, 400, 180)
+    mobile:touchreleased("drag-release", 700, 420)
+    check("mobile_drag_release_never_clicks_an_object", #taps == 4)
 
     local placementTap = {}
     local placementState = context.State.new()

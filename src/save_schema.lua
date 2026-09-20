@@ -2,9 +2,14 @@ local Config = require("src.config")
 local PaperWork = require("src.paper_work")
 local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
+local Reputation = require("src.reputation")
 local PalletState = require("src.pallet_state")
+local WarehouseUpgrades = require("src.warehouse_upgrades")
+local PalletStorage = require("src.pallet_storage")
+local Forklift = require("src.forklift")
+local WarehouseConstruction = require("src.warehouse_construction")
 
-local Schema = { VERSION = 13, SLOT_COUNT = 3 }
+local Schema = { VERSION = 15, SLOT_COUNT = 3 }
 local directions = {
     northwest = true, north = true, northeast = true, east = true,
     southeast = true, south = true, southwest = true, west = true,
@@ -49,6 +54,30 @@ local function array(value, validator)
     return count == highest
 end
 
+-- Raw local loads and legacy normalization can precede the full schema check.
+-- Reject malformed physical containers before traversing them, and reject a
+-- shared vehicle operator before snapshot normalization removes active flags.
+function Schema.validPhysicalSource(value)
+    if type(value) ~= "table" then return false end
+    for _, field in ipairs({"jobs", "procurement", "palletJack", "forklift", "constructionWorker"}) do
+        if value[field] ~= nil and type(value[field]) ~= "table" then return false end
+    end
+    local function group(record)
+        return type(record) == "table" and (record.pallets == nil
+            or array(record.pallets, function(pallet) return type(pallet) == "table" end))
+    end
+    for _, field in ipairs({"active", "completed", "declined"}) do
+        local collection = value.jobs and value.jobs[field]
+        if collection ~= nil and not array(collection, group) then return false end
+    end
+    if value.procurement and value.procurement.orders ~= nil
+        and not array(value.procurement.orders, group) then return false end
+    local jack, lift = value.palletJack, value.forklift
+    if jack and lift and jack.operating == true and lift.operating == true
+        and jack.operatorPlayerId ~= nil and jack.operatorPlayerId == lift.operatorPlayerId then return false end
+    return true
+end
+
 local function dimensions(value)
     return type(value) == "table"
         and number(value.width) and value.width > 0
@@ -63,6 +92,11 @@ local function worldPosition(value)
     if not optionalNumber(value.fromX) or not optionalNumber(value.fromY) then return false end
     if value.spawnProgress ~= nil and (not nonnegative(value.spawnProgress) or value.spawnProgress > 1) then return false end
     return true
+end
+
+local function storedPlacement(value)
+    local _, reason = PalletStorage.normalizePlacement(value)
+    return reason == nil
 end
 
 local function cut(value)
@@ -260,6 +294,8 @@ end
 local function delivery(value)
     return value == nil or (type(value) == "table"
         and text(value.status)
+        and (value.kind == nil or value.kind == "replacement")
+        and (value.palletIds == nil or array(value.palletIds, text))
         and optionalNumber(value.receivedAt)
         and optionalNumber(value.acceptedGameHours)
         and optionalNumber(value.readyAtHours)
@@ -292,6 +328,9 @@ local function customerPallet(value)
         and (value.lastLiftSheets == nil or nonnegative(value.lastLiftSheets))
         and (value.programVerified == nil or type(value.programVerified) == "boolean")
         and (value.awaitingPalletReturn == nil or type(value.awaitingPalletReturn) == "boolean")
+        and optionalText(value.replacementFor)
+        and (value.replacementSequence == nil or positiveInteger(value.replacementSequence))
+        and optionalBoolean(value.discardAfterSpoil)
         and optionalPositiveInteger(value.requestedCopies)
         and optionalNonnegativeInteger(value.spoilageAllowance)
         and text(value.status)
@@ -301,6 +340,7 @@ local function customerPallet(value)
         and (value.packagedAs == nil or value.packagedAs == "flat" or value.packagedAs == "boxed")
         and optionalNumber(value.pickedUpAt)
         and worldPosition(value.world)
+        and storedPlacement(value)
         and paper(value.paper)
         and palletPress(value.press)
 end
@@ -310,33 +350,71 @@ local function printQuantities(value)
     if not artwork(value.artwork) or value.artwork == nil
         or not stockSpec(value.stockSpec) or value.stockSpec == nil
         or not jobPress(value.press)
-        or #value.press.requestedCopies ~= #value.pallets
+        or #value.press.requestedCopies ~= #value.quote.pallets
     then
         return false
     end
+    local originals, replacements = {}, {}
+    for _, pallet in ipairs(value.pallets) do
+        if pallet.replacementFor then
+            replacements[pallet.replacementFor] = replacements[pallet.replacementFor] or {}
+            replacements[pallet.replacementFor][#replacements[pallet.replacementFor] + 1] = pallet
+        else
+            if originals[pallet.number] then return false end
+            originals[pallet.number] = pallet
+        end
+    end
     local ordered, supplied, allowance = 0, 0, 0
-    for index, pallet in ipairs(value.pallets) do
+    for index = 1, #value.quote.pallets do
+        local pallet = originals[index]
         local requested = value.press.requestedCopies[index]
         local quoted = value.quote.pallets[index]
-        if pallet.requestedCopies ~= requested
-            or requested > pallet.initialSheets
-            or pallet.spoilageAllowance == nil
-            or pallet.spoilageAllowance ~= pallet.initialSheets - requested
-            or type(pallet.press) ~= "table"
-            or pallet.press.requiredGoodSheets ~= requested
-            or pallet.press.availableSheets > pallet.initialSheets
-            or pallet.press.completedColors > value.press.colors
-            or not quoted
+        if not pallet or not quoted
             or quoted.sheetCount ~= pallet.initialSheets
             or quoted.requestedCopies ~= requested
-            or quoted.spoilageAllowance ~= pallet.spoilageAllowance
         then
             return false
         end
-        ordered = ordered + requested
-        supplied = supplied + pallet.initialSheets
-        allowance = allowance + pallet.spoilageAllowance
+        local groupRequested, groupSupplied, groupAllowance = 0, 0, 0
+        local group = { pallet }
+        for _, replacement in ipairs(replacements[pallet.id] or {}) do
+            group[#group + 1] = replacement
+        end
+        replacements[pallet.id] = nil
+        for _, member in ipairs(group) do
+            local effectiveSheets = math.max(0,
+                member.initialSheets - (member.damagedSheets or 0))
+            local memberRequested = math.max(0, member.requestedCopies or 0)
+            if member.spoilageAllowance == nil
+                or member.spoilageAllowance ~= effectiveSheets - memberRequested
+                or memberRequested > effectiveSheets
+            then
+                return false
+            end
+            if member.status == "spoiled_discarded" then
+                if memberRequested ~= 0 or member.press ~= nil then return false end
+            elseif type(member.press) ~= "table"
+                or memberRequested <= 0
+                or member.press.requiredGoodSheets ~= memberRequested
+                or member.press.availableSheets > effectiveSheets
+                or member.press.completedColors > value.press.colors
+            then
+                return false
+            end
+            groupRequested = groupRequested + memberRequested
+            groupSupplied = groupSupplied + effectiveSheets
+            groupAllowance = groupAllowance + member.spoilageAllowance
+        end
+        if groupRequested ~= requested or groupSupplied ~= quoted.sheetCount
+            or groupAllowance ~= quoted.spoilageAllowance
+        then
+            return false
+        end
+        ordered = ordered + groupRequested
+        supplied = supplied + groupSupplied
+        allowance = allowance + groupAllowance
     end
+    if next(replacements) ~= nil then return false end
     for colorIndex, plate in ipairs(value.press.plates) do
         local artworkSize = plate.artworkSize
         if plate.jobId ~= value.id
@@ -380,8 +458,11 @@ local function job(value)
         and optionalNumber(value.completedAt)
         and optionalNumber(value.paidAt)
         and optionalNumber(value.paymentAmount)
+        and optionalBoolean(value.promotionSent)
         and optionalNumber(value.pickupRequestedAtHours)
         and optionalNumber(value.completedAtHours)
+        and optionalNonnegativeInteger(value.replacementSkids)
+        and optionalNonnegativeInteger(value.replacementSheets)
         and quote(value.quote)
         and array(value.pallets, customerPallet)
         and delivery(value.delivery)
@@ -396,26 +477,87 @@ local function clientEmails(value)
         or type(value.sentPromotions) ~= "table"
     then return false end
     local function email(item, received)
-        return type(item) == "table" and text(item.id) and text(item.sender)
-            and text(item.subject) and text(item.body) and text(item.sourceJobId)
-            and nonnegative(item.readyAtHours) and (not received or nonnegative(item.receivedAtHours))
-            and job(item.job)
+        if type(item) ~= "table" or not text(item.id) or not text(item.sender)
+            or not text(item.subject) or not text(item.body)
+            or not nonnegative(item.readyAtHours)
+            or (received and not nonnegative(item.receivedAtHours))
+        then return false end
+        if item.job ~= nil then
+            return text(item.sourceJobId) and job(item.job)
+                and optionalNonnegative(item.standardPrice)
+                and optionalNonnegative(item.discountAmount)
+                and optionalNonnegative(item.discountedTotal)
+        end
+        return text(item.noticeKind)
+            and optionalText(item.sourceJobId)
+            and optionalText(item.orderId)
+            and optionalNonnegative(item.total)
     end
     if not array(value.pending, function(item) return email(item, false) end)
         or not array(value.inbox, function(item) return email(item, true) end)
     then return false end
     return array(value.archive, function(item)
-        return type(item) == "table" and text(item.id) and text(item.sender)
-            and text(item.subject) and text(item.jobId)
+        if type(item) ~= "table" or not text(item.id) or not text(item.sender)
+            or not text(item.subject) or not optionalNumber(item.respondedAtHours)
+        then return false end
+        if item.response == "archived" then
+            return text(item.noticeKind) and optionalText(item.orderId) and optionalNonnegative(item.total)
+        end
+        return text(item.jobId)
             and (item.response == "accepted" or item.response == "declined"
-                or item.response == "quote_accepted" or item.response == "quote_rejected")
+                or item.response == "quote_accepted" or item.response == "quote_rejected"
+                or item.response == "estimate_sent")
             and optionalNumber(item.quotedPrice) and optionalNumber(item.acceptanceChance)
-            and optionalNumber(item.respondedAtHours)
     end) and array(value.sentPromotions, function(item)
         return type(item) == "table" and text(item.id) and text(item.recipient)
             and item.discountPercent == 10 and type(item.customMessage) == "string"
             and nonnegative(item.sentAtHours)
+            and optionalText(item.sourceJobId)
+            and (item.responseOutcome == nil or item.responseOutcome == "new_job"
+                or item.responseOutcome == "thank_you" or item.responseOutcome == "no_response")
     end)
+end
+
+local WORK_PHONE_KINDS = {
+    customer_order = true,
+    customer_status = true,
+    supplier_status = true,
+    service_order = true,
+    construction_notice = true,
+}
+
+local function phoneCall(value)
+    return type(value) == "table"
+        and text(value.id)
+        and WORK_PHONE_KINDS[value.kind] == true
+        and text(value.caller)
+        and text(value.role)
+        and text(value.subject)
+        and text(value.message)
+        and nonnegative(value.receivedAtHours)
+        and type(value.answered) == "boolean"
+        and optionalText(value.jobId)
+        and optionalText(value.orderId)
+        and optionalText(value.projectId)
+        and optionalText(value.bayId)
+        and optionalText(value.optionId)
+        and (value.kind ~= "construction_notice" or (text(value.projectId)
+            and value.projectId:match("^WUP%-%d+$") ~= nil and #value.projectId <= 64
+            and (value.bayId == "front_left" or value.bayId == "front_right")
+            and (value.optionId == "floor" or value.optionId == "storage" or value.optionId == "breakroom")))
+        and optionalPositiveInteger(value.categoryIndex)
+        and optionalPositiveInteger(value.itemIndex)
+        and optionalText(value.outcome)
+        and optionalText(value.response)
+        and optionalNonnegative(value.endedAtHours)
+end
+
+local function workPhone(value)
+    return type(value) == "table"
+        and positiveInteger(value.nextCallId)
+        and nonnegative(value.nextCallAtHours)
+        and (value.incoming == nil or phoneCall(value.incoming))
+        and array(value.history, phoneCall)
 end
 
 local function vendorPallet(value)
@@ -433,6 +575,7 @@ local function vendorPallet(value)
         and text(value.location)
         and text(value.status)
         and worldPosition(value.world)
+        and storedPlacement(value)
 end
 
 local function purchaseOrder(value)
@@ -596,6 +739,7 @@ end
 
 local function persistentState(value)
     return type(value) == "table"
+        and Schema.validPhysicalSource(value)
         and nonnegative(value.money)
         and inventory(value.inventory)
         and type(value.shopProgress) == "table"
@@ -606,6 +750,7 @@ local function persistentState(value)
         and array(value.jobs.declined, job)
         and positiveInteger(value.nextJobId)
         and nonnegative(value.accountsReceivable)
+        and Reputation.valid(value.reputation)
         and cutterMemory(value.cutterMemory)
         and type(value.procurement) == "table"
         and positiveInteger(value.procurement.nextOrderId)
@@ -613,7 +758,13 @@ local function persistentState(value)
         and positiveInteger(value.vendorCategory)
         and BusinessCalendar.valid(value.calendar, value.bills)
         and clientEmails(value.clientEmails)
+        and workPhone(value.workPhone)
         and MachineFleet.validState(value.machines)
+        and WarehouseUpgrades.validate(value.warehouse)
+        and WarehouseConstruction.valid(value.constructionWorker, value.warehouse)
+        and type(value.storage) == "table" and PalletStorage.normalize(value.storage) ~= nil
+        and Forklift.validState(value.forklift, Config.forklift)
+        and (not value.forklift.owned or value.warehouse.forkliftOwned)
         and placement(value.cutter)
         and palletJack(value.palletJack)
         and placement(value.wrapper)
@@ -653,6 +804,7 @@ function Schema.defaultState()
         jobs = { active = {}, completed = {}, declined = {} },
         nextJobId = 1,
         accountsReceivable = 0,
+        reputation = Reputation.defaultState(),
         cutterMemory = {},
         procurement = { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 },
         vendorCategory = 1,
@@ -660,9 +812,13 @@ function Schema.defaultState()
         bills = BusinessCalendar.defaultBills(),
         clientEmails = { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} },
+        workPhone = { nextCallId = 1, nextCallAtHours = 6, incoming = nil, history = {} },
         machines = MachineFleet.defaultState(),
         cutter = defaultPlacement(Config.cutterPlacement),
         palletJack = jack,
+        warehouse = WarehouseUpgrades.defaultState(),
+        storage = PalletStorage.defaultState(),
+        forklift = Forklift.defaultState(Config.forklift),
         wrapper = defaultPlacement(Config.wrapperPlacement),
         windmill = defaultPlacement(Config.windmillPlacement),
     }
@@ -789,15 +945,21 @@ local function normalizePrintJob(job)
     if type(job.pallets) == "table" then
         for index, pallet in ipairs(job.pallets) do
             if type(pallet) == "table" then
+                local replacement = type(pallet.replacementFor) == "string"
                 local quoted = type(job.quote) == "table" and type(job.quote.pallets) == "table"
-                    and job.quote.pallets[index] or nil
+                    and not replacement and job.quote.pallets[pallet.number or index] or nil
                 local requested = pallet.requestedCopies
-                    or (type(press.requestedCopies) == "table" and press.requestedCopies[index])
+                    or (not replacement and type(press.requestedCopies) == "table"
+                        and press.requestedCopies[pallet.number or index])
                     or (type(quoted) == "table" and quoted.requestedCopies)
-                    or pallet.initialSheets
-                if pallet.requestedCopies == nil then pallet.requestedCopies = requested end
-                if type(press.requestedCopies) == "table" and press.requestedCopies[index] == nil then
-                    press.requestedCopies[index] = requested
+                    or (pallet.status == "spoiled_discarded" and 0 or pallet.initialSheets)
+                if pallet.requestedCopies == nil and requested > 0 then
+                    pallet.requestedCopies = requested
+                end
+                if not replacement and type(press.requestedCopies) == "table"
+                    and press.requestedCopies[pallet.number or index] == nil
+                then
+                    press.requestedCopies[pallet.number or index] = requested
                 end
                 local palletAllowance = pallet.spoilageAllowance
                 if palletAllowance == nil and number(pallet.initialSheets) and number(requested) then
@@ -808,7 +970,7 @@ local function normalizePrintJob(job)
                     if quoted.requestedCopies == nil then quoted.requestedCopies = requested end
                     if quoted.spoilageAllowance == nil then quoted.spoilageAllowance = palletAllowance or 0 end
                 end
-                if pallet.press == nil then pallet.press = {} end
+                if pallet.press == nil and pallet.status ~= "spoiled_discarded" then pallet.press = {} end
                 if type(pallet.press) == "table" then
                     if pallet.press.status == nil then pallet.press.status = "awaiting_cut" end
                     if pallet.press.requiredGoodSheets == nil then pallet.press.requiredGoodSheets = requested end
@@ -825,7 +987,10 @@ local function normalizePrintJob(job)
                     if pallet.press.passHistory == nil then pallet.press.passHistory = {} end
                 end
                 if number(requested) then ordered = ordered + requested end
-                if number(pallet.initialSheets) then supplied = supplied + pallet.initialSheets end
+                if number(pallet.initialSheets) then
+                    supplied = supplied + math.max(0,
+                        pallet.initialSheets - (tonumber(pallet.damagedSheets) or 0))
+                end
                 if number(palletAllowance) then allowance = allowance + palletAllowance end
             end
         end
@@ -956,6 +1121,13 @@ local function normalizeWindmillProcess(value, state)
 end
 
 local function repairLegacyPhysicalOwnership(state)
+    -- Legacy machine repair predates racks/stacks/forklifts. Never let it move
+    -- newly-owned stock to a machine or floor based on a stale old claim.
+    if state.forklift and state.forklift.carriedPalletId then return end
+    for _, item in ipairs(PalletState.items(state)) do
+        if item.pallet.location == "rack" or item.pallet.location == "stacked"
+            or item.pallet.location == "on_forklift" or item.pallet.storage ~= nil then return end
+    end
     local process = state.windmill and state.windmill.process
     local selected = process and process.palletId and PalletState.find(state, process.palletId) or nil
     if selected and (selected.vendor or selected.job.id ~= process.jobId
@@ -999,7 +1171,25 @@ end
 
 local function normalizeState(source, repairPhysical)
     source = type(source) == "table" and source or {}
+    if not Schema.validPhysicalSource(source) then return nil, "Invalid physical stock or vehicle ownership." end
     local result = Schema.defaultState()
+    local warehouse, warehouseError = WarehouseUpgrades.normalize(source.warehouse)
+    if not warehouse then return nil, warehouseError end
+    local storage, storageError = PalletStorage.normalize(source.storage)
+    if not storage then return nil, storageError end
+    if source.forklift ~= nil and not Forklift.validState(source.forklift, Config.forklift) then
+        return nil, "Invalid saved forklift state."
+    end
+    result.warehouse, result.storage = warehouse, storage
+    if not WarehouseConstruction.valid(source.constructionWorker, warehouse) then
+        return nil, "Invalid saved construction worker state."
+    end
+    result.constructionWorker = WarehouseConstruction.normalize(source.constructionWorker, warehouse)
+    result.forklift = source.forklift == nil and Forklift.defaultState(Config.forklift)
+        or Forklift.normalize(source.forklift, Config.forklift)
+    if result.forklift.owned and not warehouse.forkliftOwned then
+        return nil, "Forklift ownership has no purchase entitlement."
+    end
     if nonnegative(source.money) then result.money = source.money end
 
     if type(source.inventory) == "table" then
@@ -1019,6 +1209,9 @@ local function normalizeState(source, repairPhysical)
     result.nextJobId = source.nextJobId ~= nil and source.nextJobId or result.nextJobId
     result.accountsReceivable = source.accountsReceivable ~= nil
         and source.accountsReceivable or result.accountsReceivable
+    result.reputation = type(source.reputation) == "table"
+        and copy(source.reputation) or result.reputation
+    Reputation.ensure(result)
     result.cutterMemory = type(source.cutterMemory) == "table"
         and copy(source.cutterMemory) or result.cutterMemory
     result.procurement = type(source.procurement) == "table"
@@ -1040,6 +1233,16 @@ local function normalizeState(source, repairPhysical)
     result.clientEmails.sentPromotions = type(result.clientEmails.sentPromotions) == "table"
         and result.clientEmails.sentPromotions or {}
     normalizeEmailJobs(result.clientEmails)
+    result.workPhone = type(source.workPhone) == "table"
+        and copy(source.workPhone) or result.workPhone
+    result.workPhone.nextCallId = math.max(1,
+        math.floor(tonumber(result.workPhone.nextCallId) or 1))
+    result.workPhone.nextCallAtHours = math.max(0,
+        tonumber(result.workPhone.nextCallAtHours) or 6)
+    result.workPhone.incoming = type(result.workPhone.incoming) == "table"
+        and result.workPhone.incoming or nil
+    result.workPhone.history = type(result.workPhone.history) == "table"
+        and result.workPhone.history or {}
     result.machines = type(source.machines) == "table"
         and copy(source.machines) or result.machines
     MachineFleet.ensure(result)
@@ -1097,6 +1300,7 @@ function Schema.reconcile(state)
             if pallet.location == "warehouse" or pallet.location == "cutter_output"
                 or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
                 or pallet.location == "at_press" or pallet.location == "press_output"
+                or pallet.location == "rack" or pallet.location == "stacked" or pallet.location == "on_forklift"
             then
                 local needsPrinting = type(savedJob.press) == "table"
                 local printingComplete = not needsPrinting
@@ -1149,7 +1353,8 @@ function Schema.snapshot(state)
             }
         end
     end
-    local result = normalizeState(state)
+    local result, reason = normalizeState(state)
+    if not result then return nil, reason end
     for kind, origin in pairs(committedPlacements) do
         result[kind].x, result[kind].y = origin.x, origin.y
         result[kind].direction = origin.direction
@@ -1159,6 +1364,8 @@ function Schema.snapshot(state)
     result.windmill.moving, result.windmill.inMotion = false, false
     result.palletJack.operating = false
     result.palletJack.moving, result.palletJack.inMotion = false, false
+    result.palletJack.operatorPlayerId = nil
+    Forklift.forceRelease(result, Config.forklift)
     Schema.reconcile(result)
     return result
 end
@@ -1225,7 +1432,7 @@ function Schema.migrate(payload)
     elseif payload.version == 2 or payload.version == 3 or payload.version == 4
         or payload.version == 5 or payload.version == 6 or payload.version == 7
         or payload.version == 8 or payload.version == 9 or payload.version == 10
-        or payload.version == 11 or payload.version == 12
+        or payload.version == 11 or payload.version == 12 or payload.version == 13 or payload.version == 14
     then
         if not validV2Core(payload) then return nil end
     else

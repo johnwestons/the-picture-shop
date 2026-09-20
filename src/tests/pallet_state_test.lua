@@ -1,4 +1,5 @@
 local Test = {}
+local MachinePose = require("src.machine_pose")
 
 function Test.run(context, check)
     local state = context.State.new()
@@ -48,6 +49,11 @@ function Test.run(context, check)
 
     local mounted, mountCode = context.PalletJack.mount(
         networkState, context.config.palletJack, 2)
+    local operatingInteraction = context.PalletJack.interaction({
+        id = 2, x = jack.x + 42, y = jack.y + 24,
+    }, networkState, context.config.palletJack)
+    check("operating_jack_interaction_stays_on_jack_not_player",
+        operatingInteraction.x == jack.x and operatingInteraction.y == jack.y)
     local candidate = context.PalletJack.pickupCandidate(
         networkState, context.config.palletJack, networkPallet.id)
     local networkSnapshot = context.world.networkPalletJackSnapshot(networkState)
@@ -140,7 +146,24 @@ function Test.run(context, check)
     local sourceCutter = relocationSource.cutter
     local sourceJack = context.PalletJack.ensure(relocationSource, context.config.palletJack)
     sourceJack.x, sourceJack.y = sourceCutter.x, sourceCutter.y
+    local nearbyJob = context.jobs.createOffer({
+        id = "DOMAIN-RELOCATION-CANDIDATE", company = "Relocation Candidate Co.",
+        sourceSize = { width = 20, height = 16 },
+        finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 },
+    })
+    context.jobs.accept(nearbyJob)
+    relocationSource.jobs.active[1] = nearbyJob
+    local nearbyPallet = nearbyJob.pallets[1]
+    nearbyPallet.location, nearbyPallet.status = "warehouse", "raw"
+    nearbyPallet.world = {
+        x = sourceJack.x - 36, y = sourceJack.y,
+        fromX = sourceJack.x - 36, fromY = sourceJack.y,
+        direction = "northwest", rotation = 1, spawnProgress = 1,
+    }
     context.PalletJack.mount(relocationSource, context.config.palletJack, 1)
+    local candidateBeforeRelocation = context.world.networkPalletJackSnapshot(
+        relocationSource).candidatePalletId
     local relocationBegan = context.world.beginCutterMove(relocationSource)
     context.world.update(0.1, 1, 0, context.assets, relocationSource)
     local sourceJackSnapshot = context.world.networkPalletJackSnapshot(relocationSource)
@@ -152,7 +175,10 @@ function Test.run(context, check)
         and sourceMachinePoses.cutter.y == sourceJackSnapshot.y - 8
         and sourceMachinePoses.cutter.direction == sourceJackSnapshot.direction
         and sourceJackSnapshot.operatorPlayerId == 1
-        and sourceJackSnapshot.carriedPalletId == nil)
+        and sourceJackSnapshot.carriedPalletId == nil
+        and candidateBeforeRelocation == nearbyPallet.id
+        and sourceJackSnapshot.candidatePalletId == nil
+        and MachinePose.normalize(sourceMachinePoses, sourceJackSnapshot) ~= nil)
 
     local secondRelocationBlocked = not context.world.beginWrapperMove(relocationSource)
     check("domain_machine_relocation_allows_only_one_attached_machine",
@@ -221,8 +247,8 @@ function Test.run(context, check)
         x = 640, y = 508, direction = "east", operating = true, moving = true,
         operatorPlayerId = 2,
     }, guestOwnedMachines)
-    check("domain_network_machine_pose_rejects_non_host_owner_without_mutation",
-        not guestOwnedApplied and observerState.palletJack.operatorPlayerId == 1
+    check("domain_network_machine_pose_accepts_guest_owned_empty_jack",
+        guestOwnedApplied and observerState.palletJack.operatorPlayerId == 2
         and observerState.cutter.moving and observerState.cutter.x == 640)
 
     local terminalMachines = context.world.networkMachinePoseSnapshot(observerState)

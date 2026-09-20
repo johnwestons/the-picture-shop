@@ -7,6 +7,11 @@ function Test.run(context, check)
     check("domain_png_header_contract", width == 384 and height == 128)
     local paperWidth, paperHeight = ImageContract.dimensions(context.config.paths.palletWorkOrderPaper)
     check("domain_work_order_paper_contract", paperWidth == 1536 and paperHeight == 1024)
+    local phoneWidth, phoneHeight = ImageContract.dimensions(context.config.paths.workPhone)
+    check("domain_work_phone_atlas_contract", phoneWidth == 1536 and phoneHeight == 1024
+        and context.assets.get("workPhone") ~= nil
+        and context.assets.getQuad("workPhone1") ~= nil
+        and context.assets.getQuad("workPhone8") ~= nil)
     context.characterAssets.retainCharacters({})
     check("domain_character_startup_has_no_pixel_scans",
         context.characterAssets.anchorPixelScans() == 0)

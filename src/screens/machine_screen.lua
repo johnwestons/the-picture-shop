@@ -1,11 +1,13 @@
+local function create(dependencies)
+dependencies = dependencies or {}
 local Config = require("src.config")
-local Machine = require("src.machine")
+local Machine = dependencies.Machine or require("src.machine")
 local MachineFleet = require("src.machine_fleet")
 local MachineMaintenance = require("src.machine_maintenance")
 local BusinessCalendar = require("src.business_calendar")
 local PalletJack = require("src.pallet_jack")
 local Procurement = require("src.procurement")
-local Wrapper = require("src.wrapper")
+local Wrapper = dependencies.Wrapper or require("src.wrapper")
 local BackButton = require("src.screens.back_button")
 local utf8 = require("utf8")
 
@@ -141,9 +143,9 @@ local cutterHelp = {
     { "3 — READ THE CUT PROGRAM", "The active cut number identifies the margin currently nearest the operator/screen. Compare the required measurement to the job's cut list. Easy work often repeats one margin; harder work has four different values. Never guess: the displayed target and pallet ID are the source of truth." },
     { "4 — SET OR PROGRAM THE BACK GAUGE", "Click the gauge number field, type inches with decimals, then press ENTER or SET. SAVE stores the measurement in the selected P1–P4 program. RECALL restores saved values. AUTOSET recalls the next saved cut, moves to its cut number automatically and prepares the next repeat measurement." },
     { "5 — POSITION AND ROTATE", "Press P or POSITION to push the stack against the back gauge. The red active margin must face the operator/screen. Press Q or ROTATE for a 90-degree counter-clockwise turn between sides. Reposition against the gauge after every rotation or measurement change." },
-    { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Offline, trigger both CUT buttons (J and K) within 0.30 seconds. During the current multiplayer slice, either CUT button starts the host-validated cycle. The blade descends, cuts the active margin and rises." },
+    { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Offline, trigger both CUT buttons (J and K) within 0.30 seconds. The safety controls prevent injury, but they do not check your measurement. A wrong gauge, program, or rotation ruins the whole lift, creates a customer-stock claim, and lowers reputation." },
     { "7 — FINISH ALL LIFTS", "The cutter holds a maximum 500 sheets per lift. Repeat the programmed sides for each lift until the pallet's full sheet count is processed. Verify the size after every side. When all required margins are removed, press U or UNLOAD; the animated stack returns to its pallet at cutter output." },
-    { "8 — TROUBLESHOOTING", "If cutting is blocked, check: correct pallet loaded, transfer animation finished, gauge equals active cut, paper positioned, barrier clear, clamp down, the required offline or multiplayer cut control pressed, and E-STOP reset. A wrong measurement changes the real sheet size and can create spoilage." },
+    { "8 — TROUBLESHOOTING", "If the blade will not cycle, check: pallet loaded, transfer animation finished, paper positioned, barrier clear, clamp down, the required offline or multiplayer cut control pressed, and E-STOP reset. The cutter intentionally permits off-size work—compare the selected program, rotation, and gauge to the ticket yourself." },
     { "9 — ROUTINE MAINTENANCE", "Unload the bed and return to IDLE. Open MAINTENANCE. Lubrication requires one delivered maintenance kit and an ordered lockout sequence: disconnect, keep the key and attach the tag. Clean and grease each marked point, inspect the gearbox sight glass, pump lubricant, then finish inspection." },
     { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all four blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book the blade technician; the on-site technician services and reinstalls it. Never run with the blade removed." },
 }
@@ -382,7 +384,9 @@ local function drawWrapperMaintenanceTask(state, assets, pointerX, pointerY)
     love.graphics.setColor(0.96, 0.74, 0.24)
     love.graphics.printf(task.id == "driveBelt" and "TIMING TARGET MOVING" or "SEQUENCE TARGET ACTIVE",
         rightX + 18, rightY + 346, rightW - 36, "center")
-    drawMaintenanceCard(maintenanceBack, "CANCEL SERVICE", "No kit is consumed until all four tasks are complete.", true, pointerX, pointerY)
+    drawMaintenanceCard(maintenanceBack, "CANCEL SERVICE", "", true, pointerX, pointerY)
+    love.graphics.setColor(0.72,0.82,0.82)
+    love.graphics.printf("No kit is consumed until all four tasks are complete.",280,608,590,"left")
 end
 
 local function drawSmallAction(rect, label, active, complete, pointerX, pointerY)
@@ -598,25 +602,31 @@ local function drawSpriteButton(assets, button, red, pressed)
     love.graphics.printf(button.label, button.x, button.y + button.height - 12, button.width, "center")
 end
 
+function Screen.drawCutterButton(assets, button, red, pressed)
+    drawSpriteButton(assets, button, red, pressed)
+end
+
 local function artworkColor(id, offset)
     local hash = offset * 97
     for index = 1, #(id or "ART") do hash = (hash * 33 + id:byte(index)) % 997 end
     return 0.25 + (hash % 55) / 100, 0.25 + ((hash * 3) % 55) / 100, 0.25 + ((hash * 7) % 55) / 100
 end
 
-local function drawPaper(assets)
-    local paper = Machine.paper
-    if not Machine.loaded or not paper then return end
-    local step, t = Machine.step, 1
-    if step == "loading" then t = math.min(1, Machine.progress / Machine.transferTime)
-    elseif step == "positioning" then t = math.min(1, Machine.progress / Machine.transferTime)
-    elseif step == "unloading" then t = 1 - math.min(1, Machine.progress / Machine.transferTime) end
+local function drawPaper(assets, machine)
+    local paper = machine.paper
+    if not machine.loaded or not paper then return end
+    local step, t = machine.step, 1
+    if step == "loading" then t = math.min(1, machine.progress / machine.transferTime)
+    elseif step == "positioning" then t = math.min(1, machine.progress / machine.transferTime)
+    elseif step == "unloading" or step == "lift_returning" then
+        t = 1 - math.min(1, machine.progress / machine.transferTime)
+    end
     local startY, bedY, gaugeY = 355, 264, 218
     local y
     if step == "loading" then y = startY + (bedY - startY) * t
     elseif step == "loaded" then y = bedY
     elseif step == "positioning" then y = bedY + (gaugeY - bedY) * t
-    elseif step == "unloading" then y = startY + (gaugeY - startY) * t
+    elseif step == "unloading" or step == "lift_returning" then y = startY + (gaugeY - startY) * t
     else y = gaugeY end
     local rotated = paper.orientation % 180 == 90
     local widthValue = rotated and paper.currentSize.height or paper.currentSize.width
@@ -675,6 +685,13 @@ local function drawPaper(assets)
     love.graphics.setColor(0.86, 0.18, 0.18, 0.9)
     love.graphics.setLineStyle("rough")
     love.graphics.rectangle("line", innerX, innerY, innerWidth, innerHeight)
+    if paper.offSpec then
+        local lineWidth = love.graphics.getLineWidth()
+        love.graphics.setLineWidth(3)
+        love.graphics.line(x, y, x + width, y + height)
+        love.graphics.line(x + width, y, x, y + height)
+        love.graphics.setLineWidth(lineWidth)
+    end
     love.graphics.setLineStyle("smooth")
 end
 
@@ -689,15 +706,27 @@ local function drawMotion(assets, name, imageName, progress)
     love.graphics.draw(image, sprite.quad, 400, 78, 0, 520 / 768, 347 / 512)
 end
 
-local function drawMachine(assets)
+local function drawMachine(assets, machine)
+    machine = machine or Machine
     local image = assets.get("polarOperatorConsole")
     if image then
         love.graphics.setColor(1, 1, 1)
         love.graphics.draw(image, 400, 78, 0, 520 / image:getWidth(), 347 / image:getHeight())
     end
-    drawPaper(assets)
-    drawMotion(assets, "cutterClamp", "cutterClamp", Machine.clampProgress)
-    if Machine.step == "cutting" then drawMotion(assets, "cutterBlade", "cutterBlade", Machine.progress / Machine.cycleTime) end
+    drawPaper(assets, machine)
+    drawMotion(assets, "cutterClamp", "cutterClamp", machine.clampProgress)
+    if machine.step == "cutting" then drawMotion(assets, "cutterBlade", "cutterBlade", machine.progress / machine.cycleTime) end
+end
+
+-- Shared, read-only scene: remote callers supply a presentation model, never
+-- replace the Machine singleton or execute local production to animate it.
+function Screen.drawCutterScene(assets, machine, rect)
+    love.graphics.push("all")
+    love.graphics.translate(rect.x, rect.y)
+    love.graphics.scale(rect.width / 520, rect.height / 347)
+    love.graphics.translate(-400, -78)
+    drawMachine(assets, machine)
+    love.graphics.pop()
 end
 
 local function drawTouchscreen()
@@ -923,6 +952,10 @@ function Screen.draw(state, assets, pointerX, pointerY)
 end
 
 function Screen.mousepressed(state, x, y, button)
+    if dependencies.remoteCommand and Screen.remoteServiceInput then
+        local handled = Screen.remoteServiceInput(state, x, y, button)
+        if handled ~= nil then return handled end
+    end
     if button ~= 1 then return false end
     -- Android text input is opt-in: every non-field tap releases the gauge
     -- before the gauge hit target below can explicitly focus it again.
@@ -1185,6 +1218,10 @@ function Screen.keypressed(state, key)
     end
     if Screen.maintenanceView then
         if key == "escape" then
+            if dependencies.remoteCommand and (Screen.maintenanceView=="wrapper_task"
+                or Screen.maintenanceView=="oil" or Screen.maintenanceView=="blade") then
+                return dependencies.remoteCommand("cancel_service",{})
+            end
             if Screen.maintenanceView == "wrapper_hub" then
                 Screen.maintenanceView = nil
             elseif Screen.maintenanceView == "wrapper_task" then
@@ -1231,6 +1268,12 @@ function Screen.keypressed(state, key)
 end
 
 function Screen.update(dt)
+    if dependencies.remoteCommand then
+        for _, session in ipairs({ Screen.oilSession or false, Screen.wrapperSession or false }) do
+            if session then session.animationClock = (session.animationClock or 0) + dt end
+        end
+        return false
+    end
     if Screen.maintenanceView == "wrapper_task" and Screen.wrapperSession then
         return MachineMaintenance.update(Screen.wrapperSession, dt)
     elseif Screen.maintenanceView == "oil" and Screen.oilSession then
@@ -1379,4 +1422,118 @@ function Screen.artworkRotation(paper)
     return math.rad(((paper and paper.orientation) or 0) % 360)
 end
 
+-- The same service hit targets feed bounded intent on guests. No local service
+-- task, bolt, kit or condition is advanced before the host confirms it.
+function Screen.remoteServiceInput(state, x, y, button)
+    if button ~= 1 or Screen.helpOpen then return nil end
+    local send = dependencies.remoteCommand
+    local function action(name, args) send(name, args or {}); return true end
+    local view = Screen.remoteView or {}
+    if Screen.maintenanceView == "hub" then
+        if inside(maintenanceBack, x, y) then Screen.maintenanceView = nil; return true end
+        if inside(oilServiceButton, x, y) then return action("begin_lubrication") end
+        if inside(bladeServiceButton, x, y) then return action("begin_blade") end
+        if inside(technicianButton, x, y) then return action("book_blade_technician") end
+        if inside(weeklyButton, x, y) then
+            local _, cutter = MachineMaintenance.cutterStatus(state)
+            return action("set_weekly_technician", { enabled = not cutter.weeklyTechnician })
+        end
+        return true
+    elseif Screen.maintenanceView == "oil" then
+        if inside(maintenanceBack, x, y) then return action("cancel_service") end
+        local session = Screen.oilSession
+        if session.stage == "lockout" or session.stage == "prep" then
+            local expected = ({ lockout_disconnect = "disconnect", lockout_key = "key", lockout_tag = "tag",
+                prep_cartridge = "cartridge", prep_prime = "prime" })[view.serviceStep]
+            local rect = lockoutButtons[expected] or prepButtons[expected]
+            if rect and inside(rect, x, y) then return action("service_advance") end
+        else
+            for index in ipairs(lubricationViews) do
+                if inside({ x=42+(index-1)*113,y=112,width=105,height=34 },x,y) then return action("service_view",{itemIndex=index}) end
+            end
+            for index in ipairs(lubricationTools) do
+                if inside({x=650,y=176+(index-1)*48,width=234,height=39},x,y) then return action("service_tool",{itemIndex=index}) end
+            end
+            if inside(pumpButton,x,y) then return action("service_pump") end
+            if inside(finishLubricationButton,x,y) then return action("finish_lubrication") end
+            if session.activeView == "gear" and (x-490)^2+(y-340)^2 <= 55^2 then return action("service_gear") end
+            if session.activeView == "central" and (x-370)^2+(y-330)^2 <= 45^2 then return action("service_point",{itemIndex=7}) end
+            for index, point in ipairs(session.points) do
+                if point.view == session.activeView and (x-point.x)^2+(y-point.y)^2 <= 38^2 then return action("service_point",{itemIndex=index}) end
+            end
+        end
+        return true
+    elseif Screen.maintenanceView == "blade" then
+        if inside(maintenanceBack,x,y) then return action("cancel_service") end
+        if Screen.bladeStage == "bolts" then
+            for index,pos in ipairs(bladeBoltPositions()) do
+                if (x-pos[1])^2+(y-pos[2])^2 <= 24^2 then return action("remove_blade_bolt",{itemIndex=index}) end
+            end
+        elseif Screen.bladeStage == "blade" and x>=304 and x<=656 and y>=280 and y<=342 then return action("lift_blade")
+        elseif Screen.bladeStage == "sleeve" and x>=330 and x<=630 and y>=445 and y<=505 then return action("sleeve_blade") end
+        return true
+    elseif Screen.maintenanceView == "wrapper_hub" then
+        if inside(maintenanceBack,x,y) then Screen.maintenanceView=nil; return true end
+        if inside(wrapperServiceButton,x,y) then return action("begin_service") end
+        return true
+    elseif Screen.maintenanceView == "wrapper_task" then
+        if inside(maintenanceBack,x,y) then return action("cancel_service") end
+        local phase = view.servicePhase or 1
+        local tx,ty = MachineMaintenance.wrapperTarget(Screen.wrapperSession,phase)
+        if tx and (x-tx)^2+(y-ty)^2 <= 38^2 then return action("service_target",{itemIndex=phase}) end
+        if x>=54 and x<=574 and y>=104 and y<=542 then return action("service_miss") end
+        return true
+    end
+end
+
+function Screen.syncRemoteService(state, view)
+    Screen.remoteView = view
+    local step = view.serviceStep or "idle"
+    if state.machineType == "skid_wrapper" then
+        if step == "task" then
+            local session = Screen.wrapperSession or MachineMaintenance.beginWrapperService(state)
+            if not session then return end
+            session.activeIndex = view.serviceTaskIndex or 1
+            local task = session.tasks[session.activeIndex]
+            session.taskState[task.id] = { phase=view.servicePhase or 1, attempts=view.serviceAttempts or 0,
+                misses=view.serviceMisses or 0, hits=(view.servicePhase or 1)-1, completed=false }
+            Screen.wrapperSession, Screen.maintenanceView = session,"wrapper_task"
+        elseif Screen.maintenanceView == "wrapper_task" then Screen.wrapperSession,Screen.maintenanceView=nil,"wrapper_hub" end
+    elseif step:sub(1,6) == "blade_" then
+        Screen.maintenanceView = "blade"
+        Screen.bladeStage = step == "blade_lift" and "blade" or step:sub(7)
+        Screen.bladeBolts = {}
+        for index=1,4 do
+            Screen.bladeBolts[index]=view.bladeBoltMask and math.floor(view.bladeBoltMask/2^(index-1))%2==1
+                or (view.bladeBoltMask==nil and index <= (view.bladeBoltsDone or 0))
+        end
+    elseif step ~= "idle" then
+        local session = Screen.oilSession or MachineMaintenance.beginCutterLubrication(state)
+        if not session then return end
+        session.stage = step:find("lockout",1,true) and "lockout" or step:find("prep",1,true) and "prep" or "service"
+        session.lockout = { disconnect=step~="lockout_disconnect",key=step~="lockout_disconnect" and step~="lockout_key",tag=session.stage~="lockout" }
+        session.prep = { cartridge=step=="prep_prime" or session.stage=="service",primed=session.stage=="service" }
+        session.activeView=lubricationViews[view.serviceView or 1]
+        session.activeTool=lubricationTools[view.serviceTool or 1]
+        session.centralInstalled=view.centralInstalled==true
+        session.gear.inspected,session.gear.level=view.gearInspected==true,(view.gearLevelPermille or 480)/1000
+        session.coupledPoint=nil
+        for _,item in ipairs(view.serviceItems or {}) do
+            local point=item.itemIndex==7 and session.central or session.points[item.itemIndex]
+            if point then
+                point.cleaned,point.coupled,point.strokes,point.complete=item.cleaned,item.coupled,item.strokes,item.complete
+                if point.coupled then session.coupledPoint=item.itemIndex==7 and "central" or point.id end
+            end
+        end
+        Screen.oilSession,Screen.maintenanceView=session,"oil"
+    elseif Screen.maintenanceView == "oil" or Screen.maintenanceView == "blade" then
+        Screen.oilSession,Screen.bladeStage,Screen.bladeBolts,Screen.maintenanceView=nil,nil,nil,"hub"
+    end
+end
+
 return Screen
+end
+
+local default = create()
+default.new = create
+return default

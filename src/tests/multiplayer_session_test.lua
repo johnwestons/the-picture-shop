@@ -415,6 +415,10 @@ local function runCutterSafetyOrderingRegression(args)
         revision = previousWorkshopTick + 1,
         resources = Codec.array({
             { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "vendor", revision = 0, occupied = false },
+            { resourceId = "truck", revision = 0, occupied = false },
+            { resourceId = "work_phone", revision = 0, occupied = false },
+            { resourceId = "warehouse", revision = 0, occupied = false },
             { resourceId = "office_computer", revision = 0, occupied = false },
             { resourceId = "cutter", revision = math.max(0, grantRevision - 1),
                 occupied = false },
@@ -485,6 +489,8 @@ local function runCutterSafetyOrderingRegression(args)
         revision = previousWorkshopTick + 2,
         resources = Codec.array({
             { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "vendor", revision = 0, occupied = false },
+            { resourceId = "truck", revision = 0, occupied = false },
             { resourceId = "office_computer", revision = 0, occupied = false },
             { resourceId = "cutter", revision = staleRevision, occupied = true,
                 ownerPlayerId = client.localId },
@@ -538,6 +544,8 @@ local function runWindmillSessionRegression(args)
         revision = previousWorkshopTick + 1,
         resources = Codec.array({
             { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "vendor", revision = 0, occupied = false },
+            { resourceId = "truck", revision = 0, occupied = false },
             { resourceId = "office_computer", revision = 0, occupied = false },
             { resourceId = "cutter", revision = 0, occupied = false },
             { resourceId = "windmill", revision = math.max(0, grantRevision - 1),
@@ -681,6 +689,8 @@ local function runWindmillSessionRegression(args)
         revision = client.lastWorkshopSnapshotRevision + 1,
         resources = Codec.array({
             { resourceId = "reception_customer", revision = 0, occupied = false },
+            { resourceId = "vendor", revision = 0, occupied = false },
+            { resourceId = "truck", revision = 0, occupied = false },
             { resourceId = "office_computer", revision = 0, occupied = false },
             { resourceId = "cutter", revision = 0, occupied = false },
             { resourceId = "windmill", revision = currentRevision - 1,
@@ -792,6 +802,67 @@ local function runStaleWorkshopGrantRevisionRegression(check)
         and currentGrantClient.activeWorkshop
         and currentGrantClient.activeWorkshop.leaseId == "lease-stale-3"
         and currentGrantClient.activeWorkshop.revision == 9)
+end
+
+local function runHudExperienceRegression(check)
+    local client = Session.new({ clock = function() return 42 end })
+    client.mode = "client"
+    client.networkKind = "lan"
+    client.ready = true
+    client.status = "3/4 workers connected"
+    client.localId = 3
+    client.rtt = 52.4
+    client.players = {
+        [1] = { id = 1, name = "PC Host", character = "rabbit-worker" },
+        [2] = { id = 2, name = "Press Worker", character = "rabbit-worker" },
+        [3] = { id = 3, name = "Android Worker", character = "rabbit-worker" },
+    }
+    client.workshopResources = {
+        { resourceId = "cutter", occupied = true, ownerPlayerId = 2 },
+        { resourceId = "pallet_jack", occupied = false },
+    }
+    client.activeWorkshop = {
+        resourceId = "pallet_jack", leaseId = "lease-ui", revision = 4,
+    }
+    client.pendingWorkshop = {
+        operation = "command", resourceId = "pallet_jack",
+        action = "move_machine", commandId = 7, sentAt = 42,
+    }
+
+    local hud = client:hudInfo()
+    check("multiplayer_session_guest_hud_exposes_bounded_roster_authority_and_activity",
+        hud.mode == "client" and hud.networkKind == "lan"
+        and hud.localPlayerId == 3 and hud.playerCount == 3
+        and #hud.players == 3
+        and hud.players[1].playerId == 1 and hud.players[1].isHost
+        and not hud.players[1].isLocal
+        and hud.players[3].playerId == 3 and hud.players[3].isLocal
+        and hud.players[1].peer == nil and hud.players[1].x == nil
+        and hud.activeResourceId == "pallet_jack"
+        and hud.pendingActivity.kind == "workshop_action"
+        and hud.pendingActivity.resourceId == "pallet_jack"
+        and hud.pendingActivity.action == "move_machine"
+        and #hud.workshopResources == 2
+        and hud.workshopResources[1].ownerPlayerId == 2)
+
+    hud.players[1].name = "tampered"
+    hud.workshopResources[1].occupied = false
+    check("multiplayer_session_guest_hud_returns_detached_display_records",
+        client.players[1].name == "PC Host"
+        and client.workshopResources[1].occupied == true)
+
+    client.pendingWorkshopSafety = {
+        resourceId = "cutter", action = "emergency_stop", commandId = 8, sentAt = 42,
+    }
+    local urgentHud = client:hudInfo()
+    check("multiplayer_session_guest_hud_prioritizes_urgent_safety_feedback",
+        urgentHud.pendingActivity.kind == "urgent_safety"
+        and urgentHud.pendingActivity.resourceId == "cutter"
+        and urgentHud.pendingActivity.action == "emergency_stop")
+
+    client:_resetRuntime()
+    check("multiplayer_session_reset_clears_guest_hud_occupancy",
+        #client.workshopResources == 0 and #client:hudInfo().workshopResources == 0)
 end
 
 local function runFourDeviceShardingRegression(check, clock, addressOptions)
@@ -1350,6 +1421,7 @@ end
 
 function Test.run(_, check)
     runStaleWorkshopGrantRevisionRegression(check)
+    runHudExperienceRegression(check)
     local now = 100
     local clock = function() return now end
     local network = fakeNetwork()
@@ -1690,6 +1762,7 @@ function Test.run(_, check)
             desiredState = "open", playerId = 2, x = interactionX, y = interactionY,
         },
     })
+    now = now + 1.01
     local errorsBeforeSpoof = #network:messages("host_to_client", "error")
     network:sendRawToHost(malformedInteraction, Protocol.CHANNEL_CONTROL, true)
     host:update(0, hostContext)
@@ -1701,6 +1774,7 @@ function Test.run(_, check)
         and host.players[2].lastInteractionRequestId == 5
         and #interactionCalls == 4 and interactionMutations == 3)
 
+    now = now + 1.01
     local errorCountBeforeInvalid = #network:messages("host_to_client", "error")
     network:sendRawToHost("this-is-not-a-protocol-packet")
     host:update(0, hostContext)
@@ -1715,6 +1789,7 @@ function Test.run(_, check)
         and errorPackets[#errorPackets].channel == Protocol.CHANNEL_CONTROL
         and errorPackets[#errorPackets].reliable)
 
+    now = now + 1.01
     local wrongChannelCount = #errorPackets
     local wrongChannelInteraction = Protocol.encode("interaction_request", {
         sessionId = host.sessionId, requestId = 6, targetKind = "loadingBayDoor",
@@ -1730,6 +1805,7 @@ function Test.run(_, check)
         and host.players[2].lastInteractionRequestId == 5
         and #interactionCalls == 4 and interactionMutations == 3)
 
+    now = now + 1.01
     local oversizedCount = #network:messages("host_to_client", "error")
     network:sendRawToHost(string.rep("x", Protocol.MAX_PACKET_BYTES + 1),
         Protocol.CHANNEL_DURABLE, true)
@@ -1832,6 +1908,10 @@ function Test.run(_, check)
         return {
             resources = {
                 { resourceId = "reception_customer", revision = 0, occupied = false },
+                { resourceId = "vendor", revision = 0, occupied = false },
+                { resourceId = "truck", revision = 0, occupied = false },
+                { resourceId = "work_phone", revision = 0, occupied = false },
+                { resourceId = "warehouse", revision = 0, occupied = false },
                 { resourceId = "office_computer", revision = workshopRevision,
                     occupied = workshopLease ~= nil and workshopResource == "office_computer",
                     ownerPlayerId = workshopLease and workshopResource == "office_computer"

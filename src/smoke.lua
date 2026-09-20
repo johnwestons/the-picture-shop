@@ -36,6 +36,14 @@ local function check(name, condition, detail)
     writeLine("PASS " .. name)
 end
 
+local function selectComputerTab(screen, state, tabId)
+    local arrowX, arrowY = screen.dropdownCenter()
+    local opened = screen.mousepressed(state, arrowX, arrowY, 1)
+    if not opened or opened.action ~= "dropdown_opened" then return opened end
+    local itemX, itemY = screen.tabCenter(tabId)
+    return screen.mousepressed(state, itemX, itemY, 1)
+end
+
 local function maskHasBothValues(mask)
     if not mask then return false, "mask image data missing" end
     local width, height = mask:getDimensions()
@@ -115,6 +123,14 @@ local function runChecks(context)
         and context.assets.getQuad("wallVentFan1") ~= nil
         and context.assets.getQuad("wallVentFan2") ~= nil
         and context.assets.getQuad("wallVentFan3") ~= nil)
+    check("lounge_seating_foregrounds_loaded",
+        context.assets.get("loungeLeftChairForeground") ~= nil
+        and context.assets.get("loungeCoffeeTableForeground") ~= nil
+        and context.assets.get("loungeRightChairForeground") ~= nil)
+    check("lounge_has_four_individual_seat_positions",
+        #context.config.customer.seatSpots == 4
+        and context.config.customer.seatSpots[2].name == "sofa-left"
+        and context.config.customer.seatSpots[3].name == "sofa-right")
     check("wall_vent_fan_is_thirty_five_percent_larger",
         math.abs(context.config.wallVentFan.drawScale - 0.405) < 0.0001)
     check("pallet_jack_twenty_percent_smaller_without_shrinking_loose_pallets",
@@ -377,6 +393,7 @@ local function runChecks(context)
     check("artwork_job_rotation_covers_full_registry", artworkOrderValid
         and artworkPathCount == #(context.config.artworkOrder or {}))
     local artworkOfferState = context.State.new()
+    artworkOfferState.reputation.score = 20
     local observedArtwork = {}
     for sequence = 1, math.max(12, #(context.config.artworkOrder or {})) do
         artworkOfferState.nextJobId = sequence
@@ -735,6 +752,45 @@ local function runChecks(context)
     check("monday_resumes_visitor_arrivals", not context.businessCalendar.isWeekend(weekendState)
         and weekendState.calendar.weekday == 1 and weekendVisitor.visible)
 
+    do
+    local walkInEstimateState = context.State.new()
+    local walkInEstimate = context.jobService.createNextOffer(walkInEstimateState, 100)
+    local detailsRequested = context.jobService.requestEstimateDetails(
+        walkInEstimateState, walkInEstimate, 101)
+    check("walk_in_requests_email_details_without_accepting_job", detailsRequested
+        and #walkInEstimateState.jobs.active == 0
+        and #walkInEstimateState.clientEmails.pending == 1
+        and walkInEstimateState.nextJobId == 2)
+    local walkInCalendar = context.businessCalendar.events(walkInEstimateState)
+    local hiddenReply = true
+    for _, event in ipairs(walkInCalendar) do
+        if tostring(event.title):find("Incoming email", 1, true) then hiddenReply = false end
+    end
+    check("walk_in_email_arrival_is_hidden_from_calendar", hiddenReply)
+    context.businessCalendar.update(walkInEstimateState,
+        7 / 24 * context.config.businessCalendar.secondsPerDay)
+    check("walk_in_written_details_arrive_after_delay",
+        context.jobService.updateClientEmails(walkInEstimateState)
+        and #walkInEstimateState.clientEmails.inbox == 1)
+    local walkInRequest = walkInEstimateState.clientEmails.inbox[1]
+    local reminderLimit = walkInRequest.followupLimit
+    for _ = 1, reminderLimit do
+        context.businessCalendar.update(walkInEstimateState,
+            context.config.businessCalendar.secondsPerDay)
+        context.jobService.updateClientEmails(walkInEstimateState)
+    end
+    local remindersSent = walkInRequest.followupCount
+    context.businessCalendar.update(walkInEstimateState,
+        context.config.businessCalendar.secondsPerDay)
+    context.jobService.updateClientEmails(walkInEstimateState)
+    check("unanswered_estimate_request_stops_after_one_or_two_followups",
+        (reminderLimit == 1 or reminderLimit == 2)
+        and remindersSent == reminderLimit
+        and walkInRequest.followupCount == reminderLimit
+        and walkInRequest.nextFollowupAtHours == nil)
+    end
+
+    do
     local emailState = context.State.new()
     local priorClientJob = context.jobs.createOffer({
         id = "PRIOR-CLIENT-JOB", company = "Returning Client Co.",
@@ -760,24 +816,32 @@ local function runChecks(context)
         and emailState.clientEmails.inbox[1].job.requestChannel == "email")
     local normalSequenceBeforeEmail = emailState.nextJobId
     context.computerScreen.enter(emailState)
-    local emailTabX, emailTabY = context.computerScreen.tabCenter("email")
-    context.computerScreen.mousepressed(emailState, emailTabX, emailTabY, 1)
+    selectComputerTab(context.computerScreen, emailState, "estimating")
     local emailAcceptX, emailAcceptY = context.computerScreen.emailButtonCenter("accept")
     local emailAccepted = context.computerScreen.mousepressed(emailState, emailAcceptX, emailAcceptY, 1)
-    check("computer_accepts_repeat_client_email", emailAccepted
-        and emailAccepted.action == "quote_accepted" and #emailState.jobs.active == 1
-        and emailState.jobs.active[1].company == "Returning Client Co."
-        and emailState.jobs.active[1].delivery.status == "pending_arrival"
+    check("computer_sends_repeat_client_estimate_without_instant_decision", emailAccepted
+        and emailAccepted.action == "estimate_sent" and #emailState.jobs.active == 0
         and emailState.nextJobId == normalSequenceBeforeEmail
-        and #emailState.clientEmails.archive == 1)
+        and #emailState.clientEmails.archive == 1
+        and emailState.clientEmails.archive[1].response == "estimate_sent"
+        and emailState.clientEmails.pending[1].estimateReply == true)
     priorClientJob.status = "completed"
     check("second_completed_job_schedules_email",
         context.jobService.scheduleRepeatEmail(emailState, priorClientJob))
     context.businessCalendar.update(emailState,
         3 * context.config.businessCalendar.secondsPerDay + 0.01)
     context.jobService.updateClientEmails(emailState)
+    check("client_estimate_reply_arrives_after_a_delay",
+        #emailState.jobs.active == 1
+        and emailState.jobs.active[1].company == "Returning Client Co."
+        and emailState.jobs.active[1].delivery.status == "pending_arrival")
+    local accidentalSecondTap = context.computerScreen.mousepressed(
+        emailState, emailAcceptX, emailAcceptY, 1)
+    check("android_repeat_tap_cannot_reply_to_the_next_email",
+        accidentalSecondTap == nil and #emailState.clientEmails.inbox == 2
+        and #emailState.clientEmails.archive == 1)
     context.computerScreen.enter(emailState)
-    context.computerScreen.mousepressed(emailState, emailTabX, emailTabY, 1)
+    selectComputerTab(context.computerScreen, emailState, "estimating")
     local emailDeclineX, emailDeclineY = context.computerScreen.emailButtonCenter("decline")
     local emailDeclined = context.computerScreen.mousepressed(emailState, emailDeclineX, emailDeclineY, 1)
     check("computer_declines_repeat_client_email", emailDeclined
@@ -794,13 +858,36 @@ local function runChecks(context)
         and highTerms.acceptanceChance < baseTerms.acceptanceChance
         and type(highTerms.urgency) == "string"
         and type(highTerms.relationshipJobs) == "number")
+    local shortPromotion = context.jobService.promotionTerms(emailState, "Hi")
+    local longPromotion = context.jobService.promotionTerms(emailState, string.rep("x", 200))
+    check("promotion_message_length_increases_new_job_chance",
+        longPromotion.messageLength == 200
+        and longPromotion.responseChance > shortPromotion.responseChance)
     priorClientJob.status = "completed"
+    local promotionMessage = string.rep("x", 240)
     local promotionSent, promotion = context.jobService.sendPromotion(
-        emailState, priorClientJob, "We appreciated your last project.")
+        emailState, priorClientJob, promotionMessage)
     check("player_can_send_personalized_ten_percent_promotion", promotionSent
         and promotion.discountPercent == 10
-        and promotion.customMessage == "We appreciated your last project."
-        and #emailState.clientEmails.sentPromotions == 1)
+        and promotion.customMessage == promotionMessage
+        and promotion.messageLength == 240 and promotion.responseChance > 0.70
+        and promotion.responseOutcome == "new_job"
+        and #emailState.clientEmails.sentPromotions == 1
+        and emailState.clientEmails.pending[1].discountedTotal
+            == emailState.clientEmails.pending[1].job.quote.totalPrice
+        and emailState.clientEmails.pending[1].body:find("discounted total", 1, true))
+    local duplicatePromotion = context.jobService.sendPromotion(
+        emailState, priorClientJob, "A duplicate offer should not send.")
+    check("completed_job_ten_percent_promotion_is_single_use",
+        not duplicatePromotion and #emailState.clientEmails.sentPromotions == 1)
+    local starterState, premiumState = context.State.new(), context.State.new()
+    premiumState.reputation.score, premiumState.nextJobId = 80, 3
+    local starterOffer = context.jobService.createNextOffer(starterState, 1)
+    local premiumOffer = context.jobService.createNextOffer(premiumState, 2)
+    check("reputation_unlocks_larger_better_paying_demanding_clients",
+        starterOffer.quote.totalSheets == 500 and starterOffer.clientTemperament == "cautious"
+        and premiumOffer.quote.totalPrice > starterOffer.quote.totalPrice
+        and premiumOffer.clientTemperament == "demanding")
     emailState.money = 10000
     local productOrdered, productOrder = context.procurement.buyRetail(emailState, 1, 1)
     local machineOrdered, machineOrder = context.machineFleet.orderOnline(emailState, 1)
@@ -814,8 +901,10 @@ local function runChecks(context)
         and eventIds[productShipment.id .. ":expected:" .. tostring(productEventDay)]
         and eventIds[machineOrder.id .. ":expected:" .. tostring(emailState.calendar.totalDays)]
         and #scheduledEvents >= 4)
+    end
 
     local artStateA, artStateB = context.State.new(), context.State.new()
+    artStateA.reputation.score, artStateB.reputation.score = 20, 20
     artStateA.jobs.artworkSeed, artStateB.jobs.artworkSeed = 101, 90901
     local differentArt = false
     for sequence = 1, 12 do
@@ -1106,20 +1195,20 @@ local function runChecks(context)
         and context.PalletState.validate(receivingState))
 
     local serviceState = context.State.new()
+    serviceState.reputation.score = 20
     serviceState.screen = "world"
     local serviceOffer = context.jobService.createNextOffer(serviceState, 111)
+    local serviceOfferValue = serviceOffer and serviceOffer.quote.totalPrice
     check("paperwork_offer_created", serviceOffer
         and serviceOffer.id == "JOB-0001"
         and serviceOffer.company == "Blue Ridge Packaging"
-        and serviceOffer.quote.totalPrice == 600
+        and serviceOffer.quote.totalPrice == 648
         and #serviceOffer.pallets == 2
         and serviceOffer.deliveryService.id == "express"
         and serviceOffer.deliveryService.delayHours >= 2
         and serviceOffer.deliveryService.delayHours <= 6)
     local acceptX, acceptY = context.jobOfferScreen.buttonCenter("accept")
-    local declineX, declineY = context.jobOfferScreen.buttonCenter("decline")
     check("paperwork_accept_hit_target", context.jobOfferScreen.hitTest(acceptX, acceptY) == "accept")
-    check("paperwork_decline_hit_target", context.jobOfferScreen.hitTest(declineX, declineY) == "decline")
     check("paperwork_ignores_outside_click", context.jobOfferScreen.hitTest(10, 10) == nil)
     local cashBeforeOffer = serviceState.money
     check("paperwork_service_accept", context.jobService.acceptOffer(serviceState, serviceOffer, 222))
@@ -1127,14 +1216,15 @@ local function runChecks(context)
         and serviceState.jobs.active[1].status == "awaiting_delivery"
         and serviceState.jobs.active[1].delivery.status == "pending_arrival"
         and not context.jobService.deliveryReady(serviceState, serviceOffer)
-        and serviceState.accountsReceivable == 600
+        and serviceState.accountsReceivable == serviceOfferValue
         and serviceState.money == cashBeforeOffer
         and serviceState.nextJobId == 2)
     check("paperwork_cannot_accept_twice", not context.jobService.acceptOffer(serviceState, serviceOffer, 333)
         and #serviceState.jobs.active == 1
-        and serviceState.accountsReceivable == 600)
+        and serviceState.accountsReceivable == serviceOfferValue)
     local serviceDecline = context.jobService.createNextOffer(serviceState, 444)
     local standardState = context.State.new()
+    standardState.reputation.score = 20
     standardState.nextJobId = 3
     local standardOffer = context.jobService.createNextOffer(standardState, 445)
     check("job_delivery_service_timeframes", serviceDecline.deliveryService.id == "quick"
@@ -1147,18 +1237,36 @@ local function runChecks(context)
         and serviceState.jobs.declined[1].id == "JOB-0002"
         and serviceState.jobs.declined[1].pallets[1].status == "cancelled"
         and serviceState.jobs.declined[1].pallets[1].location == "none"
-        and serviceState.accountsReceivable == 600
+        and serviceState.accountsReceivable == serviceOfferValue
         and serviceState.nextJobId == 3)
     local purchaseSucceeded, purchaseOrder = context.procurement.buy(serviceState, 1, 1)
     check("office_purchase_order_setup", purchaseSucceeded and purchaseOrder.id == "PO-0001")
 
+    local navigationState = context.State.new()
+    context.computerScreen.enter(navigationState)
+    local allTabsReachable = true
+    for _, tabId in ipairs({
+        "active", "completed", "deliveries", "estimating", "calendar",
+        "inventory", "www", "email", "bills",
+    }) do
+        local result = selectComputerTab(context.computerScreen, navigationState, tabId)
+        allTabsReachable = allTabsReachable and result and result.tab == tabId
+            and type(context.computerScreen.activeUrl()) == "string"
+            and context.computerScreen.activeUrl():find("www.thecritternet.com", 1, true) == 1
+    end
+    check("computer_dropdown_reaches_every_section", allTabsReachable)
+
     context.computerScreen.enter(serviceState)
+    local arrowX, arrowY = context.computerScreen.dropdownCenter()
+    local dropdownOpened = context.computerScreen.mousepressed(serviceState, arrowX, arrowY, 1)
     local activeTabX, activeTabY = context.computerScreen.tabCenter("active")
-    local completedTabX, completedTabY = context.computerScreen.tabCenter("completed")
-    local deliveryTabX, deliveryTabY = context.computerScreen.tabCenter("deliveries")
-    local inventoryTabX, inventoryTabY = context.computerScreen.tabCenter("inventory")
-    check("computer_active_tab_click", context.computerScreen.mousepressed(
-        serviceState, activeTabX, activeTabY, 1).tab == "active")
+    local activeResult = context.computerScreen.mousepressed(
+        serviceState, activeTabX, activeTabY, 1)
+    check("computer_dropdown_opens_from_address_arrow", dropdownOpened
+        and dropdownOpened.action == "dropdown_opened")
+    check("computer_active_tab_click", activeResult and activeResult.tab == "active"
+        and context.computerScreen.activeUrl()
+            == "www.thecritternet.com/job-desk/active")
     local rowX, rowY = context.computerScreen.rowCenter(1)
     local selectedActive = context.computerScreen.mousepressed(serviceState, rowX, rowY, 1)
     check("computer_job_row_click", selectedActive
@@ -1194,10 +1302,10 @@ local function runChecks(context)
     check("computer_completion_gate", completionResult
         and completionResult.action == "completion_blocked"
         and completionResult.job.id == "JOB-0001")
-    check("computer_completed_tab_click", context.computerScreen.mousepressed(
-        serviceState, completedTabX, completedTabY, 1).tab == "completed")
-    check("computer_deliveries_tab_click", context.computerScreen.mousepressed(
-        serviceState, deliveryTabX, deliveryTabY, 1).tab == "deliveries")
+    check("computer_completed_tab_click",
+        selectComputerTab(context.computerScreen, serviceState, "completed").tab == "completed")
+    check("computer_deliveries_tab_click",
+        selectComputerTab(context.computerScreen, serviceState, "deliveries").tab == "deliveries")
     local selectedDelivery = context.computerScreen.mousepressed(serviceState, rowX, rowY, 1)
     check("computer_inbound_delivery_list", selectedDelivery
         and selectedDelivery.job.status == "awaiting_delivery")
@@ -1212,8 +1320,8 @@ local function runChecks(context)
         == "In production"
         and context.computerScreen.statusLabel("pickup_in_progress") == "Pickup in progress"
         and context.computerScreen.statusLabel("completed") == "Completed and paid")
-    check("computer_inventory_tab_click", context.computerScreen.mousepressed(
-        serviceState, inventoryTabX, inventoryTabY, 1).tab == "inventory")
+    check("computer_inventory_tab_click",
+        selectComputerTab(context.computerScreen, serviceState, "inventory").tab == "inventory")
     local officeInventory = context.procurement.inventoryRows(serviceState)
     check("computer_inventory_exposes_purchasable_stock", #officeInventory >= 10
         and officeInventory[1].id == "house_sheets"
@@ -1222,12 +1330,26 @@ local function runChecks(context)
         and officeInventory[5].id == "maintenance_kit"
         and officeInventory[6].id == "black_ink"
         and officeInventory[10].id == "raw_press_plates")
+    local wwwTabResult = selectComputerTab(context.computerScreen, serviceState, "www")
+    local paperSiteX, paperSiteY = context.computerScreen.wwwSiteCenter(1)
+    local paperSiteResult = context.computerScreen.mousepressed(serviceState, paperSiteX, paperSiteY, 1)
     local retailX, retailY = context.computerScreen.retailButtonCenter(1)
-    local computerOrder = context.computerScreen.mousepressed(serviceState, retailX, retailY, 1)
-    check("computer_supply_store_places_delivery_order", computerOrder
-        and computerOrder.action == "supply_order"
-        and computerOrder.order.channel == "computer"
-        and computerOrder.order.pallets[1].quantity == 250)
+    local cartAdd = context.computerScreen.mousepressed(serviceState, retailX, retailY, 1)
+    local cartBeforeCheckout = context.computerScreen.cartSummary()
+    local cartX, cartY = context.computerScreen.cartButtonCenter()
+    context.computerScreen.mousepressed(serviceState, cartX, cartY, 1)
+    local checkoutX, checkoutY = context.computerScreen.cartCheckoutCenter()
+    local computerCheckout = context.computerScreen.mousepressed(serviceState, checkoutX, checkoutY, 1)
+    local computerOrder = computerCheckout and computerCheckout.result.orders[1]
+    check("computer_supply_store_reviews_cart_before_delivery_order", wwwTabResult
+        and wwwTabResult.tab == "www" and paperSiteResult
+        and paperSiteResult.site.url == "www.thecritternet.com/paper-depot" and cartAdd
+        and cartAdd.action == "cart_item_added"
+        and cartBeforeCheckout.count == 1 and cartBeforeCheckout.total == 28
+        and computerCheckout.action == "cart_checked_out"
+        and computerOrder.channel == "computer"
+        and computerOrder.pallets[1].quantity == 250
+        and serviceState.clientEmails.inbox[#serviceState.clientEmails.inbox].orderId == computerOrder.id)
     local closeX, closeY = context.computerScreen.closeCenter()
     check("computer_close_hit_target", context.computerScreen.mousepressed(
         serviceState, closeX, closeY, 1).action == "close")
@@ -1237,8 +1359,7 @@ local function runChecks(context)
     billUiState.money = 2000
     context.businessCalendar.update(billUiState, 31 * context.config.businessCalendar.secondsPerDay)
     context.computerScreen.enter(billUiState)
-    local billsTabX, billsTabY = context.computerScreen.tabCenter("bills")
-    local billsTabResult = context.computerScreen.mousepressed(billUiState, billsTabX, billsTabY, 1)
+    local billsTabResult = selectComputerTab(context.computerScreen, billUiState, "bills")
     local payBillsX, payBillsY = context.computerScreen.payBillsCenter()
     local billPayment = context.computerScreen.mousepressed(billUiState, payBillsX, payBillsY, 1)
     check("computer_bills_tab_pays_monthly_expenses", billsTabResult and billsTabResult.tab == "bills"
@@ -1252,10 +1373,19 @@ local function runChecks(context)
             id = "CAL-EMAIL-" .. index, sender = "Client " .. index, subject = "Scheduled request",
             readyAtHours = (index - 1) * 24,
         }
+        calendarUiState.bills.ledger[index] = {
+            id = "CAL-BILL-" .. index, total = 100, status = "unpaid",
+            issuedOnDay = index - 1, dueOnDay = index - 1,
+        }
     end
+    local privateReplySchedule = context.businessCalendar.events(calendarUiState)
+    local leakedClientReply = false
+    for _, event in ipairs(privateReplySchedule) do
+        if tostring(event.title):find("Incoming email", 1, true) then leakedClientReply = true end
+    end
+    check("calendar_hides_future_client_email_replies", not leakedClientReply)
     context.computerScreen.enter(calendarUiState)
-    local calendarTabX, calendarTabY = context.computerScreen.tabCenter("calendar")
-    context.computerScreen.mousepressed(calendarUiState, calendarTabX, calendarTabY, 1)
+    selectComputerTab(context.computerScreen, calendarUiState, "calendar")
     local calendarDayX, calendarDayY = context.computerScreen.calendarDayCenter(5)
     local selectedCalendarDay = context.computerScreen.mousepressed(
         calendarUiState, calendarDayX, calendarDayY, 1)
@@ -1309,8 +1439,10 @@ function Smoke.start(context)
         local previewTab = os.getenv("PICTURE_SHOP_COMPUTER_ACTIVE_PREVIEW") == "1" and "active"
             or (os.getenv("PICTURE_SHOP_COMPUTER_CALENDAR_PREVIEW") == "1" and "calendar")
             or (os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" and "inventory")
+            or (os.getenv("PICTURE_SHOP_COMPUTER_WWW_PREVIEW") == "1" and "www")
             or (os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" and "email")
         local pressPreview = os.getenv("PICTURE_SHOP_PRESS_PREVIEW")
+        local workPhonePreview = os.getenv("PICTURE_SHOP_WORK_PHONE_PREVIEW")
         if os.getenv("PICTURE_SHOP_WORK_ORDER_PREVIEW") == "1" then
             local previewJob = assert(context.jobs.createOffer({
                 id = "JOB-0042", company = "Blue Ridge Packaging",
@@ -1435,11 +1567,28 @@ function Smoke.start(context)
                 context.pressScreen.tutorialStep = math.max(1, math.min(15,
                     tonumber(os.getenv("PICTURE_SHOP_PRESS_HELP_PAGE")) or 4))
             end
+        elseif os.getenv("PICTURE_SHOP_COMPUTER_DROPDOWN_PREVIEW") == "1" then
+            context.state.screen = "computer"
+            context.computerScreen.enter(context.state)
+            local x, y = context.computerScreen.dropdownCenter()
+            context.computerScreen.mousepressed(context.state, x, y, 1)
         elseif previewTab then
             context.state.screen = "computer"
             context.computerScreen.enter(context.state)
-            local x, y = context.computerScreen.tabCenter(previewTab)
-            context.computerScreen.mousepressed(context.state, x, y, 1)
+            selectComputerTab(context.computerScreen, context.state, previewTab)
+        elseif workPhonePreview == "world" or workPhonePreview == "screen" then
+            context.workPhone.ensure(context.state)
+            context.state.workPhone.incoming = nil
+            assert(context.workPhone.queueCall(context.state, {
+                kind = "customer_status", caller = "Blue Ridge Packaging",
+                role = "CUSTOMER", subject = "CURRENT JOB QUESTION",
+                message = "Where is job JOB-0042, and when will it be done?",
+                jobId = "JOB-0042",
+            }))
+            context.state.screen = workPhonePreview == "screen" and "work_phone" or "world"
+            if workPhonePreview == "screen" then
+                context.workPhoneScreen.enter(context.state)
+            end
         elseif os.getenv("PICTURE_SHOP_WORLD_FAN_PREVIEW") == "1" then
             context.state.screen = "world"
         end

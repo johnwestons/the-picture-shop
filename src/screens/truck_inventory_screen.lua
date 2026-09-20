@@ -8,6 +8,8 @@ local Ui = require("src.screens.ui")
 local Screen = {}
 local CLOSE = { x = 744, y = 60, width = 140, height = 42 }
 local DOOR = { x = 650, y = 570, width = 220, height = 42 }
+local PREVIOUS = {x=82,y=410,width=150,height=38}
+local NEXT = {x=728,y=410,width=150,height=38}
 local ROW = { x = 82, y = 154, width = 796, height = 66, gap = 10 }
 
 local box, inside = Ui.box, Ui.contains
@@ -37,15 +39,25 @@ end
 
 local function available(item, pickup, machineDelivery)
     if machineDelivery then return item ~= nil end
-    if pickup then return item.location == "warehouse" or item.location == "cutter_output" end
+    if pickup then return item.location == "warehouse" or item.location == "cutter_output" or item.location == "press_output" end
     return item.location == "awaiting_delivery"
 end
 
-function Screen.draw(state, world, assets, pointerX, pointerY)
-    local snapshot = world.truckSnapshot()
+function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
+    local snapshot = remoteView and {mode=remoteView.mode,state=remoteView.state,jobId=remoteView.manifestId}
+        or world.truckSnapshot()
     local pickup = snapshot.mode == "pickup"
     local machineDelivery = snapshot.mode == "machine_delivery"
     local job, inventory = manifest(state, snapshot)
+    local totalItems = #inventory
+    if remoteView then
+        local page={}
+        for index,record in ipairs(remoteView.items) do
+            local item=inventory[(remoteView.page-1)*3+index]
+            page[index]=item or {display=record}
+        end
+        inventory=page
+    end
     local vendorDelivery = snapshot.mode == "vendor_delivery"
     box(52, 42, 856, 592, { 0.045, 0.06, 0.075, 0.99 }, { 0.40, 0.64, 0.70, 1 }, 6)
     love.graphics.setColor(0.96, 0.82, 0.26)
@@ -60,26 +72,32 @@ function Screen.draw(state, world, assets, pointerX, pointerY)
             love.graphics.print(string.format("%s  •  %s  •  Unit %s", job.id, job.company, job.machineId), 82, 105)
         else
             love.graphics.print(string.format("%s  •  %s  •  %d pallet%s", job.id, job.company,
-                #inventory, #inventory == 1 and "" or "s"), 82, 105)
+                totalItems, totalItems == 1 and "" or "s"), 82, 105)
         end
     else
-        love.graphics.print("No delivery manifest is attached to this truck.", 82, 105)
+        love.graphics.print(remoteView and (remoteView.manifestId .. "  •  " .. remoteView.title)
+            or "No delivery manifest is attached to this truck.", 82, 105)
     end
 
     for index, item in ipairs(inventory) do
         local row, button = rowRect(index), unloadRect(index)
         local canMove = available(item, pickup, machineDelivery)
+        if remoteView then canMove=remoteView.items[index].available end
         box(row.x, row.y, row.width, row.height,
             canMove and { 0.08, 0.12, 0.15, 1 } or { 0.07, 0.16, 0.12, 1 },
             canMove and { 0.25, 0.40, 0.46, 1 } or { 0.25, 0.62, 0.42, 1 }, 4)
         love.graphics.setColor(0.94, 0.96, 0.94)
-        if machineDelivery then
+        if item.display then
+            love.graphics.print(item.display.label,row.x+18,row.y+13)
+        elseif machineDelivery then
             love.graphics.print(string.format("MACHINE  •  %s", item.id), row.x + 18, row.y + 13)
         else
             love.graphics.print(string.format("PALLET %d  •  %s", item.number, item.id), row.x + 18, row.y + 13)
         end
         love.graphics.setColor(0.70, 0.79, 0.81)
-        if machineDelivery then
+        if item.display then
+            love.graphics.print(item.display.detail,row.x+18,row.y+38)
+        elseif machineDelivery then
             local model = MachineFleet.definition(item.modelId)
             love.graphics.print(string.format("%s  |  %s %.1f%% condition", model.shortName,
                 MachineFleet.conditionStatus(item.condition), item.condition), row.x + 18, row.y + 38)
@@ -108,10 +126,21 @@ function Screen.draw(state, world, assets, pointerX, pointerY)
     end
 
     local remaining = remainingCargo(state, snapshot)
+    if remoteView then remaining=remoteView.remaining end
     local receiving = not machineDelivery and Logistics.receivingStatus(
         state, Config.palletLogistics.spawnPoints) or nil
     local readyState = machineDelivery and snapshot.state == "parked_closed" or snapshot.state == "cargo_open"
     local ready = remaining == 0 and readyState
+    if remoteView then ready=remoteView.canClose end
+    if remoteView and remoteView.pageCount>1 then
+        for _,r in ipairs({PREVIOUS,NEXT}) do
+            box(r.x,r.y,r.width,r.height,{0.08,0.12,0.15,1},{0.40,0.64,0.70,1},4)
+        end
+        love.graphics.setColor(0.94,0.96,0.94)
+        love.graphics.printf("< PREVIOUS",PREVIOUS.x,PREVIOUS.y+12,PREVIOUS.width,"center")
+        love.graphics.printf("NEXT >",NEXT.x,NEXT.y+12,NEXT.width,"center")
+        love.graphics.printf(string.format("PAGE %d / %d",remoteView.page,remoteView.pageCount),300,422,360,"center")
+    end
     box(DOOR.x, DOOR.y, DOOR.width, DOOR.height,
         ready and { 0.18, 0.46, 0.30, 1 } or { 0.16, 0.17, 0.18, 1 },
         ready and { 0.48, 0.86, 0.58, 1 } or { 0.35, 0.38, 0.40, 1 }, 4)
@@ -178,6 +207,18 @@ function Screen.mousepressed(state, world, x, y, button)
         end
     end
     return nil
+end
+
+function Screen.remoteIntent(view,x,y)
+    if inside(CLOSE,x,y) then return "close" end
+    for index,record in ipairs(view.items or {}) do
+        if inside(unloadRect(index),x,y) and record.available then return "move_item",{itemIndex=index} end
+    end
+    if inside(DOOR,x,y) and view.canClose then return "close_truck",{} end
+    if view.pageCount>1 then
+        if inside(PREVIOUS,x,y) and view.page>1 then return "page_previous",{} end
+        if inside(NEXT,x,y) and view.page<view.pageCount then return "page_next",{} end
+    end
 end
 
 function Screen.unloadButtonCenter(index)

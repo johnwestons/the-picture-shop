@@ -99,6 +99,12 @@ function Assets.load()
     Assets.activePack = nil
 
     local warehouse = loadImage("warehouse", Config.paths.warehouse, false)
+    if Config.warehouseScene and Config.warehouseScene.enabled then
+        local architecture = loadImage("warehouseArchitecture", Config.paths.warehouseArchitecture, false)
+        if architecture then
+            hasExactDimensions(architecture, Config.paths.warehouseArchitecture, 1672, 941)
+        end
+    end
     local walkmask = loadData("walkmask", Config.paths.walkmask)
     local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
@@ -113,11 +119,34 @@ function Assets.load()
     local palletJack = loadImage("palletJack", Config.paths.palletJack, false)
     local palletJackLoaded = loadImage("palletJackLoaded", Config.paths.palletJackLoaded, false)
     local wallVentFan = loadImage("wallVentFan", Config.paths.wallVentFan, false)
+    local loungeLeftChairForeground = loadImage(
+        "loungeLeftChairForeground", Config.paths.loungeLeftChairForeground, false)
+    local loungeCoffeeTableForeground = loadImage(
+        "loungeCoffeeTableForeground", Config.paths.loungeCoffeeTableForeground, false)
+    local loungeRightChairForeground = loadImage(
+        "loungeRightChairForeground", Config.paths.loungeRightChairForeground, false)
     local vendorProductPallets = loadImage("vendorProductPallets", Config.paths.vendorProductPallets, false)
     local boxedPaperPalletStages = loadImage("boxedPaperPalletStages", Config.paths.boxedPaperPalletStages, false)
     local polarBackButton = loadImage("polarBackButton", Config.paths.polarBackButton, false)
     local wrappedPalletStages = loadImage("wrappedPalletStages", Config.paths.wrappedPalletStages, false)
     local palletWorkOrderPaper = loadImage("palletWorkOrderPaper", Config.paths.palletWorkOrderPaper, false)
+    loadImage("critterNetMenu", Config.paths.critterNetMenu, false)
+    local critterNetSprites = loadImage("critterNetSprites", Config.paths.critterNetSprites, false)
+    if critterNetSprites and validateExactPath(Config.paths.critterNetSprites, 1536, 1024) then
+        for frame = 1, 16 do
+            local column, row = (frame - 1) % 4, math.floor((frame - 1) / 4)
+            makeQuad("critterNetSprite" .. frame, critterNetSprites,
+                column * 384, row * 256, 384, 256)
+        end
+    end
+    local workPhone = loadImage("workPhone", Config.paths.workPhone, false)
+    if workPhone and validateExactPath(Config.paths.workPhone, 1536, 1024) then
+        for frame = 1, 8 do
+            local column, row = (frame - 1) % 4, math.floor((frame - 1) / 4)
+            makeQuad("workPhone" .. frame, workPhone,
+                column * 384, row * 512, 384, 512)
+        end
+    end
     for key, path in pairs(Config.paths.artwork or {}) do
         loadImage("artwork:" .. key, path, false)
         validateExactPath(path, 128, 128)
@@ -288,6 +317,17 @@ function Assets.load()
             for frame = 1, Config.wallVentFan.frameCount do
                 makeQuad("wallVentFan" .. frame, wallVentFan, (frame - 1) * size, 0, size, size)
             end
+        end
+    end
+    for key, image in pairs({
+        ["left-chair"] = loungeLeftChairForeground,
+        ["coffee-table"] = loungeCoffeeTableForeground,
+        ["right-chair"] = loungeRightChairForeground,
+    }) do
+        local foreground = Config.loungeSeating.foregrounds[key]
+        if image and foreground then
+            hasExactDimensions(image, Config.paths[foreground.asset],
+                foreground.width, foreground.height)
         end
     end
     if vendorProductPallets then

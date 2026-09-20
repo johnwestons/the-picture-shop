@@ -52,6 +52,9 @@ def audit(root: Path) -> list[dict[str, object]]:
         "pallet_jack": generated / "pallet-jack-directions-strip.png",
         "pallet_jack_loaded": generated / "pallet-jack-loaded-directions-strip.png",
         "wall_vent_fan": generated / "wall-vent-fan-strip.png",
+        "lounge_left_chair_foreground": generated / "lounge" / "left-chair-foreground.png",
+        "lounge_coffee_table_foreground": generated / "lounge" / "coffee-table-foreground.png",
+        "lounge_right_chair_foreground": generated / "lounge" / "right-chair-foreground.png",
         "vendor_product_pallets": generated / "vendor-product-pallets-atlas.png",
         "boxed_paper_pallet_stages": generated / "boxed-paper-pallet-stages-atlas.png",
         "polar_back_button": generated / "polar-back-button-states-strip.png",
@@ -100,6 +103,41 @@ def audit(root: Path) -> list[dict[str, object]]:
                 f"values={sorted(colors)[:16]}",
             )
         )
+
+    for name, (expected_size, source_position) in {
+        "lounge_left_chair_foreground": ((96, 83), (1118, 375)),
+        "lounge_coffee_table_foreground": ((126, 91), (1200, 410)),
+        "lounge_right_chair_foreground": ((119, 100), (1324, 443)),
+    }.items():
+        foreground = images.get(name)
+        if foreground:
+            alpha = foreground.getchannel("A")
+            minimum, maximum = alpha.getextrema()
+            checks.append(result(
+                f"{name}_contract",
+                foreground.size == expected_size and minimum == 0 and maximum == 255,
+                f"size={foreground.size} alpha_range=({minimum}, {maximum})",
+            ))
+            warehouse = images.get("warehouse")
+            source_matches = warehouse is not None and foreground.size == expected_size
+            opaque_pixels = 0
+            if source_matches:
+                source_x, source_y = source_position
+                source_crop = warehouse.crop((source_x, source_y,
+                    source_x + expected_size[0], source_y + expected_size[1]))
+                for foreground_pixel, source_pixel in zip(
+                    foreground.getdata(), source_crop.getdata()
+                ):
+                    if foreground_pixel[3] > 0:
+                        opaque_pixels += 1
+                        if foreground_pixel[:3] != source_pixel[:3]:
+                            source_matches = False
+                            break
+            checks.append(result(
+                f"{name}_matches_warehouse_pixels",
+                source_matches and opaque_pixels > 0,
+                f"opaque_pixels_checked={opaque_pixels}",
+            ))
 
     for name, expected_frames in (("rabbit_idle", 2), ("rabbit_walk", 8)):
         strip = images.get(name)

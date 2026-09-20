@@ -57,6 +57,16 @@ function Test.run(context, check)
     active.screen, active.pressStatus = "title", "idle"
     instance:syncPersistentLoops(active)
     check("sound_loops_stop_outside_their_owners", stopped.warehouse and stopped.press)
+
+    local loopVolume
+    instance.loops = { warehouse = {
+        name = "warehouse_ambience_loop",
+        source = { setVolume = function(_, value) loopVolume = value end },
+    } }
+    instance:setLevels(0.5, 0.6, 0.4)
+    check("sound_options_apply_live_mix_levels",
+        instance.masterVolume == 0.5 and instance.sfxVolume == 0.6
+        and instance.ambientVolume == 0.4 and loopVolume ~= nil)
 end
 
 return Test

@@ -4,6 +4,8 @@ local PalletState = require("src.pallet_state")
 local Config = require("src.config")
 local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
+local Inbox = require("src.inbox")
+local Reputation = require("src.reputation")
 
 local JobService = {}
 
@@ -55,6 +57,23 @@ local templates = {
             grainDirection = "Grain short",
             notes = "Count and label every finished pallet separately.",
         },
+    },
+}
+
+local starterTemplate = {
+    difficulty = "easy",
+    company = "Corner Copy & Mail",
+    sourceSize = { width = 17, height = 11 },
+    finishedSize = { width = 8.5, height = 11 },
+    sheetCounts = { 500 },
+    packaging = "flat",
+    stockSpec = { suppliedBy = "client", grade = "text", weight = 60, finish = "uncoated",
+        color = "white", grain = "long", description = "60 lb white uncoated text" },
+    details = {
+        stockDescription = "60 lb white uncoated text",
+        dueDate = "Flexible starter-job turnaround",
+        grainDirection = "Grain long",
+        notes = "Your shop is unrated, so this client is offering one small trial pallet.",
     },
 }
 
@@ -186,15 +205,61 @@ function JobService.deliveryServiceFor(job, sequence)
 end
 
 local function ensureEmails(state)
-    state.clientEmails = type(state.clientEmails) == "table" and state.clientEmails or {}
-    local emails = state.clientEmails
-    emails.nextEmailId = math.max(1, math.floor(tonumber(emails.nextEmailId) or 1))
-    emails.pending = type(emails.pending) == "table" and emails.pending or {}
-    emails.inbox = type(emails.inbox) == "table" and emails.inbox or {}
-    emails.archive = type(emails.archive) == "table" and emails.archive or {}
-    emails.sentPromotions = type(emails.sentPromotions) == "table" and emails.sentPromotions or {}
-    emails.nextPromotionId = math.max(1, math.floor(tonumber(emails.nextPromotionId) or 1))
-    return emails
+    return Inbox.ensure(state)
+end
+
+local function nextEmailNumber(emails)
+    local number = math.max(1, math.floor(tonumber(emails.nextEmailId) or 1))
+    emails.nextEmailId = number + 1
+    return number
+end
+
+local function emailDelay(job, minimum, span)
+    local hash = stableDeliveryHash(job, job and job.sequence)
+    return minimum + (hash * 7) % math.max(1, span)
+end
+
+local function estimateRequestEmail(state, job)
+    local emails = ensureEmails(state)
+    local number = nextEmailNumber(emails)
+    local now = BusinessCalendar.absoluteHours(state)
+    local followupLimit = 1 + stableDeliveryHash(job, job.sequence) % 2
+    job.requestChannel = "email"
+    job.estimate = {
+        stage = "awaiting_details",
+        requestedAtHours = now,
+        followupCount = 0,
+        followupLimit = followupLimit,
+    }
+    return {
+        id = string.format("EMAIL-%04d", number),
+        sender = job.company,
+        subject = "Job details for " .. job.id,
+        body = "Here are the written specifications for the job we showed you at the shop. Please review them and email us an estimate.",
+        sourceJobId = job.id,
+        readyAtHours = now + emailDelay(job, 2, 5),
+        estimateRequest = true,
+        followupCount = 0,
+        followupLimit = followupLimit,
+        followupIntervalHours = 24,
+        job = job,
+    }
+end
+
+function JobService.requestEstimateDetails(state, job, timestamp)
+    if type(state) ~= "table" or type(job) ~= "table" then
+        return false, "state and job are required"
+    end
+    if job.status ~= "offered" then return false, "job is no longer available for estimating" end
+    local email = estimateRequestEmail(state, job)
+    job.detailsRequestedAt = timestamp
+    ensureEmails(state).pending[#ensureEmails(state).pending + 1] = email
+    -- The walk-in has consumed this reception number even though no job has
+    -- been awarded yet. Email-originated repeat jobs already own independent IDs.
+    if tostring(job.id or ""):match("^JOB%-%d+$") then
+        state.nextJobId = nextSequence(state) + 1
+    end
+    return true, email
 end
 
 local function repeatArtwork(state, sequence)
@@ -264,8 +329,8 @@ function JobService.scheduleRepeatEmail(state, completedJob)
         sender = completedJob.company,
         subject = completedJob.press and "Request for another print job" or "Request for another cutting job",
         body = completedJob.press
-            and "We were happy with the last order and would like a quote for another cut-and-print job."
-            or "We were happy with the last order and would like a quote for another paper-cutting job.",
+            and "We were happy with the last order and would like an estimate for another cut-and-print job."
+            or "We were happy with the last order and would like an estimate for another paper-cutting job.",
         sourceJobId = completedJob.id,
         readyAtHours = BusinessCalendar.absoluteHours(state) + followupHours,
         job = offer,
@@ -277,15 +342,73 @@ function JobService.updateClientEmails(state)
     local emails = ensureEmails(state)
     local now = BusinessCalendar.absoluteHours(state)
     local delivered = false
+
+    -- A client follows up once or twice if their written request is sitting
+    -- unanswered. The reminders stop after that limit; the request remains
+    -- available for an estimate or an explicit decline.
+    for _, email in ipairs(emails.inbox) do
+        if email.estimateRequest and email.job and email.nextFollowupAtHours
+            and now + 0.000001 >= email.nextFollowupAtHours
+        then
+            email.followupCount = math.floor(tonumber(email.followupCount) or 0) + 1
+            local limit = math.max(1, math.floor(tonumber(email.followupLimit) or 1))
+            email.subject = string.format("Follow-up %d: estimate for %s",
+                email.followupCount, email.job.id)
+            email.body = "Just following up on the job specifications we emailed. Please send an estimate or let us know if you are declining the work."
+            email.receivedAtHours = now
+            email.job.estimate = email.job.estimate or {}
+            email.job.estimate.followupCount = email.followupCount
+            email.nextFollowupAtHours = email.followupCount < limit
+                and now + math.max(1, tonumber(email.followupIntervalHours) or 24) or nil
+            delivered = true
+        end
+    end
     for index = #emails.pending, 1, -1 do
         if now + 0.000001 >= emails.pending[index].readyAtHours then
             local email = table.remove(emails.pending, index)
             email.receivedAtHours = now
+            if email.estimateReply and email.job then
+                local job = email.job
+                local succeeded
+                if email.accepted then
+                    succeeded = JobService.acceptOffer(state, job, os.time())
+                else
+                    succeeded = JobService.declineOffer(state, job, os.time())
+                end
+                if succeeded then
+                    job.estimate = job.estimate or {}
+                    job.estimate.stage = email.accepted and "accepted" or "declined"
+                    job.estimate.respondedAtHours = now
+                    email.noticeKind = email.accepted
+                        and "client_estimate_accepted" or "client_estimate_declined"
+                    email.subject = email.accepted
+                        and ("Estimate accepted: " .. job.id)
+                        or ("Estimate declined: " .. job.id)
+                    email.body = email.accepted
+                        and string.format("We accept your $%d estimate. Please proceed with the job.",
+                            math.floor(tonumber(email.quotedPrice) or 0))
+                        or string.format("Thank you for the $%d estimate. We have decided not to proceed.",
+                            math.floor(tonumber(email.quotedPrice) or 0))
+                    email.responseOutcome = email.accepted and "accepted" or "declined"
+                    email.job = nil
+                end
+            elseif email.job then
+                email.estimateRequest = true
+                email.followupCount = math.max(0, math.floor(tonumber(email.followupCount) or 0))
+                email.followupLimit = math.max(1, math.floor(tonumber(email.followupLimit)
+                    or (1 + stableDeliveryHash(email.job, email.job.sequence) % 2)))
+                email.followupIntervalHours = math.max(1,
+                    tonumber(email.followupIntervalHours) or 24)
+                email.job.estimate = email.job.estimate or {}
+                email.job.estimate.stage = "ready_to_quote"
+                email.nextFollowupAtHours = now
+                    + email.followupIntervalHours
+            end
             emails.inbox[#emails.inbox + 1] = email
             delivered = true
         end
     end
-    if delivered then state.message = "A returning client sent a new job request. Check Email on the office computer." end
+    if delivered then state.message = "New email received. Check the office computer." end
     return delivered
 end
 
@@ -293,6 +416,42 @@ function JobService.emailInbox(state)
     local result = {}
     for _, notice in ipairs(MachineFleet.serviceInbox(state)) do result[#result + 1] = notice end
     for _, email in ipairs(ensureEmails(state).inbox) do result[#result + 1] = email end
+    return result
+end
+
+function JobService.estimateInbox(state)
+    local result = {}
+    local emails = ensureEmails(state)
+    for _, email in ipairs(emails.inbox) do
+        if email.job or email.estimateRequest
+            or email.noticeKind == "client_estimate_accepted"
+            or email.noticeKind == "client_estimate_declined"
+        then
+            result[#result + 1] = email
+        end
+    end
+    -- Keep sent estimates visible as "waiting" records without exposing their
+    -- hidden response times.
+    for _, email in ipairs(emails.pending) do
+        if email.estimateReply then
+            email.awaitingReply = true
+            result[#result + 1] = email
+        end
+    end
+    return result
+end
+
+function JobService.generalInbox(state)
+    local result = {}
+    for _, notice in ipairs(MachineFleet.serviceInbox(state)) do result[#result + 1] = notice end
+    for _, email in ipairs(ensureEmails(state).inbox) do
+        if not email.job and not email.estimateRequest
+            and email.noticeKind ~= "client_estimate_accepted"
+            and email.noticeKind ~= "client_estimate_declined"
+        then
+            result[#result + 1] = email
+        end
+    end
     return result
 end
 
@@ -323,6 +482,10 @@ function JobService.respondToEmail(state, emailId, response, timestamp)
     return true, email.job
 end
 
+function JobService.dismissInboxNotice(state, emailId)
+    return Inbox.dismissNotice(state, emailId)
+end
+
 local function completedRelationship(state, company)
     local count = 0
     for _, job in ipairs((state.jobs and state.jobs.completed) or {}) do
@@ -339,6 +502,24 @@ local function quoteRoll(job, amount, relationship)
     return (hash % 10000) / 10000
 end
 
+local function decorateOfferForReputation(state, offer, sequence)
+    if not offer then return offer end
+    local reputation = Reputation.ensure(state)
+    local tierName, tier = Reputation.tier(reputation)
+    local demanding = tier >= 3 and sequence % 3 == 0
+    local multiplier = Reputation.priceMultiplier(state) * (demanding and 1.10 or 1)
+    offer.reputationTier = tierName
+    offer.clientTemperament = demanding and "demanding" or (tier <= 0 and "cautious" or "standard")
+    offer.clientTemperamentNote = demanding
+        and "Higher budget, exacting standards, and a larger reputation penalty for spoiled stock."
+        or tier == 0 and "A small trial order because the shop has no track record yet."
+        or tier < 0 and "A small recovery order because prior spoilage damaged the shop's reputation."
+        or "Normal commercial client expectations."
+    offer.quote.totalPrice = math.max(1, math.floor(offer.quote.totalPrice * multiplier + 0.5))
+    offer.quote.recommendedPrice = offer.quote.totalPrice
+    return offer
+end
+
 function JobService.quoteTerms(state, job, amount)
     if type(job) ~= "table" or type(job.quote) ~= "table" then return nil end
     local base = math.max(1, math.floor(tonumber(job.quote.recommendedPrice)
@@ -347,7 +528,11 @@ function JobService.quoteTerms(state, job, amount)
     local serviceId = job.deliveryService and job.deliveryService.id or "standard"
     local urgency = serviceId == "express" and 1.40 or serviceId == "quick" and 1.25 or 1.15
     local relationship = completedRelationship(state, job.company)
-    local ceiling = base * (urgency + math.min(0.15, relationship * 0.03))
+    local reputation = Reputation.ensure(state)
+    local reputationRoom = math.max(0, reputation.score) * 0.0025
+    local temperamentRoom = job.clientTemperament == "demanding" and 0.10 or 0
+    local ceiling = base * (urgency + math.min(0.15, relationship * 0.03)
+        + reputationRoom + temperamentRoom)
     local chance
     if amount <= base then
         chance = 1
@@ -364,6 +549,8 @@ function JobService.quoteTerms(state, job, amount)
         acceptanceChance = math.max(0.05, math.min(1, chance)),
         urgency = serviceId,
         relationshipJobs = relationship,
+        reputationScore = reputation.score,
+        clientTemperament = job.clientTemperament or "standard",
     }
 end
 
@@ -398,18 +585,77 @@ end
 function JobService.submitEmailQuote(state, emailId, amount, timestamp)
     local email, index = emailById(state, emailId)
     if not email then return false, "email request was not found" end
-    local succeeded, result = JobService.submitQuote(state, email.job, amount, timestamp)
-    if not succeeded then return false, result end
+    if not email.job then return false, "email does not contain an estimate request" end
+    local terms = JobService.quoteTerms(state, email.job, amount)
+    if not terms then return false, "estimate paperwork is missing" end
+    local job = email.job
+    local now = BusinessCalendar.absoluteHours(state)
+    local accepted = quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
+    job.quote.recommendedPrice = terms.recommendedPrice
+    job.quote.playerPrice = terms.amount
+    job.quote.totalPrice = terms.amount
+    job.quoteProposal = {
+        amount = terms.amount,
+        recommendedPrice = terms.recommendedPrice,
+        acceptanceChance = terms.acceptanceChance,
+        maximumPrice = terms.maximumPrice,
+        relationshipJobs = terms.relationshipJobs,
+        accepted = accepted,
+    }
+    job.estimate = job.estimate or {}
+    job.estimate.stage = "awaiting_reply"
+    job.estimate.sentAtHours = now
+    job.estimate.expiresAtHours = now + 72
+    job.estimate.amount = terms.amount
     table.remove(state.clientEmails.inbox, index)
     state.clientEmails.archive[#state.clientEmails.archive + 1] = {
         id = email.id, sender = email.sender, subject = email.subject,
-        jobId = email.job.id,
-        response = result.accepted and "quote_accepted" or "quote_rejected",
-        quotedPrice = result.amount,
-        acceptanceChance = result.acceptanceChance,
-        respondedAtHours = BusinessCalendar.absoluteHours(state),
+        jobId = job.id,
+        response = "estimate_sent",
+        quotedPrice = terms.amount,
+        acceptanceChance = terms.acceptanceChance,
+        respondedAtHours = now,
+        expiresAtHours = job.estimate.expiresAtHours,
     }
-    return true, result
+    local replyNumber = nextEmailNumber(state.clientEmails)
+    state.clientEmails.pending[#state.clientEmails.pending + 1] = {
+        id = string.format("EMAIL-%04d", replyNumber),
+        sender = job.company,
+        subject = "Reply to estimate for " .. job.id,
+        body = "The client is reviewing your estimate.",
+        sourceJobId = job.id,
+        readyAtHours = now + emailDelay(job, 6, 19),
+        expiresAtHours = job.estimate.expiresAtHours,
+        quotedPrice = terms.amount,
+        accepted = accepted,
+        estimateReply = true,
+        job = job,
+    }
+    return true, {
+        accepted = nil,
+        job = job,
+        amount = terms.amount,
+        acceptanceChance = terms.acceptanceChance,
+        recommendedPrice = terms.recommendedPrice,
+        expiresAtHours = job.estimate.expiresAtHours,
+    }
+end
+
+function JobService.promotionTerms(state, customMessage)
+    local messageLength = #tostring(customMessage or ""):sub(1, 240)
+    local reputation = Reputation.ensure(state)
+    local chance = 0.10 + messageLength / 240 * 0.65 + reputation.score / 100 * 0.15
+    return {
+        messageLength = messageLength,
+        responseChance = math.max(0.10, math.min(0.90, chance)),
+    }
+end
+
+local function promotionRoll(sourceJob, promoNumber, customMessage)
+    local hash = promoNumber * 7919 + #customMessage * 104729
+    local source = tostring(sourceJob and sourceJob.id or "PROMO") .. customMessage
+    for index = 1, #source do hash = (hash * 33 + string.byte(source, index)) % 2147483647 end
+    return (hash % 10000) / 10000
 end
 
 function JobService.sendPromotion(state, sourceJob, customMessage)
@@ -417,6 +663,15 @@ function JobService.sendPromotion(state, sourceJob, customMessage)
         return false, "choose a completed client job first"
     end
     local emails = ensureEmails(state)
+    if sourceJob.promotionSent then
+        return false, "the 10% offer was already sent for this completed job"
+    end
+    for _, sent in ipairs(emails.sentPromotions) do
+        if sent.sourceJobId == sourceJob.id then
+            sourceJob.promotionSent = true
+            return false, "the 10% offer was already sent for this completed job"
+        end
+    end
     local promoNumber, emailNumber = emails.nextPromotionId, emails.nextEmailId
     customMessage = tostring(customMessage or ""):sub(1, 240)
     local offer = repeatOffer(state, sourceJob, emailNumber)
@@ -429,23 +684,46 @@ function JobService.sendPromotion(state, sourceJob, customMessage)
     emails.nextPromotionId = promoNumber + 1
     emails.nextEmailId = emailNumber + 1
     local promoId = string.format("PROMO-%04d", promoNumber)
-    emails.sentPromotions[#emails.sentPromotions + 1] = {
+    local terms = JobService.promotionTerms(state, customMessage)
+    local roll = promotionRoll(sourceJob, promoNumber, customMessage)
+    local outcome = roll <= terms.responseChance and "new_job"
+        or roll <= math.min(1, terms.responseChance + 0.18) and "thank_you" or "no_response"
+    local promotion = {
         id = promoId, recipient = sourceJob.company, discountPercent = 10,
         customMessage = customMessage, sentAtHours = BusinessCalendar.absoluteHours(state),
+        responseOutcome = outcome, sourceJobId = sourceJob.id,
+        messageLength = terms.messageLength, responseChance = terms.responseChance,
     }
-    emails.pending[#emails.pending + 1] = {
-        id = string.format("EMAIL-%04d", emailNumber),
-        sender = sourceJob.company,
-        subject = "Reply to your 10% returning-client offer",
-        body = sourceJob.press
-            and "Thank you for the 10% offer. Please quote this new cut-and-print job using our attached artwork and specified stock."
-            or "Thank you for the 10% offer. Please quote this new paper-cutting job for us.",
-        sourceJobId = sourceJob.id,
-        promotionId = promoId,
-        readyAtHours = BusinessCalendar.absoluteHours(state) + 12,
-        job = offer,
-    }
-    return true, emails.sentPromotions[#emails.sentPromotions]
+    emails.sentPromotions[#emails.sentPromotions + 1] = promotion
+    sourceJob.promotionSent = true
+    if outcome == "new_job" then
+        local discountAmount = standardPrice - offer.quote.totalPrice
+        emails.pending[#emails.pending + 1] = {
+            id = string.format("EMAIL-%04d", emailNumber),
+            sender = sourceJob.company,
+            subject = "Reply to your 10% returning-client offer",
+            body = string.format(
+                "Thank you for the 10%% offer. Please estimate this new %s job. The coupon and discounted total are shown below.",
+                sourceJob.press and "cut-and-print" or "paper-cutting"),
+            sourceJobId = sourceJob.id,
+            promotionId = promoId,
+            readyAtHours = BusinessCalendar.absoluteHours(state) + 12,
+            standardPrice = standardPrice,
+            discountAmount = discountAmount,
+            discountedTotal = offer.quote.totalPrice,
+            job = offer,
+        }
+    elseif outcome == "thank_you" then
+        Inbox.addNotice(state, {
+            id = string.format("EMAIL-%04d", emailNumber),
+            sender = sourceJob.company,
+            subject = "Thank you for the 10% offer",
+            body = "Thanks for the 10% coupon. We do not have a new job right now, but we will use it on our next order.",
+            noticeKind = "client_thanks",
+            sourceJobId = sourceJob.id,
+        }, 12)
+    end
+    return true, promotion
 end
 
 local function offerHistory(state)
@@ -472,9 +750,16 @@ function JobService.createNextOffer(state, timestamp)
     local anyPrint, receptionPrintCount, latestReceptionJob = offerHistory(state)
     local pressEnabled = pressInstalled and (not anyPrint
         or (latestReceptionJob and latestReceptionJob.press == nil))
+    local reputation = Reputation.ensure(state)
+    local _, tier = Reputation.tier(reputation)
     local template
-    if pressEnabled then
+    if tier <= 0 then
+        template = copy(starterTemplate)
+        pressEnabled = false
+    elseif pressEnabled then
         template = copy(pressTemplates[receptionPrintCount % #pressTemplates + 1])
+    elseif tier >= 3 then
+        template = copy(templates[2 + (sequence % 2)])
     else
         template = copy(templates[(sequence - 1) % #templates + 1])
     end
@@ -487,7 +772,9 @@ function JobService.createNextOffer(state, timestamp)
         template.artworkKey = artworkForSequence(state, sequence)
     end
     template.deliveryService = deliveryService(template, sequence)
-    return Jobs.createOffer(template)
+    local offer, errors = Jobs.createOffer(template)
+    if not offer then return nil, errors end
+    return decorateOfferForReputation(state, offer, sequence)
 end
 
 local function prepareCollections(state)
@@ -561,10 +848,15 @@ function JobService.completionReady(job)
         return false
     end
     for _, pallet in ipairs(job.pallets) do
-        if (pallet.remainingSheets or 0) > 0 or pallet.status ~= "wrapped" or not pallet.wrapped then
+        if pallet.status ~= "spoiled_discarded"
+            and ((pallet.remainingSheets or 0) > 0
+                or pallet.status ~= "wrapped" or not pallet.wrapped)
+        then
             return false
         end
-        if job.press and (type(pallet.press) ~= "table" or pallet.press.status ~= "complete") then
+        if pallet.status ~= "spoiled_discarded" and job.press
+            and (type(pallet.press) ~= "table" or pallet.press.status ~= "complete")
+        then
             return false
         end
     end
@@ -622,7 +914,7 @@ function JobService.pickupInventory(state, jobId)
     local job = activeJob(state, jobId)
     local inventory = {}
     for _, pallet in ipairs(job and job.pallets or {}) do
-        inventory[#inventory + 1] = {
+        if pallet.status ~= "spoiled_discarded" then inventory[#inventory + 1] = {
             id = pallet.id,
             number = pallet.number,
             sheets = pallet.finishedSheets,
@@ -630,7 +922,7 @@ function JobService.pickupInventory(state, jobId)
             status = pallet.status,
             paper = pallet.paper,
             pallet = pallet,
-        }
+        } end
     end
     return job, inventory
 end
@@ -673,13 +965,17 @@ function JobService.completePickup(state, jobId, timestamp)
     if not job or job.status ~= "pickup_in_progress" then return false, "pickup is not in progress" end
     if JobService.remainingPickup(state, jobId) ~= 0 then return false, "pickup pallets remain on the floor" end
     for _, pallet in ipairs(job.pallets or {}) do
-        if pallet.location ~= "outbound_truck" then return false, "pickup manifest is incomplete" end
+        if pallet.status ~= "spoiled_discarded" and pallet.location ~= "outbound_truck" then
+            return false, "pickup manifest is incomplete"
+        end
     end
     for _, pallet in ipairs(job.pallets or {}) do
-        local transitioned, transitionError = PalletState.transition(
-            state, pallet, "none", { status = "picked_up" })
-        if not transitioned then return false, transitionError end
-        pallet.pickedUpAt = timestamp
+        if pallet.status ~= "spoiled_discarded" then
+            local transitioned, transitionError = PalletState.transition(
+                state, pallet, "none", { status = "picked_up" })
+            if not transitioned then return false, transitionError end
+            pallet.pickedUpAt = timestamp
+        end
     end
     local payment = job.quote.totalPrice
     job.status = "completed"
@@ -693,6 +989,9 @@ function JobService.completePickup(state, jobId, timestamp)
     state.jobs.completed[#state.jobs.completed + 1] = job
     state.accountsReceivable = math.max(0, (state.accountsReceivable or 0) - payment)
     state.money = math.max(0, state.money or 0) + payment
+    local reputationGain, reputationScore = Reputation.completeJob(state, job)
+    job.reputationGain = reputationGain
+    job.reputationAfter = reputationScore
     JobService.scheduleRepeatEmail(state, job)
     return true, job, payment
 end

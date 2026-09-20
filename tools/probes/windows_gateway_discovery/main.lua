@@ -3,6 +3,7 @@ local function finish(success, reason)
         print("TPS_GATEWAY_DISCOVERY=PASS")
         print("DEFAULT_IPV4_ROUTE=VERIFIED")
         print("ROUTE_SNAPSHOT_ALLOWLISTED=True")
+        print("NETWORK_GENERATION_PRESENT=True")
         print("NETWORK_TRAFFIC_SENT=False")
         love.event.quit(0)
     else
@@ -41,6 +42,7 @@ function love.load()
         type(snapshot.internalAddress) ~= "string" or
         type(snapshot.gatewayAddress) ~= "string" or
         type(snapshot.interfaceIndex) ~= "number" or
+        type(snapshot.networkGeneration) ~= "string" or
         type(snapshot.routeFingerprint) ~= "string" or
         snapshot.platform ~= "Windows" then
         finish(false, "invalid_snapshot")

@@ -76,11 +76,16 @@ function Input.closeScreen(context)
         state.message = "Exited the machine console."
     elseif state.screen == "computer" then
         state.message = "Office computer closed."
+    elseif state.screen == "work_phone" then
+        state.message = "Wall phone returned to its cradle."
     else
         state.message = "Back on the warehouse floor."
     end
     if context.releaseWorkshopInteraction
         and (state.screen == "job_offer" or state.screen == "computer"
+            or state.screen == "work_phone"
+            or state.screen == "vendor"
+            or state.screen == "truck_inventory"
             or state.screen == "press"
             or (state.screen == "machine"
                 and (state.machineType == "skid_wrapper" or state.machineType == "cutter")))
@@ -94,6 +99,10 @@ end
 
 function Input.keypressed(key, context)
     local state = context.state
+    if key=="escape" and state.screen=="workshop_remote" and context.workshopRemoteScreen.hasMachineModal
+        and context.workshopRemoteScreen.hasMachineModal() then
+        return context.workshopRemoteScreen.keypressed(key,state,context.requestWorkshopCommand)
+    end
     if key == "escape" and state.screen == "machine"
         and context.machineScreen.hasModal and context.machineScreen.hasModal()
     then
@@ -107,10 +116,55 @@ function Input.keypressed(key, context)
         return context.title.keypressed(key)
     elseif state.screen == "world" then
         local selected = context.world.getInteraction()
-        if (key == "m" or key == "q") and context.isNetworkClient
-            and context.isNetworkClient()
+        local networkClient = context.isNetworkClient and context.isNetworkClient()
+        local movingMachine = state.cutter and state.cutter.moving
+            or state.wrapper and state.wrapper.moving
+            or state.windmill and state.windmill.moving
+        local networkPlayerId = context.world and context.world.player
+            and tonumber(context.world.player.id)
+        local localPlayerId = networkPlayerId or 1
+        local ownsPalletJack = state.palletJack and state.palletJack.operating
+            and state.palletJack.operatorPlayerId == localPlayerId
+        local ownsNetworkRelocation = networkClient and movingMachine
+            and networkPlayerId and networkPlayerId >= 2
+            and state.palletJack and state.palletJack.operating
+            and state.palletJack.operatorPlayerId == networkPlayerId
+        local relocationTarget = selected
+        if networkClient and key == "m" and not (relocationTarget
+            and (relocationTarget.kind == "cutter"
+                or relocationTarget.kind == "skidWrapper"
+                or relocationTarget.kind == "windmill"))
         then
-            state.message = "Machine relocation remains a host-only floor operation."
+            if context.world.cutterNearby and context.world.cutterNearby(state) then
+                relocationTarget = { kind = "cutter" }
+            elseif context.world.wrapperNearby and context.world.wrapperNearby(state) then
+                relocationTarget = { kind = "skidWrapper" }
+            elseif context.world.windmillNearby and context.world.windmillNearby(state) then
+                relocationTarget = { kind = "windmill" }
+            end
+        end
+        if networkClient and key == "m" and relocationTarget
+            and (relocationTarget.kind == "cutter"
+                or relocationTarget.kind == "skidWrapper"
+                or relocationTarget.kind == "windmill")
+        then
+            return context.palletJackControl
+                and context.palletJackControl("move_machine", relocationTarget)
+        end
+        if networkClient and key == "q" then
+            if ownsNetworkRelocation and context.palletJackControl then
+                return context.palletJackControl("rotate_machine", selected)
+            end
+            state.message = movingMachine
+                and "Only the worker operating this pallet jack can rotate the machine."
+                or "Acquire the pallet jack and attach the machine before rotating it."
+            return true
+        end
+        if not networkClient and key == "q" and movingMachine
+            and state.palletJack and state.palletJack.operating
+            and state.palletJack.operatorPlayerId ~= 1
+        then
+            state.message = "Only the worker operating this pallet jack can rotate the machine."
             return true
         end
         if key == "m" and ((selected and selected.kind == "cutter")
@@ -121,7 +175,8 @@ function Input.keypressed(key, context)
             return
         end
         if key == "m" and ((selected and selected.kind == "skidWrapper") or context.world.wrapperNearby(state)) then
-            if context.world.beginWrapperMove(state) then context.saveCurrent() end
+            local occupied = context.wrapperControlOccupied and context.wrapperControlOccupied()
+            if context.world.beginWrapperMove(state, occupied) then context.saveCurrent() end
             return
         end
         if key == "m" and ((selected and selected.kind == "windmill")
@@ -145,7 +200,8 @@ function Input.keypressed(key, context)
         if key == "q" and ((state.wrapper and state.wrapper.moving)
             or (selected and selected.kind == "skidWrapper"))
         then
-            if context.world.rotateWrapper(state) then context.saveCurrent() end
+            local occupied = context.wrapperControlOccupied and context.wrapperControlOccupied()
+            if context.world.rotateWrapper(state, occupied) then context.saveCurrent() end
             return
         end
         if key == "q" and ((state.windmill and state.windmill.moving)
@@ -164,15 +220,37 @@ function Input.keypressed(key, context)
             if context.world.parkPalletJack(state) then context.saveCurrent() end
             return
         end
+        -- L is the dedicated fork control. Keeping it separate from E lets a
+        -- worker use every ordinary shop interaction while pushing the jack.
+        if key == "l" and ownsPalletJack then
+            if context.palletJackControl
+                and context.palletJackControl("use", selected)
+            then
+                return true
+            end
+            if context.world.handlePalletJack(state, context.assets) then
+                context.saveCurrent()
+            end
+            return true
+        end
         if key ~= "e" then return end
         if context.world.faceInteraction then context.world.faceInteraction() end
+        if ownsNetworkRelocation and context.palletJackControl then
+            return context.palletJackControl("place_machine", selected)
+        end
         -- On the authoritative host, a moving machine owns E until it is
         -- placed. Network observers cannot place that machine, so their E
         -- press must continue to the unrelated interaction they selected.
         -- Host pallet-jack command routing must never park or load the jack
         -- while equipment is still attached to it.
-        local observesNetworkRelocation = context.isNetworkClient
-            and context.isNetworkClient()
+        local observesNetworkRelocation = networkClient
+        if not observesNetworkRelocation and movingMachine
+            and state.palletJack and state.palletJack.operating
+            and state.palletJack.operatorPlayerId ~= 1
+        then
+            state.message = "Only the worker operating this pallet jack can place the machine."
+            return true
+        end
         if not observesNetworkRelocation and state.cutter and state.cutter.moving then
             if context.world.placeCutter(state, context.assets) then context.saveCurrent() end
             return true
@@ -183,17 +261,17 @@ function Input.keypressed(key, context)
             if context.world.placeWindmill(state, context.assets) then context.saveCurrent() end
             return true
         end
-        -- Pallet paperwork is already part of the host-authored shared shop
-        -- snapshot. Open that mirrored record locally before routing any
-        -- network action so guests never acquire a mutating lease or send a
-        -- request merely to inspect it.
         if selected and selected.kind == "palletWorkOrder" then
+            -- Pallet paperwork is already part of the host-authored shared
+            -- shop snapshot. Inspecting it stays a normal USE action even
+            -- while the worker is pushing an empty pallet jack.
             context.palletWorkOrderScreen.enter(selected.target and selected.target.item)
             state.screen = "pallet_work_order"
             state.message = "Inspecting the paper work order attached to the pallet."
             return true
         end
-        if context.palletJackControl
+        if selected and selected.kind == "palletJack"
+            and context.palletJackControl
             and context.palletJackControl("use", selected)
         then
             return true
@@ -217,6 +295,9 @@ function Input.keypressed(key, context)
         elseif selected and selected.kind == "computer" then
             context.computerScreen.enter(state)
             state.screen = "computer"
+        elseif selected and selected.kind == "workPhone" then
+            context.workPhoneScreen.enter(state)
+            state.screen = "work_phone"
         elseif selected and selected.kind == "vendor" then
             if context.world.beginVendorReview() then
                 state.screen = "vendor"
@@ -258,7 +339,8 @@ function Input.keypressed(key, context)
         end
     elseif state.screen == "machine" then
         if state.machineType == "skid_wrapper" and key == "m" then
-            if context.world.beginWrapperMove(state) then
+            local occupied = context.wrapperControlOccupied and context.wrapperControlOccupied()
+            if context.world.beginWrapperMove(state, occupied) then
                 state.screen = "world"
                 if context.releaseWorkshopInteraction then
                     context.releaseWorkshopInteraction("closed")
@@ -327,7 +409,38 @@ function Input.mousepressed(x, y, button, context)
         then
             return true
         end
-        local selected = context.world.getInteraction()
+        local tappedPallet = context.world.palletAt
+            and context.world.palletAt(state, worldX, worldY)
+        local localPlayerId = context.world and context.world.player
+            and tonumber(context.world.player.id) or 1
+        local ownsPalletJack = state.palletJack and state.palletJack.operating
+            and state.palletJack.operatorPlayerId == localPlayerId
+        if tappedPallet and ownsPalletJack
+            and not state.palletJack.carriedPalletId
+        then
+            local palletSelection = {
+                kind = "palletWorkOrder",
+                hovered = true,
+                target = { item = tappedPallet },
+            }
+            if context.palletJackControl
+                and context.palletJackControl("lift", palletSelection)
+            then
+                return true
+            end
+            if context.world.handlePalletJack(
+                state, context.assets, tappedPallet.pallet.id)
+            then
+                context.saveCurrent()
+            end
+            -- A tap on a skid is an explicit fork request while operating the
+            -- jack, even if it is too far away. Consume it so it cannot open
+            -- paperwork after displaying the distance error.
+            return true
+        end
+        local selected = context.world.interactionAt
+            and context.world.interactionAt(worldX, worldY, networkReadOnly)
+            or context.world.getInteraction()
         if selected and selected.hovered then
             return Input.keypressed("e", context)
         end
@@ -342,6 +455,9 @@ function Input.mousepressed(x, y, button, context)
                 state.screen = "world"
                 context.saveCurrent()
             end
+            if context.releaseWorkshopInteraction then
+                context.releaseWorkshopInteraction("closed")
+            end
             return true
         end
         if result.action ~= "blocked" then context.saveCurrent() end
@@ -353,6 +469,9 @@ function Input.mousepressed(x, y, button, context)
         if result.action == "close" then
             return Input.closeScreen(context)
         elseif result.action == "door_closing" or result.action == "truck_departing" then
+            if context.releaseWorkshopInteraction then
+                context.releaseWorkshopInteraction("closed")
+            end
             state.screen = "world"
         end
         if result.action ~= "blocked" then context.saveCurrent() end
@@ -388,6 +507,13 @@ function Input.mousepressed(x, y, button, context)
         end
         return result
     end
+    if state.screen == "work_phone" then
+        local result = context.workPhoneScreen.mousepressed(state, x, y, button)
+        if not result then return false end
+        if result.action == "close" then return Input.closeScreen(context) end
+        if result.action ~= "blocked" then context.saveCurrent() end
+        return true
+    end
     if state.screen == "computer" then
         local result = context.computerScreen.mousepressed(state, x, y, button)
         if not result then return false end
@@ -398,8 +524,11 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "machine_sold"
             or result.action == "email_accepted" or result.action == "email_declined"
             or result.action == "quote_accepted" or result.action == "quote_rejected"
+            or result.action == "estimate_sent"
             or result.action == "promotion_sent"
             or result.action == "service_notice_dismissed"
+            or result.action == "inbox_notice_dismissed"
+            or result.action == "cart_checked_out"
         then
             context.saveCurrent()
         elseif result.action == "completion_blocked" then
@@ -422,59 +551,37 @@ function Input.mousepressed(x, y, button, context)
     end
     if state.screen ~= "job_offer" or button ~= 1 then return false end
     local action = context.jobOfferScreen.hitTest(x, y)
-    if action ~= "quote_input" and context.jobOfferScreen.blurQuote then
-        context.jobOfferScreen.blurQuote()
-    end
     if not action then return false end
 
     if action == "back" then
         return Input.closeScreen(context)
     end
-    if action == "quote_input" then
-        context.jobOfferScreen.focusQuote()
-        return true
-    end
-
     local job = state.currentOffer
     if not job then
         state.message = "The customer paperwork is missing."
         return false
     end
 
-    local timestamp = os.time()
-    local succeeded, errorMessage
-    local quoteResult
-    if action == "accept" then
-        succeeded, quoteResult = context.jobService.submitQuote(
-            state, job, context.jobOfferScreen.quoteAmount(), timestamp)
-        errorMessage = quoteResult
-    else
-        succeeded, errorMessage = context.jobService.declineOffer(state, job, timestamp)
-    end
+    local succeeded, emailOrError = context.jobService.requestEstimateDetails(state, job, os.time())
     if not succeeded then
-        state.message = "Could not " .. action .. " the job: " .. tostring(errorMessage)
+        state.message = "Could not request the written job details: " .. tostring(emailOrError)
         return false
     end
 
-    local accepted = action == "accept" and quoteResult.accepted
-    context.world.resolveCustomer(accepted and "accepted" or "declined", state)
+    context.world.resolveCustomer("accepted", state)
     state.currentOffer = nil
     state.screen = "world"
     if context.releaseWorkshopInteraction then context.releaseWorkshopInteraction("closed") end
-    if action == "accept" then
-        state.message = quoteResult.accepted
-            and string.format("%s accepted your $%d quote. %s.", job.company, quoteResult.amount,
-                context.jobService.deliverySummary(job, state))
-            or string.format("%s declined your $%d quote. The customer is leaving.",
-                job.company, quoteResult.amount)
-    else
-        state.message = string.format("Declined %s. The customer is leaving.", job.id)
-    end
+    state.message = string.format("%s will email the written details for %s. No estimate has been sent yet.",
+        job.company, job.id)
     context.saveCurrent()
     return true
 end
 
 function Input.wheelmoved(x, y, context)
+    if context.state.screen == "workshop_remote" and context.workshopRemoteScreen.wheelmoved then
+        return context.workshopRemoteScreen.wheelmoved(context.state, x, y)
+    end
     if context.state.screen == "computer" and context.computerScreen.wheelmoved then
         return context.computerScreen.wheelmoved(context.state, x, y)
     end

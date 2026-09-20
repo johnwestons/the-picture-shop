@@ -20,11 +20,15 @@ The runtime boundary is organized by residency pack. `src/assets.lua` validates 
 | `loadedPaperPalletDirections` | 1024x256, 4x1 | Loose customer pallets |
 | `palletJack` / `palletJackLoaded` | 2048x256 each, 8x1 | Eight-way pallet-jack states |
 | `wallVentFan` | 288x96, 3x1 | Animated loading-bay wall vent |
+| `loungeLeftChairForeground` / `loungeCoffeeTableForeground` / `loungeRightChairForeground` | 96x83 / 126x91 / 119x100 | Seat-specific furniture occlusion over waiting clients |
 | `vendorProductPallets` | 1252x1252, 4x4 | Delivered supply pallets |
 | `boxedPaperPalletStages` | 1400x1120, 5x4 | Boxed customer pallets |
 | `wrappedPalletStages` | 1536x512, 3x1 | Wrapper progress and completed flat pallets |
 | `polarBackButton` | 384x128, 3x1 | Shared Back/Exit control |
 | `palletWorkOrderPaper` | 1536x1024 | Pallet-attached work-order screen background |
+| `critterNetMenu` | 1536x1024 | Retro CritterNet browser/menu background |
+| `critterNetSprites` | 1536x1024, 4x4 | Animated globe, network paw, modem, mail, sparkle, and loading icons |
+| `workPhone` | 1536x1024, 4x2 | Wall-mounted work phone with idle, customer, supplier/service, urgent, and ringing states |
 
 Configured `artwork:*` images are 128x128 library entries resolved by saved artwork key and rotated through job offers. Visitor character action strips are validated from `Config.characters`, loaded only when that action is drawn, normalized from precomputed alpha bounds, and released when the visitor leaves.
 
@@ -66,3 +70,18 @@ Built-in ImageGen transformed ten tightly cropped, face-free photographs from *M
 Built-in ImageGen stylized-concept prompt: create a blank vintage industrial work-order sheet that looks physically attached to a paper pallet, nearly front-facing and landscape-oriented, with warm ivory fibers, restrained age marks, worn edges, corner folds, staple marks, faint blank form rules, and generous clear regions for runtime text and client art. Match the detailed semi-pixel-art warehouse style. Use true transparency outside the paper and include no words, letters, numbers, logos, handwriting, people, or baked client artwork. The generated checkerboard border is deterministically converted to true alpha by `tools/prepare_pallet_work_order_paper.py`; the installed asset is `assets/generated/pallet-work-order-paper-v1.png`.
 
 Work-order copy uses the Apache-licensed Special Elite typeface from Google Fonts. The font and its license are bundled in `assets/fonts/` so the screen keeps its typewriter character offline.
+
+## CritterNet browser art
+
+Built-in ImageGen reference-matching prompt: create a transparent 4x4 production sprite atlas in the approved
+1990s CritterNet browser style, with four rotating-globe frames, four cyan/purple paw-network pulse frames,
+four beige dial-up modem light states, and closed mail, opening mail, purple sparkle, and hourglass icons.
+Keep the chunky gray bevels, dark teal/navy/cyan/amber/purple palette, crisp pixel edges, no text, and no extra
+objects. `tools/prepare_critter_net_sprites.ps1` converts only the generated connected checkerboard backdrop to
+true alpha. The installed atlas is `assets/generated/critter-net-animated-icons-atlas-v1.png`.
+
+The matching work-phone atlas uses the same CritterNet pixel palette and a vertically hung handset on a
+metal wall plate. Its first row contains dark, cyan-green customer, amber supplier/service, and red-magenta
+urgent-job lamps; the second row shifts the handset for the ringing animation. The generated checkerboard is
+converted to true alpha by the same preparation tool. The installed atlas is
+`assets/generated/critter-net-work-phone-atlas-v1.png`.

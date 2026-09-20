@@ -50,6 +50,8 @@ int main(int argc, char **argv)
     char source[TPS_ROUTE_ADDRESS_BYTES];
     char gateway[TPS_ROUTE_ADDRESS_BYTES];
     uint32_t interface_index = 99u;
+    uint32_t generation_high = 99u;
+    uint32_t generation_low = 99u;
     int32_t result;
 
     if (argc == 2 && strcmp(argv[1], "--require-live") == 0) {
@@ -63,38 +65,64 @@ int main(int argc, char **argv)
 
     memset(source, 'x', sizeof(source));
     memset(gateway, 'y', sizeof(gateway));
-    result = tps_route_default_ipv4(source, gateway, NULL);
+    result = tps_route_default_ipv4(
+        source, gateway, NULL, &generation_high, &generation_low);
     if (result != TPS_ROUTE_ERR_ARGUMENT ||
-        source[0] != '\0' || gateway[0] != '\0') {
+        source[0] != '\0' || gateway[0] != '\0' ||
+        generation_high != 0u || generation_low != 0u) {
         return fail("null_output_contract");
     }
 
     memset(gateway, 'y', sizeof(gateway));
     interface_index = 99u;
-    result = tps_route_default_ipv4(NULL, gateway, &interface_index);
+    generation_high = 99u;
+    generation_low = 99u;
+    result = tps_route_default_ipv4(
+        NULL, gateway, &interface_index, &generation_high, &generation_low);
     if (result != TPS_ROUTE_ERR_ARGUMENT || gateway[0] != '\0' ||
-        interface_index != 0u) {
+        interface_index != 0u || generation_high != 0u ||
+        generation_low != 0u) {
         return fail("null_source_clears_other_outputs");
     }
 
     memset(source, 'x', sizeof(source));
     interface_index = 99u;
-    result = tps_route_default_ipv4(source, NULL, &interface_index);
+    generation_high = 99u;
+    generation_low = 99u;
+    result = tps_route_default_ipv4(
+        source, NULL, &interface_index, &generation_high, &generation_low);
     if (result != TPS_ROUTE_ERR_ARGUMENT || source[0] != '\0' ||
-        interface_index != 0u) {
+        interface_index != 0u || generation_high != 0u ||
+        generation_low != 0u) {
         return fail("null_gateway_clears_other_outputs");
     }
 
     memset(source, 'x', sizeof(source));
     memset(gateway, 'y', sizeof(gateway));
     interface_index = 99u;
-    result = tps_route_default_ipv4(source, gateway, &interface_index);
+    generation_low = 99u;
+    result = tps_route_default_ipv4(
+        source, gateway, &interface_index, NULL, &generation_low);
+    if (result != TPS_ROUTE_ERR_ARGUMENT || source[0] != '\0' ||
+        gateway[0] != '\0' || interface_index != 0u ||
+        generation_low != 0u) {
+        return fail("null_generation_clears_other_outputs");
+    }
+
+    memset(source, 'x', sizeof(source));
+    memset(gateway, 'y', sizeof(gateway));
+    interface_index = 99u;
+    generation_high = 99u;
+    generation_low = 99u;
+    result = tps_route_default_ipv4(
+        source, gateway, &interface_index, &generation_high, &generation_low);
     if (result != TPS_ROUTE_OK) {
         if (!known_result(result)) {
             return fail("bounded_error_contract");
         }
         if (source[0] != '\0' || gateway[0] != '\0' ||
-            interface_index != 0u) {
+            interface_index != 0u || generation_high != 0u ||
+            generation_low != 0u) {
             return fail("failure_did_not_clear_outputs");
         }
         puts("TPS_ROUTE_NATIVE=UNAVAILABLE");
@@ -105,6 +133,7 @@ int main(int argc, char **argv)
     }
 
     if (interface_index == 0u ||
+        (generation_high == 0u && generation_low == 0u) ||
         !is_canonical_ipv4(source) ||
         !is_canonical_ipv4(gateway) ||
         strcmp(source, gateway) == 0) {
@@ -116,6 +145,7 @@ int main(int argc, char **argv)
     puts("SOURCE_CANONICAL=True");
     puts("GATEWAY_CANONICAL=True");
     puts("INTERFACE_INDEX_PRESENT=True");
+    puts("NETWORK_GENERATION_PRESENT=True");
     puts("NETWORK_TRAFFIC_SENT=False");
     return 0;
 }

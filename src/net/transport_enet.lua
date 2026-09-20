@@ -186,6 +186,9 @@ function Instance:service(maxEvents)
     maxEvents = wholeNumber(maxEvents or Transport.MAX_EVENTS_PER_SERVICE, 1, 1024)
     if not maxEvents then return nil, "Event limit must be between 1 and 1024." end
     local events = {}
+    -- ENet's native dispatch queue rotates a peer to the tail after returning
+    -- one receive event. Polling one event at a time preserves that peer-level
+    -- fairness while keeping this wrapper's application budget explicit.
     for _ = 1, maxEvents do
         local event, errorMessage = self:poll()
         if errorMessage then return events, errorMessage end

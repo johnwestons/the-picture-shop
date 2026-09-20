@@ -14,6 +14,7 @@ local ALLOWED_NON_GLOBAL_REASONS = {
     link_local = true,
 }
 local ANDROID_GENERATION_PREFIX = "android-route-v2-"
+local WINDOWS_GENERATION_PREFIX = "windows-route-v2-"
 
 local function detectedPlatform()
     if love and love.system and type(love.system.getOS) == "function" then
@@ -22,6 +23,18 @@ local function detectedPlatform()
     end
     if jit and type(jit.os) == "string" then return jit.os end
     return nil
+end
+
+local function validWindowsGeneration(value)
+    if type(value) ~= "string"
+        or #value ~= #WINDOWS_GENERATION_PREFIX + 16
+        or value:sub(1, #WINDOWS_GENERATION_PREFIX) ~=
+            WINDOWS_GENERATION_PREFIX then
+        return false
+    end
+    local suffix = value:sub(#WINDOWS_GENERATION_PREFIX + 1)
+    return suffix ~= "0000000000000000"
+        and suffix:match("^[0-9a-f]+$") ~= nil
 end
 
 local function usableUnicast(address)
@@ -72,10 +85,10 @@ local function routeFingerprint(platform, internalAddress, gatewayAddress,
             "android-network-generation", networkGeneration,
         }
     else
-        -- Preserve the exact Windows fingerprint material.
         fields = {
             "route-v1", platform, internalAddress, gatewayAddress,
-            tostring(interfaceIndex),
+            tostring(interfaceIndex), "windows-network-generation",
+            networkGeneration,
         }
     end
     local material = table.concat(fields, "\0")
@@ -108,8 +121,11 @@ local function normalizeCandidate(candidate, platform)
             not validAndroidGeneration(networkGeneration) then
             return nil
         end
-    elseif not validInterfaceIndex(interfaceIndex) then
-        return nil
+    else
+        if not validInterfaceIndex(interfaceIndex)
+            or not validWindowsGeneration(networkGeneration) then
+            return nil
+        end
     end
 
     local normalized = {
@@ -122,9 +138,8 @@ local function normalizeCandidate(candidate, platform)
             platform, internalAddress, gatewayAddress, interfaceIndex,
             networkGeneration),
     }
-    if platform == "Android" then
-        normalized.networkGeneration = networkGeneration
-    else
+    normalized.networkGeneration = networkGeneration
+    if platform == "Windows" then
         normalized.interfaceIndex = interfaceIndex
     end
     return normalized

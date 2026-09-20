@@ -1,15 +1,21 @@
 local PalletState = {}
 local Config = require("src.config")
 local CutterZones = require("src.cutter_zones")
+local PalletStorage = require("src.pallet_storage")
 
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
-    warehouse = { on_pallet_jack = true, at_cutter = true, at_press = true, outbound_truck = true, none = true },
+    warehouse = { on_pallet_jack = true, on_forklift = true, at_cutter = true, at_press = true, outbound_truck = true, none = true },
     on_pallet_jack = { warehouse = true },
-    at_cutter = { cutter_output = true, warehouse = true },
-    cutter_output = { on_pallet_jack = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
+    on_forklift = { warehouse = true },
+    -- Rack/stack transfers are atomic multi-owner operations in PalletStorage.
+    -- Recognize their canonical locations without offering a bypass here.
+    rack = {},
+    stacked = {},
+    at_cutter = { cutter_output = true, warehouse = true, none = true },
+    cutter_output = { on_pallet_jack = true, on_forklift = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
     at_press = { press_output = true, warehouse = true },
-    press_output = { on_pallet_jack = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
+    press_output = { on_pallet_jack = true, on_forklift = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
     outbound_truck = { none = true },
     none = {},
 }
@@ -67,6 +73,7 @@ function PalletState.validate(state)
         if pallet.location == "warehouse" or pallet.location == "cutter_output"
             or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
             or pallet.location == "at_press" or pallet.location == "press_output"
+            or pallet.location == "on_forklift" or pallet.location == "stacked"
         then
             if not validWorld(pallet.world) then
                 errors[#errors + 1] = tostring(pallet.id) .. " has no physical floor position"
@@ -92,11 +99,30 @@ function PalletState.validate(state)
     if #onJack == 1 and jack.carriedPalletId ~= onJack[1].id then
         errors[#errors + 1] = tostring(onJack[1].id) .. " does not match the jack ownership id"
     end
+    local storedValid, storedErrors = PalletStorage.validate(state)
+    if not storedValid then
+        for _, reason in ipairs(storedErrors or {}) do errors[#errors + 1] = reason end
+    end
     return #errors == 0, errors
 end
 
 function PalletState.reconcile(state)
     if type(state) ~= "table" then return false end
+    local jackSeat, forkliftSeat = state.palletJack, state.forklift
+    if type(jackSeat) == "table" and type(forkliftSeat) == "table"
+        and jackSeat.operating == true and forkliftSeat.operating == true
+        and jackSeat.operatorPlayerId ~= nil and jackSeat.operatorPlayerId == forkliftSeat.operatorPlayerId then
+        return false, { "One worker cannot operate both warehouse vehicles." }
+    end
+    -- New storage/vehicle ownership is never repaired by changing locations.
+    -- In particular a stale jack claim must not steal a rack or forklift load.
+    local strictStorage = state.forklift and state.forklift.carriedPalletId ~= nil
+    for _, item in ipairs(allPallets(state)) do
+        local pallet = item.pallet
+        if pallet.location == "rack" or pallet.location == "stacked"
+            or pallet.location == "on_forklift" or pallet.storage ~= nil then strictStorage = true end
+    end
+    if strictStorage then return PalletState.validate(state) end
     state.palletJack = type(state.palletJack) == "table" and state.palletJack or {}
     local jack, atCutter, atPress, onJack = state.palletJack, {}, {}, {}
     for _, item in ipairs(allPallets(state)) do
@@ -174,6 +200,9 @@ function PalletState.transitionDetached(pallet, target, options)
     options = options or {}
     if type(pallet) ~= "table" then return false, "pallet is required" end
     local source = pallet.location
+    if source == "on_forklift" or target == "on_forklift" then
+        return false, "forklift transfers require the authoritative shop state"
+    end
     if not (allowedLocations[source] and allowedLocations[source][target]) then
         return false, string.format("cannot move pallet from %s to %s", tostring(source), tostring(target))
     end
@@ -193,9 +222,22 @@ function PalletState.transition(state, pallet, target, options)
     end
 
     local jack = state.palletJack or {}
+    local forklift = state.forklift or {}
+    if PalletStorage.isSupporting(state, pallet.id) then
+        return false, "remove the upper pallet before moving its support"
+    end
     if target == "on_pallet_jack" and jack.carriedPalletId then return false, "pallet jack is already carrying a pallet" end
     if source == "on_pallet_jack" and jack.carriedPalletId ~= pallet.id then
         return false, "pallet jack does not own this pallet"
+    end
+    if target == "on_forklift" then
+        if forklift.owned ~= true or not state.warehouse or state.warehouse.forkliftOwned ~= true then
+            return false, "a purchased forklift is required"
+        end
+        if forklift.carriedPalletId then return false, "forklift is already carrying a pallet" end
+    end
+    if source == "on_forklift" and forklift.carriedPalletId ~= pallet.id then
+        return false, "forklift does not own this pallet"
     end
     if target == "at_cutter" then
         local radius = options.cutterRadius or Config.cutterPlacement.palletInputZoneRadius
@@ -224,12 +266,15 @@ function PalletState.transition(state, pallet, target, options)
         status = pallet.status,
         world = copy(pallet.world),
         carriedPalletId = jack.carriedPalletId,
+        forkliftCarriedPalletId = forklift.carriedPalletId,
     }
     pallet.location = target
     if options.status ~= nil then pallet.status = options.status end
     if options.world ~= nil then pallet.world = copy(options.world) end
     if target == "on_pallet_jack" then jack.carriedPalletId = pallet.id end
     if source == "on_pallet_jack" then jack.carriedPalletId = nil end
+    if target == "on_forklift" then forklift.carriedPalletId = pallet.id end
+    if source == "on_forklift" then forklift.carriedPalletId = nil end
     if target == "outbound_truck" then pallet.world = nil end
     if target == "none" and options.keepWorld ~= true then pallet.world = nil end
 
@@ -237,6 +282,7 @@ function PalletState.transition(state, pallet, target, options)
     if not valid then
         pallet.location, pallet.status, pallet.world = previous.location, previous.status, previous.world
         jack.carriedPalletId = previous.carriedPalletId
+        forklift.carriedPalletId = previous.forkliftCarriedPalletId
         return false, table.concat(errors, "; ")
     end
     return true, pallet

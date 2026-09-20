@@ -4,6 +4,8 @@ local Jobs = require("src.jobs")
 local PalletState = require("src.pallet_state")
 local Procurement = require("src.procurement")
 local MachineFleet = require("src.machine_fleet")
+local BusinessCalendar = require("src.business_calendar")
+local Reputation = require("src.reputation")
 
 local Machine = {
     step = "idle", progress = 0, loaded = false, clamp = false,
@@ -52,9 +54,7 @@ local function availablePapers(state)
 end
 
 local function makeLegacyPaper()
-    local job = { id = "STOCK", sourceSize = { width = 13, height = 10 }, finishedSize = { width = 12, height = 9 } }
-    local pallet = { id = "STOCK-P01" }
-    return PaperWork.create(job, pallet, "easy", 1), pallet, job
+    return PaperWork.createStockPaper()
 end
 
 local function syncProgram()
@@ -90,6 +90,7 @@ local function completeLift(state)
     pallet.finishedSheets = pallet.finishedSheets + sheets
     pallet.completedLifts = pallet.completedLifts + 1
     pallet.lastLiftSheets = sheets
+    pallet.lastLiftSpoiled = false
     pallet.programVerified = true
     pallet.awaitingPalletReturn = true
     pallet.activeLift = math.min(pallet.requiredLifts, pallet.completedLifts + 1)
@@ -189,7 +190,9 @@ function Machine.load(state, palletId)
             state.inventory.inProcessPallets = (state.inventory.inProcessPallets or 0) + 1
         end
         if selected.paper.status == "complete" then
-            if selected.pallet.completedLifts == 0 and selected.pallet.remainingSheets > 0 then
+            if not selected.paper.offSpec and selected.pallet.completedLifts == 0
+                and selected.pallet.remainingSheets > 0
+            then
                 completeLift(state)
             end
             local resumeStep = selected.pallet.awaitingPalletReturn and "cut_complete"
@@ -339,18 +342,9 @@ end
 function Machine.position(state)
     if Machine.step ~= "loaded" then return false end
     local cut = PaperWork.currentCut(Machine.paper)
-    if not cut or Machine.programIndex ~= Machine.paper.activeCut then
-        message(state, "Select the highlighted next cut program before positioning.")
-        return false
-    elseif Machine.paper.orientation ~= cut.orientation then
-        message(state, string.format("Rotate the paper to %d degrees first.", cut.orientation))
-        return false
-    elseif not PaperWork.gaugeMatches(Machine.paper, Machine.gauge) then
-        message(state, string.format("Backgauge mismatch: this cut requires %.2f in.", cut.gauge))
-        return false
-    end
+    if not cut then return false end
     Machine.step, Machine.progress = "positioning", 0
-    message(state, "Pushing the paper stack against the programmed backgauge...")
+    message(state, "Pushing the paper stack against the selected backgauge. Verify the ticket before cutting.")
     bumpRevision()
     return true
 end
@@ -399,16 +393,9 @@ local function tryCut(state)
         enterBlocked(state, "Cut blocked: check the safety barrier and emergency stop.", "loaded")
         return false
     end
-    local cut = PaperWork.currentCut(Machine.paper)
-    if Machine.programIndex ~= Machine.paper.activeCut or not cut
-        or Machine.paper.orientation ~= cut.orientation
-        or not PaperWork.gaugeMatches(Machine.paper, Machine.gauge)
-    then
-        message(state, "Cut blocked: program, rotation, and backgauge must match the work order.")
-        return false
-    end
+    if not PaperWork.currentCut(Machine.paper) then return false end
     Machine.step, Machine.progress = "armed", 0
-    message(state, "Cut controls validated. Blade cycle starting.")
+    message(state, "Safety controls validated. Blade cycle starting.")
     bumpRevision()
     return true
 end
@@ -448,6 +435,22 @@ end
 
 function Machine.unload(state)
     if not Machine.paper or Machine.paper.status ~= "complete" or Machine.step ~= "cut_complete" then return false end
+    if Machine.pallet and Machine.pallet.discardAfterSpoil
+        and (Machine.pallet.remainingSheets or 0) == 0
+        and (Machine.pallet.finishedSheets or 0) == 0
+    then
+        local discarded, discardError = PalletState.transition(
+            state, Machine.pallet, "none", { status = "spoiled_discarded" })
+        if not discarded then message(state, discardError); return false end
+        if state and state.inventory then
+            state.inventory.inProcessPallets = math.max(0,
+                (state.inventory.inProcessPallets or 0) - 1)
+        end
+        Machine.loaded, Machine.step, Machine.paperTravel = false, "finished", 0
+        message(state, "The ruined skid was discarded. Wait for the customer's replacement skid to arrive.")
+        bumpRevision()
+        return true
+    end
     if Machine.pallet and (Machine.pallet.remainingSheets or 0) > 0 then
         Machine.step, Machine.progress = "lift_returning", 0
         message(state, "Returning the completed lift to its pallet...")
@@ -470,7 +473,9 @@ function Machine.unload(state)
 end
 
 function Machine.repeatLift(state)
-    if Machine.step ~= "repeat_ready" or not Machine.pallet or not Machine.pallet.programVerified then return false end
+    if Machine.step ~= "repeat_ready" or not Machine.pallet
+        or (not Machine.pallet.programVerified and not Machine.pallet.lastLiftSpoiled)
+    then return false end
     if (Machine.pallet.remainingSheets or 0) <= 0 then
         Machine.step = "cut_complete"
         return false
@@ -524,14 +529,170 @@ function Machine.keyreleased(key)
     return false
 end
 
+local function stockReplacementCost(job, sheets)
+    local stock = job and job.stockSpec or {}
+    local rate = stock.grade == "cover" and 0.34 or stock.finish == "gloss" and 0.28 or 0.18
+    rate = rate + math.min(0.12, math.max(0, (tonumber(stock.weight) or 0) - 60) * 0.002)
+    return math.max(25, math.floor(sheets * rate + 25 + 0.5))
+end
+
+local function replacementPalletId(job)
+    local sequence = 1
+    local used = {}
+    for _, pallet in ipairs(job and job.pallets or {}) do used[pallet.id] = true end
+    while used[string.format("%s-R%02d", job.id, sequence)] do sequence = sequence + 1 end
+    return string.format("%s-R%02d", job.id, sequence), sequence
+end
+
+local function scheduleReplacementSkid(state, job, source, sheets)
+    local palletId, sequence = replacementPalletId(job)
+    local sourceRequested = math.max(0, math.floor(tonumber(source.requestedCopies)
+        or tonumber(source.initialSheets) or sheets))
+    local replacementRequested = math.min(sheets, sourceRequested)
+    sourceRequested = sourceRequested - replacementRequested
+    source.requestedCopies = sourceRequested > 0 and sourceRequested or nil
+    local sourceAvailable = math.max(0,
+        (source.initialSheets or 0) - (source.damagedSheets or 0))
+    source.spoilageAllowance = math.max(0, sourceAvailable - sourceRequested)
+    if job.press then
+        if sourceRequested > 0 then
+            source.press = source.press or {}
+            source.press.requiredGoodSheets = sourceRequested
+            source.press.availableSheets = math.min(
+                source.press.availableSheets or sourceAvailable, sourceAvailable)
+        else
+            -- Nothing from this skid is still needed for the print target.
+            -- Any untouched remainder is returned with the ruined lift rather
+            -- than creating an unprintable zero-target production pallet.
+            source.remainingSheets = 0
+            source.press = nil
+            source.discardAfterSpoil = true
+        end
+    end
+
+    local replacement = {
+        id = palletId,
+        number = #(job.pallets or {}) + 1,
+        replacementFor = source.replacementFor or source.id,
+        replacementSequence = sequence,
+        initialSheets = sheets,
+        requestedCopies = math.max(1, replacementRequested),
+        spoilageAllowance = math.max(0, sheets - replacementRequested),
+        remainingSheets = sheets,
+        finishedSheets = 0,
+        damagedSheets = 0,
+        requiredLifts = math.max(1, math.ceil(sheets / Jobs.LIFT_CAPACITY)),
+        completedLifts = 0,
+        activeLift = 1,
+        lastLiftSheets = 0,
+        programVerified = false,
+        awaitingPalletReturn = false,
+        status = "replacement_in_transit",
+        location = "awaiting_delivery",
+        packaging = source.packaging or job.packaging or "flat",
+        wrapped = false,
+    }
+    if job.press then
+        replacement.press = {
+            status = "awaiting_cut",
+            completedColors = 0,
+            goodSheets = 0,
+            spoilage = 0,
+            dryUntilHours = nil,
+            requiredGoodSheets = replacement.requestedCopies,
+            availableSheets = sheets,
+            passHistory = {},
+        }
+    end
+    replacement.paper = PaperWork.create(
+        job, replacement, job.difficulty or "easy", source.number or 1)
+    job.pallets[#job.pallets + 1] = replacement
+    job.replacementSkids = math.max(0, math.floor(tonumber(job.replacementSkids) or 0)) + 1
+    job.replacementSheets = math.max(0, math.floor(tonumber(job.replacementSheets) or 0)) + sheets
+
+    local nowHours = BusinessCalendar.absoluteHours(state)
+    local service = job.deliveryService or (job.delivery and job.delivery.service)
+    local delay = math.max(1, math.min(8,
+        tonumber(service and service.delayHours) or 4))
+    local palletIds = {}
+    local priorReadyAt
+    if job.delivery and job.delivery.kind == "replacement"
+        and job.delivery.status ~= "received"
+    then
+        priorReadyAt = tonumber(job.delivery.readyAtHours)
+        local pending = {}
+        for _, pallet in ipairs(job.pallets or {}) do
+            if pallet.location == "awaiting_delivery" then pending[pallet.id] = true end
+        end
+        for _, id in ipairs(job.delivery.palletIds or {}) do
+            if pending[id] and id ~= palletId then palletIds[#palletIds + 1] = id end
+        end
+    end
+    palletIds[#palletIds + 1] = palletId
+    job.delivery = {
+        status = "replacement_pending",
+        kind = "replacement",
+        service = service,
+        acceptedGameHours = nowHours,
+        readyAtHours = math.max(priorReadyAt or 0, nowHours + delay),
+        palletIds = palletIds,
+    }
+    return replacement, delay
+end
+
+local function spoilLift(state, result)
+    local pallet = Machine.pallet
+    if Machine.legacyPaper or not pallet then
+        Machine.step = "cut_complete"
+        message(state, string.format("OFF-SIZE CUT: %.2f in instead of %.2f in. The stock was spoiled.",
+            result.actualGauge or Machine.gauge, result.expectedGauge or 0))
+        return
+    end
+    ensureLiftProgress(pallet)
+    local sheets = math.min(Jobs.LIFT_CAPACITY, math.max(1, pallet.remainingSheets))
+    local stockCost = stockReplacementCost(Machine.job, sheets)
+    local redoCost = math.ceil(sheets / Jobs.LIFT_CAPACITY) * Jobs.PRICE_PER_LIFT
+    local cost = stockCost + redoCost
+    pallet.damagedSheets = (pallet.damagedSheets or 0) + sheets
+    pallet.remainingSheets = math.max(0, pallet.remainingSheets - sheets)
+    pallet.requiredLifts = math.max(1, (pallet.requiredLifts or 1) - 1)
+    pallet.activeLift = math.min(pallet.requiredLifts,
+        math.max(1, (pallet.completedLifts or 0) + 1))
+    pallet.lastLiftSheets = sheets
+    pallet.lastLiftSpoiled = true
+    pallet.awaitingPalletReturn = true
+    if pallet.remainingSheets == 0 and (pallet.finishedSheets or 0) == 0 then
+        pallet.discardAfterSpoil = true
+    end
+    local replacement, delay = scheduleReplacementSkid(
+        state, Machine.job, pallet, sheets)
+    Machine.job.spoiledSheets = (Machine.job.spoiledSheets or 0) + sheets
+    Machine.job.spoilCost = (Machine.job.spoilCost or 0) + cost
+    local invoice = BusinessCalendar.addCharge(state,
+        string.format("Redo lift and replace client stock for %s (%d sheets)", Machine.job.id, sheets),
+        cost, Machine.job.id)
+    local demanding = Machine.job.clientTemperament == "demanding"
+    local loss, score = Reputation.spoilLift(state, sheets, cost, demanding)
+    Machine.step = "cut_complete"
+    message(state, string.format(
+        "OFF-SIZE CUT: %.2f in instead of %.2f in. %d client sheets spoiled; %s billed $%d for replacement stock and the redo. Replacement skid %s arrives in about %d game hour%s. Reputation -%d (%d).",
+        result.actualGauge or Machine.gauge, result.expectedGauge or 0, sheets,
+        demanding and "the demanding client" or "the client", invoice.total,
+        replacement.id, delay, delay == 1 and "" or "s", loss, score))
+end
+
 local function finishCut(state)
-    local succeeded, result = PaperWork.applyCut(Machine.paper, Machine.gauge)
+    local succeeded, result = PaperWork.applyCut(Machine.paper, Machine.gauge, Machine.programIndex)
     if not succeeded then enterBlocked(state, result, "loaded"); return false end
     MachineFleet.recordUse(state, "polar_115", 1)
     if state and state.shopProgress then
         state.shopProgress.completedCuts = (state.shopProgress.completedCuts or 0) + 1
     end
     Machine.clamp, Machine.leftDown, Machine.rightDown = false, false, false
+    if result.offSpec then
+        spoilLift(state, result)
+        return true
+    end
     if Machine.paper.status == "complete" then
         completeLift(state)
     else
@@ -705,7 +866,9 @@ function Machine.networkView(state, includeCandidates)
         programIndex = math.max(1, math.min(4, math.floor(Machine.programIndex or 1))),
         memoryCentiInch = memory,
     }
-    if Machine.paper and Machine.pallet then
+    -- The runtime retains the previous paper after unloading/discarding. An
+    -- empty, finished cutter must advertise next-load choices, not that old batch.
+    if Machine.paper and Machine.pallet and Machine.step ~= "idle" and Machine.step ~= "finished" then
         local selected = Machine.paper.cuts and Machine.paper.cuts[view.programIndex]
         view.paper = {
             palletId = tostring(Machine.pallet.id),
@@ -716,6 +879,9 @@ function Machine.networkView(state, includeCandidates)
             activeLift = math.max(1, math.floor(Machine.pallet.activeLift or 1)),
             requiredLifts = math.max(1, math.floor(Machine.pallet.requiredLifts or 1)),
             remainingSheets = math.max(0, math.floor(Machine.pallet.remainingSheets or 0)),
+            widthCentiInch = centi(Machine.paper.currentSize.width, 1, 100000),
+            heightCentiInch = centi(Machine.paper.currentSize.height, 1, 100000),
+            offSpec = Machine.paper.offSpec == true,
         }
         if selected then
             view.paper.selectedCut = {

@@ -137,6 +137,32 @@ local function wrapperView(step)
     }
 end
 
+local function vendorView(kind)
+    if kind == "machines" then
+        return {
+            categoryIndex = 5, categoryName = "USED MACHINERY",
+            salesman = "Rufus Gearbox", kind = "machines", cash = 75000,
+            items = Codec.array({
+                { itemIndex = 1, name = "Polar 115",
+                    price = 32000, available = true,
+                    detail = "serviceable used dealer unit" },
+            }),
+        }
+    end
+    return {
+        categoryIndex = 1, categoryName = "PAPER & BOARD",
+        salesman = "Milo Stockwell", kind = "products", cash = 1200,
+        items = Codec.array({
+            { itemIndex = 1, name = "House paper, 1,000 sheets",
+                price = 90, available = true,
+                detail = "1000 sheets · dock delivery" },
+            { itemIndex = 2, name = "Cover stock, 500 sheets",
+                price = 125, available = true,
+                detail = "500 sheets · dock delivery" },
+        }),
+    }
+end
+
 local function wrapperSnapshot(step, pallets)
     local view = wrapperView(step)
     view.plasticWrapRolls = nil
@@ -186,6 +212,9 @@ local function loadedCutterView()
             activeLift = 1,
             requiredLifts = 2,
             remainingSheets = 525,
+            widthCentiInch = 1250,
+            heightCentiInch = 1000,
+            offSpec = false,
             selectedCut = {
                 number = 2,
                 edge = "bottom",
@@ -264,10 +293,14 @@ local function workshopResources()
         { resourceId = "skid_wrapper", revision = 2, occupied = false },
         { resourceId = "reception_customer", revision = 4,
             occupied = true, ownerPlayerId = 2 },
+        { resourceId = "vendor", revision = 0, occupied = false },
+        { resourceId = "truck", revision = 0, occupied = false },
+        { resourceId = "work_phone", revision = 0, occupied = false },
         { resourceId = "office_computer", revision = 1, occupied = false },
         { resourceId = "pallet_jack", revision = 3, occupied = false },
         { resourceId = "cutter", revision = 5, occupied = false },
         { resourceId = "windmill", revision = 6, occupied = false },
+        { resourceId = "warehouse", revision = 0, occupied = false },
     })
 end
 
@@ -556,7 +589,7 @@ function Test.run(context, check)
             and envelope.version == Protocol.VERSION and envelope.type == message[1]
             and #packet <= packetLimit
     end
-    check("network_protocol_all_v9_envelopes_round_trip", roundTrips)
+    check("network_protocol_all_v13_envelopes_round_trip", roundTrips)
 
     runShardedPlayerProtocolRegression(check)
 
@@ -677,6 +710,9 @@ function Test.run(context, check)
     local validWorkshopCommands = {
         { resourceId = "reception_customer", action = "submit_quote", amount = 285 },
         { resourceId = "reception_customer", action = "decline" },
+        { resourceId = "vendor", action = "purchase_stock", itemIndex = 2 },
+        { resourceId = "vendor", action = "purchase_machine", itemIndex = 1 },
+        { resourceId = "vendor", action = "dismiss" },
         { resourceId = "office_computer", action = "request_pickup", jobId = "JOB-0001" },
         { resourceId = "skid_wrapper", action = "select_pallet", palletId = "JOB-0001-P01" },
         { resourceId = "skid_wrapper", action = "start_cycle", palletId = "JOB-0001-P01" },
@@ -724,6 +760,15 @@ function Test.run(context, check)
         { resourceId = "windmill", action = "service_task" },
         { resourceId = "windmill", action = "book_technician" },
     }
+    -- Every visible setup control must survive the wire, not just the chase's
+    -- first button. Keep the protocol allowlist independently validated.
+    for _, task in ipairs(require("src.windmill").setupTasks()) do
+        for _, control in ipairs(require("src.press_setup_games").controls(task)) do
+            validWorkshopCommands[#validWorkshopCommands+1] = {
+                resourceId="windmill", action="setup_action", setupAction=control[1],
+            }
+        end
+    end
     local workshopCommandsValid = true
     for index, command in ipairs(validWorkshopCommands) do
         local payload = {
@@ -734,6 +779,7 @@ function Test.run(context, check)
             action = command.action,
             expectedRevision = 7,
             amount = command.amount,
+            itemIndex = command.itemIndex,
             jobId = command.jobId,
             palletId = command.palletId,
             programIndex = command.programIndex,
@@ -750,6 +796,7 @@ function Test.run(context, check)
             and envelope.payload.resourceId == command.resourceId
             and envelope.payload.action == command.action
             and envelope.payload.amount == command.amount
+            and envelope.payload.itemIndex == command.itemIndex
             and envelope.payload.jobId == command.jobId
             and envelope.payload.palletId == command.palletId
             and envelope.payload.programIndex == command.programIndex
@@ -765,6 +812,16 @@ function Test.run(context, check)
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
         resourceId = "office_computer", action = "submit_quote",
         expectedRevision = 0, amount = 200,
+    })
+    local invalidCutterCommands = {}
+    invalidCutterCommands.missingVendorItem = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "vendor", action = "purchase_stock", expectedRevision = 0,
+    })
+    invalidCutterCommands.clientVendorPrice = Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "vendor", action = "purchase_stock", expectedRevision = 0,
+        itemIndex = 1, amount = 1,
     })
     local missingActionArgument = Protocol.encode("workshop_command", {
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
@@ -812,7 +869,6 @@ function Test.run(context, check)
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
         resourceId = "reception_customer", action = "decline", expectedRevision = 0.5,
     })
-    local invalidCutterCommands = {}
     invalidCutterCommands.missingProgramIndex = Protocol.encode("workshop_command", {
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
         resourceId = "cutter", action = "select_program", expectedRevision = 0,
@@ -885,6 +941,8 @@ function Test.run(context, check)
     })
     check("network_protocol_workshop_commands_use_closed_resource_action_scalar_unions",
         workshopCommandsValid and wrongResourceAction == nil and missingActionArgument == nil
+        and invalidCutterCommands.missingVendorItem == nil
+        and invalidCutterCommands.clientVendorPrice == nil
         and missingLiftPallet == nil and missingLowerPallet == nil
         and extraParkPallet == nil and jackActionOnWrapper == nil
         and extraDeclineArgument == nil and arbitraryArguments == nil
@@ -929,12 +987,32 @@ function Test.run(context, check)
         granted = true, leaseId = "lease-office-2", code = "granted",
         message = "Office computer acquired.", revision = 10, view = {},
     })
+    local cutterViews = { loaded = loadedCutterView() }
+    cutterViews.vendorGrantPacket = Protocol.encode("workshop_grant", {
+        sessionId = "session-001", requestId = 16, resourceId = "vendor",
+        granted = true, leaseId = "lease-vendor-2", code = "granted",
+        message = "Vendor catalog acquired.", revision = 10, view = vendorView(),
+    })
+    cutterViews.vendorGrant = cutterViews.vendorGrantPacket
+        and Protocol.decode(cutterViews.vendorGrantPacket)
+    cutterViews.vendorMachinePacket = Protocol.encode("workshop_result", {
+        sessionId = "session-001", commandId = 19, resourceId = "vendor",
+        action = "purchase_machine", accepted = true, code = "machine_purchased",
+        message = "Machine purchased.", revision = 11, view = vendorView("machines"),
+    })
+    cutterViews.invalidVendorView = vendorView()
+    cutterViews.invalidVendorView.items[1].condition = 62
+    cutterViews.invalidVendorPacket = Protocol.encode("workshop_grant", {
+        sessionId = "session-001", requestId = 16, resourceId = "vendor",
+        granted = true, leaseId = "lease-vendor-2", code = "granted",
+        message = "Vendor catalog acquired.", revision = 10,
+        view = cutterViews.invalidVendorView,
+    })
     local jackGrantPacket = Protocol.encode("workshop_grant", {
         sessionId = "session-001", requestId = 16, resourceId = "pallet_jack",
         granted = true, leaseId = "lease-jack-2", code = "granted",
         message = "Pallet jack acquired.", revision = 10, view = {},
     })
-    local cutterViews = { loaded = loadedCutterView() }
     cutterViews.grantPacket = Protocol.encode("workshop_grant", {
         sessionId = "session-001", requestId = 17, resourceId = "cutter",
         granted = true, leaseId = "lease-cutter-2", code = "granted",
@@ -1048,6 +1126,12 @@ function Test.run(context, check)
         and wrapperResult and wrapperResult.payload.view.step == "wrapping"
         and wrapperResult.payload.view.pallets[2].palletId == "JOB-0002-P01"
         and officeGrantPacket ~= nil and jackGrantPacket ~= nil
+        and cutterViews.vendorGrant
+        and cutterViews.vendorGrant.payload.view.items[1].name
+            == "House paper, 1,000 sheets"
+        and cutterViews.vendorMachinePacket ~= nil
+        and cutterViews.invalidVendorPacket == nil
+        and #cutterViews.vendorGrantPacket <= Protocol.MAX_PACKET_BYTES
         and cutterViews.grant
         and cutterViews.grant.payload.view.paper.selectedCut.edge == "bottom"
         and cutterViews.grant.payload.view.memoryCentiInch[2] == 900
@@ -1066,6 +1150,37 @@ function Test.run(context, check)
         and cutterViews.conflictingGrant == nil
         and cutterViews.invalidMemoryGrant == nil
         and cutterViews.tooManyCandidatesGrant == nil)
+
+    do
+        local function packet(paper)
+            local view = loadedCutterView()
+            view.paper = paper
+            return Protocol.encode("cutter_snapshot", {
+                sessionId = "session-001", serverTick = 300,
+                resourceRevision = 12, view = view,
+            })
+        end
+        local paper = loadedCutterView().paper
+        paper.widthCentiInch, paper.heightCentiInch, paper.offSpec = 1, 100000, true
+        local encoded = packet(paper)
+        local decoded = encoded and Protocol.decode(encoded)
+        check("network_protocol_cutter_actual_geometry_and_spoil_are_bounded",
+            decoded and decoded.payload.view.paper.widthCentiInch == 1
+            and decoded.payload.view.paper.heightCentiInch == 100000
+            and decoded.payload.view.paper.offSpec and #encoded <= Protocol.MAX_PACKET_BYTES)
+        paper.widthCentiInch = 0
+        local zero = packet(paper)
+        paper.widthCentiInch = 1.5
+        local fractional = packet(paper)
+        paper.widthCentiInch = 100001
+        local excessive = packet(paper)
+        paper.widthCentiInch, paper.offSpec = 1, "true"
+        local flag = packet(paper)
+        paper.offSpec, paper.heightCentiInch = true, nil
+        local partial = packet(paper)
+        check("network_protocol_cutter_rejects_invalid_or_partial_geometry",
+            not zero and not fractional and not excessive and not flag and not partial)
+    end
 
     do
         local function grant(view, resourceId)
@@ -1240,6 +1355,7 @@ function Test.run(context, check)
         sessionId = "session-001", revision = 11,
         resources = Codec.array({
             { resourceId = "reception_customer", revision = 4, occupied = false },
+            { resourceId = "work_phone", revision = 0, occupied = false },
             { resourceId = "office_computer", revision = 1, occupied = false },
             { resourceId = "skid_wrapper", revision = 2, occupied = false },
         }),
@@ -1302,15 +1418,18 @@ function Test.run(context, check)
     })
     check("network_protocol_workshop_snapshot_repairs_occupancy_runtime_and_live_pallets",
         workshopSnapshot and workshopSnapshot.payload.revision == 11
-        and #workshopSnapshot.payload.resources == 6
+        and #workshopSnapshot.payload.resources == 10
         and workshopSnapshot.payload.resources[1].resourceId == "cutter"
         and workshopSnapshot.payload.resources[2].resourceId == "office_computer"
         and workshopSnapshot.payload.resources[2].revision == 1
         and workshopSnapshot.payload.resources[3].resourceId == "pallet_jack"
         and workshopSnapshot.payload.resources[4].ownerPlayerId == 2
         and workshopSnapshot.payload.resources[5].resourceId == "skid_wrapper"
-        and workshopSnapshot.payload.resources[6].resourceId == "windmill"
-        and workshopSnapshot.payload.resources[6].revision == 6
+        and workshopSnapshot.payload.resources[6].resourceId == "truck"
+        and workshopSnapshot.payload.resources[7].resourceId == "vendor"
+        and workshopSnapshot.payload.resources[8].resourceId == "warehouse"
+        and workshopSnapshot.payload.resources[9].resourceId == "windmill"
+        and workshopSnapshot.payload.resources[9].revision == 6
         and workshopSnapshot.payload.wrapper.step == "wrapping"
         and workshopSnapshot.payload.wrapper.progress == 1.5
         and #workshopSnapshot.payload.wrapper.pallets == 2
@@ -1685,7 +1804,7 @@ function Test.run(context, check)
         and incompletePosePacket == nil and invalidWrapperDirectionPacket == nil
         and invalidWindmillDirectionPacket == nil and invalidMotionFlagPacket == nil
         and motionWithoutAttachmentPacket == nil and twoMovingMachinesPacket == nil
-        and guestOwnedRelocationPacket == nil and loadedRelocationPacket == nil
+        and guestOwnedRelocationPacket ~= nil and loadedRelocationPacket == nil
         and candidateRelocationPacket == nil
         and mismatchedMachineXPacket == nil and mismatchedMachineYPacket == nil
         and mismatchedMachineDirectionPacket == nil
@@ -1785,7 +1904,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 9 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 19 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}

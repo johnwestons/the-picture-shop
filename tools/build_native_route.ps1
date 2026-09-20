@@ -245,7 +245,7 @@ $expectedExports = @(
 ) | Sort-Object
 $actualExports = @(Get-PeExportNames $dll)
 if (Compare-Object $expectedExports $actualExports) {
-    throw 'Native route provider export surface does not exactly match ABI v1.'
+    throw 'Native route provider export surface does not exactly match ABI v2.'
 }
 
 $testCompileArguments = @(
@@ -270,6 +270,7 @@ $allowedTestOutput = @(
     'SOURCE_CANONICAL=True',
     'GATEWAY_CANONICAL=True',
     'INTERFACE_INDEX_PRESENT=True',
+    'NETWORK_GENERATION_PRESENT=True',
     'NETWORK_TRAFFIC_SENT=False'
 )
 foreach ($line in $testOutput) {
@@ -283,6 +284,7 @@ $passMarkers = @(
     'SOURCE_CANONICAL=True',
     'GATEWAY_CANONICAL=True',
     'INTERFACE_INDEX_PRESENT=True',
+    'NETWORK_GENERATION_PRESENT=True',
     'NETWORK_TRAFFIC_SENT=False'
 )
 if ($testOutput -contains 'TPS_ROUTE_NATIVE=PASS') {
@@ -309,7 +311,7 @@ $liveStatus = if ($testOutput -contains 'TPS_ROUTE_LIVE=PASS') {
 $report = [ordered]@{
     schemaVersion = 1
     status = 'engineering-candidate-non-production'
-    abiVersion = 1
+    abiVersion = 2
     target = 'x86_64-windows-gnu'
     productionReady = $false
     readOnly = $true
@@ -317,6 +319,7 @@ $report = [ordered]@{
     checks = [ordered]@{
         exactAbiExportSurface = 'pass'
         boundedNativeContract = 'pass'
+        osBackedNetworkGeneration = 'pass'
         liveLocalDefaultRoute = $liveStatus
     }
     artifacts = [ordered]@{

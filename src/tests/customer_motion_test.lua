@@ -34,6 +34,43 @@ function Test.run(_, check)
     check("business_cat_remembers_walk_direction_for_idle",
         customer.intentX > 0.99 and math.abs(customer.intentY) < 0.001)
 
+    local seated = Customer.new({
+        character = "business-cat",
+        route = { { x = 0, y = 0 }, { x = 20, y = 0 } },
+        seatSpots = {
+            { name = "chair", x = 50, y = 25, facing = -1,
+                approach = { { x = 30, y = 5 }, { x = 40, y = 15 } },
+                foreground = "chair-front" },
+            { name = "sofa", x = 75, y = 30, facing = 1,
+                approach = { { x = 45, y = 10 }, { x = 60, y = 20 } },
+                foreground = "table-front" },
+        },
+        speed = 100,
+        initialArrivalDelay = 0,
+        arrivalDelay = 0,
+    })
+    check("customer_builds_a_seat_specific_approach_route",
+        #seated.route == 5 and seated.route[3].x == 30 and seated.route[4].x == 40
+        and seated.route[5].x == 50 and seated.route[5].y == 25
+        and seated.seat.name == "chair" and seated.seatFacing == -1)
+    seated:update(0.46, { x = 500, y = 500 })
+    check("customer_stops_in_front_of_chair_before_sitting",
+        seated.state == "entering" and seated.x == 40 and seated.y == 15
+        and seated.seatingPause > 0 and seated.waypoint == 5)
+    seated:update(0.30, { x = 500, y = 500 })
+    check("customer_changes_pose_only_after_occupying_the_seat",
+        seated.state == "waiting" and seated.x == 50 and seated.y == 25
+        and seated.seatingPause == 0)
+    check("customer_stands_clear_of_furniture_before_departing",
+        seated:beginReview() and seated:resolve("accepted")
+        and seated.state == "exiting" and seated.x == 40 and seated.y == 15
+        and seated.waypoint == 3 and not seated.inMotion)
+    seated:reset(false)
+    check("customer_rotates_through_individual_sofa_and_chair_positions",
+        seated.seatIndex == 2 and #seated.route == 5
+        and seated.route[5].x == 75 and seated.route[5].y == 30
+        and seated.seat.name == "sofa" and seated.seat.foreground == "table-front")
+
     customer.animationDistance = 39
     local frame = customer:frameForAction("walk", 8)
     check("business_cat_walk_frames_are_distance_synchronized", frame == 4)

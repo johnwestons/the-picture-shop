@@ -1,8 +1,11 @@
 local Codec = require("src.net.codec")
+local OfficeIntent = require("src.office_intent")
 local MachinePose = require("src.machine_pose")
+local WarehouseIntent = require("src.warehouse_intent")
+local Forklift = require("src.forklift")
 
 local Protocol = {
-    VERSION = 9,
+    VERSION = 19,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -41,7 +44,9 @@ local REALTIME_CODEC_LIMITS = {
     maxBytes = Protocol.MAX_PACKET_BYTES,
     maxDepth = 8,
     maxEntries = 128,
-    maxStringBytes = MAX_ERROR_MESSAGE_BYTES,
+    -- Typed office messages are bounded to 600 bytes; other fields keep their
+    -- narrower per-message schema limits below. The packet cap stays 1,200.
+    maxStringBytes = 600,
     maxNumberBytes = 32,
 }
 
@@ -69,6 +74,7 @@ local ROUTES = {
     cutter_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     windmill_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     pallet_jack_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
+    forklift_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     input = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     visitor_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -83,7 +89,7 @@ Protocol.MESSAGE_TYPES = {
     "hello", "welcome", "shop_snapshot", "shop_state", "interaction_request",
     "interaction_result", "workshop_acquire", "workshop_grant", "workshop_command",
     "workshop_result", "workshop_release", "workshop_snapshot", "cutter_snapshot",
-    "windmill_snapshot", "pallet_jack_snapshot", "input", "snapshot",
+    "windmill_snapshot", "pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
     "visitor_snapshot", "environment_snapshot", "ping", "pong", "leave", "error",
 }
 
@@ -318,6 +324,7 @@ end
 
 local NETWORK_INTERACTION_KINDS = {
     loadingBayDoor = true,
+    truckCargoDoor = true,
 }
 
 local INTERACTION_DOOR_STATES = {
@@ -396,7 +403,11 @@ local function normalizeInteractionResult(payload)
 end
 
 local WORKSHOP_RESOURCES = {
+    warehouse = true,
+    work_phone = true,
     reception_customer = true,
+    vendor = true,
+    truck = true,
     office_computer = true,
     skid_wrapper = true,
     pallet_jack = true,
@@ -405,21 +416,44 @@ local WORKSHOP_RESOURCES = {
 }
 
 local WORKSHOP_ACTION_ARGUMENTS = {
+    warehouse = { warehouse_action = "warehouseIntent" },
     reception_customer = {
+        request_details = false,
         submit_quote = "amount",
         decline = false,
     },
+    vendor = {
+        purchase_stock = "itemIndex",
+        purchase_machine = "itemIndex",
+        dismiss = false,
+    },
+    truck = {
+        move_item = "itemIndex",
+        page_next = false,
+        page_previous = false,
+        close_truck = false,
+    },
     office_computer = {
         request_pickup = "jobId",
+        office_action = "officeIntent",
     },
+    work_phone = { phone_answer = "callId", phone_respond = "callId", phone_dismiss = "callId" },
     skid_wrapper = {
         select_pallet = "palletId",
         start_cycle = "palletId",
+        begin_service = false,
+        service_target = "itemIndex",
+        service_miss = false,
+        cancel_service = false,
     },
     pallet_jack = {
+        warehouse_action = "warehouseIntent",
         lift_pallet = "palletId",
         lower_pallet = "palletId",
         park_jack = false,
+        move_machine = "machineIndex",
+        rotate_machine = false,
+        place_machine = "placementCell",
     },
     cutter = {
         load_pallet = "palletId",
@@ -438,6 +472,21 @@ local WORKSHOP_ACTION_ARGUMENTS = {
         reset_safety = false,
         return_to_pallet = false,
         run_next_lift = false,
+        begin_lubrication = false,
+        service_advance = false,
+        service_view = "itemIndex",
+        service_tool = "itemIndex",
+        service_point = "itemIndex",
+        service_pump = false,
+        service_gear = false,
+        finish_lubrication = false,
+        cancel_service = false,
+        begin_blade = false,
+        remove_blade_bolt = "itemIndex",
+        lift_blade = false,
+        sleeve_blade = false,
+        book_blade_technician = false,
+        set_weekly_technician = "enabled",
     },
     windmill = {
         load_pallet = "palletId",
@@ -483,6 +532,27 @@ local WORKSHOP_WRAPPER_STEPS = {
     finished = true,
 }
 
+local WORKSHOP_WRAPPER_SERVICE_TASKS = {
+    turntableBearing = 3,
+    filmCarriage = 3,
+    driveBelt = 1,
+    controlBoard = 3,
+}
+
+local WORKSHOP_TRUCK_MODES = {
+    delivery = true,
+    vendor_delivery = true,
+    machine_delivery = true,
+    pickup = true,
+}
+
+local WORKSHOP_TRUCK_STATES = {
+    parked_closed = true,
+    cargo_open = true,
+    cargo_closing = true,
+    departing = true,
+}
+
 local WORKSHOP_CUTTER_STEPS = {
     idle = true,
     loading = true,
@@ -499,6 +569,19 @@ local WORKSHOP_CUTTER_STEPS = {
     finished = true,
     blocked = true,
     resetting = true,
+}
+
+local WORKSHOP_CUTTER_SERVICE_STEPS = {
+    idle = true,
+    lockout_disconnect = true,
+    lockout_key = true,
+    lockout_tag = true,
+    prep_cartridge = true,
+    prep_prime = true,
+    lubricate = true,
+    blade_bolts = true,
+    blade_lift = true,
+    blade_sleeve = true,
 }
 
 local WORKSHOP_CUTTER_ORIENTATIONS = {
@@ -556,9 +639,11 @@ local WORKSHOP_WINDMILL_SETUP_ACTIONS = {
     key_2 = true,
     key_3 = true,
     ductor = true,
-    pile = true,
-    suction = true,
-    blast = true,
+    prepare = true,
+    suction_down = true,
+    suction_up = true,
+    air_down = true,
+    air_up = true,
     test = true,
     left = true,
     right = true,
@@ -666,7 +751,7 @@ local function normalizeReceptionWorkshopView(value, label)
         "jobId", "company", "sourceSize", "finishedSize", "stock", "packaging",
         "delivery", "artworkKey", "artworkName", "printJob", "quoteRows",
         "recommendedTotal",
-    })
+    }, { "colorCount", "colorSequence" })
     if not valid then return nil, shapeError end
     local jobId, fieldError = token(value.jobId, MAX_TOKEN_BYTES, label .. ".jobId")
     if not jobId then return nil, fieldError end
@@ -699,6 +784,15 @@ local function normalizeReceptionWorkshopView(value, label)
         value.artworkName, 1, MAX_WORKSHOP_VIEW_TEXT_BYTES, label .. ".artworkName")
     if not artworkName then return nil, fieldError end
     if type(value.printJob) ~= "boolean" then return nil, label .. ".printJob must be boolean" end
+    local colorCount,colorSequence
+    if value.colorCount~=nil then
+        colorCount,fieldError=integerInRange(value.colorCount,1,4,label..".colorCount")
+        if not colorCount or not value.printJob then return nil,fieldError or "Unexpected press colors." end
+    end
+    if value.colorSequence~=nil then
+        colorSequence,fieldError=printableString(value.colorSequence,1,96,label..".colorSequence")
+        if not colorSequence or not value.printJob then return nil,fieldError or "Unexpected press colors." end
+    end
     local quoteRows
     quoteRows, fieldError = normalizeWorkshopQuoteRows(
         value.quoteRows, value.printJob, label .. ".quoteRows")
@@ -718,6 +812,8 @@ local function normalizeReceptionWorkshopView(value, label)
         artworkKey = artworkKey,
         artworkName = artworkName,
         printJob = value.printJob,
+        colorCount = colorCount,
+        colorSequence = colorSequence,
         quoteRows = quoteRows,
         recommendedTotal = recommendedTotal,
     }
@@ -803,10 +899,68 @@ local function normalizeWorkshopPallets(value, label)
     return Codec.array(pallets)
 end
 
+local WRAPPER_SERVICE_FIELDS = {
+    "serviceStep", "serviceTaskId", "serviceTaskIndex", "serviceTaskCount",
+    "servicePhase", "serviceTargetCount", "serviceAttempts", "serviceMisses",
+    "servicePermille",
+}
+
+local function normalizeWrapperService(value, runtime, pallets, label)
+    if value.serviceStep == nil then
+        for _, field in ipairs(WRAPPER_SERVICE_FIELDS) do
+            if field ~= "serviceStep" and value[field] ~= nil then
+                return nil, label .. "." .. field .. " requires an active serviceStep"
+            end
+        end
+        return runtime
+    end
+    if value.serviceStep ~= "task" then
+        return nil, label .. ".serviceStep is invalid"
+    end
+    if runtime.step ~= "idle" or runtime.progress ~= 0
+        or runtime.selectedPalletId ~= nil or runtime.palletId ~= nil or #pallets ~= 0
+    then
+        return nil, label .. " active service requires an idle wrapper with an empty turntable"
+    end
+    local targetCount = WORKSHOP_WRAPPER_SERVICE_TASKS[value.serviceTaskId]
+    if not targetCount then return nil, label .. ".serviceTaskId is invalid" end
+    local fieldError
+    runtime.serviceStep = "task"
+    runtime.serviceTaskId = value.serviceTaskId
+    runtime.serviceTaskIndex, fieldError = integerInRange(
+        value.serviceTaskIndex, 1, 4, label .. ".serviceTaskIndex")
+    if not runtime.serviceTaskIndex then return nil, fieldError end
+    runtime.serviceTaskCount, fieldError = integerInRange(
+        value.serviceTaskCount, 4, 4, label .. ".serviceTaskCount")
+    if not runtime.serviceTaskCount then return nil, fieldError end
+    runtime.servicePhase, fieldError = integerInRange(
+        value.servicePhase, 1, targetCount, label .. ".servicePhase")
+    if not runtime.servicePhase then return nil, fieldError end
+    runtime.serviceTargetCount, fieldError = integerInRange(
+        value.serviceTargetCount, targetCount, targetCount, label .. ".serviceTargetCount")
+    if not runtime.serviceTargetCount then return nil, fieldError end
+    runtime.serviceAttempts, fieldError = integerInRange(
+        value.serviceAttempts, 0, 9999, label .. ".serviceAttempts")
+    if runtime.serviceAttempts == nil then return nil, fieldError end
+    runtime.serviceMisses, fieldError = integerInRange(
+        value.serviceMisses, 0, runtime.serviceAttempts, label .. ".serviceMisses")
+    if runtime.serviceMisses == nil then return nil, fieldError end
+    if runtime.serviceAttempts < runtime.servicePhase - 1 then
+        return nil, label .. ".serviceAttempts is inconsistent with servicePhase"
+    end
+    runtime.servicePermille, fieldError = integerInRange(
+        value.servicePermille, 0, 999, label .. ".servicePermille")
+    if runtime.servicePermille == nil then return nil, fieldError end
+    return runtime
+end
+
 local function normalizeWorkshopWrapperRuntime(value, label)
     local valid, shapeError = shape(value, label,
         { "step", "progress", "cycleTime", "pallets" },
-        { "selectedPalletId", "palletId" })
+        { "selectedPalletId", "palletId", "serviceStep", "serviceTaskId",
+            "serviceTaskIndex", "serviceTaskCount", "servicePhase",
+            "serviceTargetCount", "serviceAttempts", "serviceMisses",
+            "servicePermille" })
     if not valid then return nil, shapeError end
     local runtime, fieldError = normalizeWorkshopWrapperRuntimeFields(value, label)
     if not runtime then return nil, fieldError end
@@ -814,13 +968,16 @@ local function normalizeWorkshopWrapperRuntime(value, label)
     pallets, fieldError = normalizeWorkshopPallets(value.pallets, label .. ".pallets")
     if not pallets then return nil, fieldError end
     runtime.pallets = pallets
-    return runtime
+    return normalizeWrapperService(value, runtime, pallets, label)
 end
 
 local function normalizeWrapperWorkshopView(value, label)
     local valid, shapeError = shape(value, label, {
         "step", "progress", "cycleTime", "plasticWrapRolls", "plasticWrapUses", "pallets",
-    }, { "selectedPalletId", "palletId" })
+    }, { "selectedPalletId", "palletId", "serviceStep", "serviceTaskId",
+        "serviceTaskIndex", "serviceTaskCount", "servicePhase",
+        "serviceTargetCount", "serviceAttempts", "serviceMisses",
+        "servicePermille" })
     if not valid then return nil, shapeError end
     local runtime, fieldError = normalizeWorkshopWrapperRuntimeFields(value, label)
     if not runtime then return nil, fieldError end
@@ -838,7 +995,7 @@ local function normalizeWrapperWorkshopView(value, label)
     runtime.plasticWrapRolls = plasticWrapRolls
     runtime.plasticWrapUses = plasticWrapUses
     runtime.pallets = pallets
-    return runtime
+    return normalizeWrapperService(value, runtime, pallets, label)
 end
 
 local function normalizeCutterMemory(value, label)
@@ -894,7 +1051,7 @@ local function normalizeCutterPaper(value, label)
     local valid, shapeError = shape(value, label, {
         "palletId", "orientation", "status", "activeCut", "cutCount", "activeLift",
         "requiredLifts", "remainingSheets",
-    }, { "selectedCut" })
+    }, { "selectedCut", "widthCentiInch", "heightCentiInch", "offSpec" })
     if not valid then return nil, shapeError end
     local palletId, fieldError = token(value.palletId, MAX_TOKEN_BYTES, label .. ".palletId")
     if not palletId then return nil, fieldError end
@@ -939,6 +1096,16 @@ local function normalizeCutterPaper(value, label)
             value.selectedCut, label .. ".selectedCut")
         if not paper.selectedCut then return nil, fieldError end
     end
+    if value.widthCentiInch ~= nil or value.heightCentiInch ~= nil or value.offSpec ~= nil then
+        paper.widthCentiInch, fieldError = integerInRange(value.widthCentiInch, 1, 100000,
+            label .. ".widthCentiInch")
+        if not paper.widthCentiInch then return nil, fieldError end
+        paper.heightCentiInch, fieldError = integerInRange(value.heightCentiInch, 1, 100000,
+            label .. ".heightCentiInch")
+        if not paper.heightCentiInch then return nil, fieldError end
+        if type(value.offSpec) ~= "boolean" then return nil, label .. ".offSpec must be boolean" end
+        paper.offSpec = value.offSpec
+    end
     return paper
 end
 
@@ -968,12 +1135,56 @@ local function normalizeCutterCandidates(value, label)
     return Codec.array(candidates)
 end
 
+local function normalizeCutterServiceItems(value, label)
+    if not Codec.isArray(value) then return nil, label .. " must be an array" end
+    if #value > 2 then return nil, label .. " must contain at most 2 visible points" end
+    local items, seen = {}, {}
+    for index = 1, #value do
+        local itemLabel = label .. "[" .. index .. "]"
+        local valid, shapeError = shape(value[index], itemLabel, {
+            "itemIndex", "label", "cleaned", "coupled", "strokes", "complete",
+        })
+        if not valid then return nil, shapeError end
+        local itemIndex, fieldError = integerInRange(
+            value[index].itemIndex, 1, 7, itemLabel .. ".itemIndex")
+        if not itemIndex then return nil, fieldError end
+        if seen[itemIndex] then return nil, label .. " contains a duplicate itemIndex" end
+        seen[itemIndex] = true
+        local displayLabel
+        displayLabel, fieldError = printableString(
+            value[index].label, 1, 48, itemLabel .. ".label")
+        if not displayLabel then return nil, fieldError end
+        for _, field in ipairs({ "cleaned", "coupled", "complete" }) do
+            if type(value[index][field]) ~= "boolean" then
+                return nil, itemLabel .. "." .. field .. " must be boolean"
+            end
+        end
+        local strokes
+        strokes, fieldError = integerInRange(
+            value[index].strokes, 0, 99, itemLabel .. ".strokes")
+        if strokes == nil then return nil, fieldError end
+        items[#items + 1] = {
+            itemIndex = itemIndex,
+            label = displayLabel,
+            cleaned = value[index].cleaned,
+            coupled = value[index].coupled,
+            strokes = strokes,
+            complete = value[index].complete,
+        }
+    end
+    return Codec.array(items)
+end
+
 local function normalizeCutterWorkshopView(value, label)
     local valid, shapeError = shape(value, label, {
         "runtimeRevision", "step", "phasePermille", "loaded", "clamp", "clampPermille",
         "bladePermille", "barrierClear", "emergencyStopped", "gaugeCentiInch",
         "programIndex", "memoryCentiInch",
-    }, { "paper", "candidates", "genericSheets" })
+    }, {
+        "paper", "candidates", "genericSheets", "serviceStep", "servicePermille",
+        "serviceView", "serviceTool", "serviceItems", "centralInstalled",
+        "gearInspected", "gearLevelPermille", "bladeBoltsDone", "bladeBoltMask",
+    })
     if not valid then return nil, shapeError end
     local runtimeRevision, fieldError = integerInRange(
         value.runtimeRevision, 0, UINT32_MAX, label .. ".runtimeRevision")
@@ -1013,8 +1224,31 @@ local function normalizeCutterWorkshopView(value, label)
     memoryCentiInch, fieldError = normalizeCutterMemory(
         value.memoryCentiInch, label .. ".memoryCentiInch")
     if not memoryCentiInch then return nil, fieldError end
+    local serviceStep, servicePermille
+    if value.serviceStep ~= nil then
+        if type(value.serviceStep) ~= "string"
+            or not WORKSHOP_CUTTER_SERVICE_STEPS[value.serviceStep]
+            or value.serviceStep == "idle"
+        then
+            return nil, label .. ".serviceStep is invalid"
+        end
+        serviceStep = value.serviceStep
+        servicePermille, fieldError = integerInRange(
+            value.servicePermille, 0, 1000, label .. ".servicePermille")
+        if servicePermille == nil then return nil, fieldError end
+    elseif value.servicePermille ~= nil then
+        return nil, label .. ".servicePermille requires an active serviceStep"
+    end
     if value.paper ~= nil and (value.candidates ~= nil or value.genericSheets ~= nil) then
         return nil, label .. " cannot include load candidates while paper is present"
+    end
+    if serviceStep and value.paper ~= nil then
+        return nil, label .. " cannot service the cutter while paper is present"
+    end
+    if serviceStep and (value.loaded ~= false or value.step ~= "idle"
+        or value.candidates ~= nil or value.genericSheets ~= nil)
+    then
+        return nil, label .. " active service requires an idle unloaded cutter without load candidates"
     end
     local normalized = {
         runtimeRevision = runtimeRevision,
@@ -1030,6 +1264,10 @@ local function normalizeCutterWorkshopView(value, label)
         programIndex = programIndex,
         memoryCentiInch = memoryCentiInch,
     }
+    if serviceStep then
+        normalized.serviceStep = serviceStep
+        normalized.servicePermille = servicePermille
+    end
     if value.paper ~= nil then
         normalized.paper, fieldError = normalizeCutterPaper(value.paper, label .. ".paper")
         if not normalized.paper then return nil, fieldError end
@@ -1043,6 +1281,74 @@ local function normalizeCutterWorkshopView(value, label)
         normalized.genericSheets, fieldError = integerInRange(
             value.genericSheets, 0, 100000, label .. ".genericSheets")
         if normalized.genericSheets == nil then return nil, fieldError end
+    end
+    local serviceFields = {
+        "serviceView", "serviceTool", "serviceItems", "centralInstalled",
+        "gearInspected", "gearLevelPermille",
+    }
+    if serviceStep == "lubricate" then
+        for _, field in ipairs(serviceFields) do
+            if value[field] == nil then return nil, label .. "." .. field .. " is required" end
+        end
+        normalized.serviceView, fieldError = integerInRange(
+            value.serviceView, 1, 5, label .. ".serviceView")
+        if not normalized.serviceView then return nil, fieldError end
+        normalized.serviceTool, fieldError = integerInRange(
+            value.serviceTool, 1, 4, label .. ".serviceTool")
+        if not normalized.serviceTool then return nil, fieldError end
+        normalized.serviceItems, fieldError = normalizeCutterServiceItems(
+            value.serviceItems, label .. ".serviceItems")
+        if not normalized.serviceItems then return nil, fieldError end
+        for _, item in ipairs(normalized.serviceItems) do
+            local matchesView = (normalized.serviceView == 1 and item.itemIndex <= 2)
+                or (normalized.serviceView == 2 and item.itemIndex >= 3 and item.itemIndex <= 4)
+                or (normalized.serviceView == 3 and item.itemIndex >= 5 and item.itemIndex <= 6)
+                or (normalized.serviceView == 5 and item.itemIndex == 7)
+            if not matchesView then
+                return nil, label .. ".serviceItems contains a point outside serviceView"
+            end
+        end
+        if type(value.centralInstalled) ~= "boolean" then
+            return nil, label .. ".centralInstalled must be boolean"
+        end
+        if type(value.gearInspected) ~= "boolean" then
+            return nil, label .. ".gearInspected must be boolean"
+        end
+        normalized.centralInstalled = value.centralInstalled
+        normalized.gearInspected = value.gearInspected
+        normalized.gearLevelPermille, fieldError = integerInRange(
+            value.gearLevelPermille, 0, 1000, label .. ".gearLevelPermille")
+        if normalized.gearLevelPermille == nil then return nil, fieldError end
+    else
+        for _, field in ipairs(serviceFields) do
+            if value[field] ~= nil then
+                return nil, label .. "." .. field .. " is only valid during lubrication"
+            end
+        end
+    end
+    local bladeActive = serviceStep == "blade_bolts"
+        or serviceStep == "blade_lift" or serviceStep == "blade_sleeve"
+    if bladeActive then
+        normalized.bladeBoltsDone, fieldError = integerInRange(
+            value.bladeBoltsDone, 0, 4, label .. ".bladeBoltsDone")
+        if normalized.bladeBoltsDone == nil then return nil, fieldError end
+        if (serviceStep == "blade_lift" or serviceStep == "blade_sleeve")
+            and normalized.bladeBoltsDone ~= 4
+        then
+            return nil, label .. ".bladeBoltsDone must be 4 after bolt removal"
+        elseif serviceStep == "blade_bolts" and normalized.bladeBoltsDone >= 4 then
+            return nil, label .. ".blade_bolts must advance after the fourth bolt"
+        end
+    elseif value.bladeBoltsDone ~= nil then
+        return nil, label .. ".bladeBoltsDone is only valid during blade service"
+    end
+    if value.bladeBoltMask ~= nil then
+        if not bladeActive then return nil, "Blade display requires blade service." end
+        normalized.bladeBoltMask, fieldError = integerInRange(value.bladeBoltMask,0,15,label..".bladeBoltMask")
+        if normalized.bladeBoltMask == nil then return nil,fieldError end
+        local count=0
+        for index=0,3 do count=count+math.floor(normalized.bladeBoltMask/2^index)%2 end
+        if count~=normalized.bladeBoltsDone then return nil,"Blade display count mismatch." end
     end
     return normalized
 end
@@ -1094,7 +1400,7 @@ local function normalizeWindmillWorkshopView(value, label)
         "serviceStep", "servicePermille", "plateMarkerPermille",
     }, {
         "jobId", "palletId", "colorIndex", "colorCount", "proofPermille", "warning",
-        "setupTask", "setupSummary", "serviceTask",
+        "setupTask", "setupSummary", "serviceTask", "setupVisual",
     })
     if not valid then return nil, shapeError end
     local normalized, fieldError = {}
@@ -1182,13 +1488,139 @@ local function normalizeWindmillWorkshopView(value, label)
         end
         normalized.setupTask = value.setupTask
     end
+    if value.setupVisual ~= nil then
+        normalized.setupVisual, fieldError = require("src.press_setup_view").normalize(value.setupTask, value.setupVisual)
+        if not normalized.setupVisual then return nil, fieldError end
+    end
     return normalized
 end
 
 local function normalizeWorkshopView(value, resourceId, label)
     if resourceId == "reception_customer" then
         return normalizeReceptionWorkshopView(value, label)
-    elseif resourceId == "office_computer" then
+    elseif resourceId == "vendor" then
+        local valid, shapeError = shape(value, label, {
+            "categoryIndex", "categoryName", "salesman", "kind", "cash", "items",
+        })
+        if not valid then return nil, shapeError end
+        local normalized, fieldError = {}
+        normalized.categoryIndex, fieldError = integerInRange(
+            value.categoryIndex, 1, 5, label .. ".categoryIndex")
+        if not normalized.categoryIndex then return nil, fieldError end
+        for _, field in ipairs({ "categoryName", "salesman" }) do
+            normalized[field], fieldError = printableString(
+                value[field], 1, 64, label .. "." .. field)
+            if not normalized[field] then return nil, fieldError end
+        end
+        if value.kind ~= "products" and value.kind ~= "machines" then
+            return nil, label .. ".kind is invalid"
+        end
+        normalized.kind = value.kind
+        normalized.cash, fieldError = integerInRange(value.cash, 0, UINT32_MAX,
+            label .. ".cash")
+        if normalized.cash == nil then return nil, fieldError end
+        if not Codec.isArray(value.items) or #value.items > 5 then
+            return nil, label .. ".items must be an array of at most 5 rows"
+        end
+        local rows = {}
+        for index, row in ipairs(value.items) do
+            local rowLabel = label .. ".items[" .. index .. "]"
+            local rowValid, rowError = shape(row, rowLabel,
+                { "itemIndex", "name", "price", "available", "detail" })
+            if not rowValid then return nil, rowError end
+            local projected = {}
+            projected.itemIndex, fieldError = integerInRange(
+                row.itemIndex, 1, 16, rowLabel .. ".itemIndex")
+            if not projected.itemIndex or projected.itemIndex ~= index then
+                return nil, rowLabel .. ".itemIndex must match its row"
+            end
+            for _, field in ipairs({ "name", "detail" }) do
+                projected[field], fieldError = printableString(
+                    row[field], 1, 96, rowLabel .. "." .. field)
+                if not projected[field] then return nil, fieldError end
+            end
+            projected.price, fieldError = integerInRange(
+                row.price, 0, UINT32_MAX, rowLabel .. ".price")
+            if projected.price == nil then return nil, fieldError end
+            if type(row.available) ~= "boolean" then
+                return nil, rowLabel .. ".available must be boolean"
+            end
+            projected.available = row.available
+            rows[#rows + 1] = projected
+        end
+        normalized.items = Codec.array(rows)
+        return normalized
+    elseif resourceId == "truck" then
+        local valid, shapeError = shape(value, label, {
+            "mode", "state", "manifestId", "title", "page", "pageCount",
+            "remaining", "canClose", "items",
+        })
+        if not valid then return nil, shapeError end
+        if not WORKSHOP_TRUCK_MODES[value.mode] then
+            return nil, label .. ".mode is invalid"
+        end
+        if not WORKSHOP_TRUCK_STATES[value.state] then
+            return nil, label .. ".state is invalid"
+        end
+        local normalized, fieldError = {
+            mode = value.mode,
+            state = value.state,
+        }
+        normalized.manifestId, fieldError = token(
+            value.manifestId, MAX_TOKEN_BYTES, label .. ".manifestId")
+        if not normalized.manifestId then return nil, fieldError end
+        normalized.title, fieldError = printableString(
+            value.title, 1, 96, label .. ".title")
+        if not normalized.title then return nil, fieldError end
+        normalized.page, fieldError = integerInRange(value.page, 1, 64, label .. ".page")
+        if not normalized.page then return nil, fieldError end
+        normalized.pageCount, fieldError = integerInRange(
+            value.pageCount, 1, 64, label .. ".pageCount")
+        if not normalized.pageCount or normalized.page > normalized.pageCount then
+            return nil, label .. ".page must not exceed pageCount"
+        end
+        normalized.remaining, fieldError = integerInRange(
+            value.remaining, 0, 10000, label .. ".remaining")
+        if normalized.remaining == nil then return nil, fieldError end
+        if type(value.canClose) ~= "boolean" then
+            return nil, label .. ".canClose must be boolean"
+        end
+        normalized.canClose = value.canClose
+        if value.canClose ~= (value.remaining == 0
+            and (value.mode == "machine_delivery" and value.state == "parked_closed"
+                or value.mode ~= "machine_delivery" and value.state == "cargo_open"))
+        then
+            return nil, label .. ".canClose is inconsistent"
+        end
+        if not Codec.isArray(value.items) or #value.items > 3 then
+            return nil, label .. ".items must be an array of at most 3 rows"
+        end
+        local rows = {}
+        for index, row in ipairs(value.items) do
+            local rowLabel = label .. ".items[" .. index .. "]"
+            local rowValid, rowError = shape(row, rowLabel,
+                { "itemIndex", "label", "detail", "available" })
+            if not rowValid then return nil, rowError end
+            local projected = {}
+            projected.itemIndex, fieldError = integerInRange(
+                row.itemIndex, 1, 3, rowLabel .. ".itemIndex")
+            if not projected.itemIndex or projected.itemIndex ~= index then
+                return nil, rowLabel .. ".itemIndex must match its row"
+            end
+            for _, field in ipairs({ "label", "detail" }) do
+                projected[field], fieldError = printableString(
+                    row[field], 1, 96, rowLabel .. "." .. field)
+                if not projected[field] then return nil, fieldError end
+            end
+            if type(row.available) ~= "boolean" then
+                return nil, rowLabel .. ".available must be boolean"
+            end
+            projected.available = row.available
+            rows[#rows + 1] = projected
+        end
+        normalized.items = Codec.array(rows)
+        return normalized
+    elseif resourceId == "office_computer" or resourceId == "work_phone" or resourceId == "warehouse" then
         local valid, shapeError = shape(value, label, {})
         if not valid then return nil, shapeError end
         return {}
@@ -1293,7 +1725,8 @@ local function normalizeWorkshopCommand(payload)
         "sessionId", "commandId", "leaseId", "resourceId", "action", "expectedRevision",
     }, {
         "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
-        "barrierClear", "plateId", "setupTask", "setupAction",
+        "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
+        "machineIndex", "placementCell", "callId", "officeIntent", "warehouseIntent",
     })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(
@@ -1318,7 +1751,8 @@ local function normalizeWorkshopCommand(payload)
     if expectedRevision == nil then return nil, fieldError end
     for _, field in ipairs({
         "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
-        "barrierClear", "plateId", "setupTask", "setupAction",
+        "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
+        "machineIndex", "placementCell", "callId", "officeIntent", "warehouseIntent",
     }) do
         if field ~= argumentField and payload[field] ~= nil then
             return nil, "workshop_command." .. field .. " is invalid for " .. action
@@ -1332,7 +1766,17 @@ local function normalizeWorkshopCommand(payload)
         action = action,
         expectedRevision = expectedRevision,
     }
-    if argumentField == "amount" then
+    if argumentField == "warehouseIntent" then
+        normalized.warehouseIntent, fieldError = WarehouseIntent.normalize(payload.warehouseIntent)
+        if not normalized.warehouseIntent then return nil, fieldError end
+        if resourceId == "pallet_jack" and (normalized.warehouseIntent.vehicle ~= "pallet_jack"
+            or (normalized.warehouseIntent.kind ~= "store" and normalized.warehouseIntent.kind ~= "retrieve")) then
+            return nil, "pallet_jack warehouse actions are limited to its rack transfers"
+        end
+    elseif argumentField == "officeIntent" then
+        normalized.officeIntent, fieldError = OfficeIntent.normalize(payload.officeIntent)
+        if not normalized.officeIntent then return nil, fieldError end
+    elseif argumentField == "amount" then
         normalized.amount, fieldError = integerInRange(
             payload.amount, 1, MAX_WORKSHOP_AMOUNT, "workshop_command.amount")
         if not normalized.amount then return nil, fieldError end
@@ -1340,11 +1784,32 @@ local function normalizeWorkshopCommand(payload)
         normalized.programIndex, fieldError = integerInRange(
             payload.programIndex, 1, 4, "workshop_command.programIndex")
         if not normalized.programIndex then return nil, fieldError end
+    elseif argumentField == "itemIndex" then
+        normalized.itemIndex, fieldError = integerInRange(
+            payload.itemIndex, 1, 16, "workshop_command.itemIndex")
+        if not normalized.itemIndex then return nil, fieldError end
+    elseif argumentField == "machineIndex" then
+        normalized.machineIndex, fieldError = integerInRange(
+            payload.machineIndex, 1, 3, "workshop_command.machineIndex")
+        if not normalized.machineIndex then return nil, fieldError end
+    elseif argumentField == "placementCell" then
+        normalized.placementCell, fieldError = token(
+            payload.placementCell, 8, "workshop_command.placementCell")
+        local column, row
+        if normalized.placementCell then
+            column, row = normalized.placementCell:match("^c(%d+)r(%d+)$")
+        end
+        column, row = tonumber(column), tonumber(row)
+        if not column or not row or column > 64 or row > 64 then
+            return nil, "workshop_command.placementCell is invalid"
+        end
     elseif argumentField == "gaugeCentiInch" then
         normalized.gaugeCentiInch, fieldError = integerInRange(
             payload.gaugeCentiInch, 0, 2500, "workshop_command.gaugeCentiInch")
         if normalized.gaugeCentiInch == nil then return nil, fieldError end
-    elseif argumentField == "clamp" or argumentField == "barrierClear" then
+    elseif argumentField == "clamp" or argumentField == "barrierClear"
+        or argumentField == "enabled"
+    then
         if type(payload[argumentField]) ~= "boolean" then
             return nil, "workshop_command." .. argumentField .. " must be boolean"
         end
@@ -1453,7 +1918,7 @@ end
 
 local function normalizeWorkshopResources(value, label)
     if not Codec.isArray(value) then return nil, label .. " must be an array" end
-    if #value ~= 6 then return nil, label .. " must contain all 6 workshop resources" end
+    if #value ~= 10 then return nil, label .. " must contain all 10 workshop resources" end
     local resources, seen = {}, {}
     for index = 1, #value do
         local resourceLabel = label .. "[" .. index .. "]"
@@ -1900,6 +2365,24 @@ local function normalizeEnvironmentSnapshot(payload)
     }
 end
 
+local function normalizeForkliftSnapshot(payload)
+    local valid, fieldError = shape(payload, "forklift_snapshot payload", { "sessionId", "serverTick", "forklift" })
+    if not valid then return nil, fieldError end
+    local sessionId
+    sessionId, fieldError = token(payload.sessionId, MAX_TOKEN_BYTES, "forklift_snapshot.sessionId")
+    if not sessionId then return nil, fieldError end
+    local tick
+    tick, fieldError = integerInRange(payload.serverTick, 0, UINT32_MAX, "forklift_snapshot.serverTick")
+    if tick == nil then return nil, fieldError end
+    valid, fieldError = shape(payload.forklift, "forklift_snapshot.forklift", {
+        "owned", "x", "y", "direction", "operating", "moving", "animationDistance",
+        "forkHeight", "targetForkHeight", "lifting",
+    }, { "operatorPlayerId", "carriedPalletId" })
+    if not valid then return nil, fieldError end
+    if not Forklift.validState(payload.forklift) then return nil, "forklift_snapshot.forklift is inconsistent" end
+    return { sessionId = sessionId, serverTick = tick, forklift = Forklift.normalize(payload.forklift) }
+end
+
 local function normalizePing(payload, kind)
     local valid, shapeError = shape(payload, kind .. " payload", { "sessionId", "nonce" })
     if not valid then return nil, shapeError end
@@ -1968,6 +2451,7 @@ local PAYLOAD_NORMALIZERS = {
     cutter_snapshot = normalizeCutterSnapshot,
     windmill_snapshot = normalizeWindmillSnapshot,
     pallet_jack_snapshot = normalizePalletJackSnapshot,
+    forklift_snapshot = normalizeForkliftSnapshot,
     input = normalizeInput,
     snapshot = normalizeSnapshot,
     visitor_snapshot = normalizeVisitorSnapshot,

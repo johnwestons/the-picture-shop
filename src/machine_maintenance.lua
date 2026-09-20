@@ -367,6 +367,7 @@ function Maintenance.requestTechnician(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false, "No cutter is installed." end
     if not cutter.bladeInSleeve then return false, "Remove the blade and place it in its wooden sleeve first." end
+    if cutter.nextTechnicianDay then return false, "A blade technician is already scheduled." end
     cutter.nextTechnicianDay = state.calendar.totalDays + 1
     cutter.appointmentType = "requested"
     return true, cutter.nextTechnicianDay

@@ -28,6 +28,11 @@ __pycache__/
 *.temp
 *.bak
 
+# Local test harnesses and disposable visual previews.
+/tmp/
+/.stabilization/mechanic-work-preview/
+/.stabilization/warehouse-stack-unit/
+
 # One-time, machine-specific packet-capture recovery helper. Its exact
 # incident timestamps and hashes are local evidence, not reusable source.
 /tools/inspect_windows_direct_orphan_filter.ps1

@@ -1,6 +1,33 @@
 # The Picture Shop
 
+The always-available **OPTIONS** button (or `O` / controller Start) opens game,
+audio, movable touch-control, and developer cheat settings. In **CONTROLS**, drag
+the movement stick and action buttons in the preview; positions are saved for
+the device and applied immediately. **CHEATS** can safely edit cash and common
+inventory/progression values in the live host shop or any offline save slot.
+
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
+
+## Playable warehouse storage slice
+
+On the office computer's **Warehouse** page, buy **left storage** ($4,500).
+The raccoon calls, arrives through the front entrance and builds over four full
+game days. Buy the **forklift** ($6,500) to use all ten shelf slots.
+Near it, use **V** to drive/park, **E** to pick up/drop, **G** to lower,
+**T** for travel height and **R** to raise. Stop before lifting; drive with cargo
+at travel height. Near the rack, **H** opens shelves; inside, **U** raises the
+forks while **R** retains Retrieve. On-screen buttons provide touch equivalents.
+At full height, **K / STACK / TAKE TOP** builds or dismantles two-high piles of
+matching-footprint customer paper skids. The supporting skid cannot be moved
+until its upper pallet is removed.
+
+The taller upper warehouse walls are now registered in-game, keeping the lower
+upgrade gaps and all existing actor/equipment sizes. Construction uses concrete,
+hammer, drill and paint-roller work loops. This is still a development slice
+with provisional art: only left storage and the forklift are available; the
+complete floor/front-edge remake, other room choices and final vehicle/module
+polish are not finished.
+See [current status and verification](docs/warehouse_build_status.md).
 
 ## Run on Windows
 
@@ -9,7 +36,24 @@ A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop managem
 
 The launcher finds LÖVE on `PATH`, in a local `runtime` folder, or in the normal Program Files locations. LÖVE must receive the whole project folder; do not open `main.lua` by itself.
 
+Tester installers are built with `tools/build_windows_installer.ps1`. The resulting per-user
+`ThePictureShop-Windows-Setup-<version>.exe` under `output/windows` contains a fused x64 game executable
+and the LÖVE runtime, smoke-tests the packaged executable before compilation, preserves saves during
+uninstall, and does not create a firewall rule. Private unsigned builds may trigger a Windows reputation
+warning; public releases should be code-signed.
+
 ## Run on Android
+
+For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.
+It advances the Android version, runs desktop and packaged-mobile checks, verifies
+the APK and its signing key against the previous build, and creates a numbered
+folder in `output/android-share` containing the `.apk` installer and instructions.
+Open that folder in OneDrive on your phone and download the APK to share it.
+If your messaging app rejects APK attachments or the file size, text a OneDrive
+download link instead. Opening the APK on Android starts the system installer.
+Installing over the old app keeps saves; uninstalling the old app first clears
+its test saves. This private packaging command does not replace the release gate
+or physical-device multiplayer acceptance.
 
 The Android edition is built from this same Lua source tree; there is no copied mobile gameplay fork.
 With one USB-debugging-enabled phone connected, run `./BUILD_ANDROID.ps1 -Install` in PowerShell.
@@ -26,18 +70,36 @@ phone hotspot. The host alone owns and saves the shop; guests receive the live s
 operate the dock door, talk to clients, use the office computer and skid wrapper, inspect pallet work
 orders read-only, run the Polar cutter's production and safety controls, and share the host-authoritative
 pallet jack. They can also operate the complete Windmill console: plate preparation, six host-scored setup
-checks, proof approval, production, cleanup, maintenance, and technician booking. Protocol v9 keeps a full four-device
+checks, proof approval, production, cleanup, maintenance, and technician booking. Guests can now also inspect
+the host's live supplier catalog and request stock or used-machine purchases; only the host validates cash,
+availability, and the resulting save. Guest Workers can also open a parked box truck, review a paged
+host-owned manifest, unload customer/supplier/machine deliveries, load finished pickups, and release the
+empty truck. The remote cutter now includes host-owned lockout, lubrication and gearbox checks, blade
+removal/sleeving, and blade-technician scheduling; guests submit bounded control choices while only the
+host consumes kits or saves results. The remote wrapper now includes its full four-component service
+sequence with host-scored misses, repair quality, exact-once kit consumption, and disconnect rollback.
+Protocol v19 keeps a full four-device
 session within the 1,200-byte realtime packet ceiling: a reliable welcome contains the host and the
 newly assigned worker, then fixed 12 Hz motion arrives as MTU-safe one-player shards that each client
-merges by player ID. The same authoritative tick carries the live and terminal poses of a host-relocated
+merges by player ID. A Guest Worker holding the pallet-jack lease can now attach, move, turn, and place
+the cutter, skid wrapper, or Windmill using a bounded machine choice and grid-cell token. The same
+authoritative tick carries the live and terminal poses of the relocated
 cutter, skid wrapper, or Windmill, so every worker sees the machine remain mounted while it moves.
-Guests can observe relocation but cannot initiate or place a machine. The durable save retains the last
-committed floor pose until the host completes a valid placement. The cutter uses its own 12 Hz bounded
+The host validates machine readiness, console occupancy, range, and floor clearance; disconnect recovery
+locks the machine safely before releasing the jack. The cutter uses its own 12 Hz bounded
 runtime stream, an exclusive host lease, host-validated setup/cut commands, either-button multiplayer cutting,
 an urgent E-STOP/barrier lane,
 and safe disconnect/revision recovery. The Windmill has the same exclusive lease and its own 12 Hz bounded
 runtime stream; plate timing and setup scores are calculated only by the host, and urgent E-STOP is serviced
-before another sheet advances. See `docs/lan_multiplayer_slice.md` for the supported protocol-v9
+before another sheet advances. Guests now use the host GUI renderers for the cutter and its service
+screens, wrapper, all Windmill pages, CritterNet computer, reception, vendor, truck manifest, and wall
+phone. Typed estimates, promotions, shopping-cart checkout, machine sales, bill payments, and phone
+actions are bounded requests executed and saved only by the host. The phone has an exclusive lease
+and stale-call protection. This v16 source-only update passes 2,285 desktop and 2,285 forced-mobile
+checks, including full guest cutting and two-color printing jobs with repeated requests, reconnect,
+wrapping and payment. Feeder setup controls now pass the network allowlist. No connected devices were
+used or updated. All devices need a matching new build before the next
+physical test. See `docs/lan_multiplayer_slice.md` for the supported protocol-v16
 scope and `docs/lan_multiplayer_device_test.md` for the physical-device matrix.
 
 The protocol-v7 / Android `.11` targeted four-device pass completed on August 28, 2026: an SM-S938U
@@ -51,9 +113,17 @@ workflow, host and guest one-button cuts, two-worker contention, urgent E-STOP, 
 and clean rejoin. It also fixed and physically verified the carried-pallet/background-overlay crash found
 in `.12`. A fourth device, the 15-minute soak, hotspot coverage, and the final offline reload remain open.
 
-Protocol v9 / Android `.14` is the current development target for multiplayer Windmill controls. Automated
-coverage is complete, but no physical-device acceptance is claimed for `.14` until the Windmill checklist is
-run on the Android-host/worker matrix.
+Historical protocol v14 / Android `.24` testing: in addition to the read-only Guest Worker
+session panel, Local Play now offers best-effort host discovery and six cancelable fresh-session reconnect
+attempts with backoff. Discovery detects its routed Wi-Fi address, sends both limited and directed local
+broadcasts, and binds an explicit IPv4 wildcard; live socket inspection found that Android `.23` otherwise
+opened discovery port `22123` as IPv6 while the working game port was IPv4. Discovery remains only an address
+hint and manual entry remains available; every join still requires the compatible hello and host-owned
+snapshot. Automated coverage passes 1,809 checks with no failures. The exact `.24` APK is installed on the
+SM-J410G and SM-S938U. On the current router, direct discovery traffic and manual joining work but wireless
+broadcast discovery is filtered; manual join, two-worker movement replication, both phone-aspect session panels,
+bounded exhaustion/manual fallback, and prompt host-restart automatic reconnect all passed. Hotspot or another
+broadcast-capable network plus maintenance, relocation, truck, vendor, and outstanding Windmill checks remain.
 
 ## Direct Internet multiplayer (engineering)
 
@@ -66,9 +136,23 @@ Android devices pass the native/Lua conformance checks, a same-LAN encrypted ENe
 an encrypted bridge exchange across separate Wi-Fi and cellular routes on all three game channels. An
 isolated full-game acceptance now also passes the actual two-code player flow across those routes.
 
-Bounded PCP/NAT-PMP codecs, a serialized finite-lease coordinator, and strict pure UPnP IGD handling are
-covered by engineering tests, but they are non-production layers with no live router adapter yet. The
-current residential gateway did not answer PCP, NAT-PMP, or SSDP discovery. A guarded cellular-to-Wi-Fi
+Bounded PCP/NAT-PMP codecs, a serialized finite-lease coordinator, and strict UPnP IGD handling are
+covered by engineering tests. Windows now also has non-production live PCP, NAT-PMP, and UPnP adapters.
+Their UDP discovery and TCP control sockets are pinned to the discovered source IPv4 and interface index.
+They revalidate the exact route before create, renew, and delete; accept replies only from that gateway;
+own one finite mapping at a time; and never receive an invitation secret. The paired encrypted IPv4 listener binds the exact internal address
+before mapping, accepts the router-selected public endpoint only after global-unicast classification, and
+closes before deletion. A local no-traffic probe passed both real bindings without creating a mapping or
+invitation. Windows route discovery now carries a process-local generation advanced by OS IPv4 route,
+interface, and address-change notifications, and every mapping operation requires that generation to remain
+unchanged. Android still needs an exact-`Network` socket bridge, release loading remains restricted to
+engineering builds, and no physical router mapping has passed, so automatic mapping remains unavailable
+to players. A self-contained Windows Host/Guest acceptance kit now guards the first remote residential test
+with a no-traffic preflight (including the exact UPnP transport), a two-minute lease, an exact interface/profile/program/UDP-port firewall rule,
+encrypted three-channel checks before and after renewal, listener-before-delete shutdown, exact deletion
+acknowledgement, and redacted results. See
+[`docs/public_ipv4_remote_acceptance.md`](docs/public_ipv4_remote_acceptance.md). The current residential
+gateway did not answer PCP, NAT-PMP, or SSDP discovery. A guarded cellular-to-Wi-Fi
 IPv4 run then classified the gateway-reported WAN address as carrier-grade NAT and stopped before any
 package, listener, or router rule was created. Manual IPv4 forwarding cannot cross that upstream NAT.
 Both physical phones have global IPv6 addresses and IPv6 default routes. A temporary LuaSocket UDP6
@@ -100,7 +184,7 @@ approval panel and completed authenticated opening, snapshot/HUD synchronization
 control, and cutter safety control. One ended through the PC host's confirmed removal control and the
 phone observed the kick; the other ended through a graceful phone departure. Secret scanning and cleanup
 passed, and the redacted report retains no endpoint, device serial, invitation, key, packet, raw log, or
-internal run identifier. The complete packaged smoke suite passes 1,565 checks with zero failures.
+internal run identifier. The complete packaged smoke suite passes 1,715 checks with zero failures.
 
 A guarded repeat of both PC-host/Android-cellular sessions also passed the packet-privacy gate. Capture
 was limited to full IPv6 UDP packet bytes on the selected NIC and Direct port, showed authenticated bridge
@@ -121,7 +205,7 @@ Cleanup and secret-redaction checks passed. This remains engineering evidence an
 The guarded player flow is now implemented behind the production gate. `Host Direct Game` loads and
 preflights the selected host save, binds the IPv6 socket before creating an expiring `TPS2H` code, and
 accepts only its matching authenticated `TPS2R` reply. `Join Direct Game` returns that reply and keeps the
-same socket alive until it transfers into encrypted protocol-v9 transport. The screen supports deliberate
+same socket alive until it transfers into encrypted protocol-v13 transport. The screen supports deliberate
 copy/paste, clears a code it placed on the clipboard after use or cancellation, never includes a code in
 status/error text, and requires each player to enter the global IPv6 address shown by their own device.
 After encrypted authentication, the joining worker remains quarantined until the host approves the
@@ -155,12 +239,17 @@ assets, licensed audio sources, mobile-package provenance and contents, and the
 final SHA-256 checksum. It writes `output/release/release-report.json` and fails
 without producing a passing report if any gate is not satisfied. Use
 `./RELEASE.ps1 -BuildApk` to additionally build and verify the signed development
-APK; physical-device installation remains a separate release-checklist step.
+APK. Before it assembles tester downloads, that path requires a completed
+`output/mobile/device-tests/guest-worker-physical-acceptance.json` bound to the
+exact clean-source APK and all required three-phone checks. Physical-device
+installation and observation remain manual; their recorded result is enforced
+by the release tooling rather than inferred from an automated build.
 
 ## Phone and controller input
 
 - Touch: drag the lower-left control to move and use the contextual lower-right work button. Extra
-  **Park**, **Move**, and **Turn** buttons appear when the pallet jack or a relocating machine needs them.
+  **Lower**, **Park**, **Move**, and **Turn** buttons appear only when the pallet jack or a relocating
+  machine can use them. Tap an eligible skid directly to lift that exact skid.
 - The shop floor fills ultrawide phone displays. Two-finger pinch-zoom and pan works on the title,
   shop floor, computer, machine consoles, manifests, quotes, vendor, and press screens. Each screen
   remembers its own view; one-finger taps and the movement/action controls keep their normal behavior.
@@ -181,12 +270,12 @@ APK; physical-device installation remains a separate release-checklist step.
 
 The title screen has three local save slots. Use **W/S** or the arrow keys to select a slot, **N** for a new shop, **C** or **Enter** to continue, **D** to delete, and **Q** or **Escape** to quit. Confirmation prompts accept **Y** or **Enter** and cancel with **N** or **Escape**. Starting a new shop in an occupied slot always shows an overwrite warning; cancelling it leaves the existing save unchanged. Saves are versioned and retain money, stock, finished prints, completed cuts, and player position.
 
-Save format 13 retains active, completed, and declined jobs, accounts receivable, grouped procurement shipments,
+Save format 14 retains active, completed, and declined jobs, accounts receivable, reputation, customer-stock claims, grouped procurement shipments,
 stock, film, machine placements, pallet-jack ownership, wrapper placement, and the next stable
 job number, the cutter's player-saved measurement history, the business calendar, and unpaid bill
 ledger, pending, received, and answered client emails, sent promotions and player quotes, plus uniquely tracked machine condition,
 component wear, cycles, maintenance history, pending machine deliveries, client artwork and stock specifications,
-and physical press-pass progress. Version-1 through version-12 slots migrate
+and physical press-pass progress. Version-1 through version-13 slots migrate
 when loaded. Saves are validated in a temporary
 file before promotion and retain the previous valid slot as a backup. A damaged primary recovers
 automatically; a slot with no valid recovery copy is marked as damaged instead of appearing empty.
@@ -197,6 +286,9 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - The largest incoming parent sheet is 25×25 inches, and the finished size must fit the parent sheet.
 - The Polar lift capacity is 500 sheets. A partial final lift is allowed and billed as a full lift.
 - Each lift is quoted at $150. Five 3,000-sheet pallets therefore quote at $4,500.
+- New shops begin at 0 (Unrated) with small trial work. Completed pickups build a saved -100–100 reputation that
+  unlocks larger, higher-paying jobs. Established shops sometimes attract demanding premium clients who
+  pay more but apply a larger reputation penalty when their stock is spoiled.
 - Optional Original Heidelberg 10x15 printing work adds a separate cost budget for processed plates,
   ink, chemistry, tympan, makeready, wash-up, labor and machine overhead. The machine's 5,500-impression/hour
   maximum is retained as a specification while quotes use a conservative 3,000 sellable impressions/hour.
@@ -211,30 +303,43 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Each generated job carries a structured artwork record and compatible `artworkKey`; every paper batch keeps
   that identity. Every 128x128 texture in `assets/generated/artwork/` is registered and rotates through new
   print offers, proofs, plates, press sheets, pallet previews, and finished-job records.
-- Accepting a ticket adds it to active jobs as `awaiting_delivery` and records accounts receivable;
-  cash and physical pallet inventory do not increase until their later workflow events.
-- Declining archives the numbered ticket, cancels its quoted pallets, and sends the customer out.
+- Requesting details at reception schedules the client's written job email without awarding the work.
+  A job enters `awaiting_delivery` and records accounts receivable only after the player sends an estimate
+  and the client's delayed acceptance email arrives.
+- Declining a written request archives the numbered ticket and cancels its quoted pallets.
 
 ## Controls
 
 - Move: **WASD** or arrow keys
-- Interact with the office computer or Polar 115: **E**
+- Interact with the office computer, wall-mounted work phone, or Polar 115: **E**
 - At reception, press **E** to open the customer's cutting or print-order paperwork.
-- Type your price into the quote field and click **Send Quote**, or click **Decline**. Clients weigh price,
-  urgency, and prior completed work when responding. **Back** and **Escape**
-  both close the paperwork without deciding, so the customer remains available at reception.
-- At the office computer, press **E** and use the mouse to view Active Jobs, Completed Jobs,
-  Deliveries, Calendar, Inventory, the Online machine website, Email, Bills, cash, and accounts receivable. Deliveries includes customer inbound jobs,
+- Review the job sample and click **Request Email Details**. No price or award is decided at the counter.
+  **Back** and **Escape** close the paperwork without deciding, so the customer remains available.
+- At the office computer, press **E**, click the address-bar dropdown arrow, and choose Active Jobs,
+  Completed Jobs, Deliveries, Estimating, Calendar, Inventory, the retro CritterNet WWW browser, Email,
+  or Bills. The current section appears in the CritterNet URL field instead of a row of tabs. Deliveries includes customer inbound jobs,
   outbound pickups, and vendor purchase orders; Inventory includes every currently usable supply.
 - Click a job row to inspect its cutting ticket and pallet progress; click **Back** to close the computer.
+- The work phone hangs on the outside face of the office's left wall. Its lamp is cyan-green for customer
+  orders, amber for supplier/service calls, red-magenta for urgent current-job questions, and dark when idle.
+  Customers can place a new order or ask where an active job is and when it should be done. Supplier and
+  service callers can report delivery status or arrange maintenance-supply orders; completed calls remain in
+  the phone history, and phone orders continue through the shop's normal written email and receipt workflow.
 - Completing, delivering, and receiving payment for a client's first job establishes a repeat-client
   relationship. That company can send a varied follow-up request by email 1-3 game days later. The
-  computer's **Email** tab shows the sender, proposed dimensions, pallet and sheet quantities,
-  packaging, and stock-arrival service. Enter and send a quote or decline the request. From a completed
-  job, **Email 10% Promo** opens a message composer where the player can add a personal note. Email jobs
-  use separate stable IDs and the same delayed truck workflow as walk-ins.
+  computer's **Estimate** tab shows the sender, proposed dimensions, pallet and sheet quantities,
+  packaging, stock-arrival service, and estimate expiration. Enter and send a three-day estimate or decline
+  the request. Client decisions arrive later, never instantly. Unanswered requests receive one or two follow-up
+  emails and then go quiet. From a completed
+  job, **Email 10% Promo** opens a message composer where the player can add a personal note. A customer
+  may request another job, send a thank-you and save the coupon for later, or not reply. The live response
+  chance rises with every character in the personal note, up to the 240-character limit. New-job replies
+  automatically show the standard price, 10% discount, and discounted quote total. Email jobs use separate
+  stable IDs and the same delayed truck workflow as walk-ins. Client reply arrival times are intentionally
+  hidden from the Calendar. Each completed job can send its 10% promotion
+  only once. Answered messages leave the inbox immediately, and another message must be selected before replying.
 - One in-game day lasts five real minutes. The viewable office calendar advances through weekdays, months,
-  leap years, and years and automatically projects job stock, product and machine deliveries, incoming emails,
+  leap years, and years and automatically projects job stock and product and machine deliveries,
   pickups, completions, rent, and bills. On the first of each new month the
   shop receives a $1,650 operating invoice: $1,200 warehouse rent, $240 power, $85 water, and $125
   internet. Use the computer's **Bills** tab to pay the full outstanding balance; unpaid months carry forward.
@@ -261,8 +366,10 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   the pallet jack to move a staged pallet away from the dock, then return to the manifest to unload.
 - Hover a warehouse pallet to see its company, job ID, sheet count, paper ID, current dimensions,
   status, and location. Pallets are saved, depth-sorted, and block walking.
-- Near the yellow pallet jack, press **E** to operate it. Drive with **WASD/arrow keys**, press **E**
-  near a pallet to lift it, click a green floor-grid space, and press **E** to lower it precisely.
+- Near the yellow pallet jack, press **E** to operate it. Drive with **WASD/arrow keys**, then click or
+  tap an eligible skid to lift that exact skid. Choose a green floor-grid space and press **L** (or tap
+  **Lower**, or use the controller's left shoulder) to set it down precisely. Normal **E/Use**
+  interactions remain available while pushing.
 - Press **F** to park and release an empty pallet jack. Loaded jacks move more slowly and use a larger
   collision footprint; placement is rejected when walls, machines, trucks, or other pallets are too close.
 - After the manifest is empty, click **Close Cargo Door**. The truck leaves and the bay closes automatically.
@@ -270,9 +377,14 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   and maintenance representatives arrive in rotation and wait until the player talks to them with **E**.
 - Each salesperson opens a mouse-clickable category catalog. Purchases deduct cash immediately and create
   a tracked purchase order; the goods arrive later by truck at the loading dock instead of appearing instantly.
-- The office computer Inventory tab sells the same currently unlocked supplies in smaller retail quantities.
-  Salespeople offer larger pallet quantities at a lower per-unit bulk price; both channels use dock delivery.
-- The office computer's **Online** tab sells professionally inspected machines in strong condition and shows
+  After a supply order, the salesperson sends an email confirming that the request is going back to the shop.
+- The office computer Inventory tab is a read-only stockroom count. The **WWW** tab opens
+  `www.thecritternet.com`, a 1990s-style browser with Paper Depot, Pressroom Supply, Carton & Wrap,
+  WrenchWorks, and Machine Market pages. Its globe, paw-network, modem, mail, sparkle, and loading sprites
+  share one animated pixel-art set. Salespeople offer larger pallet quantities at a lower per-unit bulk price.
+  CritterNet supplies and machines are added to a shared cart first. The checkout screen lists quantities
+  and the full total before charging cash, then sends a separate receipt email for every resulting order.
+- CritterNet's **Machine Market** page sells professionally inspected machines in strong condition and shows
   every uniquely numbered shop machine, its weakest component, cycles, installation state, and condition-based
   resale value. An online purchase reserves its unique machine immediately but does not add it to the shop yet:
   a dedicated loaded flatbed truck brings it to the dock, where the player opens the manifest and clicks
@@ -296,6 +408,11 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   the selected cut program, and **U** pulls each completed lift off the bed and returns it to its pallet.
   **Run Next Lift** reloads uncut sheets but never performs cuts automatically; every lift requires the full
   rotate, position, clamp, and four-cut sequence.
+- Cutter safety interlocks still enforce the barrier, clamp, E-stop, and cut controls, but they do not
+  protect the player from a wrong program, rotation, or backgauge setting. An off-size blade pass spoils
+  only the active lift, removes those sheets from the original skid, records the waste, and lowers reputation.
+  Bills receives the replacement-stock cost plus a full-lift redo charge. The customer then sends a separately
+  tracked replacement skid containing exactly the ruined quantity through the normal truck-delivery flow.
 - Cutter output searches the surrounding floor for a walkable position clear of walls, the truck,
   equipment, the pallet jack, and other pallets. If every output zone is blocked, move the obstruction,
   reopen the console, press **L** to resume the completed batch, and then press **U** again.
@@ -318,8 +435,11 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Complete chase lockup, tympan/packing, roller stripe, ink, feeder, and register checks; then run the
   motor, feeder, and impression to pull a proof. Each proof consumes one supplied sheet and displays the
   actual client artwork. Inspect it, verify the art/file match (**V**), and approve only when registration
-  reaches 82%. Once approved,
-  production tracks actual impressions, good sheets, spoilage, run hours, component wear, and plate life.
+  reaches 82%. Once approved, production tracks actual impressions, good sheets, spoilage, run hours,
+  component wear, and plate life.
+- The feeder check follows a visible operator sequence: fan and load the stock, test one sheet, adjust
+  suction and separating air from the specific pickup/double-feed/flutter diagnosis, and confirm three
+  consecutive clean single-sheet feeds. Light, medium, and heavy stock use different feed profiles.
   High speed, poor setup, and worn rollers, grippers, suction, or ink distribution raise waste.
 - A finished color pass requires press wash before unloading. Uncoated work dries for two game hours;
   gloss work dries for eight. Two-color work returns for another complete plate/setup/proof/run/wash pass.

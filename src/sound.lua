@@ -183,8 +183,10 @@ function Sound:capture()
     local machine, wrapper = self.context.machine, self.context.wrapper
     local press = state.windmill or {}
     local jack = state.palletJack or {}
+    local effectiveScreen = state.screen == "options" and state.optionsReturnScreen
+        or state.screen
     return {
-        screen = state.screen,
+        screen = effectiveScreen,
         message = state.message,
         money = tonumber(state.money) or 0,
         completedJobs = count(state.jobs and state.jobs.completed),
@@ -294,6 +296,15 @@ function Sound:setMuted(muted)
         entry.source:setVolume(self:volumeFor(entry.name))
         if self.muted and entry.source:isPlaying() then entry.source:pause()
         elseif not self.muted and not self.paused then entry.source:play() end
+    end
+end
+
+function Sound:setLevels(master, sfx, ambient)
+    self.masterVolume = math.max(0, math.min(1, tonumber(master) or self.masterVolume))
+    self.sfxVolume = math.max(0, math.min(1, tonumber(sfx) or self.sfxVolume))
+    self.ambientVolume = math.max(0, math.min(1, tonumber(ambient) or self.ambientVolume))
+    for _, entry in pairs(self.loops) do
+        entry.source:setVolume(self:volumeFor(entry.name))
     end
 end
 

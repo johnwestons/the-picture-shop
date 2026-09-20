@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-19",
+  "mode": "built-in image_gen",
+  "generations": [
+    {
+      "direction": "south",
+      "version": 3,
+      "prompt": "Use case: precise-object-edit\nAsset type: game sprite animation sheet, transparent RGBA, 2048 by 768, four equal 512 by 768 cells in one row.\nInput image 1 is the EDIT TARGET and identity/style reference: south-facing yellow forklift occupied by the orange rabbit warehouse worker.\nPrimary request: repair the actual mechanical geometry of this forklift raising animation. This is a straight SOUTH view, looking head-on toward the front, with the two forks projecting toward the viewer. Show the SAME vehicle four times with fork-carriage heights ground / one-third / two-thirds / fully raised.\nCRITICAL CHANGE: the existing fourth cell is wrong: it looks like two dangling vertical bars in front of the driver and the mast never telescopes up. Remake the fork carriage in all four cells as necessary for a physically correct lift. The two L-shaped steel forks are rigid parallel horizontal blades, with foreshortened TOP surfaces visible because the camera is elevated. Both blades maintain exactly the same length, thickness, spacing and projection in every frame. They only translate UP along the vertical mast; they never bend, rotate, hang downward, shrink, or disconnect. The high carriage rises ABOVE the fixed cabin roof; the inner telescoping mast must extend above that roof to support it. In the fourth cell the blade tops and the carriage are high above the rabbit's head, leaving the fixed cabin below them. The cabin/chassis/rabbit are at the identical x/y coordinates in their own cell throughout.\nMaintain empty space above the cab in early frames to accommodate the raised mast later. If necessary translate the whole same chassis downward identically in ALL four cells to fit full mast extension. Wheel-ground anchor local x256 y730 in all four cells. Full highest mast fits below y20. Equal vehicle scale throughout. Rabbit driver must remain seated with both hands on steering wheel and facing SOUTH, not raccoon or cat.\nKeep the painterly detailed game sprite style, aged yellow paint, dark steel, amber beacon, orange rabbit blue overalls. DO NOT put a background or glowing aura behind the forklifts: everything outside the exact hard object silhouette must be genuinely alpha-zero, including gaps and cell margins. No detached shadows, text, labels, grids or panel dividers. 24px safe margin inside every cell.",
+      "source": "south-raise-v3.png",
+      "original": "C:/Users/johnw/.codex/generated_images/01a07dd3-4080-7c52-8656-4a3ac522d4f0/exec-810d7b85-a699-4a2c-99e4-33cbd6319a26.png",
+      "status": "source review only; telescoping mast improved, alpha fringe remains"
+    }
+  ]
+}

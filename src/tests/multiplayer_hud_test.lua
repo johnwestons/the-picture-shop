@@ -20,6 +20,28 @@ local function directHost(overrides)
     return info
 end
 
+local function lanGuest(overrides)
+    local info = {
+        mode = "client",
+        networkKind = "lan",
+        status = "3/4 workers connected",
+        playerCount = 3,
+        localPlayerId = 3,
+        rtt = 47.6,
+        players = {
+            { playerId = 1, name = "PC Host", isHost = true },
+            { playerId = 2, name = "Press Worker" },
+            { playerId = 3, name = "Android Worker", isLocal = true },
+        },
+        workshopResources = {
+            { resourceId = "cutter", occupied = true, ownerPlayerId = 2 },
+            { resourceId = "pallet_jack", occupied = false },
+        },
+    }
+    for key, value in pairs(overrides or {}) do info[key] = value end
+    return info
+end
+
 local function click(kind, identifier, info)
     local x, y = MultiplayerHud.buttonCenter(kind, identifier, info)
     if not x then return false end
@@ -88,22 +110,61 @@ function Test.run(_, check)
         MultiplayerHud.keypressed("escape", host) == true
         and not MultiplayerHud.isOpen())
 
-    local deniedModes = {
-        directHost({ mode = "client" }),
-        directHost({ networkKind = "lan" }),
-        directHost({ canManage = false }),
-    }
+    local guest = lanGuest()
+    MultiplayerHud.reset()
+    check("multiplayer_hud_lan_guest_can_open_read_only_session_panel",
+        MultiplayerHud.keypressed("p", guest) == true and MultiplayerHud.isOpen())
+    local guestLayout = MultiplayerHud.layout(guest)
+    check("multiplayer_hud_guest_panel_identifies_authority_roster_link_and_busy_control",
+        guestLayout.viewable and not guestLayout.manageable
+        and guestLayout.open and guestLayout.toggle.height >= 40
+        and #guestLayout.statusPlayers == 3
+        and guestLayout.statusPlayers[1].badge == "HOST"
+        and guestLayout.statusPlayers[3].badge == "YOU"
+        and guestLayout.summary.authority:find("HOST DEVICE") ~= nil
+        and guestLayout.summary.connection == "CONNECTED • 48 MS • GOOD"
+        and guestLayout.summary.control == "Press Worker USING • POLAR CUTTER"
+        and guestLayout.pending[1] == nil and guestLayout.guests[1] == nil
+        and guestLayout.invite == nil)
+    check("multiplayer_hud_guest_panel_has_no_management_actions",
+        MultiplayerHud.buttonCenter("approve", 1, guest) == nil
+        and MultiplayerHud.buttonCenter("deny", 1, guest) == nil
+        and MultiplayerHud.buttonCenter("remove", 2, guest) == nil
+        and MultiplayerHud.buttonCenter("invite", nil, guest) == nil)
+
+    local waiting = MultiplayerHud.statusSummary(lanGuest({
+        rtt = 181,
+        activeResourceId = "cutter",
+        pendingActivity = { kind = "workshop_acquire", resourceId = "windmill" },
+    }))
+    local urgent = MultiplayerHud.statusSummary(lanGuest({
+        pendingActivity = { kind = "urgent_safety", resourceId = "cutter" },
+    }))
+    check("multiplayer_hud_guest_panel_prioritizes_pending_host_feedback",
+        waiting.connection == "CONNECTED • 181 MS • SLOW"
+        and waiting.control == "REQUESTING WINDMILL • WAITING FOR HOST"
+        and urgent.control == "URGENT SAFETY SENT • WAITING FOR HOST • POLAR CUTTER")
+
+    local lanHost = lanGuest({ mode = "host", localPlayerId = 1 })
+    MultiplayerHud.reset()
+    check("multiplayer_hud_lan_host_gets_read_only_status_without_direct_controls",
+        click("toggle", nil, lanHost) == true
+        and MultiplayerHud.layout(lanHost).viewable
+        and not MultiplayerHud.layout(lanHost).manageable
+        and MultiplayerHud.layout(lanHost).summary.authority:find("THIS DEVICE") ~= nil)
+
+    local deniedModes = { { mode = "offline" }, {}, nil }
     local denied = true
     for _, info in ipairs(deniedModes) do
         MultiplayerHud.reset()
         local deniedLayout = MultiplayerHud.layout(info)
-        denied = denied and not deniedLayout.manageable
+        denied = denied and not deniedLayout.viewable and not deniedLayout.manageable
             and deniedLayout.toggle == nil
             and MultiplayerHud.keypressed("p", info) == false
             and MultiplayerHud.mousepressed(820, 120, 1, info) == false
             and not MultiplayerHud.isOpen()
     end
-    check("multiplayer_hud_guest_lan_and_disabled_hosts_have_no_controls", denied)
+    check("multiplayer_hud_offline_and_invalid_modes_have_no_session_panel", denied)
 
     local fullHost = directHost({ canInvite = false })
     MultiplayerHud.reset()

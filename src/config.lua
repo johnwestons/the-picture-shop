@@ -1,3 +1,6 @@
+-- Explicit user-requested forklift-only resize. Other actors and pallet art
+-- retain their established world scale.
+local forkliftSizeMultiplier = 1.4
 local Config = {
     baseWidth = 960,
     baseHeight = 678,
@@ -46,6 +49,7 @@ local Config = {
         walkAnimationRate = 4,
         idleAnimationRate = 0.65,
         useAnimationRate = 2.5,
+        seatingPauseDuration = 0.28,
         motionProfiles = {
             ["business-cat"] = {
                 walkPixelsPerFrame = 13,
@@ -77,9 +81,44 @@ local Config = {
             { x = 760, y = 360 },
         },
         seatSpots = {
-            { name = "left-chair", x = 725, y = 320, facing = 1 },
-            { name = "couch", x = 812, y = 320, facing = -1 },
-            { name = "right-chair", x = 894, y = 390, facing = -1 },
+            {
+                name = "left-chair", x = 722, y = 296, facing = -1,
+                approach = { { x = 744, y = 329 }, { x = 731, y = 312 } },
+                foreground = "left-chair",
+            },
+            {
+                name = "sofa-left", x = 782, y = 305, facing = -1,
+                approach = { { x = 711, y = 337 }, { x = 731, y = 313 } },
+                foreground = "coffee-table",
+            },
+            {
+                name = "sofa-right", x = 827, y = 309, facing = 1,
+                approach = { { x = 852, y = 346 }, { x = 850, y = 324 } },
+                foreground = "coffee-table",
+            },
+            {
+                name = "right-chair", x = 862, y = 349, facing = 1,
+                approach = { { x = 873, y = 371 }, { x = 873, y = 357 } },
+                foreground = "right-chair",
+            },
+        },
+    },
+    loungeSeating = {
+        sourceWidth = 1536,
+        sourceHeight = 1024,
+        foregrounds = {
+            ["left-chair"] = {
+                asset = "loungeLeftChairForeground",
+                sourceX = 1118, sourceY = 375, width = 96, height = 83,
+            },
+            ["coffee-table"] = {
+                asset = "loungeCoffeeTableForeground",
+                sourceX = 1200, sourceY = 410, width = 126, height = 91,
+            },
+            ["right-chair"] = {
+                asset = "loungeRightChairForeground",
+                sourceX = 1324, sourceY = 443, width = 119, height = 100,
+            },
         },
     },
     vendor = {
@@ -234,6 +273,18 @@ local Config = {
             { x = 442, y = 480 },
         },
     },
+    warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = true },
+    forklift = {
+        spawnX = 460, spawnY = 515, speed = 100, loadedSpeed = 72,
+        liftDuration = 3, lowerDuration = 2.5, travelHeight = 0.08,
+        maxStepDistance = 4, collisionHalfWidth = 34 * forkliftSizeMultiplier,
+        collisionHalfHeight = 14 * forkliftSizeMultiplier,
+        loadedCollisionHalfWidth = 42 * forkliftSizeMultiplier,
+        loadedCollisionHalfHeight = 18 * forkliftSizeMultiplier,
+        forkOffsetX = 46 * forkliftSizeMultiplier, forkOffsetY = 27 * forkliftSizeMultiplier,
+        floorPickupRadius = 40, floorDropRadius = 24,
+        drawScale = 0.22, parkedDrawScale = 0.25, visualScaleMultiplier = forkliftSizeMultiplier,
+    },
     palletJack = {
         spawnX = 560,
         spawnY = 520,
@@ -267,10 +318,18 @@ local Config = {
     },
     interactables = {
         computer = { x = 500, y = 185, radius = 62 },
+        workPhone = {
+            x = 399, y = 260, radius = 72,
+            wallX = 399, wallY = 181, drawScale = 0.084,
+        },
         cutter = { x = 625, y = 405, radius = 78 },
     },
+    -- Only the taller upper architecture is registered in this slice. Existing
+    -- floor/mask, furniture, live dock and all actor/equipment scales stay fixed.
+    warehouseScene = { enabled = true },
     paths = {
         warehouse = "assets/generated/warehouse-layout-final.png",
+        warehouseArchitecture = "assets/source/warehouse-expansion-v1/warehouse-base-v3-top-remake.png",
         walkmask = "assets/generated/warehouse-layout-final-walkmask.png",
         polar = "assets/generated/polar-115-sprite-sheet-clear-table-transparent.png",
         polarDirections = "assets/generated/polar-cutter-directions-strip.png",
@@ -299,6 +358,9 @@ local Config = {
         palletJack = "assets/generated/pallet-jack-directions-strip.png",
         palletJackLoaded = "assets/generated/pallet-jack-loaded-directions-strip.png",
         wallVentFan = "assets/generated/wall-vent-fan-strip.png",
+        loungeLeftChairForeground = "assets/generated/lounge/left-chair-foreground.png",
+        loungeCoffeeTableForeground = "assets/generated/lounge/coffee-table-foreground.png",
+        loungeRightChairForeground = "assets/generated/lounge/right-chair-foreground.png",
         vendorProductPallets = "assets/generated/vendor-product-pallets-atlas.png",
         boxedPaperPalletStages = "assets/generated/boxed-paper-pallet-stages-atlas.png",
         polarBackButton = "assets/generated/polar-back-button-states-strip.png",
@@ -308,6 +370,9 @@ local Config = {
         pressSetupInteractions = "assets/generated/heidelberg-setup-interactions-atlas-v2.png",
         technicianNpcs = "assets/generated/technician-npcs-atlas-v1.png",
         palletWorkOrderPaper = "assets/generated/pallet-work-order-paper-v1.png",
+        critterNetMenu = "assets/generated/critter-net-90s-menu-bg-v1.png",
+        critterNetSprites = "assets/generated/critter-net-animated-icons-atlas-v1.png",
+        workPhone = "assets/generated/critter-net-work-phone-atlas-v1.png",
         workOrderFont = "assets/fonts/SpecialElite-Regular.ttf",
         artwork = {
             ["ad-clothing"] = "assets/generated/artwork/ad-clothing.png",

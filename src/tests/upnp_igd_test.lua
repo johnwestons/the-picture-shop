@@ -127,6 +127,7 @@ function Test.run(_, check)
         and rejected(UpnpIgd.buildSearchRequest, 2, 6))
 
     local discovery = discover(UpnpIgd.IGD2_TARGET)
+    local descriptionRequest = UpnpIgd.buildDescriptionRequest(discovery)
     check("upnp_igd_accepts_only_matching_private_gateway_ssdp_responses",
         discovery and discovery.location.host == "192.168.1.1"
         and discovery.location.port == 5000
@@ -135,6 +136,9 @@ function Test.run(_, check)
         and discovery.udn == TEST_UDN
         and discovery.maxAgeSeconds == 1800
         and discovery.bootId == 1
+        and descriptionRequest and descriptionRequest.method == "GET"
+        and descriptionRequest.host == discovery.gatewayAddress
+        and descriptionRequest.wire:find("CONNECTION: close\r\n", 1, true)
         and rejected(UpnpIgd.parseSsdpResponse,
             ssdpResponse(UpnpIgd.IGD2_TARGET), {
                 sourceAddress = "8.8.8.8",
@@ -318,6 +322,13 @@ function Test.run(_, check)
         controlPointAddress = CONTROL_POINT,
         leaseSeconds = 900,
     })
+    local splitPorts = UpnpIgd.buildAddPortMapping(service2, {
+        internalPort = 22122,
+        externalPort = 33000,
+        internalClient = CONTROL_POINT,
+        controlPointAddress = CONTROL_POINT,
+        leaseSeconds = 120,
+    })
     local externalQuery = UpnpIgd.buildGetExternalIPAddress(service2)
     check("upnp_igd_builds_exact_self_only_udp_finite_lease_soap_requests",
         addAny and addAny.context.action == "AddAnyPortMapping"
@@ -334,6 +345,10 @@ function Test.run(_, check)
         and addAny.headers.soapaction
             == "\"" .. UpnpIgd.WAN_IP_V2 .. "#AddAnyPortMapping\""
         and addV1 and addV1.context.action == "AddPortMapping"
+        and splitPorts and splitPorts.context.requestedPort == 33000
+        and splitPorts.context.internalPort == 22122
+        and splitPorts.body:find("<NewExternalPort>33000</NewExternalPort>", 1, true)
+        and splitPorts.body:find("<NewInternalPort>22122</NewInternalPort>", 1, true)
         and externalQuery and externalQuery.context.action == "GetExternalIPAddress"
         and mutatedServiceRejected)
 

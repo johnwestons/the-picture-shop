@@ -33,6 +33,10 @@ function Test.run(context, check, economy, jobs)
     economy.accountsReceivable = economy.jobs.active[1].quote.totalPrice
     economy.nextJobId = 100
     economy.shopProgress.completedCuts = 9
+    economy.reputation.score = 37
+    economy.reputation.completedJobs = 4
+    economy.reputation.spoiledSheets = 500
+    economy.reputation.spoilClaims = 230
     economy.inventory.plasticWrapRolls = 3
     economy.inventory.plasticWrapUses = 7
     economy.inventory.stock.shipping_cartons = 18
@@ -58,7 +62,16 @@ function Test.run(context, check, economy, jobs)
         and machineDelivery.delivery.status == "awaiting_delivery")
     check("save_procurement_setup", context.procurement.buy(economy, 1, 1))
     local savedPlayer = { x = 701, y = 502 }
-    check("save_write_v3", context.save.save(1, economy, savedPlayer))
+    local schema = require("src.save_schema")
+    local snapshot = schema.snapshot(economy)
+    local palletValid, palletErrors = context.PalletState.validate(snapshot)
+    check("save_write_v3", context.save.save(1, economy, savedPlayer),
+        string.format("schema=%s pallets=%s errors=%s phone=%s/%s/%s",
+            tostring(schema.validState(snapshot)), tostring(palletValid),
+            table.concat(palletErrors or {}, "; "),
+            tostring(snapshot.workPhone and snapshot.workPhone.nextCallId),
+            tostring(snapshot.workPhone and snapshot.workPhone.nextCallAtHours),
+            tostring(snapshot.workPhone and #snapshot.workPhone.history)))
     local loaded = context.save.load(1)
     check("save_round_trip", loaded and loaded.state.money == economy.money)
     check("save_jobs_round_trip", loaded
@@ -84,6 +97,11 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.inventory.stock.shipping_cartons == 18
         and loaded.state.inventory.rawPallets == 1
         and loaded.state.shopProgress.completedCuts == 9)
+    check("save_reputation_round_trip", loaded
+        and loaded.state.reputation.score == 37
+        and loaded.state.reputation.completedJobs == 4
+        and loaded.state.reputation.spoiledSheets == 500
+        and loaded.state.reputation.spoilClaims == 230)
     check("save_pallet_jack_round_trip", loaded
         and loaded.state.palletJack.x == 612
         and loaded.state.palletJack.y == 498

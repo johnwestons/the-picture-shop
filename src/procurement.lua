@@ -1,11 +1,19 @@
 local Procurement = {}
 local PalletState = require("src.pallet_state")
+local PalletStorage = require("src.pallet_storage")
 local Receiving = require("src.receiving")
 local Config = require("src.config")
 local BusinessCalendar = require("src.business_calendar")
+local Inbox = require("src.inbox")
 
 local GROUP_WINDOW_HOURS = 1
 local DELIVERY_DELAY_HOURS = 4
+local CRITTER_NET_VENDORS = {
+    paper = "CritterNet Paper Depot",
+    press = "CritterNet Pressroom Supply",
+    packaging = "CritterNet Carton & Wrap",
+    equipment = "CritterNet WrenchWorks",
+}
 
 Procurement.categories = {
     {
@@ -103,6 +111,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local price = channel == "computer" and item.retailPrice or item.price
     local quantity = channel == "computer" and item.retailQuantity or item.quantity
     local productName = channel == "computer" and item.retailName or item.name
+    local onlineVendor = CRITTER_NET_VENDORS[category.id] or "CritterNet Marketplace"
     if not price or not quantity then return false, "That product is not offered through this sales channel." end
     if (state.money or 0) < price then return false, "Not enough money for this purchase." end
     local number = procurement.nextOrderId
@@ -135,8 +144,8 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
         location = "awaiting_delivery", status = "purchased",
     }
     local order = {
-        id = id, vendor = channel == "computer" and "Office Supply Catalog" or category.salesman,
-        company = channel == "computer" and "OFFICE SUPPLY DELIVERY" or category.name,
+        id = id, vendor = channel == "computer" and onlineVendor or category.salesman,
+        company = channel == "computer" and onlineVendor:upper() or category.name,
         category = category.id, item = item.id, productName = productName, channel = channel,
         price = price, status = "awaiting_delivery", orderedAt = os.time(), shipmentId = shipment.id,
         delivery = {
@@ -147,6 +156,31 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     procurement.orders[#procurement.orders + 1] = order
     shipment.orderIds[#shipment.orderIds + 1] = order.id
     state.money = state.money - price
+    if channel == "computer" then
+        Inbox.addNotice(state, {
+            id = "RECEIPT-" .. id,
+            sender = onlineVendor,
+            subject = "Receipt for " .. id,
+            body = string.format(
+                "Payment received for %s from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Your order will arrive at the loading dock.",
+                productName, id, price),
+            noticeKind = "receipt",
+            orderId = id,
+            total = price,
+        })
+    else
+        Inbox.addNotice(state, {
+            id = "SALESMAN-" .. id,
+            sender = category.salesman,
+            subject = "Thanks for your order • " .. id,
+            body = string.format(
+                "Thanks so much. Let me get this back to the shop and they will get your quote emailed right over. Your %s order is recorded as %s.",
+                productName, id),
+            noticeKind = "salesman_confirmation",
+            orderId = id,
+            total = price,
+        })
+    end
     return true, order
 end
 
@@ -331,25 +365,68 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
     return false, "The product pallet was not found on this truck."
 end
 
-function Procurement.consumePhysicalProduct(state, productId, quantity)
-    local needed = math.max(0, math.floor(quantity or 1))
+-- Physical allocation is atomic and never reaches into shelves, vehicles or
+-- stacks. Maintenance may opt into genuine abstract-only legacy supplies; a
+-- delivered but inaccessible pallet must still reserve its share of stock.
+-- The caller debits abstract stock only after this function succeeds.
+function Procurement.consumePhysicalProduct(state, productId, quantity, options)
+    quantity = quantity == nil and 1 or quantity
+    if type(state) ~= "table" or type(productId) ~= "string" or productId == ""
+        or type(quantity) ~= "number" or quantity ~= quantity
+        or quantity < 0 or quantity >= math.huge then
+        return false, "Invalid product consumption request."
+    end
+    local needed = math.floor(quantity)
     if needed == 0 then return true end
-    for _, order in ipairs(ensure(state).orders) do
+    local allowAbstract = type(options) == "table" and options.allowAbstract == true
+    local stock = state.inventory and state.inventory.stock and state.inventory.stock[productId] or 0
+    if allowAbstract and (type(stock) ~= "number" or stock ~= stock or stock >= math.huge or stock < needed) then
+        return false, "Not enough product stock is available."
+    end
+    local valid = PalletState.validate(state)
+    if not valid then return false, "Physical stock must be reconciled before using supplies." end
+    local physical, accessible, plan = 0, 0, {}
+    for _, order in ipairs(state.procurement and state.procurement.orders or {}) do
         for _, pallet in ipairs(order.pallets or {}) do
-            if pallet.productId == productId and pallet.location == "warehouse" then
-                pallet.remainingQuantity = tonumber(pallet.remainingQuantity) or tonumber(pallet.quantity) or 0
-                local used = math.min(needed, pallet.remainingQuantity)
-                pallet.remainingQuantity = pallet.remainingQuantity - used
-                needed = needed - used
-                if pallet.remainingQuantity <= 0 then
-                    PalletState.transition(state, pallet, "none", { status = "consumed", world = false })
-                    pallet.world = nil
+            if pallet.productId == productId and pallet.location ~= "awaiting_delivery" and pallet.location ~= "none" then
+                local remaining = pallet.remainingQuantity == nil and pallet.quantity or pallet.remainingQuantity
+                if type(remaining) ~= "number" or remaining ~= remaining or remaining < 0
+                    or remaining >= math.huge then return false, "Invalid physical product quantity." end
+                physical = physical + remaining
+                if pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id) then
+                    accessible = accessible + remaining
+                    if remaining > 0 then plan[#plan + 1] = {pallet=pallet,remaining=remaining} end
                 end
-                if needed == 0 then return true end
             end
         end
     end
-    return needed == 0
+    local abstract = allowAbstract and math.max(0, stock - physical) or 0
+    if accessible + abstract < needed then
+        return false, "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
+    end
+    local committed = {}
+    for _, allocation in ipairs(plan) do
+        if needed == 0 then break end
+        local pallet = allocation.pallet
+        local used = math.min(needed, allocation.remaining)
+        local previous = {pallet=pallet,remainingQuantity=pallet.remainingQuantity,
+            location=pallet.location,status=pallet.status,world=pallet.world}
+        committed[#committed + 1] = previous
+        if used == allocation.remaining then
+            local moved, reason = PalletState.transition(state, pallet, "none", {status="consumed"})
+            if not moved then
+                for _, before in ipairs(committed) do
+                    local original = before.pallet
+                    original.remainingQuantity, original.location = before.remainingQuantity, before.location
+                    original.status, original.world = before.status, before.world
+                end
+                return false, reason
+            end
+        end
+        pallet.remainingQuantity = allocation.remaining - used
+        needed = needed - used
+    end
+    return true
 end
 
 function Procurement.physicalPallets(state)

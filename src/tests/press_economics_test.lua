@@ -107,6 +107,7 @@ function Test.run(context, check)
         and artworkOutsidePiece == nil)
 
     local cadenceState = context.State.new()
+    cadenceState.reputation.score = 20
     cadenceState.money = 20000
     local pressBought = context.machineFleet.buy(cadenceState, "dealer", 3)
     local cadence, companies = {}, {}
@@ -133,10 +134,34 @@ function Test.run(context, check)
         and repeatJob.press.requestedCopies[1] == repeatJob.pallets[1].requestedCopies
         and repeatJob.quote.orderedCopies < repeatJob.quote.suppliedSheets
         and repeatState.clientEmails.pending[1].subject == "Request for another print job")
-    local promoted = context.jobService.sendPromotion(repeatState, structured, "Print with us again.")
+    local promoted = context.jobService.sendPromotion(repeatState, structured, string.rep("x", 240))
     local promotionReply = repeatState.clientEmails.pending[#repeatState.clientEmails.pending]
     check("print_promotion_reply_describes_cut_and_print_work", promoted and promotionReply
-        and promotionReply.body:find("cut%-and%-print") ~= nil and promotionReply.job.press ~= nil)
+        and promotionReply.body:find("cut%-and%-print") ~= nil and promotionReply.job.press ~= nil
+        and promotionReply.standardPrice > promotionReply.discountedTotal
+        and promotionReply.discountAmount == promotionReply.standardPrice - promotionReply.discountedTotal
+        and promotionReply.job.quote.totalPrice == promotionReply.discountedTotal)
+    local duplicatePromotion = context.jobService.sendPromotion(repeatState, structured, "Duplicate.")
+    check("promotion_cannot_be_sent_twice_for_one_completed_job",
+        not duplicatePromotion and structured.promotionSent
+        and #repeatState.clientEmails.sentPromotions == 1)
+    legacy.status = "completed"
+    local thanked, thankPromotion = context.jobService.sendPromotion(repeatState, legacy, string.rep("a", 41))
+    local thankReply = repeatState.clientEmails.pending[#repeatState.clientEmails.pending]
+    local pendingBeforeSilence = #repeatState.clientEmails.pending
+    local silentSource = context.jobs.createOffer({
+        id = "PROMO-SILENT-001", company = "Silent Coupon Client",
+        sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 }, packaging = "flat",
+    })
+    silentSource.status = "completed"
+    local silent, silentPromotion = context.jobService.sendPromotion(
+        repeatState, silentSource, "Whenever you are ready.")
+    check("promotions_allow_thank_you_only_and_no_response_outcomes",
+        thanked and thankPromotion.responseOutcome == "thank_you"
+        and thankReply.noticeKind == "client_thanks" and thankReply.job == nil
+        and silent and silentPromotion.responseOutcome == "no_response"
+        and #repeatState.clientEmails.pending == pendingBeforeSilence)
 end
 
 return Test

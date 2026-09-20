@@ -12,6 +12,11 @@ local MachineFleet = require("src.machine_fleet")
 local MachinePose = require("src.machine_pose")
 local WindmillPlacement = require("src.windmill_placement")
 local Windmill = require("src.windmill")
+local WorkPhone = require("src.work_phone")
+local WarehouseUpgrades = require("src.warehouse_upgrades")
+local PalletStorage = require("src.pallet_storage")
+local Forklift = require("src.forklift")
+local WarehouseConstruction = require("src.warehouse_construction")
 
 local SHARED_FIELDS = {
     "money",
@@ -20,17 +25,23 @@ local SHARED_FIELDS = {
     "cutterMemory",
     "jobs",
     "palletJack",
+    "warehouse",
+    "storage",
+    "forklift",
+    "constructionWorker",
     "wrapper",
     "windmill",
     "technicianVisit",
     "cutter",
     "nextJobId",
     "accountsReceivable",
+    "reputation",
     "procurement",
     "vendorCategory",
     "calendar",
     "bills",
     "clientEmails",
+    "workPhone",
     "machines",
 }
 
@@ -45,7 +56,26 @@ end
 
 function State.applySave(state, payload)
     local saved = type(payload) == "table" and payload.state
-    if type(saved) ~= "table" then return false end
+    if type(state) ~= "table" or not SaveSchema.validPhysicalSource(saved) then return false end
+    local warehouse = WarehouseUpgrades.normalize(saved.warehouse)
+    local storage = PalletStorage.normalize(saved.storage)
+    if not warehouse or not storage
+        or (saved.forklift ~= nil and not Forklift.validState(saved.forklift, Config.forklift)) then return false end
+    local forklift = Forklift.normalize(saved.forklift, Config.forklift)
+    if forklift.owned and not warehouse.forkliftOwned then return false end
+    if not WarehouseConstruction.valid(saved.constructionWorker, warehouse) then return false end
+    local constructionWorker = WarehouseConstruction.normalize(saved.constructionWorker, warehouse)
+    local strictStorage = forklift.carriedPalletId ~= nil or next(storage.racks) ~= nil
+        or #storage.appliedRequests > 0
+    for _, item in ipairs(PalletState.items(saved)) do
+        if item.pallet.location == "rack" or item.pallet.location == "stacked"
+            or item.pallet.location == "on_forklift" or item.pallet.storage ~= nil then strictStorage = true end
+    end
+    if strictStorage then
+        local ownership = { jobs = saved.jobs, procurement = saved.procurement,
+            palletJack = saved.palletJack, forklift = forklift, warehouse = warehouse, storage = storage }
+        if not PalletStorage.validate(ownership) then return false end
+    end
     saved = SaveSchema.copy(saved)
 
     state.activeSlot = payload.slot
@@ -81,6 +111,10 @@ function State.applySave(state, payload)
         or PalletJack.defaultState(Config.palletJack)
     PalletJack.ensure(state, Config.palletJack)
     state.palletJack.operating, state.palletJack.moving = false, false
+    state.palletJack.operatorPlayerId = nil
+    state.warehouse, state.storage, state.forklift = warehouse, storage, forklift
+    state.constructionWorker = constructionWorker
+    Forklift.forceRelease(state, Config.forklift)
     state.wrapper = type(saved.wrapper) == "table" and saved.wrapper or WrapperPlacement.defaultState(Config.wrapperPlacement)
     if state.wrapper.x == 825 and state.wrapper.y == 300 and not state.wrapper.moving then
         state.wrapper.x, state.wrapper.y = Config.wrapperPlacement.spawnX, Config.wrapperPlacement.spawnY
@@ -106,6 +140,9 @@ function State.applySave(state, payload)
     state.accountsReceivable = type(saved.accountsReceivable) == "number"
         and math.max(0, saved.accountsReceivable)
         or 0
+    state.reputation = type(saved.reputation) == "table" and saved.reputation
+        or require("src.reputation").defaultState()
+    require("src.reputation").ensure(state)
     state.procurement = type(saved.procurement) == "table" and saved.procurement
         or { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 }
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
@@ -114,6 +151,9 @@ function State.applySave(state, payload)
     state.clientEmails = type(saved.clientEmails) == "table" and saved.clientEmails
         or { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} }
+    state.workPhone = type(saved.workPhone) == "table" and saved.workPhone
+        or WorkPhone.defaultState(BusinessCalendar.absoluteHours(state))
+    WorkPhone.ensure(state)
     state.machines = type(saved.machines) == "table" and saved.machines or MachineFleet.defaultState()
     MachineFleet.ensure(state)
     BusinessCalendar.ensure(state)
@@ -131,8 +171,12 @@ end
 -- allowed to describe a live host-run press, but a shop reopened from disk
 -- must never resume unattended motion.
 function State.applyLocalSave(state, payload)
+    local source = type(payload) == "table" and payload.state
+    local sourceLift = type(source) == "table" and source.forklift
+    local stoppedLift = type(sourceLift) == "table"
+        and (sourceLift.operating or sourceLift.moving or sourceLift.lifting) or false
     if not State.applySave(state, payload) then return false, false end
-    return true, Windmill.releaseOperator(state)
+    return true, Windmill.releaseOperator(state) or stoppedLift
 end
 
 -- A LAN guest receives only the host's normalized persistent shop state. The
@@ -157,6 +201,8 @@ function State.applySharedUpdate(state, snapshot)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
     local livePalletJack = state.palletJack and state.palletJack.operating
         and PalletJack.snapshot(state, Config.palletJack) or nil
+    local liveForklift = state.forklift and state.forklift.operating
+        and Forklift.snapshot(state, Config.forklift) or nil
     local liveMachinePoses = state._networkMachinePoses
         and MachinePose.copy(state._networkMachinePoses) or nil
     local staged = State.new()
@@ -179,6 +225,21 @@ function State.applySharedUpdate(state, snapshot)
     if compositeMachinePoses then
         MachinePose.apply(state, compositeMachinePoses)
         state._networkMachinePoses = compositeMachinePoses
+    end
+    -- Keep the newer live vehicle pose across reliable durable updates, but
+    -- never let an old cargo ID resurrect a pallet now stored on a shelf.
+    if liveForklift and state.forklift.owned
+        and liveForklift.carriedPalletId == state.forklift.carriedPalletId
+        and not (state.palletJack.operating
+            and state.palletJack.operatorPlayerId == liveForklift.operatorPlayerId)
+        and Forklift.applySnapshot(state, liveForklift, Config.forklift) then
+        local cargo = liveForklift.carriedPalletId and PalletState.find(state, liveForklift.carriedPalletId)
+        if cargo and cargo.pallet.location == "on_forklift" then
+            local world = cargo.pallet.world
+            world.x, world.y = liveForklift.x, liveForklift.y
+            world.fromX, world.fromY = liveForklift.x, liveForklift.y
+            world.direction, world.spawnProgress = liveForklift.direction, 1
+        end
     end
     state.activeSlot = nil
     return true

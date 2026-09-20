@@ -39,6 +39,11 @@ local function manageable(info)
         and info.canManage == true
 end
 
+local function viewable(info)
+    return type(info) == "table"
+        and (info.mode == "host" or info.mode == "client")
+end
+
 local function positiveInteger(value)
     value = tonumber(value)
     if not value or value ~= math.floor(value) or value < 1 then return nil end
@@ -50,6 +55,108 @@ local function displayName(value)
     value = value:gsub("[%z\1-\31\127]", "?")
     if #value > 24 then value = value:sub(1, 24) end
     return value
+end
+
+local RESOURCE_LABELS = {
+    reception_customer = "RECEPTION",
+    vendor = "SUPPLIER CATALOG",
+    truck = "DELIVERY TRUCK",
+    office_computer = "OFFICE COMPUTER",
+    cutter = "POLAR CUTTER",
+    windmill = "WINDMILL",
+    skid_wrapper = "SKID WRAPPER",
+    pallet_jack = "PALLET JACK",
+}
+
+local function resourceLabel(resourceId)
+    return RESOURCE_LABELS[resourceId] or tostring(resourceId or "SHARED CONTROL")
+        :gsub("_", " "):upper()
+end
+
+local function playerName(info, playerId)
+    for _, player in ipairs(type(info.players) == "table" and info.players or {}) do
+        if positiveInteger(player and (player.playerId or player.id)) == playerId then
+            return displayName(player.name)
+        end
+    end
+    return playerId == 1 and "Host" or ("Worker " .. tostring(playerId or "?"))
+end
+
+local function pendingLabel(pending)
+    if type(pending) ~= "table" then return nil end
+    local target = pending.resourceId and resourceLabel(pending.resourceId)
+        or tostring(pending.targetKind or "SHOP ACTION"):gsub("_", " "):upper()
+    if pending.kind == "urgent_safety" then
+        return "URGENT SAFETY SENT • WAITING FOR HOST • " .. target
+    elseif pending.kind == "workshop_acquire" then
+        return "REQUESTING " .. target .. " • WAITING FOR HOST"
+    end
+    return target .. " • WAITING FOR HOST"
+end
+
+local function statusPlayers(info)
+    local rows = {}
+    for _, player in ipairs(type(info.players) == "table" and info.players or {}) do
+        local playerId = positiveInteger(player and (player.playerId or player.id))
+        if playerId and #rows < 4 then
+            local badges = {}
+            if playerId == 1 or player.isHost == true then badges[#badges + 1] = "HOST" end
+            if playerId == positiveInteger(info.localPlayerId) or player.isLocal == true then
+                badges[#badges + 1] = "YOU"
+            end
+            rows[#rows + 1] = {
+                playerId = playerId,
+                name = displayName(player.name),
+                badge = table.concat(badges, " • "),
+            }
+        end
+    end
+    table.sort(rows, function(left, right) return left.playerId < right.playerId end)
+    return rows
+end
+
+function MultiplayerHud.statusSummary(info)
+    info = type(info) == "table" and info or {}
+    local isHost = info.mode == "host"
+    local rtt = tonumber(info.rtt)
+    local connection
+    if isHost then
+        connection = "HOST ONLINE"
+    elseif rtt then
+        local quality = rtt <= 80 and "GOOD" or rtt <= 180 and "FAIR" or "SLOW"
+        connection = string.format("CONNECTED • %d MS • %s", math.floor(rtt + 0.5), quality)
+    else
+        connection = "CONNECTED • MEASURING LINK"
+    end
+
+    local control = pendingLabel(info.pendingActivity)
+    if not control and info.activeResourceId then
+        control = "YOU CONTROL • " .. resourceLabel(info.activeResourceId)
+    end
+    if not control then
+        local occupied = {}
+        for _, resource in ipairs(type(info.workshopResources) == "table"
+            and info.workshopResources or {}) do
+            local ownerPlayerId = positiveInteger(resource and resource.ownerPlayerId)
+            if resource and resource.occupied == true and ownerPlayerId then
+                occupied[#occupied + 1] = playerName(info, ownerPlayerId)
+                    .. " USING • " .. resourceLabel(resource.resourceId)
+            end
+        end
+        if #occupied > 0 then
+            control = occupied[1] .. (#occupied > 1
+                and ("  + " .. tostring(#occupied - 1) .. " MORE") or "")
+        else
+            control = "ALL SHARED CONTROLS AVAILABLE"
+        end
+    end
+    return {
+        authority = isHost and "THIS DEVICE OWNS AND SAVES THE SHOP"
+            or "THE HOST DEVICE OWNS AND SAVES THE SHOP",
+        connection = connection,
+        control = control,
+        status = tostring(info.status or "Session active"):gsub("[%z\1-\31\127]", "?"):sub(1, 72),
+    }
 end
 
 local function pendingRows(info, panel)
@@ -98,7 +205,7 @@ function MultiplayerHud.reset()
 end
 
 function MultiplayerHud.open(info)
-    if not manageable(info) then
+    if not viewable(info) then
         MultiplayerHud.reset()
         return false
     end
@@ -120,21 +227,25 @@ end
 
 -- Pure layout data keeps hit-testing and its tests independent of love.graphics.
 function MultiplayerHud.layout(info)
+    local visible = viewable(info)
     local allowed = manageable(info)
-    local toggle = allowed and {
+    local toggle = visible and {
         x = Config.baseWidth - MARGIN - TOGGLE_WIDTH,
         y = TOGGLE_Y,
         width = TOGGLE_WIDTH,
         height = TOGGLE_HEIGHT,
     } or nil
     local result = {
+        viewable = visible,
         manageable = allowed,
-        open = allowed and opened,
+        open = visible and opened,
         toggle = toggle,
         invite = nil,
         note = PLAYER_NOTE,
         pending = {},
         guests = {},
+        statusPlayers = {},
+        summary = nil,
     }
     if not result.open then return result end
     result.panel = {
@@ -143,6 +254,11 @@ function MultiplayerHud.layout(info)
         width = PANEL_WIDTH,
         height = PANEL_HEIGHT,
     }
+    if not allowed then
+        result.statusPlayers = statusPlayers(info)
+        result.summary = MultiplayerHud.statusSummary(info)
+        return result
+    end
     result.pending = pendingRows(info, result.panel)
     result.guests = guestRows(info, result.panel)
     if info.canInvite == true then
@@ -158,10 +274,10 @@ end
 
 function MultiplayerHud.hitTest(x, y, info)
     local layout = MultiplayerHud.layout(info)
-    if not layout.manageable then return nil end
+    if not layout.viewable then return nil end
     if contains(layout.toggle, x, y) then return { kind = "toggle" } end
     if not layout.open then return nil end
-    for _, row in ipairs(layout.pending) do
+    for _, row in ipairs(layout.manageable and layout.pending or {}) do
         if contains(row.approve, x, y) then
             return { kind = "approve", requestId = row.requestId }
         end
@@ -169,7 +285,7 @@ function MultiplayerHud.hitTest(x, y, info)
             return { kind = "deny", requestId = row.requestId }
         end
     end
-    for _, row in ipairs(layout.guests) do
+    for _, row in ipairs(layout.manageable and layout.guests or {}) do
         if contains(row.remove, x, y) then
             return { kind = "remove", playerId = row.playerId }
         end
@@ -196,7 +312,7 @@ function MultiplayerHud.buttonCenter(kind, identifier, info)
 end
 
 function MultiplayerHud.keypressed(key, info)
-    if not manageable(info) then
+    if not viewable(info) then
         MultiplayerHud.reset()
         return false
     end
@@ -213,7 +329,7 @@ end
 
 function MultiplayerHud.mousepressed(x, y, button, info)
     if button ~= 1 then return false end
-    if not manageable(info) then
+    if not viewable(info) then
         MultiplayerHud.reset()
         return false
     end
@@ -276,6 +392,43 @@ local function drawButton(rect, label, active, danger)
     love.graphics.printf(label, rect.x + 4, rect.y + 13, rect.width - 8, "center")
 end
 
+local function drawStatusPanel(info, layout)
+    local panel, summary = layout.panel, layout.summary
+    love.graphics.setColor(0.025, 0.04, 0.05, 0.97)
+    love.graphics.rectangle("fill", panel.x, panel.y, panel.width, panel.height, 6, 6)
+    love.graphics.setColor(0.38, 0.80, 0.76, 1)
+    love.graphics.rectangle("line", panel.x, panel.y, panel.width, panel.height, 6, 6)
+    love.graphics.printf("LOCAL PLAY STATUS", panel.x + 12, panel.y + 14,
+        panel.width - 24, "left")
+
+    love.graphics.setColor(0.91, 0.93, 0.90, 1)
+    love.graphics.printf(summary.authority, panel.x + 12, 208, panel.width - 24, "left")
+    love.graphics.setColor(0.55, 0.82, 0.77, 1)
+    love.graphics.printf(summary.connection, panel.x + 12, 232, panel.width - 24, "left")
+
+    love.graphics.setColor(0.67, 0.75, 0.74, 1)
+    love.graphics.printf("CONNECTED WORKERS", panel.x + 12, 270, panel.width - 24, "left")
+    if #layout.statusPlayers == 0 then
+        love.graphics.printf("Waiting for the roster...", panel.x + 12, 302,
+            panel.width - 24, "left")
+    end
+    for index, row in ipairs(layout.statusPlayers) do
+        local y = 300 + (index - 1) * 34
+        love.graphics.setColor(0.91, 0.93, 0.90, 1)
+        love.graphics.printf(row.name, panel.x + 12, y, panel.width - 128, "left")
+        love.graphics.setColor(0.95, 0.78, 0.23, 1)
+        love.graphics.printf(row.badge, panel.x + panel.width - 120, y, 108, "right")
+    end
+
+    love.graphics.setColor(0.67, 0.75, 0.74, 1)
+    love.graphics.printf("SHARED CONTROL", panel.x + 12, 452, panel.width - 24, "left")
+    love.graphics.setColor(0.91, 0.93, 0.90, 1)
+    love.graphics.printf(summary.control, panel.x + 12, 480, panel.width - 24, "left")
+    love.graphics.setColor(0.55, 0.64, 0.63, 1)
+    love.graphics.printf(summary.status, panel.x + 12, 522, panel.width - 24, "center")
+    love.graphics.printf(PLAYER_NOTE, panel.x + 12, 554, panel.width - 24, "center")
+end
+
 function MultiplayerHud.draw(info)
     if type(info) ~= "table" or info.mode == "offline" then
         if opened then MultiplayerHud.reset() end
@@ -301,13 +454,13 @@ function MultiplayerHud.draw(info)
     love.graphics.rectangle("line", x, BAR_Y, width, BAR_HEIGHT, 4, 4)
     love.graphics.printf(line, x + 8, BAR_Y + 6, width - 16, "center")
 
-    if not manageable(info) then
-        if opened then MultiplayerHud.reset() end
+    local layout = MultiplayerHud.layout(info)
+    drawButton(layout.toggle, opened and "CLOSE STATUS" or "SESSION (P)", false, false)
+    if not layout.open then return end
+    if not layout.manageable then
+        drawStatusPanel(info, layout)
         return
     end
-    local layout = MultiplayerHud.layout(info)
-    drawButton(layout.toggle, opened and "CLOSE PLAYERS" or "PLAYERS (P)", false, false)
-    if not layout.open then return end
 
     local panel = layout.panel
     love.graphics.setColor(0.025, 0.04, 0.05, 0.97)

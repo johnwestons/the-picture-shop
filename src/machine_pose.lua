@@ -79,10 +79,13 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
 
     if activeKind and jack ~= nil then
         if type(jack) ~= "table" or jack.operating ~= true
-            or jack.operatorPlayerId ~= 1 or jack.carriedPalletId ~= nil
+            or type(jack.operatorPlayerId) ~= "number"
+            or jack.operatorPlayerId % 1 ~= 0
+            or jack.operatorPlayerId < 1 or jack.operatorPlayerId > 4
+            or jack.carriedPalletId ~= nil
             or jack.candidatePalletId ~= nil
         then
-            return nil, label .. " active relocation requires the host-owned empty pallet jack"
+            return nil, label .. " active relocation requires a worker-owned empty pallet jack"
         end
         if jack.direction ~= activePose.direction or jack.moving ~= activePose.inMotion
             or not sameCoordinate(jack.x, activePose.x)

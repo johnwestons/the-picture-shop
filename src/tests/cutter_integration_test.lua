@@ -81,6 +81,131 @@ function Test.run(context, check, jobs)
     end
     verifySixLiftRepeatRun()
 
+    local function verifyOffSizeSpoilage()
+        local spoilState = context.State.new()
+        spoilState.reputation.score = 0
+        local spoilJob = jobs.createOffer({
+            id = "JOB-OFF-SIZE", company = "Customer Stock Test",
+            sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 500 },
+            stockSpec = { suppliedBy = "client", grade = "cover", weight = 100,
+                finish = "gloss", color = "white", grain = "long", description = "100 lb gloss cover" },
+        })
+        jobs.accept(spoilJob)
+        spoilState.jobs.active[1] = spoilJob
+        local pallet = spoilJob.pallets[1]
+        pallet.location = "warehouse"
+        pallet.world = { x = spoilState.cutter.x, y = spoilState.cutter.y,
+            direction = "northwest", spawnProgress = 1 }
+        context.machine.reset(spoilState)
+        context.machine.load(spoilState, pallet.id)
+        context.machine.update(context.machine.transferTime + 0.01, spoilState)
+        local cut = pallet.paper.cuts[1]
+        context.machine.selectProgram(1, spoilState)
+        context.machine.rotate(spoilState)
+        context.machine.setGauge(cut.gauge - 0.5, spoilState)
+        check("cutter_positions_off_size_stock", context.machine.position(spoilState))
+        context.machine.update(context.machine.transferTime + 0.01, spoilState)
+        context.machine.toggleClamp(spoilState)
+        context.machine.keypressed("j", spoilState)
+        context.machine.keypressed("k", spoilState)
+        context.machine.update(0.01, spoilState)
+        context.machine.update(context.machine.cycleTime + 0.01, spoilState)
+        local replacement = spoilJob.pallets[2]
+        check("cutter_wrong_size_spoils_customer_lift",
+            context.machine.step == "cut_complete" and pallet.damagedSheets == 500
+            and pallet.remainingSheets == 0 and spoilJob.spoiledSheets == 500)
+        check("cutter_spoil_creates_claim_and_reputation_loss",
+            spoilState.bills.balance == spoilJob.spoilCost
+            and spoilJob.spoilCost >= jobs.PRICE_PER_LIFT
+            and spoilState.reputation.score < 0)
+        check("cutter_customer_schedules_exact_replacement_skid",
+            replacement and replacement.replacementFor == pallet.id
+            and replacement.initialSheets == 500 and replacement.remainingSheets == 500
+            and replacement.location == "awaiting_delivery"
+            and spoilJob.delivery.kind == "replacement"
+            and spoilJob.delivery.palletIds[1] == replacement.id)
+        local _, replacementManifest = context.PalletLogistics.truckInventory(
+            spoilState, spoilJob.id)
+        check("cutter_replacement_manifest_contains_only_new_skid",
+            #replacementManifest == 1 and replacementManifest[1].id == replacement.id)
+        local spoiledLiftReturned = context.machine.unload(spoilState)
+        check("cutter_ruined_original_skid_is_discarded",
+            spoiledLiftReturned and pallet.status == "spoiled_discarded"
+            and pallet.location == "none" and context.machine.step == "finished")
+        local replacementUnloaded = context.PalletLogistics.unload(
+            spoilState, spoilJob.id, replacement.id,
+            context.config.palletLogistics.spawnPoints,
+            context.config.palletLogistics.unloadOrigin)
+        check("cutter_customer_replacement_skid_arrives_with_spoiled_amount",
+            replacementUnloaded and replacement.location == "warehouse"
+            and replacement.status == "raw" and replacement.initialSheets == 500
+            and spoilJob.delivery.status == "received")
+        check("cutter_replacement_delivery_save_round_trip",
+            context.save.save(3, spoilState, { x = 400, y = 400 }))
+        local replacementCheckpoint = context.save.load(3)
+        local savedReplacement = replacementCheckpoint
+            and replacementCheckpoint.state.jobs.active[1].pallets[2]
+        check("cutter_replacement_delivery_persists",
+            savedReplacement and savedReplacement.id == replacement.id
+            and savedReplacement.initialSheets == 500
+            and savedReplacement.replacementFor == pallet.id)
+        context.save.delete(3)
+        context.machine.reset(spoilState)
+
+        local partialState = context.State.new()
+        local partialJob = jobs.createOffer({
+            id = "JOB-PARTIAL-SPOIL", company = "Partial Lift Test",
+            sourceSize = { width = 20, height = 16 },
+            finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 750 },
+        })
+        jobs.accept(partialJob)
+        partialState.jobs.active[1] = partialJob
+        local partial = partialJob.pallets[1]
+        local anchorX, anchorY = context.CutterZones.inputAnchor(
+            partialState, context.config.cutterPlacement)
+        partial.location = "warehouse"
+        partial.world = { x = anchorX, y = anchorY, fromX = anchorX, fromY = anchorY,
+            direction = "northwest", spawnProgress = 1 }
+        context.PalletState.transition(partialState, partial, "at_cutter", {
+            status = "in_process",
+            cutterRadius = context.config.cutterPlacement.palletInputZoneRadius,
+        })
+        partial.completedLifts, partial.remainingSheets = 1, 250
+        partial.finishedSheets, partial.activeLift = 500, 2
+        partial.lastLiftSheets, partial.programVerified = 500, true
+        partial.paper.status = "complete"
+        partial.paper.activeCut = #partial.paper.cuts + 1
+        partial.paper.currentSize.width = partial.paper.finishedSize.width
+        partial.paper.currentSize.height = partial.paper.finishedSize.height
+        context.machine.load(partialState, partial.id)
+        context.machine.repeatLift(partialState)
+        context.machine.update(context.machine.transferTime + 0.01, partialState)
+        local partialCut = partial.paper.cuts[1]
+        context.machine.selectProgram(1, partialState)
+        context.machine.rotate(partialState)
+        context.machine.setGauge(partialCut.gauge - 0.5, partialState)
+        context.machine.position(partialState)
+        context.machine.update(context.machine.transferTime + 0.01, partialState)
+        context.machine.toggleClamp(partialState)
+        context.machine.keypressed("j", partialState)
+        context.machine.keypressed("k", partialState)
+        context.machine.update(0.01, partialState)
+        context.machine.update(context.machine.cycleTime + 0.01, partialState)
+        local partialReplacement = partialJob.pallets[2]
+        check("cutter_partial_lift_replacement_matches_only_ruined_amount",
+            partial.damagedSheets == 250 and partialReplacement
+            and partialReplacement.initialSheets == 250
+            and partialReplacement.remainingSheets == 250,
+            string.format("damaged=%s replacement=%s initial=%s remaining=%s",
+                tostring(partial.damagedSheets), tostring(partialReplacement ~= nil),
+                tostring(partialReplacement and partialReplacement.initialSheets),
+                tostring(partialReplacement and partialReplacement.remainingSheets)))
+        context.machine.reset(partialState)
+    end
+    verifyOffSizeSpoilage()
+
     local function verifyMultiplayerSafeMachineLifecycle()
         local saleState = context.State.new()
         local installedCutter = context.machineFleet.installed(saleState, "polar_115")
@@ -233,16 +358,10 @@ function Test.run(context, check, jobs)
         context.machine.update(context.machine.transferTime + 0.01, networkState)
         context.machine.toggleClamp(networkState)
         context.machine.gauge = firstCut.gauge + 0.25
-        check("cutter_guarded_cut_revalidates_host_gauge", not context.machine.guardedCut(networkState)
-            and context.machine.step == "clamped")
-        context.machine.gauge = firstCut.gauge
-        context.machine.programIndex = 2
-        check("cutter_guarded_cut_revalidates_host_program", not context.machine.guardedCut(networkState)
-            and context.machine.step == "clamped")
-        context.machine.programIndex = 1
-        context.machine.setBarrier(false, networkState)
-        check("cutter_guarded_cut_revalidates_host_safety", not context.machine.guardedCut(networkState)
-            and context.machine.step == "blocked")
+        check("cutter_guarded_cut_allows_off_size_work", context.machine.guardedCut(networkState)
+            and context.machine.step == "armed")
+        context.machine.emergencyStop(networkState)
+        check("cutter_guarded_cut_still_enforces_host_safety", context.machine.step == "blocked")
 
         local blockedPaper, blockedPallet = context.machine.paper, context.machine.pallet
         check("cutter_reset_safety_starts_without_orphaning", context.machine.resetSafety(networkState)
@@ -260,6 +379,7 @@ function Test.run(context, check, jobs)
             and context.machine.paper == blockedPaper
             and context.machine.pallet == blockedPallet)
 
+        context.machine.setGauge(firstCut.gauge, networkState)
         context.machine.position(networkState)
         context.machine.update(context.machine.transferTime + 0.01, networkState)
         context.machine.toggleClamp(networkState)
@@ -449,7 +569,8 @@ function Test.run(context, check, jobs)
         and context.machine.pallet == cutterJob.pallets[1])
     context.machine.update(context.machine.transferTime + 0.01, cutterState)
     check("cutter_load_animation", context.machine.step == "loaded" and context.machine.paper == trackedPaper)
-    check("cutter_rejects_wrong_gauge", not context.machine.position(cutterState))
+    check("cutter_wrong_gauge_is_player_responsibility", context.machine.step == "loaded"
+        and not context.PaperWork.gaugeMatches(trackedPaper, context.machine.gauge))
     context.machineScreen.enter()
     local gaugeInputX, gaugeInputY = context.machineScreen.gaugeInputCenter()
     check("cutter_gauge_requires_explicit_field_focus",

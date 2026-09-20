@@ -66,6 +66,7 @@ $allowed = @(
     'TPS_GATEWAY_DISCOVERY=PASS',
     'DEFAULT_IPV4_ROUTE=VERIFIED',
     'ROUTE_SNAPSHOT_ALLOWLISTED=True',
+    'NETWORK_GENERATION_PRESENT=True',
     'NETWORK_TRAFFIC_SENT=False'
 )
 if ($positive.ExitCode -ne 0 -or $positive.Output -notcontains $allowed[0]) {

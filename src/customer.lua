@@ -31,6 +31,17 @@ local function copyRoute(route)
     return result
 end
 
+local function routeForSeat(instance, seatIndex)
+    local route = copyRoute(instance.baseRoute)
+    local seat = type(instance.seatSpots) == "table" and instance.seatSpots[seatIndex] or nil
+    if not seat then return route, nil end
+    for _, point in ipairs(seat.approach or {}) do
+        route[#route + 1] = { x = point.x, y = point.y }
+    end
+    route[#route + 1] = { x = seat.x, y = seat.y }
+    return route, seat
+end
+
 local function distanceSquared(a, b)
     local dx, dy = a.x - b.x, a.y - b.y
     return dx * dx + dy * dy
@@ -80,6 +91,7 @@ function Customer.new(definition)
         walkAnimationRate = definition.walkAnimationRate or 4,
         idleAnimationRate = definition.idleAnimationRate or 0.65,
         useAnimationRate = definition.useAnimationRate or 2.5,
+        seatingPauseDuration = definition.seatingPauseDuration or 0.28,
         motionProfiles = definition.motionProfiles or {},
         arrivalDelay = definition.arrivalDelay or 1,
         initialArrivalDelay = definition.initialArrivalDelay,
@@ -88,7 +100,8 @@ function Customer.new(definition)
         arrivalDelayMin = definition.arrivalDelayMin,
         arrivalDelayMax = definition.arrivalDelayMax,
         interactionRadius = definition.interactionRadius or 58,
-        route = copyRoute(definition.route),
+        baseRoute = copyRoute(definition.route),
+        route = {},
     }, Instance)
     instance:reset(true)
     return instance
@@ -101,9 +114,11 @@ function Instance:reset(initialVisit)
     end
     if type(self.seatSpots) == "table" and #self.seatSpots > 0 then
         self.seatIndex = self.seatIndex % #self.seatSpots + 1
-        self.seat = self.seatSpots[self.seatIndex]
+        self.route, self.seat = routeForSeat(self, self.seatIndex)
         self.seatFacing = self.seat.facing or 1
-        self.route[#self.route] = { x = self.seat.x, y = self.seat.y }
+    else
+        self.route, self.seat = routeForSeat(self, 0)
+        self.seatFacing = nil
     end
     local spawn = self.route[1]
     self.x, self.y = spawn.x, spawn.y
@@ -125,6 +140,32 @@ function Instance:reset(initialVisit)
     self.inMotion = false
     self.decision = nil
     self.waitTimer = 0
+    self.seatingPause = 0
+end
+
+local function settleIntoSeat(instance)
+    instance.x, instance.y = instance.seat.x, instance.seat.y
+    instance.state = "waiting"
+    instance.waypoint = #instance.route
+    instance.waitTimer = 0
+    instance.seatingPause = 0
+    instance.currentSpeed = 0
+    instance.facing = instance.seatFacing or instance.facing
+    instance.intentX, instance.intentY = instance.facing, 0
+    return "arrived"
+end
+
+local function leaveSeat(instance)
+    if instance.seat and #instance.route >= 2 then
+        local standingPoint = instance.route[#instance.route - 1]
+        instance.x, instance.y = standingPoint.x, standingPoint.y
+        instance.waypoint = math.max(1, #instance.route - 2)
+    else
+        instance.waypoint = #instance.route - 1
+    end
+    instance.seatingPause = 0
+    instance.currentSpeed = 0
+    instance.inMotion = false
 end
 
 function Instance:update(dt, player, pauseSchedule)
@@ -139,6 +180,19 @@ function Instance:update(dt, player, pauseSchedule)
         self.visible = true
     end
 
+    -- Stop in front of the furniture before changing pose. The seat itself is
+    -- a render anchor, not a walking waypoint; walking into that anchor made
+    -- the visitor appear to melt through the chair before sitting.
+    if self.state == "entering" and self.seatingPause > 0 then
+        self.seatingPause = math.max(0, self.seatingPause - dt)
+        self.currentSpeed = 0
+        self.facing = self.seatFacing or self.facing
+        self.intentX, self.intentY = self.facing, 0
+        self.idleClock = self.idleClock + dt
+        if self.seatingPause > 0 then return nil end
+        return settleIntoSeat(self)
+    end
+
     if self.state ~= "entering" and self.state ~= "exiting" then
         self.currentSpeed = 0
         self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
@@ -149,7 +203,7 @@ function Instance:update(dt, player, pauseSchedule)
             if self.waitTimer >= self.maxWaitSeconds then
                 self.decision = "timed_out"
                 self.state = "exiting"
-                self.waypoint = #self.route - 1
+                leaveSeat(self)
                 return "timed_out"
             end
         elseif self.state == "reviewing" then
@@ -207,6 +261,18 @@ function Instance:update(dt, player, pauseSchedule)
         if not reached then break end
         travel = remaining
         self.waypoint = self.state == "entering" and self.waypoint + 1 or self.waypoint - 1
+        if self.state == "entering" and self.seat and self.waypoint == #self.route then
+            local secondsRemaining = travel / math.max(1, self.currentSpeed)
+            if secondsRemaining >= self.seatingPauseDuration then
+                event = settleIntoSeat(self)
+            else
+                self.seatingPause = self.seatingPauseDuration - secondsRemaining
+                self.currentSpeed = 0
+                self.facing = self.seatFacing or self.facing
+                self.intentX, self.intentY = self.facing, 0
+            end
+            break
+        end
     end
     local movedX, movedY = self.x - startX, self.y - startY
     local distance = math.sqrt(movedX * movedX + movedY * movedY)
@@ -220,6 +286,12 @@ function Instance:update(dt, player, pauseSchedule)
         if math.abs(self.motionX) > 0.08 then self.facing = self.motionX < 0 and -1 or 1 end
     else
         self.idleClock = self.idleClock + dt
+    end
+    if event == "arrived" then
+        self.inMotion = false
+        self.motionX, self.motionY = 0, 0
+        self.facing = self.seatFacing or self.facing
+        self.intentX, self.intentY = self.facing, 0
     end
     return event
 end
@@ -245,7 +317,7 @@ function Instance:resolve(decision)
     if decision ~= "accepted" and decision ~= "declined" then return false end
     self.decision = decision
     self.state = "exiting"
-    self.waypoint = #self.route - 1
+    leaveSeat(self)
     return true
 end
 
@@ -258,7 +330,7 @@ function Instance:getInteraction()
         customerState = self.state,
         prompt = self.state == "waiting"
             and "E: look at customer job"
-            or "A: accept job    D: decline job",
+            or "Review job; request written details by email",
     }
 end
 
@@ -314,11 +386,12 @@ end
 -- validated visitor pose instead, keeping both devices on the same customer
 -- and vendor without granting the guest authority over either state machine.
 function Instance:applySnapshot(snapshot)
+    local snapshotRoute, snapshotSeat = routeForSeat(self, snapshot and snapshot.seatIndex or 0)
     if type(snapshot) ~= "table" or not NETWORK_STATES[snapshot.state]
         or type(snapshot.visible) ~= "boolean"
         or not finite(snapshot.x) or not finite(snapshot.y)
         or type(snapshot.waypoint) ~= "number" or snapshot.waypoint % 1 ~= 0
-        or snapshot.waypoint < 1 or snapshot.waypoint > #self.route
+        or snapshot.waypoint < 1 or snapshot.waypoint > #snapshotRoute
         or type(snapshot.seatIndex) ~= "number" or snapshot.seatIndex % 1 ~= 0
         or snapshot.seatIndex < 0
         or (type(self.seatSpots) == "table" and snapshot.seatIndex > #self.seatSpots)
@@ -358,10 +431,12 @@ function Instance:applySnapshot(snapshot)
     self.decision = snapshot.decision
     self.waitTimer = snapshot.waitTimer
     self.timer = snapshot.arrivalTimer
-    if type(self.seatSpots) == "table" and self.seatSpots[self.seatIndex] then
-        self.seat = self.seatSpots[self.seatIndex]
+    self.seatingPause = 0
+    self.route, self.seat = snapshotRoute, snapshotSeat
+    if self.seat then
         self.seatFacing = self.seat.facing or 1
-        self.route[#self.route] = { x = self.seat.x, y = self.seat.y }
+    else
+        self.seatFacing = nil
     end
     return true
 end

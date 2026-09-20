@@ -2,6 +2,7 @@ local Fleet = {}
 local BusinessCalendar = require("src.business_calendar")
 local Procurement = require("src.procurement")
 local Config = require("src.config")
+local Inbox = require("src.inbox")
 
 local saleGuard = nil
 
@@ -378,8 +379,9 @@ function Fleet.completeCutterLubrication(state, machineId, result)
     if (stock.maintenance_kit or 0) < 1 then return false, "A machine maintenance kit is required." end
     result = type(result) == "table" and result or {}
     local score = clamp(tonumber(result.score) or 0, 0, 1)
+    local consumed, consumptionError = Procurement.consumePhysicalProduct(state, "maintenance_kit", 1, {allowAbstract=true})
+    if not consumed then return false, consumptionError end
     stock.maintenance_kit = stock.maintenance_kit - 1
-    Procurement.consumePhysicalProduct(state, "maintenance_kit", 1)
     -- Hydraulic oil is deliberately excluded: it remains technician-only work.
     item.variables.hydraulicHealth = clamp(item.variables.hydraulicHealth + 3 + score * 5, 0, 100)
     item.variables.backgaugeCalibration = clamp(item.variables.backgaugeCalibration + 8 + score * 10, 0, 100)
@@ -478,6 +480,8 @@ function Fleet.completeMaintenance(state, machineId, taskScores)
     if not item or not model then return false, "Machine not found." end
     local stock = state.inventory and state.inventory.stock or {}
     if (stock.maintenance_kit or 0) < 1 then return false, "A machine maintenance kit is required." end
+    local consumed, consumptionError = Procurement.consumePhysicalProduct(state, "maintenance_kit", 1, {allowAbstract=true})
+    if not consumed then return false, consumptionError end
     local total, count = 0, 0
     for componentId in pairs(model.components) do
         local score = type(taskScores) == "table" and tonumber(taskScores[componentId]) or nil
@@ -487,7 +491,6 @@ function Fleet.completeMaintenance(state, machineId, taskScores)
     end
     local quality = count > 0 and total / count or 0
     stock.maintenance_kit = stock.maintenance_kit - 1
-    Procurement.consumePhysicalProduct(state, "maintenance_kit", 1)
     item.maintenance.serviceCount = item.maintenance.serviceCount + 1
     item.maintenance.lastServiceAt = os.time()
     item.maintenance.lastServiceQuality = rounded(quality * 100) / 100
@@ -562,7 +565,7 @@ function Fleet.orderOnline(state, offerIndex)
     local item = createItem(machineId, offer.modelId, offer.condition, "online", "stored", offer.price)
     local order = {
         id = orderId,
-        company = "Picture Shop Online Equipment",
+        company = "CritterNet Machine Market",
         machineId = machineId,
         modelId = offer.modelId,
         machineName = offer.name,
@@ -577,6 +580,17 @@ function Fleet.orderOnline(state, offerIndex)
     }
     fleet.deliveries[#fleet.deliveries + 1] = order
     state.money = state.money - offer.price
+    Inbox.addNotice(state, {
+        id = "RECEIPT-" .. orderId,
+        sender = "CritterNet Machine Market",
+        subject = "Receipt for " .. orderId,
+        body = string.format(
+            "Payment received for %s at %.0f%% condition from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Flatbed delivery will bring unit %s to the shop.",
+            offer.name, item.condition, orderId, offer.price, machineId),
+        noticeKind = "receipt",
+        orderId = orderId,
+        total = offer.price,
+    })
     return true, order
 end
 

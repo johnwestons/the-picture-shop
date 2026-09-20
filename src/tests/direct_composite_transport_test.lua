@@ -354,6 +354,54 @@ function Test.run(_, check)
         and abandoned.closeCalls == 1 and timeoutController:linkCount() == 1
         and replacementHandleAfterTimeout ~= nil)
     timeoutHost:close()
+
+    local fairFactory, fairController = DirectComposite.newFactory({ channels = 3 })
+    local fairLinks, fairRawPeers = {}, {}
+    local fairAttached = true
+    for index = 1, 3 do
+        fairLinks[index] = fakeLink("fair-" .. tostring(index))
+        fairRawPeers[index] = { id = "fair-raw-" .. tostring(index) }
+        fairAttached = fairAttached
+            and fairController:attachInstance(fairLinks[index]) ~= nil
+        fairLinks[index].events[#fairLinks[index].events + 1] = {
+            type = "connect",
+            peer = fairRawPeers[index],
+        }
+    end
+    local fairHost = fairFactory.createHost({ channels = 3, maxGuests = 3 })
+    local fairConnections, fairConnectError = fairHost:service(3)
+    for index = 1, 3 do
+        for sequence = 1, 70 do
+            fairLinks[index].events[#fairLinks[index].events + 1] = {
+                type = "receive",
+                peer = fairRawPeers[index],
+                data = "fair-" .. tostring(index) .. "-" .. tostring(sequence),
+                channel = 1,
+                reliable = false,
+            }
+        end
+    end
+    local fairEvents, fairServiceError = fairHost:service(64)
+    local fairCounts = { 0, 0, 0 }
+    local fairFifo = true
+    for _, event in ipairs(fairEvents or {}) do
+        local linkIndex, sequence = tostring(event.data or ""):match("^fair%-(%d+)%-(%d+)$")
+        linkIndex, sequence = tonumber(linkIndex), tonumber(sequence)
+        if not linkIndex or not sequence or linkIndex < 1 or linkIndex > 3
+            or sequence ~= fairCounts[linkIndex] + 1
+        then
+            fairFifo = false
+        else
+            fairCounts[linkIndex] = sequence
+        end
+    end
+    local least = math.min(fairCounts[1], fairCounts[2], fairCounts[3])
+    local most = math.max(fairCounts[1], fairCounts[2], fairCounts[3])
+    check("direct_composite_saturated_service_round_robins_all_three_guests",
+        fairAttached and fairHost and fairConnectError == nil and #fairConnections == 3
+        and fairServiceError == nil and #fairEvents == 64
+        and least > 0 and most - least <= 1 and fairFifo)
+    fairHost:close()
 end
 
 return Test

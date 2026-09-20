@@ -1,4 +1,16 @@
-if os.getenv("PICTURE_SHOP_LAN_LOOPBACK") == "1" then
+if os.getenv("PICTURE_SHOP_WAREHOUSE_ACCEPTANCE") == "1" then
+    love.filesystem.setIdentity("the-picture-shop-warehouse-acceptance")
+    require("src.warehouse_acceptance_runner").install()
+elseif os.getenv("PICTURE_SHOP_FORKLIFT_LAB") == "1" then
+    local Lab = require("src.screens.forklift_lift_lab")
+    function love.load() Lab.load() end
+    function love.update(dt) Lab.update(dt) end
+    function love.draw() Lab.draw() end
+    function love.keypressed(key) Lab.keypressed(key) end
+    function love.mousepressed(x, y, button, istouch) Lab.mousepressed(x, y, button, istouch) end
+    function love.touchpressed(id, x, y) Lab.touchpressed(id, x, y) end
+    function love.quit() Lab.quit() end
+elseif os.getenv("PICTURE_SHOP_LAN_LOOPBACK") == "1" then
     local Probe = require("src.net.loopback_probe")
     function love.load()
         local ok, message = Probe.run({

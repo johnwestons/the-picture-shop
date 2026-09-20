@@ -12,7 +12,7 @@ function Controller.new(options)
     self.pressPointer = assert(options.pressPointer)
     self.releasePointer = assert(options.releasePointer)
     self.screenInfo = assert(options.screenInfo)
-    self.worldMenuAction = assert(options.worldMenuAction)
+    self.menuAction = assert(options.menuAction or options.worldMenuAction)
     self.pointerX = options.pointerX or 480
     self.pointerY = options.pointerY or 339
     self.active = nil
@@ -69,15 +69,16 @@ function Controller:gamepadpressed(joystick, button)
     self.active = joystick
     local screen, machineType = self.screenInfo()
     if dpadKeys[button] then return self:_pressMappedKey(button, dpadKeys[button]) end
+    if button == "start" then self.menuAction(); return true end
     if screen == "world" then
         if button == "a" then return self:_pressMappedKey(button, "e")
         elseif button == "x" then return self:_pressMappedKey(button, "f")
         elseif button == "y" then return self:_pressMappedKey(button, "m")
-        elseif button == "rightshoulder" then return self:_pressMappedKey(button, "q")
-        elseif button == "start" then self.worldMenuAction(); return true end
+        elseif button == "leftshoulder" then return self:_pressMappedKey(button, "l")
+        elseif button == "rightshoulder" then return self:_pressMappedKey(button, "q") end
         return false
     end
-    if button == "b" or button == "back" or button == "start" then
+    if button == "b" or button == "back" then
         return self:_pressMappedKey(button, "escape")
     end
     if screen == "machine" and machineType == "cutter" then

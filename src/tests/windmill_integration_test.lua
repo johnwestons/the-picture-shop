@@ -215,7 +215,7 @@ function Test.run(context, check)
         packing = { "layer", "layer", "layer", "smooth", "smooth", "clamp" },
         rollers = { "left_up", "left_up", "right_down", "right_down" },
         ink = { "key_1", "key_1", "key_2", "key_2", "key_2", "key_2", "key_3", "ductor" },
-        feeder = { "pile", "pile", "suction", "suction", "suction", "blast", "test", "test", "test" },
+        feeder = { "prepare", "suction_up", "air_down", "test", "test", "test" },
         register = { "left", "left", "left", "down", "down", "test" },
     }
     local setupGamesComplete, controlSignatures = true, {}
@@ -234,10 +234,36 @@ function Test.run(context, check)
     local coverFeeder = PressSetupGames.new("feeder", { stockSpec = { grade = "cover", weight = 100 } })
     check("six_manual_based_press_setup_games_have_distinct_controls_and_solvable_scoring",
         setupGamesComplete and signatureCount == 6)
-    check("feeder_setup_changes_pile_suction_and_air_targets_for_light_and_cover_stock",
+    check("feeder_setup_uses_distinct_light_and_cover_stock_profiles",
         lightFeeder.target.pile ~= coverFeeder.target.pile
         and lightFeeder.target.suction ~= coverFeeder.target.suction
-        and lightFeeder.target.blast ~= coverFeeder.target.blast)
+        and lightFeeder.target.air ~= coverFeeder.target.air
+        and lightFeeder.target.profile == "LIGHT STOCK"
+        and coverFeeder.target.profile == "HEAVY STOCK")
+
+    local auditedFeeder = PressSetupGames.new(
+        "feeder", { stockSpec = { grade = "cover", weight = 100 } })
+    PressSetupGames.apply(auditedFeeder, "test")
+    local blocksUnloadedTest = auditedFeeder.cleanFeeds == 0
+        and auditedFeeder.faults == 1
+        and PressSetupGames.instruction(auditedFeeder):find("fan and load", 1, true)
+    PressSetupGames.apply(auditedFeeder, "prepare")
+    PressSetupGames.apply(auditedFeeder, "test")
+    local diagnosesSuction = auditedFeeder.cleanFeeds == 0
+        and PressSetupGames.instruction(auditedFeeder):find("INCREASE SUCTION", 1, true)
+    PressSetupGames.apply(auditedFeeder, "suction_up")
+    PressSetupGames.apply(auditedFeeder, "test")
+    local diagnosesAir = auditedFeeder.cleanFeeds == 0
+        and PressSetupGames.instruction(auditedFeeder):find("REDUCE SEPARATING AIR", 1, true)
+    PressSetupGames.apply(auditedFeeder, "air_down")
+    PressSetupGames.apply(auditedFeeder, "test")
+    local provesSingleSheet = auditedFeeder.cleanFeeds == 1
+        and PressSetupGames.instruction(auditedFeeder):find("CLEAN SINGLE%-SHEET FEED")
+    PressSetupGames.apply(auditedFeeder, "suction_down")
+    local adjustmentResetsProof = auditedFeeder.cleanFeeds == 0
+    check("feeder_setup_guides_load_calibration_and_three_clean_feed_proof",
+        blocksUnloadedTest and diagnosesSuction and diagnosesAir
+        and provesSingleSheet and adjustmentResetsProof)
 
     local compositorCases = {
         { finishedSize = { width = 6, height = 9 }, press = { artworkSize = { width = 5.4, height = 8.2 } } },
@@ -402,15 +428,24 @@ function Test.run(context, check)
         and machine.modelId == "heidelberg_10x15" and machine.status == "installed")
 
     context.computerScreen.enter(state)
-    local stockX, stockY = context.computerScreen.tabCenter("inventory")
-    context.computerScreen.mousepressed(state, stockX, stockY, 1)
-    local nextX, nextY = context.computerScreen.retailPageCenter("next")
-    local paged = context.computerScreen.mousepressed(state, nextX, nextY, 1)
-    local plateKitX, plateKitY = context.computerScreen.retailButtonCenter(2)
-    local plateKitOrder = context.computerScreen.mousepressed(state, plateKitX, plateKitY, 1)
-    check("office_computer_paginates_to_all_press_supply_products", paged and paged.page == 2
-        and plateKitOrder and plateKitOrder.action == "supply_order"
-        and plateKitOrder.order.item == "plate_room_kit")
+    local dropdownX, dropdownY = context.computerScreen.dropdownCenter()
+    context.computerScreen.mousepressed(state, dropdownX, dropdownY, 1)
+    local wwwX, wwwY = context.computerScreen.tabCenter("www")
+    context.computerScreen.mousepressed(state, wwwX, wwwY, 1)
+    local pressSiteX, pressSiteY = context.computerScreen.wwwSiteCenter(2)
+    local selectedSite = context.computerScreen.mousepressed(state, pressSiteX, pressSiteY, 1)
+    local plateKitX, plateKitY = context.computerScreen.retailButtonCenter(5)
+    local plateKitAdded = context.computerScreen.mousepressed(state, plateKitX, plateKitY, 1)
+    local cartX, cartY = context.computerScreen.cartButtonCenter()
+    context.computerScreen.mousepressed(state, cartX, cartY, 1)
+    local checkoutX, checkoutY = context.computerScreen.cartCheckoutCenter()
+    local plateKitCheckout = context.computerScreen.mousepressed(state, checkoutX, checkoutY, 1)
+    local plateKitOrder = plateKitCheckout and plateKitCheckout.result.orders[1]
+    check("critter_net_pressroom_lists_all_press_supply_products", selectedSite
+        and selectedSite.site.url == "www.thecritternet.com/pressroom"
+        and plateKitAdded and plateKitAdded.action == "cart_item_added"
+        and plateKitCheckout and plateKitCheckout.action == "cart_checked_out"
+        and plateKitOrder.item == "plate_room_kit")
 
     local job = makePressJob()
     job.status = "in_progress"

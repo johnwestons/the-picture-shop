@@ -299,6 +299,42 @@ function Test.run(context, check)
         and LanScreen.message:find("IPv4", 1, true) ~= nil
         and LanScreen.message:find("host PC", 1, true) == nil)
 
+    LanScreen.enter({
+        join = function(address, name)
+            joinAddress, joinName = address, name
+            return true
+        end,
+        cancel = function() cancellations = cancellations + 1 end,
+    })
+    LanScreen.setDiscovery({
+        { address = "192.168.1.50", port = 22122, name = "Production Host" },
+        { address = "192.168.1.60", port = 22124, name = "Backup\nHost" },
+        { address = "192.168.1.70", port = 22125, name = "Hidden third" },
+    }, "3 shops found.")
+    local foundX, foundY = LanScreen.discoveredCenter(2)
+    local discoveredJoin = LanScreen.mousepressed(foundX, foundY, 1)
+    check("lan_screen_discovered_shop_uses_existing_join_callback_and_bounded_rows",
+        discoveredJoin == true and joinAddress == "192.168.1.60:22124"
+        and type(joinName) == "string" and LanScreen.mode == "connecting"
+        and #LanScreen.discoveredHosts == 2
+        and LanScreen.discoveredHosts[2].name == "Backup?Host"
+        and LanScreen.discoveredCenter(3) == nil)
+
+    LanScreen.showReconnect({
+        state = "waiting", attempt = 2, maxAttempts = 6, nextIn = 4,
+        target = { address = "192.168.1.50:22122" },
+        lastError = "Host did not answer.",
+    })
+    check("lan_screen_reconnect_explains_fresh_session_and_countdown",
+        LanScreen.mode == "reconnecting"
+        and LanScreen.address == "192.168.1.50:22122"
+        and LanScreen.message:find("4 seconds", 1, true) ~= nil
+        and LanScreen.reconnect.lastError == "Host did not answer.")
+    local reconnectCancelled = LanScreen.keypressed("escape")
+    check("lan_screen_reconnect_cancel_returns_to_role_menu",
+        reconnectCancelled == true and LanScreen.mode == "menu"
+        and cancellations == 2)
+
     local wrapperState = { screen = "world" }
     context.wrapper.reset(wrapperState)
     local sent = {}

@@ -20,6 +20,7 @@ local REMOTE_SMOOTH_RATE = 14
 local INTERACTION_RATE_LIMIT = 0.20
 local INTERACTION_TIMEOUT = 3
 local WORKSHOP_TIMEOUT = 4
+local PROTOCOL_REJECTION_INTERVAL = 1
 local NETWORK_CLEANUP_ERROR =
     "Network cleanup could not be verified; restart the game before starting another session."
 
@@ -87,6 +88,10 @@ local function wireWorkshopView(resourceId, view)
         if not Codec.isArray(view.quoteRows) then
             view.quoteRows = Codec.array(view.quoteRows)
         end
+    elseif (resourceId == "vendor" or resourceId == "truck")
+        and type(view.items) == "table"
+    then
+        if not Codec.isArray(view.items) then view.items = Codec.array(view.items) end
     elseif resourceId == "skid_wrapper" and type(view.pallets) == "table" then
         if not Codec.isArray(view.pallets) then
             view.pallets = Codec.array(view.pallets)
@@ -99,6 +104,9 @@ local function wireWorkshopView(resourceId, view)
         end
         if type(view.candidates) == "table" and not Codec.isArray(view.candidates) then
             view.candidates = Codec.array(view.candidates)
+        end
+        if type(view.serviceItems) == "table" and not Codec.isArray(view.serviceItems) then
+            view.serviceItems = Codec.array(view.serviceItems)
         end
     elseif resourceId == "windmill" then
         if type(view.setupPermille) == "table" and not Codec.isArray(view.setupPermille) then
@@ -195,6 +203,7 @@ function Session.new(options)
         idToPeer = {},
         pendingPeers = {},
         approvalRequests = {},
+        protocolRejectionAt = {},
         nextConnectionGeneration = 0,
         nextJoinRequestId = 0,
         pendingEvents = {},
@@ -217,6 +226,7 @@ function Session.new(options)
         lastVisitorTick = -1,
         lastEnvironmentTick = -1,
         lastPalletJackTick = -1,
+        lastForkliftTick = -1,
         lastCutterTick = -1,
         lastWindmillTick = -1,
         shopDirty = false,
@@ -236,6 +246,7 @@ function Session.new(options)
         pendingWorkshopSafety = nil,
         activeWorkshop = nil,
         workshopRevisions = {},
+        workshopResources = {},
         pendingHostWorkshop = {},
         lastWorkshopSnapshotRevision = -1,
     }, Session)
@@ -277,6 +288,7 @@ function Session:_resetRuntime()
     self.idToPeer = {}
     self.pendingPeers = {}
     self.approvalRequests = {}
+    self.protocolRejectionAt = {}
     self.pendingEvents = {}
     self.sessionId = nil
     self.localId = nil
@@ -298,6 +310,7 @@ function Session:_resetRuntime()
     self.lastVisitorTick = -1
     self.lastEnvironmentTick = -1
     self.lastPalletJackTick = -1
+    self.lastForkliftTick = -1
     self.lastCutterTick = -1
     self.lastWindmillTick = -1
     self.shopDirty = false
@@ -317,6 +330,7 @@ function Session:_resetRuntime()
     self.pendingWorkshopSafety = nil
     self.activeWorkshop = nil
     self.workshopRevisions = {}
+    self.workshopResources = {}
     self.pendingHostWorkshop = {}
     self.lastWorkshopSnapshotRevision = -1
     self.clientNonce = nil
@@ -509,6 +523,28 @@ function Session:_sendError(peer, code, message)
         message = tostring(message or "The network request was rejected."),
         sessionId = self.sessionId,
     })
+end
+
+function Session:_sendProtocolRejection(peer, code, message)
+    -- Malformed and host-only packet families share one reply token so an
+    -- abusive peer cannot rotate error codes into a reliable-response flood.
+    -- Consume the token before attempting the send; a failed send must not
+    -- grant another immediate attempt.
+    if not peer or (not self.pendingPeers[peer] and not self.peerToId[peer]) then
+        return false, "Network peer is no longer active."
+    end
+    local now = self.clock()
+    if not finite(now) then return false, "Network clock is unavailable." end
+    local previous = self.protocolRejectionAt[peer]
+    if previous ~= nil then
+        if not finite(previous) or now < previous
+            or now - previous < PROTOCOL_REJECTION_INTERVAL
+        then
+            return false, "Protocol rejection reply is rate limited."
+        end
+    end
+    self.protocolRejectionAt[peer] = now
+    return self:_sendError(peer, code, message)
 end
 
 function Session:_sendInteractionResult(peer, request, accepted, code, message)
@@ -735,6 +771,7 @@ end
 function Session:_rejectDirectPending(peer, code, guestMessage, hostMessage, eventType)
     local pending = self:_discardPendingPeer(peer)
     if not pending then return false end
+    self.protocolRejectionAt[peer] = nil
     self:_purgePeerWork(peer)
     if self.transport then
         self:_sendError(peer, tostring(code or "join_rejected"),
@@ -873,7 +910,8 @@ end
 
 function Session:_hostWelcome(peer, hello, context)
     if self.peerToId[peer] then
-        self:_sendError(peer, "already_joined", "This peer already joined the shop.")
+        self:_sendProtocolRejection(
+            peer, "already_joined", "This peer already joined the shop.")
         return false
     end
     local pending = self.pendingPeers[peer]
@@ -889,6 +927,7 @@ function Session:_hostWelcome(peer, hello, context)
         self:_sendError(peer, "shop_full", "This shop already has four workers.")
         self.transport:disconnect(peer, 4, false)
         self:_discardPendingPeer(peer)
+        self.protocolRejectionAt[peer] = nil
         return false
     end
 
@@ -897,6 +936,7 @@ function Session:_hostWelcome(peer, hello, context)
         self:_sendError(peer, "shop_full", "This shop already has four workers.")
         self.transport:disconnect(peer, 4, false)
         self:_discardPendingPeer(peer)
+        self.protocolRejectionAt[peer] = nil
         return false
     end
     local host = self.players[1] or newPlayer({ x = 0, y = 0 })
@@ -958,6 +998,7 @@ function Session:_hostWelcome(peer, hello, context)
         self:_sendError(peer, "snapshot_failed", tostring(welcomeError or shopError))
         self.transport:disconnect(peer, 5, false)
         self.players[id], self.peerToId[peer], self.idToPeer[id] = nil, nil, nil
+        self.protocolRejectionAt[peer] = nil
         self.status = tostring(countEntries(self.players)) .. "/4 workers connected"
         return false
     end
@@ -967,6 +1008,7 @@ function Session:_hostWelcome(peer, hello, context)
 end
 
 function Session:_removePeer(peer, reason)
+    if peer then self.protocolRejectionAt[peer] = nil end
     local pending = self:_discardPendingPeer(peer)
     self:_purgePeerWork(peer)
     local id = self.peerToId[peer]
@@ -1037,7 +1079,8 @@ function Session:_handleHostEnvelope(peer, envelope, context)
                 "Wait for host approval before sending gameplay data.",
                 "One Direct join sent gameplay data before approval and was rejected.")
         else
-            self:_sendError(peer, "hello_required", "Send a compatible hello before gameplay data.")
+            self:_sendProtocolRejection(
+                peer, "hello_required", "Send a compatible hello before gameplay data.")
         end
         return
     end
@@ -1092,7 +1135,7 @@ function Session:_handleHostEnvelope(peer, envelope, context)
         self:_removePeer(peer, payload.reason)
         if self.transport then self.transport:disconnect(peer, 0, false) end
     else
-        self:_sendError(peer, "message_not_allowed",
+        self:_sendProtocolRejection(peer, "message_not_allowed",
             "Guests may send only input, workshop, interaction, ping, or leave messages.")
     end
 end
@@ -1236,6 +1279,16 @@ function Session:_handleClientEnvelope(envelope)
                 machines = payload.machines,
             })
         end
+    elseif envelope.type == "forklift_snapshot" then
+        if self.ready and payload.sessionId == self.sessionId
+            and payload.serverTick > self.lastForkliftTick
+        then
+            self.lastForkliftTick = payload.serverTick
+            self:_queue("forklift_state", {
+                serverTick = payload.serverTick,
+                forklift = payload.forklift,
+            })
+        end
     elseif envelope.type == "cutter_snapshot" then
         if self.ready and payload.sessionId == self.sessionId
             and payload.serverTick > self.lastCutterTick
@@ -1369,9 +1422,15 @@ function Session:_handleClientEnvelope(envelope)
         then
             self.lastWorkshopSnapshotRevision = payload.revision
             local activeRecord, activeRecordAuthoritative
+            local workshopResources = {}
             for _, record in ipairs(payload.resources) do
                 self.workshopRevisions[record.resourceId] = math.max(
                     self.workshopRevisions[record.resourceId] or 0, record.revision)
+                workshopResources[#workshopResources + 1] = {
+                    resourceId = record.resourceId,
+                    occupied = record.occupied == true,
+                    ownerPlayerId = record.occupied and record.ownerPlayerId or nil,
+                }
                 if self.activeWorkshop and record.resourceId == self.activeWorkshop.resourceId then
                     activeRecord = record
                     activeRecordAuthoritative = record.revision >= self.activeWorkshop.revision
@@ -1383,6 +1442,7 @@ function Session:_handleClientEnvelope(envelope)
                     end
                 end
             end
+            self.workshopResources = workshopResources
             if self.activeWorkshop and activeRecordAuthoritative
                 and (not activeRecord.occupied or activeRecord.ownerPlayerId ~= self.localId)
             then
@@ -1432,6 +1492,7 @@ function Session:_service(context)
     if not self.transport or self.terminal then return false end
     local events, serviceError = self.transport:service(Protocol.MAX_EVENTS_PER_UPDATE)
     if serviceError then
+        self.protocolRejectionAt = {}
         self:_markDisconnected("Network transport failed: " .. tostring(serviceError))
         self:_closeTransport(2, true)
         return false
@@ -1449,6 +1510,7 @@ function Session:_service(context)
                     -- as a distinct link after the prior generation is gone.
                     self.transport:disconnect(event.peer, 7, true)
                 else
+                    self.protocolRejectionAt[event.peer] = nil
                     self.pendingPeers[event.peer] = {
                         peer = event.peer,
                         connectedAt = now,
@@ -1490,7 +1552,7 @@ function Session:_service(context)
                             "The Direct join request was not valid.",
                             "One invalid Direct join was rejected.")
                     else
-                        self:_sendError(event.peer, "bad_packet", decodeError)
+                        self:_sendProtocolRejection(event.peer, "bad_packet", decodeError)
                     end
                 else
                     self:_handleHostEnvelope(event.peer, envelope, context)
@@ -1589,6 +1651,7 @@ function Session:_updateHost(dt, context)
                 approval and "join_expired" or "join_cancelled")
         else
             self:_discardPendingPeer(peer)
+            self.protocolRejectionAt[peer] = nil
             self:_sendError(peer, "hello_timeout", "The client did not complete the LAN hello in time.")
             self.transport:disconnect(peer, 3, false)
         end
@@ -1668,14 +1731,47 @@ function Session:_updateHost(dt, context)
         local machinePoses = context and context.getMachinePoseSnapshot
             and context.getMachinePoseSnapshot() or nil
         if type(palletJack) == "table" and type(machinePoses) == "table" then
-            local palletJackOk, palletJackError = self:_broadcastJoined(
+            local palletJackOk, palletJackError, palletJackRecipients = self:_broadcastJoined(
                 "pallet_jack_snapshot", {
                     sessionId = self.sessionId,
                     serverTick = self.serverTick,
                     jack = palletJack,
                     machines = machinePoses,
                 })
+            if os.getenv("PICTURE_SHOP_ACCEPTANCE_HOST_SLOT") then
+                local relocationSignature = table.concat({
+                    tostring(palletJack.operating == true),
+                    tostring(palletJack.operatorPlayerId or "none"),
+                    tostring(machinePoses.cutter and machinePoses.cutter.moving == true),
+                    tostring(machinePoses.wrapper and machinePoses.wrapper.moving == true),
+                    tostring(machinePoses.windmill and machinePoses.windmill.moving == true),
+                    tostring(palletJackOk == true),
+                    tostring(palletJackRecipients or 0),
+                    tostring(palletJackError or "none"),
+                }, ":")
+                if relocationSignature ~= self._acceptanceRelocationSendSignature then
+                    self._acceptanceRelocationSendSignature = relocationSignature
+                    print(string.format(
+                        "[ACCEPTANCE HOST] SNAPSHOT jack=%s owner=%s cutter=%s wrapper=%s windmill=%s sent=%s recipients=%s error=%s",
+                        tostring(palletJack.operating == true),
+                        tostring(palletJack.operatorPlayerId or "none"),
+                        tostring(machinePoses.cutter and machinePoses.cutter.moving == true),
+                        tostring(machinePoses.wrapper and machinePoses.wrapper.moving == true),
+                        tostring(machinePoses.windmill and machinePoses.windmill.moving == true),
+                        tostring(palletJackOk == true), tostring(palletJackRecipients or 0),
+                        tostring(palletJackError or "none")))
+                    io.flush()
+                end
+            end
             if not palletJackOk then self:_queue("error", { message = palletJackError }) end
+        end
+        local forklift = context and context.getForkliftSnapshot
+            and context.getForkliftSnapshot() or nil
+        if type(forklift) == "table" then
+            local liftOk, liftError = self:_broadcastJoined("forklift_snapshot", {
+                sessionId = self.sessionId, serverTick = self.serverTick, forklift = forklift,
+            })
+            if not liftOk then self:_queue("error", { message = liftError }) end
         end
         local cutter = context and context.getCutterSnapshot
             and context.getCutterSnapshot() or nil
@@ -1957,7 +2053,17 @@ function Session:requestWorkshopCommand(action, arguments)
         expectedRevision = active.revision,
     }
     if action == "submit_quote" then request.amount = arguments.amount
+    elseif action == "purchase_stock" or action == "purchase_machine"
+        or action == "move_item" or action == "service_view"
+        or action == "service_tool" or action == "service_point"
+        or action == "remove_blade_bolt" or action == "service_target"
+    then
+        request.itemIndex = arguments.itemIndex
     elseif action == "request_pickup" then request.jobId = arguments.jobId
+    elseif action == "office_action" then request.officeIntent = arguments.officeIntent
+    elseif action == "warehouse_action" then request.warehouseIntent = arguments.warehouseIntent
+    elseif action == "phone_answer" or action == "phone_respond" or action == "phone_dismiss" then
+        request.callId = arguments.callId
     elseif action == "select_pallet" or action == "start_cycle"
         or action == "lift_pallet" or action == "lower_pallet"
         or action == "load_pallet"
@@ -1971,6 +2077,12 @@ function Session:requestWorkshopCommand(action, arguments)
         request.clamp = arguments.clamp
     elseif action == "set_barrier" then
         request.barrierClear = arguments.barrierClear
+    elseif action == "set_weekly_technician" then
+        request.enabled = arguments.enabled
+    elseif action == "move_machine" then
+        request.machineIndex = arguments.machineIndex
+    elseif action == "place_machine" then
+        request.placementCell = arguments.placementCell
     elseif action == "order_plate" or action == "begin_plate" or action == "process_plate" then
         request.plateId = arguments.plateId
     elseif action == "begin_setup" then
@@ -2076,6 +2188,46 @@ function Session:hudInfo()
             return left.playerId < right.playerId
         end)
     end
+    local players = {}
+    for id, player in pairs(self.players) do
+        players[#players + 1] = {
+            playerId = id,
+            name = tostring(player.name or "Worker"),
+            isHost = id == 1,
+            isLocal = id == self.localId,
+        }
+    end
+    table.sort(players, function(left, right)
+        return left.playerId < right.playerId
+    end)
+    local pendingActivity
+    if self.pendingWorkshopSafety then
+        pendingActivity = {
+            kind = "urgent_safety",
+            resourceId = self.pendingWorkshopSafety.resourceId,
+            action = self.pendingWorkshopSafety.action,
+        }
+    elseif self.pendingWorkshop then
+        pendingActivity = {
+            kind = self.pendingWorkshop.operation == "acquire"
+                and "workshop_acquire" or "workshop_action",
+            resourceId = self.pendingWorkshop.resourceId,
+            action = self.pendingWorkshop.action,
+        }
+    elseif self.pendingInteraction then
+        pendingActivity = {
+            kind = "interaction",
+            targetKind = self.pendingInteraction.targetKind,
+        }
+    end
+    local workshopResources = {}
+    for _, resource in ipairs(self.workshopResources or {}) do
+        workshopResources[#workshopResources + 1] = {
+            resourceId = resource.resourceId,
+            occupied = resource.occupied == true,
+            ownerPlayerId = resource.occupied and resource.ownerPlayerId or nil,
+        }
+    end
     return {
         mode = self.mode,
         networkKind = self.networkKind,
@@ -2088,6 +2240,11 @@ function Session:hudInfo()
         pendingJoinCount = #pendingJoins,
         pendingJoins = pendingJoins,
         connectedGuests = connectedGuests,
+        localPlayerId = self.localId,
+        players = players,
+        activeResourceId = self.activeWorkshop and self.activeWorkshop.resourceId or nil,
+        pendingActivity = pendingActivity,
+        workshopResources = workshopResources,
     }
 end
 

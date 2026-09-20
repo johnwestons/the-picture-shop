@@ -16,7 +16,7 @@ The supported connection path is:
 3. A bundled native security provider derives separate admission and Noise keys, authenticates the
    invitation, and establishes encrypted traffic keys.
 4. Only then does the secure transport report a logical connection to the existing multiplayer session.
-5. The host validates the protocol-v9 `hello` but quarantines the peer: no player slot is allocated and
+5. The host validates the protocol-v13 `hello` but quarantines the peer: no player slot is allocated and
    no welcome or shop snapshot is sent until the host explicitly approves the displayed request.
 6. After approval, `welcome`, snapshots, and gameplay packets travel inside the encrypted channel.
 
@@ -116,7 +116,7 @@ number generators are never used for invitation keys or cryptographic nonces.
   channels and delivery choices.
 - The guarded `Host Direct Game` / `Join Direct Game` coordinator and screen are implemented. They bind
   before generating an invitation, preflight the host save, accept only a matching authenticated reply,
-  hand a one-session bridge factory to the existing protocol-v9 session, distinguish Direct from LAN in
+  hand a one-session bridge factory to the existing protocol-v13 session, distinguish Direct from LAN in
   recovery/HUD state, and clear retained fields and clipboard content owned by the screen on use,
   cancellation, expiry, failure, foreground loss, or shutdown. Codes are never included in status/error
   text. Players currently enter the global IPv6 address shown by their own device; no discovery service is
@@ -131,6 +131,15 @@ number generators are never used for invitation keys or cryptographic nonces.
   the first guest left the second active at `2/4`, and its graceful departure returned the host to `1/4`.
   The exact UDP `57842`/`57844` Windows engineering firewall scope was verified; afterward the
   helper-owned narrow rule was removed and the pre-run firewall state was restored.
+- A September 3, 2026 residential public-IPv4 run reached the exact Windows listener and narrow active-network
+  firewall rule, then returned `mapping_timeout` without publishing an invitation. The serialized PCP and
+  NAT-PMP path received no usable gateway response. The listener closed before cleanup, router cleanup was
+  acknowledged, and an administrator query confirmed zero remaining owned firewall rules. This is useful
+  fail-closed evidence for a mapping-unavailable router, not create/renew/delete acceptance. The operator
+  transcribed the privacy-safe markers rather than returning the original result file, and the run predates
+  the canonical cleanup-boolean casing fix, so it is recorded as a diagnostic observation rather than frozen
+  acceptance evidence. The exact kit used for the attempt is retained under
+  `output/public-ipv4-evidence/kit-7a28a30228c1f416/`.
 - Direct Play remains disabled. The normal title screen receives no Direct callback while the bundled
   provider remains `productionReady = false`. The broader residential/mobile network matrix, live router
   mapping on a supported public-IPv4 network, Android x86_64 and physical 16 KiB-kernel runs,
@@ -147,7 +156,9 @@ Android 17 / API 37, Local Play and PCP/NAT-PMP/UPnP gateway access must adopt A
 [`ACCESS_LOCAL_NETWORK` runtime-permission flow](https://developer.android.com/privacy-and-security/local-network-permission).
 That operating-system permission does not add an account, hosted service, telemetry, or fee.
 
-Reachability is being developed in this order:
+When both endpoints have usable global IPv6, the authenticated IPv6 opening/bridge is the preferred
+free path because it does not need an IPv4 router mapping and is not blocked by carrier-grade NAT.
+The following serialized methods provide IPv4 compatibility when IPv6 is unavailable or filtered:
 
 1. Manual UDP forwarding is the first working fallback. The host binds the secure Direct listener,
    enters the public endpoint reported by their own router, and receives exact firewall/UDP-port guidance.
@@ -158,12 +169,16 @@ Reachability is being developed in this order:
 4. UPnP IGD2/IGD1 follows for consumer-router compatibility, preferring finite
    `AddAnyPortMapping` and treating every SSDP, HTTP, XML, and SOAP response as hostile bounded LAN input.
 
-The PCP/NAT-PMP wire codecs, serialized coordinator, and strict pure UPnP IGD layer are implemented and
-covered by engineering tests. They deliberately do not open a socket or change a router by themselves.
-Windows and Android now have local-only, read-only default-route discovery foundations with strict Lua
-validation. Live transport adapters, Windows network-generation support, renewal/deletion integration,
-and physical-router proof are still open; automatic mapping must therefore be treated as unavailable in
-production.
+The PCP/NAT-PMP wire codecs, serialized coordinator, strict pure UPnP IGD protocol layer, and Windows live
+adapters are implemented and covered by engineering tests. Windows pins both the selected source IPv4 and
+`IP_UNICAST_IF`, revalidates the route before every create, renewal, or deletion operation, and accepts
+PCP/NAT-PMP replies only from port 5351 on the selected gateway. UPnP discovery is sent only from that exact
+interface; SSDP `LOCATION`, description, and SOAP control are locked to the responding gateway's numeric
+same-origin HTTP endpoint with bounded hostile-input parsing and no redirects. IGD2 `AddAnyPortMapping`
+falls back to finite `AddPortMapping`, IGD1 uses finite `AddPortMapping`, renewal keeps the owned external port, and cleanup requires an
+owned delete acknowledgement or the conservative finite-lease expiry. Android adapter injection is defined
+but has no live exact-`Network` socket bridge yet. Release-provider hardening and physical UPnP router proof
+are still open, so automatic mapping remains unavailable in production.
 
 No method receives the invitation secret or contacts a matchmaking, STUN, relay, telemetry, or public-IP
 service. The secure listener must exist before its exact UDP port is mapped; invitation generation occurs
@@ -172,35 +187,49 @@ then best-effort deletes the finite mapping.
 
 ### Windows local gateway discovery foundation
 
-The engineering-only `tps_route.dll` asks Windows' local route APIs for the selected IPv4 source,
-default next hop, and interface index. Selecting a route does not send a probe or contact the destination.
+The engineering-only ABI-v2 `tps_route.dll` asks Windows' local route APIs for the selected IPv4 source,
+default next hop, interface index, and an opaque process-local network generation. Before reading the route,
+it registers for Windows IPv4 route, interface, and unicast-address change notifications. Every real change
+notification advances the generation; the initial value is nonzero, and a route read whose generation moves
+before completion fails closed. Selecting a route and registering for local notifications do not send a probe
+or contact the destination.
 The shim requires an exact indirect `/0` route and compares two route views before returning; an on-link
-route, missing gateway, route change, or a destination-specific VPN override fails closed as unavailable.
-Win32 route structures never cross into Lua.
+route, missing gateway, route change, destination-specific VPN override, or duplicate assignment of the
+selected source IPv4 to more than one local interface fails closed as unavailable. That final uniqueness
+check makes ENet's exact source-address bind unambiguous even though its Lua API does not expose
+`IP_UNICAST_IF`. Win32 route structures never cross into Lua.
 
-The Lua boundary accepts only canonical IPv4 text, a positive bounded interface index, and prefix length
-zero. It rejects unspecified, loopback, multicast, documentation, reserved, malformed, and same-address
-pairs; copies only the approved snapshot fields; converts platform failures to fixed error codes; and
-provides exact-tuple revalidation exercised by the local probe. It does not open a socket, create a mapping,
-learn the public address, or change the router or firewall.
+The Lua boundary accepts only canonical IPv4 text, a positive bounded interface index, the exact lowercase
+nonzero generation, and prefix length zero. It rejects unspecified, loopback, multicast, documentation,
+reserved, malformed, and same-address pairs; copies only the approved snapshot fields; converts platform
+failures to fixed error codes; and provides route-plus-generation revalidation exercised by the local probe.
+It does not open a socket, create a mapping, learn the public address, or change the router or firewall.
 
 The opaque route fingerprint is only a non-authoritative consistency checksum that does not directly
-embed the address/interface tuple. It is kept out of reports and logs, is not a privacy credential, and is
-not a network generation or mapping-ownership token. A same-address reconnect can repeat the fingerprint.
-Live renewal/deletion work must therefore add a real platform network generation and a per-mapping
-ownership token before this discovery result can control a router lease.
+embed the address/interface/generation tuple. It is kept out of reports and logs, is not a privacy credential,
+and is not a mapping-ownership token. The separate generation is intentionally conservative: any observed
+IPv4 route, interface, or address change invalidates all captured Windows routes, including same-address
+reconnects once Windows delivers the change notification. The exact mapping socket carries the captured
+generation in its binding proof, and create, renew, and delete each require an unchanged route and generation.
+The live adapter still has a unique private per-mapping token and PCP has a wire mapping nonce; NAT-PMP has
+no nonce, so a changed generation never authorizes a late deletion and the finite lease is left to expire.
 
 Build and physically verify the Windows foundation with:
 
 ```powershell
 & '.\tools\build_native_route.ps1' -RequireLiveRoute
 & '.\tools\run_windows_gateway_discovery_probe.ps1'
+& '.\tools\run_windows_mapping_socket_probe.ps1'
 ```
 
-Both tools print only pass/fail properties, never the discovered local addresses. This foundation is not
-wired to the player flow yet: the current secure Direct transport is IPv6-only, while PCP/NAT-PMP/UPnP
-mapping creates an IPv4 endpoint. A reviewed IPv4/dual-stack Direct listener and live platform-bound
-router adapters must land before automatic mapping can be enabled.
+These tools print only pass/fail properties, never the discovered local addresses. The mapping-socket probe
+sends no packet and changes no router state; it proves the real source/interface binding and then binds and
+closes a real encrypted IPv4 ENet listener without a wildcard or invitation. The reviewed listener is
+IPv4-specific by design. Dual-stack hosting uses it beside the existing authenticated IPv6 opening/bridge,
+not an IPv4-mapped wildcard socket. The ordered host controller binds encryption first, maps second,
+publishes only a global router-selected endpoint, invalidates changed endpoints, and closes even a handed-off
+listener before best-effort mapping deletion. It remains behind `productionReady = false` and is not wired
+to the player screen.
 The engineering adapter also permits an explicit test-library override and source/output lookup. A release
 build must remove those development paths and load only the packaged, integrity-verified same-directory
 DLL before this provider can become a player-facing dependency.
@@ -440,7 +469,7 @@ endpoint, device serial, invitation, key, packet, or raw log:
 evidence only; `productionReady = false` remains unchanged.
 
 The approval, denial, kick, timeout, single-use invitation, and transport admission boundaries are all
-covered by the complete packaged-game smoke suite, which passes 1,574 checks with zero failures after
+covered by the complete packaged-game smoke suite, which passes 1,715 checks with zero failures after
 these changes.
 
 `src/net/direct_connection.lua` composes the two codes, authenticated opening, bridge, encrypted
@@ -503,10 +532,22 @@ different host/network, not to promise a connection that cannot exist.
 - [x] Add bounded PCP/NAT-PMP codecs, a serialized finite-lease coordinator, and strict pure UPnP IGD handling.
 - [x] Complete read-only default-gateway discovery without contacting an Internet service on Windows and
   Android; Windows and Android ARM32 are physically verified, with all three Android ABIs statically audited.
+- [x] Add a reviewed exact-IPv4 encrypted listener and ordered listener-map-publish-delete host lifecycle;
+  keep IPv6 on its separate authenticated bridge rather than a wildcard dual-mode socket.
 - [ ] Restrict release loading to the packaged, integrity-verified native route provider.
-- [ ] Add a real platform network generation and a unique per-mapping ownership token.
-- [ ] Connect PCP, NAT-PMP, and UPnP IGD to live router adapters and try them in that order.
-- [ ] Accept a router-selected external port, renew the finite lease, and remove it on shutdown.
+- [x] Add a unique private per-mapping ownership token and reuse PCP's exact wire nonce.
+- [x] Add an OS-notification-backed Windows network generation and require it for create, renew, and delete;
+  Android already exposes its exact network handle and route revision, but its mapping socket is not implemented.
+- [x] Connect PCP and NAT-PMP to the Windows exact-interface adapter in that order, including bounded
+  retransmission, router-selected external ports, renewal, epoch checks, and lifetime-zero deletion.
+- [x] Build the guarded Windows remote-acceptance kit with a no-traffic preflight, exact temporary firewall
+  scope, encrypted three-channel checks before and after renewal, exact deletion acknowledgement, redacted
+  results, and the operator runbook in `docs/public_ipv4_remote_acceptance.md`.
+- [x] Exercise the fail-closed mapping-timeout path on a physical public-IPv4 residential router and verify
+  listener-first shutdown, acknowledged router cleanup, and zero remaining owned Windows firewall rules.
+- [x] Connect strict UPnP IGD to a live exact-network Windows adapter, with gateway-locked SSDP/HTTP, finite AddAny/AddPort renewal, and owned deletion/expiry cleanup.
+- [x] Add a privacy-safe counters-only UDP/5351 NIC traffic diagnostic for the live PCP/NAT-PMP timeout path; it retains no packet or network details and removes only its verified owned Packet Monitor filter.
+- [ ] Pass create/renew/delete against a physical public-IPv4 residential router.
 - [x] Detect private and carrier-grade-NAT WAN addresses and explain the limitation clearly.
 - [ ] Keep manual UDP forwarding as the fallback.
 

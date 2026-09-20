@@ -1,4 +1,5 @@
 local Assets = require("src.assets")
+local AcceptanceHostBootstrap = require("src.acceptance_host_bootstrap")
 local AssetErrorScreen = require("src.screens.asset_error_screen")
 local BayDoor = require("src.bay_door")
 local BusinessCalendar = require("src.business_calendar")
@@ -6,6 +7,7 @@ local CharacterAssets = require("src.character_assets")
 local ComputerScreen = require("src.screens.computer_screen")
 local Config = require("src.config")
 local Controller = require("src.controller")
+local CutterMaintenanceAuthority = require("src.cutter_maintenance_authority")
 local CutterPlacement = require("src.cutter_placement")
 local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
@@ -21,25 +23,32 @@ local LanScreen = require("src.screens.lan_screen")
 local PalletWorkOrderScreen = require("src.screens.pallet_work_order_screen")
 local JobService = require("src.job_service")
 local Jobs = require("src.jobs")
+local LanDiscovery = require("src.net.lan_discovery")
+local LanReconnect = require("src.net.lan_reconnect")
 local Machine = require("src.machine")
 local MachineFleet = require("src.machine_fleet")
 local MachineMaintenance = require("src.machine_maintenance")
+local MachineRelocationAuthority = require("src.machine_relocation_authority")
 local MobileControls = require("src.mobile_controls")
 local MultiplayerHud = require("src.screens.multiplayer_hud")
 local MultiplayerSession = require("src.net.session")
 local Navigation = require("src.navigation")
+local OptionsScreen = require("src.screens.options_screen")
 local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
+local WrapperMaintenanceAuthority = require("src.wrapper_maintenance_authority")
 local MachineScreen = require("src.screens.machine_screen")
 local PalletJack = require("src.pallet_jack")
 local PalletState = require("src.pallet_state")
 local PalletLogistics = require("src.pallet_logistics")
+local PaperWork = require("src.paper_work")
 local PlateService = require("src.plate_service")
 local PressSetupGames = require("src.press_setup_games")
 local PressScreen = require("src.screens.press_screen")
 local Receiving = require("src.receiving")
 local Save = require("src.save")
 local SaveSchema = require("src.save_schema")
+local Settings = require("src.settings")
 local Shop = require("src.shop")
 local Smoke = require("src.smoke")
 local SpriteMotionLab = require("src.screens.sprite_motion_lab")
@@ -47,25 +56,43 @@ local State = require("src.state")
 local TitleScreen = require("src.screens.title_screen")
 local Technician = require("src.technician")
 local Truck = require("src.truck")
+local TruckAuthority = require("src.truck_authority")
 local TruckInventoryScreen = require("src.screens.truck_inventory_screen")
 local VendorScreen = require("src.screens.vendor_screen")
+local VendorAuthority = require("src.vendor_authority")
 local Viewport = require("src.viewport")
 local World = require("src.world")
 local WorldRenderer = require("src.world_renderer")
 local Windmill = require("src.windmill")
 local WindmillPlacement = require("src.windmill_placement")
+local WorkPhone = require("src.work_phone")
+local PhoneAuthority = require("src.phone_authority")
+local OfficeAuthority = require("src.office_authority")
+local WorkPhoneScreen = require("src.screens.work_phone_screen")
 local WorkshopAuthority = require("src.workshop_authority")
 local WorkshopRemoteScreen = require("src.screens.workshop_remote_screen")
+local Forklift = require("src.forklift")
+local WarehouseAuthority = require("src.warehouse_authority")
+local WarehouseControls = require("src.screens.warehouse_controls")
 
 local App = {}
 local state = State.new()
+local acceptanceHostPlan = nil
+local acceptanceHostRelocationSignature = nil
 local spriteLabActive = false
 local mobileControls = nil
 local controller = nil
 local multiplayer = MultiplayerSession.new()
+local lanDiscovery = LanDiscovery.new()
+local lanReconnect = LanReconnect.new()
+local lanReconnectArmed = false
 local workshopAuthority = nil
 local localWorkshopLease = nil
 local localWorkshopRequestId = 0
+local activeCutterRemote = nil
+local cutterMaintenanceAuthority = nil
+local activeWrapperRemote = nil
+local wrapperMaintenanceAuthority = nil
 local activeWindmillRemote = nil
 local directConnection = nil
 local pendingDirectSession = nil
@@ -73,8 +100,19 @@ local directHostComposite = nil
 local directHostInvitationGeneration = 0
 local lastDirectSlot = 1
 local serviceNetworkBeforeMachine
+local warehouseControls
+local warehousePendingIntent
+local warehouseSaveClock = 0
 
-MachineFleet.setSaleGuard(function(_, item)
+MachineFleet.setSaleGuard(function(currentState, item)
+    local placementKey = item and MachineFleet.definitions[item.modelId]
+        and MachineFleet.definitions[item.modelId].placementKey
+    if item and item.status == "installed" and placementKey
+        and currentState and currentState[placementKey]
+        and currentState[placementKey].moving
+    then
+        return false, "Place the moving machine before listing it for sale."
+    end
     local windmillLeaseActive = workshopAuthority
         and workshopAuthority:leaseForResource("windmill") ~= nil
     if windmillLeaseActive and item and item.modelId == "heidelberg_10x15"
@@ -84,6 +122,13 @@ MachineFleet.setSaleGuard(function(_, item)
     end
     local cutterLeaseActive = workshopAuthority
         and workshopAuthority:leaseForResource("cutter") ~= nil
+    local wrapperLeaseActive = workshopAuthority
+        and workshopAuthority:leaseForResource("skid_wrapper") ~= nil
+    if wrapperLeaseActive and item and item.modelId == "skid_wrapper"
+        and item.status == "installed"
+    then
+        return false, "Close the active skid-wrapper console before listing it for sale."
+    end
     return Machine.validateSale(item, cutterLeaseActive)
 end)
 
@@ -121,6 +166,8 @@ local function startGame(payload, mode)
     World.load(payload.player)
     Machine.reset()
     Windmill.resetNetworkRuntime()
+    activeCutterRemote = nil
+    activeWrapperRemote = nil
     activeWindmillRemote = nil
     if (mode == "new" or windmillSanitized) and not saveCurrent() then
         return false, mode == "new"
@@ -140,6 +187,7 @@ local openDirectInvite
 local closeDirectConnection
 local closeDirectHostComposite
 local syncMobileKeyboard
+local openOptions
 
 local function exactArguments(arguments, required)
     if type(arguments) ~= "table" then return false end
@@ -192,6 +240,8 @@ local function customerView(offer)
         artworkName = tostring(artwork.displayName or artwork.fileName
             or offer.artworkKey or "Client artwork"),
         printJob = offer.press ~= nil,
+        colorCount = offer.press and offer.press.colors or nil,
+        colorSequence = offer.press and table.concat(offer.press.colorSequence or {}, " then ") or nil,
         quoteRows = rows,
         recommendedTotal = math.floor(tonumber(offer.quote and
             (offer.quote.recommendedPrice or offer.quote.totalPrice)) or 0),
@@ -212,24 +262,30 @@ local function wrapperPalletView()
     return pallets
 end
 
-local function wrapperView()
+local function wrapperView(detailed)
     local runtime = Wrapper.snapshot()
-    return {
+    local view = {
         step = runtime.step,
         progress = runtime.progress,
         cycleTime = runtime.cycleTime,
-        plasticWrapRolls = math.max(0, math.floor(tonumber(state.inventory.plasticWrapRolls) or 0)),
-        plasticWrapUses = math.max(0, math.floor(tonumber(state.inventory.plasticWrapUses) or 0)),
         pallets = wrapperPalletView(),
         selectedPalletId = runtime.selectedPalletId,
         palletId = runtime.palletId,
     }
+    if detailed ~= false then
+        view.plasticWrapRolls = math.max(0,
+            math.floor(tonumber(state.inventory.plasticWrapRolls) or 0))
+        view.plasticWrapUses = math.max(0,
+            math.floor(tonumber(state.inventory.plasticWrapUses) or 0))
+    end
+    return view
 end
 
 local function wrapperSnapshotView()
-    local runtime = Wrapper.snapshot()
-    runtime.pallets = wrapperPalletView()
-    return runtime
+    if wrapperMaintenanceAuthority then
+        return wrapperMaintenanceAuthority.view(activeWrapperRemote, false)
+    end
+    return wrapperView(false)
 end
 
 local function cutterView(includeCandidates)
@@ -350,7 +406,9 @@ local function windmillView(session)
         if session.setupGame and session.setupTask then
             view.warning = nil
             view.setupTask = session.setupTask
-            view.setupSummary = PressSetupGames.summary(session.setupGame)
+            view.setupSummary = session.setupTask == "feeder" and PressSetupGames.instruction(session.setupGame)
+                or PressSetupGames.summary(session.setupGame)
+            view.setupVisual = require("src.press_setup_view").encode(session.setupGame)
         end
         if session.maintenance then
             view.warning = nil
@@ -673,7 +731,43 @@ local function createWindmillCommands()
 end
 
 local function createWorkshopAuthority()
-    return WorkshopAuthority.new({
+    cutterMaintenanceAuthority = CutterMaintenanceAuthority.create({
+        state = state,
+        baseView = cutterView,
+        validateAccess = function(player)
+            return World.validateNetworkWorkshopAccess(player, state, "cutter")
+        end,
+        save = saveCurrent,
+        machineReady = function()
+            if Machine.loaded or Machine.step ~= "idle" then
+                return false, "Unload the cutter and return it to idle before beginning maintenance."
+            end
+            return true
+        end,
+    })
+    wrapperMaintenanceAuthority = WrapperMaintenanceAuthority.create({
+        state = state,
+        baseView = wrapperView,
+        validateAccess = function(player)
+            return World.validateNetworkWorkshopAccess(player, state, "skid_wrapper")
+        end,
+        save = saveCurrent,
+        machineReady = function()
+            if Wrapper.isActive() then
+                return false, "machine_busy",
+                    "Wait for the wrapping cycle to finish before beginning maintenance."
+            end
+            if Wrapper.nearbyPallet(state) then
+                return false, "turntable_occupied",
+                    "Move every eligible pallet away from the wrapper before beginning maintenance."
+            end
+            return true
+        end,
+        resetRuntime = function()
+            return Wrapper.reset(state)
+        end,
+    })
+    local authority = WorkshopAuthority.new({
         leaseTimeout = 12,
         resources = {
             reception_customer = {
@@ -703,56 +797,41 @@ local function createWorkshopAuthority()
                     return true
                 end,
                 commands = {
-                    submit_quote = {
-                        normalize = function(arguments)
-                            local amount = type(arguments) == "table" and arguments.amount
-                            if not exactArguments(arguments, { "amount" })
-                                or type(amount) ~= "number" or amount ~= math.floor(amount)
-                                or amount < 1 or amount > 100000000
-                            then
-                                return nil, "invalid_amount", "Enter a valid whole-dollar quote."
-                            end
-                            return { amount = amount }
-                        end,
-                        perform = function(lease, _, arguments)
-                            local offer = lease.private and lease.private.offer
-                            if not offer then return false, "offer_missing", "The customer paperwork expired." end
-                            local succeeded, quote = JobService.submitQuote(
-                                state, offer, arguments.amount, os.time())
-                            if not succeeded then
-                                return false, "quote_failed", "Could not submit the quote: " .. tostring(quote)
-                            end
-                            lease.private.resolved = true
-                            World.resolveCustomer(quote.accepted and "accepted" or "declined", state)
-                            saveCurrent()
-                            local message = quote.accepted
-                                and string.format("%s accepted the $%d quote.", offer.company, quote.amount)
-                                or string.format("%s declined the $%d quote.", offer.company, quote.amount)
-                            return true, quote.accepted and "quote_accepted" or "quote_declined", message
-                        end,
-                    },
-                    decline = {
+                    request_details = {
                         normalize = function(arguments)
                             if not exactArguments(arguments, {}) then
-                                return nil, "invalid_arguments", "Decline takes no additional data."
+                                return nil, "invalid_arguments", "Request details takes no additional data."
                             end
                             return {}
                         end,
                         perform = function(lease)
                             local offer = lease.private and lease.private.offer
                             if not offer then return false, "offer_missing", "The customer paperwork expired." end
-                            local succeeded, errorMessage = JobService.declineOffer(state, offer, os.time())
+                            local succeeded, result = JobService.requestEstimateDetails(
+                                state, offer, os.time())
                             if not succeeded then
-                                return false, "decline_failed", "Could not decline the job: " .. tostring(errorMessage)
+                                return false, "details_failed", "Could not request the details: " .. tostring(result)
                             end
                             lease.private.resolved = true
-                            World.resolveCustomer("declined", state)
+                            World.resolveCustomer("accepted", state)
                             saveCurrent()
-                            return true, "declined", "Declined " .. offer.id .. ". The customer is leaving."
+                            return true, "details_requested",
+                                offer.company .. " will email the written job details."
                         end,
                     },
                 },
             },
+            vendor = VendorAuthority.resource({
+                state = state,
+                world = World,
+                save = saveCurrent,
+            }),
+            truck = TruckAuthority.resource({
+                state = state,
+                world = World,
+                save = saveCurrent,
+            }),
+            work_phone = PhoneAuthority.resource({ state = state, world = World, save = saveCurrent }),
             office_computer = {
                 canAcquire = function(player)
                     return World.validateNetworkWorkshopAccess(player, state, "office_computer")
@@ -761,6 +840,9 @@ local function createWorkshopAuthority()
                     return true, "acquired", "Office computer connected.", {}
                 end,
                 commands = {
+                    office_action = OfficeAuthority.command({ state = state, world = World, save = saveCurrent,
+                        warehouseEnabled = Config.warehouse.enabled,
+                        warehouseFirstStorageOnly = Config.warehouse.firstStorageOnly }),
                     request_pickup = {
                         normalize = function(arguments)
                             local jobId = type(arguments) == "table" and arguments.jobId
@@ -791,13 +873,20 @@ local function createWorkshopAuthority()
                 end,
                 onAcquire = function()
                     Machine.open(state)
-                    return true, "acquired", "Cutter console connected.", cutterView(true)
+                    local session = CutterMaintenanceAuthority.newSession()
+                    activeCutterRemote = session
+                    return true, "acquired", "Cutter console connected.",
+                        cutterMaintenanceAuthority.view(session, true), session
                 end,
-                onRelease = function()
-                    Machine.releaseOperator(state)
+                onRelease = function(lease)
+                    local changed = Machine.releaseOperator(state)
+                    if activeCutterRemote == (lease and lease.private) then
+                        activeCutterRemote = nil
+                    end
+                    if changed then saveCurrent() end
                     return true, "released", "Cutter controls released safely."
                 end,
-                commands = {
+                commands = cutterMaintenanceAuthority.withProductionCommands({
                     load_pallet = {
                         normalize = function(arguments)
                             local palletId = type(arguments) == "table" and arguments.palletId
@@ -954,7 +1043,7 @@ local function createWorkshopAuthority()
                                 function() return Machine.repeatLift(state) end, true)
                         end,
                     },
-                },
+                }),
             },
             windmill = {
                 canAcquire = function(player)
@@ -992,9 +1081,18 @@ local function createWorkshopAuthority()
                     return true
                 end,
                 onAcquire = function()
-                    return true, "acquired", "Skid-wrapper console connected.", wrapperView()
+                    local session = WrapperMaintenanceAuthority.newSession()
+                    activeWrapperRemote = session
+                    return true, "acquired", "Skid-wrapper console connected.",
+                        wrapperMaintenanceAuthority.view(session, true), session
                 end,
-                commands = {
+                onRelease = function(lease)
+                    if activeWrapperRemote == (lease and lease.private) then
+                        activeWrapperRemote = nil
+                    end
+                    return true, "released", "Skid-wrapper controls released safely."
+                end,
+                commands = wrapperMaintenanceAuthority.withProductionCommands({
                     select_pallet = {
                         normalize = function(arguments)
                             local palletId = type(arguments) == "table" and arguments.palletId
@@ -1033,7 +1131,7 @@ local function createWorkshopAuthority()
                             return true, "cycle_started", tostring(state.message), wrapperView()
                         end,
                     },
-                },
+                }),
             },
             pallet_jack = {
                 canAcquire = function(player)
@@ -1051,9 +1149,12 @@ local function createWorkshopAuthority()
                         player, state)
                     return accepted, code, message, accepted and {} or nil
                 end,
-                onRelease = function(lease)
+                onRelease = function(lease, player)
                     -- Timeout, disconnect, and normal release all use the same
-                    -- safe recovery: stop the jack without inventing a drop.
+                    -- safe recovery. An attached machine is locked to a valid
+                    -- snapped cell (or its relocation origin) before the jack
+                    -- relinquishes ownership.
+                    World.recoverNetworkMachineMove(state, Assets, player)
                     PalletJack.forceRelease(state, Config.palletJack,
                         lease and lease.ownerPlayerId or nil)
                     saveCurrent()
@@ -1124,10 +1225,98 @@ local function createWorkshopAuthority()
                             return accepted, code, message
                         end,
                     },
+                    move_machine = {
+                        normalize = function(arguments)
+                            local machineIndex = type(arguments) == "table"
+                                and arguments.machineIndex
+                            if not exactArguments(arguments, { "machineIndex" })
+                                or type(machineIndex) ~= "number"
+                                or machineIndex % 1 ~= 0
+                                or machineIndex < 1 or machineIndex > 3
+                            then
+                                return nil, "invalid_machine", "Choose a valid nearby machine."
+                            end
+                            return { machineIndex = machineIndex }
+                        end,
+                        perform = function(_, player, arguments)
+                            local resources = { "cutter", "skid_wrapper", "windmill" }
+                            local resourceId = resources[arguments.machineIndex]
+                            local occupied = workshopAuthority
+                                and workshopAuthority:leaseForResource(resourceId) ~= nil
+                            local accepted, code, message = World.beginNetworkMachineMove(
+                                player, state, arguments.machineIndex, occupied)
+                            if accepted then saveCurrent() end
+                            return accepted, code, message
+                        end,
+                    },
+                    rotate_machine = {
+                        normalize = function(arguments)
+                            if not exactArguments(arguments, {}) then
+                                return nil, "invalid_arguments", "Rotation takes no additional data."
+                            end
+                            return {}
+                        end,
+                        perform = function(_, player)
+                            local accepted, code, message = World.rotateNetworkMachine(
+                                player, state)
+                            if accepted then saveCurrent() end
+                            return accepted, code, message
+                        end,
+                    },
+                    place_machine = {
+                        normalize = function(arguments)
+                            local cell = type(arguments) == "table" and arguments.placementCell
+                            local column, row
+                            if type(cell) == "string" then
+                                column, row = cell:match("^c(%d+)r(%d+)$")
+                            end
+                            column, row = tonumber(column), tonumber(row)
+                            if not exactArguments(arguments, { "placementCell" })
+                                or not column or not row or column > 64 or row > 64
+                            then
+                                return nil, "invalid_cell", "Choose a valid highlighted placement cell."
+                            end
+                            return { placementCell = cell }
+                        end,
+                        perform = function(_, player, arguments)
+                            local accepted, code, message = World.placeNetworkMachine(
+                                player, state, Assets, arguments.placementCell)
+                            if accepted then saveCurrent() end
+                            return accepted, code, message
+                        end,
+                    },
                 },
             },
         },
     })
+    authority.resources.pallet_jack = MachineRelocationAuthority.resource({
+        state = state,
+        assets = Assets,
+        world = World,
+        palletJack = PalletJack,
+        config = Config,
+        save = saveCurrent,
+        controlOccupied = function(machineIndex)
+            local resources = { "cutter", "skid_wrapper", "windmill" }
+            return authority:leaseForResource(resources[machineIndex]) ~= nil
+        end,
+    })
+    local warehouseCommand = WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
+    authority.resources.pallet_jack.commands.warehouse_action = warehouseCommand
+    authority.resources.warehouse = {
+        canAcquire=function(player) return World.warehouseAccess(player,state) end,
+        onAcquire=function() return true,"acquired","Warehouse controls connected.",{} end,
+        commands={warehouse_action=warehouseCommand},
+        onRelease=function(_,player)
+            if state.forklift and state.forklift.operatorPlayerId==player.id then
+                Forklift.forceRelease(state,Config.forklift,player.id)
+                saveCurrent()
+            end
+            return true,"released","Forklift safely stopped.",{}
+        end,
+        view=function() return {} end,
+    }
+    return authority
 end
 
 local function localAuthorityPlayer()
@@ -1191,6 +1380,10 @@ local function clearWorkshopAuthority(reason)
     end
     workshopAuthority = nil
     localWorkshopLease = nil
+    activeCutterRemote = nil
+    cutterMaintenanceAuthority = nil
+    activeWrapperRemote = nil
+    wrapperMaintenanceAuthority = nil
     activeWindmillRemote = nil
 end
 
@@ -1213,6 +1406,8 @@ local function startLanHost(slot, playerName)
     workshopAuthority = createWorkshopAuthority()
     localWorkshopLease = nil
     localWorkshopRequestId = 0
+    activeCutterRemote = nil
+    activeWrapperRemote = nil
     activeWindmillRemote = nil
     local hostName = tostring(playerName or "LAN Worker"):gsub("Worker", "Host")
     local ok, errorMessage = multiplayer:startHost({
@@ -1224,8 +1419,15 @@ local function startLanHost(slot, playerName)
         clearWorkshopAuthority("host_start_failed")
         return false, errorMessage
     end
+    lanReconnect:cancel(true)
+    lanReconnectArmed = false
+    local discoveryOk, discoveryError = lanDiscovery:startHost({
+        gamePort = 22122,
+        name = hostName .. " - Slot " .. tostring(slot),
+    })
     local started, startError = startGame(payload, mode)
     if not started then
+        lanDiscovery:stop()
         multiplayer:stop("Host save could not be opened")
         clearWorkshopAuthority("host_save_failed")
         state.screen = "lan"
@@ -1234,20 +1436,40 @@ local function startLanHost(slot, playerName)
     if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
         love.window.setDisplaySleepEnabled(false)
     end
-    state.message = "LAN host active. Guests can join this shop by local IPv4 address."
+    state.message = discoveryOk
+        and "LAN host active. Nearby workers can find this shop automatically or join by IPv4 address."
+        or ("LAN host active at " .. tostring(multiplayer.localAddress or "this device")
+            .. ". Automatic discovery is unavailable: " .. tostring(discoveryError))
     return true
 end
 
-local function startLanClient(address, playerName)
-    return multiplayer:startClient(address, {
+local function startLanSearch()
+    local ok, message = lanDiscovery:startSearch()
+    local _, status = lanDiscovery:status()
+    LanScreen.setDiscovery({}, ok and status or message)
+    return ok, message
+end
+
+local function startLanClient(address, playerName, reconnecting)
+    if reconnecting ~= true then
+        lanReconnect:cancel(false)
+        lanReconnect:remember(address, playerName)
+        lanReconnectArmed = false
+    end
+    lanDiscovery:stop()
+    local ok, message = multiplayer:startClient(address, {
         name = playerName,
         character = Config.player.character,
     })
+    if not ok and reconnecting ~= true then startLanSearch() end
+    return ok, message
 end
 
 openLocalPlay = function(slot)
     local sessionClean, sessionError = multiplayer:stop("Opening Local Play")
     clearWorkshopAuthority("session_closed")
+    lanReconnect:cancel(true)
+    lanReconnectArmed = false
     local connectionClean, connectionError = closeDirectConnection()
     local hostClean, hostError = closeDirectHostComposite()
     if not sessionClean or not connectionClean or not hostClean then
@@ -1260,14 +1482,23 @@ openLocalPlay = function(slot)
         slot = slot,
         host = startLanHost,
         join = startLanClient,
-        cancel = function() multiplayer:stop("Connection cancelled") end,
+        cancel = function()
+            lanReconnect:cancel(true)
+            lanReconnectArmed = false
+            multiplayer:stop("Connection cancelled")
+            startLanSearch()
+        end,
         back = function()
+            lanDiscovery:stop()
+            lanReconnect:cancel(true)
+            lanReconnectArmed = false
             multiplayer:stop("Leaving Local Play")
             state.screen = "title"
             TitleScreen.enter(startGame, openLocalPlay,
                 CryptoNative.productionReady == true and openDirectPlay or nil)
         end,
     })
+    startLanSearch()
 end
 
 closeDirectConnection = function()
@@ -1442,6 +1673,9 @@ local function submitDirectResponse(responseCode)
 end
 
 openDirectPlay = function(slot)
+    lanDiscovery:stop()
+    lanReconnect:cancel(true)
+    lanReconnectArmed = false
     local sessionClean, sessionError = multiplayer:stop("Opening Direct Play")
     clearWorkshopAuthority("session_closed")
     local connectionClean, connectionError = closeDirectConnection()
@@ -1508,6 +1742,9 @@ end
 
 returnToTitle = function()
     saveCurrent()
+    lanDiscovery:stop()
+    lanReconnect:cancel(true)
+    lanReconnectArmed = false
     local sessionClean, sessionError = multiplayer:stop("Returned to title")
     clearWorkshopAuthority("session_closed")
     local connectionClean, connectionError = closeDirectConnection()
@@ -1524,9 +1761,138 @@ returnToTitle = function()
         CryptoNative.productionReady == true and openDirectPlay or nil)
 end
 
-local function palletJackCommandFor(action)
+local function closeOptions()
+    local returnScreen = state.optionsReturnScreen or "title"
+    state.optionsReturnScreen = nil
+    state.screen = returnScreen
+    if syncMobileKeyboard then syncMobileKeyboard() end
+    return true
+end
+
+openOptions = function()
+    if state.screen == "asset_error" or spriteLabActive then return false end
+    if state.screen == "options" then return OptionsScreen.leave() end
+    local returnScreen = state.screen
+    local liveShop = state.activeSlot ~= nil
+        and (returnScreen ~= "title" and returnScreen ~= "lan" and returnScreen ~= "direct"
+            or multiplayer:isHost())
+    state.optionsReturnScreen = returnScreen
+    OptionsScreen.enter({
+        settings = App.settings or Settings.normalize(),
+        sound = App.sound,
+        save = Save,
+        state = state,
+        saveCurrent = saveCurrent,
+        isNetworkClient = function() return multiplayer:isClient() end,
+        useActiveState = liveShop,
+        preferredSlot = returnScreen == "title" and (TitleScreen.selected or 1)
+            or state.activeSlot or TitleScreen.selected or 1,
+        getControlLayout = function()
+            return mobileControls and mobileControls:layout()
+                or App.settings.controlLayout
+        end,
+        setControlLayout = function(layout)
+            App.settings.controlLayout = mobileControls and mobileControls:setLayout(layout)
+                or Settings.normalizeControlLayout(layout)
+        end,
+        commitControlLayout = function()
+            Settings.save(App.settings)
+        end,
+        resetControlLayout = function()
+            local layout = MobileControls.defaultLayout()
+            App.settings.controlLayout = mobileControls and mobileControls:setLayout(layout)
+                or layout
+            Settings.save(App.settings)
+        end,
+        onClose = closeOptions,
+    })
+    state.screen = "options"
+    if syncMobileKeyboard then syncMobileKeyboard() end
+    return true
+end
+
+local function warehousePlayer()
+    return {id=World.player.id or 1,x=World.player.x,y=World.player.y}
+end
+
+local function sendWarehouseIntent(intent)
+    local function refused(message)
+        state.message=message or "The warehouse action could not be sent."
+        return false,state.message
+    end
+    if multiplayer:isClient() then
+        if warehousePendingIntent then return refused("Wait for the host to finish the current warehouse action.") end
+        warehousePendingIntent=intent
+        local info=multiplayer:workshopInfo()
+        local jackTransfer=info and info.resourceId=="pallet_jack"
+            and intent.vehicle=="pallet_jack" and (intent.kind=="store" or intent.kind=="retrieve")
+        local sent,message
+        if info and (info.resourceId=="warehouse" or jackTransfer) then
+            sent,message=multiplayer:requestWorkshopCommand("warehouse_action",{warehouseIntent=intent})
+        elseif info then
+            warehousePendingIntent=nil
+            return refused("Close or park the other workshop control first.")
+        else sent,message=multiplayer:requestWorkshopAcquire("warehouse") end
+        if not sent then warehousePendingIntent=nil; return refused(message) end
+        state.message="Waiting for the host to confirm the warehouse action..."
+        return nil
+    end
+    local accepted,message,result
+    if multiplayer:isHost() then
+        local jackTransfer=localWorkshopLease and localWorkshopLease.resourceId=="pallet_jack"
+            and intent.vehicle=="pallet_jack" and (intent.kind=="store" or intent.kind=="retrieve")
+        if not localWorkshopLease or (localWorkshopLease.resourceId~="warehouse" and not jackTransfer) then
+            if localWorkshopLease then return refused("Close or park the other workshop control first.") end
+            accepted,message=acquireLocalWorkshop("warehouse")
+            if not accepted then state.message=message; return false,message end
+        end
+        accepted,message,result=commandLocalWorkshop("warehouse_action",{warehouseIntent=intent})
+        if accepted and intent.kind=="release" then releaseLocalWorkshop("closed") end
+        if not accepted and intent.kind=="operate" and localWorkshopLease
+            and localWorkshopLease.resourceId=="warehouse" then releaseLocalWorkshop("cancelled") end
+    else
+        local command=WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
+        local code
+        accepted,code,message=command.perform({},warehousePlayer(),{warehouseIntent=intent})
+    end
+    state.message=message or (accepted and "Warehouse action completed." or "Warehouse action refused.")
+    return accepted,state.message
+end
+
+warehouseControls=WarehouseControls.new({state=state,world=World,player=warehousePlayer,command=sendWarehouseIntent})
+
+local function palletJackCommandFor(action, selected)
     local jack = PalletJack.ensure(state, Config.palletJack)
     if action == "park" then return "park_jack", {} end
+    if action == "rotate_machine" then return "rotate_machine", {} end
+    if action == "place_machine" then
+        local placementCell = World.networkPlacementCellId(state, Assets)
+        if not placementCell then
+            return nil, nil, "Choose a green placement cell before setting the machine down."
+        end
+        return "place_machine", { placementCell = placementCell }
+    end
+    if action == "move_machine" then
+        local machineIndex = selected and ({
+            cutter = 1,
+            skidWrapper = 2,
+            windmill = 3,
+        })[selected.kind]
+        if not machineIndex then return nil, nil, "Move beside the machine you want to relocate." end
+        return "move_machine", { machineIndex = machineIndex }
+    end
+    if action == "lift" then
+        local selectedPallet = selected and selected.target
+            and selected.target.item and selected.target.item.pallet
+        local palletId = selectedPallet and selectedPallet.id
+        if type(palletId) ~= "string" or palletId == "" then
+            return nil, nil, "Tap a valid skid to lift it."
+        end
+        if jack.carriedPalletId then
+            return nil, nil, "Lower the skid already on the forks before lifting another one."
+        end
+        return "lift_pallet", { palletId = palletId }
+    end
     if jack.carriedPalletId then
         return "lower_pallet", { palletId = jack.carriedPalletId }
     end
@@ -1538,13 +1904,12 @@ end
 
 local function handlePalletJackControl(action, selected)
     if machineRelocationActive() then
-        local targetsPalletJack = action == "park"
-            or (action == "use" and selected and selected.kind == "palletJack")
-        if targetsPalletJack then
+        local targetsPalletJack = action == "park" or action == "use"
+            or action == "lift"
+        if targetsPalletJack and action ~= "place_machine" then
             state.message = "Place the moving machine before using or parking the pallet jack."
             return true
         end
-        return false
     end
     if multiplayer:isClient() then
         local info = multiplayer:workshopInfo()
@@ -1557,19 +1922,24 @@ local function handlePalletJackControl(action, selected)
             end
             return false
         end
-        local command, arguments = palletJackCommandFor(action)
+        local command, arguments, commandError = palletJackCommandFor(action, selected)
+        if not command then state.message = commandError; return true end
         local requested, errorMessage = multiplayer:requestWorkshopCommand(
             command, arguments)
         state.message = requested
             and (command == "lift_pallet" and "Waiting for the host to verify that exact pallet..."
                 or command == "lower_pallet" and "Waiting for the host to verify the drop space..."
+                or command == "move_machine" and "Waiting for the host to attach that machine..."
+                or command == "rotate_machine" and "Waiting for the host to rotate the machine..."
+                or command == "place_machine" and "Waiting for the host to verify that floor cell..."
                 or "Waiting for the host to park the pallet jack...")
             or tostring(errorMessage or "The pallet-jack request could not be sent.")
         return true
     end
     if not multiplayer:isHost() then return false end
     if localWorkshopLease and localWorkshopLease.resourceId == "pallet_jack" then
-        local command, arguments = palletJackCommandFor(action)
+        local command, arguments, commandError = palletJackCommandFor(action, selected)
+        if not command then state.message = commandError; return true end
         local accepted, message = commandLocalWorkshop(command, arguments)
         state.message = tostring(message or (accepted
             and "Pallet-jack action completed." or "Pallet-jack action was rejected."))
@@ -1588,6 +1958,7 @@ local inputContext = {
     state = state,
     assets = Assets,
     computerScreen = ComputerScreen,
+    workPhoneScreen = WorkPhoneScreen,
     hud = Hud,
     world = World,
     shop = Shop,
@@ -1609,12 +1980,20 @@ local inputContext = {
         return workshopAuthority
             and workshopAuthority:leaseForResource("cutter") ~= nil
     end,
+    wrapperControlOccupied = function()
+        return workshopAuthority
+            and workshopAuthority:leaseForResource("skid_wrapper") ~= nil
+    end,
     windmillControlOccupied = function()
         return workshopAuthority
             and workshopAuthority:leaseForResource("windmill") ~= nil
     end,
     palletJackControl = handlePalletJackControl,
     networkInteraction = function(selected)
+        if selected and selected.kind=="forklift" then sendWarehouseIntent({kind="operate"}); return true end
+        if selected and selected.kind=="palletRack" then
+            return warehouseControls:openRack(selected.target and selected.target.rackId)
+        end
         if not multiplayer:isActive() then return false end
         if not selected then
             if multiplayer:isClient() then
@@ -1650,20 +2029,31 @@ local inputContext = {
                 or tostring(errorMessage or "The workshop request could not be sent.")
             return true
         end
-        if selected.kind ~= "loadingBayDoor" then
+        if selected.kind ~= "loadingBayDoor" and selected.kind ~= "truckCargoDoor" then
             state.message = "That shop-floor action is not worker-enabled yet."
             return true
         end
-        local doorState = selected.target and selected.target.doorState
+        local doorState = selected.kind == "truckCargoDoor"
+            and selected.target and selected.target.truckState
+            or selected.target and selected.target.doorState
+        if selected.kind == "truckCargoDoor" then
+            if doorState == "parked_closed" then doorState = "closed"
+            elseif doorState == "cargo_open" then doorState = "open"
+            else doorState = nil end
+        end
         if doorState ~= "closed" and doorState ~= "open" then
-            state.message = "Wait for the loading-bay door to finish moving."
+            state.message = selected.kind == "truckCargoDoor"
+                and "Wait for the truck cargo door to finish moving."
+                or "Wait for the loading-bay door to finish moving."
             return true
         end
         local desiredState = doorState == "closed" and "open" or "closed"
         local requested, errorMessage = multiplayer:requestInteraction(
             selected.kind, desiredState)
         state.message = requested
-            and "Waiting for the host device to verify the loading-bay switch..."
+            and (selected.kind == "truckCargoDoor"
+                and "Waiting for the host device to verify the truck cargo door..."
+                or "Waiting for the host device to verify the loading-bay switch...")
             or tostring(errorMessage or "The interaction request could not be sent.")
         return true
     end,
@@ -1702,6 +2092,9 @@ end
 local function multiplayerHudInfo()
     local info = multiplayer:hudInfo()
     info.canInvite = directHostCanInvite()
+    if multiplayer:isHost() then
+        info.workshopResources = workshopAuthority and workshopAuthority:snapshot() or {}
+    end
     return info
 end
 
@@ -1745,7 +2138,13 @@ local function dispatchGameMousePressed(gameX, gameY, button)
     if state.screen == "asset_error" then return end
     if button == 1 then Ui.notePress(gameX, gameY) end
     if App.sound then App.sound:pointerPressed(button, state.screen) end
-    if state.screen == "lan" then
+    if state.screen == "options" then
+        local result = OptionsScreen.mousepressed(gameX, gameY, button)
+        syncMobileKeyboard()
+        return result
+    elseif button == 1 and OptionsScreen.accessHit(gameX, gameY) then
+        return openOptions()
+    elseif state.screen == "lan" then
         local result = LanScreen.mousepressed(gameX, gameY, button)
         syncMobileKeyboard()
         return result
@@ -1755,10 +2154,12 @@ local function dispatchGameMousePressed(gameX, gameY, button)
         return result
     end
     if multiplayerHudMousepressed(gameX, gameY, button) then return true end
+    if warehouseControls:mousepressed(gameX,gameY,button) then return true end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
 local function dispatchGameMouseReleased(gameX, gameY, button)
+    if state.screen == "options" then return OptionsScreen.mousereleased(gameX, gameY, button) end
     if state.screen == "lan" then return LanScreen.mousereleased(gameX, gameY, button) end
     if state.screen == "direct" then return DirectScreen.mousereleased(gameX, gameY, button) end
     if multiplayerHudMousereleased(gameX, gameY, button) then return true end
@@ -1770,7 +2171,13 @@ local function dispatchMousePressed(x, y, button)
     local gameX, gameY = toPointerCoordinates(x, y)
     if button == 1 then Ui.notePress(gameX, gameY) end
     if App.sound then App.sound:pointerPressed(button, state.screen) end
-    if state.screen == "lan" then
+    if state.screen == "options" then
+        local result = OptionsScreen.mousepressed(gameX, gameY, button)
+        syncMobileKeyboard()
+        return result
+    elseif button == 1 and OptionsScreen.accessHit(gameX, gameY) then
+        return openOptions()
+    elseif state.screen == "lan" then
         local result = LanScreen.mousepressed(gameX, gameY, button)
         syncMobileKeyboard()
         return result
@@ -1780,11 +2187,13 @@ local function dispatchMousePressed(x, y, button)
         return result
     end
     if multiplayerHudMousepressed(gameX, gameY, button) then return true end
+    if warehouseControls:mousepressed(gameX,gameY,button) then return true end
     return Input.mousepressed(gameX, gameY, button, inputContext)
 end
 
 local function dispatchMouseReleased(x, y, button)
     local gameX, gameY = toPointerCoordinates(x, y)
+    if state.screen == "options" then return OptionsScreen.mousereleased(gameX, gameY, button) end
     if state.screen == "lan" then return LanScreen.mousereleased(gameX, gameY, button) end
     if state.screen == "direct" then return DirectScreen.mousereleased(gameX, gameY, button) end
     if multiplayerHudMousereleased(gameX, gameY, button) then return true end
@@ -1793,11 +2202,14 @@ end
 
 local function dispatchMouseMoved(x, y)
     local gameX, gameY = toPointerCoordinates(x, y)
+    if state.screen == "options" then return OptionsScreen.mousemoved(gameX, gameY) end
     return Input.mousemoved(gameX, gameY, inputContext)
 end
 
 local function wantsTextInput()
-    if state.screen == "job_offer" and JobOfferScreen.wantsTextInput then
+    if state.screen == "options" then
+        return OptionsScreen.wantsTextInput()
+    elseif state.screen == "job_offer" and JobOfferScreen.wantsTextInput then
         return JobOfferScreen.wantsTextInput()
     elseif state.screen == "computer" and ComputerScreen.wantsTextInput then
         return ComputerScreen.wantsTextInput()
@@ -1820,7 +2232,15 @@ syncMobileKeyboard = function()
 end
 
 local function dispatchKeyPressed(key)
-    if state.screen == "lan" then
+    if state.screen == "options" then
+        local result = OptionsScreen.keypressed(key)
+        syncMobileKeyboard()
+        return result
+    elseif (key == "o" and not wantsTextInput())
+        or (key == "escape" and state.screen == "world")
+    then
+        return openOptions()
+    elseif state.screen == "lan" then
         local result = LanScreen.keypressed(key)
         syncMobileKeyboard()
         return result
@@ -1834,24 +2254,29 @@ local function dispatchKeyPressed(key)
     then
         return true
     end
-    if multiplayer:isClient() and state.screen == "world"
-        and (key == "m" or key == "q")
-    then
-        state.message = "Shop status is live. Relocation and vehicle controls remain host-owned."
-        return true
-    end
+    if warehouseControls:keypressed(key) then return true end
     return Input.keypressed(key, inputContext)
 end
 
 local function primaryMobileAction()
-    if not multiplayer:isClient() and (state.cutter and state.cutter.moving
-        or state.wrapper and state.wrapper.moving or state.windmill and state.windmill.moving)
-    then
-        return "e", "PLACE"
+    if warehouseControls:ownsLift() then
+        return "e",state.forklift.carriedPalletId and "DROP" or "PICK UP"
+    end
+    local movingMachine = state.cutter and state.cutter.moving
+        or state.wrapper and state.wrapper.moving or state.windmill and state.windmill.moving
+    if movingMachine then
+        local localPlayerId = tonumber(World.player.id) or 1
+        local ownsRelocation = state.palletJack and state.palletJack.operating
+            and state.palletJack.operatorPlayerId == localPlayerId
+        if ownsRelocation then return "e", "PLACE" end
+        return "e", "BUSY"
     end
     local selected = World.getInteraction()
     if not selected then return "e", "USE" end
     if multiplayer:isClient() and selected.kind ~= "loadingBayDoor"
+        and selected.kind ~= "truckCargoDoor"
+        and selected.kind ~= "palletWorkOrder"
+        and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
         and not World.workshopResourceId(selected.kind)
     then
         return "e", "HOST"
@@ -1869,9 +2294,10 @@ local function primaryMobileAction()
         end
     end
     local labels = {
-        customer = "QUOTE", computer = "PC", vendor = "TALK", loadingBayDoor = "DOOR",
+        customer = "JOB", computer = "PC", vendor = "TALK", loadingBayDoor = "DOOR",
         truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
-        windmill = "PRESS", palletJack = jackLabel,
+        windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
+        forklift = "DRIVE", palletRack = "SHELVES",
     }
     return "e", labels[selected.kind] or "USE"
 end
@@ -1881,7 +2307,31 @@ local function extraMobileActions()
     if multiplayer:isClient() then
         local info = multiplayer:workshopInfo()
         if info and info.resourceId == "pallet_jack" then
-            actions[#actions + 1] = { key = "f", label = "PARK" }
+            local movingMachine = state.cutter and state.cutter.moving
+                or state.wrapper and state.wrapper.moving
+                or state.windmill and state.windmill.moving
+            if movingMachine then
+                actions[#actions + 1] = { key = "q", label = "TURN" }
+            else
+                local carryingPallet = state.palletJack
+                    and state.palletJack.carriedPalletId ~= nil
+                if carryingPallet then
+                    actions[#actions + 1] = { key = "l", label = "LOWER" }
+                else
+                    actions[#actions + 1] = { key = "f", label = "PARK" }
+                    local selected = World.getInteraction()
+                    local canRelocate = selected and (selected.kind == "cutter"
+                        or selected.kind == "skidWrapper" or selected.kind == "windmill")
+                    if not canRelocate then
+                        canRelocate = World.cutterNearby and World.cutterNearby(state)
+                            or World.wrapperNearby and World.wrapperNearby(state)
+                            or World.windmillNearby and World.windmillNearby(state)
+                    end
+                    if canRelocate then
+                        actions[#actions + 1] = { key = "m", label = "MOVE" }
+                    end
+                end
+            end
         end
         return actions
     end
@@ -1894,16 +2344,21 @@ local function extraMobileActions()
     if state.palletJack and state.palletJack.operating
         and state.palletJack.operatorPlayerId == 1
     then
-        actions[#actions + 1] = { key = "f", label = "PARK" }
-        local selected = World.getInteraction()
-        local canRelocate = selected and (selected.kind == "cutter"
-            or selected.kind == "skidWrapper" or selected.kind == "windmill")
-        if not canRelocate then
-            canRelocate = World.cutterNearby and World.cutterNearby(state)
-                or World.wrapperNearby and World.wrapperNearby(state)
-                or World.windmillNearby and World.windmillNearby(state)
+        local carryingPallet = state.palletJack.carriedPalletId ~= nil
+        if carryingPallet then
+            actions[#actions + 1] = { key = "l", label = "LOWER" }
+        else
+            actions[#actions + 1] = { key = "f", label = "PARK" }
+            local selected = World.getInteraction()
+            local canRelocate = selected and (selected.kind == "cutter"
+                or selected.kind == "skidWrapper" or selected.kind == "windmill")
+            if not canRelocate then
+                canRelocate = World.cutterNearby and World.cutterNearby(state)
+                    or World.wrapperNearby and World.wrapperNearby(state)
+                    or World.windmillNearby and World.windmillNearby(state)
+            end
+            if canRelocate then actions[#actions + 1] = { key = "m", label = "MOVE" } end
         end
-        if canRelocate then actions[#actions + 1] = { key = "m", label = "MOVE" } end
     end
     return actions
 end
@@ -1924,6 +2379,8 @@ local function runSmoke(startupTextureBytes, Sound)
         characterAssets = CharacterAssets,
         wrapper = Wrapper,
         computerScreen = ComputerScreen,
+        workPhone = WorkPhone,
+        workPhoneScreen = WorkPhoneScreen,
         Customer = Customer,
         config = Config,
         CutterPlacement = CutterPlacement,
@@ -1937,6 +2394,7 @@ local function runSmoke(startupTextureBytes, Sound)
         PalletJack = PalletJack,
         PalletState = PalletState,
         PalletLogistics = PalletLogistics,
+        PaperWork = PaperWork,
         plateService = PlateService,
         pressScreen = PressScreen,
         Receiving = Receiving,
@@ -1947,6 +2405,8 @@ local function runSmoke(startupTextureBytes, Sound)
         input = Input,
         inputContext = inputContext,
         save = Save,
+        SaveEditor = require("src.save_editor"),
+        Settings = Settings,
         shop = Shop,
         state = state,
         State = State,
@@ -1961,6 +2421,8 @@ local function runSmoke(startupTextureBytes, Sound)
         windmill = Windmill,
         createWorkshopAuthority = createWorkshopAuthority,
         windmillNetworkView = windmillView,
+        wrapperNetworkView = wrapperSnapshotView,
+        windmillLiveNetworkView = function() return windmillView(activeWindmillRemote) end,
         WindmillPlacement = WindmillPlacement,
         startupTextureBytes = startupTextureBytes,
         Sound = Sound,
@@ -1969,9 +2431,37 @@ local function runSmoke(startupTextureBytes, Sound)
 end
 
 function App.load()
+    ComputerScreen.configureWarehouse({enabled=Config.warehouse.enabled,
+        firstStorageOnly=Config.warehouse.firstStorageOnly,
+        command=function(intent)
+            if multiplayer:isClient() then return false,"Use the host-authorized office screen." end
+            if multiplayer:isHost() then
+                local ok,message=commandLocalWorkshop("office_action",{officeIntent=intent})
+                return ok,ok and "completed" or "blocked",message
+            end
+            return OfficeAuthority.command({state=state,world=World,save=saveCurrent,
+                warehouseEnabled=Config.warehouse.enabled,
+                warehouseFirstStorageOnly=Config.warehouse.firstStorageOnly})
+                .perform({},warehousePlayer(),{officeIntent=intent})
+        end})
     local Sound = require("src.sound")
+    local acceptanceHost, acceptanceHostError = AcceptanceHostBootstrap.plan({
+        osName = love.system and love.system.getOS and love.system.getOS() or nil,
+        getenv = os.getenv,
+    })
+    if acceptanceHostError then
+        error("Acceptance host bootstrap refused: " .. acceptanceHostError)
+    end
+    if acceptanceHost and Smoke.requested() then
+        error("Acceptance host bootstrap cannot run at the same time as the smoke suite.")
+    end
+    acceptanceHostPlan = acceptanceHost
+    acceptanceHostRelocationSignature = nil
     love.graphics.setDefaultFilter("nearest", "nearest")
+    App.settings = Settings.load()
+    Settings.applyDisplay(App.settings)
     mobileControls = MobileControls.new({
+        layout = App.settings.controlLayout,
         toGame = function(x, y) return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight) end,
         pressKey = dispatchKeyPressed,
         releaseKey = function(key) Input.keyreleased(key, inputContext) end,
@@ -1981,6 +2471,7 @@ function App.load()
         gameplayActive = function() return state.screen == "world" end,
         gestureActive = function()
             return App.mobileCamera and App.mobileCamera:isEnabled() and not spriteLabActive
+                and not (state.screen == "options" and OptionsScreen.isControlsTab())
         end,
         primaryAction = primaryMobileAction,
         extraActions = extraMobileActions,
@@ -2006,13 +2497,17 @@ function App.load()
         pressPointer = dispatchGameMousePressed,
         releasePointer = dispatchGameMouseReleased,
         screenInfo = function() return state.screen, state.machineType end,
-        worldMenuAction = returnToTitle,
+        menuAction = openOptions,
     })
     Input.setMobileMovementProvider(function()
         if mobileControls then return mobileControls:movement() end
         return 0, 0
     end)
-    if Smoke.requested() then love.filesystem.setIdentity("the-picture-shop-smoke") end
+    if acceptanceHost then
+        love.filesystem.setIdentity(acceptanceHost.identity)
+    elseif Smoke.requested() then
+        love.filesystem.setIdentity("the-picture-shop-smoke")
+    end
     Assets.load()
     CharacterAssets.load()
     spriteLabActive = Smoke.spriteLabRequested()
@@ -2043,14 +2538,37 @@ function App.load()
         windmill = Windmill,
     })
     local soundHealthy, soundErrors = App.sound:initialize()
+    Settings.applyAudio(App.settings, App.sound)
     if Smoke.requested() and not soundHealthy then
         error("Sound startup failed: " .. table.concat(soundErrors or {}, "; "))
+    end
+    if acceptanceHost then
+        if #state.assetErrors > 0 then
+            error("Acceptance host bootstrap stopped because required assets failed validation.")
+        end
+        local hosted, hostError = startLanHost(
+            acceptanceHost.slot, acceptanceHost.playerName)
+        if not hosted then
+            error("Acceptance host bootstrap could not start LAN hosting: "
+                .. tostring(hostError))
+        end
+        print(string.format("[ACCEPTANCE HOST] READY identity=%s slot=%d address=%s:%d",
+            acceptanceHost.identity, acceptanceHost.slot,
+            tostring(multiplayer.localAddress or "unknown"),
+            tonumber(multiplayer.port) or 22122))
+        io.flush()
     end
     print("[PICTURE SHOP] Startup complete")
 end
 
 local function showConnectionError(message, stopReason)
     local direct = multiplayer.networkKind == "direct"
+    if not direct and tostring(stopReason or ""):match("^Invalid") then
+        -- Malformed authoritative state is not a transient link failure. Do
+        -- not loop back into the same incompatible or unsafe snapshot.
+        lanReconnect:cancel(false)
+        lanReconnectArmed = false
+    end
     local cleaned, cleanupError = multiplayer:stop(stopReason or "Connection error")
     if not cleaned then
         if direct then
@@ -2069,19 +2587,109 @@ local function showConnectionError(message, stopReason)
     else
         state.screen = "lan"
         LanScreen.showError(message or "The LAN connection ended.")
+        startLanSearch()
     end
     syncMobileKeyboard()
+end
+
+local FATAL_LAN_RECONNECT_ERRORS = {
+    invalid_join = true,
+    shop_full = true,
+    kicked = true,
+    protocol_mismatch = true,
+    message_not_allowed = true,
+}
+
+local function handleLanReconnectFailure(message)
+    local snapshot = lanReconnect:snapshot()
+    if snapshot.active and snapshot.state == "waiting" then
+        -- An error and its following disconnect may arrive in the same drain.
+        -- The first event already scheduled the next attempt.
+        return true
+    end
+    if not snapshot.active and not lanReconnectArmed then return false end
+    local cleaned, cleanupError = multiplayer:stop("Preparing LAN reconnect")
+    if not cleaned then
+        lanReconnect:cancel(false)
+        lanReconnectArmed = false
+        state.screen = "lan"
+        LanScreen.showError(cleanupError)
+        startLanSearch()
+        return true
+    end
+    local scheduled, scheduleError
+    if snapshot.active and snapshot.state == "connecting" then
+        scheduled, scheduleError = lanReconnect:failed(message)
+    elseif not snapshot.active then
+        scheduled, scheduleError = lanReconnect:begin(message)
+    else
+        return true
+    end
+    clearWorkshopAuthority("transport_failed")
+    WorkshopRemoteScreen.clear()
+    state.screen = "lan"
+    startLanSearch()
+    if scheduled then
+        LanScreen.showReconnect(lanReconnect:snapshot())
+    else
+        lanReconnectArmed = false
+        LanScreen.showError(scheduleError or
+            "Automatic reconnect ended. Choose a found shop or enter its address.")
+    end
+    syncMobileKeyboard()
+    return true
+end
+
+local function updateLanConvenience(dt)
+    lanDiscovery:update(dt)
+    if state.screen == "lan" and not lanReconnect:isActive() then
+        local _, discoveryMessage = lanDiscovery:status()
+        LanScreen.setDiscovery(lanDiscovery:results(), discoveryMessage)
+    end
+    local attempt = lanReconnect:update(dt)
+    if not attempt then
+        if state.screen == "lan" and lanReconnect:isActive() then
+            LanScreen.showReconnect(lanReconnect:snapshot())
+        end
+        return
+    end
+    local cleaned, cleanupError = multiplayer:stop("Starting LAN reconnect attempt")
+    local connected, connectError = false, cleanupError
+    if cleaned then
+        connected, connectError = startLanClient(
+            attempt.address, attempt.playerName, true)
+    end
+    if not connected then
+        local scheduled, exhaustedMessage = lanReconnect:failed(connectError)
+        startLanSearch()
+        if not scheduled then
+            lanReconnectArmed = false
+            state.screen = "lan"
+            LanScreen.showError(exhaustedMessage)
+            return
+        end
+    end
+    state.screen = "lan"
+    LanScreen.showReconnect(lanReconnect:snapshot())
 end
 
 local function handleMultiplayerEvents()
     for _, event in ipairs(multiplayer:drainEvents()) do
         if event.type == "ready" then
+            warehouseControls:resolve(warehousePendingIntent,false,"The warehouse connection was restarted.")
+            warehousePendingIntent=nil
+            warehouseControls:reset("The warehouse connection was restarted.")
             Machine.resetNetworkReplica()
             if not State.applySharedSnapshot(state, event.state) then
                 showConnectionError(
                     "The host sent a shop snapshot this build could not apply.",
                     "Invalid shared shop snapshot")
             else
+                if multiplayer:isClient() and multiplayer.networkKind == "lan" then
+                    lanReconnectArmed = true
+                    lanReconnect:succeeded()
+                    lanDiscovery:stop()
+                end
                 World.load(event.spawn)
                 state.screen = "world"
                 state.message = "Joined the host shop. Movement, doors, reception, office, cutter, wrapper, and Windmill controls are live."
@@ -2093,6 +2701,11 @@ local function handleMultiplayerEvents()
                 showConnectionError(
                     "The host sent a shop update this build could not apply.",
                     "Invalid durable shop update")
+            end
+        elseif event.type == "forklift_state" then
+            local applied,reason=Forklift.applySnapshot(state,event.forklift,Config.forklift)
+            if not applied and reason~="awaiting_durable" and reason~="operator_conflict" then
+                state.message="Forklift update waiting for a fresh host state: "..tostring(reason)
             end
         elseif event.type == "pallet_jack_state" then
             local applied, applyError = World.applyNetworkPalletJackSnapshot(
@@ -2127,25 +2740,63 @@ local function handleMultiplayerEvents()
                 elseif event.resourceId == "cutter" and event.view then
                     Machine.applyNetworkView(event.view)
                 end
-                if event.resourceId == "pallet_jack" then
+                if event.resourceId == "warehouse" then
+                    if warehousePendingIntent then
+                        local sent,message=multiplayer:requestWorkshopCommand("warehouse_action",
+                            {warehouseIntent=warehousePendingIntent})
+                        if not sent then
+                            warehouseControls:resolve(warehousePendingIntent,false,message)
+                            warehousePendingIntent=nil
+                            state.message=message
+                            multiplayer:releaseWorkshop("cancelled")
+                        end
+                    end
+                elseif event.resourceId == "pallet_jack" then
                     state.screen = "world"
                 else
+                    event.useHostLayout = true
                     WorkshopRemoteScreen.enter(event, state)
                 end
             end
+            if not event.granted and event.resourceId=="warehouse" then
+                warehouseControls:resolve(warehousePendingIntent,false,event.message)
+                warehousePendingIntent=nil
+            end
             syncMobileKeyboard()
         elseif event.type == "workshop_result" then
+            if event.action=="warehouse_action" then
+                warehouseControls:resolve(warehousePendingIntent,event.accepted,event.message)
+                if event.accepted and warehousePendingIntent and warehousePendingIntent.kind=="release" then
+                    multiplayer:releaseWorkshop("closed")
+                elseif not event.accepted and event.resourceId=="warehouse"
+                    and warehousePendingIntent and warehousePendingIntent.kind=="operate" then
+                    multiplayer:releaseWorkshop("cancelled")
+                end
+                warehousePendingIntent=nil
+            end
             if event.resourceId == "skid_wrapper" and event.view then
                 Wrapper.applySnapshot(event.view, state)
             elseif event.resourceId == "cutter" and event.view then
                 Machine.applyNetworkView(event.view)
             end
-            if event.resourceId ~= "pallet_jack" then
+            if event.resourceId ~= "pallet_jack" and event.resourceId ~= "warehouse" then
                 WorkshopRemoteScreen.applyResult(event)
             end
             state.message = tostring(event.message or (event.accepted
                 and "Workshop action completed." or "Workshop action was rejected."))
             if event.accepted and event.resourceId == "reception_customer" then
+                multiplayer:releaseWorkshop("closed")
+                WorkshopRemoteScreen.clear()
+                state.screen = "world"
+            elseif event.accepted and event.resourceId == "vendor"
+                and event.action == "dismiss"
+            then
+                multiplayer:releaseWorkshop("closed")
+                WorkshopRemoteScreen.clear()
+                state.screen = "world"
+            elseif event.accepted and event.resourceId == "truck"
+                and event.action == "close_truck"
+            then
                 multiplayer:releaseWorkshop("closed")
                 WorkshopRemoteScreen.clear()
                 state.screen = "world"
@@ -2173,6 +2824,9 @@ local function handleMultiplayerEvents()
                 WorkshopRemoteScreen.applyWindmillSnapshot(event)
             end
         elseif event.type == "workshop_lost" then
+            warehouseControls:resolve(warehousePendingIntent,false,event.message or "Warehouse control disconnected.")
+            warehousePendingIntent=nil
+            warehouseControls:reset(event.message or "Warehouse control disconnected.")
             if state.screen == "workshop_remote" then
                 WorkshopRemoteScreen.clear()
                 state.screen = "world"
@@ -2183,6 +2837,11 @@ local function handleMultiplayerEvents()
                 if jack.operatorPlayerId == localId then
                     PalletJack.forceRelease(state, Config.palletJack, localId)
                 end
+            elseif event.resourceId == "warehouse" then
+                local localId=tonumber(World.player.id)
+                if state.forklift and state.forklift.operatorPlayerId==localId then
+                    Forklift.forceRelease(state,Config.forklift,localId)
+                end
             end
             state.message = tostring(event.message or "The host released that workshop control.")
             syncMobileKeyboard()
@@ -2191,7 +2850,8 @@ local function handleMultiplayerEvents()
                 state.message = "Direct host active. Each invited worker needs separate approval before any shop data is shared."
             else
                 local address = event.address or "the host device's Wi-Fi IPv4"
-                state.message = "LAN host: guests join " .. tostring(address) .. ":" .. tostring(event.port or 22122) .. "."
+                state.message = "LAN host: nearby workers can find this shop, or join manually at "
+                    .. tostring(address) .. ":" .. tostring(event.port or 22122) .. "."
             end
         elseif event.type == "approval_waiting" then
             DirectScreen.setMessage(event.message
@@ -2231,8 +2891,18 @@ local function handleMultiplayerEvents()
             -- Windmill and persists that stopped state.
             clearWorkshopAuthority("transport_failed")
             WorkshopRemoteScreen.clear()
-            showConnectionError(event.message or "The host connection ended.", "Host disconnected")
+            local lanClient = multiplayer:isClient() and multiplayer.networkKind == "lan"
+            if not lanClient or not handleLanReconnectFailure(
+                event.message or "The host connection ended.")
+            then
+                showConnectionError(event.message or "The host connection ended.", "Host disconnected")
+            end
         elseif event.type == "error" then
+            local lanClient = multiplayer:isClient() and multiplayer.networkKind == "lan"
+            if lanClient and FATAL_LAN_RECONNECT_ERRORS[event.code] then
+                lanReconnectArmed = false
+                lanReconnect:cancel(false)
+            end
             local addingDirectWorker = state.screen == "direct"
                 and multiplayer:isHost() and multiplayer.networkKind == "direct"
                 and DirectScreen.inviteOnly == true
@@ -2243,6 +2913,8 @@ local function handleMultiplayerEvents()
                 -- transport isolates and retires only the failed link.
                 DirectScreen.setMessage(
                     "One existing worker link ended; this fresh invitation is still active.")
+            elseif state.screen == "lan" and lanClient and lanReconnect:isActive() then
+                handleLanReconnectFailure(event.message or "The host did not answer.")
             elseif state.screen == "lan" or state.screen == "direct" then
                 showConnectionError(event.message or "The multiplayer connection failed.",
                     "Connection error")
@@ -2276,6 +2948,12 @@ local function performWorkshopRequest(player, operation, payload)
     elseif operation == "workshop_command" then
         local arguments = {}
         if payload.amount ~= nil then arguments.amount = payload.amount end
+        if payload.callId ~= nil then arguments.callId = payload.callId end
+        if payload.officeIntent ~= nil then arguments.officeIntent = payload.officeIntent end
+        if payload.warehouseIntent ~= nil then arguments.warehouseIntent = payload.warehouseIntent end
+        if payload.itemIndex ~= nil then arguments.itemIndex = payload.itemIndex end
+        if payload.machineIndex ~= nil then arguments.machineIndex = payload.machineIndex end
+        if payload.placementCell ~= nil then arguments.placementCell = payload.placementCell end
         if payload.jobId ~= nil then arguments.jobId = payload.jobId end
         if payload.palletId ~= nil then arguments.palletId = payload.palletId end
         if payload.plateId ~= nil then arguments.plateId = payload.plateId end
@@ -2287,7 +2965,8 @@ local function performWorkshopRequest(player, operation, payload)
         end
         if payload.clamp ~= nil then arguments.clamp = payload.clamp end
         if payload.barrierClear ~= nil then arguments.barrierClear = payload.barrierClear end
-        return workshopAuthority:command(player, {
+        if payload.enabled ~= nil then arguments.enabled = payload.enabled end
+        local result = workshopAuthority:command(player, {
             requestId = payload.commandId,
             resourceId = payload.resourceId,
             leaseId = payload.leaseId,
@@ -2295,6 +2974,16 @@ local function performWorkshopRequest(player, operation, payload)
             args = arguments,
             expectedRevision = payload.expectedRevision,
         }, { state = state })
+        if acceptanceHostPlan and payload.resourceId == "pallet_jack" then
+            print(string.format(
+                "[ACCEPTANCE HOST] COMMAND action=%s accepted=%s code=%s cutter=%s wrapper=%s windmill=%s",
+                tostring(payload.action), tostring(result.accepted), tostring(result.code),
+                tostring(state.cutter and state.cutter.moving == true),
+                tostring(state.wrapper and state.wrapper.moving == true),
+                tostring(state.windmill and state.windmill.moving == true)))
+            io.flush()
+        end
+        return result
     elseif operation == "workshop_release" then
         return workshopAuthority:release(player, {
             requestId = payload.requestId,
@@ -2342,6 +3031,7 @@ local function updateMultiplayer(dt, inputX, inputY)
         getPalletJackSnapshot = function()
             return World.networkPalletJackSnapshot(state)
         end,
+        getForkliftSnapshot=function() return Forklift.snapshot(state,Config.forklift) end,
         getMachinePoseSnapshot = function()
             return World.networkMachinePoseSnapshot(state)
         end,
@@ -2355,7 +3045,9 @@ local function updateMultiplayer(dt, inputX, inputY)
             return {
                 resourceRevision = workshopAuthority
                     and workshopAuthority:resourceRevision("cutter") or 0,
-                view = cutterView(true),
+                view = cutterMaintenanceAuthority
+                    and cutterMaintenanceAuthority.view(activeCutterRemote, true)
+                    or cutterView(true),
             }
         end,
         getWindmillSnapshot = function()
@@ -2383,6 +3075,26 @@ local function updateMultiplayer(dt, inputX, inputY)
         end,
     })
     handleMultiplayerEvents()
+    if acceptanceHostPlan and multiplayer:isHost() then
+        local jack = PalletJack.ensure(state, Config.palletJack)
+        local signature = table.concat({
+            tostring(jack.operating == true),
+            tostring(jack.operatorPlayerId or "none"),
+            tostring(state.cutter and state.cutter.moving == true),
+            tostring(state.wrapper and state.wrapper.moving == true),
+            tostring(state.windmill and state.windmill.moving == true),
+        }, ":")
+        if signature ~= acceptanceHostRelocationSignature then
+            acceptanceHostRelocationSignature = signature
+            print(string.format(
+                "[ACCEPTANCE HOST] RELOCATION jack=%s owner=%s cutter=%s wrapper=%s windmill=%s",
+                tostring(jack.operating == true), tostring(jack.operatorPlayerId or "none"),
+                tostring(state.cutter and state.cutter.moving == true),
+                tostring(state.wrapper and state.wrapper.moving == true),
+                tostring(state.windmill and state.windmill.moving == true)))
+            io.flush()
+        end
+    end
     if multiplayer:isClient() then
         local jack = PalletJack.ensure(state, Config.palletJack)
         if jack.operating and jack.operatorPlayerId ~= World.player.id then
@@ -2511,6 +3223,8 @@ local function updateDirectConnection()
         workshopAuthority = createWorkshopAuthority()
         localWorkshopLease = nil
         localWorkshopRequestId = 0
+        activeCutterRemote = nil
+        activeWrapperRemote = nil
         activeWindmillRemote = nil
         local hosted, hostError = multiplayer:startHost({
             port = 22122,
@@ -2579,15 +3293,30 @@ function App.update(dt)
     if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
     updateDirectConnection()
+    updateLanConvenience(dt)
     Machine.setMultiplayerSingleControl(multiplayer:isActive())
     local networkInputX, networkInputY = 0, 0
-    if not multiplayer:isClient() and state.screen ~= "title"
-        and state.screen ~= "lan" and state.screen ~= "direct" and state.screen ~= "asset_error"
+    local simulationScreen = state.screen == "options" and state.optionsReturnScreen
+        or state.screen
+    if not multiplayer:isClient() and simulationScreen ~= "title"
+        and simulationScreen ~= "lan" and simulationScreen ~= "direct"
+        and simulationScreen ~= "asset_error"
     then
         local calendarChanged = BusinessCalendar.update(state, dt)
         local emailArrived = JobService.updateClientEmails(state)
         local technicianChanged = MachineMaintenance.updateTechnician(state)
-        if calendarChanged or emailArrived or technicianChanged then saveCurrent() end
+        if state.screen~="world" and state.forklift and state.forklift.operating
+            and state.forklift.operatorPlayerId==1 then
+            World.updateNetworkForklift(World.player,0,0,0,Assets,state)
+        end
+        local warehouseChanged=World.updateWarehouse(dt,state,Assets)
+        local phoneChanged = WorkPhone.update(state)
+        if calendarChanged or emailArrived or technicianChanged or phoneChanged then saveCurrent() end
+        warehouseSaveClock=warehouseSaveClock+dt
+        if warehouseChanged and multiplayer:isHost() then multiplayer:markShopDirty() end
+        if warehouseSaveClock>=1 and (warehouseChanged or state.constructionWorker) then
+            saveCurrent(); warehouseSaveClock=0
+        end
     end
     if state.screen == "asset_error" then
         return
@@ -2637,10 +3366,12 @@ function App.update(dt)
         MachineScreen.update(dt)
     elseif state.screen == "press" and not multiplayer:isClient() then
         PressScreen.update(dt, state)
+    elseif state.screen == "workshop_remote" then
+        WorkshopRemoteScreen.update(dt)
     end
     local advanceAuthoritativeMachines = not multiplayer:isClient()
-        and state.screen ~= "title" and state.screen ~= "lan" and state.screen ~= "direct"
-        and state.screen ~= "asset_error"
+        and simulationScreen ~= "title" and simulationScreen ~= "lan"
+        and simulationScreen ~= "direct" and simulationScreen ~= "asset_error"
     if advanceAuthoritativeMachines then
         if serviceNetworkBeforeMachine(dt, state, function()
             updateMultiplayer(dt, networkInputX, networkInputY)
@@ -2652,9 +3383,9 @@ function App.update(dt)
     else
         updateMultiplayer(dt, networkInputX, networkInputY)
     end
-    if not multiplayer:isClient() and state.screen ~= "title" and state.screen ~= "lan"
-        and state.screen ~= "direct"
-        and state.screen ~= "asset_error" and Wrapper.update(dt, state)
+    if not multiplayer:isClient() and simulationScreen ~= "title"
+        and simulationScreen ~= "lan" and simulationScreen ~= "direct"
+        and simulationScreen ~= "asset_error" and Wrapper.update(dt, state)
     then
         saveCurrent()
     end
@@ -2678,9 +3409,10 @@ function App.draw()
         return
     end
     local desiredPack = (state.screen == "title" or state.screen == "lan"
-        or state.screen == "direct") and "menu"
+        or state.screen == "direct" or state.screen == "options") and "menu"
         or state.screen == "machine"
             and (state.machineType == "skid_wrapper" and "wrapper" or "cutter")
+        or state.screen == "workshop_remote" and WorkshopRemoteScreen.requiredAssetPack()
         or state.screen == "press" and "press" or nil
     if not Assets.activatePack(desiredPack) then
         local _, failures = Assets.assertHealthy()
@@ -2702,6 +3434,10 @@ function App.draw()
     elseif state.screen == "direct" then
         CharacterAssets.retainCharacters({})
         DirectScreen.draw()
+    elseif state.screen == "options" then
+        CharacterAssets.retainCharacters({})
+        local mouseX, mouseY = pointerPosition()
+        OptionsScreen.draw(mouseX, mouseY)
     else
         local mouseX, mouseY = pointerPosition()
         if mobileWorld then
@@ -2721,6 +3457,8 @@ function App.draw()
             MultiplayerHud.draw(multiplayerHudInfo())
         elseif state.screen == "computer" then
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
+        elseif state.screen == "work_phone" then
+            WorkPhoneScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "machine" then
             MachineScreen.draw(state, Assets, mouseX, mouseY)
         elseif state.screen == "press" then
@@ -2736,6 +3474,11 @@ function App.draw()
         elseif state.screen == "pallet_work_order" then
             PalletWorkOrderScreen.draw(state, Assets, mouseX, mouseY)
         end
+        warehouseControls:draw(Assets)
+    end
+    if state.screen ~= "options" and state.screen ~= "asset_error" then
+        local optionsX, optionsY = pointerPosition()
+        OptionsScreen.drawAccessButton(optionsX, optionsY)
     end
     Ui.drawPressFeedback()
     if controller then controller:draw() end
@@ -2760,7 +3503,11 @@ function App.keyreleased(key)
 end
 
 function App.textinput(text)
-    if state.screen == "lan" then
+    if state.screen == "options" then
+        local result = OptionsScreen.textinput(text)
+        syncMobileKeyboard()
+        return result
+    elseif state.screen == "lan" then
         local result = LanScreen.textinput(text)
         syncMobileKeyboard()
         return result
@@ -2788,7 +3535,9 @@ function App.mousemoved(x, y, _, _, isTouch)
 end
 
 function App.wheelmoved(x, y)
-    if state.screen == "lan" or state.screen == "direct" then return false end
+    if state.screen == "options" or state.screen == "lan" or state.screen == "direct" then
+        return false
+    end
     Input.wheelmoved(x, y, inputContext)
 end
 
@@ -2847,6 +3596,7 @@ function App.focus(focused)
         end
         if isAndroidPlatform() and multiplayer:isHost() then
             local direct = multiplayer.networkKind == "direct"
+            if not direct then lanDiscovery:stop() end
             multiplayer:stop("Android host left the foreground")
             clearWorkshopAuthority("host_backgrounded")
             if direct then
@@ -2868,6 +3618,8 @@ end
 
 function App.quit()
     if not spriteLabActive then saveCurrent() end
+    lanDiscovery:stop()
+    lanReconnect:cancel(true)
     multiplayer:stop("Application closed")
     clearWorkshopAuthority("application_closed")
     closeDirectConnection()

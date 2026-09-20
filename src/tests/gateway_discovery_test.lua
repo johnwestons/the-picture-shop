@@ -11,6 +11,7 @@ local function route(overrides)
         gatewayAddress = "192.168.1.1",
         interfaceIndex = 7,
         routePrefixLength = 0,
+        networkGeneration = "windows-route-v2-0000000000000001",
         ignoredProviderField = "must-not-cross-boundary",
     }
     for key, item in pairs(overrides or {}) do value[key] = item end
@@ -38,7 +39,8 @@ end
 function Test.run(_, check)
     local native, nativeError = GatewayNative.discover({
         invoke = function()
-            return 0, "192.168.1.50", "192.168.1.1", 7
+            return 0, "192.168.1.50", "192.168.1.1", 7,
+                0x1234abcd, 0x89abcdef
         end,
     })
     check("gateway_native_exposes_only_the_bounded_ipv4_route_contract",
@@ -46,7 +48,11 @@ function Test.run(_, check)
         and native.internalAddress == "192.168.1.50"
         and native.gatewayAddress == "192.168.1.1"
         and native.interfaceIndex == 7 and native.routePrefixLength == 0
+        and native.networkGeneration ==
+            "windows-route-v2-1234abcd89abcdef"
         and native.ignoredProviderField == nil
+        and native.generationHigh == nil and native.generationLow == nil
+        and GatewayNative.expectedAbiVersion == 2
         and GatewayNative.readOnly == true
         and GatewayNative.networkTrafficSent == false)
 
@@ -54,7 +60,9 @@ function Test.run(_, check)
         invoke = function() error("invitation-secret-must-not-escape") end,
     })
     local badNative, badNativeError = GatewayNative.discover({
-        invoke = function() return 0, "192.168.001.50", "192.168.1.1", 7 end,
+        invoke = function()
+            return 0, "192.168.001.50", "192.168.1.1", 7, 0, 1
+        end,
     })
     local unavailable, unavailableError = GatewayNative.discover({
         invoke = function() return -2, "private", "provider", 9 end,
@@ -65,6 +73,23 @@ function Test.run(_, check)
         and unavailable == nil and unavailableError == "native_route_unavailable"
         and not thrownError:find("secret", 1, true)
         and not unavailableError:find("provider", 1, true))
+
+    local invalidNativeGenerations = true
+    for _, generation in ipairs({
+        { 0, 0 }, { -1, 1 }, { 1, -1 }, { 1.5, 1 }, { 1, 1.5 },
+        { 4294967296, 1 }, { 1, 4294967296 },
+    }) do
+        local invalid, invalidError = GatewayNative.discover({
+            invoke = function()
+                return 0, "192.168.1.50", "192.168.1.1", 7,
+                    generation[1], generation[2]
+            end,
+        })
+        invalidNativeGenerations = invalidNativeGenerations
+            and invalid == nil and invalidError == "invalid_native_route"
+    end
+    check("gateway_native_rejects_zero_fractional_and_out_of_range_generations",
+        invalidNativeGenerations)
 
     local androidNative, androidNativeError = GatewayAndroid.discover({
         invoke = function()
@@ -168,6 +193,8 @@ function Test.run(_, check)
         and snapshot.gatewayAddress == "192.168.1.1"
         and snapshot.interfaceIndex == 7 and snapshot.routePrefixLength == 0
         and snapshot.platform == "Windows"
+        and snapshot.networkGeneration ==
+            "windows-route-v2-0000000000000001"
         and type(snapshot.routeFingerprint) == "string"
         and snapshot.routeFingerprint:match(
             "^route%-v1%-%x%x%x%x%x%x%x%x$") ~= nil
@@ -193,6 +220,8 @@ function Test.run(_, check)
     check("gateway_discovery_accepts_only_canonical_usable_unicast_route_pairs",
         acceptedKinds)
 
+    local missingWindowsGeneration = route()
+    missingWindowsGeneration.networkGeneration = nil
     local invalidCandidates = {
         false,
         {},
@@ -202,6 +231,14 @@ function Test.run(_, check)
         route({ interfaceIndex = -1 }),
         route({ interfaceIndex = 1.5 }),
         route({ interfaceIndex = 4294967296 }),
+        missingWindowsGeneration,
+        route({ networkGeneration = false }),
+        route({ networkGeneration = "windows-route-v2-0000000000000000" }),
+        route({ networkGeneration = "windows-route-v2-000000000000000A" }),
+        route({ networkGeneration = "windows-route-v1-0000000000000001" }),
+        route({ networkGeneration = "windows-route-v2-000000000000001" }),
+        route({ networkGeneration =
+            "windows-route-v2-0000000000000001-extra" }),
         route({ internalAddress = "0.0.0.0" }),
         route({ internalAddress = "127.0.0.1" }),
         route({ gatewayAddress = "224.0.0.1" }),
@@ -368,10 +405,10 @@ function Test.run(_, check)
         and invalidSnapshotError == "invalid_snapshot")
 
     local windowsGenerationOne = route({
-        networkGeneration = "android-route-v1-00000001",
+        networkGeneration = "windows-route-v2-0000000000000001",
     })
     local windowsGenerationTwo = route({
-        networkGeneration = "android-route-v1-00000002",
+        networkGeneration = "windows-route-v2-0000000000000002",
     })
     local windowsOriginal = GatewayDiscovery.discover({
         platform = "Windows", provider = provider(windowsGenerationOne),
@@ -380,11 +417,11 @@ function Test.run(_, check)
         GatewayDiscovery.revalidate(windowsOriginal, {
             platform = "Windows", provider = provider(windowsGenerationTwo),
         })
-    check("gateway_discovery_keeps_the_existing_windows_tuple_contract_unchanged",
-        windowsGenerationError == nil and windowsStillCurrent ~= nil
-        and windowsOriginal.networkGeneration == nil
-        and windowsStillCurrent.routeFingerprint ==
-            windowsOriginal.routeFingerprint)
+    check("gateway_discovery_invalidates_the_same_windows_tuple_on_an_os_network_change",
+        windowsStillCurrent == false
+        and windowsGenerationError == "network_changed"
+        and windowsOriginal.networkGeneration ==
+            "windows-route-v2-0000000000000001")
 end
 
 return Test

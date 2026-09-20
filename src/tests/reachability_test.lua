@@ -51,6 +51,11 @@ local function fakeMethod(name, options, log)
             if options.throwOnClose then error(options.throwOnClose) end
             return options.closeResult
         end
+        if options.cleanupExpiresAt ~= nil then
+            function handle:cleanupExpiresAt()
+                return options.cleanupExpiresAt
+            end
+        end
         method.handles[#method.handles + 1] = handle
         if options.invalidHandle then handle[options.invalidHandle] = nil end
         return handle
@@ -299,6 +304,32 @@ function Test.run(_, check)
         heldUntilExpiry and stillHeld and expiryFallback.starts == 1
         and expiryCleanupMethod.handles[1].deletes == 1
         and expiryCleanupMethod.handles[1].closes == 1)
+
+    local extendedLog = {}
+    local extendedMethod = fakeMethod("pcp", {
+        deleteResult = false,
+        cleanupExpiresAt = 101,
+    }, extendedLog)
+    local extendedFallback = fakeMethod("nat_pmp", {}, extendedLog)
+    local extended = Reachability.new({
+        methods = { extendedMethod, extendedFallback },
+        clock = function() return 0 end,
+    })
+    extended:start(request({ now = 0 }))
+    extendedMethod.handles[1].events[1] = {
+        kind = "mapped", externalAddress = "8.8.8.8",
+        externalPort = 22122, lifetime = 5,
+    }
+    extended:update(0)
+    extendedMethod.handles[1].events[1] = { kind = "failed" }
+    extended:update(1)
+    local extendedHorizon = extended:snapshot().cleanupExpiresAt == 101
+    extended:update(5)
+    local heldPastOldLease = extendedFallback.starts == 0
+    extended:update(101)
+    check("reachability_honors_adapter_proof_of_a_later_possible_finite_lease",
+        extendedHorizon and heldPastOldLease and extendedFallback.starts == 1
+        and extendedMethod.handles[1].closes == 1)
 
     local lateMappingLog = {}
     local lateMappingMethod = fakeMethod("pcp", {

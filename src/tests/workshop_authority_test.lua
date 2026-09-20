@@ -465,20 +465,25 @@ function Test.run(_, check)
     })
 
     local initial = authority:snapshot()
-    check("workshop_authority_snapshot_has_six_vacant_resources",
-        #initial == 6
+    check("workshop_authority_snapshot_has_ten_vacant_resources",
+        #initial == 10 and initial[10].resourceId == "warehouse" and not initial[10].occupied
+        and initial[9].resourceId == "work_phone" and not initial[9].occupied
         and initial[1].resourceId == "reception_customer" and not initial[1].occupied
         and initial[1].ownerPlayerId == nil and initial[1].revision == 0
-        and initial[2].resourceId == "office_computer" and not initial[2].occupied
+        and initial[2].resourceId == "vendor" and not initial[2].occupied
         and initial[2].revision == 0
-        and initial[3].resourceId == "cutter" and not initial[3].occupied
+        and initial[3].resourceId == "truck" and not initial[3].occupied
         and initial[3].revision == 0
-        and initial[4].resourceId == "windmill" and not initial[4].occupied
+        and initial[4].resourceId == "office_computer" and not initial[4].occupied
         and initial[4].revision == 0
-        and initial[5].resourceId == "skid_wrapper" and not initial[5].occupied
+        and initial[5].resourceId == "cutter" and not initial[5].occupied
         and initial[5].revision == 0
-        and initial[6].resourceId == "pallet_jack" and not initial[6].occupied
-        and initial[6].revision == 0)
+        and initial[6].resourceId == "windmill" and not initial[6].occupied
+        and initial[6].revision == 0
+        and initial[7].resourceId == "skid_wrapper" and not initial[7].occupied
+        and initial[7].revision == 0
+        and initial[8].resourceId == "pallet_jack" and not initial[8].occupied
+        and initial[8].revision == 0)
 
     local farWorker = { id = 1, x = 200, y = 200 }
     local far = authority:acquire(farWorker,
@@ -723,15 +728,17 @@ function Test.run(_, check)
         and wrapper.accepted and palletJack.accepted
         and not occupied[1].occupied
         and occupied[1].revision == 3
-        and occupied[2].occupied and occupied[2].ownerPlayerId == 2
-        and occupied[2].revision == 1
-        and occupied[3].occupied and occupied[3].ownerPlayerId == 1
-        and occupied[3].revision == 8
-        and not occupied[4].occupied and occupied[4].revision == 0
-        and occupied[5].occupied and occupied[5].ownerPlayerId == 3
-        and occupied[5].revision == 1
-        and occupied[6].occupied and occupied[6].ownerPlayerId == 4
-        and occupied[6].revision == 1)
+        and not occupied[2].occupied and occupied[2].revision == 0
+        and not occupied[3].occupied and occupied[3].revision == 0
+        and occupied[4].occupied and occupied[4].ownerPlayerId == 2
+        and occupied[4].revision == 1
+        and occupied[5].occupied and occupied[5].ownerPlayerId == 1
+        and occupied[5].revision == 8
+        and not occupied[6].occupied and occupied[6].revision == 0
+        and occupied[7].occupied and occupied[7].ownerPlayerId == 3
+        and occupied[7].revision == 1
+        and occupied[8].occupied and occupied[8].ownerPlayerId == 4
+        and occupied[8].revision == 1)
 
     local cutterReleasedForContention = authority:release(farWorker, {
         requestId = 2, resourceId = "cutter", leaseId = cutterAfterDisconnect.leaseId,

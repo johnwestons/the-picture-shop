@@ -1,9 +1,22 @@
 local BackButton = require("src.screens.back_button")
 local Config = require("src.config")
+local CutterPresentation = require("src.screens.cutter_presentation")
+local MachineScreen = require("src.screens.machine_screen")
 local JobService = require("src.job_service")
+local MachineFleet = require("src.machine_fleet")
 local PressSetupGames = require("src.press_setup_games")
 local Ui = require("src.screens.ui")
 local Wrapper = require("src.wrapper")
+local WorkPhoneScreen = require("src.screens.work_phone_screen")
+local ComputerScreen = require("src.screens.computer_screen")
+local Projection = require("src.screens.gui_projection")
+local OfficeIntent = require("src.office_intent")
+local SharedMachineGui = require("src.screens.shared_machine_gui")
+local SharedPressGui = require("src.screens.shared_press_gui")
+local VendorScreen = require("src.screens.vendor_screen")
+local JobOfferScreen = require("src.screens.job_offer_screen")
+local TruckScreen = require("src.screens.truck_inventory_screen")
+local request
 local utf8 = require("utf8")
 
 local Screen = {
@@ -23,6 +36,10 @@ local Screen = {
     gaugeText = "0.00",
     gaugeFocused = false,
     gaugeReplaceOnType = true,
+    cutterTab = "production",
+    cutterPresentation = CutterPresentation.new(),
+    wrapperTab = "production",
+    wrapperClock = 0,
     windmillTab = "run",
     windmillJobId = nil,
     windmillPlateId = nil,
@@ -34,40 +51,84 @@ local QUOTE_INPUT = { x = 566, y = 452, width = 180, height = 42 }
 local DECLINE = { x = 246, y = 538, width = 174, height = 48 }
 local CONFIRM = { x = 540, y = 538, width = 174, height = 48 }
 local ROW_X, ROW_Y, ROW_W, ROW_H, ROW_GAP = 142, 174, 676, 48, 8
+local TRUCK_PREVIOUS = { x = 142, y = 372, width = 150, height = 42 }
+local TRUCK_NEXT = { x = 668, y = 372, width = 150, height = 42 }
 
-local CUTTER_GAUGE_INPUT = { x = 122, y = 246, width = 106, height = 42 }
+local WRAPPER_TABS = {
+    production = { x = 142, y = 124, width = 328, height = 34 },
+    service = { x = 490, y = 124, width = 328, height = 34 },
+}
+local WRAPPER_SERVICE_BEGIN = { x = 250, y = 472, width = 460, height = 58 }
+local WRAPPER_SERVICE_CANCEL = { x = 142, y = 548, width = 174, height = 40 }
+local WRAPPER_SERVICE_WORK = { x = 142, y = 202, width = 476, height = 294 }
+
+local CUTTER_SCENE = { x = 464, y = 120, width = 364, height = 243 }
+local CUTTER_GAUGE_INPUT = { x = 122, y = 230, width = 106, height = 42 }
 local CUTTER_CONTROLS = {
-    gauge_set = { x = 236, y = 246, width = 78, height = 42 },
-    auto_gauge = { x = 322, y = 246, width = 100, height = 42 },
-    save_gauge = { x = 430, y = 246, width = 100, height = 42 },
-    recall_gauge = { x = 538, y = 246, width = 120, height = 42 },
-    rotate_paper = { x = 122, y = 300, width = 222, height = 44 },
-    position_paper = { x = 356, y = 300, width = 222, height = 44 },
-    set_clamp = { x = 590, y = 300, width = 222, height = 44 },
-    set_barrier = { x = 122, y = 356, width = 222, height = 44 },
-    reset_safety = { x = 356, y = 356, width = 222, height = 44 },
-    emergency_stop = { x = 590, y = 356, width = 222, height = 44 },
-    return_to_pallet = { x = 122, y = 412, width = 339, height = 42 },
-    run_next_lift = { x = 473, y = 412, width = 339, height = 42 },
-    cut_left = { x = 122, y = 466, width = 339, height = 68 },
-    cut_right = { x = 473, y = 466, width = 339, height = 68 },
+    gauge_set = { x = 236, y = 230, width = 78, height = 42 },
+    auto_gauge = { x = 322, y = 230, width = 100, height = 42 },
+    save_gauge = { x = 122, y = 280, width = 144, height = 42 },
+    recall_gauge = { x = 278, y = 280, width = 144, height = 42 },
+    rotate_paper = { x = 122, y = 374, width = 222, height = 44 },
+    position_paper = { x = 356, y = 374, width = 222, height = 44 },
+    set_clamp = { x = 590, y = 374, width = 222, height = 44 },
+    set_barrier = { x = 122, y = 424, width = 222, height = 44 },
+    reset_safety = { x = 356, y = 424, width = 222, height = 44 },
+    emergency_stop = { x = 590, y = 424, width = 222, height = 44 },
+    return_to_pallet = { x = 122, y = 474, width = 339, height = 42 },
+    run_next_lift = { x = 473, y = 474, width = 339, height = 42 },
+    cut_left = { x = 122, y = 526, width = 339, height = 62 },
+    cut_right = { x = 473, y = 526, width = 339, height = 62 },
     load_stock = { x = 298, y = 354, width = 338, height = 46 },
 }
 
 local CUTTER_UNLOADED_CONTROLS = {
-    load_stock = { x = 122, y = 356, width = 222, height = 44 },
-    set_barrier = { x = 356, y = 356, width = 222, height = 44 },
-    reset_safety = { x = 590, y = 356, width = 222, height = 44 },
-    run_next_lift = { x = 122, y = 412, width = 456, height = 48 },
-    emergency_stop = { x = 590, y = 412, width = 222, height = 48 },
+    load_stock = { x = 122, y = 374, width = 222, height = 44 },
+    set_barrier = { x = 356, y = 374, width = 222, height = 44 },
+    reset_safety = { x = 590, y = 374, width = 222, height = 44 },
+    run_next_lift = { x = 122, y = 430, width = 456, height = 48 },
+    emergency_stop = { x = 590, y = 430, width = 222, height = 48 },
 }
 
 local CUTTER_PROGRAMS = {
-    { x = 122, y = 198, width = 104, height = 38 },
-    { x = 234, y = 198, width = 104, height = 38 },
-    { x = 346, y = 198, width = 104, height = 38 },
-    { x = 458, y = 198, width = 104, height = 38 },
+    { x = 122, y = 182, width = 68, height = 40 },
+    { x = 200, y = 182, width = 68, height = 40 },
+    { x = 278, y = 182, width = 68, height = 40 },
+    { x = 356, y = 182, width = 68, height = 40 },
 }
+
+local CUTTER_SERVICE_NAV = { x = 638, y = 548, width = 174, height = 40 }
+local CUTTER_SERVICE_CONTROLS = {
+    lubrication = { x = 122, y = 210, width = 324, height = 54 },
+    blade = { x = 488, y = 210, width = 324, height = 54 },
+    technician = { x = 122, y = 292, width = 324, height = 54 },
+    weekly = { x = 488, y = 292, width = 324, height = 54 },
+    advance = { x = 222, y = 286, width = 516, height = 66 },
+    pump = { x = 122, y = 430, width = 210, height = 48 },
+    gear = { x = 350, y = 430, width = 210, height = 48 },
+    finish = { x = 578, y = 430, width = 234, height = 48 },
+    cancel = { x = 122, y = 548, width = 174, height = 40 },
+    bladeAction = { x = 250, y = 360, width = 460, height = 60 },
+}
+
+local CUTTER_SERVICE_VIEWS = { "REAR", "FRONT", "SIDE", "GEAR", "CENTRAL" }
+local CUTTER_SERVICE_TOOLS = { "RAG", "GREASE", "INSPECT", "GEAR OIL" }
+
+local function cutterServiceViewRect(index)
+    return { x = 122 + (index - 1) * 140, y = 200, width = 128, height = 38 }
+end
+
+local function cutterServiceToolRect(index)
+    return { x = 122 + (index - 1) * 175, y = 252, width = 162, height = 38 }
+end
+
+local function cutterServiceItemRect(index)
+    return { x = 122, y = 310 + (index - 1) * 52, width = 690, height = 44 }
+end
+
+local function cutterBladeBoltRect(index)
+    return { x = 162 + (index - 1) * 170, y = 260, width = 126, height = 54 }
+end
 
 local WINDMILL_TAB_ORDER = { "run", "plates", "setup", "service" }
 local WINDMILL_TABS = {
@@ -135,13 +196,11 @@ end
 local WINDMILL_SETUP_CANCEL = { x = 330, y = 426, width = 300, height = 48 }
 
 local function cutterCandidateRect(index)
-    local column = (index - 1) % 2
-    local row = math.floor((index - 1) / 2)
     return {
-        x = 122 + column * 358,
-        y = 218 + row * 44,
-        width = 346,
-        height = 36,
+        x = 122,
+        y = 206 + (index - 1) * 50,
+        width = 318,
+        height = 44,
     }
 end
 
@@ -217,6 +276,62 @@ local function selectedWrapperPallet(rows)
     return nil
 end
 
+local WRAPPER_SERVICE_COPY = {
+    turntableBearing = {
+        component = "TURNTABLE BEARING",
+        instruction = "Grease the three bearing fittings around the turntable in order.",
+        points = { { 300, 346 }, { 420, 408 }, { 538, 344 } },
+    },
+    filmCarriage = {
+        component = "FILM CARRIAGE",
+        instruction = "Follow the carriage service points from the upper roller to the lower guide.",
+        points = { { 404, 224 }, { 404, 316 }, { 404, 408 } },
+    },
+    driveBelt = {
+        component = "DRIVE BELT",
+        instruction = "Tap the moving tension marker as it crosses the service bay.",
+    },
+    controlBoard = {
+        component = "CONTROL BOARD",
+        instruction = "Test the cabinet points in order: power, safety loop, then reset.",
+        points = { { 470, 234 }, { 520, 322 }, { 556, 410 } },
+    },
+}
+
+local function wrapperServiceTarget(view)
+    local task = WRAPPER_SERVICE_COPY[tostring(view and view.serviceTaskId or "")]
+    local phase = math.max(1, math.floor(tonumber(view and view.servicePhase) or 1))
+    if not task then return nil end
+    local x, y
+    if view.serviceTaskId == "driveBelt" then
+        x = 380 + math.sin((Screen.wrapperClock or 0) * 1.8) * 150
+        y = 376
+    else
+        local point = task.points and task.points[phase]
+        if point then x, y = point[1], point[2] end
+    end
+    if not x or not y then return nil end
+    return { x = x - 30, y = y - 30, width = 60, height = 60 }, task
+end
+
+local function mergeWrapperView(incoming)
+    if type(incoming) ~= "table" then return false end
+    local merged = Screen.view or {}
+    for key, value in pairs(incoming) do merged[key] = value end
+    if incoming.serviceStep == nil then
+        for _, field in ipairs({
+            "serviceStep", "serviceTaskId", "serviceTaskIndex", "serviceTaskCount",
+            "servicePhase", "serviceTargetCount", "serviceAttempts", "serviceMisses",
+            "servicePermille",
+        }) do
+            merged[field] = nil
+        end
+    end
+    Screen.view = merged
+    Screen.selectedPalletId = incoming.selectedPalletId
+    return true
+end
+
 local function cutterPalletLabel(state, palletId)
     for _, job in ipairs((state and state.jobs and state.jobs.active) or {}) do
         for _, pallet in ipairs(job.pallets or {}) do
@@ -247,6 +362,15 @@ local function mergeCutterView(incoming)
     if incomingRevision == nil or incomingRevision < currentRevision then return false end
     local merged = Screen.view or {}
     for key, value in pairs(incoming) do merged[key] = value end
+    if incoming.serviceStep == nil then
+        for _, field in ipairs({
+            "serviceStep", "servicePermille", "serviceView", "serviceTool",
+            "serviceItems", "centralInstalled", "gearInspected", "gearLevelPermille",
+            "bladeBoltsDone", "bladeBoltMask",
+        }) do
+            merged[field] = nil
+        end
+    end
     if incoming.paper ~= nil then
         merged.candidates, merged.genericSheets = nil, nil
     elseif incoming.loaded == false then
@@ -256,6 +380,7 @@ local function mergeCutterView(incoming)
         end
     end
     Screen.view = merged
+    Screen.cutterPresentation:accept(merged)
     syncCutterGauge(false)
     return true
 end
@@ -374,6 +499,29 @@ local function rowRect(index)
     return { x = ROW_X, y = ROW_Y + (index - 1) * (ROW_H + ROW_GAP), width = ROW_W, height = ROW_H }
 end
 
+local function wrapperRowRect(index)
+    return { x = ROW_X, y = 214 + (index - 1) * (ROW_H + 4), width = ROW_W, height = ROW_H }
+end
+
+local function vendorBuyRect(index)
+    local itemRow = rowRect(index)
+    return {
+        x = itemRow.x + itemRow.width - 146,
+        y = itemRow.y + 5,
+        width = 132,
+        height = itemRow.height - 10,
+    }
+end
+
+local function vendorRows()
+    local rows = {}
+    for _, item in ipairs((Screen.view and Screen.view.items) or {}) do
+        rows[#rows + 1] = item
+        if #rows >= 5 then break end
+    end
+    return rows
+end
+
 function Screen.enter(grant, state)
     Screen.resourceId = grant and grant.resourceId or nil
     Screen.leaseId = grant and grant.leaseId or nil
@@ -383,6 +531,8 @@ function Screen.enter(grant, state)
     Screen.view = nil
     if Screen.resourceId == "windmill" then
         mergeWindmillView(incomingView)
+    elseif Screen.resourceId == "skid_wrapper" then
+        mergeWrapperView(incomingView)
     else
         Screen.view = incomingView
     end
@@ -396,18 +546,59 @@ function Screen.enter(grant, state)
     Screen.status = tostring(grant and grant.message or "Remote console ready.")
     Screen.gaugeFocused = false
     Screen.gaugeReplaceOnType = true
+    Screen.cutterTab = "production"
+    Screen.cutterPresentation = CutterPresentation.new()
+    if Screen.resourceId == "cutter" then Screen.cutterPresentation:accept(Screen.view) end
+    Screen.wrapperTab = "production"
+    Screen.wrapperClock = 0
     Screen.windmillTab = "run"
     Screen.windmillJobId, Screen.windmillPlateId = nil, nil
     syncCutterGauge(true)
+    if Screen.resourceId == "work_phone" then WorkPhoneScreen.enter(Projection.copy(state)) end
+    Screen.hostLayout = grant and grant.useHostLayout == true
+    Screen.sharedMachine = nil
+    if Screen.hostLayout and (Screen.resourceId == "cutter" or Screen.resourceId == "skid_wrapper") then
+        Screen.sharedMachine = SharedMachineGui.new(Screen.resourceId, function() return Screen.view end,
+            Screen.cutterPresentation, function(action,args) return request(Screen.sendCommand,action,args) end)
+        Screen.sharedMachine.sync(state)
+    end
+    Screen.sharedComputer, Screen.officePending = nil, nil
+    Screen.sharedPress = nil
+    if Screen.hostLayout and Screen.resourceId == "windmill" then
+        Screen.sharedPress=SharedPressGui.new(function() return Screen.view end,
+            function(action,args) return request(Screen.sendCommand,action,args) end)
+    end
+    if Screen.resourceId == "office_computer" then
+        Screen.guiState = Projection.copy(state)
+        Screen.sharedComputer = ComputerScreen.new({
+            warehouseEnabled = Config.warehouse and Config.warehouse.enabled == true,
+            warehouseFirstStorageOnly = Config.warehouse and Config.warehouse.firstStorageOnly == true,
+            warehouseRequestPrefix = "WH-" .. tostring(Screen.leaseId or "guest"),
+            remoteCommand = function(intent)
+            if Screen.waiting then return false end
+            local normalized, errorMessage = OfficeIntent.normalize(intent)
+            if not normalized then Screen.status = errorMessage; return false end
+            Screen.officePending = intent.kind
+            return request(Screen.sendCommand, "office_action", { officeIntent = normalized })
+        end })
+        Screen.sharedComputer.enter(Screen.guiState)
+    end
     if state then state.screen = "workshop_remote" end
     return Screen.resourceId ~= nil and Screen.leaseId ~= nil
 end
 
 function Screen.clear()
+    Screen.sharedPress = nil
+    Screen.sharedMachine = nil
+    Screen.sharedComputer, Screen.guiState, Screen.sendCommand, Screen.officePending = nil, nil, nil, nil
+    Screen.cutterPresentation = CutterPresentation.new()
     Screen.resourceId, Screen.leaseId, Screen.view = nil, nil, nil
     Screen.quoteFocused, Screen.waiting, Screen.safetyWaiting = false, false, false
     Screen.selectedJobId, Screen.selectedPalletId = nil, nil
     Screen.gaugeFocused, Screen.gaugeReplaceOnType = false, true
+    Screen.cutterTab = "production"
+    Screen.wrapperTab = "production"
+    Screen.wrapperClock = 0
     Screen.windmillTab = "run"
     Screen.windmillJobId, Screen.windmillPlateId = nil, nil
     Screen.workshopTick = 0
@@ -416,20 +607,34 @@ end
 function Screen.isOpen() return Screen.resourceId ~= nil and Screen.leaseId ~= nil end
 function Screen.canClose()
     return not Screen.waiting and not Screen.safetyWaiting
-        and (Screen.resourceId ~= "skid_wrapper" or Wrapper.step ~= "wrapping")
+        and (Screen.resourceId ~= "skid_wrapper" or (Screen.view and Screen.view.step or Wrapper.step) ~= "wrapping")
         and (Screen.resourceId ~= "windmill"
             or not Screen.view or Screen.view.status ~= "production")
 end
+function Screen.hasMachineModal()
+    return Screen.sharedMachine and Screen.sharedMachine.screen.hasModal() or false
+end
 function Screen.wantsTextInput()
-    return (Screen.resourceId == "reception_customer" and Screen.quoteFocused)
-        or (Screen.resourceId == "cutter" and Screen.gaugeFocused)
+    if Screen.sharedMachine then return Screen.sharedMachine.screen.wantsTextInput() end
+    if Screen.sharedComputer then return Screen.sharedComputer.wantsTextInput() end
+    return Screen.resourceId == "cutter" and Screen.gaugeFocused
 end
 
 function Screen.wrapperStartEnabled(state)
     return Screen.resourceId == "skid_wrapper"
         and not Screen.waiting
+        and tostring(Screen.view and Screen.view.serviceStep or "idle") == "idle"
         and Wrapper.step ~= "wrapping"
         and selectedWrapperPallet(wrapperRows(state)) ~= nil
+end
+
+local function wrapperServiceBeginEnabled(state)
+    local stock = state and state.inventory and state.inventory.stock or {}
+    local view = Screen.view or {}
+    return Screen.resourceId == "skid_wrapper" and not Screen.waiting
+        and tostring(view.serviceStep or "idle") == "idle"
+        and view.step ~= "wrapping" and #wrapperRows(state) == 0
+        and (tonumber(stock.maintenance_kit) or 0) > 0
 end
 
 function Screen.applyResult(result)
@@ -444,10 +649,30 @@ function Screen.applyResult(result)
     local resourceCurrent = resultRevision ~= nil and resultRevision >= priorRevision
     Screen.revision = math.max(priorRevision, resultRevision or priorRevision)
     Screen.status = tostring(result.message or (result.accepted and "Action completed." or "Action rejected."))
+    if Screen.sharedComputer and result.action == "office_action" then
+        if Screen.officePending == "buy_upgrade" or Screen.officePending == "buy_forklift" then
+            Screen.sharedComputer.resolveWarehouse(result.accepted == true, Screen.status)
+        end
+        if result.accepted then
+            local computer = Screen.sharedComputer
+            if Screen.officePending == "checkout" then computer.cart, computer.cartOpen = {}, false
+            elseif Screen.officePending == "promotion" then computer.promoJobId, computer.promoText = nil, ""
+            elseif Screen.officePending == "estimate" or Screen.officePending == "decline"
+                or Screen.officePending == "archive" or Screen.officePending == "archive_service" then
+                computer.selectedEmailId, computer.emailSelectionRequired = nil, true
+            end
+        end
+        Screen.officePending = nil
+    end
     if Screen.resourceId == "cutter" then
-        mergeCutterView(result.view or result.data)
+        if resourceCurrent then mergeCutterView(result.view or result.data) end
+        if result.accepted and result.action == "cancel_service" then
+            Screen.cutterTab = "production"
+        end
     elseif Screen.resourceId == "windmill" then
         if resourceCurrent then mergeWindmillView(result.view or result.data) end
+    elseif Screen.resourceId == "skid_wrapper" then
+        mergeWrapperView(result.view or result.data)
     elseif result.view or result.data then
         Screen.view = result.view or result.data
     end
@@ -463,9 +688,7 @@ function Screen.applySnapshot(snapshot)
     Screen.workshopTick = tonumber(snapshot.revision) or Screen.workshopTick
     local wrapper = snapshot.wrapper
     if Screen.resourceId == "skid_wrapper" and type(wrapper) == "table" then
-        Screen.selectedPalletId = wrapper.selectedPalletId
-        Screen.view = Screen.view or {}
-        for key, value in pairs(wrapper) do Screen.view[key] = value end
+        mergeWrapperView(wrapper)
     elseif Screen.resourceId == "windmill" then
         local resourceRevision = windmillResourceRevision(snapshot)
         if resourceRevision and resourceRevision >= Screen.revision then
@@ -506,7 +729,7 @@ local function urgentWorkshopSafety(action, args)
         and type(args) == "table" and args.barrierClear == false
 end
 
-local function request(sendCommand, action, args)
+request = function(sendCommand, action, args)
     args = args or {}
     local urgentSafety = urgentWorkshopSafety(action, args)
     if Screen.safetyWaiting or (Screen.waiting and not urgentSafety) then return false end
@@ -564,8 +787,22 @@ local function handleCutterCut(sendCommand)
 end
 
 local windmillButtonEnabled
+local cutterButtonEnabled
 
 function Screen.keypressed(key, state, sendCommand)
+    if Screen.sharedPress then
+        Screen.sendCommand=sendCommand
+        return Screen.sharedPress.keypressed(state,key)
+    end
+    if Screen.sharedMachine then
+        Screen.sendCommand = sendCommand
+        return Screen.sharedMachine.keypressed(state,key)
+    end
+    if Screen.sharedComputer then
+        if Screen.waiting then return true end
+        Screen.sendCommand, Screen.guiState = sendCommand, Projection.copy(state)
+        return Screen.sharedComputer.keypressed(Screen.guiState, key)
+    end
     key = string.lower(tostring(key or ""))
     if Screen.resourceId == "windmill" then
         local view = Screen.view or {}
@@ -596,6 +833,43 @@ function Screen.keypressed(key, state, sendCommand)
         return false
     end
     if Screen.resourceId == "cutter" then
+        if Screen.cutterTab == "service" then return false end
+        local view = Screen.view or {}
+        -- Safety remains available while typing or waiting on an ordinary action.
+        if key == "x" then
+            return cutterButtonEnabled("emergency_stop")
+                and request(sendCommand, "emergency_stop", {}) or true
+        end
+        if key == "b" then
+            return cutterButtonEnabled("set_barrier")
+                and request(sendCommand, "set_barrier", { barrierClear = view.barrierClear ~= true }) or true
+        end
+        if not Screen.gaugeFocused then
+            local program = key == "[" and math.max(1, (view.programIndex or 1) - 1)
+                or key == "]" and math.min(4, (view.programIndex or 1) + 1) or tonumber(key)
+            if program and program >= 1 and program <= 4 then
+                return cutterButtonEnabled("select_program")
+                    and request(sendCommand, "select_program", { programIndex = program }) or true
+            end
+            if key == "l" then
+                local candidates = cutterCandidates()
+                if #candidates == 1 and cutterButtonEnabled("load_pallet") then
+                    return request(sendCommand, "load_pallet", { palletId = candidates[1].palletId })
+                elseif #candidates == 0 and (tonumber(view.genericSheets) or 0) > 0
+                    and cutterButtonEnabled("load_stock") then
+                    return request(sendCommand, "load_stock", {})
+                end
+                Screen.status = "Choose the matching nearby pallet on screen."
+                return true
+            end
+            local action = ({ g = "auto_gauge", m = "save_gauge", v = "recall_gauge",
+                q = "rotate_paper", p = "position_paper", space = "set_clamp",
+                u = "return_to_pallet", t = "run_next_lift", r = "reset_safety" })[key]
+            if action then
+                local args = action == "set_clamp" and { clamp = view.clamp ~= true } or {}
+                return cutterButtonEnabled(action) and request(sendCommand, action, args) or true
+            end
+        end
         if key == "j" or key == "k" then return handleCutterCut(sendCommand) end
         if not Screen.gaugeFocused then return false end
         if key == "backspace" then
@@ -612,21 +886,12 @@ function Screen.keypressed(key, state, sendCommand)
         end
         return false
     end
-    if Screen.resourceId ~= "reception_customer" or not Screen.quoteFocused then return false end
-    if key == "backspace" then
-        if Screen.quoteReplaceOnType then
-            Screen.quoteText = ""
-            Screen.quoteReplaceOnType = false
-        else
-            local offset = utf8.offset(Screen.quoteText, -1)
-            Screen.quoteText = offset and Screen.quoteText:sub(1, offset - 1) or ""
-        end
-        return true
-    end
     return false
 end
 
 function Screen.textinput(text)
+    if Screen.sharedMachine then return Screen.sharedMachine.textinput(text) end
+    if Screen.sharedComputer then return not Screen.waiting and Screen.sharedComputer.textinput(Screen.guiState, text) end
     if not Screen:wantsTextInput() then return false end
     if Screen.resourceId == "cutter" then
         local changed = false
@@ -661,13 +926,14 @@ function Screen.textinput(text)
     return true
 end
 
-local function cutterButtonEnabled(action)
+cutterButtonEnabled = function(action)
     local view = Screen.view or {}
     if Screen.safetyWaiting then return false end
     if Screen.waiting then
         return action == "emergency_stop"
             or (action == "set_barrier" and view.barrierClear == true)
     end
+    if tostring(view.serviceStep or "idle") ~= "idle" then return false end
     if action == "emergency_stop" or action == "set_barrier" then return true end
     if action == "reset_safety" then
         return view.emergencyStopped == true or view.step == "blocked" or view.step == "finished"
@@ -690,6 +956,61 @@ local function cutterButtonEnabled(action)
         return cutterCutReady()
     elseif action == "load_stock" or action == "load_pallet" then
         return view.loaded ~= true and (view.step == "idle" or view.step == "finished")
+    end
+    return false
+end
+
+local function cutterMaintenanceStatus(state)
+    local cutter
+    for _, item in ipairs(state and state.machines and state.machines.items or {}) do
+        if item.modelId == "polar_115" and item.status == "installed" then
+            cutter = item.maintenance and item.maintenance.cutter
+            break
+        end
+    end
+    local stock = state and state.inventory and state.inventory.stock or {}
+    cutter = cutter or {}
+    return {
+        maintenanceKits = tonumber(stock.maintenance_kit) or 0,
+        bladeRemoved = cutter.bladeRemoved == true,
+        bladeInSleeve = cutter.bladeInSleeve == true,
+        weeklyTechnician = cutter.weeklyTechnician == true,
+        technicianScheduled = cutter.nextTechnicianDay ~= nil,
+    }
+end
+
+local function cutterServiceButtonEnabled(action, state)
+    local view = Screen.view or {}
+    local status = cutterMaintenanceStatus(state)
+    if Screen.waiting or Screen.safetyWaiting then return false end
+    local step = tostring(view.serviceStep or "idle")
+    if action == "begin_lubrication" then
+        return step == "idle" and view.loaded ~= true and view.step == "idle"
+            and status.maintenanceKits > 0 and status.bladeRemoved ~= true
+    elseif action == "begin_blade" then
+        return step == "idle" and view.loaded ~= true and view.step == "idle"
+            and status.bladeInSleeve ~= true
+    elseif action == "book_blade_technician" then
+        return step == "idle" and status.bladeInSleeve == true
+            and status.technicianScheduled ~= true
+    elseif action == "set_weekly_technician" then
+        return step == "idle"
+    elseif action == "service_advance" then
+        return step == "lockout_disconnect" or step == "lockout_key"
+            or step == "lockout_tag" or step == "prep_cartridge" or step == "prep_prime"
+    elseif action == "service_view" or action == "service_tool"
+        or action == "service_point" or action == "service_pump"
+        or action == "service_gear" or action == "finish_lubrication"
+    then
+        return step == "lubricate"
+    elseif action == "remove_blade_bolt" then
+        return step == "blade_bolts"
+    elseif action == "lift_blade" then
+        return step == "blade_lift"
+    elseif action == "sleeve_blade" then
+        return step == "blade_sleeve"
+    elseif action == "cancel_service" then
+        return step ~= "idle"
     end
     return false
 end
@@ -864,6 +1185,53 @@ local function windmillMousepressed(state, x, y, sendCommand)
 end
 
 function Screen.mousepressed(state, x, y, button, sendCommand)
+    if Screen.hostLayout and Screen.resourceId=="truck" then
+        if button~=1 then return false end
+        local action,args=TruckScreen.remoteIntent(Screen.view,x,y)
+        if action=="close" then return Screen.canClose() and {action="close"} or true end
+        return action and request(sendCommand,action,args) or false
+    end
+    if Screen.sharedPress then
+        Screen.sendCommand=sendCommand
+        local result=Screen.sharedPress.mousepressed(state,x,y,button)
+        if type(result)=="table" and result.action=="exit" then return Screen.canClose() and {action="close"} or true end
+        return result
+    end
+    if Screen.hostLayout and Screen.resourceId=="vendor" then
+        if button~=1 then return false end
+        local projected=Projection.copy(state); projected.vendorCategory=Screen.view.categoryIndex
+        local action,args=VendorScreen.remoteIntent(projected,x,y)
+        if action=="close" then return Screen.canClose() and {action="close"} or true end
+        return action and request(sendCommand,action,args) or false
+    elseif Screen.hostLayout and Screen.resourceId=="reception_customer" then
+        if button~=1 then return false end
+        local action=JobOfferScreen.hitTest(x,y)
+        if action=="back" then return Screen.canClose() and {action="close"} or true end
+        return action=="accept" and request(sendCommand,"request_details",{}) or false
+    end
+    if Screen.sharedMachine then
+        Screen.sendCommand=sendCommand
+        local result=Screen.sharedMachine.mousepressed(state,x,y,button)
+        if not Screen.waiting and not Screen.safetyWaiting and Screen.sharedMachine.feedback then Screen.status=Screen.sharedMachine.feedback end
+        if type(result)=="table" and result.action=="exit" then return Screen.canClose() and {action="close"} or true end
+        return result
+    end
+    if Screen.sharedComputer then
+        if Screen.waiting then return true end
+        Screen.sendCommand, Screen.guiState = sendCommand, Projection.copy(state)
+        local oldMessage=Screen.guiState.message
+        local result = Screen.sharedComputer.mousepressed(Screen.guiState, x, y, button)
+        if not Screen.waiting and Screen.guiState.message~=oldMessage then Screen.status=Screen.guiState.message end
+        if result and result.action == "close" then return Screen.canClose() and { action = "close" } or true end
+        if result and result.action == "pickup_ready" then return request(sendCommand, "request_pickup", { jobId = result.job.id }) end
+        return result
+    end
+    if Screen.resourceId == "work_phone" then
+        if button ~= 1 then return false end
+        local action, args = WorkPhoneScreen.remoteIntent(state, x, y)
+        if action == "close" then return Screen.canClose() and { action = "close" } or true end
+        return action and request(sendCommand, action, args) or false
+    end
     if button ~= 1 or not Screen:isOpen() then return false end
     if contains(BACK, x, y) then
         if Screen.canClose() then return { action = "close" } end
@@ -875,21 +1243,9 @@ function Screen.mousepressed(state, x, y, button, sendCommand)
         return true
     end
     if Screen.resourceId == "reception_customer" then
-        if contains(QUOTE_INPUT, x, y) then
-            Screen.quoteFocused, Screen.quoteReplaceOnType = true, true
-            return true
-        end
         Screen.quoteFocused = false
-        if contains(DECLINE, x, y) then
-            request(sendCommand, "decline", {})
-            return true
-        elseif contains(CONFIRM, x, y) then
-            local amount = tonumber(Screen.quoteText)
-            if not amount or amount < 1 then
-                Screen.status = "Enter a whole-dollar quote first."
-                return true
-            end
-            request(sendCommand, "submit_quote", { amount = math.floor(amount) })
+        if contains(CONFIRM, x, y) then
+            request(sendCommand, "request_details", {})
             return true
         end
     elseif Screen.resourceId == "office_computer" then
@@ -906,10 +1262,91 @@ function Screen.mousepressed(state, x, y, button, sendCommand)
         if contains(CONFIRM, x, y) and Screen.selectedJobId then
             return request(sendCommand, "request_pickup", { jobId = Screen.selectedJobId })
         end
+    elseif Screen.resourceId == "vendor" then
+        for index, item in ipairs(vendorRows()) do
+            if contains(vendorBuyRect(index), x, y) then
+                local affordable = item.available == true
+                    and (tonumber(Screen.view and Screen.view.cash) or 0)
+                        >= (tonumber(item.price) or math.huge)
+                if not affordable then
+                    Screen.status = item.available ~= true
+                        and tostring(item.detail or "That item is unavailable.")
+                        or "The host shop does not have enough cash for that purchase."
+                    return true
+                end
+                local action = Screen.view.kind == "machines"
+                    and "purchase_machine" or "purchase_stock"
+                return request(sendCommand, action, { itemIndex = item.itemIndex })
+            end
+        end
+        if contains(CONFIRM, x, y) then
+            return request(sendCommand, "dismiss", {})
+        end
+    elseif Screen.resourceId == "truck" then
+        local view = Screen.view or {}
+        for index, item in ipairs(view.items or {}) do
+            if contains(vendorBuyRect(index), x, y) then
+                if item.available ~= true then
+                    Screen.status = "That manifest row was already handled."
+                    return true
+                end
+                return request(sendCommand, "move_item", { itemIndex = item.itemIndex })
+            end
+        end
+        if contains(TRUCK_PREVIOUS, x, y) then
+            if (tonumber(view.page) or 1) > 1 then
+                return request(sendCommand, "page_previous", {})
+            end
+            return true
+        elseif contains(TRUCK_NEXT, x, y) then
+            if (tonumber(view.page) or 1) < (tonumber(view.pageCount) or 1) then
+                return request(sendCommand, "page_next", {})
+            end
+            return true
+        elseif contains(CONFIRM, x, y) then
+            if view.canClose ~= true then
+                Screen.status = "Finish every available manifest row before releasing the truck."
+                return true
+            end
+            return request(sendCommand, "close_truck", {})
+        end
     elseif Screen.resourceId == "skid_wrapper" then
+        local view = Screen.view or {}
+        local serviceActive = tostring(view.serviceStep or "idle") ~= "idle"
+        if contains(WRAPPER_TABS.production, x, y) then
+            if not serviceActive then Screen.wrapperTab = "production" end
+            return true
+        elseif contains(WRAPPER_TABS.service, x, y) then
+            Screen.wrapperTab = "service"
+            return true
+        end
+        if Screen.wrapperTab == "service" then
+            if serviceActive then
+                if contains(WRAPPER_SERVICE_CANCEL, x, y) then
+                    return not Screen.waiting
+                        and request(sendCommand, "cancel_service", {}) or true
+                end
+                local target = wrapperServiceTarget(view)
+                if target and contains(target, x, y) then
+                    return not Screen.waiting and request(sendCommand, "service_target",
+                        { itemIndex = tonumber(view.servicePhase) }) or true
+                elseif contains(WRAPPER_SERVICE_WORK, x, y) then
+                    return not Screen.waiting and request(sendCommand, "service_miss", {}) or true
+                end
+            elseif contains(WRAPPER_SERVICE_BEGIN, x, y) then
+                if not wrapperServiceBeginEnabled(state) then
+                    Screen.status = #wrapperRows(state) > 0
+                        and "Move every eligible pallet away from the turntable first."
+                        or "The host requires an idle wrapper and one maintenance kit."
+                    return true
+                end
+                return request(sendCommand, "begin_service", {})
+            end
+            return true
+        end
         local rows = wrapperRows(state)
         for index, item in ipairs(rows) do
-            if contains(rowRect(index), x, y) then
+            if contains(wrapperRowRect(index), x, y) then
                 Screen.selectedPalletId = item.palletId
                 return request(sendCommand, "select_pallet", { palletId = item.palletId })
             end
@@ -929,6 +1366,104 @@ function Screen.mousepressed(state, x, y, button, sendCommand)
         return windmillMousepressed(state, x, y, sendCommand)
     elseif Screen.resourceId == "cutter" then
         local view = Screen.view or {}
+        local serviceStep = tostring(view.serviceStep or "idle")
+        if Screen.cutterTab == "service" then
+            if contains(CUTTER_SERVICE_NAV, x, y) then
+                if serviceStep ~= "idle" then
+                    return cutterServiceButtonEnabled("cancel_service", state)
+                        and request(sendCommand, "cancel_service", {}) or true
+                end
+                Screen.cutterTab = "production"
+                return true
+            elseif serviceStep == "idle" then
+                if contains(CUTTER_SERVICE_CONTROLS.lubrication, x, y) then
+                    return cutterServiceButtonEnabled("begin_lubrication", state)
+                        and request(sendCommand, "begin_lubrication", {}) or true
+                elseif contains(CUTTER_SERVICE_CONTROLS.blade, x, y) then
+                    return cutterServiceButtonEnabled("begin_blade", state)
+                        and request(sendCommand, "begin_blade", {}) or true
+                elseif contains(CUTTER_SERVICE_CONTROLS.technician, x, y) then
+                    return cutterServiceButtonEnabled("book_blade_technician", state)
+                        and request(sendCommand, "book_blade_technician", {}) or true
+                elseif contains(CUTTER_SERVICE_CONTROLS.weekly, x, y) then
+                    return cutterServiceButtonEnabled("set_weekly_technician", state)
+                        and request(sendCommand, "set_weekly_technician",
+                            { enabled = cutterMaintenanceStatus(state).weeklyTechnician ~= true }) or true
+                end
+            elseif serviceStep == "lockout_disconnect" or serviceStep == "lockout_key"
+                or serviceStep == "lockout_tag" or serviceStep == "prep_cartridge"
+                or serviceStep == "prep_prime"
+            then
+                if contains(CUTTER_SERVICE_CONTROLS.advance, x, y) then
+                    return cutterServiceButtonEnabled("service_advance", state)
+                        and request(sendCommand, "service_advance", {}) or true
+                end
+            elseif serviceStep == "lubricate" then
+                for index = 1, #CUTTER_SERVICE_VIEWS do
+                    if contains(cutterServiceViewRect(index), x, y) then
+                        if index == 5 and view.centralInstalled ~= true then return true end
+                        return cutterServiceButtonEnabled("service_view", state)
+                            and request(sendCommand, "service_view", { itemIndex = index }) or true
+                    end
+                end
+                for index = 1, #CUTTER_SERVICE_TOOLS do
+                    if contains(cutterServiceToolRect(index), x, y) then
+                        return cutterServiceButtonEnabled("service_tool", state)
+                            and request(sendCommand, "service_tool", { itemIndex = index }) or true
+                    end
+                end
+                for index, item in ipairs(view.serviceItems or {}) do
+                    if contains(cutterServiceItemRect(index), x, y) then
+                        return cutterServiceButtonEnabled("service_point", state)
+                            and request(sendCommand, "service_point",
+                                { itemIndex = item.itemIndex }) or true
+                    end
+                end
+                if contains(CUTTER_SERVICE_CONTROLS.pump, x, y) then
+                    return cutterServiceButtonEnabled("service_pump", state)
+                        and request(sendCommand, "service_pump", {}) or true
+                elseif contains(CUTTER_SERVICE_CONTROLS.gear, x, y) then
+                    return cutterServiceButtonEnabled("service_gear", state)
+                        and request(sendCommand, "service_gear", {}) or true
+                elseif contains(CUTTER_SERVICE_CONTROLS.finish, x, y) then
+                    return cutterServiceButtonEnabled("finish_lubrication", state)
+                        and request(sendCommand, "finish_lubrication", {}) or true
+                end
+            elseif serviceStep == "blade_bolts" then
+                local nextBolt = (tonumber(view.bladeBoltsDone) or 0) + 1
+                for index = 1, 4 do
+                    if contains(cutterBladeBoltRect(index), x, y) then
+                        return index == nextBolt
+                            and cutterServiceButtonEnabled("remove_blade_bolt", state)
+                            and request(sendCommand, "remove_blade_bolt", { itemIndex = index }) or true
+                    end
+                end
+            elseif serviceStep == "blade_lift"
+                and contains(CUTTER_SERVICE_CONTROLS.bladeAction, x, y)
+            then
+                return cutterServiceButtonEnabled("lift_blade", state)
+                    and request(sendCommand, "lift_blade", {}) or true
+            elseif serviceStep == "blade_sleeve"
+                and contains(CUTTER_SERVICE_CONTROLS.bladeAction, x, y)
+            then
+                return cutterServiceButtonEnabled("sleeve_blade", state)
+                    and request(sendCommand, "sleeve_blade", {}) or true
+            end
+            if serviceStep ~= "idle" and contains(CUTTER_SERVICE_CONTROLS.cancel, x, y) then
+                return cutterServiceButtonEnabled("cancel_service", state)
+                    and request(sendCommand, "cancel_service", {}) or true
+            end
+            return true
+        end
+        if view.loaded ~= true and contains(CUTTER_SERVICE_NAV, x, y) then
+            if view.loaded == true or view.step ~= "idle" then
+                Screen.status = "Unload the cutter and return it to idle before maintenance."
+                return true
+            end
+            Screen.cutterTab = "service"
+            Screen.gaugeFocused = false
+            return true
+        end
         if view.loaded ~= true then
             for index, candidate in ipairs(cutterCandidates()) do
                 if contains(cutterCandidateRect(index), x, y) then
@@ -1032,18 +1567,11 @@ local function drawCustomer(pointerX, pointerY)
     love.graphics.print("DELIVERY", 142, 288)
     love.graphics.printf(tostring(view.delivery or "Host-calculated service"), 260, 288, 500, "left")
     love.graphics.setColor(0.18, 0.21, 0.22)
-    love.graphics.rectangle("fill", 142, 354, 676, 104, 4, 4)
+    love.graphics.rectangle("fill", 142, 354, 676, 128, 4, 4)
     love.graphics.setColor(0.94, 0.91, 0.79)
-    love.graphics.printf(string.format("Recommended shop quote: $%d",
-        tonumber(view.recommendedTotal) or 0), 160, 378, 640, "center")
-    love.graphics.setColor(Screen.quoteFocused and 0.98 or 0.88, 0.96, 0.82)
-    love.graphics.rectangle("fill", QUOTE_INPUT.x, QUOTE_INPUT.y, QUOTE_INPUT.width,
-        QUOTE_INPUT.height, 4, 4)
-    love.graphics.setColor(0.08, 0.10, 0.11)
-    love.graphics.printf("$" .. Screen.quoteText, QUOTE_INPUT.x, QUOTE_INPUT.y + 13,
-        QUOTE_INPUT.width, "center")
-    button(DECLINE, "DECLINE", pointerX, pointerY, not Screen.waiting, false)
-    button(CONFIRM, "SEND QUOTE", pointerX, pointerY, not Screen.waiting, true)
+    love.graphics.printf("Review the sample work now. The client will email the complete written specifications before your shop prepares a price.",
+        170, 382, 620, "center")
+    button(CONFIRM, "REQUEST EMAIL DETAILS", pointerX, pointerY, not Screen.waiting, true)
 end
 
 local function drawComputer(state, pointerX, pointerY)
@@ -1072,25 +1600,95 @@ local function drawComputer(state, pointerX, pointerY)
         not Screen.waiting and Screen.selectedJobId ~= nil, true)
 end
 
-local function drawWrapper(state, pointerX, pointerY)
+local function drawVendor(pointerX, pointerY)
+    local view = Screen.view or {}
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print(tostring(view.categoryName or "VENDOR CATALOG"), 142, 132)
+    love.graphics.printf(tostring(view.salesman or "Supplier representative"),
+        420, 132, 398, "right")
+    love.graphics.print(string.format("HOST SHOP CASH  $%d",
+        math.max(0, math.floor(tonumber(view.cash) or 0))), 142, 154)
+    local rows = vendorRows()
+    for index, item in ipairs(rows) do
+        local rect = rowRect(index)
+        local affordable = item.available == true
+            and (tonumber(view.cash) or 0) >= (tonumber(item.price) or math.huge)
+        love.graphics.setColor(0.79, 0.78, 0.73)
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4, 4)
+        love.graphics.setColor(0.08, 0.10, 0.11)
+        love.graphics.print(tostring(item.name or item.id), rect.x + 14, rect.y + 7)
+        love.graphics.setColor(0.24, 0.28, 0.29)
+        love.graphics.print(tostring(item.detail or "Host-verified purchase"),
+            rect.x + 14, rect.y + 26)
+        button(vendorBuyRect(index), item.available == true
+            and string.format("BUY $%d", tonumber(item.price) or 0) or "LOCKED",
+            pointerX, pointerY, not Screen.waiting and affordable, true)
+    end
+    if #rows == 0 then
+        love.graphics.setColor(0.40, 0.42, 0.43)
+        love.graphics.printf("This vendor has no active listings.", ROW_X, ROW_Y + 30,
+            ROW_W, "center")
+    end
+    button(CONFIRM, "NO THANKS", pointerX, pointerY, not Screen.waiting, false)
+end
+
+local function drawTruck(pointerX, pointerY)
+    local view = Screen.view or {}
+    local pickup = view.mode == "pickup"
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print(tostring(view.manifestId or "TRUCK MANIFEST"), 142, 132)
+    love.graphics.printf(tostring(view.title or "Truck manifest"), 420, 132, 398, "right")
+    love.graphics.print(string.format("%d ITEM(S) REMAIN · PAGE %d / %d",
+        math.max(0, tonumber(view.remaining) or 0), tonumber(view.page) or 1,
+        tonumber(view.pageCount) or 1), 142, 154)
+    for index, item in ipairs(view.items or {}) do
+        local rect = rowRect(index)
+        love.graphics.setColor(item.available == true and 0.79 or 0.68,
+            item.available == true and 0.78 or 0.72, 0.73)
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4, 4)
+        love.graphics.setColor(0.08, 0.10, 0.11)
+        love.graphics.print(tostring(item.label or "Manifest item"), rect.x + 14, rect.y + 7)
+        love.graphics.setColor(0.24, 0.28, 0.29)
+        love.graphics.print(tostring(item.detail or "Host-owned cargo"), rect.x + 14, rect.y + 26)
+        button(vendorBuyRect(index), item.available == true
+            and (pickup and "LOAD" or "UNLOAD") or "DONE",
+            pointerX, pointerY, not Screen.waiting and item.available == true, true)
+    end
+    button(TRUCK_PREVIOUS, "PREVIOUS", pointerX, pointerY,
+        not Screen.waiting and (tonumber(view.page) or 1) > 1, false)
+    button(TRUCK_NEXT, "NEXT", pointerX, pointerY,
+        not Screen.waiting and (tonumber(view.page) or 1) < (tonumber(view.pageCount) or 1), false)
+    button(CONFIRM, view.mode == "machine_delivery" and "RELEASE FLATBED" or "CLOSE CARGO",
+        pointerX, pointerY, not Screen.waiting and view.canClose == true, true)
+end
+
+local function drawWrapperTabs(pointerX, pointerY)
+    local activeService = tostring(Screen.view and Screen.view.serviceStep or "idle") ~= "idle"
+    button(WRAPPER_TABS.production, "PRODUCTION", pointerX, pointerY,
+        not Screen.waiting and not activeService, Screen.wrapperTab == "production")
+    button(WRAPPER_TABS.service, activeService and "SERVICE ACTIVE" or "SERVICE",
+        pointerX, pointerY, not Screen.waiting, Screen.wrapperTab == "service")
+end
+
+local function drawWrapperProduction(state, pointerX, pointerY)
     local runtime = Wrapper.snapshot()
     love.graphics.setColor(0.10, 0.12, 0.13)
-    love.graphics.print("HOST CYCLE", 142, 136)
-    love.graphics.print(string.upper(runtime.step), 270, 136)
+    love.graphics.print("HOST CYCLE", 142, 174)
+    love.graphics.print(string.upper(runtime.step), 270, 174)
     local ratio = math.min(1, runtime.progress / math.max(0.001, runtime.cycleTime))
     love.graphics.setColor(0.18, 0.21, 0.22)
-    love.graphics.rectangle("fill", 420, 136, 380, 18, 3, 3)
+    love.graphics.rectangle("fill", 420, 174, 380, 18, 3, 3)
     love.graphics.setColor(0.92, 0.72, 0.20)
-    love.graphics.rectangle("fill", 420, 136, 380 * ratio, 18, 3, 3)
+    love.graphics.rectangle("fill", 420, 174, 380 * ratio, 18, 3, 3)
     love.graphics.setColor(0.10, 0.12, 0.13)
-    love.graphics.print("NEARBY FINISHED PALLETS", 142, 158)
+    love.graphics.print("NEARBY FINISHED PALLETS", 142, 198)
     local rows = wrapperRows(state)
     if #rows == 0 then
         love.graphics.setColor(0.40, 0.42, 0.43)
-        love.graphics.printf("No eligible pallet is parked by the wrapper.", ROW_X, ROW_Y + 34, ROW_W, "center")
+        love.graphics.printf("No eligible pallet is parked by the wrapper.", ROW_X, 254, ROW_W, "center")
     end
     for index, item in ipairs(rows) do
-        local rect = rowRect(index)
+        local rect = wrapperRowRect(index)
         local selected = item.palletId == Screen.selectedPalletId
         love.graphics.setColor(selected and 0.91 or 0.79, selected and 0.72 or 0.78,
             selected and 0.24 or 0.73)
@@ -1104,6 +1702,87 @@ local function drawWrapper(state, pointerX, pointerY)
     end
     button(CONFIRM, runtime.step == "wrapping" and "WRAPPING..." or "START CYCLE",
         pointerX, pointerY, Screen.wrapperStartEnabled(state), true)
+end
+
+local function drawWrapperService(state, pointerX, pointerY)
+    local view = Screen.view or {}
+    local stock = state and state.inventory and state.inventory.stock or {}
+    local item = MachineFleet.installed(state, "skid_wrapper")
+    local step = tostring(view.serviceStep or "idle")
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print("WRAPPER SERVICE  ·  HOST-OWNED QUALITY + SAVE", 142, 174)
+    love.graphics.printf(string.format("KITS %d  ·  CONDITION %.1f%%",
+        tonumber(stock.maintenance_kit) or 0,
+        item and MachineFleet.condition(item) or 0), 490, 174, 328, "right")
+    love.graphics.setColor(0.18, 0.21, 0.22)
+    love.graphics.rectangle("fill", 142, 198, 676, 12, 3, 3)
+    love.graphics.setColor(0.18, 0.58, 0.29)
+    love.graphics.rectangle("fill", 142, 198,
+        676 * math.max(0, math.min(1, (tonumber(view.servicePermille) or 0) / 1000)),
+        12, 3, 3)
+
+    if step == "idle" then
+        local plan = item and MachineFleet.maintenancePlan(state, item.id)
+        for index, task in ipairs(plan and plan.tasks or {}) do
+            local column = (index - 1) % 2
+            local row = math.floor((index - 1) / 2)
+            local x, y = 142 + column * 342, 230 + row * 94
+            love.graphics.setColor(0.79, 0.78, 0.72)
+            love.graphics.rectangle("fill", x, y, 326, 78, 4, 4)
+            love.graphics.setColor(0.10, 0.12, 0.13)
+            love.graphics.print(string.upper(tostring(task.componentLabel)), x + 12, y + 10)
+            love.graphics.printf(tostring(task.label), x + 12, y + 34, 302, "left")
+        end
+        love.graphics.setColor(0.22, 0.27, 0.27)
+        love.graphics.printf("The turntable must be empty. One delivered maintenance kit is consumed only after all four host-ordered tasks are complete.",
+            166, 424, 628, "center")
+        button(WRAPPER_SERVICE_BEGIN, "START FULL SERVICE", pointerX, pointerY,
+            wrapperServiceBeginEnabled(state), true)
+        return
+    end
+
+    local target, task = wrapperServiceTarget(view)
+    love.graphics.setColor(0.74, 0.76, 0.72)
+    love.graphics.rectangle("fill", WRAPPER_SERVICE_WORK.x, WRAPPER_SERVICE_WORK.y + 18,
+        WRAPPER_SERVICE_WORK.width, WRAPPER_SERVICE_WORK.height - 18, 5, 5)
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print(string.format("STEP %d / %d  ·  %s",
+        tonumber(view.serviceTaskIndex) or 1,
+        tonumber(view.serviceTaskCount) or 4,
+        task and task.component or "SERVICE TASK"), 166, 236)
+    love.graphics.printf(task and task.instruction or "Use the active service marker.",
+        166, 266, 420, "left")
+    love.graphics.print(string.format("TARGET %d / %d",
+        tonumber(view.servicePhase) or 1,
+        tonumber(view.serviceTargetCount) or 1), 166, 438)
+    if target then
+        local cx, cy = target.x + target.width / 2, target.y + target.height / 2
+        local pulse = 24 + math.sin((Screen.wrapperClock or 0) * 6) * 5
+        love.graphics.setColor(0.98, 0.72, 0.18, 0.24)
+        love.graphics.circle("fill", cx, cy, pulse)
+        love.graphics.setColor(0.95, 0.58, 0.08)
+        love.graphics.circle("fill", cx, cy, 17)
+        love.graphics.setColor(0.12, 0.14, 0.14)
+        love.graphics.circle("fill", cx, cy, 6)
+    end
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.printf(string.format("ATTEMPTS %d\nMISSES %d",
+        tonumber(view.serviceAttempts) or 0, tonumber(view.serviceMisses) or 0),
+        650, 254, 150, "left")
+    love.graphics.setColor(0.22, 0.27, 0.27)
+    love.graphics.printf("Tap the gold marker. Taps elsewhere in the service bay count as misses and reduce repair quality.",
+        640, 354, 170, "center")
+    button(WRAPPER_SERVICE_CANCEL, "CANCEL SERVICE", pointerX, pointerY,
+        not Screen.waiting, false)
+end
+
+local function drawWrapper(state, pointerX, pointerY)
+    drawWrapperTabs(pointerX, pointerY)
+    if Screen.wrapperTab == "service" then
+        drawWrapperService(state, pointerX, pointerY)
+    else
+        drawWrapperProduction(state, pointerX, pointerY)
+    end
 end
 
 local function compactLabel(value, limit)
@@ -1120,53 +1799,162 @@ local function cutterBar(x, y, width, permille, color)
     love.graphics.rectangle("fill", x, y, width * ratio, 14, 3, 3)
 end
 
-local function drawCutter(state, pointerX, pointerY)
+local function drawCutterService(state, pointerX, pointerY)
     local view = Screen.view or {}
+    local status = cutterMaintenanceStatus(state)
+    local step = tostring(view.serviceStep or "idle")
+    love.graphics.setColor(0.10, 0.12, 0.13)
+    love.graphics.print("CUTTER SERVICE  ·  HOST-AUTHORITATIVE LOCKOUT", 122, 132)
+    love.graphics.printf(string.format("KITS %d  ·  BLADE %s  ·  TECHNICIAN %s",
+        status.maintenanceKits,
+        status.bladeInSleeve and "SLEEVED" or status.bladeRemoved and "REMOVED" or "INSTALLED",
+        status.technicianScheduled and "SCHEDULED" or "NOT SCHEDULED"),
+        122, 156, 690, "left")
+    cutterBar(122, 180, 690, view.servicePermille, { 0.18, 0.58, 0.29 })
+
+    if step == "idle" then
+        button(CUTTER_SERVICE_CONTROLS.lubrication, "LUBRICATION SERVICE", pointerX, pointerY,
+            cutterServiceButtonEnabled("begin_lubrication", state), true)
+        button(CUTTER_SERVICE_CONTROLS.blade, "REMOVE + SLEEVE BLADE", pointerX, pointerY,
+            cutterServiceButtonEnabled("begin_blade", state), true)
+        button(CUTTER_SERVICE_CONTROLS.technician,
+            status.technicianScheduled and "TECHNICIAN SCHEDULED" or "BOOK BLADE TECHNICIAN",
+            pointerX, pointerY, cutterServiceButtonEnabled("book_blade_technician", state), true)
+        button(CUTTER_SERVICE_CONTROLS.weekly,
+            status.weeklyTechnician and "CANCEL WEEKLY SERVICE" or "SCHEDULE WEEKLY SERVICE",
+            pointerX, pointerY, cutterServiceButtonEnabled("set_weekly_technician", state), true)
+        love.graphics.setColor(0.32, 0.35, 0.36)
+        love.graphics.printf("Lubrication consumes one delivered maintenance kit only after every point and the gearbox inspection pass. Blade removal becomes durable only when the blade reaches its wooden sleeve.",
+            142, 386, 650, "center")
+    elseif step == "lockout_disconnect" or step == "lockout_key"
+        or step == "lockout_tag" or step == "prep_cartridge" or step == "prep_prime"
+    then
+        local labels = {
+            lockout_disconnect = "OPEN MAIN DISCONNECT",
+            lockout_key = "SECURE LOCKOUT KEY",
+            lockout_tag = "ATTACH SERVICE TAG",
+            prep_cartridge = "INSTALL GREASE CARTRIDGE",
+            prep_prime = "PRIME GREASE GUN",
+        }
+        love.graphics.setColor(0.24, 0.28, 0.29)
+        love.graphics.printf("Complete the displayed host-owned step in order.", 122, 230, 690, "center")
+        button(CUTTER_SERVICE_CONTROLS.advance, labels[step], pointerX, pointerY,
+            cutterServiceButtonEnabled("service_advance", state), true)
+    elseif step == "lubricate" then
+        for index, label in ipairs(CUTTER_SERVICE_VIEWS) do
+            local available = index ~= 5 or view.centralInstalled == true
+            button(cutterServiceViewRect(index), label, pointerX, pointerY,
+                available and cutterServiceButtonEnabled("service_view", state),
+                tonumber(view.serviceView) == index)
+        end
+        for index, label in ipairs(CUTTER_SERVICE_TOOLS) do
+            button(cutterServiceToolRect(index), label, pointerX, pointerY,
+                cutterServiceButtonEnabled("service_tool", state),
+                tonumber(view.serviceTool) == index)
+        end
+        for index, item in ipairs(view.serviceItems or {}) do
+            local status = item.complete and "DONE" or item.coupled and ("COUPLED · "
+                .. tostring(item.strokes) .. " STROKE(S)") or item.cleaned and "CLEAN" or "DIRTY"
+            button(cutterServiceItemRect(index), tostring(item.label) .. "  ·  " .. status,
+                pointerX, pointerY, cutterServiceButtonEnabled("service_point", state), item.complete)
+        end
+        local gearLabel = view.gearInspected
+            and string.format("GEAR %.0f%%", (tonumber(view.gearLevelPermille) or 0) / 10)
+            or "INSPECT / TOP UP GEAR"
+        button(CUTTER_SERVICE_CONTROLS.pump, "PUMP GREASE", pointerX, pointerY,
+            cutterServiceButtonEnabled("service_pump", state), true)
+        button(CUTTER_SERVICE_CONTROLS.gear, gearLabel, pointerX, pointerY,
+            cutterServiceButtonEnabled("service_gear", state), true)
+        button(CUTTER_SERVICE_CONTROLS.finish, "FINISH + SAVE", pointerX, pointerY,
+            cutterServiceButtonEnabled("finish_lubrication", state), true)
+    elseif step == "blade_bolts" then
+        love.graphics.setColor(0.24, 0.28, 0.29)
+        love.graphics.printf("Remove each blade bolt. The host tracks every distinct fastener.",
+            122, 220, 690, "center")
+        local done = tonumber(view.bladeBoltsDone) or 0
+        for index = 1, 4 do
+            button(cutterBladeBoltRect(index), index <= done and "REMOVED" or ("BOLT " .. index),
+                pointerX, pointerY, index == done + 1
+                    and cutterServiceButtonEnabled("remove_blade_bolt", state),
+                index <= done)
+        end
+    elseif step == "blade_lift" then
+        button(CUTTER_SERVICE_CONTROLS.bladeAction, "LIFT RELEASED BLADE SAFELY",
+            pointerX, pointerY, cutterServiceButtonEnabled("lift_blade", state), true)
+    elseif step == "blade_sleeve" then
+        button(CUTTER_SERVICE_CONTROLS.bladeAction, "PLACE BLADE IN WOODEN SLEEVE + SAVE",
+            pointerX, pointerY, cutterServiceButtonEnabled("sleeve_blade", state), true)
+    end
+
+    if step ~= "idle" then
+        button(CUTTER_SERVICE_CONTROLS.cancel, "CANCEL SERVICE", pointerX, pointerY,
+            cutterServiceButtonEnabled("cancel_service", state), false)
+    end
+    button(CUTTER_SERVICE_NAV, "PRODUCTION", pointerX, pointerY,
+        not Screen.waiting and not Screen.safetyWaiting, false)
+end
+
+local function drawCutter(state, pointerX, pointerY, assets)
+    local view = Screen.view or {}
+    if Screen.cutterTab == "service" then
+        drawCutterService(state, pointerX, pointerY)
+        return
+    end
+    local model = Screen.cutterPresentation:model(state, view)
+    love.graphics.setColor(0.045, 0.055, 0.07)
+    love.graphics.rectangle("fill", CUTTER_SCENE.x, CUTTER_SCENE.y,
+        CUTTER_SCENE.width, CUTTER_SCENE.height, 4, 4)
+    MachineScreen.drawCutterScene(assets, model,
+        { x = CUTTER_SCENE.x + 12, y = CUTTER_SCENE.y, width = 340, height = 227 })
+    if model.paper then
+        love.graphics.setColor(model.paper.offSpec and 1 or 0.84,
+            model.paper.offSpec and 0.4 or 0.92, model.paper.offSpec and 0.3 or 0.92)
+        love.graphics.printf(string.format("%s  %.2f x %.2f in",
+            model.paper.offSpec and "SPOILED" or "ON BED",
+            model.paper.currentSize.width, model.paper.currentSize.height),
+            474, 348, 344, "center")
+    end
     local step = tostring(view.step or "idle"):gsub("_", " "):upper()
     love.graphics.setColor(0.10, 0.12, 0.13)
-    love.graphics.print("HOST PHASE  " .. step, 122, 130)
-    cutterBar(344, 132, 468, view.phasePermille, { 0.92, 0.72, 0.20 })
-    love.graphics.print("CLAMP", 122, 154)
-    cutterBar(178, 155, 172, view.clampPermille, { 0.22, 0.56, 0.76 })
-    love.graphics.print("BLADE", 370, 154)
-    cutterBar(426, 155, 172, view.bladePermille, { 0.76, 0.25, 0.18 })
-    love.graphics.printf(string.format("BARRIER %s  ·  E-STOP %s",
-        view.barrierClear == true and "CLEAR" or "BLOCKED",
-        view.emergencyStopped == true and "ACTIVE" or "RESET"),
-        608, 154, 204, "right")
+    love.graphics.print("HOST: " .. step, 122, 126)
+    if model.loaded and not model.paper then
+        love.graphics.setColor(0.84, 0.92, 0.92)
+        love.graphics.printf("Waiting for host paper details", 474, 348, 344, "center")
+        love.graphics.setColor(0.10, 0.12, 0.13)
+    end
 
     local paper = type(view.paper) == "table" and view.paper or nil
     if paper then
         local label = cutterPalletLabel(state, paper.palletId)
-        love.graphics.printf(string.format("%s  ·  LIFT %d/%d  ·  %d LEFT  ·  %d°",
-            compactLabel(label, 28), tonumber(paper.activeLift) or 1,
+        love.graphics.printf(string.format("%s\nLIFT %d/%d  ·  %d LEFT  ·  %d°",
+            compactLabel(label, 36), tonumber(paper.activeLift) or 1,
             tonumber(paper.requiredLifts) or 1, tonumber(paper.remainingSheets) or 0,
-            tonumber(paper.orientation) or 0), 122, 176, 430, "left")
+            tonumber(paper.orientation) or 0), 122, 146, 326, "left")
         local cut = type(paper.selectedCut) == "table" and paper.selectedCut or nil
         if cut then
-            love.graphics.printf(string.format("CUT %d  %s  M %.2f  G %.2f",
+            love.graphics.printf(string.format("TICKET: CUT %d %s · TRIM %.2f · GAUGE %.2f",
                 tonumber(cut.number) or tonumber(paper.activeCut) or 1,
                 tostring(cut.edge or "edge"):upper(),
                 (tonumber(cut.marginCentiInch) or 0) / 100,
-                (tonumber(cut.gaugeCentiInch) or 0) / 100), 552, 176, 260, "right")
+                (tonumber(cut.gaugeCentiInch) or 0) / 100), 122, 344, 326, "left")
         end
     else
-        love.graphics.printf("No paper is on the cutting bed.", 122, 176, 690, "left")
+        love.graphics.printf("No paper is on the cutting bed.", 122, 154, 326, "left")
     end
 
     if view.loaded ~= true then
         love.graphics.setColor(0.10, 0.12, 0.13)
-        love.graphics.print("NEARBY CUTTER PALLETS", 122, 198)
+        love.graphics.print("NEARBY CUTTER PALLETS [L]", 122, 184)
         local candidates = cutterCandidates()
         if #candidates == 0 then
             love.graphics.setColor(0.40, 0.42, 0.43)
             love.graphics.printf("Park an unfinished pallet beside the cutter, or use generic stock.",
-                122, 260, 690, "center")
+                122, 260, 318, "center")
         end
         for index, candidate in ipairs(candidates) do
             local distance = math.max(0, math.floor(tonumber(candidate.distancePixels) or 0))
             local label = string.format("%s  ·  %d px",
-                compactLabel(cutterPalletLabel(state, candidate.palletId), 28), distance)
+                compactLabel(cutterPalletLabel(state, candidate.palletId), 24), distance)
             button(cutterCandidateRect(index), label, pointerX, pointerY,
                 cutterButtonEnabled("load_pallet"), true)
         end
@@ -1183,11 +1971,13 @@ local function drawCutter(state, pointerX, pointerY)
             pointerX, pointerY, cutterButtonEnabled("run_next_lift"), true)
         button(CUTTER_UNLOADED_CONTROLS.emergency_stop, "E-STOP",
             pointerX, pointerY, cutterButtonEnabled("emergency_stop"), false)
+        button(CUTTER_SERVICE_NAV, "SERVICE", pointerX, pointerY,
+            not Screen.waiting and view.step == "idle", false)
         return
     end
 
     for index, rect in ipairs(CUTTER_PROGRAMS) do
-        button(rect, "PROGRAM " .. index, pointerX, pointerY,
+        button(rect, "CUT " .. index, pointerX, pointerY,
             cutterButtonEnabled("select_program"), tonumber(view.programIndex) == index)
     end
     local memory = {}
@@ -1196,7 +1986,7 @@ local function drawCutter(state, pointerX, pointerY)
     end
     love.graphics.setColor(0.10, 0.12, 0.13)
     love.graphics.printf("P" .. tostring(tonumber(view.programIndex) or 1) .. " MEMORY  "
-        .. (#memory > 0 and table.concat(memory, " / ") or "EMPTY"), 574, 208, 238, "right")
+        .. (#memory > 0 and table.concat(memory, " / ") or "EMPTY"), 122, 328, 326, "left")
 
     love.graphics.setColor(Screen.gaugeFocused and 0.98 or 0.88, 0.96, 0.82)
     love.graphics.rectangle("fill", CUTTER_GAUGE_INPUT.x, CUTTER_GAUGE_INPUT.y,
@@ -1206,35 +1996,40 @@ local function drawCutter(state, pointerX, pointerY)
         CUTTER_GAUGE_INPUT.y + 13, CUTTER_GAUGE_INPUT.width, "center")
     button(CUTTER_CONTROLS.gauge_set, "SET", pointerX, pointerY,
         cutterButtonEnabled("gauge_set"), true)
-    button(CUTTER_CONTROLS.auto_gauge, "AUTO", pointerX, pointerY,
+    button(CUTTER_CONTROLS.auto_gauge, "AUTO [G]", pointerX, pointerY,
         cutterButtonEnabled("auto_gauge"), true)
-    button(CUTTER_CONTROLS.save_gauge, "SAVE", pointerX, pointerY,
+    button(CUTTER_CONTROLS.save_gauge, "SAVE [M]", pointerX, pointerY,
         cutterButtonEnabled("save_gauge"), true)
-    button(CUTTER_CONTROLS.recall_gauge, "RECALL", pointerX, pointerY,
+    button(CUTTER_CONTROLS.recall_gauge, "RECALL [V]", pointerX, pointerY,
         cutterButtonEnabled("recall_gauge"), true)
 
-    button(CUTTER_CONTROLS.rotate_paper, "ROTATE PAPER", pointerX, pointerY,
+    button(CUTTER_CONTROLS.rotate_paper, "ROTATE PAPER [Q]", pointerX, pointerY,
         cutterButtonEnabled("rotate_paper"), true)
-    button(CUTTER_CONTROLS.position_paper, "POSITION PAPER", pointerX, pointerY,
+    button(CUTTER_CONTROLS.position_paper, "POSITION PAPER [P]", pointerX, pointerY,
         cutterButtonEnabled("position_paper"), true)
-    button(CUTTER_CONTROLS.set_clamp, view.clamp == true and "RELEASE CLAMP" or "LOWER CLAMP",
+    button(CUTTER_CONTROLS.set_clamp, view.clamp == true and "RAISE CLAMP [SPACE]" or "LOWER CLAMP [SPACE]",
         pointerX, pointerY, cutterButtonEnabled("set_clamp"), true)
     button(CUTTER_CONTROLS.set_barrier,
-        view.barrierClear == true and "BLOCK BARRIER" or "CLEAR BARRIER",
+        view.barrierClear == true and "BLOCK BARRIER [B]" or "CLEAR BARRIER [B]",
         pointerX, pointerY, cutterButtonEnabled("set_barrier"), false)
-    button(CUTTER_CONTROLS.reset_safety, "RESET SAFETY", pointerX, pointerY,
+    button(CUTTER_CONTROLS.reset_safety, "RESET SAFETY [R]", pointerX, pointerY,
         cutterButtonEnabled("reset_safety"), true)
-    button(CUTTER_CONTROLS.emergency_stop, "E-STOP", pointerX, pointerY,
+    button(CUTTER_CONTROLS.emergency_stop, "E-STOP [X]", pointerX, pointerY,
         cutterButtonEnabled("emergency_stop"), false)
-    button(CUTTER_CONTROLS.return_to_pallet, "RETURN TO PALLET", pointerX, pointerY,
+    button(CUTTER_CONTROLS.return_to_pallet, "RETURN TO PALLET [U]", pointerX, pointerY,
         cutterButtonEnabled("return_to_pallet"), true)
-    button(CUTTER_CONTROLS.run_next_lift, "RUN NEXT LIFT", pointerX, pointerY,
+    button(CUTTER_CONTROLS.run_next_lift, "RUN NEXT LIFT [T]", pointerX, pointerY,
         cutterButtonEnabled("run_next_lift"), true)
 
     button(CUTTER_CONTROLS.cut_left, "CUT  ·  J",
-        pointerX, pointerY, cutterButtonEnabled("cut_left"), false)
+        pointerX, pointerY, cutterButtonEnabled("cut_left"), true)
     button(CUTTER_CONTROLS.cut_right, "CUT  ·  K",
-        pointerX, pointerY, cutterButtonEnabled("cut_right"), false)
+        pointerX, pointerY, cutterButtonEnabled("cut_right"), true)
+    for _, rect in ipairs({ CUTTER_CONTROLS.cut_left, CUTTER_CONTROLS.cut_right }) do
+        MachineScreen.drawCutterButton(assets, { x = rect.x + 10, y = rect.y + 3,
+            width = 56, height = 56, label = "" }, false,
+            view.step == "armed" or view.step == "cutting")
+    end
 end
 
 local function drawWindmillTabs(pointerX, pointerY)
@@ -1455,8 +2250,49 @@ local function drawWindmill(state, pointerX, pointerY)
 end
 
 function Screen.draw(state, pointerX, pointerY, assets)
+    if Screen.hostLayout and Screen.resourceId=="truck" then
+        TruckScreen.draw(Projection.copy(state),nil,assets,pointerX,pointerY,Screen.view)
+        love.graphics.setColor(0.8,0.9,0.9); love.graphics.printf(Screen.status,82,526,790,"center")
+        return
+    end
+    if Screen.sharedPress then
+        Screen.sharedPress.draw(state,assets,pointerX,pointerY,Screen.status)
+        return
+    end
+    if Screen.hostLayout and Screen.resourceId=="vendor" then
+        local projected=Projection.copy(state); projected.vendorCategory=Screen.view.categoryIndex
+        projected.money=Screen.view.cash or projected.money
+        VendorScreen.draw(projected,assets,pointerX,pointerY)
+        love.graphics.setColor(0.8,0.9,0.9); love.graphics.printf(Screen.status,82,590,790,"center")
+        return
+    elseif Screen.hostLayout and Screen.resourceId=="reception_customer" then
+        local projected=Projection.copy(state)
+        if not projected.currentOffer then
+            projected.currentOffer=JobOfferScreen.fromNetwork(Screen.view)
+        end
+        JobOfferScreen.draw(projected,pointerX,pointerY,assets)
+        return
+    end
+    if Screen.sharedMachine then
+        Screen.sharedMachine.draw(state,assets,pointerX,pointerY,Screen.status)
+        return
+    end
+    if Screen.sharedComputer then
+        Screen.guiState = Projection.copy(state)
+        Screen.guiState.message = Screen.status
+        Screen.sharedComputer.draw(Screen.guiState, pointerX, pointerY, assets)
+        return
+    end
+    if Screen.resourceId == "work_phone" then
+        WorkPhoneScreen.draw(Projection.copy(state), pointerX, pointerY, assets, Screen.waiting)
+        love.graphics.setColor(0.8, 0.9, 0.9)
+        love.graphics.printf(Screen.status, 68, 612, 812, "center")
+        return
+    end
     local titles = {
-        reception_customer = { "REMOTE RECEPTION", "The host device owns the customer and verifies your quote" },
+        reception_customer = { "REMOTE RECEPTION", "Review the job now; estimate it later from the office computer" },
+        vendor = { "REMOTE SUPPLIER", "The host verifies cash, catalog availability, and each purchase" },
+        truck = { "REMOTE TRUCK MANIFEST", "The host verifies every cargo move and owns the saved result" },
         office_computer = { "REMOTE OFFICE COMPUTER", "Shared shop records are live; transactions run on the host device" },
         skid_wrapper = { "REMOTE SKID WRAPPER", "The host device owns the machine cycle and saved pallet state" },
         cutter = { "REMOTE POLAR CUTTER", "The host device owns the blade cycle and saved paper state" },
@@ -1465,9 +2301,11 @@ function Screen.draw(state, pointerX, pointerY, assets)
     local copy = titles[Screen.resourceId] or { "REMOTE WORKSHOP", "Host-authoritative console" }
     header(copy[1], copy[2], pointerX, pointerY, assets)
     if Screen.resourceId == "reception_customer" then drawCustomer(pointerX, pointerY)
+    elseif Screen.resourceId == "vendor" then drawVendor(pointerX, pointerY)
+    elseif Screen.resourceId == "truck" then drawTruck(pointerX, pointerY)
     elseif Screen.resourceId == "office_computer" then drawComputer(state, pointerX, pointerY)
     elseif Screen.resourceId == "skid_wrapper" then drawWrapper(state, pointerX, pointerY)
-    elseif Screen.resourceId == "cutter" then drawCutter(state, pointerX, pointerY)
+    elseif Screen.resourceId == "cutter" then drawCutter(state, pointerX, pointerY, assets)
     elseif Screen.resourceId == "windmill" then drawWindmill(state, pointerX, pointerY) end
     love.graphics.setColor(0.18, 0.21, 0.22)
     love.graphics.printf(Screen.status, PANEL.x + 24, PANEL.y + PANEL.height - 30,
@@ -1480,8 +2318,76 @@ function Screen.quoteInputCenter()
     return QUOTE_INPUT.x + QUOTE_INPUT.width / 2, QUOTE_INPUT.y + QUOTE_INPUT.height / 2
 end
 function Screen.rowCenter(index)
-    local rect = rowRect(index)
+    local rect = Screen.resourceId == "skid_wrapper"
+        and wrapperRowRect(index) or rowRect(index)
     return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+
+function Screen.wrapperTabCenter(tab)
+    local rect = WRAPPER_TABS[tab]
+    if not rect then return nil end
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.wrapperServiceCenter(action)
+    local rect
+    if action == "begin_service" then
+        rect = WRAPPER_SERVICE_BEGIN
+    elseif action == "cancel_service" then
+        rect = WRAPPER_SERVICE_CANCEL
+    elseif action == "service_target" then
+        rect = wrapperServiceTarget(Screen.view or {})
+    elseif action == "service_miss" then
+        rect = { x = WRAPPER_SERVICE_WORK.x + 8, y = WRAPPER_SERVICE_WORK.y + 8,
+            width = 2, height = 2 }
+    end
+    if not rect then return nil end
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.update(dt)
+    if Screen.sharedPress then Screen.sharedPress.screen.update(dt); return true end
+    if Screen.sharedMachine then Screen.sharedMachine.screen.update(dt) end
+    if Screen.resourceId == "cutter" then
+        Screen.cutterPresentation:update(dt)
+        return true
+    end
+    if Screen.resourceId ~= "skid_wrapper" then return false end
+    Screen.wrapperClock = (Screen.wrapperClock + math.max(0, tonumber(dt) or 0)) % 10000
+    return true
+end
+
+function Screen.requiredAssetPack()
+    return ({ cutter = "cutter", skid_wrapper = "wrapper", windmill = "press" })[Screen.resourceId]
+end
+
+function Screen.wheelmoved(state, x, y)
+    if Screen.sharedComputer then return Screen.sharedComputer.wheelmoved(Projection.copy(state), x, y) end
+    return false
+end
+
+function Screen.vendorBuyCenter(index)
+    local rect = vendorBuyRect(index)
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.vendorDismissCenter()
+    return CONFIRM.x + CONFIRM.width / 2, CONFIRM.y + CONFIRM.height / 2
+end
+
+function Screen.truckMoveCenter(index)
+    local rect = vendorBuyRect(index)
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.truckPageCenter(direction)
+    local rect = direction == "previous" and TRUCK_PREVIOUS or TRUCK_NEXT
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.truckCloseCenter()
+    return CONFIRM.x + CONFIRM.width / 2, CONFIRM.y + CONFIRM.height / 2
 end
 
 function Screen.cutterButtonCenter(action, value)
@@ -1567,6 +2473,43 @@ end
 
 function Screen.cutterCandidateCenter(index)
     local rect = cutterCandidateRect(index)
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function Screen.cutterServiceCenter(action, value)
+    local rect
+    if action == "tab" or action == "production" then
+        rect = CUTTER_SERVICE_NAV
+    elseif action == "begin_lubrication" then
+        rect = CUTTER_SERVICE_CONTROLS.lubrication
+    elseif action == "begin_blade" then
+        rect = CUTTER_SERVICE_CONTROLS.blade
+    elseif action == "book_blade_technician" then
+        rect = CUTTER_SERVICE_CONTROLS.technician
+    elseif action == "set_weekly_technician" then
+        rect = CUTTER_SERVICE_CONTROLS.weekly
+    elseif action == "service_advance" then
+        rect = CUTTER_SERVICE_CONTROLS.advance
+    elseif action == "service_view" then
+        rect = cutterServiceViewRect(tonumber(value) or 1)
+    elseif action == "service_tool" then
+        rect = cutterServiceToolRect(tonumber(value) or 1)
+    elseif action == "service_point" then
+        rect = cutterServiceItemRect(tonumber(value) or 1)
+    elseif action == "service_pump" then
+        rect = CUTTER_SERVICE_CONTROLS.pump
+    elseif action == "service_gear" then
+        rect = CUTTER_SERVICE_CONTROLS.gear
+    elseif action == "finish_lubrication" then
+        rect = CUTTER_SERVICE_CONTROLS.finish
+    elseif action == "cancel_service" then
+        rect = CUTTER_SERVICE_CONTROLS.cancel
+    elseif action == "remove_blade_bolt" then
+        rect = cutterBladeBoltRect(tonumber(value) or 1)
+    elseif action == "lift_blade" or action == "sleeve_blade" then
+        rect = CUTTER_SERVICE_CONTROLS.bladeAction
+    end
+    if not rect then return nil end
     return rect.x + rect.width / 2, rect.y + rect.height / 2
 end
 

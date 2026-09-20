@@ -8,6 +8,9 @@ local LanScreen = {
     callbacks = nil,
     selectedSlot = 1,
     pressed = nil,
+    discoveredHosts = {},
+    discoveryMessage = "Searching for shops on this network...",
+    reconnect = nil,
 }
 
 local BUTTONS = {
@@ -18,6 +21,11 @@ local BUTTONS = {
     back = { x = 390, y = 500, width = 180, height = 58, label = "BACK" },
 }
 
+local DISCOVERY_ROWS = {
+    { x = 190, y = 374, width = 580, height = 42 },
+    { x = 190, y = 422, width = 580, height = 42 },
+}
+
 local function contains(rect, x, y)
     return Ui.contains(rect, x, y)
 end
@@ -26,11 +34,16 @@ local function buttonAt(x, y)
     if LanScreen.mode == "menu" then
         if contains(BUTTONS.host, x, y) then return "host" end
         if contains(BUTTONS.join, x, y) then return "join" end
+        for index, rect in ipairs(DISCOVERY_ROWS) do
+            if LanScreen.discoveredHosts[index] and contains(rect, x, y) then
+                return "discovered:" .. tostring(index)
+            end
+        end
         if contains(BUTTONS.back, x, y) then return "back" end
     elseif LanScreen.mode == "join" then
         if contains(BUTTONS.connect, x, y) then return "connect" end
         if contains(BUTTONS.cancel, x, y) then return "cancel" end
-    elseif LanScreen.mode == "connecting" then
+    elseif LanScreen.mode == "connecting" or LanScreen.mode == "reconnecting" then
         if contains(BUTTONS.cancel, x, y) then return "cancel" end
     end
 end
@@ -65,6 +78,13 @@ local function requestJoin()
     return true
 end
 
+local function requestDiscovered(index)
+    local host = LanScreen.discoveredHosts[index]
+    if not host then return false end
+    LanScreen.address = tostring(host.address) .. ":" .. tostring(host.port)
+    return requestJoin()
+end
+
 local function cancelConnection()
     if LanScreen.callbacks and LanScreen.callbacks.cancel then LanScreen.callbacks.cancel() end
     LanScreen.mode = "menu"
@@ -84,6 +104,58 @@ function LanScreen.enter(options)
     LanScreen.address = ""
     LanScreen.message = "The host owns the save. Guests need only the host device's local IPv4 address."
     LanScreen.pressed = nil
+    LanScreen.discoveredHosts = {}
+    LanScreen.discoveryMessage = "Searching for shops on this network..."
+    LanScreen.reconnect = nil
+end
+
+
+function LanScreen.setDiscovery(results, message)
+    local hosts = {}
+    for _, result in ipairs(type(results) == "table" and results or {}) do
+        local address, port = result and result.address, result and tonumber(result.port)
+        if type(address) == "string" and #address >= 1 and #address <= 64
+            and port and port == math.floor(port) and port >= 1 and port <= 65535
+            and #hosts < #DISCOVERY_ROWS
+        then
+            hosts[#hosts + 1] = {
+                address = address,
+                port = port,
+                name = tostring(result.name or "Local shop"):gsub("[%z\1-\31\127]", "?"):sub(1, 32),
+            }
+        end
+    end
+    LanScreen.discoveredHosts = hosts
+    LanScreen.discoveryMessage = tostring(message or "Searching for shops on this network...")
+        :gsub("[%z\1-\31\127]", "?"):sub(1, 96)
+end
+
+function LanScreen.discoveredCenter(index)
+    local rect = DISCOVERY_ROWS[tonumber(index)]
+    if not rect or not LanScreen.discoveredHosts[tonumber(index)] then return nil end
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function LanScreen.showReconnect(snapshot)
+    snapshot = type(snapshot) == "table" and snapshot or {}
+    LanScreen.mode = "reconnecting"
+    LanScreen.reconnect = {
+        attempt = tonumber(snapshot.attempt) or 0,
+        maxAttempts = tonumber(snapshot.maxAttempts) or 0,
+        nextIn = tonumber(snapshot.nextIn) or 0,
+        state = tostring(snapshot.state or "waiting"),
+        address = snapshot.target and tostring(snapshot.target.address or "") or LanScreen.address,
+        lastError = snapshot.lastError and tostring(snapshot.lastError) or nil,
+    }
+    if LanScreen.reconnect.address ~= "" then LanScreen.address = LanScreen.reconnect.address end
+    if LanScreen.reconnect.state == "connecting" then
+        LanScreen.message = string.format("Reconnect attempt %d of %d is contacting %s...",
+            LanScreen.reconnect.attempt, LanScreen.reconnect.maxAttempts, LanScreen.address)
+    else
+        LanScreen.message = string.format("Host link lost. Retrying in %d second%s...",
+            math.max(0, math.ceil(LanScreen.reconnect.nextIn)),
+            math.ceil(LanScreen.reconnect.nextIn) == 1 and "" or "s")
+    end
 end
 
 function LanScreen.setMessage(message, mode)
@@ -94,6 +166,7 @@ end
 function LanScreen.showError(message)
     LanScreen.mode = "join"
     LanScreen.message = tostring(message or "The LAN connection ended.")
+    LanScreen.reconnect = nil
 end
 
 function LanScreen.wantsTextInput()
@@ -119,7 +192,9 @@ function LanScreen.keypressed(key)
         if key == "escape" then LanScreen.mode = "menu"; LanScreen.message = "Choose a LAN role."; return true end
         return false
     end
-    if LanScreen.mode == "connecting" and (key == "escape" or key == "backspace") then
+    if (LanScreen.mode == "connecting" or LanScreen.mode == "reconnecting")
+        and (key == "escape" or key == "backspace")
+    then
         return cancelConnection()
     end
     return false
@@ -142,6 +217,8 @@ function LanScreen.mousepressed(x, y, button)
     LanScreen.pressed = action
     if action == "host" then return requestHost() end
     if action == "join" then LanScreen.mode = "join"; LanScreen.message = "Enter the host address, then connect."; return true end
+    local discoveredIndex = type(action) == "string" and action:match("^discovered:(%d+)$")
+    if discoveredIndex then return requestDiscovered(tonumber(discoveredIndex)) end
     if action == "connect" then return requestJoin() end
     if action == "cancel" then return cancelConnection() end
     if action == "back" then return goBack() end
@@ -184,9 +261,26 @@ function LanScreen.draw()
         love.graphics.printf("The host runs the shop and keeps the save. Guests join as additional workers.", 170, 198, 620, "center")
         drawButton("host")
         drawButton("join")
+        love.graphics.setColor(0.67, 0.75, 0.74)
+        love.graphics.printf("FOUND SHOPS", 190, 348, 580, "left")
+        if #LanScreen.discoveredHosts == 0 then
+            love.graphics.printf(LanScreen.discoveryMessage, 190, 390, 580, "center")
+        end
+        for index, host in ipairs(LanScreen.discoveredHosts) do
+            local rect = DISCOVERY_ROWS[index]
+            love.graphics.setColor(LanScreen.pressed == "discovered:" .. tostring(index)
+                and { 0.25, 0.40, 0.39, 1 } or { 0.07, 0.13, 0.14, 1 })
+            love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4, 4)
+            love.graphics.setColor(0.38, 0.80, 0.76, 1)
+            love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 4, 4)
+            love.graphics.printf(host.name, rect.x + 12, rect.y + 14, 300, "left")
+            love.graphics.printf(host.address .. ":" .. tostring(host.port),
+                rect.x + 316, rect.y + 14, rect.width - 328, "right")
+        end
         drawButton("back")
         love.graphics.setColor(0.62, 0.68, 0.67)
-        love.graphics.printf("Keyboard: H Host  •  J Join  •  Esc Back", 0, 462, Config.baseWidth, "center")
+        love.graphics.printf("Tap a found shop, or use JOIN A SHOP for manual entry.",
+            0, 474, Config.baseWidth, "center")
     elseif LanScreen.mode == "join" then
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf("LAN HOST LOCAL IPv4 ADDRESS", 0, 184, Config.baseWidth, "center")
@@ -200,11 +294,21 @@ function LanScreen.draw()
         love.graphics.print(LanScreen.address == "" and "Example: 192.168.1.246" or LanScreen.address, 246, 292)
         drawButton("connect")
         drawButton("cancel")
-    else
+    elseif LanScreen.mode == "connecting" then
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf("CONNECTING TO THE HOST", 0, 220, Config.baseWidth, "center")
         love.graphics.setColor(0.66, 0.76, 0.75)
         love.graphics.printf("The game is exchanging a compatible protocol hello and shop snapshot.", 190, 268, 580, "center")
+        drawButton("cancel")
+    else
+        love.graphics.setColor(0.91, 0.92, 0.86)
+        love.graphics.printf("RECONNECTING TO THE HOST", 0, 202, Config.baseWidth, "center")
+        love.graphics.setColor(0.66, 0.76, 0.75)
+        love.graphics.printf("Each attempt creates a fresh worker session and waits for a new host snapshot.",
+            190, 250, 580, "center")
+        if LanScreen.reconnect and LanScreen.reconnect.lastError then
+            love.graphics.printf(LanScreen.reconnect.lastError, 190, 306, 580, "center")
+        end
         drawButton("cancel")
     end
 

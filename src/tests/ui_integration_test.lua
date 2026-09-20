@@ -1,5 +1,18 @@
 local Test = {}
 
+local function selectComputerTab(context, state, tabId, throughInput)
+    local function click(x, y)
+        if throughInput then
+            return context.input.mousepressed(x, y, 1, context.inputContext)
+        end
+        return context.computerScreen.mousepressed(state, x, y, 1)
+    end
+    local arrowX, arrowY = context.computerScreen.dropdownCenter()
+    click(arrowX, arrowY)
+    local itemX, itemY = context.computerScreen.tabCenter(tabId)
+    return click(itemX, itemY)
+end
+
 function Test.run(context, check)
     -- Title actions share one mouse/keyboard path. Exercise them against the
     -- smoke identity so the player's real save directory is never touched.
@@ -98,6 +111,31 @@ function Test.run(context, check)
     check("title_keyboard_enter_continues",
         #titleStarts == 5 and titleStarts[5].mode == "continue" and titleStarts[5].payload.slot == 3)
 
+    local phoneState = context.State.new()
+    local phoneQueued, phoneCall = context.workPhone.queueCall(phoneState, {
+        kind = "customer_order",
+        caller = "Wall Phone Test Client",
+        role = "CUSTOMER",
+        subject = "NEW JOB ORDER",
+        message = "Please take our order and ask us to email the written specifications.",
+    })
+    context.workPhoneScreen.enter(phoneState)
+    local phoneActionX, phoneActionY = context.workPhoneScreen.buttonCenter("action")
+    local phoneAnswered = context.workPhoneScreen.mousepressed(
+        phoneState, phoneActionX, phoneActionY, 1)
+    local phoneCompleted = context.workPhoneScreen.mousepressed(
+        phoneState, phoneActionX, phoneActionY, 1)
+    check("wall_phone_art_and_call_flow_are_ready",
+        context.assets.get("workPhone") ~= nil
+        and context.assets.getQuad("workPhone1") ~= nil
+        and context.assets.getQuad("workPhone8") ~= nil
+        and phoneQueued and phoneCall.caller == "Wall Phone Test Client"
+        and phoneAnswered and phoneAnswered.action == "answered"
+        and phoneCompleted and phoneCompleted.action == "call_completed"
+        and phoneState.workPhone.incoming == nil
+        and #phoneState.workPhone.history == 1
+        and #phoneState.clientEmails.pending == 1)
+
     local beforeDeleteCancel = love.filesystem.read("saves/slot3.lua")
     context.title.enter(captureTitleStart)
     context.input.keypressed("up", context.inputContext)
@@ -131,11 +169,35 @@ function Test.run(context, check)
     local popupAcceptX, popupAcceptY = context.jobOfferScreen.buttonCenter("accept")
     check("paperwork_mouse_accept", context.input.mousepressed(
         popupAcceptX, popupAcceptY, 1, context.inputContext))
-    check("paperwork_mouse_accept_flow", context.state.screen == "world"
+    check("paperwork_requests_written_details_without_instant_quote", context.state.screen == "world"
         and context.state.currentOffer == nil
-        and #context.state.jobs.active == 1
+        and #context.state.jobs.active == 0
+        and #context.state.clientEmails.pending == 1
         and context.world.customerSnapshot().state == "exiting"
         and context.world.customerSnapshot().decision == "accepted")
+
+    context.businessCalendar.update(context.state,
+        7 / 24 * context.config.businessCalendar.secondsPerDay)
+    check("walk_in_job_details_arrive_by_email",
+        context.jobService.updateClientEmails(context.state)
+        and #context.state.clientEmails.inbox == 1)
+    context.computerScreen.enter(context.state)
+    context.state.screen = "computer"
+    selectComputerTab(context, context.state, "estimating")
+    local sendEstimateX, sendEstimateY = context.computerScreen.emailButtonCenter("accept")
+    local sentEstimate = context.computerScreen.mousepressed(
+        context.state, sendEstimateX, sendEstimateY, 1)
+    check("walk_in_estimate_waits_for_client_reply", sentEstimate
+        and sentEstimate.action == "estimate_sent"
+        and #context.state.jobs.active == 0
+        and context.state.clientEmails.pending[1].estimateReply == true)
+    context.businessCalendar.update(context.state,
+        25 / 24 * context.config.businessCalendar.secondsPerDay)
+    check("walk_in_client_accepts_after_delayed_email_reply",
+        context.jobService.updateClientEmails(context.state)
+        and #context.state.jobs.active == 1
+        and context.state.jobs.active[1].delivery.status == "pending_arrival")
+    context.state.screen = "world"
 
     context.world.player.x, context.world.player.y = 500, 235
     context.world.update(0, 0, 0, context.assets, context.state)
@@ -143,9 +205,8 @@ function Test.run(context, check)
         and context.world.getInteraction().kind == "computer")
     context.input.keypressed("e", context.inputContext)
     check("computer_opens_from_world", context.state.screen == "computer")
-    local liveInventoryX, liveInventoryY = context.computerScreen.tabCenter("inventory")
-    check("computer_live_mouse_tab", context.input.mousepressed(
-        liveInventoryX, liveInventoryY, 1, context.inputContext)
+    check("computer_live_mouse_tab",
+        selectComputerTab(context, context.state, "inventory", true)
         and context.computerScreen.tab == "inventory")
     local liveCloseX, liveCloseY = context.computerScreen.closeCenter()
     check("computer_live_mouse_close", context.input.mousepressed(
@@ -194,8 +255,8 @@ function Test.run(context, check)
     context.input.keypressed("e", context.inputContext)
     check("truck_inventory_opens", context.state.screen == "truck_inventory")
     if os.getenv("PICTURE_SHOP_TRUCK_INVENTORY_PREVIEW") == "1" then return end
+    local deliveredPalletCount = #context.state.jobs.active[1].pallets
     local unload1X, unload1Y = context.truckInventoryScreen.unloadButtonCenter(1)
-    local unload2X, unload2Y = context.truckInventoryScreen.unloadButtonCenter(2)
     check("truck_inventory_unload_first", context.input.mousepressed(
         unload1X, unload1Y, 1, context.inputContext))
     check("first_pallet_spawns", #context.world.palletsSnapshot(context.state) == 1
@@ -207,16 +268,28 @@ function Test.run(context, check)
     local palletTooltip = context.world.palletTooltipAt(context.state, firstPhysical.x, firstPhysical.y - 30)
     check("physical_pallet_tooltip", palletTooltip
         and palletTooltip.title:find(context.state.jobs.active[1].company, 1, true)
-        and palletTooltip.line1:find("1,000 sheets", 1, true)
-        and palletTooltip.line2:find("JOB-0001-P01-PAPER", 1, true))
-    check("truck_inventory_unload_second", context.input.mousepressed(
-        unload2X, unload2Y, 1, context.inputContext))
-    context.world.update(context.config.palletLogistics.unloadDuration + 0.1,
-        0, 0, context.assets, context.state)
-    check("all_pallets_received", #context.world.palletsSnapshot(context.state) == 2
+        and palletTooltip.line1:gsub(",", ""):find(
+            tostring(context.state.jobs.active[1].pallets[1].initialSheets) .. " sheets", 1, true)
+        and palletTooltip.line2:find(
+            context.state.jobs.active[1].pallets[1].paper.id, 1, true),
+        string.format("title=%s line1=%s line2=%s",
+            tostring(palletTooltip and palletTooltip.title),
+            tostring(palletTooltip and palletTooltip.line1),
+            tostring(palletTooltip and palletTooltip.line2)))
+    local remainingUnloaded = true
+    for index = 2, deliveredPalletCount do
+        local unloadX, unloadY = context.truckInventoryScreen.unloadButtonCenter(index)
+        remainingUnloaded = context.input.mousepressed(
+            unloadX, unloadY, 1, context.inputContext) and remainingUnloaded
+        context.world.update(context.config.palletLogistics.unloadDuration + 0.1,
+            0, 0, context.assets, context.state)
+    end
+    check("truck_inventory_unload_remaining", remainingUnloaded)
+    check("all_pallets_received",
+        #context.world.palletsSnapshot(context.state) == deliveredPalletCount
         and context.state.jobs.active[1].status == "in_production"
         and context.state.jobs.active[1].delivery.status == "received"
-        and context.state.inventory.rawPallets == 2)
+        and context.state.inventory.rawPallets == deliveredPalletCount)
     local closeDoorX, closeDoorY = context.truckInventoryScreen.closeDoorCenter()
     check("truck_inventory_close_empty_cargo", context.input.mousepressed(
         closeDoorX, closeDoorY, 1, context.inputContext)
@@ -247,7 +320,7 @@ function Test.run(context, check)
         context.input.keypressed("escape", context.inputContext)
         and context.state.screen == "world")
     check("pallets_render_ready", context.state.screen == "world"
-        and #context.world.palletsSnapshot(context.state) == 2)
+        and #context.world.palletsSnapshot(context.state) == deliveredPalletCount)
     check("loose_and_carried_pallet_scale_match",
         context.config.palletLogistics.drawScale
             == context.config.palletJack.drawScale * context.config.palletJack.carriedPalletArtRatio)
@@ -296,11 +369,12 @@ function Test.run(context, check)
     context.state.palletJack.x = pickupTarget.x - 48
     context.state.palletJack.y = pickupTarget.y
     context.world.update(0, 0, 0, context.assets, context.state)
-    context.input.keypressed("e", context.inputContext)
-    check("pallet_jack_lifts_pallet", context.world.palletJackSnapshot(context.state).carriedPalletId
+    check("pallet_jack_tap_lifts_exact_skid", context.input.mousepressed(
+        pickupTarget.x, pickupTarget.y, 1, context.inputContext)
+        and context.world.palletJackSnapshot(context.state).carriedPalletId
         == pickupTarget.pallet.id
         and pickupTarget.pallet.location == "on_pallet_jack"
-        and #context.world.palletsSnapshot(context.state) == 1)
+        and #context.world.palletsSnapshot(context.state) == deliveredPalletCount - 1)
     context.state.palletJack.x, context.state.palletJack.y = 520, 500
     context.world.player.x, context.world.player.y = 520, 504
     context.world.update(0.18, 0, -1, context.assets, context.state)
@@ -317,10 +391,10 @@ function Test.run(context, check)
         context.world.palletTooltipAt(context.state, nil, nil) == nil)
     if os.getenv("PICTURE_SHOP_PALLET_JACK_PREVIEW") == "1" then return end
     context.world.update(0, 0, 0, context.assets, context.state)
-    context.input.keypressed("e", context.inputContext)
+    context.input.keypressed("l", context.inputContext)
     check("pallet_jack_lowers_pallet", context.world.palletJackSnapshot(context.state).carriedPalletId == nil
         and pickupTarget.pallet.location == "warehouse"
-        and #context.world.palletsSnapshot(context.state) == 2
+        and #context.world.palletsSnapshot(context.state) == deliveredPalletCount
         and pickupTarget.pallet.world.direction == "north"
         and pickupTarget.pallet.world.rotation == 1)
     context.state.palletJack.direction = "southeast"
@@ -363,7 +437,7 @@ function Test.run(context, check)
     context.world.player.y = context.state.cutter.y + 70
     context.world.update(0, 0, 0, context.assets, context.state)
     check("cutter_relocate_prompt_requires_active_jack", context.world.getInteraction()
-        and context.world.prompt():find("RELOCATE CUTTER", 1, true))
+        and context.world.prompt():lower():find("relocate", 1, true))
     context.input.keypressed("m", context.inputContext)
     check("cutter_relocation_begins", context.world.cutterSnapshot(context.state).moving)
     local cutterBeforeMove = context.world.cutterSnapshot(context.state)
@@ -457,14 +531,17 @@ function Test.run(context, check)
     if os.getenv("PICTURE_SHOP_COMPUTER_CALENDAR_PREVIEW") == "1" then
         context.state.screen = "computer"
         context.computerScreen.enter(context.state)
-        local x, y = context.computerScreen.tabCenter("calendar")
-        context.computerScreen.mousepressed(context.state, x, y, 1)
+        selectComputerTab(context, context.state, "calendar")
     elseif os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" then
         context.state.screen = "computer"
         context.state.money = 2400
         context.computerScreen.enter(context.state)
-        local x, y = context.computerScreen.tabCenter("inventory")
-        context.computerScreen.mousepressed(context.state, x, y, 1)
+        selectComputerTab(context, context.state, "inventory")
+    elseif os.getenv("PICTURE_SHOP_COMPUTER_WWW_PREVIEW") == "1" then
+        context.state.screen = "computer"
+        context.state.money = 12000
+        context.computerScreen.enter(context.state)
+        selectComputerTab(context, context.state, "www")
     elseif os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" then
         local emailJob = context.jobs.createOffer({
             id = "EMAIL-PREVIEW", company = "Blue Ridge Packaging",
@@ -480,8 +557,7 @@ function Test.run(context, check)
         } }
         context.state.screen = "computer"
         context.computerScreen.enter(context.state)
-        local x, y = context.computerScreen.tabCenter("email")
-        context.computerScreen.mousepressed(context.state, x, y, 1)
+        selectComputerTab(context, context.state, "estimating")
     elseif os.getenv("PICTURE_SHOP_TITLE_PREVIEW") == "1" then
         context.state.screen = "title"
     elseif os.getenv("PICTURE_SHOP_CUTTER_PREVIEW") == "1" then

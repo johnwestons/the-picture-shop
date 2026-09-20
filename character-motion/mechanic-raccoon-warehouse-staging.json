@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "character": "mechanic-raccoon-warehouse-staging",
+  "status": "Live warehouse gait; explicitly provisional, reviewed source registrations for stage-specific construction work. Work remains draft rather than production-approved.",
+  "work_presentation": {
+    "runtime_module": "src/mechanic_work_presentation.lua",
+    "clock": "Authoritative worker.workTime, clamped to 0.1 real seconds per update; stage changes reset; walking, paused, blocked and completed projects never show a tool loop.",
+    "registration": "Individual source rectangles and foot anchors; never equal-width slicing of the irregular v1 sheets. Native-engine registration previews are review outputs, not replacement source art.",
+    "approval": "All sheets remain approved=false and require the explicit Config.warehouse.provisionalArt switch.",
+    "stage_tools": ["concrete", "hammer", "drill", "paint"],
+    "source_v1_review": "Superseded at runtime: irregular v1 strips contain overlapping or clipped poses. Original source bytes remain untouched.",
+    "source_v2_review": "mechanic-work-atlas-v2.png is 1254x1254 and has 16 complete, visibly separated poses. Raised hammer and roller cross nominal row boundaries; individual crop rectangles retain them. Low-alpha fringes and tight vertical clearance in column 2 remain draft-art issues.",
+    "review_findings": "Native contact captures show complete tools/tails and planted foot anchors. The 20-strip audit has zero errors and five work-only bounding-box warnings from deliberate crouch/tool extension/raising; no clipping, detached components, exact duplicates or gait warnings. These findings do not confer production approval.",
+    "work_world_scale": "76.8 / standing body reference: concrete 277px (crouch retains its natural shorter silhouette), hammer 277px, drill 263px, paint 279px. Raised-tool bounds never determine scale.",
+    "work_timing": "Four distinct source poses per tool at 4 fps, matching the 4 Hz shared-shop replication cadence; work phase is not advancing a walking gait."
+  },
+  "provenance": {
+    "source_project": "C:/Users/johnw/OneDrive/Documents/ChatGPT/Mouse Frontier 8.10",
+    "source_locomotion": "assets/sprites/character-animations/mechanic-raccoon",
+    "source_reference": "assets/sprites/NPCS/mechanic-raccoon.png",
+    "source_motion_spec": "character-motion/mechanic-raccoon.json",
+    "source_build_spec": "character-motion/mechanic-raccoon-build.json",
+    "reuse_basis": "User explicitly requested the existing Mouse Frontier mechanic raccoon. Copies preserve source bytes; no separate art license manifest was found.",
+    "reference_sha256": "25AFCEFB5084F5D5E4C3B1BFF3A2FB157FB0AADA2B2849387E3026A8071840D2",
+    "walk_east_sha256": "C198CB99EDA4F8788D2CA9B29CD9644687ACFB51EA0D340F9150ABED177F24CF",
+    "reference_only_tool_pose": "assets/source/warehouse-expansion-v1/mechanic-raccoon/use.png",
+    "tool_pose_note": "Legacy three-frame tool-use reference; excluded from the validated gait set. Not a construction work loop."
+  },
+  "framing": {
+    "frame_width": 512,
+    "frame_height": 512,
+    "authored_ground_anchor": { "x": 256, "y": 458 },
+    "authored_visible_height": 385,
+    "picture_shop_reference_height": 256,
+    "picture_shop_draw_scale": 0.30,
+    "integration_note": "Source bytes are preserved. The strict audit checks every frame's alpha bounds and baseline. Runtime uses this character's authored ground anchor and 76.8/385 scale for approximately 76.8 world-pixel height; existing actors and machines are not enlarged."
+  },
+  "animations": {
+    "work_concrete_review": { "path": "output/warehouse-expansion-v1/mechanic-work-review/concrete-runtime-registration.png", "frame_width": 512, "frame_height": 640, "frame_count": 4, "loop": true, "role": "work_review", "fps": 4 },
+    "work_hammer_review": { "path": "output/warehouse-expansion-v1/mechanic-work-review/hammer-runtime-registration.png", "frame_width": 512, "frame_height": 640, "frame_count": 4, "loop": true, "role": "work_review", "fps": 4 },
+    "work_drill_review": { "path": "output/warehouse-expansion-v1/mechanic-work-review/drill-runtime-registration.png", "frame_width": 512, "frame_height": 640, "frame_count": 4, "loop": true, "role": "work_review", "fps": 4 },
+    "work_paint_review": { "path": "output/warehouse-expansion-v1/mechanic-work-review/paint-runtime-registration.png", "frame_width": 512, "frame_height": 640, "frame_count": 4, "loop": true, "role": "work_review", "fps": 4 },
+    "idle_east": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_northeast": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_northeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_north": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_north.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_northwest": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_northwest.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_west": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_west.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_southwest": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_southwest.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_south": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_south.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "idle_southeast": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/idle_southeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
+    "walk_east": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_northeast": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_northeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_north": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_north.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_northwest": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_northwest.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_west": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_west.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_southwest": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_southwest.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_south": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_south.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 },
+    "walk_southeast": { "path": "assets/source/warehouse-expansion-v1/mechanic-raccoon/walk_southeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 9.25 }
+  },
+  "directions": {
+    "north": { "walk_animation": "walk_north", "idle_animation": "idle_north", "mirror_x": false },
+    "northeast": { "walk_animation": "walk_northeast", "idle_animation": "idle_northeast", "mirror_x": false },
+    "east": { "walk_animation": "walk_east", "idle_animation": "idle_east", "mirror_x": false },
+    "southeast": { "walk_animation": "walk_southeast", "idle_animation": "idle_southeast", "mirror_x": false },
+    "south": { "walk_animation": "walk_south", "idle_animation": "idle_south", "mirror_x": false },
+    "southwest": { "walk_animation": "walk_southwest", "idle_animation": "idle_southwest", "mirror_x": false },
+    "west": { "walk_animation": "walk_west", "idle_animation": "idle_west", "mirror_x": false },
+    "northwest": { "walk_animation": "walk_northwest", "idle_animation": "idle_northwest", "mirror_x": false }
+  },
+  "gait": {
+    "pose_order": ["left_contact", "left_weight_down", "right_passing", "right_knee_up", "right_contact", "right_weight_down", "left_passing", "left_knee_up"],
+    "pixels_per_frame": 13,
+    "base_speed": 72,
+    "speed_multipliers": [0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06],
+    "acceleration_multipliers": [0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10],
+    "integration_note": "WarehouseConstruction uses 72 world pixels per second, 13 actual collision-resolved pixels per frame, and these shared speed/acceleration curves for all eight directions. Source-game preview speed was 185; it is not used in the warehouse."
+  },
+  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 12, "center_tolerance": 20 }
+}
