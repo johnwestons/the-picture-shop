@@ -224,11 +224,12 @@ narrow UDP firewall/network configuration. If the native provider is unavailable
 unavailable with a clear in-game error.
 
 The title screen also includes **ONLINE PLAY** for a direct two-computer test over IPv4. Choose **HOST
-ONLINE GAME** on one computer, forward UDP port `22122` from the router to that computer, and share the
-host's public IPv4 address with the other player. On the second computer choose **JOIN ONLINE GAME** and
-enter `public-address:22122`. This test path uses the existing host snapshot/session protocol and does not
-provide a global matchmaking directory; the search panel explains that manual address entry is required.
-Local Play remains the automatic same-network discovery option.
+GAME SERVER** on one computer: that running game becomes the server and listens on UDP port `22122`.
+Forward UDP port `22122` from the router to that computer, then share its public IPv4 address. On the
+second computer choose **JOIN HOST SERVER** and enter `public-address:22122`. This uses the existing host
+snapshot/session protocol; no separate rented server or account is required. There is no global matchmaking
+directory, so Internet joining uses the host address. Local Play remains the automatic same-network
+discovery option.
 
 The packaged game includes the verified native library. Development builds with a library outside the
 standard search paths can still use the optional `TPS_CRYPTO_LIBRARY` setting, but ordinary players do

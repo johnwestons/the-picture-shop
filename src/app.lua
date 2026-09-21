@@ -1449,7 +1449,7 @@ local function startLanHost(slot, playerName, internet)
         love.window.setDisplaySleepEnabled(false)
     end
     if internet == true then
-        state.message = "Online host active on UDP 22122. Forward that port to this computer, then share its public IPv4 address."
+        state.message = "This game is now the online server on UDP 22122. Forward that port here, then share this computer's public IPv4 address."
     else
         state.message = discoveryOk
             and "LAN host active. Nearby workers can find this shop automatically or join by IPv4 address."

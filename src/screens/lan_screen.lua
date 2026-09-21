@@ -112,7 +112,7 @@ function LanScreen.enter(options)
     LanScreen.pressed = nil
     LanScreen.discoveredHosts = {}
     LanScreen.discoveryMessage = LanScreen.internet
-        and "Internet search is unavailable without a matchmaking service. Use JOIN A SHOP."
+        and "No central directory is used. Enter the host server address with JOIN HOST SERVER."
         or "Searching for shops on this network..."
     LanScreen.reconnect = nil
 end
@@ -247,8 +247,8 @@ local function drawButton(name)
     love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 5, 5)
     love.graphics.setColor(0.94, 0.96, 0.93)
     local label = rect.label
-    if LanScreen.internet and name == "host" then label = "HOST ONLINE GAME" end
-    if LanScreen.internet and name == "join" then label = "JOIN ONLINE GAME" end
+    if LanScreen.internet and name == "host" then label = "HOST GAME SERVER" end
+    if LanScreen.internet and name == "join" then label = "JOIN HOST SERVER" end
     love.graphics.printf(label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
     love.graphics.setLineWidth(1)
 end
@@ -256,7 +256,7 @@ end
 function LanScreen.draw()
     love.graphics.clear(0.05, 0.06, 0.07)
     love.graphics.setColor(0.95, 0.82, 0.26)
-    love.graphics.printf(LanScreen.internet and "ONLINE MULTIPLAYER" or "LOCAL SHOP NETWORK",
+    love.graphics.printf(LanScreen.internet and "ONLINE HOST SERVER" or "LOCAL SHOP NETWORK",
         0, 44, Config.baseWidth, "center")
     love.graphics.setColor(0.76, 0.82, 0.82)
     love.graphics.printf("WINDOWS / ANDROID  •  SAME WI-FI OR PHONE HOTSPOT  •  UP TO 4 WORKERS", 0, 76, Config.baseWidth, "center")
@@ -271,13 +271,13 @@ function LanScreen.draw()
         love.graphics.printf("Selected save slot: " .. tostring(LanScreen.selectedSlot), 0, 164, Config.baseWidth, "center")
         love.graphics.setColor(0.68, 0.74, 0.73)
         love.graphics.printf(LanScreen.internet
-            and "Host forwards UDP 22122; guests enter the host's public IPv4:port."
+            and "This computer runs the game server. Forward UDP 22122; guests enter its public IPv4:port."
             or "The host runs the shop and keeps the save. Guests join as additional workers.",
             170, 198, 620, "center")
         drawButton("host")
         drawButton("join")
         love.graphics.setColor(0.67, 0.75, 0.74)
-        love.graphics.printf(LanScreen.internet and "ONLINE SEARCH / MANUAL CONNECT" or "FOUND SHOPS",
+        love.graphics.printf(LanScreen.internet and "HOST SERVER / MANUAL CONNECT" or "FOUND SHOPS",
             190, 348, 580, "left")
         if #LanScreen.discoveredHosts == 0 then
             love.graphics.printf(LanScreen.discoveryMessage, 190, 390, 580, "center")
@@ -296,13 +296,13 @@ function LanScreen.draw()
         drawButton("back")
         love.graphics.setColor(0.62, 0.68, 0.67)
         love.graphics.printf(LanScreen.internet
-            and "Search needs a matchmaking service; use JOIN ONLINE GAME."
+            and "The host game is the server; use JOIN HOST SERVER on the other computer."
             or "Tap a found shop, or use JOIN A SHOP for manual entry.",
             0, 474, Config.baseWidth, "center")
     elseif LanScreen.mode == "join" then
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf(LanScreen.internet
-            and "ONLINE HOST PUBLIC IPv4 ADDRESS AND PORT"
+            and "HOST SERVER PUBLIC IPv4 ADDRESS AND PORT"
             or "LAN HOST LOCAL IPv4 ADDRESS", 0, 184, Config.baseWidth, "center")
         love.graphics.setColor(0.035, 0.045, 0.05, 1)
         love.graphics.rectangle("fill", 225, 270, 510, 62, 4, 4)
@@ -318,7 +318,8 @@ function LanScreen.draw()
         drawButton("cancel")
     elseif LanScreen.mode == "connecting" then
         love.graphics.setColor(0.91, 0.92, 0.86)
-        love.graphics.printf("CONNECTING TO THE HOST", 0, 220, Config.baseWidth, "center")
+        love.graphics.printf(LanScreen.internet and "CONNECTING TO HOST SERVER" or "CONNECTING TO THE HOST",
+            0, 220, Config.baseWidth, "center")
         love.graphics.setColor(0.66, 0.76, 0.75)
         love.graphics.printf("The game is exchanging a compatible protocol hello and shop snapshot.", 190, 268, 580, "center")
         drawButton("cancel")
