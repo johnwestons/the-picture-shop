@@ -11,6 +11,7 @@ local LanScreen = {
     discoveredHosts = {},
     discoveryMessage = "Searching for shops on this network...",
     reconnect = nil,
+    internet = false,
 }
 
 local BUTTONS = {
@@ -64,7 +65,9 @@ end
 
 local function requestJoin()
     if LanScreen.address == "" then
-        LanScreen.message = "Enter the LAN host's local IPv4 address first."
+        LanScreen.message = LanScreen.internet
+            and "Enter the host's public IPv4 address and port first."
+            or "Enter the LAN host's local IPv4 address first."
         return false
     end
     if not LanScreen.callbacks or not LanScreen.callbacks.join then return false end
@@ -99,13 +102,18 @@ end
 
 function LanScreen.enter(options)
     LanScreen.callbacks = options or {}
+    LanScreen.internet = LanScreen.callbacks.internet == true
     LanScreen.selectedSlot = tonumber(LanScreen.callbacks.slot) or 1
     LanScreen.mode = "menu"
     LanScreen.address = ""
-    LanScreen.message = "The host owns the save. Guests need only the host device's local IPv4 address."
+    LanScreen.message = LanScreen.internet
+        and "The host owns the save. Guests connect using the host's public IPv4:port."
+        or "The host owns the save. Guests need only the host device's local IPv4 address."
     LanScreen.pressed = nil
     LanScreen.discoveredHosts = {}
-    LanScreen.discoveryMessage = "Searching for shops on this network..."
+    LanScreen.discoveryMessage = LanScreen.internet
+        and "Internet search is unavailable without a matchmaking service. Use JOIN A SHOP."
+        or "Searching for shops on this network..."
     LanScreen.reconnect = nil
 end
 
@@ -238,14 +246,18 @@ local function drawButton(name)
     love.graphics.setColor(0.86, 0.70, 0.30, 1)
     love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 5, 5)
     love.graphics.setColor(0.94, 0.96, 0.93)
-    love.graphics.printf(rect.label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
+    local label = rect.label
+    if LanScreen.internet and name == "host" then label = "HOST ONLINE GAME" end
+    if LanScreen.internet and name == "join" then label = "JOIN ONLINE GAME" end
+    love.graphics.printf(label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
     love.graphics.setLineWidth(1)
 end
 
 function LanScreen.draw()
     love.graphics.clear(0.05, 0.06, 0.07)
     love.graphics.setColor(0.95, 0.82, 0.26)
-    love.graphics.printf("LOCAL SHOP NETWORK", 0, 44, Config.baseWidth, "center")
+    love.graphics.printf(LanScreen.internet and "ONLINE MULTIPLAYER" or "LOCAL SHOP NETWORK",
+        0, 44, Config.baseWidth, "center")
     love.graphics.setColor(0.76, 0.82, 0.82)
     love.graphics.printf("WINDOWS / ANDROID  •  SAME WI-FI OR PHONE HOTSPOT  •  UP TO 4 WORKERS", 0, 76, Config.baseWidth, "center")
 
@@ -258,11 +270,15 @@ function LanScreen.draw()
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf("Selected save slot: " .. tostring(LanScreen.selectedSlot), 0, 164, Config.baseWidth, "center")
         love.graphics.setColor(0.68, 0.74, 0.73)
-        love.graphics.printf("The host runs the shop and keeps the save. Guests join as additional workers.", 170, 198, 620, "center")
+        love.graphics.printf(LanScreen.internet
+            and "Host forwards UDP 22122; guests enter the host's public IPv4:port."
+            or "The host runs the shop and keeps the save. Guests join as additional workers.",
+            170, 198, 620, "center")
         drawButton("host")
         drawButton("join")
         love.graphics.setColor(0.67, 0.75, 0.74)
-        love.graphics.printf("FOUND SHOPS", 190, 348, 580, "left")
+        love.graphics.printf(LanScreen.internet and "ONLINE SEARCH / MANUAL CONNECT" or "FOUND SHOPS",
+            190, 348, 580, "left")
         if #LanScreen.discoveredHosts == 0 then
             love.graphics.printf(LanScreen.discoveryMessage, 190, 390, 580, "center")
         end
@@ -279,11 +295,15 @@ function LanScreen.draw()
         end
         drawButton("back")
         love.graphics.setColor(0.62, 0.68, 0.67)
-        love.graphics.printf("Tap a found shop, or use JOIN A SHOP for manual entry.",
+        love.graphics.printf(LanScreen.internet
+            and "Search needs a matchmaking service; use JOIN ONLINE GAME."
+            or "Tap a found shop, or use JOIN A SHOP for manual entry.",
             0, 474, Config.baseWidth, "center")
     elseif LanScreen.mode == "join" then
         love.graphics.setColor(0.91, 0.92, 0.86)
-        love.graphics.printf("LAN HOST LOCAL IPv4 ADDRESS", 0, 184, Config.baseWidth, "center")
+        love.graphics.printf(LanScreen.internet
+            and "ONLINE HOST PUBLIC IPv4 ADDRESS AND PORT"
+            or "LAN HOST LOCAL IPv4 ADDRESS", 0, 184, Config.baseWidth, "center")
         love.graphics.setColor(0.035, 0.045, 0.05, 1)
         love.graphics.rectangle("fill", 225, 270, 510, 62, 4, 4)
         love.graphics.setColor(0.86, 0.70, 0.30, 1)
@@ -291,7 +311,9 @@ function LanScreen.draw()
         love.graphics.rectangle("line", 225, 270, 510, 62, 4, 4)
         love.graphics.setLineWidth(1)
         love.graphics.setColor(LanScreen.address == "" and { 0.48, 0.54, 0.54 } or { 0.94, 0.96, 0.93 })
-        love.graphics.print(LanScreen.address == "" and "Example: 192.168.1.246" or LanScreen.address, 246, 292)
+        love.graphics.print(LanScreen.address == "" and
+            (LanScreen.internet and "Example: 203.0.113.10:22122" or "Example: 192.168.1.246")
+            or LanScreen.address, 246, 292)
         drawButton("connect")
         drawButton("cancel")
     elseif LanScreen.mode == "connecting" then

@@ -190,6 +190,7 @@ end
 
 local returnToTitle
 local openLocalPlay
+local openOnlinePlay
 local openDirectPlay
 local openDirectInvite
 local closeDirectConnection
@@ -1408,7 +1409,7 @@ local function prepareHostSave(slot)
     return payload, mode
 end
 
-local function startLanHost(slot, playerName)
+local function startLanHost(slot, playerName, internet)
     local payload, mode, loadError = prepareHostSave(slot)
     if not payload then return false, loadError end
     workshopAuthority = createWorkshopAuthority()
@@ -1429,10 +1430,13 @@ local function startLanHost(slot, playerName)
     end
     lanReconnect:cancel(true)
     lanReconnectArmed = false
-    local discoveryOk, discoveryError = lanDiscovery:startHost({
-        gamePort = 22122,
-        name = hostName .. " - Slot " .. tostring(slot),
-    })
+    local discoveryOk, discoveryError = true, nil
+    if internet ~= true then
+        discoveryOk, discoveryError = lanDiscovery:startHost({
+            gamePort = 22122,
+            name = hostName .. " - Slot " .. tostring(slot),
+        })
+    end
     local started, startError = startGame(payload, mode)
     if not started then
         lanDiscovery:stop()
@@ -1444,10 +1448,14 @@ local function startLanHost(slot, playerName)
     if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
         love.window.setDisplaySleepEnabled(false)
     end
-    state.message = discoveryOk
-        and "LAN host active. Nearby workers can find this shop automatically or join by IPv4 address."
-        or ("LAN host active at " .. tostring(multiplayer.localAddress or "this device")
-            .. ". Automatic discovery is unavailable: " .. tostring(discoveryError))
+    if internet == true then
+        state.message = "Online host active on UDP 22122. Forward that port to this computer, then share its public IPv4 address."
+    else
+        state.message = discoveryOk
+            and "LAN host active. Nearby workers can find this shop automatically or join by IPv4 address."
+            or ("LAN host active at " .. tostring(multiplayer.localAddress or "this device")
+                .. ". Automatic discovery is unavailable: " .. tostring(discoveryError))
+    end
     return true
 end
 
@@ -1458,7 +1466,7 @@ local function startLanSearch()
     return ok, message
 end
 
-local function startLanClient(address, playerName, reconnecting)
+local function startLanClient(address, playerName, reconnecting, internet)
     if reconnecting ~= true then
         lanReconnect:cancel(false)
         lanReconnect:remember(address, playerName)
@@ -1469,7 +1477,7 @@ local function startLanClient(address, playerName, reconnecting)
         name = playerName,
         character = Config.player.character,
     })
-    if not ok and reconnecting ~= true then startLanSearch() end
+    if not ok and reconnecting ~= true and internet ~= true then startLanSearch() end
     return ok, message
 end
 
@@ -1503,10 +1511,48 @@ openLocalPlay = function(slot)
             multiplayer:stop("Leaving Local Play")
             state.screen = "title"
             TitleScreen.enter(startGame, openLocalPlay,
-                directPlayEnabled and openDirectPlay or nil)
+                directPlayEnabled and openDirectPlay or nil, openOnlinePlay)
         end,
     })
     startLanSearch()
+end
+
+openOnlinePlay = function(slot)
+    local sessionClean, sessionError = multiplayer:stop("Opening Online Play")
+    clearWorkshopAuthority("session_closed")
+    lanReconnect:cancel(true)
+    lanReconnectArmed = false
+    local connectionClean, connectionError = closeDirectConnection()
+    local hostClean, hostError = closeDirectHostComposite()
+    if not sessionClean or not connectionClean or not hostClean then
+        state.screen = "lan"
+        LanScreen.showError(sessionError or connectionError or hostError)
+        return false
+    end
+    state.screen = "lan"
+    LanScreen.enter({
+        slot = slot,
+        internet = true,
+        host = function(selectedSlot, playerName)
+            return startLanHost(selectedSlot, playerName, true)
+        end,
+        join = function(address, playerName, reconnecting)
+            return startLanClient(address, playerName, reconnecting, true)
+        end,
+        cancel = function()
+            lanReconnect:cancel(true)
+            lanReconnectArmed = false
+            multiplayer:stop("Online connection cancelled")
+        end,
+        back = function()
+            lanReconnect:cancel(true)
+            lanReconnectArmed = false
+            multiplayer:stop("Leaving Online Play")
+            state.screen = "title"
+            TitleScreen.enter(startGame, openLocalPlay,
+                directPlayEnabled and openDirectPlay or nil, openOnlinePlay)
+        end,
+    })
 end
 
 closeDirectConnection = function()
@@ -1714,7 +1760,7 @@ openDirectPlay = function(slot)
             end
             state.screen = "title"
             TitleScreen.enter(startGame, openLocalPlay,
-                directPlayEnabled and openDirectPlay or nil)
+                directPlayEnabled and openDirectPlay or nil, openOnlinePlay)
             return true
         end,
     })
@@ -1770,7 +1816,7 @@ returnToTitle = function()
         state.message = sessionError or connectionError or hostError
     end
     TitleScreen.enter(startGame, openLocalPlay,
-        directPlayEnabled and openDirectPlay or nil)
+        directPlayEnabled and openDirectPlay or nil, openOnlinePlay)
 end
 
 local function closeOptions()
@@ -2532,7 +2578,7 @@ function App.load()
     if #state.assetErrors == 0 then
         World.load()
         TitleScreen.enter(startGame, openLocalPlay,
-            directPlayEnabled and openDirectPlay or nil)
+            directPlayEnabled and openDirectPlay or nil, openOnlinePlay)
     else
         state.screen = "asset_error"
         state.message = string.format("Startup stopped: %d required asset error(s).", #state.assetErrors)

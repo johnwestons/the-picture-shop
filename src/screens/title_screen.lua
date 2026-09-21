@@ -3,24 +3,26 @@ local Save = require("src.save")
 local Ui = require("src.screens.ui")
 
 local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil,
-    onLocal = nil, onDirect = nil, hover = nil, pressed = nil }
+    onLocal = nil, onOnline = nil, onDirect = nil, hover = nil, pressed = nil }
 local BUTTONS = {
     new = { x = 100, y = 520, width = 170, height = 54, label = "NEW SHOP" },
     continue = { x = 290, y = 520, width = 170, height = 54, label = "CONTINUE" },
     delete = { x = 480, y = 520, width = 170, height = 54, label = "DELETE SLOT" },
     quit = { x = 670, y = 520, width = 170, height = 54, label = "QUIT" },
-    localPlay = { x = 365, y = 582, width = 230, height = 50, label = "LOCAL PLAY" },
-    directPlay = { x = 495, y = 582, width = 230, height = 50, label = "DIRECT PLAY" },
+    localPlay = { x = 245, y = 582, width = 200, height = 50, label = "LOCAL PLAY" },
+    onlinePlay = { x = 465, y = 582, width = 200, height = 50, label = "ONLINE PLAY" },
+    directPlay = { x = 685, y = 582, width = 200, height = 50, label = "DIRECT PLAY" },
     yes = { x = 330, y = 386, width = 130, height = 48, label = "DELETE" },
     no = { x = 500, y = 386, width = 130, height = 48, label = "CANCEL" },
 }
-local DUAL_LOCAL_PLAY = { x = 235, y = 582, width = 230, height = 50, label = "LOCAL PLAY" }
+local SOLO_LOCAL_PLAY = { x = 365, y = 582, width = 230, height = 50, label = "LOCAL PLAY" }
 
 local inside = Ui.contains
 local function slotRect(index) return { x = 116, y = 236 + (index - 1) * 72, width = 728, height = 56 } end
 local function buttonRect(name)
     if name == "directPlay" and not TitleScreen.onDirect then return nil end
-    if name == "localPlay" and TitleScreen.onDirect then return DUAL_LOCAL_PLAY end
+    if name == "onlinePlay" and not TitleScreen.onOnline then return nil end
+    if name == "localPlay" and not TitleScreen.onDirect then return SOLO_LOCAL_PLAY end
     return BUTTONS[name]
 end
 local function buttonAt(x, y)
@@ -30,10 +32,11 @@ local function buttonAt(x, y)
     end
 end
 
-function TitleScreen.enter(onStart, onLocal, onDirect)
+function TitleScreen.enter(onStart, onLocal, onDirect, onOnline)
     TitleScreen.selected, TitleScreen.mode, TitleScreen.message = 1, "normal", ""
     TitleScreen.hover, TitleScreen.pressed = nil, nil
-    TitleScreen.onStart, TitleScreen.onLocal, TitleScreen.onDirect = onStart, onLocal, onDirect
+    TitleScreen.onStart, TitleScreen.onLocal, TitleScreen.onDirect, TitleScreen.onOnline =
+        onStart, onLocal, onDirect, onOnline
 end
 function TitleScreen.slots() return Save.listSlots() end
 function TitleScreen.update(_) end
@@ -132,6 +135,15 @@ local function openDirectPlay()
     return true
 end
 
+local function openOnlinePlay()
+    if not TitleScreen.onOnline then
+        TitleScreen.message = "Online Play is unavailable in this build."
+        return false
+    end
+    TitleScreen.onOnline(TitleScreen.selected)
+    return true
+end
+
 function TitleScreen.keypressed(key)
     if TitleScreen.mode ~= "normal" then
         if key == "y" or key == "return" or key == "kpenter" then return confirmPending() end
@@ -145,6 +157,7 @@ function TitleScreen.keypressed(key)
     if key == "c" or key == "return" or key == "kpenter" then return continueGame() end
     if key == "d" then return requestDelete() end
     if key == "l" then return openLocalPlay() end
+    if key == "o" then return openOnlinePlay() end
     if key == "i" then return openDirectPlay() end
     if key == "q" or key == "escape" then love.event.quit(); return true end
     return false
@@ -167,6 +180,7 @@ function TitleScreen.mousepressed(x, y, button)
     if action == "continue" then continueGame(); return true end
     if action == "delete" then return requestDelete() end
     if action == "localPlay" then return openLocalPlay() end
+    if action == "onlinePlay" then return openOnlinePlay() end
     if action == "directPlay" then return openDirectPlay() end
     if action == "quit" then love.event.quit(); return true end
     return false
@@ -229,15 +243,14 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         drawButton(assets, "new", false); drawButton(assets, "continue", false)
         drawButton(assets, "delete", true); drawButton(assets, "quit", true)
         drawButton(assets, "localPlay", false)
+        if TitleScreen.onOnline then drawButton(assets, "onlinePlay", false) end
         if TitleScreen.onDirect then drawButton(assets, "directPlay", false) end
     end
     love.graphics.setColor(0.68, 0.72, 0.70)
     local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
     love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message
         or (mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
-            or (TitleScreen.onDirect
-                and "Mouse or W/S/Arrows | N New | C Continue | D Delete | L Local | I Direct | Q Quit"
-                or "Mouse or W/S/Arrows | N New | C Continue | D Delete | L Local | Q Quit")),
+            or "Mouse or W/S/Arrows | N New | C Continue | D Delete | L Local | O Online | I Direct | Q Quit"),
         0, 648, Config.baseWidth, "center")
 end
 

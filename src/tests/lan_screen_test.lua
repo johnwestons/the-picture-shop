@@ -249,6 +249,15 @@ function Test.run(context, check)
     check("lan_screen_title_local_play_uses_selected_save_slot",
         openedByKeyboard == true and selectedSlot == 2)
 
+    local onlineSlot
+    TitleScreen.enter(function() end, function() end, nil,
+        function(slot) onlineSlot = slot end)
+    TitleScreen.keypressed("down")
+    local openedOnline = TitleScreen.keypressed("o")
+    check("title_screen_exposes_online_play_with_selected_save_slot",
+        openedOnline == true and onlineSlot == 2
+        and TitleScreen.buttonCenter("onlinePlay") ~= nil)
+
     local hostSlot, hostName, joinAddress, joinName, cancellations = nil, nil, nil, nil, 0
     LanScreen.enter({
         slot = 3,
@@ -265,6 +274,28 @@ function Test.run(context, check)
     check("lan_screen_role_copy_allows_android_or_windows_host",
         LanScreen.message:find("host device", 1, true) ~= nil
         and LanScreen.message:find("host PC", 1, true) == nil)
+
+    local onlineAddress
+    LanScreen.enter({
+        slot = 4,
+        internet = true,
+        host = function() return true end,
+        join = function(address) onlineAddress = address; return true end,
+    })
+    LanScreen.keypressed("j")
+    LanScreen.textinput("203.0.113.10:22122")
+    local onlineJoin = LanScreen.keypressed("return")
+    check("online_screen_accepts_public_ipv4_and_port",
+        onlineJoin == true and onlineAddress == "203.0.113.10:22122"
+        and LanScreen.mode == "connecting"
+        and LanScreen.message:find("Connecting", 1, true) ~= nil)
+    LanScreen.enter({
+        slot = 3,
+        host = function(slot, name)
+            hostSlot, hostName = slot, name
+            return true
+        end,
+    })
     check("lan_screen_host_uses_selected_slot_and_platform_worker_name",
         LanScreen.keypressed("h") == true and hostSlot == 3
         and type(hostName) == "string" and hostName:find("Worker", 1, true) ~= nil)

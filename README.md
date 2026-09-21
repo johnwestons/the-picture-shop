@@ -223,6 +223,13 @@ guest still need usable global IPv6 addresses, the expiring two-code flow, host 
 narrow UDP firewall/network configuration. If the native provider is unavailable, Direct Play remains
 unavailable with a clear in-game error.
 
+The title screen also includes **ONLINE PLAY** for a direct two-computer test over IPv4. Choose **HOST
+ONLINE GAME** on one computer, forward UDP port `22122` from the router to that computer, and share the
+host's public IPv4 address with the other player. On the second computer choose **JOIN ONLINE GAME** and
+enter `public-address:22122`. This test path uses the existing host snapshot/session protocol and does not
+provide a global matchmaking directory; the search panel explains that manual address entry is required.
+Local Play remains the automatic same-network discovery option.
+
 The packaged game includes the verified native library. Development builds with a library outside the
 standard search paths can still use the optional `TPS_CRYPTO_LIBRARY` setting, but ordinary players do
 not need any command-line setup. The host and guest must each enter their own global IPv6 address and
