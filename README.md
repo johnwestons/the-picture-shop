@@ -215,27 +215,18 @@ one-connection invitation, so reconnecting requires fresh codes. Valid authentic
 rate-limited before native handshake allocation, while wrong invitation prefilters allocate no crypto state.
 One Direct host supports up to three guests, for four players total. Each guest is admitted with a
 sequential fresh invitation; an invitation is not shared across multiple joins.
-Local Play still uses its original transport. The normal title screen does not expose Direct Play while
-the bundled native provider remains `productionReady = false`.
+Local Play still uses its original transport. When the bundled native provider passes its startup
+self-test, the title screen exposes every Direct Play option automatically; no environment variable,
+console command, or confirmation prompt is required. The provider remains marked as an engineering
+candidate (`productionReady = false`) while this multiplayer test build is being exercised. The host and
+guest still need usable global IPv6 addresses, the expiring two-code flow, host approval, and the required
+narrow UDP firewall/network configuration. If the native provider is unavailable, Direct Play remains
+unavailable with a clear in-game error.
 
-For two-computer engineering tests only, Direct Play can be explicitly exposed by setting
-`PICTURE_SHOP_ENABLE_DIRECT_TEST=1` before launching the game. This does not change the provider's
-`productionReady` marker or enable Direct Play in packaged/release builds; it creates a clearly marked
-engineering proxy only when the verified native candidate reports `engineeringReady = true`. The host
-and guest still need usable global IPv6 addresses, the expiring two-code flow, host approval, and the
-required narrow UDP firewall/network configuration. If the native provider is unavailable, the menu stays
-locked.
-
-Windows engineering launch example (run in the game folder):
-
-```powershell
-$env:PICTURE_SHOP_ENABLE_DIRECT_TEST = '1'
-& 'C:\Program Files\LOVE\love.exe' .
-```
-
-If the native DLL is outside the paths searched by `src/net/crypto_native.lua`, set
-`$env:TPS_CRYPTO_LIBRARY` to the verified `tps_crypto.dll` before launching. The host and guest must
-each enter their own global IPv6 address and exchange fresh, expiring host/reply codes. A public IPv4
+The packaged game includes the verified native library. Development builds with a library outside the
+standard search paths can still use the optional `TPS_CRYPTO_LIBRARY` setting, but ordinary players do
+not need any command-line setup. The host and guest must each enter their own global IPv6 address and
+exchange fresh, expiring host/reply codes. A public IPv4
 address alone is not sufficient for this path; IPv4 requires the separate guarded mapping/forwarding flow.
 
 The guarded IPv4 flow remains available for a different host network with a public address. It uses a

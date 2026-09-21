@@ -140,16 +140,16 @@ number generators are never used for invitation keys or cryptographic nonces.
   the canonical cleanup-boolean casing fix, so it is recorded as a diagnostic observation rather than frozen
   acceptance evidence. The exact kit used for the attempt is retained under
   `output/public-ipv4-evidence/kit-7a28a30228c1f416/`.
-- Direct Play remains disabled. The normal title screen receives no Direct callback while the bundled
-  provider remains `productionReady = false`. The broader residential/mobile network matrix, live router
+- Direct Play is exposed automatically when the bundled native provider passes its startup self-test.
+  The provider remains marked `productionReady = false` because this is still an engineering candidate.
+  The broader residential/mobile network matrix, live router
   mapping on a supported public-IPv4 network, Android x86_64 and physical 16 KiB-kernel runs,
   repeat/independent packet-capture review, and external security review are still release gates.
-- The source now has an explicit engineering-only opt-in for two-computer testing: set
-  `PICTURE_SHOP_ENABLE_DIRECT_TEST=1` before launching a build that has a verified native candidate
-  (`engineeringReady = true`). The app exposes Direct Play through a proxy object only in that opt-in
-  process; `CryptoNative.productionReady` remains false and packaged/release builds remain locked by
-  default. This is not a production approval and does not remove the global-IPv6, firewall, routing,
-  host-approval, cleanup, or security-review requirements.
+- The app exposes Direct Play through an engineering proxy whenever the verified native candidate reports
+  `engineeringReady = true`; no launch flag, code command, or prompt is required. `CryptoNative.productionReady`
+  remains false, so this is not a production approval and does not remove the global-IPv6, firewall,
+  routing, host-approval, cleanup, or security-review requirements. If the native provider is unavailable,
+  the Direct Play options remain unavailable rather than bypassing the cryptographic check.
 
 ## No-service reachability plan
 

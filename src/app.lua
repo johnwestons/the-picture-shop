@@ -105,17 +105,11 @@ local warehouseControls
 local warehousePendingIntent
 local warehouseSaveClock = 0
 
-local function environmentValue(name)
-    if not os or type(os.getenv) ~= "function" then return nil end
-    local ok, value = pcall(os.getenv, name)
-    return ok and value or nil
-end
-
-local directPlayMode = DirectGate.mode(CryptoNative, environmentValue)
+local directPlayMode = DirectGate.mode(CryptoNative)
 local directPlayEnabled = directPlayMode ~= nil
 
 local function directProvider()
-    return DirectGate.provider(CryptoNative, environmentValue)
+    return DirectGate.provider(CryptoNative)
 end
 
 MachineFleet.setSaleGuard(function(currentState, item)
@@ -1581,7 +1575,7 @@ local function createDirectConnection(loopbackHostPort)
     if not ok then return nil, "Direct Internet sockets are unavailable on this device." end
     local provider = directProvider()
     if not provider then
-        return nil, "Direct Play is unavailable. Use the production provider or set PICTURE_SHOP_ENABLE_DIRECT_TEST=1 for an engineering build."
+        return nil, "Direct Play is unavailable because the native provider could not be verified on this device."
     end
     return DirectConnection.new({
         provider = provider,
