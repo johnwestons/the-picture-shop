@@ -14,6 +14,7 @@ local Customer = require("src.customer")
 local CryptoNative = require("src.net.crypto_native")
 local DirectConnection = require("src.net.direct_connection")
 local DirectCompositeTransport = require("src.net.transport_direct_composite")
+local DirectGate = require("src.net.direct_gate")
 local DirectScreen = require("src.screens.direct_screen")
 local Hud = require("src.screens.hud")
 local Input = require("src.input")
@@ -103,6 +104,19 @@ local serviceNetworkBeforeMachine
 local warehouseControls
 local warehousePendingIntent
 local warehouseSaveClock = 0
+
+local function environmentValue(name)
+    if not os or type(os.getenv) ~= "function" then return nil end
+    local ok, value = pcall(os.getenv, name)
+    return ok and value or nil
+end
+
+local directPlayMode = DirectGate.mode(CryptoNative, environmentValue)
+local directPlayEnabled = directPlayMode ~= nil
+
+local function directProvider()
+    return DirectGate.provider(CryptoNative, environmentValue)
+end
 
 MachineFleet.setSaleGuard(function(currentState, item)
     local placementKey = item and MachineFleet.definitions[item.modelId]
@@ -1495,7 +1509,7 @@ openLocalPlay = function(slot)
             multiplayer:stop("Leaving Local Play")
             state.screen = "title"
             TitleScreen.enter(startGame, openLocalPlay,
-                CryptoNative.productionReady == true and openDirectPlay or nil)
+                directPlayEnabled and openDirectPlay or nil)
         end,
     })
     startLanSearch()
@@ -1565,8 +1579,12 @@ end
 local function createDirectConnection(loopbackHostPort)
     local ok, socketModule = pcall(require, "socket")
     if not ok then return nil, "Direct Internet sockets are unavailable on this device." end
+    local provider = directProvider()
+    if not provider then
+        return nil, "Direct Play is unavailable. Use the production provider or set PICTURE_SHOP_ENABLE_DIRECT_TEST=1 for an engineering build."
+    end
     return DirectConnection.new({
-        provider = CryptoNative,
+        provider = provider,
         socketModule = socketModule,
         loopbackHostPort = loopbackHostPort,
     })
@@ -1702,7 +1720,7 @@ openDirectPlay = function(slot)
             end
             state.screen = "title"
             TitleScreen.enter(startGame, openLocalPlay,
-                CryptoNative.productionReady == true and openDirectPlay or nil)
+                directPlayEnabled and openDirectPlay or nil)
             return true
         end,
     })
@@ -1758,7 +1776,7 @@ returnToTitle = function()
         state.message = sessionError or connectionError or hostError
     end
     TitleScreen.enter(startGame, openLocalPlay,
-        CryptoNative.productionReady == true and openDirectPlay or nil)
+        directPlayEnabled and openDirectPlay or nil)
 end
 
 local function closeOptions()
@@ -2520,7 +2538,7 @@ function App.load()
     if #state.assetErrors == 0 then
         World.load()
         TitleScreen.enter(startGame, openLocalPlay,
-            CryptoNative.productionReady == true and openDirectPlay or nil)
+            directPlayEnabled and openDirectPlay or nil)
     else
         state.screen = "asset_error"
         state.message = string.format("Startup stopped: %d required asset error(s).", #state.assetErrors)

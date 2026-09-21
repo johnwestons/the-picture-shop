@@ -218,6 +218,26 @@ sequential fresh invitation; an invitation is not shared across multiple joins.
 Local Play still uses its original transport. The normal title screen does not expose Direct Play while
 the bundled native provider remains `productionReady = false`.
 
+For two-computer engineering tests only, Direct Play can be explicitly exposed by setting
+`PICTURE_SHOP_ENABLE_DIRECT_TEST=1` before launching the game. This does not change the provider's
+`productionReady` marker or enable Direct Play in packaged/release builds; it creates a clearly marked
+engineering proxy only when the verified native candidate reports `engineeringReady = true`. The host
+and guest still need usable global IPv6 addresses, the expiring two-code flow, host approval, and the
+required narrow UDP firewall/network configuration. If the native provider is unavailable, the menu stays
+locked.
+
+Windows engineering launch example (run in the game folder):
+
+```powershell
+$env:PICTURE_SHOP_ENABLE_DIRECT_TEST = '1'
+& 'C:\Program Files\LOVE\love.exe' .
+```
+
+If the native DLL is outside the paths searched by `src/net/crypto_native.lua`, set
+`$env:TPS_CRYPTO_LIBRARY` to the verified `tps_crypto.dll` before launching. The host and guest must
+each enter their own global IPv6 address and exchange fresh, expiring host/reply codes. A public IPv4
+address alone is not sufficient for this path; IPv4 requires the separate guarded mapping/forwarding flow.
+
 The guarded IPv4 flow remains available for a different host network with a public address. It uses a
 random port and matching temporary rule name,
 a hidden WAN-address prompt, an endpoint/key-bearing build tree outside the OneDrive project that is

@@ -21,6 +21,7 @@ local DOMAIN_SUITES = {
     require("src.tests.direct_bridge_test"),
     require("src.tests.transport_ipv6_bridge_test"),
     require("src.tests.direct_connection_test"),
+    require("src.tests.direct_gate_test"),
     require("src.tests.direct_transport_test"),
     require("src.tests.direct_session_test"),
     require("src.tests.network_protocol_test"),
