@@ -1,5 +1,5 @@
--- Candidate continuous lift art. Other headings keep their reviewed four-pose
--- strips until equivalent layers are authored and checked in game.
+-- Candidate continuous lift art for all eight headings. The reviewed four-pose
+-- strips remain as a fallback when a layer cannot load.
 local Layered = {}
 local root = "assets/source/warehouse-expansion-v1/forklift-layer-study/"
 local textureWidth, textureHeight = 1536, 1024
@@ -36,6 +36,28 @@ local studies = {
         carriageLow = 150, carriageTravel = 563,
         loadX = 1000, loadY = 440,
     },
+    front = {
+        manned = root .. "south-fixed-manned-v1.png",
+        empty = root .. "south-fixed-empty-v1.png",
+        carriage = root .. "south-carriage-v1.png",
+        bodyOriginX = 768, bodyOriginY = 965,
+        emptyOriginX = 768, emptyOriginY = 965, emptyScale = 1,
+        carriageOriginX = 782, carriageOriginY = 792,
+        carriageScale = 0.65, carriageX = 0,
+        carriageLow = 0, carriageTravel = 846,
+        loadX = 768, loadY = 720,
+    },
+    rear = {
+        manned = root .. "north-fixed-manned-v1.png",
+        empty = root .. "north-fixed-empty-v1.png",
+        carriage = root .. "north-carriage-v1.png",
+        bodyOriginX = 768, bodyOriginY = 990,
+        emptyOriginX = 768, emptyOriginY = 990, emptyScale = 1,
+        carriageOriginX = 768, carriageOriginY = 990,
+        carriageX = 0, carriageLow = 300, carriageTravel = 510,
+        loadX = 768, loadY = 600,
+        frontClipY = 480,
+    },
 }
 local directions = {
     east = { study = studies.side, mirror = 1 },
@@ -44,6 +66,8 @@ local directions = {
     southwest = { study = studies.frontDiagonal, mirror = -1 },
     northeast = { study = studies.rearDiagonal, mirror = 1 },
     northwest = { study = studies.rearDiagonal, mirror = -1 },
+    south = { study = studies.front, mirror = 1 },
+    north = { study = studies.rear, mirror = 1 },
 }
 
 local function finite(value)
@@ -89,6 +113,7 @@ function Layered.plan(vehicle, options)
         loadY = vehicle.y + (study.loadY + shift
             - study.carriageOriginY) * carriageScale,
         carriedPalletId = vehicle.carriedPalletId,
+        frontClipY = study.frontClipY,
         approved = false, review = true,
     }
 end
@@ -116,10 +141,19 @@ function Layered.draw(vehicle, getImage, options, graphics)
         graphics.draw(body, plan.x, plan.y, 0,
             plan.mirror * plan.bodyScale, plan.bodyScale,
             plan.bodyOriginX, plan.bodyOriginY)
+        if plan.frontClipY then
+            local clipBottom = plan.y + (plan.frontClipY - plan.bodyOriginY) * plan.bodyScale
+            graphics.stencil(function()
+                graphics.rectangle("fill", plan.x - 1000, plan.y - 1000,
+                    2000, clipBottom - (plan.y - 1000))
+            end, "replace", 1)
+            graphics.setStencilTest("equal", 1)
+        end
         graphics.draw(forks, plan.x + plan.mirror * plan.carriageX * plan.carriageScale,
             plan.y + plan.carriageShift * plan.carriageScale, 0,
             plan.mirror * plan.carriageScale, plan.carriageScale,
             plan.carriageOriginX, plan.carriageOriginY)
+        if plan.frontClipY then graphics.setStencilTest() end
     end)
     graphics.pop()
     if not okay then return false, drawError end

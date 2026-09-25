@@ -55,10 +55,24 @@ function love.draw()
         g.setColor(0.15, 0.85, 0.9, 0.7)
         g.line(left, 590, left + 400, 590)
         g.setColor(1, 1, 1)
+        local function drawCarriage()
+            g.draw(carriage, x + forkX * scale,
+                y + (forkLow - forkTravel * height) * scale, 0,
+                scale * forkScale, scale * forkScale)
+        end
+        if os.getenv("PICTURE_SHOP_PREVIEW_BEHIND") == "1" then drawCarriage() end
         g.draw(body, x, y, 0, scale, scale)
-        g.draw(carriage, x + forkX * scale,
-            y + (forkLow - forkTravel * height) * scale, 0,
-            scale * forkScale, scale * forkScale)
+        if os.getenv("PICTURE_SHOP_PREVIEW_BEHIND") == "clip" then
+            g.stencil(function()
+                g.rectangle("fill", left, 110, 400,
+                    590 + (480 - originY) * scale - 110)
+            end, "replace", 1)
+            g.setStencilTest("greater", 0)
+            drawCarriage()
+            g.setStencilTest()
+        elseif os.getenv("PICTURE_SHOP_PREVIEW_BEHIND") ~= "1" then
+            drawCarriage()
+        end
         g.printf(string.format("FORK HEIGHT %.0f%%", height * 100), left, 615, 400, "center")
     end
     if not captured then

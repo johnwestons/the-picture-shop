@@ -56,9 +56,9 @@ Loaded in-engine reviews on September 24 captured all eight directions at 0%, 50
 
 The game and lift lab now use transparency-aware bilinear sampling for these four-cell sheets. It prevents color stored in fully transparent pixels from bleeding into the silhouette, and clamps samples within the selected cell so adjacent poses cannot leak across a frame edge. The PNG sources are unchanged and still need direct alpha-edge review before approval; physical mobile performance is unverified.
 
-### Continuous side-view lift study — September 24
+### Continuous eight-direction lift study — September 24
 
-[Separate lift layers](forklift-layer-study/prompts.json) now provide fixed occupied and empty-seat bodies with moving carriages for east, southeast and northeast. West, southwest and northwest mirror those respective layers. The development-art renderer uses these six headings while lifting, so their bodies and wheels stay still as the carriage follows actual continuous height. The original four-pose strips remain the loading fallback and still serve north and south. Isolated previews and loaded low/mid/high in-engine captures were inspected. These generated layers are **not approved production art**. Empty/occupied body geometry still differs slightly, and equivalent layers for north and south, complete cargo occlusion and device review remain open.
+[Separate lift layers](forklift-layer-study/prompts.json) now provide fixed occupied and empty-seat bodies with moving carriages for all eight headings. West, southwest and northwest mirror the east, southeast and northeast layers. The north layer rises behind the cab guard and is clipped below its roof line; south uses a narrower front-facing carriage. The development-art renderer keeps the bodies and wheels still while the carriage follows actual continuous height. The original four-pose strips remain the loading fallback. Isolated previews and loaded low/mid/high in-engine captures were inspected for north and south as well as the earlier six views. These generated layers are **not approved production art**. Empty/occupied body geometry still differs slightly, detailed cargo occlusion and device review remain open.
 
 ## Raccoon construction tool studies
 

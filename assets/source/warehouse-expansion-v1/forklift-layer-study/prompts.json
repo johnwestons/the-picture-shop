@@ -1,6 +1,6 @@
 {
   "mode": "built-in imagegen",
-  "status": "development-art candidate; six side and diagonal views",
+  "status": "development-art candidate; all eight directional views",
   "source": "../forklift-lift/east-raise-v1.png",
   "additionalSource": "../forklift-lift/southeast-raise-v2.png",
   "rearSource": "../forklift-lift/northeast-raise-v1.png",
@@ -49,6 +49,36 @@
       "file": "northeast-fixed-empty-v1.png",
       "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-7c7e5989-21d6-4928-84dc-c9346ac74bb2.png",
       "promptSummary": "Remove only the rabbit from the fixed northeast body and restore the dark seat and controls, preserving the rear grille, wheel positions, guard, beacon, stationary mast, proportions and transparency."
+    },
+    {
+      "file": "south-fixed-manned-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-aeb72d8f-1e18-4d87-b224-0ef2f9e3d2fc.png",
+      "promptSummary": "Isolate the south-facing front-view forklift with rabbit, fixed yellow chassis, wheels, beacon and tall stationary mast on transparent 1536x1024 canvas. Remove moving fork carriage and tines while preserving scale and placement."
+    },
+    {
+      "file": "south-carriage-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-a6f0b5d7-2a10-49ce-bdfd-8f5862b0df6f.png",
+      "promptSummary": "Return only a compact sliding front-view fork carriage and two parallel blades pointing down toward the viewer, with gold tips. Match the fixed south body on a transparent 1536x1024 canvas; no stationary mast, cab, worker, wheels or cargo."
+    },
+    {
+      "file": "south-fixed-empty-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-e9ec5108-c7c3-4a12-b187-5bdefa7bc8c5.png",
+      "promptSummary": "Remove only the rabbit from the fixed south body and reveal the dark empty seat and steering wheel, preserving mast, chassis, wheels, beacon, scale and transparency."
+    },
+    {
+      "file": "north-fixed-manned-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-85075a2d-9391-48c1-8f28-e182b6611c9f.png",
+      "promptSummary": "From the north-raise-v2 strip, isolate a fixed straight rear-view body with rabbit, rear grille, wheels, lights and tall stationary mast. Remove moving carriage and tines; transparent 1536x1024 canvas."
+    },
+    {
+      "file": "north-carriage-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-4fe0354a-85b9-4dd6-b0b9-0113d170ba5c.png",
+      "promptSummary": "Create only a compact moving rear-view carriage with two mechanically attached parallel blades pointing upward away from the viewer, gold tips, dark steel plate, no full-height mast or vehicle; transparent 1536x1024 canvas."
+    },
+    {
+      "file": "north-fixed-empty-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-376c3ef1-1613-4627-b81c-4119242241fa.png",
+      "promptSummary": "Remove only the rabbit from the fixed north rear body and restore an empty seat and controls while keeping mast, guard, yellow panels, wheels, lights, scale and transparency."
     }
   ],
   "rejected": "An initial oversized carriage was rejected before workspace copy."

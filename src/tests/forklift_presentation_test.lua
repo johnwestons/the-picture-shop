@@ -183,7 +183,7 @@ function Test.run(_, check)
     local side = { owned=true, x=400, y=300, direction="east", operating=true,
         forkHeight=0, carriedPalletId="P-LOAD" }
     test("layered_side_art_still_requires_explicit_review",
-        not Layered.plan(side) and not Layered.plan({owned=true,direction="north"},{review=true}))
+        not Layered.plan(side) and not Layered.plan({owned=true,direction="up"},{review=true}))
     local smooth, stationary, mirrored = true, true, true
     for _,heading in ipairs({"east","west"}) do
         side.direction=heading
@@ -245,6 +245,37 @@ function Test.run(_, check)
     test("layered_rear_diagonal_forks_move_continuously",rearSmooth)
     test("layered_rear_diagonal_body_stays_fixed",rearStationary)
     test("layered_rear_diagonal_cargo_mirrors",rearMirror)
+    side.direction="south"
+    local frontSmooth,frontStationary=true,true
+    local previousFrontY=math.huge
+    for step=0,100 do
+        side.forkHeight=step/100
+        local pose=Layered.plan(side,{review=true,scale=0.308})
+        frontSmooth=frontSmooth and pose and pose.loadY<previousFrontY
+            and close(pose.carriageShift,-846*side.forkHeight)
+        frontStationary=frontStationary and pose.bodyPath:match("south%-fixed%-manned%-v1%.png$")
+            and pose.carriagePath:match("south%-carriage%-v1%.png$")
+            and pose.x==side.x and pose.y==side.y
+            and close(pose.carriageScale,pose.bodyScale*0.65)
+        previousFrontY=pose.loadY
+    end
+    test("layered_south_forks_move_continuously",frontSmooth)
+    test("layered_south_body_stays_fixed",frontStationary)
+    side.direction="north"
+    local northSmooth,northStationary=true,true
+    local previousNorthY=math.huge
+    for step=0,100 do
+        side.forkHeight=step/100
+        local pose=Layered.plan(side,{review=true,scale=0.308})
+        northSmooth=northSmooth and pose and pose.loadY<previousNorthY
+            and close(pose.carriageShift,300-510*side.forkHeight)
+        northStationary=northStationary and pose.bodyPath:match("north%-fixed%-manned%-v1%.png$")
+            and pose.carriagePath:match("north%-carriage%-v1%.png$")
+            and pose.frontClipY==480 and pose.x==side.x and pose.y==side.y
+        previousNorthY=pose.loadY
+    end
+    test("layered_north_forks_move_continuously",northSmooth)
+    test("layered_north_body_stays_fixed",northStationary)
     side.direction="west"
     side.operating=false
     local empty=Layered.plan(side,{review=true,scale=0.308})
@@ -261,12 +292,23 @@ function Test.run(_, check)
     test("layered_rear_diagonal_parked_view_keeps_empty_cab_and_height",rearEmpty
         and rearEmpty.bodyPath:match("northeast%-fixed%-empty%-v1%.png$")
         and rearEmpty.forkHeight==1 and rearEmpty.carriedPalletId=="P-LOAD")
+    side.direction="south"
+    local frontEmpty=Layered.plan(side,{review=true,scale=0.308})
+    test("layered_south_parked_view_keeps_empty_cab_and_height",frontEmpty
+        and frontEmpty.bodyPath:match("south%-fixed%-empty%-v1%.png$")
+        and frontEmpty.forkHeight==1 and frontEmpty.carriedPalletId=="P-LOAD")
+    side.direction="north"
+    local northEmpty=Layered.plan(side,{review=true,scale=0.308})
+    test("layered_north_parked_view_keeps_empty_cab_and_height",northEmpty
+        and northEmpty.bodyPath:match("north%-fixed%-empty%-v1%.png$")
+        and northEmpty.forkHeight==1 and northEmpty.carriedPalletId=="P-LOAD")
     local oldWarehouse=Config.warehouse
     Config.warehouse={provisionalArt=true}
     test("game_renderer_selects_layered_side_view",Renderer.layeredForkliftPlan(side)~=nil)
     Config.warehouse={provisionalArt=false}
     test("layered_side_art_obeys_development_setting",Renderer.layeredForkliftPlan(side)==nil)
     Config.warehouse=oldWarehouse
+    side.direction="west"
     local sideDraws,sidePushes,sidePops=0,0,0
     local sideGraphics={
         push=function() sidePushes=sidePushes+1 end,
@@ -278,6 +320,18 @@ function Test.run(_, check)
     drawn=Layered.draw(side,function() return sideImage end,{review=true},sideGraphics)
     test("layered_west_draws_both_mirrored_layers",drawn and sideDraws==2
         and sidePushes==1 and sidePops==1)
+    side.direction="north"
+    local clipped,clipCalls,drawCalls=false,0,0
+    local northGraphics={
+        push=function() end,pop=function() end,setColor=function() end,
+        rectangle=function(_,_,_,width,height) clipped=width>0 and height>0 end,
+        stencil=function(drawMask) clipCalls=clipCalls+1; drawMask() end,
+        setStencilTest=function() end,
+        draw=function() drawCalls=drawCalls+1 end,
+    }
+    drawn=Layered.draw(side,function() return sideImage end,{review=true},northGraphics)
+    test("layered_north_carriage_clips_above_cab",drawn and clipped
+        and clipCalls==1 and drawCalls==2)
 end
 
 return Test
