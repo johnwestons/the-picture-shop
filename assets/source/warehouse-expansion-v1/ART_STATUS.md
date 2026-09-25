@@ -52,6 +52,8 @@ The refreshed catalog explicitly selects N v2 and S v3; other headings remain v1
 
 Eight [empty-seat lift sheets](forklift-lift/empty-seat-prompts.json) now pair with the eight occupied lift sheets. Each is a 2048×768 RGBA strip with four 512×768 height poses. The built-in image tool removed the driver and restored the empty cab, seat and controls without replacing the source sheets. The southeast sheet received cleanup passes for residual orange pixels and background alpha; v2 is selected. The runtime selects these strips whenever the forklift is parked, preserving the actual fork height and any suspended load after operator loss. The engine acceptance capture `output/warehouse-expansion-v1/live-acceptance/20260924-201026-parked-raised-load.png` shows the empty seat, raised cargo and worker standing beside the vehicle; the original pallet stayed in canonical forklift custody and remount succeeded. These sheets remain development art with `approved=false`; four-step motion, edge cleanup and detailed cargo/mast occlusion remain open.
 
+Loaded in-engine reviews on September 24 captured all eight directions at 0%, 50% and 100% height in `output/warehouse-expansion-v1/live-acceptance/20260924-204158-forklift-parked-*.png`. The revised per-frame anchors center the original pallet on the visible blades rather than at the mast root, especially in east/west and diagonal views. The carried pallet's world label no longer covers its tine contact; its ID appears beside fork height in the vehicle badge. A rear-facing low load can still be hidden by the full-body source sprite, and lift motion still steps through four body poses. Neither issue is approved as final art.
+
 ## Raccoon construction tool studies
 
 ### Repaired runtime draft — September 19

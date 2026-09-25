@@ -16,11 +16,16 @@ function Runner.install()
             local characters=require("src.character_assets")
             assets.load();characters.load()
             local count=0
-            local context={assets=assets,captureWarehouse=function(name,state,world,rack)
+            local context={assets=assets,captureWarehouse=function(name,state,world,rack,view)
                 local canvas=love.graphics.newCanvas(960,678)
                 love.graphics.push("all")
                 love.graphics.setCanvas({canvas,stencil=true})
                 love.graphics.clear(0.015,0.019,0.025,1)
+                if view then
+                    love.graphics.translate(480,339)
+                    love.graphics.scale(view.zoom or 1)
+                    love.graphics.translate(-view.x,-view.y)
+                end
                 world.draw(assets,characters,state)
                 if rack then rack:draw(state,{body=love.graphics.getFont()}) end
                 love.graphics.setCanvas()

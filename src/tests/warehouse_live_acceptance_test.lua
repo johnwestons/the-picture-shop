@@ -9,6 +9,7 @@ local Layout=require("src.warehouse_layout")
 local Gameplay=require("src.warehouse_gameplay")
 local Calendar=require("src.business_calendar")
 local Forklift=require("src.forklift")
+local ForkliftCargo=require("src.forklift_cargo")
 local Pallets=require("src.pallet_state")
 local Rack=require("src.screens.pallet_rack_screen")
 local Navigation=require("src.navigation")
@@ -157,7 +158,28 @@ function Test.run(context,check)
             and lift.carriedPalletId==pallet.id and pallet.location=="on_forklift"
             and released and exit and player.x==exit.x and player.y==exit.y
             and (player.x~=lift.x or player.y~=lift.y),releaseCode)
-        if context.captureWarehouse then context.captureWarehouse("parked-raised-load",state,World) end
+        if context.captureWarehouse then
+            context.captureWarehouse("parked-raised-load",state,World)
+            local originalDirection=lift.direction
+            local originalHeight=lift.forkHeight
+            local function syncView()
+                local synced,reason=ForkliftCargo.sync(state,Config.forklift)
+                assert(synced or reason=="unchanged",reason)
+            end
+            for _,pose in ipairs({{name="low",height=0},{name="mid",height=0.5},
+                {name="high",height=1}}) do
+                lift.forkHeight,lift.targetForkHeight,lift.lifting=pose.height,pose.height,false
+                for _,direction in ipairs({"northwest","north","northeast","east",
+                    "southeast","south","southwest","west"}) do
+                    lift.direction=direction
+                    syncView()
+                    context.captureWarehouse("forklift-parked-"..pose.name.."-"..direction,
+                        state,World,nil,{x=lift.x,y=lift.y-95,zoom=2})
+                end
+            end
+            lift.direction,lift.forkHeight,lift.targetForkHeight=originalDirection,originalHeight,originalHeight
+            syncView()
+        end
         success,why=World.warehouseCommand(player,state,{kind="operate"})
         test("remount_preserves_raised_load",success and lift.operating and lift.operatorPlayerId==player.id
             and lift.forkHeight==1 and lift.carriedPalletId==pallet.id,why)

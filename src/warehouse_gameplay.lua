@@ -227,11 +227,33 @@ end
 local function exitPoint(state,context)
     local lift=state.forklift
     if not lift then return nil end
+    local forkX,forkY=forkPosition(state)
     local function available(dx,dy)
         local x,y=lift.x+dx,lift.y+dy
+        -- Do not step out onto the fork tips or a carried skid, even when the
+        -- body collision rectangle says that floor tile is otherwise clear.
+        if near(x,y,forkX,forkY,lift.carriedPalletId and 64 or 48) then return nil end
         if clear(context,state,x,y,6,3,nil,false,false) then return {x=x,y=y} end
     end
-    -- Side exits keep the worker clear of the fork-height badge below the cab.
+    local vector=VECTORS[lift.direction]
+    if not vector then return nil end
+    local sides
+    if vector[2]==0 then
+        -- Step off the rear corner of a side-view cab. The first point is
+        -- within remount range but outside the pallet and status badge.
+        sides={{-vector[1]*65,35},{vector[1]*65,35},{0,72},{0,-72}}
+    elseif vector[1]==0 then
+        sides={{72,0},{-72,0},{72,72},{-72,72}}
+    else
+        sides={{-vector[2]*55,vector[1]*52},
+            {vector[2]*55,-vector[1]*52}}
+        if sides[2][2]>sides[1][2] then sides[1],sides[2]=sides[2],sides[1] end
+    end
+    -- Try the visible side of the cab before walking around the body.
+    for _,offset in ipairs(sides) do
+        local point=available(offset[1],offset[2])
+        if point then return point end
+    end
     for _,offset in ipairs({{72,0},{-72,0},{0,48},{0,-48},{64,48},{-64,48},{64,-48},{-64,-48}}) do
         local point=available(offset[1],offset[2])
         if point then return point end

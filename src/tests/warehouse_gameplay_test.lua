@@ -246,6 +246,21 @@ function Test.run(_,check)
         and Navigation.isWalkable(Gameplay.assets(crowdedContext.assets,crowded),
             crowdedPlayer.x,crowdedPlayer.y,crowdedContext.obstacles()))
 
+    local loaded,loadedPlayer,loadedContext=fresh()
+    loaded.forklift.x,loaded.forklift.y=500,400
+    loadedPlayer.x,loadedPlayer.y=500,400
+    assert(Gameplay.command(loadedPlayer,loaded,{kind="operate"},loadedContext))
+    loaded.forklift.direction="east"
+    local carried=pallet(loaded)
+    assert(Gameplay.command(loadedPlayer,loaded,{kind="pickup",palletId=carried.id},loadedContext))
+    local forkX,forkY=Forklift.dropPosition(loaded,Config.forklift)
+    local exit
+    ok,code,exit=Gameplay.forceRelease(loadedPlayer,loaded,loadedContext)
+    check("warehouse_live_loaded_exit_avoids_fork_tips_and_stays_visible",ok and exit
+        and loadedPlayer.y>loaded.forklift.y and loadedPlayer.x<loaded.forklift.x
+        and (loadedPlayer.x-forkX)^2+(loadedPlayer.y-forkY)^2>64^2
+        and carried.location=="on_forklift" and loaded.forklift.carriedPalletId==carried.id)
+
     local locked=State.new()
     local wrapped=Gameplay.assets(assets(false),locked)
     check("warehouse_live_locked_black_expansion_is_not_walkable",not Navigation.isWalkable(wrapped,60,580,{}))

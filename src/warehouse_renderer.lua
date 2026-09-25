@@ -265,7 +265,8 @@ function Renderer.drawForklift(assets,state,drawPallet)
     if plan then loadX,loadY=plan.loadX,plan.loadY end
     local item=vehicle.carriedPalletId and drawPallet and Storage.find(state,vehicle.carriedPalletId)
     local function drawLoad()
-        if item then drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,x=loadX,y=loadY}) end
+        if item then drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,
+            x=loadX,y=loadY,hideWorldLabel=true}) end
     end
     -- Rear-facing forks sit behind the body and cab. Front/side loads cover
     -- the vehicle instead of disappearing behind its full-body sprite.
@@ -295,11 +296,16 @@ end
 function Renderer.drawVehicleStatus(state)
     local vehicle=state and state.forklift
     if not vehicle or not vehicle.owned then return end
+    local load=vehicle.carriedPalletId and Storage.find(state,vehicle.carriedPalletId)
+    local label=load and load.pallet and load.pallet.number and "P"..tostring(load.pallet.number)
+        or vehicle.carriedPalletId and "LOAD"
+    local text=string.format("FORKS %d%%",math.floor((vehicle.forkHeight or 0)*100+0.5))
+    if label then text=text.."  "..label end
+    local width=math.max(96,love.graphics.getFont():getWidth(text)+12)
     love.graphics.setColor(0.03,0.035,0.035,0.85)
-    love.graphics.rectangle("fill",vehicle.x-48,vehicle.y+6,96,17,3,3)
+    love.graphics.rectangle("fill",vehicle.x-width/2,vehicle.y+6,width,17,3,3)
     love.graphics.setColor(1,0.83,0.32,1)
-    love.graphics.printf(string.format("FORKS %d%%",math.floor((vehicle.forkHeight or 0)*100+0.5)),
-        vehicle.x-48,vehicle.y+8,96,"center")
+    love.graphics.printf(text,vehicle.x-width/2,vehicle.y+8,width,"center")
 end
 
 function Renderer.drawDevelopmentNotice(state)

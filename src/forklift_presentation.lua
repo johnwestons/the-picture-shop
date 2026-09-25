@@ -8,42 +8,44 @@ for index, direction in ipairs(directionOrder) do directionIndex[direction] = in
 local sourceRoot = "assets/source/warehouse-expansion-v1/forklift-lift/"
 
 -- Provisional manual calibration from the 2048x768 source sheets: each pair
--- is the wheel-ground center followed by the fork-carriage contact center.
+-- is the wheel-ground center followed by the carried pallet center on the
+-- visible tines. These centers were checked against loaded engine captures
+-- at low, middle and high fork heights, not just the bare source sheet.
 -- These are review annotations, not approved collision or runtime sprite data.
 local calibration = {
     northwest = {
-        { 286, 642, 185, 517 }, { 268, 642, 176, 421 },
-        { 275, 642, 191, 303 }, { 267, 642, 180, 202 },
+        { 286, 642, 155, 532 }, { 268, 642, 146, 431 },
+        { 275, 642, 161, 308 }, { 267, 642, 150, 202 },
     },
     north = {
         -- v2: true straight rear view; ground carriage is occluded by the body.
-        { 256, 738, 256, 600 }, { 256, 738, 256, 305 },
-        { 256, 738, 256, 205 }, { 256, 738, 256, 110 },
+        { 256, 738, 256, 600 }, { 256, 738, 256, 315 },
+        { 256, 738, 256, 215 }, { 256, 738, 256, 125 },
     },
     northeast = {
-        { 198, 650, 365, 526 }, { 190, 650, 363, 410 },
-        { 182, 650, 361, 268 }, { 182, 650, 360, 155 },
+        { 198, 650, 420, 536 }, { 190, 650, 418, 420 },
+        { 182, 650, 416, 278 }, { 182, 650, 415, 165 },
     },
     east = {
-        { 205, 638, 363, 602 }, { 197, 638, 343, 537 },
-        { 177, 638, 319, 417 }, { 178, 638, 313, 266 },
+        { 205, 638, 443, 644 }, { 197, 638, 423, 579 },
+        { 177, 638, 399, 460 }, { 178, 638, 393, 291 },
     },
     southeast = {
-        { 174, 647, 337, 649 }, { 176, 647, 327, 581 },
-        { 169, 647, 323, 425 }, { 178, 647, 340, 276 },
+        { 174, 647, 407, 693 }, { 176, 647, 392, 631 },
+        { 169, 647, 383, 510 }, { 178, 647, 375, 326 },
     },
     south = {
         -- v3: extended mast in high poses, fixed cab and wheel baseline.
-        { 271, 675, 271, 572 }, { 266, 675, 266, 530 },
-        { 256, 675, 256, 162 }, { 251, 675, 251, 50 },
+        { 271, 675, 271, 587 }, { 266, 675, 266, 545 },
+        { 256, 675, 256, 177 }, { 251, 675, 251, 65 },
     },
     southwest = {
-        { 399, 650, 193, 605 }, { 375, 650, 173, 496 },
-        { 389, 650, 179, 370 }, { 362, 650, 171, 233 },
+        { 399, 650, 163, 695 }, { 375, 650, 143, 581 },
+        { 389, 650, 149, 465 }, { 362, 650, 141, 303 },
     },
     west = {
-        { 350, 692, 201, 650 }, { 352, 692, 204, 486 },
-        { 355, 692, 193, 344 }, { 350, 692, 187, 227 },
+        { 350, 692, 156, 670 }, { 352, 692, 159, 506 },
+        { 355, 692, 148, 365 }, { 350, 692, 142, 257 },
     },
 }
 

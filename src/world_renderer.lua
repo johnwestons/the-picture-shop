@@ -149,10 +149,12 @@ local function drawPallet(assets, item)
     love.graphics.draw(image, sprite.quad, item.x, item.y, 0, scale, scale,
         sprite.width / 2, sprite.height * 0.92)
     drawPrintedArtwork(assets, item, item.x, item.y, false)
-    love.graphics.setColor(0.12, 0.24, 0.34, 0.95)
-    love.graphics.rectangle("fill", item.x - 22, item.y - 15, 44, 12)
-    love.graphics.setColor(0.92, 0.96, 0.94)
-    love.graphics.printf(item.vendor and "STOCK" or ("P" .. tostring(item.pallet.number)), item.x - 25, item.y - 14, 50, "center")
+    if not item.hideWorldLabel then
+        love.graphics.setColor(0.12, 0.24, 0.34, 0.95)
+        love.graphics.rectangle("fill", item.x - 22, item.y - 15, 44, 12)
+        love.graphics.setColor(0.92, 0.96, 0.94)
+        love.graphics.printf(item.vendor and "STOCK" or ("P" .. tostring(item.pallet.number)), item.x - 25, item.y - 14, 50, "center")
+    end
 end
 
 local function drawPalletTooltip(state, mouseX, mouseY)
