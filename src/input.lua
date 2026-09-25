@@ -93,6 +93,11 @@ function Input.closeScreen(context)
         context.releaseWorkshopInteraction("closed")
     end
     state.screen = "world"
+    if state.machineId then
+        if context.machine.select then context.machine.select(nil) end
+        if context.wrapper.select then context.wrapper.select(nil) end
+        state.machineId = nil
+    end
     if not readOnlyScreen then context.saveCurrent() end
     return true
 end
@@ -321,19 +326,24 @@ function Input.keypressed(key, context)
                 context.world.toggleTruckCargoDoor(state)
             end
         elseif selected and selected.kind == "cutter" then
-            context.machine.open(state)
-            context.machineScreen.enter()
+            state.machineId = selected.target and selected.target.machineId
             state.machineType = "cutter"
             state.screen = "machine"
-        elseif selected and selected.kind == "skidWrapper" then
-            context.wrapper.reset(state)
+            if context.machine.select then context.machine.select(state.machineId, state) end
+            context.machine.open(state)
             context.machineScreen.enter()
+        elseif selected and selected.kind == "skidWrapper" then
+            state.machineId = selected.target and selected.target.machineId
             state.machineType = "skid_wrapper"
             state.screen = "machine"
+            if context.wrapper.select then context.wrapper.select(state.machineId, state) end
+            context.wrapper.reset(state)
+            context.machineScreen.enter()
         elseif selected and selected.kind == "windmill" then
+            state.machineId = selected.target and selected.target.machineId
+            state.screen = "press"
             context.windmill.ensure(state)
             context.pressScreen.enter(state)
-            state.screen = "press"
         elseif selected and selected.kind == "palletJack" then
             if context.world.handlePalletJack(state, context.assets) then context.saveCurrent() end
         end
@@ -342,6 +352,8 @@ function Input.keypressed(key, context)
             local occupied = context.wrapperControlOccupied and context.wrapperControlOccupied()
             if context.world.beginWrapperMove(state, occupied) then
                 state.screen = "world"
+                state.machineId = nil
+                if context.wrapper.select then context.wrapper.select(nil) end
                 if context.releaseWorkshopInteraction then
                     context.releaseWorkshopInteraction("closed")
                 end

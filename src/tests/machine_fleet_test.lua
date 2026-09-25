@@ -40,9 +40,11 @@ function Test.run(context, check)
 
     state.money = 10000
     local bought, usedCutter = fleet.buy(state, "dealer", 1)
-    check("dealer_purchase_creates_unique_stored_machine", bought
+    check("dealer_purchase_installs_unique_floor_machine", bought
         and usedCutter.id == "MCH-0003" and usedCutter.source == "dealer"
-        and usedCutter.status == "stored"
+        and usedCutter.status == "installed" and usedCutter.world
+        and usedCutter.world.x ~= state.cutter.x
+        and #fleet.installedUnits(state, "polar_115") == 2
         and usedCutter.condition < cutter.condition
         and #fleet.owned(state) == 3)
 
@@ -223,7 +225,7 @@ function Test.run(context, check)
 
     local spareBought, sparePress = fleet.buy(pressSaleState, "dealer", 3)
     local replacedSale = fleet.sell(pressSaleState, installedPress.id, "dealer")
-    check("stored_windmill_replacement_allows_installed_press_sale", spareBought and replacedSale
+    check("second_windmill_allows_installed_press_sale", spareBought and replacedSale
         and fleet.byId(pressSaleState, installedPress.id) == nil
         and sparePress.status == "installed")
 
@@ -320,16 +322,16 @@ function Test.run(context, check)
     check("player_unloads_online_machine_before_ownership", unloadResult
         and unloadResult.action == "unloaded"
         and deliveredMachine.id == onlineOrder.machineId
-        and deliveredMachine.status == "stored"
+        and deliveredMachine.status == "installed"
         and fleet.byId(websiteState, deliveredMachine.id) == deliveredMachine
         and fleet.remainingOnTruck(websiteState, onlineOrder.id) == 0
         and onlineOrder.delivery.status == "received"
         and #fleet.owned(websiteState) == 3
         and fleet.validState(websiteState.machines))
-    check("unloaded_stored_machine_has_visible_receiving_floor_position",
+    check("unloaded_duplicate_machine_has_separate_floor_position",
         deliveredMachine.world
-        and deliveredMachine.world.x == context.config.machineReceiving.polar_115.x
-        and deliveredMachine.world.y == context.config.machineReceiving.polar_115.y)
+        and deliveredMachine.world.x ~= websiteState.cutter.x
+        and deliveredMachine.world.y < context.config.baseHeight)
     local wrapperDeliveryState = context.State.new()
     wrapperDeliveryState.money = 10000
     local wrapperOrdered, wrapperOrder = fleet.orderOnline(wrapperDeliveryState, 2)
@@ -338,11 +340,10 @@ function Test.run(context, check)
         wrapperUnloaded, deliveredWrapper = fleet.unloadDelivery(
             wrapperDeliveryState, wrapperOrder.id, wrapperOrder.machineId, os.time())
     end
-    check("unloaded_duplicate_skid_wrapper_appears_on_receiving_floor",
+    check("unloaded_duplicate_skid_wrapper_is_installed_on_floor",
         wrapperUnloaded and deliveredWrapper.modelId == "skid_wrapper"
-        and deliveredWrapper.status == "stored" and deliveredWrapper.world
-        and deliveredWrapper.world.x == context.config.machineReceiving.skid_wrapper.x
-        and deliveredWrapper.world.y == context.config.machineReceiving.skid_wrapper.y
+        and deliveredWrapper.status == "installed" and deliveredWrapper.world
+        and deliveredWrapper.world.x ~= wrapperDeliveryState.wrapper.x
         and fleet.validState(wrapperDeliveryState.machines))
     check("empty_machine_flatbed_releases_directly",
         context.world.closeTruckAfterUnload(websiteState)

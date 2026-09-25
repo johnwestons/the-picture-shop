@@ -823,7 +823,7 @@ function Screen.draw(state, assets, pointerX, pointerY)
         love.graphics.setColor(0.96, 0.82, 0.26)
         love.graphics.print("SKID WRAPPER / PALLET PACKAGING CONSOLE", 38, 30)
         drawCondition(state, "skid_wrapper", 458, 28, 308)
-        BackButton.draw(assets, exitButton, Wrapper.isActive() and "WAIT" or "EXIT", pointerX, pointerY, false)
+        BackButton.draw(assets, exitButton, "EXIT", pointerX, pointerY, false)
         local image = assets.get("skidWrapperDirections")
         local sprite = assets.getQuad("skidWrapperDirection1")
         if image and sprite then

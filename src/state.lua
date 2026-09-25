@@ -50,6 +50,7 @@ function State.new()
     state.screen = "title"
     state.activeSlot = nil
     state.currentOffer = nil
+    state.machineId = nil
     state.message = "Welcome to your new print shop!"
     return state
 end
@@ -161,6 +162,7 @@ function State.applySave(state, payload)
     PalletState.reconcile(state)
     SaveSchema.reconcile(state)
     state.currentOffer = nil
+    state.machineId = nil
     state._networkMachinePoses = nil
     state.screen = "world"
     state.message = "Shop opened."
@@ -176,7 +178,7 @@ function State.applyLocalSave(state, payload)
     local stoppedLift = type(sourceLift) == "table"
         and (sourceLift.operating or sourceLift.moving or sourceLift.lifting) or false
     if not State.applySave(state, payload) then return false, false end
-    return true, Windmill.releaseOperator(state) or stoppedLift
+    return true, Windmill.releaseAllOperators(state) or stoppedLift
 end
 
 -- A LAN guest receives only the host's normalized persistent shop state. The

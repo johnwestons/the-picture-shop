@@ -45,7 +45,7 @@ function Interaction.select(player, interactables, cursorX, cursorY, previous, o
             then
                 bestScore = score
                 best = {
-                    kind = name,
+                    kind = target.kind or name,
                     distance = playerDistance * playerDistance,
                     playerDistance = playerDistance,
                     cursorDistance = cursorDistance,

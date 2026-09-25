@@ -56,17 +56,27 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
     inflate = inflate or { x = 0, y = 0 }
     if type(inflate) == "number" then inflate = { x = inflate, y = inflate } end
     local obstacles = {}
-    if not excludeCutter and MachineFleet.isInstalled(state, "polar_115") then
+    local firstCutter = MachineFleet.installedUnits(state, "polar_115")[1]
+    local firstWrapper = MachineFleet.installedUnits(state, "skid_wrapper")[1]
+    local firstWindmill = MachineFleet.installedUnits(state, "heidelberg_10x15")[1]
+    if not excludeCutter and firstCutter and not firstCutter.world then
         local cutterObstacle = CutterPlacement.obstacle(state, Config.cutterPlacement)
         if cutterObstacle then obstacles[#obstacles + 1] = cutterObstacle end
     end
-    if not excludeWrapper and MachineFleet.isInstalled(state, "skid_wrapper") then
+    if not excludeWrapper and firstWrapper and not firstWrapper.world then
         local wrapperObstacle = WrapperPlacement.obstacle(state, Config.wrapperPlacement)
         if wrapperObstacle then obstacles[#obstacles + 1] = wrapperObstacle end
     end
-    if not excludeWindmill and MachineFleet.isInstalled(state, "heidelberg_10x15") then
+    if not excludeWindmill and firstWindmill and not firstWindmill.world then
         local pressObstacle = WindmillPlacement.obstacle(state, Config.windmillPlacement)
         if pressObstacle then obstacles[#obstacles + 1] = pressObstacle end
+    end
+    for _, item in ipairs(MachineFleet.installedUnits(state)) do
+        if item.world and not item.world.moving then
+            local config = Config[MachineFleet.definition(item.modelId).placementKey .. "Placement"]
+            obstacles[#obstacles + 1] = { x = item.world.x, y = item.world.y - 8,
+                halfWidth = config.collisionHalfWidth, halfHeight = config.collisionHalfHeight }
+        end
     end
     local customerObstacle = World.customer:getObstacle()
     if customerObstacle then obstacles[#obstacles + 1] = customerObstacle end
@@ -257,9 +267,12 @@ end
 local function interactables(player)
     player = player or World.player
     local targets = {}
-    local function addTarget(kind, target)
+    local function addTarget(kind, target, key)
         MultiplayerCapabilities.requireInteraction(kind)
-        if target then targets[kind] = target end
+        if target then
+            target.kind = kind
+            targets[key or kind] = target
+        end
     end
     addTarget("computer", Config.interactables.computer)
     local phoneTarget = {
@@ -305,23 +318,59 @@ local function interactables(player)
             or (player == World.player and 1 or nil)
         local jackReady = jack.operating and not jack.carriedPalletId
             and jack.operatorPlayerId == playerId
-        if MachineFleet.isInstalled(World._state, "polar_115")
+        local cutters = MachineFleet.installedUnits(World._state, "polar_115")
+        if cutters[1] and not cutters[1].world
             and not (networkMachineView and World._state.cutter.moving)
         then
-            addTarget("cutter", CutterPlacement.interaction(player, World._state,
-                Config.cutterPlacement, jackReady))
+            local target = CutterPlacement.interaction(player, World._state,
+                Config.cutterPlacement, jackReady)
+            target.machineId = cutters[1].id
+            addTarget("cutter", target)
         end
-        if MachineFleet.isInstalled(World._state, "skid_wrapper")
+        for index = 1, #cutters do
+            local item = cutters[index]
+            if item.world then addTarget("cutter", {
+                x = item.world.x, y = item.world.y,
+                radius = Config.cutterPlacement.interactionRadius,
+                prompt = "E: use " .. item.name .. " (" .. item.id .. ")",
+                machineId = item.id,
+            }, "cutter:" .. item.id) end
+        end
+        local wrappers = MachineFleet.installedUnits(World._state, "skid_wrapper")
+        if wrappers[1] and not wrappers[1].world
             and not (networkMachineView and World._state.wrapper.moving)
         then
-            addTarget("skidWrapper", WrapperPlacement.interaction(player, World._state,
-                Config.wrapperPlacement, jackReady))
+            local target = WrapperPlacement.interaction(player, World._state,
+                Config.wrapperPlacement, jackReady)
+            target.machineId = wrappers[1].id
+            addTarget("skidWrapper", target)
         end
-        if MachineFleet.isInstalled(World._state, "heidelberg_10x15")
+        for index = 1, #wrappers do
+            local item = wrappers[index]
+            if item.world then addTarget("skidWrapper", {
+                x = item.world.x, y = item.world.y,
+                radius = Config.wrapperPlacement.interactionRadius,
+                prompt = "E: use skid wrapper (" .. item.id .. ")",
+                machineId = item.id,
+            }, "wrapper:" .. item.id) end
+        end
+        local windmills = MachineFleet.installedUnits(World._state, "heidelberg_10x15")
+        if windmills[1] and not windmills[1].world
             and not (networkMachineView and World._state.windmill.moving)
         then
-            addTarget("windmill", WindmillPlacement.interaction(player, World._state,
-                Config.windmillPlacement, jackReady))
+            local target = WindmillPlacement.interaction(player, World._state,
+                Config.windmillPlacement, jackReady)
+            target.machineId = windmills[1].id
+            addTarget("windmill", target)
+        end
+        for index = 1, #windmills do
+            local item = windmills[index]
+            if item.world then addTarget("windmill", {
+                x = item.world.x, y = item.world.y,
+                radius = Config.windmillPlacement.interactionRadius,
+                prompt = "E: operate Windmill (" .. item.id .. ")",
+                machineId = item.id,
+            }, "windmill:" .. item.id) end
         end
         addTarget("palletJack", PalletJack.interaction(player, World._state, Config.palletJack))
         local lift = Forklift.ensure(World._state, Config.forklift)

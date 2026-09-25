@@ -2,6 +2,27 @@ local PalletState = {}
 local Config = require("src.config")
 local CutterZones = require("src.cutter_zones")
 local PalletStorage = require("src.pallet_storage")
+local function ownerId(state, modelId)
+    local selected = state._operatingMachineId
+        or ((state.screen == "machine" or state.screen == "press") and state.machineId)
+    local first
+    for _, item in ipairs(state.machines and state.machines.items or {}) do
+        if item.modelId == modelId and item.status == "installed" then
+            if item.id == selected then return item.id end
+            first = first or item.id
+        end
+    end
+    return first
+end
+
+local function palletOwner(pallet, location, state)
+    local field = location == "at_cutter" and "cutterMachineId" or "pressMachineId"
+    local model = location == "at_cutter" and "polar_115" or "heidelberg_10x15"
+    if pallet[field] then return pallet[field] end
+    for _, item in ipairs(state.machines and state.machines.items or {}) do
+        if item.modelId == model and item.status == "installed" then return item.id end
+    end
+end
 
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
@@ -56,7 +77,7 @@ function PalletState.find(state, palletId)
 end
 
 function PalletState.validate(state)
-    local errors, ids, atCutter, atPress, onJack = {}, {}, 0, 0, {}
+    local errors, ids, atCutter, atPress, onJack = {}, {}, {}, {}, {}
     local jack = state and state.palletJack or {}
     for _, item in ipairs(allPallets(state)) do
         local pallet = item.pallet
@@ -79,12 +100,22 @@ function PalletState.validate(state)
                 errors[#errors + 1] = tostring(pallet.id) .. " has no physical floor position"
             end
         end
-        if pallet.location == "at_cutter" then atCutter = atCutter + 1 end
-        if pallet.location == "at_press" then atPress = atPress + 1 end
+        if pallet.location == "at_cutter" then
+            local owner = palletOwner(pallet, "at_cutter", state) or "missing"
+            atCutter[owner] = (atCutter[owner] or 0) + 1
+        end
+        if pallet.location == "at_press" then
+            local owner = palletOwner(pallet, "at_press", state) or "missing"
+            atPress[owner] = (atPress[owner] or 0) + 1
+        end
         if pallet.location == "on_pallet_jack" then onJack[#onJack + 1] = pallet end
     end
-    if atCutter > 1 then errors[#errors + 1] = "more than one pallet is owned by the cutter" end
-    if atPress > 1 then errors[#errors + 1] = "more than one pallet is owned by the Windmill" end
+    for _, count in pairs(atCutter) do
+        if count > 1 then errors[#errors + 1] = "more than one pallet is owned by the cutter" end
+    end
+    for _, count in pairs(atPress) do
+        if count > 1 then errors[#errors + 1] = "more than one pallet is owned by the Windmill" end
+    end
     if #onJack > 1 then errors[#errors + 1] = "more than one pallet is owned by the pallet jack" end
     if jack.carriedPalletId then
         local carried = ids[jack.carriedPalletId]
@@ -132,8 +163,15 @@ function PalletState.reconcile(state)
         if pallet.location == "on_pallet_jack" then onJack[#onJack + 1] = pallet end
     end
 
-    for index = 2, #atCutter do atCutter[index].location = "warehouse" end
-    for index = 2, #atPress do atPress[index].location = "warehouse" end
+    local seenCutter, seenPress = {}, {}
+    for _, pallet in ipairs(atCutter) do
+        local owner = palletOwner(pallet, "at_cutter", state) or "missing"
+        if seenCutter[owner] then pallet.location = "warehouse" else seenCutter[owner] = true end
+    end
+    for _, pallet in ipairs(atPress) do
+        local owner = palletOwner(pallet, "at_press", state) or "missing"
+        if seenPress[owner] then pallet.location = "warehouse" else seenPress[owner] = true end
+    end
     local claimed = PalletState.find(state, jack.carriedPalletId)
     if claimed and claimed.pallet.location == "at_cutter" then
         jack.carriedPalletId = nil
@@ -164,7 +202,8 @@ function PalletState.cutterCandidates(state, radius)
         local pallet, paper = item.pallet, item.pallet.paper
         if not item.vendor and paper then
             local candidate = { job = item.job, pallet = pallet, paper = paper }
-            if pallet.location == "at_cutter" then
+            if pallet.location == "at_cutter"
+                and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115") then
                 owned[#owned + 1] = candidate
             elseif paper.status ~= "complete" and pallet.location == "warehouse"
                 and nearCutter(state, pallet, radius)
@@ -245,7 +284,8 @@ function PalletState.transition(state, pallet, target, options)
             return false, "stage the pallet on clear floor beside the cutter"
         end
         for _, item in ipairs(allPallets(state)) do
-            if item.pallet ~= pallet and item.pallet.location == "at_cutter" then
+            if item.pallet ~= pallet and item.pallet.location == "at_cutter"
+                and palletOwner(item.pallet, "at_cutter", state) == ownerId(state, "polar_115") then
                 return false, "the cutter already owns another pallet"
             end
         end
@@ -255,7 +295,8 @@ function PalletState.transition(state, pallet, target, options)
             return false, "stage the pallet on the warehouse floor before press loading"
         end
         for _, item in ipairs(allPallets(state)) do
-            if item.pallet ~= pallet and item.pallet.location == "at_press" then
+            if item.pallet ~= pallet and item.pallet.location == "at_press"
+                and palletOwner(item.pallet, "at_press", state) == ownerId(state, "heidelberg_10x15") then
                 return false, "the Windmill already owns another pallet"
             end
         end
@@ -265,10 +306,14 @@ function PalletState.transition(state, pallet, target, options)
         location = pallet.location,
         status = pallet.status,
         world = copy(pallet.world),
+        cutterMachineId = pallet.cutterMachineId,
+        pressMachineId = pallet.pressMachineId,
         carriedPalletId = jack.carriedPalletId,
         forkliftCarriedPalletId = forklift.carriedPalletId,
     }
     pallet.location = target
+    if target == "at_cutter" then pallet.cutterMachineId = ownerId(state, "polar_115") end
+    if target == "at_press" then pallet.pressMachineId = ownerId(state, "heidelberg_10x15") end
     if options.status ~= nil then pallet.status = options.status end
     if options.world ~= nil then pallet.world = copy(options.world) end
     if target == "on_pallet_jack" then jack.carriedPalletId = pallet.id end
@@ -281,6 +326,7 @@ function PalletState.transition(state, pallet, target, options)
     local valid, errors = PalletState.validate(state)
     if not valid then
         pallet.location, pallet.status, pallet.world = previous.location, previous.status, previous.world
+        pallet.cutterMachineId, pallet.pressMachineId = previous.cutterMachineId, previous.pressMachineId
         jack.carriedPalletId = previous.carriedPalletId
         forklift.carriedPalletId = previous.forkliftCarriedPalletId
         return false, table.concat(errors, "; ")

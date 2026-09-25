@@ -287,7 +287,9 @@ end
 local function drawCutter(assets, state, placement)
     local cutter = placement or CutterPlacement.ensure(state, Config.cutterPlacement)
     local image = assets.get("polarDirections")
-    local frame = placement and (placement.frame or 1)
+    local cutterFrames = { northwest = 1, north = 2, northeast = 3, east = 4,
+        southeast = 5, south = 6, southwest = 7, west = 8 }
+    local frame = placement and (cutterFrames[placement.direction] or placement.frame or 1)
         or CutterPlacement.frame(state, Config.cutterPlacement)
     local sprite = assets.getQuad("polarDirection" .. frame)
     if image and sprite then
@@ -334,7 +336,8 @@ end
 local function drawWindmill(assets, state, placement)
     local item = placement or WindmillPlacement.ensure(state, Config.windmillPlacement)
     local image = assets.get("windmillDirections")
-    local frame = placement and (placement.frame or 1)
+    local windmillFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
+    local frame = placement and (windmillFrames[placement.direction] or placement.frame or 1)
         or WindmillPlacement.frame(state, Config.windmillPlacement)
     local sprite = assets.getQuad("windmillDirection" .. frame)
     if not image or not sprite then return end
@@ -445,20 +448,23 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local windmill = state and WindmillPlacement.ensure(state, Config.windmillPlacement)
     local actors = {}
     WarehouseRenderer.addActors(actors, assets, state, drawPallet)
-    if MachineFleet.isInstalled(state, "polar_115") then
+    local firstCutter = MachineFleet.installedUnits(state, "polar_115")[1]
+    local firstWrapper = MachineFleet.installedUnits(state, "skid_wrapper")[1]
+    local firstWindmill = MachineFleet.installedUnits(state, "heidelberg_10x15")[1]
+    if firstCutter and not firstCutter.world then
         actors[#actors + 1] = { y = cutter.moving and jack.y or cutter.y,
             layer = cutter.moving and 2 or 0, draw = function() drawCutter(assets, state) end }
     end
-    if MachineFleet.isInstalled(state, "skid_wrapper") then
+    if firstWrapper and not firstWrapper.world then
         actors[#actors + 1] = { y = wrapper.moving and jack.y or wrapper.y,
             layer = wrapper.moving and 2 or 0, draw = function() drawWrapper(assets, state) end }
     end
-    if MachineFleet.isInstalled(state, "heidelberg_10x15") then
+    if firstWindmill and not firstWindmill.world then
         actors[#actors + 1] = { y = windmill.moving and jack.y or windmill.y,
             layer = windmill.moving and 2 or 0, draw = function() drawWindmill(assets, state) end }
     end
     for _, machine in ipairs(MachineFleet.owned(state)) do
-        if machine.status == "stored" and machine.world then
+        if machine.status == "installed" and machine.world then
             local storedMachine = machine
             if storedMachine.modelId == "polar_115" then
                 actors[#actors + 1] = { y = storedMachine.world.y,

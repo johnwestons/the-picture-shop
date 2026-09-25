@@ -2,7 +2,7 @@
 
 `src/machine_fleet.lua` is the persistent machine contract. Every physical machine has a unique `MCH-####` ID,
 serial, model ID, acquisition channel, installed/stored state, purchase price, cycles, operating time, component
-variables, calculated condition, maintenance history, technician notices, and online delivery orders. Save format 14 validates and
+variables, calculated condition, maintenance history, technician notices, and online delivery orders. Save format 15 validates and
 migrates this data.
 
 ## Adding a machine model
@@ -10,12 +10,16 @@ migrates this data.
 1. Add one definition to `MachineFleet.definitions` and its ID to `MachineFleet.order`.
 2. Give every serviceable component a stable ID, label, condition weight, wear-per-cycle value, and maintenance task.
 3. Add the model's online and used-dealer starting conditions plus its full-condition base price.
-4. Build its placement/render/interaction consumer. A first purchased unit can then be installed; additional units
-   remain in storage until the installed unit is sold or a multi-placement consumer is added.
-5. Call `MachineFleet.recordUse(state, modelId, cycles)` only when a real production cycle completes. The fleet
+4. Build its placement/render/interaction consumer for each machine ID. The first unit uses the legacy placement;
+   later units receive separate floor positions. A purchase or delivery unload is blocked if there is no clear floor space.
+5. Call `MachineFleet.recordUse(state, modelId, cycles, machineId)` only when a real production cycle completes. The fleet
    module recalculates condition from that individual unit's component variables.
-6. Call `MachineFleet.canOperate` before beginning work. A machine below 15 percent condition is unavailable until
+6. Call `MachineFleet.canOperate` for the selected machine ID before beginning work. A machine below 15 percent condition is unavailable until
    maintenance restores it.
+
+Each cutter and wrapper keeps a separate runtime, and every Windmill keeps its production process with its own
+floor record. Pallets at a cutter or press record the owning machine ID, so separate units can hold and advance jobs
+at the same time. Legacy pallet claims without an owner ID remain attached to the original unit when a save loads.
 
 Do not add a marketplace listing without a live world consumer unless it is explicitly marked as unavailable. This
 keeps players from spending money on decorative or unreachable prototypes.
@@ -26,7 +30,7 @@ The office computer **Online** tab uses `MachineFleet.offers("online")`. These m
 condition. `MachineFleet.orderOnline` reserves the next unique machine ID, deducts the price, and stores the unit
 inside an `MDO-####` delivery rather than adding it to owned machines. The world scheduler assigns that order a
 dedicated `machine_delivery` flatbed. `MachineFleet.unloadDelivery` is the only transition that moves the exact
-reserved unit into the owned fleet, installing the first unit of a model and storing later duplicates.
+reserved unit into the owned fleet and installs it at a clear floor position. Dealer purchases install immediately.
 
 The used-machinery salesperson uses `MachineFleet.offers("dealer")`; dealer condition is intentionally lower and
 the condition-derived price is discounted. Dealer purchases remain direct handoffs. `MachineFleet.priceFor` and

@@ -181,7 +181,16 @@ end
 function Sound:capture()
     local state, world = self.context.state, self.context.world
     local machine, wrapper = self.context.machine, self.context.wrapper
-    local press = state.windmill or {}
+    local pressPlacement = state.windmill or {}
+    if state.screen == "press" and state.machineId then
+        for _, item in ipairs(state.machines and state.machines.items or {}) do
+            if item.id == state.machineId and item.modelId == "heidelberg_10x15" then
+                pressPlacement = item.world or pressPlacement
+                break
+            end
+        end
+    end
+    local press = pressPlacement.process or {}
     local jack = state.palletJack or {}
     local effectiveScreen = state.screen == "options" and state.optionsReturnScreen
         or state.screen

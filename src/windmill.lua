@@ -25,8 +25,12 @@ end
 
 local function clamp(value, low, high) return math.max(low, math.min(high, value)) end
 
-local function process(state)
-    local placement = state.windmill
+local function placementFor(state)
+    local machine = MachineFleet.installed(state, "heidelberg_10x15")
+    return machine and machine.world or state.windmill
+end
+
+local function process(placement)
     placement.process = type(placement.process) == "table" and placement.process or {}
     local p = placement.process
     p.status = type(p.status) == "string" and p.status or "idle"
@@ -77,7 +81,7 @@ function Windmill.ensure(state)
         x = Config.windmillPlacement.spawnX, y = Config.windmillPlacement.spawnY,
         direction = Config.windmillPlacement.defaultDirection, moving = false, inMotion = false,
     }
-    return process(state)
+    return process(placementFor(state))
 end
 
 local function activeJob(state, jobId)
@@ -175,8 +179,9 @@ function Windmill.candidates(state)
                 local dry = not press or not press.dryUntilHours
                     or BusinessCalendar.absoluteHours(state) >= press.dryUntilHours
                 local world = pallet.world
-                local staged = world and ((world.x - state.windmill.x) ^ 2
-                    + (world.y - state.windmill.y) ^ 2
+                local placement = placementFor(state)
+                local staged = world and ((world.x - placement.x) ^ 2
+                    + (world.y - placement.y) ^ 2
                     <= (Config.windmillPlacement.palletRadius or 120) ^ 2)
                 if paperReady and dry and color <= (job.press.colors or 1)
                     and not pallet.wrapped and staged
@@ -476,8 +481,9 @@ function Windmill.cleanAndUnload(state)
     if (stock.press_wash or 0) < 1 then return false, "Press wash is required for cleanup." end
     local nextPressStatus = p.colorIndex >= (job.press.colors or 1) and "complete" or "drying"
     local nextPalletStatus = nextPressStatus == "complete" and "printed" or pallet.status
-    local world = { x = state.windmill.x + 78, y = state.windmill.y + 42,
-        direction = state.windmill.direction, spawnProgress = 1 }
+    local placement = placementFor(state)
+    local world = { x = placement.x + 78, y = placement.y + 42,
+        direction = placement.direction, spawnProgress = 1 }
     local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {
         status = nextPalletStatus, world = world,
     })
@@ -533,6 +539,32 @@ function Windmill.releaseOperator(state)
     return changed, p
 end
 
-function Windmill.canExit(state) return Windmill.ensure(state).status ~= "production" end
+function Windmill.releaseAllOperators(state)
+    local units = MachineFleet.installedUnits(state, "heidelberg_10x15")
+    if #units == 0 then return Windmill.releaseOperator(state) end
+    local changed = false
+    for _, unit in ipairs(units) do
+        MachineFleet.withUnit(state, unit.id, function()
+            if Windmill.releaseOperator(state) then changed = true end
+        end)
+    end
+    return changed
+end
+
+function Windmill.canExit(state) return true end
+
+function Windmill.updateAll(dt, state)
+    local changed, durable = false, false
+    local units = MachineFleet.installedUnits(state, "heidelberg_10x15")
+    if #units == 0 then return Windmill.update(dt, state) end
+    for _, unit in ipairs(units) do
+        MachineFleet.withUnit(state, unit.id, function()
+            local unitChanged, unitDurable = Windmill.update(dt, state)
+            changed = changed or unitChanged
+            durable = durable or unitDurable
+        end)
+    end
+    return changed, durable
+end
 
 return Windmill

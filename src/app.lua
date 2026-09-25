@@ -165,6 +165,7 @@ local function startGame(payload, mode)
     if not applied then return false, "That shop save could not be opened safely." end
     World.load(payload.player)
     Machine.reset()
+    Wrapper.clearInstances()
     Windmill.resetNetworkRuntime()
     activeCutterRemote = nil
     activeWrapperRemote = nil
@@ -1060,8 +1061,8 @@ local function createWorkshopAuthority()
                     return true, "acquired", "Windmill console connected.",
                         windmillView(session), session
                 end,
-                onRelease = function(lease)
-                    local changed = Windmill.releaseOperator(state)
+                onRelease = function(lease, _, reason)
+                    local changed = reason ~= "closed" and Windmill.releaseOperator(state)
                     if activeWindmillRemote == (lease and lease.private) then
                         activeWindmillRemote = nil
                     end
@@ -3281,7 +3282,7 @@ end
 
 serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmillService)
     networkService()
-    local machineDurable = Machine.update(dt, targetState)
+    local machineDurable = Machine.updateAll(dt, targetState)
     local windmillChanged, windmillDurable = false, false
     if windmillService then
         windmillChanged, windmillDurable = windmillService(dt, targetState)
@@ -3376,7 +3377,7 @@ function App.update(dt)
         if serviceNetworkBeforeMachine(dt, state, function()
             updateMultiplayer(dt, networkInputX, networkInputY)
         end, function(machineDt, targetState)
-            return Windmill.update(machineDt, targetState)
+            return Windmill.updateAll(machineDt, targetState)
         end) then
             saveCurrent()
         end
@@ -3385,7 +3386,7 @@ function App.update(dt)
     end
     if not multiplayer:isClient() and simulationScreen ~= "title"
         and simulationScreen ~= "lan" and simulationScreen ~= "direct"
-        and simulationScreen ~= "asset_error" and Wrapper.update(dt, state)
+        and simulationScreen ~= "asset_error" and Wrapper.updateAll(dt, state)
     then
         saveCurrent()
     end

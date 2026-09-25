@@ -7,6 +7,7 @@ local MachineFleet = require("src.machine_fleet")
 local BusinessCalendar = require("src.business_calendar")
 local Reputation = require("src.reputation")
 
+local function createMachine(machineId)
 local Machine = {
     step = "idle", progress = 0, loaded = false, clamp = false,
     clampProgress = 0, bladeProgress = 0, barrierClear = true,
@@ -140,7 +141,8 @@ function Machine.open(state)
     Machine.reset(state)
     for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
         for _, pallet in ipairs(job.pallets or {}) do
-            if pallet.location == "at_cutter" then
+            local owner = pallet.cutterMachineId or "MCH-0001"
+            if pallet.location == "at_cutter" and owner == (machineId or "MCH-0001") then
                 return Machine.load(state, pallet.id)
             end
         end
@@ -261,16 +263,27 @@ end
 
 local function measurements(state, cutNumber, create)
     if type(state) ~= "table" then return nil end
-    if type(state.cutterMemory) ~= "table" then
+    local memory = state.cutterMemory
+    if machineId then
+        local item = MachineFleet.byId(state, machineId)
+        if not item then return nil end
+        memory = item.memory
+        if type(memory) ~= "table" and create then
+            item.memory = {}
+            memory = item.memory
+        end
+    end
+    if type(memory) ~= "table" then
         if not create then return nil end
         state.cutterMemory = {}
+        memory = state.cutterMemory
     end
     local key = tostring(math.max(1, math.min(4, math.floor(cutNumber or 1))))
-    if type(state.cutterMemory[key]) ~= "table" then
+    if type(memory[key]) ~= "table" then
         if not create then return nil end
-        state.cutterMemory[key] = {}
+        memory[key] = {}
     end
-    return state.cutterMemory[key]
+    return memory[key]
 end
 
 function Machine.savedMeasurements(state, cutNumber)
@@ -963,3 +976,63 @@ end
 function Machine.paperTooltip() return PaperWork.tooltip(Machine.paper) end
 
 return Machine
+end
+
+local primary = createMachine(nil)
+local instances = {}
+local selectedId
+local primaryId = "MCH-0001"
+local exported = {}
+
+local function instance(machineId)
+    if not machineId or machineId == primaryId then return primary end
+    if not instances[machineId] then
+        instances[machineId] = createMachine(machineId)
+        instances[machineId].outputResolver = primary.outputResolver
+        instances[machineId].multiplayerSingleControl = primary.multiplayerSingleControl
+    end
+    return instances[machineId]
+end
+
+function exported.select(machineId, state)
+    selectedId = machineId
+    return instance(machineId)
+end
+
+function exported.forId(machineId) return instance(machineId) end
+
+function exported.updateAll(dt, state)
+    local units = MachineFleet.installedUnits(state, "polar_115")
+    local durable = false
+    for _, unit in ipairs(units) do
+        MachineFleet.withUnit(state, unit.id, function()
+            if instance(unit.id).update(dt, state) then durable = true end
+        end)
+    end
+    return durable
+end
+
+function exported.setOutputResolver(resolver)
+    primary.setOutputResolver(resolver)
+    for _, unit in pairs(instances) do unit.setOutputResolver(resolver) end
+end
+
+function exported.setMultiplayerSingleControl(enabled)
+    primary.setMultiplayerSingleControl(enabled)
+    for _, unit in pairs(instances) do unit.setMultiplayerSingleControl(enabled) end
+end
+
+function exported.reset(state)
+    primary.reset(state)
+    instances = {}
+    selectedId = nil
+end
+
+function exported.validateSale(item, cutterLeaseActive)
+    return instance(item and item.id).validateSale(item, cutterLeaseActive)
+end
+
+return setmetatable(exported, {
+    __index = function(_, key) return instance(selectedId)[key] end,
+    __newindex = function(_, key, value) instance(selectedId)[key] = value end,
+})

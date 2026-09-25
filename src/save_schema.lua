@@ -707,27 +707,58 @@ end
 local function physicalOwnership(value)
     local valid = PalletState.validate(value)
     if not valid then return false end
-    local process = value.windmill and value.windmill.process
-    local atPress, matchedJob, matchedPallet = 0, nil, nil
+    local presses = MachineFleet.installedUnits(value, "heidelberg_10x15")
+    if #presses == 0 then presses[1] = { id = "legacy-windmill" } end
+    local owners, loaded = {}, {}
+    for _, press in ipairs(presses) do
+        local placement = press.world or value.windmill or {}
+        local process = placement.process
+        if process and process.palletId then
+            if loaded[process.palletId] then return false end
+            loaded[process.palletId] = { process = process, machineId = press.id }
+        elseif process and process.jobId then
+            return false
+        end
+    end
     for _, savedJob in ipairs(value.jobs and value.jobs.active or {}) do
         for _, pallet in ipairs(savedJob.pallets or {}) do
-            if pallet.location == "at_press" then atPress = atPress + 1 end
-            if process and pallet.id == process.palletId then
-                matchedJob, matchedPallet = savedJob, pallet
+            if pallet.location == "at_press" then
+                local owner = pallet.pressMachineId or (presses[1] and presses[1].id)
+                if not owner or owners[owner] then return false end
+                owners[owner] = true
+                local entry = loaded[pallet.id]
+                if not entry or entry.machineId ~= owner
+                    or entry.process.jobId ~= savedJob.id
+                    or type(savedJob.press) ~= "table" or type(pallet.press) ~= "table"
+                    or not positiveInteger(entry.process.colorIndex)
+                    or entry.process.colorIndex > savedJob.press.colors
+                then return false end
+                loaded[pallet.id] = nil
             end
         end
     end
-    if not process or process.palletId == nil then
-        return atPress == 0 and (not process or process.jobId == nil)
+    return next(loaded) == nil
+end
+
+local function machineUnitWorlds(value)
+    for _, item in ipairs(value.machines and value.machines.items or {}) do
+        local world = item.world
+        if item.modelId == "polar_115" and item.memory ~= nil
+            and not cutterMemory(item.memory) then return false end
+        if world then
+            if type(world) ~= "table" or not number(world.x) or not number(world.y)
+                or world.x < 0 or world.x > Config.baseWidth
+                or world.y < 0 or world.y > Config.baseHeight
+                or not directions[world.direction]
+                or not optionalBoolean(world.moving)
+                or not optionalBoolean(world.inMotion)
+                or (item.modelId == "heidelberg_10x15"
+                    and (not windmillProcess(world.process)
+                        or not optionalBoolean(world.tutorialComplete)))
+            then return false end
+        end
     end
-    return atPress == 1
-        and matchedJob ~= nil and matchedPallet ~= nil
-        and process.jobId == matchedJob.id
-        and matchedPallet.location == "at_press"
-        and type(matchedJob.press) == "table"
-        and type(matchedPallet.press) == "table"
-        and positiveInteger(process.colorIndex)
-        and process.colorIndex <= matchedJob.press.colors
+    return true
 end
 
 local function palletJack(value)
@@ -760,6 +791,7 @@ local function persistentState(value)
         and clientEmails(value.clientEmails)
         and workPhone(value.workPhone)
         and MachineFleet.validState(value.machines)
+        and machineUnitWorlds(value)
         and WarehouseUpgrades.validate(value.warehouse)
         and WarehouseConstruction.valid(value.constructionWorker, value.warehouse)
         and type(value.storage) == "table" and PalletStorage.normalize(value.storage) ~= nil

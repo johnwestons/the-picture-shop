@@ -4,6 +4,7 @@ local Procurement = require("src.procurement")
 local WrapperPlacement = require("src.wrapper_placement")
 local MachineFleet = require("src.machine_fleet")
 
+local function createWrapper(machineId)
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil,
     selectedPalletId = nil }
 
@@ -21,7 +22,8 @@ local function distanceSquared(a, b)
 end
 
 function Wrapper.nearbyPallets(state)
-    local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+    local machine = machineId and MachineFleet.byId(state, machineId)
+    local wrapper = machine and machine.world or WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local nearby = {}
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
         local pallet = item.pallet
@@ -75,7 +77,7 @@ function Wrapper.reset(state)
 end
 
 function Wrapper.isActive() return Wrapper.step == "wrapping" end
-function Wrapper.canExit(state) return blockInterruption(state, "leaving the console") end
+function Wrapper.canExit(state) return true end
 function Wrapper.canRelocate(state) return blockInterruption(state, "relocating the wrapper") end
 
 function Wrapper.start(state)
@@ -179,3 +181,49 @@ function Wrapper.filmHeight()
 end
 
 return Wrapper
+end
+
+local primary = createWrapper(nil)
+local instances = {}
+local selectedId
+local primaryId = "MCH-0002"
+local exported = {}
+
+local function instance(machineId)
+    if not machineId or machineId == primaryId then return primary end
+    if not instances[machineId] then instances[machineId] = createWrapper(machineId) end
+    return instances[machineId]
+end
+
+function exported.select(machineId, state)
+    selectedId = machineId
+    return instance(machineId)
+end
+
+function exported.forId(machineId) return instance(machineId) end
+
+function exported.updateAll(dt, state)
+    local units = MachineFleet.installedUnits(state, "skid_wrapper")
+    local durable = false
+    for _, unit in ipairs(units) do
+        MachineFleet.withUnit(state, unit.id, function()
+            if instance(unit.id).update(dt, state) then durable = true end
+        end)
+    end
+    return durable
+end
+
+function exported.reset(state)
+    return instance(selectedId).reset(state)
+end
+
+function exported.clearInstances()
+    instances = {}
+    selectedId = nil
+    primary.reset()
+end
+
+return setmetatable(exported, {
+    __index = function(_, key) return instance(selectedId)[key] end,
+    __newindex = function(_, key, value) instance(selectedId)[key] = value end,
+})

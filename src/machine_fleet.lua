@@ -3,6 +3,9 @@ local BusinessCalendar = require("src.business_calendar")
 local Procurement = require("src.procurement")
 local Config = require("src.config")
 local Inbox = require("src.inbox")
+local WarehouseLayout = require("src.warehouse_layout")
+local Navigation = require("src.navigation")
+local Assets = require("src.assets")
 
 local saleGuard = nil
 
@@ -232,6 +235,104 @@ local function normalizeItem(item)
     return item
 end
 
+local floorSlots = {
+    { 470, 420 }, { 350, 525 }, { 540, 540 },
+    { 530, 335 }, { 760, 540 }, { 740, 335 },
+    { 390, 355 }, { 605, 550 },
+}
+
+local function placementFor(state, item)
+    local model = definition(item.modelId)
+    local key = model and model.placementKey
+    if not key then return nil end
+    local first = state[key]
+    if type(first) == "table" and type(first.x) == "number" and type(first.y) == "number" then
+        return first
+    end
+    local config = Config[key .. "Placement"]
+    return config and { x = config.spawnX, y = config.spawnY }
+end
+
+local function assignFloorPosition(state, fleet, item)
+    if item.world then return true end
+    local occupied = {}
+    local itemConfig = Config[definition(item.modelId).placementKey .. "Placement"]
+    for _, other in ipairs(fleet.items) do
+        if other ~= item and other.status == "installed" then
+            local point = other.world or placementFor(state, other)
+            if point then
+                local config = Config[definition(other.modelId).placementKey .. "Placement"]
+                occupied[#occupied + 1] = { x = point.x, y = point.y,
+                    halfWidth = config.collisionHalfWidth,
+                    halfHeight = config.collisionHalfHeight }
+            end
+        end
+    end
+    if state.forklift then
+        occupied[#occupied + 1] = { x = state.forklift.x, y = state.forklift.y,
+            halfWidth = Config.forklift.collisionHalfWidth,
+            halfHeight = Config.forklift.collisionHalfHeight }
+    end
+    if state.palletJack then
+        occupied[#occupied + 1] = { x = state.palletJack.x, y = state.palletJack.y,
+            halfWidth = Config.palletJack.collisionHalfWidth,
+            halfHeight = Config.palletJack.collisionHalfHeight }
+    end
+    for _, obstacle in ipairs(WarehouseLayout.obstacles(state)) do
+        occupied[#occupied + 1] = { x = obstacle.x, y = obstacle.y,
+            halfWidth = obstacle.halfWidth or 26,
+            halfHeight = obstacle.halfHeight or 18 }
+    end
+    for _, job in ipairs(state.jobs and state.jobs.active or {}) do
+        for _, pallet in ipairs(job.pallets or {}) do
+            local world = pallet.world
+            if world and pallet.location ~= "at_cutter" and pallet.location ~= "at_press" then
+                occupied[#occupied + 1] = { x = world.x, y = world.y,
+                    halfWidth = 33, halfHeight = 11 }
+            end
+        end
+    end
+    local function clearSlot(slot)
+        local clear = not WarehouseLayout.isReserved(state, slot[1], slot[2])
+            and slot[1] + itemConfig.operatorDistanceX < Config.baseWidth - 15
+            and slot[2] + itemConfig.operatorDistanceY < Config.baseHeight - 20
+            and Navigation.isAreaWalkable(Assets, slot[1], slot[2],
+                itemConfig.collisionHalfWidth, itemConfig.collisionHalfHeight)
+        for _, dx in ipairs({ -itemConfig.collisionHalfWidth, itemConfig.collisionHalfWidth }) do
+            for _, dy in ipairs({ -itemConfig.collisionHalfHeight, itemConfig.collisionHalfHeight }) do
+                if WarehouseLayout.isReserved(state, slot[1] + dx, slot[2] + dy) then
+                    clear = false
+                end
+            end
+        end
+        for _, point in ipairs(occupied) do
+            if math.abs(slot[1] - point.x)
+                    < itemConfig.collisionHalfWidth + point.halfWidth + 8
+                and math.abs(slot[2] - point.y)
+                    < itemConfig.collisionHalfHeight + point.halfHeight + 18 then
+                clear = false
+                break
+            end
+        end
+        return clear
+    end
+    for _, slot in ipairs(floorSlots) do
+        if clearSlot(slot) then
+            item.world = { x = slot[1], y = slot[2], direction = "northwest" }
+            return true
+        end
+    end
+    for y = 330, 550, 44 do
+        for x = 345, 775, 55 do
+            if clearSlot({ x, y }) then
+                item.world = { x = x, y = y, direction = "northwest" }
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function normalizeDeliveryOrder(order)
     if type(order) ~= "table" or type(order.id) ~= "string"
         or not order.id:match("^MDO%-%d+$")
@@ -266,21 +367,32 @@ function Fleet.ensure(state)
     if type(state.machines) ~= "table" then state.machines = Fleet.defaultState() end
     local fleet = state.machines
     fleet.items = type(fleet.items) == "table" and fleet.items or {}
-    local normalized, installed, machineIds = {}, {}, {}
+    local normalized, machineIds = {}, {}
     local highestId = 0
     for _, source in ipairs(fleet.items) do
         local item = normalizeItem(source)
         if item and not machineIds[item.id] then
             local number = tonumber(item.id:match("^MCH%-(%d+)$"))
             highestId = math.max(highestId, number or 0)
-            if item.status == "installed" then
-                if installed[item.modelId] then item.status = "stored" else installed[item.modelId] = true end
-            end
             machineIds[item.id] = true
             normalized[#normalized + 1] = item
         end
     end
     fleet.items = normalized
+    local seenOnFloor = {}
+    for _, item in ipairs(fleet.items) do
+        -- Older saves kept spare purchases in storage. Bring those units onto
+        -- the floor when the save is opened under the multi-machine rules.
+        if item.status == "stored" then
+            item.status = "installed"
+            item.world = nil
+        end
+        if not seenOnFloor[item.modelId] or assignFloorPosition(state, fleet, item) then
+            seenOnFloor[item.modelId] = true
+        else
+            item.status = "stored"
+        end
+    end
     fleet.deliveries = type(fleet.deliveries) == "table" and fleet.deliveries or {}
     local deliveries, deliveryIds = {}, {}
     local highestDeliveryId = 0
@@ -407,18 +519,44 @@ function Fleet.byId(state, machineId)
     end
 end
 
-function Fleet.installed(state, modelId)
+function Fleet.installed(state, modelId, machineId)
+    local first
+    local activeId = machineId or state._operatingMachineId
+        or ((state.screen == "machine" or state.screen == "press") and state.machineId)
     for _, item in ipairs(Fleet.ensure(state).items) do
-        if item.modelId == modelId and item.status == "installed" then return item end
+        if item.modelId == modelId and item.status == "installed" then
+            if activeId == item.id then return item end
+            first = first or item
+        end
     end
+    return machineId == nil and first or nil
+end
+
+function Fleet.withUnit(state, machineId, callback)
+    local previous = state._operatingMachineId
+    state._operatingMachineId = machineId
+    local result = { pcall(callback) }
+    state._operatingMachineId = previous
+    if not result[1] then error(result[2], 0) end
+    return unpack(result, 2)
+end
+
+function Fleet.installedUnits(state, modelId)
+    local units = {}
+    for _, item in ipairs(Fleet.ensure(state).items) do
+        if item.status == "installed" and (modelId == nil or item.modelId == modelId) then
+            units[#units + 1] = item
+        end
+    end
+    return units
 end
 
 function Fleet.isInstalled(state, modelId)
     return Fleet.installed(state, modelId) ~= nil
 end
 
-function Fleet.canOperate(state, modelId)
-    local item = Fleet.installed(state, modelId)
+function Fleet.canOperate(state, modelId, machineId)
+    local item = Fleet.installed(state, modelId, machineId)
     if not item then return false, "This machine is not installed in the shop." end
     if modelId == "polar_115" and item.maintenance.cutter.bladeRemoved then
         return false, "The cutter blade is removed for sharpening. Reinstall it before production."
@@ -433,8 +571,8 @@ function Fleet.canOperate(state, modelId)
     return true, item
 end
 
-function Fleet.recordUse(state, modelId, cycles)
-    local item = Fleet.installed(state, modelId)
+function Fleet.recordUse(state, modelId, cycles, machineId)
+    local item = Fleet.installed(state, modelId, machineId)
     local model = item and definition(item.modelId)
     if not item or not model then return false, "No installed machine can receive wear." end
     cycles = math.max(0, tonumber(cycles) or 1)
@@ -613,19 +751,17 @@ function Fleet.unloadDelivery(state, orderId, machineId, now)
     end
     if order.item.id ~= machineId then return false, "That machine is not on this delivery manifest." end
     local item = order.item
-    item.status = Fleet.installed(state, item.modelId) and "stored" or "installed"
-    local receiving = Config.machineReceiving and Config.machineReceiving[item.modelId]
-    if item.status == "stored" and receiving then
-        local storedCount = 0
-        for _, candidate in ipairs(fleet.items) do
-            if candidate.status == "stored" and candidate.world then storedCount = storedCount + 1 end
+    local additional = false
+    for _, candidate in ipairs(fleet.items) do
+        if candidate.modelId == item.modelId and candidate.status == "installed" then
+            additional = true
+            break
         end
-        item.world = {
-            x = receiving.x + storedCount * 26,
-            y = receiving.y + storedCount * 22,
-            direction = receiving.direction or "northwest",
-        }
     end
+    if additional and not assignFloorPosition(state, fleet, item) then
+        return false, "Clear floor space before unloading this machine."
+    end
+    item.status = "installed"
     fleet.items[#fleet.items + 1] = item
     order.item = nil
     order.delivery.status = "received"
@@ -643,8 +779,13 @@ function Fleet.buy(state, channel, offerIndex)
     local fleet = Fleet.ensure(state)
     local id = string.format("MCH-%04d", fleet.nextId)
     fleet.nextId = fleet.nextId + 1
-    local status = Fleet.installed(state, offer.modelId) and "stored" or "installed"
-    local item = createItem(id, offer.modelId, offer.condition, offer.channel, status, offer.price)
+    local additional = Fleet.installed(state, offer.modelId) ~= nil
+    local item = createItem(id, offer.modelId, offer.condition, offer.channel, "installed", offer.price)
+    normalizeItem(item)
+    if additional and not assignFloorPosition(state, fleet, item) then
+        fleet.nextId = fleet.nextId - 1
+        return false, "Clear floor space before buying another machine."
+    end
     fleet.items[#fleet.items + 1] = item
     state.money = state.money - offer.price
     return true, item
@@ -654,7 +795,8 @@ local function machineOwnsCutterPallet(state, item)
     if item.modelId ~= "polar_115" then return false end
     for _, job in ipairs(state.jobs and state.jobs.active or {}) do
         for _, pallet in ipairs(job.pallets or {}) do
-            if pallet.location == "at_cutter" then return true end
+            if pallet.location == "at_cutter"
+                and (pallet.cutterMachineId or "MCH-0001") == item.id then return true end
         end
     end
     return false
@@ -662,7 +804,7 @@ end
 
 local function installedWindmillIsLoaded(state, item)
     if item.modelId ~= "heidelberg_10x15" or item.status ~= "installed" then return false end
-    local placement = type(state.windmill) == "table" and state.windmill or {}
+    local placement = item.world or (type(state.windmill) == "table" and state.windmill or {})
     local process = type(placement.process) == "table" and placement.process or {}
     return process.palletId ~= nil
 end
@@ -684,7 +826,8 @@ end
 
 local function hasStoredReplacement(fleet, item)
     for _, candidate in ipairs(fleet.items) do
-        if candidate ~= item and candidate.modelId == item.modelId and candidate.status == "stored" then
+        if candidate ~= item and candidate.modelId == item.modelId
+            and (candidate.status == "stored" or candidate.status == "installed") then
             return true
         end
     end
@@ -828,17 +971,13 @@ function Fleet.validState(value)
         return math.abs(calculateCondition(item) - item.condition) <= 0.11
     end
 
-    local ids, installed = {}, {}
+    local ids = {}
     if not denseArray(value.items) or not denseArray(value.deliveries)
         or not denseArray(value.serviceNotices)
     then return false end
     for index, item in ipairs(value.items) do
         if not validMachineRecord(item) or ids[item.id] then return false end
         ids[item.id] = true
-        if item.status == "installed" then
-            if installed[item.modelId] then return false end
-            installed[item.modelId] = true
-        end
         if value.items[index] ~= item then return false end
     end
 

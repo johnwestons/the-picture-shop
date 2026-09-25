@@ -2,7 +2,7 @@ local Coverage = {}
 
 local FINDINGS = {
     ["P0-01 occupied-slot overwrite"] = { "title_keyboard_overwrite_cancel_preserves_bytes" },
-    ["P0-02 wrapper exit lifecycle"] = { "wrapper_keyboard_middle_exit_blocked", "wrapper_mouse_final_frame_finishes_once" },
+    ["P0-02 wrapper exit lifecycle"] = { "wrapper_keyboard_middle_exit_keeps_cycle_running", "wrapper_mouse_final_frame_finishes_once" },
     ["P0-03 persistent defaults"] = { "domain_save_exact_defaults", "save_v2_migration" },
     ["P0-04 pallet ownership"] = { "domain_pallet_rejects_jack_to_cutter_claim" },
     ["P1-01 completion and payment"] = { "full_loop_pickup_archives_and_pays", "full_loop_payment_cannot_repeat" },

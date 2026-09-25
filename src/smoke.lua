@@ -251,22 +251,16 @@ local function runChecks(context)
                 local exitX, exitY = context.machineScreen.exitCenter()
                 handled = context.input.mousepressed(exitX, exitY, 1, testInputContext)
             end
-            check(name .. "_exit_blocked",
+            check(name .. "_exit_keeps_cycle_running",
                 handled
-                and testState.screen == "machine"
+                and testState.screen == "world"
                 and context.wrapper.step == "wrapping"
                 and context.wrapper.progress == progressBeforeExit
                 and testState.inventory.plasticWrapUses == 11
                 and not pallet.wrapped
-                and saveCalls == 0)
+                and saveCalls == 1)
 
             context.wrapper.update(context.wrapper.cycleTime, testState)
-            if inputKind == "keyboard" then
-                context.input.keypressed("escape", testInputContext)
-            else
-                local exitX, exitY = context.machineScreen.exitCenter()
-                context.input.mousepressed(exitX, exitY, 1, testInputContext)
-            end
             context.wrapper.update(1, testState)
             check(name .. "_finishes_once",
                 testState.screen == "world"

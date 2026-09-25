@@ -36,6 +36,7 @@ local ComputerScreen = {
     cart = {},
     cartOpen = false,
     cartPage = 1,
+    machinePage = 1,
     wwwSiteChangedAt = 0,
     tabDropdownOpen = false,
     warehouseConfirmation = nil,
@@ -101,6 +102,9 @@ local CAL_SCROLL_UP = { x = 624, y = 558, width = 102, height = 28 }
 local CAL_SCROLL_DOWN = { x = 738, y = 558, width = 102, height = 28 }
 local MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 82, gap = 10 }
 local OWNED_MACHINE = { x = 486, y = 296, width = 354, height = 64, gap = 8 }
+ComputerScreen.machinePageSize = 4
+ComputerScreen.machinePreviousRect = { x = 490, y = 588, width = 78, height = 28 }
+ComputerScreen.machineNextRect = { x = 760, y = 588, width = 78, height = 28 }
 local ROW_HEIGHT = 46
 local JOBS_PER_PAGE = 7
 
@@ -411,6 +415,13 @@ local function machineSellRect(index)
         width = 76, height = 36 }
 end
 
+function ComputerScreen.ownedMachinePage(state)
+    local owned = MachineFleet.owned(state)
+    local pages = math.max(1, math.ceil(#owned / ComputerScreen.machinePageSize))
+    ComputerScreen.machinePage = math.max(1, math.min(ComputerScreen.machinePage or 1, pages))
+    return owned, pages
+end
+
 local function isPurchaseOrder(item)
     return item and item.vendor ~= nil and item.productName ~= nil
 end
@@ -540,6 +551,7 @@ function ComputerScreen.enter(state)
     ComputerScreen.cart = {}
     ComputerScreen.cartOpen = false
     ComputerScreen.cartPage = 1
+    ComputerScreen.machinePage = 1
     ComputerScreen.wwwSiteChangedAt = 0
     ComputerScreen.tabDropdownOpen = false
     ComputerScreen.warehouseConfirmation,ComputerScreen.warehousePending,ComputerScreen.warehouseMessage=nil,false,nil
@@ -632,6 +644,12 @@ end
 
 function ComputerScreen.machineSellCenter(index)
     local rect = machineSellRect(index)
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function ComputerScreen.machinePageCenter(direction)
+    local rect = direction == "previous" and ComputerScreen.machinePreviousRect
+        or ComputerScreen.machineNextRect
     return rect.x + rect.width / 2, rect.y + rect.height / 2
 end
 
@@ -786,8 +804,18 @@ function ComputerScreen.mousepressed(state, x, y, button)
                 return { action = "cart_item_added" }
             end
         end
-        for index, item in ipairs(MachineFleet.owned(state)) do
-            if index <= 4 and contains(machineSellRect(index), x, y) then
+        local owned, pages = ComputerScreen.ownedMachinePage(state)
+        if pages > 1 and contains(ComputerScreen.machinePreviousRect, x, y) then
+            ComputerScreen.machinePage = math.max(1, ComputerScreen.machinePage - 1)
+            return { action = "machine_page" }
+        end
+        if pages > 1 and contains(ComputerScreen.machineNextRect, x, y) then
+            ComputerScreen.machinePage = math.min(pages, ComputerScreen.machinePage + 1)
+            return { action = "machine_page" }
+        end
+        for visibleIndex = 1, ComputerScreen.machinePageSize do
+            local item = owned[(ComputerScreen.machinePage - 1) * ComputerScreen.machinePageSize + visibleIndex]
+            if item and contains(machineSellRect(visibleIndex), x, y) then
                 if dependencies.remoteCommand then return remoteAction("sell", { id = item.id }) end
                 local succeeded, result = MachineFleet.sell(state, item.id, "online")
                 if not succeeded then state.message = tostring(result); return { action = "blocked" } end
@@ -1616,16 +1644,17 @@ local function drawWww(state, pointerX, pointerY, assets)
 
     love.graphics.setColor(0.63, 0.72, 0.74)
     love.graphics.print("YOUR MACHINES", OWNED_MACHINE.x, 284)
-    local owned = MachineFleet.owned(state)
+    local owned, pages = ComputerScreen.ownedMachinePage(state)
     if #owned == 0 then
         love.graphics.setColor(0.52, 0.60, 0.62)
         love.graphics.printf("No machines owned. Buy a unit to install it in the shop.",
             OWNED_MACHINE.x, 356, OWNED_MACHINE.width, "center")
     end
-    for index, item in ipairs(owned) do
-        if index > 4 then break end
-        local y = OWNED_MACHINE.y + (index - 1) * (OWNED_MACHINE.height + OWNED_MACHINE.gap)
-        local sell = machineSellRect(index)
+    for visibleIndex = 1, ComputerScreen.machinePageSize do
+        local item = owned[(ComputerScreen.machinePage - 1) * ComputerScreen.machinePageSize + visibleIndex]
+        if item then
+        local y = OWNED_MACHINE.y + (visibleIndex - 1) * (OWNED_MACHINE.height + OWNED_MACHINE.gap)
+        local sell = machineSellRect(visibleIndex)
         local condition = MachineFleet.condition(item)
         local weakest = MachineFleet.weakestComponent(item)
         panel({ x = OWNED_MACHINE.x, y = y, width = OWNED_MACHINE.width, height = OWNED_MACHINE.height },
@@ -1645,10 +1674,26 @@ local function drawWww(state, pointerX, pointerY, assets)
         love.graphics.setColor(0.96, 0.91, 0.88)
         love.graphics.printf("SELL\n" .. money(MachineFleet.resaleValue(item, "online")),
             sell.x, sell.y + 4, sell.width, "center")
+        end
+    end
+    if pages > 1 then
+        local previous, nextRect = ComputerScreen.machinePreviousRect, ComputerScreen.machineNextRect
+        love.graphics.setColor(0.15, 0.27, 0.29)
+        love.graphics.rectangle("fill", previous.x, previous.y,
+            previous.width, previous.height, 3, 3)
+        love.graphics.rectangle("fill", nextRect.x, nextRect.y,
+            nextRect.width, nextRect.height, 3, 3)
+        love.graphics.setColor(0.86, 0.94, 0.92)
+        love.graphics.printf("PREV", previous.x, previous.y + 7,
+            previous.width, "center")
+        love.graphics.printf("NEXT", nextRect.x, nextRect.y + 7,
+            nextRect.width, "center")
+        love.graphics.printf(string.format("%d / %d", ComputerScreen.machinePage, pages),
+            588, 595, 164, "center")
     end
     love.graphics.setColor(0.55, 0.68, 0.69)
-    love.graphics.printf("CritterNet verified listings • extra units enter shop storage automatically",
-        486, 574, 354, "center")
+    love.graphics.printf("CritterNet verified listings • each machine gets a place on the shop floor",
+        486, 622, 354, "center")
 end
 
 local function drawWarehouse(state,pointerX,pointerY,assets)

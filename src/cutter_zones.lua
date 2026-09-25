@@ -31,6 +31,16 @@ local directionOrder = {
 
 local function cutter(state, config)
     local value = state and state.cutter or {}
+    local selected = state and (state._operatingMachineId
+        or (state.screen == "machine" and state.machineId))
+    if selected then
+        for _, item in ipairs(state.machines and state.machines.items or {}) do
+            if item.id == selected and item.modelId == "polar_115" and item.world then
+                value = item.world
+                break
+            end
+        end
+    end
     return {
         x = type(value.x) == "number" and value.x or config.spawnX,
         y = type(value.y) == "number" and value.y or config.spawnY,
