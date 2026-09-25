@@ -333,7 +333,7 @@ local function interactables(player)
                 x = item.world.x, y = item.world.y,
                 radius = Config.cutterPlacement.interactionRadius,
                 prompt = "E: use " .. item.name .. " (" .. item.id .. ")",
-                machineId = item.id,
+                machineId = item.id, relocatable = false,
             }, "cutter:" .. item.id) end
         end
         local wrappers = MachineFleet.installedUnits(World._state, "skid_wrapper")
@@ -351,7 +351,7 @@ local function interactables(player)
                 x = item.world.x, y = item.world.y,
                 radius = Config.wrapperPlacement.interactionRadius,
                 prompt = "E: use skid wrapper (" .. item.id .. ")",
-                machineId = item.id,
+                machineId = item.id, relocatable = false,
             }, "wrapper:" .. item.id) end
         end
         local windmills = MachineFleet.installedUnits(World._state, "heidelberg_10x15")
@@ -369,7 +369,7 @@ local function interactables(player)
                 x = item.world.x, y = item.world.y,
                 radius = Config.windmillPlacement.interactionRadius,
                 prompt = "E: operate Windmill (" .. item.id .. ")",
-                machineId = item.id,
+                machineId = item.id, relocatable = false,
             }, "windmill:" .. item.id) end
         end
         addTarget("palletJack", PalletJack.interaction(player, World._state, Config.palletJack))

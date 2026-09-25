@@ -2326,9 +2326,12 @@ local function extraMobileActions()
                 else
                     actions[#actions + 1] = { key = "f", label = "PARK" }
                     local selected = World.getInteraction()
+                    local extraMachine = selected and selected.target
+                        and selected.target.relocatable == false
                     local canRelocate = selected and (selected.kind == "cutter"
                         or selected.kind == "skidWrapper" or selected.kind == "windmill")
-                    if not canRelocate then
+                        and not extraMachine
+                    if not canRelocate and not extraMachine then
                         canRelocate = World.cutterNearby and World.cutterNearby(state)
                             or World.wrapperNearby and World.wrapperNearby(state)
                             or World.windmillNearby and World.windmillNearby(state)
@@ -2356,9 +2359,12 @@ local function extraMobileActions()
         else
             actions[#actions + 1] = { key = "f", label = "PARK" }
             local selected = World.getInteraction()
+            local extraMachine = selected and selected.target
+                and selected.target.relocatable == false
             local canRelocate = selected and (selected.kind == "cutter"
                 or selected.kind == "skidWrapper" or selected.kind == "windmill")
-            if not canRelocate then
+                and not extraMachine
+            if not canRelocate and not extraMachine then
                 canRelocate = World.cutterNearby and World.cutterNearby(state)
                     or World.wrapperNearby and World.wrapperNearby(state)
                     or World.windmillNearby and World.windmillNearby(state)

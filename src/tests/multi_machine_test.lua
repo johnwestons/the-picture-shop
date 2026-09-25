@@ -59,6 +59,10 @@ function Test.run(context, check)
         tostring(state.screen) .. " / " .. tostring(state.machineId)
             .. " / " .. tostring(context.machine.forId(duplicate.id).step))
     context.input.closeScreen(inputContext)
+    context.input.keypressed("m", inputContext)
+    check("extra_machine_does_not_move_original_cutter",
+        state.cutter.moving == false
+        and state.message:find("fixed at its assigned floor position", 1, true) ~= nil)
 
     context.machine.reset()
     for index, unit in ipairs(cutters) do

@@ -20,6 +20,8 @@ migrates this data.
 Each cutter and wrapper keeps a separate runtime, and every Windmill keeps its production process with its own
 floor record. Pallets at a cutter or press record the owning machine ID, so separate units can hold and advance jobs
 at the same time. Legacy pallet claims without an owner ID remain attached to the original unit when a save loads.
+Additional units are installed at their assigned floor positions; pallet-jack relocation and LAN guest controls for
+those units are not yet supported. The hosting player can operate them.
 
 Do not add a marketplace listing without a live world consumer unless it is explicitly marked as unavailable. This
 keeps players from spending money on decorative or unreachable prototypes.

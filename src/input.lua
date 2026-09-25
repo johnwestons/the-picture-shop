@@ -121,6 +121,11 @@ function Input.keypressed(key, context)
         return context.title.keypressed(key)
     elseif state.screen == "world" then
         local selected = context.world.getInteraction()
+        if (key == "m" or key == "q") and selected and selected.target
+            and selected.target.relocatable == false then
+            state.message = "This extra machine is fixed at its assigned floor position."
+            return true
+        end
         local networkClient = context.isNetworkClient and context.isNetworkClient()
         local movingMachine = state.cutter and state.cutter.moving
             or state.wrapper and state.wrapper.moving
@@ -349,6 +354,12 @@ function Input.keypressed(key, context)
         end
     elseif state.screen == "machine" then
         if state.machineType == "skid_wrapper" and key == "m" then
+            for _, item in ipairs(state.machines and state.machines.items or {}) do
+                if item.id == state.machineId and item.world then
+                    state.message = "This extra wrapper is fixed at its assigned floor position."
+                    return true
+                end
+            end
             local occupied = context.wrapperControlOccupied and context.wrapperControlOccupied()
             if context.world.beginWrapperMove(state, occupied) then
                 state.screen = "world"
