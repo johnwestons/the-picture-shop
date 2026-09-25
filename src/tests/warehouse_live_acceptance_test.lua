@@ -152,10 +152,11 @@ function Test.run(context,check)
         if context.captureWarehouse then context.captureWarehouse("retrieved-load",state,World) end
         -- A lost operator must leave the original load suspended on the forks.
         -- The parked renderer uses the same raised pose with an empty seat.
-        Forklift.forceRelease(state,Config.forklift,player.id)
-        player.x,player.y=lift.x+60,lift.y
+        local released,releaseCode,exit=World.forceReleaseForklift(player,state)
         test("parked_raised_load_preserves_custody",not lift.operating and lift.forkHeight==1
-            and lift.carriedPalletId==pallet.id and pallet.location=="on_forklift")
+            and lift.carriedPalletId==pallet.id and pallet.location=="on_forklift"
+            and released and exit and player.x==exit.x and player.y==exit.y
+            and (player.x~=lift.x or player.y~=lift.y),releaseCode)
         if context.captureWarehouse then context.captureWarehouse("parked-raised-load",state,World) end
         success,why=World.warehouseCommand(player,state,{kind="operate"})
         test("remount_preserves_raised_load",success and lift.operating and lift.operatorPlayerId==player.id

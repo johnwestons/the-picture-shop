@@ -224,6 +224,33 @@ local function loadFootprint(item)
     return math.min(size.width,size.height),math.max(size.width,size.height)
 end
 
+local function exitPoint(state,context)
+    local lift=state.forklift
+    if not lift then return nil end
+    -- Side exits keep the worker clear of the fork-height badge below the cab.
+    for _,offset in ipairs({{72,0},{-72,0},{0,48},{0,-48},{64,48},{-64,48},{64,-48},{-64,-48}}) do
+        local x,y=lift.x+offset[1],lift.y+offset[2]
+        if clear(context,state,x,y,6,3,nil,false,false) then return {x=x,y=y} end
+    end
+end
+
+local function placeOperator(player,point)
+    if not point then return end
+    player.x,player.y=point.x,point.y
+    player.moving=false
+    player.velocityX,player.velocityY=0,0
+end
+
+function Gameplay.forceRelease(player,state,context)
+    local playerId=id(player)
+    if not playerId or type(state)~="table" or not state.forklift
+        or state.forklift.operatorPlayerId~=playerId then return false,"not_owner" end
+    local exit=exitPoint(state,context)
+    local okay,code=Forklift.forceRelease(state,Config.forklift,playerId)
+    if okay then placeOperator(player,exit) end
+    return okay,code,exit
+end
+
 function Gameplay.stackContext(player,state,intent,context)
     local result={playerId=id(player),near=false,aligned=false,clear=false,stackable=false,compatible=false}
     local lift=state.forklift
@@ -261,15 +288,10 @@ function Gameplay.command(player,state,rawIntent,context)
         okay,code=Forklift.acquire(state,Config.forklift,playerId)
         if okay then player.x,player.y=Forklift.operatorPosition(state,Config.forklift) end
     elseif intent.kind=="release" then
-        local lift=state.forklift
-        local exit
-        for _,offset in ipairs({{0,48},{0,-48},{64,0},{-64,0},{64,48},{-64,48},{64,-48},{-64,-48}}) do
-            local x,y=lift.x+offset[1],lift.y+offset[2]
-            if clear(context,state,x,y,6,3,nil,false,false) then exit={x=x,y=y};break end
-        end
+        local exit=exitPoint(state,context)
         if not exit then return false,"no_exit",message("no_exit") end
         okay,code=Forklift.release(state,Config.forklift,playerId)
-        if okay then player.x,player.y=exit.x,exit.y;player.moving=false;player.velocityX,player.velocityY=0,0 end
+        if okay then placeOperator(player,exit) end
     elseif intent.kind=="set_height" then okay,code=Forklift.setForkHeight(state,Config.forklift,playerId,intent.height)
     elseif intent.kind=="pickup" or intent.kind=="drop" then
         local palletId=intent.kind=="pickup" and intent.palletId or state.forklift.carriedPalletId

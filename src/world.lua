@@ -2035,6 +2035,16 @@ function World.warehouseCommand(player, state, intent)
     return okay, code, message
 end
 
+function World.forceReleaseForklift(player,state)
+    local okay,code,exit=WarehouseGameplay.forceRelease(warehousePlayer(player),state,warehouseContext())
+    if okay and exit and player ~= World.player and player.id == (tonumber(World.player.id) or 1) then
+        World.player.x,World.player.y=player.x,player.y
+        World.player.moving=false
+        World.player.velocityX,World.player.velocityY=0,0
+    end
+    return okay,code,exit
+end
+
 function World.warehouseRackContext(player, state, rackId)
     return WarehouseGameplay.rackContext(warehousePlayer(player), state, rackId, warehouseContext())
 end

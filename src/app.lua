@@ -1309,7 +1309,7 @@ local function createWorkshopAuthority()
         commands={warehouse_action=warehouseCommand},
         onRelease=function(_,player)
             if state.forklift and state.forklift.operatorPlayerId==player.id then
-                Forklift.forceRelease(state,Config.forklift,player.id)
+                World.forceReleaseForklift(player,state)
                 saveCurrent()
             end
             return true,"released","Forklift safely stopped.",{}
@@ -2840,7 +2840,7 @@ local function handleMultiplayerEvents()
             elseif event.resourceId == "warehouse" then
                 local localId=tonumber(World.player.id)
                 if state.forklift and state.forklift.operatorPlayerId==localId then
-                    Forklift.forceRelease(state,Config.forklift,localId)
+                    World.forceReleaseForklift(World.player,state)
                 end
             end
             state.message = tostring(event.message or "The host released that workshop control.")

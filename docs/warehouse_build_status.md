@@ -50,7 +50,7 @@ The [art index](../assets/source/warehouse-expansion-v1/ART_STATUS.md) preserves
 
 ## Verification
 
-- September 24 forklift polish: desktop and forced-mobile smoke each pass **3,415 checks, zero failures**. Eight selected empty-seat lift sheets have the expected 2048×768 RGBA geometry and transparent corners; the runtime packaging tests pass. The real-engine acceptance run passes **62 checks**, including suspended-load preservation and remount after operator loss. The parked raised-load capture was visually inspected.
+- September 24 forklift polish: desktop and forced-mobile smoke each pass **3,415 checks, zero failures**. Eight selected empty-seat lift sheets have the expected 2048×768 RGBA geometry and transparent corners; the runtime packaging tests pass. The real-engine acceptance run passes **62 checks**, including suspended-load preservation, a clear standing position after forced release and remount. The parked raised-load capture was visually inspected.
 
 - Desktop full smoke: **3,319 checks pass, zero failures**. [Report](../output/warehouse-polish-final-desktop.rpt).
 - Forced-mobile full smoke: **3,319 checks pass, zero failures**. [Report](../output/warehouse-polish-final-mobile.rpt). This tests mobile settings on desktop, not physical-device touch/performance.
