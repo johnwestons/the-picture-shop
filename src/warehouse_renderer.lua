@@ -1,6 +1,5 @@
--- The first playable extension uses existing registered imagery, not a scaled
--- replacement of the shop. This projection is explicitly interim world art;
--- the approved first-person shelf image remains unchanged on disk.
+-- Expansion scenery uses authored sprites independently of the shop scale.
+-- The first-person inventory backdrop is never used as world rack scenery.
 local Layout = require("src.warehouse_layout")
 local Storage = require("src.pallet_storage")
 local PalletState = require("src.pallet_state")
@@ -8,12 +7,14 @@ local ForkliftPresentation = require("src.forklift_presentation")
 local ForkliftLayeredPresentation = require("src.forklift_layered_presentation")
 local MechanicWorkPresentation = require("src.mechanic_work_presentation")
 local ConstructionPresentation = require("src.warehouse_construction_presentation")
+local RackPresentation = require("src.warehouse_rack_presentation")
 local Config = require("src.config")
 local Renderer = {}
 local meshes, rackImage = {}, nil
 local sourceImages, sourceQuads = {}, {}
 local constructionIssues={}
 local constructionImages={}
+local rackIssues={}
 local ROOT="assets/source/warehouse-expansion-v1/"
 local RACK_PATH="assets/source/warehouse-expansion-v1/rack-front-2x5-approved.png"
 local DIRECTIONS={northwest=1,north=2,northeast=3,east=4,southeast=5,south=6,southwest=7,west=8}
@@ -126,6 +127,11 @@ function Renderer.drawFloors(assets,state)
         end
     end
 end
+function Renderer.rackPlan(state,bayId)
+    return RackPresentation.plan(state,bayId,
+        {review=Config.warehouse and Config.warehouse.provisionalArt==true})
+end
+function Renderer.rackIssue(bayId) return rackIssues[bayId] end
 local function drawRackColumn(bay,column)
     local image=loadRack()
     if not image then return end
@@ -161,24 +167,56 @@ function Renderer.addActors(actors,assets,state,drawPallet)
             actors[#actors+1]={y=depth,layer=1,draw=function() drawConstruction(bay,stage,state) end}
         elseif status and status.status=="complete" and status.optionId=="storage" then
             local slots=Storage.slots(state,bay.rackId)
-            for column=1,5 do
-                local col=column
-                local base=Layout.rackPoint(id,1,column)
-                actors[#actors+1]={y=base.groundY,layer=-1,draw=function()
-                    drawRackColumn(bay,col)
-                    -- Lower/upper stock keep the original isometric pallet
-                    -- scale; both are depth-sorted by shelf feet, not elevation.
-                    if drawPallet then
+            local plan,reason=Renderer.rackPlan(state,id)
+            rackIssues[id]=not plan and reason or nil
+            if not plan then
+                -- Keep the reviewed playable rack until the new authored
+                -- world sprite has a checked registration and pallet anchors.
+                for column=1,5 do
+                    local col=column
+                    local base=Layout.rackPoint(id,1,column)
+                    actors[#actors+1]={y=base.groundY,layer=-1,draw=function()
+                        drawRackColumn(bay,col)
+                        if drawPallet then
+                            for row=1,2 do
+                                local item=slots[row][col] and Storage.find(state,slots[row][col])
+                                if item then
+                                    local point=Layout.rackPoint(id,row,col)
+                                    drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,
+                                        x=point.x,y=point.y})
+                                end
+                            end
+                        end
+                    end}
+                end
+            else
+            local rackBayId=id
+            actors[#actors+1]={y=plan.depthY,layer=-1,draw=function()
+                local drawn,drawReason=RackPresentation.drawBack(plan,sourceImage)
+                rackIssues[rackBayId]=not drawn and (reason or drawReason) or nil
+                if not drawn then
+                    love.graphics.setColor(0.035,0.035,0.03,0.91)
+                    love.graphics.rectangle("fill",bay.approach.x-88,bay.approach.y+40,176,24,3,3)
+                    love.graphics.setColor(1,0.77,0.29,1)
+                    love.graphics.printf("SHELF ART UNAVAILABLE",bay.approach.x-88,bay.approach.y+45,176,"center")
+                    return
+                end
+                -- These remain the canonical pallets and normal world sprite
+                -- scale. Only their shelf contact anchor changes; no stock is
+                -- copied or redrawn using the first-person menu's pallet art.
+                if drawPallet then
+                    for column=1,5 do
                         for row=1,2 do
-                            local item=slots[row][col] and Storage.find(state,slots[row][col])
+                            local item=slots[row][column] and Storage.find(state,slots[row][column])
                             if item then
-                                local point=Layout.rackPoint(id,row,col)
-                                drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,
-                                    x=point.x,y=point.y})
+                                local point=RackPresentation.slotPoint(plan,row,column)
+                                drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,x=point.x,y=point.y})
                             end
                         end
                     end
-                end}
+                end
+                RackPresentation.drawFront(plan,sourceImage)
+            end}
             end
         end
     end

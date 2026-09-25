@@ -23,6 +23,8 @@ function Test.run(_,check)
         check("construction_sprite_catalog_stage_"..stage,entry and entry.stage==stage
             and entry.path:match("left%-storage%-stage%-"..stage.."%.png$") and entry.path~=previousPath
             and entry.approved==false)
+        check("construction_sprite_not_first_person_gui_stage_"..stage,
+            entry and not entry.path:find("rack%-front") and not entry.path:find("gui"))
         previousPath=entry.path
     end
     catalog.front_left[1].path="changed.png"

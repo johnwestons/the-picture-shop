@@ -64,6 +64,7 @@ local DOMAIN_SUITES = {
     require("src.tests.pallet_state_test"),
     require("src.tests.warehouse_upgrades_test"),
     require("src.tests.warehouse_layout_test"),
+    require("src.tests.warehouse_rack_presentation_test"),
     require("src.tests.warehouse_scene_test"),
     require("src.tests.warehouse_live_acceptance_test"),
     require("src.tests.construction_service_test"),

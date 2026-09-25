@@ -18,16 +18,24 @@ import build_mobile_package as package
 class RuntimeSourcePackageTests(unittest.TestCase):
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
-        self.assertEqual(len(paths), 52)
+        self.assertEqual(len(paths), 57)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.suffix == ".png" for path in paths))
 
     def test_all_live_literal_source_paths_are_included(self) -> None:
         for relative in ("src/config.lua", "src/screens/pallet_rack_screen.lua",
-                         "src/warehouse_renderer.lua"):
+                         "src/warehouse_renderer.lua", "src/warehouse_rack_presentation.lua"):
             text = (package.ROOT / relative).read_text(encoding="utf-8")
             for asset in re.findall(r'"(assets/source/[^"\n]+\.png)"', text):
                 self.assertIn(asset, package.RUNTIME_SOURCE_ASSETS, relative)
+
+    def test_authored_construction_stages_are_packaged(self) -> None:
+        source = (package.ROOT / "src/warehouse_construction_presentation.lua").read_text(encoding="utf-8")
+        self.assertIn('local ROOT="assets/source/warehouse-expansion-v1/construction/"', source)
+        self.assertIn('"left-storage-stage-"..stage..".png"', source)
+        for stage in range(1, 5):
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"construction/left-storage-stage-{stage}.png",
+                          package.RUNTIME_SOURCE_ASSETS)
 
     def test_directional_catalog_versions_and_work_atlas_match(self) -> None:
         presentation = (package.ROOT / "src/forklift_presentation.lua").read_text(encoding="utf-8")

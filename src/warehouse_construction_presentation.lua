@@ -12,10 +12,14 @@ end
 local catalog={front_left={}}
 for stage=1,4 do
     catalog.front_left[stage]={path=ROOT.."left-storage-stage-"..stage..".png",
-        stage=stage,bayId="front_left",optionId="storage",approved=false,includesFloor=true,
-        -- Source dimensions, crop and floor-anchor registration are completed
-        -- only after the actual generated sprite has been inspected.
-        registration=nil}
+        stage=stage,bayId="front_left",optionId="storage",approved=false,includesFloor=false,
+        -- Individually reviewed authored sprites: the formwork's left front
+        -- corner and subsequent left front post share the same world footing.
+        -- This is a uniform registration, not a projected first-person image.
+        registration={textureWidth=1536,textureHeight=1024,
+            source={x=0,y=0,width=1536,height=1024},
+            groundAnchor=stage==1 and {x=155,y=350} or {x=164,y=492},
+            worldX=30,worldY=467,scale=0.27,depthY=647}}
 end
 
 function Presentation.reviewCatalog() return copy(catalog) end
