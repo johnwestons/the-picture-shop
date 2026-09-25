@@ -18,7 +18,7 @@ import build_mobile_package as package
 class RuntimeSourcePackageTests(unittest.TestCase):
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
-        self.assertEqual(len(paths), 29)
+        self.assertEqual(len(paths), 37)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.suffix == ".png" for path in paths))
 
@@ -35,6 +35,9 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         for direction in ("northwest", "north", "northeast", "east", "southeast", "south", "southwest", "west"):
             version = 2 if direction == "north" else 3 if direction == "south" else 1
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"forklift-lift/{direction}-raise-v{version}.png",
+                          package.RUNTIME_SOURCE_ASSETS)
+            empty_version = 2 if direction == "southeast" else 1
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"forklift-lift/{direction}-raise-empty-v{empty_version}.png",
                           package.RUNTIME_SOURCE_ASSETS)
             for action in ("walk", "idle"):
                 suffix = "" if direction == "east" else "_" + direction

@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-24",
+  "tool": "built-in image_gen edit",
+  "purpose": "Empty-seat lift pose sheets for parked forklifts with raised forks",
+  "edit_target_pattern": "<direction>-raise-v<selected-version>.png",
+  "supporting_reference": "../forklift-eight-directions-unmanned-v1.png",
+  "prompt": "Precise-object-edit. Edit target: FIRST image, the four-frame <direction>-facing forklift lift sprite sheet. Supporting reference: SECOND image shows the same forklift unmanned. Remove ONLY the seated orange rabbit driver in every frame; reconstruct the empty black seat, steering wheel, cab interior and visible background behind the driver. Preserve the original forklift vehicle, wheels, body, roof, mast, forks and all four precise lift-height poses, their exact registration, frame order, and the 2048x768 4-column layout. Keep the genuinely transparent background. Do not change the forklift design, viewpoint or fork positions. No new objects or text. Output a clean transparent PNG for a parked vehicle at any fork height.",
+  "southeast_cleanup_prompt": "Precise-object-edit of this four-frame southeast-view forklift sheet. In frames 1, 2 and 4, small bright orange fragments of the former rabbit driver still show through behind the mast and seat. Remove those orange body/ear fragments completely, revealing only dark empty cab interior and mechanical controls, matching the clean empty third frame. Preserve absolutely everything else: the forklift, golden body, mast, fork heights, exact four frame positions and 2048x768 transparent sprite sheet geometry. No new objects or text.",
+  "southeast_transparency_prompt": "Precise transparency cleanup of this existing 2048x768 RGBA four-frame southeast forklift sprite sheet. The empty background currently has a faint nonzero alpha across the entire canvas. Make every background pixel outside the actual forklift silhouette COMPLETELY TRANSPARENT (alpha exactly zero), including the corners and gaps between frames, while retaining anti-aliased edges only immediately against the forklift. Do not alter the forklift art, colors, details, dimensions, registration, four pose order, seats, wheels, mast, or forks. No new objects, no drop shadow or backdrop.",
+  "selected_outputs": [
+    "northwest-raise-empty-v1.png",
+    "north-raise-empty-v1.png",
+    "northeast-raise-empty-v1.png",
+    "east-raise-empty-v1.png",
+    "southeast-raise-empty-v2.png",
+    "south-raise-empty-v1.png",
+    "southwest-raise-empty-v1.png",
+    "west-raise-empty-v1.png"
+  ],
+  "approval": "development art only"
+}

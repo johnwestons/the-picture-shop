@@ -150,6 +150,16 @@ function Test.run(context,check)
         test("single_canonical_pallet_after_round_trip",#Pallets.items(state)==1 and Pallets.validate(state)
             and state.storage.revision==2)
         if context.captureWarehouse then context.captureWarehouse("retrieved-load",state,World) end
+        -- A lost operator must leave the original load suspended on the forks.
+        -- The parked renderer uses the same raised pose with an empty seat.
+        Forklift.forceRelease(state,Config.forklift,player.id)
+        player.x,player.y=lift.x+60,lift.y
+        test("parked_raised_load_preserves_custody",not lift.operating and lift.forkHeight==1
+            and lift.carriedPalletId==pallet.id and pallet.location=="on_forklift")
+        if context.captureWarehouse then context.captureWarehouse("parked-raised-load",state,World) end
+        success,why=World.warehouseCommand(player,state,{kind="operate"})
+        test("remount_preserves_raised_load",success and lift.operating and lift.operatorPlayerId==player.id
+            and lift.forkHeight==1 and lift.carriedPalletId==pallet.id,why)
         -- Return through the actual floor corridor before testing a two-high
         -- floor stack. Only the test support stock is spawned; vehicle motion,
         -- collision, targeting, toolbar and transfer authority are the live path.

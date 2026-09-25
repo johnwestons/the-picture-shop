@@ -58,14 +58,17 @@ local function copy(value)
 end
 local function clamp(value, low, high) return math.max(low, math.min(high, value)) end
 
-function Presentation.reviewCatalog()
+function Presentation.reviewCatalog(manned)
+    if manned == nil then manned = true end
     local catalog = {}
     for _, direction in ipairs(directionOrder) do
         local entry = {
-            path = sourceRoot .. direction .. "-raise-v"
-                .. (direction == "north" and "2" or direction == "south" and "3" or "1") .. ".png",
+            path = manned and (sourceRoot .. direction .. "-raise-v"
+                .. (direction == "north" and "2" or direction == "south" and "3" or "1") .. ".png")
+                or (sourceRoot .. direction .. "-raise-empty-v"
+                    .. (direction == "southeast" and "2" or "1") .. ".png"),
             width = 2048, height = 768, direction = direction,
-            approved = false, manned = true, anchorStatus = "provisional_manual_review",
+            approved = false, manned = manned, anchorStatus = "provisional_manual_review",
             issues = { "soft_gold_gray_alpha_fringe", "per_frame_anchor_calibration_requires_review" },
             frames = {},
         }
@@ -158,7 +161,7 @@ function Presentation.plan(vehicle, options)
     if not finite(vehicle.x) or not finite(vehicle.y) or not finite(vehicle.forkHeight)
         or not directionIndex[vehicle.direction] or type(vehicle.operating) ~= "boolean"
     then return nil, "invalid_vehicle" end
-    local catalog = options.catalog or Presentation.reviewCatalog()
+    local catalog = options.catalog or Presentation.reviewCatalog(vehicle.operating)
     local sheet = catalog[vehicle.direction]
     local valid, code = Presentation.validateSheet(sheet)
     if not valid then return nil, code end

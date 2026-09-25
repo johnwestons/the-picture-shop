@@ -237,9 +237,9 @@ end
 function Renderer.forkliftPlan(vehicle)
     if not vehicle or not vehicle.owned then return nil end
     -- This explicit development switch does not approve source imagery or
-    -- change the production presentation gate. No driver is drawn in a
-    -- parked vehicle, even if its unloaded raised pose is not authored yet.
-    if Config.warehouse and Config.warehouse.provisionalArt and vehicle.operating then
+    -- change the production presentation gate. Both driver and empty-seat
+    -- strips retain the actual fork height and share the same body scale.
+    if Config.warehouse and Config.warehouse.provisionalArt then
         local scale=Renderer.forkliftScales()
         return ForkliftPresentation.plan(vehicle,{review=true,scale=scale})
     end
@@ -261,10 +261,19 @@ function Renderer.drawForklift(assets,state,drawPallet)
     local plan=Renderer.forkliftPlan(vehicle)
     local operatingScale,_,multiplier=Renderer.forkliftScales()
     local drawn=false
-    if plan then drawn=ForkliftPresentation.draw(vehicle,sourceImage,{review=true,scale=operatingScale}) end
     local loadX,loadY=vehicle.x,vehicle.y-(10+(vehicle.forkHeight or 0)*58)*multiplier
-    if plan and drawn then loadX,loadY=plan.loadX,plan.loadY
-    else
+    if plan then loadX,loadY=plan.loadX,plan.loadY end
+    local item=vehicle.carriedPalletId and drawPallet and Storage.find(state,vehicle.carriedPalletId)
+    local function drawLoad()
+        if item then drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,x=loadX,y=loadY}) end
+    end
+    -- Rear-facing forks sit behind the body and cab. Front/side loads cover
+    -- the vehicle instead of disappearing behind its full-body sprite.
+    local loadBehind=plan and (vehicle.direction=="north" or vehicle.direction=="northwest"
+        or vehicle.direction=="northeast")
+    if loadBehind then drawLoad() end
+    if plan then drawn=ForkliftPresentation.draw(vehicle,sourceImage,{review=true,scale=operatingScale}) end
+    if not drawn then
         local path=ROOT.."forklift-eight-directions-unmanned-v1.png"
         local image=sourceImage(path)
         if image then
@@ -281,10 +290,7 @@ function Renderer.drawForklift(assets,state,drawPallet)
             loadX,loadY=parked.loadX,parked.loadY
         end
     end
-    if vehicle.carriedPalletId and drawPallet then
-        local item=Storage.find(state,vehicle.carriedPalletId)
-        if item then drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,x=loadX,y=loadY}) end
-    end
+    if not loadBehind then drawLoad() end
 end
 function Renderer.drawVehicleStatus(state)
     local vehicle=state and state.forklift

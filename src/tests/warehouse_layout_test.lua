@@ -49,7 +49,9 @@ function Test.run(_,check)
     local plan=Renderer.forkliftPlan(vehicle)
     test("draft_switch_explicitly_reviews_not_approves",plan and plan.review and not plan.approved)
     vehicle.operating=false
-    test("parked_vehicle_never_draws_baked_driver",not Renderer.forkliftPlan(vehicle))
+    local parkedPlan=Renderer.forkliftPlan(vehicle)
+    test("parked_vehicle_uses_empty_raised_art",parkedPlan and parkedPlan.path:match("east%-raise%-empty%-v1%.png$")
+        and parkedPlan.forkHeight==1 and not parkedPlan.driverMismatch)
     Config.warehouse=original
 end
 return Test

@@ -42,13 +42,15 @@ The taller upper architecture from `warehouse-base-v3-top-remake.png` now fills 
 `Config.warehouse.provisionalArt=true` explicitly enables reviewed draft forklift imagery and marks the scene as development artwork. Source entries remain `approved=false`.
 
 - The first-person shelf uses the user-approved empty rack design. Its isometric projection and construction stages are interim renderings, not finished seam-certified module sprites.
-- Forks raise/lower in all eight headings using the existing four-pose studies. Visible stepping, fringe/body registration, cargo/mast occlusion and empty raised-vehicle art still need production polish.
+- Forks raise/lower in all eight headings using four-pose studies. Parked vehicles now retain their real fork height with matching empty-seat sheets, including a raised carried load. Rear-facing cargo is drawn behind the vehicle. Visible stepping, edge fringe and detailed mast/cargo occlusion still need production polish.
 - The raccoon uses the existing Mouse Frontier directional walk/idle strips with distance-based gait timing. All four stage-specific work loops are now integrated from the repaired `mechanic-work-atlas-v2.png`: concrete float, hammer, drill and paint roller. Individual source crops and foot anchors prevent neighboring poses from being cut into each frame. Host-timed work pauses when blocked and resets at stage changes; body scale is independent of raised tools. These 4-pose loops remain draft art with minor fringe/pose polish outstanding.
 - Remaining room choices, right-bay modules, complete stock variants, rabbit jack-pushing animations and full environment registration remain unfinished.
 
 The [art index](../assets/source/warehouse-expansion-v1/ART_STATUS.md) preserves source provenance and individual cleanup notes. The [full plan](warehouse_expansion_plan.md) remains the broader design specification, not a completion claim.
 
 ## Verification
+
+- September 24 forklift polish: desktop and forced-mobile smoke each pass **3,415 checks, zero failures**. Eight selected empty-seat lift sheets have the expected 2048×768 RGBA geometry and transparent corners; the runtime packaging tests pass. The real-engine acceptance run passes **62 checks**, including suspended-load preservation and remount after operator loss. The parked raised-load capture was visually inspected.
 
 - Desktop full smoke: **3,319 checks pass, zero failures**. [Report](../output/warehouse-polish-final-desktop.rpt).
 - Forced-mobile full smoke: **3,319 checks pass, zero failures**. [Report](../output/warehouse-polish-final-mobile.rpt). This tests mobile settings on desktop, not physical-device touch/performance.

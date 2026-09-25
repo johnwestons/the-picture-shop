@@ -42,11 +42,15 @@ The isolated [forklift lift lab](../../../RUN_FORKLIFT_LIFT_LAB.bat) supports al
 - North v1 is the wrong rear three-quarter heading. North v2 corrects that heading and is now selected in the review catalog with recalibrated provisional anchors; the hidden ground carriage remains an estimate.
 - South v1/v2 high forks read as dangling blades rather than a mechanically correct elevated carriage. [South v3](forklift-lift/south-raise-v3.png) extends the mast above the stationary cab and improves the high carriage connection. Its alpha fringe and nonuniform pose-height spacing still need correction; [exact correction prompt](forklift-lift/south-v3-prompt.json). This is a review candidate, not production approval.
 - Some wheel-ground anchors and body proportions drift between frames/directions. A crosshair calibration is a review aid, not proof of stable ground contact.
-- Empty-vehicle raised poses, load/mast/cage occlusion layers, and continuous playback at normal/half speed remain unapproved.
+- Load/mast/cage occlusion layers and continuous playback at normal/half speed remain unapproved.
 
 Captures are review evidence, not production acceptance. The later playable development slice was enabled only after world, authority, collision, construction and upper-shelf integration tests; it does not claim that the art is finished on the basis of the 24 lab captures.
 
 The refreshed catalog explicitly selects N v2 and S v3; other headings remain v1. Selected-frame cargo anchors keep a load on the visible tines instead of interpolating away from a held pose. Final captures in `output/warehouse-expansion-v1/forklift-lab-captures/` use a shared fit for all 32 source rectangles, fixing preview clipping at lowered south forks without zooming between directions. Refreshed N-high and S-low/high were inspected. Earlier captures are retained in `forklift-lab-captures-v1/` and `forklift-lab-captures-v2/`; none of these sources has been promoted to approved runtime art.
+
+### Empty-seat raised poses — September 24
+
+Eight [empty-seat lift sheets](forklift-lift/empty-seat-prompts.json) now pair with the eight occupied lift sheets. Each is a 2048×768 RGBA strip with four 512×768 height poses. The built-in image tool removed the driver and restored the empty cab, seat and controls without replacing the source sheets. The southeast sheet received cleanup passes for residual orange pixels and background alpha; v2 is selected. The runtime selects these strips whenever the forklift is parked, preserving the actual fork height and any suspended load after operator loss. The engine acceptance capture `output/warehouse-expansion-v1/live-acceptance/20260924-200136-parked-raised-load.png` shows the empty seat with raised cargo; the original pallet stayed in canonical forklift custody and remount succeeded. These sheets remain development art with `approved=false`; four-step motion, edge cleanup and detailed cargo/mast occlusion remain open.
 
 ## Raccoon construction tool studies
 

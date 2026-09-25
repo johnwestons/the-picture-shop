@@ -19,11 +19,13 @@ function Test.run(_, check)
             local before=Renderer.forkliftPlan(resized)
             resized.operating=false
             local parkedBefore=Renderer.parkedForkliftPlan(resized,1774,887)
+            local emptyBefore=Renderer.forkliftPlan(resized)
             Config.forklift.visualScaleMultiplier=1.4
             resized.operating=true
             local after=Renderer.forkliftPlan(resized)
             resized.operating=false
             local parkedAfter=Renderer.parkedForkliftPlan(resized,1774,887)
+            local emptyAfter=Renderer.forkliftPlan(resized)
             operatingExact=operatingExact and close(after.scale,before.scale*1.4)
                 and after.directionFrame==index and before.frameIndex==after.frameIndex
                 and before.originX==after.originX and before.originY==after.originY
@@ -32,6 +34,11 @@ function Test.run(_, check)
                 and parkedAfter.directionFrame==index and parkedAfter.source.x==parkedBefore.source.x
                 and parkedAfter.source.y==parkedBefore.source.y and parkedAfter.originX==parkedBefore.originX
                 and parkedAfter.originY==parkedBefore.originY and parkedAfter.x==parkedBefore.x and parkedAfter.y==parkedBefore.y
+                and emptyBefore and emptyAfter and emptyAfter.directionFrame==index
+                and emptyAfter.frameIndex==before.frameIndex and emptyAfter.forkHeight==height
+                and emptyAfter.path:match(direction.."%-raise%-empty%-v"
+                    ..(direction=="southeast" and "2" or "1").."%.png$")
+                and not emptyAfter.driverMismatch and close(emptyAfter.scale,emptyBefore.scale*1.4)
             loadRegistered=loadRegistered and close(after.loadX-after.x,(before.loadX-before.x)*1.4)
                 and close(after.loadY-after.y,(before.loadY-before.y)*1.4)
                 and close(parkedAfter.loadX-parkedAfter.x,(parkedBefore.loadX-parkedBefore.x)*1.4)
@@ -51,12 +58,17 @@ function Test.run(_, check)
     test("forklift_resize_preserves_speed_and_lift_timing",Config.forklift.speed==100 and Config.forklift.loadedSpeed==72
         and Config.forklift.liftDuration==3 and Config.forklift.lowerDuration==2.5 and Config.forklift.travelHeight==0.08)
     local catalog = Presentation.reviewCatalog()
+    local emptyCatalog = Presentation.reviewCatalog(false)
     local vehicle = { owned = true, x = 400, y = 300, direction = "northwest",
         operating = true, forkHeight = 0, carriedPalletId = "P-LOAD" }
     for index, direction in ipairs(directions) do
         local sheet = catalog[direction]
         test("metadata_" .. direction, Presentation.validateSheet(sheet)
             and #sheet.frames == 4 and sheet.width == 2048 and sheet.height == 768)
+        test("empty_metadata_" .. direction, Presentation.validateSheet(emptyCatalog[direction])
+            and not emptyCatalog[direction].manned
+            and emptyCatalog[direction].path:match(direction.."%-raise%-empty%-v"
+                ..(direction=="southeast" and "2" or "1").."%.png$"))
         vehicle.direction = direction
         local blocked, reason = Presentation.plan(vehicle)
         test("rejects_unapproved_" .. direction, not blocked and reason == "art_not_approved")
