@@ -51,6 +51,7 @@ The [art index](../assets/source/warehouse-expansion-v1/ART_STATUS.md) preserves
 ## Verification
 
 - September 24 forklift polish: desktop and forced-mobile smoke each pass **3,415 checks, zero failures**. Eight selected empty-seat lift sheets have the expected 2048×768 RGBA geometry and transparent corners; the runtime packaging tests pass. The real-engine acceptance run passes **62 checks**, including suspended-load preservation, a clear standing position after forced release and remount. The parked raised-load capture was visually inspected.
+- A continuous side-view lift candidate now runs for east/west in development-art mode: one fixed body and one vertically moving fork carriage replace four-step full-body changes in those headings. Parked views use the empty-seat body; the four-pose sheets remain a guarded fallback. Loaded low/mid/high engine captures were inspected. The six other headings still step, so forklift art is not yet final.
 - September 24 cargo registration review: a clean checkout passes **3,388 desktop and forced-mobile checks each, zero failures**. The real-engine acceptance run passes **62 checks** and captures the same carried pallet at low, mid and high poses in all eight headings. Side/diagonal pallet centers and vertical tine contact were reviewed in the resulting screenshots; the parked west remount and a loaded east-facing exit remain covered.
 
 - Desktop full smoke: **3,319 checks pass, zero failures**. [Report](../output/warehouse-polish-final-desktop.rpt).

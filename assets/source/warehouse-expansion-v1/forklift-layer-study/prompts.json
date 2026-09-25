@@ -1,0 +1,23 @@
+{
+  "mode": "built-in imagegen",
+  "status": "development-art candidate; east/west side views only",
+  "source": "../forklift-lift/east-raise-v1.png",
+  "assets": [
+    {
+      "file": "east-fixed-manned-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-62d9151c-5c4c-43e7-8817-a25888f659bc.png",
+      "promptSummary": "Extract a single east-facing forklift body from the first pose of east-raise-v1, preserving yellow chassis, both wheels, cabin roof, occupied rabbit worker, seat, steering wheel and stationary vertical mast. Remove both horizontal forks and moving carriage, filling the exposed mast rail. Keep the same perspective, colors, outline, texture and wheel positions. One isolated body on transparent RGBA, no ground, shadow, labels, duplicate poses or extras."
+    },
+    {
+      "file": "east-carriage-v2.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-aa4c0585-ae43-4567-9375-44a8ff03052a.png",
+      "promptSummary": "On the same 1536x1024 transparent canvas as the fixed body, return only a compact moving east-facing fork carriage and two horizontal right-pointing dark-steel tines. Attach at approximately x=1000, extend tines no farther than x=1320, around y=725-780. Match the short gold tips and painted outline of the source's first pose. No tall mast rail, cab, body, rabbit, wheels, ground, glow, text or duplicates."
+    },
+    {
+      "file": "east-fixed-empty-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-1c4eed68-7f63-42fa-87aa-e697706b688f.png",
+      "promptSummary": "Edit the fixed east-facing body in place on the same transparent 1536x1024 canvas. Remove only the rabbit driver and restore the empty seat, steering wheel, floor and controls. Preserve the body, wheels, panels, posts, roof, stationary mast, scale, composition and transparency; keep forks absent."
+    }
+  ],
+  "rejected": "An initial oversized carriage was rejected before workspace copy."
+}

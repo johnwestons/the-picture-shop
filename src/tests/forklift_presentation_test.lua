@@ -1,5 +1,6 @@
 local Test = {}
 local Presentation = require("src.forklift_presentation")
+local Layered = require("src.forklift_layered_presentation")
 local Config = require("src.config")
 local Renderer = require("src.warehouse_renderer")
 local function close(a,b) return math.abs(a-b)<0.000001 end
@@ -178,6 +179,53 @@ function Test.run(_, check)
     graphics.draw = function() error("test draw failure") end
     drawn = Presentation.draw(vehicle, getImage, { review = true }, graphics)
     test("graphics_state_restored_after_draw_error", not drawn and pushes == pops and released == 2)
+
+    local side = { owned=true, x=400, y=300, direction="east", operating=true,
+        forkHeight=0, carriedPalletId="P-LOAD" }
+    test("layered_side_art_still_requires_explicit_review",
+        not Layered.plan(side) and not Layered.plan({owned=true,direction="north"},{review=true}))
+    local smooth, stationary, mirrored = true, true, true
+    for _,heading in ipairs({"east","west"}) do
+        side.direction=heading
+        local previousY=math.huge
+        for step=0,100 do
+            side.forkHeight=step/100
+            local pose=Layered.plan(side,{review=true,scale=0.308})
+            smooth=smooth and pose and pose.loadY<previousY
+                and close(pose.carriageShift,150-560*side.forkHeight)
+            stationary=stationary and pose.bodyPath:match("east%-fixed%-manned%-v1%.png$")
+                and pose.carriagePath:match("east%-carriage%-v2%.png$")
+                and pose.x==side.x and pose.y==side.y
+            mirrored=mirrored and (heading=="east" and pose.loadX>side.x
+                or heading=="west" and pose.loadX<side.x)
+            previousY=pose.loadY
+        end
+    end
+    test("layered_forks_move_continuously_at_every_height",smooth)
+    test("layered_body_never_changes_during_lift",stationary)
+    test("layered_side_views_keep_cargo_on_correct_side",mirrored)
+    side.operating=false
+    local empty=Layered.plan(side,{review=true,scale=0.308})
+    test("layered_parked_forks_keep_height_and_empty_cab",empty
+        and empty.bodyPath:match("east%-fixed%-empty%-v1%.png$")
+        and empty.forkHeight==1 and empty.carriedPalletId=="P-LOAD")
+    local oldWarehouse=Config.warehouse
+    Config.warehouse={provisionalArt=true}
+    test("game_renderer_selects_layered_side_view",Renderer.layeredForkliftPlan(side)~=nil)
+    Config.warehouse={provisionalArt=false}
+    test("layered_side_art_obeys_development_setting",Renderer.layeredForkliftPlan(side)==nil)
+    Config.warehouse=oldWarehouse
+    local sideDraws,sidePushes,sidePops=0,0,0
+    local sideGraphics={
+        push=function() sidePushes=sidePushes+1 end,
+        pop=function() sidePops=sidePops+1 end,
+        setColor=function() end,
+        draw=function(_,_,_,_,sx) sideDraws=sideDraws+1; assert(sx<0) end,
+    }
+    local sideImage={getDimensions=function() return 1536,1024 end}
+    drawn=Layered.draw(side,function() return sideImage end,{review=true},sideGraphics)
+    test("layered_west_draws_both_mirrored_layers",drawn and sideDraws==2
+        and sidePushes==1 and sidePops==1)
 end
 
 return Test

@@ -56,6 +56,10 @@ Loaded in-engine reviews on September 24 captured all eight directions at 0%, 50
 
 The game and lift lab now use transparency-aware bilinear sampling for these four-cell sheets. It prevents color stored in fully transparent pixels from bleeding into the silhouette, and clamps samples within the selected cell so adjacent poses cannot leak across a frame edge. The PNG sources are unchanged and still need direct alpha-edge review before approval; physical mobile performance is unverified.
 
+### Continuous side-view lift study — September 24
+
+[Three separate east-facing layers](forklift-layer-study/prompts.json) now provide a fixed occupied body, fixed empty-seat body and moving carriage. The west view mirrors those layers. The development-art renderer uses these for east/west while lifting; body and wheels remain stationary as the fork carriage follows the actual continuous height. The original four-pose strips remain the loading fallback and still serve the other six headings. The isolated side-view preview and the loaded low/mid/high in-engine captures were inspected. These new layers are generated candidates, **not approved production art**. Empty/occupied body geometry still differs slightly, and equivalent layers for the other six headings, complete cargo occlusion and device review remain open.
+
 ## Raccoon construction tool studies
 
 ### Repaired runtime draft — September 19

@@ -5,6 +5,7 @@ local Layout = require("src.warehouse_layout")
 local Storage = require("src.pallet_storage")
 local PalletState = require("src.pallet_state")
 local ForkliftPresentation = require("src.forklift_presentation")
+local ForkliftLayeredPresentation = require("src.forklift_layered_presentation")
 local MechanicWorkPresentation = require("src.mechanic_work_presentation")
 local ConstructionPresentation = require("src.warehouse_construction_presentation")
 local Config = require("src.config")
@@ -244,6 +245,13 @@ function Renderer.forkliftPlan(vehicle)
         return ForkliftPresentation.plan(vehicle,{review=true,scale=scale})
     end
 end
+function Renderer.layeredForkliftPlan(vehicle)
+    if not vehicle or not vehicle.owned or not (Config.warehouse and Config.warehouse.provisionalArt) then
+        return nil
+    end
+    local scale=Renderer.forkliftScales()
+    return ForkliftLayeredPresentation.plan(vehicle,{review=true,scale=scale})
+end
 function Renderer.parkedForkliftPlan(vehicle,width,height)
     if not vehicle or not vehicle.owned then return nil end
     local index=DIRECTIONS[vehicle.direction] or 1
@@ -258,7 +266,8 @@ end
 function Renderer.drawForklift(assets,state,drawPallet)
     local vehicle=state and state.forklift
     if not vehicle or not vehicle.owned then return end
-    local plan=Renderer.forkliftPlan(vehicle)
+    local layeredPlan=Renderer.layeredForkliftPlan(vehicle)
+    local plan=layeredPlan or Renderer.forkliftPlan(vehicle)
     local operatingScale,_,multiplier=Renderer.forkliftScales()
     local drawn=false
     local loadX,loadY=vehicle.x,vehicle.y-(10+(vehicle.forkHeight or 0)*58)*multiplier
@@ -273,8 +282,16 @@ function Renderer.drawForklift(assets,state,drawPallet)
     local loadBehind=plan and (vehicle.direction=="north" or vehicle.direction=="northwest"
         or vehicle.direction=="northeast")
     if loadBehind then drawLoad() end
-    if plan then drawn=ForkliftPresentation.draw(vehicle,sourceImage,
-        {review=true,scale=operatingScale,edgeCleanup=true}) end
+    if layeredPlan then drawn=ForkliftLayeredPresentation.draw(vehicle,sourceImage,
+        {review=true,scale=operatingScale}) end
+    if not drawn then
+        plan=Renderer.forkliftPlan(vehicle)
+        if plan then
+            loadX,loadY=plan.loadX,plan.loadY
+            drawn=ForkliftPresentation.draw(vehicle,sourceImage,
+                {review=true,scale=operatingScale,edgeCleanup=true})
+        end
+    end
     if not drawn then
         local path=ROOT.."forklift-eight-directions-unmanned-v1.png"
         local image=sourceImage(path)

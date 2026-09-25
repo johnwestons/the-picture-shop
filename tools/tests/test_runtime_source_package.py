@@ -18,7 +18,7 @@ import build_mobile_package as package
 class RuntimeSourcePackageTests(unittest.TestCase):
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
-        self.assertEqual(len(paths), 37)
+        self.assertEqual(len(paths), 40)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.suffix == ".png" for path in paths))
 
@@ -47,6 +47,11 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         atlas = re.search(r'local ATLAS=ROOT\.\."([^"]+)"', work)
         self.assertIsNotNone(atlas)
         self.assertIn(package.WAREHOUSE_SOURCE_ROOT + atlas.group(1), package.RUNTIME_SOURCE_ASSETS)
+
+    def test_continuous_side_view_layers_are_packaged(self) -> None:
+        for name in ("east-fixed-manned-v1.png", "east-fixed-empty-v1.png", "east-carriage-v2.png"):
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "forklift-layer-study/" + name,
+                          package.RUNTIME_SOURCE_ASSETS)
 
     def test_real_assets_survive_isolated_copy_manifest_and_archive(self) -> None:
         with tempfile.TemporaryDirectory(prefix="picture-shop-runtime-assets-") as temporary:
