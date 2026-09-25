@@ -1,6 +1,8 @@
 local root = assert(os.getenv("PICTURE_SHOP_ROOT"), "PICTURE_SHOP_ROOT required")
 local output = assert(os.getenv("PICTURE_SHOP_PREVIEW"), "PICTURE_SHOP_PREVIEW required")
-local imageRoot = root .. "/assets/source/warehouse-expansion-v1/forklift-layer-study/"
+local imageRoot = os.getenv("PICTURE_SHOP_PREVIEW_ASSET_DIR")
+    or root .. "/assets/source/warehouse-expansion-v1/forklift-layer-study/"
+if imageRoot:sub(-1) ~= "/" then imageRoot = imageRoot .. "/" end
 local body, carriage
 local captured = false
 
@@ -17,19 +19,26 @@ end
 function love.load()
     love.window.setMode(1280, 680)
     love.window.setTitle("Forklift layered lift study")
-    body = loadImage(os.getenv("PICTURE_SHOP_PREVIEW_EMPTY") == "1"
-        and "east-fixed-empty-v1.png" or "east-fixed-manned-v1.png")
-    carriage = loadImage("east-carriage-v2.png")
+    body = loadImage(os.getenv("PICTURE_SHOP_PREVIEW_BODY")
+        or (os.getenv("PICTURE_SHOP_PREVIEW_EMPTY") == "1"
+            and "east-fixed-empty-v1.png" or "east-fixed-manned-v1.png"))
+    carriage = loadImage(os.getenv("PICTURE_SHOP_PREVIEW_CARRIAGE") or "east-carriage-v2.png")
 end
 
 function love.draw()
     local g = love.graphics
     g.clear(0.075, 0.08, 0.09)
     g.setColor(1, 0.82, 0.25)
-    g.printf("EAST-FACING FORKLIFT: LAYERED LIFT STUDY", 0, 22, 1280, "center")
+    g.printf(os.getenv("PICTURE_SHOP_PREVIEW_TITLE")
+        or "EAST-FACING FORKLIFT: LAYERED LIFT STUDY", 0, 22, 1280, "center")
     g.setColor(0.82, 0.86, 0.9)
     g.printf("One fixed body and one smoothly moving fork carriage; unapproved source candidate", 0, 45, 1280, "center")
-    local scale = 0.44
+    local scale = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_SCALE")) or 0.44
+    local originX = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_ORIGIN_X")) or 850
+    local originY = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_ORIGIN_Y")) or 930
+    local forkX = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_X")) or 0
+    local forkLow = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_LOW")) or 150
+    local forkTravel = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_TRAVEL")) or 560
     for index, height in ipairs({ 0, 0.5, 1 }) do
         local left = 20 + (index - 1) * 420
         local center = left + 200
@@ -40,13 +49,14 @@ function love.draw()
                 g.rectangle("fill", left + column * 23, 110 + row * 23, 23, 23)
             end
         end
-        local x = center - 850 * scale
-        local y = 590 - 930 * scale
+        local x = center - originX * scale
+        local y = 590 - originY * scale
         g.setColor(0.15, 0.85, 0.9, 0.7)
         g.line(left, 590, left + 400, 590)
         g.setColor(1, 1, 1)
         g.draw(body, x, y, 0, scale, scale)
-        g.draw(carriage, x, y + (150 - 560 * height) * scale, 0, scale, scale)
+        g.draw(carriage, x + forkX * scale,
+            y + (forkLow - forkTravel * height) * scale, 0, scale, scale)
         g.printf(string.format("FORK HEIGHT %.0f%%", height * 100), left, 615, 400, "center")
     end
     if not captured then

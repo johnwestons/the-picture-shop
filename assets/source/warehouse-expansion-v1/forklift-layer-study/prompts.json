@@ -1,7 +1,8 @@
 {
   "mode": "built-in imagegen",
-  "status": "development-art candidate; east/west side views only",
+  "status": "development-art candidate; east/west and southeast/southwest views",
   "source": "../forklift-lift/east-raise-v1.png",
+  "additionalSource": "../forklift-lift/southeast-raise-v2.png",
   "assets": [
     {
       "file": "east-fixed-manned-v1.png",
@@ -17,6 +18,21 @@
       "file": "east-fixed-empty-v1.png",
       "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-1c4eed68-7f63-42fa-87aa-e697706b688f.png",
       "promptSummary": "Edit the fixed east-facing body in place on the same transparent 1536x1024 canvas. Remove only the rabbit driver and restore the empty seat, steering wheel, floor and controls. Preserve the body, wheels, panels, posts, roof, stationary mast, scale, composition and transparency; keep forks absent."
+    },
+    {
+      "file": "southeast-fixed-manned-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-bea5c77d-2b11-42ee-aadb-f8cd8e944701.png",
+      "promptSummary": "Use the first pose of southeast-raise-v2 as identity and geometry. Isolate one southeast-facing fixed body with rabbit, wheels, overhead guard and stationary extended mast; remove the front carriage and two projecting forks and restore the mast beneath. Match east layer scale and painted style on a transparent 1536x1024 canvas."
+    },
+    {
+      "file": "southeast-carriage-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-be72e100-96ec-4a4f-bfe4-ee1f23b89b2a.png",
+      "promptSummary": "Return only the compact dark steel southeast front carriage and two parallel silver fork blades pointing lower right, with gold tips, on a transparent 1536x1024 canvas. Match the original source perspective and fit the separate fixed body; no cab, rabbit, wheels, tall mast or cargo."
+    },
+    {
+      "file": "southeast-fixed-empty-v1.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-070c1830-b4b2-48c7-93a2-994f9ff64541.png",
+      "promptSummary": "Remove only the rabbit from the selected fixed southeast body, reconstructing the empty cab seat and controls while preserving wheel positions, perspective, scale, mast and transparency. Keep the fork carriage absent."
     }
   ],
   "rejected": "An initial oversized carriage was rejected before workspace copy."

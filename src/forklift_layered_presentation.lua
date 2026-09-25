@@ -1,12 +1,37 @@
--- Candidate continuous side-view lift art. Other headings keep their reviewed
--- four-pose strips until equivalent layers are authored and checked in game.
+-- Candidate continuous lift art. Other headings keep their reviewed four-pose
+-- strips until equivalent layers are authored and checked in game.
 local Layered = {}
 local root = "assets/source/warehouse-expansion-v1/forklift-layer-study/"
-local bodyManned = root .. "east-fixed-manned-v1.png"
-local bodyEmpty = root .. "east-fixed-empty-v1.png"
-local carriage = root .. "east-carriage-v2.png"
 local textureWidth, textureHeight = 1536, 1024
 local scaleRatio = 0.145 / (0.22 * 1.4)
+local studies = {
+    side = {
+        manned = root .. "east-fixed-manned-v1.png",
+        empty = root .. "east-fixed-empty-v1.png",
+        carriage = root .. "east-carriage-v2.png",
+        bodyOriginX = 720, bodyOriginY = 955,
+        emptyOriginX = 730, emptyOriginY = 966, emptyScale = 0.97,
+        carriageOriginX = 720, carriageOriginY = 955,
+        carriageX = 0, carriageLow = 150, carriageTravel = 560,
+        loadX = 1170, loadY = 750,
+    },
+    frontDiagonal = {
+        manned = root .. "southeast-fixed-manned-v1.png",
+        empty = root .. "southeast-fixed-empty-v1.png",
+        carriage = root .. "southeast-carriage-v1.png",
+        bodyOriginX = 630, bodyOriginY = 850,
+        emptyOriginX = 630, emptyOriginY = 864, emptyScale = 0.955,
+        carriageOriginX = 630, carriageOriginY = 850,
+        carriageX = 150, carriageLow = 80, carriageTravel = 480,
+        loadX = 970, loadY = 820,
+    },
+}
+local directions = {
+    east = { study = studies.side, mirror = 1 },
+    west = { study = studies.side, mirror = -1 },
+    southeast = { study = studies.frontDiagonal, mirror = 1 },
+    southwest = { study = studies.frontDiagonal, mirror = -1 },
+}
 
 local function finite(value)
     return type(value) == "number" and value == value
@@ -16,9 +41,8 @@ end
 function Layered.plan(vehicle, options)
     options = options or {}
     if type(vehicle) ~= "table" or not vehicle.owned then return nil, "not_owned" end
-    if vehicle.direction ~= "east" and vehicle.direction ~= "west" then
-        return nil, "unsupported_heading"
-    end
+    local direction = directions[vehicle.direction]
+    if not direction then return nil, "unsupported_heading" end
     if options.review ~= true then return nil, "art_not_approved" end
     if not finite(vehicle.x) or not finite(vehicle.y) or not finite(vehicle.forkHeight)
         or type(vehicle.operating) ~= "boolean" then
@@ -30,22 +54,26 @@ function Layered.plan(vehicle, options)
     end
     local height = math.max(0, math.min(1, vehicle.forkHeight))
     local carriageScale = oldScale * scaleRatio
-    local bodyScale = carriageScale * (vehicle.operating and 1 or 0.97)
-    local mirror = vehicle.direction == "west" and -1 or 1
-    local shift = 150 - 560 * height
-    local bodyOriginX = vehicle.operating and 720 or 730
-    local bodyOriginY = vehicle.operating and 955 or 966
+    local study = direction.study
+    local bodyScale = carriageScale * (vehicle.operating and 1 or study.emptyScale)
+    local mirror = direction.mirror
+    local shift = study.carriageLow - study.carriageTravel * height
+    local bodyOriginX = vehicle.operating and study.bodyOriginX or study.emptyOriginX
+    local bodyOriginY = vehicle.operating and study.bodyOriginY or study.emptyOriginY
     return {
-        bodyPath = vehicle.operating and bodyManned or bodyEmpty,
-        carriagePath = carriage,
+        bodyPath = vehicle.operating and study.manned or study.empty,
+        carriagePath = study.carriage,
         textureWidth = textureWidth, textureHeight = textureHeight,
         x = vehicle.x, y = vehicle.y, direction = vehicle.direction,
         forkHeight = height, mirror = mirror, bodyScale = bodyScale,
         carriageScale = carriageScale, bodyOriginX = bodyOriginX,
-        bodyOriginY = bodyOriginY, carriageOriginX = 720,
-        carriageOriginY = 955, carriageShift = shift,
-        loadX = vehicle.x + mirror * (1170 - 720) * carriageScale,
-        loadY = vehicle.y + (750 + shift - 955) * carriageScale,
+        bodyOriginY = bodyOriginY, carriageOriginX = study.carriageOriginX,
+        carriageOriginY = study.carriageOriginY, carriageShift = shift,
+        carriageX = study.carriageX,
+        loadX = vehicle.x + mirror * (study.loadX + study.carriageX
+            - study.carriageOriginX) * carriageScale,
+        loadY = vehicle.y + (study.loadY + shift
+            - study.carriageOriginY) * carriageScale,
         carriedPalletId = vehicle.carriedPalletId,
         approved = false, review = true,
     }
@@ -74,7 +102,7 @@ function Layered.draw(vehicle, getImage, options, graphics)
         graphics.draw(body, plan.x, plan.y, 0,
             plan.mirror * plan.bodyScale, plan.bodyScale,
             plan.bodyOriginX, plan.bodyOriginY)
-        graphics.draw(forks, plan.x,
+        graphics.draw(forks, plan.x + plan.mirror * plan.carriageX * plan.carriageScale,
             plan.y + plan.carriageShift * plan.carriageScale, 0,
             plan.mirror * plan.carriageScale, plan.carriageScale,
             plan.carriageOriginX, plan.carriageOriginY)
