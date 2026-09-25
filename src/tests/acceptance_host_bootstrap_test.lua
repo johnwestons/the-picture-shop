@@ -26,6 +26,28 @@ function Test.run(_, check)
         and plan.identity == "the-picture-shop-acceptance-test-123"
         and plan.playerName == "Acceptance Worker")
 
+    local menuPlan = Bootstrap.plan({
+        osName = "Windows",
+        getenv = environment({
+            PICTURE_SHOP_ACCEPTANCE_HOST_SLOT = "1",
+            PICTURE_SHOP_ACCEPTANCE_IDENTITY = "the-picture-shop-acceptance-test-menu",
+            PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN = "computer",
+        }),
+    })
+    check("acceptance_host_bootstrap_accepts_computer_screen",
+        menuPlan and menuPlan.screen == "computer")
+
+    local invalidScreen, invalidScreenError = Bootstrap.plan({
+        osName = "Windows",
+        getenv = environment({
+            PICTURE_SHOP_ACCEPTANCE_HOST_SLOT = "1",
+            PICTURE_SHOP_ACCEPTANCE_IDENTITY = "the-picture-shop-acceptance-test-menu",
+            PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN = "machine",
+        }),
+    })
+    check("acceptance_host_bootstrap_rejects_other_screens",
+        invalidScreen == nil and type(invalidScreenError) == "string")
+
     local invalidSlot, invalidSlotError = Bootstrap.plan({
         osName = "Windows",
         getenv = environment({

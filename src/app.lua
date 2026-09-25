@@ -2565,6 +2565,11 @@ function App.load()
             error("Acceptance host bootstrap could not start LAN hosting: "
                 .. tostring(hostError))
         end
+        if acceptanceHost.screen == "computer" then
+            ComputerScreen.enter(state)
+            state.screen = "computer"
+            print("[ACCEPTANCE HOST] SCREEN computer")
+        end
         print(string.format("[ACCEPTANCE HOST] READY identity=%s slot=%d address=%s:%d",
             acceptanceHost.identity, acceptanceHost.slot,
             tostring(multiplayer.localAddress or "unknown"),

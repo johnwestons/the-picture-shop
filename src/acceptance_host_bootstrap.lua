@@ -4,6 +4,7 @@ local Bootstrap = {}
 
 local SLOT_VARIABLE = "PICTURE_SHOP_ACCEPTANCE_HOST_SLOT"
 local IDENTITY_VARIABLE = "PICTURE_SHOP_ACCEPTANCE_IDENTITY"
+local SCREEN_VARIABLE = "PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN"
 local IDENTITY_PREFIX = "the-picture-shop-acceptance-"
 
 local function value(getenv, name)
@@ -34,15 +35,22 @@ function Bootstrap.plan(options)
         return nil, "The acceptance save identity is missing or outside its guarded namespace."
     end
 
+    local screen = value(getenv, SCREEN_VARIABLE)
+    if screen and screen ~= "computer" then
+        return nil, "The acceptance host screen must be computer."
+    end
+
     return {
         slot = tonumber(slotText),
         identity = identity,
         playerName = "Acceptance Worker",
+        screen = screen,
     }
 end
 
 Bootstrap.SLOT_VARIABLE = SLOT_VARIABLE
 Bootstrap.IDENTITY_VARIABLE = IDENTITY_VARIABLE
+Bootstrap.SCREEN_VARIABLE = SCREEN_VARIABLE
 Bootstrap.IDENTITY_PREFIX = IDENTITY_PREFIX
 
 return Bootstrap

@@ -4,6 +4,7 @@ param(
     [string] $FixturePath,
     [ValidateRange(1, 3)]
     [int] $Slot = 1,
+    [switch] $HostComputer,
     [string] $LoveRoot = 'C:\Program Files\LOVE'
 )
 
@@ -52,10 +53,16 @@ $stdoutPath = Join-Path $runRoot 'host.stdout.log'
 $stderrPath = Join-Path $runRoot 'host.stderr.log'
 $previousSlot = $env:PICTURE_SHOP_ACCEPTANCE_HOST_SLOT
 $previousIdentity = $env:PICTURE_SHOP_ACCEPTANCE_IDENTITY
+$previousScreen = $env:PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN
 $process = $null
 try {
     $env:PICTURE_SHOP_ACCEPTANCE_HOST_SLOT = [string]$Slot
     $env:PICTURE_SHOP_ACCEPTANCE_IDENTITY = $identity
+    if ($HostComputer) {
+        $env:PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN = 'computer'
+    } else {
+        Remove-Item Env:PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN -ErrorAction SilentlyContinue
+    }
     $process = Start-Process -FilePath $loveConsole `
         -ArgumentList @('"' + $projectRoot + '"') `
         -WorkingDirectory $projectRoot `
@@ -74,6 +81,11 @@ finally {
         Remove-Item Env:PICTURE_SHOP_ACCEPTANCE_IDENTITY -ErrorAction SilentlyContinue
     } else {
         $env:PICTURE_SHOP_ACCEPTANCE_IDENTITY = $previousIdentity
+    }
+    if ($null -eq $previousScreen) {
+        Remove-Item Env:PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN -ErrorAction SilentlyContinue
+    } else {
+        $env:PICTURE_SHOP_ACCEPTANCE_HOST_SCREEN = $previousScreen
     }
 }
 
@@ -113,6 +125,7 @@ $manifest = [ordered]@{
     executable = $loveConsole
     identity = $identity
     slot = $Slot
+    hostScreen = if ($HostComputer) { 'computer' } else { 'world' }
     fixture = $fixture
     fixtureSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $fixture).Hash.ToLowerInvariant()
     isolatedSave = $savePath
