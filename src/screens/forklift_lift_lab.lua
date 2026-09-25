@@ -298,7 +298,8 @@ function Lab.draw()
     local transform = assert(Lab.previewTransform(preview, catalog))
     display.x = transform.x + display.x
     display.y = transform.y + display.y
-    local options = { review = true, scale = transform.scale, catalog = catalog }
+    local options = { review = true, scale = transform.scale, catalog = catalog,
+        edgeCleanup = true }
     local plan = Presentation.plan(display, options)
     graphics.setColor(0.1, 0.9, 0.9, 0.7)
     graphics.line(preview.x, display.y, preview.x + preview.width, display.y)

@@ -54,6 +54,8 @@ Eight [empty-seat lift sheets](forklift-lift/empty-seat-prompts.json) now pair w
 
 Loaded in-engine reviews on September 24 captured all eight directions at 0%, 50% and 100% height in `output/warehouse-expansion-v1/live-acceptance/20260924-204158-forklift-parked-*.png`. The revised per-frame anchors center the original pallet on the visible blades rather than at the mast root, especially in east/west and diagonal views. The carried pallet's world label no longer covers its tine contact; its ID appears beside fork height in the vehicle badge. A rear-facing low load can still be hidden by the full-body source sprite, and lift motion still steps through four body poses. Neither issue is approved as final art.
 
+The game and lift lab now use transparency-aware bilinear sampling for these four-cell sheets. It prevents color stored in fully transparent pixels from bleeding into the silhouette, and clamps samples within the selected cell so adjacent poses cannot leak across a frame edge. The PNG sources are unchanged and still need direct alpha-edge review before approval; physical mobile performance is unverified.
+
 ## Raccoon construction tool studies
 
 ### Repaired runtime draft — September 19

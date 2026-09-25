@@ -6,6 +6,32 @@ local directionOrder = { "northwest", "north", "northeast", "east",
 local directionIndex = {}
 for index, direction in ipairs(directionOrder) do directionIndex[direction] = index end
 local sourceRoot = "assets/source/warehouse-expansion-v1/forklift-lift/"
+local edgeShader
+local edgeShaderSource = [[
+    extern vec2 sourceSize;
+    extern vec4 sourceRect;
+
+    vec4 premultipliedSample(Image texture, vec2 pixel) {
+        vec4 sample = Texel(texture, (pixel + vec2(0.5)) / sourceSize);
+        return vec4(sample.rgb * sample.a, sample.a);
+    }
+
+    vec4 effect(vec4 color, Image texture, vec2 uv, vec2 screenCoords) {
+        vec2 position = uv * sourceSize - vec2(0.5);
+        vec2 first = clamp(floor(position), sourceRect.xy,
+            sourceRect.xy + sourceRect.zw - vec2(1.0));
+        vec2 second = clamp(floor(position) + vec2(1.0), sourceRect.xy,
+            sourceRect.xy + sourceRect.zw - vec2(1.0));
+        vec2 fraction = fract(position);
+        vec4 top = mix(premultipliedSample(texture, first),
+            premultipliedSample(texture, vec2(second.x, first.y)), fraction.x);
+        vec4 bottom = mix(premultipliedSample(texture, vec2(first.x, second.y)),
+            premultipliedSample(texture, second), fraction.x);
+        vec4 result = mix(top, bottom, fraction.y);
+        if (result.a <= 0.00001) return vec4(0.0);
+        return vec4(result.rgb / result.a, result.a) * color;
+    }
+]]
 
 -- Provisional manual calibration from the 2048x768 source sheets: each pair
 -- is the wheel-ground center followed by the carried pallet center on the
@@ -208,6 +234,17 @@ function Presentation.draw(vehicle, getImage, options, graphics)
     local quad = graphics.newQuad(source.x, source.y, source.width, source.height, width, height)
     graphics.push("all")
     local success, drawError = pcall(function()
+        if options and options.edgeCleanup and graphics.newShader and graphics.setShader then
+            if edgeShader == nil then
+                local created, shader = pcall(graphics.newShader, edgeShaderSource)
+                edgeShader = created and shader or false
+            end
+            if edgeShader then
+                edgeShader:send("sourceSize", { width, height })
+                edgeShader:send("sourceRect", { source.x, source.y, source.width, source.height })
+                graphics.setShader(edgeShader)
+            end
+        end
         graphics.setColor(1, 1, 1, 1)
         graphics.draw(image, quad, plan.x, plan.y, 0, plan.scale, plan.scale, plan.originX, plan.originY)
     end)

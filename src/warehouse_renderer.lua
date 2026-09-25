@@ -273,7 +273,8 @@ function Renderer.drawForklift(assets,state,drawPallet)
     local loadBehind=plan and (vehicle.direction=="north" or vehicle.direction=="northwest"
         or vehicle.direction=="northeast")
     if loadBehind then drawLoad() end
-    if plan then drawn=ForkliftPresentation.draw(vehicle,sourceImage,{review=true,scale=operatingScale}) end
+    if plan then drawn=ForkliftPresentation.draw(vehicle,sourceImage,
+        {review=true,scale=operatingScale,edgeCleanup=true}) end
     if not drawn then
         local path=ROOT.."forklift-eight-directions-unmanned-v1.png"
         local image=sourceImage(path)
