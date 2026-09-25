@@ -89,6 +89,7 @@ local DOMAIN_SUITES = {
     require("src.tests.multi_machine_test"),
     require("src.tests.press_economics_test"),
     require("src.tests.windmill_integration_test"),
+    require("src.tests.multiplayer_world_layers_test"),
 }
 
 function Suites.runDomain(context, check)

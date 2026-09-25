@@ -603,6 +603,56 @@ function World.customerArrivalMessage(state)
         or "A customer is waiting at reception with a client job."
 end
 
+-- Host-owned events have their own clock so an open menu never freezes the
+-- loading bay, visitors, pallet unloading, or technician work for guests.
+function World.updateSimulation(dt, assets, state)
+    assets = WarehouseGameplay.assets(assets, state)
+    World._assets, World._state = assets, state
+    local player = World.player
+    local doorEvent = World.bayDoor:update(dt)
+    if doorEvent == "opened" and state then
+        state.message = "Loading bay door open. The parking lot is visible."
+    elseif doorEvent == "closed" and state then
+        state.message = "Loading bay door closed."
+    end
+    local saveNeeded = updateTruck(dt, state)
+    PalletLogistics.update(state, dt, Config.palletLogistics.unloadDuration)
+    -- Only one reception visitor advances at a time. The other visitor keeps
+    -- their full cooldown while the entrance, lounge, or desk is occupied.
+    local receptionClosed = BusinessCalendar.isWeekend(state)
+    local customerEvent = World.customer:update(dt, player,
+        receptionClosed or World.vendor:isPresent())
+    if customerEvent == "arrived" and state then
+        state.message = World.customerArrivalMessage(state)
+    elseif customerEvent == "timed_out" and state then
+        state.message = "The client waited five minutes without being seen and is leaving."
+    elseif customerEvent == "exited" and state then
+        state.message = World.customer.decision == "timed_out"
+            and "The client left after waiting five minutes."
+            or (World.customer.decision == "accepted"
+                and "The customer left and will email the written job details."
+                or "The customer left after you declined the job.")
+        -- Bring the next business client into the arrival queue after this
+        -- visit so the configured roster is experienced during one session.
+        World.customer:reset(false)
+    end
+    local category = Procurement.category(state and state.vendorCategory)
+    World.vendor.character = category.character
+    local vendorEvent = World.vendor:update(dt, player,
+        receptionClosed or World.customer:isPresent())
+    if vendorEvent == "arrived" and state then
+        state.message = category.salesman .. " is waiting at reception with the " .. category.name:lower() .. " catalog."
+    elseif vendorEvent == "exited" and state then
+        state.vendorCategory = state.vendorCategory % #Procurement.categories + 1
+        World.vendor:reset(false)
+        state.message = "The salesman left. Another supplier representative will visit later."
+    end
+    if Technician.update(dt, state, World.customer:isPresent() or World.vendor:isPresent()) then
+        saveNeeded = true
+    end
+    return saveNeeded
+end
+
 function World.update(dt, directionX, directionY, assets, state, cursorX, cursorY)
     assets = WarehouseGameplay.assets(assets, state)
     World._assets = assets
@@ -716,47 +766,7 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
     if externalMovement and not localOperatesForklift then
         PlayerController.observeExternalMove(player, playerStartX, playerStartY, player.moving, dt)
     end
-    local doorEvent = World.bayDoor:update(dt)
-    if doorEvent == "opened" and state then
-        state.message = "Loading bay door open. The parking lot is visible."
-    elseif doorEvent == "closed" and state then
-        state.message = "Loading bay door closed."
-    end
-    local saveNeeded = updateTruck(dt, state)
-    PalletLogistics.update(state, dt, Config.palletLogistics.unloadDuration)
-    -- Only one reception visitor advances at a time. The other visitor keeps
-    -- their full cooldown while the entrance, lounge, or desk is occupied.
-    local receptionClosed = BusinessCalendar.isWeekend(state)
-    local customerEvent = World.customer:update(dt, player,
-        receptionClosed or World.vendor:isPresent())
-    if customerEvent == "arrived" and state then
-        state.message = World.customerArrivalMessage(state)
-    elseif customerEvent == "timed_out" and state then
-        state.message = "The client waited five minutes without being seen and is leaving."
-    elseif customerEvent == "exited" and state then
-        state.message = World.customer.decision == "timed_out"
-            and "The client left after waiting five minutes."
-            or (World.customer.decision == "accepted"
-                and "The customer left and will email the written job details."
-                or "The customer left after you declined the job.")
-        -- Bring the next business client into the arrival queue after this
-        -- visit so the configured roster is experienced during one session.
-        World.customer:reset(false)
-    end
-    local category = Procurement.category(state and state.vendorCategory)
-    World.vendor.character = category.character
-    local vendorEvent = World.vendor:update(dt, player,
-        receptionClosed or World.customer:isPresent())
-    if vendorEvent == "arrived" and state then
-        state.message = category.salesman .. " is waiting at reception with the " .. category.name:lower() .. " catalog."
-    elseif vendorEvent == "exited" and state then
-        state.vendorCategory = state.vendorCategory % #Procurement.categories + 1
-        World.vendor:reset(false)
-        state.message = "The salesman left. Another supplier representative will visit later."
-    end
-    if Technician.update(dt, state, World.customer:isPresent() or World.vendor:isPresent()) then
-        saveNeeded = true
-    end
+    local saveNeeded = World.updateSimulation(dt, assets, state)
     World.selectedInteraction = selectInteractionFor(
         player, World.selectedInteraction, cursorX, cursorY)
     return saveNeeded

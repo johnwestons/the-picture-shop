@@ -2429,6 +2429,7 @@ local function runSmoke(startupTextureBytes, Sound)
         vendorScreen = VendorScreen,
         palletWorkOrderScreen = inputContext.palletWorkOrderScreen,
         world = World,
+        app = App,
         worldRenderer = WorldRenderer,
         windmill = Windmill,
         createWorkshopAuthority = createWorkshopAuthority,
@@ -3310,10 +3311,10 @@ function App.update(dt)
     local networkInputX, networkInputY = 0, 0
     local simulationScreen = state.screen == "options" and state.optionsReturnScreen
         or state.screen
-    if not multiplayer:isClient() and simulationScreen ~= "title"
+    local simulationActive = simulationScreen ~= "title"
         and simulationScreen ~= "lan" and simulationScreen ~= "direct"
         and simulationScreen ~= "asset_error"
-    then
+    if not multiplayer:isClient() and simulationActive then
         local calendarChanged = BusinessCalendar.update(state, dt)
         local emailArrived = JobService.updateClientEmails(state)
         local technicianChanged = MachineMaintenance.updateTechnician(state)
@@ -3372,8 +3373,6 @@ function App.update(dt)
             end
             if World.update(dt, directionX, directionY, Assets, state, cursorX, cursorY) then saveCurrent() end
         end
-    elseif state.screen == "truck_inventory" and not multiplayer:isClient() then
-        if World.update(dt, 0, 0, Assets, state) then saveCurrent() end
     elseif state.screen == "machine" and not multiplayer:isClient() then
         MachineScreen.update(dt)
     elseif state.screen == "press" and not multiplayer:isClient() then
@@ -3381,9 +3380,12 @@ function App.update(dt)
     elseif state.screen == "workshop_remote" then
         WorkshopRemoteScreen.update(dt)
     end
-    local advanceAuthoritativeMachines = not multiplayer:isClient()
-        and simulationScreen ~= "title" and simulationScreen ~= "lan"
-        and simulationScreen ~= "direct" and simulationScreen ~= "asset_error"
+    -- World events belong to the host simulation, not to its current screen.
+    -- Guests may keep walking and working while the host reads any shop menu.
+    if not multiplayer:isClient() and simulationActive and state.screen ~= "world" then
+        if World.updateSimulation(dt, Assets, state) then saveCurrent() end
+    end
+    local advanceAuthoritativeMachines = not multiplayer:isClient() and simulationActive
     if advanceAuthoritativeMachines then
         if serviceNetworkBeforeMachine(dt, state, function()
             updateMultiplayer(dt, networkInputX, networkInputY)
@@ -3395,9 +3397,7 @@ function App.update(dt)
     else
         updateMultiplayer(dt, networkInputX, networkInputY)
     end
-    if not multiplayer:isClient() and simulationScreen ~= "title"
-        and simulationScreen ~= "lan" and simulationScreen ~= "direct"
-        and simulationScreen ~= "asset_error" and Wrapper.updateAll(dt, state)
+    if not multiplayer:isClient() and simulationActive and Wrapper.updateAll(dt, state)
     then
         saveCurrent()
     end
