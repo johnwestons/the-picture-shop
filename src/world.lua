@@ -963,7 +963,11 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         if not MachineFleet.isInstalled(state, "polar_115") then
             return false, "not_installed", "The paper cutter is not installed in this shop."
         end
-        local cutter = CutterPlacement.ensure(state, Config.cutterPlacement)
+        local selected = player.id == 1 and state._localWorkshopMachineId
+            and MachineFleet.byId(state, state._localWorkshopMachineId)
+        local cutter = selected and selected.modelId == "polar_115" and selected.status == "installed"
+            and (selected.world or CutterPlacement.ensure(state, Config.cutterPlacement))
+            or CutterPlacement.ensure(state, Config.cutterPlacement)
         if cutter.moving then
             return false, "machine_moving", "Lock the cutter onto the floor before using it."
         end
@@ -973,7 +977,11 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         if not MachineFleet.isInstalled(state, "skid_wrapper") then
             return false, "not_installed", "The skid wrapper is not installed in this shop."
         end
-        local wrapper = WrapperPlacement.ensure(state, Config.wrapperPlacement)
+        local selected = player.id == 1 and state._localWorkshopMachineId
+            and MachineFleet.byId(state, state._localWorkshopMachineId)
+        local wrapper = selected and selected.modelId == "skid_wrapper" and selected.status == "installed"
+            and (selected.world or WrapperPlacement.ensure(state, Config.wrapperPlacement))
+            or WrapperPlacement.ensure(state, Config.wrapperPlacement)
         if wrapper.moving then
             return false, "machine_moving", "Lock the skid wrapper onto the floor before using it."
         end
@@ -983,7 +991,12 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         if not MachineFleet.isInstalled(state, "heidelberg_10x15") then
             return false, "not_installed", "The Heidelberg Windmill is not installed in this shop."
         end
-        local windmill = WindmillPlacement.ensure(state, Config.windmillPlacement)
+        local selected = player.id == 1 and state._localWorkshopMachineId
+            and MachineFleet.byId(state, state._localWorkshopMachineId)
+        local windmill = selected and selected.modelId == "heidelberg_10x15"
+            and selected.status == "installed"
+            and (selected.world or WindmillPlacement.ensure(state, Config.windmillPlacement))
+            or WindmillPlacement.ensure(state, Config.windmillPlacement)
         if windmill.moving then
             return false, "machine_moving", "Lock the Windmill onto the floor before using it."
         end

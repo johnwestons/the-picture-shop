@@ -40,6 +40,11 @@ function Test.run(context, check)
     check("second_cutter_has_own_floor_interaction",
         selected and selected.kind == "cutter"
         and selected.target.machineId == duplicate.id)
+    state._localWorkshopMachineId = duplicate.id
+    local hostCanUseSecond = context.world.validateNetworkWorkshopAccess(
+        { id = 1, x = duplicate.world.x, y = duplicate.world.y }, state, "cutter")
+    state._localWorkshopMachineId = nil
+    check("hosting_player_can_reach_second_cutter_controls", hostCanUseSecond)
     check("warehouse_draws_purchased_duplicate_machine",
         pcall(context.world.draw, context.assets, context.characterAssets, state))
     state.screen = "world"

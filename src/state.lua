@@ -163,6 +163,7 @@ function State.applySave(state, payload)
     SaveSchema.reconcile(state)
     state.currentOffer = nil
     state.machineId = nil
+    state._localWorkshopMachineId = nil
     state._networkMachinePoses = nil
     state.screen = "world"
     state.message = "Shop opened."

@@ -1369,6 +1369,7 @@ local function releaseLocalWorkshop(reason)
         reason = reason == "cancelled" and "cancelled" or "closed",
     }, { state = state })
     localWorkshopLease = nil
+    state._localWorkshopMachineId = nil
     return result.accepted
 end
 
@@ -1381,6 +1382,7 @@ local function clearWorkshopAuthority(reason)
     end
     workshopAuthority = nil
     localWorkshopLease = nil
+    state._localWorkshopMachineId = nil
     activeCutterRemote = nil
     cutterMaintenanceAuthority = nil
     activeWrapperRemote = nil
@@ -2005,13 +2007,16 @@ local inputContext = {
         end
         local resourceId = World.workshopResourceId(selected.kind)
         if multiplayer:isHost() and resourceId then
+            state._localWorkshopMachineId = selected.target and selected.target.machineId
             local lease = workshopAuthority and workshopAuthority:leaseForResource(resourceId)
             if lease and lease.ownerPlayerId ~= 1 then
+                state._localWorkshopMachineId = nil
                 state.message = "Another worker is using that workshop control."
                 return true
             end
             local acquired, acquireMessage = acquireLocalWorkshop(resourceId)
             if not acquired then
+                state._localWorkshopMachineId = nil
                 state.message = tostring(acquireMessage or "That workshop control is unavailable.")
                 return true
             end
