@@ -39,6 +39,7 @@ function love.draw()
     local forkX = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_X")) or 0
     local forkLow = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_LOW")) or 150
     local forkTravel = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_TRAVEL")) or 560
+    local forkScale = tonumber(os.getenv("PICTURE_SHOP_PREVIEW_FORK_SCALE")) or 1
     for index, height in ipairs({ 0, 0.5, 1 }) do
         local left = 20 + (index - 1) * 420
         local center = left + 200
@@ -56,7 +57,8 @@ function love.draw()
         g.setColor(1, 1, 1)
         g.draw(body, x, y, 0, scale, scale)
         g.draw(carriage, x + forkX * scale,
-            y + (forkLow - forkTravel * height) * scale, 0, scale, scale)
+            y + (forkLow - forkTravel * height) * scale, 0,
+            scale * forkScale, scale * forkScale)
         g.printf(string.format("FORK HEIGHT %.0f%%", height * 100), left, 615, 400, "center")
     end
     if not captured then

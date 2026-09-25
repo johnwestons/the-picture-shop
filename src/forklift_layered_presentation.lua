@@ -25,12 +25,25 @@ local studies = {
         carriageX = 150, carriageLow = 80, carriageTravel = 480,
         loadX = 970, loadY = 820,
     },
+    rearDiagonal = {
+        manned = root .. "northeast-fixed-manned-v1.png",
+        empty = root .. "northeast-fixed-empty-v1.png",
+        carriage = root .. "northeast-carriage-v2.png",
+        bodyOriginX = 680, bodyOriginY = 890,
+        emptyOriginX = 680, emptyOriginY = 890, emptyScale = 1,
+        carriageOriginX = 680, carriageOriginY = 890,
+        carriageScale = 0.8, carriageX = 265,
+        carriageLow = 150, carriageTravel = 563,
+        loadX = 1000, loadY = 440,
+    },
 }
 local directions = {
     east = { study = studies.side, mirror = 1 },
     west = { study = studies.side, mirror = -1 },
     southeast = { study = studies.frontDiagonal, mirror = 1 },
     southwest = { study = studies.frontDiagonal, mirror = -1 },
+    northeast = { study = studies.rearDiagonal, mirror = 1 },
+    northwest = { study = studies.rearDiagonal, mirror = -1 },
 }
 
 local function finite(value)
@@ -53,9 +66,10 @@ function Layered.plan(vehicle, options)
         return nil, "invalid_scale"
     end
     local height = math.max(0, math.min(1, vehicle.forkHeight))
-    local carriageScale = oldScale * scaleRatio
     local study = direction.study
-    local bodyScale = carriageScale * (vehicle.operating and 1 or study.emptyScale)
+    local baseScale = oldScale * scaleRatio
+    local carriageScale = baseScale * (study.carriageScale or 1)
+    local bodyScale = baseScale * (vehicle.operating and 1 or study.emptyScale)
     local mirror = direction.mirror
     local shift = study.carriageLow - study.carriageTravel * height
     local bodyOriginX = vehicle.operating and study.bodyOriginX or study.emptyOriginX

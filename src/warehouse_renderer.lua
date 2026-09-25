@@ -277,10 +277,10 @@ function Renderer.drawForklift(assets,state,drawPallet)
         if item then drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,
             x=loadX,y=loadY,hideWorldLabel=true}) end
     end
-    -- Rear-facing forks sit behind the body and cab. Front/side loads cover
-    -- the vehicle instead of disappearing behind its full-body sprite.
-    local loadBehind=plan and (vehicle.direction=="north" or vehicle.direction=="northwest"
-        or vehicle.direction=="northeast")
+    -- The full-body rear art covers its load. Layered rear diagonals put the
+    -- pallet over the moving tines so its contact stays visible.
+    local loadBehind=plan and (vehicle.direction=="north"
+        or not layeredPlan and (vehicle.direction=="northwest" or vehicle.direction=="northeast"))
     if loadBehind then drawLoad() end
     if layeredPlan then drawn=ForkliftLayeredPresentation.draw(vehicle,sourceImage,
         {review=true,scale=operatingScale}) end
@@ -288,6 +288,10 @@ function Renderer.drawForklift(assets,state,drawPallet)
         plan=Renderer.forkliftPlan(vehicle)
         if plan then
             loadX,loadY=plan.loadX,plan.loadY
+            if layeredPlan and (vehicle.direction=="northwest" or vehicle.direction=="northeast") then
+                drawLoad()
+                loadBehind=true
+            end
             drawn=ForkliftPresentation.draw(vehicle,sourceImage,
                 {review=true,scale=operatingScale,edgeCleanup=true})
         end

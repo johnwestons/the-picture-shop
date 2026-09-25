@@ -18,7 +18,7 @@ import build_mobile_package as package
 class RuntimeSourcePackageTests(unittest.TestCase):
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
-        self.assertEqual(len(paths), 43)
+        self.assertEqual(len(paths), 46)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.suffix == ".png" for path in paths))
 
@@ -50,7 +50,8 @@ class RuntimeSourcePackageTests(unittest.TestCase):
 
     def test_continuous_side_view_layers_are_packaged(self) -> None:
         for name in ("east-fixed-manned-v1.png", "east-fixed-empty-v1.png", "east-carriage-v2.png",
-                     "southeast-fixed-manned-v1.png", "southeast-fixed-empty-v1.png", "southeast-carriage-v1.png"):
+                     "southeast-fixed-manned-v1.png", "southeast-fixed-empty-v1.png", "southeast-carriage-v1.png",
+                     "northeast-fixed-manned-v1.png", "northeast-fixed-empty-v1.png", "northeast-carriage-v2.png"):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "forklift-layer-study/" + name,
                           package.RUNTIME_SOURCE_ASSETS)
 

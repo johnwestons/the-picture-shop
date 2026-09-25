@@ -58,7 +58,7 @@ The game and lift lab now use transparency-aware bilinear sampling for these fou
 
 ### Continuous side-view lift study — September 24
 
-[Separate lift layers](forklift-layer-study/prompts.json) now provide fixed occupied and empty-seat bodies with moving carriages for east and southeast. West mirrors east; southwest mirrors southeast. The development-art renderer uses these four headings while lifting, so their bodies and wheels stay still as the carriage follows actual continuous height. The original four-pose strips remain the loading fallback and still serve north, south and both rear diagonals. Isolated previews and loaded low/mid/high in-engine captures were inspected. These generated layers are **not approved production art**. Empty/occupied body geometry still differs slightly, and equivalent layers for the other four headings, complete cargo occlusion and device review remain open.
+[Separate lift layers](forklift-layer-study/prompts.json) now provide fixed occupied and empty-seat bodies with moving carriages for east, southeast and northeast. West, southwest and northwest mirror those respective layers. The development-art renderer uses these six headings while lifting, so their bodies and wheels stay still as the carriage follows actual continuous height. The original four-pose strips remain the loading fallback and still serve north and south. Isolated previews and loaded low/mid/high in-engine captures were inspected. These generated layers are **not approved production art**. Empty/occupied body geometry still differs slightly, and equivalent layers for north and south, complete cargo occlusion and device review remain open.
 
 ## Raccoon construction tool studies
 

@@ -224,6 +224,27 @@ function Test.run(_, check)
     test("layered_diagonal_forks_move_continuously_at_every_height",diagonalSmooth)
     test("layered_diagonal_body_never_changes_during_lift",diagonalStationary)
     test("layered_diagonal_views_mirror_cargo",diagonalMirrored)
+    local rearSmooth,rearStationary,rearMirror=true,true,true
+    for _,heading in ipairs({"northeast","northwest"}) do
+        side.direction=heading
+        local previousY=math.huge
+        for step=0,100 do
+            side.forkHeight=step/100
+            local pose=Layered.plan(side,{review=true,scale=0.308})
+            rearSmooth=rearSmooth and pose and pose.loadY<previousY
+                and close(pose.carriageShift,150-563*side.forkHeight)
+            rearStationary=rearStationary and pose.bodyPath:match("northeast%-fixed%-manned%-v1%.png$")
+                and pose.carriagePath:match("northeast%-carriage%-v2%.png$")
+                and pose.x==side.x and pose.y==side.y
+                and close(pose.carriageScale,pose.bodyScale*0.8)
+            rearMirror=rearMirror and (heading=="northeast" and pose.loadX>side.x
+                or heading=="northwest" and pose.loadX<side.x)
+            previousY=pose.loadY
+        end
+    end
+    test("layered_rear_diagonal_forks_move_continuously",rearSmooth)
+    test("layered_rear_diagonal_body_stays_fixed",rearStationary)
+    test("layered_rear_diagonal_cargo_mirrors",rearMirror)
     side.direction="west"
     side.operating=false
     local empty=Layered.plan(side,{review=true,scale=0.308})
@@ -235,6 +256,11 @@ function Test.run(_, check)
     test("layered_diagonal_parked_view_keeps_empty_cab_and_height",diagonalEmpty
         and diagonalEmpty.bodyPath:match("southeast%-fixed%-empty%-v1%.png$")
         and diagonalEmpty.forkHeight==1 and diagonalEmpty.carriedPalletId=="P-LOAD")
+    side.direction="northwest"
+    local rearEmpty=Layered.plan(side,{review=true,scale=0.308})
+    test("layered_rear_diagonal_parked_view_keeps_empty_cab_and_height",rearEmpty
+        and rearEmpty.bodyPath:match("northeast%-fixed%-empty%-v1%.png$")
+        and rearEmpty.forkHeight==1 and rearEmpty.carriedPalletId=="P-LOAD")
     local oldWarehouse=Config.warehouse
     Config.warehouse={provisionalArt=true}
     test("game_renderer_selects_layered_side_view",Renderer.layeredForkliftPlan(side)~=nil)
