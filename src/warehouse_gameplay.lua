@@ -227,10 +227,24 @@ end
 local function exitPoint(state,context)
     local lift=state.forklift
     if not lift then return nil end
+    local function available(dx,dy)
+        local x,y=lift.x+dx,lift.y+dy
+        if clear(context,state,x,y,6,3,nil,false,false) then return {x=x,y=y} end
+    end
     -- Side exits keep the worker clear of the fork-height badge below the cab.
     for _,offset in ipairs({{72,0},{-72,0},{0,48},{0,-48},{64,48},{-64,48},{64,-48},{-64,-48}}) do
-        local x,y=lift.x+offset[1],lift.y+offset[2]
-        if clear(context,state,x,y,6,3,nil,false,false) then return {x=x,y=y} end
+        local point=available(offset[1],offset[2])
+        if point then return point end
+    end
+    -- A parked vehicle may be hemmed in by stock or another worker. Search
+    -- outward for the nearest clear floor before giving up on a normal exit.
+    for radius=88,184,24 do
+        for step=0,15 do
+            local angle=step*math.pi/8
+            local point=available(math.floor(radius*math.cos(angle)+0.5),
+                math.floor(radius*math.sin(angle)+0.5))
+            if point then return point end
+        end
     end
 end
 

@@ -219,11 +219,32 @@ function Test.run(_,check)
     Gameplay.command(player,state,{kind="set_height",height=0},cx)
     Gameplay.update(3,state,cx)
     local seatX,seatY=player.x,player.y
-    ok=Gameplay.command(player,state,{kind="release"},context(false))
+    local noExit=context(false)
+    noExit.obstacles=function()return {{x=seatX,y=seatY,radius=1000}} end
+    ok=Gameplay.command(player,state,{kind="release"},noExit)
     check("warehouse_live_release_requires_clear_standing_position",not ok and state.forklift.operating and player.x==seatX and player.y==seatY)
     ok=Gameplay.command(player,state,{kind="release"},cx)
     check("warehouse_live_release_exits_without_abandoning_loaded_stock",ok and not state.forklift.operating
         and (player.x~=seatX or player.y~=seatY) and p.location=="on_forklift" and state.forklift.carriedPalletId==p.id)
+
+    local crowded,crowdedPlayer=fresh()
+    crowded.forklift.x,crowded.forklift.y=500,400
+    crowdedPlayer.x,crowdedPlayer.y=500,400
+    assert(Gameplay.command(crowdedPlayer,crowded,{kind="operate"},context()))
+    local blockedOffsets={{72,0},{-72,0},{0,48},{0,-48},{64,48},{-64,48},{64,-48},{-64,-48}}
+    local crowdedContext={assets=assets(),obstacles=function()
+        local result={Forklift.obstacle(crowded,Config.forklift)}
+        for _,offset in ipairs(blockedOffsets) do
+            result[#result+1]={x=500+offset[1],y=400+offset[2],radius=30}
+        end
+        return result
+    end}
+    ok=Gameplay.command(crowdedPlayer,crowded,{kind="release"},crowdedContext)
+    check("warehouse_live_release_searches_beyond_blocked_side_exits",ok
+        and not crowded.forklift.operating
+        and (crowdedPlayer.x-500)^2+(crowdedPlayer.y-400)^2>=80^2
+        and Navigation.isWalkable(Gameplay.assets(crowdedContext.assets,crowded),
+            crowdedPlayer.x,crowdedPlayer.y,crowdedContext.obstacles()))
 
     local locked=State.new()
     local wrapped=Gameplay.assets(assets(false),locked)
