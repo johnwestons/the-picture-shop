@@ -8,8 +8,9 @@ local WarehouseUpgrades = require("src.warehouse_upgrades")
 local PalletStorage = require("src.pallet_storage")
 local Forklift = require("src.forklift")
 local WarehouseConstruction = require("src.warehouse_construction")
+local Credit = require("src.credit")
 
-local Schema = { VERSION = 15, SLOT_COUNT = 3 }
+local Schema = { VERSION = 16, SLOT_COUNT = 3 }
 local directions = {
     northwest = true, north = true, northeast = true, east = true,
     southeast = true, south = true, southwest = true, west = true,
@@ -792,6 +793,7 @@ local function persistentState(value)
         and workPhone(value.workPhone)
         and MachineFleet.validState(value.machines)
         and machineUnitWorlds(value)
+        and Credit.validState(value.credit)
         and WarehouseUpgrades.validate(value.warehouse)
         and WarehouseConstruction.valid(value.constructionWorker, value.warehouse)
         and type(value.storage) == "table" and PalletStorage.normalize(value.storage) ~= nil
@@ -842,6 +844,7 @@ function Schema.defaultState()
         vendorCategory = 1,
         calendar = BusinessCalendar.defaultCalendar(),
         bills = BusinessCalendar.defaultBills(),
+        credit = Credit.defaultState(),
         clientEmails = { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} },
         workPhone = { nextCallId = 1, nextCallAtHours = 6, incoming = nil, history = {} },
@@ -1204,6 +1207,9 @@ end
 local function normalizeState(source, repairPhysical)
     source = type(source) == "table" and source or {}
     if not Schema.validPhysicalSource(source) then return nil, "Invalid physical stock or vehicle ownership." end
+    if source.credit ~= nil and not Credit.validState(source.credit) then
+        return nil, "Invalid saved credit account."
+    end
     local result = Schema.defaultState()
     local warehouse, warehouseError = WarehouseUpgrades.normalize(source.warehouse)
     if not warehouse then return nil, warehouseError end
@@ -1255,6 +1261,7 @@ local function normalizeState(source, repairPhysical)
     result.vendorCategory = source.vendorCategory ~= nil and source.vendorCategory or result.vendorCategory
     result.calendar = type(source.calendar) == "table" and copy(source.calendar) or result.calendar
     result.bills = type(source.bills) == "table" and copy(source.bills) or result.bills
+    result.credit = Credit.normalize(source.credit) or Credit.defaultState()
     result.clientEmails = type(source.clientEmails) == "table"
         and copy(source.clientEmails) or result.clientEmails
     result.clientEmails.nextEmailId = math.max(1, math.floor(tonumber(result.clientEmails.nextEmailId) or 1))
@@ -1464,7 +1471,8 @@ function Schema.migrate(payload)
     elseif payload.version == 2 or payload.version == 3 or payload.version == 4
         or payload.version == 5 or payload.version == 6 or payload.version == 7
         or payload.version == 8 or payload.version == 9 or payload.version == 10
-        or payload.version == 11 or payload.version == 12 or payload.version == 13 or payload.version == 14
+        or payload.version == 11 or payload.version == 12 or payload.version == 13
+        or payload.version == 14 or payload.version == 15
     then
         if not validV2Core(payload) then return nil end
     else

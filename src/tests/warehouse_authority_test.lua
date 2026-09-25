@@ -17,7 +17,7 @@ end
 local function actualStackAuthority(context,check)
     local Gameplay=require("src.warehouse_gameplay")
     local Config=require("src.config")
-    local state=context.State.new();state.money=20000
+    local state=context.State.new();state.money=50000
     assert(require("src.warehouse_upgrades").purchaseForklift(state,"AUTHORITY-LIFT",0))
     local mask={getDimensions=function() return 960,678 end,getPixel=function() return 1,1,1,1 end}
     local cx={assets={getData=function() return mask end},obstacles=function() return {} end}
@@ -49,7 +49,7 @@ local function actualStackAuthority(context,check)
         and top.storage.supportPalletId==base.id and not lift.carriedPalletId and saves==1)
     okay,code=command.perform({resourceId="warehouse"},player,{warehouseIntent=intent})
     check("warehouse_authority_stack_replay_never_saves_or_charges_twice",okay and code=="replayed" and saves==1
-        and state.storage.revision==1 and state.money==13500)
+        and state.storage.revision==1 and state.money==17000)
     intent={kind="unstack",requestId="AUTH-TAKE-1",expectedRevision=1,vehicle="forklift",palletId=top.id,supportPalletId=base.id}
     okay,code=command.perform({resourceId="warehouse"},player,{warehouseIntent=intent})
     check("warehouse_authority_take_top_returns_exact_canonical_load",okay and code=="unstack" and top.location=="on_forklift"

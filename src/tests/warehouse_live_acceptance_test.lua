@@ -36,7 +36,7 @@ function Test.run(context,check)
     Config.warehouse={enabled=true,provisionalArt=true,firstStorageOnly=true}
     local okay,reason=pcall(function()
         local assets,state=context.assets,State.new()
-        state.money=30000
+        state.money=50000
         local player=World.player
         World.updateWarehouse(0,state,assets)
         local saves=0
@@ -47,9 +47,9 @@ function Test.run(context,check)
         end
         local bought,code=buy({kind="buy_upgrade",bayId="front_left",optionId="storage",
             requestId="ACCEPT-STORAGE",confirmUpperRows=true})
-        test("real_computer_purchase",bought and state.money==25500 and saves==1,code)
+        test("real_computer_purchase",bought and state.money==48800 and saves==1,code)
         bought,code=buy({kind="buy_forklift",requestId="ACCEPT-FORKLIFT"})
-        test("real_computer_forklift_purchase",bought and state.money==19000 and saves==2,code)
+        test("real_computer_forklift_purchase",bought and state.money==15800 and saves==2,code)
         World.updateWarehouse(0,state,assets)
         test("actual_spawn_mask_and_collision_clear",state.forklift.owned
             and state.forklift.x==Layout.forkliftSpawn().x and state.forklift.y==Layout.forkliftSpawn().y)

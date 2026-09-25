@@ -882,7 +882,9 @@ local function runChecks(context)
         starterOffer.quote.totalSheets == 500 and starterOffer.clientTemperament == "cautious"
         and premiumOffer.quote.totalPrice > starterOffer.quote.totalPrice
         and premiumOffer.clientTemperament == "demanding")
-    emailState.money = 10000
+    -- The real-world machine prices are now above the old smoke fixture's
+    -- cash, so fund this calendar listing check explicitly.
+    emailState.money = 50000
     local productOrdered, productOrder = context.procurement.buyRetail(emailState, 1, 1)
     local machineOrdered, machineOrder = context.machineFleet.orderOnline(emailState, 1)
     local scheduledEvents = context.businessCalendar.events(emailState)
@@ -916,13 +918,13 @@ local function runChecks(context)
     pressSupplyState.money = 500
     local pressSupplyBought, pressSupplyOrder = context.procurement.buy(pressSupplyState, 2, 1)
     check("vendor_sells_real_cost_press_supplies_for_windmill", pressSupplyBought
-        and pressSupplyOrder.item == "black_ink" and pressSupplyOrder.price == 168
+        and pressSupplyOrder.item == "black_ink" and pressSupplyOrder.price == 184
         and pressSupplyOrder.pallets[1].quantity == 140)
-    vendorState.money = 500
+    vendorState.money = 1000
     local bought, purchaseOrder = context.procurement.buy(vendorState, 3, 1)
     check("vendor_catalog_purchase", bought and purchaseOrder.id == "PO-0001"
         and purchaseOrder.pallets[1].category == "packaging"
-        and vendorState.money == 428)
+        and vendorState.money == 593)
     local retailState = context.State.new()
     retailState.money = 500
     local retailBought, retailOrder = context.procurement.buyRetail(retailState, 3, 1)
@@ -930,7 +932,7 @@ local function runChecks(context)
         and retailOrder.item == purchaseOrder.item
         and retailOrder.channel == "computer"
         and retailOrder.pallets[1].quantity == 20
-        and retailOrder.price == 20
+        and retailOrder.price == 84
         and retailOrder.price / retailOrder.pallets[1].quantity
             > purchaseOrder.price / purchaseOrder.pallets[1].quantity)
     local groupedState = context.State.new()
@@ -949,7 +951,7 @@ local function runChecks(context)
         and groupedShipment.id == groupOrderA.shipmentId and #groupedInventory == 2)
     local vendorManifest, vendorItems = context.procurement.truckInventory(vendorState, purchaseOrder.id)
     check("vendor_delivery_manifest", vendorManifest == purchaseOrder and #vendorItems == 1
-        and vendorItems[1].productName == "Shipping cartons, 100")
+        and vendorItems[1].productName == "Shipping cartons, 12 x 12 x 12 in, 275 lb, 100")
     local unloaded, productPallet, vendorRemaining = context.procurement.unload(vendorState,
         purchaseOrder.id, purchaseOrder.pallets[1].id,
         context.config.palletLogistics.spawnPoints, context.config.palletLogistics.unloadOrigin)
@@ -1339,7 +1341,7 @@ local function runChecks(context)
         and wwwTabResult.tab == "www" and paperSiteResult
         and paperSiteResult.site.url == "www.thecritternet.com/paper-depot" and cartAdd
         and cartAdd.action == "cart_item_added"
-        and cartBeforeCheckout.count == 1 and cartBeforeCheckout.total == 28
+        and cartBeforeCheckout.count == 1 and cartBeforeCheckout.total == 30
         and computerCheckout.action == "cart_checked_out"
         and computerOrder.channel == "computer"
         and computerOrder.pallets[1].quantity == 250

@@ -253,7 +253,7 @@ function Windmill.completeSetup(state, task, score)
             if job then
                 local totals = actual(job)
                 totals.inkUnits = (totals.inkUnits or 0) + 1
-                totals.supplyCost = (totals.supplyCost or 0) + (inkId == "black_ink" and 46 / 35 or 82 / 35)
+                totals.supplyCost = (totals.supplyCost or 0) + (inkId == "black_ink" and 46 / 35 or 42 / 35)
             end
         elseif task == "packing" then
             if (stock.tympan_sheets or 0) < 1 then return false, "A clean tympan sheet is required." end

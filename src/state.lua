@@ -17,6 +17,7 @@ local WarehouseUpgrades = require("src.warehouse_upgrades")
 local PalletStorage = require("src.pallet_storage")
 local Forklift = require("src.forklift")
 local WarehouseConstruction = require("src.warehouse_construction")
+local Credit = require("src.credit")
 
 local SHARED_FIELDS = {
     "money",
@@ -43,6 +44,7 @@ local SHARED_FIELDS = {
     "clientEmails",
     "workPhone",
     "machines",
+    "credit",
 }
 
 function State.new()
@@ -149,6 +151,7 @@ function State.applySave(state, payload)
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.calendar = type(saved.calendar) == "table" and saved.calendar or BusinessCalendar.defaultCalendar()
     state.bills = type(saved.bills) == "table" and saved.bills or BusinessCalendar.defaultBills()
+    state.credit = Credit.normalize(saved.credit) or Credit.defaultState()
     state.clientEmails = type(saved.clientEmails) == "table" and saved.clientEmails
         or { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} }

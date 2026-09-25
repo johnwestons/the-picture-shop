@@ -5,6 +5,8 @@ local fields = {
     promotion = { id = "token", text = "text" }, archive = { id = "token" },
     archive_service = { id = "token" }, sell = { id = "token" },
     pay_bills = {}, checkout = { items = "cart" },
+    finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
+    pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
     buy_forklift = { requestId = "token" },
 }
@@ -27,6 +29,11 @@ function Intent.normalize(value)
             if type(item) ~= "string" or #item < 1 or #item > 64 or not item:match("^[%w_.%-]+$") then return nil, "Invalid record ID." end
         elseif rule == "amount" then
             if not integer(item, 1, 10000000) then return nil, "Invalid estimate amount." end
+        elseif rule == "machine_offer" then
+            if not integer(item, 1, 16) then return nil, "Choose a listed machine." end
+        elseif rule == "machine_channel" then
+            if item == nil then item = "online" end
+            if item ~= "online" and item ~= "dealer" then return nil, "Choose a listed machine channel." end
         elseif rule == "text" then
             if type(item) ~= "string" or #item > 600 or item:find("[%z\1-\8\11\12\14-\31]") then return nil, "Invalid message." end
         elseif rule == "cart" then

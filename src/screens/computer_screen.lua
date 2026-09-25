@@ -11,8 +11,15 @@ local Ui = require("src.screens.ui")
 local utf8 = require("utf8")
 local Reputation = require("src.reputation")
 local Upgrades = require("src.warehouse_upgrades")
+local Credit = require("src.credit")
 local OfficeIntent = require("src.office_intent")
 local warehouseRequestPrefix=dependencies.warehouseRequestPrefix
+
+local function nextFinanceRequestId(sequence)
+    warehouseRequestPrefix=tostring(warehouseRequestPrefix
+        or ("FIN-"..os.time().."-"..math.random(1,99999999))):gsub("[^%w_.%-]","-"):sub(1,36)
+    return string.format("FIN-%s-%d-%d",warehouseRequestPrefix,os.time(),sequence)
+end
 
 local ComputerScreen = {
     tab = "active",
@@ -43,6 +50,9 @@ local ComputerScreen = {
     warehousePending = false,
     warehouseMessage = nil,
     warehouseRequestNumber = 0,
+    creditConfirmation = nil,
+    creditRequestNumber = 0,
+    creditChannel = "online",
 }
 
 local PANEL = { x = 52, y = 34, width = 856, height = 610 }
@@ -57,6 +67,7 @@ local TABS = {
     { id = "www", label = "CRITTERNET WWW", url = "www.thecritternet.com" },
     { id = "email", label = "EMAIL", url = "www.thecritternet.com/job-desk/email" },
     { id = "bills", label = "BILLS", url = "www.thecritternet.com/job-desk/bills" },
+    { id = "credit", label = "CREDIT", url = "www.thecritternet.com/job-desk/credit" },
     { id = "warehouse", label = "WAREHOUSE", url = "www.thecritternet.com/warehouse" },
 }
 local TAB_ADDRESS = { x = 170, y = 136, width = 478, height = 40 }
@@ -116,6 +127,15 @@ local WAREHOUSE_FORKLIFT = {x=670,y=490,width=164,height=40}
 local WAREHOUSE_CONFIRM = {x=508,y=514,width=228,height=40}
 local WAREHOUSE_CANCEL = {x=216,y=514,width=180,height=40}
 local WAREHOUSE_ACK = {x=206,y=430,width=542,height=48}
+local CREDIT_MACHINE = { x = 98, y = 300, width = 350, height = 76, gap = 8 }
+local CREDIT_MACHINE_ACTION = { x = 354, width = 84, height = 30 }
+local CREDIT_CHANNEL_ONLINE = { x = 262, y = 274, width = 78, height = 22 }
+local CREDIT_CHANNEL_DEALER = { x = 344, y = 274, width = 88, height = 22 }
+local CREDIT_LOAN = { x = 462, y = 300, width = 366, height = 76, gap = 8 }
+local CREDIT_LOAN_ACTION = { x = 712, width = 104, height = 29 }
+local CREDIT_SIGN = { x = 492, y = 472, width = 220, height = 44 }
+local CREDIT_CANCEL = { x = 248, y = 472, width = 200, height = 44 }
+local CREDIT_CONFIRM_PANEL = { x = 148, y = 302, width = 640, height = 232 }
 
 local function warehouseEnabled()
     return dependencies.warehouseEnabled == true
@@ -555,6 +575,7 @@ function ComputerScreen.enter(state)
     ComputerScreen.wwwSiteChangedAt = 0
     ComputerScreen.tabDropdownOpen = false
     ComputerScreen.warehouseConfirmation,ComputerScreen.warehousePending,ComputerScreen.warehouseMessage=nil,false,nil
+    ComputerScreen.creditConfirmation = nil
     ensureSelection(state)
 end
 
@@ -668,6 +689,117 @@ end
 
 function ComputerScreen.payBillsCenter()
     return PAY_BILLS.x + PAY_BILLS.width / 2, PAY_BILLS.y + PAY_BILLS.height / 2
+end
+
+local function creditMachineRect(index)
+    return { x = CREDIT_MACHINE.x, y = CREDIT_MACHINE.y + (index - 1) * (CREDIT_MACHINE.height + CREDIT_MACHINE.gap),
+        width = CREDIT_MACHINE.width, height = CREDIT_MACHINE.height }
+end
+
+local function creditMachineActionRect(index)
+    local row = creditMachineRect(index)
+    return { x = CREDIT_MACHINE_ACTION.x, y = row.y + 39,
+        width = CREDIT_MACHINE_ACTION.width, height = CREDIT_MACHINE_ACTION.height }
+end
+
+local function creditLoanRect(index)
+    return { x = CREDIT_LOAN.x, y = CREDIT_LOAN.y + (index - 1) * (CREDIT_LOAN.height + CREDIT_LOAN.gap),
+        width = CREDIT_LOAN.width, height = CREDIT_LOAN.height }
+end
+
+local function creditLoanActionRect(index)
+    local row = creditLoanRect(index)
+    return { x = CREDIT_LOAN_ACTION.x, y = row.y + 42,
+        width = CREDIT_LOAN_ACTION.width, height = CREDIT_LOAN_ACTION.height }
+end
+
+function ComputerScreen.creditMachineCenter(index)
+    local rect = creditMachineActionRect(index)
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function ComputerScreen.creditChannelCenter(channel)
+    local rect = channel == "dealer" and CREDIT_CHANNEL_DEALER or CREDIT_CHANNEL_ONLINE
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function ComputerScreen.creditLoanPayCenter(index)
+    local rect = creditLoanActionRect(index)
+    return rect.x + rect.width / 2, rect.y + rect.height / 2
+end
+
+function ComputerScreen.creditSignCenter()
+    return CREDIT_SIGN.x + CREDIT_SIGN.width / 2, CREDIT_SIGN.y + CREDIT_SIGN.height / 2
+end
+
+function ComputerScreen.creditCancelCenter()
+    return CREDIT_CANCEL.x + CREDIT_CANCEL.width / 2, CREDIT_CANCEL.y + CREDIT_CANCEL.height / 2
+end
+
+local function creditMousepressed(state, x, y)
+    local choice = ComputerScreen.creditConfirmation
+    if choice then
+        if contains(CREDIT_CANCEL, x, y) then
+            ComputerScreen.creditConfirmation = nil
+            return { action = "credit_offer_cancelled" }
+        elseif contains(CREDIT_SIGN, x, y) then
+            if dependencies.remoteCommand then
+                ComputerScreen.creditConfirmation = nil
+                return remoteAction("finance_machine", {
+                    offerIndex = choice.offerIndex, requestId = choice.requestId, channel = choice.channel,
+                })
+            end
+            local accepted, result = Credit.financeMachine(state, choice.offerIndex,
+                choice.requestId, choice.channel)
+            if not accepted then
+                state.message = tostring(result)
+                return { action = "blocked", reason = "finance_offer_changed" }
+            end
+            ComputerScreen.creditConfirmation = nil
+            local loan = result.loan
+            state.message = string.format("Financed %s: $%d down, $%d financed at %.2f%% APR.",
+                loan.machineName, loan.downPayment, loan.principal, loan.aprBasisPoints / 100)
+            return { action = "machine_financed", loan = loan }
+        end
+        return nil
+    end
+    if contains(CREDIT_CHANNEL_ONLINE, x, y) then
+        ComputerScreen.creditChannel = "online"
+        return { action = "credit_channel", channel = "online" }
+    elseif contains(CREDIT_CHANNEL_DEALER, x, y) then
+        ComputerScreen.creditChannel = "dealer"
+        return { action = "credit_channel", channel = "dealer" }
+    end
+    for index, quote in ipairs(Credit.machineQuotes(state, ComputerScreen.creditChannel)) do
+        if contains(creditMachineActionRect(index), x, y) then
+            if not quote.eligible then
+                state.message = quote.reason or "This financing offer is unavailable."
+                return { action = "blocked", reason = "finance_offer_ineligible" }
+            end
+            ComputerScreen.creditRequestNumber = ComputerScreen.creditRequestNumber + 1
+            local requestId = nextFinanceRequestId(ComputerScreen.creditRequestNumber)
+            ComputerScreen.creditConfirmation = {
+                offerIndex = index, requestId = requestId, channel = ComputerScreen.creditChannel,
+            }
+            return { action = "finance_terms", quote = quote }
+        end
+    end
+    for index, loan in ipairs(Credit.loanRows(state)) do
+        if contains(creditLoanActionRect(index), x, y) then
+            if loan.installmentsDue < 1 then
+                state.message = "No machine payment is due yet."
+                return { action = "blocked", reason = "no_payment_due" }
+            end
+            if dependencies.remoteCommand then
+                return remoteAction("pay_machine_loan", { loanId = loan.id })
+            end
+            local paid, result = Credit.payLoan(state, loan.id)
+            if not paid then state.message = tostring(result); return { action = "blocked" } end
+            state.message = string.format("Paid $%d on machine loan %s.", result.amount, loan.id)
+            return { action = "machine_payment", payment = result }
+        end
+    end
+    return nil
 end
 
 function ComputerScreen.emailButtonCenter(action)
@@ -796,6 +928,12 @@ function ComputerScreen.mousepressed(state, x, y, button)
         end
         for index, offer in ipairs(MachineFleet.offers("online")) do
             if contains(machineBuyRect(index), x, y) then
+                if (state.money or 0) < offer.price then
+                    ComputerScreen.tab = "credit"
+                    ComputerScreen.creditChannel = "online"
+                    state.message = "Review the down payment and monthly terms for " .. offer.name .. " in Credit."
+                    return { action = "credit_financing" }
+                end
                 addToCart({
                     key = "machine:" .. tostring(index), kind = "machine", offerIndex = index,
                     modelId = offer.modelId, name = offer.name, price = offer.price,
@@ -835,6 +973,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
         end
         return nil
     end
+    if ComputerScreen.tab == "credit" then return creditMousepressed(state, x, y) end
     if ComputerScreen.tab == "calendar" then
         if contains(CAL_PREVIOUS, x, y) then
             ComputerScreen.calendarYear, ComputerScreen.calendarMonth = BusinessCalendar.shiftMonth(
@@ -1545,6 +1684,7 @@ local function drawCritterNetChrome(assets)
         www = 1 + math.floor(clock * 2.5) % 4,
         email = 13 + math.floor(clock * 2) % 2,
         bills = 15,
+        credit = 16,
     }
     drawCritterNetSprite(assets, frames[ComputerScreen.tab] or 5,
         696, 52, 46, 31, 0.96)
@@ -1636,10 +1776,14 @@ local function drawWww(state, pointerX, pointerY, assets)
         love.graphics.print("Inspected • flatbed delivery", MACHINE_OFFER.x + 12, y + 58)
         local total = cartTotal()
         local affordable = (state.money or 0) >= total + offer.price
-        love.graphics.setColor(affordable and { 0.15, 0.44, 0.29, 1 } or { 0.17, 0.18, 0.19, 1 })
+        local canFinance = (state.money or 0) < offer.price
+        love.graphics.setColor(canFinance and { 0.10, 0.35, 0.39, 1 }
+            or affordable and { 0.15, 0.44, 0.29, 1 } or { 0.17, 0.18, 0.19, 1 })
         love.graphics.rectangle("fill", buy.x, buy.y, buy.width, buy.height, 3, 3)
-        love.graphics.setColor(affordable and { 0.96, 0.98, 0.94, 1 } or { 0.52, 0.55, 0.54, 1 })
-        love.graphics.printf("ADD " .. money(offer.price), buy.x, buy.y + 14, buy.width, "center")
+        love.graphics.setColor(canFinance and { 0.88, 0.96, 0.94, 1 }
+            or affordable and { 0.96, 0.98, 0.94, 1 } or { 0.52, 0.55, 0.54, 1 })
+        love.graphics.printf(canFinance and "FINANCE" or ("ADD " .. money(offer.price)),
+            buy.x, buy.y + 14, buy.width, "center")
     end
 
     love.graphics.setColor(0.63, 0.72, 0.74)
@@ -1831,6 +1975,157 @@ local function drawBills(state, pointerX, pointerY)
     love.graphics.setColor(payable and 0.95 or 0.50, payable and 0.96 or 0.53, payable and 0.93 or 0.53)
     love.graphics.printf(balance <= 0 and "NO BALANCE DUE" or payable and "PAY ALL BILLS" or "INSUFFICIENT CASH",
         PAY_BILLS.x, PAY_BILLS.y + 16, PAY_BILLS.width, "center")
+end
+
+local function drawCredit(state, pointerX, pointerY)
+    local profile = Credit.profile(state)
+    local quotes = Credit.machineQuotes(state, ComputerScreen.creditChannel)
+    local loans = Credit.loanRows(state)
+    panel({ x = 82, y = 190, width = 770, height = 408 },
+        { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
+    love.graphics.setColor(0.95, 0.84, 0.30)
+    love.graphics.print("CRITTER CREDIT PROFILE", 98, 202)
+
+    panel({ x = 98, y = 230, width = 350, height = 62 },
+        { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
+    love.graphics.setColor(0.74, 0.83, 0.83)
+    love.graphics.print("CREDIT SCORE", 112, 239)
+    love.graphics.setColor(profile.score < 580 and { 0.95, 0.55, 0.40, 1 }
+        or profile.score < 680 and { 0.96, 0.79, 0.38, 1 }
+        or { 0.47, 0.86, 0.63, 1 })
+    love.graphics.print(string.format("%d  /  %s", profile.score, profile.tier:upper()), 228, 236)
+    love.graphics.setColor(0.65, 0.74, 0.75)
+    love.graphics.print(string.format("Offers: %.2f%% APR  •  %d%% down  •  %d months",
+        profile.apr, profile.downPercent, profile.termMonths), 112, 263)
+
+    panel({ x = 462, y = 230, width = 366, height = 62 },
+        { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
+    love.graphics.setColor(0.74, 0.83, 0.83)
+    love.graphics.print("OPEN MACHINE CREDIT", 476, 239)
+    love.graphics.setColor(0.95, 0.84, 0.30)
+    love.graphics.printf(money(profile.totalBalance), 680, 237, 132, "right")
+    love.graphics.setColor(0.65, 0.74, 0.75)
+    love.graphics.print(string.format("%d of %d accounts  •  scheduled %s / month",
+        profile.openLoans, Credit.MAX_OPEN_LOANS, money(profile.monthlyDue)), 476, 263)
+
+    love.graphics.setColor(0.68, 0.83, 0.84)
+    love.graphics.print("MACHINE FINANCING", 102, 281)
+    for _, option in ipairs({
+        { id = "online", rect = CREDIT_CHANNEL_ONLINE, label = "ONLINE" },
+        { id = "dealer", rect = CREDIT_CHANNEL_DEALER, label = "DEALER" },
+    }) do
+        local selected = ComputerScreen.creditChannel == option.id
+        local hovered = pointerX and contains(option.rect, pointerX, pointerY)
+        love.graphics.setColor(selected and (hovered and 0.20 or 0.12) or (hovered and 0.16 or 0.08),
+            selected and 0.43 or 0.20, selected and 0.40 or 0.24, 1)
+        love.graphics.rectangle("fill", option.rect.x, option.rect.y,
+            option.rect.width, option.rect.height, 3, 3)
+        love.graphics.setColor(selected and 0.94 or 0.62, selected and 0.96 or 0.73,
+            selected and 0.91 or 0.73, 1)
+        love.graphics.printf(option.label, option.rect.x, option.rect.y + 5,
+            option.rect.width, "center")
+    end
+    love.graphics.print("YOUR MACHINE LOANS", 466, 281)
+    for index, quote in ipairs(quotes) do
+        local rect = creditMachineRect(index)
+        local action = creditMachineActionRect(index)
+        panel(rect, { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.37, 0.40, 1 })
+        love.graphics.setColor(0.91, 0.94, 0.92)
+        love.graphics.printf(quote.name, rect.x + 10, rect.y + 8, 238, "left")
+        local red, green, blue = conditionColor(quote.condition)
+        love.graphics.setColor(red, green, blue)
+        love.graphics.print(string.format("%s used  •  %.0f%% condition  •  %s",
+            quote.channel == "dealer" and "Dealer" or "Online", quote.condition, money(quote.price)),
+            rect.x + 10, rect.y + 27)
+        love.graphics.setColor(0.66, 0.75, 0.76)
+        love.graphics.printf(string.format("Down %s  •  finance %s  •  %d mo at %.2f%%",
+            money(quote.downPayment), money(quote.principal), quote.termMonths, quote.apr),
+            rect.x + 10, rect.y + 48, 242, "left")
+        local hovered = quote.eligible and pointerX and contains(action, pointerX, pointerY)
+        love.graphics.setColor(quote.eligible and (hovered and 0.19 or 0.12),
+            quote.eligible and (hovered and 0.55 or 0.42) or 0.15, quote.eligible and 0.29 or 0.16)
+        love.graphics.rectangle("fill", action.x, action.y, action.width, action.height, 3, 3)
+        love.graphics.setColor(quote.eligible and 0.95 or 0.52, quote.eligible and 0.97 or 0.56,
+            quote.eligible and 0.94 or 0.55)
+        love.graphics.printf(quote.eligible and ("REVIEW  " .. money(quote.monthlyPayment) .. "/mo")
+            or "SAVE TO APPLY", action.x + 2, action.y + 9, action.width - 4, "center")
+    end
+
+    local visibleLoans = 0
+    for _, loan in ipairs(loans) do
+        if loan.status == "active" or loan.status == "defaulted" then
+            visibleLoans = visibleLoans + 1
+            if visibleLoans > 3 then break end
+            local rect = creditLoanRect(visibleLoans)
+            local action = creditLoanActionRect(visibleLoans)
+            panel(rect, { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.37, 0.40, 1 })
+            love.graphics.setColor(0.91, 0.94, 0.92)
+            love.graphics.printf(loan.id .. "  " .. loan.machineName, rect.x + 10, rect.y + 8, 245, "left")
+            love.graphics.setColor(0.68, 0.77, 0.77)
+            love.graphics.printf(string.format("Balance %s  •  %.2f%% APR  •  %d month term",
+                money(loan.balance), loan.aprBasisPoints / 100, loan.termMonths), rect.x + 10, rect.y + 28, 340, "left")
+            local dueLabel = loan.installmentsDue > 0
+                and ("DUE " .. money(loan.amountDue + loan.feesDue))
+                or ("NEXT " .. money(loan.monthlyPayment) .. " payment")
+            local ready = loan.installmentsDue > 0 and (state.money or 0) >= loan.amountDue + loan.feesDue
+            local hovered = ready and pointerX and contains(action, pointerX, pointerY)
+            love.graphics.setColor(ready and (hovered and 0.19 or 0.12), ready and 0.46 or 0.16,
+                ready and 0.29 or 0.17)
+            love.graphics.rectangle("fill", action.x, action.y, action.width, action.height, 3, 3)
+            love.graphics.setColor(ready and 0.95 or 0.52, ready and 0.96 or 0.56, ready and 0.93 or 0.55)
+            love.graphics.printf(ready and ("PAY " .. money(loan.amountDue + loan.feesDue))
+                or loan.installmentsDue > 0 and "NEED CASH" or "NOT DUE",
+                action.x + 2, action.y + 8, action.width - 4, "center")
+            love.graphics.setColor(0.68, 0.77, 0.77)
+            love.graphics.print(dueLabel, rect.x + 10, rect.y + 53)
+        end
+    end
+    if visibleLoans == 0 then
+        love.graphics.setColor(0.58, 0.66, 0.67)
+        love.graphics.printf("No open machine loans.", 478, 370, 330, "center")
+    end
+
+    local latest = profile.history[#profile.history]
+    love.graphics.setColor(0.61, 0.70, 0.71)
+    love.graphics.printf(latest and ("LATEST CREDIT UPDATE: " .. latest.reason .. "  (" ..
+        (latest.delta >= 0 and "+" or "") .. latest.delta .. ", score " .. latest.score .. ")")
+        or "Pay monthly shop bills and loan installments on time to build credit. Late accounts are reported after 30 days.",
+        100, 566, 730, "left")
+
+    local choice = ComputerScreen.creditConfirmation
+    if choice then
+        local quote = Credit.machineQuotes(state, choice.channel)[choice.offerIndex]
+        if quote then
+            love.graphics.setColor(0.01, 0.02, 0.03, 0.82)
+            love.graphics.rectangle("fill", 82, 190, 770, 408)
+            panel(CREDIT_CONFIRM_PANEL, { 0.07, 0.09, 0.11, 1 }, { 0.48, 0.68, 0.63, 1 })
+            love.graphics.setColor(0.95, 0.84, 0.30)
+            love.graphics.print("REVIEW MACHINE FINANCING", 176, 321)
+            love.graphics.setColor(0.89, 0.93, 0.91)
+            love.graphics.print(string.format("%s  •  %s used listing at %s", quote.name,
+                choice.channel == "dealer" and "dealer" or "online", money(quote.price)), 176, 350)
+            love.graphics.setColor(0.72, 0.82, 0.81)
+            love.graphics.print("Down payment due today: " .. money(quote.downPayment), 176, 377)
+            love.graphics.print(string.format("Amount financed: %s  •  fixed APR: %.2f%%  •  term: %d months",
+                money(quote.principal), quote.apr, quote.termMonths), 176, 401)
+            love.graphics.print("Monthly payment: " .. money(quote.monthlyPayment) ..
+                "  •  estimated total interest: " .. money(math.max(0,
+                    quote.monthlyPayment * quote.termMonths - quote.principal)), 176, 425)
+            love.graphics.setColor(0.62, 0.72, 0.72)
+            love.graphics.print("Late fees may apply after 15 days; late payments affect credit after 30 days.", 176, 447)
+            local signHover = pointerX and contains(CREDIT_SIGN, pointerX, pointerY)
+            local cancelHover = pointerX and contains(CREDIT_CANCEL, pointerX, pointerY)
+            love.graphics.setColor(signHover and 0.19 or 0.12, signHover and 0.55 or 0.42, 0.29)
+            love.graphics.rectangle("fill", CREDIT_SIGN.x, CREDIT_SIGN.y, CREDIT_SIGN.width, CREDIT_SIGN.height, 3, 3)
+            love.graphics.setColor(0.95, 0.97, 0.94)
+            love.graphics.printf("SIGN & ORDER", CREDIT_SIGN.x, CREDIT_SIGN.y + 14, CREDIT_SIGN.width, "center")
+            love.graphics.setColor(cancelHover and 0.30 or 0.18, 0.25, 0.24)
+            love.graphics.rectangle("fill", CREDIT_CANCEL.x, CREDIT_CANCEL.y,
+                CREDIT_CANCEL.width, CREDIT_CANCEL.height, 3, 3)
+            love.graphics.setColor(0.91, 0.93, 0.90)
+            love.graphics.printf("CANCEL", CREDIT_CANCEL.x, CREDIT_CANCEL.y + 14, CREDIT_CANCEL.width, "center")
+        end
+    end
 end
 
 local function drawEmail(state, pointerX, pointerY, assets)
@@ -2118,6 +2413,7 @@ local function drawCalendar(state, pointerX, pointerY)
             local event = dayEvents[marker]
             if event.kind == "bill" then love.graphics.setColor(0.93, 0.34, 0.25)
             elseif event.kind == "machine" then love.graphics.setColor(0.76, 0.55, 0.94)
+            elseif event.kind == "credit" then love.graphics.setColor(0.34, 0.79, 0.75)
             elseif event.kind == "email" then love.graphics.setColor(0.32, 0.72, 0.92)
             else love.graphics.setColor(0.30, 0.78, 0.48) end
             love.graphics.circle("fill", x + 10 + (marker - 1) * 12, y + 39, 4)
@@ -2248,6 +2544,8 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
         drawCalendar(state, pointerX, pointerY)
     elseif ComputerScreen.tab == "bills" then
         drawBills(state, pointerX, pointerY)
+    elseif ComputerScreen.tab == "credit" then
+        drawCredit(state, pointerX, pointerY)
     else
         drawJobList(state, pointerX, pointerY)
         drawDetail(state, pointerX, pointerY, assets)

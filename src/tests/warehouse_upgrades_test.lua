@@ -44,7 +44,7 @@ function Test.run(_, check)
     check("warehouse_upgrades_catalog_warns_about_upper_row_and_cannot_be_mutated",
         catalog.rows == 2 and catalog.columns == 5 and catalog.capacity == 10
         and catalog.upperRowRequiresForklift and catalog.warning:find("Upper 5: forklift required", 1, true)
-        and Upgrades.catalog("storage").price == 4500)
+        and Upgrades.catalog("storage").price == 1200)
     check("warehouse_upgrades_stage_tools_match_approved_sequence",
         Upgrades.stageInfo(1).tool == "concrete_float" and Upgrades.stageInfo(2).tool == "framing_hammer"
         and Upgrades.stageInfo(3).tool == "assembly_drill" and Upgrades.stageInfo(4).tool == "finishing_roller"
@@ -67,18 +67,18 @@ function Test.run(_, check)
     local state = shop()
     local first = bought(state, "front_left", "storage", "left-storage")
     check("warehouse_upgrades_purchase_reserves_bay_and_debits_catalog_price",
-        state.money == 25500 and first.id == "WUP-0001" and first.stage == 0
+        state.money == 28800 and first.id == "WUP-0001" and first.stage == 0
         and state.warehouse.bays.front_left.status == "reserved"
         and not Upgrades.isBayAccessible(state, "front_left") and valid(state))
     local replay, replayed, replayCode = Upgrades.purchase(state, "front_left", "storage", "left-storage", 400)
     check("warehouse_upgrades_same_request_replays_without_second_charge",
         replay and replayCode == "replayed" and replayed.id == first.id
-        and state.money == 25500 and #state.warehouse.receipts == 1 and #state.warehouse.projects == 1)
+        and state.money == 28800 and #state.warehouse.receipts == 1 and #state.warehouse.projects == 1)
     local conflict, _, conflictCode = Upgrades.purchase(state, "front_right", "floor", "left-storage", 0)
     local owned, _, ownedCode = Upgrades.purchase(state, "front_left", "floor", "another-buy", 0)
     check("warehouse_upgrades_reused_request_and_owned_bay_are_rejected",
         not conflict and conflictCode == "request_conflict" and not owned and ownedCode == "bay_owned"
-        and state.money == 25500 and #state.warehouse.projects == 1)
+        and state.money == 28800 and #state.warehouse.projects == 1)
     local second = bought(state, "front_right", "floor", "right-floor")
     local changed, events = Upgrades.update(state, 0)
     check("warehouse_upgrades_single_worker_dispatches_first_purchase",
@@ -130,7 +130,7 @@ function Test.run(_, check)
         changed and #events == 1 and events[1].kind == "construction_complete"
         and state.warehouse.projects[1].completedAtHours == 122
         and Upgrades.isBayAccessible(state, "front_left") and not Upgrades.isBayAccessible(state, "front_right")
-        and state.money == 23000 and valid(state))
+        and state.money == 26300 and valid(state))
     unchanged, events = Upgrades.update(state, 150)
     check("warehouse_upgrades_completed_worker_must_exit_before_second_project_dispatch",
         not unchanged and #events == 0 and state.warehouse.activeProjectId == first.id
@@ -231,18 +231,19 @@ function Test.run(_, check)
         reset == nil and repaired == nil and malformed.warehouse == corrupt and malformed.money == 30000)
 
     local forklift = shop()
+    forklift.money = 40000
     local runtimeForklift = forklift.forklift
     local forkliftOk, forkliftReceipt, forkliftCode = Upgrades.purchaseForklift(forklift, "buy-forklift", 4)
     check("warehouse_upgrades_forklift_purchase_sets_entitlement_without_runtime_mutation",
-        forkliftOk and forkliftCode == "purchased" and forkliftReceipt.pricePaid == 6500
-        and forklift.money == 23500 and forklift.warehouse.forkliftOwned
+        forkliftOk and forkliftCode == "purchased" and forkliftReceipt.pricePaid == 33000
+        and forklift.money == 7000 and forklift.warehouse.forkliftOwned
         and forklift.forklift == runtimeForklift and valid(forklift))
     local forkliftAgain, _, forkliftReplay = Upgrades.purchaseForklift(forklift, "buy-forklift", 500)
     local forkliftDuplicate, _, forkliftDuplicateCode = Upgrades.purchaseForklift(forklift, "buy-another-forklift", 500)
     local crossPurchase, _, crossCode = Upgrades.purchase(forklift, "front_left", "floor", "buy-forklift", 500)
     check("warehouse_upgrades_forklift_replay_and_conflicts_cannot_double_debit",
         forkliftAgain and forkliftReplay == "replayed" and not forkliftDuplicate and forkliftDuplicateCode == "forklift_owned"
-        and not crossPurchase and crossCode == "request_conflict" and forklift.money == 23500)
+        and not crossPurchase and crossCode == "request_conflict" and forklift.money == 7000)
     local unaffordable, _, forkliftPoorCode = Upgrades.purchaseForklift(poor, "poor-forklift", 0)
     check("warehouse_upgrades_forklift_requires_cash", not unaffordable and forkliftPoorCode == "insufficient_funds"
         and poor.money == poorMoney and not poor.warehouse.forkliftOwned)

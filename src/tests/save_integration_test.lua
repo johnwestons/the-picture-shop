@@ -55,7 +55,7 @@ function Test.run(context, check, economy, jobs)
     economy.vendorCategory = 4
     context.machineFleet.recordUse(economy, "polar_115", 12)
     context.businessCalendar.update(economy, 31 * context.config.businessCalendar.secondsPerDay)
-    economy.money = 10000
+    economy.money = 20000
     local machineOrdered, machineDelivery = context.machineFleet.orderOnline(economy, 1)
     check("save_machine_delivery_setup", machineOrdered
         and machineDelivery.machineId == "MCH-0003"

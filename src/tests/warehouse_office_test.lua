@@ -15,7 +15,7 @@ local function same(left,right)
     return true
 end
 local function shop()
-    local state=State.new();state.money=30000
+    local state=State.new();state.money=40000
     return state
 end
 local function purchase(bay,option,id,confirm)
@@ -68,7 +68,7 @@ function Test.run(_,check)
     local request=purchase("front_left","storage","SHELF-1",true)
     allowed,reason=perform(request)
     check("warehouse_office_host_purchases_at_catalog_price_and_saves_once",allowed and reason=="completed"
-        and state.money==30000-Upgrades.catalog("storage").price and saves==1
+        and state.money==40000-Upgrades.catalog("storage").price and saves==1
         and state.warehouse.bays.front_left.status=="reserved" and #state.warehouse.projects==1
         and Upgrades.validate(state.warehouse))
     local after=Projection.copy(state)
@@ -79,7 +79,7 @@ function Test.run(_,check)
     local forkliftBefore=Projection.copy(state.forklift)
     allowed=perform({kind="buy_forklift",requestId="FORK-1"})
     check("warehouse_office_forklift_purchase_entitlement_keeps_spawn_safe",allowed
-        and state.warehouse.forkliftOwned and state.money==30000-Upgrades.catalog("storage").price-Upgrades.catalog("forklift").price
+        and state.warehouse.forkliftOwned and state.money==40000-Upgrades.catalog("storage").price-Upgrades.catalog("forklift").price
         and same(state.forklift,forkliftBefore) and saves==2)
     local forkliftAfter=Projection.copy(state)
     allowed,reason=perform({kind="buy_forklift",requestId="FORK-1"})

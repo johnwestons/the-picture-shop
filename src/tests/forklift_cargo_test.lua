@@ -21,7 +21,7 @@ local function same(left,right)
 end
 local function free() return true end
 local function fresh(vendor)
-    local state = {money=20000,jobs={active={}},procurement={orders={}},
+    local state = {money=40000,jobs={active={}},procurement={orders={}},
         warehouse=Upgrades.defaultState(),storage=Storage.defaultState(),
         palletJack={operating=false,moving=false},forklift=Forklift.defaultState(config)}
     assert(Upgrades.purchaseForklift(state,"CARGO-FORKLIFT",0))

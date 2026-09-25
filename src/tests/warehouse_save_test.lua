@@ -61,7 +61,7 @@ end
 function Test.run(_, check)
     local fresh = State.new()
     check("warehouse_save_new_schema_and_safe_defaults",
-        Schema.VERSION == 15 and Schema.validState(Schema.snapshot(fresh))
+        Schema.VERSION == 16 and Schema.validState(Schema.snapshot(fresh))
         and fresh.warehouse.bays.front_left.status == "locked"
         and fresh.warehouse.bays.front_right.status == "locked" and not fresh.warehouse.forkliftOwned
         and not fresh.forklift.owned and next(fresh.storage.racks) == nil)
@@ -77,7 +77,7 @@ function Test.run(_, check)
     local oldBefore = Schema.copy(old)
     local migrated = Schema.migrate(payload(old, 14))
     check("warehouse_save_v14_migration_keeps_money_stock_and_positions",
-        migrated and migrated.version == 15 and migrated.state.money == 9182
+        migrated and migrated.version == 16 and migrated.state.money == 9182
         and migrated.state.inventory.paper == 1875 and migrated.state.inventory.stock.shipping_cartons == 37
         and same(migrated.state.jobs.active[1].pallets[1], oldBefore.jobs.active[1].pallets[1])
         and same(migrated.state.cutter, oldBefore.cutter)
@@ -240,7 +240,7 @@ function Test.run(_, check)
         and not PalletState.transition(movingBase,base,"at_cutter")
         and not PalletState.transition(movingBase,base,"at_press") and same(base, baseBefore))
     local transfer = State.new()
-    transfer.money = 20000
+    transfer.money = 40000
     assert(Upgrades.purchaseForklift(transfer,"TRANSFER-LIFT",0))
     transfer.forklift.owned = true
     transfer.jobs.active = { Schema.copy(oldJob) }
@@ -308,7 +308,7 @@ function Test.run(_, check)
             and same(destination,prior) and same(malformed,sourceBefore))
     end
     local seats = assert(Schema.snapshot(State.new()))
-    seats.money=20000
+    seats.money=40000
     assert(Upgrades.purchaseForklift(seats,"SEAT-OWNERSHIP",0))
     seats.forklift.owned, seats.forklift.operating, seats.forklift.operatorPlayerId = true,true,2
     seats.palletJack.operating, seats.palletJack.operatorPlayerId = true,2

@@ -76,7 +76,7 @@ function Test.run(context, check)
     check("vendor_guest_acquires_host_catalog_with_exclusive_lease",
         grant.accepted and grant.resourceId == "vendor" and grant.data
         and grant.data.kind == "products" and grant.data.cash == 1000
-        and grant.data.items[1].name == "House paper, 1,000 sheets"
+        and grant.data.items[1].name == "House paper, 25 x 38 in, 20 lb, 1,000 sheets"
         and world.vendor.state == "reviewing"
         and not busy.accepted and busy.code == "resource_busy")
 
@@ -97,9 +97,9 @@ function Test.run(context, check)
     }, {})
     check("vendor_stock_purchase_is_host_owned_saved_and_exactly_once",
         purchase.accepted and purchase.code == "stock_purchased"
-        and state.money == 910 and #state.procurement.orders == 1
+        and state.money == 900 and #state.procurement.orders == 1
         and state.procurement.orders[1].item == "house_sheets"
-        and purchase.data.cash == 910 and saves.count == 1
+        and purchase.data.cash == 900 and saves.count == 1
         and replay.accepted and #state.procurement.orders == 1
         and not reused.accepted and reused.code == "request_id_reused")
 

@@ -39,7 +39,7 @@ Fleet.definitions = {
         name = "Polar 115 programmable cutter",
         shortName = "Polar 115 cutter",
         placementKey = "cutter",
-        basePrice = 2400,
+        basePrice = 13134,
         onlineCondition = 96,
         dealerCondition = 62,
         components = {
@@ -58,7 +58,7 @@ Fleet.definitions = {
         name = "Automatic skid wrapper",
         shortName = "Skid wrapper",
         placementKey = "wrapper",
-        basePrice = 1200,
+        basePrice = 23560,
         onlineCondition = 94,
         dealerCondition = 55,
         components = {
@@ -77,7 +77,7 @@ Fleet.definitions = {
         name = "Original Heidelberg 10x15 Windmill",
         shortName = "Heidelberg Windmill",
         placementKey = "windmill",
-        basePrice = 5200,
+        basePrice = 6000,
         onlineCondition = 92,
         dealerCondition = 58,
         components = {
@@ -640,8 +640,10 @@ function Fleet.priceFor(modelId, condition, channel)
     local model = definition(modelId)
     if not model then return 0 end
     condition = clamp(tonumber(condition) or 0, 0, 100)
-    local channelFactor = channel == "dealer" and 0.84 or 1
-    return rounded(model.basePrice * (0.25 + condition / 100 * 0.75) * channelFactor)
+    -- Both catalogs list used equipment. Condition drives the asking price;
+    -- the dealer channel represents a lower-condition unit, not an extra
+    -- unexplained discount on top of its condition.
+    return rounded(model.basePrice * (0.25 + condition / 100 * 0.75))
 end
 
 function Fleet.resaleValue(item, channel)
@@ -691,10 +693,16 @@ function Fleet.nextInbound(state)
     end
 end
 
-function Fleet.orderOnline(state, offerIndex)
+function Fleet.orderOnline(state, offerIndex, payment)
     local offer = Fleet.offers("online")[tonumber(offerIndex) or 0]
     if not offer then return false, "That machine listing is no longer available." end
-    if (state.money or 0) < offer.price then return false, "Not enough money for this machine." end
+    payment = type(payment) == "table" and payment or {}
+    local cashPayment = math.max(0, math.floor(tonumber(payment.cashPayment) or offer.price))
+    if cashPayment > offer.price then return false, "Cash payment exceeds the machine price." end
+    if cashPayment < offer.price and (type(payment.loanId) ~= "string" or not payment.loanId:match("^CR%-%d+$")) then
+        return false, "A machine loan is required for a partial cash payment."
+    end
+    if (state.money or 0) < cashPayment then return false, "Not enough money for this machine down payment." end
     local fleet = Fleet.ensure(state)
     local machineId = string.format("MCH-%04d", fleet.nextId)
     local orderId = string.format("MDO-%04d", fleet.nextDeliveryId)
@@ -710,6 +718,7 @@ function Fleet.orderOnline(state, offerIndex)
         condition = item.condition,
         price = offer.price,
         item = item,
+        loanId = payment.loanId,
         delivery = {
             status = "awaiting_delivery",
             orderedAt = os.time(),
@@ -717,14 +726,18 @@ function Fleet.orderOnline(state, offerIndex)
         },
     }
     fleet.deliveries[#fleet.deliveries + 1] = order
-    state.money = state.money - offer.price
+    state.money = state.money - cashPayment
+    local receiptBody = payment.loanId and string.format(
+        "Machine price: $%d. Down payment: $%d. Financing agreement %s covers $%d.",
+        offer.price, cashPayment, payment.loanId, offer.price - cashPayment)
+        or string.format("Order %s total: $%d.", orderId, offer.price)
     Inbox.addNotice(state, {
         id = "RECEIPT-" .. orderId,
         sender = "CritterNet Machine Market",
         subject = "Receipt for " .. orderId,
         body = string.format(
-            "Payment received for %s at %.0f%% condition from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Flatbed delivery will bring unit %s to the shop.",
-            offer.name, item.condition, orderId, offer.price, machineId),
+            "Order for %s at %.0f%% condition from www.thecritternet.com. %s Keep this email as your receipt. Flatbed delivery will bring unit %s to the shop.",
+            offer.name, item.condition, receiptBody, machineId),
         noticeKind = "receipt",
         orderId = orderId,
         total = offer.price,
@@ -770,12 +783,18 @@ function Fleet.unloadDelivery(state, orderId, machineId, now)
     return true, item, 0
 end
 
-function Fleet.buy(state, channel, offerIndex)
-    if channel ~= "dealer" then return Fleet.orderOnline(state, offerIndex) end
+function Fleet.buy(state, channel, offerIndex, payment)
+    if channel ~= "dealer" then return Fleet.orderOnline(state, offerIndex, payment) end
     local offers = Fleet.offers(channel)
     local offer = offers[tonumber(offerIndex) or 0]
     if not offer then return false, "That machine listing is no longer available." end
-    if (state.money or 0) < offer.price then return false, "Not enough money for this machine." end
+    payment = type(payment) == "table" and payment or {}
+    local cashPayment = math.max(0, math.floor(tonumber(payment.cashPayment) or offer.price))
+    if cashPayment > offer.price then return false, "Cash payment exceeds the machine price." end
+    if cashPayment < offer.price and (type(payment.loanId) ~= "string" or not payment.loanId:match("^CR%-%d+$")) then
+        return false, "A machine loan is required for a partial cash payment."
+    end
+    if (state.money or 0) < cashPayment then return false, "Not enough money for this machine payment." end
     local fleet = Fleet.ensure(state)
     local id = string.format("MCH-%04d", fleet.nextId)
     fleet.nextId = fleet.nextId + 1
@@ -787,7 +806,7 @@ function Fleet.buy(state, channel, offerIndex)
         return false, "Clear floor space before buying another machine."
     end
     fleet.items[#fleet.items + 1] = item
-    state.money = state.money - offer.price
+    state.money = state.money - cashPayment
     return true, item
 end
 
@@ -841,6 +860,10 @@ function Fleet.sell(state, machineId, channel)
         if candidate.id == machineId then foundIndex, item = index, candidate; break end
     end
     if not item then return false, "That machine is no longer owned by the shop." end
+    local hasLien, loan = require("src.credit").hasLien(state, item.id)
+    if hasLien then
+        return false, string.format("Pay off machine loan %s before selling this financed machine.", loan.id)
+    end
     if saleGuard then
         local allowed, reason = saleGuard(state, item)
         if allowed == false then

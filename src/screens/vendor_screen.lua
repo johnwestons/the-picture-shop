@@ -83,7 +83,7 @@ function Screen.draw(state, assets, pointerX, pointerY)
     BackButton.draw(assets, NO_THANKS, "NO THANKS", pointerX, pointerY, false)
     love.graphics.setColor(0.70, 0.78, 0.80)
     love.graphics.print(category.kind == "machines"
-        and "Machines are charged now and placed on clear shop floor space."
+        and "Dealer machines need clear floor space. For financing, use the computer's CREDIT tab."
         or "Purchases are charged now. The delivery truck will arrive at the loading dock.", 104, 548)
 end
 

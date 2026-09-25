@@ -6,6 +6,7 @@ local MachineFleet = require("src.machine_fleet")
 local Procurement = require("src.procurement")
 local Calendar = require("src.business_calendar")
 local Upgrades = require("src.warehouse_upgrades")
+local Credit = require("src.credit")
 
 local Office = {}
 local function merge(target, source)
@@ -57,6 +58,10 @@ function Office.command(options)
             elseif intent.kind == "archive_service" then ok, result = MachineFleet.dismissServiceNotice(staged, intent.id)
             elseif intent.kind == "sell" then ok, result = MachineFleet.sell(staged, intent.id, "online")
             elseif intent.kind == "pay_bills" then ok, result = Calendar.pay(staged)
+            elseif intent.kind == "finance_machine" then
+                ok, result, domainCode = Credit.financeMachine(staged, intent.offerIndex,
+                    intent.requestId, intent.channel)
+            elseif intent.kind == "pay_machine_loan" then ok, result = Credit.payLoan(staged, intent.loanId)
             elseif intent.kind == "buy_upgrade" then
                 ok, result, domainCode = Upgrades.purchase(staged, intent.bayId, intent.optionId, intent.requestId)
             elseif intent.kind == "buy_forklift" then
@@ -83,6 +88,9 @@ function Office.command(options)
             if not ok then return false, "office_blocked", type(result) == "string" and result or "That office action is no longer available.", {} end
             if warehousePurchase and domainCode == "replayed" then
                 return true, "replayed", "This purchase was already confirmed; no second charge was made.", {}
+            end
+            if intent.kind == "finance_machine" and domainCode == "replayed" then
+                return true, "replayed", "This financing agreement was already signed; no second loan was created.", {}
             end
             merge(state, staged)
             options.save()

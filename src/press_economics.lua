@@ -4,23 +4,23 @@
 local PressEconomics = {}
 
 PressEconomics.MODEL = "Original Heidelberg 10x15 platen"
-PressEconomics.PRICE_DATE = "2026-08-24"
+PressEconomics.PRICE_DATE = "2026-09-25"
 PressEconomics.RATED_IMPRESSIONS_PER_HOUR = 5500
 PressEconomics.QUOTING_IMPRESSIONS_PER_HOUR = 3000
 PressEconomics.MAX_SHEET = { width = 10.25, height = 15 }
 PressEconomics.MAX_FORM = { width = 10.25, height = 13.375 }
 
 PressEconomics.prices = {
-    plateMinimum = 38.50,
-    platePerSquareInch = 0.77,
+    plateMinimum = 12.50,
+    platePerSquareInch = 0.55,
     plateDimensionAllowance = 0.25,
     blackInkCan = 46.00,
     blackInkPounds = 2.2,
-    tympanTenPack = 9.99,
+    tympanTenPack = 10.77,
 }
 
 PressEconomics.assumptions = {
-    laborPerHour = 35,
+    laborPerHour = 22.77,
     machineOverheadPerHour = 12,
     makereadyHoursPerColor = 0.75,
     washupHoursPerColor = 0.25,
@@ -146,11 +146,7 @@ function PressEconomics.validate(spec)
 end
 
 local function plateRate(area)
-    if area <= 200 then return 0.77 end
-    if area <= 600 then return 0.75 end
-    if area <= 1000 then return 0.73 end
-    if area <= 2000 then return 0.71 end
-    return 0.69
+    return PressEconomics.prices.platePerSquareInch
 end
 
 function PressEconomics.calculate(spec)

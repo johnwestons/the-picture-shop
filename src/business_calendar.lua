@@ -142,11 +142,15 @@ local function advanceDay(state)
     date.day = date.day + 1
     date.weekday = date.weekday % 7 + 1
     date.totalDays = date.totalDays + 1
-    if date.day <= daysInMonth(date.year, date.month) then return nil end
-    date.day = 1
-    date.month = date.month + 1
-    if date.month > 12 then date.month, date.year = 1, date.year + 1 end
-    return createInvoice(state)
+    local invoice
+    if date.day > daysInMonth(date.year, date.month) then
+        date.day = 1
+        date.month = date.month + 1
+        if date.month > 12 then date.month, date.year = 1, date.year + 1 end
+        invoice = createInvoice(state)
+    end
+    require("src.credit").onDay(state)
+    return invoice
 end
 
 function Calendar.update(state, dt)
@@ -180,6 +184,7 @@ function Calendar.pay(state)
             invoice.paidOnDay = date.totalDays
         end
     end
+    require("src.credit").recordBillsPaid(state, bills.ledger)
     return true, amount
 end
 
@@ -343,6 +348,22 @@ function Calendar.events(state)
         add(invoice.dueOnDay or invoice.issuedOnDay,
             invoice.kind == "spoil_claim" and "Customer stock claim due" or "Rent and bills due", "bill",
             string.format("%s • $%d • %s", invoice.id, invoice.total, invoice.status), invoice.id)
+    end
+    for _, loan in ipairs((state.credit and state.credit.loans) or {}) do
+        if loan.status == "active" or loan.status == "defaulted" then
+            local hasDue = (loan.amountDue or 0) > 0
+            local overdue = hasDue and (state.calendar.totalDays or 0) > (loan.oldestDueDay or 0)
+            local dueDay = hasDue and (state.calendar.totalDays or 0) or loan.nextDueDay
+            local amount = (loan.amountDue or 0) + (loan.feesDue or 0)
+            add(dueDay,
+                overdue and ("Machine payment overdue: " .. loan.machineName)
+                    or ("Machine installment due: " .. loan.machineName),
+                "credit",
+                hasDue and string.format("%s • $%d due", loan.id, amount)
+                    or string.format("%s • $%d • %.2f%% APR", loan.id, loan.monthlyPayment,
+                        (loan.aprBasisPoints or 0) / 100),
+                loan.id .. ":payment")
+        end
     end
     local nextYear, nextMonth = Calendar.shiftMonth(state.calendar.year, state.calendar.month, 1)
     add(totalDayForDate(nextYear, nextMonth, 1), "Rent and bills due", "bill",

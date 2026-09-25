@@ -272,7 +272,7 @@ function Test.run(context, check)
         and kitConsumed and physicalKitState.inventory.stock.maintenance_kit == 0)
 
     local websiteState = context.State.new()
-    websiteState.money = 10000
+    websiteState.money = 20000
     context.computerScreen.enter(websiteState)
     local dropdownX, dropdownY = context.computerScreen.dropdownCenter()
     context.computerScreen.mousepressed(websiteState, dropdownX, dropdownY, 1)
@@ -333,7 +333,7 @@ function Test.run(context, check)
         and deliveredMachine.world.x ~= websiteState.cutter.x
         and deliveredMachine.world.y < context.config.baseHeight)
     local wrapperDeliveryState = context.State.new()
-    wrapperDeliveryState.money = 10000
+    wrapperDeliveryState.money = 25000
     local wrapperOrdered, wrapperOrder = fleet.orderOnline(wrapperDeliveryState, 2)
     local wrapperUnloaded, deliveredWrapper = false, nil
     if wrapperOrdered then
@@ -351,7 +351,7 @@ function Test.run(context, check)
     context.world.load()
 
     local dealerState = context.State.new()
-    dealerState.money = 10000
+    dealerState.money = 20000
     dealerState.vendorCategory = #context.procurement.categories
     local dealerX, dealerY = context.vendorScreen.buyButtonCenter(2)
     local dealerPurchase = context.vendorScreen.mousepressed(dealerState, dealerX, dealerY, 1)
@@ -363,7 +363,7 @@ function Test.run(context, check)
 
     if os.getenv("PICTURE_SHOP_MACHINE_FLATBED_PREVIEW") == "1" then
         local previewState = context.State.new()
-        previewState.money = 10000
+        previewState.money = 20000
         fleet.orderOnline(previewState, 1)
         context.State.applySave(context.state, { slot = 1, state = previewState })
         context.world.load()

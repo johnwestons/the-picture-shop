@@ -13,8 +13,8 @@ function Test.run(context, check)
         and budget.quotingImpressionsPerHour == 3000
         and budget.runHours == 0.333)
     check("windmill_budget_uses_current_plate_minimum_and_supply_allowances", budget
-        and budget.plateCost == 38.50 and budget.inkCost >= 3
-        and budget.chemistryCost == 2 and budget.tympanCost == 1)
+        and budget.plateCost == 20.93 and budget.inkCost >= 3
+        and budget.chemistryCost == 2 and budget.tympanCost == 1.08)
     check("windmill_budget_exposes_net_order_and_gross_stock", budget
         and budget.orderedCopies == 1000 and budget.suppliedSheets == 1050
         and budget.spoilageAllowance == 50)

@@ -31,7 +31,7 @@ local function context(white)
     end}
 end
 local function fresh()
-    local state=State.new();state.money=30000
+    local state=State.new();state.money=40000
     assert(Upgrades.purchaseForklift(state,"LIVE-LIFT",0))
     local cx=context()
     Gameplay.update(0,state,cx)
@@ -270,7 +270,7 @@ function Test.run(_,check)
     local existingCore=Gameplay.assets(assets(),State.new())
     check("warehouse_live_expansion_seam_never_erases_existing_core_walkmask",
         Navigation.isWalkable(existingCore,855,450,{}) and Navigation.isWalkable(existingCore,861,450,{}))
-    local blocked=State.new();blocked.money=10000
+    local blocked=State.new();blocked.money=50000
     Upgrades.purchaseForklift(blocked,"BLOCKED-DELIVERY",0)
     Gameplay.update(0,blocked,context(false))
     check("warehouse_live_blocked_delivery_never_spawns_vehicle_inside_collision",not blocked.forklift.owned and blocked.warehouse.forkliftOwned)
