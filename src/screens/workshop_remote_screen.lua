@@ -394,7 +394,9 @@ local function cutterResourceRevision(snapshot)
     direct = type(cutter) == "table" and tonumber(cutter.resourceRevision) or nil
     if direct then return direct end
     for _, record in ipairs(snapshot.resources or {}) do
-        if record.resourceId == "cutter" then return tonumber(record.revision) end
+        if record.resourceId == (Screen.leaseResourceId or "cutter") then
+            return tonumber(record.revision)
+        end
     end
     return nil
 end
@@ -421,7 +423,9 @@ local function windmillResourceRevision(snapshot)
     direct = type(windmill) == "table" and tonumber(windmill.resourceRevision) or nil
     if direct then return direct end
     for _, record in ipairs(snapshot.resources or {}) do
-        if record.resourceId == "windmill" then return tonumber(record.revision) end
+        if record.resourceId == (Screen.leaseResourceId or "windmill") then
+            return tonumber(record.revision)
+        end
     end
     return nil
 end

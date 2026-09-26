@@ -2913,7 +2913,14 @@ local function handleMultiplayerEvents()
             end
             syncMobileKeyboard()
         elseif event.type == "workshop_snapshot" then
-            if not Wrapper.applySnapshot(event.wrapper, state) then
+            local activeBase, activeMachineId = MachineResource.parse(
+                WorkshopRemoteScreen.leaseResourceId)
+            Wrapper.select(nil, state)
+            local wrapperApplied = Wrapper.applySnapshot(event.wrapper, state)
+            if activeBase == "skid_wrapper" then
+                Wrapper.select(activeMachineId, state)
+            end
+            if not wrapperApplied then
                 showConnectionError(
                     "The host sent a workshop update this build could not apply.",
                     "Invalid workshop runtime")
