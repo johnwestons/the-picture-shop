@@ -268,8 +268,12 @@ end
 function Procurement.nextInbound(state)
     local now = BusinessCalendar.absoluteHours(state)
     for _, shipment in ipairs(ensure(state).shipments) do
-        if shipment.status == "awaiting_delivery" and shipment.delivery.status == "awaiting_schedule"
+        -- Truck motion is transient. After loading, a saved scheduled/backing/
+        -- at-bay manifest still needs a new truck for its undelivered pallets.
+        if shipment.status == "awaiting_delivery"
+            and shipment.delivery and shipment.delivery.status ~= "received"
             and now >= (shipment.delivery.expectedAtHours or math.huge)
+            and Procurement.remainingOnTruck(state, shipment.id) > 0
         then return shipment end
     end
 end

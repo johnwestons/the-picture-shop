@@ -71,7 +71,9 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
         if machineDelivery then
             love.graphics.print(string.format("%s  •  %s  •  Unit %s", job.id, job.company, job.machineId), 82, 105)
         else
-            love.graphics.print(string.format("%s  •  %s  •  %d pallet%s", job.id, job.company,
+            local source = job.company or job.vendor
+                or (vendorDelivery and "Supply shipment" or "Delivery")
+            love.graphics.print(string.format("%s  •  %s  •  %d pallet%s", job.id, source,
                 totalItems, totalItems == 1 and "" or "s"), 82, 105)
         end
     else

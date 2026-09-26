@@ -949,6 +949,13 @@ local function runChecks(context)
         groupBuyA and groupBuyB and groupOrderA.shipmentId == groupOrderB.shipmentId
         and groupedBeforeDue == nil and groupedShipment
         and groupedShipment.id == groupOrderA.shipmentId and #groupedInventory == 2)
+    groupedShipment.delivery.status = "at_bay"
+    check("saved_vendor_manifest_reschedules_after_truck_reset",
+        context.procurement.nextInbound(groupedState) == groupedShipment)
+    groupedInventory[1].pallet.location = "warehouse"
+    groupedInventory[2].pallet.location = "warehouse"
+    check("empty_vendor_manifest_does_not_schedule_truck",
+        context.procurement.nextInbound(groupedState) == nil)
     local vendorManifest, vendorItems = context.procurement.truckInventory(vendorState, purchaseOrder.id)
     check("vendor_delivery_manifest", vendorManifest == purchaseOrder and #vendorItems == 1
         and vendorItems[1].productName == "Shipping cartons, 12 x 12 x 12 in, 275 lb, 100")
