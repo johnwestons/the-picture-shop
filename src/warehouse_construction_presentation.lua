@@ -1,7 +1,7 @@
 -- Construction progress is authored sprite art. This module only registers,
 -- selects and draws existing images; it never invents environmental geometry.
 local Presentation={}
-local ROOT="assets/source/warehouse-expansion-v1/construction/"
+local ROOT="assets/source/warehouse-expansion-v1/"
 local function finite(value)
     return type(value)=="number" and value==value and value>-math.huge and value<math.huge
 end
@@ -10,18 +10,23 @@ local function copy(value)
     local result={} for key,item in pairs(value) do result[key]=copy(item) end return result
 end
 local catalog={front_left={}}
+catalog.front_left.storage={}
 for stage=1,4 do
-    catalog.front_left[stage]={path=ROOT.."left-storage-stage-"..stage..".png",
-        stage=stage,bayId="front_left",optionId="storage",approved=false,includesFloor=true,
-        -- Source dimensions, crop and floor-anchor registration are completed
-        -- only after the actual generated sprite has been inspected.
-        registration=nil}
+    local entry={path=ROOT.."modules/left-storage-stage-"..stage..".png",
+        stage=stage,bayId="front_left",optionId="storage",approved=false,includesFloor=false,
+        registration={textureWidth=1536,textureHeight=1024,
+            source={x=0,y=0,width=1536,height=1024},groundAnchor={x=100,y=970},
+            worldX=177,worldY=647,scale=0.15,depthY=647}}
+    catalog.front_left[stage]=entry
+    catalog.front_left.storage[stage]=entry
 end
 
 function Presentation.reviewCatalog() return copy(catalog) end
 function Presentation.validateEntry(entry)
     if type(entry)~="table" or type(entry.path)~="string" or entry.path==""
-        or entry.bayId~="front_left" or entry.optionId~="storage" or type(entry.approved)~="boolean"
+        or (entry.bayId~="front_left" and entry.bayId~="front_right")
+        or (entry.optionId~="floor" and entry.optionId~="storage" and entry.optionId~="breakroom")
+        or type(entry.approved)~="boolean"
         or type(entry.includesFloor)~="boolean"
         or not finite(entry.stage) or entry.stage~=math.floor(entry.stage) or entry.stage<1 or entry.stage>4 then
         return false,"invalid_construction_sprite"
@@ -47,21 +52,25 @@ function Presentation.plan(state,bayId,options)
         return nil,"not_building"
     end
     local bay=warehouse.bays[bayId]
-    if type(bay)~="table" or bay.status~="building" or bay.optionId~="storage" then return nil,"not_building" end
+    if type(bay)~="table" or bay.status~="building" then return nil,"not_building" end
     local project
     for _,candidate in ipairs(warehouse.projects) do
         if type(candidate)=="table" and candidate.id==bay.projectId and candidate.bayId==bayId then project=candidate;break end
     end
-    if not project or project.id~=warehouse.activeProjectId or project.phase~="building" or project.optionId~="storage"
+    if not project or project.id~=warehouse.activeProjectId or project.phase~="building" or project.optionId~=bay.optionId
         or not finite(project.stage) or project.stage~=math.floor(project.stage) or project.stage<1 or project.stage>4 then
         return nil,"invalid_building_project"
     end
     local sourceCatalog=type(options.catalog)=="table" and options.catalog or catalog
     local bayCatalog=sourceCatalog[bayId]
-    local entry=type(bayCatalog)=="table" and bayCatalog[project.stage]
+    local optionCatalog=type(bayCatalog)=="table" and bayCatalog[project.optionId]
+    if type(optionCatalog)~="table" and project.optionId=="storage" then optionCatalog=bayCatalog end
+    local entry=type(optionCatalog)=="table" and optionCatalog[project.stage]
     local valid,code=Presentation.validateEntry(entry)
     if not valid then return nil,code end
-    if entry.stage~=project.stage or entry.bayId~=bayId then return nil,"construction_stage_mismatch" end
+    if entry.stage~=project.stage or entry.bayId~=bayId or entry.optionId~=project.optionId then
+        return nil,"construction_stage_mismatch"
+    end
     if not entry.approved and options.review~=true then return nil,"art_not_approved" end
     local r=entry.registration
     return {path=entry.path,bayId=bayId,stage=project.stage,projectId=project.id,

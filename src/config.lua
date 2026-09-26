@@ -273,7 +273,7 @@ local Config = {
             { x = 442, y = 480 },
         },
     },
-    warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = true },
+    warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = false },
     forklift = {
         spawnX = 460, spawnY = 515, speed = 100, loadedSpeed = 72,
         liftDuration = 3, lowerDuration = 2.5, travelHeight = 0.08,

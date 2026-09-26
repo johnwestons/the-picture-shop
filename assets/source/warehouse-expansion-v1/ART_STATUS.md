@@ -1,10 +1,24 @@
 # Warehouse expansion art — source pack v1
 
-Prepared September 18, 2026; playable-slice update September 19, 2026. **Source art remains unapproved for production. The first left-storage/forklift path is now playable in the normal game with an explicit development-art setting. This does not approve the source sheets or finish the full warehouse remake.**
+Prepared September 18, 2026; expansion update September 26, 2026. **Source art remains unapproved for production. Both warehouse bays and all three room choices now have a playable purchase path with an explicit development-art setting. This does not approve the source sheets or finish the full warehouse art review.**
 
 [Implementation plan](../../../docs/warehouse_expansion_plan.md) · [Exact generation prompts](prompts.json)
 
-[Current build status](../../../docs/warehouse_build_status.md) records the playable path, controls and 3,319-check desktop/mobile verification. Only left storage and the forklift are sold. Other room choices remain disabled. `Config.warehouse.provisionalArt=true` explicitly exposes reviewed draft imagery with a development-art notice; catalog approval flags remain false.
+[Current build status](../../../docs/warehouse_build_status.md) records the dual-bay catalog, current controls and the older verification baseline. Both bays offer open floor, storage and breakroom. `Config.warehouse.provisionalArt=true` explicitly exposes reviewed draft imagery with a development-art notice; catalog approval flags remain false.
+
+## Expansion module art — September 26
+
+These registered PNGs are development candidates for the two bay orientations. Each is 1536×1024 RGBA. The image files are copied into the runtime source pack; generated originals remain in the Codex generated-image history.
+
+| Runtime file | Use | Status |
+| --- | --- | --- |
+| [rack-world-left-v2.png](modules/rack-world-left-v2.png) | Left-bay world rack | Earlier source draft; first-pass world and ten-slot registration |
+| [rack-world-right-v1.png](modules/rack-world-right-v1.png) | Right-bay world rack | Independently generated for the opposite orientation; first-pass world and ten-slot registration |
+| [breakroom-world-left-v1.png](modules/breakroom-world-left-v1.png) | Left-bay finished breakroom | Independently oriented furniture cluster; first-pass collision registration |
+| [breakroom-world-right-v1.png](modules/breakroom-world-right-v1.png) | Right-bay finished breakroom | Independently oriented furniture cluster; first-pass collision registration |
+| `left-storage-stage-1.png` … `left-storage-stage-4.png` | Left-bay storage construction | Existing four-stage source sprites registered to the left bay |
+
+The world racks are distinct from `rack-front-2x5-approved.png`, which is only the first-person shelf backdrop. The breakroom sprites draw as completed furniture clusters over the existing floor texture; unfinished rack and breakroom jobs currently use translucent module previews, while open-floor construction shows the sampled concrete surface. These visuals do not replace completed option-specific stage atlases. Transform, slot, floor-seam and obstacle registrations still need visual calibration in the running game. The breakroom tool produced a four-panel wall-room study, but those panels did not match the floor-only module contract and were not added to the runtime pack.
 
 ## Selected warehouse and approved designs
 

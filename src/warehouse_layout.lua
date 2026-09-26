@@ -1,6 +1,7 @@
 -- Additive expansion geometry in the existing 960x678 world. No existing
 -- character, machine or core-floor coordinates are rescaled by this layout.
 local Layout = { VERSION = 1, BAY_IDS = { "front_left", "front_right" } }
+local ModulePresentation = require("src.warehouse_module_presentation")
 
 local function copy(value)
     if type(value) ~= "table" then return value end
@@ -87,6 +88,12 @@ function Layout.obstacles(state)
                 local point=Layout.rackPoint(id,1,column)
                 result[#result+1]={x=point.x,y=point.groundY-5,halfWidth=26,halfHeight=18,
                     kind="pallet_rack",rackId=bays[id].rackId}
+            end
+        elseif status and status.status == "complete" and status.optionId == "breakroom" then
+            for _, obstacle in ipairs(ModulePresentation.obstacles(id)) do
+                obstacle.kind = "breakroom_furniture"
+                obstacle.bayId = id
+                result[#result+1] = obstacle
             end
         end
     end

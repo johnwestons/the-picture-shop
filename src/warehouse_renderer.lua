@@ -8,6 +8,8 @@ local ForkliftPresentation = require("src.forklift_presentation")
 local ForkliftLayeredPresentation = require("src.forklift_layered_presentation")
 local MechanicWorkPresentation = require("src.mechanic_work_presentation")
 local ConstructionPresentation = require("src.warehouse_construction_presentation")
+local ModulePresentation = require("src.warehouse_module_presentation")
+local RackPresentation = require("src.warehouse_rack_presentation")
 local Config = require("src.config")
 local Renderer = {}
 local meshes, rackImage = {}, nil
@@ -107,28 +109,28 @@ local function drawConstruction(bay,stage,state)
     local drawn,reason=ConstructionPresentation.draw(state,bay.id,function(path) return constructionImage(bay.id,path) end,
         {review=Config.warehouse and Config.warehouse.provisionalArt==true})
     constructionIssues[bay.id]=not drawn and reason or nil
-    -- This is status UI, not scenery. Missing art is reported explicitly;
-    -- there is no procedural fallback for cones, beams, walls or shelving.
+    -- Keep progress legible while the selected module is shown as a site
+    -- preview or is intentionally an open-floor build with no room sprite.
     local x,y=bay.approach.x-92,bay.approach.y+40
     love.graphics.setColor(0.035,0.035,0.03,0.91)
-    love.graphics.rectangle("fill",x,y,172,drawn and 24 or 40,3,3)
+    love.graphics.rectangle("fill",x,y,172,24,3,3)
     love.graphics.setColor(1,0.77,0.29,1)
     love.graphics.printf("BUILDING  "..stage.." / 4",x,y+5,172,"center")
-    if not drawn then love.graphics.printf("STAGE ART UNAVAILABLE",x,y+22,172,"center") end
+    return drawn
 end
 function Renderer.drawFloors(assets,state)
     for _,id in ipairs(Layout.BAY_IDS) do
         local bay,status=Layout.bay(id),Layout.bayState(state,id)
         if status and status.status=="complete" then drawFloor(assets,bay,4,true)
         elseif status and status.status=="building" then
-            local plan=Renderer.constructionPlan(state,id)
-            if plan and not plan.includesFloor then drawFloor(assets,bay,plan.stage,false) end
+            drawFloor(assets,bay,4,false)
         end
     end
 end
-local function drawRackColumn(bay,column)
+local function drawRackColumn(bay,column,alpha)
     local image=loadRack()
     if not image then return end
+    alpha=type(alpha)=="number" and math.max(0,math.min(1,alpha)) or 1
     local first,last=(column-1)/5,column/5
     local function point(t,height)
         return bay.rackStart.x+(bay.rackEnd.x-bay.rackStart.x)*t,
@@ -141,8 +143,16 @@ local function drawRackColumn(bay,column)
     local u0,u1=(60+1420*first)/1536,(60+1420*last)/1536
     local vertices={{ax,ay,u0,155/1024,1,1,1,1},{bx,by,u1,155/1024,1,1,1,1},
         {cx,cy,u1,712/1024,1,1,1,1},{dx,dy,u0,712/1024,1,1,1,1}}
-    love.graphics.setColor(1,1,1,1)
+    love.graphics.setColor(1,1,1,alpha)
     love.graphics.draw(mesh("rack_"..bay.id.."_"..column,vertices,image))
+end
+local function drawWorldRack(state,bayId,bay,includeBuilding)
+    local options={review=Config.warehouse and Config.warehouse.provisionalArt==true,
+        includeBuilding=includeBuilding==true}
+    local drawn=RackPresentation.draw(state,bayId,sourceImage,options)
+    if drawn then return true end
+    for column=1,5 do drawRackColumn(bay,column,includeBuilding and 0.55 or 1) end
+    return false
 end
 function Renderer.addActors(actors,assets,state,drawPallet)
     for _,id in ipairs(Layout.BAY_IDS) do
@@ -159,27 +169,46 @@ function Renderer.addActors(actors,assets,state,drawPallet)
             -- anchor. The builder remains sorted by his independent feet.
             local depth=plan and plan.depthY or math.max(bay.polygon[1].y,bay.polygon[2].y,bay.polygon[3].y)
             actors[#actors+1]={y=depth,layer=1,draw=function() drawConstruction(bay,stage,state) end}
+            if status.optionId=="breakroom" then
+                actors[#actors+1]={y=bay.polygon[3].y,layer=-2,draw=function()
+                    ModulePresentation.draw(state,id,sourceImage,
+                        {review=Config.warehouse and Config.warehouse.provisionalArt==true,includeBuilding=true})
+                end}
+            elseif status.optionId=="storage" and not plan then
+                local rackPlan=RackPresentation.plan(state,id,{review=true,includeBuilding=true})
+                local rackDepth=rackPlan and rackPlan.depthY or bay.rackStart.y
+                actors[#actors+1]={y=rackDepth,layer=-2,draw=function()
+                    drawWorldRack(state,id,bay,true)
+                end}
+            end
         elseif status and status.status=="complete" and status.optionId=="storage" then
+            local rackPlan=RackPresentation.plan(state,id,{review=Config.warehouse and Config.warehouse.provisionalArt==true})
+            local rackDepth=rackPlan and rackPlan.depthY or bay.rackStart.y
+            actors[#actors+1]={y=rackDepth,layer=-2,draw=function()
+                drawWorldRack(state,id,bay,false)
+            end}
             local slots=Storage.slots(state,bay.rackId)
             for column=1,5 do
                 local col=column
-                local base=Layout.rackPoint(id,1,column)
-                actors[#actors+1]={y=base.groundY,layer=-1,draw=function()
-                    drawRackColumn(bay,col)
-                    -- Lower/upper stock keep the original isometric pallet
-                    -- scale; both are depth-sorted by shelf feet, not elevation.
-                    if drawPallet then
-                        for row=1,2 do
-                            local item=slots[row][col] and Storage.find(state,slots[row][col])
-                            if item then
-                                local point=Layout.rackPoint(id,row,col)
-                                drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,
-                                    x=point.x,y=point.y})
-                            end
-                        end
+                for row=1,2 do
+                    local r=row
+                    local item=slots[r][col] and Storage.find(state,slots[r][col])
+                    if item and drawPallet then
+                        local point=rackPlan and RackPresentation.slotPoint(rackPlan,r,col)
+                            or Layout.rackPoint(id,r,col)
+                        local stock=item
+                        actors[#actors+1]={y=point.groundY,layer=-1,draw=function()
+                            drawPallet(assets,{pallet=stock.pallet,job=stock.job,vendor=stock.vendor,
+                                x=point.x,y=point.y})
+                        end}
                     end
-                end}
+                end
             end
+        elseif status and status.status=="complete" and status.optionId=="breakroom" then
+            actors[#actors+1]={y=bay.polygon[3].y,layer=-2,draw=function()
+                ModulePresentation.draw(state,id,sourceImage,
+                    {review=Config.warehouse and Config.warehouse.provisionalArt==true})
+            end}
         end
     end
     -- A two-high stack is still one canonical pallet per level, never an
