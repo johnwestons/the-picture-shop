@@ -364,7 +364,7 @@ function Renderer.drawDevelopmentNotice(state)
     if not enabled or not state or not ((state.forklift and state.forklift.owned)
         or state.constructionWorker) then return end
     love.graphics.setColor(0.03,0.035,0.035,0.82)
-    local text="Development artwork: warehouse / forklift"
+    local text="Development artwork: forklift / worker"
     local width=love.graphics.getFont():getWidth(text)+10
     love.graphics.rectangle("fill",8,638,width,18,3,3)
     love.graphics.setColor(0.88,0.80,0.55,1)

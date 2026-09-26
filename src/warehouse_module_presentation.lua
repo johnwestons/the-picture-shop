@@ -5,7 +5,7 @@ local ROOT = "assets/source/warehouse-expansion-v1/modules/"
 
 local catalog = {
     front_left = {
-        path = ROOT .. "breakroom-world-left-v1.png", bayId = "front_left", approved = false,
+        path = ROOT .. "breakroom-world-left-v1.png", bayId = "front_left", approved = true,
         registration = { textureWidth = 1536, textureHeight = 1024,
             source = { x = 0, y = 0, width = 1536, height = 1024 },
             originX = 1000, originY = 920, x = 145, y = 617, scale = 0.15, depthY = 617,
@@ -15,7 +15,7 @@ local catalog = {
             } },
     },
     front_right = {
-        path = ROOT .. "breakroom-world-right-v1.png", bayId = "front_right", approved = false,
+        path = ROOT .. "breakroom-world-right-v1.png", bayId = "front_right", approved = true,
         registration = { textureWidth = 1536, textureHeight = 1024,
             source = { x = 0, y = 0, width = 1536, height = 1024 },
             originX = 800, originY = 950, x = 880, y = 620, scale = 0.13, depthY = 620,

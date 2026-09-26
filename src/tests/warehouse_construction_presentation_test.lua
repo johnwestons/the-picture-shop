@@ -22,11 +22,15 @@ function Test.run(_,check)
         local entry=catalog.front_left[stage]
         check("construction_sprite_catalog_stage_"..stage,entry and entry.stage==stage
             and entry.path:match("left%-storage%-stage%-"..stage.."%.png$") and entry.path~=previousPath
-            and entry.approved==false)
+            and entry.approved==true)
         previousPath=entry.path
     end
     catalog.front_left[1].path="changed.png"
     check("construction_sprite_catalog_is_immutable_copy",Presentation.reviewCatalog().front_left[1].path~=catalog.front_left[1].path)
+    local approvedState=fixture(2)
+    local approvedPlan=Presentation.plan(approvedState,"front_left")
+    check("construction_sprite_approved_art_needs_no_review_override",approvedPlan and approvedPlan.approved
+        and approvedPlan.path:match("left%-storage%-stage%-2%.png$"))
     catalog=registeredCatalog()
     local options={review=true,catalog=catalog}
     for stage=1,4 do
@@ -41,7 +45,7 @@ function Test.run(_,check)
     plan.source.width=2
     check("construction_sprite_plan_is_detached",Presentation.plan(state,"front_left",options).source.width==1000)
     local noReview,code=Presentation.plan(state,"front_left",{catalog=catalog})
-    check("construction_sprite_draft_art_needs_explicit_review",not noReview and code=="art_not_approved")
+    check("construction_sprite_unapproved_override_needs_explicit_review",not noReview and code=="art_not_approved")
     project.pausedAtHours=0
     plan=Presentation.plan(state,"front_left",options)
     check("construction_sprite_pause_keeps_same_visible_progress",plan and plan.paused and plan.stage==2 and project.stage==2)

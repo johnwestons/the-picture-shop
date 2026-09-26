@@ -1,27 +1,27 @@
 # Warehouse expansion art — source pack v1
 
-Prepared September 18, 2026; expansion update September 26, 2026. **Source art remains unapproved for production. Both warehouse bays and all three room choices now have a playable purchase path with an explicit development-art setting. This does not approve the source sheets or finish the full warehouse art review.**
+Prepared September 18, 2026; expansion update September 26, 2026. **The user approved the two-bay rack, breakroom and construction-stage art on September 26, 2026. Forklift and construction-worker source art remains unapproved for production. Both warehouse bays and all three room choices have a playable purchase path; visual registration and remaining vehicle/worker reviews are still open.**
 
 [Implementation plan](../../../docs/warehouse_expansion_plan.md) · [Exact generation prompts](prompts.json)
 
-[Current build status](../../../docs/warehouse_build_status.md) records the dual-bay catalog, current controls and the older verification baseline. Both bays offer open floor, storage and breakroom. `Config.warehouse.provisionalArt=true` explicitly exposes reviewed draft imagery with a development-art notice; catalog approval flags remain false.
+[Current build status](../../../docs/warehouse_build_status.md) records the dual-bay catalog, current controls and the older verification baseline. Both bays offer open floor, storage and breakroom. `Config.warehouse.provisionalArt=true` remains enabled for the unapproved forklift and construction-worker imagery; expansion module and construction-stage catalog entries are approved.
 
 ## Expansion module art — September 26
 
-These registered PNGs are development candidates for the two bay orientations. Each is 1536×1024 RGBA. The image files are copied into the runtime source pack; generated originals remain in the Codex generated-image history.
+These registered PNGs are user-approved art for the two bay orientations. Each is 1536×1024 RGBA. Their in-game position, scale, slot anchors and collision footprints still need calibration. The image files are copied into the runtime source pack; generated originals remain in the Codex generated-image history.
 
 | Runtime file | Use | Status |
 | --- | --- | --- |
-| [rack-world-left-v2.png](modules/rack-world-left-v2.png) | Left-bay world rack | Earlier source draft; first-pass world and ten-slot registration |
-| [rack-world-right-v1.png](modules/rack-world-right-v1.png) | Right-bay world rack | Independently generated for the opposite orientation; first-pass world and ten-slot registration |
-| [breakroom-world-left-v1.png](modules/breakroom-world-left-v1.png) | Left-bay finished breakroom | Independently oriented furniture cluster; first-pass collision registration |
-| [breakroom-world-right-v1.png](modules/breakroom-world-right-v1.png) | Right-bay finished breakroom | Independently oriented furniture cluster; first-pass collision registration |
-| `left-storage-stage-1.png` … `left-storage-stage-4.png` | Left-bay storage construction | Existing four-stage source sprites registered to the left bay |
-| `rack-right-stage-1.png` … `rack-right-stage-3.png` | Right-bay storage construction | Staged parts, partial frame and near-complete frame; stage 4 uses the finished rack sprite |
-| `breakroom-left-stage-1.png` … `breakroom-left-stage-3.png` | Left-bay breakroom construction | Site materials, partial assembly and final installation step; stage 4 uses the finished breakroom sprite |
-| `breakroom-right-stage-1.png` … `breakroom-right-stage-3.png` | Right-bay breakroom construction | Independently oriented site materials and assembly stages; stage 4 uses the finished breakroom sprite |
+| [rack-world-left-v2.png](modules/rack-world-left-v2.png) | Left-bay world rack | User-approved September 26; first-pass world and ten-slot registration still needs in-game calibration |
+| [rack-world-right-v1.png](modules/rack-world-right-v1.png) | Right-bay world rack | User-approved September 26; independently oriented, ten-slot registration still needs in-game calibration |
+| [breakroom-world-left-v1.png](modules/breakroom-world-left-v1.png) | Left-bay finished breakroom | User-approved September 26; furniture collision registration still needs in-game calibration |
+| [breakroom-world-right-v1.png](modules/breakroom-world-right-v1.png) | Right-bay finished breakroom | User-approved September 26; furniture collision registration still needs in-game calibration |
+| `left-storage-stage-1.png` … `left-storage-stage-4.png` | Left-bay storage construction | User-approved September 26; registered to the left bay |
+| `rack-right-stage-1.png` … `rack-right-stage-3.png` | Right-bay storage construction | User-approved September 26; stage 4 uses the finished rack sprite |
+| `breakroom-left-stage-1.png` … `breakroom-left-stage-3.png` | Left-bay breakroom construction | User-approved September 26; stage 4 uses the finished breakroom sprite |
+| `breakroom-right-stage-1.png` … `breakroom-right-stage-3.png` | Right-bay breakroom construction | User-approved September 26; stage 4 uses the finished breakroom sprite |
 
-The world racks are distinct from `rack-front-2x5-approved.png`, which is only the first-person shelf backdrop. Construction art for both rack orientations and both breakroom orientations is registered stage by stage; open-floor work uses the sampled concrete surface because the finished option is an empty floor. Transform, slot, floor-seam and obstacle registrations still need visual calibration in the running game. The breakroom tool produced a four-panel wall-room study, but those panels did not match the floor-only module contract and were not added to the runtime pack.
+The world racks are distinct from `rack-front-2x5-approved.png`, which is only the first-person shelf backdrop. The user-approved expansion art covers both rack orientations, both breakroom orientations and their construction stages. Open-floor work uses the sampled concrete surface because the finished option is an empty floor. Transform, slot, floor-seam and obstacle registrations still need visual calibration in the running game. The breakroom tool produced a four-panel wall-room study, but those panels did not match the floor-only module contract and were not added to the runtime pack.
 
 ## Selected warehouse and approved designs
 

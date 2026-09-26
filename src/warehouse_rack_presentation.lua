@@ -3,13 +3,13 @@
 local Presentation = {}
 local ROOT = "assets/source/warehouse-expansion-v1/modules/"
 local catalog = {
-    front_left = { path = ROOT .. "rack-world-left-v2.png", bayId = "front_left", approved = false,
+    front_left = { path = ROOT .. "rack-world-left-v2.png", bayId = "front_left", approved = true,
         registration = { textureWidth = 1536, textureHeight = 1024,
             x = 30, y = 447, originX = 140, originY = 480,
             scaleX = 0.30, scaleY = 0.16, rotation = math.rad(18.5), depthY = 447,
             baseline = { x = 140, y = 480, dx = 1070, dy = 500 },
             lowerSlotOffset = -47, upperSourceOffset = { x = -63, y = -350 } } },
-    front_right = { path = ROOT .. "rack-world-right-v1.png", bayId = "front_right", approved = false,
+    front_right = { path = ROOT .. "rack-world-right-v1.png", bayId = "front_right", approved = true,
         registration = { textureWidth = 1536, textureHeight = 1024,
             x = 930, y = 447, originX = 1465, originY = 615,
             scaleX = 0.255, scaleY = 0.186, rotation = math.rad(-21.6), depthY = 447,

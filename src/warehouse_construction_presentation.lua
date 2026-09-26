@@ -24,7 +24,7 @@ local function rackRegistration(entry)
         scaleX=r.scaleX,scaleY=r.scaleY,rotation=r.rotation,depthY=r.depthY}
 end
 local function stageEntry(path,bayId,optionId,stage,registration)
-    return {path=path,stage=stage,bayId=bayId,optionId=optionId,approved=false,
+    return {path=path,stage=stage,bayId=bayId,optionId=optionId,approved=true,
         includesFloor=false,registration=copy(registration)}
 end
 local function makeCatalog()
