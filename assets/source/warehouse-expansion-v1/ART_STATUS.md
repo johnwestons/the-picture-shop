@@ -17,8 +17,11 @@ These registered PNGs are development candidates for the two bay orientations. E
 | [breakroom-world-left-v1.png](modules/breakroom-world-left-v1.png) | Left-bay finished breakroom | Independently oriented furniture cluster; first-pass collision registration |
 | [breakroom-world-right-v1.png](modules/breakroom-world-right-v1.png) | Right-bay finished breakroom | Independently oriented furniture cluster; first-pass collision registration |
 | `left-storage-stage-1.png` … `left-storage-stage-4.png` | Left-bay storage construction | Existing four-stage source sprites registered to the left bay |
+| `rack-right-stage-1.png` … `rack-right-stage-3.png` | Right-bay storage construction | Staged parts, partial frame and near-complete frame; stage 4 uses the finished rack sprite |
+| `breakroom-left-stage-1.png` … `breakroom-left-stage-3.png` | Left-bay breakroom construction | Site materials, partial assembly and final installation step; stage 4 uses the finished breakroom sprite |
+| `breakroom-right-stage-1.png` … `breakroom-right-stage-3.png` | Right-bay breakroom construction | Independently oriented site materials and assembly stages; stage 4 uses the finished breakroom sprite |
 
-The world racks are distinct from `rack-front-2x5-approved.png`, which is only the first-person shelf backdrop. The breakroom sprites draw as completed furniture clusters over the existing floor texture; unfinished rack and breakroom jobs currently use translucent module previews, while open-floor construction shows the sampled concrete surface. These visuals do not replace completed option-specific stage atlases. Transform, slot, floor-seam and obstacle registrations still need visual calibration in the running game. The breakroom tool produced a four-panel wall-room study, but those panels did not match the floor-only module contract and were not added to the runtime pack.
+The world racks are distinct from `rack-front-2x5-approved.png`, which is only the first-person shelf backdrop. Construction art for both rack orientations and both breakroom orientations is registered stage by stage; open-floor work uses the sampled concrete surface because the finished option is an empty floor. Transform, slot, floor-seam and obstacle registrations still need visual calibration in the running game. The breakroom tool produced a four-panel wall-room study, but those panels did not match the floor-only module contract and were not added to the runtime pack.
 
 ## Selected warehouse and approved designs
 

@@ -169,7 +169,7 @@ function Renderer.addActors(actors,assets,state,drawPallet)
             -- anchor. The builder remains sorted by his independent feet.
             local depth=plan and plan.depthY or math.max(bay.polygon[1].y,bay.polygon[2].y,bay.polygon[3].y)
             actors[#actors+1]={y=depth,layer=1,draw=function() drawConstruction(bay,stage,state) end}
-            if status.optionId=="breakroom" then
+            if status.optionId=="breakroom" and not plan then
                 actors[#actors+1]={y=bay.polygon[3].y,layer=-2,draw=function()
                     ModulePresentation.draw(state,id,sourceImage,
                         {review=Config.warehouse and Config.warehouse.provisionalArt==true,includeBuilding=true})
