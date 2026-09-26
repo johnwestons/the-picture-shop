@@ -17,6 +17,7 @@ local PalletJack = require("src.pallet_jack")
 local PlayerController = require("src.player_controller")
 local Procurement = require("src.procurement")
 local Truck = require("src.truck")
+local MachineResource = require("src.machine_resource_id")
 local Technician = require("src.technician")
 local WrapperPlacement = require("src.wrapper_placement")
 local Wrapper = require("src.wrapper")
@@ -914,7 +915,7 @@ local WORKSHOP_RESOURCES = {
     palletJack = "pallet_jack",
 }
 
-function World.workshopResourceId(interactionKind)
+function World.workshopResourceId(interactionKind, target)
     if interactionKind == "truckCargoDoor" then
         local truck = World.truck:snapshot()
         if truck.mode == "machine_delivery" and truck.state == "parked_closed" then
@@ -923,7 +924,10 @@ function World.workshopResourceId(interactionKind)
         if truck.state == "cargo_open" then return "truck" end
         return nil
     end
-    return WORKSHOP_RESOURCES[interactionKind]
+    local base = WORKSHOP_RESOURCES[interactionKind]
+    if not MachineResource.model(base) then return base end
+    local machineId = target and target.machineId
+    return MachineResource.forUnit(base, machineId)
 end
 
 -- Workshop requests never carry client coordinates. The host resolves the
@@ -934,6 +938,15 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         return false, "invalid_player", "The host could not verify that worker's position."
     end
     World._state = state
+    local machineBase, machineId = MachineResource.parse(resourceId)
+    local function installedMachine(base)
+        local units = MachineFleet.installedUnits(state, MachineResource.model(base))
+        local selectedId = machineId or (player.id == 1 and state._localWorkshopMachineId)
+        if not selectedId then return units[1] end
+        local item = MachineFleet.byId(state, selectedId)
+        if item and item.modelId == MachineResource.model(base)
+            and item.status == "installed" then return item end
+    end
     local target, unavailableMessage
     if resourceId == "reception_customer" then
         target = World.customer:getInteraction()
@@ -969,44 +982,34 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
     elseif resourceId == "work_phone" then
         target = Config.interactables.workPhone
         unavailableMessage = "Move closer to the wall phone."
-    elseif resourceId == "cutter" then
-        if not MachineFleet.isInstalled(state, "polar_115") then
+    elseif machineBase == "cutter" then
+        local selected = installedMachine("cutter")
+        if not selected then
             return false, "not_installed", "The paper cutter is not installed in this shop."
         end
-        local selected = player.id == 1 and state._localWorkshopMachineId
-            and MachineFleet.byId(state, state._localWorkshopMachineId)
-        local cutter = selected and selected.modelId == "polar_115" and selected.status == "installed"
-            and (selected.world or CutterPlacement.ensure(state, Config.cutterPlacement))
-            or CutterPlacement.ensure(state, Config.cutterPlacement)
+        local cutter = selected.world or CutterPlacement.ensure(state, Config.cutterPlacement)
         if cutter.moving then
             return false, "machine_moving", "Lock the cutter onto the floor before using it."
         end
         target = { x = cutter.x, y = cutter.y, radius = Config.cutterPlacement.interactionRadius }
         unavailableMessage = "Move closer to the cutter controls."
-    elseif resourceId == "skid_wrapper" then
-        if not MachineFleet.isInstalled(state, "skid_wrapper") then
+    elseif machineBase == "skid_wrapper" then
+        local selected = installedMachine("skid_wrapper")
+        if not selected then
             return false, "not_installed", "The skid wrapper is not installed in this shop."
         end
-        local selected = player.id == 1 and state._localWorkshopMachineId
-            and MachineFleet.byId(state, state._localWorkshopMachineId)
-        local wrapper = selected and selected.modelId == "skid_wrapper" and selected.status == "installed"
-            and (selected.world or WrapperPlacement.ensure(state, Config.wrapperPlacement))
-            or WrapperPlacement.ensure(state, Config.wrapperPlacement)
+        local wrapper = selected.world or WrapperPlacement.ensure(state, Config.wrapperPlacement)
         if wrapper.moving then
             return false, "machine_moving", "Lock the skid wrapper onto the floor before using it."
         end
         target = { x = wrapper.x, y = wrapper.y, radius = Config.wrapperPlacement.interactionRadius }
         unavailableMessage = "Move closer to the skid wrapper controls."
-    elseif resourceId == "windmill" then
-        if not MachineFleet.isInstalled(state, "heidelberg_10x15") then
+    elseif machineBase == "windmill" then
+        local selected = installedMachine("windmill")
+        if not selected then
             return false, "not_installed", "The Heidelberg Windmill is not installed in this shop."
         end
-        local selected = player.id == 1 and state._localWorkshopMachineId
-            and MachineFleet.byId(state, state._localWorkshopMachineId)
-        local windmill = selected and selected.modelId == "heidelberg_10x15"
-            and selected.status == "installed"
-            and (selected.world or WindmillPlacement.ensure(state, Config.windmillPlacement))
-            or WindmillPlacement.ensure(state, Config.windmillPlacement)
+        local windmill = selected.world or WindmillPlacement.ensure(state, Config.windmillPlacement)
         if windmill.moving then
             return false, "machine_moving", "Lock the Windmill onto the floor before using it."
         end

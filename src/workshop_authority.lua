@@ -3,6 +3,12 @@
 -- authoritative player plus strict resource callbacks.
 local Authority = {}
 Authority.__index = Authority
+local MachineResource = require("src.machine_resource_id")
+
+local function resourceBase(resourceId)
+    return Authority.RESOURCES[resourceId] and resourceId
+        or MachineResource.parse(resourceId)
+end
 
 -- Resource callback contract:
 --   canAcquire(player, hostContext, request) -> allowed, code?, message?
@@ -146,10 +152,11 @@ local UINT32_MAX = 4294967295
 
 local function urgentSafetyCommand(request)
     if type(request) ~= "table" then return false end
+    local base = resourceBase(request.resourceId)
     if request.action == "emergency_stop" then
-        return request.resourceId == "cutter" or request.resourceId == "windmill"
+        return base == "cutter" or base == "windmill"
     end
-    return request.resourceId == "cutter" and request.action == "set_barrier"
+    return base == "cutter" and request.action == "set_barrier"
         and type(request.args) == "table" and request.args.barrierClear == false
 end
 local MAX_PLAYER_ID = 4
@@ -210,7 +217,8 @@ local function validToken(value)
 end
 
 local function defaultTokenGenerator(serial, resourceId, playerId)
-    return string.format("lease-%08x-%s-%d", serial, resourceId, playerId)
+    return string.format("lease-%08x-%s-%d", serial,
+        resourceId:gsub(":", "-"), playerId)
 end
 
 local function fingerprintValue(value, depth, seen, budget)
@@ -336,7 +344,8 @@ function Authority.new(options)
     local resources = options.resources or {}
     assert(type(resources) == "table", "workshop authority resources must be a table")
     for resourceId, spec in pairs(resources) do
-        assert(Authority.RESOURCES[resourceId],
+        local base = resourceBase(resourceId)
+        assert(base,
             "unsupported workshop resource: " .. tostring(resourceId))
         assert(type(spec) == "table", resourceId .. " resource spec must be a table")
         assert(type(spec.canAcquire) == "function",
@@ -348,7 +357,7 @@ function Authority.new(options)
         assert(spec.commands == nil or type(spec.commands) == "table",
             resourceId .. " commands must be a table")
         for action, command in pairs(spec.commands or {}) do
-            assert(Authority.ACTIONS[resourceId][action],
+            assert(Authority.ACTIONS[base][action],
                 "unsupported " .. resourceId .. " action: " .. tostring(action))
             assert(type(command) == "table" and type(command.normalize) == "function"
                 and type(command.perform) == "function",
@@ -357,13 +366,24 @@ function Authority.new(options)
     end
 
     local revisions = {}
-    for _, resourceId in ipairs(Authority.RESOURCE_ORDER) do revisions[resourceId] = 0 end
+    local resourceOrder = {}
+    for _, resourceId in ipairs(Authority.RESOURCE_ORDER) do
+        revisions[resourceId] = 0
+        resourceOrder[#resourceOrder + 1] = resourceId
+    end
+    for resourceId in pairs(resources) do
+        if not revisions[resourceId] then
+            revisions[resourceId] = 0
+            resourceOrder[#resourceOrder + 1] = resourceId
+        end
+    end
     return setmetatable({
         clock = clock,
         tokenGenerator = tokenGenerator,
         leaseTimeout = leaseTimeout,
         replayLimit = replayLimit,
         resources = resources,
+        resourceOrder = resourceOrder,
         revisions = revisions,
         leasesByResource = {},
         leasesByPlayer = {},
@@ -424,7 +444,7 @@ function Authority:_validateCommon(player, request, required, optional)
     if not integerInRange(request.requestId, 1, UINT32_MAX) then
         return nil, nil, "requestId must be a positive 32-bit integer"
     end
-    if not Authority.RESOURCES[request.resourceId] then
+    if not resourceBase(request.resourceId) then
         return nil, nil, "resourceId is not allowed"
     end
     return playerId, playerKeyOrError
@@ -561,7 +581,7 @@ function Authority:command(player, request, context)
         fingerprint, "command", request)
     if handled then return replay end
 
-    if not Authority.ACTIONS[request.resourceId][request.action] then
+    if not Authority.ACTIONS[resourceBase(request.resourceId)][request.action] then
         return self:_rejectNew(playerKey, "command", request, fingerprint,
             "action_not_allowed", "That action is not allowed for this resource.")
     end
@@ -705,7 +725,7 @@ end
 function Authority:update(context)
     local now = self.clock()
     local expired = {}
-    for _, resourceId in ipairs(Authority.RESOURCE_ORDER) do
+    for _, resourceId in ipairs(self.resourceOrder) do
         local lease = self.leasesByResource[resourceId]
         if lease and now - lease.lastSeenAt >= self.leaseTimeout then
             expired[#expired + 1] = lease
@@ -731,7 +751,7 @@ function Authority:cleanupPlayer(player, reason, context)
 end
 
 function Authority:leaseForResource(resourceId)
-    if not Authority.RESOURCES[resourceId] then return nil end
+    if not resourceBase(resourceId) then return nil end
     return publicLease(self.leasesByResource[resourceId])
 end
 
@@ -742,12 +762,30 @@ function Authority:leaseForPlayer(player)
 end
 
 function Authority:resourceRevision(resourceId)
-    return Authority.RESOURCES[resourceId] and self.revisions[resourceId] or nil
+    return resourceBase(resourceId) and self.revisions[resourceId] or nil
+end
+
+function Authority:registerResource(resourceId, spec)
+    local base = resourceBase(resourceId)
+    if not base or not MachineResource.model(base)
+        or type(spec) ~= "table" or type(spec.canAcquire) ~= "function"
+        or type(spec.commands) ~= "table" then return false end
+    if self.resources[resourceId] then return true end
+    for action, command in pairs(spec.commands) do
+        if not Authority.ACTIONS[base][action]
+            or type(command) ~= "table"
+            or type(command.normalize) ~= "function"
+            or type(command.perform) ~= "function" then return false end
+    end
+    self.resources[resourceId] = spec
+    self.revisions[resourceId] = 0
+    self.resourceOrder[#self.resourceOrder + 1] = resourceId
+    return true
 end
 
 function Authority:snapshot()
     local resources = {}
-    for _, resourceId in ipairs(Authority.RESOURCE_ORDER) do
+    for _, resourceId in ipairs(self.resourceOrder) do
         local lease = self.leasesByResource[resourceId]
         resources[#resources + 1] = {
             resourceId = resourceId,

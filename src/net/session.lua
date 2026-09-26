@@ -1,6 +1,7 @@
 local Address = require("src.net.address")
 local Codec = require("src.net.codec")
 local Protocol = require("src.net.protocol")
+local MachineResource = require("src.machine_resource_id")
 local Transport = require("src.net.transport_enet")
 
 local Session = {}
@@ -25,6 +26,7 @@ local NETWORK_CLEANUP_ERROR =
     "Network cleanup could not be verified; restart the game before starting another session."
 
 local function urgentWorkshopSafety(resourceId, action, arguments)
+    resourceId = MachineResource.parse(resourceId) or resourceId
     if action == "emergency_stop" then
         return resourceId == "cutter" or resourceId == "windmill"
     end
@@ -84,6 +86,7 @@ end
 
 local function wireWorkshopView(resourceId, view)
     if type(view) ~= "table" then return view end
+    resourceId = MachineResource.parse(resourceId) or resourceId
     if resourceId == "reception_customer" and type(view.quoteRows) == "table" then
         if not Codec.isArray(view.quoteRows) then
             view.quoteRows = Codec.array(view.quoteRows)
@@ -229,6 +232,7 @@ function Session.new(options)
         lastForkliftTick = -1,
         lastCutterTick = -1,
         lastWindmillTick = -1,
+        lastMachineTicks = {},
         shopDirty = false,
         connectedAt = nil,
         ready = false,
@@ -313,6 +317,7 @@ function Session:_resetRuntime()
     self.lastForkliftTick = -1
     self.lastCutterTick = -1
     self.lastWindmillTick = -1
+    self.lastMachineTicks = {}
     self.shopDirty = false
     self.connectedAt = nil
     self.ready = false
@@ -1290,35 +1295,64 @@ function Session:_handleClientEnvelope(envelope)
             })
         end
     elseif envelope.type == "cutter_snapshot" then
+        local resourceId = payload.resourceId or "cutter"
+        local lastTick = resourceId == "cutter" and self.lastCutterTick
+            or (self.lastMachineTicks[resourceId] or -1)
         if self.ready and payload.sessionId == self.sessionId
-            and payload.serverTick > self.lastCutterTick
+            and payload.serverTick > lastTick
         then
-            self.lastCutterTick = payload.serverTick
-            self.workshopRevisions.cutter = math.max(
-                self.workshopRevisions.cutter or 0, payload.resourceRevision)
-            if self.activeWorkshop and self.activeWorkshop.resourceId == "cutter" then
+            if resourceId == "cutter" then self.lastCutterTick = payload.serverTick
+            else self.lastMachineTicks[resourceId] = payload.serverTick end
+            self.workshopRevisions[resourceId] = math.max(
+                self.workshopRevisions[resourceId] or 0, payload.resourceRevision)
+            if self.activeWorkshop and self.activeWorkshop.resourceId == resourceId then
                 self.activeWorkshop.revision = math.max(
                     self.activeWorkshop.revision, payload.resourceRevision)
             end
             self:_queue("cutter_state", {
                 serverTick = payload.serverTick,
+                resourceId = resourceId,
                 resourceRevision = payload.resourceRevision,
                 view = payload.view,
             })
         end
     elseif envelope.type == "windmill_snapshot" then
+        local resourceId = payload.resourceId or "windmill"
+        local lastTick = resourceId == "windmill" and self.lastWindmillTick
+            or (self.lastMachineTicks[resourceId] or -1)
         if self.ready and payload.sessionId == self.sessionId
-            and payload.serverTick > self.lastWindmillTick
+            and payload.serverTick > lastTick
         then
-            self.lastWindmillTick = payload.serverTick
-            self.workshopRevisions.windmill = math.max(
-                self.workshopRevisions.windmill or 0, payload.resourceRevision)
-            if self.activeWorkshop and self.activeWorkshop.resourceId == "windmill" then
+            if resourceId == "windmill" then self.lastWindmillTick = payload.serverTick
+            else self.lastMachineTicks[resourceId] = payload.serverTick end
+            self.workshopRevisions[resourceId] = math.max(
+                self.workshopRevisions[resourceId] or 0, payload.resourceRevision)
+            if self.activeWorkshop and self.activeWorkshop.resourceId == resourceId then
                 self.activeWorkshop.revision = math.max(
                     self.activeWorkshop.revision, payload.resourceRevision)
             end
             self:_queue("windmill_state", {
                 serverTick = payload.serverTick,
+                resourceId = resourceId,
+                resourceRevision = payload.resourceRevision,
+                view = payload.view,
+            })
+        end
+    elseif envelope.type == "wrapper_snapshot" then
+        local resourceId = payload.resourceId
+        if self.ready and payload.sessionId == self.sessionId
+            and payload.serverTick > (self.lastMachineTicks[resourceId] or -1)
+        then
+            self.lastMachineTicks[resourceId] = payload.serverTick
+            self.workshopRevisions[resourceId] = math.max(
+                self.workshopRevisions[resourceId] or 0, payload.resourceRevision)
+            if self.activeWorkshop and self.activeWorkshop.resourceId == resourceId then
+                self.activeWorkshop.revision = math.max(
+                    self.activeWorkshop.revision, payload.resourceRevision)
+            end
+            self:_queue("wrapper_state", {
+                serverTick = payload.serverTick,
+                resourceId = resourceId,
                 resourceRevision = payload.resourceRevision,
                 view = payload.view,
             })
@@ -1775,25 +1809,49 @@ function Session:_updateHost(dt, context)
         end
         local cutter = context and context.getCutterSnapshot
             and context.getCutterSnapshot() or nil
-        if type(cutter) == "table" and type(cutter.view) == "table" then
-            local cutterOk, cutterError = self:_broadcastJoined("cutter_snapshot", {
-                sessionId = self.sessionId,
-                serverTick = self.serverTick,
-                resourceRevision = cutter.resourceRevision,
-                view = wireWorkshopView("cutter", cutter.view),
-            })
-            if not cutterOk then self:_queue("error", { message = cutterError }) end
+        local cutterSnapshots = cutter and (cutter.view and { cutter } or cutter) or {}
+        for _, item in ipairs(cutterSnapshots) do
+            if type(item.view) == "table" then
+                local resourceId = item.resourceId or "cutter"
+                local cutterOk, cutterError = self:_broadcastJoined("cutter_snapshot", {
+                    sessionId = self.sessionId,
+                    serverTick = self.serverTick,
+                    resourceId = resourceId,
+                    resourceRevision = item.resourceRevision,
+                    view = wireWorkshopView(resourceId, item.view),
+                })
+                if not cutterOk then self:_queue("error", { message = cutterError }) end
+            end
         end
         local windmill = context and context.getWindmillSnapshot
             and context.getWindmillSnapshot() or nil
-        if type(windmill) == "table" and type(windmill.view) == "table" then
-            local windmillOk, windmillError = self:_broadcastJoined("windmill_snapshot", {
-                sessionId = self.sessionId,
-                serverTick = self.serverTick,
-                resourceRevision = windmill.resourceRevision,
-                view = wireWorkshopView("windmill", windmill.view),
-            })
-            if not windmillOk then self:_queue("error", { message = windmillError }) end
+        local windmillSnapshots = windmill and (windmill.view and { windmill } or windmill) or {}
+        for _, item in ipairs(windmillSnapshots) do
+            if type(item.view) == "table" then
+                local resourceId = item.resourceId or "windmill"
+                local windmillOk, windmillError = self:_broadcastJoined("windmill_snapshot", {
+                    sessionId = self.sessionId,
+                    serverTick = self.serverTick,
+                    resourceId = resourceId,
+                    resourceRevision = item.resourceRevision,
+                    view = wireWorkshopView(resourceId, item.view),
+                })
+                if not windmillOk then self:_queue("error", { message = windmillError }) end
+            end
+        end
+        local wrappers = context and context.getWrapperSnapshots
+            and context.getWrapperSnapshots() or {}
+        for _, item in ipairs(wrappers) do
+            if type(item.view) == "table" then
+                local wrapperOk, wrapperError = self:_broadcastJoined("wrapper_snapshot", {
+                    sessionId = self.sessionId,
+                    serverTick = self.serverTick,
+                    resourceId = item.resourceId,
+                    resourceRevision = item.resourceRevision,
+                    view = wireWorkshopView(item.resourceId, item.view),
+                })
+                if not wrapperOk then self:_queue("error", { message = wrapperError }) end
+            end
         end
         local workshop = context and context.getWorkshopSnapshot
             and context.getWorkshopSnapshot() or nil

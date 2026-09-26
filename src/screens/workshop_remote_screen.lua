@@ -4,6 +4,7 @@ local CutterPresentation = require("src.screens.cutter_presentation")
 local MachineScreen = require("src.screens.machine_screen")
 local JobService = require("src.job_service")
 local MachineFleet = require("src.machine_fleet")
+local MachineResource = require("src.machine_resource_id")
 local PressSetupGames = require("src.press_setup_games")
 local Ui = require("src.screens.ui")
 local Wrapper = require("src.wrapper")
@@ -21,6 +22,7 @@ local utf8 = require("utf8")
 
 local Screen = {
     resourceId = nil,
+    leaseResourceId = nil,
     leaseId = nil,
     revision = 0,
     workshopTick = 0,
@@ -523,7 +525,9 @@ local function vendorRows()
 end
 
 function Screen.enter(grant, state)
-    Screen.resourceId = grant and grant.resourceId or nil
+    Screen.leaseResourceId = grant and grant.resourceId or nil
+    Screen.resourceId = MachineResource.parse(Screen.leaseResourceId)
+        or Screen.leaseResourceId
     Screen.leaseId = grant and grant.leaseId or nil
     Screen.revision = tonumber(grant and grant.revision) or 0
     Screen.workshopTick = 0
@@ -592,7 +596,7 @@ function Screen.clear()
     Screen.sharedMachine = nil
     Screen.sharedComputer, Screen.guiState, Screen.sendCommand, Screen.officePending = nil, nil, nil, nil
     Screen.cutterPresentation = CutterPresentation.new()
-    Screen.resourceId, Screen.leaseId, Screen.view = nil, nil, nil
+    Screen.resourceId, Screen.leaseResourceId, Screen.leaseId, Screen.view = nil, nil, nil, nil
     Screen.quoteFocused, Screen.waiting, Screen.safetyWaiting = false, false, false
     Screen.selectedJobId, Screen.selectedPalletId = nil, nil
     Screen.gaugeFocused, Screen.gaugeReplaceOnType = false, true
@@ -638,7 +642,7 @@ local function wrapperServiceBeginEnabled(state)
 end
 
 function Screen.applyResult(result)
-    if type(result) ~= "table" or result.resourceId ~= Screen.resourceId then return false end
+    if type(result) ~= "table" or result.resourceId ~= Screen.leaseResourceId then return false end
     if result.urgentSafety == true then
         Screen.safetyWaiting = false
     else
@@ -687,7 +691,7 @@ function Screen.applySnapshot(snapshot)
     if type(snapshot) ~= "table" then return false end
     Screen.workshopTick = tonumber(snapshot.revision) or Screen.workshopTick
     local wrapper = snapshot.wrapper
-    if Screen.resourceId == "skid_wrapper" and type(wrapper) == "table" then
+    if Screen.leaseResourceId == "skid_wrapper" and type(wrapper) == "table" then
         mergeWrapperView(wrapper)
     elseif Screen.resourceId == "windmill" then
         local resourceRevision = windmillResourceRevision(snapshot)
@@ -703,6 +707,7 @@ end
 
 function Screen.applyCutterSnapshot(snapshot)
     if Screen.resourceId ~= "cutter" or type(snapshot) ~= "table" then return false end
+    if (snapshot.resourceId or "cutter") ~= Screen.leaseResourceId then return false end
     local resourceRevision = cutterResourceRevision(snapshot)
     if resourceRevision == nil or resourceRevision < Screen.revision then return false end
     local cutter = snapshot.view or snapshot.cutter or snapshot.data
@@ -711,8 +716,19 @@ function Screen.applyCutterSnapshot(snapshot)
     return true
 end
 
+function Screen.applyWrapperSnapshot(snapshot)
+    if Screen.resourceId ~= "skid_wrapper" or type(snapshot) ~= "table"
+        or snapshot.resourceId ~= Screen.leaseResourceId then return false end
+    local resourceRevision = tonumber(snapshot.resourceRevision)
+    if resourceRevision == nil or resourceRevision < Screen.revision then return false end
+    if not mergeWrapperView(snapshot.view) then return false end
+    Screen.revision = resourceRevision
+    return true
+end
+
 function Screen.applyWindmillSnapshot(snapshot)
     if Screen.resourceId ~= "windmill" or type(snapshot) ~= "table" then return false end
+    if (snapshot.resourceId or "windmill") ~= Screen.leaseResourceId then return false end
     local resourceRevision = windmillResourceRevision(snapshot)
     if resourceRevision == nil or resourceRevision < Screen.revision then return false end
     local windmill = snapshot.view or snapshot.windmill or snapshot.data

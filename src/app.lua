@@ -27,6 +27,7 @@ local LanDiscovery = require("src.net.lan_discovery")
 local LanReconnect = require("src.net.lan_reconnect")
 local Machine = require("src.machine")
 local MachineFleet = require("src.machine_fleet")
+local MachineResource = require("src.machine_resource_id")
 local MachineMaintenance = require("src.machine_maintenance")
 local MachineRelocationAuthority = require("src.machine_relocation_authority")
 local MobileControls = require("src.mobile_controls")
@@ -94,6 +95,7 @@ local cutterMaintenanceAuthority = nil
 local activeWrapperRemote = nil
 local wrapperMaintenanceAuthority = nil
 local activeWindmillRemote = nil
+local machineRemoteSessions = {}
 local directConnection = nil
 local pendingDirectSession = nil
 local directHostComposite = nil
@@ -170,6 +172,7 @@ local function startGame(payload, mode)
     activeCutterRemote = nil
     activeWrapperRemote = nil
     activeWindmillRemote = nil
+    machineRemoteSessions = {}
     if (mode == "new" or windmillSanitized) and not saveCurrent() then
         return false, mode == "new"
             and "This device could not create the new shop save."
@@ -302,7 +305,7 @@ end
 
 local function performCutterAction(player, operation, durable)
     local allowed, code, accessMessage = World.validateNetworkWorkshopAccess(
-        player, state, "cutter")
+        player, state, state._activeWorkshopResourceId or "cutter")
     if not allowed then
         return false, code, accessMessage, cutterView(true)
     end
@@ -453,7 +456,7 @@ end
 
 local function performWindmillAction(player, lease, operation, durable, allowDuringService)
     local allowed, code, accessMessage = World.validateNetworkWorkshopAccess(
-        player, state, "windmill")
+        player, state, state._activeWorkshopResourceId or "windmill")
     if not allowed then
         return false, code, accessMessage, windmillView(lease and lease.private)
     end
@@ -731,12 +734,70 @@ local function createWindmillCommands()
     return commands
 end
 
+local function withWorkshopUnit(base, machineId, resourceId, callback)
+    local previousResource = state._activeWorkshopResourceId
+    state._activeWorkshopResourceId = resourceId
+    if base == "cutter" then Machine.select(machineId, state)
+    elseif base == "skid_wrapper" then Wrapper.select(machineId, state) end
+    local results = { pcall(function()
+        return MachineFleet.withUnit(state, machineId, callback)
+    end) }
+    state._activeWorkshopResourceId = previousResource
+    if base == "cutter" then Machine.select(state._localWorkshopMachineId, state)
+    elseif base == "skid_wrapper" then Wrapper.select(state._localWorkshopMachineId, state) end
+    if not results[1] then error(results[2], 0) end
+    return unpack(results, 2)
+end
+
+local function registerInstalledMachineResources(authority)
+    if not authority then return end
+    for _, base in ipairs({ "cutter", "skid_wrapper", "windmill" }) do
+        for _, unit in ipairs(MachineFleet.installedUnits(state, MachineResource.model(base))) do
+            local machineId = unit.id
+            local resourceId = MachineResource.forUnit(base, machineId)
+            if not authority.resources[resourceId] then
+                local source = authority.resources[base]
+                local spec = {}
+                for key, value in pairs(source) do spec[key] = value end
+                for _, callbackName in ipairs({ "canAcquire", "onAcquire", "onRelease" }) do
+                    local callback = source[callbackName]
+                    if callback then
+                        spec[callbackName] = function(...)
+                            local arguments = { ... }
+                            local count = select("#", ...)
+                            return withWorkshopUnit(base, machineId, resourceId, function()
+                                return callback(unpack(arguments, 1, count))
+                            end)
+                        end
+                    end
+                end
+                spec.commands = {}
+                for action, command in pairs(source.commands or {}) do
+                    local perform = command.perform
+                    local wrapped = {}
+                    for key, value in pairs(command) do wrapped[key] = value end
+                    wrapped.perform = function(...)
+                        local arguments = { ... }
+                        local count = select("#", ...)
+                        return withWorkshopUnit(base, machineId, resourceId, function()
+                            return perform(unpack(arguments, 1, count))
+                        end)
+                    end
+                    spec.commands[action] = wrapped
+                end
+                assert(authority:registerResource(resourceId, spec))
+            end
+        end
+    end
+end
+
 local function createWorkshopAuthority()
     cutterMaintenanceAuthority = CutterMaintenanceAuthority.create({
         state = state,
         baseView = cutterView,
         validateAccess = function(player)
-            return World.validateNetworkWorkshopAccess(player, state, "cutter")
+            return World.validateNetworkWorkshopAccess(player, state,
+                state._activeWorkshopResourceId or "cutter")
         end,
         save = saveCurrent,
         machineReady = function()
@@ -750,7 +811,8 @@ local function createWorkshopAuthority()
         state = state,
         baseView = wrapperView,
         validateAccess = function(player)
-            return World.validateNetworkWorkshopAccess(player, state, "skid_wrapper")
+            return World.validateNetworkWorkshopAccess(player, state,
+                state._activeWorkshopResourceId or "skid_wrapper")
         end,
         save = saveCurrent,
         machineReady = function()
@@ -870,17 +932,20 @@ local function createWorkshopAuthority()
             },
             cutter = {
                 canAcquire = function(player)
-                    return World.validateNetworkWorkshopAccess(player, state, "cutter")
+                    return World.validateNetworkWorkshopAccess(player, state,
+                        state._activeWorkshopResourceId or "cutter")
                 end,
                 onAcquire = function()
                     Machine.open(state)
                     local session = CutterMaintenanceAuthority.newSession()
                     activeCutterRemote = session
+                    machineRemoteSessions[state._activeWorkshopResourceId or "cutter"] = session
                     return true, "acquired", "Cutter console connected.",
                         cutterMaintenanceAuthority.view(session, true), session
                 end,
                 onRelease = function(lease)
                     local changed = Machine.releaseOperator(state)
+                    machineRemoteSessions[state._activeWorkshopResourceId or "cutter"] = nil
                     if activeCutterRemote == (lease and lease.private) then
                         activeCutterRemote = nil
                     end
@@ -1048,7 +1113,8 @@ local function createWorkshopAuthority()
             },
             windmill = {
                 canAcquire = function(player)
-                    return World.validateNetworkWorkshopAccess(player, state, "windmill")
+                    return World.validateNetworkWorkshopAccess(player, state,
+                        state._activeWorkshopResourceId or "windmill")
                 end,
                 onAcquire = function(lease)
                     local session = {
@@ -1058,11 +1124,13 @@ local function createWorkshopAuthority()
                         lockoutStep = nil,
                     }
                     activeWindmillRemote = session
+                    machineRemoteSessions[state._activeWorkshopResourceId or "windmill"] = session
                     return true, "acquired", "Windmill console connected.",
                         windmillView(session), session
                 end,
                 onRelease = function(lease, _, reason)
                     local changed = reason ~= "closed" and Windmill.releaseOperator(state)
+                    machineRemoteSessions[state._activeWorkshopResourceId or "windmill"] = nil
                     if activeWindmillRemote == (lease and lease.private) then
                         activeWindmillRemote = nil
                     end
@@ -1074,7 +1142,7 @@ local function createWorkshopAuthority()
             skid_wrapper = {
                 canAcquire = function(player)
                     local allowed, code, message = World.validateNetworkWorkshopAccess(
-                        player, state, "skid_wrapper")
+                        player, state, state._activeWorkshopResourceId or "skid_wrapper")
                     if not allowed then return false, code, message end
                     if Wrapper.step == "wrapping" then
                         return false, "machine_busy", "The skid wrapper is already running a cycle."
@@ -1084,10 +1152,12 @@ local function createWorkshopAuthority()
                 onAcquire = function()
                     local session = WrapperMaintenanceAuthority.newSession()
                     activeWrapperRemote = session
+                    machineRemoteSessions[state._activeWorkshopResourceId or "skid_wrapper"] = session
                     return true, "acquired", "Skid-wrapper console connected.",
                         wrapperMaintenanceAuthority.view(session, true), session
                 end,
                 onRelease = function(lease)
+                    machineRemoteSessions[state._activeWorkshopResourceId or "skid_wrapper"] = nil
                     if activeWrapperRemote == (lease and lease.private) then
                         activeWrapperRemote = nil
                     end
@@ -1299,7 +1369,13 @@ local function createWorkshopAuthority()
         save = saveCurrent,
         controlOccupied = function(machineIndex)
             local resources = { "cutter", "skid_wrapper", "windmill" }
-            return authority:leaseForResource(resources[machineIndex]) ~= nil
+            local base = resources[machineIndex]
+            for _, unit in ipairs(MachineFleet.installedUnits(state, MachineResource.model(base))) do
+                if authority:leaseForResource(MachineResource.forUnit(base, unit.id)) then
+                    return true
+                end
+            end
+            return authority:leaseForResource(base) ~= nil
         end,
     })
     local warehouseCommand = WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
@@ -1317,6 +1393,7 @@ local function createWorkshopAuthority()
         end,
         view=function() return {} end,
     }
+    registerInstalledMachineResources(authority)
     return authority
 end
 
@@ -1388,6 +1465,7 @@ local function clearWorkshopAuthority(reason)
     activeWrapperRemote = nil
     wrapperMaintenanceAuthority = nil
     activeWindmillRemote = nil
+    machineRemoteSessions = {}
 end
 
 local function prepareHostSave(slot)
@@ -1412,6 +1490,7 @@ local function startLanHost(slot, playerName)
     activeCutterRemote = nil
     activeWrapperRemote = nil
     activeWindmillRemote = nil
+    machineRemoteSessions = {}
     local hostName = tostring(playerName or "LAN Worker"):gsub("Worker", "Host")
     local ok, errorMessage = multiplayer:startHost({
         port = 22122,
@@ -1980,16 +2059,19 @@ local inputContext = {
     saveCurrent = saveCurrent,
     isNetworkClient = function() return multiplayer:isClient() end,
     cutterControlOccupied = function()
-        return workshopAuthority
-            and workshopAuthority:leaseForResource("cutter") ~= nil
+        local target = World.selectedInteraction and World.selectedInteraction.target
+        local resourceId = World.workshopResourceId("cutter", target)
+        return workshopAuthority and workshopAuthority:leaseForResource(resourceId) ~= nil
     end,
     wrapperControlOccupied = function()
-        return workshopAuthority
-            and workshopAuthority:leaseForResource("skid_wrapper") ~= nil
+        local target = World.selectedInteraction and World.selectedInteraction.target
+        local resourceId = World.workshopResourceId("skidWrapper", target)
+        return workshopAuthority and workshopAuthority:leaseForResource(resourceId) ~= nil
     end,
     windmillControlOccupied = function()
-        return workshopAuthority
-            and workshopAuthority:leaseForResource("windmill") ~= nil
+        local target = World.selectedInteraction and World.selectedInteraction.target
+        local resourceId = World.workshopResourceId("windmill", target)
+        return workshopAuthority and workshopAuthority:leaseForResource(resourceId) ~= nil
     end,
     palletJackControl = handlePalletJackControl,
     networkInteraction = function(selected)
@@ -2005,7 +2087,7 @@ local inputContext = {
             end
             return false
         end
-        local resourceId = World.workshopResourceId(selected.kind)
+        local resourceId = World.workshopResourceId(selected.kind, selected.target)
         if multiplayer:isHost() and resourceId then
             state._localWorkshopMachineId = selected.target and selected.target.machineId
             local lease = workshopAuthority and workshopAuthority:leaseForResource(resourceId)
@@ -2753,9 +2835,12 @@ local function handleMultiplayerEvents()
             state.message = tostring(event.message or (event.granted
                 and "Workshop control granted." or "Workshop control was not granted."))
             if event.granted then
-                if event.resourceId == "skid_wrapper" and event.view then
+                local machineBase, machineId = MachineResource.parse(event.resourceId)
+                if machineBase == "skid_wrapper" and event.view then
+                    Wrapper.select(machineId, state)
                     Wrapper.applySnapshot(event.view, state)
-                elseif event.resourceId == "cutter" and event.view then
+                elseif machineBase == "cutter" and event.view then
+                    Machine.select(machineId, state)
                     Machine.applyNetworkView(event.view)
                 end
                 if event.resourceId == "warehouse" then
@@ -2792,9 +2877,12 @@ local function handleMultiplayerEvents()
                 end
                 warehousePendingIntent=nil
             end
-            if event.resourceId == "skid_wrapper" and event.view then
+            local machineBase, machineId = MachineResource.parse(event.resourceId)
+            if machineBase == "skid_wrapper" and event.view then
+                Wrapper.select(machineId, state)
                 Wrapper.applySnapshot(event.view, state)
-            elseif event.resourceId == "cutter" and event.view then
+            elseif machineBase == "cutter" and event.view then
+                Machine.select(machineId, state)
                 Machine.applyNetworkView(event.view)
             end
             if event.resourceId ~= "pallet_jack" and event.resourceId ~= "warehouse" then
@@ -2833,13 +2921,24 @@ local function handleMultiplayerEvents()
                 WorkshopRemoteScreen.applySnapshot(event)
             end
         elseif event.type == "cutter_state" then
-            Machine.applyNetworkView(event.view)
+            if WorkshopRemoteScreen.leaseResourceId == event.resourceId then
+                local _, machineId = MachineResource.parse(event.resourceId)
+                Machine.select(machineId, state)
+                Machine.applyNetworkView(event.view)
+            end
             if WorkshopRemoteScreen.applyCutterSnapshot then
                 WorkshopRemoteScreen.applyCutterSnapshot(event)
             end
         elseif event.type == "windmill_state" then
             if WorkshopRemoteScreen.applyWindmillSnapshot then
                 WorkshopRemoteScreen.applyWindmillSnapshot(event)
+            end
+        elseif event.type == "wrapper_state" then
+            if WorkshopRemoteScreen.leaseResourceId == event.resourceId then
+                local _, machineId = MachineResource.parse(event.resourceId)
+                Wrapper.select(machineId, state)
+                Wrapper.applySnapshot(event.view, state)
+                WorkshopRemoteScreen.applyWrapperSnapshot(event)
             end
         elseif event.type == "workshop_lost" then
             warehouseControls:resolve(warehousePendingIntent,false,event.message or "Warehouse control disconnected.")
@@ -3018,6 +3117,7 @@ end
 
 local function updateMultiplayer(dt, inputX, inputY)
     if not multiplayer:isActive() then return end
+    if multiplayer:isHost() then registerInstalledMachineResources(workshopAuthority) end
     if workshopAuthority and localWorkshopLease then
         workshopAuthority:touchPlayer(localAuthorityPlayer())
     end
@@ -3060,20 +3160,51 @@ local function updateMultiplayer(dt, inputX, inputY)
             }
         end,
         getCutterSnapshot = function()
-            return {
-                resourceRevision = workshopAuthority
-                    and workshopAuthority:resourceRevision("cutter") or 0,
-                view = cutterMaintenanceAuthority
-                    and cutterMaintenanceAuthority.view(activeCutterRemote, true)
-                    or cutterView(true),
-            }
+            local snapshots = {}
+            for _, unit in ipairs(MachineFleet.installedUnits(state, "polar_115")) do
+                local resourceId = MachineResource.forUnit("cutter", unit.id)
+                snapshots[#snapshots + 1] = {
+                    resourceId = resourceId,
+                    resourceRevision = workshopAuthority
+                        and workshopAuthority:resourceRevision(resourceId) or 0,
+                    view = withWorkshopUnit("cutter", unit.id, resourceId, function()
+                        return cutterMaintenanceAuthority.view(
+                            machineRemoteSessions[resourceId], true)
+                    end),
+                }
+            end
+            return snapshots
         end,
         getWindmillSnapshot = function()
-            return {
-                resourceRevision = workshopAuthority
-                    and workshopAuthority:resourceRevision("windmill") or 0,
-                view = windmillView(activeWindmillRemote),
-            }
+            local snapshots = {}
+            for _, unit in ipairs(MachineFleet.installedUnits(state, "heidelberg_10x15")) do
+                local resourceId = MachineResource.forUnit("windmill", unit.id)
+                snapshots[#snapshots + 1] = {
+                    resourceId = resourceId,
+                    resourceRevision = workshopAuthority
+                        and workshopAuthority:resourceRevision(resourceId) or 0,
+                    view = withWorkshopUnit("windmill", unit.id, resourceId, function()
+                        return windmillView(machineRemoteSessions[resourceId])
+                    end),
+                }
+            end
+            return snapshots
+        end,
+        getWrapperSnapshots = function()
+            local snapshots = {}
+            for _, unit in ipairs(MachineFleet.installedUnits(state, "skid_wrapper")) do
+                local resourceId = MachineResource.forUnit("skid_wrapper", unit.id)
+                snapshots[#snapshots + 1] = {
+                    resourceId = resourceId,
+                    resourceRevision = workshopAuthority
+                        and workshopAuthority:resourceRevision(resourceId) or 0,
+                    view = withWorkshopUnit("skid_wrapper", unit.id, resourceId, function()
+                        return wrapperMaintenanceAuthority.view(
+                            machineRemoteSessions[resourceId], false)
+                    end),
+                }
+            end
+            return snapshots
         end,
         performWorkshop = performWorkshopRequest,
         touchWorkshop = function(player)

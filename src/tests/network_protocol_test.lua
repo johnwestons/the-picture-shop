@@ -1904,7 +1904,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 19 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 20 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}
@@ -1920,7 +1920,7 @@ function Test.run(context, check)
     end
     for _, kind in ipairs({
         "input", "snapshot", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
-        "pallet_jack_snapshot", "cutter_snapshot", "windmill_snapshot", "ping", "pong",
+        "pallet_jack_snapshot", "cutter_snapshot", "wrapper_snapshot", "windmill_snapshot", "ping", "pong",
     }) do
         local channel, delivery = Protocol.route(kind)
         routeSummary[#routeSummary + 1] = kind .. "=" .. tostring(channel) .. "/" .. tostring(delivery)
@@ -1935,7 +1935,7 @@ function Test.run(context, check)
     for _, kind in ipairs({
         "workshop_acquire", "workshop_grant", "workshop_command", "workshop_result",
         "workshop_release", "workshop_snapshot", "pallet_jack_snapshot", "cutter_snapshot",
-        "windmill_snapshot",
+        "windmill_snapshot", "wrapper_snapshot",
     }) do
         routesCorrect = routesCorrect
             and Protocol.packetLimitFor(kind) == Protocol.MAX_PACKET_BYTES

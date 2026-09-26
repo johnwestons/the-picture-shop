@@ -3,9 +3,10 @@ local OfficeIntent = require("src.office_intent")
 local MachinePose = require("src.machine_pose")
 local WarehouseIntent = require("src.warehouse_intent")
 local Forklift = require("src.forklift")
+local MachineResource = require("src.machine_resource_id")
 
 local Protocol = {
-    VERSION = 19,
+    VERSION = 20,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -72,6 +73,7 @@ local ROUTES = {
     workshop_release = { channel = Protocol.CHANNEL_CONTROL, delivery = "reliable" },
     workshop_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     cutter_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
+    wrapper_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     windmill_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     pallet_jack_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
     forklift_snapshot = { channel = Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -88,7 +90,7 @@ local ROUTES = {
 Protocol.MESSAGE_TYPES = {
     "hello", "welcome", "shop_snapshot", "shop_state", "interaction_request",
     "interaction_result", "workshop_acquire", "workshop_grant", "workshop_command",
-    "workshop_result", "workshop_release", "workshop_snapshot", "cutter_snapshot",
+    "workshop_result", "workshop_release", "workshop_snapshot", "cutter_snapshot", "wrapper_snapshot",
     "windmill_snapshot", "pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
     "visitor_snapshot", "environment_snapshot", "ping", "pong", "leave", "error",
 }
@@ -660,14 +662,16 @@ local WORKSHOP_WINDMILL_SERVICE_STEPS = {
 }
 
 local function workshopResource(value, label)
-    if type(value) ~= "string" or not WORKSHOP_RESOURCES[value] then
+    local base = WORKSHOP_RESOURCES[value] and value or MachineResource.parse(value)
+    if not base then
         return nil, label .. " is not allowed"
     end
     return value
 end
 
 local function workshopAction(value, resourceId, label)
-    local actions = WORKSHOP_ACTION_ARGUMENTS[resourceId]
+    local actions = WORKSHOP_ACTION_ARGUMENTS[
+        WORKSHOP_RESOURCES[resourceId] and resourceId or MachineResource.parse(resourceId)]
     if type(value) ~= "string" or not actions or actions[value] == nil then
         return nil, label .. " is not allowed for " .. tostring(resourceId)
     end
@@ -1496,6 +1500,8 @@ local function normalizeWindmillWorkshopView(value, label)
 end
 
 local function normalizeWorkshopView(value, resourceId, label)
+    resourceId = WORKSHOP_RESOURCES[resourceId] and resourceId
+        or MachineResource.parse(resourceId)
     if resourceId == "reception_customer" then
         return normalizeReceptionWorkshopView(value, label)
     elseif resourceId == "vendor" then
@@ -1918,7 +1924,9 @@ end
 
 local function normalizeWorkshopResources(value, label)
     if not Codec.isArray(value) then return nil, label .. " must be an array" end
-    if #value ~= 10 then return nil, label .. " must contain all 10 workshop resources" end
+    if #value < 10 or #value > 24 then
+        return nil, label .. " must contain 10 to 24 workshop resources"
+    end
     local resources, seen = {}, {}
     for index = 1, #value do
         local resourceLabel = label .. "[" .. index .. "]"
@@ -1953,6 +1961,9 @@ local function normalizeWorkshopResources(value, label)
             occupied = value[index].occupied,
             ownerPlayerId = ownerPlayerId,
         }
+    end
+    for resourceId in pairs(WORKSHOP_RESOURCES) do
+        if not seen[resourceId] then return nil, label .. " is missing " .. resourceId end
     end
     table.sort(resources, function(a, b) return a.resourceId < b.resourceId end)
     return Codec.array(resources)
@@ -2079,8 +2090,12 @@ end
 
 local function normalizeCutterSnapshot(payload)
     local valid, shapeError = shape(payload, "cutter_snapshot payload",
-        { "sessionId", "serverTick", "resourceRevision", "view" })
+        { "sessionId", "serverTick", "resourceRevision", "view" }, { "resourceId" })
     if not valid then return nil, shapeError end
+    local resourceId = payload.resourceId or "cutter"
+    if MachineResource.parse(resourceId) ~= "cutter" then
+        return nil, "cutter_snapshot.resourceId is invalid"
+    end
     local sessionId, fieldError = token(
         payload.sessionId, MAX_TOKEN_BYTES, "cutter_snapshot.sessionId")
     if not sessionId then return nil, fieldError end
@@ -2100,14 +2115,48 @@ local function normalizeCutterSnapshot(payload)
         sessionId = sessionId,
         serverTick = serverTick,
         resourceRevision = resourceRevision,
+        resourceId = resourceId,
+        view = view,
+    }
+end
+
+local function normalizeWrapperSnapshot(payload)
+    local valid, shapeError = shape(payload, "wrapper_snapshot payload",
+        { "sessionId", "serverTick", "resourceId", "resourceRevision", "view" })
+    if not valid then return nil, shapeError end
+    if MachineResource.parse(payload.resourceId) ~= "skid_wrapper" then
+        return nil, "wrapper_snapshot.resourceId is invalid"
+    end
+    local sessionId, fieldError = token(
+        payload.sessionId, MAX_TOKEN_BYTES, "wrapper_snapshot.sessionId")
+    if not sessionId then return nil, fieldError end
+    local serverTick
+    serverTick, fieldError = integerInRange(
+        payload.serverTick, 0, UINT32_MAX, "wrapper_snapshot.serverTick")
+    if serverTick == nil then return nil, fieldError end
+    local resourceRevision
+    resourceRevision, fieldError = integerInRange(
+        payload.resourceRevision, 0, UINT32_MAX, "wrapper_snapshot.resourceRevision")
+    if resourceRevision == nil then return nil, fieldError end
+    local view
+    view, fieldError = normalizeWorkshopWrapperRuntime(
+        payload.view, "wrapper_snapshot.view")
+    if not view then return nil, fieldError end
+    return {
+        sessionId = sessionId, serverTick = serverTick,
+        resourceId = payload.resourceId, resourceRevision = resourceRevision,
         view = view,
     }
 end
 
 local function normalizeWindmillSnapshot(payload)
     local valid, shapeError = shape(payload, "windmill_snapshot payload",
-        { "sessionId", "serverTick", "resourceRevision", "view" })
+        { "sessionId", "serverTick", "resourceRevision", "view" }, { "resourceId" })
     if not valid then return nil, shapeError end
+    local resourceId = payload.resourceId or "windmill"
+    if MachineResource.parse(resourceId) ~= "windmill" then
+        return nil, "windmill_snapshot.resourceId is invalid"
+    end
     local sessionId, fieldError = token(
         payload.sessionId, MAX_TOKEN_BYTES, "windmill_snapshot.sessionId")
     if not sessionId then return nil, fieldError end
@@ -2127,6 +2176,7 @@ local function normalizeWindmillSnapshot(payload)
         sessionId = sessionId,
         serverTick = serverTick,
         resourceRevision = resourceRevision,
+        resourceId = resourceId,
         view = view,
     }
 end
@@ -2449,6 +2499,7 @@ local PAYLOAD_NORMALIZERS = {
     workshop_release = normalizeWorkshopRelease,
     workshop_snapshot = normalizeWorkshopSnapshot,
     cutter_snapshot = normalizeCutterSnapshot,
+    wrapper_snapshot = normalizeWrapperSnapshot,
     windmill_snapshot = normalizeWindmillSnapshot,
     pallet_jack_snapshot = normalizePalletJackSnapshot,
     forklift_snapshot = normalizeForkliftSnapshot,

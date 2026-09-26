@@ -4,6 +4,9 @@ local Fleet = require("src.machine_fleet")
 local PalletState = require("src.pallet_state")
 local CutterZones = require("src.cutter_zones")
 local SaveSchema = require("src.save_schema")
+local MachineResource = require("src.machine_resource_id")
+local Protocol = require("src.net.protocol")
+local Codec = require("src.net.codec")
 
 local function job(id, press)
     local offer = Jobs.createOffer({
@@ -281,6 +284,144 @@ function Test.run(context, check)
     check("machine_catalog_can_reach_fifth_unit",
         sold and sold.action == "machine_sold"
         and sold.sale.machine.id == owned[5].id)
+
+    -- Exercise the real app authority: two guests must hold different physical
+    -- cutters and their commands must reach only their own runtime.
+    local liveState = context.state
+    liveState.money = math.max(100000, tonumber(liveState.money) or 0)
+    local liveCutters = Fleet.installedUnits(liveState, "polar_115")
+    if #liveCutters < 2 then
+        Fleet.buy(liveState, "dealer", 1)
+        liveCutters = Fleet.installedUnits(liveState, "polar_115")
+    end
+    local first, second = liveCutters[1], liveCutters[2]
+    local authority = context.createWorkshopAuthority()
+    local wrapperWireView = context.wrapperNetworkView()
+    wrapperWireView.pallets = Codec.array(wrapperWireView.pallets or {})
+    local workshopWire, workshopWireError = Protocol.encode("workshop_snapshot", {
+        sessionId = "machine-test", revision = 1,
+        resources = Codec.array(authority:snapshot()),
+        wrapper = wrapperWireView,
+    })
+    check("two_machine_workshop_snapshot_fits_network_packet",
+        workshopWire ~= nil, tostring(workshopWireError))
+    local firstId = MachineResource.forUnit("cutter", first.id)
+    local secondId = MachineResource.forUnit("cutter", second.id)
+    local acquireWire, acquireError = Protocol.encode("workshop_acquire", {
+        sessionId = "machine-test", requestId = 1,
+        resourceId = secondId, expectedRevision = 0,
+    })
+    check("physical_machine_id_survives_workshop_request_protocol",
+        acquireWire ~= nil, tostring(acquireError))
+    local firstPoint, secondPoint = first.world or liveState.cutter,
+        second.world or liveState.cutter
+    local workerA = { id = 2, x = firstPoint.x, y = firstPoint.y }
+    local workerB = { id = 3, x = secondPoint.x, y = secondPoint.y }
+    local leaseA = authority:acquire(workerA,
+        { requestId = 1, resourceId = firstId }, { state = liveState })
+    local leaseB = authority:acquire(workerB,
+        { requestId = 1, resourceId = secondId }, { state = liveState })
+    check("two_guests_can_lease_separate_cutters_at_once",
+        leaseA.accepted and leaseB.accepted
+        and leaseA.leaseId ~= leaseB.leaseId
+        and authority:leaseForResource(firstId).ownerPlayerId == 2
+        and authority:leaseForResource(secondId).ownerPlayerId == 3,
+        tostring(firstId) .. ":" .. tostring(leaseA.code) .. "/" .. tostring(leaseA.message)
+            .. " " .. tostring(secondId) .. ":" .. tostring(leaseB.code)
+            .. "/" .. tostring(leaseB.message))
+    local blocked = authority:acquire({ id = 4, x = firstPoint.x, y = firstPoint.y },
+        { requestId = 1, resourceId = firstId }, { state = liveState })
+    check("same_physical_cutter_still_has_exclusive_controls",
+        not blocked.accepted and blocked.code == "resource_busy")
+    context.machine.forId(first.id).barrierClear = true
+    context.machine.forId(second.id).barrierClear = true
+    local stopA = authority:command(workerA, {
+        requestId = 2, resourceId = firstId, leaseId = leaseA.leaseId,
+        action = "set_barrier", args = { barrierClear = false },
+        expectedRevision = leaseA.revision,
+    }, { state = liveState })
+    check("guest_cutter_command_changes_only_selected_unit",
+        stopA.accepted and not context.machine.forId(first.id).barrierClear
+        and context.machine.forId(second.id).barrierClear)
+    local stopB = authority:command(workerB, {
+        requestId = 2, resourceId = secondId, leaseId = leaseB.leaseId,
+        action = "set_barrier", args = { barrierClear = false },
+        expectedRevision = leaseB.revision,
+    }, { state = liveState })
+    check("second_guest_cutter_command_runs_while_first_lease_is_active",
+        stopB.accepted and not context.machine.forId(second.id).barrierClear)
+    local commandWire, commandError = Protocol.encode("workshop_command", {
+        sessionId = "machine-test", commandId = 2,
+        leaseId = leaseB.leaseId, resourceId = secondId,
+        action = "set_barrier", expectedRevision = leaseB.revision,
+        barrierClear = false,
+    })
+    check("physical_machine_id_survives_workshop_command_protocol",
+        commandWire ~= nil, tostring(commandError))
+    authority:release(workerA, { requestId = 3, resourceId = firstId,
+        leaseId = leaseA.leaseId, reason = "closed" }, { state = liveState })
+    authority:release(workerB, { requestId = 3, resourceId = secondId,
+        leaseId = leaseB.leaseId, reason = "closed" }, { state = liveState })
+
+    for _, model in ipairs({ "skid_wrapper", "heidelberg_10x15" }) do
+        local units = Fleet.installedUnits(liveState, model)
+        while #units < 2 do
+            local purchased = Fleet.buy(liveState, "dealer",
+                model == "skid_wrapper" and 2 or 3)
+            if not purchased then break end
+            units = Fleet.installedUnits(liveState, model)
+        end
+        check("second_" .. model .. "_is_installed_for_multiplayer", #units >= 2)
+    end
+    authority = context.createWorkshopAuthority()
+    local fullWorkshopWire, fullWorkshopError = Protocol.encode("workshop_snapshot", {
+        sessionId = "machine-test", revision = 2,
+        resources = Codec.array(authority:snapshot()), wrapper = wrapperWireView,
+    })
+    check("six_physical_machines_fit_workshop_network_snapshot",
+        fullWorkshopWire ~= nil, tostring(fullWorkshopError))
+    local wrapperUnit = Fleet.installedUnits(liveState, "skid_wrapper")[2]
+    local wrapperPacket, wrapperPacketError = Protocol.encode("wrapper_snapshot", {
+        sessionId = "machine-test", serverTick = 3,
+        resourceId = MachineResource.forUnit("skid_wrapper", wrapperUnit.id),
+        resourceRevision = 0, view = wrapperWireView,
+    })
+    check("second_wrapper_has_independent_live_update_packet",
+        wrapperPacket ~= nil, tostring(wrapperPacketError))
+    for _, model in ipairs({ "skid_wrapper", "heidelberg_10x15" }) do
+        local base = model == "skid_wrapper" and "skid_wrapper" or "windmill"
+        local units = Fleet.installedUnits(liveState, model)
+        local firstMachine, secondMachine = units[1], units[2]
+        local firstResource = MachineResource.forUnit(base, firstMachine.id)
+        local secondResource = MachineResource.forUnit(base, secondMachine.id)
+        local placement = liveState[base == "skid_wrapper" and "wrapper" or "windmill"]
+        local firstLocation = firstMachine.world or placement
+        local secondLocation = secondMachine.world or placement
+        local firstWorker = { id = 2, x = firstLocation.x, y = firstLocation.y }
+        local secondWorker = { id = 3, x = secondLocation.x, y = secondLocation.y }
+        local requestId = base == "skid_wrapper" and 10 or 20
+        if base == "skid_wrapper" then
+            context.wrapper.forId(firstMachine.id).step = "idle"
+            context.wrapper.forId(secondMachine.id).step = "idle"
+        end
+        local firstLease = authority:acquire(firstWorker,
+            { requestId = requestId, resourceId = firstResource }, { state = liveState })
+        local secondLease = authority:acquire(secondWorker,
+            { requestId = requestId, resourceId = secondResource }, { state = liveState })
+        check("two_guests_can_lease_separate_" .. base .. "_units",
+            firstLease.accepted and secondLease.accepted,
+            tostring(firstLease.code) .. "/" .. tostring(secondLease.code))
+        local occupiedWire, occupiedError = Protocol.encode("workshop_snapshot", {
+            sessionId = "machine-test", revision = 4,
+            resources = Codec.array(authority:snapshot()), wrapper = wrapperWireView,
+        })
+        check("occupied_" .. base .. "_units_fit_network_snapshot",
+            occupiedWire ~= nil, tostring(occupiedError))
+        authority:release(firstWorker, { requestId = requestId + 1, resourceId = firstResource,
+            leaseId = firstLease.leaseId, reason = "closed" }, { state = liveState })
+        authority:release(secondWorker, { requestId = requestId + 1, resourceId = secondResource,
+            leaseId = secondLease.leaseId, reason = "closed" }, { state = liveState })
+    end
 end
 
 return Test
