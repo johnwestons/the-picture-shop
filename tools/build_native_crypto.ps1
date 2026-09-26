@@ -6,6 +6,7 @@ Set-StrictMode -Version Latest
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $outputRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'output/native-crypto'))
+$toolingRoot = Join-Path $outputRoot 'tooling'
 $downloadsRoot = Join-Path $outputRoot 'downloads'
 $vendorRoot = Join-Path $outputRoot 'vendor'
 $workRoot = Join-Path $outputRoot 'work'
@@ -264,7 +265,8 @@ function Expand-PinnedZig(
     }
 }
 
-New-Item -ItemType Directory -Force -Path $downloadsRoot, $vendorRoot, $workRoot, $buildRoot | Out-Null
+$buildDirectories = @($toolingRoot, $downloadsRoot, $vendorRoot, $workRoot, $buildRoot)
+New-Item -ItemType Directory -Force -Path $buildDirectories | Out-Null
 
 $zigArchive = Join-Path $outputRoot 'tooling/zig-x86_64-windows-0.16.0.zip'
 $noiseSpecArchive = Join-Path $downloadsRoot 'noise_spec-ecdf084ece2bf92b16b1201b6ae5c99d23fb4151.tar.gz'

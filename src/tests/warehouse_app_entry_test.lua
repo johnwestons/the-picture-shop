@@ -18,8 +18,10 @@ function Test.run(context,check)
     computer.mousepressed(state,x,y,1)
     x,y=computer.warehouseButtonCenter("front_right","storage")
     result=computer.mousepressed(state,x,y,1)
-    check("warehouse_app_normal_catalog_blocks_unready_bay",result and result.action=="blocked"
-        and result.reason=="warehouse_not_ready" and computer.warehouseConfirmation==nil)
+    check("warehouse_app_normal_catalog_reaches_right_bay_confirmation",result
+        and result.action=="warehouse_confirmation" and computer.warehouseConfirmation
+        and computer.warehouseConfirmation.bayId=="front_right"
+        and computer.warehouseConfirmation.optionId=="storage" and state.money==30000)
     computer.enter(context.state)
 
     local observedPlayer,observedState
