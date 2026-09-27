@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import shutil
@@ -211,11 +212,80 @@ def write_reproducible_archive(stage: Path, destination: Path) -> None:
             archive.writestr(entry, source.read_bytes())
 
 
-def build() -> Path:
+def copy_windows_route_provider(stage: Path, provider: Path) -> dict[str, str | int]:
+    """Embed one already-conformance-tested Windows route provider."""
+    provider = provider.resolve()
+    if provider.suffix.lower() != ".dll" or not provider.is_file():
+        raise RuntimeError("Windows route provider must be an existing DLL")
+    provider_bytes = provider.read_bytes()
+    if not provider_bytes:
+        raise RuntimeError("Windows route provider is empty")
+
+    loader = stage / "src" / "net" / "gateway_native.lua"
+    loader_text = loader.read_text(encoding="utf-8")
+    marker = "local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH"
+    if loader_text.count(marker) != 1:
+        raise RuntimeError("Windows route release hash marker is missing or duplicated")
+
+    digest = hashlib.sha256(provider_bytes).hexdigest()
+    loader.write_text(
+        loader_text.replace(
+            marker,
+            f'local PACKAGED_ROUTE_SHA256 = "{digest}" -- WINDOWS_RELEASE_HASH',
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    packaged_provider = stage / "native" / "route" / "tps_route.dll"
+    packaged_provider.parent.mkdir(parents=True, exist_ok=True)
+    packaged_provider.write_bytes(provider_bytes)
+    return {
+        "path": packaged_provider.relative_to(stage).as_posix(),
+        "bytes": len(provider_bytes),
+        "sha256": digest,
+    }
+
+
+def verify_windows_route_package(package: Path, provider: Path) -> dict[str, str | int]:
+    """Fail unless a supplied .love contains the exact expected route bytes."""
+    provider = provider.resolve()
+    if provider.suffix.lower() != ".dll" or not provider.is_file():
+        raise RuntimeError("Windows route provider must be an existing DLL")
+    expected_bytes = provider.read_bytes()
+    expected_hash = hashlib.sha256(expected_bytes).hexdigest()
+    package = package.resolve()
+    if not package.is_file():
+        raise RuntimeError("Windows game package does not exist")
+
+    with zipfile.ZipFile(package) as archive:
+        names = archive.namelist()
+        provider_name = "native/route/tps_route.dll"
+        loader_name = "src/net/gateway_native.lua"
+        if names.count(provider_name) != 1 or names.count(loader_name) != 1:
+            raise RuntimeError("Windows game package has missing or duplicate route files")
+        packaged_bytes = archive.read(provider_name)
+        loader_text = archive.read(loader_name).decode("utf-8")
+
+    marker = f'local PACKAGED_ROUTE_SHA256 = "{expected_hash}" -- WINDOWS_RELEASE_HASH'
+    if hashlib.sha256(packaged_bytes).hexdigest() != expected_hash:
+        raise RuntimeError("Packaged Windows route provider hash does not match the build")
+    if loader_text.count(marker) != 1:
+        raise RuntimeError("Packaged loader is not pinned to the Windows route provider")
+    return {
+        "path": provider_name,
+        "bytes": len(packaged_bytes),
+        "sha256": expected_hash,
+    }
+
+
+def build(windows_route_provider: Path | None = None) -> Path:
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
     OUTPUT.mkdir(parents=True, exist_ok=True)
     safe_clean(STAGE)
     copy_runtime()
+    route_manifest = None
+    if windows_route_provider is not None:
+        route_manifest = copy_windows_route_provider(STAGE, windows_route_provider)
     runtime_files = sorted(path for path in STAGE.rglob("*") if path.is_file())
     manifest = {
         "applicationId": config["applicationId"],
@@ -229,6 +299,8 @@ def build() -> Path:
         "runtimeBytes": sum(path.stat().st_size for path in runtime_files),
         "runtimeSourceAssets": runtime_source_manifest(STAGE),
     }
+    if route_manifest is not None:
+        manifest["windowsRouteProvider"] = route_manifest
     (STAGE / "mobile-build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     package = OUTPUT / f"the-picture-shop-{config['versionName']}.love"
     temporary = package.with_suffix(".tmp.love")
@@ -246,4 +318,24 @@ def build() -> Path:
 
 
 if __name__ == "__main__":
-    build()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--windows-route-provider",
+        type=Path,
+        help="embed and hash-pin a conformance-tested Windows route provider",
+    )
+    parser.add_argument(
+        "--verify-windows-route-package",
+        type=Path,
+        help="verify that a .love archive embeds the supplied route provider",
+    )
+    arguments = parser.parse_args()
+    if arguments.verify_windows_route_package is not None:
+        if arguments.windows_route_provider is None:
+            parser.error("--verify-windows-route-package requires --windows-route-provider")
+        print(json.dumps(verify_windows_route_package(
+            arguments.verify_windows_route_package,
+            arguments.windows_route_provider,
+        ), indent=2))
+    else:
+        build(arguments.windows_route_provider)

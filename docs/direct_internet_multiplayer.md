@@ -534,7 +534,8 @@ different host/network, not to promise a connection that cannot exist.
   Android; Windows and Android ARM32 are physically verified, with all three Android ABIs statically audited.
 - [x] Add a reviewed exact-IPv4 encrypted listener and ordered listener-map-publish-delete host lifecycle;
   keep IPv6 on its separate authenticated bridge rather than a wildcard dual-mode socket.
-- [ ] Restrict release loading to the packaged, integrity-verified native route provider.
+- [ ] Verify release loading is restricted to the packaged, integrity-verified native route provider
+  (hash-pinned packaging/loading is implemented; end-to-end Windows package smoke remains).
 - [x] Add a unique private per-mapping ownership token and reuse PCP's exact wire nonce.
 - [x] Add an OS-notification-backed Windows network generation and require it for create, renew, and delete;
   Android already exposes its exact network handle and route revision, but its mapping socket is not implemented.
@@ -561,6 +562,13 @@ different host/network, not to promise a connection that cannot exist.
 - [ ] Repeat packet-capture validation across the remaining network/runtime matrix and obtain an
   independent review of the redacted evidence.
 - [ ] Obtain an external security review before opening Direct Play to the public.
+
+The Windows package builder now embeds the native route provider inside the `.love` archive and pins its
+SHA-256 in the packaged loader. At runtime, the loader checks both the archived bytes and its extracted
+copy, then loads only that verified copy; release mode ignores environment overrides and development
+search paths. This verifies consistency with the package's embedded expected hash, not authenticity of a
+maliciously rebuilt whole package. The end-to-end Windows package smoke and trusted package-signing /
+provenance review remain open.
 
 The Lua wrapper's `productionReady` provider flag only prevents accidental test-provider use. Direct
 Play remains disabled even though the deterministic provider, replay, direction-separation, session-key,

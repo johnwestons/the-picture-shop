@@ -93,11 +93,27 @@ $displayVersion = '{0}.{1}.{2}-test.{3}' -f $versionMatch.Groups[1].Value,
 $outputName = "ThePictureShop-Windows-Setup-$displayVersion"
 
 $python = Find-Python
+$routeBuilder = Join-Path $projectRoot 'tools\build_native_route.ps1'
+& $routeBuilder
+$routeProvider = Join-Path $projectRoot `
+    'output\native-route\build\windows-x64\tps_route.dll'
+if (-not (Test-Path -LiteralPath $routeProvider -PathType Leaf)) {
+    throw 'The conformance-tested Windows route provider was not produced.'
+}
 if (-not $PackagePath) {
-    & $python (Join-Path $projectRoot 'tools\build_mobile_package.py')
+    & $python (Join-Path $projectRoot 'tools\build_mobile_package.py') `
+        --windows-route-provider $routeProvider
     if ($LASTEXITCODE -ne 0) { throw 'Shared game package build failed.' }
     $PackagePath = (Get-Content -Raw -LiteralPath (
         Join-Path $projectRoot 'output\mobile\build-report.json') | ConvertFrom-Json).package
+} else {
+    $PackagePath = (Resolve-Path -LiteralPath $PackagePath -ErrorAction Stop).Path
+    & $python (Join-Path $projectRoot 'tools\build_mobile_package.py') `
+        --verify-windows-route-package $PackagePath `
+        --windows-route-provider $routeProvider
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Supplied Windows game package does not contain the verified route provider.'
+    }
 }
 $package = (Resolve-Path -LiteralPath $PackagePath -ErrorAction Stop).Path
 if ([IO.Path]::GetExtension($package) -ne '.love') {

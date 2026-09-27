@@ -7,12 +7,19 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
 
-from build_mobile_package import ZIP_TIMESTAMP, write_reproducible_archive
+from build_mobile_package import (
+    ZIP_TIMESTAMP,
+    copy_windows_route_provider,
+    verify_windows_route_package,
+    write_reproducible_archive,
+)
+import build_mobile_package as package_builder
 
 
 class MobilePackageReproducibilityTests(unittest.TestCase):
@@ -42,6 +49,76 @@ class MobilePackageReproducibilityTests(unittest.TestCase):
                     [entry.date_time for entry in archive.infolist()],
                     [ZIP_TIMESTAMP, ZIP_TIMESTAMP],
                 )
+
+    def test_windows_route_provider_is_embedded_and_hash_pinned(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage = root / "stage"
+            loader = stage / "src" / "net" / "gateway_native.lua"
+            loader.parent.mkdir(parents=True)
+            loader.write_text(
+                'local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH\n',
+                encoding="utf-8",
+            )
+            provider = root / "tps_route.dll"
+            provider.write_bytes(b"conformance-tested route provider bytes")
+
+            manifest = copy_windows_route_provider(stage, provider)
+            package = root / "windows.love"
+            write_reproducible_archive(stage, package)
+            verified = verify_windows_route_package(package, provider)
+
+            self.assertEqual(verified, manifest)
+            with zipfile.ZipFile(package) as archive:
+                self.assertEqual(
+                    archive.read("native/route/tps_route.dll"),
+                    provider.read_bytes(),
+                )
+                packaged_loader = archive.read(
+                    "src/net/gateway_native.lua"
+                ).decode("utf-8")
+                self.assertIn(manifest["sha256"], packaged_loader)
+
+    def test_windows_route_package_rejects_provider_tampering(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage = root / "stage"
+            loader = stage / "src" / "net" / "gateway_native.lua"
+            loader.parent.mkdir(parents=True)
+            loader.write_text(
+                'local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH\n',
+                encoding="utf-8",
+            )
+            provider = root / "tps_route.dll"
+            provider.write_bytes(b"expected provider")
+            copy_windows_route_provider(stage, provider)
+            packaged_provider = stage / "native" / "route" / "tps_route.dll"
+            packaged_provider.write_bytes(b"tampered provider")
+            package = root / "tampered.love"
+            write_reproducible_archive(stage, package)
+
+            with self.assertRaisesRegex(RuntimeError, "hash does not match"):
+                verify_windows_route_package(package, provider)
+
+    def test_full_windows_package_build_pins_the_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            provider = root / "tps_route.dll"
+            provider.write_bytes(b"conformance-tested route provider bytes")
+            output = root / "mobile-output"
+            stage = output / "stage"
+            with patch.object(package_builder, "OUTPUT", output), patch.object(
+                package_builder, "STAGE", stage
+            ):
+                built = package_builder.build(provider)
+                verification = verify_windows_route_package(built, provider)
+
+            self.assertEqual(built.parent, output)
+            self.assertEqual(verification["path"], "native/route/tps_route.dll")
+            with zipfile.ZipFile(built) as archive:
+                names = archive.namelist()
+                self.assertIn("src/net/gateway_native.lua", names)
+                self.assertIn("native/route/tps_route.dll", names)
 
 
 if __name__ == "__main__":

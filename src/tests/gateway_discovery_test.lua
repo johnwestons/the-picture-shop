@@ -56,6 +56,22 @@ function Test.run(_, check)
         and GatewayNative.readOnly == true
         and GatewayNative.networkTrafficSent == false)
 
+    local expectedProviderHash = string.rep("a", 64)
+    local fakeProviderHash = function(bytes)
+        if bytes == "verified-provider" then return expectedProviderHash end
+        return string.rep("b", 64)
+    end
+    check("gateway_release_provider_hash_check_fails_closed",
+        GatewayNative.validatePackagedProvider(
+            expectedProviderHash, "verified-provider", fakeProviderHash)
+        and not GatewayNative.validatePackagedProvider(
+            expectedProviderHash, "tampered-provider", fakeProviderHash)
+        and not GatewayNative.validatePackagedProvider(
+            string.rep("A", 64), "verified-provider", fakeProviderHash)
+        and not GatewayNative.validatePackagedProvider(
+            expectedProviderHash, "verified-provider",
+            function() error("digest failure") end))
+
     local thrown, thrownError = GatewayNative.discover({
         invoke = function() error("invitation-secret-must-not-escape") end,
     })

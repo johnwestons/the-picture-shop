@@ -10,6 +10,12 @@ local GatewayNative = {
     networkTrafficSent = false,
 }
 
+-- The Windows release packager replaces this marker with the SHA-256 of the
+-- native provider and embeds that exact provider in the .love archive. A
+-- missing marker means this is a source/development tree, never a release
+-- fallback.
+local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH
+
 local ADDRESS_BYTES = 16
 local MAX_INTERFACE_INDEX = 4294967295
 local MAX_UINT32 = 4294967295
@@ -36,6 +42,84 @@ local function joinPath(root, relative)
         return root .. relative
     end
     return root .. separator .. relative
+end
+
+local function validSha256(value)
+    return type(value) == "string" and #value == 64
+        and value:match("^[0-9a-f]+$") ~= nil
+end
+
+local function matchesSha256(expected, bytes, hashFunction)
+    if not validSha256(expected) or type(bytes) ~= "string"
+        or type(hashFunction) ~= "function"
+    then
+        return false
+    end
+    local ok, actual = pcall(hashFunction, bytes)
+    return ok and type(actual) == "string" and actual == expected
+end
+
+GatewayNative.validatePackagedProvider = matchesSha256
+
+local function loveSha256(bytes)
+    if not love or not love.data
+        or type(love.data.hash) ~= "function"
+        or type(love.data.encode) ~= "function"
+    then
+        return nil
+    end
+    local hashOk, digest = pcall(love.data.hash, "sha256", bytes)
+    if not hashOk or type(digest) ~= "string" then return nil end
+    local encodeOk, encoded = pcall(love.data.encode, "string", "hex", digest)
+    if not encodeOk or type(encoded) ~= "string" then return nil end
+    return encoded:lower()
+end
+
+local function packagedLibraryPath()
+    if not validSha256(PACKAGED_ROUTE_SHA256)
+        or not love or not love.filesystem
+        or type(love.filesystem.read) ~= "function"
+        or type(love.filesystem.write) ~= "function"
+        or type(love.filesystem.createDirectory) ~= "function"
+        or type(love.filesystem.getSaveDirectory) ~= "function"
+    then
+        return nil
+    end
+
+    local readOk, bytes = pcall(love.filesystem.read,
+        "native/route/tps_route.dll")
+    if not readOk or not matchesSha256(
+            PACKAGED_ROUTE_SHA256, bytes, loveSha256) then
+        return nil
+    end
+
+    local cacheDirectory = "native-cache"
+    local directoryOk, created = pcall(
+        love.filesystem.createDirectory, cacheDirectory)
+    if not directoryOk or created ~= true then return nil end
+
+    -- Include a per-load suffix so simultaneous game instances never race to
+    -- rewrite the same DLL while Windows may have it mapped already.
+    local suffix = tostring({}):gsub("[^%w]", "")
+    local cacheRelative = cacheDirectory .. "/tps_route_"
+        .. PACKAGED_ROUTE_SHA256 .. "_" .. suffix .. ".dll"
+    local writeOk, written = pcall(
+        love.filesystem.write, cacheRelative, bytes)
+    if not writeOk or written ~= true then return nil end
+
+    local verifyOk, cachedBytes = pcall(love.filesystem.read, cacheRelative)
+    if not verifyOk or not matchesSha256(
+            PACKAGED_ROUTE_SHA256, cachedBytes, loveSha256) then
+        return nil
+    end
+
+    local saveOk, saveDirectory = pcall(love.filesystem.getSaveDirectory)
+    if not saveOk or type(saveDirectory) ~= "string"
+        or saveDirectory == ""
+    then
+        return nil
+    end
+    return joinPath(saveDirectory, cacheRelative)
 end
 
 local function sourceRoots()
@@ -78,6 +162,14 @@ end
 
 local function libraryCandidates()
     local candidates, seen = {}, {}
+    if PACKAGED_ROUTE_SHA256 ~= nil then
+        -- Release mode is deliberately closed: no environment override, repo
+        -- search path, or adjacent loose DLL can substitute for the packaged
+        -- bytes.
+        addUnique(candidates, seen, packagedLibraryPath())
+        return candidates
+    end
+
     local override
     if os and type(os.getenv) == "function" then
         local ok, configured = pcall(os.getenv, "TPS_ROUTE_LIBRARY")
