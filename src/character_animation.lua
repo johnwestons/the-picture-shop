@@ -1,7 +1,8 @@
 local Animation = {}
 
 function Animation.isWalkAction(action)
-    return type(action) == "string" and (action == "walk" or action:match("^walk_") ~= nil)
+    return type(action) == "string" and (action == "walk" or action:match("^walk_") ~= nil
+        or action == "push" or action:match("^push_") ~= nil)
 end
 
 function Animation.frameForClock(frameCount, clock, rate)
@@ -35,6 +36,10 @@ end
 
 function Animation.directionalWalkAction(x, y)
     return directionalAction("walk", x, y)
+end
+
+function Animation.directionalPalletJackPushAction(x, y)
+    return directionalAction("push", x, y)
 end
 
 function Animation.directionalIdleAction(x, y)

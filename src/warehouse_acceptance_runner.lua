@@ -16,7 +16,7 @@ function Runner.install()
             local characters=require("src.character_assets")
             assets.load();characters.load()
             local count=0
-            local context={assets=assets,captureWarehouse=function(name,state,world,rack,view)
+            local context={assets=assets,characters=characters,captureWarehouse=function(name,state,world,rack,view)
                 local canvas=love.graphics.newCanvas(960,678)
                 love.graphics.push("all")
                 love.graphics.setCanvas({canvas,stencil=true})

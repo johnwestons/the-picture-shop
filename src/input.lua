@@ -313,6 +313,8 @@ function Input.keypressed(key, context)
                 state.screen = "vendor"
                 state.message = "Review the salesperson's pallet-delivery catalog."
             end
+        elseif selected and selected.kind == "breakroom" then
+            context.world.beginBreakroomRest(state)
         elseif selected and selected.kind == "loadingBayDoor" then
             context.world.toggleBayDoor(state)
         elseif selected and selected.kind == "truckCargoDoor" then

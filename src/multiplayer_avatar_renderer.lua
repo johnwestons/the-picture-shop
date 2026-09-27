@@ -15,13 +15,22 @@ local function drawLabel(player)
     love.graphics.printf(label, x, y + 2, width, "center")
 end
 
-local function drawPlayer(characterAssets, player)
+local function drawPlayer(characterAssets,player,state)
     local character = Config.characters[player.character] and player.character or Config.player.character
+    local jack=state and state.palletJack
+    local pushingJack=jack and jack.operating and jack.moving
+        and jack.operatorPlayerId==tonumber(player.id)
     local action = player.moving and "walk" or "idle"
     local directionScale = player.facing or 1
     if player.moving then
-        local directionalAction, mirror = CharacterAnimation.directionalWalkAction(
-            player.velocityX or player.intentX, player.velocityY or player.intentY)
+        local directionalAction,mirror
+        if pushingJack then
+            directionalAction,mirror=CharacterAnimation.directionalPalletJackPushAction(
+                player.velocityX or player.intentX,player.velocityY or player.intentY)
+        else
+            directionalAction,mirror=CharacterAnimation.directionalWalkAction(
+                player.velocityX or player.intentX,player.velocityY or player.intentY)
+        end
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     else
@@ -51,7 +60,7 @@ local function drawPlayer(characterAssets, player)
     drawLabel(player)
 end
 
-function Renderer.draw(characterAssets, players)
+function Renderer.draw(characterAssets,players,state)
     if type(players) ~= "table" then return end
     local ordered = {}
     for _, player in pairs(players) do
@@ -63,7 +72,7 @@ function Renderer.draw(characterAssets, players)
         if a.y == b.y then return tostring(a.id) < tostring(b.id) end
         return a.y < b.y
     end)
-    for _, player in ipairs(ordered) do drawPlayer(characterAssets, player) end
+    for _, player in ipairs(ordered) do drawPlayer(characterAssets,player,state) end
 end
 
 return Renderer

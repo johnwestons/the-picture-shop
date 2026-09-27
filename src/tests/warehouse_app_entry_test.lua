@@ -18,8 +18,28 @@ function Test.run(context,check)
     computer.mousepressed(state,x,y,1)
     x,y=computer.warehouseButtonCenter("front_right","storage")
     result=computer.mousepressed(state,x,y,1)
-    check("warehouse_app_normal_catalog_blocks_unready_bay",result and result.action=="blocked"
-        and result.reason=="warehouse_not_ready" and computer.warehouseConfirmation==nil)
+    check("warehouse_app_normal_catalog_allows_second_bay",result and result.action=="warehouse_confirmation"
+        and computer.warehouseConfirmation and computer.warehouseConfirmation.bayId=="front_right"
+        and computer.warehouseConfirmation.optionId=="storage")
+    x,y=computer.warehouseButtonCenter("cancel")
+    computer.mousepressed(state,x,y,1)
+    local Config=require("src.config")
+    local view=computer.warehouseView(state)
+    local allSixOffered=Config.warehouse.enabled and Config.warehouse.firstStorageOnly==false
+    for _,bayId in ipairs({"front_left","front_right"}) do
+        for _,optionId in ipairs({"floor","storage","breakroom"}) do
+            local offered=false
+            for _,bay in ipairs(view.bays or {}) do
+                if bay.id==bayId then
+                    for _,option in ipairs(bay.options or {}) do
+                        if option.id==optionId then offered=option.available==true end
+                    end
+                end
+            end
+            allSixOffered=allSixOffered and offered
+        end
+    end
+    check("warehouse_app_normal_catalog_offers_all_six_room_choices",allSixOffered)
     computer.enter(context.state)
 
     local observedPlayer,observedState

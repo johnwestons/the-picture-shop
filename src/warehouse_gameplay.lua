@@ -3,6 +3,7 @@
 local Config=require("src.config")
 local Layout=require("src.warehouse_layout")
 local Forklift=require("src.forklift")
+local ForkliftPresentation=require("src.forklift_layered_presentation")
 local Cargo=require("src.forklift_cargo")
 local Storage=require("src.pallet_storage")
 local Pallets=require("src.pallet_state")
@@ -61,6 +62,16 @@ local function footprint(loaded)
         loaded and config("loadedCollisionHalfHeight",24) or config("collisionHalfHeight",18)
 end
 
+-- Rack transfers use the same carried-pallet anchor as the world renderer.
+-- Requiring the load itself to reach the slot prevents a nearby, correctly
+-- facing forklift from moving inventory through the rack menu.
+local function forkliftLoadAnchor(vehicle)
+    local options=Config.forklift or {}
+    local scale=(options.drawScale or 0.22)*(options.visualScaleMultiplier or 1)
+    local plan=ForkliftPresentation.plan(vehicle,{review=true,scale=scale})
+    return plan and plan.loadX,plan and plan.loadY
+end
+
 -- Keep original core pixels and registration. Only completed extension polygons
 -- are added; locked black upgrade spaces stay non-walkable even in maskless tests.
 function Gameplay.assets(assets,state)
@@ -114,16 +125,30 @@ end
 function Gameplay.nearRack(player,state)
     if not id(player) then return nil end
     local nearest,best
+    local lift=state.forklift
+    local actor=lift and lift.operating and lift.operatorPlayerId==id(player) and lift or player
     for _,bayId in ipairs(Layout.BAY_IDS) do
         local rackId=bayId.."-rack"
-        local point=Layout.rackApproach(rackId)
-        local distance=(player.x-point.x)^2+(player.y-point.y)^2
-        if completeRack(state,rackId) and distance<=130*130 and (not best or distance<best) then nearest,best=rackId,distance end
+        if completeRack(state,rackId) then
+            if actor==lift then
+                for row=1,2 do for column=1,5 do
+                    local point=Layout.rackPoint(rackId,row,column)
+                    local distance=(actor.x-point.x)^2+(actor.y-point.groundY)^2
+                    if distance<=130*130 and (not best or distance<best) then
+                        nearest,best=rackId,distance
+                    end
+                end end
+            else
+                local point=Layout.rackApproach(rackId)
+                local distance=(actor.x-point.x)^2+(actor.y-point.y)^2
+                if distance<=130*130 and (not best or distance<best) then nearest,best=rackId,distance end
+            end
+        end
     end
     return nearest
 end
 
-function Gameplay.rackContext(player,state,rackId,context)
+function Gameplay.rackContext(player,state,rackId,context,row,column)
     local playerId=id(player)
     local result={playerId=playerId,near=false,aligned=false,clear=false}
     if not playerId or not completeRack(state,rackId) then return result end
@@ -131,12 +156,18 @@ function Gameplay.rackContext(player,state,rackId,context)
     local vehicle
     if lift and lift.operating and lift.operatorPlayerId==playerId then result.vehicle,vehicle="forklift",lift
     elseif jack and jack.operating and jack.operatorPlayerId==playerId then result.vehicle,vehicle="pallet_jack",jack end
-    local approach=Layout.rackApproach(rackId)
     local actor=vehicle or player
-    result.near=near(actor.x,actor.y,approach.x,approach.y,130)
+    local target=Layout.rackPoint(rackId,row or 1,column or 3)
+    result.targetPoint=target
+    if vehicle then
+        result.near=target~=nil and near(actor.x,actor.y,target.x,target.groundY,130)
+    else
+        local approach=Layout.rackApproach(rackId)
+        result.near=near(actor.x,actor.y,approach.x,approach.y,130)
+    end
     if not vehicle then return result end
-    local center=Layout.rackPoint(rackId,1,3)
-    result.aligned=facing(vehicle,center.x,center.groundY)
+    local facesTarget=target~=nil and facing(vehicle,target.x,target.groundY)
+    result.aligned=facesTarget
     local w,h
     if result.vehicle=="forklift" then w,h=footprint(vehicle.carriedPalletId~=nil)
     else
@@ -144,8 +175,20 @@ function Gameplay.rackContext(player,state,rackId,context)
         w=vehicle.carriedPalletId and jc.loadedCollisionHalfWidth or jc.collisionHalfWidth
         h=vehicle.carriedPalletId and jc.loadedCollisionHalfHeight or jc.collisionHalfHeight
     end
-    result.clear=clear(context,state,vehicle.x,vehicle.y,w,h,vehicle.carriedPalletId,
-        result.vehicle=="forklift",result.vehicle=="pallet_jack")==true
+    local navigationAssets=Gameplay.assets(context.assets,state)
+    result.footprintClear=navigationAssets
+        and Navigation.isAreaWalkable(navigationAssets,vehicle.x,vehicle.y,w,h)==true or false
+    result.obstaclesClear=navigationAssets and Navigation.isWalkable(navigationAssets,
+        vehicle.x,vehicle.y,obstacles(context,state,w,h,vehicle.carriedPalletId,
+            result.vehicle=="forklift",result.vehicle=="pallet_jack"))==true or false
+    result.clear=result.footprintClear and result.obstaclesClear
+    if result.vehicle=="forklift" and vehicle.carriedPalletId then
+        local x,y=forkliftLoadAnchor(vehicle)
+        result.loadAnchor=x and {x=x,y=y} or nil
+        result.loadAligned=target~=nil and x~=nil
+            and math.abs(x-target.x)<=20 and math.abs(y-target.y)<=20
+        result.aligned=facesTarget and result.loadAligned
+    end
     return result
 end
 
@@ -155,7 +198,7 @@ function Gameplay.access(player,state,intent,context)
     if not playerId or type(state)~="table" then return false,"invalid_player","An authenticated worker is required." end
     local lift=state.forklift
     if intent and (intent.kind=="store" or intent.kind=="retrieve") then
-        local access=Gameplay.rackContext(player,state,intent.rackId,context)
+        local access=Gameplay.rackContext(player,state,intent.rackId,context,intent.row,intent.column)
         if not access.near then return false,"out_of_range",message("out_of_range") end
         return true,"allowed"
     end
@@ -349,7 +392,7 @@ function Gameplay.command(player,state,rawIntent,context)
         okay,code=Storage.apply(state,request,access)
         if okay and code~="replayed" then Cargo.sync(state,Config.forklift) end
     else
-        local access=Gameplay.rackContext(player,state,intent.rackId,context)
+        local access=Gameplay.rackContext(player,state,intent.rackId,context,intent.row,intent.column)
         if access.vehicle~=intent.vehicle then return false,"wrong_vehicle",message("wrong_vehicle") end
         local request={action=intent.kind}
         for key,value in pairs(intent) do if key~="kind" then request[key]=value end end

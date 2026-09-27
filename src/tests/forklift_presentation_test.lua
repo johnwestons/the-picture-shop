@@ -53,8 +53,10 @@ function Test.run(_, check)
     Config.forklift.visualScaleMultiplier=originalMultiplier;Config.warehouse=originalWarehouse
     test("forklift_only_scale_does_not_resize_pallet_or_worker",Config.palletLogistics.drawScale==palletScale and Config.player.drawScale==workerScale)
     test("larger_forklift_updates_physical_footprint_and_ground_reach",originalMultiplier==1.4
-        and close(Config.forklift.collisionHalfWidth,34*1.4) and close(Config.forklift.collisionHalfHeight,14*1.4)
-        and close(Config.forklift.loadedCollisionHalfWidth,42*1.4) and close(Config.forklift.loadedCollisionHalfHeight,18*1.4)
+        and close(Config.forklift.collisionHalfWidth,24*1.4) and close(Config.forklift.collisionHalfHeight,7*1.4)
+        and close(Config.forklift.loadedCollisionHalfWidth,27*1.4) and close(Config.forklift.loadedCollisionHalfHeight,9*1.4)
+        and Config.forklift.loadedCollisionHalfWidth>Config.forklift.collisionHalfWidth
+        and Config.forklift.loadedCollisionHalfHeight>Config.forklift.collisionHalfHeight
         and close(Config.forklift.forkOffsetX,46*1.4) and close(Config.forklift.forkOffsetY,27*1.4))
     test("forklift_resize_preserves_speed_and_lift_timing",Config.forklift.speed==100 and Config.forklift.loadedSpeed==72
         and Config.forklift.liftDuration==3 and Config.forklift.lowerDuration==2.5 and Config.forklift.travelHeight==0.08)
@@ -192,7 +194,7 @@ function Test.run(_, check)
             side.forkHeight=step/100
             local pose=Layered.plan(side,{review=true,scale=0.308})
             smooth=smooth and pose and pose.loadY<previousY
-                and close(pose.carriageShift,150-560*side.forkHeight)
+                and close(pose.carriageShift,150-310.3448275862069*side.forkHeight)
             stationary=stationary and pose.bodyPath:match("east%-fixed%-manned%-v1%.png$")
                 and pose.carriagePath:match("east%-carriage%-v2%.png$")
                 and pose.x==side.x and pose.y==side.y
@@ -204,6 +206,12 @@ function Test.run(_, check)
     test("layered_forks_move_continuously_at_every_height",smooth)
     test("layered_body_never_changes_during_lift",stationary)
     test("layered_side_views_keep_cargo_on_correct_side",mirrored)
+    side.direction,side.forkHeight="west",0
+    local lowerShelfPose=Layered.plan(side,{review=true,scale=0.308})
+    side.forkHeight=1
+    local upperShelfPose=Layered.plan(side,{review=true,scale=0.308})
+    test("side_forklift_lift_matches_registered_upper_rack_deck",
+        lowerShelfPose and upperShelfPose and close(lowerShelfPose.loadY-upperShelfPose.loadY,45))
     local diagonalSmooth,diagonalStationary,diagonalMirrored=true,true,true
     for _,heading in ipairs({"southeast","southwest"}) do
         side.direction=heading

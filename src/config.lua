@@ -273,14 +273,17 @@ local Config = {
             { x = 442, y = 480 },
         },
     },
-    warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = true },
+    warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = false },
     forklift = {
         spawnX = 460, spawnY = 515, speed = 100, loadedSpeed = 72,
         liftDuration = 3, lowerDuration = 2.5, travelHeight = 0.08,
-        maxStepDistance = 4, collisionHalfWidth = 34 * forkliftSizeMultiplier,
-        collisionHalfHeight = 14 * forkliftSizeMultiplier,
-        loadedCollisionHalfWidth = 42 * forkliftSizeMultiplier,
-        loadedCollisionHalfHeight = 18 * forkliftSizeMultiplier,
+        -- Collision follows the wheelbase, not the full transparent sprite
+        -- canvas. A carried skid extends this footprint while leaving the
+        -- narrow warehouse rack service aisle usable.
+        maxStepDistance = 4, collisionHalfWidth = 24 * forkliftSizeMultiplier,
+        collisionHalfHeight = 7 * forkliftSizeMultiplier,
+        loadedCollisionHalfWidth = 27 * forkliftSizeMultiplier,
+        loadedCollisionHalfHeight = 9 * forkliftSizeMultiplier,
         forkOffsetX = 46 * forkliftSizeMultiplier, forkOffsetY = 27 * forkliftSizeMultiplier,
         floorPickupRadius = 40, floorDropRadius = 24,
         drawScale = 0.22, parkedDrawScale = 0.25, visualScaleMultiplier = forkliftSizeMultiplier,
@@ -455,5 +458,17 @@ local Config = {
         },
     },
 }
+
+-- Pallet-jack push cycles are generated review art, so expose them only while
+-- the warehouse is explicitly running with provisional artwork enabled.
+if Config.warehouse and Config.warehouse.provisionalArt then
+    local rabbit = Config.characters["rabbit-worker"]
+    local pushRoot = "assets/source/warehouse-expansion-v1/pallet-jack-push/"
+    rabbit.push = pushRoot .. "push-east-v1-candidate.png"
+    rabbit.push_north = pushRoot .. "push-north-v1-candidate.png"
+    rabbit.push_northeast = pushRoot .. "push-northeast-v1-candidate.png"
+    rabbit.push_southeast = pushRoot .. "push-southeast-v1-candidate.png"
+    rabbit.push_south = pushRoot .. "push-south-v1-candidate.png"
+end
 
 return Config

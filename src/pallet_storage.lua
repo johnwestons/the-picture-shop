@@ -278,10 +278,10 @@ function Storage.apply(state, request, context)
     local valid = Storage.validate(state)
     if not valid then return false, "invalid_state" end
     if context.near ~= true then return false, "out_of_range" end
-    if context.aligned ~= true then return false, "not_aligned" end
-    if context.clear ~= true then return false, "blocked" end
     local vehicle, vehicleError = vehicleFor(state, request, context)
     if not vehicle then return false, vehicleError end
+    if context.aligned ~= true then return false, "not_aligned" end
+    if context.clear ~= true then return false, "blocked" end
     local item = Storage.find(state, request.palletId)
     if not item then return false, "missing_pallet" end
     local pallet, rack, support = item.pallet

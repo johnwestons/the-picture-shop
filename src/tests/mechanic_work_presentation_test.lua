@@ -22,13 +22,14 @@ function Test.run(context,check)
         local toolWorker,toolState=actor(stage)
         local seen={}
         local complete=Presentation.validateSheet(catalog[tool]) and catalog[tool].usable~=false
-        for pose=1,4 do
+        for pose=1,8 do
             toolWorker.workTime=(pose-1)/4
             local current=Presentation.plan(toolWorker,toolState,{review=true})
             complete=complete and current and current.tool==tool and not seen[current.frameIndex]
             if current then seen[current.frameIndex]=true end
         end
-        check("mechanic_work_"..tool.."_has_four_distinct_registered_phases",complete)
+        check("mechanic_work_"..tool.."_has_eight_distinct_registered_phases",complete
+            and #catalog[tool].frames==8 and catalog[tool].fps==4)
     end
     check("mechanic_work_source_registration_is_review_only",catalog.concrete.approved==false
         and catalog.hammer.approved==false and catalog.drill.approved==false and catalog.paint.approved==false)
@@ -128,25 +129,33 @@ function Test.run(context,check)
     snapshot.constructionWorker.workStage=1;snapshot.constructionWorker.workTime=math.huge
     check("mechanic_work_infinite_saved_clock_is_rejected",not Schema.validState(snapshot))
     local getImage=context and context.workImage
-    local ownedImage
-    if not getImage and love and love.graphics and love.filesystem.getInfo(catalog.concrete.path) then
-        ownedImage=love.graphics.newImage(catalog.concrete.path)
-        getImage=function() return ownedImage end
+    local ownedImages={}
+    if not getImage and love and love.graphics then
+        getImage=function(path)
+            if not ownedImages[path] and love.filesystem.getInfo(path) then
+                ownedImages[path]=love.graphics.newImage(path)
+            end
+            return ownedImages[path]
+        end
     end
     if getImage then
         local image=getImage(catalog.concrete.path)
         local width,height=image:getDimensions()
-        check("mechanic_work_atlas_metadata_matches_registration",width==1254 and height==1254
+        check("mechanic_work_atlas_metadata_matches_registration",width==1536 and height==1024
             and width==catalog.concrete.width and height==catalog.concrete.height)
         local canvas=love.graphics.newCanvas(128,160)
         love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(0,0,0,0)
         for stage,tool in ipairs({"concrete","hammer","drill","paint"}) do
             local actualWorker,actualState=actor(stage);actualWorker.x=64;actualWorker.y=140
-            local okay=Presentation.draw(actualWorker,actualState,getImage,{review=true})
+            local sheet=catalog[tool]
+            local actualImage=getImage(sheet.path)
+            local actualWidth,actualHeight=actualImage:getDimensions()
+            local okay=actualWidth==sheet.width and actualHeight==sheet.height
+                and Presentation.draw(actualWorker,actualState,getImage,{review=true,edgeCleanup=true})
             check("mechanic_work_"..tool.."_renders_real_source_in_engine",okay)
         end
         love.graphics.pop();canvas:release()
-        if ownedImage then ownedImage:release() end
+        for _,ownedImage in pairs(ownedImages) do ownedImage:release() end
     end
 end
 return Test

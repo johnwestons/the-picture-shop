@@ -2079,6 +2079,8 @@ local inputContext = {
         if selected and selected.kind=="palletRack" then
             return warehouseControls:openRack(selected.target and selected.target.rackId)
         end
+        -- Sitting is local presentation only and carries no shared state.
+        if selected and selected.kind=="breakroom" then return false end
         if not multiplayer:isActive() then return false end
         if not selected then
             if multiplayer:isClient() then
@@ -2365,6 +2367,7 @@ local function primaryMobileAction()
         and selected.kind ~= "truckCargoDoor"
         and selected.kind ~= "palletWorkOrder"
         and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
+        and selected.kind ~= "breakroom"
         and not World.workshopResourceId(selected.kind)
     then
         return "e", "HOST"
@@ -2386,6 +2389,7 @@ local function primaryMobileAction()
         truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
         windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
         forklift = "DRIVE", palletRack = "SHELVES",
+        breakroom = World.player.resting and "STAND" or "REST",
     }
     return "e", labels[selected.kind] or "USE"
 end

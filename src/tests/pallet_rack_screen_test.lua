@@ -160,6 +160,9 @@ function Test.run(testContext,check)
     check("rack_screen_rejects_invalid_selection",not screen:select(0,1) and not screen:select(1,6) and not screen:select(1,1.5))
     check("rack_screen_source_variants_preserve_wrapping_precedence",Screen.appearance({wrapped=true,finishedSheets=500})==3
         and Screen.appearance({paper={status="complete"}})==2 and Screen.appearance({paper={status="raw"}})==1)
+    check("rack_screen_new_stock_variants_are_distinct",Screen.appearance({press={completedColors=1}})==4
+        and Screen.appearance({wrapProgress=0.5})==5 and Screen.appearance({packaging="boxed"})==6
+        and Screen.appearance({kind="vendor_product"})==7)
 
     for _,dimensions in ipairs({{480,320},{640,400},{960,678},{1920,1080}}) do
         assert(screen:resize(dimensions[1],dimensions[2]))
@@ -189,6 +192,7 @@ function Test.run(testContext,check)
             imagePaths[#imagePaths+1]=path
             return {path=path,setFilter=function() end,getDimensions=function()
                 if path==Screen.RACK_IMAGE then return 1536,1024 end
+                if path==Screen.PALLET_EXTENDED_IMAGE then return 1536,1024 end
                 return 2172,724
             end}
         end,
@@ -197,14 +201,32 @@ function Test.run(testContext,check)
     Screen.clearImageCache()
     local drawBefore=copy(state)
     local drawOkay,drawError=pcall(function() screen:draw(state);screen:draw(state) end)
+    local oldPackaging=pallets[2].packaging
+    pallets[2].packaging="boxed"
+    screen:select(1,3)
+    local boxedView=screen:view(state)
+    local beforeExtendedDraw=#drawn
+    local extendedDrawOkay=pcall(function() screen:draw(state) end)
+    local boxedVariantDrawn=false
+    for index=beforeExtendedDraw+1,#drawn do
+        if drawn[index].path==Screen.PALLET_EXTENDED_IMAGE and drawn[index].quad.y==512 then
+            boxedVariantDrawn=true
+        end
+    end
+    pallets[2].packaging=oldPackaging
     Screen.clearImageCache()
     love=previousLove
     check("rack_screen_draw_is_read_only_and_restores_graphics",drawOkay and depth==0 and same(state,drawBefore))
-    check("rack_screen_lazy_loads_approved_art_once",drawOkay and #imagePaths==2
-        and imagePaths[1]==Screen.RACK_IMAGE and imagePaths[2]==Screen.PALLET_IMAGE)
-    check("rack_screen_uses_front_art_source_quads_without_raster_edits",drawOkay and #quads==4
+    check("rack_screen_lazy_loads_all_stock_art_once",drawOkay and #imagePaths==3
+        and imagePaths[1]==Screen.RACK_IMAGE and imagePaths[2]==Screen.PALLET_IMAGE
+        and imagePaths[3]==Screen.PALLET_EXTENDED_IMAGE)
+    check("rack_screen_registers_all_front_art_source_quads",drawOkay and #quads==8
         and quads[1].h==740 and quads[2].x==0 and quads[3].x==724 and quads[4].x==1448
-        and quads[4].w==724 and #drawn==6)
+        and quads[4].w==724 and quads[5].x==0 and quads[5].y==0
+        and quads[8].x==768 and quads[8].y==512 and quads[8].w==768 and quads[8].h==512
+        and #drawn==9)
+    check("rack_screen_boxed_stock_uses_registered_view_variant",boxedView.slots[1][3].variant==6)
+    check("rack_screen_draws_boxed_stock_from_registered_candidate",extendedDrawOkay and boxedVariantDrawn)
     local closeBefore=copy(state)
     local closed=screen:keypressed(state,"escape")
     check("rack_screen_close_never_moves_or_deletes_stock",closed.action=="close" and screen.closed

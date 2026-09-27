@@ -375,14 +375,26 @@ local function drawInteractionFocus()
     love.graphics.setLineWidth(1)
 end
 
-local function drawPlayer(characterAssets)
+local function drawPlayer(characterAssets,state)
     local player = World.player
-    local action = player.moving and "walk" or "idle"
     local character = player.character or Config.player.character
+    local resting=player.resting and characterAssets.hasAction(character,"sit")
+    local jack=state and state.palletJack
+    local pushingJack=jack and jack.operating and jack.moving
+        and jack.operatorPlayerId==(tonumber(player.id) or 1)
+    local action = resting and "sit" or (player.moving and "walk" or "idle")
     local directionScale = player.facing
-    if player.moving then
-        local directionalAction, mirror = CharacterAnimation.directionalWalkAction(
-            player.velocityX or player.intentX, player.velocityY or player.intentY)
+    if resting then
+        directionScale=player.facing or -1
+    elseif player.moving then
+        local directionalAction,mirror
+        if pushingJack then
+            directionalAction,mirror=CharacterAnimation.directionalPalletJackPushAction(
+                player.velocityX or player.intentX,player.velocityY or player.intentY)
+        else
+            directionalAction,mirror=CharacterAnimation.directionalWalkAction(
+                player.velocityX or player.intentX,player.velocityY or player.intentY)
+        end
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     else
@@ -485,7 +497,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local forklift = state and state.forklift
     local forkliftDriver = forklift and forklift.owned and forklift.operating and forklift.operatorPlayerId
     if forkliftDriver ~= (tonumber(World.player.id) or 1) then
-        actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets) end }
+    actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets,state) end }
     end
     if forklift and forklift.owned then
         actors[#actors + 1] = { y=forklift.y, layer=1,
@@ -508,7 +520,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             and forkliftDriver ~= tonumber(player.id) then
             actors[#actors + 1] = {
                 y = player.y,
-                draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player }) end,
+                draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player },state) end,
             }
         end
     end

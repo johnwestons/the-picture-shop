@@ -11,10 +11,13 @@ local EXPECTED_INTERACTIONS = {
     loadingBayDoor = true,
     truckCargoDoor = true,
     palletWorkOrder = true,
+    breakroom = true,
+    palletRack = true,
     cutter = true,
     skidWrapper = true,
     windmill = true,
     palletJack = true,
+    forklift = true,
 }
 
 function Test.run(context, check)

@@ -24,14 +24,17 @@ function Test.run(_,check)
         local lower=Layout.rackPoint("front_left-rack",1,column)
         local upper=Layout.rackPoint("front_left-rack",2,column)
         test("shelf_anchor_"..column,lower.x==upper.x and lower.groundY==upper.groundY
-            and lower.y-upper.y==58 and Layout.containsUnlocked(state,lower.x,lower.groundY))
+            and lower.y-upper.y==45 and Layout.containsUnlocked(state,lower.x,lower.groundY))
     end
     test("ten_slots_only",not Layout.rackPoint("front_left-rack",3,1)
         and not Layout.rackPoint("front_left-rack",1,6)
         and not Layout.rackPoint("bogus",1,1))
     local obstacles=Layout.obstacles(state)
-    test("rack_blocks_footprint_only",#obstacles==5 and obstacles[1].halfWidth==26
-        and obstacles[1].halfHeight==18)
+    test("rack_registers_six_structural_posts",#obstacles==6 and obstacles[1].kind=="pallet_rack_post"
+        and obstacles[1].halfWidth==2 and obstacles[1].halfHeight==3)
+    test("terminal_rack_post_leaves_service_aisle_open",#obstacles==6
+        and obstacles[6].kind=="pallet_rack_post" and obstacles[6].x==Layout.bay("front_left").rackEnd.x
+        and obstacles[6].y==Layout.bay("front_left").rackEnd.y-38)
     local approach=Layout.rackApproach("front_left-rack")
     local clear=true
     for _,obstacle in ipairs(obstacles) do

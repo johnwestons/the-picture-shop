@@ -18,18 +18,41 @@ import build_mobile_package as package
 class RuntimeSourcePackageTests(unittest.TestCase):
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
-        self.assertEqual(len(paths), 52)
+        self.assertEqual(len(paths), 69)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.suffix == ".png" for path in paths))
 
     def test_all_live_literal_source_paths_are_included(self) -> None:
         for relative in ("src/config.lua", "src/screens/pallet_rack_screen.lua",
-                         "src/warehouse_renderer.lua"):
+                         "src/warehouse_renderer.lua", "src/warehouse_rack_presentation.lua"):
             text = (package.ROOT / relative).read_text(encoding="utf-8")
             for asset in re.findall(r'"(assets/source/[^"\n]+\.png)"', text):
                 self.assertIn(asset, package.RUNTIME_SOURCE_ASSETS, relative)
+        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "pallet-front-variants-v2-candidate.png",
+                      package.RUNTIME_SOURCE_ASSETS)
+        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v4-five-bay-service-aisle-candidate.png",
+                      package.RUNTIME_SOURCE_ASSETS)
+        self.assertNotIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v2.png",
+                         package.RUNTIME_SOURCE_ASSETS)
+        for direction in ("east", "north", "northeast", "southeast", "south"):
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT +
+                          f"pallet-jack-push/push-{direction}-v1-candidate.png",
+                          package.RUNTIME_SOURCE_ASSETS)
 
-    def test_directional_catalog_versions_and_work_atlas_match(self) -> None:
+    def test_authored_construction_stages_are_packaged(self) -> None:
+        source = (package.ROOT / "src/warehouse_construction_presentation.lua").read_text(encoding="utf-8")
+        self.assertIn('local STORAGE_ROOT=ROOT.."construction/"', source)
+        self.assertIn('local ROOM_ROOT=ROOT.."rooms/"', source)
+        self.assertIn('"left-storage-stage-"..stage..".png"', source)
+        for stage in range(1, 5):
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"construction/left-storage-stage-{stage}.png",
+                          package.RUNTIME_SOURCE_ASSETS)
+        for asset in ("rooms/breakroom-furnishings-v1.png",
+                      "rooms/breakroom-construction-atlas-v1.png",
+                      "rooms/floor-construction-atlas-v2-clean.png"):
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT + asset, package.RUNTIME_SOURCE_ASSETS)
+
+    def test_directional_catalog_versions_and_work_sheets_match(self) -> None:
         presentation = (package.ROOT / "src/forklift_presentation.lua").read_text(encoding="utf-8")
         self.assertIn('direction == "north" and "2" or direction == "south" and "3" or "1"', presentation)
         for direction in ("northwest", "north", "northeast", "east", "southeast", "south", "southwest", "west"):
@@ -44,9 +67,14 @@ class RuntimeSourcePackageTests(unittest.TestCase):
                 self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"mechanic-raccoon/{action}{suffix}.png",
                               package.RUNTIME_SOURCE_ASSETS)
         work = (package.ROOT / "src/mechanic_work_presentation.lua").read_text(encoding="utf-8")
-        atlas = re.search(r'local ATLAS=ROOT\.\."([^"]+)"', work)
-        self.assertIsNotNone(atlas)
-        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + atlas.group(1), package.RUNTIME_SOURCE_ASSETS)
+        self.assertIn('width=1536,height=1024', work)
+        for tool, version in (("concrete", "v3c"), ("hammer", "v3"),
+                              ("drill", "v3c"), ("paint", "v3")):
+            filename = f"mechanic-work-{tool}-{version}-candidate.png"
+            self.assertIn(f'{tool}=sheet("{tool}","{version}"', work)
+            self.assertIn(package.WAREHOUSE_SOURCE_ROOT + filename, package.RUNTIME_SOURCE_ASSETS)
+        self.assertNotIn(package.WAREHOUSE_SOURCE_ROOT + "mechanic-work-atlas-v2.png",
+                         package.RUNTIME_SOURCE_ASSETS)
 
     def test_continuous_side_view_layers_are_packaged(self) -> None:
         for name in ("east-fixed-manned-v1.png", "east-fixed-empty-v1.png", "east-carriage-v2.png",

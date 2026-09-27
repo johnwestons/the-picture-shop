@@ -1,5 +1,7 @@
 local PlayerController = require("src.player_controller")
 local CharacterAnimation = require("src.character_animation")
+local CharacterAssets = require("src.character_assets")
+local Config = require("src.config")
 
 local Test = {}
 
@@ -29,6 +31,19 @@ function Test.run(_, check)
     end
     check("player_walk_animation_covers_eight_direction_sectors", directionsCorrect)
 
+    local expectedPushDirections = {
+        { 0, -1, "push_north", 1 }, { 1, -1, "push_northeast", 1 },
+        { 1, 0, "push", 1 }, { 1, 1, "push_southeast", 1 },
+        { 0, 1, "push_south", 1 }, { -1, 1, "push_southeast", -1 },
+        { -1, 0, "push", -1 }, { -1, -1, "push_northeast", -1 },
+    }
+    local pushDirectionsCorrect = true
+    for _, expected in ipairs(expectedPushDirections) do
+        local action, mirror = CharacterAnimation.directionalPalletJackPushAction(expected[1],expected[2])
+        pushDirectionsCorrect = pushDirectionsCorrect and action==expected[3] and mirror==expected[4]
+    end
+    check("pallet_jack_push_animation_covers_eight_direction_sectors",pushDirectionsCorrect)
+
     local expectedIdles = {
         { 0, -1, "idle_north", 1 }, { 1, -1, "idle_northeast", 1 },
         { 1, 0, "idle", 1 }, { 1, 1, "idle_southeast", 1 },
@@ -55,6 +70,22 @@ function Test.run(_, check)
         end
     end
     check("all_directional_walk_cycles_advance_eight_frames_by_distance", walkFramesAdvance)
+
+    local pushFramesAdvance=true
+    for _,action in ipairs({"push","push_north","push_northeast","push_southeast","push_south"}) do
+        for index,distance in ipairs({0,20,40,60,80,100,120,140,160}) do
+            local expectedFrame=index<=8 and index or 1
+            pushFramesAdvance=pushFramesAdvance and CharacterAnimation.frameForPlayerAction(
+                action,8,distance,999,20,0.65)==expectedFrame
+        end
+    end
+    check("pallet_jack_push_cycles_advance_by_actual_player_distance",pushFramesAdvance)
+    check("provisional_pallet_jack_push_atlases_are_registered",Config.warehouse.provisionalArt
+        and CharacterAssets.hasAction("rabbit-worker","push")
+        and CharacterAssets.hasAction("rabbit-worker","push_north")
+        and CharacterAssets.hasAction("rabbit-worker","push_northeast")
+        and CharacterAssets.hasAction("rabbit-worker","push_southeast")
+        and CharacterAssets.hasAction("rabbit-worker","push_south"))
 
     local cycleSeconds = 8 * 20 / 155
     check("player_walk_cycle_timing_is_audited",

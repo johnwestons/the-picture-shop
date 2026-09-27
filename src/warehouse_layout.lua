@@ -15,15 +15,19 @@ local left = {
     walkPolygon = { {x=8,y=376}, {x=389,y=647}, {x=8,y=647} },
     seam = { {x=8,y=386}, {x=379,y=647} },
     workPoint = {x=260,y=505}, approach = {x=315,y=515},
-    rackStart = {x=30,y=447}, rackEnd = {x=308,y=626},
-    rackHeight = 120, upperDeckOffset = 58,
+    -- Registered against the authored world-space 5×2 rack sprite. The
+    -- lower deck contact line follows the actual front beam, and the upper
+    -- shelf's displayed deck height matches the source art.
+    rackStart = {x=30,y=511}, rackEnd = {x=308,y=626},
+    rackHeight = 120, upperDeckOffset = 45,
+    restPoint = {x=235,y=600},
 }
 local right = copy(left)
 right.id, right.rackId = "front_right", "front_right-rack"
 for _, key in ipairs({"polygon", "walkPolygon", "seam"}) do
     for _, point in ipairs(right[key]) do point.x = 960 - point.x end
 end
-for _, key in ipairs({"workPoint", "approach", "rackStart", "rackEnd"}) do
+for _, key in ipairs({"workPoint", "approach", "rackStart", "rackEnd", "restPoint"}) do
     right[key].x = 960 - right[key].x
 end
 local bays = { front_left=left, front_right=right }
@@ -83,11 +87,25 @@ function Layout.obstacles(state)
     for _, id in ipairs(Layout.BAY_IDS) do
         local status = Layout.bayState(state,id)
         if status and status.status == "complete" and status.optionId == "storage" then
-            for column=1,5 do
-                local point=Layout.rackPoint(id,1,column)
-                result[#result+1]={x=point.x,y=point.groundY-5,halfWidth=26,halfHeight=18,
-                    kind="pallet_rack",rackId=bays[id].rackId}
+            local bay=bays[id]
+            -- Leave the five load openings traversable to fork tips. Only the
+            -- six structural uprights are solid; the old full-cell boxes
+            -- blocked forklifts from physically aligning with nearly every
+            -- shelf position.
+            local postFractions={0,0.2,0.4,0.6,0.86,1}
+            for post,t in ipairs(postFractions) do
+                local x=bay.rackStart.x+(bay.rackEnd.x-bay.rackStart.x)*t
+                local groundY=bay.rackStart.y+(bay.rackEnd.y-bay.rackStart.y)*t
+                local recessedTerminal=post==#postFractions
+                result[#result+1]={x=x,y=groundY-(recessedTerminal and 38 or 5),halfWidth=2,halfHeight=3,
+                    kind="pallet_rack_post",rackId=bay.rackId}
             end
+        elseif status and status.status=="complete" and status.optionId=="breakroom" then
+            local mirror=id=="front_right"
+            local function x(value) return mirror and 960-value or value end
+            result[#result+1]={x=x(191),y=539,halfWidth=43,halfHeight=13,kind="breakroom_table",bayId=id}
+            result[#result+1]={x=x(201),y=523,halfWidth=47,halfHeight=11,kind="breakroom_kitchenette",bayId=id}
+            result[#result+1]={x=x(313),y=549,halfWidth=17,halfHeight=13,kind="breakroom_vending",bayId=id}
         end
     end
     return result

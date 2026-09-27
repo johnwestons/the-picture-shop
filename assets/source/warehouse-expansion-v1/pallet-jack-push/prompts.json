@@ -1,0 +1,65 @@
+{
+  "asset": "rabbit-worker pallet-jack push gait",
+  "version": 1,
+  "status": "review candidate; approved=false",
+  "generation_tool": "built-in image_gen",
+  "references": [
+    {
+      "path": "assets/generated/characters/rabbit-worker/walk.png",
+      "role": "exact in-game rabbit-worker identity, clothing, proportions, palette, outline, and lighting"
+    },
+    {
+      "path": "assets/source/warehouse-expansion-v1/pallet-jack-rabbit-push-v1-candidate.png",
+      "role": "existing directional push-pose study for hand placement and forward lean"
+    }
+  ],
+  "common_prompt": "Create an eight-pose walk cycle of the same rabbit pushing an unseen pallet jack. Both gloved hands stay together at a fixed waist-level handle grip with a slight forward lean. Do not draw the jack, handle, ground, shadow, or other object. Create an RGBA atlas with exactly eight equal 384x512 cells in a 4-column by 2-row row-major layout on a 1536x1024 canvas. Poses are left-foot contact, left weight-down, right foot passing, right knee-up, right-foot contact, right weight-down, left passing, left knee-up. Make every pose visibly distinct with alternating feet. Keep one complete character at consistent scale with at least 24 transparent pixels from every cell edge. Match the softer textured in-game sprite style, preserve clothing and toolbelt side, and avoid clipping, duplicated poses, detached parts, extra limbs, halos, matte, checkerboard, text, borders, watermark, and pallet-jack parts.",
+  "directions": {
+    "east": {
+      "view": "due east, right-facing side view",
+      "source": "source-atlas/rabbit-push-east-v1-source.png",
+      "runtime_candidate": "push-east-v1-candidate.png",
+      "generated_original": "C:/Users/johnw/.codex/generated_images/01a0ba6c-ad0d-70d0-b2f3-83c15e631c52/exec-d2faf646-49b3-4a2e-9513-7fcccd3ed2e8.png",
+      "additional_prompt": "Keep this exact side-facing view; keep the toolbelt on the same side and both hands on the implied handle."
+    },
+    "north": {
+      "view": "due north, directly away from the camera; rear view",
+      "source": "source-atlas/rabbit-push-north-v1-source.png",
+      "runtime_candidate": "push-north-v1-candidate.png",
+      "generated_original": "C:/Users/johnw/.codex/generated_images/01a0ba6c-ad0d-70d0-b2f3-83c15e631c52/exec-e06b59f2-eed0-47ec-b0ae-33476778fc42.png"
+    },
+    "northeast": {
+      "view": "northeast three-quarter rear view, facing upper-right",
+      "source": "source-atlas/rabbit-push-northeast-v1-source.png",
+      "runtime_candidate": "push-northeast-v1-candidate.png",
+      "generated_original": "C:/Users/johnw/.codex/generated_images/01a0ba6c-ad0d-70d0-b2f3-83c15e631c52/exec-21434d81-fff7-4369-9ad7-24360596ac78.png"
+    },
+    "southeast": {
+      "view": "southeast three-quarter front view, facing lower-right",
+      "source": "source-atlas/rabbit-push-southeast-v1-source.png",
+      "runtime_candidate": "push-southeast-v1-candidate.png",
+      "generated_original": "C:/Users/johnw/.codex/generated_images/01a0ba6c-ad0d-70d0-b2f3-83c15e631c52/exec-58368af6-be83-4663-9f3b-5f66b26d76e1.png"
+    },
+    "south": {
+      "view": "due south, directly toward the camera; front view",
+      "source": "source-atlas/rabbit-push-south-v1-source.png",
+      "runtime_candidate": "push-south-v1-candidate.png",
+      "generated_original": "C:/Users/johnw/.codex/generated_images/01a0ba6c-ad0d-70d0-b2f3-83c15e631c52/exec-ba5b09fa-eff1-4499-84f8-929eccf20022.png"
+    }
+  },
+  "normalization": {
+    "method": "non-destructive cell extraction and canvas placement",
+    "source_cell": "384x512",
+    "runtime_frame": "512x512",
+    "runtime_strip": "4096x512 horizontal, 8 frames",
+    "alpha_threshold": 16,
+    "foot_anchor": { "x": 256, "y": 458 },
+    "registered_anchor_per_frame": { "x": 256, "y": 458 },
+    "mirror_policy": "east, northeast, and southeast source views mirror for west, northwest, and southwest"
+  },
+  "audit": {
+    "motion_spec": "../../../../output/warehouse-expansion-v1/pallet-jack-push-review/motion-spec.json",
+    "report": "../../../../output/warehouse-expansion-v1/pallet-jack-push-review/audit/report.json",
+    "result": "10 animations; 0 errors; 0 warnings"
+  }
+}

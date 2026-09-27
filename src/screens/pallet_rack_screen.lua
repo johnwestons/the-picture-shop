@@ -6,10 +6,43 @@ local Screen = {}
 Screen.__index = Screen
 Screen.RACK_IMAGE = "assets/source/warehouse-expansion-v1/rack-front-2x5-approved.png"
 Screen.PALLET_IMAGE = "assets/source/warehouse-expansion-v1/pallet-front-variants-v1.png"
+Screen.PALLET_EXTENDED_IMAGE = "assets/source/warehouse-expansion-v1/pallet-front-variants-v2-candidate.png"
 
 local sessionNumber = 0
 local images, imageError
+local extendedEdgeShader
 local SOURCE = { width=1536, height=740 }
+local EXTENDED_SOURCE = { width=1536, height=1024 }
+local EXTENDED_VARIANTS = {
+    -- Bounds measured at alpha >= 16 in each 768 x 512 source cell.
+    {x=0,y=0,width=768,height=512,left=157,top=63,right=688,bottom=505},
+    {x=768,y=0,width=768,height=512,left=79,top=63,right=611,bottom=505},
+    {x=0,y=512,width=768,height=512,left=145,top=39,right=702,bottom=450},
+    {x=768,y=512,width=768,height=512,left=68,top=46,right=625,bottom=450},
+}
+local extendedEdgeShaderSource = [[
+    extern vec2 sourceSize;
+    extern vec4 sourceRect;
+    vec4 samplePremultiplied(vec2 pixel) {
+        vec4 value = Texel(texture, (pixel + vec2(0.5)) / sourceSize);
+        return vec4(value.rgb * value.a, value.a);
+    }
+    vec4 effect(vec4 color, Image texture, vec2 uv, vec2 screenCoords) {
+        vec2 position = uv * sourceSize - vec2(0.5);
+        vec2 lower = sourceRect.xy;
+        vec2 upper = sourceRect.xy + sourceRect.zw - vec2(1.0);
+        vec2 first = clamp(floor(position), lower, upper);
+        vec2 second = clamp(floor(position) + vec2(1.0), lower, upper);
+        vec2 fraction = fract(position);
+        vec4 top = mix(samplePremultiplied(first),
+            samplePremultiplied(vec2(second.x, first.y)), fraction.x);
+        vec4 bottom = mix(samplePremultiplied(vec2(first.x, second.y)),
+            samplePremultiplied(second), fraction.x);
+        vec4 result = mix(top, bottom, fraction.y);
+        if (result.a <= 0.00001) return vec4(0.0);
+        return vec4(result.rgb / result.a, result.a) * color;
+    }
+]]
 local COLUMNS = { {110,240}, {382,234}, {650,245}, {929,227}, {1190,240} }
 local ROWS = { [1]={y=483,height=185}, [2]={y=240,height=186} }
 local REASONS = {
@@ -73,15 +106,24 @@ local function loadImages()
     local okay, result = pcall(function()
         local rack = love.graphics.newImage(Screen.RACK_IMAGE)
         local pallet = love.graphics.newImage(Screen.PALLET_IMAGE)
+        local extended = love.graphics.newImage(Screen.PALLET_EXTENDED_IMAGE)
         local rw,rh = rack:getDimensions()
         local pw,ph = pallet:getDimensions()
-        if rw ~= 1536 or rh ~= 1024 or pw ~= 2172 or ph ~= 724 then
+        local ew,eh = extended:getDimensions()
+        if rw ~= 1536 or rh ~= 1024 or pw ~= 2172 or ph ~= 724
+            or ew ~= EXTENDED_SOURCE.width or eh ~= EXTENDED_SOURCE.height then
             error("Rack art dimensions changed; source anchors need registration.")
         end
         rack:setFilter("linear","linear")
         pallet:setFilter("linear","linear")
-        local result = {rack=rack,pallet=pallet,quads={},rackQuad=love.graphics.newQuad(0,0,1536,740,rw,rh)}
+        extended:setFilter("linear","linear")
+        local result = {rack=rack,pallet=pallet,extended=extended,quads={},extendedQuads={},
+            extendedSources=EXTENDED_VARIANTS,rackQuad=love.graphics.newQuad(0,0,1536,740,rw,rh)}
         for index=1,3 do result.quads[index] = love.graphics.newQuad((index-1)*724,0,724,724,pw,ph) end
+        for index,source in ipairs(EXTENDED_VARIANTS) do
+            result.extendedQuads[index]=love.graphics.newQuad(source.x,source.y,
+                source.width,source.height,ew,eh)
+        end
         return result
     end)
     if okay then images = result else imageError = tostring(result) end
@@ -149,8 +191,11 @@ end
 
 function Screen.appearance(pallet)
     if not pallet then return nil end
-    if pallet.wrapped == true or pallet.wrapProgress == 1 then return 3 end
-    if pallet.kind == "vendor_product" then return 2 end
+    if pallet.kind == "vendor_product" then return 7 end
+    if pallet.packaging == "boxed" or pallet.packagedAs == "boxed" then return 6 end
+    if pallet.wrapped == true or (type(pallet.wrapProgress) == "number" and pallet.wrapProgress >= 1) then return 3 end
+    if type(pallet.wrapProgress) == "number" and pallet.wrapProgress > 0 then return 5 end
+    if pallet.press and (pallet.press.completedColors or 0) > 0 then return 4 end
     local paper = pallet.paper
     if pallet.status == "complete" or pallet.status == "finished" or pallet.status == "cut"
         or (paper and paper.status == "complete") or (pallet.finishedSheets or 0) > 0 then return 2 end
@@ -345,11 +390,36 @@ function Screen:draw(state,fonts,assets)
         if slot.variant and art then
             -- All three source pallets share baseline y=648. A single scale
             -- preserves the smaller height of the cut-paper load.
-            local scale=math.min(rect.width/670,rect.height/565)
-            local sourceCenter=slot.variant==1 and 374 or slot.variant==2 and 361 or 352
             g.setColor(1,1,1,1)
-            g.draw(art.pallet,art.quads[slot.variant],rect.x+rect.width/2-sourceCenter*scale,
-                rect.y+rect.height-648*scale,0,scale,scale)
+            if slot.variant <= 3 then
+                local scale=math.min(rect.width/670,rect.height/565)
+                local sourceCenter=slot.variant==1 and 374 or slot.variant==2 and 361 or 352
+                g.draw(art.pallet,art.quads[slot.variant],rect.x+rect.width/2-sourceCenter*scale,
+                    rect.y+rect.height-648*scale,0,scale,scale)
+            else
+                local index=slot.variant-3
+                local source,quad=art.extendedSources[index],art.extendedQuads[index]
+                if source and quad then
+                    local sourceWidth,sourceHeight=source.right-source.left,source.bottom-source.top
+                    local scale=math.min(rect.width/sourceWidth,rect.height/sourceHeight)*0.92
+                    local shader
+                    if g.newShader and g.setShader then
+                        if extendedEdgeShader==nil then
+                            local okay,value=pcall(g.newShader,extendedEdgeShaderSource)
+                            extendedEdgeShader=okay and value or false
+                        end
+                        if extendedEdgeShader then
+                            shader=extendedEdgeShader
+                            shader:send("sourceSize",{EXTENDED_SOURCE.width,EXTENDED_SOURCE.height})
+                            shader:send("sourceRect",{source.x,source.y,source.width,source.height})
+                            g.setShader(shader)
+                        end
+                    end
+                    g.draw(art.extended,quad,rect.x+rect.width/2,rect.y+rect.height,
+                        0,scale,scale,(source.left+source.right)/2,source.bottom)
+                    if shader then g.setShader() end
+                end
+            end
         end
         local hovered=self.pointer and Ui.contains(rect,self.pointer.x,self.pointer.y)
         if slot.selected or hovered then

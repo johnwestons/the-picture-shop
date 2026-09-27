@@ -386,6 +386,14 @@ local function interactables(player)
             addTarget("palletRack", {x=approach.x,y=approach.y,radius=130,rackId=rackId,
                 prompt="E: view pallet shelves"})
         end
+        for _,bayId in ipairs(WarehouseLayout.BAY_IDS) do
+            local bay=WarehouseLayout.bay(bayId)
+            local room=WarehouseLayout.bayState(World._state,bayId)
+            if room and room.status=="complete" and room.optionId=="breakroom" then
+                addTarget("breakroom",{x=bay.restPoint.x,y=bay.restPoint.y,radius=66,bayId=bayId,
+                    prompt=player.resting and "E: get back to work" or "E: take a break"})
+            end
+        end
         if jackReady and activeMachineKind(World._state) then
             targets.palletJack.prompt = "E: place machine  |  Q: TURN"
         elseif jackReady then
@@ -445,6 +453,7 @@ function World.load(position)
         and playerId == math.floor(playerId) and playerId or nil
     World.player.character = Config.characters[character] and character or Config.player.character
     PlayerController.reset(World.player, position, Config.player)
+    World.player.resting=false
     World.bayDoor:reset()
     World.truck:reset()
     World.customer:reset(true)
@@ -775,6 +784,8 @@ end
 
 local function updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
     if type(player) ~= "table" then return false end
+    if player.resting and (math.abs(tonumber(directionX) or 0)>0.001
+        or math.abs(tonumber(directionY) or 0)>0.001) then player.resting=false end
     assets = WarehouseGameplay.assets(assets, state)
     PlayerController.update(player, directionX or 0, directionY or 0, dt,
         function(currentX, currentY, nextX, nextY)
@@ -1059,6 +1070,40 @@ function World.faceInteraction()
     if length > 0.01 then
         World.player.intentX, World.player.intentY = dx / length, dy / length
     end
+    return true
+end
+
+-- Breakroom use is a local, transient sit action. It deliberately does not
+-- alter employee needs, money, work speed or saved shop state.
+function World.beginBreakroomRest(state)
+    local selected=World.selectedInteraction
+    if not selected or selected.kind~="breakroom" or not selected.target then
+        if state then state.message="Move beside a completed employee breakroom first." end
+        return false
+    end
+    local player=World.player
+    local room=WarehouseLayout.bayState(World._state,selected.target.bayId)
+    if not room or room.status~="complete" or room.optionId~="breakroom" then
+        if state then state.message="That breakroom is not available yet." end
+        return false
+    end
+    if Forklift.isOperator(World._state,Config.forklift,player.id)
+        or PalletJack.isOperator(World._state,Config.palletJack,player.id) then
+        if state then state.message="Step off the equipment before taking a break." end
+        return false
+    end
+    if player.resting then
+        player.resting=false
+        if state then state.message="Back to work." end
+        return true
+    end
+    player.x,player.y=selected.target.x,selected.target.y
+    PlayerController.stop(player)
+    player.moving=false
+    player.resting=true
+    player.facing=-1
+    player.intentX,player.intentY=-1,0
+    if state then state.message="Taking a break. Move or press E to get up." end
     return true
 end
 
@@ -2120,8 +2165,8 @@ function World.forceReleaseForklift(player,state)
     return okay,code,exit
 end
 
-function World.warehouseRackContext(player, state, rackId)
-    return WarehouseGameplay.rackContext(warehousePlayer(player), state, rackId, warehouseContext())
+function World.warehouseRackContext(player, state, rackId, row, column)
+    return WarehouseGameplay.rackContext(warehousePlayer(player), state, rackId, warehouseContext(), row, column)
 end
 
 function World.warehouseCandidate(state)

@@ -1,5 +1,6 @@
 function love.conf(t)
-    t.identity = "the-picture-shop"
+    t.identity = os.getenv("PICTURE_SHOP_SMOKE") == "1"
+        and "the-picture-shop-smoke" or "the-picture-shop"
     t.version = "11.5"
     t.externalstorage = false
     t.accelerometerjoystick = false

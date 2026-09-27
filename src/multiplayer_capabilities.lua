@@ -72,6 +72,16 @@ Capabilities.INTERACTIONS = {
         mode = "read_only",
         supported = { "inspect_work_order" },
     },
+    breakroom = {
+        label = "Employee breakroom",
+        mode = "full",
+        supported = { "take_a_break", "stand_up" },
+    },
+    palletRack = {
+        label = "Pallet shelving",
+        mode = "candidate",
+        supported = { "inspect_shelves", "store_pallets", "retrieve_pallets", "stack_pallets", "unstack_pallets" },
+    },
     cutter = {
         label = "Polar cutter",
         mode = "candidate",
@@ -132,6 +142,14 @@ Capabilities.INTERACTIONS = {
             "all_three_machine_relocations", "two_guest_contention",
             "invalid_and_valid_placement", "synchronized_live_pose",
             "disconnect_recovery", "offline_host_save_reload",
+        },
+    },
+    forklift = {
+        label = "Warehouse forklift",
+        mode = "candidate",
+        supported = {
+            "drive", "lift_pallet", "lower_pallet", "park", "store_pallet",
+            "retrieve_pallet", "stack_pallets", "unstack_pallets",
         },
     },
 }

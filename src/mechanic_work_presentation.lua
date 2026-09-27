@@ -1,8 +1,34 @@
--- Reviewed source registrations, not production-art approval. These sheets
--- are irregularly spaced: equal-width slicing severs tools and tails.
+-- Reviewed per-frame work registrations. These eight-pose atlases use a
+-- regular 4x2 grid, but remain development art until visually approved.
 local Presentation={ BODY_WORLD_HEIGHT=76.8 }
 local ROOT="assets/source/warehouse-expansion-v1/"
 local tools={"concrete","hammer","drill","paint"}
+local edgeShader
+local edgeShaderSource=[[
+    extern vec2 sourceSize;
+    extern vec4 sourceRect;
+
+    vec4 premultipliedSample(Image texture, vec2 pixel) {
+        vec4 sample = Texel(texture, (pixel + vec2(0.5)) / sourceSize);
+        return vec4(sample.rgb * sample.a, sample.a);
+    }
+
+    vec4 effect(vec4 color, Image texture, vec2 uv, vec2 screenCoords) {
+        vec2 position = uv * sourceSize - vec2(0.5);
+        vec2 first = clamp(floor(position), sourceRect.xy,
+            sourceRect.xy + sourceRect.zw - vec2(1.0));
+        vec2 second = clamp(floor(position) + vec2(1.0), sourceRect.xy,
+            sourceRect.xy + sourceRect.zw - vec2(1.0));
+        vec2 fraction = fract(position);
+        vec4 top = mix(premultipliedSample(texture, first),
+            premultipliedSample(texture, vec2(second.x, first.y)), fraction.x);
+        vec4 bottom = mix(premultipliedSample(texture, vec2(first.x, second.y)),
+            premultipliedSample(texture, second), fraction.x);
+        vec4 result = mix(top, bottom, fraction.y);
+        if (result.a <= 0.00001) return vec4(0.0);
+        return vec4(result.rgb / result.a, result.a) * color;
+    }
+]]
 local function finite(n) return type(n)=="number" and n==n and n>-math.huge and n<math.huge end
 local function copy(value)
     if type(value)~="table" then return value end
@@ -11,30 +37,42 @@ end
 local function frame(x,y,w,h,anchorX,anchorY,sourcePose)
     return {source={x=x,y=y,width=w,height=h},footAnchor={x=anchorX-x,y=anchorY-y},sourcePose=sourcePose}
 end
-local ATLAS=ROOT.."mechanic-work-atlas-v2.png"
-local function sheet(bodyHeight,frames,issues)
-    return {path=ATLAS,width=1254,height=1254,bodyReferenceHeight=bodyHeight,
-        approved=false,usable=true,fps=4,frames=frames,sequence={1,2,3,4},issues=issues or {"minor_alpha_fringe"}}
+local function cellFrame(index,anchorX,anchorY)
+    local zero=index-1
+    local x,y=(zero%4)*384,math.floor(zero/4)*512
+    return frame(x,y,384,512,x+anchorX,y+anchorY,index)
+end
+local function sheet(tool,version,bodyHeight,anchors,issues)
+    local frames={}
+    for index,anchor in ipairs(anchors) do
+        frames[index]=cellFrame(index,anchor[1],anchor[2])
+    end
+    local sequence={}
+    for index=1,#frames do sequence[index]=index end
+    return {path=ROOT.."mechanic-work-"..tool.."-"..version.."-candidate.png",
+        width=1536,height=1024,bodyReferenceHeight=bodyHeight,approved=false,
+        usable=true,fps=4,frames=frames,sequence=sequence,
+        issues=issues or {"generated_development_art_requires_review"}}
 end
 local catalog={
-    -- Body reference is the standing character, not the bounding box of a
-    -- raised tool; concrete crouching deliberately remains shorter.
-    concrete=sheet(277,{
-        frame(42,80,232,232,176,305,1),frame(336,91,264,223,478,305,2),
-        frame(640,108,294,218,792,305,3),frame(967,78,229,234,1105,305,4)},
-        {"minor_alpha_fringe","column2_vertical_clearance_is_tight"}),
-    -- Raised hammer crosses the nominal 320px row line. Individual crops
-    -- preserve its complete silhouette; equal 4x4 atlas cells would clip it.
-    hammer=sheet(277,{
-        frame(43,344,222,299,181,631,1),frame(368,314,232,335,506,632,2),
-        frame(650,381,290,263,790,631,3),frame(971,347,238,303,1113,631,4)}),
-    drill=sheet(263,{
-        frame(43,654,234,285,183,926,1),frame(347,654,285,280,485,927,2),
-        frame(652,668,306,271,787,926,3),frame(977,658,237,281,1113,927,4)},
-        {"minor_alpha_fringe","column2_vertical_clearance_is_tight"}),
-    paint=sheet(279,{
-        frame(45,948,281,299,180,1236,1),frame(352,934,249,313,484,1237,2),
-        frame(663,959,295,288,803,1236,3),frame(972,968,261,279,1112,1237,4)}),
+    -- Scale uses body height, not the extended tool bounds. Each anchor stays
+    -- on the planted stance while the arms, torso and tools travel.
+    concrete=sheet("concrete","v3c",300,{
+        {180,450},{180,450},{180,450},{180,450},
+        {180,420},{180,420},{180,420},{180,420}},
+        {"generated_development_art_requires_review","edge_clearance_below_32px"}),
+    hammer=sheet("hammer","v3",322,{
+        {205,465},{205,466},{205,466},{205,465},
+        {205,433},{205,432},{205,433},{205,433}},
+        {"generated_development_art_requires_review","raised_tool_changes_bounds"}),
+    drill=sheet("drill","v3c",337,{
+        {206,456},{198,457},{192,458},{190,458},
+        {205,419},{200,419},{200,419},{199,419}},
+        {"generated_development_art_requires_review","edge_clearance_below_32px"}),
+    paint=sheet("paint","v3",320,{
+        {206,459},{199,459},{194,459},{187,459},
+        {206,425},{204,425},{207,425},{201,425}},
+        {"generated_development_art_requires_review","raised_tool_changes_bounds"}),
 }
 
 function Presentation.reviewCatalog() return copy(catalog) end
@@ -94,6 +132,7 @@ function Presentation.plan(worker,state,options)
 end
 
 function Presentation.draw(worker,state,getImage,options,graphics)
+    options=type(options)=="table" and options or {}
     local plan,code=Presentation.plan(worker,state,options)
     if not plan then return false,code end
     if type(getImage)~="function" then return false,"image_provider_required" end
@@ -107,6 +146,17 @@ function Presentation.draw(worker,state,getImage,options,graphics)
     local quad=graphics.newQuad(r.x,r.y,r.width,r.height,width,height)
     graphics.push("all")
     local success,drawError=pcall(function()
+        if options.edgeCleanup and graphics.newShader and graphics.setShader then
+            if edgeShader==nil then
+                local created,shader=pcall(graphics.newShader,edgeShaderSource)
+                edgeShader=created and shader or false
+            end
+            if edgeShader then
+                edgeShader:send("sourceSize",{width,height})
+                edgeShader:send("sourceRect",{r.x,r.y,r.width,r.height})
+                graphics.setShader(edgeShader)
+            end
+        end
         graphics.setColor(1,1,1,1)
         graphics.draw(image,quad,plan.x,plan.y,0,plan.scale,plan.scale,plan.originX,plan.originY)
     end)

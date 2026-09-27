@@ -4,6 +4,32 @@ local Layered = {}
 local root = "assets/source/warehouse-expansion-v1/forklift-layer-study/"
 local textureWidth, textureHeight = 1536, 1024
 local scaleRatio = 0.145 / (0.22 * 1.4)
+local edgeShader
+local edgeShaderSource = [[
+    extern vec2 sourceSize;
+    extern vec4 sourceRect;
+
+    vec4 premultipliedSample(Image texture, vec2 pixel) {
+        vec4 sample = Texel(texture, (pixel + vec2(0.5)) / sourceSize);
+        return vec4(sample.rgb * sample.a, sample.a);
+    }
+
+    vec4 effect(vec4 color, Image texture, vec2 uv, vec2 screenCoords) {
+        vec2 position = uv * sourceSize - vec2(0.5);
+        vec2 first = clamp(floor(position), sourceRect.xy,
+            sourceRect.xy + sourceRect.zw - vec2(1.0));
+        vec2 second = clamp(floor(position) + vec2(1.0), sourceRect.xy,
+            sourceRect.xy + sourceRect.zw - vec2(1.0));
+        vec2 fraction = fract(position);
+        vec4 top = mix(premultipliedSample(texture, first),
+            premultipliedSample(texture, vec2(second.x, first.y)), fraction.x);
+        vec4 bottom = mix(premultipliedSample(texture, vec2(first.x, second.y)),
+            premultipliedSample(texture, second), fraction.x);
+        vec4 result = mix(top, bottom, fraction.y);
+        if (result.a <= 0.00001) return vec4(0.0);
+        return vec4(result.rgb / result.a, result.a) * color;
+    }
+]]
 local studies = {
     side = {
         manned = root .. "east-fixed-manned-v1.png",
@@ -12,7 +38,11 @@ local studies = {
         bodyOriginX = 720, bodyOriginY = 955,
         emptyOriginX = 730, emptyOriginY = 966, emptyScale = 0.97,
         carriageOriginX = 720, carriageOriginY = 955,
-        carriageX = 0, carriageLow = 150, carriageTravel = 560,
+        -- The world rack's upper deck is 45 pixels above its lower deck.
+        -- At this side-view scale, a 310.3448-source-pixel carriage travel moves
+        -- the rendered pallet by that same distance instead of floating well
+        -- above the selected shelf.
+        carriageX = 0, carriageLow = 150, carriageTravel = 310.3448275862069,
         loadX = 1170, loadY = 750,
     },
     frontDiagonal = {
@@ -119,6 +149,7 @@ function Layered.plan(vehicle, options)
 end
 
 function Layered.draw(vehicle, getImage, options, graphics)
+    options = type(options) == "table" and options or {}
     local plan, code = Layered.plan(vehicle, options)
     if not plan then return false, code end
     if type(getImage) ~= "function" then return false, "image_provider_required" end
@@ -137,6 +168,17 @@ function Layered.draw(vehicle, getImage, options, graphics)
     if not graphics then return false, "graphics_unavailable" end
     graphics.push("all")
     local okay, drawError = pcall(function()
+        if options.edgeCleanup and graphics.newShader and graphics.setShader then
+            if edgeShader == nil then
+                local created, shader = pcall(graphics.newShader, edgeShaderSource)
+                edgeShader = created and shader or false
+            end
+            if edgeShader then
+                edgeShader:send("sourceSize", { textureWidth, textureHeight })
+                edgeShader:send("sourceRect", { 0, 0, textureWidth, textureHeight })
+                graphics.setShader(edgeShader)
+            end
+        end
         graphics.setColor(1, 1, 1, 1)
         graphics.draw(body, plan.x, plan.y, 0,
             plan.mirror * plan.bodyScale, plan.bodyScale,

@@ -102,6 +102,13 @@
       "originalOutput": "C:\\Users\\johnw\\.codex\\generated_images\\01a07dd3-4080-7c52-8656-4a3ac522d4f0\\exec-4ecc71b4-1d94-4f86-8ac7-707a2808db4c.png",
       "workspaceOutput": "mechanic-paint-source-v1.png",
       "status": "Selected source candidate; see ART_STATUS.md for approvals and production blockers."
+    },
+    {
+      "id": "palletFrontVariantsV2",
+      "prompt": "Create a new transparent RGBA sprite atlas that adds four missing front-view stock variants for a warehouse rack inventory screen. Match the attached front-facing paper-pallet art exactly in viewpoint, wood skid design, material rendering, outline weight, lighting and scale. Use a clean 2 by 2 atlas on a fully transparent background, with four evenly sized separate cells and generous transparent padding around each complete pallet; no cell dividers, no background, no ground plane, no shadow outside the sprite, no labels or text. In reading order: (1) a pallet of printed press sheets, the same sheet stack as the reference but with a small subtle two-color printed mark visible on the front paper edges; (2) the reference sheet stack partially stretch-wrapped, with clear glossy film covering only the lower half so its unwrapped top is distinct; (3) a pallet stacked with neat brown corrugated shipping cartons, related to the attached boxed pallet stage art; (4) a mixed pallet of generic paper-shop supplier boxes, ink cans and small wrapped maintenance supplies, related to the attached supplier pallet art. Keep all four sprites complete, centered, same apparent physical footprint and bottom contact baseline. Do not include any pallet jack, forklift, rack, worker, scenery or floor. Each cell must contain one recognizable pallet only. Aim for the same transparent cutout edge treatment as the source pallet trio.",
+      "originalOutput": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-9342f77a-0999-44da-bd36-2eaae5bf81df.png",
+      "workspaceOutput": "pallet-front-variants-v2-candidate.png",
+      "status": "Registered for printed, partial-wrap, boxed and supplier stock previews under provisional art; cell crops and transparency edges audited, production art remains unapproved."
     }
   ]
 }
