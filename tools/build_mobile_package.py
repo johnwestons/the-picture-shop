@@ -223,15 +223,19 @@ def copy_windows_route_provider(stage: Path, provider: Path) -> dict[str, str | 
 
     loader = stage / "src" / "net" / "gateway_native.lua"
     loader_text = loader.read_text(encoding="utf-8")
-    marker = "local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH"
-    if loader_text.count(marker) != 1:
+    hash_marker = "local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH"
+    mode_marker = "local WINDOWS_RELEASE_PACKAGE = false -- WINDOWS_RELEASE_MODE"
+    if loader_text.count(hash_marker) != 1 or loader_text.count(mode_marker) != 1:
         raise RuntimeError("Windows route release hash marker is missing or duplicated")
 
     digest = hashlib.sha256(provider_bytes).hexdigest()
     loader.write_text(
         loader_text.replace(
-            marker,
+            hash_marker,
             f'local PACKAGED_ROUTE_SHA256 = "{digest}" -- WINDOWS_RELEASE_HASH',
+        ).replace(
+            mode_marker,
+            "local WINDOWS_RELEASE_PACKAGE = true -- WINDOWS_RELEASE_MODE",
         ),
         encoding="utf-8",
         newline="\n",
@@ -267,9 +271,10 @@ def verify_windows_route_package(package: Path, provider: Path) -> dict[str, str
         loader_text = archive.read(loader_name).decode("utf-8")
 
     marker = f'local PACKAGED_ROUTE_SHA256 = "{expected_hash}" -- WINDOWS_RELEASE_HASH'
+    release_marker = "local WINDOWS_RELEASE_PACKAGE = true -- WINDOWS_RELEASE_MODE"
     if hashlib.sha256(packaged_bytes).hexdigest() != expected_hash:
         raise RuntimeError("Packaged Windows route provider hash does not match the build")
-    if loader_text.count(marker) != 1:
+    if loader_text.count(marker) != 1 or loader_text.count(release_marker) != 1:
         raise RuntimeError("Packaged loader is not pinned to the Windows route provider")
     return {
         "path": provider_name,

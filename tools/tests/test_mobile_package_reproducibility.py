@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 
@@ -57,7 +59,8 @@ class MobilePackageReproducibilityTests(unittest.TestCase):
             loader = stage / "src" / "net" / "gateway_native.lua"
             loader.parent.mkdir(parents=True)
             loader.write_text(
-                'local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH\n',
+                'local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH\n'
+                'local WINDOWS_RELEASE_PACKAGE = false -- WINDOWS_RELEASE_MODE\n',
                 encoding="utf-8",
             )
             provider = root / "tps_route.dll"
@@ -86,7 +89,8 @@ class MobilePackageReproducibilityTests(unittest.TestCase):
             loader = stage / "src" / "net" / "gateway_native.lua"
             loader.parent.mkdir(parents=True)
             loader.write_text(
-                'local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH\n',
+                'local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH\n'
+                'local WINDOWS_RELEASE_PACKAGE = false -- WINDOWS_RELEASE_MODE\n',
                 encoding="utf-8",
             )
             provider = root / "tps_route.dll"
@@ -110,7 +114,8 @@ class MobilePackageReproducibilityTests(unittest.TestCase):
             with patch.object(package_builder, "OUTPUT", output), patch.object(
                 package_builder, "STAGE", stage
             ):
-                built = package_builder.build(provider)
+                with redirect_stdout(io.StringIO()):
+                    built = package_builder.build(provider)
                 verification = verify_windows_route_package(built, provider)
 
             self.assertEqual(built.parent, output)

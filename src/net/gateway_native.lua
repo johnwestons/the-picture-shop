@@ -15,6 +15,7 @@ local GatewayNative = {
 -- missing marker means this is a source/development tree, never a release
 -- fallback.
 local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH
+local WINDOWS_RELEASE_PACKAGE = false -- WINDOWS_RELEASE_MODE
 
 local ADDRESS_BYTES = 16
 local MAX_INTERFACE_INDEX = 4294967295
@@ -162,7 +163,14 @@ end
 
 local function libraryCandidates()
     local candidates, seen = {}, {}
-    if PACKAGED_ROUTE_SHA256 ~= nil then
+    local releasePackage = WINDOWS_RELEASE_PACKAGE
+    if love and love.filesystem
+        and type(love.filesystem.isFused) == "function"
+    then
+        local fusedOk, fused = pcall(love.filesystem.isFused)
+        releasePackage = releasePackage or (fusedOk and fused == true)
+    end
+    if releasePackage or PACKAGED_ROUTE_SHA256 ~= nil then
         -- Release mode is deliberately closed: no environment override, repo
         -- search path, or adjacent loose DLL can substitute for the packaged
         -- bytes.
