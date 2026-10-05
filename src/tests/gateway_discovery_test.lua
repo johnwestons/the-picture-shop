@@ -71,6 +71,10 @@ function Test.run(_, check)
         and not GatewayNative.validatePackagedProvider(
             expectedProviderHash, "verified-provider",
             function() error("digest failure") end))
+    if GatewayNative.packagedRelease then
+        check("gateway_release_provider_is_embedded_hashed_and_abi_compatible",
+            GatewayNative.packagedProviderAvailable())
+    end
 
     local thrown, thrownError = GatewayNative.discover({
         invoke = function() error("invitation-secret-must-not-escape") end,

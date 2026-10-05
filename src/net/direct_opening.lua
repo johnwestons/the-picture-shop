@@ -169,21 +169,32 @@ end
 
 function Controller:_cleanup()
     if self._cleaned then return self._cleanupOk end
-    self._cleaned = true
 
     local cleaned = true
     local state = self._state
-    self._state = nil
     if state then
         local ok, result = pcall(state.close, state)
-        if not ok or not closeValue(result) then cleaned = false end
+        if ok and closeValue(result) then
+            self._state = nil
+        else
+            cleaned = false
+        end
     end
 
     local socket = self._socket
-    if socket and self.ownsSocket then
-        local ok, result = pcall(socket.close, socket)
-        if not ok or not closeValue(result) then cleaned = false end
+    if socket then
+        if self.ownsSocket then
+            local ok, result = pcall(socket.close, socket)
+            if ok and closeValue(result) then
+                self._socket = nil
+            else
+                cleaned = false
+            end
+        else
+            self._socket = nil
+        end
     end
+    self._cleaned = cleaned
     self._cleanupOk = cleaned
     return cleaned
 end
@@ -360,7 +371,9 @@ end
 function Controller:close()
     if self.status == "closed" then
         if self._cleanupOk then return true end
-        return false, ERROR_CLEANUP
+        if not self:_cleanup() then return false, ERROR_CLEANUP end
+        self.lastError = nil
+        return true
     end
 
     local cleaned = self:_cleanup()

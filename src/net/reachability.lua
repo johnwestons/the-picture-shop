@@ -242,11 +242,11 @@ function Reachability:_readNow(value)
     return now
 end
 
-function Reachability:_closeActive()
+function Reachability:_closeActive(now)
     local active = self._active
     if not active then return true end
     local handle = active.handle
-    local called, result = pcall(handle.close, handle)
+    local called, result = pcall(handle.close, handle, now)
     if not called or result == false then return false end
     self._active = nil
     return true
@@ -281,7 +281,7 @@ function Reachability:_finishAutomaticCleanup(now, completionReason)
     local continuation = active.cleanupContinuation
     active.mappingGone = true
 
-    if not self:_closeActive() then
+    if not self:_closeActive(now) then
         self._residualCleanupRequired = true
         self._cleanupKind = "automatic"
         self._status = "cleanup_required"

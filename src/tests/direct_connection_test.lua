@@ -299,7 +299,20 @@ function Test.run(_, check)
     check("direct_connection_repeated_close_never_upgrades_unverified_socket_cleanup",
         failedClose == false and failedCloseError ~= nil
         and failedCloseAgain == false and failedCloseAgainError == failedCloseError
-        and failedCleanupSockets.sockets[1].closeCalls == 1)
+        and failedCleanupSockets.sockets[1].closeCalls == 2)
+
+    local retryCleanupSockets = fakeSockets()
+    retryCleanupSockets.failClose = true
+    local retryCleanup = assert(DirectConnection.new(connectionOptions(
+        { value = 2200, monotonic = 1 }, fakeProvider(true),
+        retryCleanupSockets, {}, {})))
+    retryCleanup:startHost(HOST_ADDRESS)
+    local retryFailedClose = retryCleanup:close()
+    retryCleanupSockets.failClose = false
+    local retrySucceededClose, retryCloseError = retryCleanup:close()
+    check("direct_connection_close_retries_retained_socket_until_verified",
+        retryFailedClose == false and retrySucceededClose == true
+        and retryCloseError == nil and retryCleanupSockets.sockets[1].closeCalls == 2)
 
     local expiryNow = { value = 3000, monotonic = 1 }
     local expirySockets = fakeSockets()

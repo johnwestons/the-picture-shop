@@ -39,5 +39,5 @@ else
     function love.gamepadpressed(joystick, button) app.gamepadpressed(joystick, button) end
     function love.gamepadreleased(joystick, button) app.gamepadreleased(joystick, button) end
     function love.focus(focused) app.focus(focused) end
-    function love.quit() app.quit() end
+    function love.quit() return app.quit() end
 end

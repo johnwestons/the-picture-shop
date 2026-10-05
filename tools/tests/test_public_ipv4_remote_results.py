@@ -286,11 +286,31 @@ class PublicIpv4RemoteResultTests(unittest.TestCase):
 
     def test_build_report_must_match_exact_contract(self) -> None:
         altered = list(BUILD_REPORT_CONTRACT)
-        altered[7] = ("PRODUCTION_GATE_RETAINED", "False")
+        production_gate_index = next(
+            index
+            for index, (key, _) in enumerate(altered)
+            if key == "PRODUCTION_GATE_RETAINED"
+        )
+        altered[production_gate_index] = ("PRODUCTION_GATE_RETAINED", "False")
         self.build_report.write_bytes(
             marker_bytes(tuple(altered) + (("ZIP_SHA256", self.kit_hash),))
         )
         self.assert_validation_error("build_report_contract_invalid")
+
+    def test_build_report_provenance_must_match_frozen_source(self) -> None:
+        for key, wrong_value in (
+            ("SOURCE_COMMIT", "0" * 40),
+            ("SOURCE_DIRTY", "False"),
+        ):
+            with self.subTest(key=key):
+                altered = tuple(
+                    (marker_key, wrong_value if marker_key == key else value)
+                    for marker_key, value in BUILD_REPORT_CONTRACT
+                )
+                self.build_report.write_bytes(
+                    marker_bytes(altered + (("ZIP_SHA256", self.kit_hash),))
+                )
+                self.assert_validation_error("build_report_contract_invalid")
 
     def test_kit_hash_mismatch_is_rejected(self) -> None:
         with self.kit.open("ab") as handle:

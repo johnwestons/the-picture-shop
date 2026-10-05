@@ -144,25 +144,25 @@ def git_value(*arguments: str) -> str | None:
         return None
 
 
-def safe_clean(path: Path) -> None:
+def safe_clean(path: Path, output: Path) -> None:
     resolved = path.resolve()
-    output = OUTPUT.resolve()
-    if resolved == output or output not in resolved.parents:
-        raise RuntimeError(f"Refusing to clean outside mobile output: {resolved}")
+    resolved_output = output.resolve()
+    if resolved == resolved_output or resolved_output not in resolved.parents:
+        raise RuntimeError(f"Refusing to clean outside package output: {resolved}")
     if path.exists():
         shutil.rmtree(path)
     path.mkdir(parents=True)
 
 
-def copy_runtime() -> None:
+def copy_runtime(stage: Path) -> None:
     # Validate before the larger shared runtime copy, then copy this closed set.
     runtime_source_paths()
     for source in (ROOT / "main.lua", ROOT / "conf.lua"):
-        shutil.copy2(source, STAGE / source.name)
+        shutil.copy2(source, stage / source.name)
     for source_root in (ROOT / "src", ROOT / "assets" / "generated"):
         for source in source_root.rglob("*"):
             if source.is_file():
-                destination = STAGE / source.relative_to(ROOT)
+                destination = stage / source.relative_to(ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, destination)
     audio_root = ROOT / "assets" / "audio"
@@ -172,15 +172,15 @@ def copy_runtime() -> None:
         if source.name != "picture_shop_sfx_preview.wav"
     )
     for source in audio_files:
-        destination = STAGE / source.relative_to(ROOT)
+        destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
-    copy_runtime_source_assets(STAGE)
+    copy_runtime_source_assets(stage)
 
 
-def generate_icons() -> None:
+def generate_icons(output: Path) -> None:
     source = ROOT / "mobile" / "android" / "polar-cutter-launcher.png"
-    icon_root = OUTPUT / "android-res"
+    icon_root = output / "android-res"
     with Image.open(source) as opened:
         cutter = opened.convert("RGBA")
         scale = min(492 / cutter.width, 492 / cutter.height)
@@ -283,15 +283,20 @@ def verify_windows_route_package(package: Path, provider: Path) -> dict[str, str
     }
 
 
-def build(windows_route_provider: Path | None = None) -> Path:
+def build(
+    windows_route_provider: Path | None = None,
+    output_dir: Path | None = None,
+) -> Path:
+    output = (output_dir or OUTPUT).resolve()
+    stage = output / "stage"
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
-    OUTPUT.mkdir(parents=True, exist_ok=True)
-    safe_clean(STAGE)
-    copy_runtime()
+    output.mkdir(parents=True, exist_ok=True)
+    safe_clean(stage, output)
+    copy_runtime(stage)
     route_manifest = None
     if windows_route_provider is not None:
-        route_manifest = copy_windows_route_provider(STAGE, windows_route_provider)
-    runtime_files = sorted(path for path in STAGE.rglob("*") if path.is_file())
+        route_manifest = copy_windows_route_provider(stage, windows_route_provider)
+    runtime_files = sorted(path for path in stage.rglob("*") if path.is_file())
     manifest = {
         "applicationId": config["applicationId"],
         "applicationName": config["applicationName"],
@@ -302,21 +307,21 @@ def build(windows_route_provider: Path | None = None) -> Path:
         "sourceDirty": bool(git_value("status", "--porcelain")),
         "runtimeFiles": len(runtime_files),
         "runtimeBytes": sum(path.stat().st_size for path in runtime_files),
-        "runtimeSourceAssets": runtime_source_manifest(STAGE),
+        "runtimeSourceAssets": runtime_source_manifest(stage),
     }
     if route_manifest is not None:
         manifest["windowsRouteProvider"] = route_manifest
-    (STAGE / "mobile-build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    package = OUTPUT / f"the-picture-shop-{config['versionName']}.love"
+    (stage / "mobile-build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    package = output / f"the-picture-shop-{config['versionName']}.love"
     temporary = package.with_suffix(".tmp.love")
     temporary.unlink(missing_ok=True)
-    write_reproducible_archive(STAGE, temporary)
+    write_reproducible_archive(stage, temporary)
     temporary.replace(package)
-    generate_icons()
+    generate_icons(output)
     manifest["package"] = str(package)
     manifest["packageBytes"] = package.stat().st_size
     manifest["sha256"] = hashlib.sha256(package.read_bytes()).hexdigest()
-    (OUTPUT / "build-report.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (output / "build-report.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(manifest, indent=2))
     print(f"MOBILE_PACKAGE={package}")
     return package
@@ -334,6 +339,12 @@ if __name__ == "__main__":
         type=Path,
         help="verify that a .love archive embeds the supplied route provider",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=OUTPUT,
+        help="write the package, stage, report, and icons under this directory",
+    )
     arguments = parser.parse_args()
     if arguments.verify_windows_route_package is not None:
         if arguments.windows_route_provider is None:
@@ -343,4 +354,4 @@ if __name__ == "__main__":
             arguments.windows_route_provider,
         ), indent=2))
     else:
-        build(arguments.windows_route_provider)
+        build(arguments.windows_route_provider, arguments.output_dir)

@@ -108,36 +108,73 @@ local function revalidate(state)
     return ok and exactRoute(state.route, current)
 end
 
+local function closeResource(resource)
+    if type(resource) ~= "table" or type(resource.close) ~= "function" then
+        return false
+    end
+    local ok, result = pcall(resource.close, resource)
+    return ok and result ~= false
+end
+
+local function retainUnclosedResource(state, resource)
+    if resource == nil then return end
+    state.unclosedResources = state.unclosedResources or {}
+    state.unclosedResources[#state.unclosedResources + 1] = resource
+end
+
+local function closeUnverifiedResource(state, resource)
+    if resource == nil or closeResource(resource) then return true end
+    retainUnclosedResource(state, resource)
+    return false
+end
+
+local function closeUnverifiedResources(state)
+    local resources = state.unclosedResources
+    if type(resources) ~= "table" or #resources == 0 then
+        state.unclosedResources = nil
+        return true
+    end
+    local remaining = {}
+    for _, resource in ipairs(resources) do
+        if not closeResource(resource) then
+            remaining[#remaining + 1] = resource
+        end
+    end
+    state.unclosedResources = #remaining > 0 and remaining or nil
+    return #remaining == 0
+end
+
 local function closeDiscovery(state)
     if not state.discovery then return true end
     local ok, result = pcall(state.discovery.close, state.discovery)
+    if not ok or result == false then return false end
     state.discovery = nil
-    return ok and result ~= false
+    return true
 end
 
 local function closeHttp(state)
     if not state.http then return true end
     local ok, result = pcall(state.http.close, state.http)
+    if not ok or result == false then return false end
     state.http = nil
     state.httpRequest = nil
     state.httpKind = nil
     state.httpStartedAt = nil
-    return ok and result ~= false
+    return true
 end
 
 local function beginHttp(state, request, kind, now, maxResponseBytes)
     if not revalidate(state) or state.http then return false end
     local ok, handle = pcall(state.transport.openHttp,
         state.route, request, maxResponseBytes)
-    if not ok or not httpShape(handle) then
-        if type(handle) == "table" and type(handle.close) == "function" then
-            pcall(handle.close, handle)
-        end
+    if not ok then return false end
+    if not httpShape(handle) then
+        closeUnverifiedResource(state, handle)
         return false
     end
     local proofOk, proof = pcall(handle.bindingProof, handle)
     if not proofOk or not exactProof(proof, state.route) then
-        pcall(handle.close, handle)
+        closeUnverifiedResource(state, handle)
         return false
     end
     state.http, state.httpRequest = handle, request
@@ -242,8 +279,7 @@ end
 
 local function finishHttpFailure(state, now)
     updatePossibleLease(state, now)
-    closeHttp(state)
-    state.httpTransmissionRecorded = false
+    if closeHttp(state) then state.httpTransmissionRecorded = false end
     if state.deleting then
         state.phase = "delete_wait"
         return nil
@@ -253,7 +289,7 @@ end
 
 local function processDescription(state, response, now)
     local parsed = trustedResponse(state, response, UpnpIgd.MAX_DESCRIPTION_BYTES)
-    closeHttp(state)
+    if not closeHttp(state) then return { kind = "failed" } end
     if not parsed then return { kind = "failed" } end
     local description = UpnpIgd.parseDeviceDescription(parsed, state.discoveryResult)
     if not description then return { kind = "failed" } end
@@ -268,7 +304,7 @@ end
 local function processExternal(state, response, now)
     local parsed = trustedResponse(state, response, UpnpIgd.MAX_SOAP_BODY_BYTES)
     local request = state.httpRequest
-    closeHttp(state)
+    if not closeHttp(state) then return { kind = "failed" } end
     if not parsed then return { kind = "failed" } end
     local result = UpnpIgd.parseSoapResponse(parsed, request)
     if not result or result.success ~= true or result.addressIsGlobal ~= true then
@@ -282,7 +318,7 @@ local function processMapping(state, response, now, renewal)
     updatePossibleLease(state, now)
     local parsed = trustedResponse(state, response, UpnpIgd.MAX_SOAP_BODY_BYTES)
     local request = state.httpRequest
-    closeHttp(state)
+    if not closeHttp(state) then return { kind = "failed" } end
     state.httpTransmissionRecorded = false
     if not parsed then return { kind = "failed" } end
     local result = UpnpIgd.parseSoapResponse(parsed, request, {
@@ -371,10 +407,14 @@ local function driveDiscovery(state, now)
     if not state.discovery then
         if not revalidate(state) then return { kind = "failed" } end
         local ok, socket = pcall(state.transport.openDiscovery, state.route)
-        if not ok or not discoveryShape(socket) then return { kind = "failed" } end
+        if not ok then return { kind = "failed" } end
+        if not discoveryShape(socket) then
+            closeUnverifiedResource(state, socket)
+            return { kind = "failed" }
+        end
         local proofOk, proof = pcall(socket.bindingProof, socket)
         if not proofOk or not exactProof(proof, state.route) then
-            pcall(socket.close, socket)
+            closeUnverifiedResource(state, socket)
             return { kind = "failed" }
         end
         state.discovery = socket
@@ -468,8 +508,7 @@ function Handle:delete(now)
     state.lastNow, state.deleting = now, true
     updatePossibleLease(state, now)
     closeDiscovery(state)
-    closeHttp(state)
-    state.httpTransmissionRecorded = false
+    if closeHttp(state) then state.httpTransmissionRecorded = false end
     if state.deleted then return true end
     return beginDelete(state, now)
 end
@@ -479,15 +518,34 @@ function Handle:cleanupExpiresAt()
     return state and state.possibleExpiresAt or nil
 end
 
-function Handle:close()
+function Handle:close(now)
     local state = OWNED[self]
     if not state then return true end
-    if state.closed then return state.closeOk == true end
-    if not state.deleted and (state.mappingHandle or state.possibleExpiresAt) then return false end
+    if state.closed and state.closeOk == true then return true end
+    state.closed = false
+    if now ~= nil then
+        if not finite(now) or now < 0
+            or state.lastNow and now < state.lastNow then
+            return false
+        end
+        state.lastNow = now
+        local expiresAt = state.possibleExpiresAt
+            or state.mappingHandle and state.mappingHandle.expiresAt
+        if not state.deleted and finite(expiresAt) and now >= expiresAt then
+            state.mappingHandle, state.possibleExpiresAt = nil, nil
+            state.deleted, state.phase = true, "deleted"
+        end
+    end
     local discoveryOk, httpOk = closeDiscovery(state), closeHttp(state)
-    state.closed, state.closeOk = true, discoveryOk and httpOk
+    local unverifiedResourcesOk = closeUnverifiedResources(state)
+    state.closeOk = discoveryOk and httpOk and unverifiedResourcesOk
+    if not state.deleted and (state.mappingHandle or state.possibleExpiresAt) then
+        return false
+    end
+    if not state.closeOk then return false end
+    state.closed = true
     state.service, state.mappingHandle = nil, nil
-    return state.closeOk
+    return true
 end
 
 local Adapter = {}

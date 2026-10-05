@@ -9,7 +9,6 @@ import unittest
 import zipfile
 from pathlib import Path
 from contextlib import redirect_stdout
-from unittest.mock import patch
 
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -110,13 +109,9 @@ class MobilePackageReproducibilityTests(unittest.TestCase):
             provider = root / "tps_route.dll"
             provider.write_bytes(b"conformance-tested route provider bytes")
             output = root / "mobile-output"
-            stage = output / "stage"
-            with patch.object(package_builder, "OUTPUT", output), patch.object(
-                package_builder, "STAGE", stage
-            ):
-                with redirect_stdout(io.StringIO()):
-                    built = package_builder.build(provider)
-                verification = verify_windows_route_package(built, provider)
+            with redirect_stdout(io.StringIO()):
+                built = package_builder.build(provider, output_dir=output)
+            verification = verify_windows_route_package(built, provider)
 
             self.assertEqual(built.parent, output)
             self.assertEqual(verification["path"], "native/route/tps_route.dll")

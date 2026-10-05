@@ -13,6 +13,12 @@ local CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local CryptoNative = require("src.net.crypto_native")
 local DirectConnection = require("src.net.direct_connection")
+local DirectIpv4Runtime = {
+    Host = require("src.net.direct_ipv4_host"),
+    Listener = require("src.net.direct_ipv4_listener"),
+    hosts = {},
+    pending = nil,
+}
 local DirectCompositeTransport = require("src.net.transport_direct_composite")
 local DirectScreen = require("src.screens.direct_screen")
 local Hud = require("src.screens.hud")
@@ -1601,16 +1607,31 @@ end
 
 closeDirectHostComposite = function()
     local controller = directHostComposite
-    if not controller then
-        directHostInvitationGeneration = 0
-        return true
+    if controller then
+        local called, cleaned = pcall(controller.close, controller)
+        if not called or cleaned ~= true then
+            return false,
+                "Direct host cleanup could not be verified; restart the game before hosting again."
+        end
+        directHostComposite = nil
     end
-    local called, cleaned = pcall(controller.close, controller)
-    if not called or cleaned ~= true then
+
+    local cleanupPending = false
+    for index = #DirectIpv4Runtime.hosts, 1, -1 do
+        local record = DirectIpv4Runtime.hosts[index]
+        record.closing = true
+        if DirectIpv4Runtime.pending == record then DirectIpv4Runtime.pending = nil end
+        local called, cleaned = pcall(record.host.stop, record.host)
+        if called and cleaned == true then
+            table.remove(DirectIpv4Runtime.hosts, index)
+        else
+            cleanupPending = true
+        end
+    end
+    if cleanupPending then
         return false,
-            "Direct host cleanup could not be verified; restart the game before hosting again."
+            "IPv4 router-mapping cleanup is still pending. Keep the game open and retry cleanup."
     end
-    directHostComposite = nil
     directHostInvitationGeneration = 0
     return true
 end
@@ -1623,14 +1644,42 @@ local function disposeDirectTransportFactory(factory)
     return called and cleaned == true
 end
 
-local DIRECT_HOST_PORT_SLOTS = {
+DirectIpv4Runtime.portSlots = {
     { loopback = 22122, outer = 22123 },
     { loopback = 22124, outer = 22125 },
     { loopback = 22126, outer = 22127 },
 }
 
+function DirectIpv4Runtime.hostingAvailable()
+    return CryptoNative.productionReady == true
+        and DirectIpv4Runtime.Host.productionReady == true
+        and jit ~= nil and jit.os == "Windows" and jit.arch == "x64"
+end
+
+function DirectIpv4Runtime.hostingUnavailableMessage()
+    if CryptoNative.productionReady ~= true
+        or DirectIpv4Runtime.Host.productionReady ~= true then
+        return "IPv4 Direct hosting is still behind its release-readiness gates."
+    end
+    return "IPv4 Direct hosting currently requires 64-bit Windows."
+end
+
+function DirectIpv4Runtime.portInUse(port)
+    for _, record in ipairs(DirectIpv4Runtime.hosts) do
+        if record.port == port then return true end
+    end
+    return false
+end
+
+function DirectIpv4Runtime.nextPort()
+    for _, slot in ipairs(DirectIpv4Runtime.portSlots) do
+        if not DirectIpv4Runtime.portInUse(slot.outer) then return slot.outer end
+    end
+    return nil
+end
+
 local function directHostCanInvite()
-    if directConnection or not directHostComposite
+    if directConnection or DirectIpv4Runtime.pending or not directHostComposite
         or not multiplayer:isHost() or multiplayer.networkKind ~= "direct"
     then
         return false
@@ -1655,12 +1704,12 @@ local function createDirectConnection(loopbackHostPort)
 end
 
 local function startDirectHostConnection(localAddress)
-    local slotCount = #DIRECT_HOST_PORT_SLOTS
+    local slotCount = #DirectIpv4Runtime.portSlots
     local firstSlot = (directHostInvitationGeneration % slotCount) + 1
     local lastError = "No Direct guest port slot is available."
     for offset = 0, slotCount - 1 do
         local slotIndex = ((firstSlot + offset - 1) % slotCount) + 1
-        local slot = DIRECT_HOST_PORT_SLOTS[slotIndex]
+        local slot = DirectIpv4Runtime.portSlots[slotIndex]
         local connection, connectionError = createDirectConnection(slot.loopback)
         if not connection then return nil, connectionError end
         local started, codeOrError = connection:startHost(localAddress, slot.outer)
@@ -1702,6 +1751,252 @@ local function prepareDirectHost(slot, playerName, localAddress)
     return true, codeOrError
 end
 
+function DirectIpv4Runtime.beginHost(kind, playerName, payload, saveMode)
+    if not DirectIpv4Runtime.hostingAvailable() then
+        return false, DirectIpv4Runtime.hostingUnavailableMessage()
+    end
+    if DirectIpv4Runtime.pending then
+        return false, "Another IPv4 Direct invitation is still being prepared."
+    end
+    if kind == "additional" and not directHostCanInvite() then
+        return false, "Direct guest capacity is full or another invitation is active."
+    end
+    local port = DirectIpv4Runtime.nextPort()
+    if not port then return false, "No safe IPv4 guest port is available." end
+    local host, hostError = DirectIpv4Runtime.Host.new({ provider = CryptoNative })
+    if not host then return false, hostError end
+    local record = {
+        kind = kind,
+        host = host,
+        port = port,
+        name = playerName,
+        payload = payload,
+        saveMode = saveMode,
+        closing = false,
+        attached = false,
+        linkHandle = nil,
+    }
+    local started, startError = host:start(port)
+    if not started then
+        record.closing = true
+        local called, cleaned = pcall(host.stop, host)
+        if not called or cleaned ~= true then
+            DirectIpv4Runtime.hosts[#DirectIpv4Runtime.hosts + 1] = record
+            DirectIpv4Runtime.pending = record
+            return false,
+                "IPv4 host setup failed and cleanup could not be verified; restart the game before retrying."
+        end
+        return false, startError
+    end
+    DirectIpv4Runtime.hosts[#DirectIpv4Runtime.hosts + 1] = record
+    DirectIpv4Runtime.pending = record
+    return true
+end
+
+function DirectIpv4Runtime.prepareHost(slot, playerName)
+    if multiplayer:isActive() then
+        return false, "Close the active multiplayer session before starting a new Direct host."
+    end
+    local payload, mode, loadError = prepareHostSave(slot)
+    if not payload then return false, loadError end
+    local name = tostring(playerName or "Direct Worker"):gsub("Worker", "Host")
+    return DirectIpv4Runtime.beginHost("initial", name, payload, mode)
+end
+
+function DirectIpv4Runtime.beginManualHost(kind, playerName, payload, saveMode,
+        externalAddress)
+    if not DirectIpv4Runtime.hostingAvailable() then
+        return false, DirectIpv4Runtime.hostingUnavailableMessage()
+    end
+    if DirectIpv4Runtime.pending then
+        return false, "Another IPv4 Direct invitation is still being prepared."
+    end
+    if kind == "additional" and not directHostCanInvite() then
+        return false, "Direct guest capacity is full or another invitation is active."
+    end
+    local port = DirectIpv4Runtime.nextPort()
+    if not port then return false, "No safe IPv4 guest port is available." end
+    local host, hostError = DirectIpv4Runtime.Host.new({
+        provider = CryptoNative,
+        manualOnly = true,
+    })
+    if not host then return false, hostError end
+    local record = {
+        kind = kind,
+        host = host,
+        port = port,
+        name = playerName,
+        payload = payload,
+        saveMode = saveMode,
+        manual = true,
+        closing = false,
+        attached = false,
+        linkHandle = nil,
+    }
+    local started, details = host:startManualSetup(port, {
+        externalAddress = externalAddress,
+        externalPort = port,
+        lifetimeSeconds = 15 * 60,
+    })
+    if not started then
+        record.closing = true
+        local called, cleaned = pcall(host.stop, host)
+        if not called or cleaned ~= true then
+            DirectIpv4Runtime.hosts[#DirectIpv4Runtime.hosts + 1] = record
+            DirectIpv4Runtime.pending = record
+            return false,
+                "The secure listener could not be closed safely; retry cleanup before hosting again."
+        end
+        return false, details
+    end
+    record.manualDetails = details
+    DirectIpv4Runtime.hosts[#DirectIpv4Runtime.hosts + 1] = record
+    DirectIpv4Runtime.pending = record
+    return true, details
+end
+
+function DirectIpv4Runtime.prepareManualHost(slot, playerName, externalAddress)
+    if multiplayer:isActive() then
+        return false, "Close the active multiplayer session before starting a new Direct host."
+    end
+    local payload, mode, loadError = prepareHostSave(slot)
+    if not payload then return false, loadError end
+    local name = tostring(playerName or "Direct Worker"):gsub("Worker", "Host")
+    return DirectIpv4Runtime.beginManualHost(
+        "initial", name, payload, mode, externalAddress)
+end
+
+function DirectIpv4Runtime.prepareAdditionalManualHost(_, playerName, externalAddress)
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    return DirectIpv4Runtime.beginManualHost(
+        "additional", playerName, nil, nil, externalAddress)
+end
+
+function DirectIpv4Runtime.startManualHostFromScreen(slot, playerName, externalAddress)
+    if multiplayer:isHost() and multiplayer.networkKind == "direct" then
+        return DirectIpv4Runtime.prepareAdditionalManualHost(
+            slot, playerName, externalAddress)
+    end
+    return DirectIpv4Runtime.prepareManualHost(slot, playerName, externalAddress)
+end
+
+function DirectIpv4Runtime.confirmManualHost()
+    local record = DirectIpv4Runtime.pending
+    if not record or record.manual ~= true then
+        return false, "No manual IPv4 router setup is waiting for confirmation."
+    end
+    local called, confirmed, invitationOrError = pcall(
+        record.host.confirmManualSetup, record.host)
+    if not called or confirmed ~= true then
+        return false, invitationOrError
+            or "Manual IPv4 setup could not be confirmed safely."
+    end
+    record.manualConfirmed = true
+    return true
+end
+
+function DirectIpv4Runtime.manualCleanupInfo()
+    for index = #DirectIpv4Runtime.hosts, 1, -1 do
+        local record = DirectIpv4Runtime.hosts[index]
+        local called, details = pcall(record.host.manualCleanupDetails, record.host)
+        if called and type(details) == "table" then return details end
+    end
+    return nil
+end
+
+function DirectIpv4Runtime.hasManualCleanupObligation()
+    for _, record in ipairs(DirectIpv4Runtime.hosts) do
+        local called, status = pcall(record.host.status, record.host)
+        if called and type(status) == "table"
+            and (status.manualRuleConfirmed == true
+                or status.cleanupKind == "manual") then
+            return true
+        end
+    end
+    return false
+end
+
+function DirectIpv4Runtime.acknowledgeManualCleanup()
+    for index = #DirectIpv4Runtime.hosts, 1, -1 do
+        local record = DirectIpv4Runtime.hosts[index]
+        local called, details = pcall(record.host.manualCleanupDetails, record.host)
+        if called and type(details) == "table" then
+            local acknowledged, result = pcall(
+                record.host.acknowledgeManualCleanup, record.host)
+            if not acknowledged or result ~= true then
+                return false, "The manual router-rule cleanup could not be verified."
+            end
+            DirectIpv4Runtime.removeHostRecord(record)
+            return true
+        end
+    end
+    return false, "No closed manual IPv4 listener is waiting for cleanup confirmation."
+end
+
+function DirectIpv4Runtime.cancelManualWithRule()
+    local record = DirectIpv4Runtime.pending
+    if record and record.manual == true
+        and record.host.state == "manual_setup" then
+        local called, marked = pcall(
+            record.host.requireManualCleanup, record.host)
+        if not called or marked ~= true then
+            return false, "The manual router-rule cleanup could not be recorded safely."
+        end
+    end
+    return DirectIpv4Runtime.cancelPlayAttempt()
+end
+
+local function enterDirectCleanupScreen(message, retry)
+    state.screen = "direct"
+    DirectScreen.enter({
+        slot = lastDirectSlot,
+        allowIpv4Host = false,
+        cancel = retry or DirectIpv4Runtime.cancelPlayAttempt,
+        back = retry or DirectIpv4Runtime.cancelPlayAttempt,
+        manualCleanupInfo = DirectIpv4Runtime.manualCleanupInfo,
+        acknowledgeManualCleanup = DirectIpv4Runtime.acknowledgeManualCleanup,
+    })
+    local details = DirectIpv4Runtime.manualCleanupInfo()
+    if details then
+        DirectScreen.showManualCleanup(details, message)
+    else
+        DirectScreen.showCleanupError(message)
+    end
+end
+
+local function presentManualHostCleanup(record, message)
+    local manualDetails = DirectIpv4Runtime.manualCleanupInfo()
+    if not manualDetails then return false end
+    local function finish()
+        if DirectIpv4Runtime.manualCleanupInfo() then
+            return false, "Remove and acknowledge the displayed manual UDP rule first."
+        end
+        if multiplayer:isHost() and multiplayer.networkKind == "direct" then
+            DirectScreen.leave()
+            state.screen = "world"
+            state.message = "The manual UDP rule was removed. Existing Direct workers stayed online."
+            return true
+        end
+        return DirectIpv4Runtime.cancelPlayAttempt()
+    end
+    enterDirectCleanupScreen(message, finish)
+    return true
+end
+
+local function cancelAdditionalManualWithRule()
+    local record = DirectIpv4Runtime.pending
+    if not record or record.manual ~= true then
+        return false, "No manual IPv4 invitation is waiting for cancellation."
+    end
+    local called, marked = pcall(
+        record.host.requireManualCleanup, record.host)
+    if not called or marked ~= true then
+        return false, "The manual router-rule cleanup could not be recorded safely."
+    end
+    return DirectIpv4Runtime.cancelPendingInvite()
+end
+
 local function prepareDirectGuest(hostCode, localAddress, playerName)
     local connectionClean, connectionError = closeDirectConnection()
     if not connectionClean then return false, connectionError end
@@ -1727,6 +2022,43 @@ local function prepareDirectGuest(hostCode, localAddress, playerName)
     return true, codeOrError
 end
 
+function DirectIpv4Runtime.prepareGuest(hostCode, playerName)
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    local hostClean, hostError = closeDirectHostComposite()
+    if not hostClean then return false, hostError end
+    local transportFactory, endpoint = DirectIpv4Runtime.Listener.clientFactory(hostCode, {
+        provider = CryptoNative,
+    })
+    if not transportFactory then return false, endpoint end
+    local joined, joinError = multiplayer:startClient(endpoint, {
+        name = tostring(playerName or "Direct Worker"),
+        character = Config.player.character,
+        networkKind = "direct",
+        transportFactory = transportFactory,
+    })
+    if not joined then
+        local cleaned = disposeDirectTransportFactory(transportFactory)
+        if not cleaned then
+            return false,
+                "The IPv4 Direct invitation could not be cleaned up; restart the game before trying again."
+        end
+        return false, joinError
+    end
+    state.screen = "direct"
+    return true
+end
+
+function DirectIpv4Runtime.cancelPlayAttempt()
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    -- Stop even if a prior stop left the session offline but still owning an
+    -- unverified transport; Session:stop retries that retained cleanup.
+    local sessionClean, sessionError = multiplayer:stop("Direct connection cancelled")
+    if not sessionClean then return false, sessionError end
+    return closeDirectHostComposite()
+end
+
 local function prepareAdditionalDirectHost(_, _, localAddress)
     local connectionClean, connectionError = closeDirectConnection()
     if not connectionClean then return false, connectionError end
@@ -1746,12 +2078,61 @@ local function prepareAdditionalDirectHost(_, _, localAddress)
     return true, codeOrError
 end
 
+function DirectIpv4Runtime.prepareAdditionalHost(_, playerName)
+    local connectionClean, connectionError = closeDirectConnection()
+    if not connectionClean then return false, connectionError end
+    return DirectIpv4Runtime.beginHost("additional", playerName)
+end
+
+function DirectIpv4Runtime.startHostFromScreen(slot, playerName)
+    if multiplayer:isHost() and multiplayer.networkKind == "direct" then
+        return DirectIpv4Runtime.prepareAdditionalHost(slot, playerName)
+    end
+    return DirectIpv4Runtime.prepareHost(slot, playerName)
+end
+
 local function submitDirectResponse(responseCode)
     if not directConnection or not pendingDirectSession
         or pendingDirectSession.role ~= "host" then
         return false, "No Direct host invitation is waiting for a reply."
     end
     return directConnection:submitResponse(responseCode)
+end
+
+function DirectIpv4Runtime.enterShop()
+    if not multiplayer:isHost() or multiplayer.networkKind ~= "direct" then
+        return false, "The Direct host session is not ready."
+    end
+    DirectScreen.leave()
+    if DirectIpv4Runtime.pending then
+        DirectIpv4Runtime.pending.invitationScreenActive = false
+        DirectIpv4Runtime.pending = nil
+    end
+    state.screen = "world"
+    state.message = "Direct host active. Approve every worker in the Players panel."
+    return true
+end
+
+function DirectIpv4Runtime.cancelPendingInvite()
+    local record = DirectIpv4Runtime.pending
+    if not record or record.kind ~= "additional" then return true end
+    if record.linkHandle and directHostComposite
+        and directHostComposite:hasLink(record.linkHandle) then
+        local retired, retireError = directHostComposite:retireLink(
+            record.linkHandle, 0, true)
+        if not retired then return false, retireError end
+    end
+    record.closing = true
+    local called, cleaned = pcall(record.host.stop, record.host)
+    if called and cleaned == true then
+        if DirectIpv4Runtime.pending == record then DirectIpv4Runtime.pending = nil end
+        for index, item in ipairs(DirectIpv4Runtime.hosts) do
+            if item == record then table.remove(DirectIpv4Runtime.hosts, index); break end
+        end
+        return true
+    end
+    return false,
+        "IPv4 router-mapping cleanup is still pending. Keep the game open and retry cleanup."
 end
 
 openDirectPlay = function(slot)
@@ -1773,11 +2154,20 @@ openDirectPlay = function(slot)
     DirectScreen.enter({
         slot = lastDirectSlot,
         host = prepareDirectHost,
+        hostIpv4 = DirectIpv4Runtime.startHostFromScreen,
+        hostIpv4Manual = DirectIpv4Runtime.startManualHostFromScreen,
         join = prepareDirectGuest,
+        joinIpv4 = DirectIpv4Runtime.prepareGuest,
         response = submitDirectResponse,
-        cancel = closeDirectConnection,
+        enterShop = DirectIpv4Runtime.enterShop,
+        allowIpv4Host = DirectIpv4Runtime.hostingAvailable(),
+        cancel = DirectIpv4Runtime.cancelPlayAttempt,
+        cancelManualWithRule = DirectIpv4Runtime.cancelManualWithRule,
+        confirmIpv4Manual = DirectIpv4Runtime.confirmManualHost,
+        manualCleanupInfo = DirectIpv4Runtime.manualCleanupInfo,
+        acknowledgeManualCleanup = DirectIpv4Runtime.acknowledgeManualCleanup,
         back = function()
-            local cleaned, cleanupError = closeDirectConnection()
+            local cleaned, cleanupError = DirectIpv4Runtime.cancelPlayAttempt()
             if not cleaned then
                 DirectScreen.showCleanupError(cleanupError)
                 return false, cleanupError
@@ -1801,10 +2191,20 @@ openDirectInvite = function()
         slot = lastDirectSlot,
         inviteOnly = true,
         host = prepareAdditionalDirectHost,
+        hostIpv4 = DirectIpv4Runtime.prepareAdditionalHost,
+        hostIpv4Manual = DirectIpv4Runtime.prepareAdditionalManualHost,
         response = submitDirectResponse,
+        enterShop = DirectIpv4Runtime.enterShop,
+        allowIpv4Host = DirectIpv4Runtime.hostingAvailable(),
+        cancelManualWithRule = cancelAdditionalManualWithRule,
+        confirmIpv4Manual = DirectIpv4Runtime.confirmManualHost,
+        manualCleanupInfo = DirectIpv4Runtime.manualCleanupInfo,
+        acknowledgeManualCleanup = DirectIpv4Runtime.acknowledgeManualCleanup,
         cancel = function()
             local cleaned, cleanupError = closeDirectConnection()
             if not cleaned then return false, cleanupError end
+            local ipv4Cleaned, ipv4Error = DirectIpv4Runtime.cancelPendingInvite()
+            if not ipv4Cleaned then return false, ipv4Error end
             DirectScreen.leave()
             state.screen = "world"
             state.message = "The pending Direct invitation was cancelled; connected workers stayed online."
@@ -1813,6 +2213,8 @@ openDirectInvite = function()
         back = function()
             local cleaned, cleanupError = closeDirectConnection()
             if not cleaned then return false, cleanupError end
+            local ipv4Cleaned, ipv4Error = DirectIpv4Runtime.cancelPendingInvite()
+            if not ipv4Cleaned then return false, ipv4Error end
             DirectScreen.leave()
             state.screen = "world"
             return true
@@ -1831,14 +2233,16 @@ returnToTitle = function()
     clearWorkshopAuthority("session_closed")
     local connectionClean, connectionError = closeDirectConnection()
     local hostClean, hostError = closeDirectHostComposite()
+    if not sessionClean or not connectionClean or not hostClean then
+        enterDirectCleanupScreen(sessionError or connectionError or hostError,
+            returnToTitle)
+        return false
+    end
     DirectScreen.leave()
     if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
         love.window.setDisplaySleepEnabled(true)
     end
     state.screen = "title"
-    if not sessionClean or not connectionClean or not hostClean then
-        state.message = sessionError or connectionError or hostError
-    end
     TitleScreen.enter(startGame, openLocalPlay,
         CryptoNative.productionReady == true and openDirectPlay or nil)
 end
@@ -3294,6 +3698,225 @@ local function directScreenError(message, keepActiveHost)
     if syncMobileKeyboard then syncMobileKeyboard() end
 end
 
+function DirectIpv4Runtime.removeHostRecord(record)
+    if DirectIpv4Runtime.pending == record then DirectIpv4Runtime.pending = nil end
+    for index, item in ipairs(DirectIpv4Runtime.hosts) do
+        if item == record then table.remove(DirectIpv4Runtime.hosts, index); break end
+    end
+end
+
+function DirectIpv4Runtime.retireHostLink(record)
+    if not record.linkHandle or not directHostComposite then return true end
+    local hasCall, hasLink = pcall(
+        directHostComposite.hasLink, directHostComposite, record.linkHandle)
+    if not hasCall then return false, "The IPv4 guest link could not be checked safely." end
+    if not hasLink then return true end
+    local called, retired, retireError = pcall(
+        directHostComposite.retireLink, directHostComposite,
+        record.linkHandle, 0, true)
+    if not called or retired ~= true then
+        return false, retireError or "The IPv4 guest link could not be retired safely."
+    end
+    return true
+end
+
+function DirectIpv4Runtime.reportHostError(record, message)
+    local linkRetired, retireError = DirectIpv4Runtime.retireHostLink(record)
+        if not linkRetired then
+            record.closing = true
+            DirectScreen.showCleanupError(retireError)
+        state.screen = "direct"
+        return
+    end
+    record.closing = true
+    if record.kind == "initial" then
+        local sessionCalled, sessionClean = pcall(
+            multiplayer.stop, multiplayer, "Direct IPv4 host setup failed")
+        if not sessionCalled or sessionClean ~= true then
+            DirectScreen.showCleanupError(
+                "The Direct host session could not be closed safely. Keep the game open and retry cleanup.")
+            state.screen = "direct"
+            return
+        end
+        clearWorkshopAuthority("host_start_failed")
+        local hostClean, hostError = closeDirectHostComposite()
+        if not hostClean then
+            if not presentManualHostCleanup(record, hostError) then
+                DirectScreen.showCleanupError(hostError)
+            end
+            state.screen = "direct"
+            return
+        end
+        DirectScreen.showError(message or "The IPv4 invitation could not be created.")
+        state.screen = "direct"
+        return
+    end
+    local called, cleaned = pcall(record.host.stop, record.host)
+    if called and cleaned == true then DirectIpv4Runtime.removeHostRecord(record) end
+    if called and cleaned ~= true then
+        local cleanupMessage =
+            "IPv4 router-mapping cleanup is still pending. Keep the game open and retry cleanup."
+        if not presentManualHostCleanup(record, cleanupMessage) then
+            DirectScreen.showCleanupError(cleanupMessage)
+        end
+        state.screen = "direct"
+    elseif record.kind == "additional" and multiplayer:isHost()
+        and multiplayer.networkKind == "direct" then
+        DirectScreen.leave()
+        state.screen = "world"
+        state.message = tostring(message or "The IPv4 invitation could not be created.")
+    else
+        DirectScreen.showError(message or "The IPv4 invitation could not be created.")
+    end
+end
+
+function DirectIpv4Runtime.activateHost(record)
+    local compositeFactory = nil
+    local controller = directHostComposite
+    if record.kind == "initial" then
+        if controller then
+            return false, "A Direct host transport is already active."
+        end
+        local factory, newController, factoryError = DirectCompositeTransport.newFactory({
+            maxGuests = 3,
+            channels = 3,
+            firstConnectTimeoutSeconds = 120,
+        })
+        if not factory or not newController then
+            return false, factoryError or "The multi-worker Direct host transport could not start."
+        end
+        compositeFactory, controller = factory, newController
+        directHostComposite = controller
+    elseif not controller then
+        return false, "The active Direct host transport is unavailable."
+    end
+
+    local linkHandle, attachError = record.host:attachToSession(controller)
+    if not linkHandle then return false, attachError end
+    record.linkHandle = linkHandle
+    record.attached = true
+
+    if record.kind == "initial" then
+        workshopAuthority = createWorkshopAuthority()
+        localWorkshopLease = nil
+        localWorkshopRequestId = 0
+        activeCutterRemote = nil
+        activeWrapperRemote = nil
+        activeWindmillRemote = nil
+        local hosted, hostError = multiplayer:startHost({
+            port = 22122,
+            name = record.name,
+            character = Config.player.character,
+            networkKind = "direct",
+            transportFactory = compositeFactory,
+        })
+        if not hosted then
+            clearWorkshopAuthority("host_start_failed")
+            return false, hostError
+        end
+        local started, startError = startGame(record.payload, record.saveMode)
+        if not started then
+            multiplayer:stop("Direct host save could not be opened")
+            clearWorkshopAuthority("host_save_failed")
+            return false, startError
+        end
+    end
+
+    local code = record.host:invitation()
+    if type(code) ~= "string" then
+        return false, "The IPv4 invitation expired before it could be shown."
+    end
+    record.invitationScreenActive = true
+    state.screen = "direct"
+    if record.manual == true then
+        DirectScreen.showManualIpv4HostInvitation(code, record.manualDetails)
+    else
+        DirectScreen.showIpv4HostInvitation(code)
+    end
+    return true
+end
+
+function DirectIpv4Runtime.updateHosts()
+    for index = #DirectIpv4Runtime.hosts, 1, -1 do
+        local record = DirectIpv4Runtime.hosts[index]
+        local updated, hostState, hostError = pcall(record.host.update,
+            record.host)
+        if not updated then
+            hostState = "failed"
+            hostError = "The IPv4 mapping status could not be checked safely."
+        end
+        if record.manual == true and record.host.manualRouteInvalidated == true
+            and state.screen == "direct"
+            and DirectScreen.mode == "ipv4_manual_rule" then
+            local statusCalled, hostStatus = pcall(record.host.status, record.host)
+            DirectScreen.showManualSetupInvalidated(statusCalled
+                and type(hostStatus) == "table"
+                and hostStatus.listenerClosedBeforeCleanup == true)
+        end
+        local linkPresent, linkCheckFailed = false, false
+        if record.linkHandle and directHostComposite then
+            local called, result = pcall(directHostComposite.hasLink,
+                directHostComposite, record.linkHandle)
+            linkPresent = called and result == true
+            linkCheckFailed = not called
+        end
+        if record.closing then
+            local called, cleaned = pcall(record.host.stop, record.host)
+            if called and cleaned == true then
+                DirectIpv4Runtime.removeHostRecord(record)
+            elseif not record.manualCleanupPrompted
+                and presentManualHostCleanup(record,
+                    "Remove the manual UDP rule before returning to play.") then
+                record.manualCleanupPrompted = true
+            end
+        elseif linkCheckFailed then
+            DirectIpv4Runtime.reportHostError(record,
+                "The IPv4 guest link could not be checked safely.")
+        elseif record.linkHandle and not linkPresent then
+            if record.invitationScreenActive and state.screen == "direct" then
+                DirectScreen.showError(
+                    "The IPv4 invitation expired or its guest disconnected. Create a fresh invitation to reconnect.")
+            end
+            record.closing = true
+            local called, cleaned = pcall(record.host.stop, record.host)
+            if called and cleaned == true then
+                DirectIpv4Runtime.removeHostRecord(record)
+            elseif presentManualHostCleanup(record,
+                "Remove the manual UDP rule before returning to play.") then
+                record.manualCleanupPrompted = true
+            end
+        elseif record.attached
+            and (hostState == "failed" or hostState == "unavailable"
+                or hostState == "cleanup_required") then
+            DirectIpv4Runtime.reportHostError(record, hostError
+                or "The IPv4 network mapping is no longer safe to use.")
+        elseif record.attached and record.invitationScreenActive then
+            local code = record.host:invitation()
+            if type(code) == "string" and DirectScreen.mode ~= "ipv4_host_ready"
+                and state.screen == "direct" then
+                if record.manual == true then
+                    DirectScreen.showManualIpv4HostInvitation(
+                        code, record.manualDetails)
+                else
+                    DirectScreen.showIpv4HostInvitation(code)
+                end
+            elseif not code and state.screen == "direct"
+                and DirectScreen.mode == "ipv4_host_ready" then
+                DirectScreen.showIpv4HostPending(
+                    "The router mapping changed. Waiting for a safe replacement before sharing a new code.")
+            end
+        elseif not record.attached and hostState == "ready" then
+            local activated, activateError = DirectIpv4Runtime.activateHost(record)
+            if not activated then DirectIpv4Runtime.reportHostError(record, activateError) end
+        elseif not record.attached
+            and (hostState == "failed" or hostState == "unavailable"
+                or hostState == "cleanup_required") then
+            DirectIpv4Runtime.reportHostError(record, hostError
+                or "Automatic IPv4 router mapping is unavailable on this network.")
+        end
+    end
+end
+
 local function updateDirectConnection()
     local connection = directConnection
     if not connection then return end
@@ -3452,6 +4075,7 @@ end
 function App.update(dt)
     if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
+    DirectIpv4Runtime.updateHosts()
     updateDirectConnection()
     updateLanConvenience(dt)
     Machine.setMultiplayerSingleControl(multiplayer:isActive())
@@ -3779,15 +4403,22 @@ function App.quit()
     if not spriteLabActive then saveCurrent() end
     lanDiscovery:stop()
     lanReconnect:cancel(true)
-    multiplayer:stop("Application closed")
+    local sessionClean, sessionError = multiplayer:stop("Application closed")
     clearWorkshopAuthority("application_closed")
-    closeDirectConnection()
-    closeDirectHostComposite()
+    local connectionClean, connectionError = closeDirectConnection()
+    local hostClean, hostError = closeDirectHostComposite()
+    if not sessionClean or not connectionClean or not hostClean then
+        enterDirectCleanupScreen(sessionError or connectionError or hostError,
+            DirectIpv4Runtime.cancelPlayAttempt)
+        if syncMobileKeyboard then syncMobileKeyboard() end
+        return true
+    end
     DirectScreen.leave()
     if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
         love.window.setDisplaySleepEnabled(true)
     end
     if App.sound then App.sound:shutdown() end
+    return false
 end
 
 App.multiplayer = multiplayer

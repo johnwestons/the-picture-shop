@@ -94,10 +94,11 @@ number generators are never used for invitation keys or cryptographic nonces.
   cross-session finish replay, a valid low-order X25519 input, data replay, channel substitution,
   reserved sequence exhaustion, bounded cross-channel reordering, opening-packet tampering/replay,
   restart replay, final-flight loss, wrong-source floods, and cleanup on every tested failure path.
-- Engineering-only automatic-reachability layers now include bounded PCP and NAT-PMP codecs, a
-  serialized finite-lease coordinator, strict pure UPnP IGD parsing/request construction, and read-only
-  Windows and Android default-gateway providers. These components do not yet have a live router socket
-  adapter and are not production router-mapping support.
+- Engineering-only automatic reachability includes bounded PCP and NAT-PMP codecs, a serialized
+  finite-lease coordinator, strict UPnP IGD handling, and exact-route Windows adapters for PCP,
+  NAT-PMP, and UPnP. Android route discovery is present, but Android has no live exact-network mapping
+  socket adapter. No physical public-IPv4 router has yet passed the complete create/renew/delete flow;
+  these features remain unavailable in production.
 - A same-port simultaneous IPv6 opening passes between the physical Wi-Fi and cellular phones with
   authenticated proof in both directions and complete redacted cleanup. A subsequent guarded run
   transferred those exact sockets into the authenticated bridge and encrypted ENet transport, moved game
@@ -140,10 +141,58 @@ number generators are never used for invitation keys or cryptographic nonces.
   the canonical cleanup-boolean casing fix, so it is recorded as a diagnostic observation rather than frozen
   acceptance evidence. The exact kit used for the attempt is retained under
   `output/public-ipv4-evidence/kit-7a28a30228c1f416/`.
+- The production-gated Windows x64 IPv4 host action and `TPS1` guest join are now wired into the existing
+  Direct screen and composite multiplayer session. The host binds its encrypted listener before asking
+  the router for a finite mapping, revalidates the exact route before attachment, and keeps mapping/link
+  cleanup owned by the app. Additional guests still require fresh one-use invitations and host approval.
+  A production-gated manual IPv4 path now asks the player for the WAN address shown by their router,
+  binds the secure listener to the selected local route, displays one exact UDP forward, and withholds
+  the invitation until the player confirms the rule. The app keeps the rule-removal obligation visible
+  through disconnect, title return, and normal quit; force-closing the process still requires the player
+  to remove the persistent router rule directly. This is in-repository integration only: both readiness
+  flags remain false, the confirmation does not prove the router rule or inbound path works, and physical
+  IPv4 acceptance remains open.
+- Active IPv4 hosts now revalidate the captured route at a bounded one-second interval. A route change
+  revokes the invitation and closes the listener before normal finite-mapping cleanup or the existing
+  manual-router-rule cleanup obligation proceeds. Failed PCP/NAT-PMP and UPnP socket closes remain owned
+  for retry, including sockets rejected by binding proof, and the coordinator passes its monotonic time to
+  adapter closure at finite lease expiry. Authenticated openings, connection owners, IPv6 bridge sockets,
+  wrapped ENet transports, and abandoned IPv6 factories likewise retain unverified resources for close
+  retries. Regression coverage exercises route invalidation, nested cleanup retries, expiry cleanup, and
+  verifies mapping renewals/deletion wait for confirmed listener closure after invitation publication fails.
+- Manual IPv4 setup also revalidates its route while the player is preparing the router rule. A route
+  change closes the listener, withholds invitation publication, and asks whether the rule was added so
+  cleanup remains explicit; closure is retried if it cannot initially be verified.
+- On 2026-09-27, the packaged-game suite passed 3,637 checks and the tooling regression suite passed all
+  87 tests. The read-only Windows gateway-discovery and mapping-socket probes also passed on this PC route:
+  exact source/interface, gateway, and route generation matched; the encrypted listener bound and closed;
+  no invitation was created and no network packet was sent. These checks prove local integration/binding,
+  not Internet reachability or real-router mapping. The suite also passes the owned-forklift Local Play
+  world-interaction scan that guards the previously reported undeclared-capability crash.
+- A fresh reproducible Android `.love` runtime package from the same working tree also passed all 3,637
+  smoke checks under the desktop LÖVE runtime. Its archive SHA-256 is
+  `2c1d3bb0c9f2a85e48aebf34f7c7343d1f68ae448bc5a8507b1fa2046c3f37cb`. This validates the mobile
+  package contents and shared game logic, not Android ABI loading or device runtime behavior.
+- Also on 2026-09-27, the updated working tree built an isolated Windows `0.1.0-test.31` candidate with
+  3,638 fused-game smoke checks; its per-user install/uninstall test passed and confirmed the player's
+  save fingerprint was unchanged. Installer SHA-256:
+  `cc16b749e9edab71b012b0ec3516b94e9d0026e6b74b27d0be42be1f9f3b7379`. The report correctly records
+  `sourceDirty=true` and `signed=false`; this clears local installer mechanics only, not clean-source
+  provenance, trusted signing, or release acceptance.
+- The public-IPv4 remote acceptance kit was rebuilt on 2026-09-27 from the current Direct IPv4 source.
+  Host/guest manifests and pinned native ABIs verify, and the build confirms no network traffic and keeps
+  the production gate closed. Its report records source commit
+  `d27a62bab4e5d0ca952c6f6487b1542c4a6b226a` and explicitly marks the worktree dirty; the frozen archive
+  SHA-256 is `faa680e5594a5680d78a9dc3fef341c04af5ca76e57de450009ba612906a8792`. The result verifier
+  binds evidence to both this exact kit and its source provenance. The physical run is still outstanding,
+  and the saved result intake contains no host result.
 - Direct Play remains disabled. The normal title screen receives no Direct callback while the bundled
   provider remains `productionReady = false`. The broader residential/mobile network matrix, live router
   mapping on a supported public-IPv4 network, Android x86_64 and physical 16 KiB-kernel runs,
-  repeat/independent packet-capture review, and external security review are still release gates.
+  repeat/independent packet-capture review, and external security review are still release gates. The
+  reviewer scope and evidence checklist is prepared in
+  [`direct_internet_multiplayer_security_review.md`](direct_internet_multiplayer_security_review.md);
+  no independent review has yet been completed.
 
 ## No-service reachability plan
 
@@ -160,8 +209,14 @@ When both endpoints have usable global IPv6, the authenticated IPv6 opening/brid
 free path because it does not need an IPv4 router mapping and is not blocked by carrier-grade NAT.
 The following serialized methods provide IPv4 compatibility when IPv6 is unavailable or filtered:
 
-1. Manual UDP forwarding is the first working fallback. The host binds the secure Direct listener,
-   enters the public endpoint reported by their own router, and receives exact firewall/UDP-port guidance.
+1. Manual UDP forwarding is the fallback when IPv6 and automatic mapping are unavailable. The gated
+   Windows x64 screen accepts a canonical public WAN IPv4 entered from the router's status page, shows
+   the exact external UDP port and internal device/port, and publishes a one-use invitation only after
+   the player confirms the rule. The router rule itself does not expire; the app keeps a cleanup screen
+   active until the player removes it and acknowledges removal. An unexpected process close cannot
+   remove a router rule, so the player is warned to remove it in the router. The confirmation is an
+   operator assertion, not proof of inbound reachability. Manual hosting is still unavailable while
+   production readiness is false and is not an accepted fallback until real cross-network tests pass.
 2. [PCP MAP](https://www.rfc-editor.org/rfc/rfc6887.html) is the preferred automatic method. It asks the
    active gateway for a finite UDP mapping and accepts the gateway-selected external address and port.
 3. [NAT-PMP](https://www.rfc-editor.org/rfc/rfc6886.html) is the serialized legacy fallback, including
@@ -229,7 +284,9 @@ IPv4-specific by design. Dual-stack hosting uses it beside the existing authenti
 not an IPv4-mapped wildcard socket. The ordered host controller binds encryption first, maps second,
 publishes only a global router-selected endpoint, invalidates changed endpoints, and closes even a handed-off
 listener before best-effort mapping deletion. It remains behind `productionReady = false` and is not wired
-to the player screen.
+to public play; the Windows x64 host and IPv4 guest path are now wired behind the same readiness checks.
+Manual-forwarding setup/cleanup UX is now implemented behind that same gate. Physical public-IPv4
+automatic mapping and manual-forwarding acceptance remain open.
 The engineering adapter also permits an explicit test-library override and source/output lookup. A release
 build must remove those development paths and load only the packaged, integrity-verified same-directory
 DLL before this provider can become a player-facing dependency.
@@ -468,9 +525,9 @@ endpoint, device serial, invitation, key, packet, or raw log:
 `output/native-crypto/device-tests/pc_two_android_direct_gameplay_report.json`. This is engineering
 evidence only; `productionReady = false` remains unchanged.
 
-The approval, denial, kick, timeout, single-use invitation, and transport admission boundaries are all
-covered by the complete packaged-game smoke suite, which passes 1,715 checks with zero failures after
-these changes.
+The approval, denial, kick, timeout, single-use invitation, transport admission, and IPv4 host/lifecycle
+boundaries are covered by the complete packaged-game smoke suite, which passes 3,637 checks with zero
+failures after these changes.
 
 `src/net/direct_connection.lua` composes the two codes, authenticated opening, bridge, encrypted
 transport, and one-session multiplayer factory. `src/screens/direct_screen.lua` supplies the guarded host
@@ -534,8 +591,9 @@ different host/network, not to promise a connection that cannot exist.
   Android; Windows and Android ARM32 are physically verified, with all three Android ABIs statically audited.
 - [x] Add a reviewed exact-IPv4 encrypted listener and ordered listener-map-publish-delete host lifecycle;
   keep IPv6 on its separate authenticated bridge rather than a wildcard dual-mode socket.
-- [ ] Verify release loading is restricted to the packaged, integrity-verified native route provider
-  (hash-pinned packaging/loading is implemented; end-to-end Windows package smoke remains).
+- [x] Restrict release loading to the packaged, hash-pinned native route provider; verify packaged and
+  extracted bytes and pass the fused Windows game smoke, including native ABI loading and tamper
+  rejection when a valid loose-DLL override is present.
 - [x] Add a unique private per-mapping ownership token and reuse PCP's exact wire nonce.
 - [x] Add an OS-notification-backed Windows network generation and require it for create, renew, and delete;
   Android already exposes its exact network handle and route revision, but its mapping socket is not implemented.
@@ -550,25 +608,36 @@ different host/network, not to promise a connection that cannot exist.
 - [x] Add a privacy-safe counters-only UDP/5351 NIC traffic diagnostic for the live PCP/NAT-PMP timeout path; it retains no packet or network details and removes only its verified owned Packet Monitor filter.
 - [ ] Pass create/renew/delete against a physical public-IPv4 residential router.
 - [x] Detect private and carrier-grade-NAT WAN addresses and explain the limitation clearly.
-- [ ] Keep manual UDP forwarding as the fallback.
+- [x] Wire the production-gated Windows x64 IPv4 host/listener and `TPS1` guest join into the existing
+  Direct screen/session, including exact-route revalidation, finite automatic mapping, one-use guest
+  links, and cleanup ownership; verify with the packaged-game smoke suite.
+- [x] Add production-gated manual WAN-address entry, exact UDP forward instructions, invite-after-confirm
+  behavior, and explicit rule-removal cleanup handling; verify the flow in the packaged-game smoke suite.
+- [ ] Pass automatic create/renew/delete plus manual-forwarding and full player-flow acceptance on a
+  supported public-IPv4 residential network.
 
 ### 4. Release validation
 
 - [ ] Exercise normal routers, disabled mapping, double NAT, carrier-grade NAT, and mobile hotspots.
 - [ ] Test four players across separate networks with realistic latency, loss, and reconnects.
-- [ ] Verify wrong invitations, tampering, replay, malformed frames, and connection-slot exhaustion.
+- [x] Run deterministic wrong-invitation, tampering, replay, malformed-frame, and connection-slot
+  exhaustion checks in the packaged-game smoke suite; repeat/capture validation across real networks
+  remains tracked below.
 - [x] Confirm a guarded PC-host/Android-cellular capture contains no invitation key, player name, or
   shop/gameplay plaintext and retains no raw capture.
+- [x] Build and smoke-test the current Windows candidate, then install/uninstall it in an isolated
+  per-user test location and verify the temporary profile's save fingerprint is unchanged.
 - [ ] Repeat packet-capture validation across the remaining network/runtime matrix and obtain an
   independent review of the redacted evidence.
-- [ ] Obtain an external security review before opening Direct Play to the public.
+- [ ] Obtain an external security review before opening Direct Play to the public, using the
+  [`security review packet`](direct_internet_multiplayer_security_review.md).
 
 The Windows package builder now embeds the native route provider inside the `.love` archive and pins its
 SHA-256 in the packaged loader. At runtime, the loader checks both the archived bytes and its extracted
 copy, then loads only that verified copy; release mode ignores environment overrides and development
 search paths. This verifies consistency with the package's embedded expected hash, not authenticity of a
-maliciously rebuilt whole package. The end-to-end Windows package smoke and trusted package-signing /
-provenance review remain open.
+maliciously rebuilt whole package. Current-source installer install/uninstall mechanics passed in an
+isolated per-user test, but clean-source release provenance and trusted package signing remain open.
 
 The Lua wrapper's `productionReady` provider flag only prevents accidental test-provider use. Direct
 Play remains disabled even though the deterministic provider, replay, direction-separation, session-key,

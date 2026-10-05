@@ -303,6 +303,11 @@ function Instance:linkCount()
     return #self._order
 end
 
+function Instance:hasLink(handle)
+    local record = self._links[handle]
+    return record ~= nil and record.active == true
+end
+
 function Instance:capacity()
     return self.maxGuests
 end
@@ -625,6 +630,10 @@ end
 
 function Controller:linkCount()
     return self._instance:linkCount()
+end
+
+function Controller:hasLink(handle)
+    return self._instance:hasLink(handle)
 end
 
 function Controller:capacity()

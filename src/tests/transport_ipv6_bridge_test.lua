@@ -129,10 +129,14 @@ local function opening(socket)
     function value:close()
         self.closeCount = self.closeCount + 1
         if self.status == "closed" then return true end
+        if self.failCloseCount and self.failCloseCount > 0 then
+            self.failCloseCount = self.failCloseCount - 1
+            return false, "injected opening close failure"
+        end
         local pending = self.socket
+        if pending and pending:close() == nil then return false end
         self.socket = nil
         self.status = "closed"
-        if pending then return pending:close() ~= nil end
         return true
     end
     return value
@@ -433,6 +437,30 @@ function Test.run(_, check)
         and abandonedOpening.closeCount == 1 and abandonedOuter.closed
         and createAfterDispose == nil)
 
+    local retryDisposeOuter = select(1, outerPair())
+    local retryDisposeOpening = opening(retryDisposeOuter)
+    retryDisposeOpening.failCloseCount = 1
+    local retryDisposeHub, retryDisposeSockets = loopbackHub(50500)
+    local retryDisposeFactory = assert(BridgeTransport.newFactory({
+        role = "host",
+        baseFactory = baseFactory(retryDisposeHub),
+        socketModule = retryDisposeSockets,
+        opening = retryDisposeOpening,
+        provider = provider,
+        masterKey = KEY,
+        invitationId = INVITATION_ID,
+        guestNonce = GUEST_NONCE,
+        peerAddress = GUEST_ADDRESS,
+        peerPort = 47002,
+        loopbackHostPort = 46013,
+    }))
+    local firstDispose = retryDisposeFactory.close()
+    local secondDispose = retryDisposeFactory.close()
+    check("ipv6_bridge_factory_retains_failed_opening_disposal_for_retry",
+        firstDispose == false and secondDispose == true
+        and retryDisposeOpening.closeCount == 2
+        and retryDisposeOuter.closed)
+
     local failedOuter = select(1, outerPair())
     local failedOpening = opening(failedOuter)
     local failedHub, failedSockets = loopbackHub(51000)
@@ -474,12 +502,21 @@ function Test.run(_, check)
         loopbackHostPort = 46012,
     }))
     local stickyHost = assert(stickyFactory.createHost({ channels = 3 }))
-    stickyHost.base.close = function() return false, "injected close failure" end
+    local originalBaseClose = stickyHost.base.close
+    local baseCloseAttempts = 0
+    stickyHost.base.close = function(self, ...)
+        baseCloseAttempts = baseCloseAttempts + 1
+        if baseCloseAttempts == 1 then return false, "injected close failure" end
+        return originalBaseClose(self, ...)
+    end
     local stickyClosed, stickyError = stickyHost:close()
+    check("ipv6_bridge_failed_base_close_keeps_the_base_transport_owned",
+        stickyClosed == false and stickyError ~= nil and stickyHost.base ~= nil
+        and baseCloseAttempts == 1)
     local stickyClosedAgain, stickyErrorAgain = stickyHost:close()
-    check("ipv6_bridge_repeated_close_never_upgrades_unverified_cleanup",
-        stickyClosed == false and stickyError ~= nil
-        and stickyClosedAgain == false and stickyErrorAgain == stickyError
+    check("ipv6_bridge_close_retries_base_transport_until_cleanup_is_verified",
+        stickyClosedAgain == true and stickyErrorAgain == nil
+        and stickyHost.base == nil and baseCloseAttempts == 2
         and stickyOuter.closed)
 end
 

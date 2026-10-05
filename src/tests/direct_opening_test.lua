@@ -607,11 +607,16 @@ function Test.run(_, check)
     closeProvider.overrides.failClose = true
     local closeOk, closeError = closeFailure:close()
     local closeAgain, closeAgainError = closeFailure:close()
-    check("direct_opening_cleanup_failure_is_redacted_bounded_and_idempotent",
+    closeProvider.overrides.failClose = false
+    closeSocket.failClose = false
+    local closeRecovered = closeFailure:close()
+    local closeRecoveredAgain = closeFailure:close()
+    check("direct_opening_cleanup_failure_retains_resources_for_verified_retry",
         closeOk == false and closeAgain == false
         and closeError == "Direct opening cleanup failed."
         and closeAgainError == closeError and not containsSecret(closeError)
-        and closeProvider.states[1].closeCalls == 1 and closeSocket.closeCalls == 1)
+        and closeRecovered and closeRecoveredAgain
+        and closeProvider.states[1].closeCalls == 3 and closeSocket.closeCalls == 3)
 
     now = 1100
     local badNextSocket, badNextProvider = fakeSocket(), fakeProvider({ failNext = true })

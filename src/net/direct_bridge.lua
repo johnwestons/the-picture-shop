@@ -181,28 +181,44 @@ end
 
 function Controller:_cleanup()
     if self._cleaned then return self._cleanupOk end
-    self._cleaned = true
     local cleaned = true
 
     local state = self._state
-    self._state = nil
     if state then
         local ok, result = pcall(state.close, state)
-        if not ok or not closeValue(result) then cleaned = false end
+        if ok and closeValue(result) then
+            self._state = nil
+        else
+            cleaned = false
+        end
     end
 
     local inner = self._innerSocket
-    self._innerSocket = nil
-    if inner and self.ownsInnerSocket then
-        local ok, result = pcall(inner.close, inner)
-        if not ok or not closeValue(result) then cleaned = false end
+    if inner then
+        if self.ownsInnerSocket then
+            local ok, result = pcall(inner.close, inner)
+            if ok and closeValue(result) then
+                self._innerSocket = nil
+            else
+                cleaned = false
+            end
+        else
+            self._innerSocket = nil
+        end
     end
 
     local outer = self._outerSocket
-    self._outerSocket = nil
-    if outer and self.ownsOuterSocket then
-        local ok, result = pcall(outer.close, outer)
-        if not ok or not closeValue(result) then cleaned = false end
+    if outer then
+        if self.ownsOuterSocket then
+            local ok, result = pcall(outer.close, outer)
+            if ok and closeValue(result) then
+                self._outerSocket = nil
+            else
+                cleaned = false
+            end
+        else
+            self._outerSocket = nil
+        end
     end
 
     self._pending = {}
@@ -210,6 +226,7 @@ function Controller:_cleanup()
     self._pendingBytes = 0
     self._completed = {}
     self._completedOrder = {}
+    self._cleaned = cleaned
     self._cleanupOk = cleaned
     return cleaned
 end
@@ -523,7 +540,9 @@ end
 function Controller:close()
     if self.status == "closed" then
         if self._cleanupOk then return true end
-        return false, ERROR_CLEANUP
+        if not self:_cleanup() then return false, ERROR_CLEANUP end
+        self.lastError = nil
+        return true
     end
     local cleaned = self:_cleanup()
     self.status = "closed"

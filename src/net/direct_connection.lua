@@ -191,18 +191,24 @@ function Connection:_clearSecrets()
 end
 
 function Connection:_releaseResources()
-    if self.resourcesReleased then return self.cleanupOk == true end
-    self.resourcesReleased = true
-    local opening, socket, factory = self.opening, self.socket, self.transportFactory
-    self.opening, self.socket, self.transportFactory = nil, nil, nil
-    local factoryOk = closeFactory(factory)
-    local openingOk = closeOpening(opening)
-    local socketOk = closeSocket(socket)
-    if not factoryOk then self.cleanupFactory = factory end
-    if not openingOk then self.cleanupOpening = opening end
-    if not socketOk then self.cleanupSocket = socket end
+    if not self.resourcesReleased then
+        self.resourcesReleased = true
+        self.cleanupFactory = self.transportFactory
+        self.cleanupOpening = self.opening
+        self.cleanupSocket = self.socket
+        self.transportFactory, self.opening, self.socket = nil, nil, nil
+    end
+
+    local factoryOk = closeFactory(self.cleanupFactory)
+    if factoryOk then self.cleanupFactory = nil end
+    local openingOk = closeOpening(self.cleanupOpening)
+    if openingOk then self.cleanupOpening = nil end
+    local socketOk = closeSocket(self.cleanupSocket)
+    if socketOk then self.cleanupSocket = nil end
     self:_clearSecrets()
     self.cleanupOk = factoryOk and openingOk and socketOk
+        and self.cleanupFactory == nil and self.cleanupOpening == nil
+        and self.cleanupSocket == nil
     return self.cleanupOk
 end
 
@@ -229,7 +235,7 @@ end
 function Connection:_beginOpening(role, now)
     local remaining = self:_remainingLifetime(now)
     if not remaining then return self:_fail(ERROR_HOST_CODE) end
-    local createOk, opening, openingError = pcall(self.openingModule.create, {
+    local createOk, opening = pcall(self.openingModule.create, {
         role = role,
         socket = self.socket,
         ownsSocket = true,
@@ -240,9 +246,7 @@ function Connection:_beginOpening(role, now)
         clock = self.clock,
     })
     if not createOk or not opening then
-        closeSocket(self.socket)
-        self.socket = nil
-        return self:_fail(openingError and ERROR_OPENING or ERROR_OPENING)
+        return self:_fail(ERROR_OPENING)
     end
     self.opening = opening
     self.socket = nil
@@ -471,7 +475,15 @@ end
 function Connection:close()
     if self.state == "closed" then
         if self.closeOk == true then return true end
-        return false, self.closeError or ERROR_OPENING
+        local cleaned = self:_releaseResources()
+        self.closeOk = cleaned
+        if cleaned then
+            self.closeError = nil
+            self.lastError = nil
+            return true
+        end
+        self.closeError = ERROR_OPENING
+        return false, self.closeError
     end
     if self.state == "handed_off" then
         self.state = "closed"

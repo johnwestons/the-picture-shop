@@ -1,5 +1,6 @@
 local DirectInvite = require("src.net.direct_invite")
 local DirectIpv4Listener = require("src.net.direct_ipv4_listener")
+local DirectComposite = require("src.net.transport_direct_composite")
 
 local Test = {}
 
@@ -33,7 +34,8 @@ end
 local function baseFactory(log)
     local factory = {}
     function factory.createHost(options)
-        log[#log + 1] = { "bind", options.bind, options.port }
+        log[#log + 1] = { "bind", options.bind, options.port,
+            options.maxGuests, options.peerCapacity }
         local transport = {
             endpoint = options.bind .. ":" .. tostring(options.port),
             channels = options.channels,
@@ -82,6 +84,7 @@ function Test.run(_, check)
         listenerError == nil and listener
         and log[1][1] == "entropy" and log[2][1] == "bind"
         and log[2][2] == "192.168.10.20" and log[2][3] == 22123
+        and log[2][4] == 1 and log[2][5] == 12
         and listener:invitation() == nil
         and DirectIpv4Listener.IPV6_POLICY == "separate_authenticated_listener")
 
@@ -109,16 +112,24 @@ function Test.run(_, check)
 
     local prepared = listener:transportFactory()
     local wildcard = prepared.createHost({ bind = "*", port = 22123 })
-    local secureHost = prepared.createHost({
-        bind = "192.168.10.20", port = 22123,
+    local _, controller = DirectComposite.newFactory({ channels = 3, maxGuests = 1 })
+    local attachedHandle, attachError = controller:attachFactory(prepared, {
+        bind = "192.168.10.20", port = 22123, channels = 3,
     })
     local secondTake = prepared.createHost({
         bind = "192.168.10.20", port = 22123,
     })
+    local compositeClosed = controller:close()
+    local listenerClosed = listener:close()
     check("direct_ipv4_listener_handoff_never_rebinds_wildcard_or_duplicates_listener",
-        wildcard == nil and secureHost and secondTake == nil
-        and listener:close() and secureHost.closed)
-    secureHost:close()
+        wildcard == nil and attachedHandle and attachError == nil
+        and secondTake == nil and compositeClosed
+        and listenerClosed,
+        "wildcard=" .. tostring(wildcard)
+            .. " attached=" .. tostring(attachedHandle ~= nil)
+            .. " secondTake=" .. tostring(secondTake)
+            .. " compositeClosed=" .. tostring(compositeClosed)
+            .. " listenerClosed=" .. tostring(listenerClosed))
 
     local clientLog = {}
     local client, endpoint = DirectIpv4Listener.clientFactory(code, {
@@ -152,6 +163,36 @@ function Test.run(_, check)
     })
     check("direct_ipv4_listener_rejects_base_transport_that_did_not_bind_exact_address",
         wildcardListener == nil)
+
+    local uncleanLog = {}
+    local uncleanBase = baseFactory(uncleanLog)
+    uncleanBase.createHost = function(options)
+        return {
+            endpoint = "*:" .. tostring(options.port),
+            channels = options.channels,
+            maxGuests = options.maxGuests,
+            peerCapacity = 12,
+            poll = function() end,
+            send = function() end,
+            disconnect = function() end,
+            close = function()
+                uncleanLog[#uncleanLog + 1] = { "close_unverified" }
+                return false
+            end,
+        }
+    end
+    local cleanupOwner, cleanupError = DirectIpv4Listener.open({
+        route = route(), port = 22123, provider = provider(uncleanLog),
+        baseFactory = uncleanBase,
+    })
+    local retainedTransport = cleanupOwner and cleanupOwner.transport
+    local cleanupStillUnverified = cleanupOwner and cleanupOwner:close()
+    check("direct_ipv4_listener_retains_ownership_when_invalid_bind_cannot_be_closed",
+        cleanupOwner ~= nil
+        and cleanupError == "Secure IPv4 listener binding failed; cleanup could not be verified."
+        and cleanupOwner.closed == true and cleanupOwner.closeOk == false
+        and retainedTransport ~= nil and cleanupStillUnverified == false
+        and cleanupOwner.transport == retainedTransport)
 end
 
 return Test

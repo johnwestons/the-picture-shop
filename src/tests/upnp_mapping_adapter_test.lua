@@ -1,5 +1,6 @@
 local UpnpIgd = require("src.net.upnp_igd")
 local UpnpMappingAdapter = require("src.net.upnp_mapping_adapter")
+local Reachability = require("src.net.reachability")
 
 local Test = {}
 local UDN = "uuid:12345678-1234-4abc-8def-1234567890ab"
@@ -70,7 +71,7 @@ local function proof(selected)
     }
 end
 
-local function fakeTransport(selected, log, pendingAdd)
+local function fakeTransport(selected, log, pendingAdd, closeFailures)
     local factory = { exactNetworkBinding = true }
     function factory.openDiscovery(actual)
         log[#log + 1] = { kind = "open_discovery", route = actual }
@@ -86,7 +87,14 @@ local function fakeTransport(selected, log, pendingAdd)
             if not packet then return nil, "timeout" end
             return packet, selected.gatewayAddress, UpnpIgd.SSDP_PORT
         end
-        function socket:close() self.closed = true return true end
+        function socket:close()
+            if closeFailures and (closeFailures.discovery or 0) > 0 then
+                closeFailures.discovery = closeFailures.discovery - 1
+                return false
+            end
+            self.closed = true
+            return true
+        end
         return socket
     end
     function factory.openHttp(actual, outbound)
@@ -129,16 +137,23 @@ local function fakeTransport(selected, log, pendingAdd)
             raw = nil
             return { raw = value, peerAddress = peer, peerPort = outbound.port }
         end
-        function handle:close() self.closed = true return true end
+        function handle:close()
+            if closeFailures and (closeFailures.http or 0) > 0 then
+                closeFailures.http = closeFailures.http - 1
+                return false
+            end
+            self.closed = true
+            return true
+        end
         return handle
     end
     return factory
 end
 
-local function newAdapter(selected, log, pendingAdd, changed)
+local function newAdapter(selected, log, pendingAdd, changed, closeFailures)
     return UpnpMappingAdapter.new({
         route = selected,
-        transportFactory = fakeTransport(selected, log, pendingAdd),
+        transportFactory = fakeTransport(selected, log, pendingAdd, closeFailures),
         revalidate = function(snapshot)
             if changed.value then return nil end
             return snapshot
@@ -176,6 +191,65 @@ function Test.run(_, check)
         and addRequest.context.action == "AddAnyPortMapping"
         and addRequest.context.internalClient == selected.internalAddress
         and addRequest.context.leaseSeconds == 120)
+
+    local failedCloseLog, closeFailures = {}, { http = 1 }
+    local failedCloseHandle = assert((assert(newAdapter(route(), failedCloseLog,
+        false, { value = false }, closeFailures))):start(request()))
+    failedCloseHandle:update(0)
+    failedCloseHandle:update(0.1)
+    local failedDescriptionClose = failedCloseHandle:update(0.2)
+    local retriedHttpClose = failedCloseHandle:close(0.2)
+    check("upnp_mapping_adapter_retains_failed_http_close_and_never_advances_setup",
+        failedDescriptionClose and failedDescriptionClose.kind == "failed"
+        and requestByAction(failedCloseLog, "GetExternalIPAddress") == nil
+        and closeFailures.http == 0 and retriedHttpClose == true)
+
+    local failedDiscoveryLog, discoveryCloseFailures = {}, { discovery = 3 }
+    local failedDiscoveryHandle = assert((assert(newAdapter(route(),
+        failedDiscoveryLog, false, { value = false }, discoveryCloseFailures))):start(request()))
+    local failedDiscoveryClose = failedDiscoveryHandle:update(0)
+    local discoveryDelete = failedDiscoveryHandle:delete(0)
+    local firstFinalClose = failedDiscoveryHandle:close(0)
+    local discoveryRetryClose = failedDiscoveryHandle:close(0)
+    check("upnp_mapping_adapter_retries_a_failed_final_close_without_losing_ownership",
+        failedDiscoveryClose and failedDiscoveryClose.kind == "failed"
+        and discoveryCloseFailures.discovery == 0
+        and discoveryDelete == true and firstFinalClose == false
+        and discoveryRetryClose == true)
+
+    local wrongProofLog, wrongProofCloseFailures = {}, { discovery = 2 }
+    local wrongProofTransport = fakeTransport(route(), wrongProofLog,
+        false, wrongProofCloseFailures)
+    local openWrongProofDiscovery = wrongProofTransport.openDiscovery
+    function wrongProofTransport.openDiscovery(actualRoute)
+        local socket = openWrongProofDiscovery(actualRoute)
+        function socket:bindingProof()
+            local wrongProof = proof(route())
+            wrongProof.internalAddress = "192.168.1.99"
+            return wrongProof
+        end
+        return socket
+    end
+    local wrongProofAdapter = assert(UpnpMappingAdapter.new({
+        route = route(),
+        transportFactory = wrongProofTransport,
+        revalidate = function(snapshot) return snapshot end,
+    }))
+    local wrongProofHandle = assert(wrongProofAdapter:start(request()))
+    local rejectedWrongProof = wrongProofHandle:update(0)
+    local wrongProofDelete = wrongProofHandle:delete(0)
+    local wrongProofFirstClose = wrongProofHandle:close(0)
+    local wrongProofRetryClose = wrongProofHandle:close(0)
+    local wrongProofSentPacket = false
+    for _, item in ipairs(wrongProofLog) do
+        if item.kind == "ssdp" then wrongProofSentPacket = true end
+    end
+    check("upnp_mapping_adapter_retains_unverified_socket_until_close_is_proven",
+        rejectedWrongProof and rejectedWrongProof.kind == "failed"
+        and wrongProofDelete == true and wrongProofFirstClose == false
+        and wrongProofRetryClose == true
+        and wrongProofCloseFailures.discovery == 0
+        and not wrongProofSentPacket)
 
     local renewalStarted = handle:renew(0.4)
     local renewed = handle:update(0.5)
@@ -221,11 +295,46 @@ function Test.run(_, check)
     local cleanupStarted = pending:delete(8.3)
     local expiry = pending:cleanupExpiresAt()
     local earlyClose = pending:close()
-    local expired = pending:update(expiry)
+    local expiredClose = pending:close(expiry)
     check("upnp_mapping_adapter_waits_finite_lease_after_uncertain_http_mapping",
         timedOut and timedOut.kind == "failed" and cleanupStarted == nil
         and math.abs(expiry - 120.3) < 0.000001 and earlyClose == false
-        and expired and expired.kind == "deleted" and pending:close())
+        and expiredClose == true and pending:cleanupExpiresAt() == nil)
+
+    local routeLossLog, routeLoss = {}, { value = false }
+    local routeLossAdapter = assert(newAdapter(route(), routeLossLog,
+        false, routeLoss))
+    local routeLossNow = 0
+    local routeLossReachability = assert(Reachability.new({
+        methods = { routeLossAdapter },
+        clock = function() return routeLossNow end,
+    }))
+    local routeLossStarted = routeLossReachability:start(request({ now = 0 }))
+    routeLossReachability:update(0)
+    routeLossNow = 0.1
+    routeLossReachability:update(routeLossNow)
+    routeLossNow = 0.2
+    routeLossReachability:update(routeLossNow)
+    routeLossNow = 0.3
+    routeLossReachability:update(routeLossNow)
+    local routeLossCandidate = routeLossReachability:candidate()
+    routeLoss.value = true
+    routeLossNow = 0.4
+    local routeLossStopped, routeLossCleanup = routeLossReachability:stop()
+    local upnpCleanupExpiry = routeLossReachability:snapshot().cleanupExpiresAt
+    routeLossNow = upnpCleanupExpiry or 0
+    local upnpExpiryUpdate = routeLossReachability:update(routeLossNow)
+    local upnpFinalStop, upnpFinalCleanup = routeLossReachability:stop()
+    local upnpFinalSnapshot = routeLossReachability:snapshot()
+    check("reachability_closes_upnp_local_sockets_after_route_lost_mapping_lease_expires",
+        routeLossStarted and routeLossCandidate
+        and routeLossCandidate.externalPort == 40000
+        and not routeLossStopped and routeLossCleanup == true
+        and math.abs((upnpCleanupExpiry or 0) - 120.3) < 0.000001
+        and upnpExpiryUpdate == true
+        and upnpFinalStop == true and upnpFinalCleanup == false
+        and upnpFinalSnapshot.status == "stopped"
+        and upnpFinalSnapshot.cleanupRequired == false)
 
     local changedLog, routeChanged = {}, { value = true }
     local changedHandle = assert((assert(newAdapter(route(), changedLog, false,

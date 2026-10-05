@@ -57,6 +57,36 @@ local function closeTransport(transport)
     return ok and result == true
 end
 
+local function singleGuestView(transport)
+    local view = {
+        mode = "host",
+        endpoint = transport.endpoint,
+        channels = transport.channels,
+        maxGuests = 1,
+        peerCapacity = 1,
+        closed = false,
+    }
+    function view:poll(...)
+        if self.closed then return nil end
+        return transport:poll(...)
+    end
+    function view:send(...)
+        if self.closed then return false end
+        return transport:send(...)
+    end
+    function view:disconnect(...)
+        if self.closed then return false end
+        return transport:disconnect(...)
+    end
+    function view:close(...)
+        if self.closed then return true end
+        local ok, result = pcall(transport.close, transport, ...)
+        if ok and result == true then self.closed = true; return true end
+        return false
+    end
+    return view
+end
+
 local function oneUseFactory(listener)
     local factory = {}
     function factory.createHost(options)
@@ -72,7 +102,9 @@ local function oneUseFactory(listener)
         listener.transport = nil
         listener.handedTransport = transport
         listener.taken = true
-        return transport
+        local view = singleGuestView(transport)
+        listener.handedView = view
+        return view
     end
     function factory.close()
         return listener:close()
@@ -104,14 +136,39 @@ function DirectIpv4Listener.open(options)
     local transport = secureFactory.createHost({
         bind = route.internalAddress,
         port = port,
-        maxGuests = options.maxGuests or 3,
+        maxGuests = 1,
         channels = options.channels or 3,
+        maxReadyPeers = 1,
         enet = options.enet,
     })
     if not transport
         or transport.endpoint ~= route.internalAddress .. ":" .. tostring(port) then
-        if transport then closeTransport(transport) end
-        pcall(secureFactory.close)
+        local transportClosed = not transport or closeTransport(transport)
+        local factoryCalled, factoryClosed = pcall(secureFactory.close)
+        if not transportClosed or not factoryCalled or factoryClosed ~= true then
+            return setmetatable({
+                state = "closed",
+                route = {
+                    family = route.family,
+                    platform = route.platform,
+                    internalAddress = route.internalAddress,
+                    gatewayAddress = route.gatewayAddress,
+                    interfaceIndex = route.interfaceIndex,
+                    networkGeneration = route.networkGeneration,
+                    routeFingerprint = route.routeFingerprint,
+                },
+                port = port,
+                transport = transportClosed and nil or transport,
+                handedTransport = nil,
+                handedView = nil,
+                secureFactory = factoryCalled and factoryClosed == true
+                    and nil or secureFactory,
+                invitationCode = nil,
+                taken = true,
+                closed = true,
+                closeOk = false,
+            }, Listener), "Secure IPv4 listener binding failed; cleanup could not be verified."
+        end
         return nil, "Secure IPv4 listener binding failed."
     end
 
@@ -130,6 +187,8 @@ function DirectIpv4Listener.open(options)
         provider = provider,
         key = key,
         transport = transport,
+        handedTransport = nil,
+        handedView = nil,
         secureFactory = secureFactory,
         invitationCode = nil,
         taken = false,
@@ -190,18 +249,29 @@ function Listener:transportFactory()
 end
 
 function Listener:close()
-    if self.closed then return self.closeOk == true end
-    local ownedTransportOk = closeTransport(self.transport)
-    local handedTransportOk = closeTransport(self.handedTransport)
+    if self.closed and self.closeOk == true then return true end
+    local ownedTransportOk = self.transport == nil
+        or closeTransport(self.transport)
+    if ownedTransportOk then self.transport = nil end
+    local handedTransportOk
+    if self.handedView ~= nil then
+        handedTransportOk = closeTransport(self.handedView)
+        if handedTransportOk then
+            self.handedView = nil
+            self.handedTransport = nil
+        end
+    else
+        handedTransportOk = self.handedTransport == nil
+            or closeTransport(self.handedTransport)
+        if handedTransportOk then self.handedTransport = nil end
+    end
     local transportOk = ownedTransportOk and handedTransportOk
-    self.transport = nil
-    self.handedTransport = nil
-    local factoryOk = true
+    local factoryOk = self.secureFactory == nil
     if self.secureFactory then
         local ok, result = pcall(self.secureFactory.close)
         factoryOk = ok and result == true
+        if factoryOk then self.secureFactory = nil end
     end
-    self.secureFactory = nil
     self.key = nil
     self.invitationCode = nil
     self.provider = nil

@@ -55,7 +55,7 @@ local function closeSocket(socket)
     return ok and result ~= false and result ~= nil
 end
 
-local function createLoopbackSocket(socketModule)
+local function createLoopbackSocket(socketModule, retainClose)
     if type(socketModule) ~= "table" or type(socketModule.udp) ~= "function" then
         return nil, ERROR_SOCKET
     end
@@ -67,7 +67,9 @@ local function createLoopbackSocket(socketModule)
         or type(socket.sendto) ~= "function"
         or type(socket.receivefrom) ~= "function"
         or type(socket.close) ~= "function" then
-        if socket then closeSocket(socket) end
+        if socket and not closeSocket(socket) and retainClose then
+            retainClose(socket)
+        end
         return nil, ERROR_SOCKET
     end
     local timeoutOk, timeoutResult = pcall(socket.settimeout, socket, 0)
@@ -78,7 +80,7 @@ local function createLoopbackSocket(socketModule)
         or not bindOk or bindResult == false or bindResult == nil
         or not nameOk or address ~= "127.0.0.1"
         or not wholeNumber(port, 1, 65535) then
-        closeSocket(socket)
+        if not closeSocket(socket) and retainClose then retainClose(socket) end
         return nil, ERROR_SOCKET
     end
     return socket, address, port
@@ -180,23 +182,30 @@ function Instance:disconnect(peer, code, immediate)
 end
 
 function Instance:close(code, immediate)
-    if self.closed then
-        if self._closeOk == true then return true end
-        return false, self._closeError or ERROR_CLOSE
-    end
+    if self.closed and self._closeOk == true then return true end
     local errors = {}
-    local ok, result = callMethod(self.base, "close", code, immediate)
-    if not ok or result == false then errors[#errors + 1] = ERROR_CLOSE end
-    local bridgeUpdated = self:_updateBridge()
-    if not bridgeUpdated then errors[#errors + 1] = ERROR_CLOSE end
-    local bridgeCloseOk, bridgeClosed = pcall(self.bridge.close, self.bridge)
-    if not bridgeCloseOk or bridgeClosed ~= true then
-        errors[#errors + 1] = ERROR_CLOSE
+    if self.base then
+        local ok, result = callMethod(self.base, "close", code, immediate)
+        if not ok or result == false then
+            errors[#errors + 1] = ERROR_CLOSE
+        else
+            self.base = nil
+        end
+    end
+    if self.bridge then
+        if not self.closed then
+            local bridgeUpdated = self:_updateBridge()
+            if not bridgeUpdated then errors[#errors + 1] = ERROR_CLOSE end
+        end
+        local bridgeCloseOk, bridgeClosed = pcall(self.bridge.close, self.bridge)
+        if not bridgeCloseOk or bridgeClosed ~= true then
+            errors[#errors + 1] = ERROR_CLOSE
+        else
+            self.bridge = nil
+        end
     end
     self.peer = nil
     self.closed = true
-    self.base = nil
-    self.bridge = nil
     self._closeOk = #errors == 0
     self._closeError = nil
     if not self._closeOk then self._closeError = ERROR_CLOSE end
@@ -280,7 +289,8 @@ function BridgeTransport.newFactory(options)
     }
     local created = false
     local disposed = false
-    local disposeOk = nil
+    local pendingCleanup = {}
+    local baseFactoryCloseOk = methodFor(config.baseFactory, "close") == nil
 
     local function clearSensitiveConfig()
         config.masterKey = nil
@@ -291,23 +301,70 @@ function BridgeTransport.newFactory(options)
         config.provider = nil
     end
 
+    local function attemptCleanup(closeFn)
+        local ok, result = pcall(closeFn)
+        return ok and result == true
+    end
+
+    local function closeOrRetain(closeFn)
+        if attemptCleanup(closeFn) then return true end
+        pendingCleanup[#pendingCleanup + 1] = closeFn
+        return false
+    end
+
+    local function retainSocket(socket)
+        if not socket then return true end
+        return closeOrRetain(function() return closeSocket(socket) end)
+    end
+
+    local function retainBase(base)
+        if not base then return true end
+        return closeOrRetain(function()
+            local ok, result = callMethod(base, "close", 0, true)
+            return ok and result ~= false and result ~= nil
+        end)
+    end
+
+    local function retainBridge(bridge)
+        if not bridge then return true end
+        return closeOrRetain(function()
+            local ok, result = pcall(bridge.close, bridge)
+            return ok and result == true
+        end)
+    end
+
     local function disposeFactory()
         if created then return true end
-        if disposed then return disposeOk == true end
         disposed = true
         local cleaned = true
         local pendingOpening = config.opening
-        config.opening = nil
         if pendingOpening then
             local ok, result = callMethod(pendingOpening, "close")
-            if not ok or result ~= true then cleaned = false end
+            if ok and result == true then
+                config.opening = nil
+            else
+                cleaned = false
+            end
         end
-        if methodFor(config.baseFactory, "close") then
+        if not baseFactoryCloseOk then
             local ok, result = callMethod(config.baseFactory, "close")
-            if not ok or result ~= true then cleaned = false end
+            if ok and result == true then
+                baseFactoryCloseOk = true
+            else
+                cleaned = false
+            end
+        end
+        if #pendingCleanup > 0 then
+            local stillPending = {}
+            for _, closeFn in ipairs(pendingCleanup) do
+                if not attemptCleanup(closeFn) then
+                    stillPending[#stillPending + 1] = closeFn
+                    cleaned = false
+                end
+            end
+            pendingCleanup = stillPending
         end
         clearSensitiveConfig()
-        disposeOk = cleaned
         return cleaned
     end
 
@@ -367,27 +424,29 @@ function BridgeTransport.newFactory(options)
             config.baseFactory, "createHost", forwarded)
         if not baseOk or not base then return failFactory(baseError or ERROR_NETWORK) end
 
-        local innerSocket = createLoopbackSocket(config.socketModule)
+        local innerSocket = createLoopbackSocket(config.socketModule, retainSocket)
         if not innerSocket then
-            callMethod(base, "close", 0, true)
+            retainBase(base)
             return failFactory(ERROR_SOCKET)
         end
         local outerSocket, openingError = takeOuterSocket()
         if not outerSocket then
-            closeSocket(innerSocket)
-            callMethod(base, "close", 0, true)
+            retainSocket(innerSocket)
+            retainBase(base)
             return failFactory(openingError)
         end
         local bridge, bridgeError = createBridge(
             innerSocket, outerSocket, config.loopbackHostPort)
         if not bridge then
-            callMethod(base, "close", 0, true)
+            retainSocket(innerSocket)
+            retainSocket(outerSocket)
+            retainBase(base)
             return failFactory(bridgeError or ERROR_NETWORK)
         end
         local instance, wrapError = wrap(base, bridge, "host")
         if not instance then
-            bridge:close()
-            callMethod(base, "close", 0, true)
+            retainBridge(bridge)
+            retainBase(base)
             return failFactory(wrapError)
         end
         created = true
@@ -399,28 +458,31 @@ function BridgeTransport.newFactory(options)
     function factory.createClient(_, createOptions)
         if created or disposed or config.role ~= "guest" then return nil, ERROR_FACTORY end
         createOptions = createOptions or {}
-        local innerSocket, _, relayPort = createLoopbackSocket(config.socketModule)
+        local innerSocket, _, relayPort = createLoopbackSocket(
+            config.socketModule, retainSocket)
         if not innerSocket then return failFactory(ERROR_SOCKET) end
         local outerSocket, openingError = takeOuterSocket()
         if not outerSocket then
-            closeSocket(innerSocket)
+            retainSocket(innerSocket)
             return failFactory(openingError)
         end
         local bridge, bridgeError = createBridge(innerSocket, outerSocket, nil)
         if not bridge then
+            retainSocket(innerSocket)
+            retainSocket(outerSocket)
             return failFactory(bridgeError or ERROR_NETWORK)
         end
         local endpoint = "127.0.0.1:" .. tostring(relayPort)
         local baseOk, base, baseError = callFactory(
             config.baseFactory, "createClient", endpoint, createOptions)
         if not baseOk or not base then
-            bridge:close()
+            retainBridge(bridge)
             return failFactory(baseError or ERROR_NETWORK)
         end
         local instance, wrapError = wrap(base, bridge, "client")
         if not instance then
-            callMethod(base, "close", 0, true)
-            bridge:close()
+            retainBase(base)
+            retainBridge(bridge)
             return failFactory(wrapError)
         end
         created = true

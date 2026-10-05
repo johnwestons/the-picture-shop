@@ -45,8 +45,9 @@ local function fakeMethod(name, options, log)
             if options.deleteResult == nil then return true end
             return options.deleteResult
         end
-        function handle:close()
+        function handle:close(now)
             self.closes = self.closes + 1
+            self.closeNow = now
             log[#log + 1] = name .. ":close"
             if options.throwOnClose then error(options.throwOnClose) end
             return options.closeResult
@@ -303,7 +304,8 @@ function Test.run(_, check)
     check("reachability_allows_fallback_only_after_the_known_old_lease_expires",
         heldUntilExpiry and stillHeld and expiryFallback.starts == 1
         and expiryCleanupMethod.handles[1].deletes == 1
-        and expiryCleanupMethod.handles[1].closes == 1)
+        and expiryCleanupMethod.handles[1].closes == 1
+        and expiryCleanupMethod.handles[1].closeNow == 5)
 
     local extendedLog = {}
     local extendedMethod = fakeMethod("pcp", {

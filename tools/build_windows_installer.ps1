@@ -2,12 +2,18 @@ param(
     [string]$PackagePath,
     [string]$LoveRoot = 'C:\Program Files\LOVE',
     [string]$InnoCompiler,
+    [string]$OutputDirectory,
+    [string]$RouteProviderPath,
     [switch]$SkipInstaller
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$windowsRoot = Join-Path $projectRoot 'output\windows'
+$windowsRoot = if ($OutputDirectory) {
+    [IO.Path]::GetFullPath($OutputDirectory)
+} else {
+    [IO.Path]::GetFullPath((Join-Path $projectRoot 'output\windows'))
+}
 $stageRoot = Join-Path $windowsRoot 'stage'
 $configPath = Join-Path $projectRoot 'mobile\config.json'
 $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
@@ -93,24 +99,57 @@ $displayVersion = '{0}.{1}.{2}-test.{3}' -f $versionMatch.Groups[1].Value,
 $outputName = "ThePictureShop-Windows-Setup-$displayVersion"
 
 $python = Find-Python
-$routeBuilder = Join-Path $projectRoot 'tools\build_native_route.ps1'
-& $routeBuilder
-$routeProvider = Join-Path $projectRoot `
-    'output\native-route\build\windows-x64\tps_route.dll'
+$routeProvider = $null
+if ($RouteProviderPath) {
+    $routeProvider = [IO.Path]::GetFullPath(
+        (Resolve-Path -LiteralPath $RouteProviderPath -ErrorAction Stop).Path)
+    $expectedRouteProvider = [IO.Path]::GetFullPath((Join-Path $projectRoot `
+        'output\native-route\build\windows-x64\tps_route.dll'))
+    if (-not [string]::Equals($routeProvider, $expectedRouteProvider,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'An alternate Windows route provider cannot be used for this package.'
+    }
+} else {
+    $routeBuilder = Join-Path $projectRoot 'tools\build_native_route.ps1'
+    & $routeBuilder
+    $routeProvider = Join-Path $projectRoot `
+        'output\native-route\build\windows-x64\tps_route.dll'
+}
 if (-not (Test-Path -LiteralPath $routeProvider -PathType Leaf)) {
     throw 'The conformance-tested Windows route provider was not produced.'
 }
+$routeBuildReportPath = Join-Path ([IO.Path]::GetDirectoryName($routeProvider)) `
+    'native_route_report.json'
+if (-not (Test-Path -LiteralPath $routeBuildReportPath -PathType Leaf)) {
+    throw 'The Windows route provider conformance report is missing.'
+}
+$routeBuildReport = Get-Content -Raw -LiteralPath $routeBuildReportPath | ConvertFrom-Json
+$routeProviderHash = (Get-FileHash -LiteralPath $routeProvider -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($routeBuildReport.status -ne 'engineering-candidate-non-production' -or
+    $routeBuildReport.productionReady -ne $false -or
+    $routeBuildReport.readOnly -ne $true -or
+    $routeBuildReport.networkTrafficSent -ne $false -or
+    $routeBuildReport.checks.exactAbiExportSurface -ne 'pass' -or
+    $routeBuildReport.checks.boundedNativeContract -ne 'pass' -or
+    $routeBuildReport.checks.osBackedNetworkGeneration -ne 'pass' -or
+    $routeBuildReport.artifacts.provider.path -ne 'output/native-route/build/windows-x64/tps_route.dll' -or
+    $routeBuildReport.artifacts.provider.sha256 -ne $routeProviderHash) {
+    throw 'The Windows route provider does not match a fail-closed conformance report.'
+}
+$packageOutputRoot = Join-Path $windowsRoot 'package'
 if (-not $PackagePath) {
     & $python (Join-Path $projectRoot 'tools\build_mobile_package.py') `
-        --windows-route-provider $routeProvider
+        --windows-route-provider $routeProvider `
+        --output-dir $packageOutputRoot
     if ($LASTEXITCODE -ne 0) { throw 'Shared game package build failed.' }
     $PackagePath = (Get-Content -Raw -LiteralPath (
-        Join-Path $projectRoot 'output\mobile\build-report.json') | ConvertFrom-Json).package
+        Join-Path $packageOutputRoot 'build-report.json') | ConvertFrom-Json).package
 } else {
     $PackagePath = (Resolve-Path -LiteralPath $PackagePath -ErrorAction Stop).Path
     & $python (Join-Path $projectRoot 'tools\build_mobile_package.py') `
         --verify-windows-route-package $PackagePath `
-        --windows-route-provider $routeProvider
+        --windows-route-provider $routeProvider `
+        --output-dir $packageOutputRoot
     if ($LASTEXITCODE -ne 0) {
         throw 'Supplied Windows game package does not contain the verified route provider.'
     }

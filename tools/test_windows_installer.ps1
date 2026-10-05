@@ -1,13 +1,26 @@
 param(
-    [string]$InstallerPath = (Join-Path $PSScriptRoot '..\output\windows\ThePictureShop-Windows-Setup-0.1.0-test.16.exe')
+    [string]$InstallerPath = (Join-Path $PSScriptRoot '..\output\windows\ThePictureShop-Windows-Setup-0.1.0-test.16.exe'),
+    [string]$SmokeReportPath
 )
 
 $ErrorActionPreference = 'Stop'
-$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$windowsRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'output\windows'))
 $installer = (Resolve-Path -LiteralPath $InstallerPath -ErrorAction Stop).Path
+$windowsRoot = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($installer))
 $testRoot = Join-Path $windowsRoot ('install-test-' + [guid]::NewGuid().ToString('N'))
 $saveRoot = Join-Path $env:APPDATA 'LOVE\the-picture-shop'
+$smokeReport = if ($SmokeReportPath) {
+    [IO.Path]::GetFullPath($SmokeReportPath)
+} else {
+    Join-Path $windowsRoot ('windows-installed-smoke-' +
+        [guid]::NewGuid().ToString('N') + '.rpt')
+}
+if ([IO.Path]::GetDirectoryName($smokeReport) -ne $windowsRoot -or
+    [IO.Path]::GetFileName($smokeReport) -notlike 'windows-installed-smoke-*.rpt') {
+    throw 'Refusing to write an installer smoke report outside its output directory.'
+}
+if (Test-Path -LiteralPath $smokeReport) {
+    throw 'Refusing to overwrite an existing installer smoke report.'
+}
 
 function Assert-TestPath([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -62,8 +75,6 @@ try {
         }
     }
 
-    $smokeReport = Join-Path $windowsRoot 'windows-installed-smoke.rpt'
-    Remove-Item -LiteralPath $smokeReport -Force -ErrorAction SilentlyContinue
     $previousSmoke = $env:PICTURE_SHOP_SMOKE
     $previousReport = $env:PICTURE_SHOP_SMOKE_REPORT
     try {

@@ -16,6 +16,7 @@ local GatewayNative = {
 -- fallback.
 local PACKAGED_ROUTE_SHA256 = nil -- WINDOWS_RELEASE_HASH
 local WINDOWS_RELEASE_PACKAGE = false -- WINDOWS_RELEASE_MODE
+GatewayNative.packagedRelease = WINDOWS_RELEASE_PACKAGE
 
 local ADDRESS_BYTES = 16
 local MAX_INTERFACE_INDEX = 4294967295
@@ -233,6 +234,12 @@ local function bindLibrary()
         end
     end
     return nil
+end
+
+function GatewayNative.packagedProviderAvailable()
+    if not WINDOWS_RELEASE_PACKAGE then return false end
+    local library = bindLibrary()
+    return library ~= nil
 end
 
 local function decodeBoundedCString(buffer, ffiModule)

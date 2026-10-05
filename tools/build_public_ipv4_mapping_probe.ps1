@@ -33,6 +33,16 @@ $windowsSourceRoot = Join-Path $probeSourceRoot 'windows'
 $instructionsPath = Join-Path $repoRoot `
     'docs\public_ipv4_remote_acceptance.md'
 
+$sourceCommit = [string](& git -C $repoRoot rev-parse HEAD)
+if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') {
+    throw 'The current source commit could not be recorded for the acceptance kit.'
+}
+$sourceStatus = @(& git -C $repoRoot status --porcelain --untracked-files=all)
+if ($LASTEXITCODE -ne 0) {
+    throw 'The current source worktree state could not be recorded for the acceptance kit.'
+}
+$sourceDirty = $sourceStatus.Count -gt 0
+
 function Assert-WithinOutput([string]$Path) {
     $full = [IO.Path]::GetFullPath($Path)
     $prefix = $outputRoot.TrimEnd('\') + '\'
@@ -345,6 +355,8 @@ $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).
     Hash.ToLowerInvariant()
 $report = @(
     'TPS_PUBLIC_IPV4_KIT_BUILD=PASS',
+    "SOURCE_COMMIT=$sourceCommit",
+    "SOURCE_DIRTY=$sourceDirty",
     'HOST_MANIFEST_VERIFIED=True',
     'GUEST_MANIFEST_VERIFIED=True',
     'NATIVE_CRYPTO_ABI=3',

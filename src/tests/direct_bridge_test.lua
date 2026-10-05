@@ -301,6 +301,23 @@ function Test.run(_, check)
         and pair.hostOuter.closed and pair.guestOuter.closed
         and pair.hostInner.closed and pair.guestInner.closed)
 
+    local retryPair = newPair(function() return 30 end)
+    local outerCloseAttempts = 0
+    retryPair.hostOuter.close = function(self)
+        outerCloseAttempts = outerCloseAttempts + 1
+        if outerCloseAttempts == 1 then return nil, "injected close failure" end
+        self.closed = true
+        return 1
+    end
+    local firstClose, firstCloseError = retryPair.host:close()
+    local retryClose, retryCloseError = retryPair.host:close()
+    check("direct_bridge_failed_socket_close_remains_owned_until_retry_succeeds",
+        firstClose == false and firstCloseError ~= nil
+        and retryClose and retryCloseError == nil
+        and outerCloseAttempts == 2 and retryPair.hostOuter.closed
+        and retryPair.hostInner.closed and retryPair.log.closed == 1)
+    retryPair.guest:close()
+
     local rollbackNow = 20
     local rollbackPair = newPair(function() return rollbackNow end)
     rollbackPair.host:update()

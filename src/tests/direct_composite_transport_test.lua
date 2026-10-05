@@ -113,6 +113,7 @@ function Test.run(_, check)
     check("direct_composite_materializes_owned_links_before_session_handoff",
         compositeFactory and firstHandle and not firstError and secondHandle and thirdHandle
         and controller:linkCount() == 3 and controller:capacity() == 3
+        and controller:hasLink(firstHandle) == true
         and controller:remainingCapacity() == 0
         and firstLog.calls == 1 and secondLog.calls == 1
         and firstLog.options.channels == 3
@@ -256,7 +257,9 @@ function Test.run(_, check)
         and first.disconnects[#first.disconnects].peer == rawFirst
         and first.disconnects[#first.disconnects].code == 9
         and third.closeCalls == 0
-        and controller:linkCount() == 1 and controller:peerCount() == 1)
+        and controller:linkCount() == 1 and controller:peerCount() == 1
+        and controller:hasLink(firstHandle) == false
+        and controller:hasLink(thirdHandle) == true)
 
     local closed, closeError = host:close(0, false)
     local closedAgain, closeAgainError = host:close(0, false)

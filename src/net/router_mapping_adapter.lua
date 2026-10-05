@@ -117,12 +117,37 @@ local function jittered(state, value)
     return value * (0.9 + unit * 0.2)
 end
 
-local function closeSocket(state)
-    if not state.socket then return true end
-    local socket = state.socket
-    state.socket = nil
-    local ok, result = pcall(socket.close, socket)
+local function closeSocketValue(socket)
+    if not socket then return true end
+    local shapeOk, close = pcall(function() return socket.close end)
+    if not shapeOk or type(close) ~= "function" then return false end
+    local ok, result = pcall(close, socket)
     return ok and result == true
+end
+
+local function closeSocket(state)
+    local closed = true
+    if state.socket and closeSocketValue(state.socket) then
+        state.socket = nil
+    elseif state.socket then
+        closed = false
+    end
+
+    local pending = {}
+    for _, socket in ipairs(state.unclosedSockets or {}) do
+        if not closeSocketValue(socket) then
+            pending[#pending + 1] = socket
+            closed = false
+        end
+    end
+    state.unclosedSockets = pending
+    return closed
+end
+
+local function closeRejectedSocket(state, socket)
+    if not closeSocketValue(socket) then
+        state.unclosedSockets[#state.unclosedSockets + 1] = socket
+    end
 end
 
 local function openSocket(state)
@@ -130,12 +155,12 @@ local function openSocket(state)
     if not revalidate(state) then return false end
     local ok, socket = pcall(state.socketFactory.open, copied(state.route))
     if not ok or not socketShape(socket) then
-        if socket and type(socket.close) == "function" then pcall(socket.close, socket) end
+        if socket then closeRejectedSocket(state, socket) end
         return false
     end
     local proofOk, proof = pcall(socket.bindingProof, socket)
     if not proofOk or not validProof(proof, state.route) then
-        pcall(socket.close, socket)
+        closeRejectedSocket(state, socket)
         return false
     end
     state.socket = socket
@@ -435,22 +460,28 @@ function Handle:delete(now)
     return nil
 end
 
-function Handle:close()
-    local state = ownedState(self)
+function Handle:close(now)
+    local state = OWNED[self]
     if not state then return false end
     if state.closed then return state.closeOk == true end
+    if state.ownerToken == nil and not state.closing then return false end
+    if now ~= nil then
+        if not finite(now) or now < (state.lastNow or 0) then return false end
+        state.lastNow = now
+    end
     local expired = state.possibleExpiresAt and state.lastNow
         and state.lastNow >= state.possibleExpiresAt
     if (state.creationTransmitted or state.mapping)
         and not state.deleted and not expired then
         return false
     end
+    state.closing = true
     state.ownerToken = nil
     state.nonce = nil
     state.operation = nil
     state.mapping = nil
-    state.closed = true
     state.closeOk = closeSocket(state)
+    state.closed = state.closeOk
     return state.closeOk
 end
 
@@ -480,6 +511,7 @@ function Adapter:start(request)
         closed = false,
         deleted = false,
         deleting = false,
+        unclosedSockets = {},
     }
     local initial = self.protocol == "pcp" and "create" or "external"
     if not buildOperation(state, initial) then return nil end

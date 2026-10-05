@@ -63,11 +63,15 @@ local function request()
 end
 
 local function fakeSocketFactory(routeValue, log)
-    local factory = { exactNetworkBinding = true, sockets = {} }
+    local factory = { exactNetworkBinding = true, sockets = {}, nextCloseFailures = 0 }
     function factory.open(selected)
         log[#log + 1] = { "open", selected.internalAddress,
             selected.gatewayAddress, selected.networkGeneration }
-        local socket = { inbound = {}, sent = {}, closed = false }
+        local socket = {
+            inbound = {}, sent = {}, closed = false, closeCalls = 0,
+            closeFailures = factory.nextCloseFailures,
+        }
+        factory.nextCloseFailures = 0
         function socket:bindingProof()
             return {
                 family = 4,
@@ -92,6 +96,11 @@ local function fakeSocketFactory(routeValue, log)
             return item.packet, item.address, item.port
         end
         function socket:close()
+            self.closeCalls = self.closeCalls + 1
+            if self.closeFailures > 0 then
+                self.closeFailures = self.closeFailures - 1
+                return false
+            end
             self.closed = true
             log[#log + 1] = { "close" }
             return true
@@ -218,9 +227,12 @@ function Test.run(_, check)
     natRoute.changed = true
     local sendsBeforeUnsafeDelete = #natSocket.sent
     local unsafeDelete = natHandle:delete(1)
-    check("router_mapping_adapter_refuses_nat_pmp_deletion_after_network_generation_changes",
+    local prematureClose = natHandle:close()
+    local expiredClose = natHandle:close(120.4)
+    check("router_mapping_adapter_withholds_stale_delete_but_closes_after_finite_expiry",
         unsafeDelete == false and #natSocket.sent == sendsBeforeUnsafeDelete
-        and natHandle:close() == false)
+        and prematureClose == false and expiredClose == true
+        and natSocket.closed == true)
 
     local cgnRoute, cgnLog = route({
         networkGeneration = "android-route-v2-0000000000000003-00000001",
@@ -251,10 +263,31 @@ function Test.run(_, check)
     local badHandle = assert((assert(RouterMappingAdapter.new(badOptions)))[1]
         :start(request()))
     local badEvent = badHandle:update(0)
+    local badSocket = badOptions.socketFactory.sockets[1]
     check("router_mapping_adapter_rejects_mismatched_socket_binding_proof_before_send",
-        badEvent and badEvent.kind == "failed"
-        and badOptions.socketFactory.sockets[1].closed
-        and #badOptions.socketFactory.sockets[1].sent == 0)
+        badEvent and badEvent.kind == "failed" and badSocket.closed
+        and #badSocket.sent == 0)
+
+    local badRouteRetry, badRetryLog = route({
+        networkGeneration = "android-route-v2-00000000000000a9-00000001",
+        routeFingerprint = "route-v1-aabbccdd",
+    }), {}
+    local badRetryOptions = adapterOptions(badRouteRetry, badRetryLog)
+    local badRetrySocketFactory = fakeSocketFactory(route({
+        networkGeneration = "android-route-v2-0000000000000099-00000001",
+        routeFingerprint = "route-v1-aabbccdd",
+    }), badRetryLog)
+    badRetrySocketFactory.nextCloseFailures = 1
+    badRetryOptions.socketFactory = badRetrySocketFactory
+    local badRetryHandle = assert((assert(RouterMappingAdapter.new(badRetryOptions)))[1]
+        :start(request()))
+    local badRetryEvent = badRetryHandle:update(0)
+    local badRetrySocket = badRetrySocketFactory.sockets[1]
+    local badCleanup = badRetryHandle:close()
+    check("router_mapping_adapter_retries_close_of_socket_rejected_by_binding_proof",
+        badRetryEvent and badRetryEvent.kind == "failed"
+        and badCleanup and badRetrySocket.closed and badRetrySocket.closeCalls == 2
+        and #badRetrySocket.sent == 0)
 
     local versionRoute, versionLog = route({
         networkGeneration = "android-route-v2-0000000000000005-00000001",
@@ -271,10 +304,21 @@ function Test.run(_, check)
         port = 5351,
     }
     local unsupported = versionHandle:update(0.1)
-    check("router_mapping_adapter_recognizes_nat_pmp_version_reply_and_falls_back_without_delete",
-        unsupported and unsupported.kind == "failed"
-        and versionHandle:delete(0.1) == true
-        and #versionSocket.sent == 1 and versionHandle:close())
+    local versionDeleted = versionHandle:delete(0.1)
+    versionSocket.closeFailures = 1
+    local firstVersionClose = versionHandle:close()
+    check("router_mapping_adapter_unsupported_nat_pmp_reply_stops_after_discovery",
+        unsupported and unsupported.kind == "failed" and versionDeleted == true
+        and #versionSocket.sent == 1)
+    check("router_mapping_adapter_failed_socket_close_keeps_handle_open_for_retry",
+        firstVersionClose == false and versionSocket.closeCalls == 1
+        and versionSocket.closed == false)
+    local retryVersionClose = versionHandle:close()
+    local idempotentVersionClose = versionHandle:close()
+    check("router_mapping_adapter_retries_failed_nat_pmp_socket_close",
+        retryVersionClose == true and idempotentVersionClose == true)
+    check("router_mapping_adapter_verifies_nat_pmp_socket_closed_after_retry",
+        versionSocket.closeCalls == 2 and versionSocket.closed)
 
     local publicRoute = route({
         internalAddress = "8.8.8.8",
