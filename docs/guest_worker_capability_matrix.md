@@ -4,7 +4,18 @@ This is the authoritative Local Play parity inventory. Runtime declarations live
 `src/multiplayer_capabilities.lua`; the smoke suite rejects undeclared interaction kinds and authority
 resources. A durable change always executes on the host and only the host writes the multiplayer save.
 
-## October 6, 2026 — cat employees and Hiring
+## October 6, 2026 — employee work schedules
+
+Protocol **23** adds ordered, saved cutter job queues to **SCHEDULE** in the computer dropdown.
+Only the shop owner can add, reorder, remove, pause or resume queued jobs. Guests can inspect the
+host's schedules and completion history. The host finishes every pallet in the first job before
+advancing, and retains the head job while stock, output, cutter access or overdue wages block it.
+Typed actions, stable task IDs, revision checks and bounded queues/history prevent duplicate work
+and stale edits. Desktop checks pass **3,998 checks**, including real multi-job cutter production,
+safe pause/resume, save migration and guest mutation rejection. Packaged-mobile verification follows
+with Android 37; physical phone/LAN acceptance remains open.
+
+## Earlier October 6, 2026 — cat employees and Hiring
 
 Protocol **22** adds the cat employee pilot. The host runs applicant visits, replies, agreed shifts,
 routes, real cutter actions, breaks and hourly payroll. Connected players can inspect **HIRING**,

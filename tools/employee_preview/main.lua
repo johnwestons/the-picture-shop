@@ -22,6 +22,8 @@ local Zones=require("src.cutter_zones")
 local Config=require("src.config")
 local Computer=require("src.screens.computer_screen").new()
 local Contracts=require("src.employment_contracts")
+local Schedule=require("src.employee_schedule")
+local Work=require("src.employee_work")
 local scenes,shot,pending={},1,false
 local state,applicant,worker
 local function setHours(s,h)
@@ -40,18 +42,22 @@ local function prepareScene()
     local scene=scenes[shot]
     if not scene then
         local f=assert(io.open(output.."/engine-review.txt","wb"))
-        f:write("PASS: real applicant route, cat cutter route and cut cycle, occupied breakroom seat, resumes, offers, staff, assignment and payroll pages; desktop and phone landscape captures.\n")
+        f:write("PASS: real applicant route, automatic scheduled cutter route and cut cycle, completion history, occupied breakroom seat, Hiring and Schedule pages and full computer dropdown; desktop and phone landscape captures.\n")
         f:close();love.event.quit(0);return
     end
     local phone=scene.phone
     love.window.setMode(phone and 1600 or 960,phone and 720 or 678,{vsync=0,resizable=false})
     if scene.view~="world" then
-        Computer.tab=scene.view=="email" and "email" or "hiring"
+        Computer.tab=scene.view=="email" and "email" or scene.view=="schedule" and "schedule" or "hiring"
+        Computer.tabDropdownOpen=scene.dropdown==true
         Computer.hiring.section=scene.section or "applications"
         Computer.hiring.view=scene.page or "detail"
         Computer.hiring.selectedId=scene.recordId
         Computer.hiring.terms=Contracts.terms(2200,31,9,17)
         Computer.selectedEmailId=scene.emailId
+        Computer.schedule.view=scene.page or "queue"
+        Computer.schedule.workerId=scene.recordId
+        Computer.schedule.jobIndex=scene.jobIndex or 1
     end
 end
 function love.load()
@@ -84,7 +90,12 @@ function love.load()
     local pallet=job.pallets[1];local x,y=Zones.inputAnchor(state,Config.cutterPlacement)
     pallet.world.x,pallet.world.y=x,y;pallet.world.fromX,pallet.world.fromY=x,y;pallet.world.spawnProgress=1
     local machine=Fleet.installedUnits(state,"polar_115")[1]
-    assert(Employees.command(state,{kind="assign_employee",employeeId=worker.id,jobId=job.id,palletId=pallet.id,machineId=machine.id}))
+    assert(Employees.command(state,{kind="queue_employee_job",employeeId=worker.id,jobId=job.id,machineId=machine.id}))
+    for i=2,3 do
+        local nextJob=assert(Jobs.createOffer({id="JOB-CAT-DEMO-"..i,company=i==2 and "Maple Paper Co." or "Riverside Flyers",sourceSize={width=20,height=16},finishedSize={width=10,height=8},sheetCounts={500}}))
+        Jobs.accept(nextJob);state.jobs.active[#state.jobs.active+1]=nextJob
+        if i==2 then assert(Employees.command(state,{kind="queue_employee_job",employeeId=worker.id,jobId=nextJob.id,machineId=machine.id})) end
+    end
     setHours(state,9)
     local m=Machine.forId(machine.id)
     for i=1,900 do tick(.05);if m.step=="cutting" and worker.workFrame==4 then break end end
@@ -94,6 +105,22 @@ function love.load()
     add("assignment",state,"hiring");scenes[#scenes].section="staff";scenes[#scenes].recordId=worker.id;scenes[#scenes].page="assignment"
     add("payroll",state,"hiring");scenes[#scenes].section="payroll"
     add("email-resume",state,"email");scenes[#scenes].emailId=state.clientEmails.inbox[1].id
+    add("schedule-queue",state,"schedule");scenes[#scenes].recordId=worker.id
+    add("schedule-add",state,"schedule");scenes[#scenes].recordId=worker.id;scenes[#scenes].page="add";scenes[#scenes].jobIndex=3
+    add("schedule-menu",state,"schedule");scenes[#scenes].recordId=worker.id;scenes[#scenes].dropdown=true
+    local worldContext=World.employeeContext(state,Assets)
+    local workContext={canClaim=worldContext.canClaim,operatorPoint=worldContext.operatorPoint,
+        move=function(actor,goal,dt) return AI.move(actor,goal,dt,worldContext) end}
+    -- Finish the actual cutter domain before capturing history; no completed
+    -- job or output counts are fabricated to populate the Schedule screen.
+    for i=1,1600 do
+        Work.update(state,worker,.1,workContext);Machine.updateAll(.1,state)
+        if pallet.status=="cut" and not worker.assignment then break end
+    end
+    assert(pallet.status=="cut","Schedule preview could not complete the first real job")
+    Schedule.advance(state,worker,Calendar.absoluteHours(state))
+    assert(worker.schedule.history[1] and worker.schedule.history[1].jobId==job.id and worker.assignment.jobId=="JOB-CAT-DEMO-2","Scheduled next job did not follow completed work")
+    add("schedule-history",state,"schedule");scenes[#scenes].recordId=worker.id;scenes[#scenes].page="history"
     state.warehouse.bays.front_left={status="complete",optionId="breakroom"}
     worker.fatigue=92;worker.focus=30
     for i=1,1500 do tick(.05);if worker.phase=="break" and worker.seatBay then break end end

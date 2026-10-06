@@ -71,7 +71,7 @@ function Work.update(state,w,dt,context)
         if m.emergencyStopped or not m.barrierClear or m.step=="blocked" then
             w.activity="Cutter safety/service needs player attention";w.workFrame=1;return
         end
-        if m.pallet and m.pallet.id~=pallet.id then
+        if m.pallet and m.pallet.id~=pallet.id and m.step~="idle" and m.step~="finished" then
             w.activity="Another pallet is on the cutter";return
         end
         if m.step=="armed" or m.step=="cutting" then w.workFrame=4;return end

@@ -2,6 +2,7 @@ local Employees=require("src.employees")
 local Contracts=require("src.employment_contracts")
 local Payroll=require("src.payroll")
 local Work=require("src.employee_work")
+local Schedule=require("src.employee_schedule")
 local Calendar=require("src.business_calendar")
 local PlayerController=require("src.player_controller")
 local Navigation=require("src.navigation")
@@ -186,17 +187,26 @@ function AI.worker(state,w,dt,now,context)
         if b and Work.safe(w) then beginBreak(state,w,b,context)
         elseif overdue then
             if Work.safe(w) then Work.release(state,w);w.phase="idle";stop(w);w.activity="Waiting for overdue wages" end
-        elseif w.assignment then
-            local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,
-                move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
-            local changed=Work.update(state,w,dt,workContext)
-            w.fatigue=math.min(100,w.fatigue+hours*(w.phase=="working" and 8 or 3))
-            w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 6 or 2))
-            return changed
         else
-            local point=context.idlePoint(w)
-            if AI.move(w,point,dt,context) then w.phase="idle";w.activity="Waiting for assignment";w.idleClock=w.idleClock+dt end
-            w.fatigue=math.min(100,w.fatigue+hours)
+            local scheduleChanged=Schedule.advance(state,w,now)
+            if w.assignment then
+                local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,
+                    move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
+                local changed=Work.update(state,w,dt,workContext)
+                w.fatigue=math.min(100,w.fatigue+hours*(w.phase=="working" and 8 or 3))
+                w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 6 or 2))
+                return changed or scheduleChanged
+            else
+                local point=context.idlePoint(w)
+                if AI.move(w,point,dt,context) then
+                    w.phase="idle";w.idleClock=w.idleClock+dt
+                    local q=Schedule.ensure(w)
+                    if not q.enabled then w.activity="Work schedule paused"
+                    elseif #q.items==0 then w.activity=#q.history>0 and "Work schedule complete" or "Waiting for assignment" end
+                end
+                w.fatigue=math.min(100,w.fatigue+hours)
+                return scheduleChanged
+            end
         end
     end
     return false

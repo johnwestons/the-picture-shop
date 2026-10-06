@@ -16,6 +16,10 @@ local fields = {
     hire_employee = { applicationId = "token", expectedRevision = "revision" },
     assign_employee = { employeeId = "token", jobId = "token", palletId = "token", machineId = "token" },
     unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" }, pay_wages = {},
+    queue_employee_job = { employeeId="token",jobId="token",machineId="token" },
+    set_employee_schedule = { employeeId="token",enabled="boolean" },
+    remove_employee_job = { employeeId="token",itemId="token",expectedRevision="revision" },
+    move_employee_job = { employeeId="token",itemId="token",expectedRevision="revision",direction="queue_direction" },
 }
 local function integer(value, low, high)
     return type(value) == "number" and value == math.floor(value) and value >= low and value <= high
@@ -29,7 +33,9 @@ function Intent.normalize(value)
         if rule == "boolean" then
             if type(item) ~= "boolean" then return nil,"Choose whether recruitment is open." end
         elseif rule == "revision" then
-            if not integer(item,1,1000000) then return nil,"Review the latest contract revision." end
+            if not integer(item,1,1000000000) then return nil,"Review the latest record revision." end
+        elseif rule == "queue_direction" then
+            if item~=-1 and item~=1 then return nil,"Move this job up or down one place." end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
         elseif rule == "days" then

@@ -3,6 +3,7 @@ local Contracts=require("src.employment_contracts")
 local Payroll=require("src.payroll")
 local Inbox=require("src.inbox")
 local Fleet=require("src.machine_fleet")
+local Schedule=require("src.employee_schedule")
 local Employees={}
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
     offer_accepted=true,hired=true,declined=true,withdrawn=true,expired=true}
@@ -35,7 +36,7 @@ local function validActor(a)
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
 end
 function Employees.defaultState(now)
-    return {version=1,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+    return {version=2,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
         nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={}}
 end
 function Employees.ensure(state)
@@ -43,7 +44,7 @@ function Employees.ensure(state)
     return state.employment
 end
 function Employees.valid(e)
-    if type(e)~="table" or e.version~=1 or not int(e.nextApplicantId,1,1000000)
+    if type(e)~="table" or e.version~=2 or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
         or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12) then return false end
     local ids={}
@@ -75,19 +76,35 @@ function Employees.valid(e)
             or (w.breakKind~=nil and w.breakKind~="meal" and w.breakKind~="rest")
             or (w.seatBay~=nil and w.seatBay~="front_left" and w.seatBay~="front_right")
             or (w.assignment~=nil and (type(w.assignment)~="table" or not token(w.assignment.jobId)
-                or not token(w.assignment.palletId) or not token(w.assignment.machineId)))
+                or not token(w.assignment.palletId) or not token(w.assignment.machineId)
+                or (w.assignment.scheduleItemId~=nil and not token(w.assignment.scheduleItemId))))
+            or not Schedule.valid(w.schedule)
             or not array(w.weeks,1000,function(r)
                 return type(r)=="table" and int(r.week,-3,10000000) and number(r.dueAtHours,0,1e12)
                     and number(r.paidHours,0,200) and number(r.earnedCents,0,1e9)
                     and int(r.paidCents,0,math.floor(r.earnedCents+.5+1e-7)) and type(r.notified)=="boolean"
             end) then return false end
+        if w.assignment and w.assignment.scheduleItemId then
+            local row=w.schedule.items[1]
+            if not row or row.id~=w.assignment.scheduleItemId or row.jobId~=w.assignment.jobId
+                or row.machineId~=w.assignment.machineId then return false end
+        end
         ids[w.id]=true return true
     end)
 end
 function Employees.normalize(e,now)
     if e==nil then return Employees.defaultState(now) end
-    if not Employees.valid(e) then return nil end
+    if type(e)~="table" then return nil end
     local result=copy(e)
+    if result.version==1 then
+        if type(result.staff)~="table" then return nil end
+        result.version=2
+        for _,w in pairs(result.staff) do
+            if type(w)~="table" then return nil end
+            w.schedule=w.schedule or Schedule.defaultState()
+        end
+    end
+    if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock=nil,nil,nil
         w.velocityX,w.velocityY,w.animationDistance=nil,nil,nil
@@ -216,14 +233,19 @@ function Employees.command(state,intent,now)
         w.contract.signedAtHours=now;w.contract.startDay=Contracts.nextDay(w.contract,now)
         w.fatigue=0;w.focus=100;w.weeks={};w.shiftDay=-1;w.breaksTaken=0;w.breakRemaining=0
         w.clockedIn=false;w.terminationRequested=false;w.stopRequested=false;w.activity="Starts next agreed shift"
+        w.schedule=Schedule.defaultState()
         e.staff[#e.staff+1]=w;a.status="hired";a.employeeId=w.id;a.revision=a.revision+1
-        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Weekly pay is due Monday 09:00, with 1.5x pay after 40 paid hours. Assign a staged pallet in Hiring > Staff.")
+        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Weekly pay is due Monday 09:00, with 1.5x pay after 40 paid hours. Build ordered cutter jobs in Schedule, or assign one staged pallet in Hiring > Staff.")
         return true,w.name.." hired. Starts on the next agreed day."
     end
     local w=intent.employeeId and Employees.worker(state,intent.employeeId)
     if not w or w.status~="employed" then return false,"Choose a current employee." end
+    if Schedule.isIntent(intent.kind) then return Schedule.command(state,w,intent,now) end
     if intent.kind=="dismiss_employee" then w.terminationRequested=true;w.stopRequested=true;return true,"Dismissal requested. Earned wages remain owed."
-    elseif intent.kind=="unassign_employee" then w.stopRequested=true;return true,"Work will pause at the next safe cutter checkpoint."
+    elseif intent.kind=="unassign_employee" then
+        w.stopRequested=true
+        if #w.schedule.items>0 then w.schedule.enabled=false;w.schedule.revision=w.schedule.revision+1 end
+        return true,"Work will pause at the next safe cutter checkpoint."
     elseif intent.kind=="assign_employee" then
         if Payroll.balance(w,now,false)>0 then return false,"Pay overdue wages before assigning more work." end
         if w.assignment then return false,"Pause the current assignment before selecting another." end
@@ -236,6 +258,8 @@ function Employees.command(state,intent,now)
         if (pallet.status=="cut" or pallet.status=="printed" or pallet.status=="wrapped") or (pallet.remainingSheets or 0)<=0 and pallet.location~="at_cutter" then return false,"This pallet no longer needs cutting." end
         for _,other in ipairs(e.staff) do if other~=w and other.assignment
             and (other.assignment.machineId==machine.id or other.assignment.palletId==pallet.id) then return false,"Another employee is assigned to that cutter or pallet." end end
+        if Schedule.claimed(state,w,job.id) then return false,"This job is queued for another employee." end
+        if w.schedule.enabled and #w.schedule.items>0 then return false,"Pause the work schedule before assigning a separate pallet." end
         w.assignment={jobId=job.id,palletId=pallet.id,machineId=machine.id};w.stopRequested=false
         w.activity="Waiting for shift / staged stock"
         return true,"Assignment saved. Stage this pallet beside the cutter; the worker handles each lift."
@@ -243,7 +267,7 @@ function Employees.command(state,intent,now)
     return false,"Unknown employment action."
 end
 function Employees.isIntent(kind)
-    return ({recruit_workers=true,request_resume=true,offer_employee=true,hire_employee=true,
+    return Schedule.isIntent(kind) or ({recruit_workers=true,request_resume=true,offer_employee=true,hire_employee=true,
         decline_application=true,assign_employee=true,unassign_employee=true,pay_wages=true,dismiss_employee=true})[kind]==true
 end
 function Employees.reservation(state,machineId,palletId)

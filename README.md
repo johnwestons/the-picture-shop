@@ -13,8 +13,14 @@ A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop managem
 Open the office computer, tap the arrow beside the address bar, and choose
 **HIRING**. Cat applicants visit reception and email their resumes. Negotiate
 hourly wages, days and shift times, wait for the email reply, then sign the
-accepted offer. **Staff** assigns an accepted job's pallet to a specific cutter;
-stage that stock beside the machine so the worker can cut it. **Payroll** shows
+accepted offer. Choose **SCHEDULE** from the same address-bar dropdown, select
+the employee, then use **ADD JOB** to queue an accepted job and its cutter.
+Each employee can queue 16 jobs. They cut every pallet in the first job, then
+automatically continue through the list. Pending jobs can be reordered or removed;
+pause/resume controls and a completion history are included. Stage each pallet
+beside its selected cutter and keep the output clear. Work respects agreed shifts,
+breaks, skill requirements and overdue wages. **Staff** still supports assigning
+one pallet manually. **Payroll** shows
 earned wages and allows payments; weekly wages are automatically due Monday
 09:00, with unpaid balances retained.
 

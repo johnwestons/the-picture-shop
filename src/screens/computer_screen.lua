@@ -14,6 +14,7 @@ local Upgrades = require("src.warehouse_upgrades")
 local Credit = require("src.credit")
 local OfficeIntent = require("src.office_intent")
 local Hiring = require("src.screens.hiring_screen")
+local ScheduleScreen = require("src.screens.schedule_screen")
 local Employees = require("src.employees")
 local warehouseRequestPrefix=dependencies.warehouseRequestPrefix
 
@@ -56,6 +57,7 @@ local ComputerScreen = {
     creditRequestNumber = 0,
     creditChannel = "online",
     hiring = Hiring.new(),
+    schedule = ScheduleScreen.new(),
 }
 
 local PANEL = { x = 52, y = 34, width = 856, height = 610 }
@@ -70,13 +72,14 @@ local TABS = {
     { id = "www", label = "CRITTERNET WWW", url = "www.thecritternet.com" },
     { id = "email", label = "EMAIL", url = "www.thecritternet.com/job-desk/email" },
     { id = "hiring", label = "HIRING", url = "www.thecritternet.com/shop/hiring" },
+    { id = "schedule", label = "SCHEDULE", url = "www.thecritternet.com/shop/schedule" },
     { id = "bills", label = "BILLS", url = "www.thecritternet.com/job-desk/bills" },
     { id = "credit", label = "CREDIT", url = "www.thecritternet.com/job-desk/credit" },
     { id = "warehouse", label = "WAREHOUSE", url = "www.thecritternet.com/warehouse" },
 }
 local TAB_ADDRESS = { x = 170, y = 136, width = 478, height = 40 }
 local TAB_DROPDOWN_ARROW = { x = 648, y = 136, width = 40, height = 40 }
-local TAB_DROPDOWN = { x = 170, y = 179, width = 518, rowHeight = 39 }
+local TAB_DROPDOWN = { x = 170, y = 179, width = 518, rowHeight = 35 }
 local LIST = { x = 82, y = 190, width = 310, height = 370 }
 local DETAIL = { x = 412, y = 190, width = 440, height = 444 }
 local PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }
@@ -837,15 +840,29 @@ end
 
 function ComputerScreen.hiringMousepressed(state,x,y)
     return Hiring.mousepressed(state,ComputerScreen.hiring,x,y,function(intent)
-        local normalized,errorMessage=OfficeIntent.normalize(intent)
-        if not normalized then state.message=errorMessage;return {action="blocked"} end
-        if dependencies.remoteCommand then return remoteAction(normalized.kind,normalized) end
-        local accepted,code,message
-        if dependencies.warehouseCommand then accepted,code,message=dependencies.warehouseCommand(normalized)
-        else accepted,message=Employees.command(state,normalized) end
-        state.message=message or (accepted and "Employment change saved." or "Employment change was not completed.")
-        return {action=accepted and "employment_changed" or "blocked"}
+        return ComputerScreen.employeeCommand(state,intent)
     end,dependencies.remoteCommand~=nil)
+end
+
+function ComputerScreen.scheduleMousepressed(state,x,y)
+    return ScheduleScreen.mousepressed(state,ComputerScreen.schedule,x,y,function(intent)
+        return ComputerScreen.employeeCommand(state,intent)
+    end,dependencies.remoteCommand~=nil)
+end
+
+function ComputerScreen.drawSchedule(state,x,y)
+    return ScheduleScreen.draw(state,ComputerScreen.schedule,x,y,dependencies.remoteCommand~=nil)
+end
+
+function ComputerScreen.employeeCommand(state,intent)
+    local normalized,errorMessage=OfficeIntent.normalize(intent)
+    if not normalized then state.message=errorMessage;return {action="blocked"} end
+    if dependencies.remoteCommand then return remoteAction(normalized.kind,normalized) end
+    local accepted,code,message
+    if dependencies.warehouseCommand then accepted,code,message=dependencies.warehouseCommand(normalized)
+    else accepted,message=Employees.command(state,normalized) end
+    state.message=message or (accepted and "Employment change saved." or "Employment change was not completed.")
+    return {action=accepted and "employment_changed" or "blocked"}
 end
 
 function ComputerScreen.mousepressed(state, x, y, button)
@@ -876,6 +893,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
     if ComputerScreen.tab == "hiring" then
         return ComputerScreen.hiringMousepressed(state,x,y)
     end
+    if ComputerScreen.tab == "schedule" then return ComputerScreen.scheduleMousepressed(state,x,y) end
     if ComputerScreen.tab == "www" and ComputerScreen.cartOpen then
         local maximumPage = math.max(1, math.ceil(#ComputerScreen.cart / CART_PAGE_SIZE))
         if contains(CART_BACK, x, y) then
@@ -2572,6 +2590,8 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
         drawInventory(state)
     elseif ComputerScreen.tab == "hiring" then
         Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,dependencies.remoteCommand~=nil)
+    elseif ComputerScreen.tab == "schedule" then
+        ComputerScreen.drawSchedule(state,pointerX,pointerY)
     elseif ComputerScreen.tab == "warehouse" then
         drawWarehouse(state,pointerX,pointerY,assets)
     elseif ComputerScreen.tab == "www" then

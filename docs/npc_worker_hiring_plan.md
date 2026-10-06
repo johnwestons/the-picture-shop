@@ -1,8 +1,8 @@
 # NPC Worker Hiring and Machine Operation Plan
 
-**Status:** The cat hiring/cutter pilot is playable. Press, wrapping, transport and the broader policies below remain planned. **Date:** October 6, 2026.
+**Status:** The cat hiring/cutter pilot and ordered cutter job schedules are playable. Press, wrapping, transport and the broader policies below remain planned. **Date:** October 6, 2026.
 
-See [current implementation and verification](npc_worker_build_status.md) for the exact implemented scope. Open **HIRING** from the office computer's address-bar dropdown to use it.
+See [current implementation and verification](npc_worker_build_status.md) for the exact implemented scope. Open **HIRING** from the office computer's address-bar dropdown to hire and pay workers; **SCHEDULE** queues up to 16 accepted cutter jobs per employee with automatic progression, pause/resume and completion history. Every pallet in a job is cut before moving to the next job. Stock still needs player staging and clear cutter output.
 
 Players can hire critter employees to cut, print, and eventually finish and move work around the shop. Applicants visit reception, show a resume, email it through CritterNet, and negotiate pay and working days in the computer inbox. Hired workers arrive for their agreed shifts, operate real machines on real job pallets, earn hourly wages, and take breaks to recover tiredness and focus.
 
@@ -101,7 +101,7 @@ The worker stops safely, walks to an available seat, sits, rests, stands, and re
 
 ## Autonomous machine work
 
-The player assigns an accepted job and an installed machine through Staff or the job's **Assign worker** action. An optional queue draws only from jobs the player has already authorized. The employee does not accept customer estimates, purchase stock, or alter promised specifications.
+The implemented cutter pilot supports one pallet through **HIRING > Staff**, or an ordered list of accepted jobs and installed cutters through **SCHEDULE**. The worker completes all pallets in the current queued job before advancing. A job's **Assign worker** shortcut and queues for additional machine roles remain planned. The employee does not accept customer estimates, purchase stock, or alter promised specifications.
 
 Resolve every assignment to an exact machine ID, job ID, and pallet ID. Reserve both the machine and the eligible work pallet. Verify skill, shift time, availability of stock and supplies, machine condition, output clearance, and a walkable operator position before starting.
 
@@ -135,7 +135,7 @@ Reuse the collision-aware construction routing pattern, with bounded searches, m
 
 ## Computer and mobile controls
 
-Add a **Staff** tab to the existing computer GUI, alongside its current business pages.
+The implemented computer dropdown has **HIRING** for applicants, staff and payroll, plus **SCHEDULE** for ordered cutter jobs. The broader views and actions below remain planned where not listed in the implementation report.
 
 | View | Information and actions |
 | --- | --- |
@@ -226,7 +226,7 @@ Persist the employee ID, profile and experience, application and email reference
 
 Process shift, break, offer, and payroll boundaries chronologically when a frame crosses several deadlines. Split machine and payroll updates at those boundaries so one large update cannot grant a full frame of work after clock-out or miss a payday. Use durable operation IDs for contract signing, work stages, wage accrual checkpoints, replies, and payments.
 
-The current save schema is 16 and network protocol is 21. Implementing this feature will require reviewed schema and protocol changes; planning does not change those versions. Existing shops should receive an empty staff roster and zero payroll debt, with their money, jobs, loans, and placements retained. Save wiping remains a separate, explicitly agreed testing choice.
+The implemented cutter/schedule pilot uses save schema 18 and network protocol 23. Version 16 shops receive an empty staff roster and zero payroll debt; version 17 employees receive empty job queues while retaining existing contracts and payroll. Money, jobs, loans, placements and real production remain durable. Additional roles will require their own reviewed state changes. Save wiping remains a separate, explicitly agreed testing choice.
 
 ## Implementation order and completion checks
 
