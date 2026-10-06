@@ -6,6 +6,13 @@ the movement stick and action buttons in the preview; positions are saved for
 the device and applied immediately. **CHEATS** can safely edit cash and common
 inventory/progression values in the live host shop or any offline save slot.
 
+In **OPTIONS > GAME**, enable **Follow player camera** to keep your character
+centered while moving, including when zoomed in. Pinch on mobile or use the mouse
+wheel to zoom; turn follow off to resume mobile panning. This preference is saved
+on each device and follows that device's player during Local Play. Shop menus
+keep their own camera views. This change is in source; the APK will be rebuilt
+after the next set of changes.
+
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
 
 ## NPC workers and hiring

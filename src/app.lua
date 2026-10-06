@@ -155,12 +155,31 @@ local function cameraTransformsUi()
     return App.mobileCamera and App.mobileCamera:isEnabled() and state.screen ~= "world"
 end
 
+local function cameraTransformsWorld()
+    return state.screen == "world" and App.mobileCamera
+        and (App.mobileCamera:isEnabled() or App.settings and App.settings.followPlayerCamera)
+end
+
 local function cameraViewKey()
     if state.screen == "machine" then return "machine:" .. tostring(state.machineType or "unknown") end
     return tostring(state.screen)
 end
 
+local function syncCamera()
+    local bounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight)
+    if App.mobileCamera then
+        App.mobileCamera:setViewport(bounds.width, bounds.height)
+        if cameraTransformsWorld() or cameraTransformsUi() then
+            App.mobileCamera:selectView(cameraViewKey(), state.screen == "world")
+        end
+        App.mobileCamera:setFollowTarget(cameraTransformsWorld() and App.settings
+            and App.settings.followPlayerCamera and World.player or nil)
+    end
+    return bounds
+end
+
 local function toPointerCoordinates(x, y)
+    syncCamera()
     local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
     if cameraTransformsUi() then return App.mobileCamera:screenToWorld(gameX, gameY) end
     return gameX, gameY
@@ -2568,7 +2587,8 @@ local inputContext = {
     end,
     returnToTitle = returnToTitle,
     worldPointerCoordinates = function(x, y)
-        if state.screen == "world" and App.mobileCamera and App.mobileCamera:isEnabled() then
+        syncCamera()
+        if cameraTransformsWorld() then
             return App.mobileCamera:screenToWorld(x, y)
         end
         return x, y
@@ -2995,9 +3015,11 @@ function App.load()
         extraActions = extraMobileActions,
         afterInput = syncMobileKeyboard,
         beginGesture = function(x, y, distance)
+            syncCamera()
             if App.mobileCamera then App.mobileCamera:beginGesture(x, y, distance) end
         end,
         updateGesture = function(x, y, distance)
+            syncCamera()
             if App.mobileCamera then App.mobileCamera:updateGesture(x, y, distance) end
         end,
         endGesture = function()
@@ -3008,6 +3030,8 @@ function App.load()
         enabled = mobileControls:isEnabled(),
         baseWidth = Config.baseWidth,
         baseHeight = Config.baseHeight,
+        -- Player positions are foot anchors; focus on the stable body center.
+        followOffsetY = -Config.characterRendering.referenceHeight * Config.player.drawScale / 2,
     })
     controller = Controller.new({
         pressKey = dispatchKeyPressed,
@@ -4090,6 +4114,7 @@ serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmill
 end
 
 function App.update(dt)
+    syncCamera()
     if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
     DirectIpv4Runtime.updateHosts()
@@ -4134,7 +4159,7 @@ function App.update(dt)
             local cursorX, cursorY
             if not (controller and controller:isActive()) then
                 cursorX, cursorY = pointerPosition()
-                if App.mobileCamera and App.mobileCamera:isEnabled() then
+                if cameraTransformsWorld() then
                     cursorX, cursorY = App.mobileCamera:screenToWorld(cursorX, cursorY)
                 end
             end
@@ -4155,7 +4180,7 @@ function App.update(dt)
             local cursorX, cursorY
             if not (controller and controller:isActive()) then
                 cursorX, cursorY = pointerPosition()
-                if App.mobileCamera and App.mobileCamera:isEnabled() then
+                if cameraTransformsWorld() then
                     cursorX, cursorY = App.mobileCamera:screenToWorld(cursorX, cursorY)
                 end
             end
@@ -4199,14 +4224,11 @@ end
 
 function App.draw()
     love.graphics.clear(0.04, 0.05, 0.07)
-    local viewBounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight)
+    local viewBounds = syncCamera()
     if mobileControls then mobileControls:setBounds(viewBounds) end
-    if App.mobileCamera then App.mobileCamera:setViewport(viewBounds.width, viewBounds.height) end
-    local mobileCameraActive = App.mobileCamera and App.mobileCamera:isEnabled()
-    if mobileCameraActive then App.mobileCamera:selectView(cameraViewKey(), state.screen == "world") end
-    local mobileWorld = state.screen == "world" and mobileCameraActive
-    local mobileUi = state.screen ~= "world" and mobileCameraActive
-    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not mobileCameraActive)
+    local mobileWorld = cameraTransformsWorld()
+    local mobileUi = cameraTransformsUi()
+    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not (mobileWorld or mobileUi))
     if spriteLabActive then
         SpriteMotionLab.draw(CharacterAssets)
         Viewport.endDraw()
@@ -4258,7 +4280,8 @@ function App.draw()
         end
         if state.screen == "world" then
             Hud.draw(state, World.prompt(), Assets, mouseX, mouseY,
-                mobileControls and mobileControls:isEnabled(), controller and controller:isActive(), viewBounds)
+                mobileControls and mobileControls:isEnabled(), controller and controller:isActive(), viewBounds,
+                App.settings and App.settings.followPlayerCamera)
             MultiplayerHud.draw(multiplayerHudInfo())
         elseif state.screen == "computer" then
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
@@ -4342,6 +4365,8 @@ function App.mousemoved(x, y, _, _, isTouch)
 end
 
 function App.wheelmoved(x, y)
+    syncCamera()
+    if cameraTransformsWorld() and y ~= 0 then return App.mobileCamera:zoomBy(1.12 ^ y) end
     if state.screen == "options" or state.screen == "lan" or state.screen == "direct" then
         return false
     end

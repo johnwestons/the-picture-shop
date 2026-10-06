@@ -33,6 +33,7 @@ local SLOT_RECTS = {
 local GAME_ROWS = {
     { id = "fullscreen", label = "Fullscreen", kind = "toggle" },
     { id = "vsync", label = "Vertical sync", kind = "toggle" },
+    { id = "followPlayerCamera", label = "Follow player camera", kind = "toggle" },
 }
 local AUDIO_ROWS = {
     { id = "masterVolume", label = "Master volume", kind = "level" },
@@ -483,16 +484,20 @@ function OptionsScreen.draw(mouseX, mouseY)
 
     if OptionsScreen.tab == "game" then
         love.graphics.setColor(0.78, 0.81, 0.76)
-        love.graphics.print("DISPLAY", 164, 166)
+        love.graphics.print("DISPLAY & CAMERA", 164, 166)
         local android = love.system and love.system.getOS and love.system.getOS() == "Android"
         local values = {
             android and "SYSTEM" or (OptionsScreen.context.settings.fullscreen and "ON" or "OFF"),
             OptionsScreen.context.settings.vsync and "ON" or "OFF",
+            OptionsScreen.context.settings.followPlayerCamera and "ON" or "OFF",
         }
         drawRows(GAME_ROWS, values, false)
         love.graphics.setColor(0.58, 0.64, 0.61)
         love.graphics.printf(android and "Fullscreen is managed by Android."
-            or "Display changes apply immediately.", 164, 340, 632, "center")
+            or "Display changes apply immediately.", 164, 370, 632, "center")
+        love.graphics.printf("Follow keeps your character centered while walking or zooming.\n"
+            .. "Pinch or use the mouse wheel to zoom. Turn follow off to pan on mobile.",
+            164, 405, 632, "center")
     elseif OptionsScreen.tab == "audio" then
         love.graphics.setColor(0.78, 0.81, 0.76)
         love.graphics.print("AUDIO MIX", 164, 166)

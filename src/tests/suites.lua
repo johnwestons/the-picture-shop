@@ -60,6 +60,7 @@ local DOMAIN_SUITES = {
     require("src.tests.asset_pack_test"),
     require("src.tests.work_phone_test"),
     require("src.tests.options_test"),
+    require("src.tests.camera_follow_test"),
     require("src.tests.sound_test"),
     require("src.tests.pallet_state_test"),
     require("src.tests.warehouse_upgrades_test"),

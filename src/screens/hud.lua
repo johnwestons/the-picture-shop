@@ -19,7 +19,7 @@ local function shadowedPrintf(text, x, y, width, color)
     love.graphics.printf(text, x, y, width, "left")
 end
 
-function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller, bounds)
+function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller, bounds, followPlayerCamera)
     bounds = bounds or { left = 0, right = Config.baseWidth, bottom = Config.baseHeight }
     local left, right, bottom = mobile and bounds.left or 0,
         mobile and bounds.right or Config.baseWidth,
@@ -51,7 +51,9 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     end
     shadowedPrint(
         controller and "LEFT STICK / D-PAD: MOVE    A: USE    X: PARK    Y: MOVE    START: MENU"
-            or mobile and "ONE FINGER: CONTROLS    TWO FINGERS: PINCH + PAN"
+            or mobile and (followPlayerCamera
+                and "ONE FINGER: CONTROLS    TWO FINGERS: PINCH ZOOM    CAMERA: FOLLOW"
+                or "ONE FINGER: CONTROLS    TWO FINGERS: PINCH + PAN")
             or "WASD / arrows: move    E: interact",
         left + 22,
         bottom - 28,

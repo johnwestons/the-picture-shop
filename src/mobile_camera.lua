@@ -21,6 +21,8 @@ function MobileCamera.new(options)
     self.initialized = false
     self.viewKey = nil
     self.savedViews = {}
+    self.followTarget = nil
+    self.followOffsetY = options.followOffsetY or 0
     return self
 end
 
@@ -34,6 +36,7 @@ function MobileCamera:selectView(key, fillScreen)
             zoom = self.zoom,
         }
     end
+    self.followTarget = nil
     self:endGesture()
     self.viewKey = key
     local saved = self.savedViews[key]
@@ -56,6 +59,13 @@ function MobileCamera:isEnabled()
 end
 
 function MobileCamera:_clampCenter()
+    -- Following stays centered even at the warehouse edge. Clamping to the
+    -- floor bounds would push the player off center, especially when zoomed.
+    if self.followTarget then
+        self.centerX = self.followTarget.x
+        self.centerY = self.followTarget.y + self.followOffsetY
+        return
+    end
     local visibleWidth = self.viewWidth / self.zoom
     local visibleHeight = self.viewHeight / self.zoom
     if visibleWidth >= self.baseWidth then
@@ -68,6 +78,20 @@ function MobileCamera:_clampCenter()
     else
         self.centerY = clamp(self.centerY, visibleHeight / 2, self.baseHeight - visibleHeight / 2)
     end
+end
+
+function MobileCamera:setFollowTarget(target)
+    if self.followTarget ~= target then self:endGesture() end
+    self.followTarget = target
+    self:_clampCenter()
+end
+
+function MobileCamera:zoomBy(factor)
+    if not self.enabled and not self.followTarget then return false end
+    self:endGesture()
+    self.zoom = clamp(self.zoom * factor, self.minimumZoom, self.maximumZoom)
+    self:_clampCenter()
+    return true
 end
 
 function MobileCamera:setViewport(viewWidth, viewHeight)
@@ -148,6 +172,7 @@ function MobileCamera:snapshot()
         zoom = self.zoom,
         minimumZoom = self.minimumZoom,
         maximumZoom = self.maximumZoom,
+        following = self.followTarget ~= nil,
     }
 end
 

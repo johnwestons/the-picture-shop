@@ -4,6 +4,7 @@ local PATH = "settings.lua"
 local DEFAULTS = {
     fullscreen = false,
     vsync = true,
+    followPlayerCamera = false,
     muted = false,
     masterVolume = 100,
     sfxVolume = 85,
@@ -48,6 +49,7 @@ function Settings.normalize(value)
     return {
         fullscreen = value.fullscreen == true,
         vsync = value.vsync ~= false,
+        followPlayerCamera = value.followPlayerCamera == true,
         muted = value.muted == true,
         masterVolume = clampPercent(value.masterVolume, DEFAULTS.masterVolume),
         sfxVolume = clampPercent(value.sfxVolume, DEFAULTS.sfxVolume),
@@ -69,8 +71,8 @@ end
 local function encode(value)
     value = Settings.normalize(value)
     return string.format(
-        "{ fullscreen = %s, vsync = %s, muted = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
-        tostring(value.fullscreen), tostring(value.vsync), tostring(value.muted),
+        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, muted = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
+        tostring(value.fullscreen), tostring(value.vsync), tostring(value.followPlayerCamera), tostring(value.muted),
         value.masterVolume, value.sfxVolume, value.ambientVolume,
         value.controlLayout.joystick.x, value.controlLayout.joystick.y,
         value.controlLayout.primary.x, value.controlLayout.primary.y,
