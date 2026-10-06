@@ -11,9 +11,9 @@ Only the shop owner can add, reorder, remove, pause or resume queued jobs. Guest
 host's schedules and completion history. The host finishes every pallet in the first job before
 advancing, and retains the head job while stock, output, cutter access or overdue wages block it.
 Typed actions, stable task IDs, revision checks and bounded queues/history prevent duplicate work
-and stale edits. Desktop checks pass **3,998 checks**, including real multi-job cutter production,
-safe pause/resume, save migration and guest mutation rejection. Packaged-mobile verification follows
-with Android 37; physical phone/LAN acceptance remains open.
+and stale edits. Desktop and actual packaged-mobile checks each pass **3,998 checks**, including
+real multi-job cutter production, safe pause/resume, save migration and guest mutation rejection.
+Android 37 includes this update; physical phone/LAN acceptance remains open.
 
 ## Earlier October 6, 2026 — cat employees and Hiring
 

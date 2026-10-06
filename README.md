@@ -67,11 +67,12 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 36](https://github.com/johnwestons/the-picture-shop/releases/download/android.36/ThePictureShop-0.1.0-android.36-Install.apk)
-(226.2 MiB), with cat workers, the Hiring tab and all earlier game changes, including the client/salesperson animations.
+The current development installer is [Android 37](https://github.com/johnwestons/the-picture-shop/releases/download/android.37/ThePictureShop-0.1.0-android.37-Install.apk)
+(226.2 MiB), with the employee Schedule tab, automatic cutter job queues, cat workers,
+Hiring and all earlier game changes, including the client/salesperson animations.
 Download it on your phone and open it from **Downloads** or **My Files** to install.
 For a fresh test save, download first, uninstall only **The Picture Shop** without keeping its app data,
-then install the downloaded APK. [Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.36)
+then install the downloaded APK. [Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.37)
 are available on GitHub.
 
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.

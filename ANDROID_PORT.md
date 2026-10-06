@@ -3,28 +3,31 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.36` (`versionCode` 36)
+- Version: `0.1.0-android.37` (`versionCode` 37)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.36-debug.apk`
-- Download: [Android 36 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.36/ThePictureShop-0.1.0-android.36-Install.apk)
-  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.36).
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.37-debug.apk`
+- Download: [Android 37 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.37/ThePictureShop-0.1.0-android.37-Install.apk)
+  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.37).
 - Contents: all current shared game changes, including the warehouse expansion, finer pallet/machine
   placement, Credit-tab fix, and complete eight-direction walking and matching idle animations for the
-  three client designs and three salesperson designs. Cat employees and the **HIRING** dropdown tab are
-  playable: emailed resumes, negotiated contracts, agreed shifts, actual cutter jobs, fatigue/focus and
-  breakroom recovery, hourly wages, weekly payroll and overtime. All 26 cat strips (120 frames), 60 visitor
-  strips and 273 Lua files match the package source. Press, wrapping and autonomous transport roles remain planned.
-- LAN: protocol v22, with host-owned worker poses and owner-only employment actions. Local Play participants should use matching builds.
-- Verification: 3,950 desktop checks and 3,950 checks against the actual packaged mobile game pass.
-  The signed APK contains that verified game package; its certificate matches the published `.33`
+  three client designs and three salesperson designs. Cat employees, **HIRING** and **SCHEDULE** are
+  playable: emailed resumes, negotiated contracts, agreed shifts, ordered cutter job queues with
+  automatic progression through every pallet, pause/resume, reorder/remove and completion history,
+  fatigue/focus and breakroom recovery, hourly wages, weekly payroll and overtime. Queues survive
+  save reload and wait for staged stock and clear output. All 26 cat strips (120 frames), 60 visitor
+  strips and 276 Lua files match the package source. Press, wrapping and autonomous transport roles remain planned.
+- LAN: protocol v23, with host-owned worker poses and owner-only employment/schedule actions. Local Play participants should use matching builds.
+- Verification: 3,998 desktop checks and 3,998 checks against the actual packaged mobile game pass.
+  The signed APK contains that verified game package; its certificate matches the published `.36`
   installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
-- Installer: 237,217,220 bytes (226.2 MiB), SHA-256
-  `5b08210f9284d2249e99d1ec90be4361eec381fd0f1b9e5444ed931df39289ff`.
-  Source commit: `8d216ab4bdd46493d8020417c2499105d08c750b`. The build report records local
+- Installer: 237,229,131 bytes (226.2 MiB), SHA-256
+  `1f4abb60df797a94c08a49a6de8b6bf1e0870cf9a8dd32fb10a001b56f62006d`.
+  Source commit: `c49469369fea9a0ba102156c0aa645b94734ece8`. The build report records local
   preview files as a dirty worktree; those files are excluded from the game package.
+  An anonymous public-download check verifies the APK header, advertised size and GitHub SHA-256.
 - Device status: no phone was reachable from the build computer, so this development update was not
   remotely installed or physically playtested. The normal physical-device checklist remains open.
 - Direct engineering: isolated Android/Android and PC/Android guests have passed separate-network
