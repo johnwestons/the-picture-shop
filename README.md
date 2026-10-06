@@ -97,13 +97,14 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 38](https://github.com/johnwestons/the-picture-shop/releases/download/android.38/ThePictureShop-0.1.0-android.38-Install.apk)
-(226.2 MiB), with employee jobs continuing on the next agreed shift, staff-aware
-estimates, actual job labor costs and wages due in Bills. It also includes Schedule,
-cat workers, Hiring and all earlier game changes, including the client/salesperson animations.
+The current development installer is [Android 39](https://github.com/johnwestons/the-picture-shop/releases/download/android.39/ThePictureShop-0.1.0-android.39-Install.apk)
+(231.8 MiB), with Radio Cat, Tinker Fox and Ferret Engineer using reviewed Mouse Frontier
+walks/idles; negotiated 12-hour/overnight shifts and 1–4 week pay cycles; whole-shop staff
+budgets; per-save 5–60 minute days; live clocks; highlighted cutter margins and ordered
+finished-pallet staging. It includes Schedule, shift continuation and all earlier game changes.
 Download it on your phone and open it from **Downloads** or **My Files** to install.
 For a fresh test save, download first, uninstall only **The Picture Shop** without keeping its app data,
-then install the downloaded APK. [Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.38)
+then install the downloaded APK. [Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.39)
 are available on GitHub.
 
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.
@@ -471,7 +472,8 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Cutter: lower unfinished customer pallets into the expanded feed-side staging area beside the cutter, then open the console. The feed side follows the cutter's current orientation. **LOAD JOB** or **L** opens a nearby-pallet menu, where the operator chooses the exact pallet to load. A pallet still owned by the jack, on the wrong side, or outside the 140-pixel feed radius cannot load. Click the **TYPE** field, enter a backgauge position, and press **Enter** or click **SET**.
   **M** saves the current measurement for the selected cut number. **G / AUTO SET** recalls only player-saved measurements, newest first, and cycles through the last three values saved separately for CUT 1, CUT 2, CUT 3, or CUT 4. **P** pushes/positions;
   **Q** rotate the paper counter-clockwise into the next front-edge cutting position, **Space** clamp,
-  and **J + K** together start the guarded cut. The active margin is always nearest the screen.
+  and **J + K** together start the guarded cut. The highlighted active margin shows which edge to cut;
+  the console indicates when the stock is correctly rotated toward the blade.
 - Cutter repeat programming: **V** recalls the newest measurement for the selected cut, **[ / ]** changes
   the selected cut program, and **U** pulls each completed lift off the bed and returns it to its pallet.
   **Run Next Lift** reloads uncut sheets but never performs cuts automatically; every lift requires the full
