@@ -35,6 +35,12 @@ Capabilities.INTERACTIONS = {
         resourceId = "reception_customer",
         supported = { "review_offer", "request_email_details" },
     },
+    applicant = {
+        label = "Reception job applicant",
+        mode = "read_only",
+        supported = { "view_applicant", "inspect_resume_in_hiring" },
+        ownerOnly = { "request_resume", "negotiate_contract", "hire", "payroll" },
+    },
     vendor = {
         label = "Supplier representative",
         mode = "candidate",

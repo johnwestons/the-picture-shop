@@ -7,6 +7,7 @@ local Procurement = require("src.procurement")
 local Calendar = require("src.business_calendar")
 local Upgrades = require("src.warehouse_upgrades")
 local Credit = require("src.credit")
+local Employees = require("src.employees")
 
 local Office = {}
 local function merge(target, source)
@@ -31,6 +32,9 @@ function Office.command(options)
             if not allowed then return false, code, message, {} end
             local intent, errorMessage = Intent.normalize(args and args.officeIntent)
             if not intent then return false, "invalid_office_action", errorMessage, {} end
+            if Employees.isIntent(intent.kind) and player.id ~= 1 then
+                return false,"owner_only","Only the shop owner can hire, set assignments, or pay wages.",{}
+            end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
             if warehousePurchase then
                 local enabled = type(options.warehouseEnabled) == "function" and options.warehouseEnabled(state)
@@ -48,7 +52,8 @@ function Office.command(options)
             end
             local staged = Projection.copy(state)
             local ok, result, domainCode
-            if intent.kind == "estimate" then ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time())
+            if Employees.isIntent(intent.kind) then ok,result=Employees.command(staged,intent)
+            elseif intent.kind == "estimate" then ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time())
             elseif intent.kind == "decline" then ok, result = JobService.respondToEmail(staged, intent.id, "declined", os.time())
             elseif intent.kind == "promotion" then
                 local job

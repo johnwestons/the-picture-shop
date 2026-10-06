@@ -1,4 +1,6 @@
-if os.getenv("PICTURE_SHOP_VISITOR_PREVIEW") == "1" then
+if os.getenv("PICTURE_SHOP_EMPLOYEE_PREVIEW") == "1" then
+    require("tools.employee_preview.main")
+elseif os.getenv("PICTURE_SHOP_VISITOR_PREVIEW") == "1" then
     require("tools.visitor_motion_preview.main")
 elseif os.getenv("PICTURE_SHOP_WAREHOUSE_ACCEPTANCE") == "1" then
     love.filesystem.setIdentity("the-picture-shop-warehouse-acceptance")

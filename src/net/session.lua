@@ -1271,6 +1271,7 @@ function Session:_handleClientEnvelope(envelope)
                 serverTick = payload.serverTick,
                 bayDoor = payload.bayDoor,
                 truck = payload.truck,
+                employees = payload.employees,
             })
         end
     elseif envelope.type == "pallet_jack_snapshot" then
@@ -1757,6 +1758,7 @@ function Session:_updateHost(dt, context)
                     serverTick = self.serverTick,
                     bayDoor = environment.bayDoor,
                     truck = environment.truck,
+                    employees = environment.employees,
                 })
             if not environmentOk then self:_queue("error", { message = environmentError }) end
         end

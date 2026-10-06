@@ -5,6 +5,8 @@ local BayDoor = require("src.bay_door")
 local BusinessCalendar = require("src.business_calendar")
 local CharacterAssets = require("src.character_assets")
 local ComputerScreen = require("src.screens.computer_screen")
+local Employees = require("src.employees")
+local employmentSaveClock = 0
 local Config = require("src.config")
 local Controller = require("src.controller")
 local CutterMaintenanceAuthority = require("src.cutter_maintenance_authority")
@@ -131,6 +133,9 @@ MachineFleet.setSaleGuard(function(currentState, item)
     end
     local cutterLeaseActive = workshopAuthority
         and workshopAuthority:leaseForResource("cutter") ~= nil
+    if item and Employees.reservation(currentState,item.id) then
+        return false,"Pause the employee's assignment before selling this machine."
+    end
     local wrapperLeaseActive = workshopAuthority
         and workshopAuthority:leaseForResource("skid_wrapper") ~= nil
     if wrapperLeaseActive and item and item.modelId == "skid_wrapper"
@@ -2936,6 +2941,13 @@ local function runSmoke(startupTextureBytes, Sound)
 end
 
 function App.load()
+    World.configureEmployees({players=function() return multiplayer:remotePlayers() end,
+        canClaim=function(machineId)
+            if state.screen=="machine" and state.machineType=="cutter"
+                and (state.machineId==nil or state.machineId==machineId) then return false end
+            return not workshopAuthority or (not workshopAuthority:leaseForResource("cutter")
+                and not workshopAuthority:leaseForResource(MachineResource.forUnit("cutter",machineId)))
+        end})
     ComputerScreen.configureWarehouse({enabled=Config.warehouse.enabled,
         firstStorageOnly=Config.warehouse.firstStorageOnly,
         command=function(intent)
@@ -3234,7 +3246,7 @@ local function handleMultiplayerEvents()
                     "Invalid visitor update")
             end
         elseif event.type == "environment_state" then
-            if not World.applyEnvironmentSnapshot(event.bayDoor, event.truck) then
+            if not World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees, state) then
                 showConnectionError(
                     "The host sent an environment update this build could not apply.",
                     "Invalid environment update")
@@ -4175,6 +4187,11 @@ function App.update(dt)
     if not multiplayer:isClient() and simulationActive and Wrapper.updateAll(dt, state)
     then
         saveCurrent()
+    end
+    if not multiplayer:isClient() and simulationActive and state.employment
+        and (#state.employment.applications>0 or #state.employment.staff>0) then
+        employmentSaveClock=employmentSaveClock+dt
+        if employmentSaveClock>=1 then saveCurrent();employmentSaveClock=0 end
     end
     if App.sound then App.sound:update(dt) end
 end

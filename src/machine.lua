@@ -417,6 +417,17 @@ function Machine.guardedCut(state)
     return tryCut(state)
 end
 
+-- NPCs always press both controls. Multiplayer's human single-button option
+-- never changes this input path or any of tryCut's stock/safety checks.
+function Machine.pressBothControls(state)
+    if Machine.step ~= "clamped" then return false end
+    Machine.leftDown, Machine.rightDown = true, true
+    Machine._leftAt, Machine._rightAt = Machine._clock, Machine._clock
+    return Machine.leftDown and Machine.rightDown
+        and math.abs(Machine._leftAt-Machine._rightAt)<=Machine.simultaneity
+        and tryCut(state)
+end
+
 function Machine.setMultiplayerSingleControl(enabled)
     Machine.multiplayerSingleControl = enabled == true
 end

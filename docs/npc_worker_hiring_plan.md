@@ -1,6 +1,8 @@
 # NPC Worker Hiring and Machine Operation Plan
 
-**Status:** Planned feature. **Date:** October 6, 2026.
+**Status:** The cat hiring/cutter pilot is playable. Press, wrapping, transport and the broader policies below remain planned. **Date:** October 6, 2026.
+
+See [current implementation and verification](npc_worker_build_status.md) for the exact implemented scope. Open **HIRING** from the office computer's address-bar dropdown to use it.
 
 Players can hire critter employees to cut, print, and eventually finish and move work around the shop. Applicants visit reception, show a resume, email it through CritterNet, and negotiate pay and working days in the computer inbox. Hired workers arrive for their agreed shifts, operate real machines on real job pallets, earn hourly wages, and take breaks to recover tiredness and focus.
 
@@ -187,7 +189,7 @@ The current generic character direction selector mirrors westward views. The cat
 
 ### Art production and mobile memory
 
-Use `character-motion/cat-worker.json` as the planned motion contract and expand its animation entries with each completed action before promotion. Its paths identify future runtime files; it remains unregistered until the artwork and runtime changes pass their gates. Preserve immutable 512 by 512 source cells in `assets/source/characters/cat-worker/`, prepare strips in staging, and promote only reviewed output to `assets/generated/characters/cat-worker/`.
+`character-motion/cat-worker.json` now registers the pilot's 26 reviewed runtime strips: eight idle views, eight walk views, eight cutter operator views and two seated break views. Its remaining action groups describe future roles. Immutable locomotion masters and generated action sheets, prompts and hashes are in `assets/source/cat-worker-v1/`; reviewed 256px runtime strips are in `assets/generated/characters/cat-worker/`. Rebuild with `tools/build_cat_worker_assets.py`, then audit and review the generated strips before promotion.
 
 Target 256 by 256 runtime cells for the new cat while retaining the current 512-cell contract for existing characters. This requires a deliberate per-character frame-size extension to `character_assets.lua`, the quad builder, anchors, metrics, and preparation tools. Check clarity at actual world size before accepting that reduction.
 

@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "generator": "Built-in imagegen for action art; approved Radio Cat locomotion reused intact",
+  "sources": [
+    {
+      "kind": "locomotion",
+      "action": "idle",
+      "source": "assets/source/cat-worker-v1/locomotion/idle.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "67d580bfa4b2fb1acc4185334d8c435bb8727d355b24e7623c6d5f1c63577653"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_north",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_north.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "a92d585c9c6806835413c27a8d72ec669a68437a6811beacc33bf9387107c801"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_northeast",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_northeast.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "067c46038bc71b891e7f0996915a5bfbd0e1a1af67288ff1bbc43f8a35ca596f"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_northwest",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_northwest.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "8f7713e485ff1cd5d4cb389beecea6988854d5297c0543f027dbc5590596d31b"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_south",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_south.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "a9f30836abfc47a3fcbc21a786f11e4bcb51318d2ae76cb541dbe5eaea52d776"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_southeast",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_southeast.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "450d41aa4d686a58d1b9ad5ccb001d2d00c183ae0eda4ef0b4dec0704c16740d"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_southwest",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_southwest.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "21c78b23756a77bcd9c8766b89fc732e24ca3b3291994b98e3bd039faaaaa733"
+    },
+    {
+      "kind": "locomotion",
+      "action": "idle_west",
+      "source": "assets/source/cat-worker-v1/locomotion/idle_west.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "6a4577345d17a0a5592f2633c08ce636e9233d0ecc67e5e92c3d51694c8bcbfc"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk",
+      "source": "assets/source/cat-worker-v1/locomotion/walk.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "f9b227103261ff420f2a25148d5e841d0868408a3bffd170efdcdedc76e24743"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_north",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_north.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "35083a3efb4823bc602cdb9281ade6785aa831ac73b921df7b3eb037c2e962fc"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_northeast",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_northeast.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "ed7ddf1a0feb34356b0b530a05154d48275222cf0599c7c8e58d07216beffa33"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_northwest",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_northwest.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "b5e17873a9d701503490279a55c949003dfc74ee4dd0e1844d7b9e2fd56cace5"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_south",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_south.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "976f161ce19dc3005369d0e8df0eb46c31715b26146715f3874d81a1aa6aab7e"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_southeast",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_southeast.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "311bd862ffbc988113391b5cb1892532c373e72d51d21fa3b9b19061417ed303"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_southwest",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_southwest.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "df5731cbae0dd916a6e40aa10b3a1beee771dcad1978e55ab3dc54f5c3cb31dd"
+    },
+    {
+      "kind": "locomotion",
+      "action": "walk_west",
+      "source": "assets/source/cat-worker-v1/locomotion/walk_west.png",
+      "origin": "Mouse Frontier 8.10 reviewed Radio Cat runtime",
+      "sha256": "1e710f8328a2f05a4fefb8184e1fe3c3813ae81f51ea9d548d2f888a5cc3e8ce"
+    },
+    {
+      "kind": "action",
+      "source": "assets/source/cat-worker-v1/operate-northern-v2.png",
+      "action": "operate",
+      "columns": 4,
+      "rows": 4,
+      "directions": [
+        "east",
+        "northeast",
+        "north",
+        "northwest"
+      ],
+      "generator": "built-in imagegen",
+      "prompts": [
+        "assets/source/cat-worker-v1/operate-northern-prompt.txt",
+        "assets/source/cat-worker-v1/operate-northern-v2-prompt.txt"
+      ],
+      "sha256": "00ca8fd0f80da48ee904ad8e0bda19d135fb3434a3bb973cfd5d2fabd6fdd43c"
+    },
+    {
+      "kind": "action",
+      "source": "assets/source/cat-worker-v1/operate-southern-v1.png",
+      "action": "operate",
+      "columns": 4,
+      "rows": 4,
+      "directions": [
+        "west",
+        "southwest",
+        "south",
+        "southeast"
+      ],
+      "generator": "built-in imagegen",
+      "prompts": [
+        "assets/source/cat-worker-v1/operate-southern-prompt.txt"
+      ],
+      "sha256": "148621587582c48a27fc5fe5496c368670839ecd3f62376d48596a1248114c50"
+    },
+    {
+      "kind": "action",
+      "source": "assets/source/cat-worker-v1/rest-v2.png",
+      "action": "rest",
+      "columns": 2,
+      "rows": 4,
+      "directions": [
+        "east",
+        "west"
+      ],
+      "generator": "built-in imagegen",
+      "prompts": [
+        "assets/source/cat-worker-v1/rest-prompt.txt",
+        "assets/source/cat-worker-v1/rest-cleanup-prompt.txt"
+      ],
+      "sha256": "86e024dc18ab7e6511f16870863b1974e13f09fd08d8d9946aebf9dc82bac0aa"
+    }
+  ],
+  "rejected_sources": [
+    {
+      "source": "assets/source/cat-worker-v1/operate-northern-v1.png",
+      "reason": "incorrect east/northeast orientation"
+    },
+    {
+      "source": "assets/source/cat-worker-v1/rest-v1.png",
+      "reason": "ambient background glow; replaced by transparency edit"
+    }
+  ]
+}

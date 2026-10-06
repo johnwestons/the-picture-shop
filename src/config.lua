@@ -494,4 +494,16 @@ if Config.warehouse and Config.warehouse.provisionalArt then
     rabbit.push_south = pushRoot .. "push-south-v1-candidate.png"
 end
 
+Config.characters["cat-worker"]={}
+for _,view in ipairs({"east","northeast","north","northwest","west","southwest","south","southeast"}) do
+    for _,prefix in ipairs({"idle","walk"}) do
+        local name=view=="east" and prefix or prefix.."_"..view
+        Config.characters["cat-worker"][name]="assets/generated/characters/cat-worker/"..name..".png"
+    end
+    local name="operate_"..view
+    Config.characters["cat-worker"][name]="assets/generated/characters/cat-worker/"..name..".png"
+end
+for _,view in ipairs({"east","west"}) do
+    Config.characters["cat-worker"]["rest_"..view]="assets/generated/characters/cat-worker/rest_"..view..".png"
+end
 return Config

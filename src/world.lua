@@ -29,6 +29,8 @@ local Forklift = require("src.forklift")
 local WarehouseGameplay = require("src.warehouse_gameplay")
 local WarehouseLayout = require("src.warehouse_layout")
 local WarehouseConstruction = require("src.warehouse_construction")
+local Employees = require("src.employees")
+local EmployeeAI = require("src.employee_ai")
 
 local World = {
     player = {
@@ -104,6 +106,9 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
     for _, obstacle in ipairs(WarehouseLayout.obstacles(state)) do obstacles[#obstacles + 1] = obstacle end
     local builder = WarehouseConstruction.worker(state)
     if builder then obstacles[#obstacles + 1] = {x=builder.x,y=builder.y,radius=14,kind="construction_worker"} end
+    for _,entry in ipairs(Employees.actors(state)) do
+        obstacles[#obstacles+1]={x=entry.actor.x,y=entry.actor.y,radius=14,kind="employee",actor=entry.actor}
+    end
     if inflate.x > 0 or inflate.y > 0 then
         for index, obstacle in ipairs(obstacles) do
             obstacles[index] = Footprint.expand(obstacle, inflate)
@@ -278,6 +283,14 @@ local function interactables(player)
     addTarget("workPhone", phoneTarget)
     local customerInteraction = World.customer:getInteraction()
     addTarget("customer", customerInteraction)
+    if World._state then
+        for _,a in ipairs(Employees.ensure(World._state).applications) do
+            if a.status=="visiting" and a.actor.visible and a.actor.phase=="waiting" then
+                addTarget("applicant",{x=a.actor.x,y=a.actor.y,radius=68,applicationId=a.id,
+                    prompt="E: ask "..a.name.." for an emailed resume"})
+            end
+        end
+    end
     local vendorInteraction = World.vendor:getInteraction()
     if vendorInteraction then
         vendorInteraction.prompt = "E: talk to the " .. Procurement.category(World._state and World._state.vendorCategory).name:lower() .. " salesman"
@@ -620,7 +633,7 @@ function World.updateSimulation(dt, assets, state)
     PalletLogistics.update(state, dt, Config.palletLogistics.unloadDuration)
     -- Only one reception visitor advances at a time. The other visitor keeps
     -- their full cooldown while the entrance, lounge, or desk is occupied.
-    local receptionClosed = BusinessCalendar.isWeekend(state)
+    local receptionClosed = BusinessCalendar.isWeekend(state) or EmployeeAI.receptionOccupied(state)
     local customerEvent = World.customer:update(dt, player,
         receptionClosed or World.vendor:isPresent())
     if customerEvent == "arrived" and state then
@@ -651,7 +664,8 @@ function World.updateSimulation(dt, assets, state)
     if Technician.update(dt, state, World.customer:isPresent() or World.vendor:isPresent()) then
         saveNeeded = true
     end
-    return saveNeeded
+    local employeeChanged=EmployeeAI.update(state,dt,World.employeeContext(state,assets))
+    return saveNeeded or employeeChanged
 end
 
 function World.update(dt, directionX, directionY, assets, state, cursorX, cursorY)
@@ -990,6 +1004,9 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         if not selected then
             return false, "not_installed", "The paper cutter is not installed in this shop."
         end
+        if Employees.reservation(state,selected.id) then
+            return false,"employee_reserved","An employee is operating this cutter. Pause their assignment in Hiring first."
+        end
         local cutter = selected.world or CutterPlacement.ensure(state, Config.cutterPlacement)
         if cutter.moving then
             return false, "machine_moving", "Lock the cutter onto the floor before using it."
@@ -1088,6 +1105,12 @@ function World.beginBreakroomRest(state)
         player.resting=false
         if state then state.message="Back to work." end
         return true
+    end
+    for _,w in ipairs(Employees.ensure(state).staff) do
+        if w.visible and w.seatBay==selected.target.bayId then
+            state.message="An employee is using that breakroom seat."
+            return false
+        end
     end
     player.x,player.y=selected.target.x,selected.target.y
     PlayerController.stop(player)
@@ -1726,6 +1749,10 @@ function World.recoverNetworkMachineMove(state, assets, player)
 end
 
 function World.beginCutterMove(state, cutterControlOccupied)
+    if World.employeeCutterReserved(state) then
+        state.message="Pause the employee's cutter assignment before relocating it."
+        return false
+    end
     if cutterControlOccupied then
         state.message = "Close the active cutter console before relocating the machine."
         return false
@@ -2073,6 +2100,7 @@ function World.environmentSnapshot()
     local truck = World.truck:snapshot()
     return {
         bayDoor = { state = door.state, progress = door.progress },
+        employees = World._state and require("src.employee_pose").capture(Employees.actors(World._state)),
         truck = {
             state = truck.state,
             jobId = truck.jobId,
@@ -2083,11 +2111,20 @@ function World.environmentSnapshot()
     }
 end
 
-function World.applyEnvironmentSnapshot(bayDoor, truck)
+function World.applyEnvironmentSnapshot(bayDoor, truck, employees, state)
     if type(bayDoor) ~= "table" or type(truck) ~= "table" then return false end
+    local poses
+    if employees~=nil then
+        poses=require("src.employee_pose").actors(employees)
+        if not poses then return false end
+    end
     local previousDoor = World.environmentSnapshot().bayDoor
     if not World.bayDoor:applySnapshot(bayDoor) then return false end
-    if World.truck:applySnapshot(truck) then return true end
+    if World.truck:applySnapshot(truck) then
+        state=state or World._state
+        if poses and state then state._employeePoses=poses end
+        return true
+    end
     World.bayDoor:applySnapshot(previousDoor)
     return false
 end
@@ -2172,6 +2209,93 @@ end
 function World.updateWarehouse(dt, state, assets)
     World._assets, World._state = assets or World._assets, state
     return WarehouseGameplay.update(dt, state, warehouseContext(assets))
+end
+
+function World.configureEmployees(options) World._employeeOptions=options or {} end
+
+function World.employeeCutterReserved(state,machineId)
+    local first=MachineFleet.installedUnits(state,"polar_115")[1]
+    return Employees.reservation(state,machineId or (first and first.id))~=nil
+end
+
+function World.requestEmployeeResume(state,applicationId)
+    local ok,message=Employees.requestResume(state,applicationId,BusinessCalendar.absoluteHours(state))
+    state.message=message
+    return ok
+end
+
+function World.employeeContext(state,assets)
+    local options=World._employeeOptions or {}
+    local context={assets=assets}
+    local function players()
+        local result={World.player}
+        for _,p in ipairs(options.players and options.players() or {}) do result[#result+1]=p end
+        return result
+    end
+    function context.obstacles(actor)
+        local result={}
+        for _,o in ipairs(movementObstacles(state,false,{x=5,y=4})) do
+            if o.actor~=actor then result[#result+1]=o end
+        end
+        for _,p in ipairs(players()) do result[#result+1]={x=p.x,y=p.y,radius=18} end
+        return result
+    end
+    function context.receptionBusy()
+        local technician=state.technicianVisit
+        return World.customer:isPresent() or World.vendor:isPresent()
+            or (technician and technician.visible) or WarehouseConstruction.worker(state)~=nil
+    end
+    function context.canClaim(machineId)
+        local pose=MachineFleet.byId(state,machineId)
+        pose=pose and (pose.world or state.cutter)
+        return pose and not pose.moving and (not options.canClaim or options.canClaim(machineId))
+    end
+    function context.operatorPoint(machineId,worker)
+        local item=MachineFleet.byId(state,machineId)
+        local pose=item and (item.world or state.cutter)
+        if not pose or pose.moving then return nil end
+        local obstacles=context.obstacles(worker)
+        local key=string.format("%g:%g:%s",pose.x,pose.y,pose.direction)
+        if worker._operatorKey==key and worker._operatorPoint
+            and Navigation.isWalkable(assets,worker._operatorPoint.x,worker._operatorPoint.y,obstacles) then return worker._operatorPoint end
+        local signs={northwest={1,1},north={0,1},northeast={-1,1},east={-1,0},
+            southeast={-1,-1},south={0,-1},southwest={1,-1},west={1,0}}
+        local sign=signs[pose.direction] or signs.northwest
+        for _,distance in ipairs({64,80,92}) do
+            local sx,sy=sign[1],sign[2]
+            local length=math.sqrt(sx*sx+sy*sy)
+            local vx,vy=sx/length,sy/length
+            for _,side in ipairs({0,-32,32,-48,48}) do
+                local x,y=pose.x+vx*distance-vy*side,pose.y+vy*distance+vx*side
+                if Navigation.isWalkable(assets,x,y,obstacles) then
+                    worker._operatorKey=key;worker._operatorPoint={x=x,y=y}
+                    return worker._operatorPoint
+                end
+            end
+        end
+    end
+    function context.idlePoint(worker)
+        local n=tonumber(worker.id:match("(%d+)$")) or 1
+        return {x=520+((n-1)%3)*28,y=505}
+    end
+    function context.seat(bayId)
+        local room=WarehouseLayout.bayState(state,bayId)
+        if room and room.status=="complete" and room.optionId=="breakroom" then
+            local seat=WarehouseLayout.bay(bayId).restPoint;seat.bayId=bayId;return seat
+        end
+    end
+    function context.freeSeat(worker)
+        for _,bayId in ipairs(WarehouseLayout.BAY_IDS) do
+            local seat=context.seat(bayId)
+            if seat then
+                local occupied=false
+                for _,w in ipairs(Employees.ensure(state).staff) do if w~=worker and w.visible and w.seatBay==bayId then occupied=true end end
+                for _,p in ipairs(players()) do if (p.x-seat.x)^2+(p.y-seat.y)^2<30^2 then occupied=true end end
+                if not occupied and Navigation.isWalkable(assets,seat.x,seat.y,context.obstacles(worker)) then return seat end
+            end
+        end
+    end
+    return context
 end
 
 return World

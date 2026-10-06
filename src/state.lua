@@ -18,6 +18,7 @@ local PalletStorage = require("src.pallet_storage")
 local Forklift = require("src.forklift")
 local WarehouseConstruction = require("src.warehouse_construction")
 local Credit = require("src.credit")
+local Employees = require("src.employees")
 
 local SHARED_FIELDS = {
     "money",
@@ -45,6 +46,7 @@ local SHARED_FIELDS = {
     "workPhone",
     "machines",
     "credit",
+    "employment",
 }
 
 function State.new()
@@ -60,6 +62,8 @@ end
 function State.applySave(state, payload)
     local saved = type(payload) == "table" and payload.state
     if type(state) ~= "table" or not SaveSchema.validPhysicalSource(saved) then return false end
+    local employment=Employees.normalize(saved.employment,BusinessCalendar.absoluteHours(saved))
+    if not employment then return false end
     local warehouse = WarehouseUpgrades.normalize(saved.warehouse)
     local storage = PalletStorage.normalize(saved.storage)
     if not warehouse or not storage
@@ -152,6 +156,8 @@ function State.applySave(state, payload)
     state.calendar = type(saved.calendar) == "table" and saved.calendar or BusinessCalendar.defaultCalendar()
     state.bills = type(saved.bills) == "table" and saved.bills or BusinessCalendar.defaultBills()
     state.credit = Credit.normalize(saved.credit) or Credit.defaultState()
+    state.employment = employment
+    state._employeePoses = nil
     state.clientEmails = type(saved.clientEmails) == "table" and saved.clientEmails
         or { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} }
@@ -182,6 +188,11 @@ function State.applyLocalSave(state, payload)
     local stoppedLift = type(sourceLift) == "table"
         and (sourceLift.operating or sourceLift.moving or sourceLift.lifting) or false
     if not State.applySave(state, payload) then return false, false end
+    state.employment.lastAtHours=BusinessCalendar.absoluteHours(state)
+    for _,worker in ipairs(state.employment.staff) do
+        worker.visible,worker.clockedIn,worker.reserved=false,false,false
+        worker.phase="hidden";worker.seatBay=nil;worker.breakKind=nil;worker.breakRemaining=0
+    end
     return true, Windmill.releaseAllOperators(state) or stoppedLift
 end
 
@@ -196,6 +207,7 @@ function State.applySharedSnapshot(state, snapshot)
     state.activeSlot = nil
     state.currentOffer = nil
     state._networkMachinePoses = nil
+    state._employeePoses = nil
     state.screen = "world"
     state.message = "Shop opened."
     return true

@@ -8,13 +8,22 @@ inventory/progression values in the live host shop or any offline save slot.
 
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
 
-## Planned NPC workers
+## NPC workers and hiring
 
-The [worker hiring and machine operation plan](docs/npc_worker_hiring_plan.md)
-covers walk-in applications, emailed resumes, negotiated contracts, hourly
-payroll, scheduled shifts, machine skills, breakroom recovery, and a Radio Cat
-worker animation plan. This feature is planned; the first playable stage will
-hire one cat to run staged cutter jobs before press work and pallet transport.
+Open the office computer, tap the arrow beside the address bar, and choose
+**HIRING**. Cat applicants visit reception and email their resumes. Negotiate
+hourly wages, days and shift times, wait for the email reply, then sign the
+accepted offer. **Staff** assigns an accepted job's pallet to a specific cutter;
+stage that stock beside the machine so the worker can cut it. **Payroll** shows
+earned wages and allows payments; weekly wages are automatically due Monday
+09:00, with unpaid balances retained.
+
+The first worker is Radio Cat. Up to three cat employees can work agreed shifts,
+operate the actual cutter, and recover fatigue and focus in a completed breakroom.
+Eight authored walking/idle views, cutter action poses and seated break poses
+are included in `assets/generated/characters/cat-worker/`.
+See [implemented features and checks](docs/npc_worker_build_status.md) and the
+[plan for later press, wrapping and transport roles](docs/npc_worker_hiring_plan.md).
 
 ## Playable warehouse storage slice
 

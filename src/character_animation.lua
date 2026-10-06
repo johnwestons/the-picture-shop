@@ -60,6 +60,16 @@ function Animation.directionalIdleAction(x, y)
     return directionalAction("idle", x, y)
 end
 
+function Animation.authoredDirection(x,y)
+    local index=math.floor((math.atan2(y or 0,x or 1)+math.pi/8)/(math.pi/4))%8+1
+    return ({"east","southeast","south","southwest","west","northwest","north","northeast"})[index]
+end
+
+function Animation.authoredAction(prefix,x,y)
+    local direction=Animation.authoredDirection(x,y)
+    return direction=="east" and prefix or prefix.."_"..direction
+end
+
 function Animation.frameForPlayerAction(action, frameCount, distance, idleClock,
     pixelsPerFrame, idleRate)
     if Animation.isWalkAction(action) then

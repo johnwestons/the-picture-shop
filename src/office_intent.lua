@@ -9,6 +9,13 @@ local fields = {
     pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
     buy_forklift = { requestId = "token" },
+    recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
+    decline_application = { applicationId = "token" },
+    offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
+        days = "days", startHour = "hour", endHour = "hour" },
+    hire_employee = { applicationId = "token", expectedRevision = "revision" },
+    assign_employee = { employeeId = "token", jobId = "token", palletId = "token", machineId = "token" },
+    unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" }, pay_wages = {},
 }
 local function integer(value, low, high)
     return type(value) == "number" and value == math.floor(value) and value >= low and value <= high
@@ -19,7 +26,17 @@ function Intent.normalize(value)
     for key in pairs(value) do if key ~= "kind" and not schema[key] then return nil, "Unexpected office data." end end
     for key, rule in pairs(schema) do
         local item = value[key]
-        if rule == "bay" then
+        if rule == "boolean" then
+            if type(item) ~= "boolean" then return nil,"Choose whether recruitment is open." end
+        elseif rule == "revision" then
+            if not integer(item,1,1000000) then return nil,"Review the latest contract revision." end
+        elseif rule == "wage" then
+            if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
+        elseif rule == "days" then
+            if not integer(item,1,127) then return nil,"Choose at least one working day." end
+        elseif rule == "hour" then
+            if not integer(item,8,18) then return nil,"Choose an hour from 08:00-18:00." end
+        elseif rule == "bay" then
             if item ~= "front_left" and item ~= "front_right" then return nil, "Choose a warehouse bay." end
         elseif rule == "upgrade" then
             if item ~= "floor" and item ~= "storage" and item ~= "breakroom" then return nil, "Choose a warehouse upgrade." end

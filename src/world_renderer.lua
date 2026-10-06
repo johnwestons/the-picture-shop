@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local EmployeeRenderer = require("src.employee_renderer")
 local CharacterAnimation = require("src.character_animation")
 local InteractionBeacon = require("src.interaction_beacon")
 local CutterPlacement = require("src.cutter_placement")
@@ -453,6 +454,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     end
     if World.customer.visible then visibleCharacters[World.customer.character] = true end
     if World.vendor.visible then visibleCharacters[World.vendor.character] = true end
+    local employeeEntries=EmployeeRenderer.entries(state)
+    if #employeeEntries>0 then visibleCharacters["cat-worker"]=true end
     characterAssets.retainCharacters(visibleCharacters)
     local jack = state and PalletJack.ensure(state, Config.palletJack)
     local cutter = state and CutterPlacement.ensure(state, Config.cutterPlacement)
@@ -546,6 +549,15 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     end
     if World.vendor.visible then
         actors[#actors + 1] = { y = World.vendor.y, draw = function() World.vendor:draw(characterAssets) end }
+    end
+    for _,entry in ipairs(employeeEntries) do
+        local employee=entry
+        local depth=employee.actor.y
+        if employee.worker and employee.actor.phase=="break" and employee.actor.seatBay then
+            local room=WarehouseRenderer.breakroomPlan(state,employee.actor.seatBay)
+            if room then depth=room.depthY+.1 end
+        end
+        actors[#actors+1]={y=depth,draw=function() EmployeeRenderer.draw(employee,characterAssets) end}
     end
     local technician = state and Technician.ensure(state)
     if technician and technician.visible then

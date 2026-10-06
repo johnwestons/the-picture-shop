@@ -13,6 +13,8 @@ for character, actions in pairs(require("src.visitor_character_metrics")) do
     Metrics[character] = Metrics[character] or {}
     for action, frames in pairs(actions) do Metrics[character][action] = frames end
 end
+for character,actions in pairs(require("src.cat_worker_anchors")) do Anchors[character]=actions end
+for character,actions in pairs(require("src.cat_worker_metrics")) do Metrics[character]=actions end
 
 local CharacterAssets = {
     metadata = {},
@@ -32,11 +34,12 @@ local function validateAction(character, action, path)
         CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": " .. errorMessage
         return
     end
-    if height ~= 512 or width % 512 ~= 0 then
-        CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": expected 512px-high frame strip"
+    local frameSize=character=="cat-worker" and 256 or 512
+    if height ~= frameSize or width % frameSize ~= 0 then
+        CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": invalid character frame strip size"
         return
     end
-    local frameCount = width / 512
+    local frameCount = width / frameSize
     local actionAnchors = Anchors[character] and Anchors[character][action]
     if not actionAnchors or #actionAnchors ~= frameCount then
         CharacterAssets.failures[#CharacterAssets.failures + 1] = string.format(
@@ -54,6 +57,7 @@ local function validateAction(character, action, path)
         width = width,
         height = height,
         frameCount = frameCount,
+        frameSize = frameSize,
     }
 end
 
@@ -140,7 +144,7 @@ local function loadAction(character, action)
         local result = {}
         for frame = 1, metadata.frameCount do
             result[frame] = love.graphics.newQuad(
-                (frame - 1) * 512, 0, 512, 512, metadata.width, metadata.height)
+                (frame - 1) * metadata.frameSize, 0, metadata.frameSize, metadata.frameSize, metadata.width, metadata.height)
         end
         return result
     end)

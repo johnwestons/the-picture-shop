@@ -256,6 +256,9 @@ function PalletJack.lift(state, config, palletId)
     if not jack.operating then return false, "not_operating" end
     if jack.carriedPalletId then return false, "already_loaded" end
     if type(palletId) ~= "string" or palletId == "" then return false, "invalid_pallet" end
+    if state.employment and require("src.employees").reservation(state,nil,palletId) then
+        return false,"employee_reserved"
+    end
     local nearby, candidateError = PalletJack.pickupCandidate(state, config, palletId)
     if not nearby then return false, candidateError end
     local transitioned, transitionError = PalletState.transition(

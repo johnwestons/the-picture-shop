@@ -5,9 +5,10 @@ local WarehouseIntent = require("src.warehouse_intent")
 local Forklift = require("src.forklift")
 local MachineResource = require("src.machine_resource_id")
 local PlacementGrid = require("src.placement_grid")
+local EmployeePose = require("src.employee_pose")
 
 local Protocol = {
-    VERSION = 21,
+    VERSION = 22,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -2395,7 +2396,7 @@ end
 
 local function normalizeEnvironmentSnapshot(payload)
     local valid, shapeError = shape(payload, "environment_snapshot payload",
-        { "sessionId", "serverTick", "bayDoor", "truck" })
+        { "sessionId", "serverTick", "bayDoor", "truck" }, { "employees" })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(
         payload.sessionId, MAX_TOKEN_BYTES, "environment_snapshot.sessionId")
@@ -2410,11 +2411,17 @@ local function normalizeEnvironmentSnapshot(payload)
     local truck
     truck, fieldError = normalizeTruck(payload.truck, "environment_snapshot.truck")
     if not truck then return nil, fieldError end
+    local employees
+    if payload.employees~=nil then
+        employees=EmployeePose.normalize(payload.employees)
+        if not employees then return nil,"environment_snapshot.employees is inconsistent" end
+    end
     return {
         sessionId = sessionId,
         serverTick = serverTick,
         bayDoor = bayDoor,
         truck = truck,
+        employees = employees,
     }
 end
 

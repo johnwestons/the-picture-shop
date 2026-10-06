@@ -7,6 +7,7 @@ local EXPECTED_INTERACTIONS = {
     computer = true,
     workPhone = true,
     customer = true,
+    applicant = true,
     vendor = true,
     loadingBayDoor = true,
     truckCargoDoor = true,

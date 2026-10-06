@@ -25,6 +25,8 @@ function Inbox.addNotice(state, notice, delayHours)
         noticeKind = tostring(notice.noticeKind or "notice"),
         sourceJobId = notice.sourceJobId,
         orderId = notice.orderId,
+        applicationId = notice.applicationId,
+        attachmentKind = notice.attachmentKind,
         total = tonumber(notice.total),
         standardPrice = tonumber(notice.standardPrice),
         discountAmount = tonumber(notice.discountAmount),

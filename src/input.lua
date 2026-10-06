@@ -287,7 +287,11 @@ function Input.keypressed(key, context)
             return true
         end
         if context.networkInteraction and context.networkInteraction(selected) then return true end
-        if selected and selected.kind == "customer" then
+        if selected and selected.kind == "applicant" then
+            if networkClient then state.message="The shop owner handles employment applications."
+            elseif context.world.requestEmployeeResume(state,selected.target.applicationId) then context.saveCurrent() end
+            return true
+        elseif selected and selected.kind == "customer" then
             local offer, errors = context.jobService.createNextOffer(state, os.time())
             if not offer then
                 state.message = "Could not prepare the job: " .. table.concat(errors or {}, "; ")
@@ -333,6 +337,10 @@ function Input.keypressed(key, context)
                 context.world.toggleTruckCargoDoor(state)
             end
         elseif selected and selected.kind == "cutter" then
+            if context.world.employeeCutterReserved and context.world.employeeCutterReserved(state,selected.target and selected.target.machineId) then
+                state.message="An employee is operating this cutter. Pause their assignment in Hiring first."
+                return true
+            end
             state.machineId = selected.target and selected.target.machineId
             state.machineType = "cutter"
             state.screen = "machine"
@@ -554,6 +562,7 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "service_notice_dismissed"
             or result.action == "inbox_notice_dismissed"
             or result.action == "cart_checked_out"
+            or result.action == "employment_changed"
         then
             context.saveCurrent()
         elseif result.action == "completion_blocked" then

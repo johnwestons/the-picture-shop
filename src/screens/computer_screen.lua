@@ -13,6 +13,8 @@ local Reputation = require("src.reputation")
 local Upgrades = require("src.warehouse_upgrades")
 local Credit = require("src.credit")
 local OfficeIntent = require("src.office_intent")
+local Hiring = require("src.screens.hiring_screen")
+local Employees = require("src.employees")
 local warehouseRequestPrefix=dependencies.warehouseRequestPrefix
 
 local function nextFinanceRequestId(sequence)
@@ -53,6 +55,7 @@ local ComputerScreen = {
     creditConfirmation = nil,
     creditRequestNumber = 0,
     creditChannel = "online",
+    hiring = Hiring.new(),
 }
 
 local PANEL = { x = 52, y = 34, width = 856, height = 610 }
@@ -66,6 +69,7 @@ local TABS = {
     { id = "inventory", label = "INVENTORY", url = "www.thecritternet.com/job-desk/inventory" },
     { id = "www", label = "CRITTERNET WWW", url = "www.thecritternet.com" },
     { id = "email", label = "EMAIL", url = "www.thecritternet.com/job-desk/email" },
+    { id = "hiring", label = "HIRING", url = "www.thecritternet.com/shop/hiring" },
     { id = "bills", label = "BILLS", url = "www.thecritternet.com/job-desk/bills" },
     { id = "credit", label = "CREDIT", url = "www.thecritternet.com/job-desk/credit" },
     { id = "warehouse", label = "WAREHOUSE", url = "www.thecritternet.com/warehouse" },
@@ -826,6 +830,24 @@ function ComputerScreen.calendarScrollCenter(direction)
     return rect.x + rect.width / 2, rect.y + rect.height / 2
 end
 
+function ComputerScreen.openEmploymentResume(applicationId)
+    ComputerScreen.tab="hiring"
+    Hiring.open(ComputerScreen.hiring,applicationId)
+end
+
+function ComputerScreen.hiringMousepressed(state,x,y)
+    return Hiring.mousepressed(state,ComputerScreen.hiring,x,y,function(intent)
+        local normalized,errorMessage=OfficeIntent.normalize(intent)
+        if not normalized then state.message=errorMessage;return {action="blocked"} end
+        if dependencies.remoteCommand then return remoteAction(normalized.kind,normalized) end
+        local accepted,code,message
+        if dependencies.warehouseCommand then accepted,code,message=dependencies.warehouseCommand(normalized)
+        else accepted,message=Employees.command(state,normalized) end
+        state.message=message or (accepted and "Employment change saved." or "Employment change was not completed.")
+        return {action=accepted and "employment_changed" or "blocked"}
+    end,dependencies.remoteCommand~=nil)
+end
+
 function ComputerScreen.mousepressed(state, x, y, button)
     if button ~= 1 then return nil end
     -- Do not retain Android keyboard focus when the player taps elsewhere.
@@ -851,6 +873,9 @@ function ComputerScreen.mousepressed(state, x, y, button)
         return { action = "dropdown_closed" }
     end
     if ComputerScreen.tab == "warehouse" then return warehouseMousepressed(state,x,y) end
+    if ComputerScreen.tab == "hiring" then
+        return ComputerScreen.hiringMousepressed(state,x,y)
+    end
     if ComputerScreen.tab == "www" and ComputerScreen.cartOpen then
         local maximumPage = math.max(1, math.ceil(#ComputerScreen.cart / CART_PAGE_SIZE))
         if contains(CART_BACK, x, y) then
@@ -1087,6 +1112,10 @@ function ComputerScreen.mousepressed(state, x, y, button)
         end
         if currentEmail and not currentEmail.job then
             ComputerScreen.quoteFocused = false
+            if currentEmail.applicationId and contains(EMAIL_ACCEPT,x,y) then
+                ComputerScreen.openEmploymentResume(currentEmail.applicationId)
+                return {action="hiring_resume_opened"}
+            end
             if contains(EMAIL_DECLINE, x, y) then
                 if dependencies.remoteCommand then return remoteAction("archive", { id = currentEmail.id }) end
                 JobService.dismissInboxNotice(state, currentEmail.id)
@@ -2267,12 +2296,20 @@ local function drawEmail(state, pointerX, pointerY, assets)
         return
     end
     if not selected.job then
+        if selected.applicationId then
+            love.graphics.setColor(.96,.84,.30,1)
+            love.graphics.print("RESUME / EMPLOYMENT THREAD",434,392)
+            love.graphics.setColor(.12,.36,.29,1)
+            love.graphics.rectangle("fill",EMAIL_ACCEPT.x,EMAIL_ACCEPT.y,EMAIL_ACCEPT.width,EMAIL_ACCEPT.height,3,3)
+            love.graphics.setColor(.96,.98,.95,1)
+            love.graphics.printf("OPEN RESUME",EMAIL_ACCEPT.x,EMAIL_ACCEPT.y+13,EMAIL_ACCEPT.width,"center")
+        end
         local heading = selected.noticeKind == "receipt" and "ORDER RECEIPT"
             or selected.noticeKind == "salesman_confirmation" and "SALESMAN CONFIRMATION"
             or selected.noticeKind == "client_thanks" and "CLIENT REPLY"
             or selected.noticeKind == "client_estimate_accepted" and "ESTIMATE ACCEPTED"
             or selected.noticeKind == "client_estimate_declined" and "ESTIMATE DECLINED"
-            or "EMAIL NOTICE"
+            or (selected.applicationId and "" or "EMAIL NOTICE")
         love.graphics.setColor(0.96, 0.84, 0.30)
         love.graphics.print(heading, 434, 392)
         if selected.orderId then
@@ -2533,6 +2570,8 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
 
     if ComputerScreen.tab == "inventory" then
         drawInventory(state)
+    elseif ComputerScreen.tab == "hiring" then
+        Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,dependencies.remoteCommand~=nil)
     elseif ComputerScreen.tab == "warehouse" then
         drawWarehouse(state,pointerX,pointerY,assets)
     elseif ComputerScreen.tab == "www" then
