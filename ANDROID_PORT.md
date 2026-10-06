@@ -3,24 +3,27 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.35` (`versionCode` 35)
+- Version: `0.1.0-android.36` (`versionCode` 36)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.35-debug.apk`
-- Download: [Android 35 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.35/ThePictureShop-0.1.0-android.35-Install.apk)
-  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.35).
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.36-debug.apk`
+- Download: [Android 36 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.36/ThePictureShop-0.1.0-android.36-Install.apk)
+  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.36).
 - Contents: all current shared game changes, including the warehouse expansion, finer pallet/machine
   placement, Credit-tab fix, and complete eight-direction walking and matching idle animations for the
-  three client designs and three salesperson designs. All 60 visitor strips match the installed source.
-- LAN: protocol v21. Local Play participants should use matching builds.
-- Verification: 3,887 desktop checks and 3,887 checks against the actual packaged mobile game pass.
+  three client designs and three salesperson designs. Cat employees and the **HIRING** dropdown tab are
+  playable: emailed resumes, negotiated contracts, agreed shifts, actual cutter jobs, fatigue/focus and
+  breakroom recovery, hourly wages, weekly payroll and overtime. All 26 cat strips (120 frames), 60 visitor
+  strips and 273 Lua files match the package source. Press, wrapping and autonomous transport roles remain planned.
+- LAN: protocol v22, with host-owned worker poses and owner-only employment actions. Local Play participants should use matching builds.
+- Verification: 3,950 desktop checks and 3,950 checks against the actual packaged mobile game pass.
   The signed APK contains that verified game package; its certificate matches the published `.33`
   installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
-- Installer: 232,046,466 bytes (221.3 MiB), SHA-256
-  `273c2abec8d72affd2dc8d049515faf2720e44e31ce3f55485e5c302f4971806`.
-  Source commit: `e0423511c23020043b2bd338b6ab2a2fccc36d4f`. The build report records unrelated local
+- Installer: 237,217,220 bytes (226.2 MiB), SHA-256
+  `5b08210f9284d2249e99d1ec90be4361eec381fd0f1b9e5444ed931df39289ff`.
+  Source commit: `8d216ab4bdd46493d8020417c2499105d08c750b`. The build report records local
   preview files as a dirty worktree; those files are excluded from the game package.
 - Device status: no phone was reachable from the build computer, so this development update was not
   remotely installed or physically playtested. The normal physical-device checklist remains open.

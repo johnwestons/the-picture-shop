@@ -4,6 +4,21 @@ This is the authoritative Local Play parity inventory. Runtime declarations live
 `src/multiplayer_capabilities.lua`; the smoke suite rejects undeclared interaction kinds and authority
 resources. A durable change always executes on the host and only the host writes the multiplayer save.
 
+## October 6, 2026 — cat employees and Hiring
+
+Protocol **22** adds the cat employee pilot. The host runs applicant visits, replies, agreed shifts,
+routes, real cutter actions, breaks and hourly payroll. Connected players can inspect **HIRING**,
+resumes, staff and payroll; only the owner can recruit, negotiate, sign, assign, dismiss or pay wages.
+The reception applicant is registered as a read-only guest interaction. Human cutter leases and NPC
+reservations cannot overlap; pause the employee assignment before a player takes over the cutter.
+
+Compact realtime NPC poses travel with environment snapshots, while reliable shop state contains the
+contracts and ledgers. Four NPC poses fit the normal packet budget and cannot alias human player IDs.
+New tests cover the owner restriction, guest UI, packet bounds, authoritative pose drawing and durable
+state updates retaining newer movement poses. Desktop and actual packaged-mobile checks each pass
+**3,950 checks**; this does not claim physical LAN acceptance on phones. See
+[worker scope and verification](npc_worker_build_status.md).
+
 ## September 13, 2026 — full guest printing-job regression (source only)
 
 The guest journey now also completes a two-color print order through the shared computer, cutter,
