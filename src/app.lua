@@ -3011,7 +3011,9 @@ function App.load()
     if acceptanceHost then
         love.filesystem.setIdentity(acceptanceHost.identity)
     elseif Smoke.requested() then
-        love.filesystem.setIdentity("the-picture-shop-smoke")
+        local testIdentity = os.getenv("PICTURE_SHOP_TEST_IDENTITY")
+        love.filesystem.setIdentity(testIdentity and testIdentity:match("^the%-picture%-shop%-test%-[%w%-]+$")
+            and testIdentity or "the-picture-shop-smoke")
     end
     Assets.load()
     CharacterAssets.load()

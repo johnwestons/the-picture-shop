@@ -1,4 +1,6 @@
-if os.getenv("PICTURE_SHOP_WAREHOUSE_ACCEPTANCE") == "1" then
+if os.getenv("PICTURE_SHOP_VISITOR_PREVIEW") == "1" then
+    require("tools.visitor_motion_preview.main")
+elseif os.getenv("PICTURE_SHOP_WAREHOUSE_ACCEPTANCE") == "1" then
     love.filesystem.setIdentity("the-picture-shop-warehouse-acceptance")
     require("src.warehouse_acceptance_runner").install()
 elseif os.getenv("PICTURE_SHOP_FORKLIFT_LAB") == "1" then

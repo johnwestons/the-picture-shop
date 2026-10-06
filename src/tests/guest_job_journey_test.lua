@@ -29,7 +29,9 @@ local function runJourney(context, check, printing)
     local originalClock = love.timer.getTime
     local host, client, network, authority
     local ok, failure = xpcall(function()
-        assert(love.filesystem.getIdentity() == "the-picture-shop-smoke", "Journey requires isolated smoke identity")
+        local identity = love.filesystem.getIdentity()
+        assert(identity == "the-picture-shop-smoke"
+            or identity:match("^the%-picture%-shop%-test%-[%w%-]+$"), "Journey requires isolated smoke identity")
         replace(state, context.State.new())
         state.activeSlot, state.screen, state.money = nil, "world", 10000
         if printing then

@@ -3,6 +3,17 @@ local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local Metrics = require("src.character_metrics")
 
+-- Merge the separately built visitor pack without changing established seat,
+-- use, player, or pallet-jack anchor contracts.
+for character, actions in pairs(require("src.visitor_character_anchors")) do
+    Anchors[character] = Anchors[character] or {}
+    for action, frames in pairs(actions) do Anchors[character][action] = frames end
+end
+for character, actions in pairs(require("src.visitor_character_metrics")) do
+    Metrics[character] = Metrics[character] or {}
+    for action, frames in pairs(actions) do Metrics[character][action] = frames end
+end
+
 local CharacterAssets = {
     metadata = {},
     images = {},

@@ -29,8 +29,8 @@ local Config = {
         interactionFacingWeight = 18,
     },
     characterRendering = {
-        -- Rabbit frames are 256px high. Normalized visitors use the same source
-        -- height and world scale so every character reads at player size.
+        -- Normalize each visitor's visible height to the rabbit's 256px source
+        -- height before applying world scale so every actor reads at player size.
         referenceHeight = 256,
     },
     wallVentFan = {
@@ -50,15 +50,7 @@ local Config = {
         idleAnimationRate = 0.65,
         useAnimationRate = 2.5,
         seatingPauseDuration = 0.28,
-        motionProfiles = {
-            ["business-cat"] = {
-                walkPixelsPerFrame = 13,
-                acceleration = 420,
-                deceleration = 620,
-                gaitSpeedMultipliers = { 0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06 },
-                gaitAccelerationMultipliers = { 0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10 },
-            },
-        },
+        motionProfiles = {},
         -- The first customer demonstrates the reception loop quickly. Later
         -- clients arrive at varied business-day intervals instead of in a queue.
         initialArrivalDelayMin = 2,
@@ -463,6 +455,32 @@ local Config = {
         },
     },
 }
+
+-- Every client and supplier uses the same eight-phase, distance-driven gait.
+-- Keep individual base speeds, and preserve legacy seated/use artwork.
+local function visitorMotionProfile()
+    return {
+        walkPixelsPerFrame = 13, acceleration = 420, deceleration = 620,
+        gaitSpeedMultipliers = { 0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06 },
+        gaitAccelerationMultipliers = { 0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10 },
+    }
+end
+Config.vendor.motionProfiles = {}
+Config.vendor.idleAnimationRate = 0.65
+for _, character in ipairs(Config.customer.characterPool) do
+    Config.customer.motionProfiles[character] = visitorMotionProfile()
+end
+for _, character in ipairs({ "tan-cat", "blue-coaler-cat", "green-blazer-cat" }) do
+    Config.vendor.motionProfiles[character] = visitorMotionProfile()
+end
+for _, character in ipairs({ "business-dragon", "business-fox", "tan-cat", "blue-coaler-cat", "green-blazer-cat" }) do
+    for _, direction in ipairs({ "north", "northeast", "southeast", "south" }) do
+        for _, action in ipairs({ "walk", "idle" }) do
+            local name = action .. "_" .. direction
+            Config.characters[character][name] = "assets/generated/characters/" .. character .. "/" .. name .. ".png"
+        end
+    end
+end
 
 -- Pallet-jack push cycles are generated review art, so expose them only while
 -- the warehouse is explicitly running with provisional artwork enabled.

@@ -1,5 +1,6 @@
 local Customer = require("src.customer")
 local CharacterAnimation = require("src.character_animation")
+local Config = require("src.config")
 
 local Test = {}
 
@@ -23,6 +24,44 @@ local function definition()
 end
 
 function Test.run(_, check)
+    local assets = { hasAction = function() return true end }
+    for _, character in ipairs({ "business-dragon", "business-fox", "business-cat", "tan-cat", "blue-coaler-cat", "green-blazer-cat" }) do
+        local role = Config.customer.motionProfiles[character] and Config.customer or Config.vendor
+        local visitor = Customer.new({ character = character, speed = role.speed,
+            motionProfiles = role.motionProfiles, initialArrivalDelay = 0,
+            route = { { x = 0, y = 0 }, { x = 100, y = -100 } } })
+        visitor:update(.1, { x = 500, y = 500 })
+        local actual = math.sqrt(visitor.x * visitor.x + visitor.y * visitor.y)
+        check(character .. "_walk_is_accelerated_and_uses_achieved_distance",
+            visitor.currentSpeed > 0 and visitor.currentSpeed < role.speed
+            and math.abs(visitor.animationDistance - actual) < .0001)
+        local action, mirror = visitor:poseAction(assets)
+        check(character .. "_walk_uses_diagonal_back_view", action == "walk_northeast" and mirror == 1)
+        local distance, phase = visitor.animationDistance, visitor:frameForAction("walk_northeast", 8)
+        visitor:update(.5, { x = visitor.x, y = visitor.y })
+        action, mirror = visitor:poseAction(assets)
+        check(character .. "_blocked_walk_freezes_and_idles_in_last_direction",
+            visitor.animationDistance == distance and visitor:frameForAction("walk_northeast", 8) == phase
+            and not visitor.inMotion and action == "idle_northeast" and mirror == 1)
+        visitor.idleClock = 2 / visitor.idleAnimationRate - .07
+        check(character .. "_directional_idle_animates", visitor:frameForAction("idle_northeast", 2) == 2)
+        visitor.idleClock = .5
+        check(character .. "_idle_holds_open_eyes_between_brief_blinks", visitor:frameForAction("idle_northeast", 2) == 1)
+    end
+
+    local corner = Customer.new({ character = "tan-cat", speed = 100, initialArrivalDelay = 0,
+        route = { { x = 0, y = 0 }, { x = 3, y = 0 }, { x = 3, y = -20 } } })
+    corner:update(.1, { x = 500, y = 500 })
+    check("visitor_turn_counts_every_path_segment_and_faces_latest_segment",
+        math.abs(corner.animationDistance - 10) < .0001 and corner.motionX == 0 and corner.motionY == -1)
+    corner:update(.2, { x = 500, y = 500 })
+    local standingAction = corner:poseAction(assets)
+    check("standing_salesman_waits_in_directional_idle_instead_of_sitting",
+        corner.state == "waiting" and standingAction == "idle_north")
+    corner:beginReview()
+    local noUse = { hasAction = function(_, action) return action ~= "use" end }
+    check("standing_salesman_without_use_action_idles_during_review", corner:poseAction(noUse) == "idle_north")
+
     local customer = Customer.new(definition())
     local distanceBefore = customer.animationDistance
     customer:update(0.1, { x = 500, y = 500 })

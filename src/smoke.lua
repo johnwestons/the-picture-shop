@@ -306,11 +306,18 @@ local function runChecks(context)
             walk_southeast = 8, walk_south = 8, sit = 2,
         },
     }
+    for _, character in ipairs({ "tan-cat", "green-blazer-cat", "blue-coaler-cat", "business-dragon", "business-fox" }) do
+        for _, direction in ipairs({ "", "_north", "_northeast", "_southeast", "_south" }) do
+            expectedCharacters[character]["walk" .. direction] = 8
+            expectedCharacters[character]["idle" .. direction] = 2
+        end
+    end
     local charactersHealthy, characterFailures = context.characterAssets.assertHealthy()
     check("character_asset_contract", charactersHealthy, characterFailures)
     check("character_anchor_scans_eliminated", context.characterAssets.anchorPixelScans() == 0)
     check("character_packs_start_unloaded", context.characterAssets.residentActionCount() == 0)
     for character, actions in pairs(expectedCharacters) do
+        context.characterAssets.retainCharacters({ [character] = true })
         for action, count in pairs(actions) do
             local image, quad, actual = context.characterAssets.get(character, action, 1)
             check(character .. "_" .. action .. "_loaded", image ~= nil and quad ~= nil and actual == count)
@@ -320,19 +327,23 @@ local function runChecks(context)
                 maximumHeight = math.max(maximumHeight, metrics and metrics.height or 0)
                 minimumHeight = math.min(minimumHeight, metrics and metrics.height or math.huge)
             end
+            local gait = action == "walk" or action:match("^walk_")
+            -- Uniform loop scale keeps the authored weight-down / knee-up bob.
+            -- Bound that bob to 6%; keep non-gait poses on the tighter contract.
             check(character .. "_" .. action .. "_normalized_frame_height_stable",
-                minimumHeight > 0 and maximumHeight / minimumHeight <= 1.03)
+                minimumHeight > 0 and maximumHeight / minimumHeight <= (gait and 1.06 or 1.03))
         end
         local idle = context.characterAssets.normalizedFrameMetrics(character, "idle", 1)
         for action in pairs(actions) do
             local metrics = context.characterAssets.normalizedFrameMetrics(character, action, 1)
+            local gait = action == "walk" or action:match("^walk_")
             check(character .. "_" .. action .. "_matches_character_scale",
-                idle and metrics and math.abs(metrics.height - idle.height) / idle.height <= 0.03)
+                idle and metrics and math.abs(metrics.height - idle.height) / idle.height <= (gait and .06 or .03))
             check(character .. "_" .. action .. "_matches_player_world_height",
                 metrics and math.abs(
                     metrics.height * context.config.customer.drawScale
                     - context.config.characterRendering.referenceHeight
-                        * context.config.player.drawScale) <= 1)
+                        * context.config.player.drawScale) <= (gait and 4 or 1))
         end
     end
     check("business_seated_art_receives_source_scale_correction",
@@ -340,8 +351,11 @@ local function runChecks(context)
         and context.characterAssets.getNormalization("business-dragon", "sit") < 3)
     check("character_actions_load_on_demand", context.characterAssets.residentActionCount() > 0)
     context.characterAssets.retainCharacters({ ["business-dragon"] = true })
+    for action in pairs(expectedCharacters["business-dragon"]) do
+        context.characterAssets.get("business-dragon", action, 1)
+    end
     check("inactive_character_packs_release",
-        context.characterAssets.residentActionCount() == 3)
+        context.characterAssets.residentActionCount() == 11)
     context.characterAssets.retainCharacters({})
     check("all_character_packs_release", context.characterAssets.residentActionCount() == 0
         and context.characterAssets.textureBytes() == 0)

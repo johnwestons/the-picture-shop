@@ -221,7 +221,7 @@ function Instance:update(dt, player, pauseSchedule)
         return nil
     end
 
-    local startX, startY = self.x, self.y
+    local distance, lastMotionX, lastMotionY = 0, 0, 0
     local motionProfile = self.motionProfiles[self.character]
     local travel
     if motionProfile then
@@ -257,7 +257,14 @@ function Instance:update(dt, player, pauseSchedule)
             event = "exited"
             break
         end
+        local startX, startY = self.x, self.y
         local reached, remaining = moveToward(self, target, travel)
+        local dx, dy = self.x - startX, self.y - startY
+        local segmentDistance = math.sqrt(dx * dx + dy * dy)
+        if segmentDistance > 0.0001 then
+            distance = distance + segmentDistance
+            lastMotionX, lastMotionY = dx / segmentDistance, dy / segmentDistance
+        end
         if not reached then break end
         travel = remaining
         self.waypoint = self.state == "entering" and self.waypoint + 1 or self.waypoint - 1
@@ -274,13 +281,11 @@ function Instance:update(dt, player, pauseSchedule)
             break
         end
     end
-    local movedX, movedY = self.x - startX, self.y - startY
-    local distance = math.sqrt(movedX * movedX + movedY * movedY)
     self.inMotion = distance > 0.0001
     if self.inMotion then
         self.animationClock = self.animationClock + dt
         self.idleClock = 0
-        self.motionX, self.motionY = movedX / distance, movedY / distance
+        self.motionX, self.motionY = lastMotionX, lastMotionY
         self.intentX, self.intentY = self.motionX, self.motionY
         self.animationDistance = self.animationDistance + distance
         if math.abs(self.motionX) > 0.08 then self.facing = self.motionX < 0 and -1 or 1 end
@@ -291,7 +296,7 @@ function Instance:update(dt, player, pauseSchedule)
         self.inMotion = false
         self.motionX, self.motionY = 0, 0
         self.facing = self.seatFacing or self.facing
-        self.intentX, self.intentY = self.facing, 0
+        if self.seat then self.intentX, self.intentY = self.facing, 0 end
     end
     return event
 end
@@ -350,7 +355,7 @@ function Instance:frameForAction(action, frameCount)
             motionProfile.walkPixelsPerFrame)
     end
     if type(action) == "string" and (action == "idle" or action:match("^idle_")) then
-        return CharacterAnimation.frameForClock(frameCount, self.idleClock,
+        return CharacterAnimation.frameForIdle(frameCount, self.idleClock,
             self.idleAnimationRate)
     end
     return CharacterAnimation.frameForAction(action, frameCount, self.animationClock,
@@ -441,11 +446,12 @@ function Instance:applySnapshot(snapshot)
     return true
 end
 
-function Instance:draw(characterAssets)
-    if not self.visible then return end
-    local action = self.state == "reviewing" and characterAssets.hasAction(self.character, "use")
-        and "use" or ((self.state == "waiting" or self.state == "reviewing")
-            and "sit" or (self:isMoving() and "walk" or "idle"))
+function Instance:poseAction(characterAssets)
+    local resting = self.state == "waiting" or self.state == "reviewing"
+    local action = resting and self.seat and "sit" or (self:isMoving() and "walk" or "idle")
+    if self.state == "reviewing" and not self.seat and characterAssets.hasAction(self.character, "use") then
+        action = "use"
+    end
     local directionScale = self.facing
     if CharacterAnimation.isWalkAction(action) then
         local directionalAction, mirror = CharacterAnimation.directionalWalkAction(
@@ -459,10 +465,16 @@ function Instance:draw(characterAssets)
         if characterAssets.hasAction(self.character, directionalAction) then action = directionalAction end
         directionScale = mirror
     end
+    return action, directionScale
+end
+
+function Instance:draw(characterAssets)
+    if not self.visible then return end
+    local action, directionScale = self:poseAction(characterAssets)
     local image, quad, frameCount = characterAssets.get(self.character, action, 1)
     frameCount = frameCount or 1
-    -- Seated/idle clients use one clean atlas cell. Walking and explicit use
-    -- actions advance without making a blocked visitor slide in place.
+    -- Seated clients hold their clean atlas cell. Idle blinks use the last walk
+    -- direction; walking advances only with achieved path distance.
     local frame = self:frameForAction(action, frameCount)
     image, quad, frameCount = characterAssets.get(self.character, action, frame)
     local anchorX, anchorY = characterAssets.getAnchor(self.character, action, frame)

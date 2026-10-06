@@ -475,6 +475,10 @@ def audit(root: Path) -> list[dict[str, object]]:
             "walk_southeast": 8, "walk_south": 8, "sit": 2,
         },
     }
+    for character in ("tan-cat", "green-blazer-cat", "blue-coaler-cat", "business-dragon", "business-fox"):
+        for direction in ("", "_north", "_northeast", "_southeast", "_south"):
+            character_frames[character]["walk" + direction] = 8
+            character_frames[character]["idle" + direction] = 2
     for character, actions in character_frames.items():
         for action, expected in actions.items():
             path = generated / "characters" / character / f"{action}.png"

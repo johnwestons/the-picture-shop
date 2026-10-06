@@ -19,6 +19,20 @@ function Animation.frameForDistance(frameCount, distance, pixelsPerFrame)
     return math.floor(math.max(0, tonumber(distance) or 0) / pixelsPerFrame) % frameCount + 1
 end
 
+function Animation.frameForIdle(frameCount, clock, rate)
+    frameCount = math.max(1, tonumber(frameCount) or 1)
+    rate = math.max(0, tonumber(rate) or 0)
+    if frameCount == 2 and rate > 0 then
+        -- A two-cell neutral/blink pair should blink briefly, not hold closed
+        -- eyes for half of the idle cycle. Rear-view settle frames use the same
+        -- gentle cadence and stay on the same planted anchor.
+        local period = frameCount / rate
+        local phase = math.max(0, tonumber(clock) or 0) % period
+        return phase >= period - math.min(.14, period * .1) and 2 or 1
+    end
+    return Animation.frameForClock(frameCount, clock, rate)
+end
+
 local function directionalAction(prefix, x, y)
     x, y = tonumber(x) or 0, tonumber(y) or 0
     local absX, absY = math.abs(x), math.abs(y)

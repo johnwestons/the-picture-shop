@@ -1,8 +1,16 @@
 # Test layout
 
-The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save identity. It never reads or writes the player's normal save directory.
+The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save identity. It never reads or writes the player's normal save directory. To use a fresh profile without touching earlier test saves, set `PICTURE_SHOP_TEST_IDENTITY` to a unique name beginning `the-picture-shop-test-`; that override is accepted only in smoke mode.
 
-`RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. The upper row shows raw source-frame bounds; the lower row normalizes every visitor action to the player character's 256-pixel source height. This makes size mismatches, cropped cells, and frame-to-frame silhouette jumps visible without touching a player save.
+`RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. Visitors and the player show all eight directions together: enlarged walking poses use distance timing, while matching idle poses show actual shop size and brief blinks. Older auxiliary character actions retain the raw/normalized comparison.
+
+The completed visitor pack covers the dragon, fox and tabby clients plus the tan-cardigan, blue-shirt and green-blazer cat salespeople. Five authored views and deliberate western mirrors give every design eight directions, an eight-frame forward walk loop and two-frame matching idles. Suppliers stand while waiting; seated clients keep the existing lounge poses. Walk phase follows achieved path distance, including turns, and freezes during courtesy stops. LAN snapshots already carry that distance and facing.
+
+Immutable imagegen masters and generation prompts are in `assets/source/visitor-motion-v1/source-manifest.json`; the initial dragon idle record explicitly labels its abbreviated prompt as a summary. Superseded attempts stay separate from selected assets. `tools/build_visitor_character_assets.py` previews only the selected sheets, preserves one scale per loop and the authored body bob, then installs the reviewed pack with `--apply`. It emits static anchors/alpha bounds, preserving seated/use actions and avoiding runtime pixel scans. Only explicitly reviewed adjacent-cell fragments receive the larger detached-component cleanup. The body stays within six source pixels of its axis and the foot baseline within one pixel; the wider alpha-box-center allowance in `character-motion/*.json` accommodates tails crossing behind the legs.
+
+Run `tools/run_visitor_motion_preview.ps1` for an isolated LÖVE check using the actual character loader and lab. The runner creates a fresh test identity and starts `tools/visitor_motion_preview/main.lua` from the game project root. This mode bypasses the game and smoke suite and writes 96 captures covering six designs, eight walk phases, all eight directions, and desktop/landscape-phone viewports, with no game-save access. Its report also records peak character texture memory. `tools/build_visitor_gait_guides.py` produces the engineering pose references; those guides are never runtime art.
+
+The completed pack passes six strict motion audits, 593 asset checks, and 3,887 full game checks in each of desktop and forced-mobile modes. The 96-capture rendering check passes with peak character textures of 50 MiB.
 
 ## Layers
 

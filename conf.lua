@@ -1,6 +1,12 @@
 function love.conf(t)
     t.identity = os.getenv("PICTURE_SHOP_SMOKE") == "1"
         and "the-picture-shop-smoke" or "the-picture-shop"
+    -- A new isolated identity lets art/test runs leave existing saves alone.
+    local testIdentity = os.getenv("PICTURE_SHOP_TEST_IDENTITY")
+    if os.getenv("PICTURE_SHOP_SMOKE") == "1" and testIdentity
+        and testIdentity:match("^the%-picture%-shop%-test%-[%w%-]+$") then
+        t.identity = testIdentity
+    end
     t.version = "11.5"
     t.externalstorage = false
     t.accelerometerjoystick = false

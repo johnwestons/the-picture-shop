@@ -1,0 +1,813 @@
+{
+  "version": 1,
+  "generator": "Built-in imagegen",
+  "reference_base_commit": "39da8cf98a31ff49b068ab10a95a7725647c1ede",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-06",
+    "coverage": "Six visitor designs, eight directions, eight walk phases, matching two-frame idles",
+    "automated": "Six strict motion audits passed; 593 asset checks; 3887 game checks in both desktop and forced-mobile modes",
+    "runtime": "96 LÖVE captures generated; representative desktop and landscape-phone views visually reviewed; peak character textures 50 MiB",
+    "mirroring": "Western views deliberately mirror symmetric outfits and anatomy; source idle view corrections are explicit per record",
+    "source_policy": "Selected, superseded, and rejected imagegen masters remain immutable; frame ordering and detached-fragment cleanup are recorded per source"
+  },
+  "sources": [
+    {
+      "character": "business-dragon",
+      "action": "idle-directions",
+      "prompt_summary": "Five-direction planted neutral and blink idle sheet; approved red dragon business client identity, navy jacket, red tie; see generation record in chat.",
+      "reference": "output/sprite-doctor/approved/business-characters/red-dragon-business.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-f1fb0c5b-32d0-4a63-90e4-e7086f51b0fc.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/idle-directions-v1.png",
+      "layout": {
+        "columns": 5,
+        "rows": 2,
+        "views": [
+          "north",
+          "northeast",
+          "east",
+          "southeast",
+          "south"
+        ]
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "idle-directions",
+      "prompt": "Use case: background-extraction. Edit target is the supplied five-column two-row gray fox idle sprite sheet. Remove ONLY the unwanted blurred brown/gray background, haze and cast shadows surrounding the ten character figures. Replace with genuine fully transparent alpha. Preserve every character pixel, original cell positions, grid layout, body scale, face, ears, fur, tail, clothing and all ten poses exactly. Keep solid character interiors opaque, including white muzzle and shirt. Do not redraw, shift, mirror, add text or change any sprite. There must be no gray haze, checkerboard, white border or halo around the outlines.",
+      "reference": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v1.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-40e6fd89-f51b-4d5f-a762-da1df7f481b2.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/idle-directions-v2.png",
+      "layout": {
+        "columns": 5,
+        "rows": 2,
+        "views": [
+          "north",
+          "northeast",
+          "east",
+          "southwest",
+          "south"
+        ]
+      },
+      "mirror_source_views": [
+        "southeast"
+      ],
+      "review_status": "selected",
+      "cleanup_detached_area": 1024,
+      "cleanup_note": "Visual review confirmed fragments from an adjacent source cell at the outer margin; remove detached fragments only, preserving the main connected character."
+    },
+    {
+      "character": "tan-cat",
+      "action": "idle-directions",
+      "prompt": "Use case: identity-preserve. Asset type: final transparent pixel-art directional idle sprite sheet for The Picture Shop. Input image 1 is the existing character identity and costume reference; if it contains repeated poses, use the same individual. Preserve exactly that character's species, face, proportions, clothing, shoes, tail, palette, detailed crisp pixel-art edges, and balanced lighting. Layout: exactly FIVE equally spaced columns by TWO rows, ten isolated full-body sprites. Columns left to right: NORTH (back facing up), NORTHEAST (back three-quarter facing up-right), EAST (true right-facing side profile), SOUTHEAST (front three-quarter facing down-right), SOUTH (front facing down). Top row is planted neutral/open-eye stance. Bottom row is exactly the SAME view, scale and planted feet with a subtle blink or relaxed breath; north is a tiny shoulder settle because eyes are hidden. Keep body center and foot baseline identical within all equal-sized cells. Real back views, complete ears/tail/hands/feet and generous transparent padding. Arms at sides, no strides. No labels, grid, floor, shadows, scenery, props, extra characters, logos, checkerboard, white halo or matte. Genuinely transparent RGBA background. Character details: charcoal-black cat salesman with amber eyes, pink ears/nose, tan cardigan with centered buttons over an ivory collared shirt, dark gray trousers and reddish brown shoes. This is a black-furred cat in TAN CLOTHING, not a tan-furred cat. Keep the original compact rounded head and black tail. No hat, bag or tie.",
+      "reference": "assets\\generated\\characters\\tan-cat\\idle.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-230e4473-421e-4e5a-b640-20522a493690.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/idle-directions-v1.png",
+      "layout": {
+        "columns": 5,
+        "rows": 2,
+        "views": [
+          "north",
+          "northeast",
+          "east",
+          "southwest",
+          "south"
+        ]
+      },
+      "mirror_source_views": [
+        "southeast"
+      ],
+      "review_status": "selected"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "idle-directions",
+      "prompt": "Use case: identity-preserve. Asset type: final transparent pixel-art directional idle sprite sheet for The Picture Shop. Input image 1 is the existing character identity and costume reference; if it contains repeated poses, use the same individual. Preserve exactly that character's species, face, proportions, clothing, shoes, tail, palette, detailed crisp pixel-art edges, and balanced lighting. Layout: exactly FIVE equally spaced columns by TWO rows, ten isolated full-body sprites. Columns left to right: NORTH (back facing up), NORTHEAST (back three-quarter facing up-right), EAST (true right-facing side profile), SOUTHEAST (front three-quarter facing down-right), SOUTH (front facing down). Top row is planted neutral/open-eye stance. Bottom row is exactly the SAME view, scale and planted feet with a subtle blink or relaxed breath; north is a tiny shoulder settle because eyes are hidden. Keep body center and foot baseline identical within all equal-sized cells. Real back views, complete ears/tail/hands/feet and generous transparent padding. Arms at sides, no strides. No labels, grid, floor, shadows, scenery, props, extra characters, logos, checkerboard, white halo or matte. Genuinely transparent RGBA background. Character details: charcoal-black cat salesman with amber eyes, pink ears/nose, dark forest-green blazer over a white open-collar shirt, tan trousers, brown belt and brown dress shoes. Keep the original compact rounded head and black tail. No hat, bag, tie or newspaper.",
+      "reference": "assets\\generated\\characters\\green-blazer-cat\\idle.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-0904caee-0848-430b-96f4-44cae311994e.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/idle-directions-v1.png",
+      "layout": {
+        "columns": 5,
+        "rows": 2,
+        "views": [
+          "north",
+          "northeast",
+          "east",
+          "southwest",
+          "south"
+        ]
+      },
+      "mirror_source_views": [
+        "southeast"
+      ],
+      "review_status": "selected"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "idle-directions",
+      "prompt": "Use case: identity-preserve. Asset type: final transparent pixel-art directional idle sprite sheet for The Picture Shop. Input image 1 is the existing character identity and costume reference; if it contains repeated poses, use the same individual. Preserve exactly that character's species, face, proportions, clothing, shoes, tail, palette, detailed crisp pixel-art edges, and balanced lighting. Layout: exactly FIVE equally spaced columns by TWO rows, ten isolated full-body sprites. Columns left to right: NORTH (back facing up), NORTHEAST (back three-quarter facing up-right), EAST (true right-facing side profile), SOUTHEAST (front three-quarter facing down-right), SOUTH (front facing down). Top row is planted neutral/open-eye stance. Bottom row is exactly the SAME view, scale and planted feet with a subtle blink or relaxed breath; north is a tiny shoulder settle because eyes are hidden. Keep body center and foot baseline identical within all equal-sized cells. Real back views, complete ears/tail/hands/feet and generous transparent padding. Arms at sides, no strides. No labels, grid, floor, shadows, scenery, props, extra characters, logos, checkerboard, white halo or matte. Genuinely transparent RGBA background. Character details: charcoal-black cat salesman with amber eyes, pink ears/nose, light blue long-sleeved button-up shirt tucked into navy trousers, brown belt with small brass buckle and brown shoes. Keep original compact rounded head and black tail. No hat, bag, tie or jacket.",
+      "reference": "assets\\generated\\characters\\blue-coaler-cat\\idle.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-216ff533-35e9-41f3-b9fc-dfb1756bbe91.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/idle-directions-v1.png",
+      "layout": {
+        "columns": 5,
+        "rows": 2,
+        "views": [
+          "north",
+          "northeast",
+          "east",
+          "southwest",
+          "south"
+        ]
+      },
+      "mirror_source_views": [
+        "southeast"
+      ],
+      "review_status": "selected"
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-north",
+      "prompt": "Use case: identity-preserve. Asset type: production transparent 8-phase pixel-art walking sprite sheet. Input image 1 is this character's approved directional identity/idle study, not a target to copy as static poses. Generate the SAME character walking in ONE direction in EVERY frame: NORTH: looking straight away from the camera toward the top of the sheet; full back view, no visible face, both feet and shoes visible in rear perspective. Character: the upright red-orange dragon client with amber eyes, swept-back head spines, a red patterned tail, navy jacket, ivory shirt, red tie, charcoal trousers and black shoes. No wings or accessories. Preserve identity, outfit, proportions, tail, palette, crisp pixel-art style and restrained lighting. Exactly FOUR columns by TWO rows, eight complete full-body figures in equal cells, read left-to-right across top row then bottom row. Animate a moderate natural WALK, not a run or shuffle. Pose order: (1) anatomical LEFT foot forward contact, RIGHT trails, right arm forward; (2) LEFT supports weight with slight knee bend and torso down, RIGHT heel lifts behind; (3) RIGHT foot passes beneath hips while LEFT supports, arms passing; (4) RIGHT knee swings forward preparing contact, LEFT heel begins lifting; (5) RIGHT forward contact, LEFT trails, left arm forward, the true opposite of frame 1; (6) RIGHT bears weight, LEFT heel lifts; (7) LEFT passes beneath hips, RIGHT supports; (8) LEFT knee forward before the next left contact. Make contact/loading/passing/knee-up visibly different and alternate the feet. Only contact frames have the widest stride; passing feet must come under the body. Arms counter-swing with legs, head steady, body subtle vertical weight, tail gentle continuous motion. SAME camera direction and same body scale, hip center, ground baseline and lighting throughout all eight cells. Full ear/head/tail/shoe silhouettes, generous transparent margins, no cell overlap. Do not repeat a single pose or show multiple viewing directions. Genuinely transparent background, no ground, cast shadows, checkerboard, labels, numbers, grid lines, scenery, matte, halo, props or extra characters.",
+      "reference": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-691fc9d8-3b66-4dfd-8332-7f8d06439df9.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-north-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "north"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-north",
+      "prompt": "Use case: identity-preserve. Asset type: production transparent 8-phase pixel-art walking sprite sheet. Input image 1 is this character's approved directional identity/idle study, not a target to copy as static poses. Generate the SAME character walking in ONE direction in EVERY frame: NORTH: looking straight away from the camera toward the top of the sheet; full back view, no visible face, both feet and shoes visible in rear perspective. Character: the charcoal-black cat salesman with tan cardigan over an ivory collared shirt, dark gray trousers, reddish brown shoes, pink ears and a black tail. No hat, bag or tie. Preserve identity, outfit, proportions, tail, palette, crisp pixel-art style and restrained lighting. Exactly FOUR columns by TWO rows, eight complete full-body figures in equal cells, read left-to-right across top row then bottom row. Animate a moderate natural WALK, not a run or shuffle. Pose order: (1) anatomical LEFT foot forward contact, RIGHT trails, right arm forward; (2) LEFT supports weight with slight knee bend and torso down, RIGHT heel lifts behind; (3) RIGHT foot passes beneath hips while LEFT supports, arms passing; (4) RIGHT knee swings forward preparing contact, LEFT heel begins lifting; (5) RIGHT forward contact, LEFT trails, left arm forward, the true opposite of frame 1; (6) RIGHT bears weight, LEFT heel lifts; (7) LEFT passes beneath hips, RIGHT supports; (8) LEFT knee forward before the next left contact. Make contact/loading/passing/knee-up visibly different and alternate the feet. Only contact frames have the widest stride; passing feet must come under the body. Arms counter-swing with legs, head steady, body subtle vertical weight, tail gentle continuous motion. SAME camera direction and same body scale, hip center, ground baseline and lighting throughout all eight cells. Full ear/head/tail/shoe silhouettes, generous transparent margins, no cell overlap. Do not repeat a single pose or show multiple viewing directions. Genuinely transparent background, no ground, cast shadows, checkerboard, labels, numbers, grid lines, scenery, matte, halo, props or extra characters.",
+      "reference": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\idle-directions-v1.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-63b3b625-d6fb-40e5-860a-ec49a409281b.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-north-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "north"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-north",
+      "prompt": "Create production game animation sprites, using image 1 as the EXACT established character design and image 2 ONLY as the eight-phase anatomical walk diagram. Gray fox business client: gray fur, cream muzzle and tail tip, charcoal blazer, light blue shirt, teal tie, dark plum trousers, black shoes. No hat or bag.\nOutput exactly eight COMPLETE full-body sprites on a true transparent background, evenly spaced in a 4-column x 2-row sprite sheet. Read order left to right, top then bottom. All eight face NORTH, directly away from the viewer, with a full BACK view. Do not rotate or turn to the camera.\nMatch the diagram's eight poses exactly, translated into the character's normal anatomy and clothing: 1 anatomical LEFT foot contact forward; 2 LEFT planted weight down, right heel lifting; 3 RIGHT foot passing under hip, lifted; 4 RIGHT knee lifted and advancing; 5 RIGHT foot contact forward; 6 RIGHT planted weight down, left heel lifting; 7 LEFT foot passing under hip, lifted; 8 LEFT knee lifted and advancing. The orange guide limb is anatomical LEFT and blue guide limb is RIGHT. Those guide colors are NOT part of the finished art. Arms swing opposite to the stepping legs. Walking at a relaxed normal pace, not running, hopping or kicking. Only contact poses have the widest stride. Passing feet are close beneath the body. Alternate which shoe is forward; do not make all eight show the same foot forward. Subtle torso weight-down on frames 2 and 6. Tail sways gently and continuously, returns through frame 8 to frame 1; keep the tail's shape and length consistent.\nStyle: same hand-drawn game character, clean dark outline, soft cel shading, unchanged costume, head shape, body proportions and palette as image 1. Every frame has the same scale, camera, torso center and ground anchor, with generous transparent padding around ears, tail and shoes. No cut-off extremities. No diagrams, colored guide limbs, text, labels, floor, contact shadows, glow, background or checkerboard. Distinct poses, not repeated standing frames.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\north.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-e328630e-84e3-4bfd-abff-f0171743d257.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-north-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "north"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-north",
+      "prompt": "Create production game animation sprites, using image 1 as the EXACT established character design and image 2 ONLY as the eight-phase anatomical walk diagram. Black cat salesman: black fur and tail, amber eyes, pink inner ears and nose, forest-green blazer, white open-collar shirt, tan trousers, brown belt and shoes. No tie, hat or bag.\nOutput exactly eight COMPLETE full-body sprites on a true transparent background, evenly spaced in a 4-column x 2-row sprite sheet. Read order left to right, top then bottom. All eight face NORTH, directly away from the viewer, with a full BACK view. Do not rotate or turn to the camera.\nMatch the diagram's eight poses exactly, translated into the character's normal anatomy and clothing: 1 anatomical LEFT foot contact forward; 2 LEFT planted weight down, right heel lifting; 3 RIGHT foot passing under hip, lifted; 4 RIGHT knee lifted and advancing; 5 RIGHT foot contact forward; 6 RIGHT planted weight down, left heel lifting; 7 LEFT foot passing under hip, lifted; 8 LEFT knee lifted and advancing. The orange guide limb is anatomical LEFT and blue guide limb is RIGHT. Those guide colors are NOT part of the finished art. Arms swing opposite to the stepping legs. Walking at a relaxed normal pace, not running, hopping or kicking. Only contact poses have the widest stride. Passing feet are close beneath the body. Alternate which shoe is forward; do not make all eight show the same foot forward. Subtle torso weight-down on frames 2 and 6. Tail sways gently and continuously, returns through frame 8 to frame 1; keep the tail's shape and length consistent.\nStyle: same hand-drawn game character, clean dark outline, soft cel shading, unchanged costume, head shape, body proportions and palette as image 1. Every frame has the same scale, camera, torso center and ground anchor, with generous transparent padding around ears, tail and shoes. No cut-off extremities. No diagrams, colored guide limbs, text, labels, floor, contact shadows, glow, background or checkerboard. Distinct poses, not repeated standing frames.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\north.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-d8978899-acd8-4bf2-ab4d-f257fc080a9d.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-north-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "north"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "walk-north",
+      "prompt": "Create production game animation sprites, using image 1 as the EXACT established character design and image 2 ONLY as the eight-phase anatomical walk diagram. Black cat salesman: black fur and tail, amber eyes, pink inner ears and nose, light-blue button-up shirt and sleeves, navy trousers, brown belt with brass buckle and brown shoes. No jacket, tie, hat or bag.\nOutput exactly eight COMPLETE full-body sprites on a true transparent background, evenly spaced in a 4-column x 2-row sprite sheet. Read order left to right, top then bottom. All eight face NORTH, directly away from the viewer, with a full BACK view. Do not rotate or turn to the camera.\nMatch the diagram's eight poses exactly, translated into the character's normal anatomy and clothing: 1 anatomical LEFT foot contact forward; 2 LEFT planted weight down, right heel lifting; 3 RIGHT foot passing under hip, lifted; 4 RIGHT knee lifted and advancing; 5 RIGHT foot contact forward; 6 RIGHT planted weight down, left heel lifting; 7 LEFT foot passing under hip, lifted; 8 LEFT knee lifted and advancing. The orange guide limb is anatomical LEFT and blue guide limb is RIGHT. Those guide colors are NOT part of the finished art. Arms swing opposite to the stepping legs. Walking at a relaxed normal pace, not running, hopping or kicking. Only contact poses have the widest stride. Passing feet are close beneath the body. Alternate which shoe is forward; do not make all eight show the same foot forward. Subtle torso weight-down on frames 2 and 6. Tail sways gently and continuously, returns through frame 8 to frame 1; keep the tail's shape and length consistent.\nStyle: same hand-drawn game character, clean dark outline, soft cel shading, unchanged costume, head shape, body proportions and palette as image 1. Every frame has the same scale, camera, torso center and ground anchor, with generous transparent padding around ears, tail and shoes. No cut-off extremities. No diagrams, colored guide limbs, text, labels, floor, contact shadows, glow, background or checkerboard. Distinct poses, not repeated standing frames.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\blue-coaler-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\north.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-27eae605-5c1c-4051-bce5-ad887850c751.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/walk-north-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "north"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-northeast",
+      "prompt": "Production game sprite animation. Image 1 is the exact established character identity; image 2 is ONLY the anatomical walk pose guide. Red-orange dragon client: amber eyes, ivory muzzle, swept-back head spines, navy business blazer, ivory collared shirt, red tie, charcoal trousers, black shoes and red patterned tail. Absolutely NO wings.\nCreate exactly eight complete full-body sprites, arranged in four equal columns and two equal rows, true transparent alpha, generous padding in every cell. All face NORTHEAST, moving diagonally AWAY and to the RIGHT. Show the BACK and RIGHT side, face and muzzle directed to the upper-right, no front view. All frames use this SAME camera and orientation. Preserve the character design, soft cel shading and dark outline of image 1.\nRead order across the top row then the bottom row MUST match the eight diagram poses: 1 LEFT foot contact forward, right foot trailing; 2 LEFT planted weight-down, right heel lifting; 3 RIGHT passing lifted close under hip; 4 RIGHT knee up and advancing; 5 RIGHT foot contact forward, left foot trailing; 6 RIGHT planted weight-down, left heel lifting; 7 LEFT passing lifted close under hip; 8 LEFT knee up and advancing. Orange guide limbs mean anatomical LEFT; blue means RIGHT. Do not copy diagram colors, labels or background. Left and right legs visibly alternate; contact frames 1 and 5 have opposed legs, passing frames 3 and 7 are narrow. Keep shoes natural, no huge kicking motion. Arms counter-swing opposite the legs. Relaxed normal walking, not running. Small weight-down on 2 and 6. Use the same torso center, scale and ground anchor across cells. Tail remains mostly neutral with only a SMALL continuous sway; no abrupt side changes, no large tail sweep or different tail length. No duplicated poses, extra figures, floor, ground shadow, matte, glow, text or checkerboard. Complete head, ears, tail and shoes stay inside each cell.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\northeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-3e9ab875-a79a-4ca2-a736-7b7692bf1067.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-northeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "northeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-northeast",
+      "prompt": "Production game sprite animation. Image 1 is the exact established character identity; image 2 is ONLY the anatomical walk pose guide. Gray fox client: gray fur, cream muzzle and cream tail tip, charcoal business blazer, light-blue shirt, teal tie, dark plum trousers and black shoes. No hat or bag.\nCreate exactly eight complete full-body sprites, arranged in four equal columns and two equal rows, true transparent alpha, generous padding in every cell. All face NORTHEAST, moving diagonally AWAY and to the RIGHT. Show the BACK and RIGHT side, face and muzzle directed to the upper-right, no front view. All frames use this SAME camera and orientation. Preserve the character design, soft cel shading and dark outline of image 1.\nRead order across the top row then the bottom row MUST match the eight diagram poses: 1 LEFT foot contact forward, right foot trailing; 2 LEFT planted weight-down, right heel lifting; 3 RIGHT passing lifted close under hip; 4 RIGHT knee up and advancing; 5 RIGHT foot contact forward, left foot trailing; 6 RIGHT planted weight-down, left heel lifting; 7 LEFT passing lifted close under hip; 8 LEFT knee up and advancing. Orange guide limbs mean anatomical LEFT; blue means RIGHT. Do not copy diagram colors, labels or background. Left and right legs visibly alternate; contact frames 1 and 5 have opposed legs, passing frames 3 and 7 are narrow. Keep shoes natural, no huge kicking motion. Arms counter-swing opposite the legs. Relaxed normal walking, not running. Small weight-down on 2 and 6. Use the same torso center, scale and ground anchor across cells. Tail remains mostly neutral with only a SMALL continuous sway; no abrupt side changes, no large tail sweep or different tail length. No duplicated poses, extra figures, floor, ground shadow, matte, glow, text or checkerboard. Complete head, ears, tail and shoes stay inside each cell.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\northeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-a8eb332c-c25d-4194-9b7d-4f8224887ef9.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-northeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "northeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-northeast",
+      "prompt": "Production game sprite animation. Image 1 is the exact established character identity; image 2 is ONLY the anatomical walk pose guide. Black cat salesman (the name refers to his cardigan, NOT his fur): black fur and tail, amber eyes, pink nose and inner ears, tan buttoned cardigan over ivory collared shirt, dark-gray trousers and reddish-brown shoes. No hat, tie or bag.\nCreate exactly eight complete full-body sprites, arranged in four equal columns and two equal rows, true transparent alpha, generous padding in every cell. All face NORTHEAST, moving diagonally AWAY and to the RIGHT. Show the BACK and RIGHT side, face and muzzle directed to the upper-right, no front view. All frames use this SAME camera and orientation. Preserve the character design, soft cel shading and dark outline of image 1.\nRead order across the top row then the bottom row MUST match the eight diagram poses: 1 LEFT foot contact forward, right foot trailing; 2 LEFT planted weight-down, right heel lifting; 3 RIGHT passing lifted close under hip; 4 RIGHT knee up and advancing; 5 RIGHT foot contact forward, left foot trailing; 6 RIGHT planted weight-down, left heel lifting; 7 LEFT passing lifted close under hip; 8 LEFT knee up and advancing. Orange guide limbs mean anatomical LEFT; blue means RIGHT. Do not copy diagram colors, labels or background. Left and right legs visibly alternate; contact frames 1 and 5 have opposed legs, passing frames 3 and 7 are narrow. Keep shoes natural, no huge kicking motion. Arms counter-swing opposite the legs. Relaxed normal walking, not running. Small weight-down on 2 and 6. Use the same torso center, scale and ground anchor across cells. Tail remains mostly neutral with only a SMALL continuous sway; no abrupt side changes, no large tail sweep or different tail length. No duplicated poses, extra figures, floor, ground shadow, matte, glow, text or checkerboard. Complete head, ears, tail and shoes stay inside each cell.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\northeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-e0768140-626f-4d63-b2c4-e5e064f4b548.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-northeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "northeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-northeast",
+      "prompt": "Production game sprite animation. Image 1 is the exact established character identity; image 2 is ONLY the anatomical walk pose guide. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, forest-green blazer, white open-collar shirt, tan trousers, brown belt and brown shoes. No hat, tie or bag.\nCreate exactly eight complete full-body sprites, arranged in four equal columns and two equal rows, true transparent alpha, generous padding in every cell. All face NORTHEAST, moving diagonally AWAY and to the RIGHT. Show the BACK and RIGHT side, face and muzzle directed to the upper-right, no front view. All frames use this SAME camera and orientation. Preserve the character design, soft cel shading and dark outline of image 1.\nRead order across the top row then the bottom row MUST match the eight diagram poses: 1 LEFT foot contact forward, right foot trailing; 2 LEFT planted weight-down, right heel lifting; 3 RIGHT passing lifted close under hip; 4 RIGHT knee up and advancing; 5 RIGHT foot contact forward, left foot trailing; 6 RIGHT planted weight-down, left heel lifting; 7 LEFT passing lifted close under hip; 8 LEFT knee up and advancing. Orange guide limbs mean anatomical LEFT; blue means RIGHT. Do not copy diagram colors, labels or background. Left and right legs visibly alternate; contact frames 1 and 5 have opposed legs, passing frames 3 and 7 are narrow. Keep shoes natural, no huge kicking motion. Arms counter-swing opposite the legs. Relaxed normal walking, not running. Small weight-down on 2 and 6. Use the same torso center, scale and ground anchor across cells. Tail remains mostly neutral with only a SMALL continuous sway; no abrupt side changes, no large tail sweep or different tail length. No duplicated poses, extra figures, floor, ground shadow, matte, glow, text or checkerboard. Complete head, ears, tail and shoes stay inside each cell.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\northeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-62b487c9-f9cc-49ca-9e91-25294dd9c951.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-northeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "northeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "walk-northeast",
+      "prompt": "Production game sprite animation. Image 1 is the exact established character identity; image 2 is ONLY the anatomical walk pose guide. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, light-blue button-up shirt and sleeves, navy trousers, brown belt with brass buckle and brown shoes. No jacket, hat, tie or bag.\nCreate exactly eight complete full-body sprites, arranged in four equal columns and two equal rows, true transparent alpha, generous padding in every cell. All face NORTHEAST, moving diagonally AWAY and to the RIGHT. Show the BACK and RIGHT side, face and muzzle directed to the upper-right, no front view. All frames use this SAME camera and orientation. Preserve the character design, soft cel shading and dark outline of image 1.\nRead order across the top row then the bottom row MUST match the eight diagram poses: 1 LEFT foot contact forward, right foot trailing; 2 LEFT planted weight-down, right heel lifting; 3 RIGHT passing lifted close under hip; 4 RIGHT knee up and advancing; 5 RIGHT foot contact forward, left foot trailing; 6 RIGHT planted weight-down, left heel lifting; 7 LEFT passing lifted close under hip; 8 LEFT knee up and advancing. Orange guide limbs mean anatomical LEFT; blue means RIGHT. Do not copy diagram colors, labels or background. Left and right legs visibly alternate; contact frames 1 and 5 have opposed legs, passing frames 3 and 7 are narrow. Keep shoes natural, no huge kicking motion. Arms counter-swing opposite the legs. Relaxed normal walking, not running. Small weight-down on 2 and 6. Use the same torso center, scale and ground anchor across cells. Tail remains mostly neutral with only a SMALL continuous sway; no abrupt side changes, no large tail sweep or different tail length. No duplicated poses, extra figures, floor, ground shadow, matte, glow, text or checkerboard. Complete head, ears, tail and shoes stay inside each cell.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\blue-coaler-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\northeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-f1e16e75-5c12-49e0-9bb7-65966615a42f.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/walk-northeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "northeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-east",
+      "prompt": "Create a finished hand-drawn game WALK sprite sheet for this exact established visitor. Reference 1 defines the character; reference 2 supplies the exact eight walking poses. Red-orange dragon client: amber eyes, ivory muzzle, swept-back head spines, navy business blazer, ivory collared shirt, red tie, charcoal trousers, black shoes and red patterned tail. Absolutely NO wings.\nEight full-body sprites only in a regular FOUR COLUMN, TWO ROW sheet, equal cells, read top row left-to-right then bottom row. True transparent background. All eight face EAST, directly to the RIGHT in an exact SIDE PROFILE; nose points right, back and tail point left. SAME camera, head size, costume and body proportions in every cell.\nClosely follow the diagram's pose geometry and eight-phase order: 1 LEFT heel contacting ahead and RIGHT toes trailing behind (wide stride), 2 LEFT sole bears weight with lowered hip and RIGHT heel beginning to lift (narrower stride), 3 RIGHT bent foot lifted and passing under the hip (feet close together), 4 RIGHT knee up in front with LEFT support leg behind, 5 RIGHT heel contacting ahead and LEFT toes trailing behind (opposite wide stride), 6 RIGHT sole bears weight, LEFT heel lifting, 7 LEFT bent foot lifted passing under hip, 8 LEFT knee up in front with RIGHT support leg behind. Orange guide means anatomical LEFT limb and blue means RIGHT, but keep finished limbs the original character's colors. The NEAR and FAR legs must exchange roles between rows; do not repeat the first four poses in the bottom row. Show the arm counter-swing, opposite the advancing leg. Keep natural feet, relaxed walking, no running or kicks. The passing poses are NARROW and lifted, contact poses are the widest; this is essential.\nMatch reference 1's clean outlined soft cel-shaded game style, complete ears, tail and shoes. Fixed cell centers and common ground baseline, generous padding. Tail stays near its neutral reference silhouette with only a small continuous sway. No sharp tail-side flip, no changes of tail length. No guide colors, labels, extra sprites, floor, shadows, matte, glow, text or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\east.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-1fdfa036-3f7f-4c14-8634-5d18a6b6f86f.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-east-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "east"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-east",
+      "prompt": "Create a finished hand-drawn game WALK sprite sheet for this exact established visitor. Reference 1 defines the character; reference 2 supplies the exact eight walking poses. Gray fox client: gray fur, cream muzzle and cream tail tip, charcoal business blazer, light-blue shirt, teal tie, dark plum trousers and black shoes. No hat or bag.\nEight full-body sprites only in a regular FOUR COLUMN, TWO ROW sheet, equal cells, read top row left-to-right then bottom row. True transparent background. All eight face EAST, directly to the RIGHT in an exact SIDE PROFILE; nose points right, back and tail point left. SAME camera, head size, costume and body proportions in every cell.\nClosely follow the diagram's pose geometry and eight-phase order: 1 LEFT heel contacting ahead and RIGHT toes trailing behind (wide stride), 2 LEFT sole bears weight with lowered hip and RIGHT heel beginning to lift (narrower stride), 3 RIGHT bent foot lifted and passing under the hip (feet close together), 4 RIGHT knee up in front with LEFT support leg behind, 5 RIGHT heel contacting ahead and LEFT toes trailing behind (opposite wide stride), 6 RIGHT sole bears weight, LEFT heel lifting, 7 LEFT bent foot lifted passing under hip, 8 LEFT knee up in front with RIGHT support leg behind. Orange guide means anatomical LEFT limb and blue means RIGHT, but keep finished limbs the original character's colors. The NEAR and FAR legs must exchange roles between rows; do not repeat the first four poses in the bottom row. Show the arm counter-swing, opposite the advancing leg. Keep natural feet, relaxed walking, no running or kicks. The passing poses are NARROW and lifted, contact poses are the widest; this is essential.\nMatch reference 1's clean outlined soft cel-shaded game style, complete ears, tail and shoes. Fixed cell centers and common ground baseline, generous padding. Tail stays near its neutral reference silhouette with only a small continuous sway. No sharp tail-side flip, no changes of tail length. No guide colors, labels, extra sprites, floor, shadows, matte, glow, text or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\east.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-10dcbcdd-8c5c-4c86-a23f-27e38d67193a.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-east-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "east"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-east",
+      "prompt": "Create a finished hand-drawn game WALK sprite sheet for this exact established visitor. Reference 1 defines the character; reference 2 supplies the exact eight walking poses. Black cat salesman (the name refers to his cardigan, NOT his fur): black fur and tail, amber eyes, pink nose and inner ears, tan buttoned cardigan over ivory collared shirt, dark-gray trousers and reddish-brown shoes. No hat, tie or bag.\nEight full-body sprites only in a regular FOUR COLUMN, TWO ROW sheet, equal cells, read top row left-to-right then bottom row. True transparent background. All eight face EAST, directly to the RIGHT in an exact SIDE PROFILE; nose points right, back and tail point left. SAME camera, head size, costume and body proportions in every cell.\nClosely follow the diagram's pose geometry and eight-phase order: 1 LEFT heel contacting ahead and RIGHT toes trailing behind (wide stride), 2 LEFT sole bears weight with lowered hip and RIGHT heel beginning to lift (narrower stride), 3 RIGHT bent foot lifted and passing under the hip (feet close together), 4 RIGHT knee up in front with LEFT support leg behind, 5 RIGHT heel contacting ahead and LEFT toes trailing behind (opposite wide stride), 6 RIGHT sole bears weight, LEFT heel lifting, 7 LEFT bent foot lifted passing under hip, 8 LEFT knee up in front with RIGHT support leg behind. Orange guide means anatomical LEFT limb and blue means RIGHT, but keep finished limbs the original character's colors. The NEAR and FAR legs must exchange roles between rows; do not repeat the first four poses in the bottom row. Show the arm counter-swing, opposite the advancing leg. Keep natural feet, relaxed walking, no running or kicks. The passing poses are NARROW and lifted, contact poses are the widest; this is essential.\nMatch reference 1's clean outlined soft cel-shaded game style, complete ears, tail and shoes. Fixed cell centers and common ground baseline, generous padding. Tail stays near its neutral reference silhouette with only a small continuous sway. No sharp tail-side flip, no changes of tail length. No guide colors, labels, extra sprites, floor, shadows, matte, glow, text or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\east.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-ba9b272c-caf0-475c-8264-d5ff3ad3410a.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-east-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "east"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-east",
+      "prompt": "Create a finished hand-drawn game WALK sprite sheet for this exact established visitor. Reference 1 defines the character; reference 2 supplies the exact eight walking poses. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, forest-green blazer, white open-collar shirt, tan trousers, brown belt and brown shoes. No hat, tie or bag.\nEight full-body sprites only in a regular FOUR COLUMN, TWO ROW sheet, equal cells, read top row left-to-right then bottom row. True transparent background. All eight face EAST, directly to the RIGHT in an exact SIDE PROFILE; nose points right, back and tail point left. SAME camera, head size, costume and body proportions in every cell.\nClosely follow the diagram's pose geometry and eight-phase order: 1 LEFT heel contacting ahead and RIGHT toes trailing behind (wide stride), 2 LEFT sole bears weight with lowered hip and RIGHT heel beginning to lift (narrower stride), 3 RIGHT bent foot lifted and passing under the hip (feet close together), 4 RIGHT knee up in front with LEFT support leg behind, 5 RIGHT heel contacting ahead and LEFT toes trailing behind (opposite wide stride), 6 RIGHT sole bears weight, LEFT heel lifting, 7 LEFT bent foot lifted passing under hip, 8 LEFT knee up in front with RIGHT support leg behind. Orange guide means anatomical LEFT limb and blue means RIGHT, but keep finished limbs the original character's colors. The NEAR and FAR legs must exchange roles between rows; do not repeat the first four poses in the bottom row. Show the arm counter-swing, opposite the advancing leg. Keep natural feet, relaxed walking, no running or kicks. The passing poses are NARROW and lifted, contact poses are the widest; this is essential.\nMatch reference 1's clean outlined soft cel-shaded game style, complete ears, tail and shoes. Fixed cell centers and common ground baseline, generous padding. Tail stays near its neutral reference silhouette with only a small continuous sway. No sharp tail-side flip, no changes of tail length. No guide colors, labels, extra sprites, floor, shadows, matte, glow, text or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\east.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-2cfd4d9c-8052-4f2c-a260-bea07a40d8f2.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-east-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "east"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "walk-east",
+      "prompt": "Create a finished hand-drawn game WALK sprite sheet for this exact established visitor. Reference 1 defines the character; reference 2 supplies the exact eight walking poses. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, light-blue button-up shirt and sleeves, navy trousers, brown belt with brass buckle and brown shoes. No jacket, hat, tie or bag.\nEight full-body sprites only in a regular FOUR COLUMN, TWO ROW sheet, equal cells, read top row left-to-right then bottom row. True transparent background. All eight face EAST, directly to the RIGHT in an exact SIDE PROFILE; nose points right, back and tail point left. SAME camera, head size, costume and body proportions in every cell.\nClosely follow the diagram's pose geometry and eight-phase order: 1 LEFT heel contacting ahead and RIGHT toes trailing behind (wide stride), 2 LEFT sole bears weight with lowered hip and RIGHT heel beginning to lift (narrower stride), 3 RIGHT bent foot lifted and passing under the hip (feet close together), 4 RIGHT knee up in front with LEFT support leg behind, 5 RIGHT heel contacting ahead and LEFT toes trailing behind (opposite wide stride), 6 RIGHT sole bears weight, LEFT heel lifting, 7 LEFT bent foot lifted passing under hip, 8 LEFT knee up in front with RIGHT support leg behind. Orange guide means anatomical LEFT limb and blue means RIGHT, but keep finished limbs the original character's colors. The NEAR and FAR legs must exchange roles between rows; do not repeat the first four poses in the bottom row. Show the arm counter-swing, opposite the advancing leg. Keep natural feet, relaxed walking, no running or kicks. The passing poses are NARROW and lifted, contact poses are the widest; this is essential.\nMatch reference 1's clean outlined soft cel-shaded game style, complete ears, tail and shoes. Fixed cell centers and common ground baseline, generous padding. Tail stays near its neutral reference silhouette with only a small continuous sway. No sharp tail-side flip, no changes of tail length. No guide colors, labels, extra sprites, floor, shadows, matte, glow, text or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\blue-coaler-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\east.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-01e97d9c-0ebc-4943-b8e5-9716ff05e715.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/walk-east-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "east"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-southeast",
+      "prompt": "Production sprite animation using reference 1's established visitor design and reference 2's eight walking poses. Red-orange dragon client: amber eyes, ivory muzzle, swept-back head spines, navy business blazer, ivory collared shirt, red tie, charcoal trousers, black shoes and red patterned tail. Absolutely NO wings.\nEight complete figures only, four equal columns by two equal rows on genuine transparent alpha. All face SOUTHEAST: walk diagonally TOWARD the viewer AND toward the RIGHT of the image. Show FRONT and RIGHT side, chest and face visible, muzzle points diagonally DOWN-RIGHT. Absolutely not left-facing, not a back view. Same three-quarter front-right camera in all eight cells. Reference 1 may include other directions; select the front-right design, preserve its identity and clothing.\nFollow the pose diagram, reading across the top then bottom row: 1 anatomical LEFT foot contacting forward and RIGHT trailing behind; 2 LEFT weight down, RIGHT heel lifting; 3 RIGHT foot passing lifted under hips; 4 RIGHT knee raised advancing; 5 RIGHT foot contacting forward and LEFT trailing behind; 6 RIGHT weight down, LEFT heel lifting; 7 LEFT passing lifted under hips; 8 LEFT knee raised advancing. Orange in the diagram is anatomical LEFT and blue RIGHT; diagram colors are not character art. Exchange the near and far leg roles in the second row. Opposite arm counter-swing. Only contact frames are the widest stride; passing frames have feet close under the body. Normal relaxed walking, no runs, hops or kicks. Natural shoes and subtle body weight-down. Tail stays near neutral, small continuous sway without abrupt flips or changing length.\nIdentical scale, torso center, baseline, palette, line quality and head proportions in every cell. Match the clean outlined, soft cel-shaded game style. Keep full ears, tail and shoes with generous cell-edge padding. No guide colors, diagrams, labels, extra figures, ground, shadows, scenery, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-042ee715-0f5c-435f-a756-9eaafa39343d.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-southeast",
+      "prompt": "Production sprite animation using reference 1's established visitor design and reference 2's eight walking poses. Gray fox client: gray fur, cream muzzle and cream tail tip, charcoal business blazer, light-blue shirt, teal tie, dark plum trousers and black shoes. No hat or bag.\nEight complete figures only, four equal columns by two equal rows on genuine transparent alpha. All face SOUTHEAST: walk diagonally TOWARD the viewer AND toward the RIGHT of the image. Show FRONT and RIGHT side, chest and face visible, muzzle points diagonally DOWN-RIGHT. Absolutely not left-facing, not a back view. Same three-quarter front-right camera in all eight cells. Reference 1 may include other directions; select the front-right design, preserve its identity and clothing.\nFollow the pose diagram, reading across the top then bottom row: 1 anatomical LEFT foot contacting forward and RIGHT trailing behind; 2 LEFT weight down, RIGHT heel lifting; 3 RIGHT foot passing lifted under hips; 4 RIGHT knee raised advancing; 5 RIGHT foot contacting forward and LEFT trailing behind; 6 RIGHT weight down, LEFT heel lifting; 7 LEFT passing lifted under hips; 8 LEFT knee raised advancing. Orange in the diagram is anatomical LEFT and blue RIGHT; diagram colors are not character art. Exchange the near and far leg roles in the second row. Opposite arm counter-swing. Only contact frames are the widest stride; passing frames have feet close under the body. Normal relaxed walking, no runs, hops or kicks. Natural shoes and subtle body weight-down. Tail stays near neutral, small continuous sway without abrupt flips or changing length.\nIdentical scale, torso center, baseline, palette, line quality and head proportions in every cell. Match the clean outlined, soft cel-shaded game style. Keep full ears, tail and shoes with generous cell-edge padding. No guide colors, diagrams, labels, extra figures, ground, shadows, scenery, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-91a6022c-276f-4803-91f2-eb678bbb287a.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-southeast",
+      "prompt": "Production sprite animation using reference 1's established visitor design and reference 2's eight walking poses. Black cat salesman (the name refers to his cardigan, NOT his fur): black fur and tail, amber eyes, pink nose and inner ears, tan buttoned cardigan over ivory collared shirt, dark-gray trousers and reddish-brown shoes. No hat, tie or bag.\nEight complete figures only, four equal columns by two equal rows on genuine transparent alpha. All face SOUTHEAST: walk diagonally TOWARD the viewer AND toward the RIGHT of the image. Show FRONT and RIGHT side, chest and face visible, muzzle points diagonally DOWN-RIGHT. Absolutely not left-facing, not a back view. Same three-quarter front-right camera in all eight cells. Reference 1 may include other directions; select the front-right design, preserve its identity and clothing.\nFollow the pose diagram, reading across the top then bottom row: 1 anatomical LEFT foot contacting forward and RIGHT trailing behind; 2 LEFT weight down, RIGHT heel lifting; 3 RIGHT foot passing lifted under hips; 4 RIGHT knee raised advancing; 5 RIGHT foot contacting forward and LEFT trailing behind; 6 RIGHT weight down, LEFT heel lifting; 7 LEFT passing lifted under hips; 8 LEFT knee raised advancing. Orange in the diagram is anatomical LEFT and blue RIGHT; diagram colors are not character art. Exchange the near and far leg roles in the second row. Opposite arm counter-swing. Only contact frames are the widest stride; passing frames have feet close under the body. Normal relaxed walking, no runs, hops or kicks. Natural shoes and subtle body weight-down. Tail stays near neutral, small continuous sway without abrupt flips or changing length.\nIdentical scale, torso center, baseline, palette, line quality and head proportions in every cell. Match the clean outlined, soft cel-shaded game style. Keep full ears, tail and shoes with generous cell-edge padding. No guide colors, diagrams, labels, extra figures, ground, shadows, scenery, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-28ac6b0f-ff26-44af-a479-a1b33d18e9b7.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-southeast",
+      "prompt": "Production sprite animation using reference 1's established visitor design and reference 2's eight walking poses. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, forest-green blazer, white open-collar shirt, tan trousers, brown belt and brown shoes. No hat, tie or bag.\nEight complete figures only, four equal columns by two equal rows on genuine transparent alpha. All face SOUTHEAST: walk diagonally TOWARD the viewer AND toward the RIGHT of the image. Show FRONT and RIGHT side, chest and face visible, muzzle points diagonally DOWN-RIGHT. Absolutely not left-facing, not a back view. Same three-quarter front-right camera in all eight cells. Reference 1 may include other directions; select the front-right design, preserve its identity and clothing.\nFollow the pose diagram, reading across the top then bottom row: 1 anatomical LEFT foot contacting forward and RIGHT trailing behind; 2 LEFT weight down, RIGHT heel lifting; 3 RIGHT foot passing lifted under hips; 4 RIGHT knee raised advancing; 5 RIGHT foot contacting forward and LEFT trailing behind; 6 RIGHT weight down, LEFT heel lifting; 7 LEFT passing lifted under hips; 8 LEFT knee raised advancing. Orange in the diagram is anatomical LEFT and blue RIGHT; diagram colors are not character art. Exchange the near and far leg roles in the second row. Opposite arm counter-swing. Only contact frames are the widest stride; passing frames have feet close under the body. Normal relaxed walking, no runs, hops or kicks. Natural shoes and subtle body weight-down. Tail stays near neutral, small continuous sway without abrupt flips or changing length.\nIdentical scale, torso center, baseline, palette, line quality and head proportions in every cell. Match the clean outlined, soft cel-shaded game style. Keep full ears, tail and shoes with generous cell-edge padding. No guide colors, diagrams, labels, extra figures, ground, shadows, scenery, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-e83da717-e138-4ab0-b435-aee33e3cf45f.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "walk-southeast",
+      "prompt": "Production sprite animation using reference 1's established visitor design and reference 2's eight walking poses. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, light-blue button-up shirt and sleeves, navy trousers, brown belt with brass buckle and brown shoes. No jacket, hat, tie or bag.\nEight complete figures only, four equal columns by two equal rows on genuine transparent alpha. All face SOUTHEAST: walk diagonally TOWARD the viewer AND toward the RIGHT of the image. Show FRONT and RIGHT side, chest and face visible, muzzle points diagonally DOWN-RIGHT. Absolutely not left-facing, not a back view. Same three-quarter front-right camera in all eight cells. Reference 1 may include other directions; select the front-right design, preserve its identity and clothing.\nFollow the pose diagram, reading across the top then bottom row: 1 anatomical LEFT foot contacting forward and RIGHT trailing behind; 2 LEFT weight down, RIGHT heel lifting; 3 RIGHT foot passing lifted under hips; 4 RIGHT knee raised advancing; 5 RIGHT foot contacting forward and LEFT trailing behind; 6 RIGHT weight down, LEFT heel lifting; 7 LEFT passing lifted under hips; 8 LEFT knee raised advancing. Orange in the diagram is anatomical LEFT and blue RIGHT; diagram colors are not character art. Exchange the near and far leg roles in the second row. Opposite arm counter-swing. Only contact frames are the widest stride; passing frames have feet close under the body. Normal relaxed walking, no runs, hops or kicks. Natural shoes and subtle body weight-down. Tail stays near neutral, small continuous sway without abrupt flips or changing length.\nIdentical scale, torso center, baseline, palette, line quality and head proportions in every cell. Match the clean outlined, soft cel-shaded game style. Keep full ears, tail and shoes with generous cell-edge padding. No guide colors, diagrams, labels, extra figures, ground, shadows, scenery, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\blue-coaler-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-d1166f6e-5a80-44c3-bb00-c066b842860c.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-south",
+      "prompt": "Create a full WALK animation sheet for the visitor in reference 1. Reference 2 demonstrates the eight poses and layout; reference 3 is the precise limb diagram. Use only reference 1's character design, NOT the orange cat's hat/vest. Red-orange dragon client: amber eyes, ivory muzzle, swept-back head spines, navy business blazer, ivory collared shirt, red tie, charcoal trousers, black shoes and red patterned tail. Absolutely NO wings.\nExactly eight full-body sprites on a true transparent background, evenly arranged FOUR columns and TWO rows. All face SOUTH directly toward the viewer, straight full FRONT view, eyes looking at camera, no side view. Same design, head size, body proportions and camera every cell.\nThe character's anatomical LEFT leg attaches to the hip on the VIEWER'S RIGHT. The anatomical RIGHT leg attaches to the hip on the VIEWER'S LEFT. Keep this consistent. IMPORTANT: the leading/raised shoe swaps to the opposite screen side in the bottom row.\nTOP ROW: 1 LEFT foot (viewer RIGHT) contacting in front, RIGHT (viewer LEFT) trailing; 2 LEFT planted bearing weight with hip slightly down, RIGHT heel lifting; 3 RIGHT foot (viewer LEFT) bent and raised passing under the hip, LEFT support planted; 4 RIGHT knee (viewer LEFT) up in front, LEFT support planted.\nBOTTOM ROW: 5 RIGHT foot (viewer LEFT) contacting in front, LEFT (viewer RIGHT) trailing; 6 RIGHT planted, hip slightly down, LEFT heel lifting; 7 LEFT foot (viewer RIGHT) raised passing, RIGHT support planted; 8 LEFT knee (viewer RIGHT) up in front, RIGHT support planted.\nLeft and right arms counter-swing against the legs. Passing poses are narrow, contact poses widest; normal relaxed walking, no running or kicks. Tail maintains one neutral position behind the body with small continuous tip flex, no sudden side swaps. Use reference 1's hand-drawn outlined softly cel-shaded style, unchanged clothes/palette. Same cell centers, scale and shared ground baseline, generous padding. No guide colors, labels, diagram lines, extra figures, floor, shadow, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\Characters\\BusinessCat\\business-cat-walk-south-8pose-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\south.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-5cb63809-16be-4cc1-954f-27a254d3ebaf.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-south-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "south"
+      },
+      "frame_order": [
+        4,
+        1,
+        2,
+        3,
+        0,
+        5,
+        6,
+        7
+      ],
+      "sequence_note": "Reviewed front-view contact poses are authored in opposite cells; swap cells 1 and 5 to match anatomical gait phase.",
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-south",
+      "prompt": "Create a full WALK animation sheet for the visitor in reference 1. Reference 2 demonstrates the eight poses and layout; reference 3 is the precise limb diagram. Use only reference 1's character design, NOT the orange cat's hat/vest. Gray fox client: gray fur, cream muzzle and cream tail tip, charcoal business blazer, light-blue shirt, teal tie, dark plum trousers and black shoes. No hat or bag.\nExactly eight full-body sprites on a true transparent background, evenly arranged FOUR columns and TWO rows. All face SOUTH directly toward the viewer, straight full FRONT view, eyes looking at camera, no side view. Same design, head size, body proportions and camera every cell.\nThe character's anatomical LEFT leg attaches to the hip on the VIEWER'S RIGHT. The anatomical RIGHT leg attaches to the hip on the VIEWER'S LEFT. Keep this consistent. IMPORTANT: the leading/raised shoe swaps to the opposite screen side in the bottom row.\nTOP ROW: 1 LEFT foot (viewer RIGHT) contacting in front, RIGHT (viewer LEFT) trailing; 2 LEFT planted bearing weight with hip slightly down, RIGHT heel lifting; 3 RIGHT foot (viewer LEFT) bent and raised passing under the hip, LEFT support planted; 4 RIGHT knee (viewer LEFT) up in front, LEFT support planted.\nBOTTOM ROW: 5 RIGHT foot (viewer LEFT) contacting in front, LEFT (viewer RIGHT) trailing; 6 RIGHT planted, hip slightly down, LEFT heel lifting; 7 LEFT foot (viewer RIGHT) raised passing, RIGHT support planted; 8 LEFT knee (viewer RIGHT) up in front, RIGHT support planted.\nLeft and right arms counter-swing against the legs. Passing poses are narrow, contact poses widest; normal relaxed walking, no running or kicks. Tail maintains one neutral position behind the body with small continuous tip flex, no sudden side swaps. Use reference 1's hand-drawn outlined softly cel-shaded style, unchanged clothes/palette. Same cell centers, scale and shared ground baseline, generous padding. No guide colors, labels, diagram lines, extra figures, floor, shadow, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\Characters\\BusinessCat\\business-cat-walk-south-8pose-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\south.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-bbfefbb4-c2eb-4dad-b7dd-c38777b424ad.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-south-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "south"
+      },
+      "frame_order": [
+        0,
+        1,
+        2,
+        7,
+        4,
+        5,
+        6,
+        3
+      ],
+      "sequence_note": "Reviewed front-view knee-up poses are authored in opposite cells; swap cells 4 and 8 to match anatomical gait phase.",
+      "review_status": "selected"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-south",
+      "prompt": "Create a full WALK animation sheet for the visitor in reference 1. Reference 2 demonstrates the eight poses and layout; reference 3 is the precise limb diagram. Use only reference 1's character design, NOT the orange cat's hat/vest. Black cat salesman (the name refers to his cardigan, NOT his fur): black fur and tail, amber eyes, pink nose and inner ears, tan buttoned cardigan over ivory collared shirt, dark-gray trousers and reddish-brown shoes. No hat, tie or bag.\nExactly eight full-body sprites on a true transparent background, evenly arranged FOUR columns and TWO rows. All face SOUTH directly toward the viewer, straight full FRONT view, eyes looking at camera, no side view. Same design, head size, body proportions and camera every cell.\nThe character's anatomical LEFT leg attaches to the hip on the VIEWER'S RIGHT. The anatomical RIGHT leg attaches to the hip on the VIEWER'S LEFT. Keep this consistent. IMPORTANT: the leading/raised shoe swaps to the opposite screen side in the bottom row.\nTOP ROW: 1 LEFT foot (viewer RIGHT) contacting in front, RIGHT (viewer LEFT) trailing; 2 LEFT planted bearing weight with hip slightly down, RIGHT heel lifting; 3 RIGHT foot (viewer LEFT) bent and raised passing under the hip, LEFT support planted; 4 RIGHT knee (viewer LEFT) up in front, LEFT support planted.\nBOTTOM ROW: 5 RIGHT foot (viewer LEFT) contacting in front, LEFT (viewer RIGHT) trailing; 6 RIGHT planted, hip slightly down, LEFT heel lifting; 7 LEFT foot (viewer RIGHT) raised passing, RIGHT support planted; 8 LEFT knee (viewer RIGHT) up in front, RIGHT support planted.\nLeft and right arms counter-swing against the legs. Passing poses are narrow, contact poses widest; normal relaxed walking, no running or kicks. Tail maintains one neutral position behind the body with small continuous tip flex, no sudden side swaps. Use reference 1's hand-drawn outlined softly cel-shaded style, unchanged clothes/palette. Same cell centers, scale and shared ground baseline, generous padding. No guide colors, labels, diagram lines, extra figures, floor, shadow, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\Characters\\BusinessCat\\business-cat-walk-south-8pose-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\south.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-c025bbe6-bb53-4b4b-8017-43529c26966c.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-south-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "south"
+      },
+      "frame_order": [
+        0,
+        1,
+        2,
+        7,
+        4,
+        5,
+        6,
+        3
+      ],
+      "sequence_note": "Reviewed front-view knee-up poses are authored in opposite cells; swap cells 4 and 8 to match anatomical gait phase.",
+      "review_status": "selected"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-south",
+      "prompt": "Create a full WALK animation sheet for the visitor in reference 1. Reference 2 demonstrates the eight poses and layout; reference 3 is the precise limb diagram. Use only reference 1's character design, NOT the orange cat's hat/vest. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, forest-green blazer, white open-collar shirt, tan trousers, brown belt and brown shoes. No hat, tie or bag.\nExactly eight full-body sprites on a true transparent background, evenly arranged FOUR columns and TWO rows. All face SOUTH directly toward the viewer, straight full FRONT view, eyes looking at camera, no side view. Same design, head size, body proportions and camera every cell.\nThe character's anatomical LEFT leg attaches to the hip on the VIEWER'S RIGHT. The anatomical RIGHT leg attaches to the hip on the VIEWER'S LEFT. Keep this consistent. IMPORTANT: the leading/raised shoe swaps to the opposite screen side in the bottom row.\nTOP ROW: 1 LEFT foot (viewer RIGHT) contacting in front, RIGHT (viewer LEFT) trailing; 2 LEFT planted bearing weight with hip slightly down, RIGHT heel lifting; 3 RIGHT foot (viewer LEFT) bent and raised passing under the hip, LEFT support planted; 4 RIGHT knee (viewer LEFT) up in front, LEFT support planted.\nBOTTOM ROW: 5 RIGHT foot (viewer LEFT) contacting in front, LEFT (viewer RIGHT) trailing; 6 RIGHT planted, hip slightly down, LEFT heel lifting; 7 LEFT foot (viewer RIGHT) raised passing, RIGHT support planted; 8 LEFT knee (viewer RIGHT) up in front, RIGHT support planted.\nLeft and right arms counter-swing against the legs. Passing poses are narrow, contact poses widest; normal relaxed walking, no running or kicks. Tail maintains one neutral position behind the body with small continuous tip flex, no sudden side swaps. Use reference 1's hand-drawn outlined softly cel-shaded style, unchanged clothes/palette. Same cell centers, scale and shared ground baseline, generous padding. No guide colors, labels, diagram lines, extra figures, floor, shadow, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\Characters\\BusinessCat\\business-cat-walk-south-8pose-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\south.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-e266e1fc-cb0e-47aa-813a-1b9ec0cb7904.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-south-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "south"
+      },
+      "frame_order": [
+        0,
+        1,
+        2,
+        7,
+        4,
+        5,
+        6,
+        3
+      ],
+      "sequence_note": "Reviewed front-view knee-up poses are authored in opposite cells; swap cells 4 and 8 to match anatomical gait phase.",
+      "review_status": "selected"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "walk-south",
+      "prompt": "Create a full WALK animation sheet for the visitor in reference 1. Reference 2 demonstrates the eight poses and layout; reference 3 is the precise limb diagram. Use only reference 1's character design, NOT the orange cat's hat/vest. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, light-blue button-up shirt and sleeves, navy trousers, brown belt with brass buckle and brown shoes. No jacket, hat, tie or bag.\nExactly eight full-body sprites on a true transparent background, evenly arranged FOUR columns and TWO rows. All face SOUTH directly toward the viewer, straight full FRONT view, eyes looking at camera, no side view. Same design, head size, body proportions and camera every cell.\nThe character's anatomical LEFT leg attaches to the hip on the VIEWER'S RIGHT. The anatomical RIGHT leg attaches to the hip on the VIEWER'S LEFT. Keep this consistent. IMPORTANT: the leading/raised shoe swaps to the opposite screen side in the bottom row.\nTOP ROW: 1 LEFT foot (viewer RIGHT) contacting in front, RIGHT (viewer LEFT) trailing; 2 LEFT planted bearing weight with hip slightly down, RIGHT heel lifting; 3 RIGHT foot (viewer LEFT) bent and raised passing under the hip, LEFT support planted; 4 RIGHT knee (viewer LEFT) up in front, LEFT support planted.\nBOTTOM ROW: 5 RIGHT foot (viewer LEFT) contacting in front, LEFT (viewer RIGHT) trailing; 6 RIGHT planted, hip slightly down, LEFT heel lifting; 7 LEFT foot (viewer RIGHT) raised passing, RIGHT support planted; 8 LEFT knee (viewer RIGHT) up in front, RIGHT support planted.\nLeft and right arms counter-swing against the legs. Passing poses are narrow, contact poses widest; normal relaxed walking, no running or kicks. Tail maintains one neutral position behind the body with small continuous tip flex, no sudden side swaps. Use reference 1's hand-drawn outlined softly cel-shaded style, unchanged clothes/palette. Same cell centers, scale and shared ground baseline, generous padding. No guide colors, labels, diagram lines, extra figures, floor, shadow, haze, glow, matte or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\blue-coaler-cat\\idle-directions-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\Characters\\BusinessCat\\business-cat-walk-south-8pose-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\south.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-dbd5fa26-53ad-4252-aa3f-5edd3e6812af.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/walk-south-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "south"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-southeast",
+      "prompt": "Edit the supplied eight-frame walking sprite sheet to CORRECT THE WALK CYCLE. Preserve this exact character, palette, outfit, head, art style, southeast front-right view, transparent background, four-column/two-row grid, cell centers and frame scale. Reference 2 shows the exact required limb poses. Do NOT repeat the top row's same leading leg in the bottom row.\nCritical anatomy: anatomical RIGHT leg comes out of the character's RIGHT hip, on the VIEWER'S LEFT / near side in this front-right camera. Anatomical LEFT leg comes out of the VIEWER'S RIGHT / far hip. The two hips and knees must stay distinct, no impossible crossing. Do not confuse a leg changing screen position with changing which hip it attaches to.\nTOP row frame 1: LEFT/far leg extended forward contacting, RIGHT/near leg behind; 2: LEFT/far leg planted with lowered hips, RIGHT/near heel lifting; 3: RIGHT/near foot passing lifted beneath pelvis while LEFT/far leg supports; 4: RIGHT/near knee and foot clearly lifted in FRONT, LEFT/far straight support leg behind.\nBOTTOM row frame 5: RIGHT/near leg extended forward contacting, LEFT/far leg behind. This MUST be the opposite leg from frame 1. 6: RIGHT/near planted bearing weight, LEFT/far heel lifting. 7: LEFT/far foot passing lifted beneath pelvis, RIGHT/near straight support. 8: LEFT/far knee raised in FRONT, RIGHT/near straight support behind. Frame 8 must show the opposite lifted knee from frame 4.\nRedraw incorrect legs and shoe attachments as needed; match the second reference's eight poses, not the current flawed leg shapes. Arms counter-swing opposite the legs, with opposite arm ahead between frames 1 and 5. Tail stays near one neutral position behind character, small smooth sway only. No tail side swaps. Same body/head scale and foot-ground anchor across all frames, with subtle down on frames 2/6. Relaxed normal walk, no kick, hop or run. Do not add labels, guide colors, floor, shadows, matte, glow or checkerboard. Exactly eight complete figures with all ears, shoes and tail safely padded.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\walk-southeast-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-212611b0-e915-4af3-95c1-1a294938ef18.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-southeast-v2.png",
+      "supersedes": "assets/source/visitor-motion-v1/business-fox/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-southeast",
+      "prompt": "Edit the supplied eight-frame walking sprite sheet to CORRECT THE WALK CYCLE. Preserve this exact character, palette, outfit, head, art style, southeast front-right view, transparent background, four-column/two-row grid, cell centers and frame scale. Reference 2 shows the exact required limb poses. Do NOT repeat the top row's same leading leg in the bottom row.\nCritical anatomy: anatomical RIGHT leg comes out of the character's RIGHT hip, on the VIEWER'S LEFT / near side in this front-right camera. Anatomical LEFT leg comes out of the VIEWER'S RIGHT / far hip. The two hips and knees must stay distinct, no impossible crossing. Do not confuse a leg changing screen position with changing which hip it attaches to.\nTOP row frame 1: LEFT/far leg extended forward contacting, RIGHT/near leg behind; 2: LEFT/far leg planted with lowered hips, RIGHT/near heel lifting; 3: RIGHT/near foot passing lifted beneath pelvis while LEFT/far leg supports; 4: RIGHT/near knee and foot clearly lifted in FRONT, LEFT/far straight support leg behind.\nBOTTOM row frame 5: RIGHT/near leg extended forward contacting, LEFT/far leg behind. This MUST be the opposite leg from frame 1. 6: RIGHT/near planted bearing weight, LEFT/far heel lifting. 7: LEFT/far foot passing lifted beneath pelvis, RIGHT/near straight support. 8: LEFT/far knee raised in FRONT, RIGHT/near straight support behind. Frame 8 must show the opposite lifted knee from frame 4.\nRedraw incorrect legs and shoe attachments as needed; match the second reference's eight poses, not the current flawed leg shapes. Arms counter-swing opposite the legs, with opposite arm ahead between frames 1 and 5. Tail stays near one neutral position behind character, small smooth sway only. No tail side swaps. Same body/head scale and foot-ground anchor across all frames, with subtle down on frames 2/6. Relaxed normal walk, no kick, hop or run. Do not add labels, guide colors, floor, shadows, matte, glow or checkerboard. Exactly eight complete figures with all ears, shoes and tail safely padded.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\walk-southeast-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-acc7fc99-9ceb-4dfe-bc22-023432b2c78c.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-southeast-v2.png",
+      "supersedes": "assets/source/visitor-motion-v1/tan-cat/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-southeast",
+      "prompt": "Edit the supplied eight-frame walking sprite sheet to CORRECT THE WALK CYCLE. Preserve this exact character, palette, outfit, head, art style, southeast front-right view, transparent background, four-column/two-row grid, cell centers and frame scale. Reference 2 shows the exact required limb poses. Do NOT repeat the top row's same leading leg in the bottom row.\nCritical anatomy: anatomical RIGHT leg comes out of the character's RIGHT hip, on the VIEWER'S LEFT / near side in this front-right camera. Anatomical LEFT leg comes out of the VIEWER'S RIGHT / far hip. The two hips and knees must stay distinct, no impossible crossing. Do not confuse a leg changing screen position with changing which hip it attaches to.\nTOP row frame 1: LEFT/far leg extended forward contacting, RIGHT/near leg behind; 2: LEFT/far leg planted with lowered hips, RIGHT/near heel lifting; 3: RIGHT/near foot passing lifted beneath pelvis while LEFT/far leg supports; 4: RIGHT/near knee and foot clearly lifted in FRONT, LEFT/far straight support leg behind.\nBOTTOM row frame 5: RIGHT/near leg extended forward contacting, LEFT/far leg behind. This MUST be the opposite leg from frame 1. 6: RIGHT/near planted bearing weight, LEFT/far heel lifting. 7: LEFT/far foot passing lifted beneath pelvis, RIGHT/near straight support. 8: LEFT/far knee raised in FRONT, RIGHT/near straight support behind. Frame 8 must show the opposite lifted knee from frame 4.\nRedraw incorrect legs and shoe attachments as needed; match the second reference's eight poses, not the current flawed leg shapes. Arms counter-swing opposite the legs, with opposite arm ahead between frames 1 and 5. Tail stays near one neutral position behind character, small smooth sway only. No tail side swaps. Same body/head scale and foot-ground anchor across all frames, with subtle down on frames 2/6. Relaxed normal walk, no kick, hop or run. Do not add labels, guide colors, floor, shadows, matte, glow or checkerboard. Exactly eight complete figures with all ears, shoes and tail safely padded.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\walk-southeast-v1.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-fd8dfd74-6061-4316-a38c-ea42c9d833ef.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-southeast-v2.png",
+      "supersedes": "assets/source/visitor-motion-v1/green-blazer-cat/walk-southeast-v1.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "superseded"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-southeast",
+      "prompt": "Use reference image 1 as a STRICT pose-and-layout template. Replace each mannequin with the GRAY FOX CLIENT in reference image 2. The first reference defines all eight limb configurations, foot placements, and which leg leads. The second reference defines the fox's appearance ONLY, not the walking poses. Do not copy a generic walk; preserve the exact poses of all eight mannequins.\nOutput a transparent four-column two-row sheet of EIGHT different full-body FOX figures, facing southeast / front three-quarter RIGHT. Gray fur, cream muzzle and cream tail tip, charcoal blazer, light blue shirt, teal tie, dark plum trousers, black shoes. No hat or bag. Same established hand-drawn outlined soft cel-shaded game style, SAME head size and body size in all eight cells, common ground anchor, complete tail/ears/shoes inside the cells. Tail stays curled behind on the viewer's LEFT in every cell with only a small tip sway.\nIn the template, ORANGE is the fox's anatomical LEFT arm and leg; BLUE is the RIGHT arm and leg. Follow where these limbs attach to the hips/shoulders and their bends; replace the diagram colors with normal gray fur, plum trousers and black shoes. First row: left contact, left weight down, right passing, RIGHT knee up. Second row: RIGHT contact, right weight down, left passing, LEFT knee up. Left and right contacts must be visibly different and lead from different hips. Frame 4 lifts the BLUE/template-RIGHT leg; frame 8 lifts the ORANGE/template-LEFT leg. Arms are opposite to the leg, as in the template. Keep moderate natural stride, narrow passing poses, no running or kicking. Transparent only: omit the template's labels, diagrams, colored limbs, background and ground lines. No text, floor, shadows, matte, glow or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png"
+      ],
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-southeast-v3.png",
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-7f0f8b6a-cff9-4086-a6b9-8424667bb0db.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "rejected"
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-southeast",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Red-orange dragon client: amber eyes, ivory muzzle, swept-back head spines, navy business blazer, ivory collared shirt, red tie, charcoal trousers, black shoes and red patterned tail. Absolutely NO wings.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face SOUTHEAST / front three-quarter RIGHT at 45 degrees: BOTH EYES, full front chest, shirt and tie/open collar visible. Face turned slightly to RIGHT while also looking TOWARD camera. Do NOT draw a side profile or back view. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-8f9cca7b-89dc-4c69-b355-0d285f6aff7b.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-southeast-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-fox",
+      "action": "walk-southeast",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Gray fox client: gray fur, cream muzzle and cream tail tip, charcoal business blazer, light-blue shirt, teal tie, dark plum trousers and black shoes. No hat or bag.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face SOUTHEAST / front three-quarter RIGHT at 45 degrees: BOTH EYES, full front chest, shirt and tie/open collar visible. Face turned slightly to RIGHT while also looking TOWARD camera. Do NOT draw a side profile or back view. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-fox\\idle-directions-v2.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-b4ce6ef4-7245-48cf-92fb-13695dba5763.png",
+      "source": "assets/source/visitor-motion-v1/business-fox/walk-southeast-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "tan-cat",
+      "action": "walk-southeast",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Black cat salesman (the name refers to his cardigan, NOT his fur): black fur and tail, amber eyes, pink nose and inner ears, tan buttoned cardigan over ivory collared shirt, dark-gray trousers and reddish-brown shoes. No hat, tie or bag.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face SOUTHEAST / front three-quarter RIGHT at 45 degrees: BOTH EYES, full front chest, shirt and tie/open collar visible. Face turned slightly to RIGHT while also looking TOWARD camera. Do NOT draw a side profile or back view. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\tan-cat\\idle-directions-v1.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-b893b842-208b-4989-99c1-4c81de37f029.png",
+      "source": "assets/source/visitor-motion-v1/tan-cat/walk-southeast-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "green-blazer-cat",
+      "action": "walk-southeast",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, forest-green blazer, white open-collar shirt, tan trousers, brown belt and brown shoes. No hat, tie or bag.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face SOUTHEAST / front three-quarter RIGHT at 45 degrees: BOTH EYES, full front chest, shirt and tie/open collar visible. Face turned slightly to RIGHT while also looking TOWARD camera. Do NOT draw a side profile or back view. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\green-blazer-cat\\idle-directions-v1.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-6ce74dd5-2977-4d85-a121-38ecade17a47.png",
+      "source": "assets/source/visitor-motion-v1/green-blazer-cat/walk-southeast-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "blue-coaler-cat",
+      "action": "walk-southeast",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Black cat salesman: black fur and tail, amber eyes, pink nose and inner ears, light-blue button-up shirt and sleeves, navy trousers, brown belt with brass buckle and brown shoes. No jacket, hat, tie or bag.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face SOUTHEAST / front three-quarter RIGHT at 45 degrees: BOTH EYES, full front chest, shirt and tie/open collar visible. Face turned slightly to RIGHT while also looking TOWARD camera. Do NOT draw a side profile or back view. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\blue-coaler-cat\\idle-directions-v1.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-ae74ec3b-3764-489b-8ff2-3546acba33d1.png",
+      "source": "assets/source/visitor-motion-v1/blue-coaler-cat/walk-southeast-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-cat",
+      "action": "walk-southeast",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Orange tabby client with cream muzzle and tail tip, brown fedora, green vest over ivory shirt, red tie, brown trousers and brown shoes. Preserve the existing slightly pixel-textured hand-drawn style.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face SOUTHEAST / front three-quarter RIGHT at 45 degrees: BOTH EYES, full front chest, shirt and tie/open collar visible. Face turned slightly to RIGHT while also looking TOWARD camera. Do NOT draw a side profile or back view. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\southeast.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\Characters\\BusinessCat\\business-cat-walk-southeast-8pose-v1.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-e45c7207-3c40-47ec-afd2-9dbf79b01a60.png",
+      "source": "assets/source/visitor-motion-v1/business-cat/walk-southeast-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "southeast"
+      },
+      "review_status": "selected",
+      "cleanup_detached_area": 1024,
+      "cleanup_note": "Visual review confirmed fragments from an adjacent source cell at the outer margin; remove detached fragments only, preserving the main connected character."
+    },
+    {
+      "character": "business-dragon",
+      "action": "walk-north",
+      "prompt": "Image 1 is a strict EIGHT-POSE limb template; image 2 is character appearance only. Turn each mannequin into this established visitor, keeping its exact walking bone configuration and which hip each leg attaches to. Red-orange dragon client: amber eyes, ivory muzzle, swept-back head spines, navy business blazer, ivory collared shirt, red tie, charcoal trousers, black shoes and red patterned tail. Absolutely NO wings.\nEight distinct full-body figures, FOUR equal columns and TWO equal rows, true transparent alpha. All face NORTH straight full BACK view, facing away; no eyes or chest visible. This SAME camera and head/body size applies to EVERY cell. Follow image 1's limb geometry but translate its proportions into this character's natural body; do not copy guide colors, text or background.\nEight consecutive walk poses in row-major order: LEFT foot contact forward; LEFT planted weight-down/right heel lifting; RIGHT passing foot lifted beneath hips; RIGHT knee UP and forward; RIGHT foot CONTACT forward; RIGHT planted weight-down/left heel lifting; LEFT passing foot beneath hips; LEFT knee UP and forward. The orange guide limb is anatomical LEFT, blue RIGHT. Preserve hip attachment: in front view anatomical RIGHT begins on VIEWER LEFT and anatomical LEFT begins on VIEWER RIGHT. The first contact and second contact must use opposite legs. The first raised knee and second raised knee must be opposite. Arms counter-swing against the legs.\nTAIL MUST STAY ON ONE CONSISTENT SIDE, softly curled toward the viewer's LEFT, in ALL eight frames. Do not swing or mirror the tail to the other side between rows. A tiny tip flex is sufficient. Preserve tail length, shape, clothing, outline, palette and character identity. Moderate natural walk, no run, kicks or hops. Passing poses have narrow feet close under hip; contact poses widest. Fixed torso centers and common grounded foot baseline, complete ears/head/tail/shoes with ample padding. Clean established hand-drawn outlined game art, soft cel shading. No ground, contact shadows, labels, colored guide limbs, props, matte, glow, haze or checkerboard.",
+      "references": [
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\references\\animation\\visitor-gait\\north.png",
+        "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\The Picture Shop\\assets\\source\\visitor-motion-v1\\business-dragon\\idle-directions-v1.png"
+      ],
+      "generated_source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ba6c-ad0d-70d0-b2f3-83c15e631c52\\exec-75f27277-a363-4bb0-9e1e-a67e231628bd.png",
+      "source": "assets/source/visitor-motion-v1/business-dragon/walk-north-v4.png",
+      "layout": {
+        "columns": 4,
+        "rows": 2,
+        "view": "north"
+      },
+      "review_status": "selected"
+    },
+    {
+      "character": "business-cat",
+      "action": "walk-south",
+      "source": "assets/source/visitor-motion-v1/business-cat/walk-south-approved-legacy.png",
+      "origin": "Existing approved business-cat walk_south atlas, preserved before resequencing",
+      "layout": {
+        "columns": 8,
+        "rows": 1,
+        "view": "south"
+      },
+      "frame_order": [
+        0,
+        1,
+        2,
+        7,
+        4,
+        5,
+        6,
+        3
+      ],
+      "sequence_note": "Swap existing authored knee-up cells 4 and 8 to align anatomical phase with the complete visitor pack.",
+      "review_status": "selected"
+    }
+  ]
+}
