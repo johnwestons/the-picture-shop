@@ -2042,7 +2042,7 @@ local function drawCredit(state, pointerX, pointerY)
             money(quote.downPayment), money(quote.principal), quote.termMonths, quote.apr),
             rect.x + 10, rect.y + 48, 242, "left")
         local hovered = quote.eligible and pointerX and contains(action, pointerX, pointerY)
-        love.graphics.setColor(quote.eligible and (hovered and 0.19 or 0.12),
+        love.graphics.setColor(quote.eligible and (hovered and 0.19 or 0.12) or 0.08,
             quote.eligible and (hovered and 0.55 or 0.42) or 0.15, quote.eligible and 0.29 or 0.16)
         love.graphics.rectangle("fill", action.x, action.y, action.width, action.height, 3, 3)
         love.graphics.setColor(quote.eligible and 0.95 or 0.52, quote.eligible and 0.97 or 0.56,
@@ -2069,7 +2069,7 @@ local function drawCredit(state, pointerX, pointerY)
                 or ("NEXT " .. money(loan.monthlyPayment) .. " payment")
             local ready = loan.installmentsDue > 0 and (state.money or 0) >= loan.amountDue + loan.feesDue
             local hovered = ready and pointerX and contains(action, pointerX, pointerY)
-            love.graphics.setColor(ready and (hovered and 0.19 or 0.12), ready and 0.46 or 0.16,
+            love.graphics.setColor(ready and (hovered and 0.19 or 0.12) or 0.08, ready and 0.46 or 0.16,
                 ready and 0.29 or 0.17)
             love.graphics.rectangle("fill", action.x, action.y, action.width, action.height, 3, 3)
             love.graphics.setColor(ready and 0.95 or 0.52, ready and 0.96 or 0.56, ready and 0.93 or 0.55)

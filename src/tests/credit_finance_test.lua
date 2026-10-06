@@ -32,12 +32,21 @@ function Test.run(context, check)
         and quote.termMonths == 36 and quote.monthlyPayment > 0)
 
     local ui = context.computerScreen
+    local function renderCredit(name, screen, renderState, pointerX, pointerY)
+        love.graphics.push("all")
+        local ok, err = pcall(function()
+            screen.draw(renderState, pointerX, pointerY, context.assets)
+        end)
+        love.graphics.pop()
+        check(name, ok, tostring(err))
+    end
     ui.enter(state)
     local dropdownX, dropdownY = ui.dropdownCenter()
     local dropdown = ui.mousepressed(state, dropdownX, dropdownY, 1)
     local creditX, creditY = ui.tabCenter("credit")
     local opened = ui.mousepressed(state, creditX, creditY, 1)
     local offerX, offerY = ui.creditMachineCenter(1)
+    renderCredit("credit_renders_eligible_offers_with_hover", ui, state, offerX, offerY)
     local terms = ui.mousepressed(state, offerX, offerY, 1)
     local signX, signY = ui.creditSignCenter()
     local signed = ui.mousepressed(state, signX, signY, 1)
@@ -48,6 +57,7 @@ function Test.run(context, check)
         and signed and signed.action == "machine_financed" and loan
         and loan.id == "CR-0001" and #state.machines.deliveries == 1
         and state.money == 50000 - loan.downPayment)
+    renderCredit("credit_renders_loan_before_payment_is_due", ui, state)
 
     local dealerState = State.new()
     local dealerQuote = Credit.machineQuotes(dealerState, "dealer")[3]
@@ -86,6 +96,9 @@ function Test.run(context, check)
     check("unaffordable_online_listing_leads_to_credit_tab", financeShortcut
         and financeShortcut.action == "credit_financing" and shopUi.tab == "credit"
         and shopUi.creditChannel == "online")
+    renderCredit("credit_renders_unaffordable_offers_without_pointer", shopUi, shopState)
+    renderCredit("credit_renders_unaffordable_offers_with_pointer", shopUi, shopState,
+        machineBuyX, machineBuyY)
 
     local order = state.machines.deliveries[1]
     local unloaded, financedMachine = MachineFleet.unloadDelivery(state, order.id, order.machineId, 0)
@@ -113,6 +126,11 @@ function Test.run(context, check)
     local scheduledAmount = loan.monthlyPayment
     local accruedInterest = loan.accruedInterest
     local paidButtonX, paidButtonY = ui.creditLoanPayCenter(1)
+    renderCredit("credit_renders_due_loan_with_payment_hover", ui, state, paidButtonX, paidButtonY)
+    local availableMoney = state.money
+    state.money = 0
+    renderCredit("credit_renders_due_loan_without_payment_funds", ui, state, paidButtonX, paidButtonY)
+    state.money = availableMoney
     local paid = ui.mousepressed(state, paidButtonX, paidButtonY, 1)
     local expectedBalance = math.max(0, scheduledBalance + accruedInterest - scheduledAmount)
     check("computer_credit_tab_shows_due_date_and_processes_on_time_payment", advanced
