@@ -5,7 +5,7 @@ local Config = {
     baseWidth = 960,
     baseHeight = 678,
     businessCalendar = {
-        secondsPerDay = 300,
+        secondsPerDay = 1200,
         monthlyExpenses = { rent = 1200, power = 240, water = 85, internet = 125 },
     },
     player = {
@@ -269,6 +269,12 @@ local Config = {
             { x = 442, y = 480 },
         },
     },
+    cutterStaging = {
+        x = 392, y = 566, width = 176, height = 80,
+        columns = 2, rows = 3, firstX = 430, firstY = 588,
+        columnSpacing = 100, rowSpacing = 24,
+        direction = "northwest",
+    },
     warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = false },
     forklift = {
         spawnX = 460, spawnY = 515, speed = 100, loadedSpeed = 72,
@@ -318,6 +324,8 @@ local Config = {
     },
     interactables = {
         computer = { x = 500, y = 185, radius = 62 },
+        shopClock = { x = 420, y = 260, radius = 65, wallX = 426, wallY = 152,
+            clockRadius = 18, prompt = "E: read shop clock" },
         workPhone = {
             x = 399, y = 260, radius = 72,
             wallX = 399, wallY = 181, drawScale = 0.084,
@@ -505,5 +513,18 @@ for _,view in ipairs({"east","northeast","north","northwest","west","southwest",
 end
 for _,view in ipairs({"east","west"}) do
     Config.characters["cat-worker"]["rest_"..view]="assets/generated/characters/cat-worker/rest_"..view..".png"
+end
+Config.workerFrameSizes={["cat-worker"]=256,["tinker-fox-worker"]=256,["ferret-engineer-worker"]=256}
+for _,character in ipairs({"tinker-fox-worker","ferret-engineer-worker"}) do
+    Config.characters[character]={}
+    local views=character=="ferret-engineer-worker" and {"east","northeast","north","south","southeast"}
+        or {"east","northeast","north","northwest","west","southwest","south","southeast"}
+    for _,view in ipairs(views) do for _,prefix in ipairs({"idle","walk"}) do
+        local name=view=="east" and prefix or prefix.."_"..view
+        Config.characters[character][name]="assets/generated/characters/"..character.."/"..name..".png"
+    end end
+    for _,action in ipairs({"operate","rest"}) do
+        Config.characters[character][action]="assets/generated/characters/"..character.."/"..action..".png"
+    end
 end
 return Config

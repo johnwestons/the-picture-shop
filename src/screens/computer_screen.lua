@@ -69,6 +69,7 @@ local TABS = {
     { id = "deliveries", label = "DELIVERIES", url = "www.thecritternet.com/job-desk/deliveries" },
     { id = "estimating", label = "ESTIMATING", url = "www.thecritternet.com/job-desk/estimating" },
     { id = "calendar", label = "CALENDAR", url = "www.thecritternet.com/job-desk/calendar" },
+    { id = "clock", label = "SHOP CLOCK", url = "www.thecritternet.com/shop/clock" },
     { id = "inventory", label = "INVENTORY", url = "www.thecritternet.com/job-desk/inventory" },
     { id = "www", label = "CRITTERNET WWW", url = "www.thecritternet.com" },
     { id = "email", label = "EMAIL", url = "www.thecritternet.com/job-desk/email" },
@@ -80,7 +81,7 @@ local TABS = {
 }
 local TAB_ADDRESS = { x = 170, y = 136, width = 478, height = 40 }
 local TAB_DROPDOWN_ARROW = { x = 648, y = 136, width = 40, height = 40 }
-local TAB_DROPDOWN = { x = 170, y = 179, width = 518, rowHeight = 35 }
+local TAB_DROPDOWN = { x = 170, y = 179, width = 518, rowHeight = 33 }
 local LIST = { x = 82, y = 190, width = 310, height = 370 }
 local DETAIL = { x = 412, y = 190, width = 440, height = 444 }
 local PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }
@@ -873,6 +874,9 @@ function ComputerScreen.mousepressed(state, x, y, button)
     -- The estimate and promotion input hit targets below explicitly opt back in.
     ComputerScreen.quoteFocused = false
     ComputerScreen.promoFocused = false
+    if x>=738 and x<=872 and y>=107 and y<=132 then
+        ComputerScreen.tab="clock";ComputerScreen.tabDropdownOpen=false;return {action="clock"}
+    end
     if contains(CLOSE, x, y) then
         ComputerScreen.tabDropdownOpen = false
         return { action = "close" }
@@ -1992,7 +1996,7 @@ local function drawBills(state, pointerX, pointerY)
     love.graphics.print("OPERATING BILLS, CLAIMS & PAYROLL", 108, 214)
     love.graphics.setColor(0.76, 0.83, 0.84)
     love.graphics.print(BusinessCalendar.dateText(state), 108, 242)
-    love.graphics.print("Monthly shop invoices. Employee wages are due Monday at 09:00.", 108, 266)
+    love.graphics.print("Monthly shop invoices. Wages: agreed 1-4 week cycle, Monday 09:00.", 108, 266)
 
     love.graphics.setColor(0.16, 0.22, 0.24)
     love.graphics.rectangle("fill", 108, 302, 470, 28)
@@ -2609,10 +2613,14 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
     love.graphics.print(string.format("%d %s", reputation.score, reputationTier), 606, 88)
     love.graphics.setColor(0.72, 0.79, 0.80)
     love.graphics.print(BusinessCalendar.shortDate(state), 744, 88)
+    love.graphics.setColor(.97,.87,.42,1)
+    love.graphics.print("TIME "..BusinessCalendar.timeText(state),744,112)
 
     BackButton.draw(assets, CLOSE, "BACK", pointerX, pointerY, false)
 
-    if ComputerScreen.tab == "inventory" then
+    if ComputerScreen.tab == "clock" then
+        require("src.screens.shop_clock").drawPanel(state,{x=82,y=184,width=792,height=444})
+    elseif ComputerScreen.tab == "inventory" then
         drawInventory(state)
     elseif ComputerScreen.tab == "hiring" then
         Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,dependencies.remoteCommand~=nil)

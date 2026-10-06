@@ -49,3 +49,19 @@ Payments use fixed-rate monthly amortization with monthly interest accrual. Sign
 Monthly shop invoices and equipment loans report late status at 30, 60, 90, and 120 days. A 5% late fee applies after 15 days, with a $10 minimum and $50 maximum. Timely shop bills and loan payments build score; late reports lower it, and a loan becomes defaulted at 120 days. These score changes are a transparent game model inspired by real payment-history weighting and delinquency severity; they are not a consumer credit score or a claim to reproduce a lender's underwriting system. See [CFPB guidance on credit scores](https://www.consumerfinance.gov/consumer-tools/credit-reports-and-scores/understand-your-credit-score/) and [myFICO's late-payment FAQ](https://www.myfico.com/credit-education/faq/negative-reasons/late-payments).
 
 Credit records and loan schedules are saved with the shop. Existing version 15 saves migrate to a new starter profile at 560 with no loans, while existing money, inventory, and machine ownership remain intact.
+
+## Employee costs and progression — October 6, 2026
+
+**HIRING > Payroll > SHOP BUDGET** plans full-shift wages, weekly overtime, shop bills and active/defaulted machine-loan payments before estimating money left for growth. This includes paid idle time and rests, rather than counting only hands-on job time. The capacity estimate respects installed cutters and overlapping shifts. Standard cutting uses the existing $150-per-lift service charge; negotiated labor, paid-break/overtime burden, machine overhead and the 35% target gross margin can raise recommended new quotes when necessary. Accepted customer prices remain fixed.
+
+For a Radio Cat at $22/hour, Monday–Friday 08:00–20:00, five unpaid half-hour meals leave 57.5 paid hours: 40 regular plus 17.5 overtime hours cost **$1,457.50/week**. Four-week pay terms require **$5,830** in wage reserves; they change when cash is paid, not the expense or profit. January's $1,650 monthly operating bill adds **$372.58/week**. At twenty completed, customer-supplied 500-sheet/four-trim lifts for $150 each, the planning allowance leaves:
+
+| Real minutes per game day | Machine allowance per lift | Estimated weekly money for growth |
+| ---: | ---: | ---: |
+| 5 | $26.49 | $640.12 |
+| 20 | $8.87 | $992.52 |
+| 60 | $4.96 | $1,070.72 |
+
+These use the game's operating-time model and reserve machine cost conservatively; faster shop clocks make the same real operation consume more paid game hours. The longer day setting therefore improves throughput and labor cost per job, while leaving full-shift wages unchanged. At the default twenty-minute day and twenty lifts, Tinker Fox at its requested $23/hour leaves **$935.87** and Ferret Engineer at $24/hour leaves **$876.62**, using the same twelve-hour/five-day contract and no equipment loan. The automated checks also cover a financed-machine payment and overnight schedules at five-, twenty- and sixty-minute days.
+
+This is a workload plan, not guaranteed revenue: customer demand, player pallet staging, blocked output, focus and shared equipment affect actual production. Hiring more workers than available work/cutter capacity can lose money. The budget shows a break-even workload and warns when the chosen plan exceeds capacity. Available cash subtracts all earned unpaid wages, current bills and due loan installments/fees. Actual cash leaves only through the existing Payroll, Bills and Credit ledgers, so job-cost reporting does not charge wages twice.

@@ -29,7 +29,8 @@ local Payroll=require("src.payroll")
 local scenes,shot,pending={},1,false
 local state,applicant,worker
 local function setHours(s,h)
-    s.calendar=Calendar.dateFromTotalDay(math.floor(h/24));s.calendar.elapsed=(h%24)/24*300
+    local pace=Calendar.secondsPerDay(s)
+    s.calendar=Calendar.dateFromTotalDay(math.floor(h/24));s.calendar.secondsPerDay=pace;s.calendar.elapsed=(h%24)/24*pace
     s.employment.lastAtHours=h
 end
 local function tick(dt)
@@ -44,10 +45,11 @@ local function prepareScene()
     local scene=scenes[shot]
     if not scene then
         local f=assert(io.open(output.."/engine-review.txt","wb"))
-        f:write("PASS: real applicant route, automatic scheduled cutter route and cut cycle, completion history, occupied breakroom seat, Hiring and Schedule pages, real job labor and wage-inclusive Bills, cutter/print staff estimates and full computer dropdown; desktop and phone landscape captures.\n")
+        f:write("PASS: Radio Cat, Tinker Fox and Ferret Engineer hiring and real scheduled cutter jobs; correct finished-pallet placement; resumes, contracts, 12h overnight offers, payroll and weekly shop budget; clocks, shop setup, cutter margin rotations and six-slot staging layout. Desktop and phone landscape captures.\n")
         f:close();love.event.quit(0);return
     end
     local phone=scene.phone
+    Assets.activatePack(scene.view=="cut_guide" and "cutter" or scene.view=="shop_setup" and "menu" or nil)
     love.window.setMode(phone and 1600 or 960,phone and 720 or 678,{vsync=0,resizable=false})
     if scene.view~="world" then
         Computer.tab=scene.view
@@ -55,7 +57,7 @@ local function prepareScene()
         Computer.hiring.section=scene.section or "applications"
         Computer.hiring.view=scene.page or "detail"
         Computer.hiring.selectedId=scene.recordId
-        Computer.hiring.terms=Contracts.terms(2200,31,9,17)
+        Computer.hiring.terms=scene.terms or Contracts.terms(2200,31,9,17)
         Computer.selectedEmailId=scene.emailId
         Computer.selectedJobId=scene.jobId
         Computer.quoteText=scene.quoteText or ""
@@ -68,7 +70,7 @@ function love.load()
     love.graphics.setDefaultFilter("nearest","nearest")
     love.graphics.setFont(love.graphics.newFont(13))
     Assets.load();Characters.load();assert(Characters.assertHealthy())
-    state=State.new();state.screen="world";state.money=5000
+    state=State.new();state.calendar.secondsPerDay=300;state.screen="world";state.money=5000
     World.load({x=500,y=455});World.configureEmployees({})
     Machine.setOutputResolver(function(s,p) return World.findCutterOutput(s,Assets,p.id) end)
     for i=1,400 do tick(.05);applicant=state.employment.applications[1];if applicant and applicant.actor.phase=="waiting" then break end end
@@ -153,6 +155,60 @@ function love.load()
     assert(worker.phase=="break" and worker.seatBay,"Cat breakroom route failed: "..worker.activity.." "..worker.x..","..worker.y)
     worker.idleClock=.5;worker.breakRemaining=.2
     add("cat-breakroom",state,"world")
+    -- Exercise both added characters through the real hiring and machine flow.
+    for profileIndex=2,3 do
+        local profile=require("src.worker_catalog").profiles[profileIndex]
+        state=State.new();state.screen="world";state.money=12000
+        state.employment.nextApplicantId=profileIndex;state.employment.recruiting=false
+        applicant=Employees.createApplicant(state,0)
+        assert(Employees.requestResume(state,applicant.id,0));Employees.advance(state,.5)
+        add(profile.character.."-resume",state,"hiring");scenes[#scenes].recordId=applicant.id
+        add(profile.character.."-night-offer",state,"hiring");scenes[#scenes].recordId=applicant.id;scenes[#scenes].page="offer"
+        scenes[#scenes].terms=Contracts.terms(profile.requestedWage,31,20,8,4)
+        assert(Employees.command(state,{kind="offer_employee",applicationId=applicant.id,expectedRevision=applicant.revision,
+            wageCents=profile.requestedWage,days=31,startHour=8,endHour=20,payWeeks=4},.5))
+        Employees.advance(state,1.25)
+        assert(Employees.command(state,{kind="hire_employee",applicationId=applicant.id,expectedRevision=applicant.revision},1.25))
+        worker=state.employment.staff[1]
+        local nextJob=assert(Jobs.createOffer({id="JOB-"..profile.character,company="New worker review",sourceSize={width=20,height=16},
+            finishedSize={width=10,height=8},sheetCounts={500}}))
+        Jobs.accept(nextJob);state.jobs.active[1]=nextJob
+        Logistics.unload(state,nextJob.id,nextJob.pallets[1].id,Config.palletLogistics.spawnPoints,Config.palletLogistics.unloadOrigin)
+        local x,y=Zones.inputAnchor(state,Config.cutterPlacement)
+        local p=nextJob.pallets[1];p.world.x,p.world.y=x,y;p.world.fromX,p.world.fromY=x,y;p.world.spawnProgress=1
+        local unit=Fleet.installedUnits(state,"polar_115")[1]
+        Machine.reset(state)
+        assert(Employees.command(state,{kind="queue_employee_job",employeeId=worker.id,jobId=nextJob.id,machineId=unit.id},1.25))
+        setHours(state,8)
+        local cutter=Machine.forId(unit.id)
+        for i=1,1400 do tick(.05);if cutter.step=="cutting" then break end end
+        assert(cutter.step=="cutting",profile.name.." could not operate cutter: "..worker.activity)
+        add(profile.character.."-working",state,"world")
+        add(profile.character.."-staff",state,"hiring");scenes[#scenes].section="staff";scenes[#scenes].recordId=worker.id
+        add(profile.character.."-budget",state,"hiring");scenes[#scenes].section="payroll";scenes[#scenes].page="finances"
+        for i=1,2400 do tick(.05);if p.status=="cut" and not worker.assignment then break end end
+        assert(p.status=="cut" and p.location=="cutter_output",profile.name.." did not finish actual pallet")
+        add(profile.character.."-output",state,"world")
+    end
+    state.calendar.secondsPerDay=1200;setHours(state,3.5)
+    add("shop-clock",state,"clock")
+    add("wall-clock-popup",state,"shop_clock")
+    add("shop-setup-options",state,"shop_setup")
+    local layout=State.new();layout.screen="world";layout.calendar.secondsPerDay=3600;setHours(layout,15.5)
+    for i,slot in ipairs(require("src.cutter_staging").slots()) do
+        local j=assert(Jobs.createOffer({id="JOB-STAGING-VIEW-"..i,company="Staging layout preview",sourceSize={width=20,height=16},
+            finishedSize={width=10,height=8},sheetCounts={500}}))
+        Jobs.accept(j);layout.jobs.active[#layout.jobs.active+1]=j
+        local p=j.pallets[1];p.location="warehouse"
+        p.world={x=slot.x,y=slot.y,fromX=slot.x,fromY=slot.y,direction=slot.direction,rotation=slot.rotation,spawnProgress=1}
+    end
+    add("six-slot-staging-layout",layout,"world")
+    local paper=require("src.paper_work").createStockPaper()
+    for rotation=0,1 do
+        local cutState=State.new();cutState.screen="machine";cutState.machineType="cutter"
+        add(rotation==0 and "active-cut-needs-rotation" or "active-cut-correct-rotation",cutState,"cut_guide")
+        scenes[#scenes].paper=require("src.save_schema").copy(paper);scenes[#scenes].paper.orientation=rotation*90
+    end
     local n=#scenes
     for i=1,n do local c=require("src.screens.gui_projection").copy(scenes[i]);c.phone=true;scenes[#scenes+1]=c end
     prepareScene()
@@ -163,7 +219,19 @@ function love.draw()
     local factor=math.min(width/960,height/678)
     love.graphics.clear(.025,.035,.05)
     love.graphics.push();love.graphics.translate((width-960*factor)/2,(height-678*factor)/2);love.graphics.scale(factor)
-    if scene.view=="world" then World.draw(Assets,Characters,scene.state,nil,nil,{})
+    if scene.view=="world" then
+        World.draw(Assets,Characters,scene.state,nil,nil,{})
+        require("src.screens.hud").draw(scene.state,World.getInteraction())
+    elseif scene.view=="shop_clock" then
+        World.draw(Assets,Characters,scene.state,nil,nil,{})
+        require("src.screens.shop_clock").draw(scene.state)
+    elseif scene.view=="shop_setup" then
+        require("src.screens.title_screen").draw(Assets)
+        require("src.screens.shop_setup_screen").draw({dayLengthMinutes=33},1)
+    elseif scene.view=="cut_guide" then
+        local machine=Machine.forId(nil)
+        machine.paper=scene.paper;machine.programIndex=1;machine.step="loaded";machine.loaded=true
+        require("src.screens.machine_screen").draw(scene.state,Assets)
     else Computer.draw(scene.state,nil,nil,Assets) end
     love.graphics.pop()
     if pending then return end

@@ -57,6 +57,7 @@ function Presentation:model(state, view)
         step = view.step or "idle", loaded = view.loaded == true,
         transferTime = 1, cycleTime = 1, progress = self.phase,
         clampProgress = self.clamp,
+        programIndex = view.programIndex,
     }
     local record = view.paper
     local source = record and findPaper(state, record.palletId)

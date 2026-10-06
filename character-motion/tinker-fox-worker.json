@@ -1,0 +1,257 @@
+{
+  "version": 1,
+  "character": "tinker-fox-worker",
+  "animations": {
+    "idle_east": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_northeast": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_north": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_northwest": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_northwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_west": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_west.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_southwest": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_southwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_south": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_southeast": {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_east": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_northeast": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_north": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_northwest": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_northwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_west": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_west.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_southwest": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_southwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_south": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "walk_southeast": {
+      "path": "assets/generated/characters/tinker-fox-worker/walk_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 5.538461538461538
+    },
+    "operate": {
+      "path": "assets/generated/characters/tinker-fox-worker/operate.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 1,
+      "loop": true,
+      "role": "action",
+      "fps": 5.538461538461538
+    },
+    "rest": {
+      "path": "assets/generated/characters/tinker-fox-worker/rest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 1,
+      "loop": true,
+      "role": "action",
+      "fps": 5.538461538461538
+    }
+  },
+  "directions": {
+    "north": {
+      "walk_animation": "walk_north",
+      "idle_animation": "idle_north",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "mirror_x": false
+    },
+    "east": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "walk_south",
+      "idle_animation": "idle_south",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "walk_southwest",
+      "idle_animation": "idle_southwest",
+      "mirror_x": false
+    },
+    "west": {
+      "walk_animation": "walk_west",
+      "idle_animation": "idle_west",
+      "mirror_x": false
+    },
+    "northwest": {
+      "walk_animation": "walk_northwest",
+      "idle_animation": "idle_northwest",
+      "mirror_x": false
+    }
+  },
+  "gait": {
+    "pose_order": [
+      "left_contact",
+      "left_weight_down",
+      "right_passing",
+      "right_knee_up",
+      "right_contact",
+      "right_weight_down",
+      "left_passing",
+      "left_knee_up"
+    ],
+    "pixels_per_frame": 13,
+    "base_speed": 72,
+    "speed_multipliers": [
+      0.96,
+      0.94,
+      1.04,
+      1.06,
+      0.96,
+      0.94,
+      1.04,
+      1.06
+    ],
+    "acceleration_multipliers": [
+      0.92,
+      0.9,
+      1.08,
+      1.1,
+      0.92,
+      0.9,
+      1.08,
+      1.1
+    ]
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 6,
+    "center_tolerance": 14,
+    "center_metric": "core"
+  },
+  "source_project": "Mouse Frontier 8.10",
+  "work_actions": {
+    "operate": "Original empty-hand reach",
+    "rest": "Original seated animation"
+  }
+}

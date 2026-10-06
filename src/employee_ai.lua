@@ -120,9 +120,10 @@ local function applications(state,dt,now,context)
     end
 end
 local function breakChoice(w,now)
-    local elapsed=now-math.floor(now/24)*24-w.contract.startHour
-    local duration=w.contract.endHour-w.contract.startHour
-    for _,b in ipairs({{at=2,bit=1,kind="rest",duration=.25},{at=4,bit=2,kind="meal",duration=.5},{at=6,bit=4,kind="rest",duration=.25}}) do
+    local elapsed=now-Contracts.shiftDay(w.contract,now)*24-w.contract.startHour
+    local duration=Contracts.duration(w.contract)
+    for _,b in ipairs({{at=2,bit=1,kind="rest",duration=.25},{at=4,bit=2,kind="meal",duration=.5},
+        {at=6,bit=4,kind="rest",duration=.25},{at=10,bit=8,kind="rest",duration=.25}}) do
         if b.at<duration and (b.kind~="meal" or duration>=6) and elapsed>=b.at
             and math.floor(w.breaksTaken/b.bit)%2==0 then return b end
     end
@@ -137,7 +138,7 @@ local function beginBreak(state,w,b,context)
     return true
 end
 function AI.worker(state,w,dt,now,context)
-    local day=math.floor(now/24)
+    local day=Contracts.shiftDay(w.contract,now)
     local onShift=w.status=="employed" and not w.terminationRequested and Contracts.onShift(w.contract,now)
     local overdue=Payroll.overdueSince(w,now)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
@@ -170,7 +171,7 @@ function AI.worker(state,w,dt,now,context)
         end
         return false
     end
-    local hours=dt*24/(Config.businessCalendar.secondsPerDay or 300)
+    local hours=dt*24/Calendar.secondsPerDay(state)
     if w.phase=="break_walk" then
         local seat=context.seat(w.seatBay)
         if not seat then w.seatBay=nil;w.phase="break"
@@ -222,7 +223,7 @@ function AI.update(state,dt,context)
     local changed=Employees.advance(state,now)
     -- Time only advances with the active shop, never from real-world offline
     -- elapsed time. Small slices keep arrivals, breaks, and wage clipping exact.
-    local secondsPerHour=(Config.businessCalendar.secondsPerDay or 300)/24
+    local secondsPerHour=Calendar.secondsPerDay(state)/24
     local total=now-previous
     if total<=0 then return changed end
     local at=previous

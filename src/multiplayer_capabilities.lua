@@ -14,6 +14,7 @@ Capabilities.MODES = {
 }
 
 Capabilities.INTERACTIONS = {
+    shopClock = { label="Shop wall clock",mode="read_only",supported={"inspect_shop_time"} },
     computer = {
         label = "Office computer",
         mode = "candidate",

@@ -1,6 +1,7 @@
 local Config = require("src.config")
 local Save = require("src.save")
 local Ui = require("src.screens.ui")
+local ShopSetup = require("src.screens.shop_setup_screen")
 
 local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil,
     onLocal = nil, onDirect = nil, hover = nil, pressed = nil }
@@ -44,9 +45,14 @@ function TitleScreen.buttonCenter(name)
 end
 
 local function startNew()
-    local payload = Save.newGame(TitleScreen.selected)
+    local payload = Save.newGame(TitleScreen.selected,TitleScreen.setup)
+    TitleScreen.mode="normal"
     TitleScreen.message = "New shop created in slot " .. TitleScreen.selected
     if TitleScreen.onStart then TitleScreen.onStart(payload, "new") end
+end
+local function beginSetup()
+    TitleScreen.setup=ShopSetup.new();TitleScreen.mode="shop-setup"
+    TitleScreen.message="Choose the clock pace before creating this shop."
 end
 local function continueGame()
     local payload, status = Save.load(TitleScreen.selected)
@@ -70,7 +76,7 @@ local function requestNew()
         TitleScreen.message = "Slot " .. TitleScreen.selected .. " already has a shop. Confirm overwrite or cancel."
         return true
     end
-    startNew()
+    beginSetup()
     return true
 end
 
@@ -82,8 +88,7 @@ end
 
 local function confirmPending()
     if TitleScreen.mode == "overwrite-confirm" then
-        TitleScreen.mode = "normal"
-        startNew()
+        beginSetup()
         return true
     end
     if TitleScreen.mode == "delete-confirm" then
@@ -133,6 +138,12 @@ local function openDirectPlay()
 end
 
 function TitleScreen.keypressed(key)
+    if TitleScreen.mode=="shop-setup" then
+        local result=ShopSetup.keypressed(TitleScreen.setup,key)
+        if result=="start" then startNew()
+        elseif result=="cancel" then TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled." end
+        return result~=nil
+    end
     if TitleScreen.mode ~= "normal" then
         if key == "y" or key == "return" or key == "kpenter" then return confirmPending() end
         if key == "n" or key == "escape" then return cancelPending() end
@@ -152,6 +163,12 @@ end
 
 function TitleScreen.mousepressed(x, y, button)
     if button ~= 1 then return false end
+    if TitleScreen.mode=="shop-setup" then
+        local result=ShopSetup.mousepressed(TitleScreen.setup,x,y)
+        if result=="start" then startNew()
+        elseif result=="cancel" then TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled." end
+        return result~=nil
+    end
     if TitleScreen.mode ~= "normal" then
         local action = buttonAt(x, y)
         if action == "yes" then return confirmPending() end
@@ -216,7 +233,9 @@ function TitleScreen.draw(assets, mouseX, mouseY)
             or ((slot.recovered and "RECOVERED SHOP" or "ACTIVE SHOP") .. "    CASH $" .. tostring(slot.money)))
         love.graphics.print(slotText, rect.x + 170, rect.y + 18)
     end
-    if TitleScreen.mode ~= "normal" then
+    if TitleScreen.mode == "shop-setup" then
+        ShopSetup.draw(TitleScreen.setup,TitleScreen.selected)
+    elseif TitleScreen.mode ~= "normal" then
         local overwriting = TitleScreen.mode == "overwrite-confirm"
         love.graphics.setColor(0.08, 0.09, 0.09, 0.98); love.graphics.rectangle("fill", 260, 330, 440, 132, 4, 4)
         love.graphics.setColor(0.94, 0.38, 0.30)

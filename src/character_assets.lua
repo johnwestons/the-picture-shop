@@ -15,6 +15,8 @@ for character, actions in pairs(require("src.visitor_character_metrics")) do
 end
 for character,actions in pairs(require("src.cat_worker_anchors")) do Anchors[character]=actions end
 for character,actions in pairs(require("src.cat_worker_metrics")) do Metrics[character]=actions end
+for character,actions in pairs(require("src.mouse_worker_anchors")) do Anchors[character]=actions end
+for character,actions in pairs(require("src.mouse_worker_metrics")) do Metrics[character]=actions end
 
 local CharacterAssets = {
     metadata = {},
@@ -34,7 +36,7 @@ local function validateAction(character, action, path)
         CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": " .. errorMessage
         return
     end
-    local frameSize=character=="cat-worker" and 256 or 512
+    local frameSize=Config.workerFrameSizes[character] or 512
     if height ~= frameSize or width % frameSize ~= 0 then
         CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": invalid character frame strip size"
         return

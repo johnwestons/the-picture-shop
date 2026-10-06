@@ -70,12 +70,22 @@ function Test.run(context, check)
         and love.filesystem.read("saves/slot3.lua") == occupiedBytes)
 
     context.input.mousepressed(newX, newY, 1, context.inputContext)
-    check("title_mouse_overwrite_confirmation_starts",
-        context.input.mousepressed(confirmX, confirmY, 1, context.inputContext)
-        and #titleStarts == 1
+    context.input.mousepressed(confirmX, confirmY, 1, context.inputContext)
+    check("title_mouse_overwrite_confirmation_opens_shop_setup",
+        context.title.mode=="shop-setup" and #titleStarts==0
+        and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    context.input.keypressed("escape",context.inputContext)
+    check("title_cancel_shop_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
+        and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    context.input.mousepressed(newX,newY,1,context.inputContext)
+    context.input.mousepressed(confirmX,confirmY,1,context.inputContext)
+    for i=1,13 do context.input.keypressed("right",context.inputContext) end
+    context.input.mousepressed(595,572,1,context.inputContext)
+    check("title_mouse_setup_creates_selected_shop",
+        #titleStarts == 1
         and titleStarts[1].mode == "new"
         and titleStarts[1].saved
-        and context.save.load(3).state.money == 180)
+        and context.save.load(3).state.money == 180 and context.save.load(3).state.calendar.secondsPerDay==1980)
     context.input.mousereleased(confirmX, confirmY, 1, context.inputContext)
 
     occupiedState.money = 888
@@ -84,6 +94,7 @@ function Test.run(context, check)
     context.input.keypressed("up", context.inputContext)
     context.input.keypressed("n", context.inputContext)
     context.input.keypressed("y", context.inputContext)
+    context.input.keypressed("return", context.inputContext)
     check("title_keyboard_overwrite_confirmation_starts",
         #titleStarts == 2
         and titleStarts[2].mode == "new"
@@ -94,7 +105,9 @@ function Test.run(context, check)
     context.title.enter(captureTitleStart)
     context.input.keypressed("up", context.inputContext)
     context.input.keypressed("n", context.inputContext)
-    check("title_empty_slot_new_starts_immediately",
+    check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
+    context.input.keypressed("return", context.inputContext)
+    check("title_empty_slot_setup_creates_shop",
         #titleStarts == 3
         and titleStarts[3].mode == "new"
         and titleStarts[3].saved

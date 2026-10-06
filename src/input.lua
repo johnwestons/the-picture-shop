@@ -1,5 +1,6 @@
 local Input = {}
 local mobileMovementProvider = nil
+local ShopClock = require("src.screens.shop_clock")
 
 local function radialDeadzone(x, y, deadzone)
     local magnitude = math.sqrt(x * x + y * y)
@@ -43,7 +44,7 @@ end
 function Input.closeScreen(context)
     local state = context.state
     if state.screen == "world" or state.screen == "title" then return false end
-    local readOnlyScreen = state.screen == "pallet_work_order"
+    local readOnlyScreen = state.screen == "pallet_work_order" or state.screen == "shop_clock"
     if state.screen == "workshop_remote" then
         if context.workshopRemoteScreen and not context.workshopRemoteScreen.canClose() then
             state.message = "Wait for the host device to finish the current workshop action."
@@ -271,6 +272,10 @@ function Input.keypressed(key, context)
             if context.world.placeWindmill(state, context.assets) then context.saveCurrent() end
             return true
         end
+        if selected and selected.kind == "shopClock" then
+            state.screen="shop_clock"
+            return true
+        end
         if selected and selected.kind == "palletWorkOrder" then
             -- Pallet paperwork is already part of the host-authored shared
             -- shop snapshot. Inspecting it stays a normal USE action even
@@ -436,6 +441,7 @@ function Input.mousepressed(x, y, button, context)
         if context.worldPointerCoordinates then
             worldX, worldY = context.worldPointerCoordinates(x, y)
         end
+        if ShopClock.hitWall(worldX,worldY) then state.screen="shop_clock";return true end
         local networkReadOnly = context.isNetworkClient and context.isNetworkClient()
         if context.world.selectPlacement(
             state, context.assets, worldX, worldY, networkReadOnly)
@@ -576,6 +582,10 @@ function Input.mousepressed(x, y, button, context)
                 state.message = "Could not schedule pickup: " .. tostring(jobOrError)
             end
         end
+        return true
+    end
+    if state.screen == "shop_clock" then
+        if button==1 and ShopClock.closeHit(x,y) then return Input.closeScreen(context) end
         return true
     end
     if state.screen == "pallet_work_order" then

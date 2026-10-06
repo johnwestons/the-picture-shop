@@ -197,8 +197,14 @@ local function read(slot)
     return nil, hasFiles and "corrupted" or "empty"
 end
 
-function save.newGame(slot)
-    return Schema.newPayload(slot)
+function save.newGame(slot,options)
+    local minutes=options and options.dayLengthMinutes or Config.businessCalendar.secondsPerDay/60
+    if type(minutes)~="number" or minutes~=math.floor(minutes) or minutes<5 or minutes>60 then
+        return nil,"Choose a game day between 5 and 60 minutes."
+    end
+    local payload=Schema.newPayload(slot)
+    payload.state.calendar.secondsPerDay=minutes*60
+    return payload
 end
 
 function save.load(slot)

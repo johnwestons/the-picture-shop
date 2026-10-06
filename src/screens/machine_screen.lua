@@ -5,6 +5,7 @@ local Machine = dependencies.Machine or require("src.machine")
 local MachineFleet = require("src.machine_fleet")
 local MachineMaintenance = require("src.machine_maintenance")
 local BusinessCalendar = require("src.business_calendar")
+local CutGuide = require("src.cutter_cut_guide")
 local PalletJack = require("src.pallet_jack")
 local Procurement = require("src.procurement")
 local Wrapper = dependencies.Wrapper or require("src.wrapper")
@@ -685,6 +686,25 @@ local function drawPaper(assets, machine)
     love.graphics.setColor(0.86, 0.18, 0.18, 0.9)
     love.graphics.setLineStyle("rough")
     love.graphics.rectangle("line", innerX, innerY, innerWidth, innerHeight)
+    local guide=CutGuide.current(paper,machine.programIndex)
+    local band=CutGuide.band(guide,x,y,width,height,widthValue,heightValue)
+    if band then
+        local ready=guide.rotationReady
+        love.graphics.setColor(1,.71,.10,.70)
+        love.graphics.rectangle("fill",band.x,band.y,band.width,band.height)
+        love.graphics.setLineWidth(3)
+        love.graphics.setColor(ready and .35 or 1,ready and 1 or .87,ready and .48 or .18,1)
+        love.graphics.rectangle("line",band.x,band.y,band.width,band.height)
+        local ax,ay=band.x+band.width/2,band.y+band.height/2
+        local dx=guide.screenEdge=="left" and -1 or guide.screenEdge=="right" and 1 or 0
+        local dy=guide.screenEdge=="top" and -1 or guide.screenEdge=="bottom" and 1 or 0
+        local distance=(dx~=0 and band.width/2 or band.height/2)+16
+        local tipX,tipY=ax+dx*distance,ay+dy*distance
+        love.graphics.line(tipX+dx*12,tipY+dy*12,tipX,tipY)
+        love.graphics.polygon("fill",tipX,tipY,tipX+dx*7-dy*5,tipY+dy*7+dx*5,
+            tipX+dx*7+dy*5,tipY+dy*7-dx*5)
+        love.graphics.setLineWidth(1)
+    end
     if paper.offSpec then
         local lineWidth = love.graphics.getLineWidth()
         love.graphics.setLineWidth(3)
@@ -716,6 +736,17 @@ local function drawMachine(assets, machine)
     drawPaper(assets, machine)
     drawMotion(assets, "cutterClamp", "cutterClamp", machine.clampProgress)
     if machine.step == "cutting" then drawMotion(assets, "cutterBlade", "cutterBlade", machine.progress / machine.cycleTime) end
+    local guide=machine.loaded and CutGuide.current(machine.paper,machine.programIndex)
+    if guide then
+        love.graphics.setColor(.025,.035,.04,.92)
+        love.graphics.rectangle("fill",414,142,478,40,3,3)
+        love.graphics.setColor(1,.86,.28,1)
+        love.graphics.printf(string.format("CUT %d: %s MARGIN  %.2f in",guide.number,guide.edge:upper(),guide.margin),420,146,466,"center")
+        love.graphics.setColor(guide.rotationReady and .42 or 1,guide.rotationReady and 1 or .74,.45,1)
+        love.graphics.printf(not guide.rotationReady and "ROTATE: highlighted edge must face you"
+            or not guide.programReady and "EDGE READY - select the current cut program"
+            or "EDGE READY - highlighted margin faces the cutter front",420,163,466,"center")
+    end
 end
 
 -- Shared, read-only scene: remote callers supply a presentation model, never

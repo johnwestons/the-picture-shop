@@ -5,6 +5,7 @@ local Inbox=require("src.inbox")
 local Fleet=require("src.machine_fleet")
 local Schedule=require("src.employee_schedule")
 local Labor=require("src.employee_labor")
+local WorkerCatalog=require("src.worker_catalog")
 local Employees={}
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
     offer_accepted=true,hired=true,declined=true,withdrawn=true,expired=true}
@@ -37,7 +38,7 @@ local function validActor(a)
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
 end
 function Employees.defaultState(now)
-    return {version=3,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+    return {version=4,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
         nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={}}
 end
 function Employees.ensure(state)
@@ -45,12 +46,12 @@ function Employees.ensure(state)
     return state.employment
 end
 function Employees.valid(e)
-    if type(e)~="table" or e.version~=3 or not int(e.nextApplicantId,1,1000000)
+    if type(e)~="table" or e.version~=4 or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
         or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12) then return false end
     local ids={}
     local function profile(p)
-        return type(p)=="table" and text(p.name) and #p.name>0 and p.character=="cat-worker"
+        return type(p)=="table" and text(p.name) and #p.name>0 and WorkerCatalog.valid(p.character)
             and int(p.cutterSkill,1,100) and int(p.attention,1,100) and int(p.reliability,1,100)
             and int(p.requestedWage,1000,10000) and int(p.minimumWage,1000,10000)
     end
@@ -69,7 +70,7 @@ function Employees.valid(e)
             or (w.status~="employed" and w.status~="dismissed" and w.status~="resigned")
             or not validActor(w) or type(w.clockedIn)~="boolean"
             or not number(w.fatigue,0,100) or not number(w.focus,0,100)
-            or not int(w.shiftDay,-1,10000000) or not int(w.breaksTaken,0,7)
+            or not int(w.shiftDay,-1,10000000) or not int(w.breaksTaken,0,15)
             or not number(w.breakRemaining,0,1) or not text(w.activity)
             or type(w.terminationRequested)~="boolean" or type(w.stopRequested)~="boolean"
             or (w.reserved~=nil and type(w.reserved)~="boolean")
@@ -114,6 +115,13 @@ function Employees.normalize(e,now)
             w.laborTotals=w.laborTotals or Labor.fromWeeks(w.weeks)
         end
     end
+    if result.version==3 then
+        if type(result.staff)~="table" or type(result.applications)~="table" then return nil end
+        result.version=4
+        local function weekly(t) if type(t)=="table" and t.payWeeks==nil then t.payWeeks=1 end end
+        for _,w in pairs(result.staff) do if type(w)~="table" then return nil end;weekly(w.contract) end
+        for _,a in pairs(result.applications) do if type(a)~="table" then return nil end;weekly(a.offer);weekly(a.counter) end
+    end
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock=nil,nil,nil
@@ -142,11 +150,11 @@ function Employees.createApplicant(state,now)
     if active>=3 then return nil end
     local n=e.nextApplicantId
     e.nextApplicantId=n+1
-    local names={"Radio Cat","Miso Cat","Pepper Cat","Clover Cat"}
-    local a={id=string.format("APP-%04d",n),name=names[(n-1)%#names+1],character="cat-worker",
-        cutterSkill=n==1 and 65 or 45+(n*17)%41,attention=n==1 and 75 or 60+(n*11)%31,
-        reliability=n==1 and 90 or 75+(n*7)%21,requestedWage=2200+(n-1)%3*100,
-        minimumWage=2000+(n-1)%3*100,revision=1,counters=0,status="visiting",
+    local profile=WorkerCatalog.profiles[(n-1)%#WorkerCatalog.profiles+1]
+    local a={id=string.format("APP-%04d",n),name=profile.name,character=profile.character,
+        cutterSkill=profile.cutterSkill,attention=profile.attention,
+        reliability=profile.reliability,requestedWage=profile.requestedWage,
+        minimumWage=profile.minimumWage,revision=1,counters=0,status="visiting",
         createdAtHours=now,actor=actor()}
     e.applications[#e.applications+1]=a
     e.nextApplicantAtHours=now+72+(n%3)*24
@@ -172,7 +180,7 @@ function Employees.advance(state,now)
         if a.status=="resume_requested" and a.replyAtHours<=now then
             a.status="resume_received";a.replyAtHours=nil;a.revision=a.revision+1
             notice(state,a,"RESUME","Resume attached: cutter operator",
-                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, attention %d/100, reliability %d/100. I am available 08:00-18:00 and ask $%.2f/hr. Open my resume to discuss days and hours.",
+                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, attention %d/100, reliability %d/100. Day or night shifts are negotiable and I ask $%.2f/hr. Open my resume to discuss days, hours and pay cycle.",
                     a.cutterSkill,a.attention,a.reliability,a.requestedWage/100))
             changed=true
         elseif a.status=="negotiating" and a.replyAtHours<=now then
@@ -215,8 +223,8 @@ function Employees.command(state,intent,now)
         if a.actor.visible then a.actor.phase="leaving" end
         return true,"Application declined."
     elseif intent.kind=="offer_employee" then
-        local terms=Contracts.terms(intent.wageCents,intent.days,intent.startHour,intent.endHour)
-        if not Contracts.validTerms(terms) then return false,"Choose $10-$100/hr and a 4-10 hour shift within 08:00-18:00." end
+        local terms=Contracts.terms(intent.wageCents,intent.days,intent.startHour,intent.endHour,intent.payWeeks)
+        if not Contracts.validTerms(terms) then return false,"Choose $10-$100/hr, a 4-12 hour shift and a 1-4 week pay cycle." end
         if not a or (a.status~="resume_received" and a.status~="offer_accepted" and a.status~="negotiating") then return false,"Request the resume before making an offer." end
         if a.revision~=intent.expectedRevision then return false,"The applicant replied. Review the latest terms before sending." end
         if Contracts.same(terms,a.offer) then return true,"These terms were already sent; no extra negotiation round was used." end
@@ -246,7 +254,7 @@ function Employees.command(state,intent,now)
         w.schedule=Schedule.defaultState()
         w.laborTotals=Labor.defaultTotals()
         e.staff[#e.staff+1]=w;a.status="hired";a.employeeId=w.id;a.revision=a.revision+1
-        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Weekly pay is due Monday 09:00, with 1.5x pay after 40 paid hours. Build ordered cutter jobs in Schedule, or assign one staged pallet in Hiring > Staff.")
+        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week. Build ordered cutter jobs in Schedule, or assign one staged pallet in Hiring > Staff.")
         return true,w.name.." hired. Starts on the next agreed day."
     end
     local w=intent.employeeId and Employees.worker(state,intent.employeeId)

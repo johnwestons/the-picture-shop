@@ -12,7 +12,7 @@ local fields = {
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
     decline_application = { applicationId = "token" },
     offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
-        days = "days", startHour = "hour", endHour = "hour" },
+        days = "days", startHour = "hour", endHour = "hour", payWeeks = "pay_cycle" },
     hire_employee = { applicationId = "token", expectedRevision = "revision" },
     assign_employee = { employeeId = "token", jobId = "token", palletId = "token", machineId = "token" },
     unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" }, pay_wages = {},
@@ -40,8 +40,11 @@ function Intent.normalize(value)
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
         elseif rule == "days" then
             if not integer(item,1,127) then return nil,"Choose at least one working day." end
+        elseif rule == "pay_cycle" then
+            if item==nil then item=1 end
+            if not integer(item,1,4) then return nil,"Choose a 1-4 week pay cycle." end
         elseif rule == "hour" then
-            if not integer(item,8,18) then return nil,"Choose an hour from 08:00-18:00." end
+            if not integer(item,0,23) then return nil,"Choose an hour from 00:00-23:00." end
         elseif rule == "bay" then
             if item ~= "front_left" and item ~= "front_right" then return nil, "Choose a warehouse bay." end
         elseif rule == "upgrade" then

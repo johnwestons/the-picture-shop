@@ -776,6 +776,18 @@ function Machine.update(dt, state)
                             "cut_complete")
                         return false
                     end
+                    -- A player can move stock into a reserved space while the
+                    -- return animation runs. Revalidate against real floor
+                    -- stock and other cutters before creating an output pallet.
+                    local checked,outputError=Machine.outputResolver(state,Machine.pallet)
+                    if not checked then
+                        Machine.pendingOutput=nil
+                        Machine.step,Machine.progress="cut_complete",0
+                        message(state,outputError or "Clear the finished-pallet staging area.")
+                        bumpRevision()
+                        return false
+                    end
+                    output=checked
                     local world = {}
                     for key, value in pairs(Machine.pallet.world or {}) do world[key] = value end
                     world.x, world.y = output.x, output.y

@@ -538,7 +538,7 @@ function Test.run(context, check)
         feederPaused and feederResumed and not pauseChanged and not pauseDurable
         and context.windmill.ensure(state).status == "production"
         and context.windmill.ensure(state).counter == counterBeforePause)
-    local finishedPass = context.windmill.update(10, state)
+    local finishedPass = context.windmill.update(10*require("src.business_calendar").secondsPerDay(state)/300, state)
     local restartedPass, restartedPassReason = context.windmill.startProduction(state)
     check("windmill_completed_pass_cannot_restart_without_a_new_approved_workflow",
         finishedPass and not restartedPass
@@ -608,7 +608,7 @@ function Test.run(context, check)
         if not context.windmill.verifyArtwork(multiState) then return false end
         if not context.windmill.approveProof(multiState) then return false end
         if not context.windmill.startProduction(multiState) then return false end
-        if not context.windmill.update(10, multiState) then return false end
+        if not context.windmill.update(10*context.businessCalendar.secondsPerDay(multiState)/300, multiState) then return false end
         if not context.windmill.cleanAndUnload(multiState) then return false end
         return true, target
     end

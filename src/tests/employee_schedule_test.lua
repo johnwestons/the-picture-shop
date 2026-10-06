@@ -12,7 +12,7 @@ local Office=require("src.office_authority")
 local Screen=require("src.screens.schedule_screen")
 local Test={}
 local function hours(state,h)
-    state.calendar=Calendar.dateFromTotalDay(math.floor(h/24));state.calendar.elapsed=(h%24)/24*300
+    state.calendar=Calendar.dateFromTotalDay(math.floor(h/24));state.calendar.elapsed=(h%24)/24*Calendar.secondsPerDay(state)
 end
 local function hire(state)
     local a=Employees.createApplicant(state,0)
@@ -34,7 +34,7 @@ end
 function Test.run(context,check)
     local state=State.new();local w=hire(state);local m=Fleet.installedUnits(state,"polar_115")[1]
     local a=job(state,"JOB-QUEUE-A",{500,500});local b=job(state,"JOB-QUEUE-B",{1000});local c=job(state,"JOB-QUEUE-C")
-    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==19 and Schedule.valid(w.schedule) and #w.schedule.items==0)
+    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==20 and Schedule.valid(w.schedule) and #w.schedule.items==0)
     check("schedule_typed_add_job_is_supported",Intent.normalize({kind="queue_employee_job",employeeId=w.id,jobId=a.id,machineId=m.id})~=nil and add(state,w,a,m))
     add(state,w,b,m)
     local revision=w.schedule.revision
@@ -57,7 +57,7 @@ function Test.run(context,check)
     local legacy={version=17,slot=1,createdAt=1,updatedAt=1,player={x=500,y=455},state=Schema.copy(saved)}
     legacy.state.employment.version=1;legacy.state.employment.staff[1].schedule=nil
     local migrated=Schema.migrate(legacy)
-    check("schedule_v17_save_migrates_contract_and_payroll_without_invented_work",migrated and migrated.version==19 and migrated.state.employment.version==3
+    check("schedule_v17_save_migrates_contract_and_payroll_without_invented_work",migrated and migrated.version==20 and migrated.state.employment.version==4
         and migrated.state.employment.staff[1].contract.wageCents==2200 and #migrated.state.employment.staff[1].schedule.items==0
         and legacy.state.employment.staff[1].schedule==nil)
     check("schedule_malformed_employment_rejected_without_migration_crash",Employees.normalize(false,0)==nil and Employees.normalize(17,0)==nil and Employees.normalize("invalid",0)==nil)

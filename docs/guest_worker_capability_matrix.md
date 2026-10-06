@@ -4,7 +4,18 @@ This is the authoritative Local Play parity inventory. Runtime declarations live
 `src/multiplayer_capabilities.lua`; the smoke suite rejects undeclared interaction kinds and authority
 resources. A durable change always executes on the host and only the host writes the multiplayer save.
 
-## October 6, 2026 — shift continuation and employee billing
+## October 6, 2026 — worker roster, contracts and shop clocks
+
+Protocol **25** carries Radio Cat, Tinker Fox and Ferret Engineer profiles, negotiated overnight/
+twelve-hour shifts, one-to-four-week pay cycles and per-shop day length in reliable host state.
+Recruitment, signing, queues and payment remain owner-only. Guests can inspect the complete roster,
+payroll, whole-shift shop budget and live clocks. The wall clock is a registered read-only interaction;
+viewing or closing it neither writes saves nor claims an exclusive lease. Output slots and reservations
+are host-owned, with stock-safe retry when another actor fills a slot during unloading. Desktop checks
+pass **4,214 checks**. Android 39 verification is recorded in `ANDROID_PORT.md`; physical phone/LAN
+acceptance remains open. See [worker scope and verification](npc_worker_build_status.md).
+
+## Earlier October 6, 2026 — shift continuation and employee billing
 
 Protocol **24** carries job wage allocation and staff-aware estimate budgets in reliable host shop
 state. Guests can inspect these costs. Only the owner can settle Bills when employee wages are due;

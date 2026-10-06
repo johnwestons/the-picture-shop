@@ -6,11 +6,22 @@ function Contracts.hasDay(mask, weekday)
     return math.floor(mask / 2^(weekday-1)) % 2 == 1
 end
 function Contracts.weekday(day) return (3+day)%7+1 end
+function Contracts.duration(t) return (t.endHour-t.startHour)%24 end
+function Contracts.paidRestHours(t)
+    local rests=0
+    for at=2,Contracts.duration(t)-.001,4 do rests=rests+.25 end
+    return rests
+end
+function Contracts.productiveHours(t)
+    local duration=Contracts.duration(t)
+    return duration-(duration>=6 and .5 or 0)-Contracts.paidRestHours(t)
+end
 function Contracts.validTerms(t)
     return type(t)=="table" and t.role=="cutter"
         and integer(t.wageCents,1000,10000) and integer(t.days,1,127)
-        and integer(t.startHour,8,14) and integer(t.endHour,12,18)
-        and t.endHour-t.startHour>=4 and t.endHour-t.startHour<=10
+        and integer(t.startHour,0,23) and integer(t.endHour,0,23)
+        and integer(t.payWeeks,1,4)
+        and Contracts.duration(t)>=4 and Contracts.duration(t)<=12
 end
 function Contracts.valid(t)
     return Contracts.validTerms(t) and integer(t.revision,1,1000000)
@@ -18,13 +29,13 @@ function Contracts.valid(t)
 end
 function Contracts.same(a,b)
     if not a or not b then return false end
-    for _,key in ipairs({"role","wageCents","days","startHour","endHour"}) do
+    for _,key in ipairs({"role","wageCents","days","startHour","endHour","payWeeks"}) do
         if a[key]~=b[key] then return false end
     end
     return true
 end
-function Contracts.terms(wage,days,startHour,endHour)
-    return {role="cutter",wageCents=wage,days=days,startHour=startHour,endHour=endHour}
+function Contracts.terms(wage,days,startHour,endHour,payWeeks)
+    return {role="cutter",wageCents=wage,days=days,startHour=startHour,endHour=endHour,payWeeks=payWeeks or 1}
 end
 function Contracts.nextDay(t,now)
     local day=math.floor(now/24)
@@ -34,21 +45,28 @@ function Contracts.nextDay(t,now)
 end
 function Contracts.onShift(t,hours)
     if not t then return false end
-    local day=math.floor(hours/24)
-    local hour=hours-day*24
+    local day=Contracts.shiftDay(t,hours)
+    local startAt=day*24+t.startHour
     return day>=t.startDay and Contracts.hasDay(t.days,Contracts.weekday(day))
-        and hour>=t.startHour and hour<t.endHour
+        and hours>=startAt and hours<startAt+Contracts.duration(t)
 end
+function Contracts.shiftDay(t,hours) return math.floor((hours-t.startHour)/24) end
 function Contracts.summary(t)
     local names={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"}
     local days={}
     for i,name in ipairs(names) do if Contracts.hasDay(t.days,i) then days[#days+1]=name end end
-    return string.format("$%.2f/hr | %s | %02d:00-%02d:00",t.wageCents/100,table.concat(days," "),t.startHour,t.endHour)
+    return string.format("$%.2f/hr | %s | %02d:00-%02d:00%s | Pay %dw",t.wageCents/100,table.concat(days," "),t.startHour,t.endHour,
+        t.endHour<t.startHour and " (+1 day)" or "",t.payWeeks)
+end
+function Contracts.paydayForWeek(t,week)
+    local anchor=t.startDay-(Contracts.weekday(t.startDay)-1)
+    local cycle=math.floor((week-anchor)/(7*t.payWeeks))
+    return (anchor+(cycle+1)*7*t.payWeeks)*24+9
 end
 function Contracts.weeklyEstimate(t)
     local days=0
     for i=1,7 do if Contracts.hasDay(t.days,i) then days=days+1 end end
-    local duration=t.endHour-t.startHour
+    local duration=Contracts.duration(t)
     local hours=(duration-(duration>=6 and .5 or 0))*days
     return (math.min(40,hours)+math.max(0,hours-40)*1.5)*t.wageCents/100,hours
 end

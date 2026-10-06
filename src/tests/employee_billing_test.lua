@@ -14,7 +14,7 @@ local Calendar=require("src.business_calendar")
 local Office=require("src.office_authority")
 local Ui=require("src.screens.ui")
 local Test={}
-local function hours(s,h) s.calendar=Calendar.dateFromTotalDay(math.floor(h/24));s.calendar.elapsed=h%24/24*300 end
+local function hours(s,h) local pace=Calendar.secondsPerDay(s);s.calendar=Calendar.dateFromTotalDay(math.floor(h/24));s.calendar.secondsPerDay=pace;s.calendar.elapsed=h%24/24*Calendar.secondsPerDay(s) end
 local function hire(s,wage)
     local a=Employees.createApplicant(s,0)
     Employees.requestResume(s,a.id,0);Employees.advance(s,.5)
@@ -28,7 +28,7 @@ local function offer(id,press)
 end
 local function near(a,b) return math.abs(a-b)<1e-6 end
 function Test.run(context,check)
-    local state=State.new();local job=offer("JOB-LABOR-QUOTE")
+    local state=State.new();state.calendar.secondsPerDay=300;local job=offer("JOB-LABOR-QUOTE")
     local baseline=Service.quoteTerms(state,job)
     check("employee_billing_owner_only_quote_keeps_existing_service_price",baseline.recommendedPrice==150 and baseline.employeeBudget==nil)
     local w=hire(state)
@@ -81,7 +81,7 @@ function Test.run(context,check)
     legacy.state.employment.version=2
     for _,old in ipairs(legacy.state.employment.staff) do old.laborTotals=nil end
     local migrated=Schema.migrate(legacy)
-    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==19 and migrated.state.employment.version==3
+    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==20 and migrated.state.employment.version==4
         and near(migrated.state.employment.staff[1].laborTotals.shopCents,4400) and migrated.state.jobs.active[1].quote.totalPrice==agreed
         and legacy.state.employment.staff[1].laborTotals==nil)
     -- The Bills page and Payroll settle the same obligations exactly once.

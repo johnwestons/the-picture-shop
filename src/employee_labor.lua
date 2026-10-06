@@ -1,6 +1,6 @@
 -- Labor allowances are estimates; the payroll ledger owns every cash payment.
 local Contracts=require("src.employment_contracts")
-local Config=require("src.config")
+local Calendar=require("src.business_calendar")
 local Press=require("src.press_economics")
 local Labor={}
 local function finite(n) return type(n)=="number" and n==n and n>=0 and n<1e12 end
@@ -45,7 +45,7 @@ local function qualified(w,job)
     return w.status=="employed" and not w.terminationRequested
         and not (job.difficulty=="hard" and w.cutterSkill<80 or job.difficulty=="medium" and w.cutterSkill<50)
 end
-local function estimate(job,w)
+local function estimate(state,job,w)
     local cutter=require("src.machine").forId(nil)
     local seconds=0
     for _,p in ipairs(job.pallets or {}) do
@@ -58,11 +58,10 @@ local function estimate(job,w)
                 +cuts*(cutter.cycleTime+cutter.transferTime)+2*cutter.transferTime)
         end
     end
-    local hours=seconds*24/(Config.businessCalendar.secondsPerDay or 300)+.25
+    local hours=seconds*24/Calendar.secondsPerDay(state)+.25
     local t=w.contract;local days=0
     for day=1,7 do if Contracts.hasDay(t.days,day) then days=days+1 end end
-    local duration=t.endHour-t.startHour
-    local productive=(duration-(duration>=6 and .5 or 0)-(duration>6 and .5 or .25))*days
+    local productive=Contracts.productiveHours(t)*days
     local weekly=Contracts.weeklyEstimate(t)
     local rate=weekly/math.max(.25,productive)
     local laborCost=hours*rate
@@ -72,11 +71,12 @@ local function estimate(job,w)
         budgetRate=rounded(rate),productiveHours=rounded(hours),laborCost=rounded(laborCost),
         machineCost=rounded(overhead),minimumCuttingCharge=minimum}
 end
+Labor.estimate=estimate
 function Labor.price(state,job,servicePrice)
     local budget
     for _,w in ipairs(state.employment and state.employment.staff or {}) do
         if qualified(w,job) then
-            local candidate=estimate(job,w)
+            local candidate=estimate(state,job,w)
             if not budget or candidate.minimumCuttingCharge>budget.minimumCuttingCharge then budget=candidate end
         end
     end

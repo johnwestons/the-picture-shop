@@ -2777,6 +2777,7 @@ local function primaryMobileAction()
     if multiplayer:isClient() and selected.kind ~= "loadingBayDoor"
         and selected.kind ~= "truckCargoDoor"
         and selected.kind ~= "palletWorkOrder"
+        and selected.kind ~= "shopClock"
         and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
         and selected.kind ~= "breakroom"
         and not World.workshopResourceId(selected.kind)
@@ -2796,7 +2797,7 @@ local function primaryMobileAction()
         end
     end
     local labels = {
-        customer = "JOB", computer = "PC", vendor = "TALK", loadingBayDoor = "DOOR",
+        customer = "JOB", computer = "PC", shopClock = "CLOCK", vendor = "TALK", loadingBayDoor = "DOOR",
         truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
         windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
         forklift = "DRIVE", palletRack = "SHELVES",
@@ -4261,6 +4262,8 @@ function App.draw()
             MultiplayerHud.draw(multiplayerHudInfo())
         elseif state.screen == "computer" then
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
+        elseif state.screen == "shop_clock" then
+            require("src.screens.shop_clock").draw(state,mouseX,mouseY)
         elseif state.screen == "work_phone" then
             WorkPhoneScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "machine" then

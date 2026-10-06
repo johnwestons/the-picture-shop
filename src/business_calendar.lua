@@ -29,6 +29,8 @@ local function dateFromTotalDay(totalDay)
         day = remaining + 1,
         weekday = (3 + totalDay) % 7 + 1,
         totalDays = totalDay,
+        elapsed = 0,
+        secondsPerDay = settings().secondsPerDay or 1200,
     }
 end
 
@@ -56,7 +58,16 @@ daysInMonth = function(year, month)
 end
 
 function Calendar.defaultCalendar()
-    return { year = 2026, month = 1, day = 1, weekday = 4, elapsed = 0, totalDays = 0 }
+    return { year = 2026, month = 1, day = 1, weekday = 4, elapsed = 0, totalDays = 0,
+        secondsPerDay = settings().secondsPerDay or 1200 }
+end
+
+function Calendar.validDayLength(seconds)
+    return type(seconds)=="number" and seconds==math.floor(seconds) and seconds>=300 and seconds<=3600
+end
+
+function Calendar.secondsPerDay(state)
+    return state and state.calendar and state.calendar.secondsPerDay or settings().secondsPerDay or 1200
 end
 
 function Calendar.defaultBills()
@@ -72,6 +83,9 @@ function Calendar.ensure(state)
     date.weekday = math.min(7, math.max(1, math.floor(tonumber(date.weekday) or 4)))
     date.elapsed = math.max(0, tonumber(date.elapsed) or 0)
     date.totalDays = math.max(0, math.floor(tonumber(date.totalDays) or 0))
+    -- Saves written before shop setup used a five-minute day. Keep their
+    -- clock and wage checkpoints on the same time basis when migrating.
+    if date.secondsPerDay==nil then date.secondsPerDay=300 end
 
     state.bills = type(state.bills) == "table" and state.bills or Calendar.defaultBills()
     local bills = state.bills
@@ -91,6 +105,7 @@ function Calendar.valid(date, bills)
         or date.weekday ~= math.floor(date.weekday)
         or type(date.elapsed) ~= "number" or date.elapsed < 0
         or type(date.totalDays) ~= "number" or date.totalDays < 0 or date.totalDays ~= math.floor(date.totalDays)
+        or not Calendar.validDayLength(date.secondsPerDay)
         or type(bills.balance) ~= "number" or bills.balance < 0
         or type(bills.nextInvoiceId) ~= "number" or bills.nextInvoiceId < 1
         or bills.nextInvoiceId ~= math.floor(bills.nextInvoiceId)
@@ -155,7 +170,7 @@ end
 
 function Calendar.update(state, dt)
     local date = Calendar.ensure(state)
-    local secondsPerDay = math.max(1, tonumber(settings().secondsPerDay) or 300)
+    local secondsPerDay = Calendar.secondsPerDay(state)
     date.elapsed = date.elapsed + math.max(0, tonumber(dt) or 0)
     local daysAdvanced, newestInvoice = 0, nil
     while date.elapsed >= secondsPerDay do
@@ -242,13 +257,27 @@ end
 
 function Calendar.dayProgress(state)
     local date = Calendar.ensure(state)
-    return math.min(1, date.elapsed / math.max(1, tonumber(settings().secondsPerDay) or 300))
+    return math.min(1, date.elapsed / Calendar.secondsPerDay(state))
 end
 
 function Calendar.absoluteHours(state)
     local date = Calendar.ensure(state)
-    local secondsPerDay = math.max(1, tonumber(settings().secondsPerDay) or 300)
+    local secondsPerDay = Calendar.secondsPerDay(state)
     return date.totalDays * 24 + date.elapsed / secondsPerDay * 24
+end
+
+function Calendar.clockTime(state)
+    local hours=Calendar.absoluteHours(state)%24
+    local minutes=math.floor(hours*60+1e-7)%1440
+    return math.floor(minutes/60),minutes%60,hours
+end
+
+function Calendar.timeText(state,twelveHour)
+    local hour,minute=Calendar.clockTime(state)
+    if twelveHour then
+        return string.format("%d:%02d %s",(hour-1)%12+1,minute,hour<12 and "AM" or "PM")
+    end
+    return string.format("%02d:%02d",hour,minute)
 end
 
 
@@ -355,6 +384,27 @@ function Calendar.events(state)
         add(invoice.dueOnDay or invoice.issuedOnDay,
             invoice.kind == "spoil_claim" and "Customer stock claim due" or "Rent and bills due", "bill",
             string.format("%s • $%d • %s", invoice.id, invoice.total, invoice.status), invoice.id)
+    end
+    local Contracts=require("src.employment_contracts")
+    local Payroll=require("src.payroll")
+    local now=Calendar.absoluteHours(state)
+    for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+        local payday=Payroll.nextPayday(worker,now)
+        if worker.status=="employed" or Payroll.balance(worker,now,true)>0 then
+            addHours(payday,"Wages due: "..worker.name,"payroll",
+                string.format("Every %d week(s), 09:00 | Earned unpaid $%.2f",worker.contract.payWeeks,
+                    Payroll.balance(worker,now,true)/100),worker.id..":pay:"..payday)
+        end
+        if worker.status=="employed" and not worker.terminationRequested then
+            for day=math.max(worker.contract.startDay,state.calendar.totalDays-1),state.calendar.totalDays+7 do
+                if Contracts.hasDay(worker.contract.days,Contracts.weekday(day)) then
+                    local start=day*24+worker.contract.startHour
+                    addHours(start,"Shift starts: "..worker.name,"shift",Contracts.summary(worker.contract),worker.id..":start:"..day)
+                    addHours(start+Contracts.duration(worker.contract),"Shift ends: "..worker.name,"shift",
+                        "Unfinished work continues next agreed shift.",worker.id..":end:"..day)
+                end
+            end
+        end
     end
     for _, loan in ipairs((state.credit and state.credit.loans) or {}) do
         if loan.status == "active" or loan.status == "defaulted" then

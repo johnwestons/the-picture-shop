@@ -19,7 +19,7 @@ local Codec=require("src.net.codec")
 local Test={}
 local function hours(state,h)
     state.calendar=Calendar.dateFromTotalDay(math.floor(h/24))
-    state.calendar.elapsed=(h%24)/24*300
+    state.calendar.elapsed=(h%24)/24*Calendar.secondsPerDay(state)
 end
 local function hire(state)
     local a=assert(Employees.createApplicant(state,0))
@@ -48,7 +48,7 @@ function Test.run(context,check)
     check("employees_reception_interaction_requests_typed_resume",World.requestEmployeeResume(visitState,visitor.id) and visitor.status=="resume_requested")
     local legacy=Schema.newPayload(1,1);legacy.version=16;legacy.state.employment=nil
     local migrated=Schema.migrate(legacy)
-    check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==19 and #migrated.state.employment.staff==0)
+    check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==20 and #migrated.state.employment.staff==0)
     local a=Employees.createApplicant(fresh,0)
     Employees.requestResume(fresh,a.id,0)
     local revision=a.revision

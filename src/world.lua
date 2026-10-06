@@ -3,6 +3,7 @@ local BayDoor = require("src.bay_door")
 local BusinessCalendar = require("src.business_calendar")
 local CutterPlacement = require("src.cutter_placement")
 local CutterZones = require("src.cutter_zones")
+local CutterStaging = require("src.cutter_staging")
 local Customer = require("src.customer")
 local Interaction = require("src.interaction")
 local JobService = require("src.job_service")
@@ -256,8 +257,15 @@ function World.selectPlacement(state, assets, x, y, readOnly)
 end
 
 function World.findCutterOutput(state, assets, excludedPalletId)
-    return CutterZones.findOutput(state, Config.cutterPlacement, function(x, y)
-        return World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
+    return CutterStaging.find(function(x, y)
+        if not World.isPalletPlacementClear(state, assets, x, y, excludedPalletId) then return false end
+        for _,unit in ipairs(MachineFleet.installedUnits(state,"polar_115")) do
+            local machine=Machine.forId(unit.id)
+            if machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
+                and Footprint.distanceSquared(Footprint.at(x,y,Config.palletLogistics),
+                    Footprint.at(machine.pendingOutput.x,machine.pendingOutput.y,Config.palletLogistics))<.01 then return false end
+        end
+        return true
     end)
 end
 
@@ -272,6 +280,7 @@ local function interactables(player)
         end
     end
     addTarget("computer", Config.interactables.computer)
+    addTarget("shopClock", Config.interactables.shopClock)
     local phoneTarget = {
         x = Config.interactables.workPhone.x,
         y = Config.interactables.workPhone.y,

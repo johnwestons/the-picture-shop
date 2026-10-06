@@ -7,7 +7,7 @@ local function weekFor(day) return day-(Contracts.weekday(day)-1) end
 local function bucket(worker,day)
     local week=weekFor(day)
     for _,row in ipairs(worker.weeks) do if row.week==week then return row end end
-    local row={week=week,dueAtHours=(week+7)*24+9,paidHours=0,earnedCents=0,paidCents=0,notified=false}
+    local row={week=week,dueAtHours=Contracts.paydayForWeek(worker.contract,week),paidHours=0,earnedCents=0,paidCents=0,notified=false}
     worker.weeks[#worker.weeks+1]=row
     -- Keep settled history bounded while retaining every unpaid obligation.
     if #worker.weeks>54 and worker.weeks[1].paidCents>=rounded(worker.weeks[1].earnedCents) then
@@ -25,18 +25,23 @@ function Payroll.accrue(worker,startAt,endAt,finishingCycle,state)
     -- machine cycle after the scheduled end remains paid work.
     local first,last=math.floor(startAt/24),math.floor((endAt-1e-9)/24)
     for day=first,last do
-        if finishingCycle or day>=t.startDay and Contracts.hasDay(t.days,Contracts.weekday(day)) then
-            local a=math.max(startAt,day*24+(finishingCycle and 0 or t.startHour))
-            local b=math.min(endAt,day*24+(finishingCycle and 24 or t.endHour))
-            if b>a then
-                local row=bucket(worker,day)
-                local hours=b-a
-                local regular=math.min(hours,math.max(0,40-row.paidHours))
-                local cents=(regular+(hours-regular)*1.5)*t.wageCents
-                row.paidHours=row.paidHours+hours
-                row.earnedCents=row.earnedCents+cents
-                accrued=accrued+cents
-                paidHours=paidHours+hours
+        for shiftDay=day-1,day do
+            if (finishingCycle and shiftDay==day) or (not finishingCycle and shiftDay>=t.startDay
+                and Contracts.hasDay(t.days,Contracts.weekday(shiftDay))) then
+                local shiftStart=finishingCycle and day*24 or shiftDay*24+t.startHour
+                local shiftEnd=finishingCycle and (day+1)*24 or shiftStart+Contracts.duration(t)
+                local a=math.max(startAt,day*24,shiftStart)
+                local b=math.min(endAt,(day+1)*24,shiftEnd)
+                if b>a then
+                    local row=bucket(worker,day)
+                    local hours=b-a
+                    local regular=math.min(hours,math.max(0,40-row.paidHours))
+                    local cents=(regular+(hours-regular)*1.5)*t.wageCents
+                    row.paidHours=row.paidHours+hours
+                    row.earnedCents=row.earnedCents+cents
+                    accrued=accrued+cents
+                    paidHours=paidHours+hours
+                end
             end
         end
     end
@@ -67,8 +72,8 @@ function Payroll.pay(state,now,automatic)
                 if not row.notified then
                     Inbox.addNotice(state,{id=worker.id.."-PAY-"..row.week,sender="Shop Payroll",
                         subject=paid==owed and "Weekly wages paid: "..worker.name or "Unpaid wages: "..worker.name,
-                        body=string.format("Week's pay: $%.2f. Paid: $%.2f. Remaining wages stay owed. Payroll is due Monday at 09:00; overdue wages pause new work.",
-                            rounded(row.earnedCents)/100,row.paidCents/100),noticeKind="payroll"},0)
+                        body=string.format("Week's earnings: $%.2f. Paid: $%.2f. Remaining wages stay owed. Your contract pays every %d week(s), Monday 09:00; overdue wages pause new work.",
+                            rounded(row.earnedCents)/100,row.paidCents/100,worker.contract.payWeeks),noticeKind="payroll"},0)
                     row.notified=true
                 end
             end
@@ -89,5 +94,12 @@ function Payroll.overdueSince(worker,now)
         end
     end
     return oldest
+end
+function Payroll.nextPayday(worker,now)
+    local nextAt
+    for _,row in ipairs(worker.weeks) do
+        if rounded(row.earnedCents)>row.paidCents then nextAt=not nextAt and row.dueAtHours or math.min(nextAt,row.dueAtHours) end
+    end
+    return nextAt or Contracts.paydayForWeek(worker.contract,weekFor(math.max(worker.contract.startDay,math.floor(now/24))))
 end
 return Payroll

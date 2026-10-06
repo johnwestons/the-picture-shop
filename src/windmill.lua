@@ -433,7 +433,7 @@ function Windmill.update(dt, state)
     if p.emergency or not p.motor or not p.feeder or not p.impression then
         return platesChanged, platesChanged
     end
-    local gameHours = math.max(0, dt) * 24 / Config.businessCalendar.secondsPerDay
+    local gameHours = math.max(0, dt) * 24 / require("src.business_calendar").secondsPerDay(state)
     p.sheetAccumulator = p.sheetAccumulator + p.speed * gameHours
     local attempted = math.min(math.floor(p.sheetAccumulator), p.feedRemaining)
     if attempted <= 0 then return platesChanged, platesChanged end

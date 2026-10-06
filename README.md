@@ -11,8 +11,9 @@ A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop managem
 ## NPC workers and hiring
 
 Open the office computer, tap the arrow beside the address bar, and choose
-**HIRING**. Cat applicants visit reception and email their resumes. Negotiate
-hourly wages, days and shift times, wait for the email reply, then sign the
+**HIRING**. Radio Cat, Tinker Fox and Ferret Engineer visit reception and email
+their resumes. Negotiate hourly wages, weekdays, 4–12 hour day or overnight
+shifts and pay every 1–4 weeks, wait for the email reply, then sign the
 accepted offer. Choose **SCHEDULE** from the same address-bar dropdown, select
 the employee, then use **ADD JOB** to queue an accepted job and its cutter.
 Each employee can queue 16 jobs. They cut every pallet in the first job, then
@@ -24,7 +25,11 @@ queue, and resumes the same pallet on their next agreed working shift. Progress
 survives days off and saving/reopening. Work respects breaks, skill requirements
 and overdue wages. **Staff** still supports assigning one pallet manually.
 **Payroll** shows earned wages, labor allocated to jobs, and paid idle/break/shop
-time. Weekly wages are due Monday 09:00, with unpaid balances retained.
+time. Wages accrue without an instant cash deduction and become due on the
+contract's Monday 09:00 payday, with unpaid balances retained. Overtime is
+calculated separately each week. **Payroll > Shop Budget** forecasts full-shift
+wages, shop bills, machine payments, payroll reserves, break-even cutting work
+and money for growth. It accounts for workers sharing the installed cutters.
 
 New customer estimates include a cutter labor budget based on the available
 employees' negotiated wages, skill, paid breaks and overtime. Recommendations
@@ -33,10 +38,26 @@ margin. Already-agreed customer prices stay fixed. Job details show actual staff
 wages; **Bills** includes wages due and settles the same payroll ledger as
 **Payroll**, so wages are paid once.
 
-The first worker is Radio Cat. Up to three cat employees can work agreed shifts,
+The first worker is Radio Cat, followed by Tinker Fox and Ferret Engineer.
+Up to three employees can work agreed shifts,
 operate the actual cutter, and recover fatigue and focus in a completed breakroom.
 Eight authored walking/idle views, cutter action poses and seated break poses
-are included in `assets/generated/characters/cat-worker/`.
+are included in `assets/generated/characters/cat-worker/`. The Fox and Ferret
+assets are in their named worker folders beside it. All three reuse the complete
+reviewed Mouse Frontier walks and matching idles; Fox and Ferret also use their
+existing hand and seated poses. Their original source files and hashes are kept
+in `assets/source/mouse-frontier-workers/`.
+
+Creating a shop opens **Shop Setup Options**. Choose any whole-minute day length
+from **5 to 60 minutes**; the default is 20 minutes and the choice stays with that
+save. The HUD and computer show hours and minutes. Click the office wall clock
+or select **SHOP CLOCK** on the computer for a live analog face. The calendar
+also lists upcoming employee shifts and paydays.
+
+The cutter highlights the next margin as the paper rotates, with a clear
+rotation-ready indicator. Completed pallets fill the six numbered spaces in
+the yellow rectangle at the front of the shop. If the area is full, clear a
+space; the employee keeps the finished stock and retries the return safely.
 See [implemented features and checks](docs/npc_worker_build_status.md) and the
 [plan for later press, wrapping and transport roles](docs/npc_worker_hiring_plan.md).
 

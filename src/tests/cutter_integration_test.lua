@@ -732,6 +732,9 @@ function Test.run(context, check, jobs)
     cutterJob.pallets[1].lastLiftSheets = 0
     cutterJob.pallets[1].programVerified = false
     cutterJob.pallets[1].location = "warehouse"
+    local inputX,inputY=context.CutterZones.inputAnchor(cutterState,context.config.cutterPlacement)
+    cutterJob.pallets[1].world.x,cutterJob.pallets[1].world.y=inputX,inputY
+    cutterJob.pallets[1].world.fromX,cutterJob.pallets[1].world.fromY=inputX,inputY
     context.machine.load(cutterState)
     context.machine.update(context.machine.transferTime + 0.01, cutterState)
     context.machine.autoGauge(cutterState)
@@ -839,8 +842,7 @@ function Test.run(context, check, jobs)
     end
 
     local blockedPreferredState, _, outputBlocker = ownershipState("JOB-OUTPUT-BLOCKER", 0, 0)
-    local preferredOutput = context.CutterZones.outputCandidates(
-        blockedPreferredState, context.config.cutterPlacement)[1]
+    local preferredOutput = require("src.cutter_staging").slots()[1]
     outputBlocker.world.x, outputBlocker.world.y = preferredOutput.x, preferredOutput.y
     outputBlocker.world.fromX, outputBlocker.world.fromY = preferredOutput.x, preferredOutput.y
     local alternateOutput = context.world.findCutterOutput(blockedPreferredState, context.assets)

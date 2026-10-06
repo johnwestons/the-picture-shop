@@ -29,12 +29,13 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     shadowedPrint("Paper: " .. state.inventory.paper, left + 92, 20, { 0.88, 0.92, 0.94 })
     shadowedPrint("Samples: " .. state.inventory.prints, left + 190, 20, { 0.88, 0.92, 0.94 })
     shadowedPrint(BusinessCalendar.shortDate(state), left + 312, 20, { 0.74, 0.88, 0.89 })
+    shadowedPrint("TIME "..BusinessCalendar.timeText(state),left+312,38,{.96,.85,.40})
     if state.bills and state.bills.balance > 0 then
         shadowedPrint("Bills due: $" .. state.bills.balance, left + 442, 20, { 0.96, 0.48, 0.30 })
     end
     BackButton.draw(assets, EXIT, "EXIT TO MENU", pointerX, pointerY, false)
     if state.message then
-        shadowedPrintf(state.message, left + 24, 48, right - left - 48, { 0.88, 0.92, 0.94 })
+        shadowedPrintf(state.message, left + 24, 59, right - left - 48, { 0.88, 0.92, 0.94 })
     end
     if prompt then
         local shownPrompt = prompt

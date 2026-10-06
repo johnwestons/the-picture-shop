@@ -1,4 +1,6 @@
 local Config = require("src.config")
+local CutterStaging = require("src.cutter_staging")
+local ShopClock = require("src.screens.shop_clock")
 local EmployeeRenderer = require("src.employee_renderer")
 local CharacterAnimation = require("src.character_animation")
 local InteractionBeacon = require("src.interaction_beacon")
@@ -442,8 +444,11 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     World = world
     drawBackground(assets)
     WarehouseRenderer.drawFloors(assets, state)
+    CutterStaging.draw()
     drawWorkPhone(assets, state)
     drawWallVentFan(assets)
+    local clock=Config.interactables.shopClock
+    ShopClock.drawFace(state,clock.wallX,clock.wallY,clock.clockRadius)
     drawBayDoor(assets)
     drawTruck(assets, state)
     PlacementGrid.draw(World.placementGridSnapshot(state, assets))
@@ -455,7 +460,9 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     if World.customer.visible then visibleCharacters[World.customer.character] = true end
     if World.vendor.visible then visibleCharacters[World.vendor.character] = true end
     local employeeEntries=EmployeeRenderer.entries(state)
-    if #employeeEntries>0 then visibleCharacters["cat-worker"]=true end
+    for _,entry in ipairs(employeeEntries) do
+        visibleCharacters[(entry.worker or entry.application).character]=true
+    end
     characterAssets.retainCharacters(visibleCharacters)
     local jack = state and PalletJack.ensure(state, Config.palletJack)
     local cutter = state and CutterPlacement.ensure(state, Config.cutterPlacement)
