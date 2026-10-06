@@ -4,7 +4,17 @@ This is the authoritative Local Play parity inventory. Runtime declarations live
 `src/multiplayer_capabilities.lua`; the smoke suite rejects undeclared interaction kinds and authority
 resources. A durable change always executes on the host and only the host writes the multiplayer save.
 
-## October 6, 2026 — employee work schedules
+## October 6, 2026 — shift continuation and employee billing
+
+Protocol **24** carries job wage allocation and staff-aware estimate budgets in reliable host shop
+state. Guests can inspect these costs. Only the owner can settle Bills when employee wages are due;
+ordinary bills permissions cannot bypass payroll restrictions. Bills and Payroll settle the same
+wage obligations once. Submitted/accepted customer prices stay fixed. The host retains unfinished
+cuts at a safe shift boundary and resumes the same pallet on the next agreed working day, including
+after a weekend and save/reload. Desktop checks pass **4,033 checks**; packaged Android verification
+is reported in [worker scope and verification](npc_worker_build_status.md).
+
+## Earlier October 6, 2026 — employee work schedules
 
 Protocol **23** adds ordered, saved cutter job queues to **SCHEDULE** in the computer dropdown.
 Only the shop owner can add, reorder, remove, pause or resume queued jobs. Guests can inspect the

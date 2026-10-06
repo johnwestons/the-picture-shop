@@ -16,6 +16,7 @@ local OfficeIntent = require("src.office_intent")
 local Hiring = require("src.screens.hiring_screen")
 local ScheduleScreen = require("src.screens.schedule_screen")
 local Employees = require("src.employees")
+local Payroll = require("src.payroll")
 local warehouseRequestPrefix=dependencies.warehouseRequestPrefix
 
 local function nextFinanceRequestId(sequence)
@@ -514,7 +515,8 @@ end
 
 local function resetQuoteText(state)
     local email = selectedEmail(state)
-    local base = email and email.job and email.job.quote and email.job.quote.totalPrice
+    local terms=email and email.job and JobService.quoteTerms(state,email.job)
+    local base = terms and terms.recommendedPrice
     ComputerScreen.quoteText = base and tostring(math.floor(base)) or ""
     ComputerScreen.quoteFocused = false
     ComputerScreen.quoteReplaceOnType = true
@@ -1011,7 +1013,7 @@ function ComputerScreen.mousepressed(state, x, y, button)
             if dependencies.remoteCommand then return remoteAction("pay_bills") end
             local paid, result = BusinessCalendar.pay(state)
             if not paid then state.message = result; return { action = "blocked" } end
-            state.message = string.format("Paid $%d in operating bills and customer claims.", result)
+            state.message = string.format("Paid $%.2f in operating bills, customer claims and wages.",result)
             return { action = "bill_paid", amount = result }
         end
         return nil
@@ -1530,8 +1532,13 @@ local function drawDetail(state, pointerX, pointerY, assets)
     for _, row in ipairs(layout.rows) do
         love.graphics.printf(row.text, DETAIL.x + 20, row.y, row.width, "left")
     end
-    love.graphics.print("Job value: " .. money(selected.quote.totalPrice), DETAIL.x + 20, layout.valueY)
-    love.graphics.print("Required lifts: " .. selected.quote.totalLifts, DETAIL.x + 190, layout.valueY)
+    local valueText="Job value: "..money(selected.quote.totalPrice)
+    if selected.labor then valueText=valueText.." | Staff wages: "..money(selected.labor.wageCents/100)
+    elseif selected.quote.employeeBudget then valueText=valueText.." | Staff budget: "..money(selected.quote.employeeBudget.laborCost) end
+    love.graphics.printf(valueText, DETAIL.x + 20, layout.valueY, DETAIL.width - 40, "left")
+    if not selected.labor and not selected.quote.employeeBudget then
+        love.graphics.print("Required lifts: " .. selected.quote.totalLifts, DETAIL.x + 190, layout.valueY)
+    end
     drawArtworkPreview(assets, selected, DETAIL.x + 350, DETAIL.y + 34, 70)
 
     love.graphics.setColor(0.16, 0.22, 0.24)
@@ -1967,7 +1974,12 @@ end
 
 local function drawBills(state, pointerX, pointerY)
     local charges, monthlyTotal = BusinessCalendar.monthlyCharges()
-    local balance = state.bills and state.bills.balance or 0
+    local balance,_,wages = BusinessCalendar.amountDue(state)
+    local accrued=state.employment and Payroll.total(state,BusinessCalendar.absoluteHours(state),true)/100 or 0
+    local weekly=0
+    for _,w in ipairs(state.employment and state.employment.staff or {}) do
+        if w.status=="employed" and not w.terminationRequested then weekly=weekly+require("src.employment_contracts").weeklyEstimate(w.contract) end
+    end
     local claimTotal = 0
     for _, invoice in ipairs(state.bills and state.bills.ledger or {}) do
         if invoice.status == "unpaid" and invoice.kind == "spoil_claim" then
@@ -1977,10 +1989,10 @@ local function drawBills(state, pointerX, pointerY)
     panel({ x = 82, y = 190, width = 770, height = 408 },
         { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
     love.graphics.setColor(0.95, 0.84, 0.30)
-    love.graphics.print("OPERATING BILLS & CUSTOMER CLAIMS", 108, 214)
+    love.graphics.print("OPERATING BILLS, CLAIMS & PAYROLL", 108, 214)
     love.graphics.setColor(0.76, 0.83, 0.84)
     love.graphics.print(BusinessCalendar.dateText(state), 108, 242)
-    love.graphics.print("One game day lasts 5 real minutes. A new invoice posts on the first of each month.", 108, 266)
+    love.graphics.print("Monthly shop invoices. Employee wages are due Monday at 09:00.", 108, 266)
 
     love.graphics.setColor(0.16, 0.22, 0.24)
     love.graphics.rectangle("fill", 108, 302, 470, 28)
@@ -2003,6 +2015,13 @@ local function drawBills(state, pointerX, pointerY)
     love.graphics.setColor(claimTotal > 0 and 0.92 or 0.72, claimTotal > 0 and 0.48 or 0.79, 0.44)
     love.graphics.print("Customer stock replacement claims", 122, 510)
     love.graphics.printf(money(claimTotal), 402, 510, 150, "right")
+    love.graphics.setColor(.78,.84,.84,1)
+    love.graphics.print("Employee wages currently due",122,534)
+    love.graphics.printf(money(wages),402,534,150,"right")
+    love.graphics.print("Wages earned, not yet due",122,556)
+    love.graphics.printf(money(math.max(0,accrued-wages)),402,556,150,"right")
+    love.graphics.print("Estimated staff pay / week",122,578)
+    love.graphics.printf(money(weekly),402,578,150,"right")
 
     panel({ x = 604, y = 302, width = 204, height = 188 },
         { 0.08, 0.10, 0.11, 1 }, { 0.31, 0.48, 0.49, 1 })
@@ -2011,16 +2030,18 @@ local function drawBills(state, pointerX, pointerY)
     love.graphics.setColor(balance > 0 and 0.96 or 0.54, balance > 0 and 0.48 or 0.84, balance > 0 and 0.30 or 0.65)
     love.graphics.printf(money(balance), 620, 370, 172, "center")
     love.graphics.setColor(0.58, 0.66, 0.67)
-    love.graphics.printf(balance > 0 and "Unpaid invoices carry forward." or "All operating bills are paid.",
+    love.graphics.printf(balance > 0 and "Includes due wages. Unpaid balances carry forward." or "All currently due bills and wages are paid.",
         620, 410, 172, "center")
 
-    local payable = balance > 0 and (state.money or 0) >= balance
+    local ownerOnly=dependencies.remoteCommand~=nil and wages>0
+    local payable = not ownerOnly and balance > 0
+        and math.floor((state.money or 0)*100+1e-7)>=math.floor(balance*100+.5+1e-7)
     local hovered = payable and pointerX and contains(PAY_BILLS, pointerX, pointerY)
     love.graphics.setColor(payable and (hovered and 0.19 or 0.12) or 0.13,
         payable and (hovered and 0.55 or 0.42) or 0.16, payable and 0.29 or 0.17)
     love.graphics.rectangle("fill", PAY_BILLS.x, PAY_BILLS.y, PAY_BILLS.width, PAY_BILLS.height, 3, 3)
     love.graphics.setColor(payable and 0.95 or 0.50, payable and 0.96 or 0.53, payable and 0.93 or 0.53)
-    love.graphics.printf(balance <= 0 and "NO BALANCE DUE" or payable and "PAY ALL BILLS" or "INSUFFICIENT CASH",
+    love.graphics.printf(ownerOnly and "OWNER PAYS WAGES" or balance <= 0 and "NO BALANCE DUE" or payable and "PAY BILLS & WAGES" or "INSUFFICIENT CASH",
         PAY_BILLS.x, PAY_BILLS.y + 16, PAY_BILLS.width, "center")
 end
 
@@ -2359,21 +2380,22 @@ local function drawEmail(state, pointerX, pointerY, assets)
         love.graphics.print(string.format("Order: %s good / %s supplied",
             commaNumber(job.quote.orderedCopies or job.press.orderedQuantity),
             commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 386)
-        love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(job), 434, 406, 292, "left")
+        love.graphics.printf("Packaging: "..(job.packaging=="boxed" and "Boxed, pallet-wrapped" or "Flat, pallet-wrapped"),434,406,292,"left")
         love.graphics.printf(string.format("Press: %d color%s • %s", job.press.colors or 1,
             (job.press.colors or 1) == 1 and "" or "s",
-            table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 426, 292, "left")
+            table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 420, 292, "left")
         drawArtworkPreview(assets, job, 766, 330, 48)
     else
         love.graphics.print(string.format("%d pallet%s   %s sheets",
             job.quote.palletCount, job.quote.palletCount == 1 and "" or "s",
             commaNumber(job.quote.totalSheets)), 434, 386)
-        love.graphics.printf("Packaging: " .. ComputerScreen.packagingText(job), 434, 406, 392, "left")
-    end
-    if not selected.discountedTotal then
-        love.graphics.print("Stock arrival: " .. JobService.deliverySummary(job), 434, 446)
+        love.graphics.printf("Packaging: "..(job.packaging=="boxed" and "Boxed, pallet-wrapped" or "Flat, pallet-wrapped"),434,406,392,"left")
     end
     local terms = JobService.quoteTerms(state, job, tonumber(ComputerScreen.quoteText))
+    if terms and terms.employeeBudget then
+        love.graphics.setColor(.67,.78,.69,1)
+        love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",money(terms.employeeBudget.laborCost),money(terms.employeeBudget.wagePerHour)),434,436,392,"left")
+    end
     love.graphics.setColor(selected.discountedTotal and 0.54 or 0.58,
         selected.discountedTotal and 0.84 or 0.67, selected.discountedTotal and 0.65 or 0.68)
     love.graphics.print(selected.discountedTotal and "10% DISCOUNT APPLIED" or "YOUR ESTIMATE",
@@ -2407,6 +2429,10 @@ local function drawEmail(state, pointerX, pointerY, assets)
     end
     responseButton(EMAIL_DECLINE, "DECLINE REQUEST", false)
     responseButton(EMAIL_ACCEPT, "SEND ESTIMATE", true)
+    if terms and terms.employeeBudget and terms.amount<terms.recommendedPrice then
+        love.graphics.setColor(.98,.71,.35,1)
+        love.graphics.printf("Below staff cost target",434,514,190,"left")
+    end
     love.graphics.setColor(0.58, 0.67, 0.68)
     love.graphics.printf("Estimate expires 3 days after it is sent.", 630, 518, 196, "center")
 end

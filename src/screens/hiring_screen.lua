@@ -160,11 +160,14 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
     if ui.section=="payroll" then
         line(string.format("Wages due: $%.2f",Payroll.total(state,now,false)/100),100,252,700,{1,.85,.45})
         line(string.format("Total earned and unpaid: $%.2f",Payroll.total(state,now,true)/100),100,278,700)
-        line("Weekly payday: Monday 09:00. 1.5x pay after 40 paid hours.",100,312,700)
+        local jobCents,shopCents=0,0
+        for _,w in ipairs(e.staff) do jobCents=jobCents+w.laborTotals.jobCents;shopCents=shopCents+w.laborTotals.shopCents end
+        line(string.format("Tracked job labor: $%.2f  |  Idle / breaks / shop labor: $%.2f",jobCents/100,shopCents/100),100,304,730)
+        line("Weekly payday: Monday 09:00. 1.5x pay after 40 paid hours.",100,330,700)
         for i=1,4 do
             local w=e.staff[(ui.page-1)*4+i]
             if w then
-                local hours=0 for _,week in ipairs(w.weeks) do hours=hours+week.paidHours end
+                local hours=w.laborTotals.jobHours+w.laborTotals.shopHours
                 line(string.format("%s  |  %s  |  %.2f paid hours",w.name,w.status,hours),100,358+(i-1)*45,730)
                 line(string.format("Due $%.2f  /  earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),116,378+(i-1)*45,700,{.6,.76,.69})
             end

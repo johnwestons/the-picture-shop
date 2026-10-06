@@ -13,7 +13,12 @@ function Ui.commaNumber(value)
     return text
 end
 
-function Ui.money(value) return "$" .. Ui.commaNumber(value) end
+function Ui.money(value)
+    value=value or 0
+    local cents=math.floor(math.abs(value)*100+.5+1e-7)
+    local prefix=value<0 and "$-" or "$"
+    return prefix..Ui.commaNumber(math.floor(cents/100))..(cents%100~=0 and string.format(".%02d",cents%100) or "")
+end
 
 function Ui.box(x, y, width, height, fill, border, radius, lineWidth)
     radius = radius or 0

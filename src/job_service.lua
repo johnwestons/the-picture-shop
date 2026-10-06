@@ -6,6 +6,7 @@ local BusinessCalendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
 local Inbox = require("src.inbox")
 local Reputation = require("src.reputation")
+local Labor = require("src.employee_labor")
 
 local JobService = {}
 
@@ -516,6 +517,8 @@ local function decorateOfferForReputation(state, offer, sequence)
         or tier < 0 and "A small recovery order because prior spoilage damaged the shop's reputation."
         or "Normal commercial client expectations."
     offer.quote.totalPrice = math.max(1, math.floor(offer.quote.totalPrice * multiplier + 0.5))
+    offer.quote.servicePrice = offer.quote.totalPrice
+    offer.quote.totalPrice,offer.quote.employeeBudget=Labor.price(state,offer,offer.quote.servicePrice)
     offer.quote.recommendedPrice = offer.quote.totalPrice
     return offer
 end
@@ -524,6 +527,12 @@ function JobService.quoteTerms(state, job, amount)
     if type(job) ~= "table" or type(job.quote) ~= "table" then return nil end
     local base = math.max(1, math.floor(tonumber(job.quote.recommendedPrice)
         or tonumber(job.quote.totalPrice) or 1))
+    local servicePrice=job.quote.servicePrice or base
+    local budget=job.quote.employeeBudget
+    if job.status=="offered" and not job.quote.playerPrice and not job.promotionDiscount
+        and not (job.estimate and job.estimate.stage=="awaiting_reply") then
+        base,budget=Labor.price(state,job,servicePrice)
+    end
     amount = math.max(1, math.floor(tonumber(amount) or base))
     local serviceId = job.deliveryService and job.deliveryService.id or "standard"
     local urgency = serviceId == "express" and 1.40 or serviceId == "quick" and 1.25 or 1.15
@@ -545,6 +554,8 @@ function JobService.quoteTerms(state, job, amount)
     return {
         amount = amount,
         recommendedPrice = base,
+        servicePrice = servicePrice,
+        employeeBudget = budget,
         maximumPrice = math.floor(ceiling + 0.5),
         acceptanceChance = math.max(0.05, math.min(1, chance)),
         urgency = serviceId,
@@ -555,10 +566,12 @@ function JobService.quoteTerms(state, job, amount)
 end
 
 function JobService.submitQuote(state, job, amount, timestamp)
+    if not job or job.status~="offered" then return false,"This customer's agreed price is already fixed." end
     local terms = JobService.quoteTerms(state, job, amount)
     if not terms then return false, "quote paperwork is missing" end
     local accepted = quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
     job.quote.recommendedPrice = terms.recommendedPrice
+    job.quote.servicePrice=terms.servicePrice;job.quote.employeeBudget=terms.employeeBudget
     job.quote.playerPrice = terms.amount
     job.quote.totalPrice = terms.amount
     job.quoteProposal = {
@@ -592,6 +605,7 @@ function JobService.submitEmailQuote(state, emailId, amount, timestamp)
     local now = BusinessCalendar.absoluteHours(state)
     local accepted = quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
     job.quote.recommendedPrice = terms.recommendedPrice
+    job.quote.servicePrice=terms.servicePrice;job.quote.employeeBudget=terms.employeeBudget
     job.quote.playerPrice = terms.amount
     job.quote.totalPrice = terms.amount
     job.quoteProposal = {
@@ -680,6 +694,7 @@ function JobService.sendPromotion(state, sourceJob, customMessage)
     offer.quote.standardPrice = standardPrice
     offer.quote.totalPrice = math.max(1, math.floor(standardPrice * 0.90 + 0.5))
     offer.quote.recommendedPrice = offer.quote.totalPrice
+    if offer.quote.servicePrice then offer.quote.servicePrice=math.max(1,math.floor(offer.quote.servicePrice*.90+.5)) end
     offer.promotionDiscount = 0.10
     emails.nextPromotionId = promoNumber + 1
     emails.nextEmailId = emailNumber + 1
@@ -786,6 +801,11 @@ end
 
 function JobService.acceptOffer(state, job, timestamp)
     if type(state) ~= "table" or type(job) ~= "table" then return false, "state and job are required" end
+    if job.status=="offered" and not job.quote.playerPrice then
+        local terms=JobService.quoteTerms(state,job)
+        job.quote.totalPrice=terms.amount;job.quote.recommendedPrice=terms.recommendedPrice
+        job.quote.servicePrice=terms.servicePrice;job.quote.employeeBudget=terms.employeeBudget
+    end
     local accepted, errorMessage = Jobs.accept(job, timestamp)
     if not accepted then return false, errorMessage end
     job.deliveryService = job.deliveryService or deliveryService(job, job.sequence)

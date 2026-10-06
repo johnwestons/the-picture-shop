@@ -1,5 +1,6 @@
 local Contracts=require("src.employment_contracts")
 local Inbox=require("src.inbox")
+local Labor=require("src.employee_labor")
 local Payroll={}
 local function rounded(n) return math.floor(n+0.5+1e-7) end
 local function weekFor(day) return day-(Contracts.weekday(day)-1) end
@@ -14,11 +15,12 @@ local function bucket(worker,day)
     end
     return row
 end
-function Payroll.accrue(worker,startAt,endAt,finishingCycle)
+function Payroll.accrue(worker,startAt,endAt,finishingCycle,state)
     if not worker.visible or not worker.clockedIn or worker.phase=="hidden"
         or (worker.phase=="break" and worker.breakKind=="meal") then return 0 end
     local t=worker.contract
-    local accrued=0
+    local accrued,paidHours=0,0
+    worker.laborTotals=worker.laborTotals or Labor.fromWeeks(worker.weeks) or Labor.defaultTotals()
     -- Clip shifts and weeks. Time spent finishing an already-running safe
     -- machine cycle after the scheduled end remains paid work.
     local first,last=math.floor(startAt/24),math.floor((endAt-1e-9)/24)
@@ -34,10 +36,12 @@ function Payroll.accrue(worker,startAt,endAt,finishingCycle)
                 row.paidHours=row.paidHours+hours
                 row.earnedCents=row.earnedCents+cents
                 accrued=accrued+cents
+                paidHours=paidHours+hours
             end
         end
     end
-    return accrued
+    Labor.record(state,worker,paidHours,accrued)
+    return accrued,paidHours
 end
 function Payroll.balance(worker,now,includeAccrued)
     local cents=0

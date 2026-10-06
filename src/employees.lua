@@ -4,6 +4,7 @@ local Payroll=require("src.payroll")
 local Inbox=require("src.inbox")
 local Fleet=require("src.machine_fleet")
 local Schedule=require("src.employee_schedule")
+local Labor=require("src.employee_labor")
 local Employees={}
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
     offer_accepted=true,hired=true,declined=true,withdrawn=true,expired=true}
@@ -36,7 +37,7 @@ local function validActor(a)
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
 end
 function Employees.defaultState(now)
-    return {version=2,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+    return {version=3,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
         nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={}}
 end
 function Employees.ensure(state)
@@ -44,7 +45,7 @@ function Employees.ensure(state)
     return state.employment
 end
 function Employees.valid(e)
-    if type(e)~="table" or e.version~=2 or not int(e.nextApplicantId,1,1000000)
+    if type(e)~="table" or e.version~=3 or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
         or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12) then return false end
     local ids={}
@@ -79,6 +80,7 @@ function Employees.valid(e)
                 or not token(w.assignment.palletId) or not token(w.assignment.machineId)
                 or (w.assignment.scheduleItemId~=nil and not token(w.assignment.scheduleItemId))))
             or not Schedule.valid(w.schedule)
+            or not Labor.validTotals(w.laborTotals)
             or not array(w.weeks,1000,function(r)
                 return type(r)=="table" and int(r.week,-3,10000000) and number(r.dueAtHours,0,1e12)
                     and number(r.paidHours,0,200) and number(r.earnedCents,0,1e9)
@@ -102,6 +104,14 @@ function Employees.normalize(e,now)
         for _,w in pairs(result.staff) do
             if type(w)~="table" then return nil end
             w.schedule=w.schedule or Schedule.defaultState()
+        end
+    end
+    if result.version==2 then
+        if type(result.staff)~="table" then return nil end
+        result.version=3
+        for _,w in pairs(result.staff) do
+            if type(w)~="table" then return nil end
+            w.laborTotals=w.laborTotals or Labor.fromWeeks(w.weeks)
         end
     end
     if not Employees.valid(result) then return nil end
@@ -234,6 +244,7 @@ function Employees.command(state,intent,now)
         w.fatigue=0;w.focus=100;w.weeks={};w.shiftDay=-1;w.breaksTaken=0;w.breakRemaining=0
         w.clockedIn=false;w.terminationRequested=false;w.stopRequested=false;w.activity="Starts next agreed shift"
         w.schedule=Schedule.defaultState()
+        w.laborTotals=Labor.defaultTotals()
         e.staff[#e.staff+1]=w;a.status="hired";a.employeeId=w.id;a.revision=a.revision+1
         notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Weekly pay is due Monday 09:00, with 1.5x pay after 40 paid hours. Build ordered cutter jobs in Schedule, or assign one staged pallet in Hiring > Staff.")
         return true,w.name.." hired. Starts on the next agreed day."

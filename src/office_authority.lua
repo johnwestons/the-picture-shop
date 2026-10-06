@@ -35,6 +35,10 @@ function Office.command(options)
             if Employees.isIntent(intent.kind) and player.id ~= 1 then
                 return false,"owner_only","Only the shop owner can hire, set assignments, or pay wages.",{}
             end
+            if intent.kind=="pay_bills" and player.id~=1 then
+                local _,_,wages=Calendar.amountDue(state)
+                if wages>0 then return false,"owner_only","Only the shop owner can pay employee wages.",{} end
+            end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
             if warehousePurchase then
                 local enabled = type(options.warehouseEnabled) == "function" and options.warehouseEnabled(state)

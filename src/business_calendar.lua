@@ -169,14 +169,20 @@ function Calendar.update(state, dt)
     return daysAdvanced > 0, newestInvoice
 end
 
+function Calendar.amountDue(state)
+    local _,bills=Calendar.ensure(state)
+    local wages=state.employment and require("src.payroll").total(state,Calendar.absoluteHours(state),false)/100 or 0
+    return bills.balance+wages,bills.balance,wages
+end
+
 function Calendar.pay(state)
     local date, bills = Calendar.ensure(state)
-    if bills.balance <= 0 then return false, "No bills or customer claims are currently due." end
-    if (state.money or 0) < bills.balance then
-        return false, string.format("Bills and claims total $%d, but only $%d is available.", bills.balance, state.money or 0)
+    local amount,operating=Calendar.amountDue(state)
+    if amount <= 0 then return false, "No bills, customer claims or wages are currently due." end
+    if math.floor((state.money or 0)*100+1e-7)<math.floor(amount*100+.5+1e-7) then
+        return false, string.format("Bills, claims and wages total $%.2f, but only $%.2f is available.", amount, state.money or 0)
     end
-    local amount = bills.balance
-    state.money = state.money - amount
+    state.money = state.money - operating
     bills.balance = 0
     for _, invoice in ipairs(bills.ledger) do
         if invoice.status == "unpaid" then
@@ -184,7 +190,8 @@ function Calendar.pay(state)
             invoice.paidOnDay = date.totalDays
         end
     end
-    require("src.credit").recordBillsPaid(state, bills.ledger)
+    if operating>0 then require("src.credit").recordBillsPaid(state, bills.ledger) end
+    if state.employment then require("src.payroll").pay(state,Calendar.absoluteHours(state),false) end
     return true, amount
 end
 

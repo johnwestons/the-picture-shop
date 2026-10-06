@@ -143,10 +143,11 @@ function AI.worker(state,w,dt,now,context)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
     if onShift and not w.visible then
         w.visible=true;w.phase="entering";w.x,w.y=entrance.x,entrance.y;w.clockedIn=true
-        w.activity="Arriving for shift"
+        w.activity=w.assignment and "Resuming unfinished job" or "Arriving for shift"
         if w.shiftDay~=day then w.shiftDay=day;w.breaksTaken=0;w.fatigue=math.max(0,w.fatigue-60);w.focus=math.min(100,w.focus+50) end
     end
     if not w.visible then
+        if w.stopRequested and Work.safe(w) then Work.release(state,w);w.assignment=nil;w.stopRequested=false;return true end
         if w.terminationRequested then w.status=w.resigning and "resigned" or "dismissed" end
         return false
     end
@@ -154,7 +155,10 @@ function AI.worker(state,w,dt,now,context)
         if Work.safe(w) then
             Work.release(state,w);w.seatBay=nil;w.breakKind=nil
             if w.stopRequested then w.assignment=nil;w.stopRequested=false end
-            if not onShift then w.phase="leaving";w.clockedIn=false;w.activity="Shift ended" end
+            if not onShift then
+                w.phase="leaving";w.clockedIn=false
+                w.activity=w.assignment and "Off shift - unfinished job resumes next working shift" or "Shift ended"
+            end
         else
             w.activity="Finishing safe cutter cycle";return false
         end
@@ -228,7 +232,7 @@ function AI.update(state,dt,context)
         applications(state,realDt,nextAt,context)
         for _,w in ipairs(e.staff) do
             local oldClocked=w.clockedIn
-            Payroll.accrue(w,at,nextAt,not Work.safe(w))
+            Payroll.accrue(w,at,nextAt,not Work.safe(w),state)
             if AI.worker(state,w,realDt,nextAt,context) or oldClocked~=w.clockedIn then changed=true end
         end
         at=nextAt

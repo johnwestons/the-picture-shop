@@ -3,6 +3,7 @@ local Fleet=require("src.machine_fleet")
 local Pallets=require("src.pallet_state")
 local Paper=require("src.paper_work")
 local Config=require("src.config")
+local Labor=require("src.employee_labor")
 local Work={}
 local busy={armed=true,cutting=true,loading=true,positioning=true,unloading=true,lift_returning=true,resetting=true}
 function Work.machine(w) return w.assignment and Machine.forId(w.assignment.machineId) end
@@ -63,7 +64,7 @@ function Work.update(state,w,dt,context)
     local length=math.sqrt(dx*dx+dy*dy)
     if length>.01 then w.intentX,w.intentY=dx/length,dy/length end
     w._workClock=(w._workClock or 0)+dt
-    local delay=.32+(100-w.cutterSkill)/100*.70+(100-w.focus)/100*.40
+    local delay=Labor.actionDelay(w)
     local changed=false
     Fleet.withUnit(state,machine.id,function()
         local m=Machine.forId(machine.id)

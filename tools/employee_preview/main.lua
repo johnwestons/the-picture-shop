@@ -24,6 +24,8 @@ local Computer=require("src.screens.computer_screen").new()
 local Contracts=require("src.employment_contracts")
 local Schedule=require("src.employee_schedule")
 local Work=require("src.employee_work")
+local Service=require("src.job_service")
+local Payroll=require("src.payroll")
 local scenes,shot,pending={},1,false
 local state,applicant,worker
 local function setHours(s,h)
@@ -42,19 +44,21 @@ local function prepareScene()
     local scene=scenes[shot]
     if not scene then
         local f=assert(io.open(output.."/engine-review.txt","wb"))
-        f:write("PASS: real applicant route, automatic scheduled cutter route and cut cycle, completion history, occupied breakroom seat, Hiring and Schedule pages and full computer dropdown; desktop and phone landscape captures.\n")
+        f:write("PASS: real applicant route, automatic scheduled cutter route and cut cycle, completion history, occupied breakroom seat, Hiring and Schedule pages, real job labor and wage-inclusive Bills, cutter/print staff estimates and full computer dropdown; desktop and phone landscape captures.\n")
         f:close();love.event.quit(0);return
     end
     local phone=scene.phone
     love.window.setMode(phone and 1600 or 960,phone and 720 or 678,{vsync=0,resizable=false})
     if scene.view~="world" then
-        Computer.tab=scene.view=="email" and "email" or scene.view=="schedule" and "schedule" or "hiring"
+        Computer.tab=scene.view
         Computer.tabDropdownOpen=scene.dropdown==true
         Computer.hiring.section=scene.section or "applications"
         Computer.hiring.view=scene.page or "detail"
         Computer.hiring.selectedId=scene.recordId
         Computer.hiring.terms=Contracts.terms(2200,31,9,17)
         Computer.selectedEmailId=scene.emailId
+        Computer.selectedJobId=scene.jobId
+        Computer.quoteText=scene.quoteText or ""
         Computer.schedule.view=scene.page or "queue"
         Computer.schedule.workerId=scene.recordId
         Computer.schedule.jobIndex=scene.jobIndex or 1
@@ -108,6 +112,28 @@ function love.load()
     add("schedule-queue",state,"schedule");scenes[#scenes].recordId=worker.id
     add("schedule-add",state,"schedule");scenes[#scenes].recordId=worker.id;scenes[#scenes].page="add";scenes[#scenes].jobIndex=3
     add("schedule-menu",state,"schedule");scenes[#scenes].recordId=worker.id;scenes[#scenes].dropdown=true
+    assert(job.labor and job.labor.wageCents>0,"Preview did not allocate real cutter wages")
+    add("employee-job-cost",state,"active");scenes[#scenes].jobId=job.id
+    local billing=require("src.screens.gui_projection").copy(state)
+    setHours(billing,105);Calendar.addCharge(billing,"Preview customer stock claim",100,job.id)
+    assert(Payroll.total(billing,105,false)>0,"Preview has no actual wages due")
+    add("employee-bills",billing,"bills")
+    for _,printing in ipairs({false,true}) do
+        local estimates=require("src.screens.gui_projection").copy(state)
+        local request=assert(Jobs.createOffer({id=printing and "JOB-STAFF-PRINT-QUOTE" or "JOB-STAFF-CUT-QUOTE",company="Staff estimate client",
+            sourceSize={width=20,height=16},finishedSize={width=10,height=8},sheetCounts={500},
+            press=printing and {colors=1,colorSequence={"Black"},artworkSize={width=5,height=7},coverage=.4} or nil}))
+        assert(Service.requestEstimateDetails(estimates,request,1))
+        local email=estimates.clientEmails.pending[#estimates.clientEmails.pending]
+        setHours(estimates,email.readyAtHours);Service.updateClientEmails(estimates)
+        local ready
+        for _,e in ipairs(Service.estimateInbox(estimates)) do if e.job and e.job.id==request.id then ready=e end end
+        assert(ready,"Preview estimate did not reach inbox")
+        local terms=Service.quoteTerms(estimates,ready.job)
+        assert(terms.employeeBudget,"Preview estimate has no employee allowance")
+        add(printing and "employee-estimate-print" or "employee-estimate-cut",estimates,"estimating")
+        scenes[#scenes].emailId=ready.id;scenes[#scenes].quoteText=tostring(terms.recommendedPrice)
+    end
     local worldContext=World.employeeContext(state,Assets)
     local workContext={canClaim=worldContext.canClaim,operatorPoint=worldContext.operatorPoint,
         move=function(actor,goal,dt) return AI.move(actor,goal,dt,worldContext) end}

@@ -1904,7 +1904,7 @@ function Test.run(context, check)
         type(spawnX) == "number" and type(spawnY) == "number"
         and context.Navigation.isWalkable(context.assets, spawnX, spawnY, {}))
 
-    local routesCorrect = Protocol.VERSION == 23 and Protocol.CHANNEL_COUNT == 3
+    local routesCorrect = Protocol.VERSION == 24 and Protocol.CHANNEL_COUNT == 3
         and Protocol.CHANNEL_CONTROL == 0 and Protocol.CHANNEL_STATE == 1
         and Protocol.CHANNEL_DURABLE == 2 and Protocol.MAX_PLAYERS == 4
     local routeSummary = {}

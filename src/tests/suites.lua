@@ -94,6 +94,7 @@ local DOMAIN_SUITES = {
     require("src.tests.credit_finance_test"),
     require("src.tests.employees_test"),
     require("src.tests.employee_schedule_test"),
+    require("src.tests.employee_billing_test"),
     require("src.tests.press_economics_test"),
     require("src.tests.windmill_integration_test"),
     require("src.tests.multiplayer_world_layers_test"),

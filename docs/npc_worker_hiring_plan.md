@@ -1,6 +1,6 @@
 # NPC Worker Hiring and Machine Operation Plan
 
-**Status:** The cat hiring/cutter pilot and ordered cutter job schedules are playable. Press, wrapping, transport and the broader policies below remain planned. **Date:** October 6, 2026.
+**Status:** The cat hiring/cutter pilot, ordered cutter schedules, shift continuation and employee labor accounting are playable. Press, wrapping, transport and the broader policies below remain planned. **Date:** October 6, 2026.
 
 See [current implementation and verification](npc_worker_build_status.md) for the exact implemented scope. Open **HIRING** from the office computer's address-bar dropdown to hire and pay workers; **SCHEDULE** queues up to 16 accepted cutter jobs per employee with automatic progression, pause/resume and completion history. Every pallet in a job is cut before moving to the next job. Stock still needs player staging and clear cutter output.
 
@@ -69,7 +69,7 @@ Negotiated wages remain fixed until a new agreement takes effect. Higher pay imp
 
 **Example:** A $22/hour employee working Monday, Wednesday, and Friday from 09:00 to 17:00 earns 7.5 paid hours per day after the unpaid meal: **$165 per day and $495 per week**, before any overtime. Paid rest time is included in those 7.5 hours. The existing calendar makes a day last 300 real seconds, so an eight-hour shift lasts 100 real seconds. Wages therefore use game hours, the same basis already used by Windmill production.
 
-The press quote currently includes a $22.77/hour estimated labor allowance plus machine overhead in `src/press_economics.lua`. Keep the quoted allowance separate from actual payroll. The allowance estimates customer pricing; payroll is the actual cash expense. Job results should show allocated employee labor and idle payroll separately, without charging the same wages twice or treating the quote's estimate as another cash debit. Use paid working intervals to attribute labor to jobs; record paid breaks and unassigned time as shop labor expense.
+The press quote includes a $22.77/hour estimated labor allowance plus machine overhead in `src/press_economics.lua`. The implemented cutter budget in `src/employee_labor.lua` accounts for employed workers' wages, skill, contract-paid rests and overtime. New recommendations increase only when the cutting charge falls below the staff-cost and margin floor. Existing press allowances stay separate; accepted/submitted quotes and promised promotions keep their agreed prices. Actual payroll is allocated to job work or idle/break/shop labor and shown in Job details and Payroll. Bills includes due wages and settles the same payroll ledger, so the quote allowance never becomes a second cash debit.
 
 ## Skill and worker condition
 
@@ -226,7 +226,7 @@ Persist the employee ID, profile and experience, application and email reference
 
 Process shift, break, offer, and payroll boundaries chronologically when a frame crosses several deadlines. Split machine and payroll updates at those boundaries so one large update cannot grant a full frame of work after clock-out or miss a payday. Use durable operation IDs for contract signing, work stages, wage accrual checkpoints, replies, and payments.
 
-The implemented cutter/schedule pilot uses save schema 18 and network protocol 23. Version 16 shops receive an empty staff roster and zero payroll debt; version 17 employees receive empty job queues while retaining existing contracts and payroll. Money, jobs, loans, placements and real production remain durable. Additional roles will require their own reviewed state changes. Save wiping remains a separate, explicitly agreed testing choice.
+The implemented cutter/schedule pilot uses save schema 19 and network protocol 24. Version 16 shops receive an empty staff roster and zero payroll debt; version 17 employees receive empty job queues while retaining existing contracts and payroll. Version 18 / employment v2 gains cumulative labor totals, with old tracked wages recorded as unallocated shop labor. Money, agreed prices, jobs, loans, placements and real production remain durable. Unfinished cutter work resumes on the next agreed shift, including across days off and save/reload. Additional roles will require their own reviewed state changes. Save wiping remains a separate, explicitly agreed testing choice.
 
 ## Implementation order and completion checks
 

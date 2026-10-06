@@ -18,11 +18,20 @@ the employee, then use **ADD JOB** to queue an accepted job and its cutter.
 Each employee can queue 16 jobs. They cut every pallet in the first job, then
 automatically continue through the list. Pending jobs can be reordered or removed;
 pause/resume controls and a completion history are included. Stage each pallet
-beside its selected cutter and keep the output clear. Work respects agreed shifts,
-breaks, skill requirements and overdue wages. **Staff** still supports assigning
-one pallet manually. **Payroll** shows
-earned wages and allows payments; weekly wages are automatically due Monday
-09:00, with unpaid balances retained.
+beside its selected cutter and keep the output clear. At shift end, the worker
+finishes any running blade cycle safely, leaves the unfinished job first in the
+queue, and resumes the same pallet on their next agreed working shift. Progress
+survives days off and saving/reopening. Work respects breaks, skill requirements
+and overdue wages. **Staff** still supports assigning one pallet manually.
+**Payroll** shows earned wages, labor allocated to jobs, and paid idle/break/shop
+time. Weekly wages are due Monday 09:00, with unpaid balances retained.
+
+New customer estimates include a cutter labor budget based on the available
+employees' negotiated wages, skill, paid breaks and overtime. Recommendations
+increase when the existing cutting charge cannot cover staff cost and the normal
+margin. Already-agreed customer prices stay fixed. Job details show actual staff
+wages; **Bills** includes wages due and settles the same payroll ledger as
+**Payroll**, so wages are paid once.
 
 The first worker is Radio Cat. Up to three cat employees can work agreed shifts,
 operate the actual cutter, and recover fatigue and focus in a completed breakroom.

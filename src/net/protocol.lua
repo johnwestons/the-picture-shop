@@ -8,7 +8,7 @@ local PlacementGrid = require("src.placement_grid")
 local EmployeePose = require("src.employee_pose")
 
 local Protocol = {
-    VERSION = 23,
+    VERSION = 24,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
