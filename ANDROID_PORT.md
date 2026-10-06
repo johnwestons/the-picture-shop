@@ -3,29 +3,33 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.37` (`versionCode` 37)
+- Version: `0.1.0-android.38` (`versionCode` 38)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.37-debug.apk`
-- Download: [Android 37 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.37/ThePictureShop-0.1.0-android.37-Install.apk)
-  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.37).
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.38-debug.apk`
+- Download: [Android 38 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.38/ThePictureShop-0.1.0-android.38-Install.apk)
+  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.38).
 - Contents: all current shared game changes, including the warehouse expansion, finer pallet/machine
   placement, Credit-tab fix, and complete eight-direction walking and matching idle animations for the
   three client designs and three salesperson designs. Cat employees, **HIRING** and **SCHEDULE** are
   playable: emailed resumes, negotiated contracts, agreed shifts, ordered cutter job queues with
   automatic progression through every pallet, pause/resume, reorder/remove and completion history,
   fatigue/focus and breakroom recovery, hourly wages, weekly payroll and overtime. Queues survive
-  save reload and wait for staged stock and clear output. All 26 cat strips (120 frames), 60 visitor
-  strips and 276 Lua files match the package source. Press, wrapping and autonomous transport roles remain planned.
-- LAN: protocol v23, with host-owned worker poses and owner-only employment/schedule actions. Local Play participants should use matching builds.
-- Verification: 3,998 desktop checks and 3,998 checks against the actual packaged mobile game pass.
-  The signed APK contains that verified game package; its certificate matches the published `.36`
+  save reload and wait for staged stock and clear output. Unfinished cuts resume on the next agreed
+  shift, including across days off and save/reload. New quotes show negotiated staff budgets and raise
+  cutting recommendations when needed to cover labor and margin; agreed customer prices stay fixed.
+  Job details and Payroll track actual job wages separately from idle/break/shop labor. Bills includes
+  due wages and settles the same payroll ledger once. All 26 cat strips (120 frames), 60 visitor strips
+  and 278 Lua files match the package source. Press, wrapping and autonomous transport roles remain planned.
+- LAN: protocol v24, with host-owned worker poses and owner-only employment/schedule/wage actions. Local Play participants should use matching builds.
+- Verification: 4,033 desktop checks and 4,033 checks against the actual packaged mobile game pass.
+  The signed APK contains that verified game package; its certificate matches the published `.37`
   installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
-- Installer: 237,229,131 bytes (226.2 MiB), SHA-256
-  `1f4abb60df797a94c08a49a6de8b6bf1e0870cf9a8dd32fb10a001b56f62006d`.
-  Source commit: `c49469369fea9a0ba102156c0aa645b94734ece8`. The build report records local
+- Installer: 237,237,229 bytes (226.2 MiB), SHA-256
+  `5411d706f8ac58e8daf89fcc777774a81139acebb6c3808b32f8b2b0ee17c0b5`.
+  Source commit: `15c2c38dc129e170f01bb09b52c2ee7ce67141eb`. The build report records local
   preview files as a dirty worktree; those files are excluded from the game package.
   An anonymous public-download check verifies the APK header, advertised size and GitHub SHA-256.
 - Device status: no phone was reachable from the build computer, so this development update was not

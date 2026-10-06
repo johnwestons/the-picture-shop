@@ -11,8 +11,9 @@ state. Guests can inspect these costs. Only the owner can settle Bills when empl
 ordinary bills permissions cannot bypass payroll restrictions. Bills and Payroll settle the same
 wage obligations once. Submitted/accepted customer prices stay fixed. The host retains unfinished
 cuts at a safe shift boundary and resumes the same pallet on the next agreed working day, including
-after a weekend and save/reload. Desktop checks pass **4,033 checks**; packaged Android verification
-is reported in [worker scope and verification](npc_worker_build_status.md).
+after a weekend and save/reload. Desktop and actual packaged-mobile checks each pass **4,033 checks**.
+Android 38 includes this update; physical phone/LAN acceptance remains open. See
+[worker scope and verification](npc_worker_build_status.md).
 
 ## Earlier October 6, 2026 — employee work schedules
 
