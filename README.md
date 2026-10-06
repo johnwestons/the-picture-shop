@@ -8,6 +8,14 @@ inventory/progression values in the live host shop or any offline save slot.
 
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
 
+## Planned NPC workers
+
+The [worker hiring and machine operation plan](docs/npc_worker_hiring_plan.md)
+covers walk-in applications, emailed resumes, negotiated contracts, hourly
+payroll, scheduled shifts, machine skills, breakroom recovery, and a Radio Cat
+worker animation plan. This feature is planned; the first playable stage will
+hire one cat to run staged cutter jobs before press work and pallet transport.
+
 ## Playable warehouse storage slice
 
 On the office computer's **Warehouse** page, buy **left storage** ($4,500).
