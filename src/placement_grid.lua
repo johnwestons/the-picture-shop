@@ -1,4 +1,5 @@
 local Grid = {}
+local Footprint = require("src.floor_footprint")
 
 local function round(value)
     return math.floor(value + 0.5)
@@ -41,16 +42,54 @@ end
 
 function Grid.hit(cells, x, y, config)
     config = config or {}
-    local halfWidth = (config.cellWidth or 32) * 0.48
-    local halfHeight = (config.cellHeight or 24) * 0.48
+    local halfWidth = (config.cellWidth or 32) * 0.5
+    local halfHeight = (config.cellHeight or 24) * 0.5
     local best, bestDistance
     for _, cell in ipairs(cells or {}) do
-        local normalized = math.abs(x - cell.x) / halfWidth + math.abs(y - cell.y) / halfHeight
-        if normalized <= 1 then
+        -- A tap anywhere between grid centers chooses the nearest cell; the
+        -- decorative diamonds must not leave untappable gaps on a fine grid.
+        if math.abs(x-cell.x) <= halfWidth and math.abs(y-cell.y) <= halfHeight then
             local distance = (x - cell.x) ^ 2 + (y - cell.y) ^ 2
             if not bestDistance or distance < bestDistance then
                 best, bestDistance = cell, distance
             end
+        end
+    end
+    return best
+end
+
+function Grid.decode(id, config)
+    if type(id) ~= "string" or #id > 8 then return nil end
+    local column, row = id:match("^c(%d+)r(%d+)$")
+    column, row = tonumber(column), tonumber(row)
+    if not column or not row or column > 255 or row > 255
+        or id ~= string.format("c%dr%d",column,row) then return nil end
+    config = config or {}
+    return (config.originX or 0) + column * (config.cellWidth or 32),
+        (config.originY or 0) + row * (config.cellHeight or 24)
+end
+
+function Grid.cellId(x, y, config)
+    config = config or {}
+    local column = round((x-(config.originX or 0))/(config.cellWidth or 32))
+    local row = round((y-(config.originY or 0))/(config.cellHeight or 24))
+    if column < 0 or row < 0 or column > 255 or row > 255 then return nil end
+    return string.format("c%dr%d",column,row)
+end
+
+function Grid.find(cells, x, y)
+    for _, cell in ipairs(cells or {}) do
+        if cell.x == x and cell.y == y then return cell end
+    end
+end
+
+function Grid.nearestValid(cells, x, y, radius)
+    local best, bestDistance
+    for _, cell in ipairs(cells or {}) do
+        local distance = (cell.x-x)^2+(cell.y-y)^2
+        if cell.valid and distance <= radius*radius
+            and (not bestDistance or distance < bestDistance) then
+            best, bestDistance = cell, distance
         end
     end
     return best
@@ -85,6 +124,12 @@ function Grid.draw(snapshot)
             cell.x + halfWidth, cell.y,
             cell.x, cell.y + halfHeight,
             cell.x - halfWidth, cell.y)
+    end
+    if snapshot.footprint then
+        love.graphics.setColor(0.45, 1, 0.58, 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.polygon("line", Footprint.vertices(snapshot.footprint))
+        love.graphics.setLineWidth(1)
     end
     love.graphics.setColor(1, 1, 1)
 end

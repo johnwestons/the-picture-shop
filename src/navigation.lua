@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local Footprint = require("src.floor_footprint")
 
 local Navigation = {}
 
@@ -15,15 +16,7 @@ end
 
 local function outsideFixedObstacle(x, y, obstacles)
     for _, obstacle in ipairs(obstacles or {}) do
-        local dx = x - obstacle.x
-        local dy = y - obstacle.y
-        local blocked
-        if obstacle.halfWidth and obstacle.halfHeight then
-            blocked = math.abs(dx) < obstacle.halfWidth and math.abs(dy) < obstacle.halfHeight
-        else
-            blocked = dx * dx + dy * dy < obstacle.radius * obstacle.radius
-        end
-        if blocked then
+        if Footprint.penetration(obstacle, x, y) > 0.001 then
             return false
         end
     end
@@ -70,10 +63,9 @@ function Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstac
         local currentDx, currentDy = currentX - obstacle.x, currentY - obstacle.y
         local nextDx, nextDy = nextX - obstacle.x, nextY - obstacle.y
         if obstacle.halfWidth and obstacle.halfHeight then
-            local currentInside = math.abs(currentDx) < obstacle.halfWidth and math.abs(currentDy) < obstacle.halfHeight
-            local nextInside = math.abs(nextDx) < obstacle.halfWidth and math.abs(nextDy) < obstacle.halfHeight
-            local currentDepth = math.min(obstacle.halfWidth - math.abs(currentDx), obstacle.halfHeight - math.abs(currentDy))
-            local nextDepth = math.min(obstacle.halfWidth - math.abs(nextDx), obstacle.halfHeight - math.abs(nextDy))
+            local currentDepth = Footprint.penetration(obstacle, currentX, currentY)
+            local nextDepth = Footprint.penetration(obstacle, nextX, nextY)
+            local currentInside, nextInside = currentDepth > 0.001, nextDepth > 0.001
             local movingAway = nextDx * nextDx + nextDy * nextDy
                 > currentDx * currentDx + currentDy * currentDy + 0.01
             -- A wide rectangle can have the same minimum penetration while

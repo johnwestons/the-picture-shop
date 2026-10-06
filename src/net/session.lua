@@ -2127,6 +2127,7 @@ function Session:requestWorkshopCommand(action, arguments)
         or action == "load_pallet"
     then
         request.palletId = arguments.palletId
+        if action == "lower_pallet" then request.placementCell = arguments.placementCell end
     elseif action == "select_program" then
         request.programIndex = arguments.programIndex
     elseif action == "set_gauge" then

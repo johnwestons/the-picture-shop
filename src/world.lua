@@ -12,6 +12,7 @@ local MachinePose = require("src.machine_pose")
 local MultiplayerCapabilities = require("src.multiplayer_capabilities")
 local Navigation = require("src.navigation")
 local PlacementGrid = require("src.placement_grid")
+local Footprint = require("src.floor_footprint")
 local PalletLogistics = require("src.pallet_logistics")
 local PalletJack = require("src.pallet_jack")
 local PlayerController = require("src.player_controller")
@@ -75,8 +76,7 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
     for _, item in ipairs(MachineFleet.installedUnits(state)) do
         if item.world and not item.world.moving then
             local config = Config[MachineFleet.definition(item.modelId).placementKey .. "Placement"]
-            obstacles[#obstacles + 1] = { x = item.world.x, y = item.world.y - 8,
-                halfWidth = config.collisionHalfWidth, halfHeight = config.collisionHalfHeight }
+            obstacles[#obstacles + 1] = Footprint.at(item.world.x, item.world.y, config)
         end
     end
     local customerObstacle = World.customer:getObstacle()
@@ -105,40 +105,39 @@ local function movementObstacles(state, excludeJack, inflate, excludeCutter, exc
     local builder = WarehouseConstruction.worker(state)
     if builder then obstacles[#obstacles + 1] = {x=builder.x,y=builder.y,radius=14,kind="construction_worker"} end
     if inflate.x > 0 or inflate.y > 0 then
-        for _, obstacle in ipairs(obstacles) do
-            if obstacle.halfWidth and obstacle.halfHeight then
-                obstacle.halfWidth = obstacle.halfWidth + inflate.x
-                obstacle.halfHeight = obstacle.halfHeight + inflate.y
-            else
-                obstacle.radius = obstacle.radius + math.max(inflate.x, inflate.y)
-            end
+        for index, obstacle in ipairs(obstacles) do
+            obstacles[index] = Footprint.expand(obstacle, inflate)
         end
     end
     return obstacles
 end
 
-function World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
+local function placementConfig(kind)
+    return kind == "pallet" and Config.palletLogistics
+        or kind == "cutter" and Config.cutterPlacement
+        or kind == "wrapper" and Config.wrapperPlacement or Config.windmillPlacement
+end
+
+local function placementValidator(state, assets, kind, excludedPalletId)
     assets = WarehouseGameplay.assets(assets or World._assets, state)
-    local halfWidth = Config.palletLogistics.collisionHalfWidth
-    local halfHeight = Config.palletLogistics.collisionHalfHeight
-    if not Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight) then return false end
-    return Navigation.isWalkable(assets, x, y, movementObstacles(state, false,
-        { x = halfWidth, y = halfHeight }, false, false, excludedPalletId))
+    local config = placementConfig(kind)
+    local obstacles = movementObstacles(state, kind ~= "pallet", {
+        x=config.collisionHalfWidth,y=config.collisionHalfHeight,shape="diamond",
+    }, kind == "cutter", kind == "wrapper", excludedPalletId, kind == "windmill")
+    return function(x,y)
+        local floor = Footprint.at(x,y,config)
+        return assets and Navigation.isAreaWalkable(assets, floor.x, floor.y,
+            floor.halfWidth, floor.halfHeight)
+            and Navigation.isWalkable(assets, floor.x, floor.y, obstacles) == true
+    end
+end
+
+function World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
+    return placementValidator(state,assets,"pallet",excludedPalletId)(x,y)
 end
 
 local function isMachinePlacementClear(state, assets, kind, x, y)
-    assets = WarehouseGameplay.assets(assets or World._assets, state)
-    if not assets then return false end
-    local config = kind == "cutter" and Config.cutterPlacement
-        or (kind == "wrapper" and Config.wrapperPlacement or Config.windmillPlacement)
-    if not Navigation.isAreaWalkable(assets, x, y,
-        config.collisionHalfWidth, config.collisionHalfHeight)
-    then return false end
-    local obstacles = movementObstacles(state, true, {
-        x = config.collisionHalfWidth,
-        y = config.collisionHalfHeight,
-    }, kind == "cutter", kind == "wrapper", nil, kind == "windmill")
-    return Navigation.isWalkable(assets, x, y, obstacles)
+    return placementValidator(state,assets,kind)(x,y)
 end
 
 local function activeMachineKind(state)
@@ -159,7 +158,7 @@ local function moveNetworkAttachedMachine(player, dt, directionX, directionY, as
     placement.move(state, directionX, directionY, dt, config, function(nextX, nextY)
         local halfWidth, halfHeight = config.collisionHalfWidth, config.collisionHalfHeight
         local obstacles = movementObstacles(state, false, {
-            x = halfWidth, y = halfHeight,
+            x = halfWidth, y = halfHeight, shape = "diamond",
         }, kind == "cutter", kind == "wrapper", nil, kind == "windmill")
         if kind == "windmill"
             and not Navigation.isAreaWalkable(assets, item.x, item.y, 0, 0)
@@ -220,23 +219,19 @@ function World.placementGridSnapshot(state, assets)
     assets = assets or World._assets
     local carriedId = kind == "pallet" and state.palletJack.carriedPalletId or nil
     local cells, snappedX, snappedY = PlacementGrid.cells(
-        centerX, centerY, Config.placementGrid, function(x, y)
-            if kind == "pallet" then
-                return World.isPalletPlacementClear(state, assets, x, y, carriedId)
-            end
-            return isMachinePlacementClear(state, assets, kind, x, y)
-        end)
+        centerX, centerY, Config.placementGrid, placementValidator(state,assets,kind,carriedId))
     local selected = World.placementSelection
     if not selected or selected.kind ~= kind then
         selected = nil
-        for _, cell in ipairs(cells) do
-            if cell.x == snappedX and cell.y == snappedY and cell.valid then
-                selected = { kind = kind, x = cell.x, y = cell.y }
-                break
-            end
-        end
+        local cell = PlacementGrid.nearestValid(cells, snappedX, snappedY,
+            Config.placementGrid.autoSelectRadius)
+        if cell then selected = {kind=kind,x=cell.x,y=cell.y} end
+    else
+        local cell = PlacementGrid.find(cells,selected.x,selected.y)
+        if not cell or not cell.valid then selected = nil end
     end
-    return { kind = kind, cells = cells, selected = selected, config = Config.placementGrid }
+    return { kind=kind,cells=cells,selected=selected,config=Config.placementGrid,
+        footprint=selected and Footprint.at(selected.x,selected.y,placementConfig(kind)) }
 end
 
 function World.selectPlacement(state, assets, x, y, readOnly)
@@ -246,10 +241,6 @@ function World.selectPlacement(state, assets, x, y, readOnly)
     if not cell then return false end
     if not cell.valid then
         state.message = "That red grid space is blocked. Choose a green space."
-        return true
-    end
-    if readOnly == true and snapshot.kind == "pallet" then
-        state.message = "The host will validate the highlighted drop cell."
         return true
     end
     World.placementSelection = { kind = snapshot.kind, x = cell.x, y = cell.y }
@@ -686,7 +677,7 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
                 local halfWidth = Config.cutterPlacement.collisionHalfWidth
                 local halfHeight = Config.cutterPlacement.collisionHalfHeight
                 local obstacles = movementObstacles(state, false,
-                    { x = halfWidth, y = halfHeight }, true)
+                    { x = halfWidth, y = halfHeight, shape = "diamond" }, true)
                 return Navigation.canMoveAreaFrom(assets, cutter.x, cutter.y, nextX, nextY,
                     halfWidth, halfHeight, obstacles)
             end)
@@ -705,6 +696,7 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
                     halfWidth, halfHeight, movementObstacles(state, false, {
                         x = Config.wrapperPlacement.collisionHalfWidth,
                         y = Config.wrapperPlacement.collisionHalfHeight,
+                        shape = "diamond",
                     }, false, true))
             end)
         jack.x, jack.y = wrapper.x, wrapper.y + 8
@@ -719,7 +711,7 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
                 local halfWidth = Config.windmillPlacement.collisionHalfWidth
                 local halfHeight = Config.windmillPlacement.collisionHalfHeight
                 local obstacles = movementObstacles(state, false, {
-                    x = halfWidth, y = halfHeight,
+                    x = halfWidth, y = halfHeight, shape = "diamond",
                 }, false, false, nil, true)
                 if not Navigation.isAreaWalkable(assets, windmill.x, windmill.y, 0, 0) then
                     -- The original spawn used an old floor mask and can sit on
@@ -754,10 +746,10 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
         PalletJack.move(state, directionX, directionY, dt, Config.palletJack, function(nextX, nextY, loaded)
             local inflate = loaded and {
                 x = Config.palletJack.loadedCollisionHalfWidth,
-                y = Config.palletJack.loadedCollisionHalfHeight,
+                y = Config.palletJack.loadedCollisionHalfHeight, shape = "diamond",
             } or {
                 x = Config.palletJack.collisionHalfWidth,
-                y = Config.palletJack.collisionHalfHeight,
+                y = Config.palletJack.collisionHalfHeight, shape = "diamond",
             }
             return Navigation.canMoveAreaFrom(assets, jack.x, jack.y, nextX, nextY,
                 inflate.x, inflate.y, movementObstacles(state, true, inflate))
@@ -827,10 +819,10 @@ function World.updateNetworkPalletJack(
             function(nextX, nextY, loaded)
                 local footprint = loaded and {
                     x = Config.palletJack.loadedCollisionHalfWidth,
-                    y = Config.palletJack.loadedCollisionHalfHeight,
+                    y = Config.palletJack.loadedCollisionHalfHeight, shape = "diamond",
                 } or {
                     x = Config.palletJack.collisionHalfWidth,
-                    y = Config.palletJack.collisionHalfHeight,
+                    y = Config.palletJack.collisionHalfHeight, shape = "diamond",
                 }
                 return Navigation.canMoveAreaFrom(assets, jack.x, jack.y, nextX, nextY,
                     footprint.x, footprint.y, movementObstacles(state, true, footprint))
@@ -1450,7 +1442,7 @@ function World.liftNetworkPallet(player, state, palletId)
     return true, liftCode, state.message, pallet
 end
 
-function World.lowerNetworkPallet(player, state, assets, palletId)
+function World.lowerNetworkPallet(player, state, assets, palletId, placementCell)
     local playerId = validNetworkPlayerId(player)
     if not playerId or not PalletJack.isOperator(state, Config.palletJack, playerId) then
         return false, "not_owner", "Acquire the pallet jack before lowering a pallet."
@@ -1464,10 +1456,17 @@ function World.lowerNetworkPallet(player, state, assets, palletId)
         return false, "wrong_pallet", "The pallet on the forks changed; try again."
     end
     local dropX, dropY = PalletJack.dropPosition(state, Config.palletJack)
-    -- LAN workers choose the semantic action, never coordinates. Snap the
-    -- host's current fork position to the same deterministic grid cell shown
-    -- as selected on clients, then validate that exact cell authoritatively.
-    dropX, dropY = PlacementGrid.snap(dropX, dropY, Config.placementGrid)
+    if placementCell ~= nil then
+        dropX,dropY = PlacementGrid.decode(placementCell,Config.placementGrid)
+        if not dropX then return false,"invalid_cell","Choose a valid highlighted drop cell." end
+        local grid = World.placementGridSnapshot(state,assets)
+        local cell = PlacementGrid.find(grid and grid.cells,dropX,dropY)
+        if not cell or not cell.valid then
+            return false,"placement_blocked","That drop cell is blocked or out of reach."
+        end
+    else
+        dropX, dropY = PlacementGrid.snap(dropX, dropY, Config.placementGrid)
+    end
     local lowered, lowerCode, pallet = PalletJack.lower(
         state, Config.palletJack, function(x, y)
             return World.isPalletPlacementClear(
@@ -1505,7 +1504,11 @@ function World.handlePalletJack(state, assets, palletId)
             state, Config.palletJack, palletId)
     else
         local grid = World.placementGridSnapshot(state, assets)
-        local selected = World.placementSelection or (grid and grid.selected)
+        if currentJack.carriedPalletId and (not grid or not grid.selected) then
+            state.message = "Choose a clear green space before lowering this pallet."
+            return false
+        end
+        local selected = grid and grid.selected
         local placementX = selected and selected.kind == "pallet" and selected.x or nil
         local placementY = selected and selected.kind == "pallet" and selected.y or nil
         succeeded, action, pallet = PalletJack.use(state, Config.palletJack, function(x, y)
@@ -1664,15 +1667,9 @@ end
 
 function World.networkPlacementCellId(state, assets)
     local snapshot = World.placementGridSnapshot(state, assets)
-    local selected = World.placementSelection or (snapshot and snapshot.selected)
+    local selected = snapshot and snapshot.selected
     if not snapshot or not selected or selected.kind ~= snapshot.kind then return nil end
-    local config = snapshot.config or Config.placementGrid
-    local column = math.floor((selected.x - (config.originX or 0))
-        / (config.cellWidth or 32) + 0.5)
-    local row = math.floor((selected.y - (config.originY or 0))
-        / (config.cellHeight or 24) + 0.5)
-    if column < 0 or column > 64 or row < 0 or row > 64 then return nil end
-    return string.format("c%dr%d", column, row)
+    return PlacementGrid.cellId(selected.x,selected.y,snapshot.config)
 end
 
 local function finishNetworkMachinePlacement(player, state, record, x, y)
@@ -1693,16 +1690,10 @@ function World.placeNetworkMachine(player, state, assets, placementCell)
     if not playerId then return false, code, message end
     local record = activeNetworkMachine(state)
     if not record then return false, "no_machine", "No machine is attached to this pallet jack." end
-    local column, row
-    if type(placementCell) == "string" then
-        column, row = placementCell:match("^c(%d+)r(%d+)$")
-    end
-    column, row = tonumber(column), tonumber(row)
-    if not column or not row or column < 0 or column > 64 or row < 0 or row > 64 then
+    local x,y = PlacementGrid.decode(placementCell,Config.placementGrid)
+    if not x then
         return false, "invalid_cell", "Choose a valid highlighted placement cell."
     end
-    local x = (Config.placementGrid.originX or 0) + column * Config.placementGrid.cellWidth
-    local y = (Config.placementGrid.originY or 0) + row * Config.placementGrid.cellHeight
     local grid = World.placementGridSnapshot(state, assets)
     local valid = false
     for _, cell in ipairs(grid and grid.cells or {}) do
@@ -1799,20 +1790,14 @@ function World.rotateCutter(state, cutterControlOccupied)
 end
 
 function World.placeCutter(state, assets)
-    local explicit = World.placementSelection
     local grid = World.placementGridSnapshot(state, assets)
-    local target = explicit or (grid and grid.selected)
-    local originalX, originalY = state.cutter.x, state.cutter.y
-    local x, y = originalX, originalY
-    if target and target.kind == "cutter" then x, y = target.x, target.y end
-    if not isMachinePlacementClear(state, assets or World._assets, "cutter", x, y) then
-        if explicit then
-            state.message = "The cutter cannot be placed there. Choose a green grid space."
-            return false
-        end
-        x, y = originalX, originalY
+    local target = grid and grid.selected
+    if not target or target.kind ~= "cutter"
+        or not isMachinePlacementClear(state,assets,"cutter",target.x,target.y) then
+        state.message = "The cutter cannot be placed there. Choose a green grid space."
+        return false
     end
-    state.cutter.x, state.cutter.y = x, y
+    state.cutter.x, state.cutter.y = target.x, target.y
     if not CutterPlacement.place(state, Config.cutterPlacement) then return false end
     World.placementSelection = nil
     local jack = PalletJack.ensure(state, Config.palletJack)
@@ -1890,20 +1875,14 @@ function World.rotateWrapper(state, wrapperControlOccupied)
 end
 
 function World.placeWrapper(state, assets)
-    local explicit = World.placementSelection
     local grid = World.placementGridSnapshot(state, assets)
-    local target = explicit or (grid and grid.selected)
-    local originalX, originalY = state.wrapper.x, state.wrapper.y
-    local x, y = originalX, originalY
-    if target and target.kind == "wrapper" then x, y = target.x, target.y end
-    if not isMachinePlacementClear(state, assets or World._assets, "wrapper", x, y) then
-        if explicit then
-            state.message = "The skid wrapper cannot be placed there. Choose a green grid space."
-            return false
-        end
-        x, y = originalX, originalY
+    local target = grid and grid.selected
+    if not target or target.kind ~= "wrapper"
+        or not isMachinePlacementClear(state,assets,"wrapper",target.x,target.y) then
+        state.message = "The skid wrapper cannot be placed there. Choose a green grid space."
+        return false
     end
-    state.wrapper.x, state.wrapper.y = x, y
+    state.wrapper.x, state.wrapper.y = target.x, target.y
     if not WrapperPlacement.place(state, Config.wrapperPlacement) then return false end
     World.placementSelection = nil
     local jack = PalletJack.ensure(state, Config.palletJack)
@@ -1982,20 +1961,14 @@ function World.rotateWindmill(state, windmillControlOccupied)
 end
 
 function World.placeWindmill(state, assets)
-    local explicit = World.placementSelection
     local grid = World.placementGridSnapshot(state, assets)
-    local target = explicit or (grid and grid.selected)
-    local originalX, originalY = state.windmill.x, state.windmill.y
-    local x, y = originalX, originalY
-    if target and target.kind == "windmill" then x, y = target.x, target.y end
-    if not isMachinePlacementClear(state, assets or World._assets, "windmill", x, y) then
-        if explicit then
-            state.message = "The Windmill cannot be placed there. Choose a green grid space."
-            return false
-        end
-        x, y = originalX, originalY
+    local target = grid and grid.selected
+    if not target or target.kind ~= "windmill"
+        or not isMachinePlacementClear(state,assets,"windmill",target.x,target.y) then
+        state.message = "The Windmill cannot be placed there. Choose a green grid space."
+        return false
     end
-    state.windmill.x, state.windmill.y = x, y
+    state.windmill.x, state.windmill.y = target.x, target.y
     if not WindmillPlacement.place(state, Config.windmillPlacement) then return false end
     World.placementSelection = nil
     local jack = PalletJack.ensure(state, Config.palletJack)

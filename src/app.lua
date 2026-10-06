@@ -46,6 +46,7 @@ local Wrapper = require("src.wrapper")
 local WrapperMaintenanceAuthority = require("src.wrapper_maintenance_authority")
 local MachineScreen = require("src.screens.machine_screen")
 local PalletJack = require("src.pallet_jack")
+local PlacementGrid = require("src.placement_grid")
 local PalletState = require("src.pallet_state")
 local PalletLogistics = require("src.pallet_logistics")
 local PaperWork = require("src.paper_work")
@@ -199,10 +200,11 @@ local closeDirectHostComposite
 local syncMobileKeyboard
 local openOptions
 
-local function exactArguments(arguments, required)
+local function exactArguments(arguments, required, optional)
     if type(arguments) ~= "table" then return false end
     local allowed = {}
     for _, name in ipairs(required or {}) do allowed[name] = true end
+    for _, name in ipairs(optional or {}) do allowed[name] = true end
     for key in pairs(arguments) do
         if type(key) ~= "string" or not allowed[key] then return false end
     end
@@ -1265,13 +1267,16 @@ local function createWorkshopAuthority()
                     lower_pallet = {
                         normalize = function(arguments)
                             local palletId = type(arguments) == "table" and arguments.palletId
-                            if not exactArguments(arguments, { "palletId" })
+                            if not exactArguments(arguments, { "palletId" }, { "placementCell" })
                                 or type(palletId) ~= "string" or #palletId < 1 or #palletId > 64
                                 or not palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
                             then
                                 return nil, "invalid_pallet", "Choose the pallet currently on the forks."
                             end
-                            return { palletId = palletId }
+                            if arguments.placementCell ~= nil and not PlacementGrid.decode(arguments.placementCell) then
+                                return nil,"invalid_cell","Choose a valid highlighted drop cell."
+                            end
+                            return { palletId = palletId,placementCell=arguments.placementCell }
                         end,
                         perform = function(_, player, arguments)
                             if machineRelocationActive() then
@@ -1279,7 +1284,7 @@ local function createWorkshopAuthority()
                                     "Place the moving machine before lowering a pallet."
                             end
                             local accepted, code, message = World.lowerNetworkPallet(
-                                player, state, Assets, arguments.palletId)
+                                player, state, Assets, arguments.palletId, arguments.placementCell)
                             if accepted then saveCurrent() end
                             return accepted, code, message
                         end,
@@ -1343,13 +1348,8 @@ local function createWorkshopAuthority()
                     place_machine = {
                         normalize = function(arguments)
                             local cell = type(arguments) == "table" and arguments.placementCell
-                            local column, row
-                            if type(cell) == "string" then
-                                column, row = cell:match("^c(%d+)r(%d+)$")
-                            end
-                            column, row = tonumber(column), tonumber(row)
                             if not exactArguments(arguments, { "placementCell" })
-                                or not column or not row or column > 64 or row > 64
+                                or not PlacementGrid.decode(cell)
                             then
                                 return nil, "invalid_cell", "Choose a valid highlighted placement cell."
                             end
@@ -2380,7 +2380,9 @@ local function palletJackCommandFor(action, selected)
         return "lift_pallet", { palletId = palletId }
     end
     if jack.carriedPalletId then
-        return "lower_pallet", { palletId = jack.carriedPalletId }
+        local placementCell = World.networkPlacementCellId(state,Assets)
+        if not placementCell then return nil,nil,"Choose a green space before lowering the pallet." end
+        return "lower_pallet", { palletId = jack.carriedPalletId,placementCell=placementCell }
     end
     local candidateId = jack.candidatePalletId
         or World.networkPalletJackSnapshot(state).candidatePalletId

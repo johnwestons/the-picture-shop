@@ -3,6 +3,8 @@ local Config = require("src.config")
 local MachineFleet = require("src.machine_fleet")
 local PalletState = require("src.pallet_state")
 local Plates = require("src.plate_service")
+local Footprint = require("src.floor_footprint")
+local Storage = require("src.pallet_storage")
 
 local Windmill = {}
 local setupTasks = { "chase", "packing", "rollers", "ink", "feeder", "register" }
@@ -180,17 +182,22 @@ function Windmill.candidates(state)
                     or BusinessCalendar.absoluteHours(state) >= press.dryUntilHours
                 local world = pallet.world
                 local placement = placementFor(state)
-                local staged = world and ((world.x - placement.x) ^ 2
-                    + (world.y - placement.y) ^ 2
-                    <= (Config.windmillPlacement.palletRadius or 120) ^ 2)
+                local distance = world and Footprint.distanceSquared(
+                    Footprint.at(placement.x,placement.y,Config.windmillPlacement),
+                    Footprint.at(world.x,world.y,Config.palletLogistics)) or math.huge
+                local staged = distance <= Config.windmillPlacement.palletReach ^ 2
                 if paperReady and dry and color <= (job.press.colors or 1)
-                    and not pallet.wrapped and staged
+                    and not pallet.wrapped and staged and not Storage.isSupporting(state,pallet.id)
                     and (pallet.location == "warehouse" or pallet.location == "cutter_output"
                         or pallet.location == "press_output")
-                then result[#result + 1] = { job = job, pallet = pallet, color = color } end
+                then result[#result + 1] = { job = job, pallet = pallet, color = color, distance=distance } end
             end
         end
     end
+    table.sort(result,function(a,b)
+        if a.distance == b.distance then return a.pallet.id < b.pallet.id end
+        return a.distance < b.distance
+    end)
     return result
 end
 

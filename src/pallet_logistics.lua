@@ -164,6 +164,7 @@ function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId)
                 y = item.y - 8,
                 halfWidth = halfWidth or 33,
                 halfHeight = halfHeight or 11,
+                shape = "diamond",
             }
         end
     end

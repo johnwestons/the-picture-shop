@@ -20,7 +20,7 @@ end
 
 function Placement.frame(state, config) return frames[Placement.ensure(state, config).direction] end
 function Placement.operatorPosition(state, config) local item = Placement.ensure(state, config); local sign = operatorSigns[item.direction]; return item.x + sign[1] * config.operatorDistanceX, item.y + sign[2] * config.operatorDistanceY end
-function Placement.obstacle(state, config) local item = Placement.ensure(state, config); if item.moving then return nil end; return { x = item.x, y = item.y - 6, halfWidth = config.collisionHalfWidth, halfHeight = config.collisionHalfHeight } end
+function Placement.obstacle(state, config) local item = Placement.ensure(state, config); if item.moving then return nil end; return require("src.floor_footprint").at(item.x, item.y, config) end
 function Placement.interaction(player, state, config, palletJackOperating)
     local item = Placement.ensure(state, config)
     return { x = item.moving and player.x or item.x, y = item.moving and player.y or item.y, radius = config.interactionRadius,
@@ -35,7 +35,12 @@ function Placement.beginMove(state, config)
     item.moving = true
     return true
 end
-function Placement.move(state, dx, dy, dt, config, canMove) local item = Placement.ensure(state, config); if not item.moving then return false end; item.inMotion = false; if dx == 0 and dy == 0 then return false end; local length = math.sqrt(dx * dx + dy * dy); local x, y = item.x + dx / length * config.speed * dt, item.y + dy / length * config.speed * dt; if x == item.x and y == item.y then return false end; if not canMove(x, y) then return false end; item.x, item.y, item.inMotion = x, y, true; return true end
+function Placement.move(state, dx, dy, dt, config, canMove)
+    local item = Placement.ensure(state,config)
+    if not item.moving then return false end
+    item.inMotion = require("src.placement_motion").move(item,dx,dy,dt,config.speed,canMove)
+    return item.inMotion
+end
 function Placement.rotate(state, config) local item = Placement.ensure(state, config); item.direction = clockwise[item.direction]; return true, item.direction end
 function Placement.place(state, config)
     local item = Placement.ensure(state, config)

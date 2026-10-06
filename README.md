@@ -370,6 +370,13 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   tap an eligible skid to lift that exact skid. Choose a green floor-grid space and press **L** (or tap
   **Lower**, or use the controller's left shoulder) to set it down precisely. Normal **E/Use**
   interactions remain available while pushing.
+- Pallets and machines use an **8-by-6-pixel placement grid**. Tap between small grid marks to
+  select the nearest space; the bright floor outline shows the object's actual footprint. Light
+  phone/controller stick movement gives slow positioning. You can stage skids closely around
+  machine corners while overlapping bodies, walls, trucks, and other skids remain blocked.
+- Cutter, wrapper, and press detection accounts for pallet edges. The cutter's usable feed side
+  follows its rotation; the wrapper and press list eligible pallets nearest first. Local Play
+  guests can select exact pallet drop cells, which the host checks for clearance and reach.
 - Press **F** to park and release an empty pallet jack. Loaded jacks move more slowly and use a larger
   collision footprint; placement is rejected when walls, machines, trucks, or other pallets are too close.
 - After the manifest is empty, click **Close Cargo Door**. The truck leaves and the bay closes automatically.

@@ -1,4 +1,6 @@
 local CutterZones = {}
+local Footprint = require("src.floor_footprint")
+local Config = require("src.config")
 
 local palletFrames = {
     northwest = 1, north = 1,
@@ -61,13 +63,24 @@ function CutterZones.inputDistanceSquared(state, pallet, config)
         return math.huge
     end
     local anchorX, anchorY = CutterZones.inputAnchor(state, config)
-    local dx, dy = world.x - anchorX, world.y - anchorY
-    return dx * dx + dy * dy
+    return Footprint.pointDistanceSquared(anchorX,anchorY,
+        Footprint.at(world.x,world.y,Config.palletLogistics))
 end
 
 function CutterZones.inInputZone(state, pallet, config, radius)
     radius = math.max(1, tonumber(radius) or config.palletInputZoneRadius or 62)
+    if type(pallet and pallet.world) ~= "table" then return false end
+    local machine = cutter(state,config)
+    local sign = signs[machine.direction]
+    local dx,dy = pallet.world.x-machine.x,pallet.world.y-machine.y
+    -- The feed half-plane follows this particular cutter's rotation. Pallets
+    -- alongside the feed table count by their edges, even near its corners.
+    local feedSide = dx*sign.x + dy*sign.y >= 0
+    if not feedSide then return false end
     return CutterZones.inputDistanceSquared(state, pallet, config) <= radius * radius
+        or Footprint.distanceSquared(Footprint.at(machine.x,machine.y,config),
+            Footprint.at(pallet.world.x,pallet.world.y,Config.palletLogistics))
+                <= (config.palletReach or 64)^2
 end
 
 function CutterZones.outputCandidates(state, config)

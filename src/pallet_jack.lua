@@ -1,5 +1,6 @@
 local PalletJack = {}
 local PalletState = require("src.pallet_state")
+local Motion = require("src.placement_motion")
 
 local directionFrames = {
     northwest = 1, north = 2, northeast = 3, east = 4,
@@ -232,14 +233,11 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
     jack.moving = false
     jack.animationClock = jack.animationClock + math.max(0, dt)
     if dx == 0 and dy == 0 then return false end
-    local length = math.sqrt(dx * dx + dy * dy)
     local speed = jack.carriedPalletId and config.loadedSpeed or config.speed
-    local nextX = jack.x + dx / length * speed * dt
-    local nextY = jack.y + dy / length * speed * dt
     jack.direction = directionFor(dx, dy, jack.direction)
-    if nextX == jack.x and nextY == jack.y then return false end
-    if not canMove(nextX, nextY, jack.carriedPalletId ~= nil) then return false end
-    jack.x, jack.y = nextX, nextY
+    if not Motion.move(jack,dx,dy,dt,speed,function(x,y)
+        return canMove(x,y,jack.carriedPalletId ~= nil)
+    end) then return false end
     jack.moving = true
     local _, pallet = findPallet(state, jack.carriedPalletId)
     if pallet then

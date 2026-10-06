@@ -95,6 +95,13 @@ function Test.run(context, check)
             and activeSnapshot[kind].y == original.y
             and activeSnapshot[kind].direction == original.direction
             and not activeSnapshot[kind].moving and not activeSnapshot[kind].inMotion
+        local grid = context.world.placementGridSnapshot(relocationState,context.assets)
+        for _, cell in ipairs(grid and grid.cells or {}) do
+            if cell.valid then
+                context.world.selectPlacement(relocationState,context.assets,cell.x,cell.y)
+                break
+            end
+        end
         local placed = context.world[placeName](relocationState, context.assets)
         local finalPose = { x = item.x, y = item.y, direction = item.direction }
         local placedSnapshot = SaveSchema.snapshot(relocationState)

@@ -206,7 +206,7 @@ function PalletState.cutterCandidates(state, radius)
                 and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115") then
                 owned[#owned + 1] = candidate
             elseif paper.status ~= "complete" and pallet.location == "warehouse"
-                and nearCutter(state, pallet, radius)
+                and not PalletStorage.isSupporting(state,pallet.id) and nearCutter(state, pallet, radius)
             then
                 candidate.inputDistance = CutterZones.inputDistanceSquared(
                     state, pallet, Config.cutterPlacement)

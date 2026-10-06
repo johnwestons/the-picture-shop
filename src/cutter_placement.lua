@@ -67,8 +67,7 @@ end
 function CutterPlacement.obstacle(state, config)
     local cutter = CutterPlacement.ensure(state, config)
     if cutter.moving then return nil end
-    return { x = cutter.x, y = cutter.y - 8,
-        halfWidth = config.collisionHalfWidth, halfHeight = config.collisionHalfHeight }
+    return require("src.floor_footprint").at(cutter.x, cutter.y, config)
 end
 
 function CutterPlacement.interaction(player, state, config, palletJackOperating)
@@ -102,12 +101,7 @@ function CutterPlacement.move(state, dx, dy, dt, config, canMove)
     if not cutter.moving then return false end
     cutter.inMotion = false
     if dx == 0 and dy == 0 then return false end
-    local length = math.sqrt(dx * dx + dy * dy)
-    local nextX = cutter.x + dx / length * config.speed * dt
-    local nextY = cutter.y + dy / length * config.speed * dt
-    if nextX == cutter.x and nextY == cutter.y then return false end
-    if not canMove(nextX, nextY) then return false end
-    cutter.x, cutter.y = nextX, nextY
+    if not require("src.placement_motion").move(cutter,dx,dy,dt,config.speed,canMove) then return false end
     cutter.inMotion = true
     return true
 end

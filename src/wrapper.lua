@@ -3,6 +3,8 @@ local PalletLogistics = require("src.pallet_logistics")
 local Procurement = require("src.procurement")
 local WrapperPlacement = require("src.wrapper_placement")
 local MachineFleet = require("src.machine_fleet")
+local Footprint = require("src.floor_footprint")
+local Storage = require("src.pallet_storage")
 
 local function createWrapper(machineId)
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil,
@@ -16,11 +18,6 @@ local function blockInterruption(state, action)
     return false
 end
 
-local function distanceSquared(a, b)
-    local dx, dy = a.x - b.x, a.y - b.y
-    return dx * dx + dy * dy
-end
-
 function Wrapper.nearbyPallets(state)
     local machine = machineId and MachineFleet.byId(state, machineId)
     local wrapper = machine and machine.world or WrapperPlacement.ensure(state, Config.wrapperPlacement)
@@ -32,8 +29,11 @@ function Wrapper.nearbyPallets(state)
             or (type(pallet.press) == "table" and pallet.press.status == "complete")
         local eligible = (pallet.status == "cut" or pallet.status == "finished"
             or pallet.status == "printed") and printComplete and not pallet.wrapped
-        local distance = distanceSquared(wrapper, item)
-        if eligible and distance <= Config.wrapperPlacement.palletRadius ^ 2 then
+        local distance = Footprint.distanceSquared(
+            Footprint.at(wrapper.x,wrapper.y,Config.wrapperPlacement),
+            Footprint.at(item.x,item.y,Config.palletLogistics))
+        if eligible and not Storage.isSupporting(state,pallet.id)
+            and distance <= Config.wrapperPlacement.palletReach ^ 2 then
             nearby[#nearby + 1] = { pallet = pallet, job = item.job, distance = distance }
         end
     end

@@ -272,9 +272,9 @@ function Test.run(context, check)
     end
     local readOnlyPlacement = validPlacement and context.world.selectPlacement(
         networkState, context.assets, validPlacement.x, validPlacement.y, true)
-    check("domain_network_guest_pallet_grid_is_read_only",
-        readOnlyPlacement and context.world.placementSelection == nil
-        and networkState.message == "The host will validate the highlighted drop cell.")
+    check("domain_network_guest_pallet_grid_selects_host_validated_cell",
+        readOnlyPlacement and context.world.placementSelection
+        and context.world.networkPlacementCellId(networkState,context.assets) ~= nil)
 
     local orderingState = context.State.new()
     local orderingJob = context.jobs.createOffer({

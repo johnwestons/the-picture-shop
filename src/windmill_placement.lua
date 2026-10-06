@@ -27,8 +27,7 @@ end
 function Placement.obstacle(state, config)
     local item = Placement.ensure(state, config)
     if item.moving then return nil end
-    return { x = item.x, y = item.y - 8, halfWidth = config.collisionHalfWidth,
-        halfHeight = config.collisionHalfHeight }
+    return require("src.floor_footprint").at(item.x, item.y, config)
 end
 function Placement.interaction(player, state, config, palletJackOperating)
     local item = Placement.ensure(state, config)
@@ -52,12 +51,7 @@ function Placement.move(state, dx, dy, dt, config, canMove)
     if not item.moving then return false end
     item.inMotion = false
     if dx == 0 and dy == 0 then return false end
-    local length = math.sqrt(dx * dx + dy * dy)
-    local x = item.x + dx / length * config.speed * dt
-    local y = item.y + dy / length * config.speed * dt
-    if x == item.x and y == item.y then return false end
-    if not canMove(x, y) then return false end
-    item.x, item.y = x, y
+    if not require("src.placement_motion").move(item,dx,dy,dt,config.speed,canMove) then return false end
     item.inMotion = true
     return true
 end

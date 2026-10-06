@@ -200,7 +200,7 @@ function Test.run(context, check)
     local invalidCell = Protocol.encode("workshop_command", {
         sessionId = "machine-relocation", commandId = 5,
         leaseId = "machine-relocation-lease", resourceId = "pallet_jack",
-        action = "place_machine", expectedRevision = 3, placementCell = "c65r17",
+        action = "place_machine", expectedRevision = 3, placementCell = "c256r17",
     })
     check("machine_relocation_protocol_is_bounded_and_rejects_coordinates",
         movePacket and rotatePacket and placePacket

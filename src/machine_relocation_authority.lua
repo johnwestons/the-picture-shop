@@ -1,9 +1,11 @@
 local MachineRelocationAuthority = {}
+local PlacementGrid = require("src.placement_grid")
 
-local function exactArguments(arguments, required)
+local function exactArguments(arguments, required, optional)
     if type(arguments) ~= "table" then return false end
     local allowed = {}
     for _, field in ipairs(required or {}) do allowed[field] = true end
+    for _, field in ipairs(optional or {}) do allowed[field] = true end
     for field in pairs(arguments) do
         if type(field) ~= "string" or not allowed[field] then return false end
     end
@@ -84,14 +86,18 @@ function MachineRelocationAuthority.resource(options)
             lower_pallet = {
                 normalize = function(arguments)
                     local palletId = type(arguments) == "table" and arguments.palletId
-                    if not exactArguments(arguments, { "palletId" })
+                    if not exactArguments(arguments, { "palletId" }, { "placementCell" })
                         or type(palletId) ~= "string" or #palletId < 1 or #palletId > 64
                         or not palletId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$")
                     then
                         return nil, "invalid_pallet",
                             "Choose the pallet currently on the forks."
                     end
-                    return { palletId = palletId }
+                    local cell = arguments.placementCell
+                    if cell ~= nil and not PlacementGrid.decode(cell) then
+                        return nil,"invalid_cell","Choose a valid highlighted drop cell."
+                    end
+                    return { palletId = palletId, placementCell=cell }
                 end,
                 perform = function(_, player, arguments)
                     local allowed, accessCode, accessMessage = validateAccess(player)
@@ -101,7 +107,7 @@ function MachineRelocationAuthority.resource(options)
                             "Place the moving machine before lowering a pallet."
                     end
                     local accepted, code, message = world.lowerNetworkPallet(
-                        player, state, assets, arguments.palletId)
+                        player, state, assets, arguments.palletId, arguments.placementCell)
                     if accepted then save() end
                     return accepted, code, message
                 end,
@@ -166,13 +172,8 @@ function MachineRelocationAuthority.resource(options)
             place_machine = {
                 normalize = function(arguments)
                     local cell = type(arguments) == "table" and arguments.placementCell
-                    local column, row
-                    if type(cell) == "string" then
-                        column, row = cell:match("^c(%d+)r(%d+)$")
-                    end
-                    column, row = tonumber(column), tonumber(row)
                     if not exactArguments(arguments, { "placementCell" })
-                        or not column or not row or column > 64 or row > 64
+                        or not PlacementGrid.decode(cell)
                     then
                         return nil, "invalid_cell",
                             "Choose a valid highlighted placement cell."

@@ -4,9 +4,10 @@ local MachinePose = require("src.machine_pose")
 local WarehouseIntent = require("src.warehouse_intent")
 local Forklift = require("src.forklift")
 local MachineResource = require("src.machine_resource_id")
+local PlacementGrid = require("src.placement_grid")
 
 local Protocol = {
-    VERSION = 20,
+    VERSION = 21,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -1760,7 +1761,8 @@ local function normalizeWorkshopCommand(payload)
         "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
         "machineIndex", "placementCell", "callId", "officeIntent", "warehouseIntent",
     }) do
-        if field ~= argumentField and payload[field] ~= nil then
+        local dropCell = resourceId == "pallet_jack" and action == "lower_pallet" and field == "placementCell"
+        if field ~= argumentField and not dropCell and payload[field] ~= nil then
             return nil, "workshop_command." .. field .. " is invalid for " .. action
         end
     end
@@ -1801,12 +1803,7 @@ local function normalizeWorkshopCommand(payload)
     elseif argumentField == "placementCell" then
         normalized.placementCell, fieldError = token(
             payload.placementCell, 8, "workshop_command.placementCell")
-        local column, row
-        if normalized.placementCell then
-            column, row = normalized.placementCell:match("^c(%d+)r(%d+)$")
-        end
-        column, row = tonumber(column), tonumber(row)
-        if not column or not row or column > 64 or row > 64 then
+        if not PlacementGrid.decode(normalized.placementCell) then
             return nil, "workshop_command.placementCell is invalid"
         end
     elseif argumentField == "gaugeCentiInch" then
@@ -1838,6 +1835,12 @@ local function normalizeWorkshopCommand(payload)
         normalized[argumentField], fieldError = token(
             payload[argumentField], MAX_TOKEN_BYTES, "workshop_command." .. argumentField)
         if not normalized[argumentField] then return nil, fieldError end
+    end
+    if resourceId == "pallet_jack" and action == "lower_pallet" and payload.placementCell ~= nil then
+        if not PlacementGrid.decode(payload.placementCell) then
+            return nil, "workshop_command.placementCell is invalid"
+        end
+        normalized.placementCell = payload.placementCell
     end
     return normalized
 end

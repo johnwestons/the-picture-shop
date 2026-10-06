@@ -105,6 +105,10 @@ The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save ident
   exact-once replay, and disconnect recovery.
 - `src/tests/machine_relocation_session_test.lua` carries relocation through a real impaired Session and
   proves duplicated attach/place requests save once without transmitting client coordinates.
+- `src/tests/placement_precision_test.lua` checks the 8-by-6 grid, continuous touch targets, close
+  pallet/machine corners for all three models, overlap and wall rejection, rotated cutter feed
+  sides, edge-based wrapper/press detection, fine poses in saves, exact guest drop cells,
+  changed-clearance rejection, analog precision, short-step movement, and rendered arrangements.
 
 ## Gates
 
