@@ -3,28 +3,40 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.15` (`versionCode` 15)
+- Version: `0.1.0-android.35` (`versionCode` 35)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.15-debug.apk`
-- LAN: protocol v9 adds the host-authoritative Windmill console, bounded 12 Hz runtime snapshots,
-  host-owned plate/setup/service sessions, urgent E-STOP preemption, and safe disconnect recovery on top
-  of the existing MTU-safe four-worker movement, cutter, wrapper, pallet-jack, and machine-pose systems.
-- Status: a signed `.15` debug APK is packaged, and `output/mobile/apk-report.json` verifies its Internet
-  and network-state permissions, audited Android gateway bridge ABI/lifecycle call sites, three exact native
-  gateway ABIs, and 16 KiB compatibility. The read-only gateway foundation remains non-production and
-  sends no traffic.
-  The report records no normal-app device launch, the Windmill physical-device checklist remains pending,
-  and the build report identifies a dirty development tree; this is not a release artifact.
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.35-debug.apk`
+- Download: [Android 35 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.35/ThePictureShop-0.1.0-android.35-Install.apk)
+  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.35).
+- Contents: all current shared game changes, including the warehouse expansion, finer pallet/machine
+  placement, Credit-tab fix, and complete eight-direction walking and matching idle animations for the
+  three client designs and three salesperson designs. All 60 visitor strips match the installed source.
+- LAN: protocol v21. Local Play participants should use matching builds.
+- Verification: 3,887 desktop checks and 3,887 checks against the actual packaged mobile game pass.
+  The signed APK contains that verified game package; its certificate matches the published `.33`
+  installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
+- Installer: 232,046,466 bytes (221.3 MiB), SHA-256
+  `273c2abec8d72affd2dc8d049515faf2720e44e31ce3f55485e5c302f4971806`.
+  Source commit: `e0423511c23020043b2bd338b6ab2a2fccc36d4f`. The build report records unrelated local
+  preview files as a dirty worktree; those files are excluded from the game package.
+- Device status: no phone was reachable from the build computer, so this development update was not
+  remotely installed or physically playtested. The normal physical-device checklist remains open.
 - Direct engineering: isolated Android/Android and PC/Android guests have passed separate-network
   gameplay, and the PC/Android repeat also passed guarded packet-privacy validation. Those engineering
-  packages were removed after testing; they do not count as normal `.15` app acceptance, expose Direct
+  packages were removed after testing; they do not count as normal game-app acceptance, expose Direct
   Play, or change the bundled provider's `productionReady = false` state. The latest redacted evidence is
   `output/native-crypto/device-tests/pc_android_direct_packet_capture_report.json`.
 
 ## Build and install
+
+For a remote phone update, download the APK from GitHub on the phone, then open it from **Downloads**
+or **My Files** and follow Android's install prompt. Allow that download source to install apps if asked.
+To perform the requested test-save reset, download first, uninstall only **The Picture Shop** without
+keeping its app data, then install the downloaded APK and start a new shop. Installing over the existing
+app instead preserves its saves. The release also includes `READ-ME.txt` and `SHA256SUMS.txt`.
 
 From PowerShell in the project root:
 

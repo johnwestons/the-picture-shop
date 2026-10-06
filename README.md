@@ -52,13 +52,19 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
+The current development installer is [Android 35](https://github.com/johnwestons/the-picture-shop/releases/download/android.35/ThePictureShop-0.1.0-android.35-Install.apk)
+(221.3 MiB), with all current game changes and the completed client/salesperson animations.
+Download it on your phone and open it from **Downloads** or **My Files** to install.
+For a fresh test save, download first, uninstall only **The Picture Shop** without keeping its app data,
+then install the downloaded APK. [Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.35)
+are available on GitHub.
+
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.
 It advances the Android version, runs desktop and packaged-mobile checks, verifies
 the APK and its signing key against the previous build, and creates a numbered
 folder in `output/android-share` containing the `.apk` installer and instructions.
-Open that folder in OneDrive on your phone and download the APK to share it.
-If your messaging app rejects APK attachments or the file size, text a OneDrive
-download link instead. Opening the APK on Android starts the system installer.
+Copy the APK to your phone or publish it as a GitHub Release asset to download and share by link.
+Opening the APK on Android starts the system installer.
 Installing over the old app keeps saves; uninstalling the old app first clears
 its test saves. This private packaging command does not replace the release gate
 or physical-device multiplayer acceptance.
