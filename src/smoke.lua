@@ -166,6 +166,13 @@ function Smoke.start(context)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="employee-animation" then
+            require("src.tests.customer_motion_test").run(context,check)
+            require("src.tests.employee_schedule_test").run(context,check)
+            require("src.tests.worker_animation_test").run(context,check)
+            require("src.tests.outdoor_weather_test").run(context,check)
+            check("title_screen_exposes_the_embedded_running_build_version",
+                context.title.versionText():match("^v[%w%._%+%-]+$") ~= nil)
         elseif focus=="recent-updates" then
             require("src.tests.recent_updates_test").run(context,check)
         elseif focus=="pallet-jack" then
@@ -187,6 +194,8 @@ function Smoke.start(context)
         elseif focus=="lan-connection" then
             require("src.tests.lan_screen_test").run(context,check)
             require("src.tests.lan_discovery_test").run(context,check)
+            require("src.tests.transport_enet_test").run(context,check)
+            require("src.tests.keyboard_mobile_test").run(context,check)
             require("src.tests.options_test").run(context,check)
         else
             runChecks(context)
@@ -358,6 +367,33 @@ function Smoke.start(context)
         io.stderr:write("SMOKE_ERROR: " .. tostring(message) .. "\n")
         io.stderr:flush()
     else
+        if os.getenv("PICTURE_SHOP_SMOKE_TITLE_PREVIEW") == "1" then
+            context.state.screen = "title"
+            context.title.enter(nil, nil, nil)
+        elseif os.getenv("PICTURE_SHOP_SMOKE_WEATHER_PREVIEW") == "rain"
+            or os.getenv("PICTURE_SHOP_SMOKE_WEATHER_PREVIEW") == "night" then
+            local preview = os.getenv("PICTURE_SHOP_SMOKE_WEATHER_PREVIEW")
+            local Weather = require("src.outdoor_weather")
+            local selectedDay, selectedHour
+            for day = 0, 120 do
+                local conditions = Weather.conditionsForDay(day)
+                if preview == "rain" and conditions.rain then
+                    local hour = (conditions.rainStart + conditions.rainEnd) / 2
+                    if Weather.daylightForHour(hour) > 0.7 then
+                        selectedDay, selectedHour = day, hour
+                        break
+                    end
+                elseif preview == "night" and not conditions.rain then
+                    selectedDay, selectedHour = day, 22
+                    break
+                end
+            end
+            assert(selectedDay, "no suitable day found for weather preview")
+            context.state.calendar.totalDays = selectedDay
+            context.state.calendar.elapsed = context.state.calendar.secondsPerDay * selectedHour / 24
+            context.world.bayDoor.state, context.world.bayDoor.progress = "open", 1
+            context.state.screen = "world"
+        end
         Smoke.completed = true
         writeLine("CHECKS_COMPLETE")
     end

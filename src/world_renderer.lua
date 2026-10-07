@@ -4,6 +4,7 @@ local ShopClock = require("src.screens.shop_clock")
 local RabbitColorways = require("src.rabbit_colorways")
 local EmployeeRenderer = require("src.employee_renderer")
 local CharacterAnimation = require("src.character_animation")
+local OutdoorWeather = require("src.outdoor_weather")
 local InteractionBeacon = require("src.interaction_beacon")
 local CutterPlacement = require("src.cutter_placement")
 local PalletJack = require("src.pallet_jack")
@@ -493,6 +494,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local clock=Config.interactables.shopClock
     ShopClock.drawFace(state,clock.wallX,clock.wallY,clock.clockRadius)
     drawBayDoor(assets)
+    OutdoorWeather.draw(state,World.bayDoor,Config)
     drawTruck(assets, state)
     PlacementGrid.draw(World.placementGridSnapshot(state, assets))
     local visibleCharacters = {}

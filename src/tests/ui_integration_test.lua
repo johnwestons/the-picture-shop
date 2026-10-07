@@ -16,6 +16,8 @@ end
 function Test.run(context, check)
     -- Title actions share one mouse/keyboard path. Exercise them against the
     -- smoke identity so the player's real save directory is never touched.
+    check("title_screen_exposes_the_embedded_running_build_version",
+        context.title.versionText():match("^v[%w%._%+%-]+$") ~= nil)
     context.save.delete(3)
     local occupiedState = context.State.new()
     occupiedState.money = 777

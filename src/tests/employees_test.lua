@@ -298,6 +298,28 @@ function Test.run(context,check)
     screen.hiring.section="applications";screen.hiring.selectedId=a.id;draw("employees_hiring_resume_draws")
     screen.hiring.view="offer";screen.hiring.terms=Contracts.terms(2200,31,9,17);draw("employees_hiring_offer_draws")
     screen.hiring.section="staff";screen.hiring.view="detail";screen.hiring.selectedId=w.id;draw("employees_hiring_staff_draws")
+    local oldClockedIn=w.clockedIn
+    local originalPrintf=love.graphics.printf
+    local function staffStatusDraw(clockIn)
+        local rendered={}
+        w.clockedIn=clockIn
+        love.graphics.printf=function(text,...)
+            if type(text)=="string" then rendered[#rendered+1]=text end
+            return originalPrintf(text,...)
+        end
+        love.graphics.push("all")
+        local okay,err=pcall(screen.draw,fresh,nil,nil,context.assets)
+        love.graphics.pop()
+        love.graphics.printf=originalPrintf
+        return okay,table.concat(rendered,"\n"),err
+    end
+    local clockedDraw,clockedText=staffStatusDraw(true)
+    local offShiftDraw,offShiftText=staffStatusDraw(false)
+    w.clockedIn=oldClockedIn
+    check("employees_staff_list_displays_live_clocked_in_status",
+        clockedDraw and offShiftDraw
+        and clockedText:find("CLOCKED IN",1,true)~=nil
+        and offShiftText:find("OFF SHIFT",1,true)~=nil)
     screen.hiring.view="assignment";draw("employees_hiring_assignment_draws")
     screen.hiring.section="payroll";screen.hiring.view="detail";draw("employees_hiring_payroll_draws")
     screen.openEmploymentResume(a.id)

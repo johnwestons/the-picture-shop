@@ -142,7 +142,10 @@ function Component.install(Runtime)
             if not self.ready and self.connectedAt
                 and self.clock() - self.connectedAt > self.clientConnectTimeout
             then
-                self:_markDisconnected("Connection timed out. Check the host address and host-device network access.")
+                local timeoutMessage = self.networkKind == "direct"
+                    and "Connection timed out. Check the Direct host address and network route."
+                    or "Connection timed out. Check the host IPv4 address, same local subnet, and whether the hotspot allows devices to reach each other."
+                self:_markDisconnected(timeoutMessage)
                 self:_closeTransport(1, true)
                 return
             end

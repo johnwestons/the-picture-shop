@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import zipfile
@@ -222,6 +223,20 @@ def copy_runtime(stage: Path) -> None:
     copy_runtime_source_assets(stage)
 
 
+def write_runtime_version(stage: Path, version_name: str) -> Path:
+    """Embed the package's exact version in the LÖVE runtime without mobile metadata."""
+    if not isinstance(version_name, str) or not re.fullmatch(r"[A-Za-z0-9.+_-]{1,100}", version_name):
+        raise RuntimeError("Runtime version name contains unsupported characters")
+    destination = stage / "src" / "build_version.lua"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        f"return {{ name = {json.dumps(version_name)} }}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return destination
+
+
 def generate_icons(output: Path) -> None:
     source = ROOT / "mobile" / "android" / "polar-cutter-launcher.png"
     icon_root = output / "android-res"
@@ -337,6 +352,7 @@ def build(
     output.mkdir(parents=True, exist_ok=True)
     safe_clean(stage, output)
     copy_runtime(stage)
+    write_runtime_version(stage, config["versionName"])
     route_manifest = None
     if windows_route_provider is not None:
         route_manifest = copy_windows_route_provider(stage, windows_route_provider)

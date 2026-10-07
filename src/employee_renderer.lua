@@ -21,8 +21,12 @@ function Renderer.pose(entry,characterAssets)
                 or Animation.frameForIdle(2,a.idleClock,.65)==2 and 3 or 2
         else action,frame="rest",1 end
     elseif (entry.worker and a.phase=="working") or (entry.application and a.phase=="waiting") then
-        if character=="cat-worker" then action="operate_"..direction;frame=a.workFrame or 1
-        elseif entry.worker then action,frame="operate",1
+        if entry.worker then
+            local workAction=Catalog.workAction(entry)
+            if workAction then
+                action,frame=workAction,Animation.frameForClock(4,a.idleClock,4)
+            elseif character=="cat-worker" then action="operate_"..direction;frame=a.workFrame or 1
+            else action,frame="operate",1 end
         else action,mirror=Catalog.action(character,"idle",a.intentX,a.intentY);frame=Animation.frameForIdle(2,a.idleClock,.65) end
     else
         action,mirror=Catalog.action(character,"idle",a.intentX,a.intentY)

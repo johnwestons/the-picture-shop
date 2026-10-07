@@ -76,10 +76,12 @@ local function readCandidate(path)
 end
 
 local function writeVerified(path, source)
-    if not love.filesystem.write(path, source) then return false end
+    local wrote, writeReason = love.filesystem.write(path, source)
+    if not wrote then return false, tostring(writeReason or "write_rejected") end
     -- The caller already validated these bytes. Verify the entire disk write
     -- without repeatedly parsing, copying and migrating the same payload.
-    return love.filesystem.read(path) == source
+    if love.filesystem.read(path) ~= source then return false, "readback_mismatch" end
+    return true
 end
 
 local function absolutePath(path)
@@ -265,21 +267,22 @@ function save.save(slot, state, worldSnapshot)
             y = worldSnapshot and worldSnapshot.y or Config.player.spawnY,
         },
     }
-    if not Schema.validPayload(payload) then return false end
-    if not love.filesystem.createDirectory("saves") then return false end
+    if not Schema.validPayload(payload) then return false, "invalid_payload" end
+    if not love.filesystem.createDirectory("saves") then return false, "save_directory_unavailable" end
     local source = encode(payload)
     love.filesystem.remove(files.temporary)
-    if not writeVerified(files.temporary, source) then return false end
+    local temporaryWritten, temporaryReason = writeVerified(files.temporary, source)
+    if not temporaryWritten then return false, "temporary_write_failed: " .. temporaryReason end
 
     local currentSource = love.filesystem.getInfo(files.primary) and love.filesystem.read(files.primary)
     local currentPayload = currentSource and currentSource == previousSource and previous
         or (currentSource and parse(currentSource))
     if currentPayload then
         love.filesystem.remove(files.backupTemporary)
-        if not writeVerified(files.backupTemporary, currentSource) then return false end
-        if not promote(files.backupTemporary, files.backup, currentSource) then return false end
+        if not writeVerified(files.backupTemporary, currentSource) then return false, "backup_write_failed" end
+        if not promote(files.backupTemporary, files.backup, currentSource) then return false, "backup_promote_failed" end
     end
-    if not promote(files.temporary, files.primary, source) then return false end
+    if not promote(files.temporary, files.primary, source) then return false, "primary_promote_failed" end
     recoveryNotices[slot] = nil
     rememberPrimary(slot, source, payload.createdAt)
     return true

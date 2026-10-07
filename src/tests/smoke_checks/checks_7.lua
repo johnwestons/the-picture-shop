@@ -43,15 +43,15 @@ function Component.run(Context)
     Context.check("computer_ignores_outside_click", Context.context.computerScreen.mousepressed(
         Context.serviceState, 10, 10, 1) == nil)
     Context.billUiState = Context.context.State.new()
-    Context.billUiState.money = 2000
+    Context.billUiState.money = 5000
     Context.context.businessCalendar.update(Context.billUiState, 31 * Context.context.config.businessCalendar.secondsPerDay)
     Context.context.computerScreen.enter(Context.billUiState)
     Context.billsTabResult = Context.selectComputerTab(Context.context.computerScreen, Context.billUiState, "bills")
     Context.payBillsX, Context.payBillsY = Context.context.computerScreen.payBillsCenter()
     Context.billPayment = Context.context.computerScreen.mousepressed(Context.billUiState, Context.payBillsX, Context.payBillsY, 1)
     Context.check("computer_bills_tab_pays_monthly_expenses", Context.billsTabResult and Context.billsTabResult.tab == "bills"
-        and Context.billPayment and Context.billPayment.action == "bill_paid" and Context.billPayment.amount == 1650
-        and Context.billUiState.money == 350 and Context.billUiState.bills.balance == 0)
+        and Context.billPayment and Context.billPayment.action == "bill_paid" and Context.billPayment.amount == 3950
+        and Context.billUiState.money == 1050 and Context.billUiState.bills.balance == 0)
 
     Context.calendarUiState = Context.context.State.new()
     Context.calendarUiState.clientEmails.pending = {}

@@ -6,7 +6,20 @@ local Config = {
     baseHeight = 678,
     businessCalendar = {
         secondsPerDay = 1200,
-        monthlyExpenses = { rent = 1200, power = 240, water = 85, internet = 125 },
+        -- A 3,000 sq ft light-industrial shop at roughly $14/sq ft/year.
+        monthlyExpenses = { rent = 3500, power = 240, water = 85, internet = 125 },
+    },
+    outdoorWeather = {
+        rainChance = 0.28,
+        rainStartMinHour = 5,
+        rainStartHourSpan = 13,
+        rainDurationMinHours = 2,
+        rainDurationHourSpan = 4,
+        dawnStartHour = 5,
+        dawnEndHour = 7,
+        duskStartHour = 18,
+        duskEndHour = 20,
+        rainDropCount = 18,
     },
     player = {
         character = "rabbit-worker",
@@ -544,6 +557,12 @@ for _,view in ipairs({"east","west"}) do
 end
 Config.workerFrameSizes={["cat-worker"]=256,["tinker-fox-worker"]=256,["ferret-engineer-worker"]=256}
 Config.workerActionFrameSizes={["rabbit-worker"]={high_five=724}}
+for _, character in ipairs({"cat-worker", "tinker-fox-worker", "ferret-engineer-worker"}) do
+    Config.workerActionFrameSizes[character] = {}
+    for _, action in ipairs({"work_cutter", "work_press", "work_wrapping", "push_jack"}) do
+        Config.workerActionFrameSizes[character][action] = 256
+    end
+end
 for _,character in ipairs({"tinker-fox-worker","ferret-engineer-worker"}) do
     Config.characters[character]={}
     local views=character=="ferret-engineer-worker" and {"east","northeast","north","south","southeast"}
@@ -555,6 +574,12 @@ for _,character in ipairs({"tinker-fox-worker","ferret-engineer-worker"}) do
     for _,action in ipairs({"operate","rest"}) do
         Config.characters[character][action]="assets/generated/characters/"..character.."/"..action..".png"
     end
+    for _,action in ipairs({"work_cutter","work_press","work_wrapping","push_jack"}) do
+        Config.characters[character][action]="assets/generated/characters/"..character.."/"..action..".png"
+    end
+end
+for _,action in ipairs({"work_cutter","work_press","work_wrapping","push_jack"}) do
+    Config.characters["cat-worker"][action]="assets/generated/characters/cat-worker/"..action..".png"
 end
 -- Neutral feet and hand anchors are authored with the same turntable as the
 -- jack. Keep older callers of operatorOffsets on that shared grip contract.

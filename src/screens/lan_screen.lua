@@ -181,6 +181,8 @@ function LanScreen.setLocalInterfaces(interfaces)
             safe[#safe + 1] = {
                 address = address,
                 prefixLength = type(interface) == "table" and tonumber(interface.prefixLength) or nil,
+                broadcast = type(interface) == "table" and type(interface.broadcast) == "string"
+                    and interface.broadcast or nil,
                 interfaceName = tostring(type(interface) == "table" and interface.interfaceName or "")
                     :gsub("[%z\1-\31\127]", "?"):sub(1, 48),
                 isUsb = type(interface) == "table" and interface.isUsb == true or false,
@@ -234,8 +236,13 @@ end
 local function adapterSummary()
     local usb, other
     for _, interface in ipairs(LanScreen.localInterfaces) do
-        if interface.isUsb and not usb then usb = interface.address end
-        if not interface.isUsb and not other then other = interface.address end
+        local address = interface.address
+        local prefix = tonumber(interface.prefixLength)
+        if prefix and prefix == math.floor(prefix) and prefix >= 1 and prefix <= 32 then
+            address = address .. "/" .. tostring(prefix)
+        end
+        if interface.isUsb and not usb then usb = address end
+        if not interface.isUsb and not other then other = address end
     end
     local usbText = usb or "not detected"
     local otherText = other or "not detected"
@@ -508,9 +515,9 @@ function LanScreen.draw()
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf("Selected save slot: " .. tostring(LanScreen.selectedSlot), 0, 144, Config.baseWidth, "center")
         love.graphics.setColor(0.68, 0.74, 0.73)
-        love.graphics.printf("The host runs the shop and keeps the save. Guests join as additional workers.", 170, 169, 620, "center")
+        love.graphics.printf("Each device has a different IP; both addresses need to share a local subnet.", 170, 169, 620, "center")
         love.graphics.setColor(0.60, 0.79, 0.76)
-        love.graphics.printf("USB-C needs a data cable and Android USB tethering; the cable alone is not a network.",
+        love.graphics.printf("The host keeps the save. USB-C needs a data cable and Android USB tethering.",
             155, 190, 650, "center")
         love.graphics.setColor(0.60, 0.79, 0.76)
         for _, mode in ipairs(CONNECTION_MODES) do drawModeButton(mode) end
@@ -550,7 +557,7 @@ function LanScreen.draw()
         love.graphics.setColor(0.60, 0.79, 0.76)
         local transportHint = LanScreen.connectionMode == "usb"
             and "USB-C: enable Android USB tethering in Network / Connections settings."
-            or "Join the same Wi-Fi network or phone hotspot as the host. Internet is not required."
+            or "Devices use different IPs; enter the host's address on the same Wi-Fi / hotspot subnet."
         love.graphics.printf(transportHint, 170, 220, 620, "center")
         love.graphics.setColor(0.60, 0.71, 0.69)
         local addressHint = LanScreen.connectionMode == "usb"

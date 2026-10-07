@@ -248,6 +248,42 @@
       "loop": false,
       "role": "action",
       "fps": 4
+    },
+    "work_cutter": {
+      "path": "assets/generated/characters/cat-worker/work_cutter.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "task_action",
+      "fps": 4
+    },
+    "work_press": {
+      "path": "assets/generated/characters/cat-worker/work_press.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "task_action",
+      "fps": 4
+    },
+    "work_wrapping": {
+      "path": "assets/generated/characters/cat-worker/work_wrapping.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "task_action",
+      "fps": 4
+    },
+    "push_jack": {
+      "path": "assets/generated/characters/cat-worker/push_jack.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "task_action",
+      "fps": 4
     }
   },
   "directions": {
@@ -527,5 +563,16 @@
     "press_operator",
     "wrapper_operator",
     "pallet_transport"
-  ]
+  ],
+  "worker_action_contract": {
+    "job_models": {
+      "polar_115": "work_cutter",
+      "heidelberg_10x15": "work_press",
+      "skid_wrapper": "work_wrapping"
+    },
+    "future_pallet_jack_action": "push_jack",
+    "frame_count": 4,
+    "fps": 4,
+    "baseline": 229
+  }
 }

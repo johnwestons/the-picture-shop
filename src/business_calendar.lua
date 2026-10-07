@@ -123,7 +123,7 @@ end
 function Calendar.monthlyCharges()
     local configured = expenses()
     local charges = {
-        { id = "rent", label = "Warehouse rent", amount = tonumber(configured.rent) or 1200 },
+        { id = "rent", label = "Warehouse rent", amount = tonumber(configured.rent) or 3500 },
         { id = "power", label = "Power", amount = tonumber(configured.power) or 240 },
         { id = "water", label = "Water", amount = tonumber(configured.water) or 85 },
         { id = "internet", label = "Internet", amount = tonumber(configured.internet) or 125 },

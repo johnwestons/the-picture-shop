@@ -1,4 +1,9 @@
 local Catalog={}
+local WORK_ACTIONS={
+    polar_115="work_cutter",
+    heidelberg_10x15="work_press",
+    skid_wrapper="work_wrapping",
+}
 Catalog.profiles={
     {name="Radio Cat",character="cat-worker",cutterSkill=65,pressSkill=0,wrappingSkill=25,attention=75,reliability=90,requestedWage=2200,minimumWage=2000,shiftPreference="day"},
     {name="Tinker Fox",character="tinker-fox-worker",cutterSkill=76,pressSkill=45,wrappingSkill=65,attention=80,reliability=86,requestedWage=2300,minimumWage=2100,shiftPreference="night"},
@@ -19,5 +24,13 @@ function Catalog.action(character,prefix,x,y)
         return animation.directionalIdleAction(x,y)
     end
     return animation.authoredAction(prefix,x,y),1
+end
+function Catalog.workAction(entry)
+    local worker=type(entry) == "table" and entry.worker or nil
+    local assignment=type(worker) == "table" and worker.assignment or nil
+    return type(assignment) == "table" and WORK_ACTIONS[assignment.machineModel] or nil
+end
+function Catalog.pushAction(character)
+    return Catalog.valid(character) and "push_jack" or nil
 end
 return Catalog

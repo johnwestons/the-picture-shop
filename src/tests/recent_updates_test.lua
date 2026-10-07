@@ -211,6 +211,8 @@ function Test.run(context, check)
         kind = "send_employee_home", employeeId = homeWorker.id,
     }, 9.1)
     EmployeeAI.worker(homeState, homeWorker, 0.05, 9.1, {})
+    EmployeeAI.worker(homeState, homeWorker, 0.05,
+        9.1 + 5 * 24 / Calendar.secondsPerDay(homeState), {})
     check("recent_employee_send_home_ends_only_the_current_paid_shift",
         sentHome and homeWorker.sentHomeShiftDay == Contracts.shiftDay(homeWorker.contract, 9.1)
         and not homeWorker.visible and not homeWorker.clockedIn and homeWorker.status == "employed")
@@ -293,16 +295,28 @@ function Test.run(context, check)
 
     local oldJukeboxState = { trackIndex = Jukebox.trackIndex, source = Jukebox.source,
         active = Jukebox.active, paused = Jukebox.paused, muted = Jukebox.muted,
-        radioDirty = Jukebox.radioDirty, networkSession = Jukebox.networkSession }
+        radioDirty = Jukebox.radioDirty, networkSession = Jukebox.networkSession,
+        playbackStartedAt = Jukebox.playbackStartedAt }
     local originalNewSource = love.audio.newSource
+    local originalGetTime = love.timer.getTime
     local trackPaths = {}
+    local mockSources = {}
+    local mockClock = 0
+    love.timer.getTime = function() return mockClock end
     love.audio.newSource = function(path)
         trackPaths[#trackPaths + 1] = path
-        return {
-            setLooping = function() end, setVolume = function() end, play = function() end,
-            pause = function() end, stop = function() end, tell = function() return 0 end,
-            seek = function() end, isPlaying = function() return true end,
-        }
+        local source = { playing=false, released=false }
+        function source:setLooping() end
+        function source:setVolume() end
+        function source:play() self.playing=true end
+        function source:pause() self.playing=false end
+        function source:stop() self.playing=false end
+        function source:tell() return 0 end
+        function source:seek() end
+        function source:isPlaying() return self.playing end
+        function source:release() self.released=true end
+        mockSources[#mockSources+1] = source
+        return source
     end
     Jukebox.trackIndex, Jukebox.source, Jukebox.active, Jukebox.paused = 1, nil, false, true
     local radioState = { screen = "jukebox" }
@@ -326,13 +340,28 @@ function Test.run(context, check)
         networkRadioApplied and Jukebox.trackIndex == 4 and Jukebox.active
         and Jukebox.paused and Jukebox.muted and #trackPaths == 10
         and trackPaths[#trackPaths]:match("assets/audio/music/vibes/goodbye_youre_waking_up%.wav$") ~= nil)
-    if Jukebox.source then Jukebox.source:stop() end
+    local endedSource=Jukebox.source
+    Jukebox.applyNetworkState({trackIndex=4,active=true,paused=false,muted=false,positionMs=5200})
+    endedSource.playing=false
+    Jukebox.update(true,false)
+    local retainedDuringStartup=Jukebox.trackIndex==4 and #trackPaths==10
+    mockClock=2
+    Jukebox.update(true,false)
+    check("recent_jukebox_slow_mobile_stream_does_not_churn_audio_sources",
+        retainedDuringStartup and Jukebox.trackIndex==5 and #trackPaths==11
+        and endedSource.released)
+    if Jukebox.source then
+        pcall(Jukebox.source.stop,Jukebox.source)
+        pcall(Jukebox.source.release,Jukebox.source)
+    end
     love.audio.newSource = originalNewSource
+    love.timer.getTime = originalGetTime
     Jukebox.trackIndex, Jukebox.source, Jukebox.active, Jukebox.paused, Jukebox.muted,
-        Jukebox.radioDirty, Jukebox.networkSession =
+        Jukebox.radioDirty, Jukebox.networkSession, Jukebox.playbackStartedAt =
         oldJukeboxState.trackIndex, oldJukeboxState.source,
         oldJukeboxState.active, oldJukeboxState.paused, oldJukeboxState.muted,
-        oldJukeboxState.radioDirty, oldJukeboxState.networkSession
+        oldJukeboxState.radioDirty, oldJukeboxState.networkSession,
+        oldJukeboxState.playbackStartedAt
     check("recent_jukebox_plays_only_the_bundled_vibes_playlist", vibesOnly and tracksExist)
 end
 

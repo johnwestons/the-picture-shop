@@ -112,23 +112,19 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 43](https://github.com/johnwestons/the-picture-shop/releases/download/android.43/ThePictureShop-0.1.0-android.43-Install.apk)
-(303.0 MiB). It includes the latest warehouse perspective artwork, small employee
-shift greetings and action bubbles, Schedule choices limited to fully unloaded
-shop jobs, online high-five requests with opposing player facing, USB Local Play
-discovery, pallet jack motion, shared day/night scheduling and runtime performance
-updates. It also retains the employee training and wrapping work, rabbit color
-choices, host clock speeds, Express-job estimates, digital computer clock and the
-nine-track Vibes jukebox playlist. All 825 packaged runtime files match the clean
-source commit `b5ab6c00691b052eb6a40021db71c65c6ff4af27`. The signed APK and 16 KiB
-compatibility checks passed; its signing certificate matches Android 41.
-No phone was connected for this build, so physical playtesting is not claimed.
-The signed APK SHA-256 is `bbc91a4f7debb12e4ff9bdb286631fd6ae9250ab52f6adca6629fb1e38adeb44`.
-Download it on your phone and open it from **Downloads** or **My Files** to install.
-Install over the old app to keep saves, or uninstall **The Picture Shop** without
-keeping its app data before installing to start with a fresh test save.
-[Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.43)
-are available on GitHub.
+The current development installer is [Android 44](https://github.com/johnwestons/the-picture-shop/releases/download/android.44/ThePictureShop-0.1.0-android.44-Install.apk).
+It includes the latest local-network discovery and mobile IP-entry fixes, steadier
+jukebox playback, visible employee clock-in status, worker job and pallet-jack
+animations, weather at the open dock, and a title-screen version label. The
+warehouse lease is now $3,500 per month. It also includes the current warehouse,
+staffing, production, and nine-track Vibes playlist updates. The same signed APK
+works as an update for Android 43 and as a fresh install on a phone without the
+game. No phone was connected for this build, so physical playtesting is not claimed.
+The signed APK SHA-256 and automated packaging checks are listed in the
+[Android 44 release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.44).
+Download the APK on your phone and open it from **Downloads** or **My Files** to
+install. Install over the old app to keep saves, or uninstall **The Picture Shop**
+without keeping its app data before installing to start with a fresh test save.
 
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.
 It advances the Android version, runs desktop and packaged-mobile checks, verifies

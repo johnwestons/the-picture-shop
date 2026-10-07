@@ -89,7 +89,7 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.nextJobId == 100
         and loaded.state.calendar.month == 2
         and loaded.state.calendar.day == 1
-        and loaded.state.bills.balance == 1650
+        and loaded.state.bills.balance == 3950
         and loaded.state.bills.ledger[1].status == "unpaid")
     check("save_inventory_round_trip", loaded
         and loaded.state.inventory.plasticWrapRolls == 3

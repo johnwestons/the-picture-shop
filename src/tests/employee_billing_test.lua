@@ -149,9 +149,17 @@ function Test.run(context,check)
         check("employee_shift_end_retains_assignment_during_blade_cycle",worker.visible and worker.reserved and worker.assignment.jobId==first.id)
         for i=1,100 do context.machine.updateAll(.1,continuation);if Work.safe(worker) then break end end
         AI.worker(continuation,worker,.1,41,wc)
+        if worker.phase=="leaving" and worker.greetingUntilHours then
+            AI.worker(continuation,worker,.1,math.max(41,worker.greetingUntilHours),wc)
+        end
         local history=#first.pallets[1].paper.history
         check("employee_shift_end_leaves_with_unfinished_job_and_cut_progress",not worker.visible and not worker.clockedIn and not worker.reserved
-            and worker.assignment.jobId==first.id and #worker.schedule.items==2 and history==2)
+            and worker.assignment.jobId==first.id and #worker.schedule.items==2 and history==2,
+            "visible="..tostring(worker.visible).." clocked="..tostring(worker.clockedIn)
+                .." reserved="..tostring(worker.reserved)
+                .." assignment="..tostring(worker.assignment and worker.assignment.jobId)
+                .." queued="..#worker.schedule.items.." history="..history
+                .." phase="..tostring(worker.phase).." activity="..tostring(worker.activity))
         hours(continuation,41);local carry=Schema.snapshot(continuation);local resumed=State.new()
         assert(carry and State.applyLocalSave(resumed,{state=carry,slot=1}))
         worker=resumed.employment.staff[1];context.machine.reset(resumed)

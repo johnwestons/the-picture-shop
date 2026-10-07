@@ -2,8 +2,12 @@ local Discovery = require("src.net.lan_discovery")
 
 local Test = {}
 
-local function fakeNetwork()
-    local network = { sockets = {}, nextPort = 30000, nextIp = 10 }
+local function fakeNetwork(options)
+    options = options or {}
+    local network = {
+        sockets = {}, nextPort = 30000, nextIp = 10,
+        blockBroadcast = options.blockBroadcast == true,
+    }
     local socketModule = {}
 
     function socketModule.udp()
@@ -33,6 +37,7 @@ local function fakeNetwork()
                 local broadcast = address == "255.255.255.255"
                     or address:match("%.255$") ~= nil
                 if not target.closed and target ~= self and target.port == port
+                    and (not broadcast or not network.blockBroadcast)
                     and (broadcast or target.ip == address)
                 then
                     target.queue[#target.queue + 1] = {
@@ -123,6 +128,48 @@ function Test.run(_, check)
         automaticSearch and sawDirected)
     automaticGuest:stop()
 
+    local blockedNetwork, blockedSockets = fakeNetwork({ blockBroadcast = true })
+    local blockedNow = 40
+    local blockedHost = Discovery.new({
+        socket = blockedSockets,
+        clock = function() return blockedNow end,
+    })
+    local blockedGuest = Discovery.new({
+        socket = blockedSockets,
+        clock = function() return blockedNow end,
+        nonceFactory = function() return "abcdef0123456789" end,
+    })
+    local blockedHostStarted = blockedHost:startHost({ gamePort = 22122, name = "Hotspot shop" })
+    local blockedSearchStarted = blockedGuest:startSearch({ localInterfaces = {
+        { address = "192.168.50.20", prefixLength = 24 },
+    } })
+    local blockedDiscoveryElapsed = 0
+    for frame = 1, 300 do
+        blockedNow = 40 + frame / 60
+        blockedGuest:update(1 / 60)
+        blockedHost:update(1 / 60)
+        blockedGuest:update(1 / 60)
+        if #blockedGuest:results() > 0 then
+            blockedDiscoveryElapsed = frame / 60
+            break
+        end
+    end
+    local blockedResults = blockedGuest:results()
+    local probedHostUnicast = false
+    for _, send in ipairs(blockedNetwork.sockets[2].sent) do
+        if send.address == "192.168.50.10" and send.port == Discovery.PORT then
+            probedHostUnicast = true
+            break
+        end
+    end
+    check("lan_discovery_finds_host_by_bounded_unicast_scan_when_broadcast_is_filtered",
+        blockedHostStarted and blockedSearchStarted and #blockedResults == 1
+        and blockedResults[1].address == "192.168.50.10"
+        and blockedDiscoveryElapsed <= 5
+        and probedHostUnicast)
+    blockedHost:stop()
+    blockedGuest:stop()
+
     local guestSocket = network.sockets[2]
     guestSocket.queue[#guestSocket.queue + 1] = {
         packet = "TPSLAN1|H|ffffffffffffffff|14|22122|Spoof",
@@ -146,9 +193,11 @@ function Test.run(_, check)
 
     now = now + Discovery.RESULT_TTL + 0.1
     guest:update(0)
+    local expiredMessage = select(2, guest:status())
     check("lan_discovery_expires_stale_hosts_and_keeps_manual_fallback",
         #guest:results() == 0
-        and select(2, guest:status()):find("Searching", 1, true) ~= nil)
+        and (expiredMessage:find("Searching", 1, true) ~= nil
+            or expiredMessage:find("Checking", 1, true) ~= nil))
 
     local missing = Discovery.new({ socket = false })
     local missingOk, missingError = missing:startSearch()

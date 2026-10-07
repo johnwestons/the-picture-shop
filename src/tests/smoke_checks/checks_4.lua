@@ -95,13 +95,17 @@ function Component.run(Context)
         and Context.calendarState.calendar.day == 1 and Context.calendarState.calendar.totalDays == 31
         and Context.context.businessCalendar.weekNumber(Context.calendarState) == 5
         and Context.context.businessCalendar.daysInMonth(2028, 2) == 29)
-    Context.check("calendar_posts_flat_monthly_bills", Context.invoice.total == 1650
-        and Context.invoice.charges[1].amount == 1200 and Context.invoice.charges[2].amount == 240
+    Context.check("calendar_posts_flat_monthly_bills", Context.invoice.total == 3950
+        and Context.invoice.charges[1].amount == 3500 and Context.invoice.charges[2].amount == 240
         and Context.invoice.charges[3].amount == 85 and Context.invoice.charges[4].amount == 125
-        and Context.calendarState.bills.balance == 1650)
+        and Context.calendarState.bills.balance == 3950)
+    Context.check("calendar_rent_increase_requires_sufficient_cash",
+        not Context.context.businessCalendar.pay(Context.calendarState)
+        and Context.calendarState.money == 2000 and Context.calendarState.bills.balance == 3950)
+    Context.calendarState.money = 5000
     Context.paidBills, Context.paidAmount = Context.context.businessCalendar.pay(Context.calendarState)
-    Context.check("calendar_monthly_bills_require_payment", Context.paidBills and Context.paidAmount == 1650
-        and Context.calendarState.money == 350 and Context.calendarState.bills.balance == 0
+    Context.check("calendar_monthly_bills_require_payment", Context.paidBills and Context.paidAmount == 3950
+        and Context.calendarState.money == 1050 and Context.calendarState.bills.balance == 0
         and Context.calendarState.bills.ledger[1].status == "paid")
     Context.calendarEvents = Context.context.businessCalendar.events(Context.calendarState)
     Context.check("calendar_automatically_lists_bill_due_dates", Context.calendarEvents[1]

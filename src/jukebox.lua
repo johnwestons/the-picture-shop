@@ -32,6 +32,7 @@ local PREVIOUS_BUTTON = { x = 242, y = 560, width = 110, height = 46 }
 local PLAY_BUTTON = { x = 364, y = 560, width = 110, height = 46 }
 local NEXT_BUTTON = { x = 486, y = 560, width = 110, height = 46 }
 local MUTE_BUTTON = { x = 608, y = 560, width = 110, height = 46 }
+local PLAYBACK_START_GRACE_SECONDS = 1.5
 
 local radioFace
 local radioButtons
@@ -63,23 +64,40 @@ local function currentTrack()
     return TRACKS[Jukebox.trackIndex] or TRACKS[1]
 end
 
+local function clock()
+    if love and love.timer and type(love.timer.getTime) == "function" then
+        local ok, value = pcall(love.timer.getTime)
+        if ok and type(value) == "number" and value == value then return value end
+    end
+    return os.clock()
+end
+
+local function releaseSource(source)
+    if not source then return end
+    if type(source.stop) == "function" then pcall(source.stop, source) end
+    if type(source.release) == "function" then pcall(source.release, source) end
+end
+
 local function setVolume()
     if Jukebox.source then
-        Jukebox.source:setVolume(Jukebox.muted and 0 or 0.24)
+        pcall(Jukebox.source.setVolume, Jukebox.source, Jukebox.muted and 0 or 0.24)
     end
 end
 
 local function startCurrentTrack()
     if not love or not love.audio or type(love.audio.newSource) ~= "function" then
+        releaseSource(Jukebox.source)
+        Jukebox.source, Jukebox.playbackStartedAt = nil, nil
         Jukebox.loadError = "LÖVE audio is unavailable."
         Jukebox.active, Jukebox.paused = false, true
         Jukebox.radioDirty = true
         return false
     end
     if Jukebox.source then
-        Jukebox.source:stop()
+        releaseSource(Jukebox.source)
         Jukebox.source = nil
     end
+    Jukebox.playbackStartedAt = nil
     local ok, source = pcall(love.audio.newSource, MUSIC_ROOT .. currentTrack().file, "stream")
     if not ok or not source then
         Jukebox.loadError = tostring(source or "The selected track could not be loaded.")
@@ -87,11 +105,21 @@ local function startCurrentTrack()
         Jukebox.radioDirty = true
         return false
     end
-    source:setLooping(false)
+    local started, startError = pcall(function()
+        source:setLooping(false)
+        source:setVolume(Jukebox.muted and 0 or 0.24)
+        source:play()
+    end)
+    if not started then
+        releaseSource(source)
+        Jukebox.loadError = tostring(startError or "The selected track could not start.")
+        Jukebox.active, Jukebox.paused = false, true
+        Jukebox.radioDirty = true
+        return false
+    end
     Jukebox.source = source
     Jukebox.loadError = nil
-    setVolume()
-    source:play()
+    Jukebox.playbackStartedAt = clock()
     Jukebox.active, Jukebox.paused = true, false
     Jukebox.radioDirty = true
     return true
@@ -243,16 +271,21 @@ end
 function Jukebox.update(keepPlaying, readOnly)
     if not keepPlaying then
         local wasPlaying = Jukebox.active and not Jukebox.paused
-        if Jukebox.source then Jukebox.source:stop() end
+        releaseSource(Jukebox.source)
         Jukebox.source = nil
+        Jukebox.playbackStartedAt = nil
         Jukebox.active, Jukebox.paused = false, true
         if wasPlaying then Jukebox.radioDirty = true end
         return
     end
-    if Jukebox.source and Jukebox.active and not Jukebox.paused
-        and not Jukebox.source:isPlaying()
-        and not readOnly
-    then
+    local elapsed = Jukebox.playbackStartedAt and clock() - Jukebox.playbackStartedAt or math.huge
+    local playing = true
+    if Jukebox.source and type(Jukebox.source.isPlaying) == "function" then
+        local ok, value = pcall(Jukebox.source.isPlaying, Jukebox.source)
+        playing = ok and value == true
+    end
+    if Jukebox.source and Jukebox.active and not Jukebox.paused and not playing
+        and elapsed >= PLAYBACK_START_GRACE_SECONDS and not readOnly then
         Jukebox.trackIndex = Jukebox.trackIndex % #TRACKS + 1
         startCurrentTrack()
     end
@@ -287,21 +320,26 @@ function Jukebox.applyNetworkState(state)
     Jukebox.trackIndex, Jukebox.muted = trackIndex, muted
 
     if not active then
-        if Jukebox.source then Jukebox.source:stop() end
+        releaseSource(Jukebox.source)
         Jukebox.source = nil
+        Jukebox.playbackStartedAt = nil
         Jukebox.active, Jukebox.paused = false, paused
     elseif trackChanged or not Jukebox.source then
-        if Jukebox.source then Jukebox.source:stop() end
+        releaseSource(Jukebox.source)
         Jukebox.source = nil
         Jukebox.active, Jukebox.paused = false, true
         if startCurrentTrack() and Jukebox.source then
-            if paused then Jukebox.source:pause() end
+            if paused then pcall(Jukebox.source.pause, Jukebox.source) end
             Jukebox.active, Jukebox.paused = true, paused
+            if not paused then Jukebox.playbackStartedAt = clock() end
             pcall(Jukebox.source.seek, Jukebox.source, position)
         end
     elseif Jukebox.source then
-        if paused and not Jukebox.paused then Jukebox.source:pause() end
-        if not paused and Jukebox.paused then Jukebox.source:play() end
+        if paused and not Jukebox.paused then pcall(Jukebox.source.pause, Jukebox.source) end
+        if not paused and Jukebox.paused then
+            pcall(Jukebox.source.play, Jukebox.source)
+            Jukebox.playbackStartedAt = clock()
+        end
         Jukebox.active, Jukebox.paused = true, paused
         local ok, currentPosition = pcall(Jukebox.source.tell, Jukebox.source)
         if ok and type(currentPosition) == "number"
@@ -316,8 +354,9 @@ function Jukebox.applyNetworkState(state)
 end
 
 function Jukebox.stopNetworkPlayback()
-    if Jukebox.source then Jukebox.source:stop() end
+    releaseSource(Jukebox.source)
     Jukebox.source = nil
+    Jukebox.playbackStartedAt = nil
     Jukebox.active, Jukebox.paused = false, true
     Jukebox.radioDirty = false
 end

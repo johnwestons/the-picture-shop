@@ -120,8 +120,21 @@ function Test.run(context, check, jobs)
         and fullLoopOffer.pickup.status == "loaded"
         and fullLoopState.inventory.finishedPallets == 0
         and fullLoopSaveCalls == 2)
-    check("full_loop_pickup_checkpoint_saves", context.save.save(
-        3, fullLoopState, { x = 500, y = 455 }))
+    local schema = require("src.save_schema")
+    local checkpointSnapshot, checkpointReason = schema.snapshot(fullLoopState)
+    local checkpointPayload = {
+        version=schema.VERSION, slot=3, createdAt=os.time(), updatedAt=os.time(),
+        state=checkpointSnapshot, player={x=500,y=455},
+    }
+    local checkpointSaveValid = schema.validPayload(checkpointPayload)
+    local checkpointSaved, checkpointSaveReason = context.save.save(
+        3, fullLoopState, { x = 500, y = 455 })
+    check("full_loop_pickup_checkpoint_saves", checkpointSaved,
+        "snapshot=" .. tostring(checkpointSnapshot ~= nil)
+            .. " reason=" .. tostring(checkpointReason)
+            .. " valid=" .. tostring(checkpointSnapshot and schema.validState(checkpointSnapshot))
+            .. " payload=" .. tostring(checkpointSaveValid)
+            .. " save_reason=" .. tostring(checkpointSaveReason))
     local savedPickup = context.save.load(3)
     check("full_loop_pickup_checkpoint_round_trip", savedPickup
         and savedPickup.state.jobs.active[1].status == "pickup_in_progress"

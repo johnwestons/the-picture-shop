@@ -3,6 +3,7 @@ local Presentation = require("src.forklift_presentation")
 local Layered = require("src.forklift_layered_presentation")
 local Config = require("src.config")
 local Renderer = require("src.warehouse_renderer")
+local WarehouseLayout = require("src.warehouse_layout")
 local function close(a,b) return math.abs(a-b)<0.000001 end
 
 function Test.run(_, check)
@@ -187,6 +188,7 @@ function Test.run(_, check)
     test("layered_side_art_still_requires_explicit_review",
         not Layered.plan(side) and not Layered.plan({owned=true,direction="up"},{review=true}))
     local smooth, stationary, mirrored = true, true, true
+    local sideTravel = WarehouseLayout.bay("front_left").upperDeckOffset / 0.145
     for _,heading in ipairs({"east","west"}) do
         side.direction=heading
         local previousY=math.huge
@@ -194,7 +196,7 @@ function Test.run(_, check)
             side.forkHeight=step/100
             local pose=Layered.plan(side,{review=true,scale=0.308})
             smooth=smooth and pose and pose.loadY<previousY
-                and close(pose.carriageShift,150-310.3448275862069*side.forkHeight)
+                and close(pose.carriageShift,150-sideTravel*side.forkHeight)
             stationary=stationary and pose.bodyPath:match("east%-fixed%-manned%-v1%.png$")
                 and pose.carriagePath:match("east%-carriage%-v2%.png$")
                 and pose.x==side.x and pose.y==side.y

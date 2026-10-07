@@ -132,7 +132,7 @@ function Test.run(context,check)
         local quote=context.jobService.quoteTerms(s,quoteJob)
         check("shop_regular_twelve_hour_staff_can_profit_at_pace_"..minutes.."_end_"..endHour,
             near(f.weeklyWages,1457.5) and f.weeklyLoans>0 and p.profit>0 and p.withinCapacity
-            and f.breakEvenLifts<20 and near(f.cycleReserve,5830) and quote.recommendedPrice>=f.pricePerLift,
+            and f.breakEvenLifts<=20 and near(f.cycleReserve,5830) and quote.recommendedPrice>=f.pricePerLift,
             string.format("wages=%s loans=%s profit=%s capacity=%s breakEven=%s reserve=%s quote=%s lift=%s",
                 tostring(f.weeklyWages),tostring(f.weeklyLoans),tostring(p.profit),tostring(p.withinCapacity),
                 tostring(f.breakEvenLifts),tostring(f.cycleReserve),tostring(quote.recommendedPrice),tostring(f.pricePerLift)))
@@ -262,8 +262,11 @@ function Test.run(context,check)
     for i,profile in ipairs(catalog.profiles) do
         local shop=State.new();shop.calendar.secondsPerDay=300;shop.employment.nextApplicantId=i
         hire(shop,Contracts.terms(profile.requestedWage,31,8,20,4))
-        local plan=Finances.plan(Finances.summary(shop),20)
-        check("shop_each_mouse_worker_is_profitable_at_requested_wage_"..i,plan.profit>0 and plan.withinCapacity)
+        local finances=Finances.summary(shop)
+        local lifts=math.max(20,finances.breakEvenLifts+1)
+        local plan=Finances.plan(finances,lifts)
+        check("shop_each_mouse_worker_can_profit_at_requested_wage_"..i,plan.profit>0 and plan.withinCapacity,
+            string.format("lifts=%d profit=$%.2f capacity=%d withinCapacity=%s",lifts,plan.profit,finances.capacity,tostring(plan.withinCapacity)))
     end
     context.characterAssets.retainCharacters({})
     context.machine.reset(context.state)

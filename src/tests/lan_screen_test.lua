@@ -299,6 +299,17 @@ function Test.run(context, check)
         and LanScreen.message:find("IPv4", 1, true) ~= nil
         and LanScreen.message:find("host PC", 1, true) == nil)
 
+    LanScreen.enter({ join = function() return true end })
+    LanScreen.keypressed("j")
+    LanScreen.textinput("192.168.1.246:22122")
+    local backspaceHandled = LanScreen.keypressed("backspace")
+    local addressAfterBackspace = LanScreen.address
+    local retypedLastDigit = LanScreen.textinput("2")
+    check("lan_screen_backspace_then_retype_edits_the_ip_once_without_duplication",
+        backspaceHandled and retypedLastDigit
+        and addressAfterBackspace == "192.168.1.246:2212"
+        and LanScreen.address == "192.168.1.246:22122")
+
     LanScreen.enter({
         join = function(address, name)
             joinAddress, joinName = address, name
@@ -323,6 +334,25 @@ function Test.run(context, check)
     local connectionSettings = { lanConnectionMode = "auto", lanAutoJoin = false }
     local settingsSaves = 0
     local autoJoinAddress
+    LanScreen.enter({
+        settings = connectionSettings,
+        saveSettings = function() settingsSaves = settingsSaves + 1; return true end,
+        join = function(address) autoJoinAddress = address; return true end,
+    })
+    connectionSettings.lanConnectionMode = "wifi"
+    LanScreen.enter({ settings = connectionSettings })
+    LanScreen.setLocalInterfaces({
+        { address = "192.168.0.18", prefixLength = 23, isUsb = false },
+    })
+    LanScreen.setDiscovery({
+        { address = "192.168.1.246", port = 22122, name = "Same Wi-Fi, different IP" },
+        { address = "192.168.2.50", port = 22122, name = "Other network" },
+    }, "2 shops found.")
+    check("lan_screen_wifi_matching_uses_local_subnet_not_identical_device_ips",
+        #LanScreen.discoveredHosts == 1
+        and LanScreen.discoveredHosts[1].address == "192.168.1.246")
+
+    connectionSettings.lanConnectionMode = "auto"
     LanScreen.enter({
         settings = connectionSettings,
         saveSettings = function() settingsSaves = settingsSaves + 1; return true end,

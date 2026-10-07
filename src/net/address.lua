@@ -150,16 +150,37 @@ local function lanScore(value)
     return 100
 end
 
+local function interfacePreference(candidate)
+    if type(candidate) ~= "table" then return 0 end
+    local name = tostring(candidate.interfaceName or ""):lower()
+    if name:find("rmnet", 1, true) or name:find("cell", 1, true)
+        or name:find("wwan", 1, true) or name:find("pdp", 1, true)
+        or name:find("ccmni", 1, true)
+    then
+        return -300
+    end
+    if name:find("wlan", 1, true) or name:find("wifi", 1, true)
+        or name:find("wi-fi", 1, true) or name:find("wireless", 1, true)
+    then
+        return candidate.isUsb == true and -200 or 120
+    end
+    if name:find("ethernet", 1, true) or name:find("^eth", 1, false)
+        or name:find("^enp", 1, false)
+    then
+        return candidate.isUsb == true and -200 or 60
+    end
+    return candidate.isUsb == true and -250 or 0
+end
+
 function Address.chooseLanAddress(candidates)
     local best, bestScore
-    local seen = {}
     for _, candidate in ipairs(candidates or {}) do
         local raw = candidateAddress(candidate)
         local parsed = raw and Address.parse(raw)
         local value = parsed and parsed.isIPv4 and parsed.host or nil
-        if value and not seen[value] then
-            seen[value] = true
-            local score = lanScore(value)
+        if value then
+            local baseScore = lanScore(value)
+            local score = baseScore and baseScore + interfacePreference(candidate) or nil
             if score and (not bestScore or score > bestScore
                 or (score == bestScore and value < best))
             then
@@ -344,7 +365,12 @@ function Address.detectLanAddress(options)
 
     if options.socket == nil then
         local interfaces = Address.detectLanInterfaces(options)
-        if interfaces[1] then return interfaces[1].address end
+        if interfaces[1] then
+            -- Interface enumeration sorts USB first for UI presentation. Auto
+            -- hosting must select the useful Wi-Fi/Ethernet address instead
+            -- of accidentally advertising a cable or cellular adapter.
+            return Address.chooseLanAddress(interfaces) or interfaces[1].address
+        end
     end
 
     local socketModule = options.socket

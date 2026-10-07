@@ -12,7 +12,11 @@ Discovery.QUERY_INTERVAL = 1
 Discovery.RESULT_TTL = 5
 Discovery.MAX_RESULTS = 8
 Discovery.MAX_PACKET_BYTES = 160
-Discovery.MAX_REPLIES_PER_SECOND = 16
+Discovery.MAX_REPLIES_PER_SECOND = 128
+Discovery.FALLBACK_SCAN_DELAY = 0.8
+Discovery.UNICAST_PROBES_PER_SECOND = 128
+Discovery.MAX_UNICAST_PROBES_PER_UPDATE = 6
+Discovery.MAX_UNICAST_SCAN_TARGETS = 1024
 
 local PREFIX = "TPSLAN1"
 
@@ -126,6 +130,86 @@ local function isLocalBroadcastInterface(address)
         or (a == 100 and b and b >= 64 and b <= 127)
 end
 
+local function ipv4Number(address)
+    if type(address) ~= "string" then return nil end
+    local a, b, c, d = address:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+    if not a then return nil end
+    local octets = { tonumber(a), tonumber(b), tonumber(c), tonumber(d) }
+    for _, octet in ipairs(octets) do
+        if not octet or octet < 0 or octet > 255 or octet ~= math.floor(octet) then
+            return nil
+        end
+    end
+    return ((octets[1] * 256 + octets[2]) * 256 + octets[3]) * 256 + octets[4]
+end
+
+local function ipv4Text(value)
+    local d = value % 256
+    value = math.floor(value / 256)
+    local c = value % 256
+    value = math.floor(value / 256)
+    local b = value % 256
+    local a = math.floor(value / 256) % 256
+    return string.format("%d.%d.%d.%d", a, b, c, d)
+end
+
+local function buildUnicastScanTargets(interfaces)
+    local perInterface, seen, total = {}, {}, 0
+    for _, interface in ipairs(interfaces or {}) do
+        local address = type(interface) == "table" and interface.address or interface
+        local addressNumber = ipv4Number(address)
+        if addressNumber and isLocalBroadcastInterface(address) then
+            local prefix = type(interface) == "table" and tonumber(interface.prefixLength) or nil
+            if not prefix or prefix ~= math.floor(prefix) or prefix < 1 or prefix > 30 then
+                prefix = 24
+            end
+            local subnetSize = 2 ^ (32 - prefix)
+            local network = math.floor(addressNumber / subnetSize) * subnetSize
+            local broadcast = network + subnetSize - 1
+            local first, last = network + 1, broadcast - 1
+            -- Avoid scanning huge carrier or enterprise subnets. Probe the
+            -- interface's /24 neighborhood instead, which covers home Wi-Fi
+            -- and Android hotspots even when the assigned mask is unusually
+            -- wide. Ordinary /23 networks still get their full address range.
+            if last - first + 1 > 512 then
+                local local24 = math.floor(addressNumber / 256) * 256
+                first, last = math.max(network + 1, local24 + 1), math.min(broadcast - 1, local24 + 254)
+            end
+            local limit = math.min(last - first + 1, 512)
+            local targets = {}
+            if limit > 0 then
+                -- Start near the common gateway address, then walk the local
+                -- range. Skip this device so its own discovery socket does
+                -- not receive a pointless query.
+                for candidate = first, first + limit - 1 do
+                    if candidate ~= addressNumber then
+                        targets[#targets + 1] = ipv4Text(candidate)
+                    end
+                end
+            end
+            if #targets > 0 then perInterface[#perInterface + 1] = targets end
+        end
+    end
+
+    local targets, round = {}, 1
+    while total < Discovery.MAX_UNICAST_SCAN_TARGETS do
+        local added = false
+        for _, addresses in ipairs(perInterface) do
+            local address = addresses[round]
+            if address and not seen[address] then
+                seen[address] = true
+                targets[#targets + 1] = address
+                total = total + 1
+                added = true
+                if total >= Discovery.MAX_UNICAST_SCAN_TARGETS then break end
+            end
+        end
+        if not added then break end
+        round = round + 1
+    end
+    return targets
+end
+
 function Discovery.new(options)
     options = options or {}
     local clock = options.clock or defaultClock
@@ -143,6 +227,9 @@ function Discovery.new(options)
         hostName = nil,
         localAddress = nil,
         localInterfaces = {},
+        unicastScanTargets = {},
+        unicastScanIndex = 1,
+        nextUnicastProbeAt = math.huge,
         lastQueryAt = -math.huge,
         resultsByAddress = {},
         resultOrder = {},
@@ -183,6 +270,9 @@ function Discovery:stop()
     self.hostName = nil
     self.localAddress = nil
     self.localInterfaces = {}
+    self.unicastScanTargets = {}
+    self.unicastScanIndex = 1
+    self.nextUnicastProbeAt = math.huge
     self.resultsByAddress = {}
     self.resultOrder = {}
     self.message = "Discovery is idle."
@@ -241,9 +331,32 @@ function Discovery:startSearch(options)
         local first = self.localInterfaces[1]
         self.localAddress = type(first) == "table" and first.address or first
     end
+    self.unicastScanTargets = buildUnicastScanTargets(self.localInterfaces)
+    self.unicastScanIndex = 1
+    self.nextUnicastProbeAt = self.clock() + Discovery.FALLBACK_SCAN_DELAY
     self.lastQueryAt = -math.huge
     self.message = "Searching local adapters, including USB Ethernet..."
     return true
+end
+
+function Discovery:_sendFallbackProbes(now)
+    if #self.unicastScanTargets == 0 or now < self.nextUnicastProbeAt then return end
+    local sent = 0
+    while sent < Discovery.MAX_UNICAST_PROBES_PER_UPDATE
+        and now >= self.nextUnicastProbeAt
+    do
+        local target = self.unicastScanTargets[self.unicastScanIndex]
+        if not target then
+            self.unicastScanIndex = 1
+            target = self.unicastScanTargets[self.unicastScanIndex]
+        end
+        if not target then return end
+        safeCall(self.udp, "sendto", queryPacket(self.nonce), target, self.discoveryPort)
+        self.unicastScanIndex = self.unicastScanIndex + 1
+        self.nextUnicastProbeAt = self.nextUnicastProbeAt
+            + 1 / Discovery.UNICAST_PROBES_PER_SECOND
+        sent = sent + 1
+    end
 end
 
 function Discovery:_sendQuery(now)
@@ -319,7 +432,9 @@ function Discovery:_receiveHostReplies(now)
     self.resultOrder = retained
     self.message = #retained > 0
         and (tostring(#retained) .. (#retained == 1 and " shop found." or " shops found."))
-        or "Searching local adapters, including USB Ethernet..."
+        or (self.unicastScanIndex > 1
+            and "Checking nearby addresses on this local network..."
+            or "Searching local adapters, including USB Ethernet...")
 end
 
 function Discovery:update(_)
@@ -329,6 +444,7 @@ function Discovery:update(_)
         self:_receiveHostQueries(now)
     elseif self.mode == "search" then
         self:_sendQuery(now)
+        self:_sendFallbackProbes(now)
         self:_receiveHostReplies(now)
     end
 end

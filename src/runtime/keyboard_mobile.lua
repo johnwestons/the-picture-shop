@@ -3,6 +3,8 @@
 local Component = {}
 
 function Component.install(Runtime)
+    local mobileTextInputState
+
     function Runtime.wantsTextInput()
         if Runtime.state.screen == "options" then
             return Runtime.OptionsScreen.wantsTextInput()
@@ -23,9 +25,25 @@ function Component.install(Runtime)
     end
 
     Runtime.syncMobileKeyboard = function()
-        if Runtime.mobileControls and Runtime.mobileControls:isEnabled() and love.keyboard.setTextInput then
-            love.keyboard.setTextInput(Runtime.wantsTextInput())
+        local enabled = Runtime.mobileControls and Runtime.mobileControls:isEnabled()
+        if not enabled then
+            if mobileTextInputState == true and type(love.keyboard.setTextInput) == "function" then
+                love.keyboard.setTextInput(false)
+                mobileTextInputState = false
+            end
+            return
         end
+        local wantsTextInput = Runtime.wantsTextInput() == true
+        if type(love.keyboard.setTextInput) == "function"
+            and mobileTextInputState ~= wantsTextInput
+        then
+            love.keyboard.setTextInput(wantsTextInput)
+            mobileTextInputState = wantsTextInput
+        end
+    end
+
+    Runtime.invalidateMobileKeyboardState = function()
+        mobileTextInputState = nil
     end
 
     function Runtime.dispatchKeyPressed(key)

@@ -260,8 +260,13 @@ local function testTransfersAndPackaging(context,check)
         end}
     local movedPastBlockedJob=false
     local nextJobCutting=false
+    local workerActionClockStart=blockedWorker.idleClock
+    local workerActionClockAdvanced=false
     for _=1,2400 do
         AI.worker(blockedState,blockedWorker,.1,9.1,blockedContext)
+        if blockedWorker.phase=="working" and blockedWorker.idleClock>workerActionClockStart then
+            workerActionClockAdvanced=true
+        end
         context.machine.updateAll(.1,blockedState)
         movedPastBlockedJob=movedPastBlockedJob
             or blockedState.employment.teamSchedule.items[1].jobId==reachableJob.id
@@ -276,6 +281,7 @@ local function testTransfersAndPackaging(context,check)
         "activity="..tostring(blockedWorker.activity)
             .." assigned="..tostring(blockedWorker.assignment and blockedWorker.assignment.jobId)
             .." cutter="..tostring(blockedCutter.step))
+    check("employee_worker_action_clock_advances_during_work",workerActionClockAdvanced)
     context.machine.reset(blockedState);context.wrapper.reset(blockedState)
 
     local orderState=State.new();local orderWorker=hire(orderState)

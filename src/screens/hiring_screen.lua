@@ -334,7 +334,24 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             love.graphics.setColor(row==current and {.42,.83,.79,1} or {.23,.39,.42,1})
             love.graphics.rectangle("line",r.x+1.5,r.y+1.5,r.width-3,r.height-3,3,3)
             line(row.name,r.x+10,r.y+7,244,{.92,.95,.93})
-            line(ui.section=="applications" and labels[row.status] or row.status,r.x+10,r.y+30,244,{.55,.80,.80})
+            if ui.section=="staff" then
+                local statusText,statusColor
+                if row.status=="employed" then
+                    statusText=row.clockedIn and "CLOCKED IN" or "OFF SHIFT"
+                    statusColor=row.clockedIn and {.42,.83,.58,1} or {.72,.69,.55,1}
+                else
+                    statusText=tostring(row.status or "unknown"):upper()
+                    statusColor={.68,.72,.70,1}
+                end
+                local badge=rect(r.x+r.width-122,r.y+28,112,20)
+                love.graphics.setColor(.025,.05,.055,.95)
+                love.graphics.rectangle("fill",badge.x,badge.y,badge.width,badge.height,3,3)
+                love.graphics.setColor(statusColor)
+                love.graphics.rectangle("line",badge.x+.5,badge.y+.5,badge.width-1,badge.height-1,3,3)
+                line(statusText,badge.x+3,badge.y+3,badge.width-6,statusColor)
+            else
+                line(labels[row.status] or row.status,r.x+10,r.y+30,244,{.55,.80,.80})
+            end
         end
     end
     if ui.view=="detail" then button("previous","<",pointerX,pointerY);button("next",">",pointerX,pointerY)

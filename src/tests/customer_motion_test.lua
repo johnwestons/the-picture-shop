@@ -23,7 +23,7 @@ local function definition()
     }
 end
 
-function Test.run(_, check)
+function Test.run(context, check)
     local assets = { hasAction = function() return true end }
     for _, character in ipairs({ "business-dragon", "business-fox", "business-cat", "tan-cat", "blue-coaler-cat", "green-blazer-cat" }) do
         local role = Config.customer.motionProfiles[character] and Config.customer or Config.vendor
@@ -109,6 +109,29 @@ function Test.run(_, check)
         seated.seatIndex == 2 and #seated.route == 5
         and seated.route[5].x == 75 and seated.route[5].y == 30
         and seated.seat.name == "sofa" and seated.seat.foreground == "table-front")
+
+    local lounge=Customer.new(Config.customer)
+    lounge.speed=500
+    lounge.motionProfiles={}
+    local seatVisits=#(Config.customer.seatSpots or {})*#(Config.customer.characterPool or {})
+    for visit=1,seatVisits do
+        lounge.timer=0
+        local settled=false
+        for _=1,100 do
+            lounge:update(.1,{x=-500,y=-500})
+            if lounge.state=="waiting" then settled=true;break end
+        end
+        local seat=lounge.seat
+        local action=lounge:poseAction(context.characterAssets)
+        local image,quad,count=context.characterAssets.get(lounge.character,"sit",1)
+        local anchorX,anchorY=context.characterAssets.getAnchor(lounge.character,"sit",1)
+        local valid=settled and seat and action=="sit" and image and quad and count>=1
+            and lounge.x==seat.x and lounge.y==seat.y and lounge.facing==seat.facing
+            and anchorX>0 and anchorX<=512 and anchorY>0 and anchorY<=512
+        check("customer_real_lounge_seat_alignment_"..visit,valid,
+            tostring(lounge.character).." at "..tostring(seat and seat.name))
+        lounge:reset(false)
+    end
 
     customer.animationDistance = 39
     local frame = customer:frameForAction("walk", 8)

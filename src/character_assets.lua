@@ -19,6 +19,14 @@ for character,actions in pairs(require("src.cat_worker_anchors")) do Anchors[cha
 for character,actions in pairs(require("src.cat_worker_metrics")) do Metrics[character]=actions end
 for character,actions in pairs(require("src.mouse_worker_anchors")) do Anchors[character]=actions end
 for character,actions in pairs(require("src.mouse_worker_metrics")) do Metrics[character]=actions end
+for character,actions in pairs(require("src.worker_action_anchors")) do
+    Anchors[character]=Anchors[character] or {}
+    for action,frames in pairs(actions) do Anchors[character][action]=frames end
+end
+for character,actions in pairs(require("src.worker_action_metrics")) do
+    Metrics[character]=Metrics[character] or {}
+    for action,frames in pairs(actions) do Metrics[character][action]=frames end
+end
 local jackArt = require("src.pallet_jack_art")
 for action, frames in pairs(jackArt.anchors) do Anchors["rabbit-worker"][action] = frames end
 for action, frames in pairs(jackArt.metrics) do Metrics["rabbit-worker"][action] = frames end

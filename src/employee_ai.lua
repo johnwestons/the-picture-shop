@@ -318,6 +318,7 @@ function AI.worker(state,w,dt,now,context)
                     palletEmergencyDropPoint=context.palletEmergencyDropPoint,
                     move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
                 local changed,blockedReason=Work.update(state,w,dt,workContext)
+                if w.phase=="working" then w.idleClock=w.idleClock+dt end
                 local deferred=false
                 if blockedReason=="Machine access is blocked" and w.assignment
                     and not w.assignment.scheduleItemId and Work.safe(w,state) then

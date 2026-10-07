@@ -19,11 +19,27 @@ from build_mobile_package import (
     copy_windows_route_provider,
     verify_windows_route_package,
     write_reproducible_archive,
+    write_runtime_version,
 )
 import build_mobile_package as package_builder
 
 
 class MobilePackageReproducibilityTests(unittest.TestCase):
+    def test_runtime_version_is_generated_from_the_selected_package_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage = Path(temporary) / "stage"
+            runtime = write_runtime_version(stage, "0.1.0-android.44")
+            self.assertEqual(runtime.relative_to(stage).as_posix(), "src/build_version.lua")
+            self.assertEqual(
+                runtime.read_text(encoding="utf-8"),
+                'return { name = "0.1.0-android.44" }\n',
+            )
+
+    def test_runtime_version_rejects_lua_source_injection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "unsupported characters"):
+                write_runtime_version(Path(temporary), '42"; os.exit(1) --')
+
     def test_equal_content_with_different_mtimes_produces_identical_archive(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

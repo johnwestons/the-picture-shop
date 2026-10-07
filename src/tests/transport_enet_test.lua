@@ -59,6 +59,11 @@ function Test.run(_, check)
     check("lan_address_defaults_to_picture_shop_port",
         parsed and parsed.host == "192.168.1.24" and parsed.port == 22122
         and parsed.endpoint == "192.168.1.24:22122")
+    local androidHotspot = Address.parse("192.168.43.1")
+    local phoneHotspot = Address.parse("172.20.10.1")
+    check("lan_address_accepts_common_android_and_phone_hotspot_ipv4_ranges",
+        androidHotspot and androidHotspot.host == "192.168.43.1"
+        and phoneHotspot and phoneHotspot.host == "172.20.10.1")
 
     local named = Address.parse("Shop-PC.local:23000")
     check("lan_address_accepts_safe_hostname_and_explicit_port",
@@ -73,6 +78,31 @@ function Test.run(_, check)
     })
     check("lan_address_detection_avoids_loopback_and_prefers_private_adapters",
         selected == "192.168.50.8")
+
+    local selectedLocalNetwork = Address.detectLanAddress({ candidates = {
+        { address = "192.168.42.129", prefixLength = 24,
+            interfaceName = "rndis0", isUsb = true },
+        { address = "10.11.148.123", prefixLength = 24,
+            interfaceName = "rmnet_data0", isUsb = false },
+        { address = "172.20.10.4", prefixLength = 24,
+            interfaceName = "wlan0", isUsb = false },
+    } })
+    check("lan_auto_address_prefers_wifi_over_usb_and_cellular_interfaces",
+        selectedLocalNetwork == "172.20.10.4")
+
+    local originalInterfaceDetector = Address.detectLanInterfaces
+    Address.detectLanInterfaces = function()
+        return {
+            { address = "192.168.42.129", prefixLength = 24,
+                interfaceName = "rndis0", isUsb = true },
+            { address = "172.20.10.4", prefixLength = 24,
+                interfaceName = "wlan0", isUsb = false },
+        }
+    end
+    local defaultAutoAddress = Address.detectLanAddress()
+    Address.detectLanInterfaces = originalInterfaceDetector
+    check("lan_auto_host_uses_best_local_interface_instead_of_ui_sort_order",
+        defaultAutoAddress == "172.20.10.4")
 
     local dnsUdpOpened = false
     local detected = Address.detectLanAddress({ socket = {

@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "character": "cat-worker",
+      "path": "assets/source/worker-actions-v1/cat-worker-actions-v1.png",
+      "sha256": "bfc819290c71458a020ce2081e443117a660fe701944a174877c35218e5bf134",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "rows": [
+        "work_cutter",
+        "work_press",
+        "work_wrapping",
+        "push_jack"
+      ]
+    },
+    {
+      "character": "tinker-fox-worker",
+      "path": "assets/source/worker-actions-v1/tinker-fox-worker-actions-v1.png",
+      "sha256": "c92e4f9bc5e6cb1db07e11b8e46eaa88a47f3a7d30feb88eb013bb7e9f26cd9a",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "rows": [
+        "work_cutter",
+        "work_press",
+        "work_wrapping",
+        "push_jack"
+      ]
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "path": "assets/source/worker-actions-v1/ferret-engineer-worker-actions-v1.png",
+      "sha256": "9f49d6ad8826339d09b981e60a5d653709c90c4d0dd2bd5203514518c0175b96",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "rows": [
+        "work_cutter",
+        "work_press",
+        "work_wrapping",
+        "push_jack"
+      ]
+    }
+  ]
+}
