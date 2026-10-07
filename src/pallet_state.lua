@@ -26,7 +26,7 @@ end
 
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
-    warehouse = { on_pallet_jack = true, on_forklift = true, at_cutter = true, at_press = true, outbound_truck = true, none = true },
+    warehouse = { on_pallet_jack = true, on_forklift = true, at_cutter = true, at_press = true, on_employee = true, outbound_truck = true, none = true },
     on_pallet_jack = { warehouse = true },
     on_forklift = { warehouse = true },
     -- Rack/stack transfers are atomic multi-owner operations in PalletStorage.
@@ -34,9 +34,10 @@ local allowedLocations = {
     rack = {},
     stacked = {},
     at_cutter = { cutter_output = true, warehouse = true, none = true },
-    cutter_output = { on_pallet_jack = true, on_forklift = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
+    cutter_output = { on_pallet_jack = true, on_forklift = true, warehouse = true, at_press = true, on_employee = true, outbound_truck = true, none = true },
     at_press = { press_output = true, warehouse = true },
-    press_output = { on_pallet_jack = true, on_forklift = true, warehouse = true, at_press = true, outbound_truck = true, none = true },
+    press_output = { on_pallet_jack = true, on_forklift = true, warehouse = true, at_press = true, on_employee = true, outbound_truck = true, none = true },
+    on_employee = { warehouse = true, cutter_output = true, press_output = true },
     outbound_truck = { none = true },
     none = {},
 }
@@ -77,7 +78,7 @@ function PalletState.find(state, palletId)
 end
 
 function PalletState.validate(state)
-    local errors, ids, atCutter, atPress, onJack = {}, {}, {}, {}, {}
+    local errors, ids, atCutter, atPress, onJack, onEmployee = {}, {}, {}, {}, {}, {}
     local jack = state and state.palletJack or {}
     for _, item in ipairs(allPallets(state)) do
         local pallet = item.pallet
@@ -109,6 +110,10 @@ function PalletState.validate(state)
             atPress[owner] = (atPress[owner] or 0) + 1
         end
         if pallet.location == "on_pallet_jack" then onJack[#onJack + 1] = pallet end
+        if pallet.location == "on_employee" then onEmployee[#onEmployee + 1] = pallet end
+        if pallet.location ~= "on_employee" and pallet.carrierEmployeeId ~= nil then
+            errors[#errors + 1] = tostring(pallet.id) .. " has an employee carrier but is not being carried"
+        end
     end
     for _, count in pairs(atCutter) do
         if count > 1 then errors[#errors + 1] = "more than one pallet is owned by the cutter" end
@@ -129,6 +134,30 @@ function PalletState.validate(state)
     end
     if #onJack == 1 and jack.carriedPalletId ~= onJack[1].id then
         errors[#errors + 1] = tostring(onJack[1].id) .. " does not match the jack ownership id"
+    end
+    local workers, workerCarrying = {}, {}
+    for _, worker in ipairs(state and state.employment and state.employment.staff or {}) do
+        workers[worker.id] = worker
+        if worker.carryingPalletId then
+            if workerCarrying[worker.carryingPalletId] then
+                errors[#errors + 1] = tostring(worker.carryingPalletId) .. " is carried by more than one employee"
+            end
+            workerCarrying[worker.carryingPalletId] = worker
+        end
+    end
+    for _, pallet in ipairs(onEmployee) do
+        local worker = workers[pallet.carrierEmployeeId]
+        if not worker or worker.carryingPalletId ~= pallet.id
+            or not worker.assignment or worker.assignment.palletId ~= pallet.id then
+            errors[#errors + 1] = tostring(pallet.id) .. " does not match its employee carrier"
+        end
+    end
+    for palletId, worker in pairs(workerCarrying) do
+        local pallet = ids[palletId]
+        if not pallet or pallet.location ~= "on_employee" or pallet.carrierEmployeeId ~= worker.id
+            or not worker.assignment or worker.assignment.palletId ~= palletId then
+            errors[#errors + 1] = tostring(worker.id) .. " references a pallet they are not carrying"
+        end
     end
     local storedValid, storedErrors = PalletStorage.validate(state)
     if not storedValid then
@@ -242,6 +271,9 @@ function PalletState.transitionDetached(pallet, target, options)
     if source == "on_forklift" or target == "on_forklift" then
         return false, "forklift transfers require the authoritative shop state"
     end
+    if source == "on_employee" or target == "on_employee" then
+        return false, "employee transfers require the authoritative shop state"
+    end
     if not (allowedLocations[source] and allowedLocations[source][target]) then
         return false, string.format("cannot move pallet from %s to %s", tostring(source), tostring(target))
     end
@@ -262,6 +294,7 @@ function PalletState.transition(state, pallet, target, options)
 
     local jack = state.palletJack or {}
     local forklift = state.forklift or {}
+    local carrier
     if PalletStorage.isSupporting(state, pallet.id) then
         return false, "remove the upper pallet before moving its support"
     end
@@ -277,6 +310,24 @@ function PalletState.transition(state, pallet, target, options)
     end
     if source == "on_forklift" and forklift.carriedPalletId ~= pallet.id then
         return false, "forklift does not own this pallet"
+    end
+    if target == "on_employee" then
+        if type(options.employeeId) ~= "string" then return false, "an employee must be selected to carry this pallet" end
+        for _, worker in ipairs(state.employment and state.employment.staff or {}) do
+            if worker.id == options.employeeId then carrier = worker;break end
+        end
+        if not carrier or carrier.carryingPalletId then return false, "that employee is already carrying a pallet" end
+        if not carrier.assignment or carrier.assignment.palletId ~= pallet.id then
+            return false, "that employee is not assigned to this pallet"
+        end
+    end
+    if source == "on_employee" then
+        for _, worker in ipairs(state.employment and state.employment.staff or {}) do
+            if worker.id == pallet.carrierEmployeeId then carrier = worker;break end
+        end
+        if not carrier or carrier.carryingPalletId ~= pallet.id then
+            return false, "the employee does not own this pallet"
+        end
     end
     if target == "at_cutter" then
         local radius = options.cutterRadius or Config.cutterPlacement.palletInputZoneRadius
@@ -310,6 +361,8 @@ function PalletState.transition(state, pallet, target, options)
         pressMachineId = pallet.pressMachineId,
         carriedPalletId = jack.carriedPalletId,
         forkliftCarriedPalletId = forklift.carriedPalletId,
+        carrierEmployeeId = pallet.carrierEmployeeId,
+        workerCarryingPalletId = carrier and carrier.carryingPalletId,
     }
     pallet.location = target
     if target == "at_cutter" then pallet.cutterMachineId = ownerId(state, "polar_115") end
@@ -320,6 +373,13 @@ function PalletState.transition(state, pallet, target, options)
     if source == "on_pallet_jack" then jack.carriedPalletId = nil end
     if target == "on_forklift" then forklift.carriedPalletId = pallet.id end
     if source == "on_forklift" then forklift.carriedPalletId = nil end
+    if target == "on_employee" then
+        pallet.carrierEmployeeId = carrier.id
+        carrier.carryingPalletId = pallet.id
+    elseif source == "on_employee" then
+        pallet.carrierEmployeeId = nil
+        carrier.carryingPalletId = nil
+    end
     if target == "outbound_truck" then pallet.world = nil end
     if target == "none" and options.keepWorld ~= true then pallet.world = nil end
 
@@ -329,6 +389,8 @@ function PalletState.transition(state, pallet, target, options)
         pallet.cutterMachineId, pallet.pressMachineId = previous.cutterMachineId, previous.pressMachineId
         jack.carriedPalletId = previous.carriedPalletId
         forklift.carriedPalletId = previous.forkliftCarriedPalletId
+        pallet.carrierEmployeeId = previous.carrierEmployeeId
+        if carrier then carrier.carryingPalletId = previous.workerCarryingPalletId end
         return false, table.concat(errors, "; ")
     end
     return true, pallet

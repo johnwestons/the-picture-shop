@@ -87,7 +87,7 @@ local function parseHost(packet, expectedNonce)
     return port, displayName(name)
 end
 
-local function directedBroadcast(address)
+local function directedBroadcast(address, prefixLength)
     local a, b, c
     if type(address) == "string" then
         a, b, c = address:match("^(%d+)%.(%d+)%.(%d+)%.%d+$")
@@ -95,7 +95,35 @@ local function directedBroadcast(address)
     if not a then return nil end
     a, b, c = tonumber(a), tonumber(b), tonumber(c)
     if a > 255 or b > 255 or c > 255 then return nil end
-    return string.format("%d.%d.%d.255", a, b, c)
+    prefixLength = tonumber(prefixLength)
+    if not prefixLength or prefixLength ~= math.floor(prefixLength)
+        or prefixLength < 1 or prefixLength >= 31
+    then
+        -- Android USB tethering and most phone hotspots use /24. Only infer a
+        -- broadcast for private addresses; never turn public DNS addresses
+        -- into directed broadcast destinations.
+        if not Address.isPrivateIPv4(address) then return nil end
+        prefixLength = 24
+    end
+    local values = {}
+    for value in address:gmatch("%d+") do values[#values + 1] = tonumber(value) end
+    local remaining = 32 - prefixLength
+    for index = 4, 1, -1 do
+        local hostBits = math.min(8, remaining)
+        local block = 2 ^ hostBits
+        values[index] = math.floor(values[index] / block) * block + block - 1
+        remaining = remaining - hostBits
+    end
+    return table.concat(values, ".")
+end
+
+local function isLocalBroadcastInterface(address)
+    if Address.isPrivateIPv4(address) then return true end
+    local a, b
+    if type(address) == "string" then a, b = address:match("^(%d+)%.(%d+)%.") end
+    a, b = tonumber(a), tonumber(b)
+    return (a == 169 and b == 254)
+        or (a == 100 and b and b >= 64 and b <= 127)
 end
 
 function Discovery.new(options)
@@ -103,7 +131,8 @@ function Discovery.new(options)
     local clock = options.clock or defaultClock
     return setmetatable({
         socketModule = loadSocket(options.socket),
-        addressDetector = options.addressDetector or Address.detectLanAddress,
+        addressDetector = options.addressDetector or Address.detectLanInterfaces,
+        socketInjected = options.socket ~= nil,
         clock = clock,
         nonceFactory = options.nonceFactory or function() return defaultNonce(clock) end,
         discoveryPort = tonumber(options.port) or Discovery.PORT,
@@ -113,6 +142,7 @@ function Discovery.new(options)
         gamePort = nil,
         hostName = nil,
         localAddress = nil,
+        localInterfaces = {},
         lastQueryAt = -math.huge,
         resultsByAddress = {},
         resultOrder = {},
@@ -152,6 +182,7 @@ function Discovery:stop()
     self.gamePort = nil
     self.hostName = nil
     self.localAddress = nil
+    self.localInterfaces = {}
     self.resultsByAddress = {}
     self.resultOrder = {}
     self.message = "Discovery is idle."
@@ -189,14 +220,29 @@ function Discovery:startSearch(options)
     self.mode = "search"
     self.nonce = nonce
     self.localAddress = options.localAddress
-    if not self.localAddress and type(self.addressDetector) == "function" then
-        local detected, address = pcall(self.addressDetector, {
-            socket = self.socketModule,
-        })
-        if detected then self.localAddress = address end
+    self.localInterfaces = type(options.localInterfaces) == "table"
+        and options.localInterfaces or {}
+    if #self.localInterfaces == 0 and type(self.addressDetector) == "function" then
+        local detectorOptions = { native = not self.socketInjected }
+        if self.socketInjected then detectorOptions.socket = self.socketModule end
+        local detected, value = pcall(self.addressDetector, detectorOptions)
+        if detected then
+            if type(value) == "table" then
+                self.localInterfaces = value
+            elseif type(value) == "string" then
+                self.localInterfaces = { { address = value } }
+            end
+        end
+    end
+    if #self.localInterfaces == 0 and self.localAddress then
+        self.localInterfaces = { { address = self.localAddress } }
+    end
+    if not self.localAddress and self.localInterfaces[1] then
+        local first = self.localInterfaces[1]
+        self.localAddress = type(first) == "table" and first.address or first
     end
     self.lastQueryAt = -math.huge
-    self.message = "Searching for shops on this network..."
+    self.message = "Searching local adapters, including USB Ethernet..."
     return true
 end
 
@@ -205,9 +251,20 @@ function Discovery:_sendQuery(now)
     self.lastQueryAt = now
     local packet = queryPacket(self.nonce)
     safeCall(self.udp, "sendto", packet, "255.255.255.255", self.discoveryPort)
-    local directed = directedBroadcast(self.localAddress)
-    if directed and directed ~= "255.255.255.255" then
-        safeCall(self.udp, "sendto", packet, directed, self.discoveryPort)
+    local sent = {}
+    for _, interface in ipairs(self.localInterfaces or {}) do
+        local address = type(interface) == "table" and interface.address or interface
+        local directed = type(interface) == "table" and interface.broadcast or nil
+        if type(directed) ~= "string" then
+            directed = directedBroadcast(address,
+                type(interface) == "table" and interface.prefixLength or nil)
+        end
+        if directed and isLocalBroadcastInterface(address)
+            and directed ~= "255.255.255.255" and not sent[directed]
+        then
+            sent[directed] = true
+            safeCall(self.udp, "sendto", packet, directed, self.discoveryPort)
+        end
     end
 end
 
@@ -262,7 +319,7 @@ function Discovery:_receiveHostReplies(now)
     self.resultOrder = retained
     self.message = #retained > 0
         and (tostring(#retained) .. (#retained == 1 and " shop found." or " shops found."))
-        or "Searching for shops on this network..."
+        or "Searching local adapters, including USB Ethernet..."
 end
 
 function Discovery:update(_)

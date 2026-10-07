@@ -1,4 +1,5 @@
 local Address = {}
+local InterfaceAddresses = require("src.net.interface_addresses")
 
 Address.DEFAULT_PORT = 22122
 Address.MAX_INPUT_LENGTH = 260
@@ -169,6 +170,54 @@ function Address.chooseLanAddress(candidates)
     return best
 end
 
+local function normalizedInterface(candidate)
+    local raw = candidateAddress(candidate)
+    local parsed = raw and Address.parse(raw)
+    if not parsed or not parsed.isIPv4 or not lanScore(parsed.host) then return nil end
+    local prefix = type(candidate) == "table" and tonumber(candidate.prefixLength) or nil
+    if not prefix or prefix ~= math.floor(prefix) or prefix < 1 or prefix > 32 then
+        prefix = nil
+    end
+    if not prefix and Address.isPrivateIPv4(parsed.host) then prefix = 24 end
+    local broadcast = type(candidate) == "table" and candidate.broadcast or nil
+    if type(broadcast) ~= "string" then broadcast = nil end
+    if not broadcast and prefix and prefix < 31 then
+        local values = {}
+        for value in parsed.host:gmatch("%d+") do values[#values + 1] = tonumber(value) end
+        local remaining = 32 - prefix
+        for index = 4, 1, -1 do
+            local hostBits = math.min(8, remaining)
+            local block = 2 ^ hostBits
+            values[index] = math.floor(values[index] / block) * block + block - 1
+            remaining = remaining - hostBits
+        end
+        broadcast = table.concat(values, ".")
+    end
+    local isUsb = type(candidate) == "table" and candidate.isUsb == true or false
+    -- Android's standard USB tethering subnet is 192.168.42.0/24. Some
+    -- Windows RNDIS drivers expose a generic "Ethernet" name, so use that
+    -- well-known local range as an additional cable-address hint.
+    if parsed.host:match("^192%.168%.42%.") then isUsb = true end
+    return {
+        address = parsed.host,
+        prefixLength = prefix,
+        broadcast = broadcast,
+        interfaceName = type(candidate) == "table" and tostring(candidate.interfaceName or "") or "",
+        isUsb = isUsb,
+    }
+end
+
+local function sortInterfaces(interfaces)
+    table.sort(interfaces, function(left, right)
+        if left.isUsb ~= right.isUsb then return left.isUsb end
+        local leftScore = lanScore(left.address) or -1
+        local rightScore = lanScore(right.address) or -1
+        if leftScore ~= rightScore then return leftScore > rightScore end
+        return left.address < right.address
+    end)
+    return interfaces
+end
+
 local function appendCandidates(target, value)
     if type(value) == "string" then
         target[#target + 1] = value
@@ -205,11 +254,97 @@ local function routedLocalAddress(socketModule, options)
     return selected
 end
 
+function Address.detectLanInterfaces(options)
+    options = options or {}
+    local candidates, interfaces = {}, {}
+    if type(options.candidates) == "table" then
+        appendCandidates(candidates, options.candidates)
+    else
+        local allowNative = options.native
+        if allowNative == nil then allowNative = options.socket == nil end
+        if allowNative then
+            local ok, detected = pcall(InterfaceAddresses.enumerate, { os = options.os })
+            if ok then
+                for _, item in ipairs(type(detected) == "table" and detected or {}) do
+                    candidates[#candidates + 1] = item
+                end
+            end
+        end
+
+        local socketModule = options.socket
+        if socketModule == nil then
+            local ok, loaded = pcall(require, "socket")
+            if ok then socketModule = loaded end
+        end
+        if type(socketModule) == "table" and type(socketModule.dns) == "table"
+            and type(socketModule.dns.gethostname) == "function"
+        then
+            local okHost, hostname = pcall(socketModule.dns.gethostname)
+            if okHost and type(hostname) == "string" and hostname ~= "" then
+                if type(socketModule.dns.getaddrinfo) == "function" then
+                    local okInfo, info = pcall(socketModule.dns.getaddrinfo, hostname)
+                    if okInfo then appendCandidates(candidates, info) end
+                end
+                if type(socketModule.dns.toip) == "function" then
+                    local okIp, primary, resolved = pcall(socketModule.dns.toip, hostname)
+                    if okIp then
+                        appendCandidates(candidates, primary)
+                        appendCandidates(candidates, resolved)
+                    end
+                end
+            end
+        end
+        appendCandidates(candidates, options.extraCandidates)
+        local known = {}
+        for _, candidate in ipairs(candidates) do
+            local item = normalizedInterface(candidate)
+            if item and not known[item.address] then
+                known[item.address] = true
+                interfaces[#interfaces + 1] = item
+            end
+        end
+        local routed = routedLocalAddress(socketModule, options)
+        if routed and not known[routed] then
+            local item = normalizedInterface({ address = routed })
+            if item then interfaces[#interfaces + 1] = item end
+        end
+    end
+
+    if #interfaces == 0 then
+        for _, candidate in ipairs(candidates) do
+            local item = normalizedInterface(candidate)
+            if item then interfaces[#interfaces + 1] = item end
+        end
+    end
+    local unique, deduped = {}, {}
+    for _, item in ipairs(interfaces) do
+        local prior = unique[item.address]
+        if not prior then
+            unique[item.address] = item
+            deduped[#deduped + 1] = item
+        elseif item.isUsb and not prior.isUsb then
+            unique[item.address] = item
+            for index, old in ipairs(deduped) do
+                if old.address == item.address then deduped[index] = item; break end
+            end
+        end
+    end
+    sortInterfaces(deduped)
+    while #deduped > 16 do deduped[#deduped] = nil end
+    if #deduped > 0 then return deduped end
+    return deduped, "No usable non-loopback IPv4 interface was found."
+end
+
 function Address.detectLanAddress(options)
     options = options or {}
     if type(options.candidates) == "table" then
         local selected = Address.chooseLanAddress(options.candidates)
         return selected or nil, selected and nil or "No usable non-loopback IPv4 address was found."
+    end
+
+    if options.socket == nil then
+        local interfaces = Address.detectLanInterfaces(options)
+        if interfaces[1] then return interfaces[1].address end
     end
 
     local socketModule = options.socket

@@ -16,6 +16,14 @@ import build_mobile_package as package
 
 
 class RuntimeSourcePackageTests(unittest.TestCase):
+    def test_vibes_radio_playlist_is_explicit_and_complete(self) -> None:
+        tracks = package.runtime_music_paths()
+        self.assertEqual(len(tracks), 9)
+        self.assertEqual([path.name for path in tracks], list(package.VIBES_MUSIC_TRACKS))
+        self.assertTrue(all(path.parent.as_posix().endswith("assets/audio/music/vibes")
+                            for path in tracks))
+        self.assertEqual(len(package.runtime_music_manifest()), 9)
+
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
         self.assertEqual(len(paths), 69)
@@ -47,7 +55,7 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         for stage in range(1, 5):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"construction/left-storage-stage-{stage}.png",
                           package.RUNTIME_SOURCE_ASSETS)
-        for asset in ("rooms/breakroom-triangle-v3-candidate.png",
+        for asset in ("rooms/breakroom-triangle-v5-candidate.png",
                       "rooms/breakroom-construction-atlas-v1.png",
                       "rooms/floor-construction-atlas-v2-clean.png"):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + asset, package.RUNTIME_SOURCE_ASSETS)
@@ -103,6 +111,14 @@ class RuntimeSourcePackageTests(unittest.TestCase):
                     self.assertEqual(hashlib.sha256(content).hexdigest(), entry["sha256"])
                 self.assertFalse(any("prompts" in name or "-source-" in name or name.endswith(".json")
                                      for name in archive.namelist()))
+
+    def test_music_allowlist_rejects_missing_and_escaping_tracks(self) -> None:
+        with patch.object(package, "VIBES_MUSIC_TRACKS", ("missing.wav",)):
+            with self.assertRaisesRegex(RuntimeError, "Missing required Vibes radio track"):
+                package.runtime_music_paths()
+        with patch.object(package, "VIBES_MUSIC_TRACKS", ("../outside.wav",)):
+            with self.assertRaisesRegex(RuntimeError, "escapes"):
+                package.runtime_music_paths()
 
     def test_missing_required_art_fails_before_any_copy(self) -> None:
         with tempfile.TemporaryDirectory(prefix="picture-shop-missing-assets-") as temporary:

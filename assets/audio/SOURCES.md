@@ -10,6 +10,14 @@ This file ships inside desktop and Android game packages. Exact byte counts,
 SHA-256 fingerprints, and generator-relative paths are recorded in
 `source_manifest.json`.
 
+## Vibes radio
+
+The warehouse jukebox uses the nine canonical tracks from the Vibes playlist in
+the sibling `Mouse Frontier 8.10` project. The tracks are downmixed to mono and
+resampled from 48 kHz to 24 kHz PCM for the warehouse radio; the duplicate `2`
+variants and every other playlist are excluded. Its radio face and button art
+also come from that project's `assets/sprites/ui/radio` folder.
+
 ## Attribution-required recordings
 
 - **sliding_door_opening.wav** by **Joe DeShon (joedeshon)** —

@@ -356,27 +356,23 @@ function Test.run(context, check)
         and context.world.palletJackSnapshot(context.state).frame == 8
         and context.world.palletJackSnapshot(context.state).moving
         and context.world.player.moving)
-    context.world.update(0.04, 1, 0, context.assets, context.state)
-    check("pallet_jack_faces_east", context.world.palletJackSnapshot(context.state).direction == "east"
-        and context.world.palletJackSnapshot(context.state).frame == 4)
-    context.world.update(0.04, 0, -1, context.assets, context.state)
-    check("pallet_jack_faces_north", context.world.palletJackSnapshot(context.state).direction == "north"
-        and context.world.palletJackSnapshot(context.state).frame == 2)
-    context.world.update(0.04, 0, 1, context.assets, context.state)
-    check("pallet_jack_faces_south", context.world.palletJackSnapshot(context.state).direction == "south"
-        and context.world.palletJackSnapshot(context.state).frame == 6)
-    context.world.update(0.04, -1, -1, context.assets, context.state)
-    check("pallet_jack_faces_northwest", context.world.palletJackSnapshot(context.state).direction == "northwest"
-        and context.world.palletJackSnapshot(context.state).frame == 1)
-    context.world.update(0.04, 1, -1, context.assets, context.state)
-    check("pallet_jack_faces_northeast", context.world.palletJackSnapshot(context.state).direction == "northeast"
-        and context.world.palletJackSnapshot(context.state).frame == 3)
-    context.world.update(0.04, 1, 1, context.assets, context.state)
-    check("pallet_jack_faces_southeast", context.world.palletJackSnapshot(context.state).direction == "southeast"
-        and context.world.palletJackSnapshot(context.state).frame == 5)
-    context.world.update(0.04, -1, 1, context.assets, context.state)
-    check("pallet_jack_faces_southwest", context.world.palletJackSnapshot(context.state).direction == "southwest"
-        and context.world.palletJackSnapshot(context.state).frame == 7)
+    local function facePalletJack(dx,dy,direction,frame)
+        context.PalletJack.forceRelease(context.state,context.config.palletJack,1)
+        context.state.palletJack.x,context.state.palletJack.y=jackStart.x,jackStart.y
+        context.state.palletJack.direction="northwest"
+        context.PalletJack.mount(context.state,context.config.palletJack,1)
+        context.world.update(0.05,dx,dy,context.assets,context.state)
+        local snapshot=context.world.palletJackSnapshot(context.state)
+        check("pallet_jack_faces_"..direction,snapshot.direction==direction
+            and snapshot.frame==frame)
+    end
+    facePalletJack(1,0,"east",4)
+    facePalletJack(0,-1,"north",2)
+    facePalletJack(0,1,"south",6)
+    facePalletJack(-1,-1,"northwest",1)
+    facePalletJack(1,-1,"northeast",3)
+    facePalletJack(1,1,"southeast",5)
+    facePalletJack(-1,1,"southwest",7)
 
     local pickupTarget = context.world.palletsSnapshot(context.state)[1]
     context.state.palletJack.x = pickupTarget.x - 48
@@ -388,6 +384,8 @@ function Test.run(context, check)
         == pickupTarget.pallet.id
         and pickupTarget.pallet.location == "on_pallet_jack"
         and #context.world.palletsSnapshot(context.state) == deliveredPalletCount - 1)
+    context.PalletJack.forceRelease(context.state,context.config.palletJack,1)
+    context.PalletJack.mount(context.state,context.config.palletJack,1)
     context.state.palletJack.x, context.state.palletJack.y = 520, 500
     context.world.player.x, context.world.player.y = 520, 504
     context.world.update(0.18, 0, -1, context.assets, context.state)

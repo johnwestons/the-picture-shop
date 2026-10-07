@@ -865,17 +865,17 @@ end
 function ComputerScreen.hiringMousepressed(state,x,y)
     return Hiring.mousepressed(state,ComputerScreen.hiring,x,y,function(intent)
         return ComputerScreen.employeeCommand(state,intent)
-    end,dependencies.remoteCommand~=nil)
+    end,false,dependencies.remoteCommand==nil)
 end
 
 function ComputerScreen.scheduleMousepressed(state,x,y)
     return ScheduleScreen.mousepressed(state,ComputerScreen.schedule,x,y,function(intent)
         return ComputerScreen.employeeCommand(state,intent)
-    end,dependencies.remoteCommand~=nil)
+    end,false)
 end
 
 function ComputerScreen.drawSchedule(state,x,y,buttonRenderer)
-    return ScheduleScreen.draw(state,ComputerScreen.schedule,x,y,dependencies.remoteCommand~=nil,buttonRenderer)
+    return ScheduleScreen.draw(state,ComputerScreen.schedule,x,y,false,buttonRenderer)
 end
 
 function ComputerScreen.employeeCommand(state,intent)
@@ -1457,6 +1457,10 @@ local function drawMonitorFrame(state)
     love.graphics.setColor(0.63, 0.61, 0.54, 1)
     love.graphics.rectangle("fill", MONITOR.x, MONITOR.y,
         MONITOR.width, MONITOR.height, 16, 16)
+    love.graphics.setColor(0.76, 0.74, 0.66, 1)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", MONITOR.x + 2, MONITOR.y + 2,
+        MONITOR.width - 4, MONITOR.height - 4, 14, 14)
     love.graphics.setColor(0.88, 0.86, 0.77, 1)
     love.graphics.line(MONITOR.x + 16, MONITOR.y + 8,
         MONITOR.x + MONITOR.width - 16, MONITOR.y + 8)
@@ -1470,12 +1474,43 @@ local function drawMonitorFrame(state)
     love.graphics.setColor(0.04, 0.045, 0.045, 1)
     love.graphics.rectangle("fill", PANEL.x - 8, PANEL.y - 8,
         PANEL.width + 16, PANEL.height + 16, 9, 9)
-    love.graphics.setColor(0.22, 0.21, 0.18, 1)
-    for index = 1, 7 do
-        love.graphics.rectangle("fill", 62 + (index - 1) * 13, 654, 7, 2)
+    love.graphics.setColor(0.31, 0.32, 0.30, 1)
+    love.graphics.rectangle("line", PANEL.x - 5, PANEL.y - 5,
+        PANEL.width + 10, PANEL.height + 10, 7, 7)
+
+    -- Small slotted fasteners make the bezel read as assembled hardware while
+    -- staying clear of the fixed screen and its controls.
+    for index = 1, 4 do
+        local screwX = index % 2 == 1 and 28 or 932
+        local screwY = index <= 2 and 20 or 656
+        love.graphics.setColor(0.22, 0.21, 0.18, 1)
+        love.graphics.circle("fill", screwX, screwY, 6)
+        love.graphics.setColor(0.80, 0.79, 0.72, 1)
+        love.graphics.circle("fill", screwX, screwY, 4.5)
+        love.graphics.setColor(0.43, 0.43, 0.39, 1)
+        love.graphics.circle("line", screwX, screwY, 4.5)
+        love.graphics.setColor(0.28, 0.29, 0.28, 1)
+        love.graphics.line(screwX - 2.5, screwY - 1,
+            screwX + 2.5, screwY + 1)
+        love.graphics.setColor(0.96, 0.94, 0.86, 0.8)
+        love.graphics.line(screwX - 2, screwY - 2,
+            screwX + 1.5, screwY - 0.5)
     end
-    love.graphics.setColor(0.08, 0.55, 0.30, 1)
+
+    love.graphics.setColor(0.22, 0.21, 0.18, 1)
+    for index = 1, 3 do
+        local ventY = 648 + (index - 1) * 5
+        love.graphics.rectangle("fill", 58, ventY, 94, 3, 1, 1)
+        love.graphics.setColor(0.91, 0.88, 0.79, 0.75)
+        love.graphics.line(61, ventY, 149, ventY)
+        love.graphics.setColor(0.22, 0.21, 0.18, 1)
+    end
+    love.graphics.setColor(0.18, 0.19, 0.17, 1)
+    love.graphics.circle("fill", 876, 655, 6)
+    love.graphics.setColor(0.06, 0.25, 0.14, 1)
     love.graphics.circle("fill", 876, 655, 4)
+    love.graphics.setColor(0.26, 0.92, 0.48, 1)
+    love.graphics.circle("fill", 876, 655, 2.5)
     love.graphics.setColor(0.24, 0.23, 0.20, 1)
     love.graphics.print("CRITTERWORKS CRT-17", 374, 649)
     local displayDate = BusinessCalendar.shortDate(state):gsub("%s+W%d+$", "")
@@ -2438,6 +2473,13 @@ local function drawEmail(state, pointerX, pointerY, assets)
     love.graphics.setColor(0.72, 0.79, 0.80)
     love.graphics.print("SUBJECT: " .. selected.subject, 434, 238)
     love.graphics.printf(selected.body, 434, 270, 392, "left")
+    if selected.estimateRequest and selected.job then
+        love.graphics.setColor(0.48, 0.78, 0.68)
+        love.graphics.print("ARRIVAL IF ACCEPTED:", 434, 296)
+        love.graphics.setColor(0.91, 0.93, 0.87)
+        love.graphics.printf(JobService.expectedStockArrivalText(state, selected.job),
+            588, 296, 238, "right")
+    end
     if selected.awaitingReply then
         local remaining = math.max(0, math.ceil((tonumber(selected.expiresAtHours) or 0)
             - BusinessCalendar.absoluteHours(state)))
@@ -2738,7 +2780,8 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
     elseif ComputerScreen.tab == "inventory" then
         drawInventory(state)
     elseif ComputerScreen.tab == "hiring" then
-        Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,dependencies.remoteCommand~=nil,drawComputerButton)
+        Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,false,drawComputerButton,
+            dependencies.remoteCommand==nil)
     elseif ComputerScreen.tab == "schedule" then
         ComputerScreen.drawSchedule(state,pointerX,pointerY,drawComputerButton)
     elseif ComputerScreen.tab == "warehouse" then

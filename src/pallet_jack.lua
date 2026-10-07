@@ -1,6 +1,9 @@
 local PalletJack = {}
 local PalletState = require("src.pallet_state")
-local Motion = require("src.placement_motion")
+
+-- Driving inertia is presentation-only state. Keeping it outside the durable
+-- jack record means old saves and multiplayer snapshots stay byte-compatible.
+local runtimeMotion = setmetatable({}, { __mode = "k" })
 
 local directionFrames = {
     northwest = 1, north = 2, northeast = 3, east = 4,
@@ -23,17 +26,34 @@ local dropOffsets = {
     west = { x = -56, y = 0 },
 }
 
-local operatorSigns = {
-    -- The operator stands beyond the handle, opposite the fork direction.
-    northwest = { x = 1, y = 1 },
-    north = { x = 0, y = 1 },
-    northeast = { x = -1, y = 1 },
-    east = { x = -1, y = 0 },
-    southeast = { x = -1, y = -1 },
-    south = { x = 0, y = -1 },
-    southwest = { x = 1, y = -1 },
-    west = { x = 1, y = 0 },
+local directionVectors = {
+    northwest = { x = -1, y = -1 }, north = { x = 0, y = -1 },
+    northeast = { x = 1, y = -1 }, east = { x = 1, y = 0 },
+    southeast = { x = 1, y = 1 }, south = { x = 0, y = 1 },
+    southwest = { x = -1, y = 1 }, west = { x = -1, y = 0 },
 }
+
+local directionFor
+
+local function operatorOffset(directionName, config)
+    local authored = config.operatorOffsets and config.operatorOffsets[directionName]
+    if authored then return authored.x or 0, authored.y or 0 end
+    local direction = directionVectors[directionName] or directionVectors.northwest
+    return -direction.x * (config.operatorDistanceX or 42),
+        -direction.y * (config.operatorDistanceY or 24)
+end
+
+local function motionFor(jack, config)
+    local motion = runtimeMotion[jack]
+    if not motion then
+        local offsetX, offsetY = operatorOffset(jack.direction, config or {})
+        motion = { velocityX = 0, velocityY = 0, distance = 0,
+            operatorDirection = jack.direction,
+            operatorOffsetX = offsetX, operatorOffsetY = offsetY }
+        runtimeMotion[jack] = motion
+    end
+    return motion
+end
 
 local function validOperatorId(value)
     return type(value) == "number" and value == math.floor(value)
@@ -135,6 +155,8 @@ function PalletJack.mount(state, config, operatorPlayerId)
     jack.operating = true
     jack.operatorPlayerId = operatorPlayerId
     jack.moving = false
+    runtimeMotion[jack] = nil
+    motionFor(jack, config)
     return true, "mounted"
 end
 
@@ -153,6 +175,7 @@ function PalletJack.forceRelease(state, config, operatorPlayerId)
     jack.operating = false
     jack.operatorPlayerId = nil
     jack.moving = false
+    runtimeMotion[jack] = nil
     return true, jack.carriedPalletId and "parked_loaded" or "parked"
 end
 
@@ -164,9 +187,14 @@ end
 
 function PalletJack.operatorPosition(state, config)
     local jack = PalletJack.ensure(state, config)
-    local sign = operatorSigns[jack.direction]
-    return jack.x + sign.x * (config.operatorDistanceX or 42),
-        jack.y + sign.y * (config.operatorDistanceY or 24)
+    local motion = motionFor(jack, config)
+    -- Snap only after an external placement/rotation changes the jack's view.
+    -- Normal steering eases the operator's offset every movement substep.
+    if motion.operatorDirection ~= jack.direction then
+        motion.operatorDirection = jack.direction
+        motion.operatorOffsetX, motion.operatorOffsetY = operatorOffset(jack.direction, config)
+    end
+    return jack.x + motion.operatorOffsetX, jack.y + motion.operatorOffsetY
 end
 
 function PalletJack.obstacle(state, config)
@@ -212,19 +240,96 @@ function PalletJack.interaction(player, state, config)
     }
 end
 
-local function directionFor(dx, dy, current)
-    if dx == 0 and dy == 0 then return current end
-    if dx < 0 then
-        if dy < 0 then return "northwest" end
-        if dy > 0 then return "southwest" end
-        return "west"
+directionFor = function(dx, dy, current)
+    if math.abs(dx) < 0.0001 and math.abs(dy) < 0.0001 then return current end
+    local absX, absY = math.abs(dx), math.abs(dy)
+    local diagonalThreshold = 0.41421356237
+    if absX <= absY * diagonalThreshold then return dy < 0 and "north" or "south" end
+    if absY <= absX * diagonalThreshold then return dx < 0 and "west" or "east" end
+    if dx < 0 then return dy < 0 and "northwest" or "southwest" end
+    return dy < 0 and "northeast" or "southeast"
+end
+
+local function moveToward(x, y, targetX, targetY, maximumDelta)
+    local dx, dy = targetX - x, targetY - y
+    local distance = math.sqrt(dx * dx + dy * dy)
+    if distance <= maximumDelta or distance < 0.000001 then return targetX, targetY end
+    local scale = maximumDelta / distance
+    return x + dx * scale, y + dy * scale
+end
+
+local gaitSpeed = { 0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06 }
+local gaitAcceleration = { 0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10 }
+
+local function smoothstep(value)
+    return value * value * (3 - 2 * value)
+end
+
+local function sampleGait(values, distance, pixelsPerFrame)
+    local phase = math.max(0, distance) / math.max(1, pixelsPerFrame)
+    local pose = math.floor(phase)
+    local blend = smoothstep(phase - pose)
+    local current = values[pose % #values + 1]
+    local following = values[(pose + 1) % #values + 1]
+    return current + (following - current) * blend
+end
+
+local function driveStep(jack, motion, dx, dy, dt, speed, config, canMove)
+    local inputLength = math.sqrt(dx * dx + dy * dy)
+    local strength = math.min(1, inputLength)
+    local desiredX, desiredY = 0, 0
+    local pixelsPerFrame = config.gaitPixelsPerFrame or 20
+    local phaseSpeed = sampleGait(gaitSpeed, motion.distance, pixelsPerFrame)
+    if inputLength > 0.0001 then
+        desiredX = dx / inputLength * speed * strength * phaseSpeed
+        desiredY = dy / inputLength * speed * strength * phaseSpeed
     end
-    if dx > 0 then
-        if dy < 0 then return "northeast" end
-        if dy > 0 then return "southeast" end
-        return "east"
+
+    local dot = motion.velocityX * desiredX + motion.velocityY * desiredY
+    local reversing = inputLength > 0.0001 and dot < -0.0001
+    local acceleration
+    if inputLength <= 0.0001 or reversing then
+        acceleration = jack.carriedPalletId
+            and (config.loadedDeceleration or config.deceleration or 620)
+            or (config.deceleration or 620)
+    else
+        acceleration = jack.carriedPalletId
+            and (config.loadedAcceleration or config.acceleration or 420)
+            or (config.acceleration or 420)
+        acceleration = acceleration * sampleGait(gaitAcceleration,
+            motion.distance, pixelsPerFrame)
     end
-    return dy < 0 and "north" or "south"
+    motion.velocityX, motion.velocityY = moveToward(
+        motion.velocityX, motion.velocityY, desiredX, desiredY, acceleration * dt)
+
+    local stepX, stepY = motion.velocityX * dt, motion.velocityY * dt
+    if math.abs(stepX) < 0.000001 and math.abs(stepY) < 0.000001 then return 0, 0 end
+    if canMove(jack.x + stepX, jack.y + stepY) then
+        jack.x, jack.y = jack.x + stepX, jack.y + stepY
+        return stepX, stepY
+    end
+
+    -- Resolve the axes separately when the full step is blocked, preserving
+    -- the unblocked component so the jack can slide smoothly along walls.
+    local movedX, movedY = 0, 0
+    local function tryX()
+        if math.abs(stepX) < 0.000001 then return end
+        if canMove(jack.x + stepX, jack.y) then
+            jack.x, movedX = jack.x + stepX, stepX
+        else
+            motion.velocityX = 0
+        end
+    end
+    local function tryY()
+        if math.abs(stepY) < 0.000001 then return end
+        if canMove(jack.x, jack.y + stepY) then
+            jack.y, movedY = jack.y + stepY, stepY
+        else
+            motion.velocityY = 0
+        end
+    end
+    if math.abs(stepX) >= math.abs(stepY) then tryX(); tryY() else tryY(); tryX() end
+    return movedX, movedY
 end
 
 function PalletJack.move(state, dx, dy, dt, config, canMove)
@@ -232,13 +337,38 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
     if not jack.operating then return false end
     jack.moving = false
     jack.animationClock = jack.animationClock + math.max(0, dt)
-    if dx == 0 and dy == 0 then return false end
     local speed = jack.carriedPalletId and config.loadedSpeed or config.speed
-    jack.direction = directionFor(dx, dy, jack.direction)
-    if not Motion.move(jack,dx,dy,dt,speed,function(x,y)
-        return canMove(x,y,jack.carriedPalletId ~= nil)
-    end) then return false end
-    jack.moving = true
+    local motion = motionFor(jack, config)
+    local elapsed = math.min(math.max(0, tonumber(dt) or 0), 0.1)
+    if elapsed <= 0 then return false end
+    local slices = math.max(1, math.ceil(elapsed / (1 / 60)))
+    local sliceDt = elapsed / slices
+    local movedDistance = 0
+    for _ = 1, slices do
+        local x, y = driveStep(jack, motion, tonumber(dx) or 0, tonumber(dy) or 0,
+            sliceDt, speed, config, function(nextX, nextY)
+                return canMove(nextX, nextY, jack.carriedPalletId ~= nil)
+            end)
+        local distance = math.sqrt(x * x + y * y)
+        movedDistance = movedDistance + distance
+        if distance > 0.0001 then
+            jack.direction = directionFor(x, y, jack.direction)
+            motion.operatorDirection = jack.direction
+            local targetX, targetY = operatorOffset(jack.direction, config)
+            local turnSpeed = config.operatorTurnSpeed or 520
+            motion.operatorOffsetX, motion.operatorOffsetY = moveToward(
+                motion.operatorOffsetX, motion.operatorOffsetY,
+                targetX, targetY, turnSpeed * sliceDt)
+        end
+    end
+    if movedDistance > 0.0001 then
+        motion.distance = motion.distance + movedDistance
+        jack.moving = true
+    end
+    if not jack.moving and math.abs(motion.velocityX) + math.abs(motion.velocityY) < 0.001 then
+        motion.velocityX, motion.velocityY = 0, 0
+    end
+    if not jack.moving then return false end
     local _, pallet = findPallet(state, jack.carriedPalletId)
     if pallet then
         pallet.world = pallet.world or {}

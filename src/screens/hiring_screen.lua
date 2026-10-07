@@ -16,7 +16,7 @@ local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payro
     assign=rect(410,518,208,46),pause=rect(410,572,208,42),dismiss=rect(632,572,208,42),
     sendHome=rect(632,518,208,46),
     train=rect(632,478,208,34),trainingPress=rect(410,518,208,46),
-    trainingWrap=rect(632,518,208,46),trainingBack=rect(632,572,208,42),
+    trainingWrap=rect(632,518,208,46),trainingCutter=rect(410,572,208,42),trainingBack=rect(632,572,208,42),
     confirmDismiss=rect(410,518,430,46),cancelDismiss=rect(410,572,430,42),
     wageMinus=rect(412,290,48,44),wagePlus=rect(788,290,48,44),
     startMinus=rect(412,350,48,44),startPlus=rect(562,350,48,44),
@@ -59,11 +59,12 @@ local function choices(state,ui)
     ui.machineIndex=math.min(math.max(1,ui.machineIndex),math.max(1,#machines))
     return job,pallets[ui.palletIndex],machines[ui.machineIndex],#jobs,#pallets,#machines
 end
-function Hiring.mousepressed(state,ui,x,y,command,readOnly)
+function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
+    if canPayWages==nil then canPayWages=true end
     local e=Employees.ensure(state)
     local function hit(name) return Ui.contains(buttons[name],x,y) end
     local function send(intent)
-        if readOnly then state.message="Only the shop owner can change hiring and payroll.";return {action="blocked"} end
+        if readOnly then state.message="Hiring changes are not available from this screen.";return {action="blocked"} end
         return command(intent)
     end
     for _,section in ipairs({"applications","staff","payroll"}) do
@@ -77,7 +78,13 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly)
             if hit("liftsPlus") then ui.lifts=math.min(500,(ui.lifts or 20)+1);return {action="hiring_plan"} end
             return nil
         end
-        if hit("pay") then return send({kind="pay_wages"}) end
+        if hit("pay") then
+            if not canPayWages then
+                state.message="Only the shop owner can pay employee wages."
+                return {action="blocked"}
+            end
+            return send({kind="pay_wages"})
+        end
         if hit("previous") then ui.page=math.max(1,ui.page-1);return {action="hiring_page"} end
         if hit("next") then ui.page=math.min(math.max(1,math.ceil(#e.staff/4)),ui.page+1);return {action="hiring_page"} end
         return nil
@@ -96,12 +103,14 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly)
     if ui.view~="detail" and hit("back") then ui.view="detail";return {action="hiring_view"} end
     if ui.view=="training" then
         if hit("trainingBack") then ui.view="detail";return {action="hiring_view"} end
-        if hit("trainingPress") then
-            local result=send({kind="train_employee",employeeId=current.id,skill="press"})
-            if result and result.action~="blocked" then ui.view="detail" end
-            return result
-        elseif hit("trainingWrap") then
-            local result=send({kind="train_employee",employeeId=current.id,skill="wrapping"})
+        local skill=hit("trainingCutter") and "cutter"
+            or hit("trainingPress") and "press"
+            or hit("trainingWrap") and "wrapping"
+        if skill then
+            local plan=Employees.trainingPlan(current,skill)
+            if not plan then state.message="That employee has already reached 100 in this skill.";return {action="blocked"} end
+            if current.training then state.message="Let the existing on-shift course finish first.";return {action="blocked"} end
+            local result=send({kind="train_employee",employeeId=current.id,skill=skill})
             if result and result.action~="blocked" then ui.view="detail" end
             return result
         end
@@ -173,7 +182,7 @@ local function button(name,label,x,y,disabled,selectedFlag)
     local hover=x and Ui.contains(r,x,y)
     local primary=selectedFlag or name=="recruit" or name=="resume" or name=="offer"
         or name=="sign" or name=="send" or name=="assignConfirm" or name=="pay"
-        or name=="confirmDismiss"
+        or name=="confirmDismiss" or name=="trainingCutter" or name=="trainingPress" or name=="trainingWrap"
     local danger=name=="decline" or name=="dismiss"
     if hiringButtonRenderer then
         local style=disabled and "disabled"
@@ -217,7 +226,8 @@ local function panel(x,y,w,h)
     love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,4,4)
     love.graphics.setColor(.39,.62,.65,1);love.graphics.line(x+5,y+2,x+w-6,y+2)
 end
-function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer)
+function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWages)
+    if canPayWages==nil then canPayWages=true end
     hiringButtonRenderer=buttonRenderer
     local e=Employees.ensure(state)
     local now=Calendar.absoluteHours(state)
@@ -266,7 +276,8 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer)
                 line(string.format("Due $%.2f  /  earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),116,378+(i-1)*45,700,{.6,.76,.69})
             end
         end
-        button("pay","PAY DUE WAGES",pointerX,pointerY,readOnly or Payroll.total(state,now,false)==0)
+        button("pay",canPayWages and "PAY DUE WAGES" or "OWNER PAYS WAGES",pointerX,pointerY,
+            readOnly or not canPayWages or Payroll.total(state,now,false)==0)
         button("finances","SHOP BUDGET",pointerX,pointerY)
         button("previous","<",pointerX,pointerY);button("next",">",pointerX,pointerY)
         return
@@ -351,16 +362,32 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer)
     elseif ui.view=="training" then
         local pressInstalled=#Fleet.installedUnits(state,"heidelberg_10x15")>0
         local wrapperInstalled=#Fleet.installedUnits(state,"skid_wrapper")>0
-        line("MACHINE TRAINING",412,276,426,{1,.86,.50,1})
-        line("Training uses paid hours from the employee's agreed shifts. They learn at the installed machine and return to their schedule when the course ends.",412,306,416)
-        line(string.format("Press skill %d/100  |  Pallet wrapping %d/100",current.pressSkill,current.wrappingSkill),412,394,416,{.62,.79,.67,1})
-        if current.training then
-            line(string.format("Current course: %s, %.1f paid hours remaining",current.training.skill,current.training.remainingHours),412,436,416,{1,.85,.45,1})
-        else
-            line("Choose the machine skill to teach.",412,436,416)
+        local cutterInstalled=#Fleet.installedUnits(state,"polar_115")>0
+        local machineBusy=current.assignment~=nil and current.reserved==true
+        local cutterPlan=Employees.trainingPlan(current,"cutter")
+        local pressPlan=Employees.trainingPlan(current,"press")
+        local wrapPlan=Employees.trainingPlan(current,"wrapping")
+        local function price(plan)
+            return plan and string.format("+%d  ~ $%.2f",plan.points,plan.expectedWageCents/100) or "SKILL MAX"
         end
-        button("trainingPress","TRAIN PRINTING PRESS",pointerX,pointerY,readOnly or current.training~=nil or current.pressSkill>=100 or not pressInstalled)
-        button("trainingWrap","TRAIN PALLET WRAPPING",pointerX,pointerY,readOnly or current.training~=nil or current.wrappingSkill>=100 or not wrapperInstalled)
+        line("EMPLOYEE SKILL TRAINING",412,276,426,{1,.86,.50,1})
+        line("Courses advance during paid shift hours at the installed machine. The employee earns normal wages while training.",412,306,416)
+        line(string.format("Paper cutter %d/100 | Press %d/100 | Wrapping %d/100",
+            current.cutterSkill,current.pressSkill,current.wrappingSkill),412,394,416,{.62,.79,.67,1})
+        if current.training then
+            line(string.format("Existing on-shift course: %s, %.1f paid hours remaining",current.training.skill,current.training.remainingHours),412,436,416,{1,.85,.45,1})
+            line(current.clockedIn and current.activity or "Course progresses during paid hours on the next agreed shift.",412,464,416,{.61,.78,.67,1})
+        else
+            line("Choose a course. Each raises skill by up to 25 points.",412,436,416)
+            line(machineBusy and "Finish the current machine cycle before training." or "Wage estimate is shown for each course.",
+                412,464,416,machineBusy and {1,.72,.48,1} or {.61,.78,.67,1})
+        end
+        button("trainingCutter","CUTTER "..price(cutterPlan),pointerX,pointerY,
+            readOnly or machineBusy or current.training~=nil or (cutterPlan and not cutterInstalled))
+        button("trainingPress","PRESS "..price(pressPlan),pointerX,pointerY,
+            readOnly or machineBusy or current.training~=nil or (pressPlan and not pressInstalled))
+        button("trainingWrap","WRAP "..price(wrapPlan),pointerX,pointerY,
+            readOnly or machineBusy or current.training~=nil or (wrapPlan and not wrapperInstalled))
         button("trainingBack","BACK TO STAFF",pointerX,pointerY)
         return
     end
@@ -398,7 +425,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer)
         line("Payday: "..payday.." at 09:00 (every "..w.contract.payWeeks.."w)",410,458,426,{.61,.78,.67})
         line(string.format("Wages due $%.2f | Earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,484,214)
         if w.status=="employed" then
-            button("train",w.training and "TRAINING ACTIVE" or "TEACH MACHINE SKILLS",pointerX,pointerY,
+            button("train",w.training and "TRAINING ACTIVE" or "IMPROVE EMPLOYEE SKILLS",pointerX,pointerY,
                 readOnly or w.training~=nil)
             button("assign",w.assignment and "WORK ASSIGNED" or "ASSIGN JOB",pointerX,pointerY,readOnly or w.assignment~=nil)
             local sentHomeToday=w.sentHomeShiftDay==Contracts.shiftDay(w.contract,now)

@@ -1,8 +1,8 @@
 local Catalog={}
 Catalog.profiles={
-    {name="Radio Cat",character="cat-worker",cutterSkill=65,pressSkill=0,wrappingSkill=0,attention=75,reliability=90,requestedWage=2200,minimumWage=2000},
-    {name="Tinker Fox",character="tinker-fox-worker",cutterSkill=76,pressSkill=0,wrappingSkill=0,attention=80,reliability=86,requestedWage=2300,minimumWage=2100},
-    {name="Ferret Engineer",character="ferret-engineer-worker",cutterSkill=84,pressSkill=0,wrappingSkill=0,attention=88,reliability=92,requestedWage=2400,minimumWage=2200},
+    {name="Radio Cat",character="cat-worker",cutterSkill=65,pressSkill=0,wrappingSkill=25,attention=75,reliability=90,requestedWage=2200,minimumWage=2000},
+    {name="Tinker Fox",character="tinker-fox-worker",cutterSkill=76,pressSkill=0,wrappingSkill=65,attention=80,reliability=86,requestedWage=2300,minimumWage=2100},
+    {name="Ferret Engineer",character="ferret-engineer-worker",cutterSkill=84,pressSkill=0,wrappingSkill=80,attention=88,reliability=92,requestedWage=2400,minimumWage=2200},
 }
 function Catalog.valid(character)
     for _,p in ipairs(Catalog.profiles) do if p.character==character then return true end end

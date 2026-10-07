@@ -1453,6 +1453,8 @@ function Smoke.start(context)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="recent-updates" then
+            require("src.tests.recent_updates_test").run(context,check)
         else
             runChecks(context)
             Suites.runDomain(context, check)

@@ -32,8 +32,8 @@ function Office.command(options)
             if not allowed then return false, code, message, {} end
             local intent, errorMessage = Intent.normalize(args and args.officeIntent)
             if not intent then return false, "invalid_office_action", errorMessage, {} end
-            if Employees.isIntent(intent.kind) and player.id ~= 1 then
-                return false,"owner_only","Only the shop owner can hire, set assignments, or pay wages.",{}
+            if Employees.isIntent(intent.kind) and player.id ~= 1 and intent.kind == "pay_wages" then
+                return false,"owner_only","Only the shop owner can pay employee wages.",{}
             end
             if intent.kind=="pay_bills" and player.id~=1 then
                 local _,_,wages=Calendar.amountDue(state)

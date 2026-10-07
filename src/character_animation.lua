@@ -78,6 +78,12 @@ function Animation.frameForPlayerAction(action, frameCount, distance, idleClock,
     return Animation.frameForClock(frameCount, idleClock, idleRate)
 end
 
+function Animation.frameForPalletJackPush(frameCount, moving, distance, pixelsPerFrame)
+    frameCount = math.max(1, tonumber(frameCount) or 1)
+    if not moving then return math.min(2, frameCount) end
+    return Animation.frameForDistance(frameCount, distance, pixelsPerFrame)
+end
+
 function Animation.frameForAction(action, frameCount, clock, walkRate, useRate)
     frameCount = math.max(1, tonumber(frameCount) or 1)
     local rate = Animation.isWalkAction(action) and (tonumber(walkRate) or 4)

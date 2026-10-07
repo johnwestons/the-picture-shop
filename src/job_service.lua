@@ -188,7 +188,9 @@ end
 
 local function deliveryService(job, sequence)
     local hash = stableDeliveryHash(job, sequence)
-    local order = { "express", "quick", "standard" }
+    local earlyOrder = { "express", "quick", "standard", "express", "express" }
+    local order = type(sequence) == "number" and sequence <= 15
+        and earlyOrder or { "express", "quick", "standard" }
     local id = order[(hash - 1) % #order + 1]
     local service = copy(DELIVERY_SERVICES[id])
     if id == "express" then
@@ -220,6 +222,15 @@ local function emailDelay(job, minimum, span)
     return minimum + (hash * 7) % math.max(1, span)
 end
 
+function JobService.expectedStockArrivalText(state, job)
+    local service = job and (job.deliveryService or deliveryService(job, job.sequence))
+    if not service then return "Not assigned" end
+    local now = BusinessCalendar.absoluteHours(state)
+    local clientReplyHours = emailDelay(job, 6, 19)
+    return BusinessCalendar.dateTimeTextAtHours(now + clientReplyHours
+        + (tonumber(service.delayHours) or 0))
+end
+
 local function estimateRequestEmail(state, job)
     local emails = ensureEmails(state)
     local number = nextEmailNumber(emails)
@@ -236,7 +247,7 @@ local function estimateRequestEmail(state, job)
         id = string.format("EMAIL-%04d", number),
         sender = job.company,
         subject = "Job details for " .. job.id,
-        body = "Here are the written specifications for the job we showed you at the shop. Please review them and email us an estimate.",
+        body = "Please review the job details and send an estimate.",
         sourceJobId = job.id,
         readyAtHours = now + emailDelay(job, 2, 5),
         estimateRequest = true,

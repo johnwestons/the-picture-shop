@@ -194,7 +194,8 @@ function Test.run(context,check)
     end
     jack.x,jack.y = 500,500
     Jack.move(state,0.25,0,0.1,Config.palletJack,function() return true end)
-    check("placement_jack_supports_slow_analog_positioning",math.abs(jack.x-500-Config.palletJack.speed*0.025)<0.001)
+    check("placement_jack_supports_slow_analog_positioning",
+        jack.x > 500 and jack.x - 500 < Config.palletJack.speed * 0.025)
     jack.x = 500
     Jack.move(state,1,0,1,Config.palletJack,function(nextX) return nextX < 506 end)
     check("placement_jack_cannot_tunnel_through_thin_obstacle",jack.x > 500 and jack.x < 506)

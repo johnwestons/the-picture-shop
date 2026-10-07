@@ -3,7 +3,7 @@ local Test={}
 
 function Test.run(_,check)
     local catalog=Presentation.reviewCatalog()
-    local path="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v3-candidate.png"
+    local path="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v5-candidate.png"
     check("breakroom_art_registered_for_both_bays",catalog.front_left and catalog.front_right
         and catalog.front_left.path==path and catalog.front_right.path==path)
     check("right_breakroom_uses_mirrored_art",catalog.front_left.mirrorX==false

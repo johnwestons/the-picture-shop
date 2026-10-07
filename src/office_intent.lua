@@ -39,7 +39,9 @@ function Intent.normalize(value)
         elseif rule == "queue_direction" then
             if item~=-1 and item~=1 then return nil,"Move this job up or down one place." end
         elseif rule == "employee_skill" then
-            if item~="press" and item~="wrapping" then return nil,"Choose press or pallet-wrapping training." end
+            if item~="cutter" and item~="press" and item~="wrapping" then
+                return nil,"Choose paper-cutter, printing-press, or pallet-wrapping training."
+            end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
         elseif rule == "days" then

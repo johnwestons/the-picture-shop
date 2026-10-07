@@ -106,7 +106,7 @@ function Layout.obstacles(state)
             local function x(value) return mirror and 960-value or value end
             result[#result+1]={x=x(82),y=588,halfWidth=52,halfHeight=14,kind="breakroom_table",bayId=id}
             result[#result+1]={x=x(80),y=529,halfWidth=58,halfHeight=11,kind="breakroom_kitchenette",bayId=id}
-            result[#result+1]={x=x(192),y=610,halfWidth=22,halfHeight=10,kind="breakroom_vending",bayId=id}
+            result[#result+1]={x=x(198),y=610,halfWidth=20,halfHeight=9,kind="breakroom_vending",bayId=id}
         end
     end
     return result

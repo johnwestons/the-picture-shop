@@ -2,7 +2,7 @@
 -- The warehouse floor and collision mask remain owned by the bay layout.
 local Layout=require("src.warehouse_layout")
 local Presentation={}
-local PATH="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v3-candidate.png"
+local PATH="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v5-candidate.png"
 local WIDTH,HEIGHT=1536,1024
 local SCALE,ORIGIN_X,ORIGIN_Y=0.24,205,918
 -- The visible v3 floor triangle runs from (205,57) to (205,918)

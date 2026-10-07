@@ -205,6 +205,7 @@ function Schedule.resolve(state,w,row,preferredPalletId)
     local machines=stage=="cutter" and {Fleet.byId(state,row.machineId)} or Fleet.installedUnits(state,model)
     local failure=stage=="cutter" and "Scheduled cutter is unavailable"
         or stage=="press" and "No Heidelberg Windmill is installed" or "No skid wrapper is installed"
+    local transferMachine
     for _,machine in ipairs(machines) do
         local okay=machineReady(state,machine,model)
         if okay and not activeOther(state,w,machine.id,pallet.id) then
@@ -213,9 +214,17 @@ function Schedule.resolve(state,w,row,preferredPalletId)
             elseif stage=="press" then ready,reason=pressPalletReady(state,machine,pallet,job)
             else ready,reason=wrapperPalletReady(state,machine,pallet,job) end
             if ready then return stage,machine,pallet end
+            if stage=="wrapping" and reason=="Stage the finished pallet beside the skid wrapper"
+                and (pallet.location=="warehouse" or pallet.location=="cutter_output"
+                    or pallet.location=="press_output"
+                    or pallet.location=="on_employee" and pallet.carrierEmployeeId==w.id)
+            then
+                transferMachine=transferMachine or machine
+            end
             failure=reason or failure
         end
     end
+    if transferMachine then return stage,transferMachine,pallet,nil,true end
     return stage,nil,pallet,failure
 end
 local function nextShiftStart(w,now)

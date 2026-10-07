@@ -295,6 +295,12 @@ local Config = {
         spawnY = 520,
         speed = 112,
         loadedSpeed = 82,
+        acceleration = 480,
+        deceleration = 620,
+        loadedAcceleration = 360,
+        loadedDeceleration = 560,
+        operatorTurnSpeed = 520,
+        gaitPixelsPerFrame = 20,
         interactionRadius = 58,
         pickupRadius = 68,
         obstacleRadius = 26,
@@ -307,8 +313,14 @@ local Config = {
         -- Keep carried pallet art at its established size while the jack itself
         -- is reduced by twenty percent.
         carriedPalletArtRatio = 0.625,
-        operatorDistanceX = 42,
-        operatorDistanceY = 24,
+        -- Per-view foot anchors keep the worker's hands on the rendered
+        -- pump handle across the jack's asymmetrical direction artwork.
+        operatorOffsets = {
+            northwest = { x = 60, y = 20 }, north = { x = 0, y = 6 },
+            northeast = { x = -60, y = 20 }, east = { x = -58, y = -12 },
+            southeast = { x = -60, y = -44 }, south = { x = 0, y = -42 },
+            southwest = { x = 60, y = -44 }, west = { x = 58, y = -12 },
+        },
         frameSize = 256,
         frameCount = 8,
         palletFrameCount = 4,
@@ -329,6 +341,11 @@ local Config = {
         workPhone = {
             x = 399, y = 260, radius = 72,
             wallX = 399, wallY = 181, drawScale = 0.084,
+        },
+        jukebox = {
+            x = 320, y = 270, radius = 70,
+            wallX = 320, wallY = 205, drawScale = 0.10,
+            prompt = "E: tune the Vibes radio",
         },
         cutter = { x = 625, y = 405, radius = 78 },
     },

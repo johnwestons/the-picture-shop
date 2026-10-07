@@ -23,15 +23,24 @@ local function face(a,x,y)
     local d=math.sqrt(x*x+y*y)
     if d>.001 then a.intentX,a.intentY=x/d,y/d end
 end
-local function route(a,goal,context)
+local function route(a,goal,context,alternativeGoals)
     local step=14
+    local goals=type(alternativeGoals)=="table" and #alternativeGoals>0
+        and alternativeGoals or {goal}
     local obstacles=context.obstacles(a)
     local function walk(x,y) return Navigation.isWalkable(context.assets,x,y,obstacles) end
     local function key(x,y) return x..":"..y end
+    local function closestGoalDistance(x,y)
+        local best=math.huge
+        for _,candidate in ipairs(goals) do
+            local distanceSquared=(candidate.x/step-x)^2+(candidate.y/step-y)^2
+            if distanceSquared<best then best=distanceSquared end
+        end
+        return math.sqrt(best)
+    end
     local sx,sy=math.floor(a.x/step+.5),math.floor(a.y/step+.5)
-    local gx,gy=math.floor(goal.x/step+.5),math.floor(goal.y/step+.5)
-    local open,scores,parents,closed={{x=sx,y=sy,g=0,f=0}},{[key(sx,sy)]=0},{},{}
-    local target,visited
+    local open,scores,parents,closed={{x=sx,y=sy,g=0,f=closestGoalDistance(sx,sy)}},{[key(sx,sy)]=0},{},{}
+    local target,targetGoal,visited
     visited=0
     while #open>0 and visited<3400 do
         local best=1
@@ -40,7 +49,16 @@ local function route(a,goal,context)
         local k=key(node.x,node.y)
         if not closed[k] then
             closed[k]=true;visited=visited+1
-            if (node.x-gx)^2+(node.y-gy)^2<=1 and walk(goal.x,goal.y) then target=node;break end
+            for _,candidate in ipairs(goals) do
+                local candidateX,candidateY=math.floor(candidate.x/step+.5),math.floor(candidate.y/step+.5)
+                if (node.x-candidateX)^2+(node.y-candidateY)^2<=1
+                    and walk(candidate.x,candidate.y)
+                then
+                    target,targetGoal=node,candidate
+                    break
+                end
+            end
+            if target then break end
             for dx=-1,1 do for dy=-1,1 do if dx~=0 or dy~=0 then
                 local x,y=node.x+dx,node.y+dy
                 local nk=key(x,y)
@@ -50,19 +68,26 @@ local function route(a,goal,context)
                     local cost=node.g+(diagonal and 1.41421356 or 1)
                     if not scores[nk] or cost<scores[nk] then
                         scores[nk]=cost;parents[nk]=node
-                        open[#open+1]={x=x,y=y,g=cost,f=cost+math.sqrt((gx-x)^2+(gy-y)^2)}
+                        open[#open+1]={x=x,y=y,g=cost,f=cost+closestGoalDistance(x,y)}
                     end
                 end
             end end end
         end
     end
     if not target then return nil end
-    local points={goal}
+    local points={targetGoal or goal}
     while target and (target.x~=sx or target.y~=sy) do
         table.insert(points,1,{x=target.x*step,y=target.y*step})
         target=parents[key(target.x,target.y)]
     end
-    return points
+    return points,targetGoal or goal
+end
+function AI.findReachablePoint(actor,goals,context)
+    if type(goals)~="table" or #goals==0 then return nil end
+    local points,goal=route(actor,goals[1],context,goals)
+    if not points or not goal then return nil end
+    paths[actor]={points=points,goal={x=goal.x,y=goal.y},blocked=0}
+    return {x=goal.x,y=goal.y}
 end
 function AI.move(a,goal,dt,context)
     if distance(a,goal)<3 then stop(a);return true,false end
@@ -142,23 +167,25 @@ end
 local function trainingStep(state,w,dt,hours,context)
     local training=w.training
     if not training then return false end
-    local model=training.skill=="press" and "heidelberg_10x15" or "skid_wrapper"
+    local model=training.skill=="cutter" and "polar_115"
+        or training.skill=="press" and "heidelberg_10x15" or "skid_wrapper"
     local units=Fleet.installedUnits(state,model)
-    local machine=units[1]
-    if not machine then
+    if #units==0 then
         w._trainingMachineId=nil
         w.phase="idle";w.activity="Training paused - the required machine is unavailable"
         return false
     end
-    if Employees.reservation(state,machine.id,nil,w.id) or context.canClaim and not context.canClaim(machine.id) then
-        w._trainingMachineId=nil
-        w.phase="idle";w.activity="Waiting for the training machine to be released"
-        return false
+    local machine,goal
+    for _,candidate in ipairs(units) do
+        if not Employees.reservation(state,candidate.id,nil,w.id)
+            and (not context.canClaim or context.canClaim(candidate.id)) then
+            local point=context.operatorPoint and context.operatorPoint(candidate.id,w)
+            if point then machine,goal=candidate,point;break end
+        end
     end
-    local goal=context.operatorPoint(machine.id,w)
-    if not goal then
+    if not machine then
         w._trainingMachineId=nil
-        w.phase="idle";w.activity="Waiting beside the training machine"
+        w.phase="idle";w.activity="Waiting for an available training machine"
         return false
     end
     w._trainingMachineId=machine.id
@@ -170,23 +197,28 @@ local function trainingStep(state,w,dt,hours,context)
     w.phase="working"
     w._trainingClock=(w._trainingClock or 0)+hours
     if w._trainingClock<.05 then
+        local label=training.skill=="cutter" and "on the paper cutter"
+            or training.skill=="press" and "on the printing press" or "on the skid wrapper"
         w.activity=string.format("Training %s: %.1f paid hours remaining",
-            training.skill=="press" and "on the printing press" or "on the skid wrapper",training.remainingHours)
+            label,training.remainingHours)
         return false
     end
     local elapsed=w._trainingClock
     w._trainingClock=0
     training.remainingHours=math.max(0,training.remainingHours-elapsed)
     if training.remainingHours<=0.000001 then
-        local field=training.skill=="press" and "pressSkill" or "wrappingSkill"
+        local field=training.skill=="cutter" and "cutterSkill"
+            or training.skill=="press" and "pressSkill" or "wrappingSkill"
         w[field]=math.max(w[field],training.target)
-        local label=training.skill=="press" and "printing press" or "pallet wrapping"
+        local label=training.skill=="cutter" and "paper cutter"
+            or training.skill=="press" and "printing press" or "pallet wrapping"
         w.training=nil;w._trainingClock=nil;w._trainingMachineId=nil;w.phase="idle"
         w.activity=label:gsub("^%l",string.upper).." training complete"
         return true
     end
-    w.activity=string.format("Training %s: %.1f paid hours remaining",
-        training.skill=="press" and "on the printing press" or "on the skid wrapper",training.remainingHours)
+    local label=training.skill=="cutter" and "on the paper cutter"
+        or training.skill=="press" and "on the printing press" or "on the skid wrapper"
+    w.activity=string.format("Training %s: %.1f paid hours remaining",label,training.remainingHours)
     return true
 end
 function AI.worker(state,w,dt,now,context)
@@ -205,7 +237,9 @@ function AI.worker(state,w,dt,now,context)
         if w.terminationRequested then w.status=w.resigning and "resigned" or "dismissed" end
         return false
     end
+    local droppedCarriedPallet=false
     if not onShift or w.stopRequested then
+        if w.carryingPalletId then droppedCarriedPallet=Work.dropCarried(state,w,context)==true end
         w._trainingMachineId=nil
         if Work.safe(w,state) then
             Work.release(state,w);w.seatBay=nil;w.breakKind=nil
@@ -225,8 +259,9 @@ function AI.worker(state,w,dt,now,context)
             w.visible=false;w.phase="hidden";w.clockedIn=false;stop(w)
             if w.terminationRequested then w.status=w.resigning and "resigned" or "dismissed" end
         end
-        return false
+        return droppedCarriedPallet
     end
+    if droppedCarriedPallet then return true end
     local hours=dt*24/Calendar.secondsPerDay(state)
     if w.phase=="break_walk" then
         local seat=context.seat(w.seatBay)
@@ -257,6 +292,8 @@ function AI.worker(state,w,dt,now,context)
             local scheduleChanged=Schedule.advance(state,w,now)
             if w.assignment then
                 local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,
+                    palletApproachPoint=context.palletApproachPoint,palletDropPoint=context.palletDropPoint,
+                    palletEmergencyDropPoint=context.palletEmergencyDropPoint,
                     move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
                 local changed,blockedReason=Work.update(state,w,dt,workContext)
                 local deferred=false

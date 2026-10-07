@@ -1189,6 +1189,7 @@ local function repairLegacyPhysicalOwnership(state)
         local physical = pallet.location == "warehouse" or pallet.location == "cutter_output"
             or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
             or pallet.location == "at_press" or pallet.location == "press_output"
+            or pallet.location == "on_employee"
         if physical and type(pallet.world) ~= "table" then
             offset = offset + 1
             local anchor = (pallet.location == "at_cutter" or pallet.location == "cutter_output")
@@ -1369,6 +1370,7 @@ function Schema.reconcile(state)
                 or pallet.location == "on_pallet_jack" or pallet.location == "at_cutter"
                 or pallet.location == "at_press" or pallet.location == "press_output"
                 or pallet.location == "rack" or pallet.location == "stacked" or pallet.location == "on_forklift"
+                or pallet.location == "on_employee"
             then
                 local needsPrinting = type(savedJob.press) == "table"
                 local printingComplete = not needsPrinting

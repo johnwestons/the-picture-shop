@@ -146,7 +146,13 @@ Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is
 
 Choose a writable save, then use **LOCAL PLAY > HOST THIS SHOP** on Windows or Android. Up to three
 Windows/Android workers can join the host's displayed IPv4 address over normal Wi-Fi or a compatible
-phone hotspot. The host alone owns and saves the shop; guests receive the live shop and can move,
+phone hotspot. Local Play also works over a USB-C cable when Android presents USB tethering as a local
+Ethernet link: connect a data-capable cable, enable **USB tethering** in Android settings, then host or
+join as usual. Wi-Fi and mobile data can stay off; the game traffic stays on the cable's local network.
+Windows-to-Android uses the Windows USB Ethernet/RNDIS adapter. Android-to-Android depends on both phone
+models supporting a USB Ethernet host/client link; Local Play uses any such link the operating systems
+make available. Discovery checks active IPv4 interfaces and their subnets, with manual local-IP entry as
+a fallback. The host alone owns and saves the shop; guests receive the live shop and can move,
 operate the dock door, talk to clients, use the office computer and skid wrapper, inspect pallet work
 orders read-only, run the Polar cutter's production and safety controls, and share the host-authoritative
 pallet jack. They can also operate the complete Windmill console: plate preparation, six host-scored setup
@@ -195,8 +201,9 @@ in `.12`. A fourth device, the 15-minute soak, hotspot coverage, and the final o
 
 Historical protocol v14 / Android `.24` testing: in addition to the read-only Guest Worker
 session panel, Local Play now offers best-effort host discovery and six cancelable fresh-session reconnect
-attempts with backoff. Discovery detects its routed Wi-Fi address, sends both limited and directed local
-broadcasts, and binds an explicit IPv4 wildcard; live socket inspection found that Android `.23` otherwise
+attempts with backoff. Discovery enumerates active IPv4 adapters, including USB Ethernet, sends limited
+and per-subnet directed local broadcasts, and binds an explicit IPv4 wildcard; live socket inspection
+found that Android `.23` otherwise
 opened discovery port `22123` as IPv6 while the working game port was IPv4. Discovery remains only an address
 hint and manual entry remains available; every join still requires the compatible hello and host-owned
 snapshot. Automated coverage passes 1,809 checks with no failures. The exact `.24` APK is installed on the
@@ -391,7 +398,7 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 ## Controls
 
 - Move: **WASD** or arrow keys
-- Interact with the office computer, wall-mounted work phone, or Polar 115: **E**
+- Interact with the office computer, wall-mounted work phone, warehouse jukebox, or Polar 115: **E**
 - At reception, press **E** to open the customer's cutting or print-order paperwork.
 - Review the job sample and click **Request Email Details**. No price or award is decided at the counter.
   **Back** and **Escape** close the paperwork without deciding, so the customer remains available.
@@ -402,13 +409,16 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Click a job row to inspect its cutting ticket and pallet progress; click **Back** to close the computer.
 - The work phone hangs on the outside face of the office's left wall. Its lamp is cyan-green for customer
   orders, amber for supplier/service calls, red-magenta for urgent current-job questions, and dark when idle.
-  Customers can place a new order or ask where an active job is and when it should be done. Supplier and
-  service callers can report delivery status or arrange maintenance-supply orders; completed calls remain in
-  the phone history, and phone orders continue through the shop's normal written email and receipt workflow.
+  Customers can place a new order or ask for a job update after all its stock has arrived at the warehouse.
+  Supplier and service callers can report delivery status or arrange maintenance-supply orders; completed
+  calls remain in the phone history, and phone orders continue through the normal email and receipt workflow.
+- The warehouse jukebox plays the Vibes radio playlist. Use its screen to play, pause, skip, replay, or mute
+  the music; radio playback stays local to each player.
 - Completing, delivering, and receiving payment for a client's first job establishes a repeat-client
   relationship. That company can send a varied follow-up request by email 1-3 game days later. The
   computer's **Estimate** tab shows the sender, proposed dimensions, pallet and sheet quantities,
-  packaging, stock-arrival service, and estimate expiration. Enter and send a three-day estimate or decline
+  packaging, stock-arrival service, and expected warehouse arrival date and time if the client accepts.
+  Check the arrival against your schedule before sending a three-day estimate or declining
   the request. Client decisions arrive later, never instantly. Unanswered requests receive one or two follow-up
   emails and then go quiet. From a completed
   job, **Email 10% Promo** opens a message composer where the player can add a personal note. A customer
@@ -435,7 +445,8 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Accepting a job records its promised stock-arrival service instead of spawning a truck immediately.
   **Express / Urgent** deliveries arrive after 2-6 in-game hours, **Quick** deliveries arrive the next
   day, and **Standard** deliveries arrive after 2-3 days. The service and remaining estimate appear on
-  the customer ticket and office computer. Only after that calendar window opens can the inbound truck
+  the customer ticket and office computer. The first 15 numbered jobs favor Express service, with three
+  of every five arrivals using it. Only after that calendar window opens can the inbound truck
   schedule; the loading bay then opens automatically before it reverses rear-first along its isometric
   body axis into the door.
 - At a parked truck's rear, press **E** to open or close its animated cargo door. The wall door cannot close while a truck occupies the bay.

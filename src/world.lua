@@ -281,6 +281,7 @@ local function interactables(player)
     end
     addTarget("computer", Config.interactables.computer)
     addTarget("shopClock", Config.interactables.shopClock)
+    addTarget("jukebox", Config.interactables.jukebox)
     local phoneTarget = {
         x = Config.interactables.workPhone.x,
         y = Config.interactables.workPhone.y,
@@ -2283,7 +2284,7 @@ function World.employeeContext(state,assets)
         pose=pose and (pose.world or state.cutter)
         return pose and not pose.moving and (not options.canClaim or options.canClaim(machineId))
     end
-    function context.operatorPoint(machineId,worker)
+    function context.operatorPoint(machineId,worker,avoidPoint)
         local item=MachineFleet.byId(state,machineId)
         local pose=item and item.world
         if item and not pose then
@@ -2298,23 +2299,101 @@ function World.employeeContext(state,assets)
         if not pose or pose.moving then return nil end
         local obstacles=context.obstacles(worker)
         local key=string.format("%g:%g:%s",pose.x,pose.y,pose.direction)
-        if worker._operatorKey==key and worker._operatorPoint
+        if not avoidPoint and worker._operatorKey==key and worker._operatorPoint
             and Navigation.isWalkable(assets,worker._operatorPoint.x,worker._operatorPoint.y,obstacles) then return worker._operatorPoint end
         local signs={northwest={1,1},north={0,1},northeast={-1,1},east={-1,0},
             southeast={-1,-1},south={0,-1},southwest={1,-1},west={1,0}}
         local sign=signs[pose.direction] or signs.northwest
+        local candidates={}
         for _,distance in ipairs({64,80,92}) do
             local sx,sy=sign[1],sign[2]
             local length=math.sqrt(sx*sx+sy*sy)
             local vx,vy=sx/length,sy/length
             for _,side in ipairs({0,-32,32,-48,48}) do
                 local x,y=pose.x+vx*distance-vy*side,pose.y+vy*distance+vx*side
-                if Navigation.isWalkable(assets,x,y,obstacles) then
-                    worker._operatorKey=key;worker._operatorPoint={x=x,y=y}
-                    return worker._operatorPoint
+                if Navigation.isWalkable(assets,x,y,obstacles)
+                    and (not avoidPoint or (x-avoidPoint.x)^2+(y-avoidPoint.y)^2>4) then
+                    candidates[#candidates+1]={x=x,y=y}
                 end
             end
         end
+        local point
+        if avoidPoint then
+            point=EmployeeAI.findReachablePoint(worker,candidates,{
+                assets=assets,obstacles=function() return obstacles end})
+        else
+            point=candidates[1]
+        end
+        if point then
+            worker._operatorKey=key;worker._operatorPoint={x=point.x,y=point.y}
+            return worker._operatorPoint
+        end
+    end
+    function context.palletApproachPoint(pallet,worker)
+        local origin=pallet and pallet.world
+        if not origin then return nil end
+        local key=table.concat({pallet.id,math.floor(origin.x),math.floor(origin.y)},":")
+        local obstacles=context.obstacles(worker)
+        if worker._palletApproachKey==key and worker._palletApproachPoint
+            and Navigation.isWalkable(assets,worker._palletApproachPoint.x,worker._palletApproachPoint.y,obstacles) then
+            return worker._palletApproachPoint
+        end
+        local candidates={}
+        for _,distance in ipairs({58,70,82}) do
+            for _,direction in ipairs({{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}}) do
+                local length=math.sqrt(direction[1]^2+direction[2]^2)
+                local x,y=origin.x+direction[1]/length*distance,origin.y+direction[2]/length*distance
+                if Navigation.isWalkable(assets,x,y,obstacles) then candidates[#candidates+1]={x=x,y=y} end
+            end
+        end
+        local point=EmployeeAI.findReachablePoint(worker,candidates,{
+            assets=assets,obstacles=function() return obstacles end})
+        if point then worker._palletApproachKey=key;worker._palletApproachPoint=point end
+        return point
+    end
+    function context.palletDropPoint(machineId,worker,pallet)
+        local item=MachineFleet.byId(state,machineId)
+        local wrapper=item and item.world
+        if item and not wrapper then wrapper=WrapperPlacement.ensure(state,Config.wrapperPlacement) end
+        if not wrapper or wrapper.moving then return nil end
+        local key=table.concat({machineId,math.floor(wrapper.x),math.floor(wrapper.y),wrapper.direction or ""},":")
+        local obstacles=context.obstacles(worker)
+        local function skidFootprintClear(x,y)
+            local width,height=Config.palletLogistics.collisionHalfWidth,Config.palletLogistics.collisionHalfHeight
+            if not Navigation.isAreaWalkable(assets,x,y,width,height) then return false end
+            local skid={x=width,y=height,shape="diamond"}
+            for _,obstacle in ipairs(obstacles) do
+                if Footprint.penetration(Footprint.expand(obstacle,skid),x,y)>0 then return false end
+            end
+            return true
+        end
+        local cached=worker._palletDropKey==key and worker._palletDropPoint
+        if cached and skidFootprintClear(cached.x,cached.y)
+            and Footprint.distanceSquared(Footprint.at(wrapper.x,wrapper.y,Config.wrapperPlacement),
+                Footprint.at(cached.x,cached.y,Config.palletLogistics))<=Config.wrapperPlacement.palletReach^2 then
+            return cached
+        end
+        local candidates={}
+        for _,distance in ipairs({56,70,84,98,112,126,140}) do
+            for _,direction in ipairs({{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}}) do
+                local length=math.sqrt(direction[1]^2+direction[2]^2)
+                local x,y=wrapper.x+direction[1]/length*distance,wrapper.y+direction[2]/length*distance
+                if skidFootprintClear(x,y)
+                    and Footprint.distanceSquared(Footprint.at(wrapper.x,wrapper.y,Config.wrapperPlacement),
+                        Footprint.at(x,y,Config.palletLogistics))<=Config.wrapperPlacement.palletReach^2 then
+                    candidates[#candidates+1]={x=x,y=y}
+                end
+            end
+        end
+        local point=EmployeeAI.findReachablePoint(worker,candidates,{
+            assets=assets,obstacles=function() return obstacles end})
+        if point then worker._palletDropKey=key;worker._palletDropPoint=point end
+        return point
+    end
+    function context.palletEmergencyDropPoint(worker,pallet)
+        local origin=pallet and pallet.world
+        if origin then return {x=origin.x,y=origin.y,direction=origin.direction,rotation=origin.rotation} end
+        return {x=worker.x,y=worker.y}
     end
     function context.idlePoint(worker)
         local n=tonumber(worker.id:match("(%d+)$")) or 1

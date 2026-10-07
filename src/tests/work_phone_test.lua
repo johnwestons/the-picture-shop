@@ -29,11 +29,23 @@ function Test.run(context, check)
         and response:find("written specifications", 1, true) ~= nil)
 
     local statusState = State.new()
-    statusState.jobs.active = {{
+    local statusJob = {
         id = "JOB-0099", company = "Blue Ridge Packaging", status = "in_production",
         details = { dueDate = "Friday" },
         pallets = {{ id = "JOB-0099-P1", status = "raw", location = "warehouse" }},
-    }}
+    }
+    statusJob.status = "awaiting_delivery"
+    statusJob.pallets[1].location = "awaiting_delivery"
+    statusState.jobs.active = { statusJob }
+    local earlyCall, earlyReason = WorkPhone.queueCall(statusState, {
+        kind = "customer_status", caller = "Blue Ridge Packaging", role = "CUSTOMER",
+        subject = "CURRENT JOB QUESTION", message = "Where is our job?", jobId = "JOB-0099",
+    })
+    check("work_phone_customer_status_waits_until_job_arrives_at_warehouse",
+        not earlyCall and earlyReason:find("after their job arrives at the warehouse", 1, true) ~= nil
+        and statusState.workPhone.incoming == nil)
+    statusJob.status = "in_production"
+    statusJob.pallets[1].location = "warehouse"
     call(statusState, {
         kind = "customer_status", caller = "Blue Ridge Packaging", role = "CUSTOMER",
         subject = "CURRENT JOB QUESTION", message = "Where is our job?", jobId = "JOB-0099",

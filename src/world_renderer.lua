@@ -379,26 +379,40 @@ local function drawInteractionFocus()
     love.graphics.setLineWidth(1)
 end
 
+local pushFacing = {
+    northwest = {-1,-1}, north = {0,-1}, northeast = {1,-1}, east = {1,0},
+    southeast = {1,1}, south = {0,1}, southwest = {-1,1}, west = {-1,0},
+}
+
 local function drawPlayer(characterAssets,state)
     local player = World.player
     local character = player.character or Config.player.character
     local resting=player.resting and characterAssets.hasAction(character,"sit")
     local jack=state and state.palletJack
-    local pushingJack=jack and jack.operating and jack.moving
+    local pushingJack=jack and jack.operating
         and jack.operatorPlayerId==(tonumber(player.id) or 1)
-    local action = resting and "sit" or (player.moving and "walk" or "idle")
+    local action = (resting and not pushingJack) and "sit" or (player.moving and "walk" or "idle")
     local directionScale = player.facing
-    if resting then
+    local pushArtwork=false
+    if pushingJack then
+        local facing=pushFacing[jack.direction] or pushFacing.northwest
+        local directionalAction,mirror=CharacterAnimation.directionalPalletJackPushAction(
+            facing[1],facing[2])
+        if characterAssets.hasAction(character,directionalAction) then
+            action=directionalAction
+            pushArtwork=true
+        elseif jack.moving then
+            action,directionScale=CharacterAnimation.directionalWalkAction(facing[1],facing[2])
+        else
+            action,directionScale=CharacterAnimation.directionalIdleAction(facing[1],facing[2])
+        end
+        if pushArtwork then directionScale=mirror end
+    elseif resting then
         directionScale=player.facing or -1
     elseif player.moving then
         local directionalAction,mirror
-        if pushingJack then
-            directionalAction,mirror=CharacterAnimation.directionalPalletJackPushAction(
-                player.velocityX or player.intentX,player.velocityY or player.intentY)
-        else
-            directionalAction,mirror=CharacterAnimation.directionalWalkAction(
-                player.velocityX or player.intentX,player.velocityY or player.intentY)
-        end
+        directionalAction,mirror=CharacterAnimation.directionalWalkAction(
+            player.velocityX or player.intentX,player.velocityY or player.intentY)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     else
@@ -409,9 +423,17 @@ local function drawPlayer(characterAssets,state)
     end
     local image, quad, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
-    local frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
-        player.animationDistance, player.idleClock, Config.player.walkPixelsPerFrame,
-        Config.player.idleAnimationRate)
+    local frame
+    if pushingJack and pushArtwork then
+        -- Hold a planted, two-foot stance with both hands on the handle when
+        -- the jack is stopped instead of freezing halfway through a stride.
+        frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
+            player.animationDistance,Config.player.walkPixelsPerFrame)
+    else
+        frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
+            player.animationDistance, player.idleClock, Config.player.walkPixelsPerFrame,
+            Config.player.idleAnimationRate)
+    end
     image, quad = characterAssets.get(character, action, frame)
     if image and quad then
         local anchorX, anchorY = characterAssets.getAnchor(character, action, frame)
@@ -444,6 +466,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     WarehouseRenderer.drawFloors(assets, state)
     CutterStaging.draw()
     drawWorkPhone(assets, state)
+    require("src.jukebox").drawProp()
     drawWallVentFan(assets)
     local clock=Config.interactables.shopClock
     ShopClock.drawFace(state,clock.wallX,clock.wallY,clock.clockRadius)
@@ -557,6 +580,18 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     end
     for _,entry in ipairs(employeeEntries) do
         local employee=entry
+        if employee.worker and employee.worker.carryingPalletId then
+            local carried=require("src.pallet_state").find(state,employee.worker.carryingPalletId)
+            if carried then
+                local actor=employee.actor
+                local dx,dy=actor.intentX or 0,actor.intentY or 0
+                local length=math.sqrt(dx*dx+dy*dy)
+                if length<.01 then dx,dy=0,1;length=1 end
+                local skid={job=carried.job,pallet=carried.pallet,
+                    x=actor.x-dx/length*38,y=actor.y-dy/length*26}
+                actors[#actors+1]={y=skid.y,layer=-1,draw=function() drawPallet(assets,skid) end}
+            end
+        end
         local depth=employee.actor.y
         if employee.worker and employee.actor.phase=="break" and employee.actor.seatBay then
             local room=WarehouseRenderer.breakroomPlan(state,employee.actor.seatBay)

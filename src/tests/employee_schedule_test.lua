@@ -100,9 +100,14 @@ function Test.run(context,check)
     c.difficulty="hard"
     check("schedule_skill_requirement_applies_when_adding",not add(state,w,c,m));c.difficulty="easy"
     local callbacks=0
-    local office=Office.command({state=state,save=function() callbacks=callbacks+1 end,world={validateNetworkWorkshopAccess=function() return true end}})
-    check("schedule_guest_cannot_mutate_queue",not office.perform({}, {id=2},{officeIntent={kind="queue_employee_job",employeeId=w.id,jobId=c.id,machineId=m.id}}) and callbacks==0)
-    check("schedule_guest_cannot_pause_workers",not office.perform({}, {id=2},{officeIntent={kind="set_employee_schedule",employeeId=w.id,enabled=false}}) and w.schedule.enabled)
+    local guestState=Schema.copy(state)
+    local guestWorker=guestState.employment.staff[1]
+    local office=Office.command({state=guestState,save=function() callbacks=callbacks+1 end,world={validateNetworkWorkshopAccess=function() return true end}})
+    local guestQueued,queueCode=office.perform({}, {id=2},{officeIntent={kind="queue_employee_job",employeeId=guestWorker.id,jobId=c.id,machineId=m.id}})
+    check("schedule_guest_can_queue_jobs",guestQueued and queueCode=="completed" and callbacks==1
+        and guestWorker.schedule.items[3].jobId==c.id)
+    local guestPaused,pauseCode=office.perform({}, {id=2},{officeIntent={kind="set_employee_schedule",employeeId=guestWorker.id,enabled=false}})
+    check("schedule_guest_can_pause_workers",guestPaused and pauseCode=="completed" and callbacks==2 and not guestWorker.schedule.enabled)
     Employees.command(state,{kind="set_employee_schedule",employeeId=w.id,enabled=false},9)
     check("schedule_paused_queue_does_not_dispatch",not Schedule.advance(state,w,9) and w.assignment==nil and #w.schedule.items==2)
     Employees.command(state,{kind="set_employee_schedule",employeeId=w.id,enabled=true},9)
@@ -224,8 +229,10 @@ function Test.run(context,check)
     computer.schedule.view="queue";computer.schedule.page=1
     x,y=Screen.buttonCenter("run")
     check("schedule_ui_pause_uses_authoritative_employment_command",computer.mousepressed(bounded,x,y,1).action=="employment_changed" and not bw.schedule.enabled)
-    local guest=context.computerScreen.new({remoteCommand=function() error("Guests must not change schedules") end});guest.tab="schedule"
-    check("schedule_guest_ui_cannot_pause_or_resume",guest.mousepressed(bounded,x,y,1).action=="blocked" and not bw.schedule.enabled)
+    local guestIntents={}
+    local guest=context.computerScreen.new({remoteCommand=function(intent) guestIntents[#guestIntents+1]=intent end});guest.tab="schedule"
+    check("schedule_guest_ui_submits_pause_or_resume",guest.mousepressed(bounded,x,y,1).action=="remote_pending"
+        and guestIntents[1] and guestIntents[1].kind=="set_employee_schedule" and not bw.schedule.enabled)
     local empty=State.new();computer.tab="schedule"
     love.graphics.push("all");local emptyOkay=pcall(computer.draw,empty,nil,nil,context.assets);love.graphics.pop()
     check("schedule_empty_shop_explains_hiring_first",emptyOkay)

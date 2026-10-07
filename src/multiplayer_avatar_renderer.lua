@@ -4,6 +4,11 @@ local RabbitColorways = require("src.rabbit_colorways")
 
 local Renderer = {}
 
+local pushFacing = {
+    northwest = {-1,-1}, north = {0,-1}, northeast = {1,-1}, east = {1,0},
+    southeast = {1,1}, south = {0,1}, southwest = {-1,1}, west = {-1,0},
+}
+
 local function drawLabel(player)
     local label = tostring(player.name or player.id or "Worker")
     if #label > 22 then label = label:sub(1, 22) end
@@ -19,22 +24,31 @@ end
 local function drawPlayer(characterAssets,player,state)
     local character = Config.characters[player.character] and player.character or Config.player.character
     local jack=state and state.palletJack
-    local pushingJack=jack and jack.operating and jack.moving
+    local pushingJack=jack and jack.operating
         and jack.operatorPlayerId==tonumber(player.id)
     local action = player.moving and "walk" or "idle"
     local directionScale = player.facing or 1
+    local pushArtwork=false
     if player.moving then
-        local directionalAction,mirror
-        if pushingJack then
-            directionalAction,mirror=CharacterAnimation.directionalPalletJackPushAction(
-                player.velocityX or player.intentX,player.velocityY or player.intentY)
-        else
-            directionalAction,mirror=CharacterAnimation.directionalWalkAction(
-                player.velocityX or player.intentX,player.velocityY or player.intentY)
-        end
+        local directionalAction,mirror=CharacterAnimation.directionalWalkAction(
+            player.velocityX or player.intentX,player.velocityY or player.intentY)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
-    else
+    end
+    if pushingJack then
+        local facing=pushFacing[jack.direction] or pushFacing.northwest
+        local directionalAction, mirror = CharacterAnimation.directionalPalletJackPushAction(
+            facing[1],facing[2])
+        if characterAssets.hasAction(character,directionalAction) then
+            action=directionalAction
+            directionScale=mirror
+            pushArtwork=true
+        elseif jack.moving then
+            action,directionScale=CharacterAnimation.directionalWalkAction(facing[1],facing[2])
+        else
+            action,directionScale=CharacterAnimation.directionalIdleAction(facing[1],facing[2])
+        end
+    elseif not player.moving then
         local directionalAction, mirror = CharacterAnimation.directionalIdleAction(
             player.intentX, player.intentY)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
@@ -43,9 +57,15 @@ local function drawPlayer(characterAssets,player,state)
 
     local image, _, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
-    local frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
-        player.animationDistance or 0, player.idleClock or 0, Config.player.walkPixelsPerFrame,
-        Config.player.idleAnimationRate)
+    local frame
+    if pushingJack and pushArtwork then
+        frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
+            player.animationDistance or 0,Config.player.walkPixelsPerFrame)
+    else
+        frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
+            player.animationDistance or 0, player.idleClock or 0, Config.player.walkPixelsPerFrame,
+            Config.player.idleAnimationRate)
+    end
     local quad
     image, quad = characterAssets.get(character, action, frame)
     if image and quad then

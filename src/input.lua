@@ -45,6 +45,7 @@ function Input.closeScreen(context)
     local state = context.state
     if state.screen == "world" or state.screen == "title" then return false end
     local readOnlyScreen = state.screen == "pallet_work_order" or state.screen == "shop_clock"
+        or state.screen == "jukebox"
     if state.screen == "workshop_remote" then
         if context.workshopRemoteScreen and not context.workshopRemoteScreen.canClose() then
             state.message = "Wait for the host device to finish the current workshop action."
@@ -79,6 +80,8 @@ function Input.closeScreen(context)
         state.message = "Office computer closed."
     elseif state.screen == "work_phone" then
         state.message = "Wall phone returned to its cradle."
+    elseif state.screen == "jukebox" then
+        state.message = "Radio controls closed."
     else
         state.message = "Back on the warehouse floor."
     end
@@ -274,6 +277,10 @@ function Input.keypressed(key, context)
         end
         if selected and selected.kind == "shopClock" then
             state.screen="shop_clock"
+            return true
+        end
+        if selected and selected.kind == "jukebox" then
+            state.screen = "jukebox"
             return true
         end
         if selected and selected.kind == "palletWorkOrder" then
@@ -587,6 +594,9 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "shop_clock" then
         if button==1 and ShopClock.closeHit(x,y) then return Input.closeScreen(context) end
         return true
+    end
+    if state.screen == "jukebox" then
+        return require("src.jukebox").mousepressed(state, x, y, button)
     end
     if state.screen == "pallet_work_order" then
         local result = context.palletWorkOrderScreen.mousepressed(x, y, button)

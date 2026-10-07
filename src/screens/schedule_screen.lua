@@ -46,7 +46,7 @@ end
 function Screen.mousepressed(state,ui,x,y,command,readOnly)
     local function hit(name) return Ui.contains(buttons[name],x,y) end
     local function send(intent)
-        if readOnly then state.message="Only the shop owner can change work schedules.";return {action="blocked"} end
+        if readOnly then state.message="Schedule changes are not available from this screen.";return {action="blocked"} end
         return command(intent)
     end
     local w,index,all=selected(state,ui)

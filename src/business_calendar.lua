@@ -243,6 +243,20 @@ function Calendar.shortDate(state)
         date.day, date.year, Calendar.weekNumber(state))
 end
 
+function Calendar.dateTimeTextAtHours(hours)
+    local absoluteHours = math.max(0, tonumber(hours) or 0)
+    local totalDay = math.floor(absoluteHours / 24)
+    local date = dateFromTotalDay(totalDay)
+    local minuteOfDay = math.floor((absoluteHours - totalDay * 24) * 60 + 1e-7)
+    if minuteOfDay >= 1440 then
+        date = dateFromTotalDay(totalDay + 1)
+        minuteOfDay = 0
+    end
+    return string.format("%s %s %d, %d %02d:%02d",
+        WEEKDAYS[date.weekday]:sub(1, 3), MONTHS[date.month]:sub(1, 3), date.day,
+        date.year, math.floor(minuteOfDay / 60), minuteOfDay % 60)
+end
+
 function Calendar.weekNumber(state)
     local date = Calendar.ensure(state)
     local elapsedDays = date.day - 1

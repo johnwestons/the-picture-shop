@@ -86,8 +86,8 @@ function Test.run(context,check)
     local saves=0
     local command=Office.command({state=fresh,save=function() saves=saves+1 end,world={validateNetworkWorkshopAccess=function() return true end}})
     local accepted,code=command.perform({}, {id=2}, {officeIntent={kind="recruit_workers",enabled=false}})
-    check("employees_lan_guest_cannot_change_employment",not accepted and code=="owner_only" and saves==0 and fresh.employment.recruiting)
-    check("employees_owner_can_use_authoritative_office",command.perform({}, {id=1},{officeIntent={kind="recruit_workers",enabled=false}}) and saves==1 and not fresh.employment.recruiting)
+    check("employees_lan_guest_can_change_employment",accepted and code=="completed" and saves==1 and not fresh.employment.recruiting)
+    check("employees_owner_can_use_authoritative_office",command.perform({}, {id=1},{officeIntent={kind="recruit_workers",enabled=false}}) and saves==2 and not fresh.employment.recruiting)
     check("employees_invalid_days_and_terms_rejected",Intent.normalize({kind="offer_employee",applicationId=a.id,expectedRevision=1,wageCents=2200,days=0,startHour=9,endHour=17})==nil
         and not Contracts.validTerms(Contracts.terms(2200,31,14,17)))
     local wageState=State.new();local wageWorker=hire(wageState)
@@ -230,11 +230,13 @@ function Test.run(context,check)
     screen.hiring.section="payroll";screen.hiring.view="detail";draw("employees_hiring_payroll_draws")
     screen.openEmploymentResume(a.id)
     check("employees_email_attachment_opens_exact_application",screen.tab=="hiring" and screen.hiring.selectedId==a.id)
-    local guest=context.computerScreen.new({remoteCommand=function() error("A guest must not submit employment changes") end})
+    local guestIntents={}
+    local guest=context.computerScreen.new({remoteCommand=function(intent) guestIntents[#guestIntents+1]=intent end})
     guest.tab="hiring";guest.hiring.section="applications"
     local before=fresh.employment.recruiting
     x,y=Hiring.buttonCenter("recruit")
-    check("employees_guest_hiring_ui_is_read_only",guest.mousepressed(fresh,x,y,1).action=="blocked" and fresh.employment.recruiting==before)
+    check("employees_guest_hiring_ui_submits_recruitment",guest.mousepressed(fresh,x,y,1).action=="remote_pending"
+        and guestIntents[1] and guestIntents[1].kind=="recruit_workers" and fresh.employment.recruiting==before)
     context.characterAssets.retainCharacters({})
     local dirs={east={1,0},northeast={1,-1},north={0,-1},northwest={-1,-1},west={-1,0},southwest={-1,1},south={0,1},southeast={1,1}}
     for dir,v in pairs(dirs) do

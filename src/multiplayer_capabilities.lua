@@ -15,12 +15,15 @@ Capabilities.MODES = {
 
 Capabilities.INTERACTIONS = {
     shopClock = { label="Shop wall clock",mode="read_only",supported={"inspect_shop_time"} },
+    jukebox = { label="Warehouse jukebox",mode="full",supported={"tune_local_vibes_radio"} },
     computer = {
         label = "Office computer",
         mode = "candidate",
         resourceId = "office_computer",
         supported = { "inspect_shop", "inspect_jobs", "request_pickup", "send_estimate", "decline_email",
-            "send_promotion", "archive_email", "checkout", "sell_machine", "pay_bills", "shared_host_gui" },
+            "send_promotion", "archive_email", "checkout", "sell_machine", "pay_bills", "shared_host_gui",
+            "hire_employees", "schedule_employees", "train_employees" },
+        ownerOnly = { "payroll" },
         physicalAcceptance = { "typed_estimate_and_promotion", "exact_once_checkout", "offline_host_save_reload" },
     },
     workPhone = {
@@ -40,7 +43,6 @@ Capabilities.INTERACTIONS = {
         label = "Reception job applicant",
         mode = "read_only",
         supported = { "view_applicant", "inspect_resume_in_hiring" },
-        ownerOnly = { "request_resume", "negotiate_contract", "hire", "payroll" },
     },
     vendor = {
         label = "Supplier representative",

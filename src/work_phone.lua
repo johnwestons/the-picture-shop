@@ -49,6 +49,19 @@ local function positiveInteger(value, fallback)
     return math.max(1, value)
 end
 
+local function findActiveJob(state, jobId)
+    for _, job in ipairs(state.jobs and state.jobs.active or {}) do
+        if job.id == jobId then return job end
+    end
+end
+
+local function jobHasArrived(job)
+    if type(job) ~= "table" then return false end
+    local delivery = job.delivery or {}
+    return delivery.status == "received" or job.status == "in_production"
+        or job.status == "pickup_ready" or job.status == "pickup_in_progress"
+end
+
 function WorkPhone.defaultState(now)
     return {
         nextCallId = 1,
@@ -68,14 +81,14 @@ function WorkPhone.ensure(state)
     phone.history = type(phone.history) == "table" and phone.history or {}
     if type(phone.incoming) ~= "table" or not VALID_KINDS[phone.incoming.kind] then
         phone.incoming = nil
+    elseif phone.incoming.kind == "customer_status"
+        and not jobHasArrived(findActiveJob(state, phone.incoming.jobId))
+    then
+        phone.incoming = nil
+        phone.nextCallAtHours = math.max(phone.nextCallAtHours,
+            BusinessCalendar.absoluteHours(state) + 6)
     end
     return phone
-end
-
-local function findActiveJob(state, jobId)
-    for _, job in ipairs(state.jobs and state.jobs.active or {}) do
-        if job.id == jobId then return job end
-    end
 end
 
 local function findPurchaseOrder(state, orderId)
@@ -97,9 +110,13 @@ end
 
 local function callSpec(state, serial)
     local active = state.jobs and state.jobs.active or {}
+    local arrivedJobs = {}
+    for _, job in ipairs(active) do
+        if jobHasArrived(job) then arrivedJobs[#arrivedJobs + 1] = job end
+    end
     local purchase = firstPendingPurchase(state, serial)
-    if #active > 0 and serial % 3 == 0 then
-        local job = active[(serial - 1) % #active + 1]
+    if #arrivedJobs > 0 and serial % 3 == 0 then
+        local job = arrivedJobs[(serial - 1) % #arrivedJobs + 1]
         return {
             kind = "customer_status",
             caller = job.company,
@@ -163,6 +180,11 @@ function WorkPhone.queueCall(state, spec, nowHours)
     if phone.incoming then return false, "The work phone is already ringing." end
     spec = type(spec) == "table" and spec or {}
     if not VALID_KINDS[spec.kind] then return false, "That caller type is not supported." end
+    if spec.kind == "customer_status"
+        and not jobHasArrived(findActiveJob(state, spec.jobId))
+    then
+        return false, "Clients can ask for an update after their job arrives at the warehouse."
+    end
     if spec.kind == "construction_notice" and not validConstructionSpec(spec) then
         return false, "Choose a valid warehouse construction project."
     end
@@ -235,6 +257,9 @@ function WorkPhone.jobUpdate(state, jobId)
         end
         return "That job is no longer in the active production list."
     end
+    if not jobHasArrived(job) then
+        return "The job has not arrived at the warehouse yet."
+    end
     local status = StatusLabels.get(job.status)
     local location = uniqueLocations(job)
     local timing
@@ -302,6 +327,9 @@ function WorkPhone.respond(state)
             offer.id, call.caller)
         call.jobId = offer.id
     elseif call.kind == "customer_status" then
+        if not jobHasArrived(findActiveJob(state, call.jobId)) then
+            return false, "That job has not arrived at the warehouse yet."
+        end
         response = WorkPhone.jobUpdate(state, call.jobId)
     elseif call.kind == "supplier_status" then
         response = purchaseUpdate(state, call.orderId)

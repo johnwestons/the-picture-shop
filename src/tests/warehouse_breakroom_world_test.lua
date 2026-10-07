@@ -11,6 +11,8 @@ function Test.run(context,check)
     local obstacles=Layout.obstacles(state)
     check("completed_breakrooms_have_collision_for_furniture",#obstacles==6
         and obstacles[1].bayId=="front_left" and obstacles[4].bayId=="front_right")
+    check("vending_collision_tracks_resized_inset_art",obstacles[3].x==198 and obstacles[3].y==610
+        and obstacles[3].halfWidth==20 and obstacles[3].halfHeight==9)
     state.warehouse.bays.front_right.optionId="floor"
     check("open_floor_adds_no_breakroom_obstacles",#Layout.obstacles(state)==3)
 

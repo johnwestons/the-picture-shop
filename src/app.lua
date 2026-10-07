@@ -1,7 +1,8 @@
+local RuntimeDependencies = {}
 local Assets = require("src.assets")
-local AcceptanceHostBootstrap = require("src.acceptance_host_bootstrap")
+RuntimeDependencies.AcceptanceHostBootstrap = require("src.acceptance_host_bootstrap")
 local AssetErrorScreen = require("src.screens.asset_error_screen")
-local BayDoor = require("src.bay_door")
+RuntimeDependencies.BayDoor = require("src.bay_door")
 local BusinessCalendar = require("src.business_calendar")
 local CharacterAssets = require("src.character_assets")
 local ComputerScreen = require("src.screens.computer_screen")
@@ -9,46 +10,46 @@ local Employees = require("src.employees")
 local employmentSaveClock = 0
 local Config = require("src.config")
 local Controller = require("src.controller")
-local CutterMaintenanceAuthority = require("src.cutter_maintenance_authority")
-local CutterPlacement = require("src.cutter_placement")
-local CutterZones = require("src.cutter_zones")
+RuntimeDependencies.CutterMaintenanceAuthority = require("src.cutter_maintenance_authority")
+RuntimeDependencies.CutterPlacement = require("src.cutter_placement")
+RuntimeDependencies.CutterZones = require("src.cutter_zones")
 local Customer = require("src.customer")
 local CryptoNative = require("src.net.crypto_native")
-local DirectConnection = require("src.net.direct_connection")
+RuntimeDependencies.DirectConnection = require("src.net.direct_connection")
 local DirectIpv4Runtime = {
     Host = require("src.net.direct_ipv4_host"),
     Listener = require("src.net.direct_ipv4_listener"),
     hosts = {},
     pending = nil,
 }
-local DirectCompositeTransport = require("src.net.transport_direct_composite")
+RuntimeDependencies.DirectCompositeTransport = require("src.net.transport_direct_composite")
 local DirectScreen = require("src.screens.direct_screen")
-local Hud = require("src.screens.hud")
+RuntimeDependencies.Hud = require("src.screens.hud")
 local Input = require("src.input")
 local Ui = require("src.screens.ui")
 local JobOfferScreen = require("src.screens.job_offer_screen")
 local LanScreen = require("src.screens.lan_screen")
-local PalletWorkOrderScreen = require("src.screens.pallet_work_order_screen")
+RuntimeDependencies.PalletWorkOrderScreen = require("src.screens.pallet_work_order_screen")
 local JobService = require("src.job_service")
 local Jobs = require("src.jobs")
-local LanDiscovery = require("src.net.lan_discovery")
-local LanReconnect = require("src.net.lan_reconnect")
+RuntimeDependencies.LanDiscovery = require("src.net.lan_discovery")
+RuntimeDependencies.LanReconnect = require("src.net.lan_reconnect")
 local Machine = require("src.machine")
 local MachineFleet = require("src.machine_fleet")
 local MachineResource = require("src.machine_resource_id")
 local MachineMaintenance = require("src.machine_maintenance")
-local MachineRelocationAuthority = require("src.machine_relocation_authority")
+RuntimeDependencies.MachineRelocationAuthority = require("src.machine_relocation_authority")
 local MobileControls = require("src.mobile_controls")
 local MultiplayerHud = require("src.screens.multiplayer_hud")
 local MultiplayerSession = require("src.net.session")
-local Navigation = require("src.navigation")
+RuntimeDependencies.Navigation = require("src.navigation")
 local OptionsScreen = require("src.screens.options_screen")
 local Procurement = require("src.procurement")
 local Wrapper = require("src.wrapper")
-local WrapperMaintenanceAuthority = require("src.wrapper_maintenance_authority")
+RuntimeDependencies.WrapperMaintenanceAuthority = require("src.wrapper_maintenance_authority")
 local MachineScreen = require("src.screens.machine_screen")
 local PalletJack = require("src.pallet_jack")
-local PlacementGrid = require("src.placement_grid")
+RuntimeDependencies.PlacementGrid = require("src.placement_grid")
 local PalletState = require("src.pallet_state")
 local PalletLogistics = require("src.pallet_logistics")
 local PaperWork = require("src.paper_work")
@@ -66,24 +67,24 @@ local State = require("src.state")
 local TitleScreen = require("src.screens.title_screen")
 local Technician = require("src.technician")
 local Truck = require("src.truck")
-local TruckAuthority = require("src.truck_authority")
-local TruckInventoryScreen = require("src.screens.truck_inventory_screen")
+RuntimeDependencies.TruckAuthority = require("src.truck_authority")
+RuntimeDependencies.TruckInventoryScreen = require("src.screens.truck_inventory_screen")
 local VendorScreen = require("src.screens.vendor_screen")
-local VendorAuthority = require("src.vendor_authority")
+RuntimeDependencies.VendorAuthority = require("src.vendor_authority")
 local Viewport = require("src.viewport")
 local World = require("src.world")
 local WorldRenderer = require("src.world_renderer")
 local Windmill = require("src.windmill")
-local WindmillPlacement = require("src.windmill_placement")
+RuntimeDependencies.WindmillPlacement = require("src.windmill_placement")
 local WorkPhone = require("src.work_phone")
-local PhoneAuthority = require("src.phone_authority")
-local OfficeAuthority = require("src.office_authority")
+RuntimeDependencies.PhoneAuthority = require("src.phone_authority")
+RuntimeDependencies.OfficeAuthority = require("src.office_authority")
 local WorkPhoneScreen = require("src.screens.work_phone_screen")
 local WorkshopAuthority = require("src.workshop_authority")
 local WorkshopRemoteScreen = require("src.screens.workshop_remote_screen")
 local Forklift = require("src.forklift")
-local WarehouseAuthority = require("src.warehouse_authority")
-local WarehouseControls = require("src.screens.warehouse_controls")
+RuntimeDependencies.WarehouseAuthority = require("src.warehouse_authority")
+RuntimeDependencies.WarehouseControls = require("src.screens.warehouse_controls")
 
 local App = {}
 local state = State.new()
@@ -93,8 +94,15 @@ local spriteLabActive = false
 local mobileControls = nil
 local controller = nil
 local multiplayer = MultiplayerSession.new()
-local lanDiscovery = LanDiscovery.new()
-local lanReconnect = LanReconnect.new()
+App.multiplayerFocusGrace = require("src.net.focus_grace").new({
+    clock = function()
+        if love and love.timer and love.timer.getTime then return love.timer.getTime() end
+        return os.time()
+    end,
+    timeoutSeconds = 120,
+})
+local lanDiscovery = RuntimeDependencies.LanDiscovery.new()
+local lanReconnect = RuntimeDependencies.LanReconnect.new()
 local lanReconnectArmed = false
 local workshopAuthority = nil
 local localWorkshopLease = nil
@@ -887,7 +895,7 @@ local function registerInstalledMachineResources(authority)
 end
 
 local function createWorkshopAuthority()
-    cutterMaintenanceAuthority = CutterMaintenanceAuthority.create({
+    cutterMaintenanceAuthority = RuntimeDependencies.CutterMaintenanceAuthority.create({
         state = state,
         baseView = cutterView,
         validateAccess = function(player)
@@ -902,7 +910,7 @@ local function createWorkshopAuthority()
             return true
         end,
     })
-    wrapperMaintenanceAuthority = WrapperMaintenanceAuthority.create({
+    wrapperMaintenanceAuthority = RuntimeDependencies.WrapperMaintenanceAuthority.create({
         state = state,
         baseView = wrapperView,
         validateAccess = function(player)
@@ -979,17 +987,17 @@ local function createWorkshopAuthority()
                     },
                 },
             },
-            vendor = VendorAuthority.resource({
+            vendor = RuntimeDependencies.VendorAuthority.resource({
                 state = state,
                 world = World,
                 save = saveCurrent,
             }),
-            truck = TruckAuthority.resource({
+            truck = RuntimeDependencies.TruckAuthority.resource({
                 state = state,
                 world = World,
                 save = saveCurrent,
             }),
-            work_phone = PhoneAuthority.resource({ state = state, world = World, save = saveCurrent }),
+            work_phone = RuntimeDependencies.PhoneAuthority.resource({ state = state, world = World, save = saveCurrent }),
             office_computer = {
                 canAcquire = function(player)
                     return World.validateNetworkWorkshopAccess(player, state, "office_computer")
@@ -998,7 +1006,7 @@ local function createWorkshopAuthority()
                     return true, "acquired", "Office computer connected.", {}
                 end,
                 commands = {
-                    office_action = OfficeAuthority.command({ state = state, world = World, save = saveCurrent,
+                    office_action = RuntimeDependencies.OfficeAuthority.command({ state = state, world = World, save = saveCurrent,
                         warehouseEnabled = Config.warehouse.enabled,
                         warehouseFirstStorageOnly = Config.warehouse.firstStorageOnly }),
                     request_pickup = {
@@ -1032,7 +1040,7 @@ local function createWorkshopAuthority()
                 end,
                 onAcquire = function()
                     Machine.open(state)
-                    local session = CutterMaintenanceAuthority.newSession()
+                    local session = RuntimeDependencies.CutterMaintenanceAuthority.newSession()
                     activeCutterRemote = session
                     machineRemoteSessions[state._activeWorkshopResourceId or "cutter"] = session
                     return true, "acquired", "Cutter console connected.",
@@ -1245,7 +1253,7 @@ local function createWorkshopAuthority()
                     return true
                 end,
                 onAcquire = function()
-                    local session = WrapperMaintenanceAuthority.newSession()
+                    local session = RuntimeDependencies.WrapperMaintenanceAuthority.newSession()
                     activeWrapperRemote = session
                     machineRemoteSessions[state._activeWorkshopResourceId or "skid_wrapper"] = session
                     return true, "acquired", "Skid-wrapper console connected.",
@@ -1360,7 +1368,7 @@ local function createWorkshopAuthority()
                             then
                                 return nil, "invalid_pallet", "Choose the pallet currently on the forks."
                             end
-                            if arguments.placementCell ~= nil and not PlacementGrid.decode(arguments.placementCell) then
+                            if arguments.placementCell ~= nil and not RuntimeDependencies.PlacementGrid.decode(arguments.placementCell) then
                                 return nil,"invalid_cell","Choose a valid highlighted drop cell."
                             end
                             return { palletId = palletId,placementCell=arguments.placementCell }
@@ -1436,7 +1444,7 @@ local function createWorkshopAuthority()
                         normalize = function(arguments)
                             local cell = type(arguments) == "table" and arguments.placementCell
                             if not exactArguments(arguments, { "placementCell" })
-                                or not PlacementGrid.decode(cell)
+                                or not RuntimeDependencies.PlacementGrid.decode(cell)
                             then
                                 return nil, "invalid_cell", "Choose a valid highlighted placement cell."
                             end
@@ -1453,7 +1461,7 @@ local function createWorkshopAuthority()
             },
         },
     })
-    authority.resources.pallet_jack = MachineRelocationAuthority.resource({
+    authority.resources.pallet_jack = RuntimeDependencies.MachineRelocationAuthority.resource({
         state = state,
         assets = Assets,
         world = World,
@@ -1471,7 +1479,7 @@ local function createWorkshopAuthority()
             return authority:leaseForResource(base) ~= nil
         end,
     })
-    local warehouseCommand = WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
+    local warehouseCommand = RuntimeDependencies.WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
     authority.resources.pallet_jack.commands.warehouse_action = warehouseCommand
     authority.resources.warehouse = {
         canAcquire=function(player) return World.warehouseAccess(player,state) end,
@@ -1614,8 +1622,9 @@ local function startLanHost(slot, playerName)
         love.window.setDisplaySleepEnabled(false)
     end
     state.message = discoveryOk
-        and "LAN host active. Nearby workers can find this shop automatically or join by IPv4 address."
-        or ("LAN host active at " .. tostring(multiplayer.localAddress or "this device")
+        and ("Local Play host active at " .. tostring(multiplayer.localAddress or "this device")
+            .. ". Nearby workers can find this shop automatically or join by local IPv4.")
+        or ("Local Play host active at " .. tostring(multiplayer.localAddress or "this device")
             .. ". Automatic discovery is unavailable: " .. tostring(discoveryError))
     return true
 end
@@ -1787,7 +1796,7 @@ end
 local function createDirectConnection(loopbackHostPort)
     local ok, socketModule = pcall(require, "socket")
     if not ok then return nil, "Direct Internet sockets are unavailable on this device." end
-    return DirectConnection.new({
+    return RuntimeDependencies.DirectConnection.new({
         provider = CryptoNative,
         socketModule = socketModule,
         loopbackHostPort = loopbackHostPort,
@@ -2431,7 +2440,7 @@ local function sendWarehouseIntent(intent)
         if not accepted and intent.kind=="operate" and localWorkshopLease
             and localWorkshopLease.resourceId=="warehouse" then releaseLocalWorkshop("cancelled") end
     else
-        local command=WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
+        local command=RuntimeDependencies.WarehouseAuthority.command({state=state,world=World,save=saveCurrent})
         local code
         accepted,code,message=command.perform({},warehousePlayer(),{warehouseIntent=intent})
     end
@@ -2439,7 +2448,7 @@ local function sendWarehouseIntent(intent)
     return accepted,state.message
 end
 
-warehouseControls=WarehouseControls.new({state=state,world=World,player=warehousePlayer,command=sendWarehouseIntent})
+warehouseControls=RuntimeDependencies.WarehouseControls.new({state=state,world=World,player=warehousePlayer,command=sendWarehouseIntent})
 
 local function palletJackCommandFor(action, selected)
     local jack = PalletJack.ensure(state, Config.palletJack)
@@ -2541,7 +2550,7 @@ local inputContext = {
     assets = Assets,
     computerScreen = ComputerScreen,
     workPhoneScreen = WorkPhoneScreen,
-    hud = Hud,
+    hud = RuntimeDependencies.Hud,
     world = World,
     shop = Shop,
     jobOfferScreen = JobOfferScreen,
@@ -2550,9 +2559,9 @@ local inputContext = {
     machine = Machine,
     wrapper = Wrapper,
     machineScreen = MachineScreen,
-    truckInventoryScreen = TruckInventoryScreen,
+    truckInventoryScreen = RuntimeDependencies.TruckInventoryScreen,
     vendorScreen = VendorScreen,
-    palletWorkOrderScreen = PalletWorkOrderScreen,
+    palletWorkOrderScreen = RuntimeDependencies.PalletWorkOrderScreen,
     pressScreen = PressScreen,
     windmill = Windmill,
     title = TitleScreen,
@@ -2576,11 +2585,12 @@ local inputContext = {
     palletJackControl = handlePalletJackControl,
     networkInteraction = function(selected)
         if selected and selected.kind=="forklift" then sendWarehouseIntent({kind="operate"}); return true end
-        if selected and selected.kind=="palletRack" then
-            return warehouseControls:openRack(selected.target and selected.target.rackId)
-        end
-        -- Sitting is local presentation only and carries no shared state.
-        if selected and selected.kind=="breakroom" then return false end
+    if selected and selected.kind=="palletRack" then
+        return warehouseControls:openRack(selected.target and selected.target.rackId)
+    end
+    -- Sitting is local presentation only and carries no shared state.
+    if selected and selected.kind=="breakroom" then return false end
+    if selected and selected.kind=="jukebox" then return false end
         if not multiplayer:isActive() then return false end
         if not selected then
             if multiplayer:isClient() then
@@ -2868,6 +2878,7 @@ local function primaryMobileAction()
         and selected.kind ~= "truckCargoDoor"
         and selected.kind ~= "palletWorkOrder"
         and selected.kind ~= "shopClock"
+        and selected.kind ~= "jukebox"
         and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
         and selected.kind ~= "breakroom"
         and not World.workshopResourceId(selected.kind)
@@ -2887,7 +2898,7 @@ local function primaryMobileAction()
         end
     end
     local labels = {
-        customer = "JOB", computer = "PC", shopClock = "CLOCK", vendor = "TALK", loadingBayDoor = "DOOR",
+        customer = "JOB", computer = "PC", shopClock = "CLOCK", jukebox = "RADIO", vendor = "TALK", loadingBayDoor = "DOOR",
         truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
         windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
         forklift = "DRIVE", palletRack = "SHELVES",
@@ -2974,7 +2985,7 @@ local function runSmoke(startupTextureBytes, Sound)
     Smoke.start({
         assets = Assets,
         assetErrorScreen = AssetErrorScreen,
-        BayDoor = BayDoor,
+        BayDoor = RuntimeDependencies.BayDoor,
         businessCalendar = BusinessCalendar,
         characterAssets = CharacterAssets,
         wrapper = Wrapper,
@@ -2983,14 +2994,14 @@ local function runSmoke(startupTextureBytes, Sound)
         workPhoneScreen = WorkPhoneScreen,
         Customer = Customer,
         config = Config,
-        CutterPlacement = CutterPlacement,
-        CutterZones = CutterZones,
+        CutterPlacement = RuntimeDependencies.CutterPlacement,
+        CutterZones = RuntimeDependencies.CutterZones,
         machine = Machine,
         serviceNetworkBeforeMachine = serviceNetworkBeforeMachine,
         machineFleet = MachineFleet,
         machineMaintenance = MachineMaintenance,
         machineScreen = MachineScreen,
-        Navigation = Navigation,
+        Navigation = RuntimeDependencies.Navigation,
         PalletJack = PalletJack,
         PalletState = PalletState,
         PalletLogistics = PalletLogistics,
@@ -3013,7 +3024,7 @@ local function runSmoke(startupTextureBytes, Sound)
         title = TitleScreen,
         Technician = Technician,
         Truck = Truck,
-        truckInventoryScreen = TruckInventoryScreen,
+        truckInventoryScreen = RuntimeDependencies.TruckInventoryScreen,
         vendorScreen = VendorScreen,
         palletWorkOrderScreen = inputContext.palletWorkOrderScreen,
         world = World,
@@ -3024,7 +3035,7 @@ local function runSmoke(startupTextureBytes, Sound)
         windmillNetworkView = windmillView,
         wrapperNetworkView = wrapperSnapshotView,
         windmillLiveNetworkView = function() return windmillView(activeWindmillRemote) end,
-        WindmillPlacement = WindmillPlacement,
+        WindmillPlacement = RuntimeDependencies.WindmillPlacement,
         startupTextureBytes = startupTextureBytes,
         Sound = Sound,
     })
@@ -3055,7 +3066,7 @@ function App.load()
                 local ok,message=commandLocalWorkshop("office_action",{officeIntent=intent})
                 return ok,ok and "completed" or "blocked",message
             end
-            return OfficeAuthority.command({state=state,world=World,save=saveCurrent,
+            return RuntimeDependencies.OfficeAuthority.command({state=state,world=World,save=saveCurrent,
                 warehouseEnabled=Config.warehouse.enabled,
                 warehouseFirstStorageOnly=Config.warehouse.firstStorageOnly})
                 .perform({},warehousePlayer(),{officeIntent=intent})
@@ -3066,7 +3077,7 @@ function App.load()
         setSpeed=function(speed) return App.setGameClockSpeed(speed) end,
     })
     local Sound = require("src.sound")
-    local acceptanceHost, acceptanceHostError = AcceptanceHostBootstrap.plan({
+    local acceptanceHost, acceptanceHostError = RuntimeDependencies.AcceptanceHostBootstrap.plan({
         osName = love.system and love.system.getOS and love.system.getOS() or nil,
         getenv = os.getenv,
     })
@@ -3906,7 +3917,7 @@ function DirectIpv4Runtime.activateHost(record)
         if controller then
             return false, "A Direct host transport is already active."
         end
-        local factory, newController, factoryError = DirectCompositeTransport.newFactory({
+        local factory, newController, factoryError = RuntimeDependencies.DirectCompositeTransport.newFactory({
             maxGuests = 3,
             channels = 3,
             firstConnectTimeoutSeconds = 120,
@@ -4106,7 +4117,7 @@ DirectIpv4Runtime.updateConnection = function()
             return
         end
 
-        local compositeFactory, compositeController = DirectCompositeTransport.newFactory({
+        local compositeFactory, compositeController = RuntimeDependencies.DirectCompositeTransport.newFactory({
             maxGuests = 3,
             channels = 3,
         })
@@ -4207,7 +4218,65 @@ serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmill
     return machineDurable or windmillDurable, windmillChanged, windmillDurable
 end
 
+function App.closeBackgroundHostSession(reason)
+    saveCurrent()
+    lanDiscovery:stop()
+    lanReconnect:cancel(true)
+    lanReconnectArmed = false
+
+    local sessionClean, sessionError = multiplayer:stop(reason)
+    clearWorkshopAuthority("host_background_timeout")
+    local connectionClean, connectionError = closeDirectConnection()
+    local hostClean, hostError = closeDirectHostComposite()
+    if not sessionClean or not connectionClean or not hostClean then
+        return false, sessionError or connectionError or hostError
+    end
+
+    DirectScreen.leave()
+    if state.screen == "direct" then state.screen = "world" end
+    state.message = "Multiplayer ended because the game stayed in the background for more than 2 minutes."
+    if isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
+        love.window.setDisplaySleepEnabled(true)
+    end
+    return true
+end
+
+function App.expireBackgroundMultiplayer()
+    if not multiplayer:isActive() then return false end
+    local networkKind = multiplayer.networkKind
+    local hostSession = multiplayer:isHost()
+    local reason = "Game stayed in the background for more than 2 minutes"
+    local message = "Multiplayer ended because the game stayed in the background for more than 2 minutes."
+
+    if not hostSession then
+        lanReconnect:cancel(true)
+        lanReconnectArmed = false
+        WorkshopRemoteScreen.clear()
+        MultiplayerHud.reset()
+        showConnectionError(message, reason)
+        return true
+    end
+
+    local closed, cleanupError = App.closeBackgroundHostSession(reason)
+    if not closed then
+        if networkKind == "direct" then
+            enterDirectCleanupScreen(cleanupError, function()
+                return App.closeBackgroundHostSession(reason)
+            end)
+        else
+            state.screen = "lan"
+            LanScreen.showError(cleanupError)
+        end
+    end
+    return true
+end
+
 function App.update(dt)
+    require("src.jukebox").update(state.screen ~= "title" and state.screen ~= "asset_error")
+    if App.multiplayerFocusGrace:isExpired() then
+        App.multiplayerFocusGrace:clear()
+        App.expireBackgroundMultiplayer()
+    end
     App.syncPlayerColorways()
     syncCamera()
     if controller then controller:update(dt) end
@@ -4396,7 +4465,7 @@ function App.draw()
                 multiplayer:remotePlayers())
         end
         if state.screen == "world" then
-            Hud.draw(state, World.prompt(), Assets, mouseX, mouseY,
+            RuntimeDependencies.Hud.draw(state, World.prompt(), Assets, mouseX, mouseY,
                 mobileControls and mobileControls:isEnabled(), controller and controller:isActive(), viewBounds,
                 App.settings and App.settings.followPlayerCamera)
             MultiplayerHud.draw(multiplayerHudInfo())
@@ -4404,6 +4473,8 @@ function App.draw()
             ComputerScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "shop_clock" then
             require("src.screens.shop_clock").draw(state,mouseX,mouseY)
+        elseif state.screen == "jukebox" then
+            require("src.jukebox").drawScreen(mouseX, mouseY)
         elseif state.screen == "work_phone" then
             WorkPhoneScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "machine" then
@@ -4415,11 +4486,11 @@ function App.draw()
         elseif state.screen == "workshop_remote" then
             WorkshopRemoteScreen.draw(state, mouseX, mouseY, Assets)
         elseif state.screen == "truck_inventory" then
-            TruckInventoryScreen.draw(state, World, Assets, mouseX, mouseY)
+            RuntimeDependencies.TruckInventoryScreen.draw(state, World, Assets, mouseX, mouseY)
         elseif state.screen == "vendor" then
             VendorScreen.draw(state, Assets, mouseX, mouseY)
         elseif state.screen == "pallet_work_order" then
-            PalletWorkOrderScreen.draw(state, Assets, mouseX, mouseY)
+            RuntimeDependencies.PalletWorkOrderScreen.draw(state, Assets, mouseX, mouseY)
         end
         warehouseControls:draw(Assets)
     end
@@ -4511,6 +4582,23 @@ function App.gamepadreleased(joystick, button)
 end
 
 function App.focus(focused)
+    if focused then
+        if App.multiplayerFocusGrace:isExpired() then
+            App.multiplayerFocusGrace:clear()
+            App.expireBackgroundMultiplayer()
+        else
+            App.multiplayerFocusGrace:clear()
+        end
+        if multiplayer:isHost() and isAndroidPlatform()
+            and love.window and love.window.setDisplaySleepEnabled then
+            love.window.setDisplaySleepEnabled(false)
+        end
+    elseif multiplayer:isActive() then
+        App.multiplayerFocusGrace:start()
+    else
+        App.multiplayerFocusGrace:clear()
+    end
+
     if not focused and mobileControls then
         mobileControls:cancelAll()
     end
@@ -4536,29 +4624,12 @@ function App.focus(focused)
             end
             syncMobileKeyboard()
         elseif state.screen == "direct" and multiplayer:isClient()
-            and multiplayer.networkKind == "direct" then
+            and multiplayer.networkKind == "direct"
+            and not App.multiplayerFocusGrace:isTracking() then
             multiplayer:stop("Direct client left the foreground during setup")
             openDirectPlay(lastDirectSlot)
             DirectScreen.showError(
                 "Direct setup ended safely because this device left the foreground.")
-            syncMobileKeyboard()
-        end
-        if isAndroidPlatform() and multiplayer:isHost() then
-            local direct = multiplayer.networkKind == "direct"
-            if not direct then lanDiscovery:stop() end
-            multiplayer:stop("Android host left the foreground")
-            clearWorkshopAuthority("host_backgrounded")
-            if direct then
-                openDirectPlay(lastDirectSlot)
-                DirectScreen.showError(
-                    "Direct hosting ended safely because the host phone left the foreground.")
-            else
-                state.screen = "lan"
-                LanScreen.showError("Hosting ended safely because the host phone left the foreground.")
-            end
-            if love.window and love.window.setDisplaySleepEnabled then
-                love.window.setDisplaySleepEnabled(true)
-            end
             syncMobileKeyboard()
         end
     end

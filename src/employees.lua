@@ -7,6 +7,12 @@ local Schedule=require("src.employee_schedule")
 local Labor=require("src.employee_labor")
 local WorkerCatalog=require("src.worker_catalog")
 local Employees={}
+local trainingSkills={
+    cutter={field="cutterSkill",label="paper cutter",model="polar_115",minimum=0},
+    press={field="pressSkill",label="printing press",model="heidelberg_10x15",minimum=60},
+    wrapping={field="wrappingSkill",label="pallet wrapping",model="skid_wrapper",minimum=50},
+}
+local trainingHoursPerPoint=.16
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
     offer_accepted=true,hired=true,declined=true,withdrawn=true,expired=true}
 local phases={hidden=true,entering=true,waiting=true,leaving=true,idle=true,walking=true,
@@ -45,6 +51,18 @@ function Employees.ensure(state)
     state.employment=state.employment or Employees.defaultState(Calendar.absoluteHours(state))
     return state.employment
 end
+function Employees.trainingPlan(worker,skill)
+    local option=trainingSkills[skill]
+    local current=worker and option and worker[option.field]
+    if type(current)~="number" or current>=100 then return nil end
+    local target=math.min(100,math.max(option.minimum,current+25))
+    if target<=current then return nil end
+    return {field=option.field,label=option.label,current=current,target=target,
+        model=option.model,points=target-current,
+        remainingHours=math.max(1,(target-current)*trainingHoursPerPoint),
+        expectedWageCents=math.ceil(math.max(1,(target-current)*trainingHoursPerPoint)
+            *(worker.contract and worker.contract.wageCents or 0))}
+end
 function Employees.valid(e)
     if type(e)~="table" or e.version~=6 or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
@@ -71,6 +89,7 @@ function Employees.valid(e)
             or (w.status~="employed" and w.status~="dismissed" and w.status~="resigned")
             or not validActor(w) or type(w.clockedIn)~="boolean"
             or not number(w.fatigue,0,100) or not number(w.focus,0,100)
+            or (w.carryingPalletId~=nil and not token(w.carryingPalletId))
             or not int(w.shiftDay,-1,10000000) or not int(w.breaksTaken,0,15)
             or not int(w.sentHomeShiftDay,-1,10000000)
             or not number(w.breakRemaining,0,1) or not text(w.activity)
@@ -80,10 +99,10 @@ function Employees.valid(e)
             or (w.breakKind~=nil and w.breakKind~="meal" and w.breakKind~="rest")
             or (w.seatBay~=nil and w.seatBay~="front_left" and w.seatBay~="front_right")
             or (w.training~=nil and (type(w.training)~="table"
-                or (w.training.skill~="press" and w.training.skill~="wrapping")
+                or not trainingSkills[w.training.skill]
                 or not int(w.training.target,1,100)
                 or not number(w.training.remainingHours,0,200)
-                or w.training.target<=(w.training.skill=="press" and w.pressSkill or w.wrappingSkill)))
+                or w.training.target<=w[trainingSkills[w.training.skill].field]))
             or (w.assignment~=nil and (type(w.assignment)~="table" or not token(w.assignment.jobId)
                 or not token(w.assignment.palletId) or not token(w.assignment.machineId)
                 or (w.assignment.cutterMachineId~=nil and not token(w.assignment.cutterMachineId))
@@ -102,6 +121,7 @@ function Employees.valid(e)
             if not row or row.id~=w.assignment.scheduleItemId or row.jobId~=w.assignment.jobId
                 or (w.assignment.cutterMachineId and row.machineId~=w.assignment.cutterMachineId) then return false end
         end
+        if w.carryingPalletId and (not w.assignment or w.assignment.palletId~=w.carryingPalletId) then return false end
         ids[w.id]=true return true
     end)
 end
@@ -156,6 +176,7 @@ function Employees.normalize(e,now)
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock,w._trainingClock,w._trainingMachineId=nil,nil,nil,nil,nil
         w._scheduleRetryAtHours,w._blockedWorkHours,w._waitingMachineId=nil,nil,nil
+        w._palletApproachKey,w._palletApproachPoint,w._palletDropKey,w._palletDropPoint=nil,nil,nil,nil
         if w.assignment then
             w.assignment.cutterMachineId=w.assignment.cutterMachineId or w.assignment.machineId
             w.assignment.machineModel=w.assignment.machineModel or "polar_115"
@@ -291,31 +312,30 @@ function Employees.command(state,intent,now)
         w.schedule=Schedule.defaultState()
         w.laborTotals=Labor.defaultTotals()
         e.staff[#e.staff+1]=w;a.status="hired";a.employeeId=w.id;a.revision=a.revision+1
-        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week. Build ordered production jobs in Schedule, or assign one staged pallet in Hiring > Staff. Employees can be trained for the press and skid wrapper in Hiring > Staff.")
+        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week. Build ordered production jobs in Schedule, or assign one staged pallet in Hiring > Staff. Employees can train on the paper cutter, press, and pallet wrapper during paid shift hours in Hiring > Staff.")
         return true,w.name.." hired. Starts on the next agreed day."
     end
     local w=intent.employeeId and Employees.worker(state,intent.employeeId)
     if not w or w.status~="employed" then return false,"Choose a current employee." end
     if Schedule.isIntent(intent.kind) then return Schedule.command(state,w,intent,now) end
     if intent.kind=="train_employee" then
-        local waitingForTraining=w.assignment and not w.reserved
-            and type(w.activity)=="string" and w.activity:lower():find("training required",1,true)
-        if w.assignment and not waitingForTraining then
-            return false,"Pause the current assignment before starting training."
+        if w.assignment and w.reserved then
+            return false,"Let the current machine cycle finish before starting training."
         end
         if w.training then return false,"This employee is already in a training course." end
-        local skill=intent.skill
-        local field=skill=="press" and "pressSkill" or skill=="wrapping" and "wrappingSkill" or nil
-        local model=skill=="press" and "heidelberg_10x15" or skill=="wrapping" and "skid_wrapper" or nil
-        if not field or not model then return false,"Choose press or pallet-wrapping training." end
-        local machine=Fleet.installedUnits(state,model)[1]
-        if not machine then return false,skill=="press" and "Install a Heidelberg Windmill before press training." or "Install a skid wrapper before pallet-wrapping training." end
-        local current=w[field]
-        if current>=100 then return false,"This employee has already mastered that machine." end
-        local target=math.min(100,math.max(skill=="press" and 60 or 50,current+25))
-        w.training={skill=skill,target=target,remainingHours=math.max(1,(target-current)*.16)}
-        w.activity="Training for the "..(skill=="press" and "printing press" or "pallet wrapper")
-        return true,w.name.." started paid on-shift "..(skill=="press" and "press" or "pallet-wrapping").." training."
+        local plan=Employees.trainingPlan(w,intent.skill)
+        if not plan then
+            return false,"Choose a skill below 100: paper cutter, printing press, or pallet wrapping."
+        end
+        if not Fleet.installedUnits(state,plan.model)[1] then
+            local machineName=plan.model=="polar_115" and "Polar cutter"
+                or plan.model=="heidelberg_10x15" and "Heidelberg Windmill" or "skid wrapper"
+            return false,"Install a "..machineName.." before this employee can train."
+        end
+        w.training={skill=intent.skill,target=plan.target,remainingHours=plan.remainingHours}
+        w.activity="Training for the "..plan.label
+        return true,string.format("%s started paid on-shift %s training (%g paid hours). Normal wages apply.",
+            w.name,plan.label,plan.remainingHours)
     end
     if intent.kind=="send_employee_home" then
         local shiftDay=Contracts.shiftDay(w.contract,now)

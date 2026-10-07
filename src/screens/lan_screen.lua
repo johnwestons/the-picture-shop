@@ -9,7 +9,7 @@ local LanScreen = {
     selectedSlot = 1,
     pressed = nil,
     discoveredHosts = {},
-    discoveryMessage = "Searching for shops on this network...",
+    discoveryMessage = "Searching local adapters, including USB Ethernet...",
     reconnect = nil,
 }
 
@@ -105,7 +105,7 @@ function LanScreen.enter(options)
     LanScreen.message = "The host owns the save. Guests need only the host device's local IPv4 address."
     LanScreen.pressed = nil
     LanScreen.discoveredHosts = {}
-    LanScreen.discoveryMessage = "Searching for shops on this network..."
+    LanScreen.discoveryMessage = "Searching local adapters, including USB Ethernet..."
     LanScreen.reconnect = nil
 end
 
@@ -126,7 +126,7 @@ function LanScreen.setDiscovery(results, message)
         end
     end
     LanScreen.discoveredHosts = hosts
-    LanScreen.discoveryMessage = tostring(message or "Searching for shops on this network...")
+    LanScreen.discoveryMessage = tostring(message or "Searching local adapters, including USB Ethernet...")
         :gsub("[%z\1-\31\127]", "?"):sub(1, 96)
 end
 
@@ -247,7 +247,7 @@ function LanScreen.draw()
     love.graphics.setColor(0.95, 0.82, 0.26)
     love.graphics.printf("LOCAL SHOP NETWORK", 0, 44, Config.baseWidth, "center")
     love.graphics.setColor(0.76, 0.82, 0.82)
-    love.graphics.printf("WINDOWS / ANDROID  •  SAME WI-FI OR PHONE HOTSPOT  •  UP TO 4 WORKERS", 0, 76, Config.baseWidth, "center")
+    love.graphics.printf("WINDOWS / ANDROID  •  WI-FI, HOTSPOT OR USB-C  •  UP TO 4 WORKERS", 0, 76, Config.baseWidth, "center")
 
     love.graphics.setColor(0.08, 0.10, 0.11, 0.98)
     love.graphics.rectangle("fill", 120, 118, 720, 452, 7, 7)
@@ -259,6 +259,12 @@ function LanScreen.draw()
         love.graphics.printf("Selected save slot: " .. tostring(LanScreen.selectedSlot), 0, 164, Config.baseWidth, "center")
         love.graphics.setColor(0.68, 0.74, 0.73)
         love.graphics.printf("The host runs the shop and keeps the save. Guests join as additional workers.", 170, 198, 620, "center")
+        love.graphics.setColor(0.60, 0.79, 0.76)
+        love.graphics.printf("USB-C: use a data cable and enable USB tethering on Android. Internet can stay off.",
+            160, 220, 640, "center")
+        love.graphics.setColor(0.57, 0.68, 0.68)
+        love.graphics.printf("Phone-to-phone play needs USB Ethernet support on both phones.",
+            170, 240, 620, "center")
         drawButton("host")
         drawButton("join")
         love.graphics.setColor(0.67, 0.75, 0.74)
@@ -284,6 +290,9 @@ function LanScreen.draw()
     elseif LanScreen.mode == "join" then
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf("LAN HOST LOCAL IPv4 ADDRESS", 0, 184, Config.baseWidth, "center")
+        love.graphics.setColor(0.60, 0.79, 0.76)
+        love.graphics.printf("For cable play, enter the host's USB network address if it is not found below.",
+            170, 220, 620, "center")
         love.graphics.setColor(0.035, 0.045, 0.05, 1)
         love.graphics.rectangle("fill", 225, 270, 510, 62, 4, 4)
         love.graphics.setColor(0.86, 0.70, 0.30, 1)

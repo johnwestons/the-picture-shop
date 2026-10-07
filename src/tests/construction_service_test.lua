@@ -76,8 +76,8 @@ function Test.run(_,check)
         state.warehouse.projects[1].stage==0 and state.warehouse.projects[1].phase=="awaiting_arrival")
 
     local busy=fixture()
-    assert(Phone.queueCall(busy,{kind="customer_status",caller="Existing customer",role="CUSTOMER",
-        subject="JOB STATUS",message="Existing fixture call."}))
+    assert(Phone.queueCall(busy,{kind="supplier_status",caller="Existing supplier",role="SUPPLIER",
+        subject="DELIVERY UPDATE",message="Existing fixture call."}))
     local customerCall=busy.workPhone.incoming
     local callbacks,visits,calls=runtime()
     Service.update(busy,0,callbacks)

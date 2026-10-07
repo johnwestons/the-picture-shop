@@ -24,13 +24,25 @@ ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 # Windows installers consume this same .love archive, so this is shared by both
 # platform packages. Keep the direction versions in sync with the Lua catalog.
 WAREHOUSE_SOURCE_ROOT = "assets/source/warehouse-expansion-v1/"
+VIBES_MUSIC_ROOT = "assets/audio/music/vibes/"
+VIBES_MUSIC_TRACKS = (
+    "blood_red.wav",
+    "downpour.wav",
+    "go_in_peace.wav",
+    "goodbye_youre_waking_up.wav",
+    "pixel_memory.wav",
+    "pull_back_the_veil.wav",
+    "simplicity.wav",
+    "this_is_not_your_song.wav",
+    "time_time.wav",
+)
 RUNTIME_SOURCE_ASSETS = tuple(
     WAREHOUSE_SOURCE_ROOT + relative
     for relative in (
         "warehouse-base-v3-top-remake.png",
         "rack-front-2x5-approved.png",
         "rack-world-left-v6-triangle-fit-candidate.png",
-        "rooms/breakroom-triangle-v3-candidate.png",
+        "rooms/breakroom-triangle-v5-candidate.png",
         "rooms/breakroom-construction-atlas-v1.png",
         "rooms/floor-construction-atlas-v2-clean.png",
         "construction/left-storage-stage-1.png",
@@ -117,6 +129,26 @@ def runtime_source_paths(root: Path = ROOT) -> list[Path]:
     return result
 
 
+def runtime_music_paths(root: Path = ROOT) -> list[Path]:
+    """Return the Vibes radio playlist only, excluding other project music."""
+    if len(VIBES_MUSIC_TRACKS) != len(set(VIBES_MUSIC_TRACKS)):
+        raise RuntimeError("Duplicate Vibes radio track allowlist entry")
+    resolved_root = root.resolve()
+    resolved_playlist = (root / VIBES_MUSIC_ROOT).resolve()
+    result = []
+    for filename in VIBES_MUSIC_TRACKS:
+        relative = VIBES_MUSIC_ROOT + filename
+        path = root / relative
+        resolved = path.resolve()
+        if (Path(filename).name != filename or not relative.startswith(VIBES_MUSIC_ROOT)
+                or resolved_root not in resolved.parents or resolved.parent != resolved_playlist):
+            raise RuntimeError(f"Vibes radio track escapes its package root: {relative}")
+        if not path.is_file():
+            raise RuntimeError(f"Missing required Vibes radio track: {relative}")
+        result.append(path)
+    return result
+
+
 def copy_runtime_source_assets(stage: Path, root: Path = ROOT) -> None:
     for source in runtime_source_paths(root):
         destination = stage / source.relative_to(root)
@@ -132,6 +164,17 @@ def runtime_source_manifest(root: Path = ROOT) -> list[dict[str, str | int]]:
             "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         }
         for source in runtime_source_paths(root)
+    ]
+
+
+def runtime_music_manifest(root: Path = ROOT) -> list[dict[str, str | int]]:
+    return [
+        {
+            "path": source.relative_to(root).as_posix(),
+            "bytes": source.stat().st_size,
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }
+        for source in runtime_music_paths(root)
     ]
 
 
@@ -171,6 +214,7 @@ def copy_runtime(stage: Path) -> None:
         source for source in (audio_root / "sfx").glob("*.wav")
         if source.name != "picture_shop_sfx_preview.wav"
     )
+    audio_files.extend(runtime_music_paths())
     for source in audio_files:
         destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -308,6 +352,7 @@ def build(
         "runtimeFiles": len(runtime_files),
         "runtimeBytes": sum(path.stat().st_size for path in runtime_files),
         "runtimeSourceAssets": runtime_source_manifest(stage),
+        "runtimeMusicTracks": runtime_music_manifest(stage),
     }
     if route_manifest is not None:
         manifest["windowsRouteProvider"] = route_manifest

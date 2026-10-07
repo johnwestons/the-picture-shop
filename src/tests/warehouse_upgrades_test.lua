@@ -86,8 +86,8 @@ function Test.run(_, check)
         and state.warehouse.activeProjectId == first.id and state.warehouse.projects[2].phase == "queued"
         and Upgrades.pendingNotice(state).projectId == first.id and valid(state))
 
-    assert(Phone.queueCall(state, { kind = "customer_status", caller = "Test customer", role = "CUSTOMER",
-        subject = "CURRENT JOB", message = "Test fixture call." }))
+    assert(Phone.queueCall(state, { kind = "supplier_status", caller = "Test supplier", role = "SUPPLIER",
+        subject = "DELIVERY UPDATE", message = "Test fixture call." }))
     local currentCall = state.workPhone.incoming
     local idle = Upgrades.update(state, 24)
     check("warehouse_upgrades_busy_phone_notice_remains_pending_without_overwriting_call",

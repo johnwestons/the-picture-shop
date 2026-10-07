@@ -1,6 +1,7 @@
 local Test={}
 local Layout=require("src.warehouse_layout")
 local Renderer=require("src.warehouse_renderer")
+local RackPresentation=require("src.warehouse_rack_presentation")
 local Config=require("src.config")
 function Test.run(_,check)
     local function test(name,value) check("warehouse_layout_"..name,value) end
@@ -42,6 +43,50 @@ function Test.run(_,check)
             and math.abs(approach.y-obstacle.y)<obstacle.halfHeight+24 then clear=false end
     end
     test("forklift_approach_clear_of_rack",clear)
+    local breakroomState={warehouse={bays={
+        front_left={status="complete",optionId="breakroom"},
+        front_right={status="complete",optionId="breakroom"}},projects={}}}
+    local breakroomObstacles=Layout.obstacles(breakroomState)
+    local furnitureFits=true
+    for _,obstacle in ipairs(breakroomObstacles) do
+        local bay=Layout.bay(obstacle.bayId)
+        for _,dx in ipairs({-obstacle.halfWidth,obstacle.halfWidth}) do
+            for _,dy in ipairs({-obstacle.halfHeight,obstacle.halfHeight}) do
+                if not Layout.containsPolygon(bay.polygon,obstacle.x+dx,obstacle.y+dy) then
+                    furnitureFits=false
+                end
+            end
+        end
+    end
+    test("breakroom_furniture_footprints_fit_both_triangles",#breakroomObstacles==6 and furnitureFits)
+    local rackState={warehouse={bays={
+        front_left={status="complete",optionId="storage"},
+        front_right={status="complete",optionId="storage"}},projects={}}}
+    for _,bayId in ipairs(Layout.BAY_IDS) do
+        local plan=RackPresentation.plan(rackState,bayId,{review=true})
+        local bay=Layout.bay(bayId)
+        local seamSlope=(bay.rackEnd.y-bay.rackStart.y)/(bay.rackEnd.x-bay.rackStart.x)
+        local railsStraight=plan~=nil
+        if plan then
+            for _,index in ipairs({1,2}) do
+                local beam=plan.frontPolygons[index]
+                local x1,y1=RackPresentation.sourceToWorld(plan,beam[1],beam[2])
+                local x2,y2=RackPresentation.sourceToWorld(plan,beam[3],beam[4])
+                railsStraight=railsStraight and math.abs((y2-y1)/(x2-x1)-seamSlope)<0.005
+            end
+        end
+        test("rack_rails_straight_and_seam_aligned_"..bayId,railsStraight)
+        local postsVertical=plan~=nil
+        if plan then
+            for index=3,8 do
+                local post=plan.frontPolygons[index]
+                local topX=RackPresentation.sourceToWorld(plan,post[1],post[2])
+                local bottomX=RackPresentation.sourceToWorld(plan,post[7],post[8])
+                postsVertical=postsVertical and math.abs(topX-bottomX)<0.000001
+            end
+        end
+        test("rack_supports_stay_vertical_"..bayId,postsVertical)
+    end
     state.warehouse.bays.front_left.optionId="floor"
     test("open_floor_has_no_rack_obstacles",#Layout.obstacles(state)==0)
     local original=Config.warehouse

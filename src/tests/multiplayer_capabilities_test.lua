@@ -6,6 +6,7 @@ local Test = {}
 local EXPECTED_INTERACTIONS = {
     computer = true,
     shopClock = true,
+    jukebox = true,
     workPhone = true,
     customer = true,
     applicant = true,
