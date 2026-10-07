@@ -3,14 +3,14 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.39` (`versionCode` 39)
+- Version: `0.1.0-android.41` (`versionCode` 41)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.39-debug.apk`
-- Download: [Android 39 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.39/ThePictureShop-0.1.0-android.39-Install.apk)
-  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.39).
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.41-debug.apk`
+- Download: [Android 41 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.41/ThePictureShop-0.1.0-android.41-Install.apk)
+  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.41).
 - Contents: all current shared game changes, including the warehouse expansion, finer pallet/machine
   placement, Credit-tab fix, and complete eight-direction walking and matching idle animations for the
   three client designs and three salesperson designs. Radio Cat, Tinker Fox and Ferret Engineer,
@@ -19,27 +19,32 @@
   fatigue/focus and breakroom recovery, hourly wages, negotiated 4–12 hour daytime/overnight shifts,
   1–4 week payroll cycles and weekly overtime. Queues survive
   save reload and wait for staged stock and clear output. Unfinished cuts resume on the next agreed
-  shift, including across days off and save/reload. New quotes show negotiated staff budgets and raise
+  shift, including across days off and save/reload. Employees may be sent home for the day, can move
+  finished cutter skids to the pallet wrapper, and can be trained on skills they lack; training uses
+  paid shift hours. New quotes show negotiated staff budgets and raise
   cutting recommendations when needed to cover labor and margin; agreed customer prices stay fixed.
   Job details and Payroll track actual job wages separately from idle/break/shop labor. Bills includes
   due wages and settles the same payroll ledger once. **Payroll > SHOP BUDGET** plans full shifts,
   shop bills, machine loans, shared-cutter capacity, break-even work, profit and payroll reserves.
   **Shop Setup Options** sets a new save's day to any whole minute from 5–60, defaulting to 20.
-  Live HUD/computer time, a clickable analog wall clock and calendar shifts/paydays show shop time.
+  Live HUD/computer time and calendar shifts/paydays show shop time. The computer uses a digital clock
+  and lets the host set 1x, 2x, 5x or 10x time; guests cannot change it. Player options recolor rabbit fur
+  and overalls and share those colorways online. Early game offers more Express jobs and estimate emails
+  include expected arrival time. The warehouse jukebox includes only the nine-track Vibes playlist.
   Cutter margins are highlighted with correct-rotation feedback; finished pallets occupy six ordered
   front staging slots, safely waiting when full. All three walk/idle sets use the reviewed Mouse Frontier
   source art. Fox/ferret work/rest use original single poses; dedicated machine action sequences remain
   planned. All 56 worker strips (254 frames), 60 visitor strips and 287 Lua files match the package
   source. Press, wrapping and autonomous transport roles remain planned.
-- LAN: protocol v25, with host-owned worker poses and owner-only employment/schedule/wage actions. Local Play participants should use matching builds.
-- Verification: 4,214 desktop checks and 4,214 checks against the actual packaged mobile game pass.
+- LAN: protocol v26, with host-owned worker poses and owner-only employment/schedule/wage actions. Local Play participants should use matching builds.
+- Verification: 4,314 desktop checks and 4,314 checks against the actual packaged mobile game pass.
   The signed APK contains that verified game package; its certificate matches the published `.38`
   installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
-- Installer: 243,022,961 bytes (231.8 MiB), SHA-256
-  `2b970fe30c51c62759ff3dabf745109e6042fe23a34381a11008f381dbe1db6b`.
-  Source commit: `dbe32b5419133ed6b9070b1425d120865544561b`. The build report records local
-  preview files as a dirty worktree; those files are excluded from the game package.
-  An anonymous public-download check verifies the APK header, advertised size and GitHub SHA-256.
+- Installer: 313,119,160 bytes (298.6 MiB), SHA-256
+  `e86b9bd5242f1adc457dbc5edad7b7561ed0e1920993afacbf4759c1a362616f`.
+  Source commit: `028c7cdb1f84fba3a8a12e22ee7afc3d5a4e6e84`. Its development signing certificate
+  matches Android 40, so it can update that build while retaining saves. The package includes only the
+  allowlisted Vibes music tracks; local preview files are excluded.
 - Device status: no phone was reachable from the build computer, so this development update was not
   remotely installed or physically playtested. The normal physical-device checklist remains open.
 - Direct engineering: isolated Android/Android and PC/Android guests have passed separate-network

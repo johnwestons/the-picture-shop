@@ -112,17 +112,18 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 40](https://github.com/johnwestons/the-picture-shop/releases/download/android.40/ThePictureShop-0.1.0-android.40-Install.apk)
-(233.3 MiB). It includes Radio Cat, Tinker Fox and Ferret Engineer using reviewed
-Mouse Frontier walks/idles; employee schedules that cut, print and wrap jobs;
-paid machine training; negotiated 12-hour/overnight shifts and 1–4 week pay
-cycles; staffing cost floors in new quotes; per-save 5–60 minute days; live
-clocks; highlighted cutter margins; and ordered finished-pallet staging.
-The installer SHA-256 is `1ea3ab58bea380ac7820fe9a3e02cd3720a8476d7bf63a38d06b3873e199e436`.
+The current development installer is [Android 41](https://github.com/johnwestons/the-picture-shop/releases/download/android.41/ThePictureShop-0.1.0-android.41-Install.apk)
+(298.6 MiB). It includes the recent employee scheduling, paid machine training,
+send-home, finished-skid transfer and wrapping updates; selectable rabbit fur
+and overalls for online play; host-controlled 1x, 2x, 5x and 10x clock speeds;
+early Express jobs and expected-arrival details in estimates; the digital
+computer clock; and the warehouse jukebox with only its nine-track Vibes
+playlist. The Vibes tracks are packaged explicitly; other music is excluded.
+The signed APK SHA-256 is `e86b9bd5242f1adc457dbc5edad7b7561ed0e1920993afacbf4759c1a362616f`.
 Download it on your phone and open it from **Downloads** or **My Files** to install.
 Install over the old app to keep saves, or uninstall **The Picture Shop** without
 keeping its app data before installing to start with a fresh test save.
-[Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.40)
+[Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.41)
 are available on GitHub.
 
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.
