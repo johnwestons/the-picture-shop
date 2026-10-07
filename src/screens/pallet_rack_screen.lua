@@ -157,7 +157,7 @@ function Screen:layout(width,height)
     local actionWidth = (panel.width-40)/2
     local result = {panel=panel,art=art,slots={{},{}},
         close={x=panel.x+panel.width-112,y=panel.y+4,width=100,height=44},
-        title={x=panel.x+16,y=panel.y+12,width=panel.width-136,height=28},
+        title={x=panel.x+16,y=panel.y+12,width=panel.width-264,height=28},
         details={x=panel.x+16,y=bottom-footerHeight+5,width=panel.width-32,height=38},
         warning={x=panel.x+16,y=bottom-76,width=panel.width-32,height=26},
         store={x=panel.x+16,y=bottom-54,width=actionWidth,height=44},

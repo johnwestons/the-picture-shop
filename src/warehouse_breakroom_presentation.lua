@@ -2,18 +2,18 @@
 -- The warehouse floor and collision mask remain owned by the bay layout.
 local Layout=require("src.warehouse_layout")
 local Presentation={}
-local PATH="assets/source/warehouse-expansion-v1/rooms/breakroom-furnishings-v1.png"
+local PATH="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v3-candidate.png"
 local WIDTH,HEIGHT=1536,1024
-local SCALE,ORIGIN_X,ORIGIN_Y=0.24,768,970
+local SCALE,ORIGIN_X,ORIGIN_Y=0.24,205,918
+-- The visible v3 floor triangle runs from (205,57) to (205,918)
+-- and (1212,918); map those corners to the actual bay vertices.
+local SCALE_X,SCALE_Y=371/1007,261/861
 local catalog={}
 for _,bayId in ipairs(Layout.BAY_IDS) do
-    local bay=Layout.bay(bayId)
-    local minX,maxX=math.huge,-math.huge
-    for _,point in ipairs(bay.polygon) do minX=math.min(minX,point.x);maxX=math.max(maxX,point.x) end
     catalog[bayId]={path=PATH,bayId=bayId,approved=false,mirrorX=bayId=="front_right",
         registration={textureWidth=WIDTH,textureHeight=HEIGHT,
-            x=(minX+maxX)/2,y=610,originX=ORIGIN_X,originY=ORIGIN_Y,
-            scale=SCALE,depthY=610}}
+            x=bayId=="front_right" and 952 or 8,y=647,originX=ORIGIN_X,originY=ORIGIN_Y,
+            scale=SCALE,scaleX=SCALE_X,scaleY=SCALE_Y,depthY=647}}
 end
 local function copy(value)
     if type(value)~="table" then return value end
@@ -34,7 +34,10 @@ function Presentation.validateEntry(entry)
         or not finite(r.textureHeight) or r.textureHeight~=HEIGHT
         or not finite(r.x) or not finite(r.y) or not finite(r.originX) or not finite(r.originY)
         or r.originX<0 or r.originX>WIDTH or r.originY<0 or r.originY>HEIGHT
-        or not finite(r.scale) or r.scale<=0 or r.scale>4 or not finite(r.depthY) then
+        or not finite(r.scale) or r.scale<=0 or r.scale>4
+        or (r.scaleX~=nil and (not finite(r.scaleX) or r.scaleX<=0 or r.scaleX>4))
+        or (r.scaleY~=nil and (not finite(r.scaleY) or r.scaleY<=0 or r.scaleY>4))
+        or not finite(r.depthY) then
         return false,"invalid_breakroom_registration"
     end
     return true
@@ -50,7 +53,8 @@ function Presentation.plan(state,bayId,options)
     local r=copy(entry.registration)
     return {path=entry.path,bayId=bayId,approved=entry.approved,review=options.review==true,
         mirrorX=entry.mirrorX,x=r.x,y=r.y,originX=r.originX,originY=r.originY,
-        scale=r.scale,depthY=r.depthY,textureWidth=r.textureWidth,textureHeight=r.textureHeight}
+        scale=r.scale,scaleX=r.scaleX or r.scale,scaleY=r.scaleY or r.scale,
+        depthY=r.depthY,textureWidth=r.textureWidth,textureHeight=r.textureHeight}
 end
 function Presentation.draw(plan,getImage,graphics)
     if not plan or type(getImage)~="function" then return false,"plan_required" end
@@ -61,8 +65,8 @@ function Presentation.draw(plan,getImage,graphics)
     graphics=graphics or (love and love.graphics)
     if not graphics then return false,"graphics_unavailable" end
     graphics.setColor(1,1,1,1)
-    graphics.draw(image,plan.x,plan.y,0,plan.scale*(plan.mirrorX and -1 or 1),
-        plan.scale,plan.originX,plan.originY)
+    graphics.draw(image,plan.x,plan.y,0,plan.scaleX*(plan.mirrorX and -1 or 1),
+        plan.scaleY,plan.originX,plan.originY)
     return true
 end
 return Presentation

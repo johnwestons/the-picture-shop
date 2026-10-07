@@ -136,10 +136,10 @@ local WAREHOUSE_FORKLIFT = {x=670,y=490,width=164,height=40}
 local WAREHOUSE_CONFIRM = {x=508,y=514,width=228,height=40}
 local WAREHOUSE_CANCEL = {x=216,y=514,width=180,height=40}
 local WAREHOUSE_ACK = {x=206,y=430,width=542,height=48}
-local CREDIT_MACHINE = { x = 98, y = 300, width = 350, height = 76, gap = 8 }
-local CREDIT_MACHINE_ACTION = { x = 354, width = 84, height = 30 }
-local CREDIT_CHANNEL_ONLINE = { x = 262, y = 274, width = 78, height = 22 }
-local CREDIT_CHANNEL_DEALER = { x = 344, y = 274, width = 88, height = 22 }
+local CREDIT_MACHINE = { x = 98, y = 306, width = 350, height = 76, gap = 8 }
+local CREDIT_MACHINE_ACTION = { x = 354, width = 88, height = 32 }
+local CREDIT_CHANNEL_ONLINE = { x = 262, y = 279, width = 78, height = 22 }
+local CREDIT_CHANNEL_DEALER = { x = 344, y = 279, width = 88, height = 22 }
 local CREDIT_LOAN = { x = 462, y = 300, width = 366, height = 76, gap = 8 }
 local CREDIT_LOAN_ACTION = { x = 712, width = 104, height = 29 }
 local CREDIT_SIGN = { x = 492, y = 472, width = 220, height = 44 }
@@ -176,6 +176,27 @@ function ComputerScreen.configureWarehouse(options)
     if options.requestPrefix then warehouseRequestPrefix=options.requestPrefix end
     if not warehouseEnabled() and ComputerScreen.tab=="warehouse" then ComputerScreen.tab="active" end
     ComputerScreen.warehouseConfirmation,ComputerScreen.warehousePending=nil,false
+end
+
+function ComputerScreen.configureGameClock(options)
+    options=options or {}
+    dependencies.getGameClockSpeed=options.getSpeed
+    dependencies.canChangeGameClockSpeed=options.canChange
+    dependencies.setGameClockSpeed=options.setSpeed
+end
+
+function ComputerScreen.gameClockSpeed()
+    if dependencies.getGameClockSpeed then
+        return dependencies.getGameClockSpeed()
+    end
+    return 1
+end
+
+function ComputerScreen.canChangeGameClockSpeed()
+    if dependencies.canChangeGameClockSpeed then
+        return dependencies.canChangeGameClockSpeed()==true
+    end
+    return dependencies.remoteCommand==nil
 end
 
 function ComputerScreen.warehouseEnabled() return warehouseEnabled() end
@@ -853,8 +874,8 @@ function ComputerScreen.scheduleMousepressed(state,x,y)
     end,dependencies.remoteCommand~=nil)
 end
 
-function ComputerScreen.drawSchedule(state,x,y)
-    return ScheduleScreen.draw(state,ComputerScreen.schedule,x,y,dependencies.remoteCommand~=nil)
+function ComputerScreen.drawSchedule(state,x,y,buttonRenderer)
+    return ScheduleScreen.draw(state,ComputerScreen.schedule,x,y,dependencies.remoteCommand~=nil,buttonRenderer)
 end
 
 function ComputerScreen.employeeCommand(state,intent)
@@ -894,6 +915,22 @@ function ComputerScreen.mousepressed(state, x, y, button)
         end
         ComputerScreen.tabDropdownOpen = false
         return { action = "dropdown_closed" }
+    end
+    if ComputerScreen.tab=="clock" then
+        local speed=require("src.screens.shop_clock").speedAt(x,y,
+            {x=82,y=184,width=792,height=444})
+        if speed then
+            if not ComputerScreen.canChangeGameClockSpeed() then
+                state.message="Only the host can change game speed."
+                return {action="blocked"}
+            end
+            if dependencies.setGameClockSpeed
+                and dependencies.setGameClockSpeed(speed)==true
+            then
+                return {action="clock_speed_changed",speed=speed}
+            end
+            return {action="blocked"}
+        end
     end
     if ComputerScreen.tab == "warehouse" then return warehouseMousepressed(state,x,y) end
     if ComputerScreen.tab == "hiring" then
@@ -1282,9 +1319,136 @@ function ComputerScreen.wantsTextInput()
         or ComputerScreen.tab == "estimating" and ComputerScreen.quoteFocused
 end
 
-local panel = Ui.panel
+local basePanel = Ui.panel
 
-local function drawMonitorFrame()
+local function panel(rect, fill, border, radius, lineWidth)
+    basePanel(rect, fill, border, radius, lineWidth)
+    if rect.width < 80 or rect.height < 32 then return end
+    local inset = math.max(3, radius or 4)
+    local innerWidth = rect.width - inset * 2
+    local innerHeight = rect.height - inset * 2
+    if innerWidth <= 2 or innerHeight <= 2 then return end
+    love.graphics.setColor(0.82, 0.95, 0.91, 0.13)
+    love.graphics.rectangle("fill", rect.x + inset, rect.y + 2, innerWidth, 1)
+    love.graphics.rectangle("fill", rect.x + 2, rect.y + inset, 1, innerHeight)
+    love.graphics.setColor(0.005, 0.018, 0.025, 0.24)
+    love.graphics.rectangle("fill", rect.x + inset, rect.y + rect.height - 3, innerWidth, 1)
+    love.graphics.rectangle("fill", rect.x + rect.width - 3, rect.y + inset, 1, innerHeight)
+end
+
+local COMPUTER_BUTTON_STYLES = {
+    secondary = {
+        edge = { 0.08, 0.15, 0.18, 1 }, face = { 0.57, 0.64, 0.66, 1 },
+        highlight = { 0.96, 0.98, 0.92, 1 }, shadow = { 0.27, 0.36, 0.39, 1 },
+        text = { 0.035, 0.105, 0.14, 1 },
+    },
+    hover = {
+        edge = { 0.02, 0.20, 0.23, 1 }, face = { 0.24, 0.63, 0.63, 1 },
+        highlight = { 0.69, 0.98, 0.91, 1 }, shadow = { 0.07, 0.29, 0.32, 1 },
+        text = { 0.025, 0.10, 0.13, 1 },
+    },
+    primary = {
+        edge = { 0.015, 0.105, 0.13, 1 }, face = { 0.025, 0.44, 0.46, 1 },
+        highlight = { 0.47, 0.91, 0.85, 1 }, shadow = { 0.015, 0.20, 0.23, 1 },
+        text = { 0.98, 0.99, 0.94, 1 },
+    },
+    primaryHover = {
+        edge = { 0.015, 0.14, 0.16, 1 }, face = { 0.08, 0.60, 0.59, 1 },
+        highlight = { 0.75, 1.00, 0.92, 1 }, shadow = { 0.025, 0.28, 0.29, 1 },
+        text = { 1.00, 1.00, 0.97, 1 },
+    },
+    pressed = {
+        edge = { 0.04, 0.09, 0.11, 1 }, face = { 0.31, 0.41, 0.44, 1 },
+        highlight = { 0.17, 0.26, 0.29, 1 }, shadow = { 0.76, 0.84, 0.82, 1 },
+        text = { 0.98, 0.99, 0.94, 1 },
+    },
+    primaryPressed = {
+        edge = { 0.01, 0.075, 0.09, 1 }, face = { 0.015, 0.32, 0.34, 1 },
+        highlight = { 0.01, 0.20, 0.22, 1 }, shadow = { 0.18, 0.63, 0.59, 1 },
+        text = { 1.00, 1.00, 0.97, 1 },
+    },
+    dangerPressed = {
+        edge = { 0.15, 0.04, 0.04, 1 }, face = { 0.40, 0.11, 0.10, 1 },
+        highlight = { 0.24, 0.06, 0.05, 1 }, shadow = { 0.77, 0.34, 0.29, 1 },
+        text = { 1.00, 0.98, 0.93, 1 },
+    },
+    disabled = {
+        edge = { 0.08, 0.12, 0.14, 1 }, face = { 0.22, 0.28, 0.30, 1 },
+        highlight = { 0.39, 0.47, 0.47, 1 }, shadow = { 0.12, 0.17, 0.18, 1 },
+        text = { 0.76, 0.82, 0.79, 1 },
+    },
+    danger = {
+        edge = { 0.19, 0.055, 0.05, 1 }, face = { 0.51, 0.15, 0.14, 1 },
+        highlight = { 0.91, 0.49, 0.40, 1 }, shadow = { 0.29, 0.085, 0.075, 1 },
+        text = { 0.99, 0.94, 0.90, 1 },
+    },
+    dangerHover = {
+        edge = { 0.22, 0.07, 0.06, 1 }, face = { 0.69, 0.22, 0.18, 1 },
+        highlight = { 1.00, 0.62, 0.49, 1 }, shadow = { 0.35, 0.10, 0.08, 1 },
+        text = { 1.00, 0.98, 0.93, 1 },
+    },
+}
+
+local buttonDrawPointerX, buttonDrawPointerY
+
+local function drawComputerButton(rect, label, styleName)
+    local enabled = styleName ~= "disabled"
+    local mouseHeld = buttonDrawPointerX and buttonDrawPointerY
+        and contains(rect, buttonDrawPointerX, buttonDrawPointerY)
+        and love.mouse and love.mouse.isDown and love.mouse.isDown(1)
+    local pressed = enabled and (mouseHeld or Ui.pressWithin(rect, 0.12))
+    if pressed then
+        styleName = styleName and styleName:match("^primary") and "primaryPressed"
+            or styleName and styleName:match("^danger") and "dangerPressed"
+            or "pressed"
+    end
+    local style = COMPUTER_BUTTON_STYLES[styleName] or COMPUTER_BUTTON_STYLES.secondary
+    local faceInset = pressed and 2 or 1
+    love.graphics.setColor(style.edge)
+    love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
+    love.graphics.setColor(style.face)
+    love.graphics.rectangle("fill", rect.x + faceInset, rect.y + faceInset,
+        rect.width - faceInset * 2, rect.height - faceInset * 2, 2, 2)
+    love.graphics.setColor(style.highlight)
+    love.graphics.rectangle("fill", rect.x + 3, rect.y + 2,
+        math.max(1, rect.width - 6), 1)
+    love.graphics.rectangle("fill", rect.x + 2, rect.y + 3,
+        1, math.max(1, rect.height - 6))
+    love.graphics.setColor(style.shadow)
+    love.graphics.rectangle("fill", rect.x + 3, rect.y + rect.height - 3,
+        math.max(1, rect.width - 6), 1)
+    love.graphics.rectangle("fill", rect.x + rect.width - 3, rect.y + 3,
+        1, math.max(1, rect.height - 6))
+
+    if label ~= nil and label ~= "" then
+        local text = tostring(label)
+        local font = love.graphics.getFont()
+        local textWidth, lineCount = 0, 0
+        for line in (text .. "\n"):gmatch("(.-)\n") do
+            textWidth = math.max(textWidth, font:getWidth(line))
+            lineCount = lineCount + 1
+        end
+        local textHeight = font:getHeight() * lineCount
+        local scale = math.min(1, (rect.width - 12) / math.max(1, textWidth),
+            (rect.height - 6) / math.max(1, textHeight))
+        love.graphics.setColor(style.text)
+        love.graphics.print(text,
+            rect.x + (rect.width - textWidth * scale) / 2,
+            rect.y + (rect.height - textHeight * scale) / 2 + (pressed and 1 or 0),
+            0, scale, scale)
+    end
+end
+
+local function printCenteredFit(text, x, y, width)
+    text = tostring(text or "")
+    local font = love.graphics.getFont()
+    local textWidth = font:getWidth(text)
+    local scale = textWidth > width and width / textWidth or 1
+    love.graphics.print(text, x + (width - textWidth * scale) / 2, y,
+        0, scale, scale)
+end
+
+local function drawMonitorFrame(state)
     -- A thick CRT shell makes the software feel like it lives inside a real
     -- beige 1990s office monitor instead of floating over the warehouse.
     love.graphics.setColor(0.08, 0.075, 0.065, 1)
@@ -1314,6 +1478,14 @@ local function drawMonitorFrame()
     love.graphics.circle("fill", 876, 655, 4)
     love.graphics.setColor(0.24, 0.23, 0.20, 1)
     love.graphics.print("CRITTERWORKS CRT-17", 374, 649)
+    local displayDate = BusinessCalendar.shortDate(state):gsub("%s+W%d+$", "")
+    love.graphics.printf(displayDate, 646, 649, 132, "right")
+    love.graphics.setColor(0.025, 0.055, 0.045, 1)
+    love.graphics.rectangle("fill", 785, 646, 76, 20, 3, 3)
+    love.graphics.setColor(0.35, 0.49, 0.41, 1)
+    love.graphics.rectangle("line", 785, 646, 76, 20, 3, 3)
+    love.graphics.setColor(0.52, 0.98, 0.65, 1)
+    love.graphics.printf(BusinessCalendar.timeText(state), 788, 648, 70, "center")
 end
 
 local function drawTabSelector(pointerX, pointerY)
@@ -1335,19 +1507,10 @@ local function drawTabSelector(pointerX, pointerY)
     love.graphics.print(ComputerScreen.activeUrl(), TAB_ADDRESS.x + 15, TAB_ADDRESS.y + 14)
 
     local hovered = pointerX and contains(TAB_DROPDOWN_ARROW, pointerX, pointerY)
-    love.graphics.setColor(hovered and { 0.82, 0.82, 0.77, 1 }
-        or { 0.68, 0.68, 0.64, 1 })
-    love.graphics.rectangle("fill", TAB_DROPDOWN_ARROW.x, TAB_DROPDOWN_ARROW.y,
-        TAB_DROPDOWN_ARROW.width, TAB_DROPDOWN_ARROW.height)
-    love.graphics.setColor(0.97, 0.97, 0.92, 1)
-    love.graphics.line(TAB_DROPDOWN_ARROW.x, TAB_DROPDOWN_ARROW.y,
-        TAB_DROPDOWN_ARROW.x + TAB_DROPDOWN_ARROW.width, TAB_DROPDOWN_ARROW.y)
-    love.graphics.line(TAB_DROPDOWN_ARROW.x, TAB_DROPDOWN_ARROW.y,
-        TAB_DROPDOWN_ARROW.x, TAB_DROPDOWN_ARROW.y + TAB_DROPDOWN_ARROW.height)
-    love.graphics.setColor(0.22, 0.23, 0.23, 1)
-    love.graphics.line(TAB_DROPDOWN_ARROW.x, TAB_DROPDOWN_ARROW.y + TAB_DROPDOWN_ARROW.height,
-        TAB_DROPDOWN_ARROW.x + TAB_DROPDOWN_ARROW.width,
-        TAB_DROPDOWN_ARROW.y + TAB_DROPDOWN_ARROW.height)
+    drawComputerButton(TAB_DROPDOWN_ARROW, nil,
+        ComputerScreen.tabDropdownOpen and "primary" or hovered and "hover" or "secondary")
+    love.graphics.setColor(ComputerScreen.tabDropdownOpen
+        and { 0.98, 0.99, 0.94, 1 } or { 0.035, 0.105, 0.14, 1 })
     love.graphics.polygon("fill", TAB_DROPDOWN_ARROW.x + 13,
         TAB_DROPDOWN_ARROW.y + (ComputerScreen.tabDropdownOpen and 25 or 15),
         TAB_DROPDOWN_ARROW.x + 27,
@@ -1360,18 +1523,22 @@ local function drawTabSelector(pointerX, pointerY)
         local rect = tabDropdownRect(index)
         local selected = ComputerScreen.tab == tab.id
         local itemHovered = pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(selected and { 0.08, 0.47, 0.48, 1 }
-            or itemHovered and { 0.20, 0.37, 0.39, 1 }
-            or { 0.68, 0.68, 0.64, 1 })
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
-        love.graphics.setColor(0.94, 0.94, 0.89, 1)
-        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height)
-        love.graphics.setColor(selected and { 0.98, 1.00, 0.95, 1 }
-            or { 0.04, 0.12, 0.14, 1 })
-        love.graphics.print(tab.label, rect.x + 14, rect.y + 13)
-        love.graphics.setColor(selected and { 0.75, 0.94, 0.88, 1 }
-            or { 0.25, 0.34, 0.35, 1 })
-        love.graphics.printf(tab.url, rect.x + 168, rect.y + 13,
+        drawComputerButton(rect, nil,
+            selected and "primary" or itemHovered and "hover" or "secondary")
+        if selected then
+            love.graphics.setColor(0.53, 0.98, 0.84, 1)
+            love.graphics.rectangle("fill", rect.x + 4, rect.y + 7, 2, rect.height - 14)
+        end
+        local foreground = itemHovered and { 0.025, 0.10, 0.13, 1 }
+            or { 0.035, 0.105, 0.14, 1 }
+        if selected then foreground = { 0.98, 0.99, 0.94, 1 } end
+        love.graphics.setColor(foreground)
+        local textY = rect.y + (rect.height - love.graphics.getFont():getHeight()) / 2
+        love.graphics.print(tab.label, rect.x + 14, textY)
+        love.graphics.setColor(selected and { 0.78, 0.95, 0.89, 1 }
+            or itemHovered and { 0.035, 0.12, 0.15, 1 }
+            or { 0.22, 0.31, 0.34, 1 })
+        love.graphics.printf(tab.url, rect.x + 168, textY,
             rect.width - 182, "right")
     end
 end
@@ -1388,26 +1555,31 @@ local function drawJobList(state, pointerX, pointerY)
             width = LIST.width - 16, height = 38 }
         local selected = ComputerScreen.selectedJobId == job.id
         local hovered = pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(selected and 0.15 or hovered and 0.12 or 0.08,
-            selected and 0.39 or hovered and 0.28 or 0.13,
-            selected and 0.38 or hovered and 0.27 or 0.17)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 2, 2)
+        local fill, border
+        if selected then
+            fill, border = { 0.08, 0.36, 0.38, 1 }, { 0.25, 0.72, 0.70, 1 }
+        elseif hovered then
+            fill, border = { 0.10, 0.18, 0.20, 1 }, { 0.26, 0.52, 0.55, 1 }
+        else
+            fill, border = { 0.075, 0.10, 0.12, 1 }, { 0.18, 0.33, 0.37, 1 }
+        end
+        panel(rect, fill, border, 3, 1)
+        if selected then
+            love.graphics.setColor(0.53, 0.98, 0.84, 1)
+            love.graphics.rectangle("fill", rect.x + 2, rect.y + 6, 2, rect.height - 12)
+        end
         love.graphics.setColor(0.93, 0.94, 0.92)
         love.graphics.print(job.id .. "  " .. job.company, rect.x + 8, rect.y + 6)
-        love.graphics.setColor(0.62, 0.70, 0.71)
+        love.graphics.setColor(0.78, 0.86, 0.84)
         love.graphics.print(StatusLabels.get(displayStatus(job)), rect.x + 8, rect.y + 21)
     end
-    love.graphics.setColor(0.55, 0.63, 0.65)
+    love.graphics.setColor(0.72, 0.80, 0.80)
     love.graphics.printf(string.format("Page %d / %d", page, maximumPage), 168, 578, 138, "center")
 
     local function pageButton(rect, label, enabled)
         local hovered = enabled and pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(enabled and (hovered and 0.18 or 0.11) or 0.07,
-            enabled and (hovered and 0.42 or 0.27) or 0.09,
-            enabled and (hovered and 0.40 or 0.29) or 0.10)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 2, 2)
-        love.graphics.setColor(enabled and 0.90 or 0.36, enabled and 0.92 or 0.40, enabled and 0.90 or 0.41)
-        love.graphics.printf(label, rect.x, rect.y + 9, rect.width, "center")
+        drawComputerButton(rect, label,
+            not enabled and "disabled" or hovered and "hover" or "secondary")
     end
     pageButton(PREVIOUS, "PREV", page > 1)
     pageButton(NEXT, "NEXT", page < maximumPage)
@@ -1470,6 +1642,9 @@ local function detailRows(selected)
             width = DETAIL.width - 40,
         }
     end
+    for _, row in ipairs(rows) do
+        row.label, row.value = row.text:match("^([^:]+:%s*)(.*)$")
+    end
     return rows
 end
 
@@ -1478,9 +1653,12 @@ function ComputerScreen.jobDetailLayout(selected)
     local y = DETAIL.y + 96
     local rows = detailRows(selected)
     for _, row in ipairs(rows) do
-        local _, wrapped = font:getWrap(row.text, row.width)
+        local labelWidth = row.label and font:getWidth(row.label) or 0
+        local valueWidth = math.max(1, row.width - labelWidth)
+        local _, wrapped = font:getWrap(row.value or row.text, valueWidth)
         row.y = y
         row.height = math.max(1, #wrapped) * font:getHeight()
+        row.labelWidth = labelWidth
         y = y + row.height + 4
     end
     local valueY = y + 1
@@ -1534,7 +1712,17 @@ local function drawDetail(state, pointerX, pointerY, assets)
         DETAIL.x + 20, DETAIL.y + 66, 310, "left")
     local layout = ComputerScreen.jobDetailLayout(selected)
     for _, row in ipairs(layout.rows) do
-        love.graphics.printf(row.text, DETAIL.x + 20, row.y, row.width, "left")
+        local rowX = DETAIL.x + 20
+        if row.label then
+            love.graphics.setColor(0.55, 0.80, 0.81, 1)
+            love.graphics.print(row.label, rowX, row.y)
+            love.graphics.setColor(0.88, 0.92, 0.92, 1)
+            love.graphics.printf(row.value, rowX + row.labelWidth, row.y,
+                math.max(1, row.width - row.labelWidth), "left")
+        else
+            love.graphics.setColor(0.88, 0.92, 0.92, 1)
+            love.graphics.printf(row.text, rowX, row.y, row.width, "left")
+        end
     end
     local valueText="Job value: "..money(selected.quote.totalPrice)
     if selected.labor then valueText=valueText.." | Staff wages: "..money(selected.labor.wageCents/100)
@@ -1573,41 +1761,28 @@ local function drawDetail(state, pointerX, pointerY, assets)
     if ComputerScreen.tab == "completed" then
         local sent = promotionSentForJob(state, selected)
         local hovered = not sent and pointerX and contains(JOB_PROMO, pointerX, pointerY)
-        love.graphics.setColor(sent and 0.10 or hovered and 0.19 or 0.12,
-            sent and 0.15 or hovered and 0.55 or 0.42, sent and 0.16 or 0.29)
-        love.graphics.rectangle("fill", JOB_PROMO.x, JOB_PROMO.y,
-            JOB_PROMO.width, JOB_PROMO.height, 3, 3)
-        love.graphics.setColor(sent and 0.50 or 0.95, sent and 0.54 or 0.97, sent and 0.53 or 0.94)
-        love.graphics.printf(sent and "10% PROMO SENT" or "EMAIL 10% PROMO",
-            JOB_PROMO.x, JOB_PROMO.y + 15,
-            JOB_PROMO.width, "center")
+        drawComputerButton(JOB_PROMO,
+            sent and "10% PROMO SENT" or "EMAIL 10% PROMO",
+            sent and "disabled" or hovered and "primaryHover" or "primary")
         return
     end
     if ComputerScreen.tab ~= "active" then return end
     local ready = completionReady(selected)
     local hovered = ready and pointerX and contains(COMPLETE, pointerX, pointerY)
-    love.graphics.setColor(ready and (hovered and 0.19 or 0.12) or 0.12,
-        ready and (hovered and 0.55 or 0.42) or 0.15,
-        ready and 0.29 or 0.16)
-    love.graphics.rectangle("fill", COMPLETE.x, COMPLETE.y, COMPLETE.width, COMPLETE.height, 3, 3)
-    love.graphics.setColor(ready and 0.95 or 0.48, ready and 0.96 or 0.51, ready and 0.93 or 0.51)
     local buttonLabel = ready and "SCHEDULE CUSTOMER PICKUP" or "PRODUCTION NOT COMPLETE"
     if selected.status == "ready_for_pickup" then buttonLabel = "PICKUP AWAITING TRUCK"
     elseif selected.status == "pickup_in_progress" then buttonLabel = "PICKUP IN PROGRESS"
     elseif selected.status == "completed" then buttonLabel = "PAID AND COMPLETED" end
-    love.graphics.printf(buttonLabel,
-        COMPLETE.x, COMPLETE.y + 11, COMPLETE.width, "center")
+    drawComputerButton(COMPLETE, buttonLabel,
+        not ready and "disabled" or hovered and "primaryHover" or "primary")
 end
 
 local function drawCartButton(pointerX, pointerY)
     local total, count = cartTotal()
     local hovered = pointerX and contains(CART_BUTTON, pointerX, pointerY)
-    love.graphics.setColor(hovered and 0.18 or 0.11, hovered and 0.52 or 0.39, 0.30, 1)
-    love.graphics.rectangle("fill", CART_BUTTON.x, CART_BUTTON.y,
-        CART_BUTTON.width, CART_BUTTON.height, 3, 3)
-    love.graphics.setColor(0.96, 0.98, 0.95)
-    love.graphics.printf(string.format("CART %d • %s", count, money(total)),
-        CART_BUTTON.x, CART_BUTTON.y + 12, CART_BUTTON.width, "center")
+    drawComputerButton(CART_BUTTON,
+        string.format("CART %d • %s", count, money(total)),
+        hovered and "primaryHover" or "primary")
 end
 
 local function drawCart(state, pointerX, pointerY)
@@ -1641,19 +1816,14 @@ local function drawCart(state, pointerX, pointerY)
         love.graphics.printf(money(entry.price * entry.quantity), 566, y + 10, 140, "right")
         local remove = cartRemoveRect(visibleIndex)
         local hovered = pointerX and contains(remove, pointerX, pointerY)
-        love.graphics.setColor(hovered and 0.58 or 0.40, 0.17, 0.16, 1)
-        love.graphics.rectangle("fill", remove.x, remove.y, remove.width, remove.height, 3, 3)
-        love.graphics.setColor(0.98, 0.93, 0.91)
-        love.graphics.printf("REMOVE", remove.x, remove.y + 10, remove.width, "center")
+        drawComputerButton(remove, "REMOVE", hovered and "dangerHover" or "danger")
     end
     local function cartAction(rect, label, enabled, green)
         local hovered = enabled and pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(enabled and (green and 0.12 or 0.18) or 0.10,
-            enabled and (green and (hovered and 0.55 or 0.42) or (hovered and 0.34 or 0.25)) or 0.12,
-            enabled and (green and 0.29 or 0.28) or 0.13, 1)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
-        love.graphics.setColor(enabled and 0.95 or 0.48, enabled and 0.97 or 0.51, enabled and 0.94 or 0.51)
-        love.graphics.printf(label, rect.x, rect.y + 13, rect.width, "center")
+        local style = not enabled and "disabled"
+            or green and (hovered and "primaryHover" or "primary")
+            or hovered and "hover" or "secondary"
+        drawComputerButton(rect, label, style)
     end
     cartAction(CART_BACK, "KEEP SHOPPING", true, false)
     cartAction(CART_CLEAR, "CLEAR CART", count > 0, false)
@@ -1750,26 +1920,13 @@ end
 
 local function drawWww(state, pointerX, pointerY, assets)
     panel({ x = 82, y = 190, width = 770, height = 408 },
-        { 0.04, 0.05, 0.08, 1 }, { 0.58, 0.60, 0.58, 1 })
-    local backdrop = assets and assets.images and assets.images.critterNetMenu
-    if backdrop then
-        love.graphics.setColor(1, 1, 1, 0.56)
-        love.graphics.draw(backdrop, 82, 190, 0, 770 / backdrop:getWidth(), 408 / backdrop:getHeight())
-        love.graphics.setColor(0.01, 0.025, 0.055, 0.48)
-        love.graphics.rectangle("fill", 88, 232, 758, 360)
-    end
+        { 0.035, 0.055, 0.075, 1 }, { 0.32, 0.56, 0.58, 1 })
     local site = WWW_SITES[ComputerScreen.wwwSite] or WWW_SITES[1]
-    -- Chunky beveled address bar, deliberately styled after a dial-up-era browser.
-    love.graphics.setColor(0.72, 0.72, 0.68, 1)
-    love.graphics.rectangle("fill", 96, 198, 604, 32)
-    love.graphics.setColor(0.95, 0.95, 0.90, 1)
-    love.graphics.line(96, 198, 700, 198); love.graphics.line(96, 198, 96, 230)
-    love.graphics.setColor(0.28, 0.29, 0.28, 1)
-    love.graphics.line(96, 230, 700, 230); love.graphics.line(700, 198, 700, 230)
-    love.graphics.setColor(0.05, 0.16, 0.18, 1)
-    love.graphics.rectangle("fill", 104, 204, 588, 20)
-    love.graphics.setColor(0.78, 0.94, 0.90, 1)
-    love.graphics.print(site.url, 114, 209)
+    -- The browser address bar above owns the URL; this is the site masthead.
+    panel({ x = 96, y = 198, width = 604, height = 32 },
+        { 0.025, 0.15, 0.18, 1 }, { 0.31, 0.64, 0.65, 1 }, 3, 1)
+    love.graphics.setColor(0.96, 0.94, 0.84, 1)
+    love.graphics.print("CRITTERNET  /  " .. site.name, 114, 206)
     local animationTime = love.timer.getTime()
     local globeFrame = 1 + math.floor(animationTime * 2.5) % 4
     local pulseFrame = 5 + math.floor(animationTime * 4) % 4
@@ -1780,13 +1937,8 @@ local function drawWww(state, pointerX, pointerY, assets)
         local rect = wwwSiteRect(index)
         local selected = index == ComputerScreen.wwwSite
         local hovered = pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(selected and 0.10 or hovered and 0.23 or 0.18,
-            selected and 0.42 or hovered and 0.38 or 0.31,
-            selected and 0.43 or hovered and 0.40 or 0.35, 1)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
-        love.graphics.setColor(selected and 0.92 or 0.80, selected and 0.94 or 0.82, selected and 0.90 or 0.80)
-        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height)
-        love.graphics.printf(website.short, rect.x, rect.y + 14, rect.width, "center")
+        drawComputerButton(rect, website.short,
+            selected and "primary" or hovered and "hover" or "secondary")
     end
     drawCritterNetSprite(assets, modemFrame, 730, 536, 100, 60, 0.92)
     local siteChangeAge = animationTime - (ComputerScreen.wwwSiteChangedAt or 0)
@@ -1809,11 +1961,10 @@ local function drawWww(state, pointerX, pointerY, assets)
             love.graphics.print(available
                 and string.format("Ships to loading dock • salesman bulk $%d", item.price)
                 or tostring(item.unavailableReason), row.x + 14, row.y + 29)
-            love.graphics.setColor(affordable and 0.16 or 0.18, affordable and 0.44 or 0.19, affordable and 0.30 or 0.20)
-            love.graphics.rectangle("fill", buy.x, buy.y, buy.width, buy.height, 2, 2)
-            love.graphics.setColor(affordable and 0.96 or 0.56, affordable and 0.98 or 0.59, affordable and 0.94 or 0.58)
-            love.graphics.printf(available and ("ADD " .. money(item.retailPrice)) or "OFFLINE",
-                buy.x, buy.y + 13, buy.width, "center")
+            local hovered = affordable and pointerX and contains(buy, pointerX, pointerY)
+            drawComputerButton(buy,
+                available and ("ADD " .. money(item.retailPrice)) or "OFFLINE",
+                not affordable and "disabled" or hovered and "primaryHover" or "primary")
         end
         return
     end
@@ -1835,13 +1986,11 @@ local function drawWww(state, pointerX, pointerY, assets)
         local total = cartTotal()
         local affordable = (state.money or 0) >= total + offer.price
         local canFinance = (state.money or 0) < offer.price
-        love.graphics.setColor(canFinance and { 0.10, 0.35, 0.39, 1 }
-            or affordable and { 0.15, 0.44, 0.29, 1 } or { 0.17, 0.18, 0.19, 1 })
-        love.graphics.rectangle("fill", buy.x, buy.y, buy.width, buy.height, 3, 3)
-        love.graphics.setColor(canFinance and { 0.88, 0.96, 0.94, 1 }
-            or affordable and { 0.96, 0.98, 0.94, 1 } or { 0.52, 0.55, 0.54, 1 })
-        love.graphics.printf(canFinance and "FINANCE" or ("ADD " .. money(offer.price)),
-            buy.x, buy.y + 14, buy.width, "center")
+        local enabled = canFinance or affordable
+        local hovered = enabled and pointerX and contains(buy, pointerX, pointerY)
+        drawComputerButton(buy,
+            canFinance and "FINANCE" or ("ADD " .. money(offer.price)),
+            not enabled and "disabled" or hovered and "primaryHover" or "primary")
     end
 
     love.graphics.setColor(0.63, 0.72, 0.74)
@@ -1871,25 +2020,22 @@ local function drawWww(state, pointerX, pointerY, assets)
         love.graphics.setColor(0.55, 0.64, 0.66)
         love.graphics.print(string.format("%s %.0f%% • %d cycles", weakest.label,
             weakest.value, item.cycles), OWNED_MACHINE.x + 10, y + 46)
-        love.graphics.setColor(0.40, 0.20, 0.18, 1)
-        love.graphics.rectangle("fill", sell.x, sell.y, sell.width, sell.height, 3, 3)
-        love.graphics.setColor(0.96, 0.91, 0.88)
-        love.graphics.printf("SELL\n" .. money(MachineFleet.resaleValue(item, "online")),
-            sell.x, sell.y + 4, sell.width, "center")
+        local hovered = pointerX and contains(sell, pointerX, pointerY)
+        drawComputerButton(sell,
+            "SELL\n" .. money(MachineFleet.resaleValue(item, "online")),
+            hovered and "dangerHover" or "danger")
         end
     end
     if pages > 1 then
         local previous, nextRect = ComputerScreen.machinePreviousRect, ComputerScreen.machineNextRect
-        love.graphics.setColor(0.15, 0.27, 0.29)
-        love.graphics.rectangle("fill", previous.x, previous.y,
-            previous.width, previous.height, 3, 3)
-        love.graphics.rectangle("fill", nextRect.x, nextRect.y,
-            nextRect.width, nextRect.height, 3, 3)
-        love.graphics.setColor(0.86, 0.94, 0.92)
-        love.graphics.printf("PREV", previous.x, previous.y + 7,
-            previous.width, "center")
-        love.graphics.printf("NEXT", nextRect.x, nextRect.y + 7,
-            nextRect.width, "center")
+        local previousHovered = ComputerScreen.machinePage > 1 and pointerX
+            and contains(previous, pointerX, pointerY)
+        local nextHovered = ComputerScreen.machinePage < pages and pointerX
+            and contains(nextRect, pointerX, pointerY)
+        drawComputerButton(previous, "PREV", ComputerScreen.machinePage <= 1
+            and "disabled" or previousHovered and "hover" or "secondary")
+        drawComputerButton(nextRect, "NEXT", ComputerScreen.machinePage >= pages
+            and "disabled" or nextHovered and "hover" or "secondary")
         love.graphics.printf(string.format("%d / %d", ComputerScreen.machinePage, pages),
             588, 595, 164, "center")
     end
@@ -1903,7 +2049,7 @@ local function drawWarehouse(state,pointerX,pointerY,assets)
     panel({x=82,y=190,width=770,height=408},{0.04,0.065,0.08,1},{0.43,0.61,0.58,1})
     local backdrop=assets and assets.images and assets.images.critterNetMenu
     if backdrop then
-        love.graphics.setColor(1,1,1,0.22)
+        love.graphics.setColor(1,1,1,0.06)
         love.graphics.draw(backdrop,82,190,0,770/backdrop:getWidth(),408/backdrop:getHeight())
     end
     love.graphics.setColor(0.94,0.83,0.34,1)
@@ -1949,7 +2095,7 @@ local function drawWarehouse(state,pointerX,pointerY,assets)
     local choice=view.confirmation
     if not choice then return end
     local product=Upgrades.catalog(choice.optionId or "forklift")
-    love.graphics.setColor(0,0,0,0.72);love.graphics.rectangle("fill",82,190,770,408)
+    love.graphics.setColor(0,0,0,0.88);love.graphics.rectangle("fill",82,190,770,408)
     panel({x=178,y=242,width=584,height=324},{0.045,0.09,0.11,1},{0.61,0.76,0.61,1},5,2)
     love.graphics.setColor(0.97,0.84,0.35,1)
     love.graphics.printf("CONFIRM "..product.name:upper(),204,265,532,"center")
@@ -2041,12 +2187,11 @@ local function drawBills(state, pointerX, pointerY)
     local payable = not ownerOnly and balance > 0
         and math.floor((state.money or 0)*100+1e-7)>=math.floor(balance*100+.5+1e-7)
     local hovered = payable and pointerX and contains(PAY_BILLS, pointerX, pointerY)
-    love.graphics.setColor(payable and (hovered and 0.19 or 0.12) or 0.13,
-        payable and (hovered and 0.55 or 0.42) or 0.16, payable and 0.29 or 0.17)
-    love.graphics.rectangle("fill", PAY_BILLS.x, PAY_BILLS.y, PAY_BILLS.width, PAY_BILLS.height, 3, 3)
-    love.graphics.setColor(payable and 0.95 or 0.50, payable and 0.96 or 0.53, payable and 0.93 or 0.53)
-    love.graphics.printf(ownerOnly and "OWNER PAYS WAGES" or balance <= 0 and "NO BALANCE DUE" or payable and "PAY BILLS & WAGES" or "INSUFFICIENT CASH",
-        PAY_BILLS.x, PAY_BILLS.y + 16, PAY_BILLS.width, "center")
+    local payLabel = ownerOnly and "OWNER PAYS WAGES"
+        or balance <= 0 and "NO BALANCE DUE"
+        or payable and "PAY BILLS & WAGES" or "INSUFFICIENT CASH"
+    drawComputerButton(PAY_BILLS, payLabel,
+        payable and (hovered and "primaryHover" or "primary") or "disabled")
 end
 
 local function drawCredit(state, pointerX, pointerY)
@@ -2058,7 +2203,7 @@ local function drawCredit(state, pointerX, pointerY)
     love.graphics.setColor(0.95, 0.84, 0.30)
     love.graphics.print("CRITTER CREDIT PROFILE", 98, 202)
 
-    panel({ x = 98, y = 230, width = 350, height = 62 },
+    panel({ x = 98, y = 230, width = 350, height = 50 },
         { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
     love.graphics.setColor(0.74, 0.83, 0.83)
     love.graphics.print("CREDIT SCORE", 112, 239)
@@ -2068,9 +2213,9 @@ local function drawCredit(state, pointerX, pointerY)
     love.graphics.print(string.format("%d  /  %s", profile.score, profile.tier:upper()), 228, 236)
     love.graphics.setColor(0.65, 0.74, 0.75)
     love.graphics.print(string.format("Offers: %.2f%% APR  •  %d%% down  •  %d months",
-        profile.apr, profile.downPercent, profile.termMonths), 112, 263)
+        profile.apr, profile.downPercent, profile.termMonths), 112, 258)
 
-    panel({ x = 462, y = 230, width = 366, height = 62 },
+    panel({ x = 462, y = 230, width = 366, height = 50 },
         { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
     love.graphics.setColor(0.74, 0.83, 0.83)
     love.graphics.print("OPEN MACHINE CREDIT", 476, 239)
@@ -2078,26 +2223,22 @@ local function drawCredit(state, pointerX, pointerY)
     love.graphics.printf(money(profile.totalBalance), 680, 237, 132, "right")
     love.graphics.setColor(0.65, 0.74, 0.75)
     love.graphics.print(string.format("%d of %d accounts  •  scheduled %s / month",
-        profile.openLoans, Credit.MAX_OPEN_LOANS, money(profile.monthlyDue)), 476, 263)
+        profile.openLoans, Credit.MAX_OPEN_LOANS, money(profile.monthlyDue)), 476, 258)
 
     love.graphics.setColor(0.68, 0.83, 0.84)
-    love.graphics.print("MACHINE FINANCING", 102, 281)
+    love.graphics.print("MACHINE FINANCING", 102, 283)
     for _, option in ipairs({
         { id = "online", rect = CREDIT_CHANNEL_ONLINE, label = "ONLINE" },
         { id = "dealer", rect = CREDIT_CHANNEL_DEALER, label = "DEALER" },
     }) do
         local selected = ComputerScreen.creditChannel == option.id
         local hovered = pointerX and contains(option.rect, pointerX, pointerY)
-        love.graphics.setColor(selected and (hovered and 0.20 or 0.12) or (hovered and 0.16 or 0.08),
-            selected and 0.43 or 0.20, selected and 0.40 or 0.24, 1)
-        love.graphics.rectangle("fill", option.rect.x, option.rect.y,
-            option.rect.width, option.rect.height, 3, 3)
-        love.graphics.setColor(selected and 0.94 or 0.62, selected and 0.96 or 0.73,
-            selected and 0.91 or 0.73, 1)
-        love.graphics.printf(option.label, option.rect.x, option.rect.y + 5,
-            option.rect.width, "center")
+        drawComputerButton(option.rect, option.label,
+            selected and (hovered and "primaryHover" or "primary")
+                or hovered and "hover" or "secondary")
     end
-    love.graphics.print("YOUR MACHINE LOANS", 466, 281)
+    love.graphics.setColor(0.80, 0.89, 0.87, 1)
+    love.graphics.print("YOUR MACHINE LOANS", 466, 283)
     for index, quote in ipairs(quotes) do
         local rect = creditMachineRect(index)
         local action = creditMachineActionRect(index)
@@ -2109,18 +2250,17 @@ local function drawCredit(state, pointerX, pointerY)
         love.graphics.print(string.format("%s used  •  %.0f%% condition  •  %s",
             quote.channel == "dealer" and "Dealer" or "Online", quote.condition, money(quote.price)),
             rect.x + 10, rect.y + 27)
-        love.graphics.setColor(0.66, 0.75, 0.76)
-        love.graphics.printf(string.format("Down %s  •  finance %s  •  %d mo at %.2f%%",
-            money(quote.downPayment), money(quote.principal), quote.termMonths, quote.apr),
-            rect.x + 10, rect.y + 48, 242, "left")
+        love.graphics.setColor(0.72, 0.81, 0.81)
+        love.graphics.printf(string.format("Down %s  •  loan %s",
+            money(quote.downPayment), money(quote.principal)),
+            rect.x + 10, rect.y + 46, 242, "left")
+        love.graphics.printf(string.format("%d mo  •  %.2f%% APR",
+            quote.termMonths, quote.apr), rect.x + 10, rect.y + 60, 242, "left")
         local hovered = quote.eligible and pointerX and contains(action, pointerX, pointerY)
-        love.graphics.setColor(quote.eligible and (hovered and 0.19 or 0.12) or 0.08,
-            quote.eligible and (hovered and 0.55 or 0.42) or 0.15, quote.eligible and 0.29 or 0.16)
-        love.graphics.rectangle("fill", action.x, action.y, action.width, action.height, 3, 3)
-        love.graphics.setColor(quote.eligible and 0.95 or 0.52, quote.eligible and 0.97 or 0.56,
-            quote.eligible and 0.94 or 0.55)
-        love.graphics.printf(quote.eligible and ("REVIEW  " .. money(quote.monthlyPayment) .. "/mo")
-            or "SAVE TO APPLY", action.x + 2, action.y + 9, action.width - 4, "center")
+        drawComputerButton(action,
+            quote.eligible and ("REVIEW\n" .. money(quote.monthlyPayment) .. "/mo")
+                or "SAVE TO\nAPPLY",
+            quote.eligible and (hovered and "primaryHover" or "primary") or "disabled")
     end
 
     local visibleLoans = 0
@@ -2141,13 +2281,10 @@ local function drawCredit(state, pointerX, pointerY)
                 or ("NEXT " .. money(loan.monthlyPayment) .. " payment")
             local ready = loan.installmentsDue > 0 and (state.money or 0) >= loan.amountDue + loan.feesDue
             local hovered = ready and pointerX and contains(action, pointerX, pointerY)
-            love.graphics.setColor(ready and (hovered and 0.19 or 0.12) or 0.08, ready and 0.46 or 0.16,
-                ready and 0.29 or 0.17)
-            love.graphics.rectangle("fill", action.x, action.y, action.width, action.height, 3, 3)
-            love.graphics.setColor(ready and 0.95 or 0.52, ready and 0.96 or 0.56, ready and 0.93 or 0.55)
-            love.graphics.printf(ready and ("PAY " .. money(loan.amountDue + loan.feesDue))
-                or loan.installmentsDue > 0 and "NEED CASH" or "NOT DUE",
-                action.x + 2, action.y + 8, action.width - 4, "center")
+            drawComputerButton(action,
+                ready and ("PAY " .. money(loan.amountDue + loan.feesDue))
+                    or loan.installmentsDue > 0 and "NEED CASH" or "NOT DUE",
+                ready and (hovered and "primaryHover" or "primary") or "disabled")
             love.graphics.setColor(0.68, 0.77, 0.77)
             love.graphics.print(dueLabel, rect.x + 10, rect.y + 53)
         end
@@ -2187,15 +2324,10 @@ local function drawCredit(state, pointerX, pointerY)
             love.graphics.print("Late fees may apply after 15 days; late payments affect credit after 30 days.", 176, 447)
             local signHover = pointerX and contains(CREDIT_SIGN, pointerX, pointerY)
             local cancelHover = pointerX and contains(CREDIT_CANCEL, pointerX, pointerY)
-            love.graphics.setColor(signHover and 0.19 or 0.12, signHover and 0.55 or 0.42, 0.29)
-            love.graphics.rectangle("fill", CREDIT_SIGN.x, CREDIT_SIGN.y, CREDIT_SIGN.width, CREDIT_SIGN.height, 3, 3)
-            love.graphics.setColor(0.95, 0.97, 0.94)
-            love.graphics.printf("SIGN & ORDER", CREDIT_SIGN.x, CREDIT_SIGN.y + 14, CREDIT_SIGN.width, "center")
-            love.graphics.setColor(cancelHover and 0.30 or 0.18, 0.25, 0.24)
-            love.graphics.rectangle("fill", CREDIT_CANCEL.x, CREDIT_CANCEL.y,
-                CREDIT_CANCEL.width, CREDIT_CANCEL.height, 3, 3)
-            love.graphics.setColor(0.91, 0.93, 0.90)
-            love.graphics.printf("CANCEL", CREDIT_CANCEL.x, CREDIT_CANCEL.y + 14, CREDIT_CANCEL.width, "center")
+            drawComputerButton(CREDIT_SIGN, "SIGN & ORDER",
+                signHover and "primaryHover" or "primary")
+            drawComputerButton(CREDIT_CANCEL, "CANCEL",
+                cancelHover and "dangerHover" or "danger")
         end
     end
 end
@@ -2225,13 +2357,9 @@ local function drawEmail(state, pointerX, pointerY, assets)
             434, 278, 392, "left")
         love.graphics.setColor(0.58, 0.67, 0.68)
         love.graphics.print("ADD YOUR OWN MESSAGE — MORE DETAIL HELPS", 434, 320)
-        love.graphics.setColor(ComputerScreen.promoFocused and 0.08 or 0.06, 0.12, 0.14, 1)
-        love.graphics.rectangle("fill", PROMO_INPUT.x, PROMO_INPUT.y,
-            PROMO_INPUT.width, PROMO_INPUT.height, 3, 3)
-        love.graphics.setColor(ComputerScreen.promoFocused and 0.46 or 0.25,
-            ComputerScreen.promoFocused and 0.75 or 0.40, 0.48, 1)
-        love.graphics.rectangle("line", PROMO_INPUT.x, PROMO_INPUT.y,
-            PROMO_INPUT.width, PROMO_INPUT.height, 3, 3)
+        panel(PROMO_INPUT, { 0.045, 0.085, 0.10, 1 },
+            ComputerScreen.promoFocused and { 0.32, 0.78, 0.73, 1 }
+                or { 0.20, 0.34, 0.39, 1 }, 3, 1)
         love.graphics.setColor(0.88, 0.91, 0.89)
         local custom = ComputerScreen.promoText
         if custom == "" then custom = "Click here and type a personal note. More characters improve the chance of a new job." end
@@ -2244,10 +2372,9 @@ local function drawEmail(state, pointerX, pointerY, assets)
             434, 474, 392, "center")
         local function promoButton(rect, label, green)
             local hovered = pointerX and contains(rect, pointerX, pointerY)
-            love.graphics.setColor(green and 0.12 or 0.45, green and (hovered and 0.55 or 0.43) or 0.18, 0.25)
-            love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
-            love.graphics.setColor(0.97, 0.98, 0.95)
-            love.graphics.printf(label, rect.x, rect.y + 15, rect.width, "center")
+            drawComputerButton(rect, label, green
+                and (hovered and "primaryHover" or "primary")
+                or (hovered and "dangerHover" or "danger"))
         end
         promoButton(EMAIL_DECLINE, "CANCEL", false)
         promoButton(PROMO, "SEND 10% OFFER", true)
@@ -2272,23 +2399,26 @@ local function drawEmail(state, pointerX, pointerY, assets)
         if email.id == ComputerScreen.selectedEmailId then selected = email end
         local active = email.id == ComputerScreen.selectedEmailId
         local hovered = pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(active and 0.15 or hovered and 0.12 or 0.08,
-            active and 0.39 or hovered and 0.28 or 0.13,
-            active and 0.38 or hovered and 0.27 or 0.17)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 2, 2)
-        love.graphics.setColor(0.92, 0.94, 0.92)
+        panel(rect,
+            active and { 0.08, 0.27, 0.30, 1 }
+                or hovered and { 0.075, 0.17, 0.20, 1 }
+                or { 0.055, 0.085, 0.11, 1 },
+            active and { 0.25, 0.68, 0.68, 1 }
+                or hovered and { 0.23, 0.47, 0.54, 1 }
+                or { 0.15, 0.27, 0.33, 1 }, 3, active and 2 or 1)
+        love.graphics.setColor(active and 0.98 or 0.89, active and 0.99 or 0.93,
+            active and 0.94 or 0.92)
         love.graphics.print(email.sender, rect.x + 8, rect.y + 7)
-        love.graphics.setColor(0.62, 0.70, 0.71)
+        if email.awaitingReply then love.graphics.setColor(0.96, 0.78, 0.35)
+        elseif active then love.graphics.setColor(0.72, 0.91, 0.88)
+        else love.graphics.setColor(0.65, 0.77, 0.80) end
         love.graphics.print(email.awaitingReply and "SENT · WAITING FOR REPLY" or email.subject,
             rect.x + 8, rect.y + 24)
     end
     local function emailPageButton(rect, label, enabled)
         local hovered = enabled and pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(enabled and (hovered and 0.16 or 0.10) or 0.06,
-            enabled and (hovered and 0.40 or 0.24) or 0.09, enabled and 0.27 or 0.10, 1)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
-        love.graphics.setColor(enabled and 0.90 or 0.38, enabled and 0.94 or 0.43, enabled and 0.92 or 0.44)
-        love.graphics.printf(label, rect.x, rect.y + 8, rect.width, "center")
+        drawComputerButton(rect, label,
+            not enabled and "disabled" or hovered and "hover" or "secondary")
     end
     emailPageButton(EMAIL_PREVIOUS, "<", ComputerScreen.emailPage > 1)
     emailPageButton(EMAIL_NEXT, ">", ComputerScreen.emailPage < maximumEmailPage)
@@ -2330,22 +2460,17 @@ local function drawEmail(state, pointerX, pointerY, assets)
         love.graphics.printf("This is an automated maintenance message from your blade technician.",
             434, 424, 392, "left")
         local hovered = pointerX and contains(EMAIL_DECLINE, pointerX, pointerY)
-        love.graphics.setColor(hovered and 0.18 or 0.12, hovered and 0.48 or 0.36, 0.29)
-        love.graphics.rectangle("fill", EMAIL_DECLINE.x, EMAIL_DECLINE.y,
-            EMAIL_DECLINE.width, EMAIL_DECLINE.height, 3, 3)
-        love.graphics.setColor(0.96, 0.98, 0.95)
-        love.graphics.printf("ARCHIVE NOTICE", EMAIL_DECLINE.x, EMAIL_DECLINE.y + 15,
-            EMAIL_DECLINE.width, "center")
+        drawComputerButton(EMAIL_DECLINE, "ARCHIVE NOTICE",
+            hovered and "hover" or "secondary")
         return
     end
     if not selected.job then
         if selected.applicationId then
             love.graphics.setColor(.96,.84,.30,1)
             love.graphics.print("RESUME / EMPLOYMENT THREAD",434,392)
-            love.graphics.setColor(.12,.36,.29,1)
-            love.graphics.rectangle("fill",EMAIL_ACCEPT.x,EMAIL_ACCEPT.y,EMAIL_ACCEPT.width,EMAIL_ACCEPT.height,3,3)
-            love.graphics.setColor(.96,.98,.95,1)
-            love.graphics.printf("OPEN RESUME",EMAIL_ACCEPT.x,EMAIL_ACCEPT.y+13,EMAIL_ACCEPT.width,"center")
+            local hovered = pointerX and contains(EMAIL_ACCEPT, pointerX, pointerY)
+            drawComputerButton(EMAIL_ACCEPT, "OPEN RESUME",
+                hovered and "primaryHover" or "primary")
         end
         local heading = selected.noticeKind == "receipt" and "ORDER RECEIPT"
             or selected.noticeKind == "salesman_confirmation" and "SALESMAN CONFIRMATION"
@@ -2364,12 +2489,8 @@ local function drawEmail(state, pointerX, pointerY, assets)
             love.graphics.print("Total paid: " .. money(selected.total), 434, 446)
         end
         local hovered = pointerX and contains(EMAIL_DECLINE, pointerX, pointerY)
-        love.graphics.setColor(hovered and 0.18 or 0.12, hovered and 0.48 or 0.36, 0.29)
-        love.graphics.rectangle("fill", EMAIL_DECLINE.x, EMAIL_DECLINE.y,
-            EMAIL_DECLINE.width, EMAIL_DECLINE.height, 3, 3)
-        love.graphics.setColor(0.96, 0.98, 0.95)
-        love.graphics.printf("ARCHIVE EMAIL", EMAIL_DECLINE.x, EMAIL_DECLINE.y + 15,
-            EMAIL_DECLINE.width, "center")
+        drawComputerButton(EMAIL_DECLINE, "ARCHIVE EMAIL",
+            hovered and "hover" or "secondary")
         return
     end
     local job = selected.job
@@ -2410,13 +2531,9 @@ local function drawEmail(state, pointerX, pointerY, assets)
             money(selected.standardPrice), money(selected.discountAmount), money(selected.discountedTotal))
     end
     love.graphics.printf(quoteSummary, EMAIL_QUOTE_INPUT.x + 170, 454, 222, "right")
-    love.graphics.setColor(0.06, 0.11, 0.13, 1)
-    love.graphics.rectangle("fill", EMAIL_QUOTE_INPUT.x, EMAIL_QUOTE_INPUT.y,
-        EMAIL_QUOTE_INPUT.width, EMAIL_QUOTE_INPUT.height, 3, 3)
-    love.graphics.setColor(ComputerScreen.quoteFocused and 0.48 or 0.28,
-        ComputerScreen.quoteFocused and 0.77 or 0.43, 0.50, 1)
-    love.graphics.rectangle("line", EMAIL_QUOTE_INPUT.x, EMAIL_QUOTE_INPUT.y,
-        EMAIL_QUOTE_INPUT.width, EMAIL_QUOTE_INPUT.height, 3, 3)
+    panel(EMAIL_QUOTE_INPUT, { 0.045, 0.085, 0.10, 1 },
+        ComputerScreen.quoteFocused and { 0.32, 0.78, 0.73, 1 }
+            or { 0.20, 0.34, 0.39, 1 }, 3, 1)
     love.graphics.setColor(0.96, 0.96, 0.92)
     love.graphics.print("$", EMAIL_QUOTE_INPUT.x + 10, EMAIL_QUOTE_INPUT.y + 13)
     love.graphics.printf(ComputerScreen.quoteText .. (ComputerScreen.quoteFocused and "_" or ""),
@@ -2425,11 +2542,9 @@ local function drawEmail(state, pointerX, pointerY, assets)
 
     local function responseButton(rect, label, green)
         local hovered = pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(green and (hovered and 0.18 or 0.12) or (hovered and 0.70 or 0.57),
-            green and (hovered and 0.55 or 0.43) or 0.18, green and 0.28 or 0.17)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
-        love.graphics.setColor(0.98, 0.98, 0.96)
-        love.graphics.printf(label, rect.x, rect.y + 15, rect.width, "center")
+        drawComputerButton(rect, label, green
+            and (hovered and "primaryHover" or "primary")
+            or (hovered and "dangerHover" or "danger"))
     end
     responseButton(EMAIL_DECLINE, "DECLINE REQUEST", false)
     responseButton(EMAIL_ACCEPT, "SEND ESTIMATE", true)
@@ -2450,10 +2565,7 @@ local function drawCalendar(state, pointerX, pointerY)
         { 0.065, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
     local function navButton(rect, label)
         local hovered = pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(hovered and 0.16 or 0.10, hovered and 0.40 or 0.25, 0.28)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
-        love.graphics.setColor(0.92, 0.95, 0.93)
-        love.graphics.printf(label, rect.x, rect.y + 9, rect.width, "center")
+        drawComputerButton(rect, label, hovered and "hover" or "secondary")
     end
     navButton(CAL_PREVIOUS, "<")
     navButton(CAL_NEXT, ">")
@@ -2483,15 +2595,19 @@ local function drawCalendar(state, pointerX, pointerY)
         local today = year == state.calendar.year and month == state.calendar.month and day == state.calendar.day
         local selected = day == ComputerScreen.calendarSelectedDay
         local hovered = pointerX and contains(calendarDayRect(year, month, day), pointerX, pointerY)
-        love.graphics.setColor(selected and 0.13 or (today and 0.12 or (hovered and 0.10 or 0.075)),
-            selected and 0.43 or (today and 0.37 or (hovered and 0.20 or 0.11)),
-            selected and 0.42 or (today and 0.36 or (hovered and 0.22 or 0.13)), 1)
-        love.graphics.rectangle("fill", x + 2, y + 2, cellW - 4, cellH - 4, 2, 2)
-        if selected or hovered then
-            love.graphics.setColor(selected and 0.96 or 0.42, selected and 0.84 or 0.70, selected and 0.30 or 0.72, 1)
-            love.graphics.rectangle("line", x + 2, y + 2, cellW - 4, cellH - 4, 2, 2)
-        end
-        love.graphics.setColor(today and 0.96 or 0.78, today and 0.84 or 0.84, today and 0.30 or 0.83)
+        local dayRect = { x = x + 2, y = y + 2, width = cellW - 4, height = cellH - 4 }
+        local dayFill = selected and { 0.09, 0.31, 0.32, 1 }
+            or today and { 0.08, 0.22, 0.23, 1 }
+            or hovered and { 0.075, 0.15, 0.18, 1 }
+            or { 0.055, 0.085, 0.11, 1 }
+        local dayBorder = selected and { 0.96, 0.72, 0.27, 1 }
+            or today and { 0.28, 0.60, 0.48, 1 }
+            or hovered and { 0.24, 0.49, 0.54, 1 }
+            or { 0.15, 0.27, 0.33, 1 }
+        panel(dayRect, dayFill, dayBorder, 2, selected and 2 or 1)
+        love.graphics.setColor((selected or today) and 0.98 or 0.84,
+            (selected or today) and 0.84 or 0.88,
+            (selected or today) and 0.35 or 0.90)
         love.graphics.print(tostring(day), x + 7, y + 6)
         local dayEvents = eventsByDay[day] or {}
         for marker = 1, math.min(4, #dayEvents) do
@@ -2529,11 +2645,8 @@ local function drawCalendar(state, pointerX, pointerY)
     end
     local function scrollButton(rect, label, enabled)
         local hovered = enabled and pointerX and contains(rect, pointerX, pointerY)
-        love.graphics.setColor(enabled and (hovered and 0.16 or 0.10) or 0.06,
-            enabled and (hovered and 0.40 or 0.25) or 0.09, enabled and 0.28 or 0.10, 1)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
-        love.graphics.setColor(enabled and 0.90 or 0.38, enabled and 0.94 or 0.43, enabled and 0.92 or 0.44)
-        love.graphics.printf(label, rect.x, rect.y + 8, rect.width, "center")
+        drawComputerButton(rect, label,
+            not enabled and "disabled" or hovered and "hover" or "secondary")
     end
     scrollButton(CAL_SCROLL_UP, "UP", ComputerScreen.calendarScroll > 0)
     scrollButton(CAL_SCROLL_DOWN, "DOWN", ComputerScreen.calendarScroll < maximumScroll)
@@ -2590,42 +2703,44 @@ local function drawCalendar(state, pointerX, pointerY)
 end
 
 function ComputerScreen.draw(state, pointerX, pointerY, assets)
+    buttonDrawPointerX, buttonDrawPointerY = pointerX, pointerY
     love.graphics.setColor(0.01, 0.02, 0.03, 0.76)
     love.graphics.rectangle("fill", 0, 0, Config.baseWidth, Config.baseHeight)
-    drawMonitorFrame()
+    drawMonitorFrame(state)
     panel(PANEL, { 0.035, 0.05, 0.065, 0.99 }, { 0.31, 0.56, 0.58, 1 })
     drawCritterNetChrome(assets)
-    love.graphics.setColor(0.95, 0.84, 0.30)
-    love.graphics.print("PICTURE SHOP JOB DESK", 82, 54)
-    love.graphics.setColor(0.72, 0.79, 0.80)
-    love.graphics.print("Cash", 82, 88)
-    love.graphics.setColor(0.95, 0.84, 0.30)
-    love.graphics.print(money(state.money), 128, 88)
-    love.graphics.setColor(0.72, 0.79, 0.80)
-    love.graphics.print("Accounts receivable", 250, 88)
-    love.graphics.setColor(0.54, 0.84, 0.65)
-    love.graphics.print(money(state.accountsReceivable), 390, 88)
-    love.graphics.setColor(0.72, 0.79, 0.80)
+    love.graphics.setColor(0.96, 0.94, 0.84, 1)
+    love.graphics.print("PICTURE SHOP JOB DESK", 166, 46)
+    love.graphics.setColor(0.42, 0.70, 0.68, 0.92)
+    love.graphics.rectangle("fill", 428, 42, 1, 23)
     local reputation = Reputation.ensure(state)
-    local reputationTier = Reputation.tier(reputation)
-    love.graphics.print("Reputation", 530, 88)
-    love.graphics.setColor(0.90, 0.92, 0.90)
-    love.graphics.print(string.format("%d %s", reputation.score, reputationTier), 606, 88)
-    love.graphics.setColor(0.72, 0.79, 0.80)
-    love.graphics.print(BusinessCalendar.shortDate(state), 744, 88)
-    love.graphics.setColor(.97,.87,.42,1)
-    love.graphics.print("TIME "..BusinessCalendar.timeText(state),744,112)
-
+    local summary = {
+        { label = "CASH", value = money(state.money), x = 437, width = 76,
+            valueColor = { 0.52, 0.96, 0.67, 1 } },
+        { label = "A/R", value = money(state.accountsReceivable), x = 515, width = 76,
+            valueColor = { 0.91, 0.95, 0.86, 1 } },
+        { label = "REP", value = tostring(reputation.score), x = 593, width = 76,
+            valueColor = { 1.00, 0.83, 0.47, 1 } },
+    }
+    for _, item in ipairs(summary) do
+        love.graphics.setColor(0.71, 0.83, 0.78, 1)
+        love.graphics.printf(item.label, item.x, 39, item.width, "center")
+        love.graphics.setColor(item.valueColor)
+        printCenteredFit(item.value, item.x, 52, item.width)
+    end
     BackButton.draw(assets, CLOSE, "BACK", pointerX, pointerY, false)
 
     if ComputerScreen.tab == "clock" then
-        require("src.screens.shop_clock").drawPanel(state,{x=82,y=184,width=792,height=444})
+        require("src.screens.shop_clock").drawPanel(state,
+            {x=82,y=184,width=792,height=444},true,
+            ComputerScreen.gameClockSpeed(),ComputerScreen.canChangeGameClockSpeed(),
+            pointerX,pointerY,drawComputerButton)
     elseif ComputerScreen.tab == "inventory" then
         drawInventory(state)
     elseif ComputerScreen.tab == "hiring" then
-        Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,dependencies.remoteCommand~=nil)
+        Hiring.draw(state,ComputerScreen.hiring,pointerX,pointerY,dependencies.remoteCommand~=nil,drawComputerButton)
     elseif ComputerScreen.tab == "schedule" then
-        ComputerScreen.drawSchedule(state,pointerX,pointerY)
+        ComputerScreen.drawSchedule(state,pointerX,pointerY,drawComputerButton)
     elseif ComputerScreen.tab == "warehouse" then
         drawWarehouse(state,pointerX,pointerY,assets)
     elseif ComputerScreen.tab == "www" then
@@ -2644,6 +2759,7 @@ function ComputerScreen.draw(state, pointerX, pointerY, assets)
         drawDetail(state, pointerX, pointerY, assets)
     end
     drawTabSelector(pointerX, pointerY)
+    buttonDrawPointerX, buttonDrawPointerY = nil, nil
 end
 
 return ComputerScreen

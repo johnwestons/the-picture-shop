@@ -3,6 +3,7 @@ local Contracts=require("src.employment_contracts")
 local Payroll=require("src.payroll")
 local Work=require("src.employee_work")
 local Schedule=require("src.employee_schedule")
+local Fleet=require("src.machine_fleet")
 local Calendar=require("src.business_calendar")
 local PlayerController=require("src.player_controller")
 local Navigation=require("src.navigation")
@@ -64,14 +65,14 @@ local function route(a,goal,context)
     return points
 end
 function AI.move(a,goal,dt,context)
-    if distance(a,goal)<3 then stop(a);return true end
+    if distance(a,goal)<3 then stop(a);return true,false end
     local cached=paths[a]
-    if not cached or distance(cached.goal,goal)>2 or cached.blocked>.4 then
+    if not cached or distance(cached.goal,goal)>2 or cached.blocked>1 then
         cached={points=route(a,goal,context),goal={x=goal.x,y=goal.y},blocked=0}
         paths[a]=cached
     end
     if not cached.points or #cached.points==0 then
-        stop(a);cached.blocked=cached.blocked+dt;return false
+        stop(a);cached.blocked=cached.blocked+dt;return false,cached.blocked>.4
     end
     local target=cached.points[1]
     if distance(a,target)<5 then table.remove(cached.points,1);target=cached.points[1] or goal end
@@ -91,7 +92,7 @@ function AI.move(a,goal,dt,context)
         a.intentX,a.intentY=beforeIntentX,beforeIntentY
         a.idleClock=priorIdle+dt;cached.blocked=cached.blocked+dt
     end
-    return distance(a,goal)<3
+    return distance(a,goal)<3,cached.blocked>.4
 end
 local function visiting(e)
     for _,a in ipairs(e.applications) do if a.actor.visible then return a end end
@@ -131,15 +132,67 @@ local function breakChoice(w,now)
 end
 local function beginBreak(state,w,b,context)
     if not Work.release(state,w) then return false end
+    w._trainingMachineId=nil
     w.breaksTaken=w.breaksTaken+(b.bit or 0);w.breakKind=b.kind;w.breakRemaining=b.duration
     local seat=context.freeSeat(w)
     w.seatBay=seat and seat.bayId or nil;w.phase=seat and "break_walk" or "break"
     w.activity=seat and "Walking to breakroom" or "Resting beside workstation"
     return true
 end
+local function trainingStep(state,w,dt,hours,context)
+    local training=w.training
+    if not training then return false end
+    local model=training.skill=="press" and "heidelberg_10x15" or "skid_wrapper"
+    local units=Fleet.installedUnits(state,model)
+    local machine=units[1]
+    if not machine then
+        w._trainingMachineId=nil
+        w.phase="idle";w.activity="Training paused - the required machine is unavailable"
+        return false
+    end
+    if Employees.reservation(state,machine.id,nil,w.id) or context.canClaim and not context.canClaim(machine.id) then
+        w._trainingMachineId=nil
+        w.phase="idle";w.activity="Waiting for the training machine to be released"
+        return false
+    end
+    local goal=context.operatorPoint(machine.id,w)
+    if not goal then
+        w._trainingMachineId=nil
+        w.phase="idle";w.activity="Waiting beside the training machine"
+        return false
+    end
+    w._trainingMachineId=machine.id
+    local reached,blocked=AI.move(w,goal,dt,context)
+    if not reached then
+        w.phase="walking";w.activity=blocked and "Training access is blocked" or "Walking to training machine"
+        return false
+    end
+    w.phase="working"
+    w._trainingClock=(w._trainingClock or 0)+hours
+    if w._trainingClock<.05 then
+        w.activity=string.format("Training %s: %.1f paid hours remaining",
+            training.skill=="press" and "on the printing press" or "on the skid wrapper",training.remainingHours)
+        return false
+    end
+    local elapsed=w._trainingClock
+    w._trainingClock=0
+    training.remainingHours=math.max(0,training.remainingHours-elapsed)
+    if training.remainingHours<=0.000001 then
+        local field=training.skill=="press" and "pressSkill" or "wrappingSkill"
+        w[field]=math.max(w[field],training.target)
+        local label=training.skill=="press" and "printing press" or "pallet wrapping"
+        w.training=nil;w._trainingClock=nil;w._trainingMachineId=nil;w.phase="idle"
+        w.activity=label:gsub("^%l",string.upper).." training complete"
+        return true
+    end
+    w.activity=string.format("Training %s: %.1f paid hours remaining",
+        training.skill=="press" and "on the printing press" or "on the skid wrapper",training.remainingHours)
+    return true
+end
 function AI.worker(state,w,dt,now,context)
     local day=Contracts.shiftDay(w.contract,now)
-    local onShift=w.status=="employed" and not w.terminationRequested and Contracts.onShift(w.contract,now)
+    local onShift=w.status=="employed" and not w.terminationRequested
+        and w.sentHomeShiftDay~=day and Contracts.onShift(w.contract,now)
     local overdue=Payroll.overdueSince(w,now)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
     if onShift and not w.visible then
@@ -148,20 +201,23 @@ function AI.worker(state,w,dt,now,context)
         if w.shiftDay~=day then w.shiftDay=day;w.breaksTaken=0;w.fatigue=math.max(0,w.fatigue-60);w.focus=math.min(100,w.focus+50) end
     end
     if not w.visible then
-        if w.stopRequested and Work.safe(w) then Work.release(state,w);w.assignment=nil;w.stopRequested=false;return true end
+        if w.stopRequested and Work.safe(w,state) then Work.release(state,w);w.assignment=nil;w.stopRequested=false;return true end
         if w.terminationRequested then w.status=w.resigning and "resigned" or "dismissed" end
         return false
     end
     if not onShift or w.stopRequested then
-        if Work.safe(w) then
+        w._trainingMachineId=nil
+        if Work.safe(w,state) then
             Work.release(state,w);w.seatBay=nil;w.breakKind=nil
             if w.stopRequested then w.assignment=nil;w.stopRequested=false end
             if not onShift then
+                local rolledOver=Schedule.rollover(state,w,now)
                 w.phase="leaving";w.clockedIn=false
-                w.activity=w.assignment and "Off shift - unfinished job resumes next working shift" or "Shift ended"
+                w.activity=rolledOver and "Handing unfinished jobs to the next shift"
+                    or (w.assignment and "Off shift - unfinished job resumes next working shift" or "Shift ended")
             end
         else
-            w.activity="Finishing safe cutter cycle";return false
+            w.activity="Finishing safe machine cycle";return false
         end
     end
     if w.phase=="leaving" then
@@ -189,23 +245,47 @@ function AI.worker(state,w,dt,now,context)
     else
         local b=breakChoice(w,now)
         if (w.fatigue>=90 or w.focus<=20) then b={bit=0,kind="rest",duration=.25} end
-        if b and Work.safe(w) then beginBreak(state,w,b,context)
+        if b and Work.safe(w,state) then beginBreak(state,w,b,context)
         elseif overdue then
-            if Work.safe(w) then Work.release(state,w);w.phase="idle";stop(w);w.activity="Waiting for overdue wages" end
+            if Work.safe(w,state) then Work.release(state,w);w.phase="idle";stop(w);w.activity="Waiting for overdue wages" end
+        elseif w.training then
+            local progressed=trainingStep(state,w,dt,hours,context)
+            w.fatigue=math.min(100,w.fatigue+hours*(w.phase=="working" and 5 or 2))
+            w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 3 or 1))
+            return progressed
         else
             local scheduleChanged=Schedule.advance(state,w,now)
             if w.assignment then
                 local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,
                     move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
-                local changed=Work.update(state,w,dt,workContext)
+                local changed,blockedReason=Work.update(state,w,dt,workContext)
+                local deferred=false
+                if blockedReason=="Machine access is blocked" and w.assignment and Work.safe(w,state) then
+                    Work.release(state,w)
+                    w.assignment=nil
+                    w._scheduleRetryAtHours=now+.1
+                end
+                if blockedReason and w.assignment and w.assignment.scheduleItemId then
+                    w._blockedWorkHours=(w._blockedWorkHours or 0)+hours
+                    if w._blockedWorkHours>=.1 and w.schedule and #w.schedule.items>1 and Work.safe(w,state) then
+                        if Work.release(state,w) and Schedule.deferBlocked(state,w) then
+                            stop(w);deferred=true
+                        end
+                    end
+                else
+                    w._blockedWorkHours=0
+                end
                 w.fatigue=math.min(100,w.fatigue+hours*(w.phase=="working" and 8 or 3))
                 w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 6 or 2))
-                return changed or scheduleChanged
+                return changed or scheduleChanged or deferred
             else
                 local point=context.idlePoint(w)
+                local q=Schedule.ensure(w)
+                if q.enabled and #q.items>0 and w._waitingMachineId and context.operatorPoint then
+                    point=context.operatorPoint(w._waitingMachineId,w) or point
+                end
                 if AI.move(w,point,dt,context) then
                     w.phase="idle";w.idleClock=w.idleClock+dt
-                    local q=Schedule.ensure(w)
                     if not q.enabled then w.activity="Work schedule paused"
                     elseif #q.items==0 then w.activity=#q.history>0 and "Work schedule complete" or "Waiting for assignment" end
                 end
@@ -233,7 +313,7 @@ function AI.update(state,dt,context)
         applications(state,realDt,nextAt,context)
         for _,w in ipairs(e.staff) do
             local oldClocked=w.clockedIn
-            Payroll.accrue(w,at,nextAt,not Work.safe(w),state)
+            Payroll.accrue(w,at,nextAt,not Work.safe(w,state),state)
             if AI.worker(state,w,realDt,nextAt,context) or oldClocked~=w.clockedIn then changed=true end
         end
         at=nextAt

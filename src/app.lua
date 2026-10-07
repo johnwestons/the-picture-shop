@@ -151,11 +151,47 @@ local function isAndroidPlatform()
         and love.system.getOS() == "Android"
 end
 
-local function cameraTransformsUi()
-    return App.mobileCamera and App.mobileCamera:isEnabled() and state.screen ~= "world"
+App.syncPlayerColorways = function()
+    if not World.player then return end
+    local settings = App.settings or Settings.DEFAULTS
+    World.player.furColorway = settings.furColorway or 1
+    World.player.overallsColorway = settings.overallsColorway or 1
 end
 
-local function cameraTransformsWorld()
+App.gameClockSpeed = 1
+App.gameClockSyncClock = 0
+App.gameClockSaveClock = 0
+App.setGameClockSpeed = function(speed)
+    if multiplayer:isClient() then
+        state.message = "Only the host can change game speed."
+        return false
+    end
+    if speed ~= 1 and speed ~= 2 and speed ~= 5 and speed ~= 10 then
+        state.message = "Choose 1x, 2x, 5x, or 10x game speed."
+        return false
+    end
+    local changed = App.gameClockSpeed ~= speed
+    App.gameClockSpeed = speed
+    if changed and multiplayer:isHost() then
+        App.gameClockSyncClock = 0
+        multiplayer:markShopDirty(true)
+    end
+    state.message = speed == 1 and "Game speed set to normal."
+        or ("Game speed set to " .. tostring(speed) .. "x.")
+    return true
+end
+
+function App.officeFitsScreen()
+    return state.screen == "computer"
+        or state.screen == "workshop_remote" and WorkshopRemoteScreen.resourceId == "office_computer"
+end
+
+function App.cameraTransformsUi()
+    return App.mobileCamera and App.mobileCamera:isEnabled() and state.screen ~= "world"
+        and not App.officeFitsScreen()
+end
+
+function App.cameraTransformsWorld()
     return state.screen == "world" and App.mobileCamera
         and (App.mobileCamera:isEnabled() or App.settings and App.settings.followPlayerCamera)
 end
@@ -166,13 +202,13 @@ local function cameraViewKey()
 end
 
 local function syncCamera()
-    local bounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight)
+    local bounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight, App.officeFitsScreen())
     if App.mobileCamera then
         App.mobileCamera:setViewport(bounds.width, bounds.height)
-        if cameraTransformsWorld() or cameraTransformsUi() then
+        if App.cameraTransformsWorld() or App.cameraTransformsUi() then
             App.mobileCamera:selectView(cameraViewKey(), state.screen == "world")
         end
-        App.mobileCamera:setFollowTarget(cameraTransformsWorld() and App.settings
+        App.mobileCamera:setFollowTarget(App.cameraTransformsWorld() and App.settings
             and App.settings.followPlayerCamera and World.player or nil)
     end
     return bounds
@@ -180,9 +216,32 @@ end
 
 local function toPointerCoordinates(x, y)
     syncCamera()
-    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight)
-    if cameraTransformsUi() then return App.mobileCamera:screenToWorld(gameX, gameY) end
+    local gameX, gameY = Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight, App.officeFitsScreen())
+    if App.cameraTransformsUi() then return App.mobileCamera:screenToWorld(gameX, gameY) end
     return gameX, gameY
+end
+
+local function optionsAccessLayout()
+    local screen, machineScreen = state.screen, MachineScreen
+    if screen == "workshop_remote" then
+        local resource = WorkshopRemoteScreen.resourceId
+        if resource == "office_computer" then screen = "computer"
+        elseif WorkshopRemoteScreen.sharedMachine then
+            screen, machineScreen = "machine", WorkshopRemoteScreen.sharedMachine
+        elseif WorkshopRemoteScreen.sharedPress then screen = "press"
+        elseif resource == "work_phone" then screen = "work_phone"
+        elseif resource == "vendor" then screen = "vendor"
+        elseif resource == "truck" then screen = "truck_inventory"
+        elseif resource == "reception_customer" then screen = "job_offer" end
+    end
+    if screen == "machine" and (machineScreen.helpOpen or machineScreen.maintenanceView) then
+        screen = "machine_service"
+    end
+    local bounds
+    if screen == "world" and mobileControls and mobileControls:isEnabled() then
+        bounds = Viewport.gameBounds(Config.baseWidth, Config.baseHeight)
+    end
+    return screen, bounds
 end
 
 local function saveCurrent()
@@ -196,7 +255,11 @@ end
 local function startGame(payload, mode)
     local applied, windmillSanitized = State.applyLocalSave(state, payload)
     if not applied then return false, "That shop save could not be opened safely." end
+    App.gameClockSpeed = 1
+    App.gameClockSyncClock = 0
+    App.gameClockSaveClock = 0
     World.load(payload.player)
+    App.syncPlayerColorways()
     Machine.reset()
     Wrapper.clearInstances()
     Windmill.resetNetworkRuntime()
@@ -1526,6 +1589,8 @@ local function startLanHost(slot, playerName)
         port = 22122,
         name = hostName,
         character = Config.player.character,
+        furColorway = App.settings and App.settings.furColorway or 1,
+        overallsColorway = App.settings and App.settings.overallsColorway or 1,
     })
     if not ok then
         clearWorkshopAuthority("host_start_failed")
@@ -1572,6 +1637,8 @@ local function startLanClient(address, playerName, reconnecting)
     local ok, message = multiplayer:startClient(address, {
         name = playerName,
         character = Config.player.character,
+        furColorway = App.settings and App.settings.furColorway or 1,
+        overallsColorway = App.settings and App.settings.overallsColorway or 1,
     })
     if not ok and reconnecting ~= true then startLanSearch() end
     return ok, message
@@ -2058,6 +2125,8 @@ function DirectIpv4Runtime.prepareGuest(hostCode, playerName)
     local joined, joinError = multiplayer:startClient(endpoint, {
         name = tostring(playerName or "Direct Worker"),
         character = Config.player.character,
+        furColorway = App.settings and App.settings.furColorway or 1,
+        overallsColorway = App.settings and App.settings.overallsColorway or 1,
         networkKind = "direct",
         transportFactory = transportFactory,
     })
@@ -2314,6 +2383,7 @@ openOptions = function()
                 or layout
             Settings.save(App.settings)
         end,
+        applyPlayerColorways = App.syncPlayerColorways,
         onClose = closeOptions,
     })
     state.screen = "options"
@@ -2588,7 +2658,7 @@ local inputContext = {
     returnToTitle = returnToTitle,
     worldPointerCoordinates = function(x, y)
         syncCamera()
-        if cameraTransformsWorld() then
+        if App.cameraTransformsWorld() then
             return App.mobileCamera:screenToWorld(x, y)
         end
         return x, y
@@ -2602,7 +2672,7 @@ local function pointerPosition()
     if mobileControls and mobileControls:isEnabled() then
         local x, y = mobileControls:pointer()
         if x and y then
-            if cameraTransformsUi() then return App.mobileCamera:screenToWorld(x, y) end
+            if App.cameraTransformsUi() then return App.mobileCamera:screenToWorld(x, y) end
             return x, y
         end
     end
@@ -2663,7 +2733,7 @@ local function dispatchGameMousePressed(gameX, gameY, button)
         local result = OptionsScreen.mousepressed(gameX, gameY, button)
         syncMobileKeyboard()
         return result
-    elseif button == 1 and OptionsScreen.accessHit(gameX, gameY) then
+    elseif button == 1 and OptionsScreen.accessHit(gameX, gameY, optionsAccessLayout()) then
         return openOptions()
     elseif state.screen == "lan" then
         local result = LanScreen.mousepressed(gameX, gameY, button)
@@ -2696,7 +2766,7 @@ local function dispatchMousePressed(x, y, button)
         local result = OptionsScreen.mousepressed(gameX, gameY, button)
         syncMobileKeyboard()
         return result
-    elseif button == 1 and OptionsScreen.accessHit(gameX, gameY) then
+    elseif button == 1 and OptionsScreen.accessHit(gameX, gameY, optionsAccessLayout()) then
         return openOptions()
     elseif state.screen == "lan" then
         local result = LanScreen.mousepressed(gameX, gameY, button)
@@ -2964,10 +3034,18 @@ end
 function App.load()
     World.configureEmployees({players=function() return multiplayer:remotePlayers() end,
         canClaim=function(machineId)
-            if state.screen=="machine" and state.machineType=="cutter"
-                and (state.machineId==nil or state.machineId==machineId) then return false end
-            return not workshopAuthority or (not workshopAuthority:leaseForResource("cutter")
-                and not workshopAuthority:leaseForResource(MachineResource.forUnit("cutter",machineId)))
+            local unit=MachineFleet.byId(state,machineId)
+            local base=unit and (unit.modelId=="polar_115" and "cutter"
+                or unit.modelId=="skid_wrapper" and "skid_wrapper"
+                or unit.modelId=="heidelberg_10x15" and "windmill")
+            if not base then return false end
+            local playerUsing=(state.screen=="machine" and state.machineType==base
+                or state.screen=="press" and base=="windmill")
+                and (state.machineId==nil or state.machineId==machineId)
+            if playerUsing then return false end
+            local resource=MachineResource.forUnit(base,machineId)
+            return not workshopAuthority or (not workshopAuthority:leaseForResource(base)
+                and not workshopAuthority:leaseForResource(resource))
         end})
     ComputerScreen.configureWarehouse({enabled=Config.warehouse.enabled,
         firstStorageOnly=Config.warehouse.firstStorageOnly,
@@ -2982,6 +3060,11 @@ function App.load()
                 warehouseFirstStorageOnly=Config.warehouse.firstStorageOnly})
                 .perform({},warehousePlayer(),{officeIntent=intent})
         end})
+    ComputerScreen.configureGameClock({
+        getSpeed=function() return App.gameClockSpeed or 1 end,
+        canChange=function() return not multiplayer:isClient() end,
+        setSpeed=function(speed) return App.setGameClockSpeed(speed) end,
+    })
     local Sound = require("src.sound")
     local acceptanceHost, acceptanceHostError = AcceptanceHostBootstrap.plan({
         osName = love.system and love.system.getOS and love.system.getOS() or nil,
@@ -3000,7 +3083,9 @@ function App.load()
     Settings.applyDisplay(App.settings)
     mobileControls = MobileControls.new({
         layout = App.settings.controlLayout,
-        toGame = function(x, y) return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight) end,
+        toGame = function(x, y)
+            return Viewport.toGame(x, y, Config.baseWidth, Config.baseHeight, App.officeFitsScreen())
+        end,
         pressKey = dispatchKeyPressed,
         releaseKey = function(key) Input.keyreleased(key, inputContext) end,
         pressPointer = dispatchMousePressed,
@@ -3009,6 +3094,7 @@ function App.load()
         gameplayActive = function() return state.screen == "world" end,
         gestureActive = function()
             return App.mobileCamera and App.mobileCamera:isEnabled() and not spriteLabActive
+                and not App.officeFitsScreen()
                 and not (state.screen == "options" and OptionsScreen.isControlsTab())
         end,
         primaryAction = primaryMobileAction,
@@ -3063,6 +3149,7 @@ function App.load()
         charactersHealthy and nil or characterFailures)
     if #state.assetErrors == 0 then
         World.load()
+        App.syncPlayerColorways()
         TitleScreen.enter(startGame, openLocalPlay,
             CryptoNative.productionReady == true and openDirectPlay or nil)
     else
@@ -3240,6 +3327,7 @@ local function handleMultiplayerEvents()
                     lanDiscovery:stop()
                 end
                 World.load(event.spawn)
+                App.syncPlayerColorways()
                 state.screen = "world"
                 state.message = "Joined the host shop. Movement, doors, reception, office, cutter, wrapper, and Windmill controls are live."
                 DirectScreen.leave()
@@ -3848,6 +3936,8 @@ function DirectIpv4Runtime.activateHost(record)
             port = 22122,
             name = record.name,
             character = Config.player.character,
+            furColorway = App.settings and App.settings.furColorway or 1,
+            overallsColorway = App.settings and App.settings.overallsColorway or 1,
             networkKind = "direct",
             transportFactory = compositeFactory,
         })
@@ -3958,7 +4048,7 @@ function DirectIpv4Runtime.updateHosts()
     end
 end
 
-local function updateDirectConnection()
+DirectIpv4Runtime.updateConnection = function()
     local connection = directConnection
     if not connection then return end
     local connectionState, connectionError = connection:update()
@@ -4054,6 +4144,8 @@ local function updateDirectConnection()
             port = 22122,
             name = pending.name,
             character = Config.player.character,
+            furColorway = App.settings and App.settings.furColorway or 1,
+            overallsColorway = App.settings and App.settings.overallsColorway or 1,
             networkKind = "direct",
             transportFactory = compositeFactory,
         })
@@ -4088,6 +4180,8 @@ local function updateDirectConnection()
         local joined, joinError = multiplayer:startClient("127.0.0.1:22122", {
             name = pending.name,
             character = Config.player.character,
+            furColorway = App.settings and App.settings.furColorway or 1,
+            overallsColorway = App.settings and App.settings.overallsColorway or 1,
             networkKind = "direct",
             transportFactory = transportFactory,
         })
@@ -4114,11 +4208,12 @@ serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmill
 end
 
 function App.update(dt)
+    App.syncPlayerColorways()
     syncCamera()
     if controller then controller:update(dt) end
     if spriteLabActive then SpriteMotionLab.update(dt, CharacterAssets); return end
     DirectIpv4Runtime.updateHosts()
-    updateDirectConnection()
+    DirectIpv4Runtime.updateConnection()
     updateLanConvenience(dt)
     Machine.setMultiplayerSingleControl(multiplayer:isActive())
     local networkInputX, networkInputY = 0, 0
@@ -4127,15 +4222,37 @@ function App.update(dt)
     local simulationActive = simulationScreen ~= "title"
         and simulationScreen ~= "lan" and simulationScreen ~= "direct"
         and simulationScreen ~= "asset_error"
+    local gameDt = dt
     if not multiplayer:isClient() and simulationActive then
-        local calendarChanged = BusinessCalendar.update(state, dt)
+        gameDt = dt * (App.gameClockSpeed or 1)
+    end
+    if multiplayer:isHost() and simulationActive and App.gameClockSpeed > 1 then
+        App.gameClockSyncClock = App.gameClockSyncClock + dt
+        if App.gameClockSyncClock >= 0.25 then
+            App.gameClockSyncClock = App.gameClockSyncClock % 0.25
+            multiplayer:markShopDirty()
+        end
+    else
+        App.gameClockSyncClock = 0
+    end
+    if not multiplayer:isClient() and simulationActive and App.gameClockSpeed > 1 then
+        App.gameClockSaveClock = App.gameClockSaveClock + dt
+        if App.gameClockSaveClock >= 5 then
+            App.gameClockSaveClock = App.gameClockSaveClock % 5
+            saveCurrent()
+        end
+    else
+        App.gameClockSaveClock = 0
+    end
+    if not multiplayer:isClient() and simulationActive then
+        local calendarChanged = BusinessCalendar.update(state, gameDt)
         local emailArrived = JobService.updateClientEmails(state)
         local technicianChanged = MachineMaintenance.updateTechnician(state)
         if state.screen~="world" and state.forklift and state.forklift.operating
             and state.forklift.operatorPlayerId==1 then
             World.updateNetworkForklift(World.player,0,0,0,Assets,state)
         end
-        local warehouseChanged=World.updateWarehouse(dt,state,Assets)
+        local warehouseChanged=World.updateWarehouse(gameDt,state,Assets)
         local phoneChanged = WorkPhone.update(state)
         if calendarChanged or emailArrived or technicianChanged or phoneChanged then saveCurrent() end
         warehouseSaveClock=warehouseSaveClock+dt
@@ -4159,7 +4276,7 @@ function App.update(dt)
             local cursorX, cursorY
             if not (controller and controller:isActive()) then
                 cursorX, cursorY = pointerPosition()
-                if cameraTransformsWorld() then
+                if App.cameraTransformsWorld() then
                     cursorX, cursorY = App.mobileCamera:screenToWorld(cursorX, cursorY)
                 end
             end
@@ -4180,11 +4297,11 @@ function App.update(dt)
             local cursorX, cursorY
             if not (controller and controller:isActive()) then
                 cursorX, cursorY = pointerPosition()
-                if cameraTransformsWorld() then
+                if App.cameraTransformsWorld() then
                     cursorX, cursorY = App.mobileCamera:screenToWorld(cursorX, cursorY)
                 end
             end
-            if World.update(dt, directionX, directionY, Assets, state, cursorX, cursorY) then saveCurrent() end
+            if World.update(dt, directionX, directionY, Assets, state, cursorX, cursorY, gameDt) then saveCurrent() end
         end
     elseif state.screen == "machine" and not multiplayer:isClient() then
         MachineScreen.update(dt)
@@ -4196,11 +4313,11 @@ function App.update(dt)
     -- World events belong to the host simulation, not to its current screen.
     -- Guests may keep walking and working while the host reads any shop menu.
     if not multiplayer:isClient() and simulationActive and state.screen ~= "world" then
-        if World.updateSimulation(dt, Assets, state) then saveCurrent() end
+        if World.updateSimulation(gameDt, Assets, state) then saveCurrent() end
     end
     local advanceAuthoritativeMachines = not multiplayer:isClient() and simulationActive
     if advanceAuthoritativeMachines then
-        if serviceNetworkBeforeMachine(dt, state, function()
+        if serviceNetworkBeforeMachine(gameDt, state, function()
             updateMultiplayer(dt, networkInputX, networkInputY)
         end, function(machineDt, targetState)
             return Windmill.updateAll(machineDt, targetState)
@@ -4210,7 +4327,7 @@ function App.update(dt)
     else
         updateMultiplayer(dt, networkInputX, networkInputY)
     end
-    if not multiplayer:isClient() and simulationActive and Wrapper.updateAll(dt, state)
+    if not multiplayer:isClient() and simulationActive and Wrapper.updateAll(gameDt, state)
     then
         saveCurrent()
     end
@@ -4226,9 +4343,9 @@ function App.draw()
     love.graphics.clear(0.04, 0.05, 0.07)
     local viewBounds = syncCamera()
     if mobileControls then mobileControls:setBounds(viewBounds) end
-    local mobileWorld = cameraTransformsWorld()
-    local mobileUi = cameraTransformsUi()
-    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not (mobileWorld or mobileUi))
+    local mobileWorld = App.cameraTransformsWorld()
+    local mobileUi = App.cameraTransformsUi()
+    Viewport.beginDraw(Config.baseWidth, Config.baseHeight, not (mobileWorld or mobileUi), App.officeFitsScreen())
     if spriteLabActive then
         SpriteMotionLab.draw(CharacterAssets)
         Viewport.endDraw()
@@ -4308,7 +4425,7 @@ function App.draw()
     end
     if state.screen ~= "options" and state.screen ~= "asset_error" then
         local optionsX, optionsY = pointerPosition()
-        OptionsScreen.drawAccessButton(optionsX, optionsY)
+        OptionsScreen.drawAccessButton(optionsX, optionsY, optionsAccessLayout())
     end
     Ui.drawPressFeedback()
     if controller then controller:draw() end
@@ -4366,7 +4483,7 @@ end
 
 function App.wheelmoved(x, y)
     syncCamera()
-    if cameraTransformsWorld() and y ~= 0 then return App.mobileCamera:zoomBy(1.12 ^ y) end
+    if App.cameraTransformsWorld() and y ~= 0 then return App.mobileCamera:zoomBy(1.12 ^ y) end
     if state.screen == "options" or state.screen == "lan" or state.screen == "direct" then
         return false
     end

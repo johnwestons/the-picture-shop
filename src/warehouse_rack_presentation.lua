@@ -3,8 +3,8 @@
 -- and authored foreground mask around the right-bay anchor.
 local Layout=require("src.warehouse_layout")
 local Presentation={}
-local PATH="assets/source/warehouse-expansion-v1/rack-world-left-v4-five-bay-service-aisle-candidate.png"
-local WIDTH,HEIGHT,ORIGIN_X,ORIGIN_Y,SCALE=1536,1024,736,990,0.23
+local PATH="assets/source/warehouse-expansion-v1/rack-world-left-v6-triangle-fit-candidate.png"
+local WIDTH,HEIGHT,ORIGIN_X,ORIGIN_Y,SCALE_X,SCALE_Y=1536,1024,766.5,634,0.109,0.1875
 local BAY_IDS={front_left=true,front_right=true}
 local function copy(value)
     if type(value)~="table" then return value end
@@ -15,14 +15,14 @@ local function finite(value)
 end
 local function frontMask()
     local polygons={
-        -- Authored front-face sections of the two orange load beams.
-        {126,286,1193,797,1178,828,111,318},
-        {126,468,1193,978,1177,1011,110,500},
+        -- Authored front-face sections of the two straight orange shelf beams.
+        {145,117,1400,631,1385,670,130,156},
+        {145,357,1400,872,1384,923,129,408},
     }
     -- The six front uprights are painted over stored loads after their back
     -- faces and the canonical pallet sprites have been drawn.
-    for _,x in ipairs({160,373,574,781,989,1192}) do
-        polygons[#polygons+1]={x-18,18,x+18,18,x+18,1010,x-18,1010}
+    for _,x in ipairs({145,397,650,903,1156,1390}) do
+        polygons[#polygons+1]={x-22,20,x+22,20,x+22,1008,x-22,1008}
     end
     return polygons
 end
@@ -30,17 +30,19 @@ local function registration(bayId)
     local bay=Layout.bay(bayId)
     local mirror=bayId=="front_right"
     local worldX=(bay.rackStart.x+bay.rackEnd.x)/2
-    local worldY=bay.rackEnd.y
+    local worldY=(bay.rackStart.y+bay.rackEnd.y)/2
+    local direction=mirror and -1 or 1
     local slots={{},{}}
     for row=1,2 do for column=1,5 do
         local point=Layout.rackPoint(bayId,row,column)
-        local sourceX=ORIGIN_X+(mirror and (worldX-point.x) or (point.x-worldX))/SCALE
-        local sourceY=ORIGIN_Y+(point.y-worldY)/SCALE
-        local groundY=ORIGIN_Y+(point.groundY-worldY)/SCALE
+        local sourceX=ORIGIN_X+(point.x-worldX)/(SCALE_X*direction)
+        local sourceY=ORIGIN_Y+(point.y-worldY)/SCALE_Y
+        local groundY=ORIGIN_Y+(point.groundY-worldY)/SCALE_Y
         slots[row][column]={x=sourceX,y=sourceY,groundY=groundY}
     end end
     return {textureWidth=WIDTH,textureHeight=HEIGHT,x=worldX,y=worldY,
-        originX=ORIGIN_X,originY=ORIGIN_Y,scale=SCALE,depthY=worldY,
+        originX=ORIGIN_X,originY=ORIGIN_Y,scale=SCALE_X,scaleX=SCALE_X,scaleY=SCALE_Y,
+        depthY=math.max(bay.rackStart.y,bay.rackEnd.y),
         mirrorX=mirror,slots=slots,frontPolygons=frontMask()}
 end
 local catalog={}
@@ -61,6 +63,8 @@ function Presentation.validateEntry(entry)
     if type(r)~="table" then return false,"world_rack_not_registered" end
     if not finite(r.textureWidth) or not finite(r.textureHeight) or r.textureWidth<=0 or r.textureHeight<=0
         or not finite(r.x) or not finite(r.y) or not finite(r.scale) or r.scale<=0 or r.scale>4
+        or (r.scaleX~=nil and (not finite(r.scaleX) or r.scaleX<=0 or r.scaleX>4))
+        or (r.scaleY~=nil and (not finite(r.scaleY) or r.scaleY<=0 or r.scaleY>4))
         or not finite(r.originX) or not finite(r.originY) or not finite(r.depthY)
         or r.originX<0 or r.originX>r.textureWidth or r.originY<0 or r.originY>r.textureHeight
         or type(r.slots)~="table" or #r.slots~=2 or type(r.frontPolygons)~="table" then
@@ -103,14 +107,17 @@ function Presentation.plan(state,bayId,options)
     local plan=copy(entry.registration)
     plan.path,plan.bayId,plan.approved=entry.path,bayId,entry.approved
     plan.mirrorX=entry.mirrorX==true or plan.mirrorX==true
+    plan.scaleX=entry.registration.scaleX or entry.registration.scale
+    plan.scaleY=entry.registration.scaleY or entry.registration.scale
     plan.review=options.review==true
     return plan
 end
 
 function Presentation.sourceToWorld(plan,x,y)
     local direction=plan.mirrorX and -1 or 1
-    return plan.x+(x-plan.originX)*plan.scale*direction,
-        plan.y+(y-plan.originY)*plan.scale
+    local scaleX,scaleY=plan.scaleX or plan.scale,plan.scaleY or plan.scale
+    return plan.x+(x-plan.originX)*scaleX*direction,
+        plan.y+(y-plan.originY)*scaleY
 end
 function Presentation.slotPoint(plan,row,column)
     if not plan or (row~=1 and row~=2) or not finite(column) or column%1~=0 or column<1 or column>5 then return nil end
@@ -128,14 +135,19 @@ local function imageFor(plan,getImage)
     if width~=plan.textureWidth or height~=plan.textureHeight then return nil,"image_dimensions" end
     return image
 end
+local function drawImage(plan,image,graphics)
+    graphics.push("all")
+    graphics.setColor(1,1,1,1)
+    local sx=(plan.scaleX or plan.scale)*(plan.mirrorX and -1 or 1)
+    graphics.draw(image,plan.x,plan.y,0,sx,plan.scaleY or plan.scale,plan.originX,plan.originY)
+    graphics.pop()
+end
 function Presentation.drawBack(plan,getImage,graphics)
     local image,reason=imageFor(plan,getImage)
     if not image then return false,reason end
     graphics=graphics or (love and love.graphics)
     if not graphics then return false,"graphics_unavailable" end
-    graphics.setColor(1,1,1,1)
-    local sx=plan.scale*(plan.mirrorX and -1 or 1)
-    graphics.draw(image,plan.x,plan.y,0,sx,plan.scale,plan.originX,plan.originY)
+    drawImage(plan,image,graphics)
     return true
 end
 function Presentation.drawFront(plan,getImage,graphics)
@@ -157,9 +169,7 @@ function Presentation.drawFront(plan,getImage,graphics)
         end
     end,"replace",1)
     graphics.setStencilTest("greater",0)
-    graphics.setColor(1,1,1,1)
-    local sx=plan.scale*(plan.mirrorX and -1 or 1)
-    graphics.draw(image,plan.x,plan.y,0,sx,plan.scale,plan.originX,plan.originY)
+    drawImage(plan,image,graphics)
     graphics.setStencilTest()
     graphics.pop()
     return true

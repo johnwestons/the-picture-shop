@@ -298,8 +298,14 @@ function Test.run(context,check)
             syncView()
         end
         success,why=World.warehouseCommand(player,state,{kind="operate"})
+        local forkX,forkY=Forklift.dropPosition(state,Config.forklift)
         test("remount_preserves_raised_load",success and lift.operating and lift.operatorPlayerId==player.id
-            and lift.forkHeight==1 and lift.carriedPalletId==pallet.id,why)
+            and lift.forkHeight==1 and lift.carriedPalletId==pallet.id,
+            tostring(why).." player="..tostring(player.x)..","..tostring(player.y)
+                .." lift="..tostring(lift.x)..","..tostring(lift.y)
+                .." direction="..tostring(lift.direction)
+                .." fork="..tostring(forkX)..","..tostring(forkY)
+                .." exit="..tostring(exit and exit.x)..","..tostring(exit and exit.y))
         -- Return through the actual floor corridor before testing a two-high
         -- floor stack. Only the test support stock is spawned; vehicle motion,
         -- collision, targeting, toolbar and transfer authority are the live path.

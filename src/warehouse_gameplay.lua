@@ -297,7 +297,11 @@ local function exitPoint(state,context)
         local point=available(offset[1],offset[2])
         if point then return point end
     end
-    for _,offset in ipairs({{72,0},{-72,0},{0,48},{0,-48},{64,48},{-64,48},{64,-48},{-64,-48}}) do
+    -- Tight triangular racks need a front-corner exit that stays reachable
+    -- from the cab while leaving the carried forks clear.
+    for _,offset in ipairs({{72,0},{-72,0},{0,48},{0,-48},
+        {58,28},{-58,28},{64,28},{-64,28},
+        {64,48},{-64,48},{64,-48},{-64,-48}}) do
         local point=available(offset[1],offset[2])
         if point then return point end
     end

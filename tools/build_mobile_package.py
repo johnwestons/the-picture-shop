@@ -29,8 +29,8 @@ RUNTIME_SOURCE_ASSETS = tuple(
     for relative in (
         "warehouse-base-v3-top-remake.png",
         "rack-front-2x5-approved.png",
-        "rack-world-left-v4-five-bay-service-aisle-candidate.png",
-        "rooms/breakroom-furnishings-v1.png",
+        "rack-world-left-v6-triangle-fit-candidate.png",
+        "rooms/breakroom-triangle-v3-candidate.png",
         "rooms/breakroom-construction-atlas-v1.png",
         "rooms/floor-construction-atlas-v2-clean.png",
         "construction/left-storage-stage-1.png",

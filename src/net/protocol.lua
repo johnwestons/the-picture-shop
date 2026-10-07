@@ -6,9 +6,10 @@ local Forklift = require("src.forklift")
 local MachineResource = require("src.machine_resource_id")
 local PlacementGrid = require("src.placement_grid")
 local EmployeePose = require("src.employee_pose")
+local RabbitColorways = require("src.rabbit_colorways")
 
 local Protocol = {
-    VERSION = 25,
+    VERSION = 26,
     MAX_PACKET_BYTES = 1200,
     MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
     MAX_PLAYERS = 4,
@@ -171,7 +172,8 @@ local PLAYER_FIELDS = {
 }
 
 local function normalizePlayer(value, label)
-    local valid, shapeError = shape(value, label, PLAYER_FIELDS)
+    local valid, shapeError = shape(value, label, PLAYER_FIELDS,
+        { "furColorway", "overallsColorway" })
     if not valid then return nil, shapeError end
     local id, fieldError = integerInRange(value.id, 1, Protocol.MAX_PLAYERS, label .. ".id")
     if not id then return nil, fieldError end
@@ -207,6 +209,16 @@ local function normalizePlayer(value, label)
     local character
     character, fieldError = characterToken(value.character, label .. ".character")
     if not character then return nil, fieldError end
+    local furColorway = value.furColorway
+    if furColorway == nil then furColorway = 1 end
+    furColorway, fieldError = integerInRange(furColorway, 1, RabbitColorways.count("fur"),
+        label .. ".furColorway")
+    if not furColorway then return nil, fieldError end
+    local overallsColorway = value.overallsColorway
+    if overallsColorway == nil then overallsColorway = 1 end
+    overallsColorway, fieldError = integerInRange(overallsColorway, 1, RabbitColorways.count("overalls"),
+        label .. ".overallsColorway")
+    if not overallsColorway then return nil, fieldError end
     local inputSequence
     inputSequence, fieldError = integerInRange(
         value.inputSequence, 0, UINT32_MAX, label .. ".inputSequence")
@@ -225,6 +237,8 @@ local function normalizePlayer(value, label)
         facing = value.facing,
         animationDistance = animationDistance,
         character = character,
+        furColorway = furColorway,
+        overallsColorway = overallsColorway,
         inputSequence = inputSequence,
     }
 end
@@ -248,7 +262,7 @@ end
 
 local function normalizeHello(payload)
     local valid, shapeError = shape(payload, "hello payload",
-        { "clientNonce", "name", "character" })
+        { "clientNonce", "name", "character" }, { "furColorway", "overallsColorway" })
     if not valid then return nil, shapeError end
     local clientNonce, fieldError = token(payload.clientNonce, MAX_TOKEN_BYTES, "hello.clientNonce")
     if not clientNonce then return nil, fieldError end
@@ -258,7 +272,18 @@ local function normalizeHello(payload)
     local character
     character, fieldError = characterToken(payload.character, "hello.character")
     if not character then return nil, fieldError end
-    return { clientNonce = clientNonce, name = name, character = character }
+    local furColorway = payload.furColorway
+    if furColorway == nil then furColorway = 1 end
+    furColorway, fieldError = integerInRange(furColorway, 1, RabbitColorways.count("fur"),
+        "hello.furColorway")
+    if not furColorway then return nil, fieldError end
+    local overallsColorway = payload.overallsColorway
+    if overallsColorway == nil then overallsColorway = 1 end
+    overallsColorway, fieldError = integerInRange(overallsColorway, 1, RabbitColorways.count("overalls"),
+        "hello.overallsColorway")
+    if not overallsColorway then return nil, fieldError end
+    return { clientNonce = clientNonce, name = name, character = character,
+        furColorway = furColorway, overallsColorway = overallsColorway }
 end
 
 local function normalizeWelcome(payload)
@@ -2187,7 +2212,8 @@ end
 
 local function normalizeInput(payload)
     local valid, shapeError = shape(payload, "input payload",
-        { "sessionId", "sequence", "moveX", "moveY" })
+        { "sessionId", "sequence", "moveX", "moveY" },
+        { "furColorway", "overallsColorway" })
     if not valid then return nil, shapeError end
     local sessionId, fieldError = token(payload.sessionId, MAX_TOKEN_BYTES, "input.sessionId")
     if not sessionId then return nil, fieldError end
@@ -2200,7 +2226,20 @@ local function normalizeInput(payload)
     local moveY
     moveY, fieldError = numberInRange(payload.moveY, -1, 1, "input.moveY")
     if not moveY then return nil, fieldError end
-    return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY }
+    local furColorway = payload.furColorway
+    if furColorway ~= nil then
+        furColorway, fieldError = integerInRange(furColorway, 1, RabbitColorways.count("fur"),
+            "input.furColorway")
+        if not furColorway then return nil, fieldError end
+    end
+    local overallsColorway = payload.overallsColorway
+    if overallsColorway ~= nil then
+        overallsColorway, fieldError = integerInRange(overallsColorway, 1,
+            RabbitColorways.count("overalls"), "input.overallsColorway")
+        if not overallsColorway then return nil, fieldError end
+    end
+    return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,
+        furColorway = furColorway, overallsColorway = overallsColorway }
 end
 
 local function normalizeSnapshot(payload)

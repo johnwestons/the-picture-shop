@@ -226,21 +226,24 @@ function Test.run(_,check)
     love={timer={getTime=function() return 0 end},mouse={isDown=function() return false end},graphics={
         setColor=function() end,rectangle=function() end,line=function() end,circle=function() end,
         polygon=function() end,setLineWidth=function() end,draw=function() end,
+        getFont=function() return {getWidth=function(text) return #tostring(text)*8 end,getHeight=function() return 14 end} end,
         print=function(text) texts[#texts+1]=text end,printf=function(text) texts[#texts+1]=text end,
     }}
     local drawState=shop()
     local drawScreen=Computer.new({warehouseEnabled=true,remoteCommand=function() end})
     drawScreen.tab="warehouse"
-    local drawOkay=pcall(function() drawScreen.draw(drawState,nil,nil,nil) end)
+    local drawOkay,drawError=pcall(function() drawScreen.draw(drawState,nil,nil,nil) end)
     click(drawScreen,drawState,"front_left","storage")
-    local confirmOkay=pcall(function() drawScreen.draw(drawState,nil,nil,nil) end)
+    local confirmOkay,confirmError=pcall(function() drawScreen.draw(drawState,nil,nil,nil) end)
     love=previousLove
     local allText=table.concat(texts,"\n")
     check("warehouse_office_page_and_confirmation_render_in_shared_chrome",drawOkay and confirmOkay
         and allText:find("CRITTERNET / WAREHOUSE",1,true)~=nil
         and allText:find("one game day per stage",1,true)~=nil
         and allText:find("upper 5 require a forklift",1,true)~=nil
-        and allText:find("I understand: the upper 5 shelves need a forklift",1,true)~=nil)
+        and allText:find("I understand: the upper 5 shelves need a forklift",1,true)~=nil,
+        string.format("draw=%s (%s), confirm=%s (%s), text=%s",tostring(drawOkay),tostring(drawError),
+            tostring(confirmOkay),tostring(confirmError),allText))
 end
 
 return Test

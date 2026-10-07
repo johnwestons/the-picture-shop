@@ -66,6 +66,31 @@ local function flat(polygon)
     for _, point in ipairs(polygon) do result[#result+1]=point.x; result[#result+1]=point.y end
     return result
 end
+local function breakroomClip(bay)
+    local polygon=bay.polygon
+    local side=bay.id=="front_right" and 1 or -1
+    -- The room's left and bottom trim sits just outside its floor triangle.
+    -- Let that trim overlap the shared rim while keeping the diagonal seam
+    -- exact and clipping all room floor/shadows beyond the bay.
+    return {
+        {x=polygon[1].x,y=polygon[1].y},
+        {x=polygon[2].x,y=polygon[2].y},
+        {x=polygon[2].x,y=polygon[2].y+16},
+        {x=polygon[3].x,y=polygon[3].y+16},
+        {x=polygon[3].x+side*12,y=polygon[3].y},
+        {x=polygon[1].x+side*12,y=polygon[1].y},
+    }
+end
+local function withBayClip(bay,draw,clipPolygon)
+    love.graphics.push("all")
+    love.graphics.stencil(function()
+        love.graphics.polygon("fill",unpack(flat(clipPolygon or bay.polygon)))
+    end,"replace",1)
+    love.graphics.setStencilTest("greater",0)
+    draw()
+    love.graphics.setStencilTest()
+    love.graphics.pop()
+end
 local function loadRack()
     if rackImage==false then return nil end
     if not rackImage then
@@ -127,8 +152,12 @@ function Renderer.constructionPlan(state,bayId)
 end
 function Renderer.constructionIssue(bayId) return constructionIssues[bayId] end
 local function drawConstruction(bay,stage,state)
-    local drawn,reason=ConstructionPresentation.draw(state,bay.id,function(path) return constructionImage(bay.id,path) end,
-        {review=Config.warehouse and Config.warehouse.provisionalArt==true})
+    local drawn,reason
+    withBayClip(bay,function()
+        drawn,reason=ConstructionPresentation.draw(state,bay.id,
+            function(path) return constructionImage(bay.id,path) end,
+            {review=Config.warehouse and Config.warehouse.provisionalArt==true})
+    end)
     constructionIssues[bay.id]=not drawn and reason or nil
     -- This is status UI, not scenery. Missing art is reported explicitly;
     -- there is no procedural fallback for cones, beams, walls or shelving.
@@ -160,7 +189,9 @@ function Renderer.breakroomPlan(state,bayId)
 end
 function Renderer.breakroomIssue(bayId) return breakroomIssues[bayId] end
 local function drawBreakroom(plan,bay)
-    local drawn,reason=BreakroomPresentation.draw(plan,sourceImage)
+    local drawn,reason
+    withBayClip(bay,function() drawn,reason=BreakroomPresentation.draw(plan,sourceImage) end,
+        breakroomClip(bay))
     breakroomIssues[bay.id]=not drawn and reason or nil
     if drawn then return end
     love.graphics.setColor(0.035,0.035,0.03,0.91)

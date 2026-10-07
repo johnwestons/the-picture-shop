@@ -38,7 +38,7 @@ local function validActor(a)
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
 end
 function Employees.defaultState(now)
-    return {version=4,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+    return {version=6,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
         nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={}}
 end
 function Employees.ensure(state)
@@ -46,13 +46,14 @@ function Employees.ensure(state)
     return state.employment
 end
 function Employees.valid(e)
-    if type(e)~="table" or e.version~=4 or not int(e.nextApplicantId,1,1000000)
+    if type(e)~="table" or e.version~=6 or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
         or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12) then return false end
     local ids={}
     local function profile(p)
         return type(p)=="table" and text(p.name) and #p.name>0 and WorkerCatalog.valid(p.character)
-            and int(p.cutterSkill,1,100) and int(p.attention,1,100) and int(p.reliability,1,100)
+            and int(p.cutterSkill,1,100) and int(p.pressSkill,0,100) and int(p.wrappingSkill,0,100)
+            and int(p.attention,1,100) and int(p.reliability,1,100)
             and int(p.requestedWage,1000,10000) and int(p.minimumWage,1000,10000)
     end
     if not array(e.applications,24,function(a)
@@ -71,14 +72,23 @@ function Employees.valid(e)
             or not validActor(w) or type(w.clockedIn)~="boolean"
             or not number(w.fatigue,0,100) or not number(w.focus,0,100)
             or not int(w.shiftDay,-1,10000000) or not int(w.breaksTaken,0,15)
+            or not int(w.sentHomeShiftDay,-1,10000000)
             or not number(w.breakRemaining,0,1) or not text(w.activity)
             or type(w.terminationRequested)~="boolean" or type(w.stopRequested)~="boolean"
             or (w.reserved~=nil and type(w.reserved)~="boolean")
             or (w.resigning~=nil and type(w.resigning)~="boolean")
             or (w.breakKind~=nil and w.breakKind~="meal" and w.breakKind~="rest")
             or (w.seatBay~=nil and w.seatBay~="front_left" and w.seatBay~="front_right")
+            or (w.training~=nil and (type(w.training)~="table"
+                or (w.training.skill~="press" and w.training.skill~="wrapping")
+                or not int(w.training.target,1,100)
+                or not number(w.training.remainingHours,0,200)
+                or w.training.target<=(w.training.skill=="press" and w.pressSkill or w.wrappingSkill)))
             or (w.assignment~=nil and (type(w.assignment)~="table" or not token(w.assignment.jobId)
                 or not token(w.assignment.palletId) or not token(w.assignment.machineId)
+                or (w.assignment.cutterMachineId~=nil and not token(w.assignment.cutterMachineId))
+                or (w.assignment.machineModel~=nil and w.assignment.machineModel~="polar_115"
+                    and w.assignment.machineModel~="heidelberg_10x15" and w.assignment.machineModel~="skid_wrapper")
                 or (w.assignment.scheduleItemId~=nil and not token(w.assignment.scheduleItemId))))
             or not Schedule.valid(w.schedule)
             or not Labor.validTotals(w.laborTotals)
@@ -90,7 +100,7 @@ function Employees.valid(e)
         if w.assignment and w.assignment.scheduleItemId then
             local row=w.schedule.items[1]
             if not row or row.id~=w.assignment.scheduleItemId or row.jobId~=w.assignment.jobId
-                or row.machineId~=w.assignment.machineId then return false end
+                or (w.assignment.cutterMachineId and row.machineId~=w.assignment.cutterMachineId) then return false end
         end
         ids[w.id]=true return true
     end)
@@ -122,9 +132,34 @@ function Employees.normalize(e,now)
         for _,w in pairs(result.staff) do if type(w)~="table" then return nil end;weekly(w.contract) end
         for _,a in pairs(result.applications) do if type(a)~="table" then return nil end;weekly(a.offer);weekly(a.counter) end
     end
+    if result.version==4 then
+        if type(result.staff)~="table" then return nil end
+        result.version=5
+        for _,w in pairs(result.staff) do
+            if type(w)~="table" then return nil end
+            w.sentHomeShiftDay = -1
+        end
+    end
+    if result.version==5 then
+        if type(result.staff)~="table" or type(result.applications)~="table" then return nil end
+        result.version=6
+        local function skills(person)
+            if type(person)~="table" then return false end
+            if person.pressSkill==nil then person.pressSkill=0 end
+            if person.wrappingSkill==nil then person.wrappingSkill=0 end
+            return true
+        end
+        for _,w in pairs(result.staff) do if not skills(w) then return nil end end
+        for _,a in pairs(result.applications) do if not skills(a) then return nil end end
+    end
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
-        w._operatorPoint,w._operatorKey,w._workClock=nil,nil,nil
+        w._operatorPoint,w._operatorKey,w._workClock,w._trainingClock,w._trainingMachineId=nil,nil,nil,nil,nil
+        w._scheduleRetryAtHours,w._blockedWorkHours,w._waitingMachineId=nil,nil,nil
+        if w.assignment then
+            w.assignment.cutterMachineId=w.assignment.cutterMachineId or w.assignment.machineId
+            w.assignment.machineModel=w.assignment.machineModel or "polar_115"
+        end
         w.velocityX,w.velocityY,w.animationDistance=nil,nil,nil
         w.gaitSpeedMultiplier,w.gaitAccelerationMultiplier,w.interactionClock=nil,nil,nil
     end
@@ -153,6 +188,7 @@ function Employees.createApplicant(state,now)
     local profile=WorkerCatalog.profiles[(n-1)%#WorkerCatalog.profiles+1]
     local a={id=string.format("APP-%04d",n),name=profile.name,character=profile.character,
         cutterSkill=profile.cutterSkill,attention=profile.attention,
+        pressSkill=profile.pressSkill,wrappingSkill=profile.wrappingSkill,
         reliability=profile.reliability,requestedWage=profile.requestedWage,
         minimumWage=profile.minimumWage,revision=1,counters=0,status="visiting",
         createdAtHours=now,actor=actor()}
@@ -179,9 +215,9 @@ function Employees.advance(state,now)
     for _,a in ipairs(e.applications) do
         if a.status=="resume_requested" and a.replyAtHours<=now then
             a.status="resume_received";a.replyAtHours=nil;a.revision=a.revision+1
-            notice(state,a,"RESUME","Resume attached: cutter operator",
-                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, attention %d/100, reliability %d/100. Day or night shifts are negotiable and I ask $%.2f/hr. Open my resume to discuss days, hours and pay cycle.",
-                    a.cutterSkill,a.attention,a.reliability,a.requestedWage/100))
+            notice(state,a,"RESUME","Resume attached: production operator",
+                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, attention %d/100, reliability %d/100. Day or night shifts are negotiable and I ask $%.2f/hr. Open my resume to discuss days, hours and pay cycle.",
+                    a.cutterSkill,a.pressSkill,a.wrappingSkill,a.attention,a.reliability,a.requestedWage/100))
             changed=true
         elseif a.status=="negotiating" and a.replyAtHours<=now then
             a.replyAtHours=nil;a.revision=a.revision+1;a.expiresAtHours=now+72
@@ -250,21 +286,49 @@ function Employees.command(state,intent,now)
         w.status="employed";w.contract=copy(a.offer);w.contract.revision=a.revision
         w.contract.signedAtHours=now;w.contract.startDay=Contracts.nextDay(w.contract,now)
         w.fatigue=0;w.focus=100;w.weeks={};w.shiftDay=-1;w.breaksTaken=0;w.breakRemaining=0
+        w.sentHomeShiftDay=-1
         w.clockedIn=false;w.terminationRequested=false;w.stopRequested=false;w.activity="Starts next agreed shift"
         w.schedule=Schedule.defaultState()
         w.laborTotals=Labor.defaultTotals()
         e.staff[#e.staff+1]=w;a.status="hired";a.employeeId=w.id;a.revision=a.revision+1
-        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week. Build ordered cutter jobs in Schedule, or assign one staged pallet in Hiring > Staff.")
+        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week. Build ordered production jobs in Schedule, or assign one staged pallet in Hiring > Staff. Employees can be trained for the press and skid wrapper in Hiring > Staff.")
         return true,w.name.." hired. Starts on the next agreed day."
     end
     local w=intent.employeeId and Employees.worker(state,intent.employeeId)
     if not w or w.status~="employed" then return false,"Choose a current employee." end
     if Schedule.isIntent(intent.kind) then return Schedule.command(state,w,intent,now) end
-    if intent.kind=="dismiss_employee" then w.terminationRequested=true;w.stopRequested=true;return true,"Dismissal requested. Earned wages remain owed."
+    if intent.kind=="train_employee" then
+        local waitingForTraining=w.assignment and not w.reserved
+            and type(w.activity)=="string" and w.activity:lower():find("training required",1,true)
+        if w.assignment and not waitingForTraining then
+            return false,"Pause the current assignment before starting training."
+        end
+        if w.training then return false,"This employee is already in a training course." end
+        local skill=intent.skill
+        local field=skill=="press" and "pressSkill" or skill=="wrapping" and "wrappingSkill" or nil
+        local model=skill=="press" and "heidelberg_10x15" or skill=="wrapping" and "skid_wrapper" or nil
+        if not field or not model then return false,"Choose press or pallet-wrapping training." end
+        local machine=Fleet.installedUnits(state,model)[1]
+        if not machine then return false,skill=="press" and "Install a Heidelberg Windmill before press training." or "Install a skid wrapper before pallet-wrapping training." end
+        local current=w[field]
+        if current>=100 then return false,"This employee has already mastered that machine." end
+        local target=math.min(100,math.max(skill=="press" and 60 or 50,current+25))
+        w.training={skill=skill,target=target,remainingHours=math.max(1,(target-current)*.16)}
+        w.activity="Training for the "..(skill=="press" and "printing press" or "pallet wrapper")
+        return true,w.name.." started paid on-shift "..(skill=="press" and "press" or "pallet-wrapping").." training."
+    end
+    if intent.kind=="send_employee_home" then
+        local shiftDay=Contracts.shiftDay(w.contract,now)
+        if w.sentHomeShiftDay==shiftDay then return true,"This employee is already heading home for today." end
+        if not w.visible or not w.clockedIn then return false,"This employee is not clocked in right now." end
+        w.sentHomeShiftDay=shiftDay
+        w.activity="Going home for the day"
+        return true,"Shift ended. A safe machine cycle will finish before the employee leaves; unfinished work resumes next shift."
+    elseif intent.kind=="dismiss_employee" then w.terminationRequested=true;w.stopRequested=true;return true,"Dismissal requested. Earned wages remain owed."
     elseif intent.kind=="unassign_employee" then
         w.stopRequested=true
         if #w.schedule.items>0 then w.schedule.enabled=false;w.schedule.revision=w.schedule.revision+1 end
-        return true,"Work will pause at the next safe cutter checkpoint."
+        return true,"Work will pause at the next safe machine checkpoint."
     elseif intent.kind=="assign_employee" then
         if Payroll.balance(w,now,false)>0 then return false,"Pay overdue wages before assigning more work." end
         if w.assignment then return false,"Pause the current assignment before selecting another." end
@@ -279,7 +343,8 @@ function Employees.command(state,intent,now)
             and (other.assignment.machineId==machine.id or other.assignment.palletId==pallet.id) then return false,"Another employee is assigned to that cutter or pallet." end end
         if Schedule.claimed(state,w,job.id) then return false,"This job is queued for another employee." end
         if w.schedule.enabled and #w.schedule.items>0 then return false,"Pause the work schedule before assigning a separate pallet." end
-        w.assignment={jobId=job.id,palletId=pallet.id,machineId=machine.id};w.stopRequested=false
+        w.assignment={jobId=job.id,palletId=pallet.id,machineId=machine.id,
+            cutterMachineId=machine.id,machineModel=machine.modelId};w.stopRequested=false
         w.activity="Waiting for shift / staged stock"
         return true,"Assignment saved. Stage this pallet beside the cutter; the worker handles each lift."
     end
@@ -287,12 +352,18 @@ function Employees.command(state,intent,now)
 end
 function Employees.isIntent(kind)
     return Schedule.isIntent(kind) or ({recruit_workers=true,request_resume=true,offer_employee=true,hire_employee=true,
-        decline_application=true,assign_employee=true,unassign_employee=true,pay_wages=true,dismiss_employee=true})[kind]==true
+        decline_application=true,assign_employee=true,unassign_employee=true,pay_wages=true,dismiss_employee=true,
+        send_employee_home=true,train_employee=true})[kind]==true
 end
-function Employees.reservation(state,machineId,palletId)
+function Employees.reservation(state,machineId,palletId,excludeEmployeeId)
     for _,w in ipairs(Employees.ensure(state).staff) do
-        if w.visible and w.assignment and w.reserved
-            and (w.assignment.machineId==machineId or (palletId and w.assignment.palletId==palletId)) then return w.id,w.name end
+        if w.id~=excludeEmployeeId and w.visible then
+            if machineId and w.training and w._trainingMachineId==machineId then return w.id,w.name end
+            if w.assignment and w.reserved
+                and (w.assignment.machineId==machineId or (palletId and w.assignment.palletId==palletId)) then
+                return w.id,w.name
+            end
+        end
     end
 end
 function Employees.actors(state)

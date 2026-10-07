@@ -80,7 +80,7 @@ function Test.run(context,check)
     for _,w in ipairs(legacy.state.employment.staff) do w.contract.payWeeks=nil end
     for _,a in ipairs(legacy.state.employment.applications) do if a.offer then a.offer.payWeeks=nil end end
     local migrated=Schema.migrate(legacy)
-    check("shop_v19_migration_keeps_legacy_clock_and_weekly_pay",migrated and migrated.version==20
+    check("shop_v19_migration_keeps_legacy_clock_and_weekly_pay",migrated and migrated.version==21
         and migrated.state.calendar.secondsPerDay==300 and near(Calendar.absoluteHours(migrated.state),10)
         and migrated.state.employment.staff[1].contract.payWeeks==1
         and near(migrated.state.employment.staff[1].weeks[1].earnedCents,2200)
@@ -124,10 +124,16 @@ function Test.run(context,check)
         local w=hire(s,Contracts.terms(2200,31,endHour==20 and 8 or 20,endHour,4))
         assert(Credit.financeMachine(s,1,"SHOP-BUDGET-"..minutes.."-"..endHour,"online"))
         local f=Finances.summary(s);local p=Finances.plan(f,20)
-        local quote=context.jobService.quoteTerms(s,job(s,"JOB-PROFIT-"..minutes.."-"..endHour,420,470))
+        local quoteJob=assert(Jobs.createOffer({id="JOB-PROFIT-"..minutes.."-"..endHour,
+            company="Shop workflow test",sourceSize={width=20,height=16},
+            finishedSize={width=10,height=8},sheetCounts={500}}))
+        local quote=context.jobService.quoteTerms(s,quoteJob)
         check("shop_regular_twelve_hour_staff_can_profit_at_pace_"..minutes.."_end_"..endHour,
             near(f.weeklyWages,1457.5) and f.weeklyLoans>0 and p.profit>0 and p.withinCapacity
-            and f.breakEvenLifts<20 and near(f.cycleReserve,5830) and quote.recommendedPrice>=f.pricePerLift)
+            and f.breakEvenLifts<20 and near(f.cycleReserve,5830) and quote.recommendedPrice>=f.pricePerLift,
+            string.format("wages=%s loans=%s profit=%s capacity=%s breakEven=%s reserve=%s quote=%s lift=%s",
+                tostring(f.weeklyWages),tostring(f.weeklyLoans),tostring(p.profit),tostring(p.withinCapacity),
+                tostring(f.breakEvenLifts),tostring(f.cycleReserve),tostring(quote.recommendedPrice),tostring(f.pricePerLift)))
         check("shop_idle_payroll_does_not_claim_a_profit_"..minutes.."_end_"..endHour,
             Finances.plan(f,0).profit<0 and Finances.plan(f,f.breakEvenLifts).profit>=0)
     end end

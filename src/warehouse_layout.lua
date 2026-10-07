@@ -15,19 +15,23 @@ local left = {
     walkPolygon = { {x=8,y=376}, {x=389,y=647}, {x=8,y=647} },
     seam = { {x=8,y=386}, {x=379,y=647} },
     workPoint = {x=260,y=505}, approach = {x=315,y=515},
+    rackApproachPoint = {x=220,y=560},
     -- Registered against the authored world-space 5×2 rack sprite. The
     -- lower deck contact line follows the actual front beam, and the upper
     -- shelf's displayed deck height matches the source art.
-    rackStart = {x=30,y=511}, rackEnd = {x=308,y=626},
-    rackHeight = 120, upperDeckOffset = 45,
-    restPoint = {x=235,y=600},
+    -- The rack is inset parallel to the bay's diagonal seam. Its rear row
+    -- sits just inside that seam and its front row remains in walkable bay
+    -- space; this keeps all shelf supports on the expansion footprint.
+    rackStart = {x=18.59,y=517}, rackEnd = {x=154.51,y=613},
+    rackHeight = 65, upperDeckOffset = 45,
+    restPoint = {x=82,y=609},
 }
 local right = copy(left)
 right.id, right.rackId = "front_right", "front_right-rack"
 for _, key in ipairs({"polygon", "walkPolygon", "seam"}) do
     for _, point in ipairs(right[key]) do point.x = 960 - point.x end
 end
-for _, key in ipairs({"workPoint", "approach", "rackStart", "rackEnd", "restPoint"}) do
+for _, key in ipairs({"workPoint", "approach", "rackApproachPoint", "rackStart", "rackEnd", "restPoint"}) do
     right[key].x = 960 - right[key].x
 end
 local bays = { front_left=left, front_right=right }
@@ -71,7 +75,7 @@ local function forRack(id)
 end
 function Layout.rackApproach(id)
     local bay = forRack(id)
-    return bay and copy(bay.approach)
+    return bay and copy(bay.rackApproachPoint)
 end
 function Layout.rackPoint(id,row,column)
     local bay = forRack(id)
@@ -88,24 +92,21 @@ function Layout.obstacles(state)
         local status = Layout.bayState(state,id)
         if status and status.status == "complete" and status.optionId == "storage" then
             local bay=bays[id]
-            -- Leave the five load openings traversable to fork tips. Only the
-            -- six structural uprights are solid; the old full-cell boxes
-            -- blocked forklifts from physically aligning with nearly every
-            -- shelf position.
-            local postFractions={0,0.2,0.4,0.6,0.86,1}
-            for post,t in ipairs(postFractions) do
+            -- The six collision points follow the six visible upright frames;
+            -- the five load openings between them remain clear to fork tips.
+            local postFractions={0,0.2,0.4,0.6,0.8,1}
+            for _,t in ipairs(postFractions) do
                 local x=bay.rackStart.x+(bay.rackEnd.x-bay.rackStart.x)*t
                 local groundY=bay.rackStart.y+(bay.rackEnd.y-bay.rackStart.y)*t
-                local recessedTerminal=post==#postFractions
-                result[#result+1]={x=x,y=groundY-(recessedTerminal and 38 or 5),halfWidth=2,halfHeight=3,
+                result[#result+1]={x=x,y=groundY-5,halfWidth=2,halfHeight=3,
                     kind="pallet_rack_post",rackId=bay.rackId}
             end
         elseif status and status.status=="complete" and status.optionId=="breakroom" then
             local mirror=id=="front_right"
             local function x(value) return mirror and 960-value or value end
-            result[#result+1]={x=x(191),y=539,halfWidth=43,halfHeight=13,kind="breakroom_table",bayId=id}
-            result[#result+1]={x=x(201),y=523,halfWidth=47,halfHeight=11,kind="breakroom_kitchenette",bayId=id}
-            result[#result+1]={x=x(313),y=549,halfWidth=17,halfHeight=13,kind="breakroom_vending",bayId=id}
+            result[#result+1]={x=x(82),y=588,halfWidth=52,halfHeight=14,kind="breakroom_table",bayId=id}
+            result[#result+1]={x=x(80),y=529,halfWidth=58,halfHeight=11,kind="breakroom_kitchenette",bayId=id}
+            result[#result+1]={x=x(192),y=610,halfWidth=22,halfHeight=10,kind="breakroom_vending",bayId=id}
         end
     end
     return result

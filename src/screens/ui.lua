@@ -40,6 +40,12 @@ function Ui.notePress(x, y)
     pressFeedback = { x = x, y = y, at = love.timer.getTime() }
 end
 
+function Ui.pressWithin(rect, duration)
+    if not pressFeedback or not Ui.contains(rect, pressFeedback.x, pressFeedback.y) then return false end
+    local age = love.timer.getTime() - pressFeedback.at
+    return age >= 0 and age <= (duration or 0.12)
+end
+
 function Ui.drawPressFeedback()
     if not pressFeedback then return end
     local age = love.timer.getTime() - pressFeedback.at

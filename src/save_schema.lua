@@ -12,7 +12,7 @@ local Credit = require("src.credit")
 local Employees = require("src.employees")
 local Labor = require("src.employee_labor")
 
-local Schema = { VERSION = 20, SLOT_COUNT = 3 }
+local Schema = { VERSION = 21, SLOT_COUNT = 3 }
 local directions = {
     northwest = true, north = true, northeast = true, east = true,
     southeast = true, south = true, southwest = true, west = true,
@@ -1501,7 +1501,7 @@ function Schema.migrate(payload)
         or payload.version == 5 or payload.version == 6 or payload.version == 7
         or payload.version == 8 or payload.version == 9 or payload.version == 10
         or payload.version == 11 or payload.version == 12 or payload.version == 13
-        or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19
+        or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20
     then
         if not validV2Core(payload) then return nil end
     else

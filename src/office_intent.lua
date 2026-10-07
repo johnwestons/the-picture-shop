@@ -15,7 +15,9 @@ local fields = {
         days = "days", startHour = "hour", endHour = "hour", payWeeks = "pay_cycle" },
     hire_employee = { applicationId = "token", expectedRevision = "revision" },
     assign_employee = { employeeId = "token", jobId = "token", palletId = "token", machineId = "token" },
-    unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" }, pay_wages = {},
+    unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" },
+    send_employee_home = { employeeId = "token" }, pay_wages = {},
+    train_employee = { employeeId="token",skill="employee_skill" },
     queue_employee_job = { employeeId="token",jobId="token",machineId="token" },
     set_employee_schedule = { employeeId="token",enabled="boolean" },
     remove_employee_job = { employeeId="token",itemId="token",expectedRevision="revision" },
@@ -36,6 +38,8 @@ function Intent.normalize(value)
             if not integer(item,1,1000000000) then return nil,"Review the latest record revision." end
         elseif rule == "queue_direction" then
             if item~=-1 and item~=1 then return nil,"Move this job up or down one place." end
+        elseif rule == "employee_skill" then
+            if item~="press" and item~="wrapping" then return nil,"Choose press or pallet-wrapping training." end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
         elseif rule == "days" then

@@ -1,6 +1,8 @@
 local Config = require("src.config")
 local SaveEditor = require("src.save_editor")
 local Settings = require("src.settings")
+local RabbitColorways = require("src.rabbit_colorways")
+local CharacterAssets = require("src.character_assets")
 local Ui = require("src.screens.ui")
 
 local OptionsScreen = {
@@ -16,14 +18,19 @@ local OptionsScreen = {
 }
 
 local ACCESS = { x = 828, y = 14, width = 116, height = 42 }
+local ACCESS_HEADER = { x = 828, y = 0, width = 116, height = 42 }
+local ACCESS_FOOTER = { x = 828, y = 630, width = 116, height = 42 }
+local ACCESS_RACK = { x = 696, y = 28, width = 116, height = 42 }
+local ACCESS_MACHINE = { x = 662, y = 28, width = 116, height = 42 }
 local CLOSE = { x = 812, y = 20, width = 112, height = 42 }
 local TABS = {
-    game = { x = 105, y = 90, width = 170, height = 48, label = "GAME" },
-    audio = { x = 298, y = 90, width = 170, height = 48, label = "AUDIO" },
-    controls = { x = 491, y = 90, width = 170, height = 48, label = "CONTROLS" },
-    cheats = { x = 684, y = 90, width = 170, height = 48, label = "CHEATS" },
+    game = { x = 105, y = 90, width = 140, height = 48, label = "GAME" },
+    audio = { x = 255, y = 90, width = 140, height = 48, label = "AUDIO" },
+    controls = { x = 405, y = 90, width = 140, height = 48, label = "CONTROLS" },
+    character = { x = 555, y = 90, width = 140, height = 48, label = "PLAYER" },
+    cheats = { x = 705, y = 90, width = 140, height = 48, label = "CHEATS" },
 }
-local TAB_ORDER = { "game", "audio", "controls", "cheats" }
+local TAB_ORDER = { "game", "audio", "controls", "character", "cheats" }
 local SLOT_RECTS = {
     { x = 286, y = 166, width = 116, height = 42 },
     { x = 422, y = 166, width = 116, height = 42 },
@@ -43,6 +50,10 @@ local AUDIO_ROWS = {
 }
 local CONTROL_PREVIEW = { x = 205, y = 176, width = 550, height = 350 }
 local RESET_CONTROLS = { x = 370, y = 548, width = 220, height = 42 }
+local COLORWAY_GROUPS = {
+    { id = "furColorway", group = "fur", label = "FUR", y = 230 },
+    { id = "overallsColorway", group = "overalls", label = "OVERALLS", y = 390 },
+}
 local CONTROL_SPECS = {
     joystick = { label = "MOVE", radius = 43 },
     primary = { label = "USE", radius = 36 },
@@ -72,6 +83,39 @@ local function persistSettings()
     local saved = Settings.save(context.settings)
     OptionsScreen.message = saved and "Settings saved." or "Settings changed for this session, but could not be saved."
     return saved
+end
+
+local function setColorway(id, value)
+    local context = OptionsScreen.context
+    if not context then return false end
+    local choices = id == "furColorway" and RabbitColorways.fur or RabbitColorways.overalls
+    local fur, overalls = RabbitColorways.normalize(
+        context.settings.furColorway, context.settings.overallsColorway)
+    local current = id == "furColorway" and fur or overalls
+    value = math.max(1, math.min(#choices, value))
+    if current == value then return true end
+    context.settings[id] = value
+    if context.applyPlayerColorways then
+        context.applyPlayerColorways(context.settings.furColorway, context.settings.overallsColorway)
+    end
+    local saved = persistSettings()
+    OptionsScreen.message = saved
+        and "Rabbit colors saved. Other players can see them online."
+        or "Rabbit colors are active for this session but could not be saved."
+    return true
+end
+
+local function adjustColorway(rowIndex, delta)
+    local row = COLORWAY_GROUPS[rowIndex]
+    if not row then return false end
+    local current = tonumber(OptionsScreen.context.settings[row.id]) or 1
+    local count = RabbitColorways.count(row.group)
+    return setColorway(row.id, (current - 1 + delta) % count + 1)
+end
+
+local function colorwayCellRect(rowIndex, choiceIndex)
+    local row = COLORWAY_GROUPS[rowIndex]
+    return { x = 292 + (choiceIndex - 1) * 80, y = row.y + 31, width = 72, height = 80 }
 end
 
 local function slotState()
@@ -112,12 +156,26 @@ function OptionsScreen.wantsTextInput()
     return OptionsScreen.editField ~= nil
 end
 
-function OptionsScreen.accessRect()
+function OptionsScreen.accessRect(screen, bounds)
+    -- Keep the global shortcut clear of each console's own Back/Exit controls.
+    if screen == "world" then
+        local right = bounds and bounds.right or Config.baseWidth
+        return { x = right - 272, y = 14, width = ACCESS.width, height = ACCESS.height }
+    elseif screen == "machine" then
+        return ACCESS_MACHINE
+    elseif screen == "machine_service" or screen == "workshop_remote"
+        or screen == "shop_clock" or screen == "job_offer" then
+        return ACCESS_FOOTER
+    elseif screen == "computer" or screen == "work_phone" then
+        return ACCESS_HEADER
+    elseif screen == "pallet_rack" then
+        return ACCESS_RACK
+    end
     return ACCESS
 end
 
-function OptionsScreen.accessHit(x, y)
-    return Ui.contains(ACCESS, x, y)
+function OptionsScreen.accessHit(x, y, screen, bounds)
+    return Ui.contains(OptionsScreen.accessRect(screen, bounds), x, y)
 end
 
 local function selectTab(tab)
@@ -212,6 +270,7 @@ local function rowsForTab()
     if OptionsScreen.tab == "game" then return GAME_ROWS end
     if OptionsScreen.tab == "audio" then return AUDIO_ROWS end
     if OptionsScreen.tab == "controls" then return {} end
+    if OptionsScreen.tab == "character" then return {} end
     return SaveEditor.fields()
 end
 
@@ -298,6 +357,20 @@ function OptionsScreen.keypressed(key)
         if key == "r" then return resetControls() end
         return false
     end
+    if OptionsScreen.tab == "character" then
+        if key == "up" or key == "w" then
+            OptionsScreen.selectedRow = 1
+            return true
+        elseif key == "down" or key == "s" then
+            OptionsScreen.selectedRow = 2
+            return true
+        elseif key == "left" or key == "a" then
+            return adjustColorway(OptionsScreen.selectedRow, -1)
+        elseif key == "right" or key == "d" or key == "return" or key == "kpenter" then
+            return adjustColorway(OptionsScreen.selectedRow, 1)
+        end
+        return false
+    end
     if OptionsScreen.tab == "cheats" and (key == "1" or key == "2" or key == "3") then
         OptionsScreen.selectedSlot = tonumber(key)
         OptionsScreen.message = "Selected slot " .. key .. "."
@@ -358,6 +431,16 @@ function OptionsScreen.mousepressed(x, y, button)
             return moveDraggedControl(x, y)
         end
         return false
+    elseif OptionsScreen.tab == "character" then
+        for rowIndex, row in ipairs(COLORWAY_GROUPS) do
+            for choiceIndex = 1, RabbitColorways.count(row.group) do
+                if Ui.contains(colorwayCellRect(rowIndex, choiceIndex), x, y) then
+                    OptionsScreen.selectedRow = rowIndex
+                    return setColorway(row.id, choiceIndex)
+                end
+            end
+        end
+        return false
     end
     local rows = rowsForTab()
     for index, row in ipairs(rows) do
@@ -410,9 +493,9 @@ local function drawButton(rect, label, active, danger)
     love.graphics.printf(label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
 end
 
-function OptionsScreen.drawAccessButton(mouseX, mouseY)
+function OptionsScreen.drawAccessButton(mouseX, mouseY, screen, bounds)
     OptionsScreen.hover = mouseX and mouseY and { x = mouseX, y = mouseY } or nil
-    drawButton(ACCESS, "OPTIONS", false, false)
+    drawButton(OptionsScreen.accessRect(screen, bounds), "OPTIONS", false, false)
 end
 
 local function drawRows(rows, values, cheats)
@@ -470,6 +553,56 @@ local function drawControlPreview()
     love.graphics.setLineWidth(1)
 end
 
+local function drawColorways()
+    love.graphics.setColor(0.78, 0.81, 0.76)
+    love.graphics.print("RABBIT COLORWAYS", 164, 166)
+    love.graphics.setColor(0.58, 0.64, 0.61)
+    love.graphics.printf("Choose a fur tone and overall color. Your choices are saved on this device and shared online.",
+        164, 193, 632, "left")
+    for rowIndex, row in ipairs(COLORWAY_GROUPS) do
+        Ui.panel({ x = 164, y = row.y, width = 632, height = 124 },
+            OptionsScreen.selectedRow == rowIndex and { 0.11, 0.15, 0.15, 1 }
+                or { 0.075, 0.105, 0.11, 1 },
+            OptionsScreen.selectedRow == rowIndex and { 0.67, 0.58, 0.27, 1 }
+                or { 0.25, 0.31, 0.31, 1 }, 4, 1)
+        love.graphics.setColor(0.86, 0.88, 0.82)
+        love.graphics.printf(row.label, 176, row.y + 51, 104, "center")
+        local selected = tonumber(OptionsScreen.context.settings[row.id]) or 1
+        for choiceIndex = 1, RabbitColorways.count(row.group) do
+            local choice = RabbitColorways.choice(row.group, choiceIndex)
+            local rect = colorwayCellRect(rowIndex, choiceIndex)
+            local hovered = OptionsScreen.hover and Ui.contains(rect,
+                OptionsScreen.hover.x, OptionsScreen.hover.y)
+            love.graphics.setColor(hovered and { 0.19, 0.25, 0.24, 1 }
+                or { 0.10, 0.14, 0.14, 1 })
+            love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
+            love.graphics.setColor(choice.color[1], choice.color[2], choice.color[3], 1)
+            love.graphics.rectangle("fill", rect.x + 18, rect.y + 7, 36, 36, 4, 4)
+            love.graphics.setColor(choiceIndex == selected and { 0.98, 0.80, 0.30, 1 }
+                or { 0.38, 0.47, 0.45, 1 })
+            love.graphics.setLineWidth(choiceIndex == selected and 3 or 1)
+            love.graphics.rectangle("line", rect.x + 17, rect.y + 6, 38, 38, 4, 4)
+            love.graphics.setLineWidth(1)
+            love.graphics.setColor(choiceIndex == selected and { 0.98, 0.84, 0.38, 1 }
+                or { 0.78, 0.82, 0.77, 1 })
+            love.graphics.printf(choice.name, rect.x + 1, rect.y + 51, rect.width - 2, "center")
+        end
+    end
+    local image, quad = CharacterAssets.get("rabbit-worker", "idle", 1)
+    if image and quad then
+        local anchorX, anchorY = CharacterAssets.getAnchor("rabbit-worker", "idle", 1)
+        local scale = 0.18 * CharacterAssets.getNormalization("rabbit-worker", "idle")
+        love.graphics.setColor(1, 1, 1, 1)
+        RabbitColorways.draw(image, quad, 462, 596, 0, scale, scale, anchorX, anchorY,
+            0, 0, OptionsScreen.context.settings.furColorway,
+            OptionsScreen.context.settings.overallsColorway)
+    end
+    love.graphics.setColor(0.86, 0.88, 0.82)
+    love.graphics.print("LIVE PLAYER PREVIEW", 514, 551)
+    love.graphics.setColor(0.58, 0.64, 0.61)
+    love.graphics.printf("Your online avatar uses these colors.", 514, 575, 250, "left")
+end
+
 function OptionsScreen.draw(mouseX, mouseY)
     if mouseX and mouseY then OptionsScreen.mousemoved(mouseX, mouseY) end
     love.graphics.clear(0.045, 0.055, 0.058)
@@ -480,7 +613,10 @@ function OptionsScreen.draw(mouseX, mouseY)
     love.graphics.setColor(0.66, 0.72, 0.69)
     love.graphics.print("OPTIONS // O KEY OR CONTROLLER START", 116, 49)
     drawButton(CLOSE, "CLOSE", false, false)
-    for tab, rect in pairs(TABS) do drawButton(rect, rect.label, OptionsScreen.tab == tab, false) end
+    for _, tab in ipairs(TAB_ORDER) do
+        local rect = TABS[tab]
+        drawButton(rect, rect.label, OptionsScreen.tab == tab, false)
+    end
 
     if OptionsScreen.tab == "game" then
         love.graphics.setColor(0.78, 0.81, 0.76)
@@ -511,6 +647,8 @@ function OptionsScreen.draw(mouseX, mouseY)
         love.graphics.printf("DRAG THE CONTROLS IN THE PREVIEW", 164, 150, 632, "center")
         drawControlPreview()
         drawButton(RESET_CONTROLS, "RESET TO DEFAULT", false, false)
+    elseif OptionsScreen.tab == "character" then
+        drawColorways()
     else
         for slot, rect in ipairs(SLOT_RECTS) do
             local context = OptionsScreen.context

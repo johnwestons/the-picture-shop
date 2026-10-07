@@ -50,7 +50,7 @@ function Test.run(context, check)
         setControlLayout = function(layout) previewLayout = layout end,
         commitControlLayout = function() layoutCommits = layoutCommits + 1 end,
     })
-    OptionsScreen.mousepressed(576, 114, 1)
+    OptionsScreen.mousepressed(475, 114, 1)
     OptionsScreen.mousepressed(263, 472, 1)
     OptionsScreen.mousemoved(410, 350)
     OptionsScreen.mousereleased(410, 350, 1)

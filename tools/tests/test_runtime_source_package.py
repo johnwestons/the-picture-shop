@@ -30,7 +30,7 @@ class RuntimeSourcePackageTests(unittest.TestCase):
                 self.assertIn(asset, package.RUNTIME_SOURCE_ASSETS, relative)
         self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "pallet-front-variants-v2-candidate.png",
                       package.RUNTIME_SOURCE_ASSETS)
-        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v4-five-bay-service-aisle-candidate.png",
+        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v6-triangle-fit-candidate.png",
                       package.RUNTIME_SOURCE_ASSETS)
         self.assertNotIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v2.png",
                          package.RUNTIME_SOURCE_ASSETS)
@@ -47,7 +47,7 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         for stage in range(1, 5):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"construction/left-storage-stage-{stage}.png",
                           package.RUNTIME_SOURCE_ASSETS)
-        for asset in ("rooms/breakroom-furnishings-v1.png",
+        for asset in ("rooms/breakroom-triangle-v3-candidate.png",
                       "rooms/breakroom-construction-atlas-v1.png",
                       "rooms/floor-construction-atlas-v2-clean.png"):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + asset, package.RUNTIME_SOURCE_ASSETS)

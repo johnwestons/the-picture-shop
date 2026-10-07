@@ -20,7 +20,7 @@ function Test.run(_,check)
         local entry=registered[bayId]
         local valid=Presentation.validateEntry(entry)
         local authored=Presentation.plan(registeredState,bayId,{review=true})
-        test("registered_source_for_"..bayId,valid and entry.path=="assets/source/warehouse-expansion-v1/rack-world-left-v4-five-bay-service-aisle-candidate.png")
+        test("registered_source_for_"..bayId,valid and entry.path=="assets/source/warehouse-expansion-v1/rack-world-left-v6-triangle-fit-candidate.png")
         test("registered_unapproved_review_art_for_"..bayId,authored and not authored.approved)
         for column=1,5 do for row=1,2 do
             local actual=authored and Presentation.slotPoint(authored,row,column)
@@ -71,7 +71,7 @@ function Test.run(_,check)
         polygon=function(...)calls[#calls+1]={kind="mask",...}end,
         draw=function(...)calls[#calls+1]={kind="draw",...}end}
     test("native_back_draws",Presentation.drawBack(plan,function()return image end,graphics))
-    test("back_uses_uniform_unrotated_sprite",calls[1][1]==image and calls[1][4]==0
+    test("back_uses_unrotated_registered_scales",calls[1][1]==image and calls[1][4]==0
         and calls[1][5]==0.25 and calls[1][6]==0.25)
     test("front_draws_authored_texture",Presentation.drawFront(plan,function()return image end,graphics)
         and calls[2].kind=="mask" and calls[3].kind=="draw" and calls[3][1]==image)

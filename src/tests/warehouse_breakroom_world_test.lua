@@ -3,7 +3,7 @@ local World=require("src.world")
 local Test={}
 function Test.run(context,check)
     local left,right=Layout.bay("front_left"),Layout.bay("front_right")
-    check("breakroom_seat_points_are_mirrored",left.restPoint.x==235 and right.restPoint.x==725
+    check("breakroom_seat_points_are_mirrored",left.restPoint.x==82 and right.restPoint.x==878
         and left.restPoint.y==right.restPoint.y)
     local state=context.State.new()
     state.warehouse.bays.front_left={status="complete",optionId="breakroom"}

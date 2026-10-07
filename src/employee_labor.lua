@@ -56,6 +56,34 @@ local function estimate(state,job,w)
             -- short approach allowance. Actual payroll records the real time.
             seconds=seconds+lifts*((cuts*6+2)*Labor.actionDelay(w,80)
                 +cuts*(cutter.cycleTime+cutter.transferTime)+2*cutter.transferTime)
+            if job.press then
+                local colors=math.max(1,math.floor(tonumber(job.press.colors) or 1))
+                local printSkill=math.max(60,w.pressSkill or 0)
+                local printDelay=.32+(100-printSkill)/100*.70+(100-(w.focus or 80))/100*.40
+                local copies=math.max(1,math.floor(tonumber(p.requestedCopies)
+                    or tonumber(p.press and p.press.requiredGoodSheets)
+                    or tonumber(p.initialSheets) or 1))
+                local presses=math.max(1,colors)
+                local plates=p.press and p.press.completedColors or 0
+                local plateActions=0
+                local plateRows=job.press.plates or {}
+                for color=plates+1,presses do
+                    local plate=plateRows[color]
+                    if not plate or plate.status=="unprepared" or plate.status=="processing" then
+                        plateActions=plateActions+(plate and plate.status=="processing"
+                            and math.max(0,5-(plate.processStep or 1)) or 4)
+                    end
+                end
+                -- Plate handling, six setup checks, proof approval, pass cleanup,
+                -- and the actual impressions all consume paid operator time.
+                local operatorActions=plateActions+presses*11
+                local runningHours=copies/3000*presses
+                seconds=seconds+operatorActions*printDelay
+                    +runningHours*Calendar.secondsPerDay(state)/24
+            end
+            local wrapSkill=math.max(50,w.wrappingSkill or 0)
+            local wrapDelay=.32+(100-wrapSkill)/100*.70+(100-(w.focus or 80))/100*.40
+            seconds=seconds+wrapDelay+3
         end
     end
     local hours=seconds*24/Calendar.secondsPerDay(state)+.25

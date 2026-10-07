@@ -19,7 +19,7 @@ function Test.run(_,check)
     test("bad_coordinates_rejected",not Layout.containsUnlocked(state,"100",570))
     local definition=Layout.bay("front_left")
     definition.rackStart.x=-1000
-    test("layout_is_detached",Layout.bay("front_left").rackStart.x==30)
+    test("layout_is_detached",Layout.bay("front_left").rackStart.x==18.59)
     for column=1,5 do
         local lower=Layout.rackPoint("front_left-rack",1,column)
         local upper=Layout.rackPoint("front_left-rack",2,column)
@@ -32,9 +32,9 @@ function Test.run(_,check)
     local obstacles=Layout.obstacles(state)
     test("rack_registers_six_structural_posts",#obstacles==6 and obstacles[1].kind=="pallet_rack_post"
         and obstacles[1].halfWidth==2 and obstacles[1].halfHeight==3)
-    test("terminal_rack_post_leaves_service_aisle_open",#obstacles==6
+    test("six_rack_obstacles_match_visible_uprights",#obstacles==6
         and obstacles[6].kind=="pallet_rack_post" and obstacles[6].x==Layout.bay("front_left").rackEnd.x
-        and obstacles[6].y==Layout.bay("front_left").rackEnd.y-38)
+        and obstacles[6].y==Layout.bay("front_left").rackEnd.y-5)
     local approach=Layout.rackApproach("front_left-rack")
     local clear=true
     for _,obstacle in ipairs(obstacles) do

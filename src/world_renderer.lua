@@ -1,6 +1,7 @@
 local Config = require("src.config")
 local CutterStaging = require("src.cutter_staging")
 local ShopClock = require("src.screens.shop_clock")
+local RabbitColorways = require("src.rabbit_colorways")
 local EmployeeRenderer = require("src.employee_renderer")
 local CharacterAnimation = require("src.character_animation")
 local InteractionBeacon = require("src.interaction_beacon")
@@ -418,17 +419,14 @@ local function drawPlayer(characterAssets,state)
         love.graphics.setColor(0.03, 0.04, 0.05, 0.24)
         love.graphics.ellipse("fill", player.x, player.y + 1, 13, 5)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.draw(
-            image,
-            quad,
-            player.x,
-            player.y,
-            0,
-            scale * directionScale,
-            scale,
-            anchorX,
-            anchorY
-        )
+        if character == "rabbit-worker" then
+            RabbitColorways.draw(image, quad, player.x, player.y, 0,
+                scale * directionScale, scale, anchorX, anchorY, 0, 0,
+                player.furColorway, player.overallsColorway)
+        else
+            love.graphics.draw(image, quad, player.x, player.y, 0,
+                scale * directionScale, scale, anchorX, anchorY)
+        end
         return
     end
 

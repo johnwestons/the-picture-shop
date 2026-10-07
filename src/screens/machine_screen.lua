@@ -10,6 +10,7 @@ local PalletJack = require("src.pallet_jack")
 local Procurement = require("src.procurement")
 local Wrapper = dependencies.Wrapper or require("src.wrapper")
 local BackButton = require("src.screens.back_button")
+local CutterSkin = require("src.screens.cutter_skin")
 local utf8 = require("utf8")
 
 local Screen = {
@@ -169,20 +170,18 @@ local function drawHelp(state, assets, pointerX, pointerY)
     BackButton.draw(assets, helpNext, Screen.helpStep == #cutterHelp and "DONE" or "NEXT ▶", pointerX, pointerY, false)
 end
 
-local function drawHelpButton(pointerX, pointerY)
+local function drawHelpButton(assets, pointerX, pointerY)
     local hovered = pointerX and inside(helpButton, pointerX, pointerY)
-    box(helpButton.x, helpButton.y, helpButton.width, helpButton.height,
-        hovered and { 0.20, 0.39, 0.49, 1 } or { 0.12, 0.27, 0.34, 1 },
-        { 0.48, 0.74, 0.80, 1 }, 3)
+    CutterSkin.button(assets, helpButton.x, helpButton.y, helpButton.width, helpButton.height,
+        hovered and "hover" or "normal")
     love.graphics.setColor(0.94, 0.97, 0.92)
     love.graphics.printf("HELP / INSTRUCTIONS", helpButton.x, helpButton.y + 13, helpButton.width, "center")
 end
 
-local function drawMaintenanceButton(pointerX, pointerY)
+local function drawMaintenanceButton(assets, pointerX, pointerY)
     local hovered = pointerX and inside(maintenanceButton, pointerX, pointerY)
-    box(maintenanceButton.x, maintenanceButton.y, maintenanceButton.width, maintenanceButton.height,
-        hovered and { 0.16, 0.43, 0.34, 1 } or { 0.11, 0.30, 0.26, 1 },
-        { 0.42, 0.72, 0.58, 1 }, 3)
+    CutterSkin.button(assets, maintenanceButton.x, maintenanceButton.y,
+        maintenanceButton.width, maintenanceButton.height, hovered and "hover" or "normal")
     love.graphics.setColor(0.94, 0.97, 0.92)
     love.graphics.printf("MAINTENANCE", maintenanceButton.x, maintenanceButton.y + 13,
         maintenanceButton.width, "center")
@@ -579,14 +578,15 @@ function Screen.syncGauge()
     formatGauge()
 end
 
-local function drawButton(button)
+local function drawButton(button, assets, pointerX, pointerY)
     if button.action == "cut_left" or button.action == "cut_right" or button.action == "estop" then return end
     local active = Screen.pressedAction == button.action
     if button.action == "program" then active = Machine.programIndex == button.value end
-    box(button.x, button.y + (active and 2 or 0), button.width, button.height,
-        active and { 0.18, 0.52, 0.68, 1 } or { 0.13, 0.18, 0.23, 1 },
-        active and { 0.55, 0.90, 1, 1 } or { 0.35, 0.48, 0.56, 1 }, 3)
-    love.graphics.setColor(0.92, 0.95, 0.95)
+    local hovered = pointerX and pointerY and inside(button, pointerX, pointerY)
+    local visual = active and (button.action == "program" and "selected" or "pressed")
+        or (hovered and "hover" or "normal")
+    CutterSkin.button(assets, button.x, button.y + (active and 2 or 0), button.width, button.height, visual)
+    love.graphics.setColor(0.97, 0.97, 0.92)
     love.graphics.printf(button.label, button.x, button.y + 9 + (active and 2 or 0), button.width, "center")
 end
 
@@ -760,13 +760,13 @@ function Screen.drawCutterScene(assets, machine, rect)
     love.graphics.pop()
 end
 
-local function drawTouchscreen()
+local function drawTouchscreen(assets, pointerX, pointerY)
     if Screen.gaugeReplaceOnType then
         Screen.gaugeText = string.format("%.2f", Machine.gauge or 0)
     end
-    box(38, 54, 326, 334, { 0.04, 0.075, 0.105, 1 }, { 0.44, 0.64, 0.72, 1 }, 4)
-    box(50, 66, 302, 150, { 0.055, 0.13, 0.19, 1 }, { 0.20, 0.55, 0.72, 1 }, 2)
-    love.graphics.setColor(0.52, 0.88, 1)
+    CutterSkin.panel(38, 54, 326, 334)
+    CutterSkin.panel(50, 66, 302, 150, false, true)
+    love.graphics.setColor(0.64, 0.83, 0.96)
     love.graphics.print("PROGRAMMABLE BACKGAUGE", 62, 76)
     love.graphics.setColor(0.92, 0.96, 0.92)
     love.graphics.print(string.format("GAUGE  %06.2f in", Machine.gauge), 62, 101)
@@ -788,16 +788,15 @@ local function drawTouchscreen()
     else
         love.graphics.print("NO PAPER BATCH LOADED", 62, 130)
     end
-    box(gaugeInput.x, gaugeInput.y, gaugeInput.width, gaugeInput.height,
-        Screen.gaugeFocused and { 0.07, 0.22, 0.29, 1 } or { 0.08, 0.11, 0.14, 1 },
-        Screen.gaugeFocused and { 0.52, 0.88, 1, 1 } or { 0.32, 0.46, 0.52, 1 }, 3)
+    CutterSkin.panel(gaugeInput.x, gaugeInput.y, gaugeInput.width, gaugeInput.height,
+        Screen.gaugeFocused, true)
     love.graphics.setColor(0.68, 0.78, 0.80)
     love.graphics.print("TYPE", gaugeInput.x + 7, gaugeInput.y + 8)
     love.graphics.setColor(0.96, 0.98, 0.92)
     local shown = Screen.gaugeText .. (Screen.gaugeFocused and "_" or "")
     love.graphics.printf(shown, gaugeInput.x + 50, gaugeInput.y + 8, gaugeInput.width - 58, "right")
     for _, button in ipairs(buttons) do
-        if button.y < 400 then drawButton(button) end
+        if button.y < 400 then drawButton(button, assets, pointerX, pointerY) end
     end
 end
 
@@ -853,7 +852,7 @@ function Screen.draw(state, assets, pointerX, pointerY)
         box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
         love.graphics.setColor(0.96, 0.82, 0.26)
         love.graphics.print("SKID WRAPPER / PALLET PACKAGING CONSOLE", 38, 30)
-        drawCondition(state, "skid_wrapper", 458, 28, 308)
+        drawCondition(state, "skid_wrapper", 366, 28, 280)
         BackButton.draw(assets, exitButton, "EXIT", pointerX, pointerY, false)
         local image = assets.get("skidWrapperDirections")
         local sprite = assets.getQuad("skidWrapperDirection1")
@@ -944,25 +943,32 @@ function Screen.draw(state, assets, pointerX, pointerY)
         return
     end
     layout()
-    box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
-    love.graphics.setColor(0.96, 0.82, 0.26)
+    CutterSkin.shell(assets)
+    CutterSkin.panel(392, 54, 530, 334, false, true)
+    love.graphics.setColor(0.97, 0.97, 0.92)
     love.graphics.print("POLAR 115 / JOB CUTTING CONSOLE", 38, 30)
-    drawCondition(state, "polar_115", 430, 28, 336)
-    BackButton.draw(assets, exitButton, "EXIT", pointerX, pointerY, false)
-    drawTouchscreen()
+    drawCondition(state, "polar_115", 366, 28, 280)
+    local exitHovered = pointerX and pointerY and inside(exitButton, pointerX, pointerY)
+    local exitPressed = exitHovered and love.mouse and love.mouse.isDown and love.mouse.isDown(1)
+    CutterSkin.button(assets, exitButton.x, exitButton.y, exitButton.width, exitButton.height,
+        exitPressed and "pressed" or exitHovered and "hover" or "normal")
+    love.graphics.setColor(0.94, 0.94, 0.90)
+    love.graphics.printf("EXIT", exitButton.x, exitButton.y + exitButton.height / 2 - 6,
+        exitButton.width, "center")
+    drawTouchscreen(assets, pointerX, pointerY)
     drawMachine(assets)
     -- Top-level controls are deliberately drawn after the machine art so the
     -- cabinet can never cover them.
-    drawHelpButton(pointerX, pointerY)
-    drawMaintenanceButton(pointerX, pointerY)
-    box(38, 400, 884, 58, { 0.075, 0.09, 0.11, 1 }, { 0.28, 0.40, 0.44, 1 }, 3)
+    drawHelpButton(assets, pointerX, pointerY)
+    drawMaintenanceButton(assets, pointerX, pointerY)
+    CutterSkin.panel(38, 400, 884, 58, false, true)
     love.graphics.setColor(0.82, 0.88, 0.89)
     love.graphics.print("STATUS: " .. Machine.step:upper(), 50, 411)
     love.graphics.print("BARRIER: " .. (Machine.barrierClear and "CLEAR" or "BLOCKED"), 260, 411)
     love.graphics.print("CLAMP: " .. (Machine.clamp and "DOWN" or "UP"), 460, 411)
     love.graphics.print(Machine.paperTooltip(), 50, 435)
     for _, button in ipairs(buttons) do
-        if button.y >= 400 and button.action ~= "cut_left" and button.action ~= "cut_right" and button.action ~= "estop" then drawButton(button) end
+        if button.y >= 400 and button.action ~= "cut_left" and button.action ~= "cut_right" and button.action ~= "estop" then drawButton(button, assets, pointerX, pointerY) end
     end
     for _, button in ipairs(buttons) do
         if button.action == "cut_left" then drawSpriteButton(assets, button, false, Machine.leftDown)

@@ -1448,9 +1448,16 @@ function Smoke.start(context)
     writeLine("THE_PICTURE_SHOP_SMOKE version=3")
 
     local ok, message = xpcall(function()
-        runChecks(context)
-        Suites.runDomain(context, check)
-        Suites.verifyAuditCoverage(Smoke.passed, check)
+        local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
+        if focus=="employee-shifts" then
+            require("src.tests.employees_test").run(context,check)
+            require("src.tests.employee_schedule_test").run(context,check)
+            require("src.tests.employee_billing_test").run(context,check)
+        else
+            runChecks(context)
+            Suites.runDomain(context, check)
+            Suites.verifyAuditCoverage(Smoke.passed, check)
+        end
         local maintenancePreview = os.getenv("PICTURE_SHOP_CUTTER_MAINTENANCE_PREVIEW")
         local wrapperMaintenancePreview = os.getenv("PICTURE_SHOP_WRAPPER_MAINTENANCE_PREVIEW")
         local previewTab = os.getenv("PICTURE_SHOP_COMPUTER_ACTIVE_PREVIEW") == "1" and "active"

@@ -14,6 +14,9 @@ local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payro
     back=rect(96,572,130,42),send=rect(606,572,234,42),pay=rect(590,554,250,46),
     finances=rect(364,554,214,46),liftsMinus=rect(490,424,48,40),liftsPlus=rect(788,424,48,40),
     assign=rect(410,518,208,46),pause=rect(410,572,208,42),dismiss=rect(632,572,208,42),
+    sendHome=rect(632,518,208,46),
+    train=rect(632,478,208,34),trainingPress=rect(410,518,208,46),
+    trainingWrap=rect(632,518,208,46),trainingBack=rect(632,572,208,42),
     confirmDismiss=rect(410,518,430,46),cancelDismiss=rect(410,572,430,42),
     wageMinus=rect(412,290,48,44),wagePlus=rect(788,290,48,44),
     startMinus=rect(412,350,48,44),startPlus=rect(562,350,48,44),
@@ -91,6 +94,19 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly)
     local current=selected(state,ui)
     if not current then return nil end
     if ui.view~="detail" and hit("back") then ui.view="detail";return {action="hiring_view"} end
+    if ui.view=="training" then
+        if hit("trainingBack") then ui.view="detail";return {action="hiring_view"} end
+        if hit("trainingPress") then
+            local result=send({kind="train_employee",employeeId=current.id,skill="press"})
+            if result and result.action~="blocked" then ui.view="detail" end
+            return result
+        elseif hit("trainingWrap") then
+            local result=send({kind="train_employee",employeeId=current.id,skill="wrapping"})
+            if result and result.action~="blocked" then ui.view="detail" end
+            return result
+        end
+        return nil
+    end
     if ui.view=="offer" then
         local t=ui.terms
         if hit("wageMinus") then t.wageCents=math.max(1000,t.wageCents-100)
@@ -144,29 +160,68 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly)
             ui.view="offer";return {action="hiring_view"}
         end
     elseif current.status=="employed" then
+        if hit("train") then ui.view="training";return {action="hiring_view"} end
         if hit("assign") and not current.assignment then ui.view="assignment";return {action="hiring_view"} end
+        if hit("sendHome") then return send({kind="send_employee_home",employeeId=current.id}) end
         if hit("pause") and current.assignment then return send({kind="unassign_employee",employeeId=current.id}) end
         if hit("dismiss") then ui.view="dismiss";return {action="hiring_view"} end
     end
 end
+local hiringButtonRenderer
 local function button(name,label,x,y,disabled,selectedFlag)
     local r=buttons[name]
     local hover=x and Ui.contains(r,x,y)
-    love.graphics.setColor(disabled and .13 or selectedFlag and .20 or hover and .23 or .16,
-        disabled and .17 or selectedFlag and .45 or hover and .39 or .29,.27,1)
-    love.graphics.rectangle("fill",r.x,r.y,r.width,r.height,4,4)
-    love.graphics.setColor(disabled and .48 or .94,disabled and .55 or .97,disabled and .52 or .91,1)
-    love.graphics.printf(label,r.x+3,r.y+(r.height-16)/2,r.width-6,"center")
+    local primary=selectedFlag or name=="recruit" or name=="resume" or name=="offer"
+        or name=="sign" or name=="send" or name=="assignConfirm" or name=="pay"
+        or name=="confirmDismiss"
+    local danger=name=="decline" or name=="dismiss"
+    if hiringButtonRenderer then
+        local style=disabled and "disabled"
+            or danger and (hover and "dangerHover" or "danger")
+            or primary and (hover and "primaryHover" or "primary")
+            or hover and "hover" or "secondary"
+        hiringButtonRenderer(r,label,style)
+        return
+    end
+    local edge,face,highlight,shadow,textColor
+    if disabled then
+        edge,face,highlight,shadow,textColor={.10,.14,.16,1},{.22,.28,.30,1},
+            {.39,.47,.47,1},{.12,.17,.18,1},{.70,.76,.75,1}
+    elseif danger then
+        edge,face,highlight,shadow,textColor={.20,.06,.05,1},{.43,.14,.13,1},
+            {.80,.42,.35,1},{.27,.08,.07,1},{1,.95,.91,1}
+    elseif primary then
+        edge,face,highlight,shadow,textColor={.015,.12,.14,1},{.02,.36,.39,1},
+            {.45,.79,.77,1},{.015,.20,.22,1},{.98,.99,.94,1}
+    else
+        edge,face,highlight,shadow,textColor={.055,.085,.10,1},{.25,.31,.33,1},
+            {.64,.70,.69,1},{.12,.16,.17,1},{.94,.96,.91,1}
+        if hover then face={.32,.40,.42,1};highlight={.75,.84,.81,1} end
+    end
+    love.graphics.setColor(edge);love.graphics.rectangle("fill",r.x,r.y,r.width,r.height,4,4)
+    love.graphics.setColor(face);love.graphics.rectangle("fill",r.x+2,r.y+2,r.width-4,r.height-4,3,3)
+    love.graphics.setColor(highlight);love.graphics.rectangle("fill",r.x+4,r.y+3,r.width-8,1)
+    love.graphics.setColor(shadow);love.graphics.rectangle("fill",r.x+4,r.y+r.height-4,r.width-8,1)
+    love.graphics.setColor(textColor)
+    love.graphics.printf(label,r.x+5,r.y+(r.height-love.graphics.getFont():getHeight())/2,r.width-10,"center")
 end
 local function line(text,x,y,width,color)
-    color=color or {.82,.89,.85}
+    color=color or {.86,.91,.92}
     love.graphics.setColor(color[1],color[2],color[3],1)
     love.graphics.printf(text,x,y,width or 428,"left")
 end
-function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
+local function panel(x,y,w,h)
+    love.graphics.setColor(.015,.025,.035,1);love.graphics.rectangle("fill",x,y+2,w,h,4,4)
+    love.graphics.setColor(.045,.075,.095,1);love.graphics.rectangle("fill",x,y,w,h,4,4)
+    love.graphics.setColor(.29,.52,.56,1);love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,4,4)
+    love.graphics.setColor(.39,.62,.65,1);love.graphics.line(x+5,y+2,x+w-6,y+2)
+end
+function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer)
+    hiringButtonRenderer=buttonRenderer
     local e=Employees.ensure(state)
     local now=Calendar.absoluteHours(state)
-    love.graphics.setColor(.08,.13,.12,1);love.graphics.rectangle("fill",82,182,770,444,4,4)
+    panel(82,182,770,444)
     button("applications","APPLICANTS",pointerX,pointerY,false,ui.section=="applications")
     button("staff","STAFF",pointerX,pointerY,false,ui.section=="staff")
     button("payroll","PAYROLL",pointerX,pointerY,false,ui.section=="payroll")
@@ -218,14 +273,21 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
     end
     local all=rows(state,ui)
     local current=selected(state,ui)
+    if ui.section~="payroll" then
+        panel(90,244,278,320)
+        panel(402,244,444,320)
+    end
     for i=1,ui.view=="offer" and 3 or 5 do
         local row=all[(ui.page-1)*5+i]
         if row then
             local r=rect(96,252+(i-1)*61,264,55)
-            love.graphics.setColor(row==current and .20 or .12,row==current and .32 or .21,.23,1)
-            love.graphics.rectangle("fill",r.x,r.y,r.width,r.height,3,3)
-            line(row.name,r.x+10,r.y+7,244)
-            line(ui.section=="applications" and labels[row.status] or row.status,r.x+10,r.y+30,244,{.61,.78,.67})
+            love.graphics.setColor(.025,.045,.06,1);love.graphics.rectangle("fill",r.x,r.y,r.width,r.height,3,3)
+            love.graphics.setColor(row==current and {.015,.34,.37,1} or {.09,.14,.16,1})
+            love.graphics.rectangle("fill",r.x+2,r.y+2,r.width-4,r.height-4,2,2)
+            love.graphics.setColor(row==current and {.42,.83,.79,1} or {.23,.39,.42,1})
+            love.graphics.rectangle("line",r.x+1.5,r.y+1.5,r.width-3,r.height-3,3,3)
+            line(row.name,r.x+10,r.y+7,244,{.92,.95,.93})
+            line(ui.section=="applications" and labels[row.status] or row.status,r.x+10,r.y+30,244,{.55,.80,.80})
         end
     end
     if ui.view=="detail" then button("previous","<",pointerX,pointerY);button("next",">",pointerX,pointerY)
@@ -235,7 +297,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
             or "No employees yet. Hire an applicant after accepting their emailed contract terms.",410,272,426)
         return
     end
-    line(current.name.."  |  Cutter operator",410,252,426,{1,.86,.50})
+    line(current.name.."  |  Production worker",410,252,426,{1,.86,.50})
     if ui.view=="offer" then
         local t=ui.terms
         local f=Finances.summary(state,t,current.cutterSkill)
@@ -282,9 +344,24 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
         button("assignConfirm","ASSIGN CUTTING WORK",pointerX,pointerY,readOnly or not (job and pallet and machine))
         return
     elseif ui.view=="dismiss" then
-        line("Dismiss this employee?\n\nThey will stop at a safe cutter checkpoint. Earned wages stay on payroll until paid.",412,298,426)
+        line("Dismiss this employee?\n\nThey will stop at a safe machine checkpoint. Earned wages stay on payroll until paid.",412,298,426)
         button("confirmDismiss","CONFIRM DISMISSAL",pointerX,pointerY,readOnly)
         button("cancelDismiss","KEEP EMPLOYEE",pointerX,pointerY)
+        return
+    elseif ui.view=="training" then
+        local pressInstalled=#Fleet.installedUnits(state,"heidelberg_10x15")>0
+        local wrapperInstalled=#Fleet.installedUnits(state,"skid_wrapper")>0
+        line("MACHINE TRAINING",412,276,426,{1,.86,.50,1})
+        line("Training uses paid hours from the employee's agreed shifts. They learn at the installed machine and return to their schedule when the course ends.",412,306,416)
+        line(string.format("Press skill %d/100  |  Pallet wrapping %d/100",current.pressSkill,current.wrappingSkill),412,394,416,{.62,.79,.67,1})
+        if current.training then
+            line(string.format("Current course: %s, %.1f paid hours remaining",current.training.skill,current.training.remainingHours),412,436,416,{1,.85,.45,1})
+        else
+            line("Choose the machine skill to teach.",412,436,416)
+        end
+        button("trainingPress","TRAIN PRINTING PRESS",pointerX,pointerY,readOnly or current.training~=nil or current.pressSkill>=100 or not pressInstalled)
+        button("trainingWrap","TRAIN PALLET WRAPPING",pointerX,pointerY,readOnly or current.training~=nil or current.wrappingSkill>=100 or not wrapperInstalled)
+        button("trainingBack","BACK TO STAFF",pointerX,pointerY)
         return
     end
     if ui.section=="applications" then
@@ -294,9 +371,10 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
             love.graphics.setColor(1,1,1,1);love.graphics.draw(image,quad,784,370,0,.39,.39,ax,ay)
         end
         line("RESUME ATTACHED",410,288,300)
-        line(string.format("Cutter skill: %d/100\nAttention: %d/100\nReliability: %d/100",current.cutterSkill,current.attention,current.reliability),410,316,292)
+        line(string.format("Cutter %d/100  |  Press %d/100\nPallet wrapping %d/100  |  Attention %d  |  Reliability %d",
+            current.cutterSkill,current.pressSkill,current.wrappingSkill,current.attention,current.reliability),410,316,326)
         line(string.format("Requested pay: $%.2f/hr",current.requestedWage/100),410,386,426)
-        line("Experience: staged stock, programmed trims, safe two-hand cutter controls. Day or night shifts negotiable.",410,412,426)
+        line("Experience: staged stock, programmed cuts, printing and pallet wrapping. Day or night shifts negotiable.",410,412,426)
         line(labels[current.status] or current.status,410,466,426,{1,.85,.45})
         if current.status=="visiting" then button("resume","REQUEST EMAIL RESUME",pointerX,pointerY,readOnly)
         elseif current.status=="resume_received" then button("offer","NEGOTIATE OFFER",pointerX,pointerY,readOnly)
@@ -310,14 +388,23 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly)
     else
         local w=current
         line(Contracts.summary(w.contract),410,290,426)
-        line(string.format("Cutter skill %d/100 | Focus %d | Tiredness %d",w.cutterSkill,math.floor(w.focus),math.floor(w.fatigue)),410,334,426)
-        line(w.activity,410,374,426,{1,.85,.45})
-        line(w.assignment and ("Job "..w.assignment.jobId.."\nPallet "..w.assignment.palletId.."\nCutter "..w.assignment.machineId) or "No work assigned",410,404,426)
+        line(string.format("Cutter %d/100 | Press %d/100 | Wrapping %d/100",w.cutterSkill,w.pressSkill,w.wrappingSkill),410,334,426)
+        line(w.training and string.format("Training: %s (%.1f paid hours left)",w.training.skill,w.training.remainingHours)
+            or w.activity,410,374,426,{1,.85,.45})
+        local assignedMachine=w.assignment and Fleet.byId(state,w.assignment.machineId)
+        line(w.assignment and ("Job "..w.assignment.jobId.."\nPallet "..w.assignment.palletId.."\n"
+            ..(assignedMachine and assignedMachine.name or "Machine").." "..w.assignment.machineId) or "No work assigned",410,404,426)
         local payday=Calendar.shortDate({calendar=Calendar.dateFromHours(Payroll.nextPayday(w,now))})
         line("Payday: "..payday.." at 09:00 (every "..w.contract.payWeeks.."w)",410,458,426,{.61,.78,.67})
-        line(string.format("Wages due $%.2f | Earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,484,426)
+        line(string.format("Wages due $%.2f | Earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,484,214)
         if w.status=="employed" then
+            button("train",w.training and "TRAINING ACTIVE" or "TEACH MACHINE SKILLS",pointerX,pointerY,
+                readOnly or w.training~=nil)
             button("assign",w.assignment and "WORK ASSIGNED" or "ASSIGN JOB",pointerX,pointerY,readOnly or w.assignment~=nil)
+            local sentHomeToday=w.sentHomeShiftDay==Contracts.shiftDay(w.contract,now)
+            line("Ends today's shift safely; unfinished work resumes next shift.",410,502,426,{.61,.78,.67})
+            button("sendHome",sentHomeToday and "SENT HOME" or "SEND HOME",pointerX,pointerY,
+                readOnly or sentHomeToday or not (w.visible and w.clockedIn))
             button("pause","PAUSE ASSIGNMENT",pointerX,pointerY,readOnly or w.assignment==nil)
             button("dismiss","DISMISS",pointerX,pointerY,readOnly)
         end

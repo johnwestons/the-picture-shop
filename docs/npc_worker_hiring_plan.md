@@ -1,12 +1,12 @@
 # NPC Worker Hiring and Machine Operation Plan
 
-**Status:** The cat hiring/cutter pilot, ordered cutter schedules, shift continuation and employee labor accounting are playable. Press, wrapping, transport and the broader policies below remain planned. **Date:** October 6, 2026.
+**Status:** Hiring, ordered schedules, shift continuation, press/wrapper operation, paid machine training and employee labor accounting are playable. Autonomous pallet transport, forklift work and the broader policies below remain planned. **Date:** October 6, 2026.
 
-See [current implementation and verification](npc_worker_build_status.md) for the exact implemented scope. Open **HIRING** from the office computer's address-bar dropdown to hire and pay workers; **SCHEDULE** queues up to 16 accepted cutter jobs per employee with automatic progression, pause/resume and completion history. Every pallet in a job is cut before moving to the next job. Stock still needs player staging and clear cutter output.
+See [current implementation and verification](npc_worker_build_status.md) for the exact implemented scope. Open **HIRING** from the office computer's address-bar dropdown to hire, train and pay workers; **SCHEDULE** queues up to 16 arrived jobs per employee. Workers cut each pallet, print when required, wrap it and advance through the queue. Blocked jobs yield to other ready work, while running machine cycles finish safely. Stock still needs player staging at the machines and clear output.
 
 Players can hire critter employees to cut, print, and eventually finish and move work around the shop. Applicants visit reception, show a resume, email it through CritterNet, and negotiate pay and working days in the computer inbox. Hired workers arrive for their agreed shifts, operate real machines on real job pallets, earn hourly wages, and take breaks to recover tiredness and focus.
 
-Start with a cat worker based on Radio Cat from Mouse Frontier. The first playable stage should complete the whole hiring and payroll loop with one cutter operator. The subsequent stages add the Heidelberg Windmill, finishing, and pallet transport. Each stage includes the animations for the actions it makes playable.
+The original staged plan began with a Radio Cat cutter operator and then added the Heidelberg Windmill and wrapping. Those production stages are now implemented for all three workers, with paid training when a worker needs the machine skill. The remaining major stage is pallet transport. Each additional capability includes the animations for the actions it makes playable.
 
 All behavior, resumes, and correspondence belong to the game's simulation. The host advances them on the shop calendar, including while the player reads the computer.
 
@@ -121,7 +121,7 @@ Observe feed errors, stock shortages, machine condition, and the existing spoila
 
 ### Finishing and transport
 
-After cutter and press work are stable, add wrapper operation using the existing film, pallet, cycle, and output rules. Pallet transport then lets the worker fetch, stage, and return the same physical pallet with the pallet jack. Validate every pickup, carried-load route, and final drop against the fine placement grid and exact footprints. Forklift, upper-rack, and stacked-pallet work require a further qualification and animation stage.
+Employees can now operate the wrapper using its existing film, pallet, cycle, and output rules. Pallet transport remains the next stage: let the worker fetch, stage, and return the same physical pallet with the pallet jack. Validate every pickup, carried-load route, and final drop against the fine placement grid and exact footprints. Forklift, upper-rack, and stacked-pallet work require a further qualification and animation stage.
 
 In the first cutter and press stages, the player stages input pallets within machine reach and leaves output space. Clearly show **Needs input pallet**, **No output space**, **Waiting for plate**, **Drying**, **Machine unavailable**, **Needs proof approval**, or **Route blocked** when relevant. The eventual transport stage removes the need for ordinary manual staging; it never creates inventory through teleporting pallets.
 
@@ -226,7 +226,7 @@ Persist the employee ID, profile and experience, application and email reference
 
 Process shift, break, offer, and payroll boundaries chronologically when a frame crosses several deadlines. Split machine and payroll updates at those boundaries so one large update cannot grant a full frame of work after clock-out or miss a payday. Use durable operation IDs for contract signing, work stages, wage accrual checkpoints, replies, and payments.
 
-The implemented cutter/schedule pilot uses save schema 20, employment v4 and network protocol 25. Radio Cat, Tinker Fox and Ferret Engineer use reviewed Mouse Frontier movement sprites. Signed terms allow four-to-twelve-hour daytime/overnight shifts and one-to-four-week pay cycles. New saves choose five-to-sixty-minute days; older saves retain their five-minute pace. Version 19 terms gain weekly pay without rewriting existing wage debt or due dates. Earlier migrations preserve contracts, payroll, money, agreed prices, jobs, loans, placements and real production. Version 18 / employment v2 gains cumulative labor totals, with old tracked wages recorded as unallocated shop labor. Unfinished cutter work resumes on the next agreed shift, including across days off and save/reload. The Payroll shop budget covers whole shifts, bills, loans, cutter capacity and payday reserves. Additional roles and dedicated fox/ferret machine action sequences still require reviewed work. Save wiping remains a separate, explicitly agreed testing choice.
+The implemented employee workflow uses save schema 21, employment v6 and network protocol 26. Radio Cat, Tinker Fox and Ferret Engineer use reviewed Mouse Frontier movement sprites. Signed terms allow four-to-twelve-hour daytime/overnight shifts and one-to-four-week pay cycles. New saves choose five-to-sixty-minute days; older saves retain their former pace. Migrations preserve contracts, payroll, money, agreed prices, jobs, loans, placements and production. Unfinished work resumes on the next agreed shift, including across days off and save/reload. The Payroll shop budget covers whole shifts, bills, loans, cutter capacity and payday reserves; new employee quotes include the staffed per-lift cost floor. Fox/ferret multi-pose machine-action animations and autonomous pallet transport still need reviewed work. Save wiping remains a separate, explicitly agreed testing choice.
 
 ## Implementation order and completion checks
 
@@ -234,8 +234,8 @@ The implemented cutter/schedule pilot uses save schema 20, employment v4 and net
 | --- | --- | --- |
 | 1 | Hiring and financial rules with neutral UI fixtures | Resume request, counters, final agreement, schedules, and exact wages persist without duplicates |
 | 2 | Cat cutter operator and useful breakroom | Visible applicant-to-employee journey; cat completes an actual multi-lift cutting job, rests, leaves safely, and receives correct pay |
-| 3 | Cat press operator | All six setup tasks, proof supervision, production, drying between colors, cleanup, and resumable shift end on exact machine units |
-| 4 | Finishing and pallet transport | Wrapper and pallet jack operate on canonical pallets with safe reservations, clear routes, and validated placement |
+| 3 | Cat press operator | Implemented: worker handles setup, proof checks, production, drying, cleanup and safe shift continuation |
+| 4 | Finishing and pallet transport | Wrapper implemented; pallet-jack transport still requires canonical pallet reservations, clear routes and validated placement |
 | 5 | Larger workforce and training | Several employees share machines, seats, paths, and payroll without duplicate work, visual drift, or phone memory failures |
 
 The first playable release combines stages 1 and 2. It must include hiring, an actual contract, hourly cost, a real cutting result, conditions, usable breaks, save recovery, and the corresponding cat animations. A Staff menu with an invisible job-completion timer does not satisfy that release.

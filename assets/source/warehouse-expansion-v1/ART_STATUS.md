@@ -22,7 +22,10 @@ The live game has three choices for either mirrored front bay. `src/warehouse_co
 
 | File | Dimensions | Runtime role and status |
 | --- | --- | --- |
-| [breakroom-furnishings-v1.png](rooms/breakroom-furnishings-v1.png) | 1536×1024 RGBA | Cutaway room shell and furnishings for the employee room; mirrored between bays, `approved=false` |
+| [breakroom-furnishings-v1.png](rooms/breakroom-furnishings-v1.png) | 1536×1024 RGBA | Superseded rectangular reference shell, retained for comparison; `approved=false` |
+| [breakroom-triangle-v1-candidate.png](rooms/breakroom-triangle-v1-candidate.png) | 1536×1024 RGBA | First triangular-layout draft; retained as a comparison source after its visible floor edge proved smaller than its registration corners; `approved=false` |
+| [breakroom-triangle-v2-candidate.png](rooms/breakroom-triangle-v2-candidate.png) | 1536×1024 RGBA | Intermediate floor-triangle redesign; retained for comparison; `approved=false` |
+| [breakroom-triangle-v3-candidate.png](rooms/breakroom-triangle-v3-candidate.png) | 1536×1024 RGBA | Compact room with a measured floor triangle, open diagonal entrance, and inward trim overlap; `approved=false` |
 | [breakroom-construction-atlas-v1.png](rooms/breakroom-construction-atlas-v1.png) | 1536×1024 RGBA | Four 768×512 construction crops, reused for either bay with mirrored registration; `approved=false` |
 | [floor-construction-atlas-v2-clean.png](rooms/floor-construction-atlas-v2-clean.png) | 1536×1024 RGBA | Cleaned four-stage floor construction atlas; removes the stray “BUG 4/4” text from the preserved [v1 source](rooms/floor-construction-atlas-v1.png); `approved=false` |
 
@@ -30,11 +33,17 @@ Acceptance captures exercise all six completed choices and every mirrored floor/
 
 The open-floor fill now samples the existing warehouse concrete along each bay's shared underlap edge and reflects that source into the expansion triangle. Both left/right floor joins and stage-1 construction are captured in LÖVE acceptance run `20260927-044946`; the live base bitmap, movement mask and gameplay scale remain unchanged. This removes the earlier stretched-triangle texture break without introducing a mismatched floor tile. The overall base/source art is still provisional pending the complete seam, edge and production-art review.
 
-### Five-opening world rack and service aisle — September 27
+### Earlier five-opening world rack — September 27
 
-[rack-world-left-v4-five-bay-service-aisle-candidate.png](rack-world-left-v4-five-bay-service-aisle-candidate.png) is a 1536×1024 RGBA candidate with five shelf openings across two levels and six uprights; the terminal upright is recessed. It is registered at the existing world-rack scale and used for both bays, with the right bay mirrored. The collision model follows the five front supports and recessed end support, leaving a loaded-forklift aisle through the bay.
+[rack-world-left-v5-triangle-aligned-candidate.png](rack-world-left-v5-triangle-aligned-candidate.png) is a 1536×1024 RGBA comparison candidate with five openings across two levels. Its affine shear matched the bay seam but also leaned its upright supports, so it is no longer the selected runtime source. The older v4 candidate remains preserved for comparison.
 
-The real-engine run `20260927-074650` passes **109 checks**, including a loaded forklift driving into and back out of the aisle, aligning its carried pallet to an upper slot, storing it, retrieving the same pallet, and checking that all ten slots have a clear loaded-forklift pose. [The 24-state direction/height board](../../../output/warehouse-expansion-v1/live-acceptance/20260927-074650-forklift-24-state-review.png), [the alignment capture](../../../output/warehouse-expansion-v1/live-acceptance/20260927-074650-forklift-upper-rack-alignment.png), and [the stored upper pallet](../../../output/warehouse-expansion-v1/live-acceptance/20260927-074650-rack-world-upper-stock.png) show current engine rendering. These verify pose coverage and registered anchors, not final art approval. The source remains a candidate with `approved=false`; final support/beam occlusion and production-art review remain open.
+### Triangular expansion fit — October 6
+
+`breakroom-triangle-v3-candidate.png` maps its measured floor vertices to the three vertices of each bay; the right room mirrors the same transform. Its compact kitchenette, table, and vending machine sit within the triangle, and their collision points follow the visible furnishings. The renderer preserves a narrow overlap for the left/bottom wall trim while clipping the diagonal edge to the bay seam. Construction-stage art remains clipped to the exact bay polygon. LÖVE run `20261006-183050` captured both completed room orientations in the live warehouse renderer.
+
+`rack-world-left-v6-triangle-fit-candidate.png` has five openings and six vertical front supports. Its X/Y registration scales the beam angle to the bay seam while keeping the supports vertical; the narrower rack and support obstacles fit inside the triangular floor. The same LÖVE run captured both rack orientations and passed the loaded forklift aisle, upper-shelf transfer, parking, and remount journey. Both new assets remain `approved=false`; production-art approval remains open.
+
+The real-engine run `20261006-183050` passes **110 checks** with the triangular fit active. It captures the left and right breakroom and rack placements in the full warehouse scene, then drives the loaded forklift through the service aisle, stores and retrieves an upper pallet, parks and remounts, and checks that all ten slots have a clear loaded-forklift pose. Review the [left breakroom](../../../output/warehouse-expansion-v1/live-acceptance/20261006-183050-left-breakroom-complete.png), [right breakroom](../../../output/warehouse-expansion-v1/live-acceptance/20261006-183050-right-breakroom-complete.png), [left rack](../../../output/warehouse-expansion-v1/live-acceptance/20261006-183050-left-storage-complete.png), [right rack](../../../output/warehouse-expansion-v1/live-acceptance/20261006-183050-right-storage-complete.png), [upper-rack alignment](../../../output/warehouse-expansion-v1/live-acceptance/20261006-183050-forklift-upper-rack-alignment.png), and [stored upper pallet](../../../output/warehouse-expansion-v1/live-acceptance/20261006-183050-rack-world-upper-stock.png) captures. The source remains a candidate with `approved=false`; production-art approval remains open.
 
 ## Vehicle and pallet source art
 

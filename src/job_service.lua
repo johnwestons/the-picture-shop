@@ -532,6 +532,14 @@ function JobService.quoteTerms(state, job, amount)
     if job.status=="offered" and not job.quote.playerPrice and not job.promotionDiscount
         and not (job.estimate and job.estimate.stage=="awaiting_reply") then
         base,budget=Labor.price(state,job,servicePrice)
+        if budget then
+            -- Keep an employee quote above the shop's modeled direct cost per
+            -- lift, including the negotiated payroll and machine allowance.
+            -- This keeps small jobs from underpricing the staffed workflow.
+            local finances=require("src.staff_finances").summary(state)
+            local lifts=math.max(1,math.floor(tonumber(job.quote.totalLifts) or 1))
+            base=math.max(base,math.ceil(finances.pricePerLift*lifts*100-1e-7)/100)
+        end
     end
     amount = math.max(1, math.floor(tonumber(amount) or base))
     local serviceId = job.deliveryService and job.deliveryService.id or "standard"

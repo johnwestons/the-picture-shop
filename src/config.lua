@@ -353,6 +353,7 @@ local Config = {
         machineFlatbedEmpty = "assets/generated/machine-delivery-flatbed-empty.png",
         polarOperatorConsole = "assets/generated/polar-operator-console.png",
         cutterControlButtons = "assets/generated/cutter-control-buttons-strip.png",
+        cutterGuiSteel = "assets/generated/cutter-gui-steel-skin-atlas.png",
         cutterClamp = "assets/generated/cutter-clamp-strip.png",
         cutterBlade = "assets/generated/cutter-blade-strip.png",
         cutterMaintenanceOil = "assets/generated/cutter-maintenance-oil-atlas.png",

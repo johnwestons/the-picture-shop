@@ -1,5 +1,6 @@
 local CharacterAnimation = require("src.character_animation")
 local Config = require("src.config")
+local RabbitColorways = require("src.rabbit_colorways")
 
 local Renderer = {}
 
@@ -51,8 +52,14 @@ local function drawPlayer(characterAssets,player,state)
         local anchorX, anchorY = characterAssets.getAnchor(character, action, frame)
         local scale = Config.player.drawScale * characterAssets.getNormalization(character, action)
         love.graphics.setColor(1, 1, 1)
-        love.graphics.draw(image, quad, player.x, player.y, 0,
-            scale * directionScale, scale, anchorX, anchorY)
+        if character == "rabbit-worker" then
+            RabbitColorways.draw(image, quad, player.x, player.y, 0,
+                scale * directionScale, scale, anchorX, anchorY, 0, 0,
+                player.furColorway, player.overallsColorway)
+        else
+            love.graphics.draw(image, quad, player.x, player.y, 0,
+                scale * directionScale, scale, anchorX, anchorY)
+        end
     else
         love.graphics.setColor(0.25, 0.62, 0.72, 1)
         love.graphics.rectangle("fill", player.x - 10, player.y - 42, 20, 38)

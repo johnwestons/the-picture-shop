@@ -44,8 +44,10 @@ function Test.run(context,check)
     check("employee_billing_trial_pricing_still_covers_staff_cost_floor",trialTerms.recommendedPrice>=trialTerms.employeeBudget.minimumCuttingCharge)
     local printing=offer("JOB-LABOR-PRINT",true);local pressAllowance=printing.quote.pressBudget.laborCost
     local printTerms=Service.quoteTerms(state,printing)
-    check("employee_billing_cutting_allowance_does_not_double_press_labor",printTerms.recommendedPrice==high.recommendedPrice+printing.quote.pressBudget.recommendedCharge
-        and printing.quote.pressBudget.laborCost==pressAllowance)
+    check("employee_billing_press_quote_covers_employee_time_without_mutating_press_allowance",
+        printTerms.recommendedPrice>=high.recommendedPrice+printing.quote.pressBudget.recommendedCharge
+            and printTerms.employeeBudget.minimumCuttingCharge>high.employeeBudget.minimumCuttingCharge
+            and printing.quote.pressBudget.laborCost==pressAllowance)
     local wallet=state.money
     local accepted,result=Service.submitQuote(state,job,high.recommendedPrice,1)
     local agreed=job.quote.totalPrice
@@ -81,7 +83,7 @@ function Test.run(context,check)
     legacy.state.employment.version=2
     for _,old in ipairs(legacy.state.employment.staff) do old.laborTotals=nil end
     local migrated=Schema.migrate(legacy)
-    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==20 and migrated.state.employment.version==4
+    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==21 and migrated.state.employment.version==6
         and near(migrated.state.employment.staff[1].laborTotals.shopCents,4400) and migrated.state.jobs.active[1].quote.totalPrice==agreed
         and legacy.state.employment.staff[1].laborTotals==nil)
     -- The Bills page and Payroll settle the same obligations exactly once.
@@ -115,18 +117,21 @@ function Test.run(context,check)
         check("employee_billing_"..tab.."_page_draws",okay,tostring(err))
     end
     -- Real cutter progress must resume after Friday, a weekend and save/reload.
-    local continuation=State.new();local worker=hire(continuation);local first=offer("JOB-NEXT-SHIFT-A");local second=offer("JOB-NEXT-SHIFT-B")
+    local continuation=State.new();local worker=hire(continuation);worker.pressSkill,worker.wrappingSkill=60,50
+    local first=offer("JOB-NEXT-SHIFT-A");local second=offer("JOB-NEXT-SHIFT-B")
     for _,j in ipairs({first,second}) do Jobs.accept(j);continuation.jobs.active[#continuation.jobs.active+1]=j end
     local machine=Fleet.installedUnits(continuation,"polar_115")[1]
     for _,j in ipairs({first,second}) do
-        assert(Employees.command(continuation,{kind="queue_employee_job",employeeId=worker.id,jobId=j.id,machineId=machine.id},9))
         context.PalletLogistics.unload(continuation,j.id,j.pallets[1].id,context.config.palletLogistics.spawnPoints,context.config.palletLogistics.unloadOrigin)
+        assert(Employees.command(continuation,{kind="queue_employee_job",employeeId=worker.id,jobId=j.id,machineId=machine.id},9))
     end
     local ix,iy=context.CutterZones.inputAnchor(continuation,context.config.cutterPlacement)
     for _,j in ipairs({first,second}) do local p=j.pallets[1];p.world.x,p.world.y=ix,iy;p.world.fromX,p.world.fromY=ix,iy;p.world.spawnProgress=1 end
     context.machine.reset(continuation)
     local oldResolver=context.machine.forId(machine.id).outputResolver
-    context.machine.setOutputResolver(function() return {x=ix+95,y=iy+65,direction="northwest"} end)
+    context.machine.setOutputResolver(function()
+        return {x=continuation.wrapper.x+80,y=continuation.wrapper.y,direction="northwest"}
+    end)
     local oldMove=AI.move
     AI.move=function(actor,goal) actor.x,actor.y=goal.x,goal.y;actor.moving=false;return true end
     local okay,err=pcall(function()
@@ -153,7 +158,7 @@ function Test.run(context,check)
         AI.worker(resumed,worker,.1,105,wc)
         check("employee_next_agreed_shift_reclaims_same_unfinished_pallet",worker.visible and worker.clockedIn and worker.assignment.jobId==first.id
             and worker.assignment.palletId==first.pallets[1].id)
-        for i=1,3000 do AI.worker(resumed,worker,.1,105,wc);context.machine.updateAll(.1,resumed)
+        for i=1,3000 do AI.worker(resumed,worker,.1,105,wc);context.machine.updateAll(.1,resumed);context.wrapper.updateAll(.1,resumed)
             if #worker.schedule.items==0 and not worker.assignment then break end end
         check("employee_next_shift_finishes_remaining_cuts_then_next_job_exactly_once",#worker.schedule.items==0 and #worker.schedule.history==2
             and resumed.inventory.finishedPallets==2 and resumed.jobs.active[1].pallets[1].finishedSheets==500

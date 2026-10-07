@@ -48,7 +48,7 @@ function Test.run(context,check)
     check("employees_reception_interaction_requests_typed_resume",World.requestEmployeeResume(visitState,visitor.id) and visitor.status=="resume_requested")
     local legacy=Schema.newPayload(1,1);legacy.version=16;legacy.state.employment=nil
     local migrated=Schema.migrate(legacy)
-    check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==20 and #migrated.state.employment.staff==0)
+    check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==21 and #migrated.state.employment.staff==0)
     local a=Employees.createApplicant(fresh,0)
     Employees.requestResume(fresh,a.id,0)
     local revision=a.revision
@@ -173,7 +173,8 @@ function Test.run(context,check)
         move=function(worker,goal) worker.x,worker.y=goal.x,goal.y;worker.moving=false;return true end}
     pallet.world.x,pallet.world.y=450,490
     Work.update(production,operator,.1,wc)
-    check("employees_unstaged_pallet_stays_available_for_player_transport",not operator.reserved and operator.activity=="Stage assigned pallet beside this cutter")
+    check("employees_unstaged_pallet_stays_available_for_player_transport",not operator.reserved
+        and operator.assignment~=nil and operator.activity=="Stage the assigned pallet beside the selected cutter")
     local ix,iy=context.CutterZones.inputAnchor(production,context.config.cutterPlacement)
     pallet.world.x,pallet.world.y=ix,iy;pallet.world.fromX,pallet.world.fromY=ix,iy;pallet.world.spawnProgress=1
     Work.update(production,operator,1,wc)
@@ -205,7 +206,9 @@ function Test.run(context,check)
     check("employees_blocked_output_preserves_finished_stock",m.step=="cut_complete" and pallet.location=="at_cutter" and pallet.finishedSheets==1000 and operator.assignment~=nil)
     clearOutput=true
     for i=1,20 do Work.update(production,operator,.1,wc);context.machine.updateAll(.1,production) end
-    check("employees_real_output_returns_canonical_pallet_once",pallet.location=="cutter_output" and pallet.status=="cut" and production.inventory.finishedPallets==1 and operator.assignment==nil)
+    check("employees_real_output_returns_once_and_waits_for_wrap_training",pallet.location=="cutter_output"
+        and pallet.status=="cut" and production.inventory.finishedPallets==1 and operator.assignment~=nil
+        and not operator.reserved and operator.activity=="Pallet-wrapping training required before shipping")
     m.setOutputResolver(priorResolver);context.machine.reset(production);context.machine.setMultiplayerSingleControl(false)
 
     -- Exercise the actual computer dropdown and every Hiring page with real UI.

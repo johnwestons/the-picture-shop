@@ -10,8 +10,15 @@ In **OPTIONS > GAME**, enable **Follow player camera** to keep your character
 centered while moving, including when zoomed in. Pinch on mobile or use the mouse
 wheel to zoom; turn follow off to resume mobile panning. This preference is saved
 on each device and follows that device's player during Local Play. Shop menus
-keep their own camera views. This change is in source; the APK will be rebuilt
-after the next set of changes.
+keep their own camera views. The current Android build is available below.
+
+In **OPTIONS > PLAYER**, pick rabbit fur and overall colors without replacing
+the sprite sheets; each player's choices appear for the rest of the online shop.
+Use **COMPUTER > HIRING > STAFF** to send an employee home for the day. A safe
+cutter cycle finishes first, and unfinished work resumes on the next shift. The
+computer shows the shop time as a digital readout at the bottom right. In the
+computer's clock view, the shop can run at 1x, 2x, 5x, or 10x speed; multiplayer
+guests can view the controls, but only the host can change the speed.
 
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
 
@@ -22,21 +29,22 @@ Open the office computer, tap the arrow beside the address bar, and choose
 their resumes. Negotiate hourly wages, weekdays, 4–12 hour day or overnight
 shifts and pay every 1–4 weeks, wait for the email reply, then sign the
 accepted offer. Choose **SCHEDULE** from the same address-bar dropdown, select
-the employee, then use **ADD JOB** to queue an accepted job and its cutter.
-Each employee can queue 16 jobs. They cut every pallet in the first job, then
-automatically continue through the list. Pending jobs can be reordered or removed;
-pause/resume controls and a completion history are included. Stage each pallet
-beside its selected cutter and keep the output clear. At shift end, the worker
-finishes any running blade cycle safely, leaves the unfinished job first in the
-queue, and resumes the same pallet on their next agreed working shift. Progress
-survives days off and saving/reopening. Work respects breaks, skill requirements
-and overdue wages. **Staff** still supports assigning one pallet manually.
-**Payroll** shows earned wages, labor allocated to jobs, and paid idle/break/shop
-time. Wages accrue without an instant cash deduction and become due on the
-contract's Monday 09:00 payday, with unpaid balances retained. Overtime is
-calculated separately each week. **Payroll > Shop Budget** forecasts full-shift
-wages, shop bills, machine payments, payroll reserves, break-even cutting work
-and money for growth. It accounts for workers sharing the installed cutters.
+the employee, then use **ADD JOB** to queue an arrived job and its cutter.
+Each employee can queue 16 jobs. They cut every pallet, print jobs that require
+the Heidelberg, and wrap finished pallets before continuing through the list.
+Employees without press or wrapping skills can be taught from **HIRING > Staff >
+TEACH MACHINE SKILLS**; training takes paid shift hours at the installed machine.
+Pending jobs can be reordered or removed, blocked jobs yield to other ready work,
+and pause/resume controls and completion history are included. Stage pallets at
+each machine and keep output clear. At shift end, the worker finishes a safe
+machine cycle and resumes unfinished work on the next agreed shift. Progress
+survives days off and saving/reopening. **Payroll** shows earned wages, job labor
+and paid idle/break/shop time. Wages accrue without an instant cash deduction and
+come due on the contract's Monday 09:00 payday, with unpaid balances retained.
+Overtime is calculated separately each week. **Payroll > Shop Budget** forecasts
+full-shift wages, shop bills, machine payments, payroll reserves, break-even
+cutting work and money for growth. New employee quotes include the staffed
+workflow cost floor, while already-agreed prices stay fixed.
 
 New customer estimates include a cutter labor budget based on the available
 employees' negotiated wages, skill, paid breaks and overtime. Recommendations
@@ -66,7 +74,7 @@ rotation-ready indicator. Completed pallets fill the six numbered spaces in
 the yellow rectangle at the front of the shop. If the area is full, clear a
 space; the employee keeps the finished stock and retries the return safely.
 See [implemented features and checks](docs/npc_worker_build_status.md) and the
-[plan for later press, wrapping and transport roles](docs/npc_worker_hiring_plan.md).
+[remaining worker and transport plan](docs/npc_worker_hiring_plan.md).
 
 ## Playable warehouse storage slice
 
@@ -104,14 +112,17 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 39](https://github.com/johnwestons/the-picture-shop/releases/download/android.39/ThePictureShop-0.1.0-android.39-Install.apk)
-(231.8 MiB), with Radio Cat, Tinker Fox and Ferret Engineer using reviewed Mouse Frontier
-walks/idles; negotiated 12-hour/overnight shifts and 1–4 week pay cycles; whole-shop staff
-budgets; per-save 5–60 minute days; live clocks; highlighted cutter margins and ordered
-finished-pallet staging. It includes Schedule, shift continuation and all earlier game changes.
+The current development installer is [Android 40](https://github.com/johnwestons/the-picture-shop/releases/download/android.40/ThePictureShop-0.1.0-android.40-Install.apk)
+(233.3 MiB). It includes Radio Cat, Tinker Fox and Ferret Engineer using reviewed
+Mouse Frontier walks/idles; employee schedules that cut, print and wrap jobs;
+paid machine training; negotiated 12-hour/overnight shifts and 1–4 week pay
+cycles; staffing cost floors in new quotes; per-save 5–60 minute days; live
+clocks; highlighted cutter margins; and ordered finished-pallet staging.
+The installer SHA-256 is `1ea3ab58bea380ac7820fe9a3e02cd3720a8476d7bf63a38d06b3873e199e436`.
 Download it on your phone and open it from **Downloads** or **My Files** to install.
-For a fresh test save, download first, uninstall only **The Picture Shop** without keeping its app data,
-then install the downloaded APK. [Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.39)
+Install over the old app to keep saves, or uninstall **The Picture Shop** without
+keeping its app data before installing to start with a fresh test save.
+[Release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.40)
 are available on GitHub.
 
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.

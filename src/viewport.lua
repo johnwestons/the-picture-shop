@@ -1,15 +1,28 @@
 local Viewport = {}
 
-function Viewport.transform(baseWidth, baseHeight)
+local function usableArea(safeArea)
     local windowWidth, windowHeight = love.graphics.getDimensions()
-    local scale = math.min(windowWidth / baseWidth, windowHeight / baseHeight)
-    local offsetX = math.floor((windowWidth - baseWidth * scale) / 2)
-    local offsetY = math.floor((windowHeight - baseHeight * scale) / 2)
+    if safeArea and love.window and love.window.getSafeArea then
+        local x, y, width, height = love.window.getSafeArea()
+        if x and y and width and height and width > 0 and height > 0 then
+            x, y = math.max(0, x), math.max(0, y)
+            width, height = math.min(width, windowWidth - x), math.min(height, windowHeight - y)
+            if width > 0 and height > 0 then return x, y, width, height end
+        end
+    end
+    return 0, 0, windowWidth, windowHeight
+end
+
+function Viewport.transform(baseWidth, baseHeight, safeArea)
+    local x, y, width, height = usableArea(safeArea)
+    local scale = math.min(width / baseWidth, height / baseHeight)
+    local offsetX = math.floor(x + (width - baseWidth * scale) / 2)
+    local offsetY = math.floor(y + (height - baseHeight * scale) / 2)
     return offsetX, offsetY, scale
 end
 
-function Viewport.beginDraw(baseWidth, baseHeight, clip)
-    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight)
+function Viewport.beginDraw(baseWidth, baseHeight, clip, safeArea)
+    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight, safeArea)
     love.graphics.push("all")
     love.graphics.translate(offsetX, offsetY)
     love.graphics.scale(scale, scale)
@@ -20,16 +33,16 @@ function Viewport.beginDraw(baseWidth, baseHeight, clip)
     end
 end
 
-function Viewport.gameBounds(baseWidth, baseHeight)
-    local windowWidth, windowHeight = love.graphics.getDimensions()
-    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight)
+function Viewport.gameBounds(baseWidth, baseHeight, safeArea)
+    local x, y, width, height = usableArea(safeArea)
+    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight, safeArea)
     return {
-        left = -offsetX / scale,
-        top = -offsetY / scale,
-        right = (windowWidth - offsetX) / scale,
-        bottom = (windowHeight - offsetY) / scale,
-        width = windowWidth / scale,
-        height = windowHeight / scale,
+        left = (x - offsetX) / scale,
+        top = (y - offsetY) / scale,
+        right = (x + width - offsetX) / scale,
+        bottom = (y + height - offsetY) / scale,
+        width = width / scale,
+        height = height / scale,
         scale = scale,
     }
 end
@@ -39,8 +52,8 @@ function Viewport.endDraw()
     love.graphics.pop()
 end
 
-function Viewport.toGame(x, y, baseWidth, baseHeight)
-    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight)
+function Viewport.toGame(x, y, baseWidth, baseHeight, safeArea)
+    local offsetX, offsetY, scale = Viewport.transform(baseWidth, baseHeight, safeArea)
     return (x - offsetX) / scale, (y - offsetY) / scale
 end
 

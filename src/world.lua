@@ -677,7 +677,7 @@ function World.updateSimulation(dt, assets, state)
     return saveNeeded or employeeChanged
 end
 
-function World.update(dt, directionX, directionY, assets, state, cursorX, cursorY)
+function World.update(dt, directionX, directionY, assets, state, cursorX, cursorY, simulationDt)
     assets = WarehouseGameplay.assets(assets, state)
     World._assets = assets
     if directionX ~= 0 or directionY ~= 0 then World.placementSelection = nil end
@@ -791,7 +791,7 @@ function World.update(dt, directionX, directionY, assets, state, cursorX, cursor
     if externalMovement and not localOperatesForklift then
         PlayerController.observeExternalMove(player, playerStartX, playerStartY, player.moving, dt)
     end
-    local saveNeeded = World.updateSimulation(dt, assets, state)
+    local saveNeeded = World.updateSimulation(simulationDt or dt, assets, state)
     World.selectedInteraction = selectInteractionFor(
         player, World.selectedInteraction, cursorX, cursorY)
     return saveNeeded
@@ -1027,6 +1027,9 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         if not selected then
             return false, "not_installed", "The skid wrapper is not installed in this shop."
         end
+        if Employees.reservation(state,selected.id) then
+            return false,"employee_reserved","An employee is operating this wrapper. Pause their assignment in Hiring first."
+        end
         local wrapper = selected.world or WrapperPlacement.ensure(state, Config.wrapperPlacement)
         if wrapper.moving then
             return false, "machine_moving", "Lock the skid wrapper onto the floor before using it."
@@ -1037,6 +1040,9 @@ function World.validateNetworkWorkshopAccess(player, state, resourceId)
         local selected = installedMachine("windmill")
         if not selected then
             return false, "not_installed", "The Heidelberg Windmill is not installed in this shop."
+        end
+        if Employees.reservation(state,selected.id) then
+            return false,"employee_reserved","An employee is operating this press. Pause their assignment in Hiring first."
         end
         local windmill = selected.world or WindmillPlacement.ensure(state, Config.windmillPlacement)
         if windmill.moving then
@@ -1647,6 +1653,11 @@ function World.beginNetworkMachineMove(player, state, machineIndex, controlOccup
     if not record or not MachineFleet.isInstalled(state, record.modelId) then
         return false, "machine_unavailable", "That machine is not installed in this shop."
     end
+    for _,unit in ipairs(MachineFleet.installedUnits(state,record.modelId)) do
+        if Employees.reservation(state,unit.id) then
+            return false,"employee_reserved","Pause the employee's assignment before relocating this machine."
+        end
+    end
     if controlOccupied then
         return false, "console_busy", "Close the active " .. record.label .. " console first."
     end
@@ -1858,6 +1869,11 @@ function World.beginWrapperMove(state, wrapperControlOccupied)
         return false
     end
     if not MachineFleet.isInstalled(state, "skid_wrapper") then return false end
+    local installed=MachineFleet.installedUnits(state,"skid_wrapper")
+    if installed[1] and Employees.reservation(state,installed[1].id) then
+        state.message="Pause the employee's assignment before relocating the skid wrapper."
+        return false
+    end
     if not Wrapper.canRelocate(state) then return false end
     local jack = PalletJack.ensure(state, Config.palletJack)
     if jack.operating and jack.operatorPlayerId ~= 1 then
@@ -1943,6 +1959,11 @@ function World.beginWindmillMove(state, windmillControlOccupied)
         return false
     end
     if not MachineFleet.isInstalled(state, "heidelberg_10x15") then return false end
+    local installed=MachineFleet.installedUnits(state,"heidelberg_10x15")
+    if installed[1] and Employees.reservation(state,installed[1].id) then
+        state.message="Pause the employee's assignment before relocating the Windmill."
+        return false
+    end
     local process = Windmill.ensure(state)
     if process.status ~= "idle" or process.palletId then
         state.message = "Unload the press and return the Windmill to idle before relocating it."
@@ -2226,6 +2247,9 @@ function World.employeeCutterReserved(state,machineId)
     local first=MachineFleet.installedUnits(state,"polar_115")[1]
     return Employees.reservation(state,machineId or (first and first.id))~=nil
 end
+function World.employeeMachineReserved(state,machineId)
+    return Employees.reservation(state,machineId)~=nil
+end
 
 function World.requestEmployeeResume(state,applicationId)
     local ok,message=Employees.requestResume(state,applicationId,BusinessCalendar.absoluteHours(state))
@@ -2261,7 +2285,16 @@ function World.employeeContext(state,assets)
     end
     function context.operatorPoint(machineId,worker)
         local item=MachineFleet.byId(state,machineId)
-        local pose=item and (item.world or state.cutter)
+        local pose=item and item.world
+        if item and not pose then
+            local key=item.modelId=="polar_115" and "cutter"
+                or item.modelId=="skid_wrapper" and "wrapper"
+                or item.modelId=="heidelberg_10x15" and "windmill"
+            local config=key and Config[key.."Placement"]
+            if item.modelId=="polar_115" then pose=CutterPlacement.ensure(state,config)
+            elseif item.modelId=="skid_wrapper" then pose=WrapperPlacement.ensure(state,config)
+            elseif item.modelId=="heidelberg_10x15" then pose=WindmillPlacement.ensure(state,config) end
+        end
         if not pose or pose.moving then return nil end
         local obstacles=context.obstacles(worker)
         local key=string.format("%g:%g:%s",pose.x,pose.y,pose.direction)

@@ -74,6 +74,8 @@ local function sameHello(left, right)
         and left.clientNonce == right.clientNonce
         and left.name == right.name
         and left.character == right.character
+        and (left.furColorway or 1) == (right.furColorway or 1)
+        and (left.overallsColorway or 1) == (right.overallsColorway or 1)
 end
 
 local function removePeerItems(items, peer)
@@ -134,6 +136,8 @@ local function newPlayer(record)
         id = tonumber(record.id),
         name = record.name or "Worker",
         character = record.character or "rabbit-worker",
+        furColorway = tonumber(record.furColorway) or 1,
+        overallsColorway = tonumber(record.overallsColorway) or 1,
         x = tonumber(record.x) or 0,
         y = tonumber(record.y) or 0,
         speed = tonumber(record.speed) or 0,
@@ -172,6 +176,8 @@ local function copyMotion(target, source, includePosition)
     if source.facing == -1 or source.facing == 1 then target.facing = source.facing end
     if type(source.moving) == "boolean" then target.moving = source.moving end
     if type(source.character) == "string" then target.character = source.character end
+    if finite(source.furColorway) then target.furColorway = source.furColorway end
+    if finite(source.overallsColorway) then target.overallsColorway = source.overallsColorway end
 end
 
 local function playerRecord(player)
@@ -188,6 +194,8 @@ local function playerRecord(player)
         facing = player.facing == -1 and -1 or 1,
         animationDistance = tonumber(player.animationDistance) or 0,
         character = tostring(player.character or "rabbit-worker"),
+        furColorway = tonumber(player.furColorway) or 1,
+        overallsColorway = tonumber(player.overallsColorway) or 1,
         inputSequence = tonumber(player.inputSequence) or 0,
     }
 end
@@ -415,10 +423,13 @@ function Session:startHost(options)
     self.localId = 1
     self.localName = tostring(options.name or "LAN Host")
     self.localCharacter = tostring(options.character or "rabbit-worker")
+    self.localFurColorway = tonumber(options.furColorway) or 1
+    self.localOverallsColorway = tonumber(options.overallsColorway) or 1
     self.localAddress = self.networkKind == "lan"
         and Address.detectLanAddress(options.addressOptions or {}) or nil
     self.players[1] = newPlayer({
         id = 1, name = self.localName, character = self.localCharacter,
+        furColorway = self.localFurColorway, overallsColorway = self.localOverallsColorway,
         x = tonumber(options.x) or 0, y = tonumber(options.y) or 0,
     })
     self.ready = true
@@ -465,6 +476,8 @@ function Session:startClient(address, options)
     self.hostAddress = parsed.host
     self.localName = tostring(options.name or "LAN Worker")
     self.localCharacter = tostring(options.character or "rabbit-worker")
+    self.localFurColorway = tonumber(options.furColorway) or 1
+    self.localOverallsColorway = tonumber(options.overallsColorway) or 1
     self.clientNonce = identifier("n", self.clock)
     self.connectedAt = self.clock()
     self.status = self.networkKind == "direct"
@@ -827,10 +840,14 @@ function Session:_queueDirectApproval(peer, hello)
             clientNonce = hello.payload.clientNonce,
             name = name,
             character = hello.payload.character,
+            furColorway = hello.payload.furColorway,
+            overallsColorway = hello.payload.overallsColorway,
         },
     }
     pending.name = name
     pending.character = hello.payload.character
+    pending.furColorway = hello.payload.furColorway
+    pending.overallsColorway = hello.payload.overallsColorway
     self.approvalRequests[requestId] = pending
     self.status = "Direct worker waiting for host approval"
     self:_queue("join_requested", {
@@ -959,6 +976,8 @@ function Session:_hostWelcome(peer, hello, context)
         id = id,
         name = hello.payload.name,
         character = hello.payload.character,
+        furColorway = hello.payload.furColorway,
+        overallsColorway = hello.payload.overallsColorway,
         x = spawnX,
         y = spawnY,
     })
@@ -1102,6 +1121,8 @@ function Session:_handleHostEnvelope(peer, envelope, context)
         player.lastInputSequence = payload.sequence
         player.inputSequence = payload.sequence
         player.inputX, player.inputY = payload.moveX, payload.moveY
+        if payload.furColorway then player.furColorway = payload.furColorway end
+        if payload.overallsColorway then player.overallsColorway = payload.overallsColorway end
         player.lastInputAt = self.clock()
     elseif envelope.type == "interaction_request" then
         if payload.sessionId ~= self.sessionId then return end
@@ -1599,6 +1620,8 @@ function Session:_service(context)
                     clientNonce = self.clientNonce,
                     name = self.localName,
                     character = self.localCharacter,
+                    furColorway = self.localFurColorway or 1,
+                    overallsColorway = self.localOverallsColorway or 1,
                 })
                 if not ok then self:_queue("error", { message = helloError }) end
                 self.connectedAt = self.clock()
@@ -1911,6 +1934,10 @@ function Session:_sendClientInput(dt, context)
         sequence = self.inputSequence,
         moveX = clamp(context and context.inputX, -1, 1),
         moveY = clamp(context and context.inputY, -1, 1),
+        furColorway = context and context.localPlayer and context.localPlayer.furColorway
+            or self.localFurColorway or 1,
+        overallsColorway = context and context.localPlayer and context.localPlayer.overallsColorway
+            or self.localOverallsColorway or 1,
     })
     if not ok then self:_queue("error", { message = errorMessage }) end
 end
@@ -2032,6 +2059,8 @@ function Session:sendNeutralInput()
         sequence = self.inputSequence,
         moveX = 0,
         moveY = 0,
+        furColorway = self.localFurColorway or 1,
+        overallsColorway = self.localOverallsColorway or 1,
     })
 end
 

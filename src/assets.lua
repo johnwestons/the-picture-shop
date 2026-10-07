@@ -388,7 +388,7 @@ end
 local PACK_IMAGES = {
     menu = { "polarOperatorConsole", "cutterControlButtons" },
     cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
-        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes" },
+        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes", "cutterGuiSteel" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
     press = { "pressProcessStages", "pressOperatorHandbook", "pressSetupInteractions" },
 }
@@ -445,6 +445,9 @@ end
 
 local function loadCutterPack()
     if not loadMenuPack() then return false end
+    local skin = loadImage("cutterGuiSteel", Config.paths.cutterGuiSteel, false)
+    if not skin or not hasExactDimensions(skin, Config.paths.cutterGuiSteel, 1536, 1024) then return false end
+    skin:setFilter("linear", "linear")
     local clamp = loadImage("cutterClamp", Config.paths.cutterClamp, false)
     local blade = loadImage("cutterBlade", Config.paths.cutterBlade, false)
     local oil = loadImage("cutterMaintenanceOil", Config.paths.cutterMaintenanceOil, false)
