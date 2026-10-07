@@ -26,7 +26,8 @@ The live game has three choices for either mirrored front bay. `src/warehouse_co
 | [breakroom-triangle-v1-candidate.png](rooms/breakroom-triangle-v1-candidate.png) | 1536×1024 RGBA | First triangular-layout draft; retained as a comparison source after its visible floor edge proved smaller than its registration corners; `approved=false` |
 | [breakroom-triangle-v2-candidate.png](rooms/breakroom-triangle-v2-candidate.png) | 1536×1024 RGBA | Intermediate floor-triangle redesign; retained for comparison; `approved=false` |
 | [breakroom-triangle-v3-candidate.png](rooms/breakroom-triangle-v3-candidate.png) | 1536×1024 RGBA | Compact room with a measured floor triangle, open diagonal entrance, and inward trim overlap; `approved=false` |
-| [breakroom-triangle-v5-candidate.png](rooms/breakroom-triangle-v5-candidate.png) | 1536×1024 RGBA | Current reviewed fit candidate; vending machine inset from the diagonal floor edge, transparent exterior; `approved=false` |
+| [breakroom-triangle-v5-candidate.png](rooms/breakroom-triangle-v5-candidate.png) | 1536×1024 RGBA | Superseded fit candidate; visually rejected October 7; `approved=false` |
+| [breakroom-triangle-v6-perspective-candidate.png](rooms/breakroom-triangle-v6-perspective-candidate.png) | 1254×1254 RGBA | Current perspective redraw; triangular tile floor, diagonal kitchenette, four-chair table; `approved=false` |
 | [breakroom-construction-atlas-v1.png](rooms/breakroom-construction-atlas-v1.png) | 1536×1024 RGBA | Four 768×512 construction crops, reused for either bay with mirrored registration; `approved=false` |
 | [floor-construction-atlas-v2-clean.png](rooms/floor-construction-atlas-v2-clean.png) | 1536×1024 RGBA | Cleaned four-stage floor construction atlas; removes the stray “BUG 4/4” text from the preserved [v1 source](rooms/floor-construction-atlas-v1.png); `approved=false` |
 
@@ -38,7 +39,15 @@ The open-floor fill now samples the existing warehouse concrete along each bay's
 
 [rack-world-left-v5-triangle-aligned-candidate.png](rack-world-left-v5-triangle-aligned-candidate.png) is a 1536×1024 RGBA comparison candidate with five openings across two levels. Its affine shear matched the bay seam but also leaned its upright supports, so it is no longer the selected runtime source. The older v4 candidate remains preserved for comparison.
 
-### Triangular expansion fit — October 6
+### Perspective redraw — October 7
+
+The user rejected the October 6 fit visually. The selected runtime assets are now [breakroom v6](rooms/breakroom-triangle-v6-perspective-candidate.png) and [world rack v9](rack-world-left-v9-perspective-candidate.png), both 1254×1254 RGBA. The room is a furnished triangular floor area; its diagonal counter and table use the scene's projection. Elevated cabinet silhouettes are no longer clipped to a ground polygon. The wider rack was rendered from an explicit geometry guide with shallow depth, vertical posts and long rails parallel to the bay seam. It spans 272 world pixels with 70-pixel deck spacing and preserves canonical pallet scale. Ground collision centers follow measured base plates.
+
+The former reflected floor fill sampled the warehouse's side wall. Interior concrete is now translated into each bay without rotating or reflecting its grid. Fresh [mixed scene](../../../output/warehouse-expansion-v1/live-acceptance/20261007-044432-art-mixed.png), enlarged room views and both fully stocked rack orientations were visually inspected in the actual LÖVE renderer. The art-review mode uses isolated in-memory state and no saves or automated test suite. Previous gameplay acceptance results refer to older placement; this pass does not claim new vehicle-transfer acceptance or a rebuilt Android installer. Art remains `approved=false`.
+
+Built-in image generation was used for the redraws. [Exact prompts and source provenance](perspective-redraw-prompts.json) include the rejected wider-depth iterations and the selected guide-based rack.
+
+### Superseded triangular expansion fit — October 6
 
 `breakroom-triangle-v5-candidate.png` maps its measured floor vertices to the three vertices of each bay; the right room mirrors the same transform. The vending machine is smaller and set in from the diagonal edge, with its collision footprint updated to match. The renderer preserves a narrow overlap for the left/bottom wall trim while clipping the diagonal edge to the bay seam. Construction-stage art remains clipped to the exact bay polygon. The candidate remains `approved=false` pending production-art approval.
 

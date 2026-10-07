@@ -38,6 +38,8 @@ __pycache__/
 /tools/inspect_windows_direct_orphan_filter.ps1
 
 # Smoke-test products. Keep the runner and its local ignore policy tracked.
+/.stabilization/**
+/.codex-remote-attachments/
 /.stabilization/*.rpt
 /.stabilization/smoke-watchdog-*.txt
 /.stabilization/lan_report_render*/

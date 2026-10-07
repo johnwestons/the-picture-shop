@@ -1,6 +1,7 @@
 -- Candidate continuous lift art for all eight headings. The reviewed four-pose
 -- strips remain as a fallback when a layer cannot load.
 local Layered = {}
+local Layout = require("src.warehouse_layout")
 local root = "assets/source/warehouse-expansion-v1/forklift-layer-study/"
 local textureWidth, textureHeight = 1536, 1024
 local scaleRatio = 0.145 / (0.22 * 1.4)
@@ -38,11 +39,10 @@ local studies = {
         bodyOriginX = 720, bodyOriginY = 955,
         emptyOriginX = 730, emptyOriginY = 966, emptyScale = 0.97,
         carriageOriginX = 720, carriageOriginY = 955,
-        -- The world rack's upper deck is 45 pixels above its lower deck.
-        -- At this side-view scale, a 310.3448-source-pixel carriage travel moves
-        -- the rendered pallet by that same distance instead of floating well
-        -- above the selected shelf.
-        carriageX = 0, carriageLow = 150, carriageTravel = 310.3448275862069,
+        -- Keep the side-view pallet lift equal to the registered deck spacing
+        -- when the rack artwork changes. Both endpoints use the same body pose.
+        carriageX = 0, carriageLow = 150,
+        carriageTravel = Layout.bay("front_left").upperDeckOffset / 0.145,
         loadX = 1170, loadY = 750,
     },
     frontDiagonal = {

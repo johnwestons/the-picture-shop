@@ -7,6 +7,23 @@ local Schema = require("src.save_schema")
 local save = {}
 local recoveryNotices = {}
 local writableProbeCounter = 0
+local changeVersion = 0
+local verifiedPrimaries, verifiedDirectory = {}, nil
+
+function save.revision() return changeVersion end
+
+local function primaryCache()
+    local directory = love.filesystem.getSaveDirectory()
+    if verifiedDirectory ~= directory then
+        verifiedPrimaries, verifiedDirectory = {}, directory
+    end
+    return verifiedPrimaries
+end
+
+local function rememberPrimary(slot, source, createdAt)
+    primaryCache()[slot] = #source <= 2 * 1024 * 1024
+        and {source=source,createdAt=createdAt} or nil
+end
 
 local function slotFiles(slot)
     if not Schema.validSlot(slot) then return nil end
@@ -19,18 +36,25 @@ local function slotFiles(slot)
     }
 end
 
-local function encode(value, indent)
-    indent = indent or ""
+local function appendEncoded(lines, value, indent)
     local kind = type(value)
-    if kind == "number" or kind == "boolean" then return tostring(value) end
-    if kind == "string" then return string.format("%q", value) end
-    if kind ~= "table" then return "nil" end
-    local lines = { "{\n" }
+    if kind == "number" or kind == "boolean" then lines[#lines+1]=tostring(value);return end
+    if kind == "string" then lines[#lines+1]=string.format("%q", value);return end
+    if kind ~= "table" then lines[#lines+1]="nil";return end
+    lines[#lines+1]="{\n"
+    local childIndent=indent.."  "
     for key, item in pairs(value) do
         local keyText = type(key) == "string" and string.format("[%q]", key) or "[" .. tostring(key) .. "]"
-        lines[#lines + 1] = indent .. "  " .. keyText .. " = " .. encode(item, indent .. "  ") .. ",\n"
+        lines[#lines+1]=childIndent..keyText.." = "
+        appendEncoded(lines,item,childIndent)
+        lines[#lines+1]=",\n"
     end
     lines[#lines + 1] = indent .. "}"
+end
+
+local function encode(value)
+    local lines={}
+    appendEncoded(lines,value,"")
     return table.concat(lines)
 end
 
@@ -51,11 +75,11 @@ local function readCandidate(path)
     return parse(source), source
 end
 
-local function writeValidated(path, source)
-    if not parse(source) then return false end
+local function writeVerified(path, source)
     if not love.filesystem.write(path, source) then return false end
-    local payload = readCandidate(path)
-    return payload ~= nil
+    -- The caller already validated these bytes. Verify the entire disk write
+    -- without repeatedly parsing, copying and migrating the same payload.
+    return love.filesystem.read(path) == source
 end
 
 local function absolutePath(path)
@@ -148,23 +172,24 @@ function save.preflightWritable(slot)
     return true
 end
 
-local function promote(sourcePath, targetPath)
-    local payload, source = readCandidate(sourcePath)
-    if not payload then return false end
+local function promote(sourcePath, targetPath, verifiedSource)
+    local source = love.filesystem.read(sourcePath)
+    if not source or source ~= verifiedSource then return false end
     if love.filesystem.getInfo(targetPath) and not love.filesystem.remove(targetPath) then return false end
     local renamed = os.rename(absolutePath(sourcePath), absolutePath(targetPath))
     if not renamed then
-        if not writeValidated(targetPath, source) then return false end
+        if not writeVerified(targetPath, source) then return false end
         love.filesystem.remove(sourcePath)
     end
-    return readCandidate(targetPath) ~= nil
+    return love.filesystem.read(targetPath) == source
 end
 
 local function restore(slot, files, sourcePath, sourceName)
     local payload, source = readCandidate(sourcePath)
     if not payload then return nil end
     love.filesystem.remove(files.temporary)
-    if writeValidated(files.temporary, source) then promote(files.temporary, files.primary) end
+    if writeVerified(files.temporary, source) then promote(files.temporary, files.primary, source) end
+    changeVersion = changeVersion + 1
     recoveryNotices[slot] = sourceName
     payload.recovered = true
     payload.recoverySource = sourceName
@@ -174,15 +199,15 @@ end
 local function read(slot)
     local files = slotFiles(slot)
     if not files then return nil, "invalid" end
-    local primary = readCandidate(files.primary)
+    local primary, source = readCandidate(files.primary)
     if primary then
         local source = recoveryNotices[slot]
         if source then
             primary.recovered = true
             primary.recoverySource = source
-            return primary, "recovered"
+            return primary, "recovered", source
         end
-        return primary, "ok"
+        return primary, "ok", source
     end
 
     local temporary = readCandidate(files.temporary)
@@ -208,15 +233,27 @@ function save.newGame(slot,options)
 end
 
 function save.load(slot)
-    local payload, status = read(slot)
+    local payload, status, source = read(slot)
     if payload then payload.slot = slot end
+    if payload and source then rememberPrimary(slot, source, payload.createdAt) end
     return payload, status
 end
 
 function save.save(slot, state, worldSnapshot)
     local files = assert(slotFiles(slot), "save slot must be 1, 2, or 3")
     assert(type(state) == "table", "state table is required")
-    local previous = read(slot)
+    changeVersion = changeVersion + 1
+    local previousSource = love.filesystem.getInfo(files.primary) and love.filesystem.read(files.primary)
+    local cached = primaryCache()[slot]
+    -- A byte-for-byte match with our last validated commit needs no migration.
+    -- External edits, recovery files and another save identity still go through
+    -- the complete parser and schema checks.
+    local previous = previousSource and cached and previousSource == cached.source
+        and {createdAt=cached.createdAt} or (previousSource and parse(previousSource))
+    if not previous then
+        previous = read(slot)
+        previousSource = nil
+    end
     local payload = {
         version = Schema.VERSION,
         slot = slot,
@@ -232,21 +269,26 @@ function save.save(slot, state, worldSnapshot)
     if not love.filesystem.createDirectory("saves") then return false end
     local source = encode(payload)
     love.filesystem.remove(files.temporary)
-    if not writeValidated(files.temporary, source) then return false end
+    if not writeVerified(files.temporary, source) then return false end
 
-    local currentPayload, currentSource = readCandidate(files.primary)
+    local currentSource = love.filesystem.getInfo(files.primary) and love.filesystem.read(files.primary)
+    local currentPayload = currentSource and currentSource == previousSource and previous
+        or (currentSource and parse(currentSource))
     if currentPayload then
         love.filesystem.remove(files.backupTemporary)
-        if not writeValidated(files.backupTemporary, currentSource) then return false end
-        if not promote(files.backupTemporary, files.backup) then return false end
+        if not writeVerified(files.backupTemporary, currentSource) then return false end
+        if not promote(files.backupTemporary, files.backup, currentSource) then return false end
     end
-    if not promote(files.temporary, files.primary) then return false end
+    if not promote(files.temporary, files.primary, source) then return false end
     recoveryNotices[slot] = nil
+    rememberPrimary(slot, source, payload.createdAt)
     return true
 end
 
 function save.delete(slot)
     local files = assert(slotFiles(slot), "save slot must be 1, 2, or 3")
+    changeVersion = changeVersion + 1
+    primaryCache()[slot] = nil
     local succeeded = true
     for _, path in pairs(files) do
         if love.filesystem.getInfo(path) and not love.filesystem.remove(path) then succeeded = false end

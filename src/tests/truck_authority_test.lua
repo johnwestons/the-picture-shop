@@ -53,8 +53,26 @@ local function acquire(authority, worker)
 end
 
 function Test.run(context, check)
+    local incompleteState=context.State.new()
+    local incomplete=assert(context.jobs.createOffer({id="TRUCK-AUTH-INCOMPLETE",
+        company="Authority Delivery Co.",sourceSize={width=20,height=16},
+        finishedSize={width=10,height=8},sheetCounts={500,750},packaging="flat"}))
+    table.remove(incomplete.pallets,2)
+    local incompleteAccepted,incompleteMessage=context.jobService.acceptOffer(incompleteState,incomplete,100)
+    check("job_acceptance_rejects_a_missing_quoted_skid_from_the_first_truck",
+        not incompleteAccepted and incompleteMessage:find("every quoted skid",1,true)
+            and #incompleteState.jobs.active==0)
+
     local deliveryState = context.State.new()
     local delivery = makeDelivery(context, deliveryState, "TRUCK-AUTH-DELIVERY", 4)
+    local _,initialManifest=context.PalletLogistics.truckInventory(deliveryState,delivery.id)
+    local manifestComplete=#initialManifest==4
+    local manifestNumbers={}
+    for _,item in ipairs(initialManifest) do
+        if item.location~="awaiting_delivery" or manifestNumbers[item.number]
+            or item.sheets~=500+item.number then manifestComplete=false end
+        manifestNumbers[item.number]=true
+    end
     local worker, other = parkTruck(
         context, deliveryState, "delivery", delivery.id, "cargo_open")
     local deliverySaves = { count = 0 }
@@ -66,6 +84,8 @@ function Test.run(context, check)
         grant.accepted and grant.data and grant.data.mode == "delivery"
         and grant.data.page == 1 and grant.data.pageCount == 2
         and #grant.data.items == 3 and grant.data.remaining == 4
+        and manifestComplete and manifestNumbers[1] and manifestNumbers[2]
+        and manifestNumbers[3] and manifestNumbers[4]
         and not busy.accepted and busy.code == "resource_busy")
 
     local nextPage = deliveryAuthority:command(worker, {

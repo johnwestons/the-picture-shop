@@ -3,7 +3,7 @@ local World=require("src.world")
 local Test={}
 function Test.run(context,check)
     local left,right=Layout.bay("front_left"),Layout.bay("front_right")
-    check("breakroom_seat_points_are_mirrored",left.restPoint.x==82 and right.restPoint.x==878
+    check("breakroom_seat_points_are_mirrored",left.restPoint.x==95 and right.restPoint.x==865
         and left.restPoint.y==right.restPoint.y)
     local state=context.State.new()
     state.warehouse.bays.front_left={status="complete",optionId="breakroom"}
@@ -11,8 +11,8 @@ function Test.run(context,check)
     local obstacles=Layout.obstacles(state)
     check("completed_breakrooms_have_collision_for_furniture",#obstacles==6
         and obstacles[1].bayId=="front_left" and obstacles[4].bayId=="front_right")
-    check("vending_collision_tracks_resized_inset_art",obstacles[3].x==198 and obstacles[3].y==610
-        and obstacles[3].halfWidth==20 and obstacles[3].halfHeight==9)
+    check("vending_collision_tracks_resized_inset_art",obstacles[3].x==203 and obstacles[3].y==618
+        and obstacles[3].halfWidth==25 and obstacles[3].halfHeight==12)
     state.warehouse.bays.front_right.optionId="floor"
     check("open_floor_adds_no_breakroom_obstacles",#Layout.obstacles(state)==3)
 

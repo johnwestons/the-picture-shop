@@ -7,6 +7,8 @@ local Jukebox = {
     paused = true,
     muted = false,
     loadError = nil,
+    radioDirty = false,
+    networkSession = nil,
 }
 
 local TRACKS = {
@@ -71,6 +73,7 @@ local function startCurrentTrack()
     if not love or not love.audio or type(love.audio.newSource) ~= "function" then
         Jukebox.loadError = "LÖVE audio is unavailable."
         Jukebox.active, Jukebox.paused = false, true
+        Jukebox.radioDirty = true
         return false
     end
     if Jukebox.source then
@@ -81,6 +84,7 @@ local function startCurrentTrack()
     if not ok or not source then
         Jukebox.loadError = tostring(source or "The selected track could not be loaded.")
         Jukebox.active, Jukebox.paused = false, true
+        Jukebox.radioDirty = true
         return false
     end
     source:setLooping(false)
@@ -89,6 +93,7 @@ local function startCurrentTrack()
     setVolume()
     source:play()
     Jukebox.active, Jukebox.paused = true, false
+    Jukebox.radioDirty = true
     return true
 end
 
@@ -97,7 +102,7 @@ local function contains(rect, x, y)
         and y >= rect.y and y <= rect.y + rect.height
 end
 
-local function drawRadioButton(rect, label, frame, active, hovered)
+local function drawRadioButton(rect, label, frame, active, hovered, disabled)
     local _, buttons, quads = loadRadioImages()
     if buttons and quads then
         love.graphics.setColor(1, 1, 1, 1)
@@ -108,13 +113,20 @@ local function drawRadioButton(rect, label, frame, active, hovered)
         love.graphics.setColor(0.10, 0.15, 0.16, 1)
         love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 5, 5)
     end
-    if active or hovered then
+    if disabled then
+        love.graphics.setColor(0.46, 0.50, 0.48, 0.62)
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 5, 5)
+    else
+        love.graphics.setColor(1, 1, 1, 1)
+    end
+    if (active or hovered) and not disabled then
         love.graphics.setColor(active and { 0.96, 0.77, 0.30, 1 } or { 0.59, 0.78, 0.75, 1 })
         love.graphics.setLineWidth(active and 3 or 1)
         love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 5, 5)
         love.graphics.setLineWidth(1)
     end
-    love.graphics.setColor(0.96, 0.92, 0.78, 1)
+    love.graphics.setColor(disabled and { 0.68, 0.70, 0.66, 0.86 }
+        or { 0.96, 0.92, 0.78, 1 })
     love.graphics.printf(label, rect.x + 2, rect.y + rect.height / 2 - 8,
         rect.width - 4, "center")
 end
@@ -129,7 +141,7 @@ function Jukebox.drawProp()
         config.wallY - face:getHeight() * scale / 2, 0, scale, scale)
 end
 
-function Jukebox.drawScreen(pointerX, pointerY)
+function Jukebox.drawScreen(pointerX, pointerY, readOnly)
     local face = loadRadioImages()
     love.graphics.setColor(0, 0, 0, 0.72)
     love.graphics.rectangle("fill", 0, 0, 960, 678)
@@ -152,13 +164,17 @@ function Jukebox.drawScreen(pointerX, pointerY)
     love.graphics.setColor(0.70, 0.79, 0.77, 1)
     love.graphics.printf(string.format("VIBES PLAYLIST  •  TRACK %d OF %d",
         Jukebox.trackIndex, #TRACKS), 260, 421, 440, "center")
+    if readOnly then
+        love.graphics.setColor(0.73, 0.82, 0.76, 1)
+        love.graphics.printf("THE HOST CONTROLS THE RADIO FOR EVERYONE", 220, 444, 520, "center")
+    end
     if Jukebox.loadError then
         love.graphics.setColor(1, 0.48, 0.40, 1)
-        love.graphics.printf("Radio audio could not be loaded.", 260, 445, 440, "center")
+        love.graphics.printf("Radio audio could not be loaded.", 260, 469, 440, "center")
     end
 
     drawRadioButton(PLAYLIST_BUTTON, "VIBES", 1, true,
-        pointerX and contains(PLAYLIST_BUTTON, pointerX, pointerY))
+        pointerX and contains(PLAYLIST_BUTTON, pointerX, pointerY), readOnly)
     drawRadioButton(CLOSE_BUTTON, "CLOSE", 3, false,
         pointerX and contains(CLOSE_BUTTON, pointerX, pointerY))
     love.graphics.setColor(0.045, 0.065, 0.07, 0.96)
@@ -166,25 +182,29 @@ function Jukebox.drawScreen(pointerX, pointerY)
     love.graphics.setColor(0.47, 0.56, 0.54, 1)
     love.graphics.rectangle("line", 230, 552, 500, 62, 6, 6)
     drawRadioButton(PREVIOUS_BUTTON, "|<  PREV", 2, false,
-        pointerX and contains(PREVIOUS_BUTTON, pointerX, pointerY))
+        pointerX and contains(PREVIOUS_BUTTON, pointerX, pointerY), readOnly)
     drawRadioButton(PLAY_BUTTON, Jukebox.active and not Jukebox.paused and "PAUSE" or "PLAY",
-        2, false, pointerX and contains(PLAY_BUTTON, pointerX, pointerY))
+        2, false, pointerX and contains(PLAY_BUTTON, pointerX, pointerY), readOnly)
     drawRadioButton(NEXT_BUTTON, "NEXT  >|", 2, false,
-        pointerX and contains(NEXT_BUTTON, pointerX, pointerY))
+        pointerX and contains(NEXT_BUTTON, pointerX, pointerY), readOnly)
     drawRadioButton(MUTE_BUTTON, Jukebox.muted and "UNMUTE" or "MUTE", 2, false,
-        pointerX and contains(MUTE_BUTTON, pointerX, pointerY))
+        pointerX and contains(MUTE_BUTTON, pointerX, pointerY), readOnly)
 end
 
-function Jukebox.mousepressed(state, x, y, button)
+function Jukebox.mousepressed(state, x, y, button, readOnly)
     if button ~= 1 then return true end
     if contains(CLOSE_BUTTON, x, y) then
         state.screen = "world"
         state.message = "Radio controls closed."
+    elseif readOnly then
+        state.message = "The host controls the radio for everyone."
+        return true
     elseif contains(PLAYLIST_BUTTON, x, y) then
         if not Jukebox.active or Jukebox.paused then
             if Jukebox.source and Jukebox.paused then
                 Jukebox.source:play()
                 Jukebox.active, Jukebox.paused = true, false
+                Jukebox.radioDirty = true
             else
                 startCurrentTrack()
             end
@@ -192,6 +212,7 @@ function Jukebox.mousepressed(state, x, y, button)
     elseif contains(PREVIOUS_BUTTON, x, y) then
         if Jukebox.source and Jukebox.source:tell() > 3 then
             Jukebox.source:seek(0)
+            Jukebox.radioDirty = true
         else
             Jukebox.trackIndex = (Jukebox.trackIndex - 2) % #TRACKS + 1
             startCurrentTrack()
@@ -200,9 +221,11 @@ function Jukebox.mousepressed(state, x, y, button)
         if Jukebox.active and not Jukebox.paused and Jukebox.source then
             Jukebox.source:pause()
             Jukebox.paused = true
+            Jukebox.radioDirty = true
         elseif Jukebox.source and Jukebox.paused then
             Jukebox.source:play()
             Jukebox.active, Jukebox.paused = true, false
+            Jukebox.radioDirty = true
         else
             startCurrentTrack()
         end
@@ -212,22 +235,106 @@ function Jukebox.mousepressed(state, x, y, button)
     elseif contains(MUTE_BUTTON, x, y) then
         Jukebox.muted = not Jukebox.muted
         setVolume()
+        Jukebox.radioDirty = true
     end
     return true
 end
 
-function Jukebox.update(keepPlaying)
+function Jukebox.update(keepPlaying, readOnly)
     if not keepPlaying then
+        local wasPlaying = Jukebox.active and not Jukebox.paused
         if Jukebox.source then Jukebox.source:stop() end
         Jukebox.source = nil
         Jukebox.active, Jukebox.paused = false, true
+        if wasPlaying then Jukebox.radioDirty = true end
         return
     end
     if Jukebox.source and Jukebox.active and not Jukebox.paused
         and not Jukebox.source:isPlaying()
+        and not readOnly
     then
         Jukebox.trackIndex = Jukebox.trackIndex % #TRACKS + 1
         startCurrentTrack()
+    end
+end
+
+function Jukebox.networkState()
+    local position = 0
+    if Jukebox.source and type(Jukebox.source.tell) == "function" then
+        local ok, seconds = pcall(Jukebox.source.tell, Jukebox.source)
+        if ok and type(seconds) == "number" and seconds == seconds then
+            position = math.floor(math.max(0, math.min(3600, seconds)) * 1000 + 0.5)
+        end
+    end
+    return {
+        trackIndex = Jukebox.trackIndex,
+        active = Jukebox.active == true,
+        paused = Jukebox.paused == true,
+        muted = Jukebox.muted == true,
+        positionMs = position,
+    }
+end
+
+function Jukebox.applyNetworkState(state)
+    if type(state) ~= "table" then return false end
+    local trackIndex = math.floor(tonumber(state.trackIndex) or 0)
+    if trackIndex < 1 or trackIndex > #TRACKS then return false end
+    local active = state.active == true
+    local paused = state.paused == true
+    local muted = state.muted == true
+    local position = math.max(0, math.min(3600, (tonumber(state.positionMs) or 0) / 1000))
+    local trackChanged = Jukebox.trackIndex ~= trackIndex
+    Jukebox.trackIndex, Jukebox.muted = trackIndex, muted
+
+    if not active then
+        if Jukebox.source then Jukebox.source:stop() end
+        Jukebox.source = nil
+        Jukebox.active, Jukebox.paused = false, paused
+    elseif trackChanged or not Jukebox.source then
+        if Jukebox.source then Jukebox.source:stop() end
+        Jukebox.source = nil
+        Jukebox.active, Jukebox.paused = false, true
+        if startCurrentTrack() and Jukebox.source then
+            if paused then Jukebox.source:pause() end
+            Jukebox.active, Jukebox.paused = true, paused
+            pcall(Jukebox.source.seek, Jukebox.source, position)
+        end
+    elseif Jukebox.source then
+        if paused and not Jukebox.paused then Jukebox.source:pause() end
+        if not paused and Jukebox.paused then Jukebox.source:play() end
+        Jukebox.active, Jukebox.paused = true, paused
+        local ok, currentPosition = pcall(Jukebox.source.tell, Jukebox.source)
+        if ok and type(currentPosition) == "number"
+            and math.abs(currentPosition - position) > 2
+        then
+            pcall(Jukebox.source.seek, Jukebox.source, position)
+        end
+    end
+    setVolume()
+    Jukebox.radioDirty = false
+    return true
+end
+
+function Jukebox.stopNetworkPlayback()
+    if Jukebox.source then Jukebox.source:stop() end
+    Jukebox.source = nil
+    Jukebox.active, Jukebox.paused = false, true
+    Jukebox.radioDirty = false
+end
+
+function Jukebox.syncMultiplayer(multiplayer)
+    if not multiplayer or type(multiplayer.isHost) ~= "function" or not multiplayer:isHost() then
+        Jukebox.networkSession = nil
+        Jukebox.radioDirty = false
+        return
+    end
+    if Jukebox.networkSession ~= multiplayer.sessionId then
+        Jukebox.networkSession = multiplayer.sessionId
+        Jukebox.radioDirty = true
+    end
+    if Jukebox.radioDirty then
+        local sent = multiplayer:publishRadioState(Jukebox.networkState())
+        if sent then Jukebox.radioDirty = false end
     end
 end
 

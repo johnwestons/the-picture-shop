@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-07",
+  "mode": "built-in image_gen",
+  "status": "runtime candidates; visual review completed; production approval unchanged",
+  "selected": [
+    {
+      "file": "rooms/breakroom-triangle-v6-perspective-candidate.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "prompt": "Use case: stylized-concept. Asset type: transparent triangular employee break room world sprite. Reference image 1 is the exact floor footprint and projection guide, not finished artwork. Reference image 2 is the warehouse art style and camera. Generate a NEW square transparent RGBA game asset with the SAME triangle as reference 1: left vertical floor edge, bottom horizontal floor edge, long diagonal rising to upper left. Only a triangular furnished break area; do not create a rectangular room. Keep the triangle's proportions and its corners in the same positions in the canvas, with generous transparent padding. Warm gray/tan inset floor tiles, a slim dark teal rim at the left and bottom, no tall enclosing walls. Small clean kitchenette with coffee machine and sink occupies the upper-left portion just INSIDE the diagonal. Its cabinets and counter must run parallel to the long diagonal, descending screen-right at 35 degrees. Small wooden dining table with exactly four teal chairs below it in the wide lower-left area; the table's two axes must be 35 degrees down-right and 35 degrees up-right. Small red vending machine near the lower middle, fully inside the triangular floor. All furniture ground contact stays inside the triangle with comfortable walking space; especially move kitchenette foot positions inward from the blue guide if needed. Physically upright cabinetry and vending machine with vertical sides, no squashed proportions, no fisheye. Furniture scale consistent with the warehouse office furniture in reference 2. Floor tile lines use the same +/-35 degree projection as the table, not a flat frontal grid. The narrow right tip of the triangle remains open and empty. Polished warm illustrated warehouse game style, dark restrained outlines and soft shading. This is an open cutaway break room zone, no roof and no tall walls. NO rectangle footprint, no diagonal counter cutting outside the floor, no text, no people, no extra warehouse, no checkerboard, no halo, no white background, no visible blue diagram guides. True alpha transparency everywhere outside the floor and furniture.",
+      "references": [
+        "output/warehouse-expansion-v1/triangle-perspective-guide.png",
+        "assets/generated/warehouse-layout-final.png"
+      ],
+      "original": "C:/Users/johnw/.codex/generated_images/01a112fa-2744-7423-a3f6-1cb5d3a58cb0/exec-888ce9c0-59cc-4325-8b0d-15c90188b46b.png"
+    },
+    {
+      "file": "rack-world-left-v9-perspective-candidate.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "prompt": "Use case: sketch-to-render. Edit target: image 1, a rack wireframe drawn with the correct geometry. Replace its flat teal and orange lines with an illustrated industrial pallet rack, retaining EXACTLY the source line positions and projection. Do not change the steep diagonal orange beam orientation. There are exactly FIVE wide bays, TWO empty shelf levels, SIX front uprights and SIX rear uprights. Front columns follow the original teal vertical segments. The two orange beams follow the original 35-degree orange diagonal lines pixel for pixel. The rear columns follow the other teal segments, only 70 source pixels to the right and 49 up from their front columns. Preserve this SHALLOW rack depth. Shelf decks fill the narrow gray parallelograms between front and back beams. Draw teal steel perforated posts, orange steel long beams, light gray steel deck slats, tiny base plates. Add subtle clean outlines and warehouse-game material shading. Keep source layout/angles/proportions and source frame. This is an orthographic sprite with no converging lines. True transparent background instead of white; no surrounding floor, no warehouse scene, no stock, no pallets, no boxes, no text, no diagram marks, no haze, no shadows spreading beyond object. Complete all components and leave a little transparent margin, especially above first rear post. Do not make depth wider or flatten the diagonal angle.",
+      "references": [
+        "output/warehouse-expansion-v1/rack-perspective-guide.png"
+      ],
+      "original": "C:/Users/johnw/.codex/generated_images/01a112fa-2744-7423-a3f6-1cb5d3a58cb0/exec-2b7c5304-2ca9-4c4d-b691-41dda22ddd19.png"
+    }
+  ],
+  "rejected": [
+    {
+      "version": "v7",
+      "reason": "Long beams too shallow and depth too broad.",
+      "prompt": "Use case: stylized-concept. Asset type: transparent world sprite for The Picture Shop warehouse game. Image 1 is the warehouse camera/projection reference; image 2 is the rack design reference, not its proportions. Generate a NEW 1536 by 1536 transparent RGBA sprite of one empty industrial rack, exactly FIVE equal bays across TWO shelf levels, six front uprights. Teal steel, orange beams, gray decks, illustrated game art matching the warehouse. CRITICAL projection: all uprights strictly screen-vertical; all long orange beams are straight parallel lines descending to the right at slope 0.704 (about 35 degrees); all short shelf depth edges rise to the right at slope -0.704. Orthographic projection, no convergence. Much wider usable openings, not thin skewed slots. Six front baseplate centers at (150,520), (383,684), (617,849), (850,1013), (1083,1177), (1317,1342). Each front upright rises vertically 450 pixels from its baseplate. Corresponding rear posts are 80 pixels right and 57 pixels up from front posts. Lower shelf deck contact is 42 pixels above front baseplate; upper shelf deck contact 313 pixels above it. Two continuous orange front beams at those heights. Five openings large enough for ordinary full-sized pallets, but leave ALL shelves empty: no pallets, boxes or baked stock. Keep every upright plumb and the shelf long axes straight, no bending. No surrounding floor, walls, text, glow, vignette, checkerboard, guide marks, canvas border or warehouse background. Real alpha everywhere outside this rack. Include narrow base plates and subtle tight object contact shading only. Camera must match the reference warehouse's down-right and up-right floor axes."
+    },
+    {
+      "version": "v8",
+      "reason": "Design reference dominated the geometry guide; angle and depth still wrong.",
+      "prompt": "Use case: sketch-to-render. Reference 1 is the authoritative rack PROJECTION AND GEOMETRY drawing. Reference 2 is the material/design reference only. Create one finished transparent industrial rack sprite using reference 1's precise steep long beam angle, shallow depth, vertical plumb uprights, wide five bays and two decks. Do not copy the shallower beam angle or excessive depth from reference 2. Exactly five equal openings and two shelf decks; exactly six front upright positions. Long orange beams run from upper-left to lower-right at 35 degrees, parallel to the lines in reference 1. Short deck depth edges go 35 degrees up-right. Rear posts only a small distance behind fronts, like reference 1. Teal steel perforated uprights, orange safety beams, galvanized gray shelf decks; empty with no stock, no boxes, no pallets. Clean illustrated game asset. All upright columns stay vertical. Keep the outline layout and beam lines of the diagram as closely as possible, replacing the diagram's lines with solid realistic industrial rack members. Preserve its length-to-height proportions. Keep all feet fully visible with tiny steel baseplates, and leave transparent margin on all sides. This sprite will be uniformly scaled into the warehouse, so exact angles matter. True RGBA transparency, no white background, no glow, no colored haze, no checkerboard, no text, no floor or scene."
+    }
+  ],
+  "reviewRun": "20261007-044432"
+}

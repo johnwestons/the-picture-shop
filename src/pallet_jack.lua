@@ -33,6 +33,17 @@ local directionVectors = {
     southwest = { x = -1, y = 1 }, west = { x = -1, y = 0 },
 }
 
+local directionAngles = {
+    east = 0, southeast = math.pi / 4, south = math.pi / 2,
+    southwest = math.pi * 3 / 4, west = math.pi,
+    northwest = math.pi * 5 / 4, north = math.pi * 3 / 2,
+    northeast = math.pi * 7 / 4,
+}
+local art = require("src.pallet_jack_art")
+local function angleDelta(from, to)
+    return (to - from + math.pi) % (math.pi * 2) - math.pi
+end
+
 local directionFor
 
 local function operatorOffset(directionName, config)
@@ -49,7 +60,9 @@ local function motionFor(jack, config)
         local offsetX, offsetY = operatorOffset(jack.direction, config or {})
         motion = { velocityX = 0, velocityY = 0, distance = 0,
             operatorDirection = jack.direction,
-            operatorOffsetX = offsetX, operatorOffsetY = offsetY }
+            operatorOffsetX = offsetX, operatorOffsetY = offsetY,
+            heading = directionAngles[jack.direction],
+            targetHeading = directionAngles[jack.direction] }
         runtimeMotion[jack] = motion
     end
     return motion
@@ -79,12 +92,22 @@ local function eligibleForJack(item)
         or pallet.location == "press_output"
 end
 
+local function pickupBlocker(state, item)
+    if not eligibleForJack(item) then return "unavailable" end
+    if require("src.pallet_storage").isSupporting(state, item.pallet.id) then
+        return "supporting_pallet"
+    end
+    if state.employment and require("src.employees").reservation(state, nil, item.pallet.id) then
+        return "employee_reserved"
+    end
+end
+
 function PalletJack.pickupCandidate(state, config, palletId)
     local jack = PalletJack.ensure(state, config)
     local radius = math.max(0, tonumber(config and config.pickupRadius) or 0)
     local best, bestDistance
     for _, item in ipairs(PalletState.items(state)) do
-        if (palletId == nil or item.pallet.id == palletId) and eligibleForJack(item) then
+        if (palletId == nil or item.pallet.id == palletId) and not pickupBlocker(state, item) then
             local dx, dy = item.pallet.world.x - jack.x, item.pallet.world.y - jack.y
             local distance = dx * dx + dy * dy
             if distance <= radius * radius and (not bestDistance or distance < bestDistance
@@ -98,7 +121,8 @@ function PalletJack.pickupCandidate(state, config, palletId)
     if palletId == nil then return nil, "no_pallet" end
     local requested = PalletState.find(state, palletId)
     if not requested then return nil, "missing" end
-    if not eligibleForJack(requested) then return nil, "unavailable" end
+    local blocker = pickupBlocker(state, requested)
+    if blocker then return nil, blocker end
     return nil, "out_of_range"
 end
 
@@ -192,9 +216,90 @@ function PalletJack.operatorPosition(state, config)
     -- Normal steering eases the operator's offset every movement substep.
     if motion.operatorDirection ~= jack.direction then
         motion.operatorDirection = jack.direction
-        motion.operatorOffsetX, motion.operatorOffsetY = operatorOffset(jack.direction, config)
+        motion.heading = directionAngles[jack.direction]
+        motion.targetHeading = motion.heading
     end
-    return jack.x + motion.operatorOffsetX, jack.y + motion.operatorOffsetY
+    local pose = PalletJack.visualPose(state, config)
+    -- Both the rendered grip and the operator's ground point use the same
+    -- continuous heading. Independent offset easing made the hands detach.
+    return pose.x + pose.operatorX, pose.y + pose.operatorY
+end
+
+function PalletJack.visualPose(state, config)
+    local jack = PalletJack.ensure(state, config)
+    local motion = motionFor(jack, config)
+    if motion.operatorDirection ~= jack.direction then
+        motion.operatorDirection = jack.direction
+        motion.heading = directionAngles[jack.direction]
+        motion.targetHeading = motion.heading
+    end
+    local phase = (motion.heading % (math.pi * 2)) / (math.pi * 2) * #art.frames
+    local first = math.floor(phase) % #art.frames + 1
+    local second = first % #art.frames + 1
+    local blend = phase - math.floor(phase)
+    local a, b = art.frames[first], art.frames[second]
+    local function sample(key)
+        return (a[key] + (b[key] - a[key]) * blend)
+            * config.drawScale * (config.resolutionScale or 1)
+    end
+    return { x = jack.x, y = jack.y, heading = motion.heading,
+        frame = first, nextFrame = second, blend = blend, distance = motion.distance,
+        handleX = sample("handleX"), handleY = sample("handleY"),
+        loadX = sample("loadX"), loadY = sample("loadY"),
+        operatorX = sample("operatorX"), operatorY = sample("operatorY") }
+end
+
+function PalletJack.animationDistance(state, config)
+    return motionFor(PalletJack.ensure(state, config), config).distance
+end
+
+function PalletJack.stop(state, config)
+    local jack = PalletJack.ensure(state, config)
+    local motion = motionFor(jack, config)
+    motion.velocityX, motion.velocityY = 0, 0
+    jack.moving = false
+end
+
+-- A reliable shop refresh replaces the durable jack table while retaining its
+-- live snapshot. Carry its private motion forward only for that identical pose.
+function PalletJack.continueMotion(state, previousJack, config)
+    local jack = PalletJack.ensure(state, config)
+    local previousMotion = previousJack and runtimeMotion[previousJack]
+    if not previousMotion or not jack.operating or not previousJack.operating
+        or jack.operatorPlayerId ~= previousJack.operatorPlayerId
+        or jack.x ~= previousJack.x or jack.y ~= previousJack.y
+        or jack.direction ~= previousJack.direction then return false end
+    local motion = {}
+    for key, value in pairs(previousMotion) do motion[key] = value end
+    runtimeMotion[jack] = motion
+    return true
+end
+
+-- Machine placement resolves its own collisions and speed. Record only the
+-- resulting travel so pushing feet stay in step, without retaining drive inertia.
+function PalletJack.followPlacement(state, item, dt, config)
+    local jack = PalletJack.ensure(state, config)
+    local motion = motionFor(jack, config)
+    local dx, dy = item.x - jack.x, item.y + 8 - jack.y
+    PalletJack.stop(state, config)
+    jack.x, jack.y = item.x, item.y + 8
+    jack.direction, jack.moving = item.direction, item.inMotion == true
+    jack.animationClock = jack.animationClock + math.max(0, tonumber(dt) or 0)
+    if jack.moving then motion.distance = motion.distance + math.sqrt(dx * dx + dy * dy) end
+    motion.operatorDirection = jack.direction
+    motion.heading = directionAngles[jack.direction]
+    motion.targetHeading = motion.heading
+end
+
+-- Remote snapshots also use the same turn arc. Advancing presentation never
+-- changes authoritative position, ownership, collision or durable save data.
+function PalletJack.updatePresentation(state, dt, config)
+    local jack = PalletJack.ensure(state, config)
+    local motion = motionFor(jack, config)
+    local amount = (config.turnRadiansPerSecond or math.pi * 2.5)
+        * math.max(0, math.min(tonumber(dt) or 0, .1))
+    local delta = angleDelta(motion.heading, motion.targetHeading)
+    motion.heading = motion.heading + math.max(-amount, math.min(amount, delta))
 end
 
 function PalletJack.obstacle(state, config)
@@ -354,15 +459,12 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
         if distance > 0.0001 then
             jack.direction = directionFor(x, y, jack.direction)
             motion.operatorDirection = jack.direction
-            local targetX, targetY = operatorOffset(jack.direction, config)
-            local turnSpeed = config.operatorTurnSpeed or 520
-            motion.operatorOffsetX, motion.operatorOffsetY = moveToward(
-                motion.operatorOffsetX, motion.operatorOffsetY,
-                targetX, targetY, turnSpeed * sliceDt)
+            motion.targetHeading = math.atan2(y, x)
+            motion.distance = motion.distance + distance
         end
+        PalletJack.updatePresentation(state, sliceDt, config)
     end
     if movedDistance > 0.0001 then
-        motion.distance = motion.distance + movedDistance
         jack.moving = true
     end
     if not jack.moving and math.abs(motion.velocityX) + math.abs(motion.velocityY) < 0.001 then
@@ -386,9 +488,6 @@ function PalletJack.lift(state, config, palletId)
     if not jack.operating then return false, "not_operating" end
     if jack.carriedPalletId then return false, "already_loaded" end
     if type(palletId) ~= "string" or palletId == "" then return false, "invalid_pallet" end
-    if state.employment and require("src.employees").reservation(state,nil,palletId) then
-        return false,"employee_reserved"
-    end
     local nearby, candidateError = PalletJack.pickupCandidate(state, config, palletId)
     if not nearby then return false, candidateError end
     local transitioned, transitionError = PalletState.transition(
@@ -432,9 +531,11 @@ end
 
 function PalletJack.use(state, config, canPlace, placementX, placementY, operatorPlayerId)
     local jack = PalletJack.ensure(state, config)
+    operatorPlayerId = operatorPlayerId or 1
     if not jack.operating then
-        return PalletJack.mount(state, config, operatorPlayerId or 1)
+        return PalletJack.mount(state, config, operatorPlayerId)
     end
+    if jack.operatorPlayerId ~= operatorPlayerId then return false, "not_owner" end
     if jack.carriedPalletId then
         return PalletJack.lower(state, config, canPlace,
             placementX, placementY, jack.carriedPalletId)
@@ -476,8 +577,8 @@ end
 
 function PalletJack.applySnapshot(state, snapshot, config)
     if type(state) ~= "table" or type(snapshot) ~= "table"
-        or type(snapshot.x) ~= "number" or snapshot.x ~= snapshot.x
-        or type(snapshot.y) ~= "number" or snapshot.y ~= snapshot.y
+        or type(snapshot.x) ~= "number" or snapshot.x ~= snapshot.x or math.abs(snapshot.x) == math.huge
+        or type(snapshot.y) ~= "number" or snapshot.y ~= snapshot.y or math.abs(snapshot.y) == math.huge
         or not directionFrames[snapshot.direction]
         or type(snapshot.operating) ~= "boolean" or type(snapshot.moving) ~= "boolean"
         or (snapshot.moving and not snapshot.operating)
@@ -503,8 +604,22 @@ function PalletJack.applySnapshot(state, snapshot, config)
         return false, "awaiting_durable"
     end
     local jack = PalletJack.ensure(state, config)
+    local motion = motionFor(jack, config)
+    local dx, dy = snapshot.x - jack.x, snapshot.y - jack.y
+    local distance = math.sqrt(dx * dx + dy * dy)
+    local continuous = snapshot.operating and jack.operating
+        and snapshot.operatorPlayerId == jack.operatorPlayerId and distance < 80
+    if continuous then
+        motion.distance = motion.distance + distance
+    else
+        -- Ownership changes, parking and teleports start a new motion history.
+        motion.velocityX, motion.velocityY, motion.distance = 0, 0, 0
+        motion.heading = directionAngles[snapshot.direction]
+    end
     jack.x, jack.y = snapshot.x, snapshot.y
     jack.direction = snapshot.direction
+    motion.operatorDirection = jack.direction
+    motion.targetHeading = directionAngles[jack.direction]
     jack.operating, jack.moving = snapshot.operating, snapshot.moving
     jack.operatorPlayerId = snapshot.operatorPlayerId
     jack.carriedPalletId = snapshot.carriedPalletId

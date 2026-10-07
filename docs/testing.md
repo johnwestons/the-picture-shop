@@ -1,5 +1,120 @@
 # Test layout
 
+## Lua modules and compiler headroom
+
+`main.lua` delegates LÖVE callbacks and diagnostic modes to `src/bootstrap.lua`.
+`src/app.lua` assembles the components in `src/runtime/` around one private live
+context. Separate folders now own world interactions, movement, deliveries,
+relocation, warehouse operations and employees; office and machine screens;
+protocol validation, multiplayer sessions and direct transport; fleet operations;
+job services; UPnP discovery; and save validation and migration. Their original
+public module APIs remain the entry points. Office and cutter factories create a
+fresh context for each instance, so guest consoles and installed machines keep
+independent state.
+
+The compiler audit checks actual compiled functions, including nested closures,
+without executing game source or accessing saves. Run
+`python tools/audit_lua_limits.py` with the installed LÖVE LuaJIT library, or pass
+`--library` / `LUAJIT_LIBRARY`. Its JSON report defaults to
+`output/lua-module-audit/limits.json`. The project budgets are **180 stack slots**
+and **45 captured variables** per function, below LuaJIT's
+[200-local, 250-slot and 60-upvalue limits](https://github.com/LuaJIT/LuaJIT/blob/v2.1/src/lj_def.h).
+`src/tests/lua_limits_test.lua` enforces the same budgets in the full engine smoke
+suite. The largest integration and network test functions are divided into
+scenario modules, retaining their original assertions and invocation state.
+
+For new systems, add a component to the appropriate folder and wire it through
+the owning module. Keep mutable shared bindings in that owner's context instead
+of copying them into component-local variables. Keep module installation in
+dependency order; forward callbacks may be registered before their implementations
+are installed, but must be invoked after initialization. Run the compiler guard,
+desktop/mobile smoke suites, and package checks after changing those boundaries.
+
+The 2026-10-07 audit found an office-screen compiler failure above the captured
+variable limit, plus 180 app stack slots and 50 app captured variables. After
+extraction, the app components peak at 29 slots and five captures. Entry files
+now assemble their systems rather than carrying their implementations:
+
+| Entry module | Original lines | Assembly lines | Component slots / captures |
+| --- | ---: | ---: | ---: |
+| `src/app.lua` | 4,730 | 34 | 29 / 5 |
+| `src/screens/computer_screen.lua` | 2,964 | 24 | 49 / 3 |
+| `src/net/protocol.lua` | 2,833 | 17 | 30 / 1 |
+| `src/net/session.lua` | 2,900 | 16 | 30 / 4 |
+| `src/world.lua` | 2,500 | 18 | 34 / 6 |
+| `src/save_schema.lua` | 1,530 | 13 | 27 / 1 |
+
+The final audit compiles 477 source files and 6,606 functions; production peaks
+are 61 slots and 30 captures. All source files match the generated `.love` package
+byte for byte, and 19 auditor/packaging tests pass. Strict gameplay checks retain
+one existing warehouse forklift-route failure. The same route fails at the same
+position with the pre-extraction world code. Review-only continuation runs pass
+4,863 other checks and three draw frames in each of desktop and forced-mobile
+modes; they record that failure and leave the shipped suite strict. Audit data,
+package validation, and the baseline comparison are in `output/lua-module-audit/`.
+
+## Performance measurements
+
+`tools/run_performance_probe.ps1 -Label review` runs the real LÖVE app with a
+fresh test identity and an output-local save directory. It measures startup,
+screen changes, rendering, updates, populated saves and worker routes, and counts
+image loads and file operations. Reports are written under `output/performance/`.
+Set `PICTURE_SHOP_MOBILE=1` for the 1600×720 touch layout. Measurements cover CPU
+work and render submission on this Windows machine, rather than Android hardware
+or completed GPU frame time.
+
+The 2026-10-07 comparison used 80 job records and 200 emails for its populated
+shop. Before/after reports are in `output/performance/before/measurements.json`
+and `output/performance/after/measurements.json`:
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Cutter → options → cutter images, repeated | 115 ms | 0.072 ms after first load |
+| Press → world → press images, repeated | 133 ms | 0.026 ms after first load |
+| Player images through a brief menu | 9.0 ms | 0.010 ms after first load |
+| Populated save commit | 44.0 ms | approximately 14 ms |
+| Title render with populated slot | 3.18 ms / 180 save reads | 0.060 ms / 1 save read |
+| Worker search with blocked destination | 2.69 ms | below 0.01 ms |
+
+Image packs still unload from the active screen API; their inactive textures use
+a 32 MiB screen cache, a 16 MiB character cache and a 64 MiB warehouse cache,
+expire after 20 seconds, and
+clear when the app loses focus. Character eviction favors the poses most recently
+drawn. The warehouse cache retires artwork unused by the current scene. Cycling
+all parked/driving forklift views retained 90 MiB before this change and 72 MiB
+afterward, with no additional image uploads; repeated driving views reload no
+textures. Idle expiry and loss of focus release the unused views. First-time
+asset decoding remains synchronous: the measured cold cutter
+and press loads are approximately 106 and 133 ms, and app/asset startup remains
+about 0.52 seconds. Asset dimensions, authored frames and rendering quality are
+unchanged. Active textures and inactive cache bytes are reported separately.
+
+Save commits validate the new payload, verify written/promoted bytes, and preserve
+the existing recovery-file behavior. Only an exact match with a previously
+validated primary skips repeated parsing; external edits and other save identities
+still require full checks. This cache holds at most 2 MiB per slot. Simulation
+changes in one update request one final commit; explicit commands, focus changes
+and shutdown retain immediate saves. The title listing refreshes after local save
+changes, identity changes, and every half-second for external edits. Hosts waiting
+for guests defer snapshot construction and encoding while continuing simulation,
+admission and workshop servicing. Worker routes reject blocked goals before
+searching and build their waypoint lists in linear time.
+
+The performance focus (`PICTURE_SHOP_SMOKE_FOCUS=performance`) passes 2,323 checks
+plus three draw frames in desktop and forced-mobile layouts. It covers short save
+writes, external corruption and recovery, bounded texture eviction, title refresh,
+simultaneous simulation saves, worker collision/path traversal, multiplayer shop
+updates and guest work. All 479 source files compile within the Lua budgets; 19
+compiler/package tests pass. Strict full-suite validation currently stops at
+`breakroom_seat_points_are_mirrored`: the warehouse redraw moved the left/right
+seat coordinates to 95/865 while that test still expects 82/878. The performance
+changes do not alter those coordinates or suppress the strict assertion. An
+extended forklift-presentation check also reports stale lift-height expectations
+after the rack redraw; it remains in the full suite. Packaging now includes the
+current rack/breakroom art and excludes their superseded packaged versions.
+
+## Engine smoke tests
+
 The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save identity. It never reads or writes the player's normal save directory. To use a fresh profile without touching earlier test saves, set `PICTURE_SHOP_TEST_IDENTITY` to a unique name beginning `the-picture-shop-test-`; that override is accepted only in smoke mode.
 
 `RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. Visitors and the player show all eight directions together: enlarged walking poses use distance timing, while matching idle poses show actual shop size and brief blinks. Older auxiliary character actions retain the raw/normalized comparison.
@@ -13,6 +128,30 @@ Run `tools/run_visitor_motion_preview.ps1` for an isolated LÖVE check using the
 The completed pack passes six strict motion audits, 593 asset checks, and 3,887 full game checks in each of desktop and forced-mobile modes. The 96-capture rendering check passes with peak character textures of 50 MiB.
 
 ## Layers
+
+The pallet jack motion pack is rebuilt with `tools/build_pallet_jack_motion_v2.py`.
+Its immutable image-generation masters and reference records live in
+`assets/source/pallet-jack-motion-v2/`; runtime art lives in the corresponding
+generated directory. The jack uses 32 authored turning views, and the rabbit uses
+16 pushing drawings per authored direction plus planted directional idles. Each
+eight-pose gait is subdivided into two drawings per pose, with an 80-pixel cycle.
+The grip is shared by the jack and worker; turns use a bounded continuous heading,
+while steps use collision-resolved jack distance and freeze against walls.
+
+`character-motion/rabbit-pallet-jack.json` audits both the full 16-frame strips and
+eight-pose core previews, matching the skill auditor's eight-phase contract. Run
+the build before this audit because its core previews are staged under `output/`.
+`tools/run_pallet_jack_preview.ps1` runs focused motion/ownership/control checks
+and captures 32 empty/loaded desktop and phone scenes through the real renderer.
+Set `PICTURE_SHOP_PALLET_JACK_MOVIE=1` for the 120-frame in-engine turning/gait
+capture. Both modes use isolated test identities and never access normal saves.
+
+`tools/run_pallet_jack_audit.ps1` runs the `pallet-jack` smoke focus, including
+pickup reservations and stacked loads, operator ownership, local and network
+machine relocation, client turn/stride continuity, storage, protocol/session
+checks, and save round trips. It redirects test saves into
+`output/pallet-jack-audit/appdata` with a fresh identity and writes its report to
+`output/pallet-jack-audit/smoke-report.rpt`.
 
 - `src/tests/guest_job_journey_test.lua` drives the shared guest computer, cutter, wrapper and truck
   GUIs through real Session transport and the application's production authority callbacks. It covers
@@ -120,7 +259,7 @@ The completed pack passes six strict motion audits, 593 asset checks, and 3,887 
 
 ## Gates
 
-Run `RUN_SMOKE_TEST.bat` for domain, integration, audit-coverage, screen-pack transitions, and three-frame render checks. Set `PICTURE_SHOP_SMOKE_FOCUS=employee-shifts` to run the employee, schedule, and payroll suites while diagnosing shift behavior. Run `python tools/asset_doctor.py --report output/asset-audit.json` for full raster decoding, alpha, dimension, 2x2 press-atlas grid, and nonempty-cell checks.
+Run `RUN_SMOKE_TEST.bat` for domain, integration, audit-coverage, screen-pack transitions, and three-frame render checks. Set `PICTURE_SHOP_SMOKE_FOCUS=employee-shifts` to run the employee, schedule, and payroll suites, or `employee-schedule` to run only the schedule suite while diagnosing worker queues and shifts. Run `python tools/asset_doctor.py --report output/asset-audit.json` for full raster decoding, alpha, dimension, 2x2 press-atlas grid, and nonempty-cell checks.
 
 Before regenerating or releasing audio, run
 `python tools/generate_sfx.py --verify-only`. It validates all nine licensed

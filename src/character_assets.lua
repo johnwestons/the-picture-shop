@@ -2,6 +2,8 @@ local Anchors = require("src.character_anchors")
 local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local Metrics = require("src.character_metrics")
+local imageCache = require("src.texture_cache").new(16 * 1024 * 1024, 20)
+local useSequence = 0
 
 -- Merge the separately built visitor pack without changing established seat,
 -- use, player, or pallet-jack anchor contracts.
@@ -17,6 +19,9 @@ for character,actions in pairs(require("src.cat_worker_anchors")) do Anchors[cha
 for character,actions in pairs(require("src.cat_worker_metrics")) do Metrics[character]=actions end
 for character,actions in pairs(require("src.mouse_worker_anchors")) do Anchors[character]=actions end
 for character,actions in pairs(require("src.mouse_worker_metrics")) do Metrics[character]=actions end
+local jackArt = require("src.pallet_jack_art")
+for action, frames in pairs(jackArt.anchors) do Anchors["rabbit-worker"][action] = frames end
+for action, frames in pairs(jackArt.metrics) do Metrics["rabbit-worker"][action] = frames end
 
 local CharacterAssets = {
     metadata = {},
@@ -36,7 +41,12 @@ local function validateAction(character, action, path)
         CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": " .. errorMessage
         return
     end
-    local frameSize=Config.workerFrameSizes[character] or 512
+    local actionSizes = Config.characterActionFrameSizes and Config.characterActionFrameSizes[character]
+    local additionalActionSizes = Config.workerActionFrameSizes
+        and Config.workerActionFrameSizes[character]
+    local frameSize = actionSizes and actionSizes[action]
+        or additionalActionSizes and additionalActionSizes[action]
+        or Config.workerFrameSizes[character] or 512
     if height ~= frameSize or width % frameSize ~= 0 then
         CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": invalid character frame strip size"
         return
@@ -60,7 +70,12 @@ local function validateAction(character, action, path)
         height = height,
         frameCount = frameCount,
         frameSize = frameSize,
+        visibleHeight = 0,
     }
+    for _, bounds in ipairs(actionMetrics) do
+        local metadata = CharacterAssets.metadata[character][action]
+        metadata.visibleHeight = math.max(metadata.visibleHeight, bounds[4] - bounds[2])
+    end
 end
 
 local function actionHeight(character, action)
@@ -74,7 +89,8 @@ function CharacterAssets.getNormalization(character, action)
     -- Normalize every character action to one shared world-space body height.
     -- This lets playable and visiting characters use the same rendering path.
     local reference = Config.characterRendering.referenceHeight
-    local height = actionHeight(character, action)
+    local metadata = CharacterAssets.metadata[character] and CharacterAssets.metadata[character][action]
+    local height = metadata and metadata.visibleHeight or actionHeight(character, action)
     if reference <= 0 or height <= 0 then return 1 end
     return reference / height
 end
@@ -118,6 +134,7 @@ end
 
 function CharacterAssets.load()
     CharacterAssets.releaseAll()
+    useSequence = 0
     CharacterAssets.metadata, CharacterAssets.images = {}, {}
     CharacterAssets.frames, CharacterAssets.failures, CharacterAssets.loadFailures = {}, {}, {}
     for character, actions in pairs(Config.characters) do
@@ -140,7 +157,7 @@ local function loadAction(character, action)
 
     local image
     local ok, frames = pcall(function()
-        image = love.graphics.newImage(metadata.path)
+        image = imageCache:take(metadata.path) or love.graphics.newImage(metadata.path)
         if not image then error("image loader returned no texture") end
         image:setFilter("nearest", "nearest")
         local result = {}
@@ -163,6 +180,11 @@ local function loadAction(character, action)
 end
 
 function CharacterAssets.get(character, action, frame)
+    local metadata = CharacterAssets.metadata[character] and CharacterAssets.metadata[character][action]
+    if metadata then
+        useSequence = useSequence + 1
+        metadata.lastUse = useSequence
+    end
     local image, frames, frameCount = loadAction(character, action)
     if not image or not frames or frameCount == 0 then return nil end
     return image, frames[((frame or 1) - 1) % frameCount + 1], frameCount
@@ -175,27 +197,44 @@ function CharacterAssets.getAnchor(character, action, frame)
     return anchor.x, anchor.y
 end
 
-function CharacterAssets.retainCharacters(activeCharacters)
+function CharacterAssets.retainCharacters(activeCharacters, cacheInactive)
+    -- Explicit release requests (asset checks/reloads) remain immediate. During
+    -- screen changes, a small idle cache avoids decoding the same actor again.
+    if not cacheInactive then imageCache:clear() end
     local active = {}
     for key, value in pairs(activeCharacters or {}) do
         if type(key) == "number" then active[value] = true elseif value then active[key] = true end
     end
+    local retired = {}
     for character, actions in pairs(CharacterAssets.images) do
         if not active[character] then
             for action, image in pairs(actions) do
-                release(image)
+                local metadata = CharacterAssets.metadata[character][action]
+                if cacheInactive then
+                    retired[#retired+1] = {metadata=metadata,image=image}
+                else release(image) end
                 actions[action] = nil
                 CharacterAssets.frames[character][action] = nil
             end
         end
     end
+    -- Keep the poses actually drawn most recently when a whole character has
+    -- more actions than the idle budget can hold.
+    table.sort(retired,function(a,b)
+        return (a.metadata.lastUse or 0) < (b.metadata.lastUse or 0)
+    end)
+    for _,entry in ipairs(retired) do imageCache:put(entry.metadata.path,entry.image) end
 end
 
 function CharacterAssets.releaseAll()
+    imageCache:clear()
     for _, actions in pairs(CharacterAssets.images or {}) do
         for _, image in pairs(actions) do release(image) end
     end
 end
+function CharacterAssets.pruneCache() imageCache:prune() end
+function CharacterAssets.clearCache() imageCache:clear() end
+function CharacterAssets.cachedTextureBytes() return imageCache.bytes end
 
 function CharacterAssets.textureBytes()
     local bytes = 0

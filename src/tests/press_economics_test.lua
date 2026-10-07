@@ -118,10 +118,10 @@ function Test.run(context, check)
     end
     check("installed_press_guarantees_first_print_then_alternates_job_families", pressBought
         and cadence[1] and not cadence[2] and cadence[3] and not cadence[4] and cadence[5])
-    check("print_offer_rotation_reaches_every_structured_template",
+    check("print_offer_rotation_respects_reliable_tier",
         companies[1] == "Foundry Coffee Roasters"
-        and companies[3] == "Lantern House Events"
-        and companies[5] == "Maple Street Books")
+        and companies[3] == "Maple Street Books"
+        and companies[5] == "Foundry Coffee Roasters")
 
     structured.status = "completed"
     local repeatState = context.State.new()

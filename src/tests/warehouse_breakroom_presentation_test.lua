@@ -1,9 +1,10 @@
 local Presentation=require("src.warehouse_breakroom_presentation")
+local Layout=require("src.warehouse_layout")
 local Test={}
 
 function Test.run(_,check)
     local catalog=Presentation.reviewCatalog()
-    local path="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v5-candidate.png"
+    local path="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v6-perspective-candidate.png"
     check("breakroom_art_registered_for_both_bays",catalog.front_left and catalog.front_right
         and catalog.front_left.path==path and catalog.front_right.path==path)
     check("right_breakroom_uses_mirrored_art",catalog.front_left.mirrorX==false
@@ -13,14 +14,22 @@ function Test.run(_,check)
     local left,why=Presentation.plan(state,"front_left",{review=true})
     local right=Presentation.plan(state,"front_right",{review=true})
     check("breakroom_requires_finished_purchase",left and right and left.review and right.review)
-    check("both_breakrooms_map_measured_floor_vertices",left and right and left.scale==0.24
-        and right.scale==0.24 and left.textureWidth==1536 and left.textureHeight==1024
-        and left.scaleX==371/1007 and left.scaleY==261/861)
+    local cornersFit=left~=nil and right~=nil
+    for _,plan in ipairs({left,right}) do
+        local polygon=Layout.bay(plan.bayId).polygon
+        for index,source in ipairs({{80,200},{1118,1000},{80,1000}}) do
+            local x=plan.x+(source[1]-plan.originX)*plan.scaleX*(plan.mirrorX and -1 or 1)
+            local y=plan.y+(source[2]-plan.originY)*plan.scaleY
+            cornersFit=cornersFit and math.abs(x-polygon[index].x)<0.000001
+                and math.abs(y-polygon[index].y)<0.000001
+        end
+    end
+    check("both_breakrooms_map_measured_floor_vertices",cornersFit)
     check("right_room_mirrors_at_its_own_center",left and right and not left.mirrorX and right.mirrorX
         and right.x==960-left.x and right.y==left.y)
     local drawCalls={}
     local graphics={setColor=function()end,draw=function(...)drawCalls[#drawCalls+1]={...}end}
-    local image={getDimensions=function()return 1536,1024 end}
+    local image={getDimensions=function()return 1254,1254 end}
     check("left_breakroom_sprite_draws",Presentation.draw(left,function()return image end,graphics))
     check("right_breakroom_sprite_draws_mirrored",Presentation.draw(right,function()return image end,graphics)
         and drawCalls[1][5]==left.scaleX and drawCalls[2][5]==-right.scaleX

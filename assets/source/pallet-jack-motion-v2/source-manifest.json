@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "generator": "built-in image_gen",
+  "source_policy": "immutable",
+  "prompt_record": "Summaries, not verbatim generation prompts",
+  "reference_jack": "output/pallet-jack-directions-preview.png",
+  "reference_worker": "assets/source/warehouse-expansion-v1/pallet-jack-push/push-{direction}-v1-candidate.png",
+  "worker_prompt_summary": "Exact reference rabbit/camera, gray shirt and blue overalls; 16 distinct contact/load/passing/knee-up poses as a 4x4 transparent grid; stationary paired hands, common scale and floor baseline; no actual jack, matte, shadows or labels.",
+  "jack_prompt_summary": "Rigid yellow hydraulic jack, charcoal forks/wheels and triangular black grip; 16 clockwise yaw views in a 4x4 transparent grid, with a second 16-view generation offset halfway between the first views. Match the same camera and identity with complete machine silhouettes.",
+  "western_worker_views": "intentional mirrors of east, northeast and southeast reference views",
+  "runtime": "32 jack views in a 16x2 atlas of 192px cells; five authored 16-frame push strips with western mirrors; original planted neutral frames normalized into five two-frame idles",
+  "sources": [
+    {
+      "path": "assets/source/pallet-jack-motion-v2/jack-turns-between.png",
+      "sha256": "43ea5c46cca38cdb92191129bd9d1ecd5c02cc3641da127ee988c17f78b13052",
+      "size": [
+        1262,
+        1246
+      ]
+    },
+    {
+      "path": "assets/source/pallet-jack-motion-v2/jack-turns.png",
+      "sha256": "e073ad8da8fefe474cd3029d21f9bd104489a3a1b7f82f541fd02d4000a7c3ae",
+      "size": [
+        1262,
+        1246
+      ]
+    },
+    {
+      "path": "assets/source/pallet-jack-motion-v2/push_east.png",
+      "sha256": "5e9e21c22816a21037edeaf84dc7f3e029cab3b72ff7f769adfa5c196e4491c3",
+      "size": [
+        1312,
+        1199
+      ]
+    },
+    {
+      "path": "assets/source/pallet-jack-motion-v2/push_north.png",
+      "sha256": "7212e61ec0744a7a100fae044b2bf20463abb4b8dbf61fc90c9187ccd42e6ed2",
+      "size": [
+        1261,
+        1247
+      ]
+    },
+    {
+      "path": "assets/source/pallet-jack-motion-v2/push_northeast.png",
+      "sha256": "c333c4f685509546084aaee3ce24ef617fb7237f92fd26c70265dd5e2fe83d4d",
+      "size": [
+        1262,
+        1246
+      ]
+    },
+    {
+      "path": "assets/source/pallet-jack-motion-v2/push_south.png",
+      "sha256": "4f24ed1d9f966000675e8f9698e1d8f873ca42bcaf854c17f3fd04311e4dec80",
+      "size": [
+        1297,
+        1212
+      ]
+    },
+    {
+      "path": "assets/source/pallet-jack-motion-v2/push_southeast.png",
+      "sha256": "459648fff8e1379a61f56054a1cfb98f8ddd29313c09ed9112068af926416dbe",
+      "size": [
+        1262,
+        1246
+      ]
+    }
+  ]
+}

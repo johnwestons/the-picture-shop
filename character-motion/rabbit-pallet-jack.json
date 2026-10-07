@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "character": "rabbit-pallet-jack",
+  "animations": {
+    "push": {
+      "path": "assets/generated/pallet-jack-motion-v2/push.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 16,
+      "role": "subdivided_gait",
+      "loop": true,
+      "fps": 22.4
+    },
+    "push_idle": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "loop": true,
+      "fps": 0.65
+    },
+    "push_core": {
+      "path": "output/pallet-jack-motion-v2/push_core.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "role": "gait",
+      "loop": true,
+      "fps": 11.2
+    },
+    "push_northeast": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 16,
+      "role": "subdivided_gait",
+      "loop": true,
+      "fps": 22.4
+    },
+    "push_northeast_idle": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_northeast_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "loop": true,
+      "fps": 0.65
+    },
+    "push_northeast_core": {
+      "path": "output/pallet-jack-motion-v2/push_northeast_core.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "role": "gait",
+      "loop": true,
+      "fps": 11.2
+    },
+    "push_north": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 16,
+      "role": "subdivided_gait",
+      "loop": true,
+      "fps": 22.4
+    },
+    "push_north_idle": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_north_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "loop": true,
+      "fps": 0.65
+    },
+    "push_north_core": {
+      "path": "output/pallet-jack-motion-v2/push_north_core.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "role": "gait",
+      "loop": true,
+      "fps": 11.2
+    },
+    "push_southeast": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 16,
+      "role": "subdivided_gait",
+      "loop": true,
+      "fps": 22.4
+    },
+    "push_southeast_idle": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_southeast_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "loop": true,
+      "fps": 0.65
+    },
+    "push_southeast_core": {
+      "path": "output/pallet-jack-motion-v2/push_southeast_core.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "role": "gait",
+      "loop": true,
+      "fps": 11.2
+    },
+    "push_south": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 16,
+      "role": "subdivided_gait",
+      "loop": true,
+      "fps": 22.4
+    },
+    "push_south_idle": {
+      "path": "assets/generated/pallet-jack-motion-v2/push_south_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "loop": true,
+      "fps": 0.65
+    },
+    "push_south_core": {
+      "path": "output/pallet-jack-motion-v2/push_south_core.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "role": "gait",
+      "loop": true,
+      "fps": 11.2
+    }
+  },
+  "directions": {
+    "east": {
+      "walk_animation": "push_core",
+      "idle_animation": "push_idle",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "push_southeast_core",
+      "idle_animation": "push_southeast_idle",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "push_south_core",
+      "idle_animation": "push_south_idle",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "push_southeast_core",
+      "idle_animation": "push_southeast_idle",
+      "mirror_x": true
+    },
+    "west": {
+      "walk_animation": "push_core",
+      "idle_animation": "push_idle",
+      "mirror_x": true
+    },
+    "northwest": {
+      "walk_animation": "push_northeast_core",
+      "idle_animation": "push_northeast_idle",
+      "mirror_x": true
+    },
+    "north": {
+      "walk_animation": "push_north_core",
+      "idle_animation": "push_north_idle",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "push_northeast_core",
+      "idle_animation": "push_northeast_idle",
+      "mirror_x": false
+    }
+  },
+  "runtime_subdivision": {
+    "frames_per_pose": 2,
+    "pixels_per_drawing": 5,
+    "cycle_distance": 80
+  },
+  "gait": {
+    "pose_order": [
+      "left_contact",
+      "left_down",
+      "right_passing",
+      "right_up",
+      "right_contact",
+      "right_down",
+      "left_passing",
+      "left_up"
+    ],
+    "pixels_per_frame": 10,
+    "base_speed": 112,
+    "speed_multipliers": [
+      0.96,
+      0.94,
+      1.04,
+      1.06,
+      0.96,
+      0.94,
+      1.04,
+      1.06
+    ],
+    "acceleration_multipliers": [
+      0.92,
+      0.9,
+      1.08,
+      1.1,
+      0.92,
+      0.9,
+      1.08,
+      1.1
+    ]
+  },
+  "audit": {
+    "alpha_threshold": 40,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 3,
+    "center_tolerance": 20
+  }
+}

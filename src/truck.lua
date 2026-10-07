@@ -45,8 +45,9 @@ function Instance:schedule(jobId, mode)
     return true
 end
 
-function Instance:update(dt, bayDoorState)
+function Instance:update(dt, bayDoorState, motionDt)
     dt = math.max(0, dt or 0)
+    motionDt = math.max(0, tonumber(motionDt) or dt)
     if self.state == "scheduled" then
         self.timer = self.timer - dt
         if self.timer <= 0 then
@@ -61,25 +62,25 @@ function Instance:update(dt, bayDoorState)
             return "backing_started"
         end
     elseif self.state == "backing" then
-        self.backingProgress = math.min(1, self.backingProgress + dt / self.backingDuration)
+        self.backingProgress = math.min(1, self.backingProgress + motionDt / self.backingDuration)
         if self.backingProgress >= 1 then
             self.state = "parked_closed"
             return "parked"
         end
     elseif self.state == "cargo_opening" then
-        self.cargoProgress = math.min(1, self.cargoProgress + dt / self.cargoDuration)
+        self.cargoProgress = math.min(1, self.cargoProgress + motionDt / self.cargoDuration)
         if self.cargoProgress >= 1 then
             self.state = "cargo_open"
             return "cargo_opened"
         end
     elseif self.state == "cargo_closing" then
-        self.cargoProgress = math.max(0, self.cargoProgress - dt / self.cargoDuration)
+        self.cargoProgress = math.max(0, self.cargoProgress - motionDt / self.cargoDuration)
         if self.cargoProgress <= 0 then
             self.state = "parked_closed"
             return "cargo_closed"
         end
     elseif self.state == "departing" then
-        self.backingProgress = math.max(0, self.backingProgress - dt / self.backingDuration)
+        self.backingProgress = math.max(0, self.backingProgress - motionDt / self.backingDuration)
         if self.backingProgress <= 0 then
             self.state = "absent"
             self.jobId = nil

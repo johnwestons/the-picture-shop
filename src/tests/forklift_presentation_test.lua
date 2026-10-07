@@ -211,7 +211,7 @@ function Test.run(_, check)
     side.forkHeight=1
     local upperShelfPose=Layered.plan(side,{review=true,scale=0.308})
     test("side_forklift_lift_matches_registered_upper_rack_deck",
-        lowerShelfPose and upperShelfPose and close(lowerShelfPose.loadY-upperShelfPose.loadY,45))
+        lowerShelfPose and upperShelfPose and close(lowerShelfPose.loadY-upperShelfPose.loadY,70))
     local diagonalSmooth,diagonalStationary,diagonalMirrored=true,true,true
     for _,heading in ipairs({"southeast","southwest"}) do
         side.direction=heading

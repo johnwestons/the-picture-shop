@@ -18,7 +18,11 @@ local function hours(s,h) local pace=Calendar.secondsPerDay(s);s.calendar=Calend
 local function hire(s,wage)
     local a=Employees.createApplicant(s,0)
     Employees.requestResume(s,a.id,0);Employees.advance(s,.5)
-    assert(Employees.command(s,{kind="offer_employee",applicationId=a.id,expectedRevision=a.revision,wageCents=wage or 2200,days=31,startHour=9,endHour=17},.5))
+    local startHour=a.shiftPreference=="night" and 21 or 9
+    local endHour=a.shiftPreference=="night" and 5 or 17
+    assert(Employees.command(s,{kind="offer_employee",applicationId=a.id,expectedRevision=a.revision,
+        wageCents=wage or math.max(2200,a.requestedWage),days=31,
+        startHour=startHour,endHour=endHour},.5))
     Employees.advance(s,1.25);assert(Employees.command(s,{kind="hire_employee",applicationId=a.id,expectedRevision=a.revision},1.25))
     local w=s.employment.staff[#s.employment.staff];w.visible=true;w.clockedIn=true;w.phase="working";hours(s,9);return w
 end
@@ -159,10 +163,31 @@ function Test.run(context,check)
         check("employee_next_agreed_shift_reclaims_same_unfinished_pallet",worker.visible and worker.clockedIn and worker.assignment.jobId==first.id
             and worker.assignment.palletId==first.pallets[1].id)
         for i=1,3000 do AI.worker(resumed,worker,.1,105,wc);context.machine.updateAll(.1,resumed);context.wrapper.updateAll(.1,resumed)
-            if #worker.schedule.items==0 and not worker.assignment then break end end
+            if #worker.schedule.items==0 and #resumed.employment.teamSchedule.items==0 and not worker.assignment then break end end
+        local teamRow=resumed.employment.teamSchedule.items[1]
+        local teamBlock
+        if teamRow then local _,_,_,reason=Schedule.resolve(resumed,worker,teamRow);teamBlock=reason end
         check("employee_next_shift_finishes_remaining_cuts_then_next_job_exactly_once",#worker.schedule.items==0 and #worker.schedule.history==2
             and resumed.inventory.finishedPallets==2 and resumed.jobs.active[1].pallets[1].finishedSheets==500
-            and resumed.jobs.active[2].pallets[1].finishedSheets==500)
+            and resumed.jobs.active[2].pallets[1].finishedSheets==500,
+            "personal="..#worker.schedule.items.." team="..#resumed.employment.teamSchedule.items
+                .." assignment="..tostring(worker.assignment and worker.assignment.jobId)
+                .." activity="..tostring(worker.activity)
+                .." first="..resumed.jobs.active[1].pallets[1].status..":"..resumed.jobs.active[1].pallets[1].finishedSheets
+                .." second="..resumed.jobs.active[2].pallets[1].status..":"..resumed.jobs.active[2].pallets[1].finishedSheets
+                .." wrapper="..tostring(resumed.wrapper.step)
+                .." row="..tostring(resumed.employment.teamSchedule.items[1]
+                    and resumed.employment.teamSchedule.items[1].jobId)
+                .." enabled="..tostring(resumed.employment.teamSchedule.enabled)
+                .." shift="..tostring(Contracts.onShift(worker.contract,105))
+                .." visible="..tostring(worker.visible).." clocked="..tostring(worker.clockedIn)
+                .." skills="..worker.cutterSkill..","..worker.pressSkill..","..worker.wrappingSkill
+                .." paper="..tostring(resumed.jobs.active[1].pallets[1].paper.status)
+                ..":"..tostring(resumed.jobs.active[1].pallets[1].paper.activeCut)
+                .." remaining="..tostring(resumed.jobs.active[1].pallets[1].remainingSheets)
+                .." loaded="..tostring(resumed.jobs.active[1].pallets[1].status)
+                ..":"..tostring(resumed.jobs.active[1].pallets[1].location)
+                .." blocker="..tostring(teamBlock))
     end)
     AI.move=oldMove;context.machine.setOutputResolver(oldResolver);context.machine.reset(continuation)
     if not okay then error(err) end

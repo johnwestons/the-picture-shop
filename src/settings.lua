@@ -6,9 +6,12 @@ local DEFAULTS = {
     fullscreen = false,
     vsync = true,
     followPlayerCamera = false,
+    twelveHourTime = true,
     furColorway = 1,
     overallsColorway = 1,
     muted = false,
+    lanConnectionMode = "auto",
+    lanAutoJoin = false,
     masterVolume = 100,
     sfxVolume = 85,
     ambientVolume = 42,
@@ -51,13 +54,20 @@ function Settings.normalize(value)
     value = type(value) == "table" and value or {}
     local furColorway, overallsColorway = RabbitColorways.normalize(
         value.furColorway, value.overallsColorway)
+    local lanConnectionMode = value.lanConnectionMode
+    if lanConnectionMode ~= "wifi" and lanConnectionMode ~= "usb" then
+        lanConnectionMode = "auto"
+    end
     return {
         fullscreen = value.fullscreen == true,
         vsync = value.vsync ~= false,
         followPlayerCamera = value.followPlayerCamera == true,
+        twelveHourTime = value.twelveHourTime ~= false,
         furColorway = furColorway,
         overallsColorway = overallsColorway,
         muted = value.muted == true,
+        lanConnectionMode = lanConnectionMode,
+        lanAutoJoin = value.lanAutoJoin == true,
         masterVolume = clampPercent(value.masterVolume, DEFAULTS.masterVolume),
         sfxVolume = clampPercent(value.sfxVolume, DEFAULTS.sfxVolume),
         ambientVolume = clampPercent(value.ambientVolume, DEFAULTS.ambientVolume),
@@ -78,9 +88,11 @@ end
 local function encode(value)
     value = Settings.normalize(value)
     return string.format(
-        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, furColorway = %d, overallsColorway = %d, muted = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
+        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
         tostring(value.fullscreen), tostring(value.vsync), tostring(value.followPlayerCamera),
+        tostring(value.twelveHourTime),
         value.furColorway, value.overallsColorway, tostring(value.muted),
+        value.lanConnectionMode, tostring(value.lanAutoJoin),
         value.masterVolume, value.sfxVolume, value.ambientVolume,
         value.controlLayout.joystick.x, value.controlLayout.joystick.y,
         value.controlLayout.primary.x, value.controlLayout.primary.y,

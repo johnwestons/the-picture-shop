@@ -43,6 +43,8 @@ function Logistics.truckInventory(state, jobId)
         replacementIds = {}
         for _, id in ipairs(job.delivery.palletIds) do replacementIds[id] = true end
     end
+    -- The first job delivery is one per-job truck manifest containing every
+    -- quoted original skid. Replacement shipments may list only their own IDs.
     for _, pallet in ipairs(job and job.pallets or {}) do
         if not replacementIds or replacementIds[pallet.id] then
             inventory[#inventory + 1] = {

@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local ImageContract = require("src.image_contract")
+local imageCache = require("src.texture_cache").new(32 * 1024 * 1024, 20)
 
 local Assets = {
     images = {},
@@ -28,6 +29,11 @@ local function hasExactDimensions(image, path, expectedWidth, expectedHeight)
 end
 
 local function loadImage(name, path, keepData)
+    local cached = not keepData and imageCache:take(path)
+    if cached then
+        Assets.images[name] = cached
+        return cached
+    end
     if not love.filesystem.getInfo(path) then
         recordFailure(path, "missing required asset")
         return nil
@@ -92,6 +98,13 @@ end
 
 function Assets.load()
     Assets.activatePack(nil)
+    imageCache:clear()
+    for _, image in pairs(Assets.images) do
+        if image.release then pcall(image.release, image) end
+    end
+    for _, data in pairs(Assets.data) do
+        if data.release then pcall(data.release, data) end
+    end
     Assets.images = {}
     Assets.data = {}
     Assets.quads = {}
@@ -282,7 +295,7 @@ function Assets.load()
         end
     end
     if loadedPaperPalletDirections then
-        local size = Config.palletJack.frameSize
+        local size = Config.palletJack.palletFrameSize or Config.palletJack.frameSize
         local frameCount = Config.palletJack.palletFrameCount
         local width, height = loadedPaperPalletDirections:getDimensions()
         if width ~= size * frameCount or height ~= size then
@@ -298,12 +311,15 @@ function Assets.load()
         if not image then return end
         local size = Config.palletJack.frameSize
         local width, height = image:getDimensions()
-        if width ~= size * Config.palletJack.frameCount or height ~= size then
+        local columns = Config.palletJack.frameColumns or Config.palletJack.frameCount
+        local rows = math.ceil(Config.palletJack.frameCount / columns)
+        if width ~= size * columns or height ~= size * rows then
             recordFailure(path, "pallet-jack direction strip dimensions are invalid")
             return
         end
         for frame = 1, Config.palletJack.frameCount do
-            makeQuad(name .. frame, image, (frame - 1) * size, 0, size, size)
+            makeQuad(name .. frame, image, ((frame - 1) % columns) * size,
+                math.floor((frame - 1) / columns) * size, size, size)
         end
     end
     registerJackStrip("palletJack", palletJack, Config.paths.palletJack)
@@ -395,7 +411,7 @@ local PACK_IMAGES = {
 
 local function releaseImage(name)
     local image = Assets.images[name]
-    if image and image.release then pcall(image.release, image) end
+    if image then imageCache:put(Config.paths[name], image) end
     Assets.images[name] = nil
 end
 
@@ -584,6 +600,9 @@ function Assets.activatePack(packName)
 end
 
 function Assets.activePackName() return Assets.activePack end
+function Assets.pruneCache() imageCache:prune() end
+function Assets.clearCache() imageCache:clear() end
+function Assets.cachedTextureBytes() return imageCache.bytes end
 
 function Assets.textureBytes()
     local bytes = 0

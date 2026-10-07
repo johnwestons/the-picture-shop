@@ -14,6 +14,7 @@ local LABELS = {
     delivered = "Delivered",
     in_production = "In production",
     in_progress = "In production",
+    ready_to_ship = "Ready to ship",
     cutting = "Cutting in progress",
     awaiting_cut = "Awaiting cutting",
     awaiting_print = "Awaiting printing",

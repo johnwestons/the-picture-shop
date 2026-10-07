@@ -27,12 +27,12 @@ function Test.run(context,check)
     test("lounge_anchor_identical",wx==698.75 and math.abs(wy-248.291015625)<0.00001)
     local leftFloor=WarehouseRenderer.floorTextureSamples("front_left")
     local rightFloor=WarehouseRenderer.floorTextureSamples("front_right")
-    test("left_floor_underlap_samples_match_the_live_background_edge",
-        leftFloor and leftFloor[1].x==8 and leftFloor[1].y==376
-        and leftFloor[2].x==389 and leftFloor[2].y==647)
+    test("left_floor_underlap_samples_preserve_the_live_background_axes",
+        leftFloor and leftFloor[2].x-leftFloor[1].x==381
+        and leftFloor[2].y-leftFloor[1].y==271)
     test("left_floor_texture_continues_from_existing_concrete",
-        leftFloor and math.abs(leftFloor[3].x-264)<0.001
-        and math.abs(leftFloor[3].y-287.089)<0.001)
+        leftFloor and leftFloor[1].x==293 and leftFloor[1].y==251
+        and leftFloor[3].x==293 and leftFloor[3].y==522)
     test("right_floor_texture_registration_mirrors_without_mirroring_lighting",
         rightFloor and math.abs(rightFloor[3].x-(960-leftFloor[3].x))<0.001
         and math.abs(rightFloor[3].y-leftFloor[3].y)<0.001)

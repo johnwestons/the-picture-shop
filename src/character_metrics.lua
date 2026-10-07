@@ -1,4 +1,4 @@
--- Precomputed alpha bounds for every registered 512x512 character frame.
+-- Precomputed alpha bounds for registered character frames (mostly 512x512).
 -- Keeping these values in source makes scale validation deterministic and
 -- avoids reading pixels during startup or animation.
 return {
@@ -18,6 +18,7 @@ return {
         push_northeast = { { 134, 51, 391, 458 }, { 160, 47, 382, 458 }, { 137, 46, 395, 458 }, { 140, 41, 389, 458 }, { 134, 46, 393, 458 }, { 149, 49, 390, 458 }, { 133, 41, 394, 458 }, { 140, 38, 389, 458 } },
         push_southeast = { { 125, 43, 393, 458 }, { 170, 47, 390, 458 }, { 150, 47, 390, 458 }, { 156, 47, 390, 458 }, { 123, 45, 392, 458 }, { 163, 46, 392, 458 }, { 148, 49, 389, 458 }, { 147, 47, 391, 458 } },
         push_south = { { 180, 27, 340, 458 }, { 178, 30, 335, 458 }, { 177, 39, 336, 458 }, { 174, 35, 332, 458 }, { 183, 35, 338, 458 }, { 176, 31, 332, 458 }, { 175, 45, 332, 458 }, { 175, 34, 330, 458 } },
+        high_five = { { 276, 18, 572, 682 }, { 199, 18, 541, 682 }, { 120, 18, 530, 682 } },
     },
     ["tan-cat"] = {
         idle = { { 141, 131, 371, 420 }, { 141, 131, 371, 420 } },

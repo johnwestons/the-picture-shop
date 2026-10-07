@@ -41,6 +41,7 @@ local GAME_ROWS = {
     { id = "fullscreen", label = "Fullscreen", kind = "toggle" },
     { id = "vsync", label = "Vertical sync", kind = "toggle" },
     { id = "followPlayerCamera", label = "Follow player camera", kind = "toggle" },
+    { id = "twelveHourTime", label = "Time format", kind = "choice" },
 }
 local AUDIO_ROWS = {
     { id = "masterVolume", label = "Master volume", kind = "level" },
@@ -195,6 +196,14 @@ local function toggleSetting(id)
     local context = OptionsScreen.context
     if not context then return false end
     context.settings[id] = not context.settings[id]
+    persistSettings()
+    return true
+end
+
+local function setTimeFormat(twelveHour)
+    local context = OptionsScreen.context
+    if not context then return false end
+    context.settings.twelveHourTime = twelveHour == true
     persistSettings()
     return true
 end
@@ -389,6 +398,10 @@ function OptionsScreen.keypressed(key)
         if key == "left" or key == "a" then return adjustCheat(OptionsScreen.selectedRow, -1) end
         if key == "right" or key == "d" then return adjustCheat(OptionsScreen.selectedRow, 1) end
         if key == "return" or key == "kpenter" then return beginEdit(OptionsScreen.selectedRow) end
+    elseif row.kind == "choice" then
+        if key == "left" or key == "a" then return setTimeFormat(true) end
+        if key == "right" or key == "d" then return setTimeFormat(false) end
+        if key == "return" or key == "kpenter" then return toggleSetting(row.id) end
     elseif row.kind == "toggle" and (key == "left" or key == "right"
         or key == "return" or key == "kpenter")
     then
@@ -450,14 +463,16 @@ function OptionsScreen.mousepressed(x, y, button)
         end
         if Ui.contains(rects.value, x, y) then
             if OptionsScreen.tab == "cheats" then return beginEdit(index) end
-            if row.kind == "toggle" then return toggleSetting(row.id) end
+            if row.kind == "toggle" or row.kind == "choice" then return toggleSetting(row.id) end
         elseif Ui.contains(rects.minus, x, y) then
             if OptionsScreen.tab == "cheats" then return adjustCheat(index, -1) end
             if row.kind == "level" then return adjustSetting(row.id, -5) end
+            if row.kind == "choice" then return setTimeFormat(true) end
             return toggleSetting(row.id)
         elseif Ui.contains(rects.plus, x, y) then
             if OptionsScreen.tab == "cheats" then return adjustCheat(index, 1) end
             if row.kind == "level" then return adjustSetting(row.id, 5) end
+            if row.kind == "choice" then return setTimeFormat(false) end
             return toggleSetting(row.id)
         end
     end
@@ -509,9 +524,13 @@ local function drawRows(rows, values, cheats)
         local controls = controlRects(index, cheats)
         local value = values[index]
         local editing = cheats and OptionsScreen.editField == row.id
+        local twelveHour = row.kind == "choice" and OptionsScreen.context.settings.twelveHourTime
         drawButton(controls.value, editing and (OptionsScreen.editBuffer .. "|") or value,
-            editing, false)
-        if row.kind == "toggle" then
+            editing or twelveHour == true, false)
+        if row.kind == "choice" then
+            drawButton(controls.minus, "12 HOUR", twelveHour == true, false)
+            drawButton(controls.plus, "24 HOUR", twelveHour ~= true, false)
+        elseif row.kind == "toggle" then
             drawButton(controls.minus, "TOGGLE", false, false)
             drawButton(controls.plus, "TOGGLE", false, false)
         else
@@ -620,20 +639,21 @@ function OptionsScreen.draw(mouseX, mouseY)
 
     if OptionsScreen.tab == "game" then
         love.graphics.setColor(0.78, 0.81, 0.76)
-        love.graphics.print("DISPLAY & CAMERA", 164, 166)
+        love.graphics.print("DISPLAY, CAMERA & TIME", 164, 166)
         local android = love.system and love.system.getOS and love.system.getOS() == "Android"
         local values = {
             android and "SYSTEM" or (OptionsScreen.context.settings.fullscreen and "ON" or "OFF"),
             OptionsScreen.context.settings.vsync and "ON" or "OFF",
             OptionsScreen.context.settings.followPlayerCamera and "ON" or "OFF",
+            OptionsScreen.context.settings.twelveHourTime and "12 HOUR" or "24 HOUR",
         }
         drawRows(GAME_ROWS, values, false)
         love.graphics.setColor(0.58, 0.64, 0.61)
         love.graphics.printf(android and "Fullscreen is managed by Android."
-            or "Display changes apply immediately.", 164, 370, 632, "center")
+            or "Display and time-format changes apply immediately.", 164, 416, 632, "center")
         love.graphics.printf("Follow keeps your character centered while walking or zooming.\n"
             .. "Pinch or use the mouse wheel to zoom. Turn follow off to pan on mobile.",
-            164, 405, 632, "center")
+            164, 450, 632, "center")
     elseif OptionsScreen.tab == "audio" then
         love.graphics.setColor(0.78, 0.81, 0.76)
         love.graphics.print("AUDIO MIX", 164, 166)

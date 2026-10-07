@@ -167,6 +167,20 @@ local function drawCustomerOrder(item, assets)
     local quote = order.quote or {}
     labelValue("Job value / lifts", string.format("%s / %s", money(quote.totalPrice),
         tostring(quote.totalLifts or "--")), 337, 432, 286)
+    local jobPallets=order.pallets or {}
+    if #jobPallets>1 then
+        local palletNumber=tonumber(pallet.number)
+        if not palletNumber then
+            for index,jobPallet in ipairs(jobPallets) do
+                if jobPallet==pallet or jobPallet.id==pallet.id then palletNumber=index;break end
+            end
+        end
+        labelValue("Pallet", string.format("%s of %s", tostring(palletNumber or 1),
+            tostring(#jobPallets)), 520, 432, 103)
+    end
+    local packaging=pallet.packaging or order.packaging or "flat"
+    labelValue("Finishing", packaging=="boxed" and "Box, then stretch-wrap"
+        or "Stretch-wrap flat", 337, 481, 286)
     if pallet.press then
         labelValue("Press", string.format("%s good / %s", tostring(pallet.press.goodSheets or 0),
             StatusLabels.get(pallet.press.status)), 669, 393, 188)

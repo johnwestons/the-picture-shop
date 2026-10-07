@@ -134,6 +134,57 @@ function Test.run(_, check)
         pushCoverage = pushCoverage and action == direction[3] and mirror == direction[4]
     end
     check("pallet_jack_push_art_covers_eight_directions_with_intentional_mirroring", pushCoverage)
+
+    local Art = require("src.pallet_jack_art")
+    local Characters = require("src.character_assets")
+    local Rig = require("src.pallet_jack_presentation")
+    check("pallet_jack_has_32_authored_turn_views_in_phone_sized_atlas",
+        #Art.frames == 32 and Config.palletJack.frameColumns == 16
+        and Config.palletJack.frameSize * Config.palletJack.frameColumns <= 4096)
+    local sixteen = true
+    for _, action in ipairs({"push","push_north","push_northeast","push_southeast","push_south"}) do
+        local _, _, frames = Characters.get("rabbit-worker", action, 1)
+        sixteen = sixteen and frames == 16 and #Art.hands[action] == frames
+            and Characters.hasAction("rabbit-worker", action .. "_idle")
+    end
+    check("pallet_jack_has_16_drawings_and_planted_idle_in_each_push_view", sixteen)
+    check("pallet_jack_inbetweens_preserve_the_original_stride_length",
+        CharacterAnimation.frameForPalletJackPush(16,true,10,20)==2
+        and CharacterAnimation.frameForPalletJackPush(16,true,80,20)==9
+        and CharacterAnimation.frameForPalletJackPush(16,true,160,20)==1)
+
+    local turn = freshJack("northwest")
+    local prior = PalletJack.visualPose(turn, Config.palletJack)
+    PalletJack.move(turn,1,0,1/60,Config.palletJack,function() return true end)
+    local following = PalletJack.visualPose(turn,Config.palletJack)
+    check("pallet_jack_visual_heading_uses_bounded_turns_instead_of_sector_snaps",
+        math.abs((following.heading-prior.heading+math.pi)%(2*math.pi)-math.pi)
+        <= Config.palletJack.turnRadiansPerSecond/60+.0001)
+    drive(turn,1,0,.4)
+    local pose = PalletJack.visualPose(turn,Config.palletJack)
+    local view = pose.blend < .5 and pose.frame or pose.nextFrame
+    check("pallet_jack_wraps_turn_atlas_continuously_across_east",
+        pose.frame>=1 and pose.frame<=32 and pose.nextFrame>=1 and pose.nextFrame<=32
+        and (view==1 or view==32))
+    local stoppedDistance = PalletJack.animationDistance(blocked,Config.palletJack)
+    drive(blocked,1,0,.4,function() return false end)
+    check("pallet_jack_gait_phase_freezes_against_a_wall",
+        PalletJack.animationDistance(blocked,Config.palletJack)==stoppedDistance)
+
+    local operator = {character="rabbit-worker",id=1,animationDistance=99999}
+    local samples = Rig.workerPoses(Characters,operator,turn)
+    operator.animationDistance=0
+    local repeated = Rig.workerPoses(Characters,operator,turn)
+    local pinned, weights = true, 0
+    for i, sample in ipairs(samples) do
+        pinned = pinned and sample.anchorX==repeated[i].anchorX and sample.anchorY==repeated[i].anchorY
+            and sample.weight==repeated[i].weight
+        weights=weights+sample.weight
+    end
+    check("pallet_jack_grip_and_gait_ignore_worker_orbit_distance",
+        pinned and math.abs(weights-1)<.00001)
+    check("pallet_jack_operator_pose_changes_do_not_advance_walking",
+        PalletJack.animationDistance(turn,Config.palletJack)==pose.distance)
 end
 
 return Test

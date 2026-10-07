@@ -39,11 +39,11 @@ function Labor.record(state,w,hours,cents)
     else t.shopHours=t.shopHours+hours;t.shopCents=t.shopCents+cents end
 end
 function Labor.actionDelay(w,focus)
-    return .32+(100-w.cutterSkill)/100*.70+(100-(focus or w.focus))/100*.40
+    local skill=math.max(0,math.min(100,tonumber(w.cutterSkill) or 0))
+    return .32+(100-skill)/100*.70+(100-(focus or w.focus))/100*.40
 end
 local function qualified(w,job)
     return w.status=="employed" and not w.terminationRequested
-        and not (job.difficulty=="hard" and w.cutterSkill<80 or job.difficulty=="medium" and w.cutterSkill<50)
 end
 local function estimate(state,job,w)
     local cutter=require("src.machine").forId(nil)
@@ -58,7 +58,7 @@ local function estimate(state,job,w)
                 +cuts*(cutter.cycleTime+cutter.transferTime)+2*cutter.transferTime)
             if job.press then
                 local colors=math.max(1,math.floor(tonumber(job.press.colors) or 1))
-                local printSkill=math.max(60,w.pressSkill or 0)
+                local printSkill=math.max(0,math.min(100,tonumber(w.pressSkill) or 0))
                 local printDelay=.32+(100-printSkill)/100*.70+(100-(w.focus or 80))/100*.40
                 local copies=math.max(1,math.floor(tonumber(p.requestedCopies)
                     or tonumber(p.press and p.press.requiredGoodSheets)
@@ -81,7 +81,7 @@ local function estimate(state,job,w)
                 seconds=seconds+operatorActions*printDelay
                     +runningHours*Calendar.secondsPerDay(state)/24
             end
-            local wrapSkill=math.max(50,w.wrappingSkill or 0)
+            local wrapSkill=math.max(0,math.min(100,tonumber(w.wrappingSkill) or 0))
             local wrapDelay=.32+(100-wrapSkill)/100*.70+(100-(w.focus or 80))/100*.40
             seconds=seconds+wrapDelay+3
         end

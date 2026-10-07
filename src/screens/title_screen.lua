@@ -18,6 +18,7 @@ local BUTTONS = {
 local DUAL_LOCAL_PLAY = { x = 235, y = 582, width = 230, height = 50, label = "LOCAL PLAY" }
 
 local inside = Ui.contains
+local slotCache
 local function slotRect(index) return { x = 116, y = 236 + (index - 1) * 72, width = 728, height = 56 } end
 local function buttonRect(name)
     if name == "directPlay" and not TitleScreen.onDirect then return nil end
@@ -32,11 +33,21 @@ local function buttonAt(x, y)
 end
 
 function TitleScreen.enter(onStart, onLocal, onDirect)
+    slotCache = nil
     TitleScreen.selected, TitleScreen.mode, TitleScreen.message = 1, "normal", ""
     TitleScreen.hover, TitleScreen.pressed = nil, nil
     TitleScreen.onStart, TitleScreen.onLocal, TitleScreen.onDirect = onStart, onLocal, onDirect
 end
-function TitleScreen.slots() return Save.listSlots() end
+function TitleScreen.slots()
+    local now = love.timer.getTime()
+    local identity, revision = love.filesystem.getIdentity(), Save.revision()
+    if not slotCache or slotCache.identity ~= identity or slotCache.revision ~= revision
+        or now < slotCache.at or now - slotCache.at >= 0.5 then
+        local slots = Save.listSlots()
+        slotCache = {identity=identity,revision=Save.revision(),at=now,slots=slots}
+    end
+    return slotCache.slots
+end
 function TitleScreen.update(_) end
 function TitleScreen.buttonCenter(name)
     local rect = buttonRect(name)

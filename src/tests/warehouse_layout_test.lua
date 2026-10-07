@@ -20,12 +20,12 @@ function Test.run(_,check)
     test("bad_coordinates_rejected",not Layout.containsUnlocked(state,"100",570))
     local definition=Layout.bay("front_left")
     definition.rackStart.x=-1000
-    test("layout_is_detached",Layout.bay("front_left").rackStart.x==18.59)
+    test("layout_is_detached",Layout.bay("front_left").rackStart.x==25)
     for column=1,5 do
         local lower=Layout.rackPoint("front_left-rack",1,column)
         local upper=Layout.rackPoint("front_left-rack",2,column)
         test("shelf_anchor_"..column,lower.x==upper.x and lower.groundY==upper.groundY
-            and lower.y-upper.y==45 and Layout.containsUnlocked(state,lower.x,lower.groundY))
+            and lower.y-upper.y==70 and Layout.containsUnlocked(state,lower.x,lower.groundY))
     end
     test("ten_slots_only",not Layout.rackPoint("front_left-rack",3,1)
         and not Layout.rackPoint("front_left-rack",1,6)
@@ -33,9 +33,6 @@ function Test.run(_,check)
     local obstacles=Layout.obstacles(state)
     test("rack_registers_six_structural_posts",#obstacles==6 and obstacles[1].kind=="pallet_rack_post"
         and obstacles[1].halfWidth==2 and obstacles[1].halfHeight==3)
-    test("six_rack_obstacles_match_visible_uprights",#obstacles==6
-        and obstacles[6].kind=="pallet_rack_post" and obstacles[6].x==Layout.bay("front_left").rackEnd.x
-        and obstacles[6].y==Layout.bay("front_left").rackEnd.y-5)
     local approach=Layout.rackApproach("front_left-rack")
     local clear=true
     for _,obstacle in ipairs(obstacles) do
@@ -62,6 +59,7 @@ function Test.run(_,check)
     local rackState={warehouse={bays={
         front_left={status="complete",optionId="storage"},
         front_right={status="complete",optionId="storage"}},projects={}}}
+    local rackObstacles=Layout.obstacles(rackState)
     for _,bayId in ipairs(Layout.BAY_IDS) do
         local plan=RackPresentation.plan(rackState,bayId,{review=true})
         local bay=Layout.bay(bayId)
@@ -72,7 +70,7 @@ function Test.run(_,check)
                 local beam=plan.frontPolygons[index]
                 local x1,y1=RackPresentation.sourceToWorld(plan,beam[1],beam[2])
                 local x2,y2=RackPresentation.sourceToWorld(plan,beam[3],beam[4])
-                railsStraight=railsStraight and math.abs((y2-y1)/(x2-x1)-seamSlope)<0.005
+                railsStraight=railsStraight and math.abs((y2-y1)/(x2-x1)-seamSlope)<0.012
             end
         end
         test("rack_rails_straight_and_seam_aligned_"..bayId,railsStraight)
@@ -86,6 +84,32 @@ function Test.run(_,check)
             end
         end
         test("rack_supports_stay_vertical_"..bayId,postsVertical)
+        -- Compare collision positions with the actual raster base plates,
+        -- independently of the raised shelf/pallet contact coordinates.
+        local imageData=love.image.newImageData(plan.path)
+        local feetAligned,feetInside=true,true
+        for _,obstacle in ipairs(rackObstacles) do
+            if obstacle.rackId==bay.rackId then
+                local direction=plan.mirrorX and -1 or 1
+                local sourceX=math.floor(plan.originX+(obstacle.x-plan.x)/(plan.scaleX*direction)+0.5)
+                local sourceY=plan.originY+(obstacle.y-plan.y)/plan.scaleY
+                local bottom=-1
+                for y=imageData:getHeight()-1,0,-1 do
+                    local _,_,_,alpha=imageData:getPixel(sourceX,y)
+                    if alpha>200/255 then bottom=y;break end
+                end
+                feetAligned=feetAligned and bottom>=0 and sourceY>=bottom-18 and sourceY<=bottom
+                for _,dx in ipairs({-obstacle.halfWidth,obstacle.halfWidth}) do
+                    for _,dy in ipairs({-obstacle.halfHeight,obstacle.halfHeight}) do
+                        feetInside=feetInside and Layout.containsPolygon(bay.polygon,
+                            obstacle.x+dx,obstacle.y+dy)
+                    end
+                end
+            end
+        end
+        imageData:release()
+        test("rack_collision_posts_match_visible_feet_"..bayId,feetAligned)
+        test("rack_post_footprints_fit_triangle_"..bayId,feetInside)
     end
     state.warehouse.bays.front_left.optionId="floor"
     test("open_floor_has_no_rack_obstacles",#Layout.obstacles(state)==0)

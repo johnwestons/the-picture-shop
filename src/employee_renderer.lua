@@ -1,7 +1,10 @@
 local Employees=require("src.employees")
 local Animation=require("src.character_animation")
 local Catalog=require("src.worker_catalog")
+local Speech=require("src.employee_speech")
+local Config=require("src.config")
 local Renderer={}
+local bubbleFont
 function Renderer.pose(entry,characterAssets)
     local a=entry.actor
     local action,frame
@@ -43,6 +46,39 @@ function Renderer.draw(entry,characterAssets)
         love.graphics.setColor(.96,.85,.42,1)
         love.graphics.printf("APPLICANT",a.x-44,a.y-94,88,"center")
     end
+end
+function Renderer.drawBubble(entry,characterAssets)
+    local message=Speech.message(Speech.code(entry))
+    if not message then return end
+    local a=entry.actor
+    local character=Catalog.character(entry)
+    local action,frame=Renderer.pose(entry,characterAssets)
+    local _,anchorY=characterAssets.getAnchor(character,action,frame)
+    local top
+    if characterAssets.getVisibleBounds then
+        local _,y=characterAssets.getVisibleBounds(character,action,frame)
+        top=y
+    end
+    local scale=.30*characterAssets.getNormalization(character,"idle")
+    local headY=top and a.y-(anchorY-top)*scale
+        or a.y-Config.characterRendering.referenceHeight*.30
+    bubbleFont=bubbleFont or love.graphics.newFont(11)
+    local width=math.min(124,math.max(52,bubbleFont:getWidth(message)+16))
+    local height=22
+    local x=math.max(4,math.min(Config.baseWidth-width-4,a.x-width/2))
+    local y=math.max(4,headY-height-9)
+    local tailX=math.max(x+8,math.min(x+width-8,a.x))
+    love.graphics.push("all")
+    love.graphics.setFont(bubbleFont)
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(.035,.06,.075,.94)
+    love.graphics.polygon("fill",tailX-4,y+height-1,tailX+4,y+height-1,tailX,y+height+6)
+    love.graphics.rectangle("fill",x,y,width,height,5,5)
+    love.graphics.setColor(.55,.82,.79,.9)
+    love.graphics.rectangle("line",x,y,width,height,5,5)
+    love.graphics.setColor(.96,.97,.91,1)
+    love.graphics.printf(message,x+6,y+5,width-12,"center")
+    love.graphics.pop()
 end
 function Renderer.entries(state) return Employees.actors(state) end
 return Renderer

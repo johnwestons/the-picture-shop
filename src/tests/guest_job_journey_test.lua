@@ -189,14 +189,20 @@ local function runJourney(context, check, printing)
         end
         deliverEmail()
         acquire("office_computer"); tab("estimating")
-        click(Remote.sharedComputer.rowCenter(1)); click(Remote.sharedComputer.textInputCenter("quote"))
+        click(Remote.sharedComputer.rowCenter(1))
+        -- Selecting an unread estimate sends an asynchronous read receipt.
+        -- Let that command finish before using the next office control.
+        pump()
+        click(Remote.sharedComputer.textInputCenter("quote"))
         Remote.textinput(tostring(offer.quote.totalPrice))
         render("written_estimate")
         confirmed("typed_quote_sent_once",function()
             local x,y=Remote.sharedComputer.emailButtonCenter("accept")
             click(x,y); click(x,y)
         end,true)
-        check("guest_journey_no_instant_award",#state.jobs.active==0 and #guest.jobs.active==0 and #state.clientEmails.pending==1)
+        check("guest_journey_no_instant_award",#state.jobs.active==0 and #guest.jobs.active==0 and #state.clientEmails.pending==1,
+            string.format("host active=%d, guest active=%d, pending replies=%d",
+                #state.jobs.active, #guest.jobs.active, #state.clientEmails.pending))
         release(); deliverEmail()
         local job=assert(state.jobs.active[1]); local originalPallet=job.pallets[1]
         local invoicePrice=job.quote.totalPrice

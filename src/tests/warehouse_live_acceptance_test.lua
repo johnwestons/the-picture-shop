@@ -122,7 +122,7 @@ function Test.run(context,check)
         test("real_vehicle_drives_to_rack_approach",lift.x<=340 and lift.x>=320
             and lift.y==oldY and pallet.world.x==lift.x, "x="..lift.x.." y="..lift.y)
         local Layered=require("src.forklift_layered_presentation")
-        local headings={"northwest","north","northeast","east","southeast","south","southwest","west"}
+        local headings={"west","northwest","north","northeast","east","southeast","south","southwest"}
         local rackPoses,rackDiagnostics={},{}
         local initialRackApproach={x=lift.x,y=lift.y,direction=lift.direction}
         local scale=(Config.forklift.drawScale or 0.22)*(Config.forklift.visualScaleMultiplier or 1)
@@ -190,14 +190,16 @@ function Test.run(context,check)
             World.updateNetworkForklift(player,0.1,0,0,assets,state)
             return math.abs(targetX-lift.x)<=8 and math.abs(targetY-lift.y)<=8
         end
-        local entered=driveTo(352,617) and driveTo(312,617) and driveTo(312,624)
-            and lift.x<320 and lift.y>615
+        -- The wider rack loads from the warehouse side of the diagonal,
+        -- instead of squeezing a loaded vehicle past its outer end plate.
+        local entered=driveTo(352,515) and driveTo(330,rackPose.y)
+            and lift.x<340
         test("loaded_vehicle_drives_into_service_aisle",entered,
             "x="..lift.x.." y="..lift.y)
-        local aisleApproach=driveTo(rackPose.x,624)
-            and driveTo(rackPose.x,rackPose.y)
+        local aisleApproach=driveTo(rackPose.x,rackPose.y)
         test("loaded_vehicle_drives_to_selected_upper_slot",aisleApproach,
-            "x="..lift.x.." y="..lift.y.." heading="..lift.direction)
+            "x="..lift.x.." y="..lift.y.." heading="..lift.direction
+                .." target="..rackPose.x..","..rackPose.y.."/"..rackPose.direction)
         test("real_rack_approach_uses_clearance_and_alignment",aisleApproach
             and lift.direction==rackPose.direction,
             "expected="..rackPose.direction.." actual="..lift.direction)
@@ -311,9 +313,8 @@ function Test.run(context,check)
         -- collision, targeting, toolbar and transfer authority are the live path.
         World.warehouseCommand(player,state,{kind="set_height",height=0.08})
         World.updateWarehouse(3,state,assets)
-        local leftServiceAisle=driveTo(rackPose.x,624) and driveTo(312,624)
-            and driveTo(312,617) and driveTo(352,617)
-            and driveTo(352,515) and driveTo(460,515)
+        local leftServiceAisle=driveTo(330,rackPose.y) and driveTo(330,515)
+            and driveTo(460,515)
         test("loaded_vehicle_returns_through_service_aisle",leftServiceAisle,
             "x="..lift.x.." y="..lift.y)
         World.updateNetworkForklift(player,0.01,-1,0,assets,state)

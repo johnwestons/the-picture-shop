@@ -243,7 +243,7 @@ function Calendar.shortDate(state)
         date.day, date.year, Calendar.weekNumber(state))
 end
 
-function Calendar.dateTimeTextAtHours(hours)
+function Calendar.dateTimeTextAtHours(hours,twelveHour)
     local absoluteHours = math.max(0, tonumber(hours) or 0)
     local totalDay = math.floor(absoluteHours / 24)
     local date = dateFromTotalDay(totalDay)
@@ -252,9 +252,9 @@ function Calendar.dateTimeTextAtHours(hours)
         date = dateFromTotalDay(totalDay + 1)
         minuteOfDay = 0
     end
-    return string.format("%s %s %d, %d %02d:%02d",
+    return string.format("%s %s %d, %d %s",
         WEEKDAYS[date.weekday]:sub(1, 3), MONTHS[date.month]:sub(1, 3), date.day,
-        date.year, math.floor(minuteOfDay / 60), minuteOfDay % 60)
+        date.year, Calendar.formatTime(math.floor(minuteOfDay / 60),minuteOfDay % 60,twelveHour))
 end
 
 function Calendar.weekNumber(state)
@@ -286,12 +286,18 @@ function Calendar.clockTime(state)
     return math.floor(minutes/60),minutes%60,hours
 end
 
-function Calendar.timeText(state,twelveHour)
-    local hour,minute=Calendar.clockTime(state)
+function Calendar.formatTime(hour,minute,twelveHour)
+    hour=math.floor(tonumber(hour) or 0)%24
+    minute=math.floor(tonumber(minute) or 0)%60
     if twelveHour then
         return string.format("%d:%02d %s",(hour-1)%12+1,minute,hour<12 and "AM" or "PM")
     end
     return string.format("%02d:%02d",hour,minute)
+end
+
+function Calendar.timeText(state,twelveHour)
+    local hour,minute=Calendar.clockTime(state)
+    return Calendar.formatTime(hour,minute,twelveHour)
 end
 
 
@@ -306,7 +312,7 @@ function Calendar.shiftMonth(year, month, amount)
     return math.floor(absolute / 12), absolute % 12 + 1
 end
 
-function Calendar.events(state)
+function Calendar.events(state,twelveHour)
     Calendar.ensure(state)
     local result, seen = {}, {}
     local function add(totalDay, title, kind, detail, id)
@@ -413,7 +419,8 @@ function Calendar.events(state)
             for day=math.max(worker.contract.startDay,state.calendar.totalDays-1),state.calendar.totalDays+7 do
                 if Contracts.hasDay(worker.contract.days,Contracts.weekday(day)) then
                     local start=day*24+worker.contract.startHour
-                    addHours(start,"Shift starts: "..worker.name,"shift",Contracts.summary(worker.contract),worker.id..":start:"..day)
+                    addHours(start,"Shift starts: "..worker.name,"shift",
+                        Contracts.summary(worker.contract,twelveHour),worker.id..":start:"..day)
                     addHours(start+Contracts.duration(worker.contract),"Shift ends: "..worker.name,"shift",
                         "Unfinished work continues next agreed shift.",worker.id..":end:"..day)
                 end

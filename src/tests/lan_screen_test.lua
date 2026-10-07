@@ -320,6 +320,42 @@ function Test.run(context, check)
         and LanScreen.discoveredHosts[2].name == "Backup?Host"
         and LanScreen.discoveredCenter(3) == nil)
 
+    local connectionSettings = { lanConnectionMode = "auto", lanAutoJoin = false }
+    local settingsSaves = 0
+    local autoJoinAddress
+    LanScreen.enter({
+        settings = connectionSettings,
+        saveSettings = function() settingsSaves = settingsSaves + 1; return true end,
+        join = function(address) autoJoinAddress = address; return true end,
+    })
+    LanScreen.setLocalInterfaces({
+        { address = "192.168.42.2", prefixLength = 24, isUsb = true },
+        { address = "192.168.1.8", prefixLength = 24, isUsb = false },
+    })
+    LanScreen.setDiscovery({
+        { address = "192.168.42.1", port = 22122, name = "Cable Host" },
+        { address = "192.168.1.50", port = 22122, name = "Wi-Fi Host" },
+    }, "2 shops found.")
+    local choseUsb = LanScreen.mousepressed(490, 230, 1)
+    local usbOnly = #LanScreen.discoveredHosts == 1
+        and LanScreen.discoveredHosts[1].address == "192.168.42.1"
+    LanScreen.setAutoJoin(true)
+    LanScreen.update(0)
+    LanScreen.update(1.5)
+    check("lan_screen_usb_filter_and_opt_in_single_shop_auto_join",
+        choseUsb and usbOnly and connectionSettings.lanConnectionMode == "usb"
+        and connectionSettings.lanAutoJoin and settingsSaves == 2
+        and autoJoinAddress == "192.168.42.1:22122" and LanScreen.mode == "connecting")
+
+    LanScreen.enter({
+        settings = connectionSettings,
+        cancel = function() cancellations = cancellations + 1 end,
+    })
+    local openedManualMode = LanScreen.mousepressed(625, 230, 1)
+    check("lan_screen_manual_ip_choice_opens_the_address_entry",
+        openedManualMode == true and LanScreen.connectionMode == "usb"
+        and LanScreen.mode == "join")
+
     LanScreen.showReconnect({
         state = "waiting", attempt = 2, maxAttempts = 6, nextIn = 4,
         target = { address = "192.168.1.50:22122" },

@@ -3,7 +3,8 @@ local Intent = {}
 local fields = {
     estimate = { id = "token", amount = "amount" }, decline = { id = "token" },
     promotion = { id = "token", text = "text" }, archive = { id = "token" },
-    archive_service = { id = "token" }, sell = { id = "token" },
+    archive_service = { id = "token" }, delete_email = { id = "token" },
+    mark_email_read = { id = "token" }, sell = { id = "token" },
     pay_bills = {}, checkout = { items = "cart" },
     finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
     pay_machine_loan = { loanId = "token" },
@@ -18,10 +19,15 @@ local fields = {
     unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" },
     send_employee_home = { employeeId = "token" }, pay_wages = {},
     train_employee = { employeeId="token",skill="employee_skill" },
+    cancel_employee_training = { employeeId="token" },
     queue_employee_job = { employeeId="token",jobId="token",machineId="token" },
     set_employee_schedule = { employeeId="token",enabled="boolean" },
+    queue_team_job = { jobId="token",machineId="token" },
+    set_team_schedule = { enabled="boolean" },
     remove_employee_job = { employeeId="token",itemId="token",expectedRevision="revision" },
     move_employee_job = { employeeId="token",itemId="token",expectedRevision="revision",direction="queue_direction" },
+    remove_team_job = { itemId="token",expectedRevision="revision" },
+    move_team_job = { itemId="token",expectedRevision="revision",direction="queue_direction" },
 }
 local function integer(value, low, high)
     return type(value) == "number" and value == math.floor(value) and value >= low and value <= high

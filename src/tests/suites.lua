@@ -1,6 +1,8 @@
 local Suites = {}
 
 local DOMAIN_SUITES = {
+    require("src.tests.lua_limits_test"),
+    require("src.tests.performance_regression_test"),
     require("src.tests.acceptance_host_bootstrap_test"),
     require("src.tests.ip_scope_test"),
     require("src.tests.ipv6_address_test"),
@@ -58,6 +60,7 @@ local DOMAIN_SUITES = {
     require("src.tests.interaction_test"),
     require("src.tests.player_controller_test"),
     require("src.tests.customer_motion_test"),
+    require("src.tests.time_acceleration_motion_test"),
     require("src.tests.asset_pack_test"),
     require("src.tests.work_phone_test"),
     require("src.tests.options_test"),
@@ -67,6 +70,7 @@ local DOMAIN_SUITES = {
     require("src.tests.sound_test"),
     require("src.tests.pallet_state_test"),
     require("src.tests.pallet_jack_motion_test"),
+    require("src.tests.pallet_jack_audit_test"),
     require("src.tests.warehouse_upgrades_test"),
     require("src.tests.warehouse_layout_test"),
     require("src.tests.warehouse_rack_presentation_test"),
@@ -99,6 +103,7 @@ local DOMAIN_SUITES = {
     require("src.tests.credit_finance_test"),
     require("src.tests.employees_test"),
     require("src.tests.employee_schedule_test"),
+    require("src.tests.progression_balance_test"),
     require("src.tests.employee_billing_test"),
     require("src.tests.shop_workflow_test"),
     require("src.tests.press_economics_test"),

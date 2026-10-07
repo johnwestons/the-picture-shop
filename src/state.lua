@@ -217,6 +217,7 @@ end
 -- guest keeps its local screen/message/input state and never gains a save slot.
 function State.applySharedUpdate(state, snapshot)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+    local previousJack = state.palletJack
     local livePalletJack = state.palletJack and state.palletJack.operating
         and PalletJack.snapshot(state, Config.palletJack) or nil
     local liveForklift = state.forklift and state.forklift.operating
@@ -238,7 +239,9 @@ function State.applySharedUpdate(state, snapshot)
             liveMachinePoses, livePalletJack, 100000, "cached network machine poses")
     end
     if livePalletJack and (not liveMachinePoses or compositeMachinePoses) then
-        PalletJack.applySnapshot(state, livePalletJack, Config.palletJack)
+        if PalletJack.applySnapshot(state, livePalletJack, Config.palletJack) then
+            PalletJack.continueMotion(state, previousJack, Config.palletJack)
+        end
     end
     if compositeMachinePoses then
         MachinePose.apply(state, compositeMachinePoses)

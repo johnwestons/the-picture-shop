@@ -13,6 +13,8 @@ local Config = require("src.config")
 local Renderer = {}
 local meshes, rackImage = {}, nil
 local sourceImages, sourceQuads = {}, {}
+local sourceCache = require("src.texture_cache").new(64 * 1024 * 1024, 20)
+local sourceUse, sourceSequence, touched, frameDepth = {}, 0, {}, 0
 local constructionIssues={}
 local constructionImages={}
 local rackIssues={}
@@ -21,13 +23,45 @@ local ROOT="assets/source/warehouse-expansion-v1/"
 local RACK_PATH="assets/source/warehouse-expansion-v1/rack-front-2x5-approved.png"
 local DIRECTIONS={northwest=1,north=2,northeast=3,east=4,southeast=5,south=6,southwest=7,west=8}
 local function sourceImage(path)
+    touched[path]=true
+    sourceSequence=sourceSequence+1;sourceUse[path]=sourceSequence
     if sourceImages[path]==false then return nil end
     if not sourceImages[path] then
-        local okay,image=pcall(love.graphics.newImage,path)
+        local cached=sourceCache:take(path)
+        local okay,image=true,cached
+        if not image then okay,image=pcall(love.graphics.newImage,path) end
         sourceImages[path]=okay and image or false
         if okay then image:setFilter("linear","linear") end
     end
     return sourceImages[path] or nil
+end
+function Renderer.beginFrame()
+    if frameDepth==0 then touched={} end
+    frameDepth=frameDepth+1
+end
+function Renderer.endFrame()
+    frameDepth=frameDepth-1
+    if frameDepth>0 then return end
+    assert(frameDepth==0,"Unbalanced warehouse render frame")
+    local retired={}
+    for path,image in pairs(sourceImages) do
+        if image and not touched[path] then retired[#retired+1]=path end
+    end
+    table.sort(retired,function(a,b) return sourceUse[a]<sourceUse[b] end)
+    for _,path in ipairs(retired) do
+        sourceCache:put(path,sourceImages[path]);sourceImages[path]=nil
+    end
+    sourceCache:prune()
+end
+function Renderer.pruneCache() sourceCache:prune() end
+function Renderer.clearCache() sourceCache:clear() end
+function Renderer.cachedTextureBytes() return sourceCache.bytes end
+function Renderer.sourceTextureBytes()
+    local bytes=sourceCache.bytes
+    for _,image in pairs(sourceImages) do
+        if image then local width,height=image:getDimensions();bytes=bytes+width*height*4 end
+    end
+    return bytes
 end
 local function sourceQuad(path,index,width,height)
     local key=path..":"..index
@@ -66,21 +100,6 @@ local function flat(polygon)
     for _, point in ipairs(polygon) do result[#result+1]=point.x; result[#result+1]=point.y end
     return result
 end
-local function breakroomClip(bay)
-    local polygon=bay.polygon
-    local side=bay.id=="front_right" and 1 or -1
-    -- The room's left and bottom trim sits just outside its floor triangle.
-    -- Let that trim overlap the shared rim while keeping the diagonal seam
-    -- exact and clipping all room floor/shadows beyond the bay.
-    return {
-        {x=polygon[1].x,y=polygon[1].y},
-        {x=polygon[2].x,y=polygon[2].y},
-        {x=polygon[2].x,y=polygon[2].y+16},
-        {x=polygon[3].x,y=polygon[3].y+16},
-        {x=polygon[3].x+side*12,y=polygon[3].y},
-        {x=polygon[1].x+side*12,y=polygon[1].y},
-    }
-end
 local function withBayClip(bay,draw,clipPolygon)
     love.graphics.push("all")
     love.graphics.stencil(function()
@@ -103,9 +122,9 @@ end
 local function drawFloor(assets,bay,stage,complete)
     local background=assets.get("warehouse")
     if background then
-        -- Continue the live floor texture across the shared edge by reflecting
-        -- the far vertex over that edge. The two edge samples remain exact
-        -- background coordinates, so there is no color or pattern break.
+        -- Translate a concrete-only patch of the live floor. Reflecting over
+        -- the old edge sampled its vertical side wall and rotated the slab
+        -- grid, making the expansion look like a drop instead of a floor.
         local samples=Renderer.floorTextureSamples(bay.id)
         local vertices={}
         for index,point in ipairs(bay.walkPolygon) do
@@ -133,17 +152,12 @@ function Renderer.floorTextureSamples(bayId)
     local bay=Layout.bay(bayId)
     if not bay then return nil end
     local points=bay.walkPolygon
-    local a,b,c=points[1],points[2],points[3]
-    local dx,dy=b.x-a.x,b.y-a.y
-    local lengthSquared=dx*dx+dy*dy
-    if lengthSquared<=0 then return nil end
-    local t=((c.x-a.x)*dx+(c.y-a.y)*dy)/lengthSquared
-    local projection={x=a.x+t*dx,y=a.y+t*dy}
-    return {
-        {x=a.x,y=a.y},
-        {x=b.x,y=b.y},
-        {x=2*projection.x-c.x,y=2*projection.y-c.y},
-    }
+    local offsetX=bayId=="front_right" and -285 or 285
+    local result={}
+    for index,point in ipairs(points) do
+        result[index]={x=point.x+offsetX,y=point.y-125}
+    end
+    return result
 end
 
 function Renderer.constructionPlan(state,bayId)
@@ -189,9 +203,9 @@ function Renderer.breakroomPlan(state,bayId)
 end
 function Renderer.breakroomIssue(bayId) return breakroomIssues[bayId] end
 local function drawBreakroom(plan,bay)
-    local drawn,reason
-    withBayClip(bay,function() drawn,reason=BreakroomPresentation.draw(plan,sourceImage) end,
-        breakroomClip(bay))
+    -- The authored floor is triangular. Elevated cabinets may project above
+    -- its boundary; clipping them to a ground polygon cuts their tops off.
+    local drawn,reason=BreakroomPresentation.draw(plan,sourceImage)
     breakroomIssues[bay.id]=not drawn and reason or nil
     if drawn then return end
     love.graphics.setColor(0.035,0.035,0.03,0.91)

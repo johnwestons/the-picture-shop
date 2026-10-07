@@ -168,8 +168,9 @@ local function leaveSeat(instance)
     instance.inMotion = false
 end
 
-function Instance:update(dt, player, pauseSchedule)
+function Instance:update(dt, player, pauseSchedule, motionDt)
     dt = math.max(0, dt or 0)
+    motionDt = math.max(0, tonumber(motionDt) or dt)
     self.inMotion = false
     self.motionX, self.motionY = 0, 0
     if self.state == "scheduled" then
@@ -184,11 +185,11 @@ function Instance:update(dt, player, pauseSchedule)
     -- a render anchor, not a walking waypoint; walking into that anchor made
     -- the visitor appear to melt through the chair before sitting.
     if self.state == "entering" and self.seatingPause > 0 then
-        self.seatingPause = math.max(0, self.seatingPause - dt)
+        self.seatingPause = math.max(0, self.seatingPause - motionDt)
         self.currentSpeed = 0
         self.facing = self.seatFacing or self.facing
         self.intentX, self.intentY = self.facing, 0
-        self.idleClock = self.idleClock + dt
+        self.idleClock = self.idleClock + motionDt
         if self.seatingPause > 0 then return nil end
         return settleIntoSeat(self)
     end
@@ -196,7 +197,7 @@ function Instance:update(dt, player, pauseSchedule)
     if self.state ~= "entering" and self.state ~= "exiting" then
         self.currentSpeed = 0
         self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
-        self.idleClock = self.idleClock + dt
+        self.idleClock = self.idleClock + motionDt
         if self.state == "waiting" then
             self.waitTimer = self.waitTimer + dt
             self.facing = self.seatFacing or (player and (player.x < self.x and -1 or 1)) or 1
@@ -207,7 +208,7 @@ function Instance:update(dt, player, pauseSchedule)
                 return "timed_out"
             end
         elseif self.state == "reviewing" then
-            self.animationClock = self.animationClock + dt
+            self.animationClock = self.animationClock + motionDt
             self.facing = self.seatFacing or (player and (player.x < self.x and -1 or 1)) or 1
         end
         return nil
@@ -217,7 +218,7 @@ function Instance:update(dt, player, pauseSchedule)
     if player and distanceSquared(self, player) < 28 * 28 then
         self.currentSpeed = 0
         self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
-        self.idleClock = self.idleClock + dt
+        self.idleClock = self.idleClock + motionDt
         return nil
     end
 
@@ -231,12 +232,12 @@ function Instance:update(dt, player, pauseSchedule)
         self.gaitAccelerationMultiplier = gaitAcceleration
         local targetSpeed = self.speed * gaitSpeed
         self.currentSpeed = approach(self.currentSpeed, targetSpeed,
-            (motionProfile.acceleration or 420) * gaitAcceleration * dt)
-        travel = self.currentSpeed * dt
+            (motionProfile.acceleration or 420) * gaitAcceleration * motionDt)
+        travel = self.currentSpeed * motionDt
     else
         self.currentSpeed = self.speed
         self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
-        travel = self.speed * dt
+        travel = self.speed * motionDt
     end
     local event
     while travel > 0 do
@@ -283,14 +284,14 @@ function Instance:update(dt, player, pauseSchedule)
     end
     self.inMotion = distance > 0.0001
     if self.inMotion then
-        self.animationClock = self.animationClock + dt
+        self.animationClock = self.animationClock + motionDt
         self.idleClock = 0
         self.motionX, self.motionY = lastMotionX, lastMotionY
         self.intentX, self.intentY = self.motionX, self.motionY
         self.animationDistance = self.animationDistance + distance
         if math.abs(self.motionX) > 0.08 then self.facing = self.motionX < 0 and -1 or 1 end
     else
-        self.idleClock = self.idleClock + dt
+        self.idleClock = self.idleClock + motionDt
     end
     if event == "arrived" then
         self.inMotion = false

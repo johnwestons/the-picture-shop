@@ -565,7 +565,7 @@ function Input.mousepressed(x, y, button, context)
         if not result then return false end
         if result.action == "close" then
             return Input.closeScreen(context)
-        elseif result.action == "supply_order" or result.action == "bill_paid"
+        elseif result.emailRead or result.action == "supply_order" or result.action == "bill_paid"
             or result.action == "machine_bought" or result.action == "machine_ordered"
             or result.action == "machine_sold"
             or result.action == "email_accepted" or result.action == "email_declined"
@@ -596,7 +596,8 @@ function Input.mousepressed(x, y, button, context)
         return true
     end
     if state.screen == "jukebox" then
-        return require("src.jukebox").mousepressed(state, x, y, button)
+        return require("src.jukebox").mousepressed(state, x, y, button,
+            context.isNetworkClient and context.isNetworkClient())
     end
     if state.screen == "pallet_work_order" then
         local result = context.palletWorkOrderScreen.mousepressed(x, y, button)

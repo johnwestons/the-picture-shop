@@ -2,18 +2,21 @@
 -- The warehouse floor and collision mask remain owned by the bay layout.
 local Layout=require("src.warehouse_layout")
 local Presentation={}
-local PATH="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v5-candidate.png"
-local WIDTH,HEIGHT=1536,1024
-local SCALE,ORIGIN_X,ORIGIN_Y=0.24,205,918
--- The visible v3 floor triangle runs from (205,57) to (205,918)
--- and (1212,918); map those corners to the actual bay vertices.
-local SCALE_X,SCALE_Y=371/1007,261/861
+local PATH="assets/source/warehouse-expansion-v1/rooms/breakroom-triangle-v6-perspective-candidate.png"
+local WIDTH,HEIGHT=1254,1254
+local SCALE,ORIGIN_X,ORIGIN_Y=0.35,80,1000
+-- Measured floor-rim corners in the perspective redraw.
+-- Derive the placement from the assigned bay so both triangles stay aligned.
+local FLOOR_RIGHT,FLOOR_TOP=1118,200
 local catalog={}
 for _,bayId in ipairs(Layout.BAY_IDS) do
+    local polygon=Layout.bay(bayId).polygon
+    local origin=polygon[3]
     catalog[bayId]={path=PATH,bayId=bayId,approved=false,mirrorX=bayId=="front_right",
         registration={textureWidth=WIDTH,textureHeight=HEIGHT,
-            x=bayId=="front_right" and 952 or 8,y=647,originX=ORIGIN_X,originY=ORIGIN_Y,
-            scale=SCALE,scaleX=SCALE_X,scaleY=SCALE_Y,depthY=647}}
+            x=origin.x,y=origin.y,originX=ORIGIN_X,originY=ORIGIN_Y,
+            scale=SCALE,scaleX=math.abs(polygon[2].x-origin.x)/(FLOOR_RIGHT-ORIGIN_X),
+            scaleY=(origin.y-polygon[1].y)/(ORIGIN_Y-FLOOR_TOP),depthY=origin.y}}
 end
 local function copy(value)
     if type(value)~="table" then return value end

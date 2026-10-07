@@ -7,6 +7,8 @@ function Test.run(context, check)
         fullscreen = true,
         vsync = false,
         muted = true,
+        lanConnectionMode = "usb",
+        lanAutoJoin = true,
         masterVolume = 130,
         sfxVolume = -4,
         ambientVolume = 49.6,
@@ -14,7 +16,34 @@ function Test.run(context, check)
     check("options_settings_normalize_and_bound_values",
         normalized.fullscreen and not normalized.vsync and normalized.muted
         and normalized.masterVolume == 100 and normalized.sfxVolume == 0
-        and normalized.ambientVolume == 50)
+        and normalized.ambientVolume == 50
+        and normalized.lanConnectionMode == "usb" and normalized.lanAutoJoin)
+    local invalidConnectionPreference = context.Settings.normalize({
+        lanConnectionMode = "invalid", lanAutoJoin = "yes",
+    })
+    check("options_lan_connection_preferences_validate_and_default_safely",
+        invalidConnectionPreference.lanConnectionMode == "auto"
+        and not invalidConnectionPreference.lanAutoJoin)
+
+    local filesystem = love and love.filesystem
+    local persistenceOk = false
+    if filesystem then
+        local previousGetInfo, previousRead, previousWrite =
+            filesystem.getInfo, filesystem.read, filesystem.write
+        local stored
+        local ok, result = pcall(function()
+            filesystem.getInfo = function(path) return path == "settings.lua" and stored ~= nil end
+            filesystem.read = function() return stored end
+            filesystem.write = function(_, source) stored = source; return true end
+            local saved = context.Settings.save({ lanConnectionMode = "usb", lanAutoJoin = true })
+            local loaded = context.Settings.load()
+            return saved and loaded.lanConnectionMode == "usb" and loaded.lanAutoJoin
+        end)
+        filesystem.getInfo, filesystem.read, filesystem.write =
+            previousGetInfo, previousRead, previousWrite
+        persistenceOk = ok and result == true
+    end
+    check("options_lan_connection_preferences_persist_and_reload", persistenceOk)
 
     local positioned = MobileControls.new({
         enabled = false,

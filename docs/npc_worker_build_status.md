@@ -22,6 +22,18 @@ Paid 15-minute rests occur after two, six and ten hours when the shift lasts bey
 
 The cutter console highlights the actual next margin on the rotating stock and indicates whether rotation is correct. Completed cutter pallets occupy the six numbered slots in the painted front staging rectangle, in row order. Other cutters reserve slots independently. If the area fills during unloading, the stock remains on its cutter and the worker retries when a slot becomes free.
 
+## Schedule job availability — October 7, 2026
+
+The **ADD JOB** picker only lists jobs whose full stock has been unloaded into the shop, using the same physical-stock check that allows scheduling. Accepted jobs awaiting delivery or with skids still on the truck stay hidden. The list refreshes from current shop state for both local players and online guests, keeping the selected job when other deliveries arrive. An empty list says **No jobs on the shop floor** and explains that every skid must be unloaded before the job appears. This change was reviewed in source; no automated tests were run and existing saves were not touched.
+
+## Employee speech bubbles — October 7, 2026
+
+Employees say **Hello!** when arriving for their shift and **Goodbye!** when beginning to leave. Each greeting lasts four active simulation seconds regardless of shop clock speed. An employee already at the exit stays visible until the goodbye finishes; wages stop when they clock out.
+
+Between greetings, one short bubble shows the current action, including **Cutting**, **Wrapping**, **Printing**, **On break**, **Lunch break**, walking to a machine, training, waiting or a blocked path. The bubble uses an 11px font, a 22px height and a content-sized width of 52–124 world pixels. It sits just above the sprite's head and draws over foreground equipment. Machine activity is refreshed when work resumes so an old blocked-path message does not linger.
+
+The host sends the current caption in compact employee poses, so guests display the same action even while waiting for an updated assignment snapshot. Matching updated builds are required. Five isolated renderer previews cover actual arrival/departure transitions, cutting/wrapping/break labels, guest pose captions, and printing/blocked/lunch labels. The captures were visually reviewed in `output/employee-bubble-review/`; [action preview](../output/employee-bubble-review/20261007-115932-actions-host.png). No automated tests were run for this change, existing saves were not opened or modified, and no new Android installer was built.
+
 ## Files and artwork
 
 - Hiring UI: `src/screens/hiring_screen.lua`, embedded in `src/screens/computer_screen.lua`.
@@ -40,9 +52,11 @@ Walk timing uses achieved movement distance and the same eight gait phases, spee
 
 Save schema **21** / employment v6 includes per-shop day length, worker profiles, overnight/12-hour contracts, one-to-four-week pay cycles, ordered schedules and training progress. Older saves receive safe defaults while retaining money, stock, contracts, assignments, earned wages and production stock. Local loads stop active worker poses and release reservations before the next shift update. No real-world elapsed time is applied.
 
-LAN protocol **26** uses typed, owner-only hiring/payroll/schedule actions and host-owned simulation. Guests can inspect hiring, staff, schedules, labor costs, the shop budget and clocks. The wall clock is read-only and does not save or claim an exclusive control lease. Bills containing employee wages also require the owner, preventing the ordinary bills action from bypassing payroll permissions. Stable task IDs and revision checks reject duplicate or stale queue edits; the same job cannot be assigned to two employees. Compact realtime NPC poses carry movement direction, gait phase and machine/break action alongside environment snapshots; character profiles, contracts, queues, clock pace and money stay in reliable shop state. NPC identifiers are separate from human player IDs. All participants need matching builds.
+LAN protocol **28** uses typed, owner-only hiring/payroll/schedule actions and host-owned simulation. Guests can inspect hiring, staff, schedules, labor costs, the shop budget and clocks. The wall clock is read-only and does not save or claim an exclusive control lease. Bills containing employee wages also require the owner, preventing the ordinary bills action from bypassing payroll permissions. Stable task IDs and revision checks reject duplicate or stale queue edits; the same job cannot be assigned to two employees. Compact realtime NPC poses carry movement direction, gait phase, machine/break action and speech captions alongside environment snapshots; character profiles, contracts, queues, clock pace and money stay in reliable shop state. NPC identifiers are separate from human player IDs. All participants need matching builds.
 
 ## Verification
+
+The following checks were recorded before the October 7 speech-bubble and schedule-picker changes; the review for those changes is described above.
 
 - Desktop: **4,275 smoke checks** pass. Coverage includes hiring, saved/shared worker identity, real cutter work, press/wrapper stages, scheduled-job recovery, shift continuation, 12-hour/overnight boundaries, weekly overtime and one-to-four-week pay cycles, exact wage debt, profitability at five/twenty/sixty-minute days, financed-machine costs, finite shared-cutter capacity, quote floors, guest permissions, clocks, save migration, all margin rotations and six output slots.
 - Art: the strict locomotion audit covers all 16 walk/idle strips with **zero errors and zero warnings** at the original 10px center tolerance. The raw 26-strip audit reports zero errors and eight silhouette-center warnings from reaching, sitting and rising. Those poses retain registered body anchors; the separate action review allows 24px silhouette movement (observed maximum 20.5px). Locomotion retains its stricter threshold.

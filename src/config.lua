@@ -300,7 +300,10 @@ local Config = {
         loadedAcceleration = 360,
         loadedDeceleration = 560,
         operatorTurnSpeed = 520,
-        gaitPixelsPerFrame = 20,
+        turnRadiansPerSecond = math.pi * 2.5,
+        -- A shorter pushing stride keeps planted boots from sliding while
+        -- sixteen drawings give the loaded and empty jack a smooth cadence.
+        gaitPixelsPerFrame = 10,
         interactionRadius = 58,
         pickupRadius = 68,
         obstacleRadius = 26,
@@ -310,6 +313,7 @@ local Config = {
         loadedCollisionHalfWidth = 44,
         loadedCollisionHalfHeight = 14,
         drawScale = 0.416,
+        resolutionScale = 256 / 192,
         -- Keep carried pallet art at its established size while the jack itself
         -- is reduced by twenty percent.
         carriedPalletArtRatio = 0.625,
@@ -321,8 +325,10 @@ local Config = {
             southeast = { x = -60, y = -44 }, south = { x = 0, y = -42 },
             southwest = { x = 60, y = -44 }, west = { x = 58, y = -12 },
         },
-        frameSize = 256,
-        frameCount = 8,
+        frameSize = 192,
+        frameCount = 32,
+        frameColumns = 16,
+        palletFrameSize = 256,
         palletFrameCount = 4,
     },
     placementGrid = {
@@ -343,8 +349,8 @@ local Config = {
             wallX = 399, wallY = 181, drawScale = 0.084,
         },
         jukebox = {
-            x = 320, y = 270, radius = 70,
-            wallX = 320, wallY = 205, drawScale = 0.10,
+            x = 80, y = 330, radius = 70,
+            wallX = 56, wallY = 292, drawScale = 0.07,
             prompt = "E: tune the Vibes radio",
         },
         cutter = { x = 625, y = 405, radius = 78 },
@@ -381,8 +387,8 @@ local Config = {
         wrappedPalletStages = "assets/generated/wrapped-pallet-stages-strip.png",
         loadedPaperPallet = "assets/generated/loaded-paper-pallet.png",
         loadedPaperPalletDirections = "assets/generated/loaded-paper-pallet-directions-strip.png",
-        palletJack = "assets/generated/pallet-jack-directions-strip.png",
-        palletJackLoaded = "assets/generated/pallet-jack-loaded-directions-strip.png",
+        palletJack = "assets/generated/pallet-jack-motion-v2/jack-turns.png",
+        palletJackLoaded = "assets/generated/pallet-jack-motion-v2/jack-loaded-turns.png",
         wallVentFan = "assets/generated/wall-vent-fan-strip.png",
         loungeLeftChairForeground = "assets/generated/lounge/left-chair-foreground.png",
         loungeCoffeeTableForeground = "assets/generated/lounge/coffee-table-foreground.png",
@@ -460,6 +466,7 @@ local Config = {
             walk_northeast = "assets/generated/characters/rabbit-worker/walk_northeast.png",
             walk_southeast = "assets/generated/characters/rabbit-worker/walk_southeast.png",
             walk_south = "assets/generated/characters/rabbit-worker/walk_south.png",
+            high_five = "assets/generated/characters/rabbit-worker/high-five-v4.png",
         },
         ["tan-cat"] = { idle = "assets/generated/characters/tan-cat/idle.png", walk = "assets/generated/characters/tan-cat/walk.png", sit = "assets/generated/characters/tan-cat/sit.png" },
         ["green-blazer-cat"] = { idle = "assets/generated/characters/green-blazer-cat/idle.png", walk = "assets/generated/characters/green-blazer-cat/walk.png", sit = "assets/generated/characters/green-blazer-cat/sit.png", use = "assets/generated/characters/green-blazer-cat/use.png" },
@@ -512,12 +519,15 @@ end
 -- the warehouse is explicitly running with provisional artwork enabled.
 if Config.warehouse and Config.warehouse.provisionalArt then
     local rabbit = Config.characters["rabbit-worker"]
-    local pushRoot = "assets/source/warehouse-expansion-v1/pallet-jack-push/"
-    rabbit.push = pushRoot .. "push-east-v1-candidate.png"
-    rabbit.push_north = pushRoot .. "push-north-v1-candidate.png"
-    rabbit.push_northeast = pushRoot .. "push-northeast-v1-candidate.png"
-    rabbit.push_southeast = pushRoot .. "push-southeast-v1-candidate.png"
-    rabbit.push_south = pushRoot .. "push-south-v1-candidate.png"
+    local pushRoot = "assets/generated/pallet-jack-motion-v2/"
+    Config.characterActionFrameSizes = {["rabbit-worker"] = {}}
+    for _, direction in ipairs({"east", "north", "northeast", "southeast", "south"}) do
+        local action = direction == "east" and "push" or "push_" .. direction
+        rabbit[action] = pushRoot .. action .. ".png"
+        rabbit[action .. "_idle"] = pushRoot .. action .. "_idle.png"
+        Config.characterActionFrameSizes["rabbit-worker"][action] = 256
+        Config.characterActionFrameSizes["rabbit-worker"][action .. "_idle"] = 256
+    end
 end
 
 Config.characters["cat-worker"]={}
@@ -533,6 +543,7 @@ for _,view in ipairs({"east","west"}) do
     Config.characters["cat-worker"]["rest_"..view]="assets/generated/characters/cat-worker/rest_"..view..".png"
 end
 Config.workerFrameSizes={["cat-worker"]=256,["tinker-fox-worker"]=256,["ferret-engineer-worker"]=256}
+Config.workerActionFrameSizes={["rabbit-worker"]={high_five=724}}
 for _,character in ipairs({"tinker-fox-worker","ferret-engineer-worker"}) do
     Config.characters[character]={}
     local views=character=="ferret-engineer-worker" and {"east","northeast","north","south","southeast"}
@@ -544,5 +555,16 @@ for _,character in ipairs({"tinker-fox-worker","ferret-engineer-worker"}) do
     for _,action in ipairs({"operate","rest"}) do
         Config.characters[character][action]="assets/generated/characters/"..character.."/"..action..".png"
     end
+end
+-- Neutral feet and hand anchors are authored with the same turntable as the
+-- jack. Keep older callers of operatorOffsets on that shared grip contract.
+local jackArt = require("src.pallet_jack_art")
+for direction, frame in pairs({east=1,southeast=5,south=9,southwest=13,
+    west=17,northwest=21,north=25,northeast=29}) do
+    local pose = jackArt.frames[frame]
+    Config.palletJack.operatorOffsets[direction] = {
+        x = pose.operatorX * Config.palletJack.drawScale * Config.palletJack.resolutionScale,
+        y = pose.operatorY * Config.palletJack.drawScale * Config.palletJack.resolutionScale,
+    }
 end
 return Config

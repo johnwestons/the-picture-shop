@@ -13,6 +13,8 @@ local Office=require("src.office_authority")
 local Hiring=require("src.screens.hiring_screen")
 local Jobs=require("src.jobs")
 local Fleet=require("src.machine_fleet")
+local Schedule=require("src.employee_schedule")
+local Labor=require("src.employee_labor")
 local Pose=require("src.employee_pose")
 local Protocol=require("src.net.protocol")
 local Codec=require("src.net.codec")
@@ -76,6 +78,17 @@ function Test.run(context,check)
     Employees.command(fresh,sign,2)
     check("employees_signing_is_idempotent",#fresh.employment.staff==1)
     local w=fresh.employment.staff[1]
+    local scheduleStatusState=State.new();local scheduleStatusWorker=hire(scheduleStatusState)
+    scheduleStatusWorker.activity="Work schedule complete"
+    local sharedSchedule=Schedule.team(scheduleStatusState)
+    sharedSchedule.items[1]={id="TEAM-TASK-000001"}
+    local sharedStatus,sharedDetail=Hiring.staffScheduleStatus(scheduleStatusState,scheduleStatusWorker)
+    check("employees_staff_panel_shows_shared_jobs_instead_of_stale_no_work_status",
+        sharedStatus=="Shared schedule | 1 job" and sharedDetail:find("shared day/night schedule",1,true)~=nil)
+    sharedSchedule.items={}
+    local emptyStatus,emptyDetail=Hiring.staffScheduleStatus(scheduleStatusState,scheduleStatusWorker)
+    check("employees_staff_panel_reports_empty_shared_schedule_accurately",
+        emptyStatus=="No scheduled work" and emptyDetail:find("Add jobs",1,true)~=nil)
     check("employees_contract_has_next_upcoming_shift_and_pay_preview",w.contract.startDay==0
         and Contracts.weeklyEstimate(w.contract)==825 and Contracts.onShift(w.contract,9) and not Contracts.onShift(w.contract,17))
     local snapshot=Schema.snapshot(fresh)
@@ -126,7 +139,7 @@ function Test.run(context,check)
     check("employees_offer_expiry_is_persisted",ea.status=="expired" and not Employees.command(expired,{kind="hire_employee",applicationId=ea.id,expectedRevision=ea.revision},4))
 
     local maximum=Codec.array()
-    for i=1,4 do maximum[i]=Codec.array({i==4 and "APP-999999" or "EMP-99999"..i,96000,67800,8,10399,12999,1,9,4,2,1000}) end
+    for i=1,4 do maximum[i]=Codec.array({i==4 and "APP-999999" or ("EMP-99999"..i),96000,67800,8,10399,12999,1,9,4,2,1000,0}) end
     local env={sessionId=string.rep("s",64),serverTick=4294967295,bayDoor={state="open",progress=1},
         truck={state="backing",jobId=string.rep("J",64),mode="delivery",backingProgress=.123456789012345,cargoProgress=0},employees=maximum}
     local packet,packetError=Protocol.encode("environment_snapshot",env)
@@ -163,18 +176,23 @@ function Test.run(context,check)
     local pallet=job.pallets[1]
     local machine=Fleet.installedUnits(production,"polar_115")[1]
     context.machine.reset(production)
+    operator.cutterSkill,operator.pressSkill,operator.wrappingSkill=1,0,0
     local assign={kind="assign_employee",employeeId=operator.id,jobId=job.id,palletId=pallet.id,machineId=machine.id}
     job.difficulty="hard"
-    check("employees_job_assignment_respects_operator_skill",not Employees.command(production,assign,2) and operator.assignment==nil)
-    job.difficulty="easy"
-    check("employees_assignment_targets_real_job_pallet_and_machine",Employees.command(production,assign,2))
+    local lowSkillRejected=not Employees.command(production,assign,2) and operator.assignment==nil
+    operator.cutterSkill,operator.pressSkill,operator.wrappingSkill=80,60,70
+    check("employees_require_skill_for_hard_cutter_jobs",
+        lowSkillRejected and Employees.command(production,assign,2) and operator.assignment.jobId==job.id)
+    check("employees_lower_skill_increases_machine_action_time",
+        Labor.actionDelay({cutterSkill=1,focus=100},100)
+            > Labor.actionDelay({cutterSkill=100,focus=100},100))
     local available=false
     local wc={canClaim=function() return available end,operatorPoint=function() return {x=700,y=470} end,
         move=function(worker,goal) worker.x,worker.y=goal.x,goal.y;worker.moving=false;return true end}
     pallet.world.x,pallet.world.y=450,490
     Work.update(production,operator,.1,wc)
-    check("employees_unstaged_pallet_stays_available_for_player_transport",not operator.reserved
-        and operator.assignment~=nil and operator.activity=="Stage the assigned pallet beside the selected cutter")
+    check("employees_do_not_claim_human_controlled_cutter_for_transfer",not operator.reserved
+        and operator.assignment~=nil and operator.activity=="Waiting for the player to release this machine")
     local ix,iy=context.CutterZones.inputAnchor(production,context.config.cutterPlacement)
     pallet.world.x,pallet.world.y=ix,iy;pallet.world.fromX,pallet.world.fromY=ix,iy;pallet.world.spawnProgress=1
     Work.update(production,operator,1,wc)
@@ -205,11 +223,65 @@ function Test.run(context,check)
     Work.update(production,operator,1,wc)
     check("employees_blocked_output_preserves_finished_stock",m.step=="cut_complete" and pallet.location=="at_cutter" and pallet.finishedSheets==1000 and operator.assignment~=nil)
     clearOutput=true
-    for i=1,20 do Work.update(production,operator,.1,wc);context.machine.updateAll(.1,production) end
-    check("employees_real_output_returns_once_and_waits_for_wrap_training",pallet.location=="cutter_output"
+    for i=1,800 do
+        Work.update(production,operator,.1,wc);context.machine.updateAll(.1,production)
+        if pallet.location=="cutter_output" and pallet.status=="cut" then break end
+    end
+    -- The machine publishes its completed-pallet state after the worker's
+    -- update, so let the worker observe that authoritative stage transition.
+    Work.update(production,operator,.1,wc)
+    local wrapStage=Schedule.stage(job,pallet)
+    check("employees_trained_worker_resolves_wrapper_work_without_training_gate",
+        wrapStage=="wrapping" and Schedule.skillAllows(operator,job,wrapStage),tostring(wrapStage))
+    check("employees_real_output_returns_once_without_wrap_training_block",pallet.location=="cutter_output"
         and pallet.status=="cut" and production.inventory.finishedPallets==1 and operator.assignment~=nil
-        and not operator.reserved and operator.activity=="Pallet-wrapping training required before shipping")
+        and operator.activity~="Pallet-wrapping training required before shipping")
+    local cutterAwards=job.employeeSkillAwards and job.employeeSkillAwards.cutter or {}
+    check("employees_gain_one_cutter_skill_point_per_job",operator.cutterSkill==81
+        and #cutterAwards==1 and cutterAwards[1]==operator.id,
+        "skill="..tostring(operator.cutterSkill).." awards="..tostring(#cutterAwards)
+            .." first="..tostring(cutterAwards[1]).." worker="..tostring(operator.id))
+    local skillSnapshot=Schema.snapshot(production)
+    local skillGuest=State.new()
+    local skillSynced=skillSnapshot and State.applySharedSnapshot(skillGuest,skillSnapshot)
+    local mirroredWorker=skillSynced and skillGuest.employment.staff[1]
+    local mirroredAwards=skillSynced and skillGuest.jobs.active[1].employeeSkillAwards
+    check("employees_cutter_skill_progress_replicates_in_multiplayer_snapshot",
+        mirroredWorker and mirroredWorker.cutterSkill==81 and mirroredAwards
+        and mirroredAwards.cutter and mirroredAwards.cutter[1]==operator.id)
     m.setOutputResolver(priorResolver);context.machine.reset(production);context.machine.setMultiplayerSingleControl(false)
+
+    local pressState=State.new();pressState.money=1000000
+    assert(Fleet.buy(pressState,"dealer",3))
+    local pressWorker=hire(pressState)
+    pressWorker.pressSkill=60;pressWorker.visible=true;pressWorker.clockedIn=true;pressWorker.phase="working"
+    local pressJob=assert(Jobs.createOffer({id="JOB-EMPLOYEE-PRESS-SKILL",company="Employee press skill test",
+        sourceSize={width=10,height=15},finishedSize={width=5,height=7},sheetCounts={1050},
+        artworkKey="ad-photos",artwork={key="ad-photos",displayName="Client Photo Card",
+            fileName="client-photo-card.png",suppliedBy="client",orientation="portrait"},
+        stockSpec={suppliedBy="client",grade="cover",weight=80,finish="uncoated",color="white",
+            grain="long",description="80 lb white uncoated cover"},
+        press={colors=1,coverage=.35,artworkSize={width=4.25,height=6.25},
+            colorSequence={"Black"},requestedCopies={1000}}}))
+    Jobs.accept(pressJob);pressState.jobs.active[1]=pressJob
+    context.PalletLogistics.unload(pressState,pressJob.id,pressJob.pallets[1].id,
+        context.config.palletLogistics.spawnPoints,context.config.palletLogistics.unloadOrigin)
+    local pressPallet=pressJob.pallets[1]
+    pressPallet.status="printed";pressPallet.location="press_output"
+    pressPallet.press.status="complete";pressPallet.press.completedColors=1
+    local pressMachine=Fleet.installedUnits(pressState,"heidelberg_10x15")[1]
+    pressWorker.assignment={jobId=pressJob.id,palletId=pressPallet.id,
+        machineId=pressMachine.id,machineModel=pressMachine.modelId}
+    local pressSkillBefore=pressWorker.pressSkill
+    local pressWorkContext={canClaim=function() return true end,
+        operatorPoint=function(_,worker) return {x=worker.x,y=worker.y} end,
+        palletApproachPoint=function(pallet) return {x=pallet.world.x,y=pallet.world.y} end,
+        move=function(worker,goal) worker.x,worker.y=goal.x,goal.y;return true end}
+    Work.update(pressState,pressWorker,.1,pressWorkContext)
+    local pressAwards=pressJob.employeeSkillAwards and pressJob.employeeSkillAwards.press or {}
+    check("employees_gain_printing_skill_after_press_job_completes",
+        pressWorker.pressSkill==pressSkillBefore+1 and #pressAwards==1
+        and pressAwards[1]==pressWorker.id)
 
     -- Exercise the actual computer dropdown and every Hiring page with real UI.
     local screen=context.computerScreen.new()

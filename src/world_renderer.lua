@@ -7,9 +7,11 @@ local CharacterAnimation = require("src.character_animation")
 local InteractionBeacon = require("src.interaction_beacon")
 local CutterPlacement = require("src.cutter_placement")
 local PalletJack = require("src.pallet_jack")
+local JackPresentation = require("src.pallet_jack_presentation")
 local PalletLogistics = require("src.pallet_logistics")
 local MachineFleet = require("src.machine_fleet")
 local MultiplayerAvatarRenderer = require("src.multiplayer_avatar_renderer")
+local HighFiveUi = require("src.screens.high_five_ui")
 local PlacementGrid = require("src.placement_grid")
 local Wrapper = require("src.wrapper")
 local WrapperPlacement = require("src.wrapper_placement")
@@ -22,6 +24,10 @@ local WarehouseScene = require("src.warehouse_scene")
 local Renderer = {}
 local World
 local checkerShader
+function Renderer.beginFrame() WarehouseRenderer.beginFrame() end
+function Renderer.endFrame() WarehouseRenderer.endFrame() end
+function Renderer.pruneCache() WarehouseRenderer.pruneCache() end
+function Renderer.clearCache() WarehouseRenderer.clearCache() end
 
 local function drawPrintedArtwork(assets, item, x, y, carried)
     if not item or item.vendor or not item.job or not item.job.press then return end
@@ -91,10 +97,9 @@ local function drawPalletJack(assets, state)
     local image, sprite = assets.get(imageName), assets.getQuad(quadName)
     if not image or not sprite then return end
     local jack = state.palletJack
+    local pose = PalletJack.visualPose(state, Config.palletJack)
     local scale = Config.palletJack.drawScale
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(image, sprite.quad, jack.x, jack.y, 0, scale, scale,
-        sprite.width / 2, sprite.height * 0.88)
+    JackPresentation.drawJack(assets, state)
 
     if carried then
         local productImage = assets.get(vendorLoad and "vendorProductPallets"
@@ -115,11 +120,11 @@ local function drawPalletJack(assets, state)
         if productImage and productSprite then
             local productScale = Config.palletLogistics.drawScale * (flatWrappedLoad and 0.5 or 1)
             love.graphics.setColor(1, 1, 1)
-            love.graphics.draw(productImage, productSprite.quad, jack.x, jack.y - 3, 0,
+            love.graphics.draw(productImage, productSprite.quad, pose.x + pose.loadX, pose.y + pose.loadY, 0,
                 productScale, productScale,
                 productSprite.width / 2, productSprite.height * 0.92)
         end
-        drawPrintedArtwork(assets, carried, jack.x, jack.y - 3, true)
+        drawPrintedArtwork(assets, carried, pose.x + pose.loadX, pose.y + pose.loadY, true)
     end
 end
 
@@ -387,10 +392,14 @@ local pushFacing = {
 local function drawPlayer(characterAssets,state)
     local player = World.player
     local character = player.character or Config.player.character
+    local highFive = player.highFiveAnimation
+    local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
     local resting=player.resting and characterAssets.hasAction(character,"sit")
     local jack=state and state.palletJack
     local pushingJack=jack and jack.operating
         and jack.operatorPlayerId==(tonumber(player.id) or 1)
+        and not highFiveActive
+    if pushingJack and JackPresentation.drawWorker(characterAssets, player, state) then return end
     local action = (resting and not pushingJack) and "sit" or (player.moving and "walk" or "idle")
     local directionScale = player.facing
     local pushArtwork=false
@@ -421,10 +430,22 @@ local function drawPlayer(characterAssets,state)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     end
+
+    if highFiveActive then
+        action = "high_five"
+        pushArtwork = false
+        local partnerX = tonumber(highFive.partnerX)
+        directionScale = partnerX and math.abs(partnerX - player.x) > 0.01
+            and (partnerX < player.x and -1 or 1)
+            or (tonumber(highFive.partnerId) or 0) < (tonumber(player.id) or 0) and -1 or 1
+    end
     local image, quad, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
     local frame
-    if pushingJack and pushArtwork then
+    if highFiveActive then
+        frame = CharacterAnimation.frameForHighFive(frameCount,
+            highFive.elapsed, highFive.duration)
+    elseif pushingJack and pushArtwork then
         -- Hold a planted, two-foot stance with both hands on the handle when
         -- the jack is stopped instead of freezing halfway through a stride.
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
@@ -461,6 +482,7 @@ local function drawPlayer(characterAssets,state)
 end
 
 function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
+    WarehouseRenderer.beginFrame()
     World = world
     drawBackground(assets)
     WarehouseRenderer.drawFloors(assets, state)
@@ -484,7 +506,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     for _,entry in ipairs(employeeEntries) do
         visibleCharacters[(entry.worker or entry.application).character]=true
     end
-    characterAssets.retainCharacters(visibleCharacters)
+    characterAssets.retainCharacters(visibleCharacters, true)
     local jack = state and PalletJack.ensure(state, Config.palletJack)
     local cutter = state and CutterPlacement.ensure(state, Config.cutterPlacement)
     local wrapper = state and WrapperPlacement.ensure(state, Config.wrapperPlacement)
@@ -527,7 +549,14 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     -- and incorrectly move the host avatar.
     local forklift = state and state.forklift
     local forkliftDriver = forklift and forklift.owned and forklift.operating and forklift.operatorPlayerId
-    if forkliftDriver ~= (tonumber(World.player.id) or 1) then
+    local jackOperator
+    if jack and jack.operating then
+        if jack.operatorPlayerId == (tonumber(World.player.id) or 1) then jackOperator = World.player end
+        for _, remote in ipairs(remotePlayers or {}) do
+            if tonumber(remote.id) == jack.operatorPlayerId then jackOperator = remote end
+        end
+    end
+    if forkliftDriver ~= (tonumber(World.player.id) or 1) and jackOperator ~= World.player then
     actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets,state) end }
     end
     if forklift and forklift.owned then
@@ -542,13 +571,23 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         actors[#actors + 1] = {
             y = jack.y,
             layer = jack.operating and 1 or 0,
-            draw = function() drawPalletJack(assets, state) end,
+            draw = function()
+                local pose = PalletJack.visualPose(state, Config.palletJack)
+                local workerBehind = math.sin(pose.heading) >= 0
+                local function drawOperator()
+                    if jackOperator == World.player then drawPlayer(characterAssets, state)
+                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, state) end
+                end
+                if workerBehind then drawOperator() end
+                drawPalletJack(assets, state)
+                if not workerBehind then drawOperator() end
+            end,
         }
     end
     for _, remotePlayer in ipairs(remotePlayers or {}) do
         local player = remotePlayer
         if type(player) == "table" and type(player.y) == "number"
-            and forkliftDriver ~= tonumber(player.id) then
+            and forkliftDriver ~= tonumber(player.id) and player ~= jackOperator then
             actors[#actors + 1] = {
                 y = player.y,
                 draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player },state) end,
@@ -611,12 +650,18 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         player = World.player,
     })
     for _, actor in ipairs(actors) do actor.draw() end
+    -- Captions are an overlay so foreground machines cannot hide them.
+    for _,employee in ipairs(employeeEntries) do EmployeeRenderer.drawBubble(employee,characterAssets) end
     InteractionBeacon.drawOverlay(World.getInteraction(), World.player.interactionClock, {
         player = World.player,
+    })
+    HighFiveUi.drawWorld(mouseX, mouseY, remotePlayers, World.player, {
+        active = type(remotePlayers) == "table" and #remotePlayers > 0,
     })
     drawPalletTooltip(state, mouseX, mouseY)
     WarehouseRenderer.drawVehicleStatus(state)
     WarehouseRenderer.drawDevelopmentNotice(state)
+    WarehouseRenderer.endFrame()
 end
 
 

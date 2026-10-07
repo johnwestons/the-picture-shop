@@ -94,6 +94,20 @@ function Colorways.choice(group, choiceIndex)
     return choices[index(choiceIndex, choices)]
 end
 
+function Colorways.blendShaderSource()
+    return (SHADER_SOURCE:gsub(
+        "vec4 effect%(.-%) %{\n    vec4 pixel = Texel%(texture, texture_coords%) %* color;",
+        "vec4 applyRabbitColorways(vec4 pixel) {"))
+end
+
+function Colorways.configureShader(activeShader, furIndex, overallsIndex)
+    local fur, overalls = Colorways.normalize(furIndex, overallsIndex)
+    activeShader:send("furTint", Colorways.fur[fur].color)
+    activeShader:send("overallsTint", Colorways.overalls[overalls].color)
+    activeShader:send("furEnabled", fur == 1 and 0 or 1)
+    activeShader:send("overallsEnabled", overalls == 1 and 0 or 1)
+end
+
 local function getShader()
     if shader or shaderFailed or not love or not love.graphics then return shader end
     local ok, result = pcall(love.graphics.newShader, SHADER_SOURCE)

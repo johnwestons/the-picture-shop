@@ -80,8 +80,23 @@ end
 
 function Animation.frameForPalletJackPush(frameCount, moving, distance, pixelsPerFrame)
     frameCount = math.max(1, tonumber(frameCount) or 1)
-    if not moving then return math.min(2, frameCount) end
-    return Animation.frameForDistance(frameCount, distance, pixelsPerFrame)
+    -- Additional drawings subdivide the same eight-pose stride; they must
+    -- increase visual cadence without making each step twice as long.
+    local subdivision = frameCount / 8
+    if not moving then return math.min(frameCount, math.floor(subdivision) + 1) end
+    return Animation.frameForDistance(frameCount, distance,
+        (pixelsPerFrame or 20) / subdivision)
+end
+
+function Animation.frameForHighFive(frameCount, elapsed, duration)
+    frameCount = math.max(1, tonumber(frameCount) or 1)
+    if frameCount <= 1 then return 1 end
+    elapsed = math.max(0, tonumber(elapsed) or 0)
+    duration = math.max(0.1, tonumber(duration) or 0.95)
+    if frameCount == 2 then return elapsed < duration * 0.28 and 1 or 2 end
+    if elapsed < duration * 0.18 then return 1 end
+    if elapsed < duration * 0.42 then return 2 end
+    return frameCount
 end
 
 function Animation.frameForAction(action, frameCount, clock, walkRate, useRate)

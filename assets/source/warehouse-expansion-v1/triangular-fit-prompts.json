@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-06",
+  "status": "candidate art; not approved",
+  "assets": [
+    {
+      "file": "rooms/breakroom-triangle-v1-candidate.png",
+      "reference": "rooms/breakroom-furnishings-v1.png",
+      "prompt": "Create a 1536x1024 transparent RGBA employee breakroom sprite. Preserve the reference's teal industrial walls, doorway, kitchenette, sink, microwave, vending machine, table, chairs, warm isometric pixel-art style. Fit a deliberate right-triangle footprint with vertices (0,0), (0,1024), and (1536,1024). Keep every object inside the triangle. Put the solid walls along the left vertical and bottom horizontal edges; leave the diagonal edge open toward the warehouse. Keep a clear entrance and floor space along the diagonal. No backdrop, text, or watermark."
+    },
+    {
+      "file": "rack-world-left-v5-triangle-aligned-candidate.png",
+      "reference": "rack-world-left-v4-five-bay-service-aisle-candidate.png",
+      "prompt": "Redesign the reference as a 1536x1024 transparent warehouse rack sprite. Preserve detailed teal steel, orange beams, grey decks and exactly five equal bays across two levels, with six evenly spaced upright support frames. The long front beams must be perfectly straight and exactly horizontal, parallel to the bay's flat bottom edge; posts stay vertical. Show a modest 3/4 isometric view with shelf depth running diagonally up-left into the triangular bay. Keep the full floor-contact footprint inside the triangle and openings facing the warehouse. Recess the far/right terminal support slightly for forklift access. No pallets, workers, forklifts, floor, text, or watermark."
+    },
+    {
+      "file": "rooms/breakroom-triangle-v2-candidate.png",
+      "reference": "rooms/breakroom-triangle-v1-candidate.png",
+      "prompt": "Use the reference's teal industrial construction style, warm isometric furnishings, kitchenette, sink, microwave, vending machine, table, chairs, and transparent background. Redesign the room so the actual filled floor and all furniture fit a compact right triangle on a 1536x1024 canvas. Use visible ground footprint vertices (176,110), (176,918), and (1180,918), with the floor filled to the diagonal from (176,110) to (1180,918). Keep every opaque pixel inside or on this footprint. Put the kitchenette along the left wall and fit the table, chairs, and vending machine in the widening lower half without overlap. Keep the diagonal side open to the warehouse. No extra rectangular floor, text, labels, or watermark."
+    },
+    {
+      "file": "rooms/breakroom-triangle-v3-candidate.png",
+      "reference": "rooms/breakroom-triangle-v2-candidate.png",
+      "prompt": "Keep the furnishings, colors, material detail, lighting, and visible triangular floor. Move the teal wall frame and doorway trim inward so they are inside the actual floor triangle and remain visible when the art is clipped. The floor triangle vertices stay at (205,57), (205,918), and (1212,918); the diagonal from (205,57) to (1212,918) stays open. Fit the left teal wall entirely to the right of x=176. Keep the bottom wall and doorway entirely above y=918, with trim thickness extending upward from the y=918 floor edge. Preserve a clear doorway and all furnishings inside the triangle. Transparent background; no rectangular background or text."
+    },
+    {
+      "file": "rack-world-left-v6-triangle-fit-candidate.png",
+      "reference": "none; generated from the target dimensions and palette",
+      "prompt": "Create one transparent 1536x1024 warehouse pallet rack game sprite that fits the triangle bay. Use exactly five equal openings, two shelf levels, and six front support posts that stay vertical on screen. Both long orange front beams must be straight, parallel, and descend down-right at dy/dx=0.705; the shelf deck front edges follow the same line. Use a polished illustrated isometric style with teal steel, orange beams, grey slatted decks, crisp dark outlines, and restrained highlights. Keep all artwork inside the canvas; no floor, pallets, workers, forklifts, text, or watermark."
+    }
+  ]
+}

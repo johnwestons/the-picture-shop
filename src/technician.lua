@@ -66,11 +66,12 @@ local function moveToward(visit, target, distance)
     return false, 0
 end
 
-function Technician.update(dt, state, pauseEntrance)
+function Technician.update(dt, state, pauseEntrance, motionDt)
     local visit = Technician.ensure(state)
     if not visit then return false end
     dt = math.max(0, tonumber(dt) or 0)
-    visit.animationClock = visit.animationClock + dt
+    motionDt = math.max(0, tonumber(motionDt) or dt)
+    visit.animationClock = visit.animationClock + motionDt
     if visit.status == "scheduled" then
         if pauseEntrance then return false end
         visit.status, visit.visible, visit.animationClock = "entering", true, 0
@@ -86,7 +87,7 @@ function Technician.update(dt, state, pauseEntrance)
         return true
     end
     if visit.status ~= "entering" and visit.status ~= "exiting" then return false end
-    local travel = Config.technician.speed * dt
+    local travel = Config.technician.speed * motionDt
     while travel > 0 do
         local target = visit.route[visit.waypoint]
         if not target then

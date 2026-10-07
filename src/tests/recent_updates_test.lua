@@ -179,9 +179,9 @@ function Test.run(context, check)
         { wrappingSkill = 65 }, { difficulty = "easy" }, "wrapping")
     local allowedLow = EmployeeSchedule.skillAllows(
         { wrappingSkill = 25 }, { difficulty = "easy" }, "wrapping")
-    check("recent_workers_mix_wrapper_ready_and_trainable_scores",
+    check("recent_wrapping_skill_gate_and_training_plan_are_consistent",
         readyToWrap and needsWrapTraining and allowedReady and not allowedReadyReason
-        and not allowedLow and trainingPlan and trainingPlan.target == 50
+        and allowedLow and trainingPlan and trainingPlan.target == 50
         and trainingPlan.remainingHours == 4 and trainingPlan.expectedWageCents == 9200)
 
     local trainingState, trainee = employeeState(context, 25)
@@ -243,8 +243,9 @@ function Test.run(context, check)
             } })
     end
     pallet.finishedSheets, pallet.remainingSheets = 500, 0
-    local _, operator = employeeState(context, 65)
+    local _, operator = employeeState(context, 99)
     transferState.employment.staff = { operator }
+    local startingWrappingSkill = operator.wrappingSkill
     local cutter = MachineFleet.installedUnits(transferState, "polar_115")[1]
     local wrapperMachine = MachineFleet.installedUnits(transferState, "skid_wrapper")[1]
     operator.visible, operator.clockedIn, operator.phase = true, true, "idle"
@@ -274,6 +275,7 @@ function Test.run(context, check)
         if Wrapper.forId(wrapperMachine.id).isActive() then startedWrapping = true;break end
     end
     Wrapper.updateAll(Wrapper.forId(wrapperMachine.id).cycleTime + 0.1, transferState)
+    Work.update(transferState, operator, 0.1, workContext)
     check("recent_employee_carries_finished_skid_to_wrapper_and_runs_it",
         staged and carried and stagedAtWrapper and startedWrapping and pallet.status == "wrapped",
         string.format("staged=%s carried=%s stagedAtWrapper=%s startedWrapping=%s status=%s location=%s activity=%s wrapperStep=%s",
@@ -282,10 +284,16 @@ function Test.run(context, check)
             tostring(operator.activity), tostring(Wrapper.forId(wrapperMachine.id).step))
             .. " stageErrors=" .. tostring(cutterStageError) .. "/" .. tostring(outputStageError)
             .. " cutter=" .. tostring(cutterPosition.x) .. "," .. tostring(cutterPosition.y))
+    local wrappingAwards=transferJob.employeeSkillAwards
+        and transferJob.employeeSkillAwards.wrapping or {}
+    check("recent_employee_gains_wrapping_skill_after_completed_job",
+        operator.wrappingSkill == math.min(100, startingWrappingSkill + 1)
+        and #wrappingAwards == 1 and wrappingAwards[1] == operator.id)
     transferState.message = oldMessage
 
     local oldJukeboxState = { trackIndex = Jukebox.trackIndex, source = Jukebox.source,
-        active = Jukebox.active, paused = Jukebox.paused }
+        active = Jukebox.active, paused = Jukebox.paused, muted = Jukebox.muted,
+        radioDirty = Jukebox.radioDirty, networkSession = Jukebox.networkSession }
     local originalNewSource = love.audio.newSource
     local trackPaths = {}
     love.audio.newSource = function(path)
@@ -305,11 +313,26 @@ function Test.run(context, check)
         vibesOnly = vibesOnly and path:match("^assets/audio/music/vibes/") ~= nil
         tracksExist = tracksExist and love.filesystem.getInfo(path, "file") ~= nil
     end
+    local readonlyTrackIndex = Jukebox.trackIndex
+    local readonlyState = { screen = "jukebox" }
+    Jukebox.mousepressed(readonlyState, 540, 583, 1, true)
+    check("recent_jukebox_client_cannot_change_host_radio_controls",
+        Jukebox.trackIndex == readonlyTrackIndex and #trackPaths == 9
+        and readonlyState.message == "The host controls the radio for everyone.")
+    local networkRadioApplied = Jukebox.applyNetworkState({
+        trackIndex = 4, active = true, paused = true, muted = true, positionMs = 5200,
+    })
+    check("recent_jukebox_client_applies_host_track_and_playback_state",
+        networkRadioApplied and Jukebox.trackIndex == 4 and Jukebox.active
+        and Jukebox.paused and Jukebox.muted and #trackPaths == 10
+        and trackPaths[#trackPaths]:match("assets/audio/music/vibes/goodbye_youre_waking_up%.wav$") ~= nil)
     if Jukebox.source then Jukebox.source:stop() end
     love.audio.newSource = originalNewSource
-    Jukebox.trackIndex, Jukebox.source, Jukebox.active, Jukebox.paused =
+    Jukebox.trackIndex, Jukebox.source, Jukebox.active, Jukebox.paused, Jukebox.muted,
+        Jukebox.radioDirty, Jukebox.networkSession =
         oldJukeboxState.trackIndex, oldJukeboxState.source,
-        oldJukeboxState.active, oldJukeboxState.paused
+        oldJukeboxState.active, oldJukeboxState.paused, oldJukeboxState.muted,
+        oldJukeboxState.radioDirty, oldJukeboxState.networkSession
     check("recent_jukebox_plays_only_the_bundled_vibes_playlist", vibesOnly and tracksExist)
 end
 

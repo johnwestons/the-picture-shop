@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local JobService = require("src.job_service")
+local Schedule = require("src.employee_schedule")
 local BackButton = require("src.screens.back_button")
 local Ui = require("src.screens.ui")
 local JobOfferScreen = { activeJobId = nil }
@@ -102,6 +103,13 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     local details = job.details or {}
     line("Company", job.company, 136, 116)
     line("Job number", job.id, 136, 140)
+    if job.difficulty then
+        local minimum = Schedule.minimumSkills(job)
+        local skills = string.format("%s  |  CUT %d  |  %sWRAP %d",
+            string.upper(job.difficulty), minimum.cutter,
+            minimum.press and ("PRESS " .. minimum.press .. "  |  ") or "", minimum.wrapping)
+        line("Required skills", skills, 136, 156)
+    end
     line("Parent sheet", sizeText(job.sourceSize), 136, 174)
     local finishedText = sizeText(job.finishedSize)
     if job.press then
@@ -189,7 +197,8 @@ function JobOfferScreen.fromNetwork(view)
         quote.suppliedSheets=quote.suppliedSheets+(row.sheetCount or 0)
         quote.spoilageAllowance=quote.spoilageAllowance+(row.spoilageAllowance or 0)
     end
-    return {id=view.jobId,company=view.company,sourceSize=view.sourceSize,finishedSize=view.finishedSize,
+    return {id=view.jobId,company=view.company,difficulty=view.difficulty,
+        sourceSize=view.sourceSize,finishedSize=view.finishedSize,
         stockSpec={description=view.stock},packaging=view.packaging,remoteDelivery=view.delivery,
         artworkKey=view.artworkKey,artwork={key=view.artworkKey,displayName=view.artworkName},
         quote=quote,details={dueDate="Written details to follow",notes="Review the written specifications before estimating."},

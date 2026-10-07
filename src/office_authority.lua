@@ -64,7 +64,9 @@ function Office.command(options)
                 for _, candidate in ipairs(staged.jobs.completed or {}) do if candidate.id == intent.id then job = candidate end end
                 if job then ok, result = JobService.sendPromotion(staged, job, intent.text) end
             elseif intent.kind == "archive" then ok, result = JobService.dismissInboxNotice(staged, intent.id)
-            elseif intent.kind == "archive_service" then ok, result = MachineFleet.dismissServiceNotice(staged, intent.id)
+            elseif intent.kind == "archive_service" then ok, result = JobService.archiveServiceNotice(staged, intent.id)
+            elseif intent.kind == "delete_email" then ok, result = JobService.deleteEmail(staged, intent.id)
+            elseif intent.kind == "mark_email_read" then ok, result = JobService.markEmailRead(staged, intent.id)
             elseif intent.kind == "sell" then ok, result = MachineFleet.sell(staged, intent.id, "online")
             elseif intent.kind == "pay_bills" then ok, result = Calendar.pay(staged)
             elseif intent.kind == "finance_machine" then

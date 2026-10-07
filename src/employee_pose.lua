@@ -2,6 +2,7 @@
 -- Contracts, assignments and money remain in the reliable shop snapshot.
 local Codec=require("src.net.codec")
 local Animation=require("src.character_animation")
+local Speech=require("src.employee_speech")
 local Pose={}
 local directions={"east","southeast","south","southwest","west","northwest","north","northeast"}
 local vectors={{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}}
@@ -22,13 +23,13 @@ end
 function Pose.normalize(rows)
     if type(rows)~="table" or #rows>4 or not dense(rows,#rows) then return nil end
     local out,ids=Codec.array(),{}
-    local ranges={{0,96000},{0,67800},{1,8},{0,10399},{0,12999},{0,1},{1,9},{0,4},{0,2},{0,1000}}
+    local ranges={{0,96000},{0,67800},{1,8},{0,10399},{0,12999},{0,1},{1,9},{0,4},{0,2},{0,1000},{0,Speech.MAX_CODE}}
     for _,r in ipairs(rows) do
-        if not dense(r,11) or type(r[1])~="string" or #r[1]>16
+        if not dense(r,12) or type(r[1])~="string" or #r[1]>16
             or not (r[1]:match("^APP%-%d+$") or r[1]:match("^EMP%-%d+$")) or ids[r[1]] then return nil end
         for k,bounds in ipairs(ranges) do if not int(r[k+1],bounds[1],bounds[2]) then return nil end end
         ids[r[1]]=true
-        local row=Codec.array();for i=1,11 do row[i]=r[i] end
+        local row=Codec.array();for i=1,12 do row[i]=r[i] end
         out[#out+1]=row
     end
     return out
@@ -42,7 +43,7 @@ function Pose.capture(entries)
             index(directions,Animation.authoredDirection(a.intentX,a.intentY)),
             math.floor((a.distance%104)*100),math.floor((a.idleClock%13)*1000),a.moving and 1 or 0,
             index(phases,a.phase),a.workFrame or 0,a.seatBay=="front_left" and 1 or a.seatBay=="front_right" and 2 or 0,
-            math.floor((a.breakRemaining or 0)*1000+.5)})
+            math.floor((a.breakRemaining or 0)*1000+.5),Speech.code(entry)})
     end
     return Pose.normalize(rows)
 end
@@ -55,7 +56,8 @@ function Pose.actors(rows)
         result[r[1]]={visible=true,x=r[2]/100,y=r[3]/100,intentX=v[1],intentY=v[2],
             distance=r[5]/100,idleClock=r[6]/1000,moving=r[7]==1,phase=phases[r[8]],
             workFrame=r[9]>0 and r[9] or nil,seatBay=r[10]==1 and "front_left" or r[10]==2 and "front_right" or nil,
-            breakRemaining=r[11]/1000}
+            breakRemaining=r[11]/1000,speechCode=r[12],
+            greetingKind=r[12]>=1 and r[12]<=3 and r[12] or nil}
     end
     return result
 end

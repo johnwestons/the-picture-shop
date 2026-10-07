@@ -15,16 +15,23 @@ local left = {
     walkPolygon = { {x=8,y=376}, {x=389,y=647}, {x=8,y=647} },
     seam = { {x=8,y=386}, {x=379,y=647} },
     workPoint = {x=260,y=505}, approach = {x=315,y=515},
-    rackApproachPoint = {x=220,y=560},
+    rackApproachPoint = {x=220,y=495},
     -- Registered against the authored world-space 5×2 rack sprite. The
     -- lower deck contact line follows the actual front beam, and the upper
     -- shelf's displayed deck height matches the source art.
     -- The rack is inset parallel to the bay's diagonal seam. Its rear row
     -- sits just inside that seam and its front row remains in walkable bay
     -- space; this keeps all shelf supports on the expansion footprint.
-    rackStart = {x=18.59,y=517}, rackEnd = {x=154.51,y=613},
-    rackHeight = 65, upperDeckOffset = 45,
-    restPoint = {x=82,y=609},
+    rackStart = {x=25,y=427}, rackEnd = {x=297,y=618.35},
+    rackHeight = 112, upperDeckOffset = 70,
+    -- Floor-contact centres of the six visible base plates in the selected
+    -- rack art. The shelf contact line above is raised off this ground line.
+    rackGroundPosts = {
+        {x=25,y=442}, {x=78.9524,y=480.1708},
+        {x=133.4725,y=517.3509}, {x=188.3614,y=556.403},
+        {x=242.0584,y=595.1803}, {x=297,y=633.35},
+    },
+    restPoint = {x=95,y=639},
 }
 local right = copy(left)
 right.id, right.rackId = "front_right", "front_right-rack"
@@ -34,6 +41,7 @@ end
 for _, key in ipairs({"workPoint", "approach", "rackApproachPoint", "rackStart", "rackEnd", "restPoint"}) do
     right[key].x = 960 - right[key].x
 end
+for _,point in ipairs(right.rackGroundPosts) do point.x=960-point.x end
 local bays = { front_left=left, front_right=right }
 
 function Layout.bay(id) return copy(bays[id]) end
@@ -92,21 +100,18 @@ function Layout.obstacles(state)
         local status = Layout.bayState(state,id)
         if status and status.status == "complete" and status.optionId == "storage" then
             local bay=bays[id]
-            -- The six collision points follow the six visible upright frames;
-            -- the five load openings between them remain clear to fork tips.
-            local postFractions={0,0.2,0.4,0.6,0.8,1}
-            for _,t in ipairs(postFractions) do
-                local x=bay.rackStart.x+(bay.rackEnd.x-bay.rackStart.x)*t
-                local groundY=bay.rackStart.y+(bay.rackEnd.y-bay.rackStart.y)*t
-                result[#result+1]={x=x,y=groundY-5,halfWidth=2,halfHeight=3,
+            -- Block the visible floor feet, where a worker or vehicle can
+            -- collide with a post, rather than the raised lower shelf beam.
+            for _,point in ipairs(bay.rackGroundPosts) do
+                result[#result+1]={x=point.x,y=point.y,halfWidth=2,halfHeight=3,
                     kind="pallet_rack_post",rackId=bay.rackId}
             end
         elseif status and status.status=="complete" and status.optionId=="breakroom" then
             local mirror=id=="front_right"
             local function x(value) return mirror and 960-value or value end
-            result[#result+1]={x=x(82),y=588,halfWidth=52,halfHeight=14,kind="breakroom_table",bayId=id}
-            result[#result+1]={x=x(80),y=529,halfWidth=58,halfHeight=11,kind="breakroom_kitchenette",bayId=id}
-            result[#result+1]={x=x(198),y=610,halfWidth=20,halfHeight=9,kind="breakroom_vending",bayId=id}
+            result[#result+1]={x=x(96),y=613,halfWidth=49,halfHeight=16,kind="breakroom_table",bayId=id}
+            result[#result+1]={x=x(85),y=515,halfWidth=66,halfHeight=23,kind="breakroom_kitchenette",bayId=id}
+            result[#result+1]={x=x(203),y=618,halfWidth=25,halfHeight=12,kind="breakroom_vending",bayId=id}
         end
     end
     return result

@@ -85,6 +85,23 @@ function Test.run(_, check)
     check("lan_discovery_deduplicates_repeat_replies",
         #guest:results() == 1)
 
+    local interfaceGuest = Discovery.new({
+        socket = sockets,
+        addressDetector = function()
+            return { {
+                address = "192.168.42.2", prefixLength = 24,
+                interfaceName = "rndis0", isUsb = true,
+            } }
+        end,
+    })
+    local interfaceSearch = interfaceGuest:startSearch()
+    local interfaceSnapshot = interfaceGuest:interfaces()
+    interfaceSnapshot[1].address = "192.168.42.99"
+    check("lan_discovery_exposes_detached_local_interface_details",
+        interfaceSearch and interfaceGuest:interfaces()[1].address == "192.168.42.2"
+        and interfaceGuest:interfaces()[1].isUsb)
+    interfaceGuest:stop()
+
     local automaticGuest = Discovery.new({
         socket = sockets,
         clock = function() return now end,

@@ -1,6 +1,7 @@
 local CharacterAnimation = require("src.character_animation")
 local Config = require("src.config")
 local RabbitColorways = require("src.rabbit_colorways")
+local JackPresentation = require("src.pallet_jack_presentation")
 
 local Renderer = {}
 
@@ -23,9 +24,16 @@ end
 
 local function drawPlayer(characterAssets,player,state)
     local character = Config.characters[player.character] and player.character or Config.player.character
+    local highFive = player.highFiveAnimation
+    local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
     local jack=state and state.palletJack
     local pushingJack=jack and jack.operating
         and jack.operatorPlayerId==tonumber(player.id)
+        and not highFiveActive
+    if pushingJack and JackPresentation.drawWorker(characterAssets, player, state) then
+        drawLabel(player)
+        return
+    end
     local action = player.moving and "walk" or "idle"
     local directionScale = player.facing or 1
     local pushArtwork=false
@@ -55,10 +63,22 @@ local function drawPlayer(characterAssets,player,state)
         directionScale = mirror
     end
 
+    if highFiveActive then
+        action = "high_five"
+        pushArtwork = false
+        local partnerX = tonumber(highFive.partnerX)
+        directionScale = partnerX and math.abs(partnerX - player.x) > 0.01
+            and (partnerX < player.x and -1 or 1)
+            or (tonumber(highFive.partnerId) or 0) < (tonumber(player.id) or 0) and -1 or 1
+    end
+
     local image, _, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
     local frame
-    if pushingJack and pushArtwork then
+    if highFiveActive then
+        frame = CharacterAnimation.frameForHighFive(frameCount,
+            highFive.elapsed, highFive.duration)
+    elseif pushingJack and pushArtwork then
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
             player.animationDistance or 0,Config.player.walkPixelsPerFrame)
     else

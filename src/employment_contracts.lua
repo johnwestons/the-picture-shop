@@ -2,6 +2,26 @@
 local Contracts = {}
 local function finite(n) return type(n)=="number" and n==n and math.abs(n)<1e9 end
 local function integer(n,low,high) return finite(n) and n==math.floor(n) and n>=low and n<=high end
+local shiftPreferences={day=true,night=true,flexible=true}
+function Contracts.validShiftPreference(value)
+    return type(value)=="string" and shiftPreferences[value]==true
+end
+function Contracts.shiftPreferenceLabel(value)
+    if value=="day" then return "Day shifts only" end
+    if value=="night" then return "Night shifts only" end
+    return "Flexible (day or night)"
+end
+function Contracts.shiftPreferenceDescription(value)
+    if value=="day" then return "day shifts only" end
+    if value=="night" then return "night shifts only" end
+    return "day or night shifts"
+end
+function Contracts.preferenceAllows(value,startHour)
+    if value==nil or value=="flexible" then return true end
+    if not shiftPreferences[value] or not integer(startHour,0,23) then return false end
+    local shift=(startHour>=6 and startHour<18) and "day" or "night"
+    return value==shift
+end
 function Contracts.hasDay(mask, weekday)
     return math.floor(mask / 2^(weekday-1)) % 2 == 1
 end
@@ -51,11 +71,18 @@ function Contracts.onShift(t,hours)
         and hours>=startAt and hours<startAt+Contracts.duration(t)
 end
 function Contracts.shiftDay(t,hours) return math.floor((hours-t.startHour)/24) end
-function Contracts.summary(t)
+function Contracts.formatHour(hour,twelveHour)
+    if twelveHour then
+        return string.format("%d:00 %s",(hour-1)%12+1,hour<12 and "AM" or "PM")
+    end
+    return string.format("%02d:00",hour)
+end
+function Contracts.summary(t,twelveHour)
     local names={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"}
     local days={}
     for i,name in ipairs(names) do if Contracts.hasDay(t.days,i) then days[#days+1]=name end end
-    return string.format("$%.2f/hr | %s | %02d:00-%02d:00%s | Pay %dw",t.wageCents/100,table.concat(days," "),t.startHour,t.endHour,
+    return string.format("$%.2f/hr | %s | %s-%s%s | Pay %dw",t.wageCents/100,table.concat(days," "),
+        Contracts.formatHour(t.startHour,twelveHour),Contracts.formatHour(t.endHour,twelveHour),
         t.endHour<t.startHour and " (+1 day)" or "",t.payWeeks)
 end
 function Contracts.paydayForWeek(t,week)

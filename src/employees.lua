@@ -9,8 +9,8 @@ local WorkerCatalog=require("src.worker_catalog")
 local Employees={}
 local trainingSkills={
     cutter={field="cutterSkill",label="paper cutter",model="polar_115",minimum=0},
-    press={field="pressSkill",label="printing press",model="heidelberg_10x15",minimum=60},
-    wrapping={field="wrappingSkill",label="pallet wrapping",model="skid_wrapper",minimum=50},
+    press={field="pressSkill",label="printing press",model="heidelberg_10x15",minimum=40},
+    wrapping={field="wrappingSkill",label="pallet wrapping",model="skid_wrapper",minimum=25},
 }
 local trainingHoursPerPoint=.16
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
@@ -42,9 +42,12 @@ local function validActor(a)
         and (a.moving==nil or type(a.moving)=="boolean")
         and (a.workFrame==nil or int(a.workFrame,1,4))
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
+        and (a.greetingKind==nil or int(a.greetingKind,1,3))
+        and (a.greetingUntilHours==nil or number(a.greetingUntilHours,0,1e12))
 end
 function Employees.defaultState(now)
     return {version=6,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+        teamSchedule=Schedule.defaultState(true),
         nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={}}
 end
 function Employees.ensure(state)
@@ -66,13 +69,15 @@ end
 function Employees.valid(e)
     if type(e)~="table" or e.version~=6 or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
-        or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12) then return false end
+        or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12)
+        or (e.teamSchedule~=nil and not Schedule.valid(e.teamSchedule,true)) then return false end
     local ids={}
     local function profile(p)
         return type(p)=="table" and text(p.name) and #p.name>0 and WorkerCatalog.valid(p.character)
             and int(p.cutterSkill,1,100) and int(p.pressSkill,0,100) and int(p.wrappingSkill,0,100)
             and int(p.attention,1,100) and int(p.reliability,1,100)
             and int(p.requestedWage,1000,10000) and int(p.minimumWage,1000,10000)
+            and (p.shiftPreference==nil or Contracts.validShiftPreference(p.shiftPreference))
     end
     if not array(e.applications,24,function(a)
         if not profile(a) or not token(a.id) or ids[a.id] or not states[a.status]
@@ -125,6 +130,59 @@ function Employees.valid(e)
         ids[w.id]=true return true
     end)
 end
+local function migrateSchedulesToTeam(employment)
+    local team=employment.teamSchedule
+    if type(employment.staff)~="table" or not Schedule.valid(team,true) then return false end
+    local byJob,usedIds,pending={}, {}, {}
+    for _,row in ipairs(team.items) do byJob[row.jobId]=row;usedIds[row.id]=true end
+    for _,row in ipairs(team.history) do usedIds[row.id]=true end
+    local function allocateId(preferred)
+        local serial=type(preferred)=="string" and tonumber(preferred:match("^TEAM%-TASK%-(%d+)$"))
+        if serial and serial>=1 and serial<1000000 and not usedIds[preferred] then
+            team.nextId=math.max(team.nextId,serial+1)
+            usedIds[preferred]=true
+            return preferred
+        end
+        if team.nextId>=1000000 then return nil end
+        local id=string.format("TEAM-TASK-%06d",team.nextId)
+        team.nextId=team.nextId+1;usedIds[id]=true
+        return id
+    end
+    for workerIndex,w in ipairs(employment.staff) do
+        local q=w.schedule or Schedule.defaultState()
+        w.schedule=q
+        if not Schedule.valid(q) then return false end
+        local kept,removed={},false
+        for itemIndex,row in ipairs(q.items) do
+            if type(row)~="table" then return false end
+            local shared=byJob[row.jobId]
+            if not shared then
+                local id=allocateId(row.teamTaskId)
+                if not id then return false end
+                shared={id=id,jobId=row.jobId,machineId=row.machineId,addedAtHours=row.addedAtHours}
+                byJob[row.jobId]=shared
+                pending[#pending+1]={row=shared,addedAtHours=row.addedAtHours,
+                    workerIndex=workerIndex,itemIndex=itemIndex}
+            end
+            local assigned=w.assignment and w.assignment.scheduleItemId==row.id
+            if assigned then
+                row.teamTaskId=shared.id;row.teamWorkerId=w.id
+                kept[#kept+1]=row
+            else
+                removed=true
+            end
+        end
+        if removed then q.items=kept;q.revision=q.revision+1 end
+    end
+    table.sort(pending,function(a,b)
+        if a.addedAtHours~=b.addedAtHours then return a.addedAtHours<b.addedAtHours end
+        if a.workerIndex~=b.workerIndex then return a.workerIndex<b.workerIndex end
+        return a.itemIndex<b.itemIndex
+    end)
+    for _,entry in ipairs(pending) do team.items[#team.items+1]=entry.row end
+    if #pending>0 then team.revision=team.revision+1 end
+    return #team.items<=Schedule.MAX_TEAM_JOBS
+end
 function Employees.normalize(e,now)
     if e==nil then return Employees.defaultState(now) end
     if type(e)~="table" then return nil end
@@ -172,9 +230,26 @@ function Employees.normalize(e,now)
         for _,w in pairs(result.staff) do if not skills(w) then return nil end end
         for _,a in pairs(result.applications) do if not skills(a) then return nil end end
     end
+    if result.version==6 and result.teamSchedule==nil then
+        result.teamSchedule=Schedule.defaultState(true)
+    end
+    if result.version==6 and not migrateSchedulesToTeam(result) then return nil end
+    if result.version==6 then
+        local function normalizePreferences(people)
+            if type(people)~="table" then return end
+            for _,person in ipairs(people) do
+                if type(person)=="table" and person.shiftPreference==nil then
+                    person.shiftPreference="flexible"
+                end
+            end
+        end
+        normalizePreferences(result.applications)
+        normalizePreferences(result.staff)
+    end
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock,w._trainingClock,w._trainingMachineId=nil,nil,nil,nil,nil
+        w.greetingKind,w.greetingUntilHours=nil,nil
         w._scheduleRetryAtHours,w._blockedWorkHours,w._waitingMachineId=nil,nil,nil
         w._palletApproachKey,w._palletApproachPoint,w._palletDropKey,w._palletDropPoint=nil,nil,nil,nil
         if w.assignment then
@@ -210,7 +285,8 @@ function Employees.createApplicant(state,now)
     local a={id=string.format("APP-%04d",n),name=profile.name,character=profile.character,
         cutterSkill=profile.cutterSkill,attention=profile.attention,
         pressSkill=profile.pressSkill,wrappingSkill=profile.wrappingSkill,
-        reliability=profile.reliability,requestedWage=profile.requestedWage,
+        reliability=profile.reliability,shiftPreference=profile.shiftPreference or "flexible",
+        requestedWage=profile.requestedWage,
         minimumWage=profile.minimumWage,revision=1,counters=0,status="visiting",
         createdAtHours=now,actor=actor()}
     e.applications[#e.applications+1]=a
@@ -237,8 +313,9 @@ function Employees.advance(state,now)
         if a.status=="resume_requested" and a.replyAtHours<=now then
             a.status="resume_received";a.replyAtHours=nil;a.revision=a.revision+1
             notice(state,a,"RESUME","Resume attached: production operator",
-                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, attention %d/100, reliability %d/100. Day or night shifts are negotiable and I ask $%.2f/hr. Open my resume to discuss days, hours and pay cycle.",
-                    a.cutterSkill,a.pressSkill,a.wrappingSkill,a.attention,a.reliability,a.requestedWage/100))
+                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, attention %d/100, reliability %d/100. I prefer %s and ask $%.2f/hr. Open my resume to discuss days, hours and pay cycle.",
+                    a.cutterSkill,a.pressSkill,a.wrappingSkill,a.attention,a.reliability,
+                    Contracts.shiftPreferenceDescription(a.shiftPreference),a.requestedWage/100))
             changed=true
         elseif a.status=="negotiating" and a.replyAtHours<=now then
             a.replyAtHours=nil;a.revision=a.revision+1;a.expiresAtHours=now+72
@@ -273,6 +350,7 @@ function Employees.command(state,intent,now)
     elseif intent.kind=="request_resume" then return Employees.requestResume(state,intent.applicationId,now)
     elseif intent.kind=="pay_wages" then return Payroll.pay(state,now,false)
     end
+    if Schedule.isTeamIntent(intent.kind) then return Schedule.teamCommand(state,intent,now) end
     local a=intent.applicationId and Employees.application(state,intent.applicationId)
     if intent.kind=="decline_application" then
         if not a or a.status=="hired" then return false,"That application is already closed." end
@@ -284,6 +362,10 @@ function Employees.command(state,intent,now)
         if not Contracts.validTerms(terms) then return false,"Choose $10-$100/hr, a 4-12 hour shift and a 1-4 week pay cycle." end
         if not a or (a.status~="resume_received" and a.status~="offer_accepted" and a.status~="negotiating") then return false,"Request the resume before making an offer." end
         if a.revision~=intent.expectedRevision then return false,"The applicant replied. Review the latest terms before sending." end
+        if not Contracts.preferenceAllows(a.shiftPreference,terms.startHour) then
+            return false,a.name.." prefers "..Contracts.shiftPreferenceDescription(a.shiftPreference)
+                ..". Adjust the offer's start time to match."
+        end
         if Contracts.same(terms,a.offer) then return true,"These terms were already sent; no extra negotiation round was used." end
         if a.counters>=3 then return false,"The three-offer negotiation limit has been reached." end
         a.offer=terms;a.counter=nil;a.status="negotiating";a.counters=a.counters+1
@@ -337,6 +419,14 @@ function Employees.command(state,intent,now)
         return true,string.format("%s started paid on-shift %s training (%g paid hours). Normal wages apply.",
             w.name,plan.label,plan.remainingHours)
     end
+    if intent.kind=="cancel_employee_training" then
+        if not w.training then return false,"This employee does not have an active training course." end
+        local label=w.training.skill=="cutter" and "paper-cutter"
+            or w.training.skill=="press" and "printing-press" or "pallet-wrapping"
+        w.training=nil;w._trainingClock=nil;w._trainingMachineId=nil
+        w.phase="idle";w.activity="Training cancelled"
+        return true,w.name.." cancelled "..label.." training. Earned wages remain due."
+    end
     if intent.kind=="send_employee_home" then
         local shiftDay=Contracts.shiftDay(w.contract,now)
         if w.sentHomeShiftDay==shiftDay then return true,"This employee is already heading home for today." end
@@ -357,8 +447,11 @@ function Employees.command(state,intent,now)
         for _,p in ipairs(job and job.pallets or {}) do if p.id==intent.palletId then pallet=p end end
         local machine=Fleet.byId(state,intent.machineId)
         if not job or not pallet or not pallet.paper or not machine or machine.modelId~="polar_115" or machine.status~="installed" then return false,"Choose an accepted job, its pallet, and an installed cutter." end
-        if (job.difficulty=="hard" and w.cutterSkill<80) or (job.difficulty=="medium" and w.cutterSkill<50) then return false,"This job needs a more skilled cutter operator." end
+        if not Schedule.stockArrived(job) then return false,"Wait until every skid for this job has been unloaded at the shop." end
         if (pallet.status=="cut" or pallet.status=="printed" or pallet.status=="wrapped") or (pallet.remainingSheets or 0)<=0 and pallet.location~="at_cutter" then return false,"This pallet no longer needs cutting." end
+        local skilled,skillReason=Schedule.skillAllows(w,job,"cutter")
+        if not skilled then return false,skillReason=="Required cutter skill"
+            and "This employee needs more paper-cutting skill for this job." or "This employee is not trained for this cutter job." end
         for _,other in ipairs(e.staff) do if other~=w and other.assignment
             and (other.assignment.machineId==machine.id or other.assignment.palletId==pallet.id) then return false,"Another employee is assigned to that cutter or pallet." end end
         if Schedule.claimed(state,w,job.id) then return false,"This job is queued for another employee." end
@@ -373,7 +466,7 @@ end
 function Employees.isIntent(kind)
     return Schedule.isIntent(kind) or ({recruit_workers=true,request_resume=true,offer_employee=true,hire_employee=true,
         decline_application=true,assign_employee=true,unassign_employee=true,pay_wages=true,dismiss_employee=true,
-        send_employee_home=true,train_employee=true})[kind]==true
+        send_employee_home=true,train_employee=true,cancel_employee_training=true})[kind]==true
 end
 function Employees.reservation(state,machineId,palletId,excludeEmployeeId)
     for _,w in ipairs(Employees.ensure(state).staff) do

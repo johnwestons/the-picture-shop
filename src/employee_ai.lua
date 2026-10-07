@@ -8,6 +8,7 @@ local Calendar=require("src.business_calendar")
 local PlayerController=require("src.player_controller")
 local Navigation=require("src.navigation")
 local Config=require("src.config")
+local Speech=require("src.employee_speech")
 local AI={}
 local paths=setmetatable({},{__mode="k"})
 local entrance={x=645,y=235}
@@ -25,10 +26,15 @@ local function face(a,x,y)
 end
 local function route(a,goal,context,alternativeGoals)
     local step=14
-    local goals=type(alternativeGoals)=="table" and #alternativeGoals>0
+    local candidates=type(alternativeGoals)=="table" and #alternativeGoals>0
         and alternativeGoals or {goal}
     local obstacles=context.obstacles(a)
     local function walk(x,y) return Navigation.isWalkable(context.assets,x,y,obstacles) end
+    local goals={}
+    for _,candidate in ipairs(candidates) do
+        if walk(candidate.x,candidate.y) then goals[#goals+1]=candidate end
+    end
+    if #goals==0 then return nil end
     local function key(x,y) return x..":"..y end
     local function closestGoalDistance(x,y)
         local best=math.huge
@@ -77,8 +83,12 @@ local function route(a,goal,context,alternativeGoals)
     if not target then return nil end
     local points={targetGoal or goal}
     while target and (target.x~=sx or target.y~=sy) do
-        table.insert(points,1,{x=target.x*step,y=target.y*step})
+        points[#points+1]={x=target.x*step,y=target.y*step}
         target=parents[key(target.x,target.y)]
+    end
+    for index=1,math.floor(#points/2) do
+        local other=#points-index+1
+        points[index],points[other]=points[other],points[index]
     end
     return points,targetGoal or goal
 end
@@ -90,6 +100,7 @@ function AI.findReachablePoint(actor,goals,context)
     return {x=goal.x,y=goal.y}
 end
 function AI.move(a,goal,dt,context)
+    local motionDt=math.max(0,dt*(tonumber(context.motionScale) or 1))
     if distance(a,goal)<3 then stop(a);return true,false end
     local cached=paths[a]
     if not cached or distance(cached.goal,goal)>2 or cached.blocked>1 then
@@ -97,7 +108,7 @@ function AI.move(a,goal,dt,context)
         paths[a]=cached
     end
     if not cached.points or #cached.points==0 then
-        stop(a);cached.blocked=cached.blocked+dt;return false,cached.blocked>.4
+        stop(a);cached.blocked=cached.blocked+motionDt;return false,cached.blocked>.4
     end
     local target=cached.points[1]
     if distance(a,target)<5 then table.remove(cached.points,1);target=cached.points[1] or goal end
@@ -106,7 +117,7 @@ function AI.move(a,goal,dt,context)
     local beforeIntentX,beforeIntentY=a.intentX,a.intentY
     a.animationDistance=a.distance
     local priorIdle=a.idleClock
-    PlayerController.update(a,target.x-a.x,target.y-a.y,dt,function(x,y,nx,ny)
+    PlayerController.update(a,target.x-a.x,target.y-a.y,motionDt,function(x,y,nx,ny)
         return Navigation.canMoveFrom(context.assets,x,y,nx,ny,obstacles)
     end,motion)
     local moved=math.sqrt((a.x-beforeX)^2+(a.y-beforeY)^2)
@@ -115,7 +126,7 @@ function AI.move(a,goal,dt,context)
         face(a,a.x-beforeX,a.y-beforeY);a.idleClock=0;cached.blocked=0
     else
         a.intentX,a.intentY=beforeIntentX,beforeIntentY
-        a.idleClock=priorIdle+dt;cached.blocked=cached.blocked+dt
+        a.idleClock=priorIdle+motionDt;cached.blocked=cached.blocked+motionDt
     end
     return distance(a,goal)<3,cached.blocked>.4
 end
@@ -222,6 +233,9 @@ local function trainingStep(state,w,dt,hours,context)
     return true
 end
 function AI.worker(state,w,dt,now,context)
+    if w.greetingUntilHours and now>=w.greetingUntilHours then
+        w.greetingKind,w.greetingUntilHours=nil,nil
+    end
     local day=Contracts.shiftDay(w.contract,now)
     local onShift=w.status=="employed" and not w.terminationRequested
         and w.sentHomeShiftDay~=day and Contracts.onShift(w.contract,now)
@@ -229,6 +243,8 @@ function AI.worker(state,w,dt,now,context)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
     if onShift and not w.visible then
         w.visible=true;w.phase="entering";w.x,w.y=entrance.x,entrance.y;w.clockedIn=true
+        w.greetingKind=now%24<12 and 1 or 2
+        w.greetingUntilHours=now+Speech.GREETING_SECONDS*24/Calendar.secondsPerDay(state)
         w.activity=w.assignment and "Resuming unfinished job" or "Arriving for shift"
         if w.shiftDay~=day then w.shiftDay=day;w.breaksTaken=0;w.fatigue=math.max(0,w.fatigue-60);w.focus=math.min(100,w.focus+50) end
     end
@@ -246,6 +262,10 @@ function AI.worker(state,w,dt,now,context)
             if w.stopRequested then w.assignment=nil;w.stopRequested=false end
             if not onShift then
                 local rolledOver=Schedule.rollover(state,w,now)
+                if w.phase~="leaving" then
+                    w.greetingKind=3
+                    w.greetingUntilHours=now+Speech.GREETING_SECONDS*24/Calendar.secondsPerDay(state)
+                end
                 w.phase="leaving";w.clockedIn=false
                 w.activity=rolledOver and "Handing unfinished jobs to the next shift"
                     or (w.assignment and "Off shift - unfinished job resumes next working shift" or "Shift ended")
@@ -255,7 +275,8 @@ function AI.worker(state,w,dt,now,context)
         end
     end
     if w.phase=="leaving" then
-        if AI.move(w,entrance,dt,context) then
+        if AI.move(w,entrance,dt,context)
+            and (not w.greetingUntilHours or now>=w.greetingUntilHours) then
             w.visible=false;w.phase="hidden";w.clockedIn=false;stop(w)
             if w.terminationRequested then w.status=w.resigning and "resigned" or "dismissed" end
         end
@@ -293,18 +314,25 @@ function AI.worker(state,w,dt,now,context)
             if w.assignment then
                 local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,
                     palletApproachPoint=context.palletApproachPoint,palletDropPoint=context.palletDropPoint,
+                    machinePalletDropPoint=context.machinePalletDropPoint,
                     palletEmergencyDropPoint=context.palletEmergencyDropPoint,
                     move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
                 local changed,blockedReason=Work.update(state,w,dt,workContext)
                 local deferred=false
-                if blockedReason=="Machine access is blocked" and w.assignment and Work.safe(w,state) then
+                if blockedReason=="Machine access is blocked" and w.assignment
+                    and not w.assignment.scheduleItemId and Work.safe(w,state) then
                     Work.release(state,w)
                     w.assignment=nil
                     w._scheduleRetryAtHours=now+.1
                 end
                 if blockedReason and w.assignment and w.assignment.scheduleItemId then
                     w._blockedWorkHours=(w._blockedWorkHours or 0)+hours
-                    if w._blockedWorkHours>=.1 and w.schedule and #w.schedule.items>1 and Work.safe(w,state) then
+                    local q=Schedule.ensure(w)
+                    local row=q.items[1]
+                    local shared=row and row.id==w.assignment.scheduleItemId and row.teamTaskId
+                    local team=shared and Schedule.team(state)
+                    local hasNext=(team and #team.items>1) or #q.items>1
+                    if w._blockedWorkHours>=.1 and hasNext and Work.safe(w,state) then
                         if Work.release(state,w) and Schedule.deferBlocked(state,w) then
                             stop(w);deferred=true
                         end

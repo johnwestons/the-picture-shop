@@ -32,13 +32,14 @@ class RuntimeSourcePackageTests(unittest.TestCase):
 
     def test_all_live_literal_source_paths_are_included(self) -> None:
         for relative in ("src/config.lua", "src/screens/pallet_rack_screen.lua",
-                         "src/warehouse_renderer.lua", "src/warehouse_rack_presentation.lua"):
+                         "src/warehouse_renderer.lua", "src/warehouse_rack_presentation.lua",
+                         "src/warehouse_breakroom_presentation.lua"):
             text = (package.ROOT / relative).read_text(encoding="utf-8")
             for asset in re.findall(r'"(assets/source/[^"\n]+\.png)"', text):
                 self.assertIn(asset, package.RUNTIME_SOURCE_ASSETS, relative)
         self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "pallet-front-variants-v2-candidate.png",
                       package.RUNTIME_SOURCE_ASSETS)
-        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v6-triangle-fit-candidate.png",
+        self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v9-perspective-candidate.png",
                       package.RUNTIME_SOURCE_ASSETS)
         self.assertNotIn(package.WAREHOUSE_SOURCE_ROOT + "rack-world-left-v2.png",
                          package.RUNTIME_SOURCE_ASSETS)
@@ -55,7 +56,7 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         for stage in range(1, 5):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + f"construction/left-storage-stage-{stage}.png",
                           package.RUNTIME_SOURCE_ASSETS)
-        for asset in ("rooms/breakroom-triangle-v5-candidate.png",
+        for asset in ("rooms/breakroom-triangle-v6-perspective-candidate.png",
                       "rooms/breakroom-construction-atlas-v1.png",
                       "rooms/floor-construction-atlas-v2-clean.png"):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + asset, package.RUNTIME_SOURCE_ASSETS)

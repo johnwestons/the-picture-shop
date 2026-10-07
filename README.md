@@ -147,13 +147,17 @@ Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is
 
 Choose a writable save, then use **LOCAL PLAY > HOST THIS SHOP** on Windows or Android. Up to three
 Windows/Android workers can join the host's displayed IPv4 address over normal Wi-Fi or a compatible
-phone hotspot. Local Play also works over a USB-C cable when Android presents USB tethering as a local
-Ethernet link: connect a data-capable cable, enable **USB tethering** in Android settings, then host or
-join as usual. Wi-Fi and mobile data can stay off; the game traffic stays on the cable's local network.
-Windows-to-Android uses the Windows USB Ethernet/RNDIS adapter. Android-to-Android depends on both phone
-models supporting a USB Ethernet host/client link; Local Play uses any such link the operating systems
-make available. Discovery checks active IPv4 interfaces and their subnets, with manual local-IP entry as
-a fallback. The host alone owns and saves the shop; guests receive the live shop and can move,
+phone hotspot. The Local Play screen lets guests search automatically, limit discovery to Wi-Fi or USB
+tethering, or enter a host IPv4 address manually. It shows the addresses the operating system assigned
+to this device and can auto-join when enabled and exactly one compatible shop is found.
+
+For USB-C, use a data-capable cable and turn on **USB tethering** in Android settings (usually under
+Network & Internet or Connections, then Hotspot & tethering). The game displays the USB Ethernet address
+only after Android and the connected device establish a network link; if no USB address appears, the
+operating system has not created that link yet. Wi-Fi and mobile data can stay off, and game traffic stays
+on the cable's local network. Windows-to-Android uses the Windows USB Ethernet/RNDIS adapter.
+Android-to-Android depends on both phone models supporting a USB Ethernet host/client link. Discovery
+checks active IPv4 interfaces and their subnets. The host alone owns and saves the shop; guests receive the live shop and can move,
 operate the dock door, talk to clients, use the office computer and skid wrapper, inspect pallet work
 orders read-only, run the Polar cutter's production and safety controls, and share the host-authoritative
 pallet jack. They can also operate the complete Windmill console: plate preparation, six host-scored setup
@@ -373,10 +377,17 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - A cutting job accepts 1–5 customer pallets with 500–3,000 sheets on each pallet.
 - The largest incoming parent sheet is 25×25 inches, and the finished size must fit the parent sheet.
 - The Polar lift capacity is 500 sheets. A partial final lift is allowed and billed as a full lift.
-- Each lift is quoted at $150. Five 3,000-sheet pallets therefore quote at $4,500.
+- The base cutting rate is $150 per lift. Five 3,000-sheet pallets have a $4,500 base quote before
+  reputation, difficulty, printing, and employee cost adjustments.
 - New shops begin at 0 (Unrated) with small trial work. Completed pickups build a saved -100–100 reputation that
   unlocks larger, higher-paying jobs. Established shops sometimes attract demanding premium clients who
   pay more but apply a larger reputation penalty when their stock is spoiled.
+- Unrated and New Shop offers stay easy. Reliable shops begin receiving medium work; Established and Premier
+  shops can receive hard work. Repeat-client emails follow the same progression and start with one small pallet.
+  Easy jobs require cutter 0 and wrapping 25; medium jobs require cutter 50 and wrapping 50; hard jobs require
+  cutter 80 and wrapping 70. Printing adds press 40/60/80 for easy/medium/hard work, with two-color jobs
+  requiring at least press 60. Training and stronger applicants bridge each step. The reception ticket and
+  shared schedule show the required skills before the player commits staff to an order.
 - Optional Original Heidelberg 10x15 printing work adds a separate cost budget for processed plates,
   ink, chemistry, tympan, makeready, wash-up, labor and machine overhead. The machine's 5,500-impression/hour
   maximum is retained as a specification while quotes use a conservative 3,000 sellable impressions/hour.

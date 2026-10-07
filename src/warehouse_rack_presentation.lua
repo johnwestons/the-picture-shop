@@ -3,8 +3,10 @@
 -- and authored foreground mask around the right-bay anchor.
 local Layout=require("src.warehouse_layout")
 local Presentation={}
-local PATH="assets/source/warehouse-expansion-v1/rack-world-left-v6-triangle-fit-candidate.png"
-local WIDTH,HEIGHT,ORIGIN_X,ORIGIN_Y,SCALE_X,SCALE_Y=1536,1024,766.5,634,0.109,0.1875
+local PATH="assets/source/warehouse-expansion-v1/rack-world-left-v9-perspective-candidate.png"
+-- Near-uniform registration of the redraw: the old rack was squeezed to
+-- less than half this width. Source plate contacts were measured in RGBA.
+local WIDTH,HEIGHT,ORIGIN_X,ORIGIN_Y,SCALE_X,SCALE_Y=1254,1254,59.1,475.5,272/958.4,191.35/695.8
 local BAY_IDS={front_left=true,front_right=true}
 local function copy(value)
     if type(value)~="table" then return value end
@@ -16,21 +18,21 @@ end
 local function frontMask()
     local polygons={
         -- Authored front-face sections of the two straight orange shelf beams.
-        {145,117,1400,631,1385,670,130,156},
-        {145,357,1400,872,1384,923,129,408},
+        {60,156,1018,852,1018,884,60,188},
+        {60,405,1018,1111,1018,1145,60,439},
     }
     -- The six front uprights are painted over stored loads after their back
     -- faces and the canonical pallet sprites have been drawn.
-    for _,x in ipairs({145,397,650,903,1156,1390}) do
-        polygons[#polygons+1]={x-22,20,x+22,20,x+22,1008,x-22,1008}
+    for _,x in ipairs({59,249,441,635,824,1018}) do
+        polygons[#polygons+1]={x-14,20,x+14,20,x+14,1200,x-14,1200}
     end
     return polygons
 end
 local function registration(bayId)
     local bay=Layout.bay(bayId)
     local mirror=bayId=="front_right"
-    local worldX=(bay.rackStart.x+bay.rackEnd.x)/2
-    local worldY=(bay.rackStart.y+bay.rackEnd.y)/2
+    local worldX=bay.rackGroundPosts[1].x
+    local worldY=bay.rackGroundPosts[1].y
     local direction=mirror and -1 or 1
     local slots={{},{}}
     for row=1,2 do for column=1,5 do
@@ -42,7 +44,7 @@ local function registration(bayId)
     end end
     return {textureWidth=WIDTH,textureHeight=HEIGHT,x=worldX,y=worldY,
         originX=ORIGIN_X,originY=ORIGIN_Y,scale=SCALE_X,scaleX=SCALE_X,scaleY=SCALE_Y,
-        depthY=math.max(bay.rackStart.y,bay.rackEnd.y),
+        depthY=bay.rackGroundPosts[6].y,
         mirrorX=mirror,slots=slots,frontPolygons=frontMask()}
 end
 local catalog={}

@@ -136,22 +136,12 @@ local function remoteServiceKitRaceRecovers(context)
         tostring(released.message))
 end
 
-local function upvalue(fn, targetName)
-    if type(fn) ~= "function" or not debug or not debug.getupvalue then return nil end
-    for index = 1, 64 do
-        local name, value = debug.getupvalue(fn, index)
-        if not name then break end
-        if name == targetName then return index, value end
-    end
-end
-
 local function runHostTransportFailureCleanupRegression(context, check)
     local App = require("src.app")
-    local _, updateMultiplayer = upvalue(App.update, "updateMultiplayer")
-    local _, handleMultiplayerEvents = upvalue(
-        updateMultiplayer, "handleMultiplayerEvents")
-    local authorityIndex, previousAuthority = upvalue(
-        handleMultiplayerEvents, "workshopAuthority")
+    local runtime = assert(context.appRuntime, "App runtime is required for this integration check")
+    local updateMultiplayer = runtime.updateMultiplayer
+    local handleMultiplayerEvents = runtime.handleMultiplayerEvents
+    local previousAuthority = runtime.workshopAuthority
     local authority = context.createWorkshopAuthority()
     local player = {
         id = 2,
@@ -171,8 +161,8 @@ local function runHostTransportFailureCleanupRegression(context, check)
     local originalDrainEvents, originalStop = multiplayer.drainEvents, multiplayer.stop
     local previousScreen = context.state.screen
     local stopCalled = false
-    if authorityIndex and lease.accepted then
-        debug.setupvalue(handleMultiplayerEvents, authorityIndex, authority)
+    if lease.accepted then
+        runtime.workshopAuthority = authority
     end
     multiplayer.drainEvents = function()
         return { { type = "disconnected", message = "Synthetic host transport failure" } }
@@ -182,12 +172,7 @@ local function runHostTransportFailureCleanupRegression(context, check)
         return true
     end
     local handled, handleError = pcall(handleMultiplayerEvents)
-    local authorityAfterEvent
-    if authorityIndex then
-        local ignored
-        ignored, authorityAfterEvent = debug.getupvalue(
-            handleMultiplayerEvents, authorityIndex)
-    end
+    local authorityAfterEvent = runtime.workshopAuthority
     local authorityCleared = authorityAfterEvent == nil
         and authority:leaseForResource("windmill") == nil
     local stoppedSafely = process.status == "approved"
@@ -195,15 +180,13 @@ local function runHostTransportFailureCleanupRegression(context, check)
     local routedToLan = context.state.screen == "lan"
 
     multiplayer.drainEvents, multiplayer.stop = originalDrainEvents, originalStop
-    if authorityIndex then
-        debug.setupvalue(handleMultiplayerEvents, authorityIndex, previousAuthority)
-    end
+    runtime.workshopAuthority = previousAuthority
     context.state.screen = previousScreen
     process.status = "idle"
     process.motor, process.feeder, process.impression = false, false, false
 
     check("app_host_transport_failure_clears_authority_and_stops_windmill_controls",
-        updateMultiplayer and handleMultiplayerEvents and authorityIndex
+        updateMultiplayer and handleMultiplayerEvents
         and lease.accepted and handled and handleError == nil
         and stopCalled and routedToLan and authorityCleared and stoppedSafely,
         tostring(handleError))

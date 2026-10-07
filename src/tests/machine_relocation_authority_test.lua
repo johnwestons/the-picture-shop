@@ -102,11 +102,21 @@ function Test.run(context, check)
             and f.state.palletJack.operatorPlayerId == 2
             and f.saves() == 1)
 
-        local beforeX = poseAfterMove[kind].x
+        local beforeX, beforeY = poseAfterMove[kind].x, poseAfterMove[kind].y
+        local gaitBefore = context.PalletJack.animationDistance(f.state, context.config.palletJack)
+        context.world.player.id = 1
+        context.world.update(1 / 60, -1, 0, context.assets, f.state)
+        check("machine_relocation_" .. kind .. "_host_walking_cannot_drive_guest_machine",
+            f.state[kind].x == beforeX and f.state[kind].y == beforeY
+            and f.state.palletJack.x == beforeX and f.state.palletJack.y == beforeY + 8
+            and context.PalletJack.animationDistance(f.state, context.config.palletJack) == gaitBefore)
         context.world.updateNetworkPalletJack(
             f.worker, 0.12, 1, 0, context.assets, f.state)
         local afterMotion = context.world.networkMachinePoseSnapshot(f.state)
         local jackXAfterMotion = f.state.palletJack.x
+        check("machine_relocation_" .. kind .. "_gait_tracks_realized_motion",
+            jackXAfterMotion > beforeX and math.abs(context.PalletJack.animationDistance(
+                f.state, context.config.palletJack) - gaitBefore - (jackXAfterMotion - beforeX)) < .0001)
         local rotated = command(f, moved, 3, "rotate_machine")
         local grid = context.world.placementGridSnapshot(f.state, context.assets)
         local selected = grid and grid.selected

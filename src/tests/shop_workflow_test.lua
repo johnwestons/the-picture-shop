@@ -23,6 +23,8 @@ local function hours(s,h)
 end
 local function hire(s,terms)
     local a=Employees.createApplicant(s,0)
+    -- Payroll scenarios exercise arbitrary shift terms at a fixed wage.
+    a.shiftPreference="flexible"
     Employees.requestResume(s,a.id,0);Employees.advance(s,.5)
     assert(Employees.command(s,{kind="offer_employee",applicationId=a.id,expectedRevision=a.revision,
         wageCents=terms.wageCents,days=terms.days,startHour=terms.startHour,endHour=terms.endHour,payWeeks=terms.payWeeks},.5))

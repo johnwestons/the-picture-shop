@@ -57,7 +57,7 @@ function Clock.hitWall(x,y)
     return (x-c.wallX)^2+(y-c.wallY)^2<=(c.clockRadius+8)^2
 end
 function Clock.closeHit(x,y) return Ui.contains(close,x,y) end
-function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointerX,pointerY,drawComputerButton)
+function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointerX,pointerY,drawComputerButton,twelveHourTime)
     local x,y,w,h=rect.x,rect.y,rect.width,rect.height
     Ui.box(x,y,w,h,{.055,.085,.095,.99},{.42,.64,.61,1},5)
     love.graphics.setColor(.96,.83,.33,1);love.graphics.printf("SHOP CLOCK",x+16,y+16,w-32,"center")
@@ -97,7 +97,7 @@ function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointer
             or "Only the host can change game speed.",x+24,y+228,w-48,"center")
     else
         love.graphics.setColor(1,.90,.52,1)
-        love.graphics.printf(Calendar.timeText(state,true).."  /  "..Calendar.timeText(state),x+16,y+65,w-32,"center")
+        love.graphics.printf(Calendar.timeText(state,twelveHourTime),x+16,y+65,w-32,"center")
         local radius=h>460 and 147 or 120
         Clock.drawFace(state,x+w/2,y+98+radius,radius)
     end
@@ -105,9 +105,9 @@ function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointer
     love.graphics.printf(string.format("At 1x, one game day = %d real minutes",Calendar.secondsPerDay(state)/60),x+16,y+h-49,w-32,"center")
     love.graphics.printf("Employee shifts and wages follow this shop time.",x+16,y+h-27,w-32,"center")
 end
-function Clock.draw(state,pointerX,pointerY)
+function Clock.draw(state,pointerX,pointerY,twelveHourTime)
     love.graphics.setColor(.005,.015,.02,.80);love.graphics.rectangle("fill",0,0,Config.baseWidth,Config.baseHeight)
-    Clock.drawPanel(state,{x=236,y=106,width=488,height=520})
+    Clock.drawPanel(state,{x=236,y=106,width=488,height=520},nil,nil,nil,nil,nil,nil,twelveHourTime)
     Ui.box(close.x,close.y,close.width,close.height,{.13,.27,.28,1},{.45,.69,.64,1},3)
     love.graphics.setColor(.95,.98,.92,1);love.graphics.printf("BACK",close.x,close.y+14,close.width,"center")
 end

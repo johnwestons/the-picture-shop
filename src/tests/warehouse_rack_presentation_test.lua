@@ -20,7 +20,7 @@ function Test.run(_,check)
         local entry=registered[bayId]
         local valid=Presentation.validateEntry(entry)
         local authored=Presentation.plan(registeredState,bayId,{review=true})
-        test("registered_source_for_"..bayId,valid and entry.path=="assets/source/warehouse-expansion-v1/rack-world-left-v6-triangle-fit-candidate.png")
+        test("registered_source_for_"..bayId,valid and entry.path=="assets/source/warehouse-expansion-v1/rack-world-left-v9-perspective-candidate.png")
         test("registered_unapproved_review_art_for_"..bayId,authored and not authored.approved)
         for column=1,5 do for row=1,2 do
             local actual=authored and Presentation.slotPoint(authored,row,column)

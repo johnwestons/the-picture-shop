@@ -348,6 +348,24 @@ function Discovery:results()
     return results
 end
 
+function Discovery:interfaces()
+    local interfaces = {}
+    for _, interface in ipairs(self.localInterfaces or {}) do
+        if type(interface) == "table" then
+            interfaces[#interfaces + 1] = {
+                address = interface.address,
+                prefixLength = interface.prefixLength,
+                broadcast = interface.broadcast,
+                interfaceName = interface.interfaceName,
+                isUsb = interface.isUsb == true,
+            }
+        elseif type(interface) == "string" then
+            interfaces[#interfaces + 1] = { address = interface }
+        end
+    end
+    return interfaces
+end
+
 function Discovery:status()
     return self.mode, self.message
 end

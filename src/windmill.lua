@@ -386,9 +386,12 @@ function Windmill.verifyArtwork(state)
     return true, job.artwork or { key = job.artworkKey }
 end
 
-function Windmill.approveProof(state)
+function Windmill.approveProof(state, allowLowQuality)
     local p = Windmill.ensure(state)
-    if p.status ~= "proof" or (p.proofQuality or 0) < 0.82 then
+    if p.status ~= "proof" or type(p.proofQuality) ~= "number" then
+        return false, "Pull a proof before approving it."
+    end
+    if p.proofQuality < 0.82 and allowLowQuality ~= true then
         return false, "The proof must score at least 82% before approval."
     end
     if not p.artworkVerified then
@@ -441,8 +444,11 @@ function Windmill.update(dt, state)
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
     local condition = machine and MachineFleet.condition(machine) / 100 or 0
     local setup = setupAverage(p)
+    local plate = Plates.ensureJob(job)[p.colorIndex]
+    local platePenalty = plate and (1 - clamp(plate.quality or 0, 0, 1)) * 0.12 or 0
     local mechanicalPenalty, warning = componentPenalty(machine)
     local wasteRate = clamp(0.01 + (1 - setup) * 0.18 + (1 - condition) * 0.12 + mechanicalPenalty
+        + platePenalty
         + math.max(0, p.speed - 3000) / 25000, 0.01, 0.35)
     local needed = math.max(0, p.targetSheets - p.goodSheets)
     local waste = math.floor(attempted * wasteRate + 0.5)

@@ -3,6 +3,7 @@ local Contracts=require("src.employment_contracts")
 local Payroll=require("src.payroll")
 local Calendar=require("src.business_calendar")
 local Fleet=require("src.machine_fleet")
+local Schedule=require("src.employee_schedule")
 local Ui=require("src.screens.ui")
 local CharacterAssets=require("src.character_assets")
 local Finances=require("src.staff_finances")
@@ -16,7 +17,8 @@ local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payro
     assign=rect(410,518,208,46),pause=rect(410,572,208,42),dismiss=rect(632,572,208,42),
     sendHome=rect(632,518,208,46),
     train=rect(632,478,208,34),trainingPress=rect(410,518,208,46),
-    trainingWrap=rect(632,518,208,46),trainingCutter=rect(410,572,208,42),trainingBack=rect(632,572,208,42),
+    trainingWrap=rect(632,518,208,46),trainingCutter=rect(410,572,208,42),
+    cancelTraining=rect(410,518,430,46),trainingBack=rect(632,572,208,42),
     confirmDismiss=rect(410,518,430,46),cancelDismiss=rect(410,572,430,42),
     wageMinus=rect(412,290,48,44),wagePlus=rect(788,290,48,44),
     startMinus=rect(412,350,48,44),startPlus=rect(562,350,48,44),
@@ -103,6 +105,11 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
     if ui.view~="detail" and hit("back") then ui.view="detail";return {action="hiring_view"} end
     if ui.view=="training" then
         if hit("trainingBack") then ui.view="detail";return {action="hiring_view"} end
+        if hit("cancelTraining") and current.training then
+            local result=send({kind="cancel_employee_training",employeeId=current.id})
+            if result and result.action~="blocked" then ui.view="detail" end
+            return result
+        end
         local skill=hit("trainingCutter") and "cutter"
             or hit("trainingPress") and "press"
             or hit("trainingWrap") and "wrapping"
@@ -111,7 +118,6 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
             if not plan then state.message="That employee has already reached 100 in this skill.";return {action="blocked"} end
             if current.training then state.message="Let the existing on-shift course finish first.";return {action="blocked"} end
             local result=send({kind="train_employee",employeeId=current.id,skill=skill})
-            if result and result.action~="blocked" then ui.view="detail" end
             return result
         end
         return nil
@@ -124,8 +130,15 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         elseif hit("startPlus") then t.startHour=(t.startHour+1)%24
         elseif hit("endMinus") then t.endHour=(t.endHour-1)%24
         elseif hit("endPlus") then t.endHour=(t.endHour+1)%24
-        elseif hit("dayShift") then t.startHour,t.endHour=8,20
-        elseif hit("nightShift") then t.startHour,t.endHour=20,8
+        elseif hit("dayShift") or hit("nightShift") then
+            local startHour=hit("dayShift") and 8 or 20
+            if not Contracts.preferenceAllows(current.shiftPreference,startHour) then
+                state.message=current.name.." prefers "
+                    ..Contracts.shiftPreferenceDescription(current.shiftPreference)
+                    ..". Choose a matching shift."
+                return {action="blocked"}
+            end
+            t.startHour,t.endHour=hit("dayShift") and 8 or 20,hit("dayShift") and 20 or 8
         elseif hit("payMinus") then t.payWeeks=math.max(1,t.payWeeks-1)
         elseif hit("payPlus") then t.payWeeks=math.min(4,t.payWeeks+1)
         elseif hit("send") then
@@ -164,7 +177,10 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         if current.status~="hired" and current.status~="offer_accepted" and hit("decline") then return send({kind="decline_application",applicationId=current.id}) end
         if current.status=="offer_accepted" and hit("sign") then return send({kind="hire_employee",applicationId=current.id,expectedRevision=current.revision}) end
         if (current.status=="resume_received" and hit("offer")) or (current.status=="offer_accepted" and hit("edit")) then
-            local t=current.counter or current.offer or Contracts.terms(current.requestedWage,31,9,17)
+            local startHour=current.shiftPreference=="night" and 21 or 9
+            local endHour=current.shiftPreference=="night" and 5 or 17
+            local t=current.counter or current.offer
+                or Contracts.terms(current.requestedWage,31,startHour,endHour)
             ui.terms={role="cutter",wageCents=t.wageCents,days=t.days,startHour=t.startHour,endHour=t.endHour,payWeeks=t.payWeeks}
             ui.view="offer";return {action="hiring_view"}
         end
@@ -183,7 +199,7 @@ local function button(name,label,x,y,disabled,selectedFlag)
     local primary=selectedFlag or name=="recruit" or name=="resume" or name=="offer"
         or name=="sign" or name=="send" or name=="assignConfirm" or name=="pay"
         or name=="confirmDismiss" or name=="trainingCutter" or name=="trainingPress" or name=="trainingWrap"
-    local danger=name=="decline" or name=="dismiss"
+    local danger=name=="decline" or name=="dismiss" or name=="cancelTraining"
     if hiringButtonRenderer then
         local style=disabled and "disabled"
             or danger and (hover and "dangerHover" or "danger")
@@ -219,6 +235,26 @@ local function line(text,x,y,width,color)
     love.graphics.setColor(color[1],color[2],color[3],1)
     love.graphics.printf(text,x,y,width or 428,"left")
 end
+function Hiring.staffScheduleStatus(state,w)
+    local team=Schedule.team(state)
+    if w.assignment then return w.activity,nil end
+    local count=#team.items
+    local noun=count==1 and "job" or "jobs"
+    if count>0 then
+        local title
+        if not w.training then
+            title=team.enabled and ("Shared schedule | "..count.." "..noun) or "Shared schedule paused"
+        end
+        return title,count.." "..noun.." are on the shared day/night schedule. Qualified workers on either shift take the next ready job."
+    end
+    if w.training then return nil,#team.history>0 and "No jobs remain on the shared day/night schedule."
+        or "No jobs are currently scheduled." end
+    if #team.history>0 then
+        return "Work schedule complete","No jobs remain on the shared day/night schedule."
+    end
+    return team.enabled and "No scheduled work" or "Shared schedule paused",
+        "Add jobs to the shared day/night schedule."
+end
 local function panel(x,y,w,h)
     love.graphics.setColor(.015,.025,.035,1);love.graphics.rectangle("fill",x,y+2,w,h,4,4)
     love.graphics.setColor(.045,.075,.095,1);love.graphics.rectangle("fill",x,y,w,h,4,4)
@@ -226,7 +262,7 @@ local function panel(x,y,w,h)
     love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,4,4)
     love.graphics.setColor(.39,.62,.65,1);love.graphics.line(x+5,y+2,x+w-6,y+2)
 end
-function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWages)
+function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWages,twelveHourTime)
     if canPayWages==nil then canPayWages=true end
     hiringButtonRenderer=buttonRenderer
     local e=Employees.ensure(state)
@@ -312,20 +348,27 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
     if ui.view=="offer" then
         local t=ui.terms
         local f=Finances.summary(state,t,current.cutterSkill)
+        local shiftAllowed=Contracts.preferenceAllows(current.shiftPreference,t.startHour)
         line("SHOP AFTER THIS HIRE",104,448,250,{1,.85,.45})
         line(string.format("All wages + bills: $%.2f / week",f.weeklyFixed),104,472,250)
         line(string.format("Break-even: %d lifts / week",f.breakEvenLifts),104,496,250)
         line(string.format("Payroll reserve: $%.2f",f.cycleReserve),104,520,250)
         line("See PAYROLL > SHOP BUDGET.",104,544,250,{.61,.78,.67})
         button("wageMinus","-",pointerX,pointerY);button("wagePlus","+",pointerX,pointerY)
+        line("Applicant preference: "..Contracts.shiftPreferenceLabel(current.shiftPreference),412,276,426,{.62,.79,.67,1})
         line(string.format("Hourly wage: $%.2f",t.wageCents/100),478,302,292)
         button("startMinus","-",pointerX,pointerY);button("startPlus","+",pointerX,pointerY)
         button("endMinus","-",pointerX,pointerY);button("endPlus","+",pointerX,pointerY)
         line("START",478,338,76);line("END",704,338,76)
-        line(string.format("%02d:00",t.startHour),478,364,76)
-        line(string.format("%02d:00%s",t.endHour,t.endHour<t.startHour and " +1d" or ""),698,364,86)
-        button("dayShift","DAY 08:00-20:00",pointerX,pointerY)
-        button("nightShift","NIGHT 20:00-08:00",pointerX,pointerY)
+        line(Contracts.formatHour(t.startHour,twelveHourTime),478,364,76)
+        line(Contracts.formatHour(t.endHour,twelveHourTime)
+            ..(t.endHour<t.startHour and " +1d" or ""),698,364,86)
+        button("dayShift","DAY "..Contracts.formatHour(8,twelveHourTime).."-"
+            ..Contracts.formatHour(20,twelveHourTime),pointerX,pointerY,
+            not Contracts.preferenceAllows(current.shiftPreference,8))
+        button("nightShift","NIGHT "..Contracts.formatHour(20,twelveHourTime).."-"
+            ..Contracts.formatHour(8,twelveHourTime),pointerX,pointerY,
+            not Contracts.preferenceAllows(current.shiftPreference,20))
         line("Days when the shift starts",412,430,420)
         for i,name in ipairs({"MON","TUE","WED","THU","FRI","SAT","SUN"}) do
             local r=dayRect(i)
@@ -337,8 +380,10 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         button("payMinus","-",pointerX,pointerY);button("payPlus","+",pointerX,pointerY)
         line(string.format("Pay every %d week%s",t.payWeeks,t.payWeeks==1 and "" or "s"),478,500,292)
         line(string.format("Weekly $%.2f | Cycle estimate $%.2f",estimate,estimate*t.payWeeks),412,534,426)
-        line("4-12h shifts. Meals unpaid; rest and overtime paid.",412,552,426,{.61,.78,.67})
-        button("send","EMAIL OFFER",pointerX,pointerY,readOnly or not Contracts.validTerms(t))
+        line(shiftAllowed and "4-12h shifts. Meals unpaid; rest and overtime paid."
+            or "Offer hours do not match this applicant's shift preference.",412,552,426,
+            shiftAllowed and {.61,.78,.67} or {1,.56,.48})
+        button("send","EMAIL OFFER",pointerX,pointerY,readOnly or not Contracts.validTerms(t) or not shiftAllowed)
         return
     elseif ui.view=="assignment" then
         local job,pallet,machine=choices(state,ui)
@@ -382,12 +427,16 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             line(machineBusy and "Finish the current machine cycle before training." or "Wage estimate is shown for each course.",
                 412,464,416,machineBusy and {1,.72,.48,1} or {.61,.78,.67,1})
         end
-        button("trainingCutter","CUTTER "..price(cutterPlan),pointerX,pointerY,
-            readOnly or machineBusy or current.training~=nil or (cutterPlan and not cutterInstalled))
-        button("trainingPress","PRESS "..price(pressPlan),pointerX,pointerY,
-            readOnly or machineBusy or current.training~=nil or (pressPlan and not pressInstalled))
-        button("trainingWrap","WRAP "..price(wrapPlan),pointerX,pointerY,
-            readOnly or machineBusy or current.training~=nil or (wrapPlan and not wrapperInstalled))
+        if current.training then
+            button("cancelTraining","CANCEL TRAINING",pointerX,pointerY,readOnly)
+        else
+            button("trainingCutter","CUTTER "..price(cutterPlan),pointerX,pointerY,
+                readOnly or machineBusy or (cutterPlan and not cutterInstalled))
+            button("trainingPress","PRESS "..price(pressPlan),pointerX,pointerY,
+                readOnly or machineBusy or (pressPlan and not pressInstalled))
+            button("trainingWrap","WRAP "..price(wrapPlan),pointerX,pointerY,
+                readOnly or machineBusy or (wrapPlan and not wrapperInstalled))
+        end
         button("trainingBack","BACK TO STAFF",pointerX,pointerY)
         return
     end
@@ -401,12 +450,12 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         line(string.format("Cutter %d/100  |  Press %d/100\nPallet wrapping %d/100  |  Attention %d  |  Reliability %d",
             current.cutterSkill,current.pressSkill,current.wrappingSkill,current.attention,current.reliability),410,316,326)
         line(string.format("Requested pay: $%.2f/hr",current.requestedWage/100),410,386,426)
-        line("Experience: staged stock, programmed cuts, printing and pallet wrapping. Day or night shifts negotiable.",410,412,426)
+        line("Shift preference: "..Contracts.shiftPreferenceLabel(current.shiftPreference),410,412,426)
         line(labels[current.status] or current.status,410,466,426,{1,.85,.45})
         if current.status=="visiting" then button("resume","REQUEST EMAIL RESUME",pointerX,pointerY,readOnly)
         elseif current.status=="resume_received" then button("offer","NEGOTIATE OFFER",pointerX,pointerY,readOnly)
         elseif current.status=="offer_accepted" then
-            line(Contracts.summary(current.offer),410,488,426)
+            line(Contracts.summary(current.offer,twelveHourTime),410,488,426)
             button("sign","SIGN & HIRE",pointerX,pointerY,readOnly)
             button("edit","RENEGOTIATE",pointerX,pointerY,readOnly)
         end
@@ -414,19 +463,21 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         if current.counter then line(string.format("Counteroffer: $%.2f/hr",current.counter.wageCents/100),410,574,426,{1,.85,.45}) end
     else
         local w=current
-        line(Contracts.summary(w.contract),410,290,426)
-        line(string.format("Cutter %d/100 | Press %d/100 | Wrapping %d/100",w.cutterSkill,w.pressSkill,w.wrappingSkill),410,334,426)
+        line(Contracts.summary(w.contract,twelveHourTime),410,290,426)
+        line("Shift preference: "..Contracts.shiftPreferenceLabel(w.shiftPreference),410,316,426,{.61,.78,.67})
+        line(string.format("Cutter %d/100 | Press %d/100 | Wrapping %d/100",w.cutterSkill,w.pressSkill,w.wrappingSkill),410,340,426)
+        local scheduleStatus,scheduleDetail=Hiring.staffScheduleStatus(state,w)
         line(w.training and string.format("Training: %s (%.1f paid hours left)",w.training.skill,w.training.remainingHours)
-            or w.activity,410,374,426,{1,.85,.45})
+            or scheduleStatus or w.activity,410,374,426,{1,.85,.45})
         local assignedMachine=w.assignment and Fleet.byId(state,w.assignment.machineId)
         line(w.assignment and ("Job "..w.assignment.jobId.."\nPallet "..w.assignment.palletId.."\n"
-            ..(assignedMachine and assignedMachine.name or "Machine").." "..w.assignment.machineId) or "No work assigned",410,404,426)
+            ..(assignedMachine and assignedMachine.name or "Machine").." "..w.assignment.machineId)
+            or scheduleDetail,410,404,426)
         local payday=Calendar.shortDate({calendar=Calendar.dateFromHours(Payroll.nextPayday(w,now))})
         line("Payday: "..payday.." at 09:00 (every "..w.contract.payWeeks.."w)",410,458,426,{.61,.78,.67})
         line(string.format("Wages due $%.2f | Earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,484,214)
         if w.status=="employed" then
-            button("train",w.training and "TRAINING ACTIVE" or "IMPROVE EMPLOYEE SKILLS",pointerX,pointerY,
-                readOnly or w.training~=nil)
+            button("train",w.training and "MANAGE TRAINING" or "IMPROVE EMPLOYEE SKILLS",pointerX,pointerY,readOnly)
             button("assign",w.assignment and "WORK ASSIGNED" or "ASSIGN JOB",pointerX,pointerY,readOnly or w.assignment~=nil)
             local sentHomeToday=w.sentHomeShiftDay==Contracts.shiftDay(w.contract,now)
             line("Ends today's shift safely; unfinished work resumes next shift.",410,502,426,{.61,.78,.67})

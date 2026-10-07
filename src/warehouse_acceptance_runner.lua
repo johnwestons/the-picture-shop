@@ -41,6 +41,8 @@ function Runner.install()
                 count=count+1;print("PASS "..name)
             end
             require("src.tests.warehouse_layout_test").run(context,check)
+            require("src.tests.warehouse_breakroom_presentation_test").run(context,check)
+            require("src.tests.warehouse_rack_presentation_test").run(context,check)
             require("src.tests.warehouse_live_acceptance_test").run(context,check)
             print("WAREHOUSE ACCEPTANCE PASS "..count.." checks")
         end)

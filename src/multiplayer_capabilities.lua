@@ -15,7 +15,7 @@ Capabilities.MODES = {
 
 Capabilities.INTERACTIONS = {
     shopClock = { label="Shop wall clock",mode="read_only",supported={"inspect_shop_time"} },
-    jukebox = { label="Warehouse jukebox",mode="full",supported={"tune_local_vibes_radio"} },
+    jukebox = { label="Warehouse jukebox",mode="read_only",supported={"listen_to_host_vibes_radio"} },
     computer = {
         label = "Office computer",
         mode = "candidate",
