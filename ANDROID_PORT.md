@@ -34,11 +34,11 @@
   Cutter margins are highlighted with correct-rotation feedback; finished pallets occupy six ordered
   front staging slots, safely waiting when full. All three walk/idle sets use the reviewed Mouse Frontier
   source art. Fox/ferret work/rest use original single poses; dedicated machine action sequences remain
-  planned. All 56 worker strips (254 frames), 60 visitor strips and 287 Lua files match the package
-  source. Press, wrapping and autonomous transport roles remain planned.
+  planned. All 56 worker strips (254 frames), 60 visitor strips and 295 Lua files match the package
+  source. Dedicated machine-action animation sequences remain planned.
 - LAN: protocol v26, with host-owned worker poses and owner-only employment/schedule/wage actions. Local Play participants should use matching builds.
 - Verification: 4,314 desktop checks and 4,314 checks against the actual packaged mobile game pass.
-  The signed APK contains that verified game package; its certificate matches the published `.38`
+  The signed APK contains that verified game package; its certificate matches the published Android 40
   installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
 - Installer: 313,119,160 bytes (298.6 MiB), SHA-256
   `e86b9bd5242f1adc457dbc5edad7b7561ed0e1920993afacbf4759c1a362616f`.
