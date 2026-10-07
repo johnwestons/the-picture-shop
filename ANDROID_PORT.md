@@ -3,14 +3,14 @@
 ## Current development build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.41` (`versionCode` 41)
+- Version: `0.1.0-android.43` (`versionCode` 43)
 - Engine: LÖVE 11.5
 - Orientation: sensor landscape, fullscreen
 - Native libraries: verified 16 KB page-size compatible for Android 15+ devices
 - Saves: private Android app storage under the shared `the-picture-shop` LÖVE identity
-- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.41-debug.apk`
-- Download: [Android 41 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.41/ThePictureShop-0.1.0-android.41-Install.apk)
-  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.41).
+- Expected output after building: `output/mobile/ThePictureShop-0.1.0-android.43-debug.apk`
+- Download: [Android 43 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.43/ThePictureShop-0.1.0-android.43-Install.apk)
+  and [development release notes](https://github.com/johnwestons/the-picture-shop/releases/tag/android.43).
 - Contents: all current shared game changes, including the warehouse expansion, finer pallet/machine
   placement, Credit-tab fix, and complete eight-direction walking and matching idle animations for the
   three client designs and three salesperson designs. Radio Cat, Tinker Fox and Ferret Engineer,
@@ -34,16 +34,23 @@
   Cutter margins are highlighted with correct-rotation feedback; finished pallets occupy six ordered
   front staging slots, safely waiting when full. All three walk/idle sets use the reviewed Mouse Frontier
   source art. Fox/ferret work/rest use original single poses; dedicated machine action sequences remain
-  planned. All 56 worker strips (254 frames), 60 visitor strips and 295 Lua files match the package
-  source. Dedicated machine-action animation sequences remain planned.
-- LAN: protocol v26, with host-owned worker poses and owner-only employment/schedule/wage actions. Local Play participants should use matching builds.
-- Verification: 4,314 desktop checks and 4,314 checks against the actual packaged mobile game pass.
-  The signed APK contains that verified game package; its certificate matches the published Android 40
-  installer, and its application ID and 16 KiB compatibility pass the normal Android build checks.
-- Installer: 313,119,160 bytes (298.6 MiB), SHA-256
-  `e86b9bd5242f1adc457dbc5edad7b7561ed0e1920993afacbf4759c1a362616f`.
-  Source commit: `028c7cdb1f84fba3a8a12e22ee7afc3d5a4e6e84`. Its development signing certificate
-  matches Android 40, so it can update that build while retaining saves. The package includes only the
+  planned. All 825 runtime files, including the worker and visitor strips, match the package source.
+  The latest refresh includes the perspective-fitted breakroom and shelves, compact employee arrival,
+  departure and action bubbles, Schedule job choices restricted to fully unloaded stock, online
+  high-five requests with opposite player facing, USB discovery, pallet jack motion, shared day/night
+  scheduling, runtime module extraction and texture/save/menu performance improvements.
+- LAN: protocol v28, with host-owned worker captions and poses and owner-only employment/schedule/wage
+  actions. Local Play participants should use matching builds. Cable play uses Android USB tethering
+  and a USB Ethernet link; Android-to-Android depends on compatible phone host/client support.
+- Verification: all 825 archived runtime files match the current shared source and artwork byte for
+  byte, including the newest employee, Schedule, high-five and warehouse files. APK signature,
+  application ID/version, embedded game checksum and 16 KiB compatibility pass the Android build
+  checks. The signing certificate matches the published Android 41 installer. No new full gameplay
+  smoke run is claimed for this packaging update.
+- Installer: 317,685,023 bytes (303.0 MiB), SHA-256
+  `bbc91a4f7debb12e4ff9bdb286631fd6ae9250ab52f6adca6629fb1e38adeb44`.
+  Clean source commit: `b5ab6c00691b052eb6a40021db71c65c6ff4af27`. Its development signing certificate
+  matches Android 41, so it can update that build while retaining saves. The package includes only the
   allowlisted Vibes music tracks; local preview files are excluded.
 - Device status: no phone was reachable from the build computer, so this development update was not
   remotely installed or physically playtested. The normal physical-device checklist remains open.
