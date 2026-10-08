@@ -54,6 +54,7 @@ function Controls:reset(message)
 end
 function Controls:buttons()
     local c=self.context
+    if require("src.shop_rooms").scene(self:player())~="warehouse" then return {} end
     if c.state.screen~="world" and c.state.screen~="pallet_rack" then return {} end
     local lift=c.state.forklift
     local player=self:player()

@@ -4,6 +4,7 @@ local WorkshopAuthority = require("src.workshop_authority")
 local Test = {}
 
 local EXPECTED_INTERACTIONS = {
+    shopEntrance=true,roomStock=true,roomRest=true,
     computer = true,
     shopClock = true,
     jukebox = true,

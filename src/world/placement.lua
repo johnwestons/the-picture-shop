@@ -55,7 +55,9 @@ function Component.install(Runtime)
         local builder = Runtime.WarehouseConstruction.worker(state)
         if builder then obstacles[#obstacles + 1] = {x=builder.x,y=builder.y,radius=14,kind="construction_worker"} end
         for _,entry in ipairs(Runtime.Employees.actors(state)) do
-            obstacles[#obstacles+1]={x=entry.actor.x,y=entry.actor.y,radius=14,kind="employee",actor=entry.actor}
+            if require("src.shop_rooms").employeeScene(entry)=="warehouse" then
+                obstacles[#obstacles+1]={x=entry.actor.x,y=entry.actor.y,radius=14,kind="employee",actor=entry.actor}
+            end
         end
         if inflate.x > 0 or inflate.y > 0 then
             for index, obstacle in ipairs(obstacles) do

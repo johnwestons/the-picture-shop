@@ -28,7 +28,7 @@ function Component.install(Runtime)
         local operatorX, operatorY = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
         player.x, player.y = operatorX, operatorY
         if playerId == 1 then Runtime.World.player.x, Runtime.World.player.y = operatorX, operatorY end
-        state.message = "Operating pallet jack. Tap a skid to lift it; use L to lower it; normal USE actions still work."
+        state.message = "Operating pallet jack. Click/tap a highlighted skid or press L to lift it. L lowers; F parks."
         return true, mountCode, state.message, Runtime.World.networkPalletJackSnapshot(state)
     end
 
@@ -188,7 +188,7 @@ function Component.install(Runtime)
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
         if action == "mounted" then
             Runtime.World.player.x, Runtime.World.player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
-            state.message = "Operating pallet jack. Tap a skid to lift it; L lowers it; normal USE actions still work."
+            state.message = "Operating pallet jack. Click/tap a highlighted skid or press L to lift it. L lowers; F parks."
         elseif action == "lifted" then
             Runtime.World.placementSelection = nil
             state.message = "Lifted " .. pallet.id .. ". Drive it, choose a green grid space, then press L."

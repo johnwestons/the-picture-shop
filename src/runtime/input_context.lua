@@ -5,6 +5,7 @@ local Component = {}
 function Component.install(Runtime)
     Runtime.inputContext = {
         state = Runtime.state,
+        roomControl = function(key) return require("src.shop_room_controls").keypressed(key,Runtime) end,
         assets = Runtime.Assets,
         computerScreen = Runtime.ComputerScreen,
         workPhoneScreen = Runtime.WorkPhoneScreen,

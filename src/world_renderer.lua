@@ -25,10 +25,17 @@ local WarehouseScene = require("src.warehouse_scene")
 local Renderer = {}
 local World
 local checkerShader
+local palletPickup
 function Renderer.beginFrame() WarehouseRenderer.beginFrame() end
 function Renderer.endFrame() WarehouseRenderer.endFrame() end
-function Renderer.pruneCache() WarehouseRenderer.pruneCache() end
-function Renderer.clearCache() WarehouseRenderer.clearCache() end
+function Renderer.pruneCache()
+    WarehouseRenderer.pruneCache()
+    require("src.shop_room_renderer").pruneCache()
+end
+function Renderer.clearCache()
+    WarehouseRenderer.clearCache()
+    require("src.shop_room_renderer").clearCache()
+end
 
 local function drawPrintedArtwork(assets, item, x, y, carried)
     if not item or item.vendor or not item.job or not item.job.press then return end
@@ -152,9 +159,22 @@ end
 
 local function drawPallet(assets, item)
     local imageName, spriteName, scale = Renderer.palletVisual(item)
+    scale=scale*(item.visualScale or 1)
     local image = assets.get(imageName)
     local sprite = assets.getQuad(spriteName)
     if not image or not sprite then return end
+    local liftable = palletPickup and palletPickup.byId[item.pallet.id]
+    local selected = liftable and palletPickup.selected == liftable
+    if liftable then
+        love.graphics.push("all")
+        local x, y = item.x, item.y - 8
+        love.graphics.setColor(0.30, selected and 1 or 0.80, selected and 0.56 or 1, 0.22)
+        love.graphics.polygon("fill", x - 39, y, x, y - 16, x + 39, y, x, y + 16)
+        love.graphics.setColor(0.30, selected and 1 or 0.80, selected and 0.56 or 1, selected and 1 or 0.65)
+        love.graphics.setLineWidth(selected and 3 or 1.5)
+        love.graphics.polygon("line", x - 39, y, x, y - 16, x + 39, y, x, y + 16)
+        love.graphics.pop()
+    end
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, item.x, item.y, 0, scale, scale,
         sprite.width / 2, sprite.height * 0.92)
@@ -164,6 +184,17 @@ local function drawPallet(assets, item)
         love.graphics.rectangle("fill", item.x - 22, item.y - 15, 44, 12)
         love.graphics.setColor(0.92, 0.96, 0.94)
         love.graphics.printf(item.vendor and "STOCK" or ("P" .. tostring(item.pallet.number)), item.x - 25, item.y - 14, 50, "center")
+    end
+    if selected then
+        love.graphics.push("all")
+        love.graphics.setColor(0.30, 1, 0.56, 0.85)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", item.x - 47, item.y - 82, 94, 90, 5, 5)
+        love.graphics.setColor(0.04, 0.20, 0.13, 0.96)
+        love.graphics.rectangle("fill", item.x - 25, item.y - 99, 50, 18, 4, 4)
+        love.graphics.setColor(0.65, 1, 0.77)
+        love.graphics.printf("LIFT", item.x - 25, item.y - 97, 50, "center")
+        love.graphics.pop()
     end
 end
 
@@ -244,6 +275,7 @@ local function drawTruck(assets, state)
 end
 
 local function drawBayDoor(assets)
+    if Config.warehouse.roomScenes then return require("src.shop_room_renderer").drawDock(assets,World.bayDoor) end
     local image = assets.get("loadingBayDoor")
     local sprite = assets.getQuad("loadingBayDoor" .. World.bayDoor:frame())
     local warehouse = assets.get("warehouse")
@@ -485,6 +517,18 @@ end
 function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
     WarehouseRenderer.beginFrame()
     World = world
+    palletPickup = state.screen == "world" and World.palletPickupSnapshot(state, mouseX, mouseY) or nil
+    local Rooms=require("src.shop_rooms")
+    require("src.shop_room_renderer").selectScene(Rooms.scene(World.player))
+    local sameRoomPlayers={}
+    for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,World.player) then sameRoomPlayers[#sameRoomPlayers+1]=p end end
+    remotePlayers=sameRoomPlayers
+    if Rooms.scene(World.player)~="warehouse" then
+        require("src.shop_room_renderer").drawRoom(World,assets,characterAssets,state,remotePlayers,
+            function() drawPlayer(characterAssets,state) end,drawPallet)
+        WarehouseRenderer.endFrame()
+        return
+    end
     drawBackground(assets)
     WarehouseRenderer.drawFloors(assets, state)
     CutterStaging.draw()
@@ -505,6 +549,9 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     if World.customer.visible then visibleCharacters[World.customer.character] = true end
     if World.vendor.visible then visibleCharacters[World.vendor.character] = true end
     local employeeEntries=EmployeeRenderer.entries(state)
+    local presentEmployees={}
+    for _,entry in ipairs(employeeEntries) do if Rooms.employeeScene(entry)=="warehouse" then presentEmployees[#presentEmployees+1]=entry end end
+    employeeEntries=presentEmployees
     for _,entry in ipairs(employeeEntries) do
         visibleCharacters[(entry.worker or entry.application).character]=true
     end
@@ -551,11 +598,14 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     -- and incorrectly move the host avatar.
     local forklift = state and state.forklift
     local forkliftDriver = forklift and forklift.owned and forklift.operating and forklift.operatorPlayerId
-    local jackOperator
+    local jackOperator,jackEmployee
     if jack and jack.operating then
         if jack.operatorPlayerId == (tonumber(World.player.id) or 1) then jackOperator = World.player end
         for _, remote in ipairs(remotePlayers or {}) do
             if tonumber(remote.id) == jack.operatorPlayerId then jackOperator = remote end
+        end
+        for _,entry in ipairs(employeeEntries) do
+            if entry.worker and entry.worker.id==jack.operatorEmployeeId then jackEmployee=entry end
         end
     end
     if forkliftDriver ~= (tonumber(World.player.id) or 1) and jackOperator ~= World.player then
@@ -578,7 +628,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
                 local workerBehind = math.sin(pose.heading) >= 0
                 local function drawOperator()
                     if jackOperator == World.player then drawPlayer(characterAssets, state)
-                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, state) end
+                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, state)
+                    elseif jackEmployee then EmployeeRenderer.draw(jackEmployee,characterAssets,state) end
                 end
                 if workerBehind then drawOperator() end
                 drawPalletJack(assets, state)
@@ -638,7 +689,9 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             local room=WarehouseRenderer.breakroomPlan(state,employee.actor.seatBay)
             if room then depth=room.depthY+.1 end
         end
-        actors[#actors+1]={y=depth,draw=function() EmployeeRenderer.draw(employee,characterAssets) end}
+        if employee~=jackEmployee then
+            actors[#actors+1]={y=depth,draw=function() EmployeeRenderer.draw(employee,characterAssets,state) end}
+        end
     end
     local technician = state and Technician.ensure(state)
     if technician and technician.visible then
@@ -653,7 +706,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     })
     for _, actor in ipairs(actors) do actor.draw() end
     -- Captions are an overlay so foreground machines cannot hide them.
-    for _,employee in ipairs(employeeEntries) do EmployeeRenderer.drawBubble(employee,characterAssets) end
+    for _,employee in ipairs(employeeEntries) do EmployeeRenderer.drawBubble(employee,characterAssets,state) end
     InteractionBeacon.drawOverlay(World.getInteraction(), World.player.interactionClock, {
         player = World.player,
     })

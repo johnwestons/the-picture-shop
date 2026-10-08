@@ -6,10 +6,10 @@ local Upgrades = { LAYOUT_VERSION = 2, STAGE_HOURS = 24, ARRIVAL_LEAD_HOURS = 2 
 local BAY_IDS = { "front_left", "front_right" }
 local BAYS = { front_left = true, front_right = true }
 local CATALOG = {
-    floor = { id = "floor", name = "Open warehouse floor", price = 2500 },
-    storage = { id = "storage", name = "Pallet shelving", price = 1200,
-        rows = 2, columns = 5, capacity = 10, upperRowRequiresForklift = true,
-        warning = "10 pallet spaces. Lower 5: pallet jack or forklift. Upper 5: forklift required." },
+    floor = { id = "floor", name = "Separate utility room", price = 2500 },
+    storage = { id = "storage", name = "Separate storage room", price = 1200,
+        rows = 2, columns = 5, capacity = 10, upperRowRequiresForklift = false,
+        warning = "10 shop stock spaces in a separate room. Stage stock at the front entrance, then store it inside." },
     breakroom = { id = "breakroom", name = "Employee breakroom", price = 8300 },
     forklift = { id = "forklift", name = "Warehouse forklift", price = 33000 },
 }

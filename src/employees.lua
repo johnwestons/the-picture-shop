@@ -17,7 +17,7 @@ local trainingHoursPerPoint=.16
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
     offer_accepted=true,hired=true,declined=true,withdrawn=true,expired=true}
 local phases={hidden=true,entering=true,waiting=true,leaving=true,idle=true,walking=true,
-    working=true,break_walk=true,["break"]=true}
+    working=true,pushing=true,break_walk=true,["break"]=true}
 local function finite(n) return type(n)=="number" and n==n and math.abs(n)<1e12 end
 local function number(n,low,high) return finite(n) and n>=low and n<=high end
 local function int(n,low,high) return number(n,low,high) and n==math.floor(n) end
@@ -260,6 +260,7 @@ function Employees.normalize(e,now)
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock,w._trainingClock,w._trainingMachineId=nil,nil,nil,nil,nil
+        w._jackNavigator,w._jackTarget,w.jackDistance,w._waitingForJack=nil,nil,nil,nil
         w.greetingKind,w.greetingUntilHours=nil,nil
         w._scheduleRetryAtHours,w._blockedWorkHours,w._waitingMachineId=nil,nil,nil
         w._palletApproachKey,w._palletApproachPoint,w._palletDropKey,w._palletDropPoint=nil,nil,nil,nil

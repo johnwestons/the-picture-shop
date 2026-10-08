@@ -1,4 +1,5 @@
 local BusinessCalendar = require("src.business_calendar")
+local Procurement = require("src.procurement")
 
 local Plates = {}
 local actions = { "expose", "wash", "dry", "mount" }
@@ -86,6 +87,10 @@ function Plates.beginInHouse(state, job, colorIndex)
     for id, amount in pairs(required) do
         if (stock[id] or 0) < amount then return false, "In-house platemaking needs raw plate, film, adhesive, and chemistry." end
     end
+    local kitConsumed, kitError = Procurement.consumePhysicalProduct(state, "plate_room_kit", 1, {
+        allowAbstract = true, stockKey = "raw_press_plates", stockScope = "stock",
+    })
+    if not kitConsumed then return false, kitError end
     for id, amount in pairs(required) do stock[id] = stock[id] - amount end
     plate.status, plate.source, plate.processStep, plate.processScores = "processing", "in_house", 1, {}
     job.press.actual.inHousePlates = (job.press.actual.inHousePlates or 0) + 1

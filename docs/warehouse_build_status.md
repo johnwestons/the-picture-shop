@@ -1,5 +1,7 @@
 # Warehouse build status
 
+**October 8, 2026 update:** this expansion-art status is historical. The approved B6 warehouse and independent storage, break and utility room scenes now replace the foreground triangle layout. See [current room-system controls, assets and verification](warehouse_rooms.md).
+
 Updated October 7, 2026. Both expansion bays and all three room options are available in the normal game. The October 6 fit pass was visually rejected and has been superseded by the perspective redraw below.
 
 ## Playable now

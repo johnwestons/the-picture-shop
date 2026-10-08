@@ -109,13 +109,31 @@ function Wrapper.update(dt, state)
     Wrapper.progress = math.min(Wrapper.cycleTime, Wrapper.progress + dt)
     if Wrapper.progress < Wrapper.cycleTime then return false end
     local inventory = state.inventory
-    inventory.plasticWrapUses = math.max(0, (inventory.plasticWrapUses or 0) - 1)
-    if inventory.plasticWrapUses == 0 then
-        inventory.plasticWrapRolls = math.max(0, (inventory.plasticWrapRolls or 0) - 1)
-        if inventory.plasticWrapRolls > 0 then inventory.plasticWrapUses = 11 end
+    local uses = math.max(0, inventory.plasticWrapUses or 0)
+    if uses <= 0 then
+        state.message = "No stretch film remains. Order it from the packaging supplier and unload the delivery."
+        return false
     end
     local packaging = Wrapper.pallet.packaging or (Wrapper.job and Wrapper.job.packaging) or "flat"
-    if packaging == "boxed" then Procurement.consumeCartons(state, 1) end
+    local supplies = {}
+    if uses == 1 then
+        supplies[#supplies + 1] = {
+            productId = "stretch_film", quantity = 1, stockKey = "plasticWrapRolls",
+        }
+    end
+    if packaging == "boxed" then
+        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1 }
+    end
+    local consumed, reason = Procurement.consumeStockProducts(state, supplies)
+    if not consumed then
+        state.message = reason or "Retrieve packaging supplies onto clear warehouse floor before using them."
+        return false
+    end
+    if uses == 1 then
+        inventory.plasticWrapUses = inventory.plasticWrapRolls > 0 and 11 or 0
+    else
+        inventory.plasticWrapUses = uses - 1
+    end
     Wrapper.pallet.wrapped, Wrapper.pallet.status = true, "wrapped"
     Wrapper.pallet.packagedAs = packaging
     MachineFleet.recordUse(state, "skid_wrapper", 1)
@@ -220,7 +238,9 @@ end
 function exported.clearInstances()
     instances = {}
     selectedId = nil
-    primary.reset()
+    -- Loading a different shop is a runtime teardown, not the in-game reset
+    -- button. An active cycle must never retain a pallet from the previous save.
+    primary = createWrapper(nil)
 end
 
 return setmetatable(exported, {

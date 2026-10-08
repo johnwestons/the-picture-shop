@@ -58,14 +58,12 @@ function Test.run(_,check)
     local allowed,reason=perform(purchase("front_left","floor","OFF-1"),disabled)
     check("warehouse_office_authority_disabled_by_default",not allowed and reason=="warehouse_disabled"
         and same(state,before) and saves==0)
-    allowed,reason=perform(purchase("front_left","storage","SHELF-NO-ACK"))
-    check("warehouse_office_requires_upper_row_warning_ack",not allowed and reason=="forklift_warning_required"
-        and same(state,before) and saves==0)
+    check("warehouse_office_storage_room_does_not_need_forklift_ack",Upgrades.catalog("storage").upperRowRequiresForklift==false)
     inRange=false
     allowed,reason=perform(purchase("front_left","storage","SHELF-NO-RANGE",true))
     check("warehouse_office_host_rechecks_computer_access",not allowed and reason=="out_of_range" and same(state,before))
     inRange=true
-    local request=purchase("front_left","storage","SHELF-1",true)
+    local request=purchase("front_left","storage","SHELF-1")
     allowed,reason=perform(request)
     check("warehouse_office_host_purchases_at_catalog_price_and_saves_once",allowed and reason=="completed"
         and state.money==40000-Upgrades.catalog("storage").price and saves==1
@@ -111,14 +109,11 @@ function Test.run(_,check)
     remote.tab="warehouse"
     local result=click(remote,client,"front_left","storage")
     check("warehouse_office_first_click_only_reviews_purchase",result.action=="warehouse_confirmation" and #sent==0
-        and remote.warehouseConfirmation.warningRequired and same(client,clientBefore))
-    result=click(remote,client,"confirm")
-    check("warehouse_office_ui_requires_warning_confirmation",result.action=="blocked" and #sent==0 and same(client,clientBefore))
-    click(remote,client,"acknowledge")
+        and remote.warehouseConfirmation.warningRequired==false and same(client,clientBefore))
     result=click(remote,client,"confirm")
     check("warehouse_office_guest_sends_intent_without_local_debit",result.action=="remote_pending" and #sent==1
         and sent[1].kind=="buy_upgrade" and sent[1].bayId=="front_left" and sent[1].optionId=="storage"
-        and sent[1].confirmUpperRows==true and sent[1].price==nil and Intent.normalize(sent[1])~=nil
+        and sent[1].confirmUpperRows==false and sent[1].price==nil and Intent.normalize(sent[1])~=nil
         and same(client,clientBefore))
     click(remote,client,"confirm")
     check("warehouse_office_ui_blocks_double_pending_purchase",#sent==1 and remote.warehousePending)
@@ -240,8 +235,8 @@ function Test.run(_,check)
     check("warehouse_office_page_and_confirmation_render_in_shared_chrome",drawOkay and confirmOkay
         and allText:find("CRITTERNET / WAREHOUSE",1,true)~=nil
         and allText:find("one game day per stage",1,true)~=nil
-        and allText:find("upper 5 require a forklift",1,true)~=nil
-        and allText:find("I understand: the upper 5 shelves need a forklift",1,true)~=nil,
+        and allText:find("separate room",1,true)~=nil
+        and allText:find("I understand: the upper 5 shelves need a forklift",1,true)==nil,
         string.format("draw=%s (%s), confirm=%s (%s), text=%s",tostring(drawOkay),tostring(drawError),
             tostring(confirmOkay),tostring(confirmError),allText))
 end

@@ -1,5 +1,6 @@
 -- Additive expansion geometry in the existing 960x678 world. No existing
 -- character, machine or core-floor coordinates are rescaled by this layout.
+if require("src.config").warehouse.roomScenes then return require("src.warehouse_room_layout") end
 local Layout = { VERSION = 1, BAY_IDS = { "front_left", "front_right" } }
 
 local function copy(value)

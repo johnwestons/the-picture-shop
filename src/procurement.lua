@@ -218,14 +218,18 @@ function Procurement.consumePaper(state, quantity)
     local remaining = math.max(0, math.floor(quantity or 1))
     if remaining == 0 then return true end
     if Procurement.paperAvailable(state) < remaining then return false, "Not enough production paper." end
+    local requirements = {}
     for _, productId in ipairs(paperProducts) do
         local available = math.max(0, state.inventory.stock[productId] or 0)
         local used = math.min(available, remaining)
-        state.inventory.stock[productId] = available - used
+        if used > 0 then requirements[#requirements + 1] = { productId = productId, quantity = used } end
         remaining = remaining - used
-        if remaining == 0 then return true end
+        if remaining == 0 then break end
     end
-    state.inventory.paper = math.max(0, (state.inventory.paper or 0) - remaining)
+    local abstractPaperUsed = remaining
+    local consumed, reason = Procurement.consumeStockProducts(state, requirements)
+    if not consumed then return false, reason end
+    state.inventory.paper = math.max(0, (state.inventory.paper or 0) - abstractPaperUsed)
     return true
 end
 
@@ -239,8 +243,7 @@ function Procurement.consumeCartons(state, quantity)
     local needed = math.max(0, math.floor(quantity or 1))
     local available = Procurement.cartonsAvailable(state)
     if available < needed then return false, "Not enough shipping cartons." end
-    state.inventory.stock.shipping_cartons = available - needed
-    return true
+    return Procurement.consumeStockProduct(state, "shipping_cartons", needed)
 end
 
 function Procurement.inventoryRows(state)
@@ -382,8 +385,16 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     end
     local needed = math.floor(quantity)
     if needed == 0 then return true end
-    local allowAbstract = type(options) == "table" and options.allowAbstract == true
-    local stock = state.inventory and state.inventory.stock and state.inventory.stock[productId] or 0
+    options = type(options) == "table" and options or {}
+    local allowAbstract = options.allowAbstract == true
+    local stockKey = options.stockKey
+    local inventory = state.inventory or {}
+    local stock
+    if stockKey and options.stockScope == "stock" then
+        stock = inventory.stock and inventory.stock[stockKey]
+    elseif stockKey then stock = inventory[stockKey]
+    else stock = inventory.stock and inventory.stock[productId] end
+    stock = stock or 0
     if allowAbstract and (type(stock) ~= "number" or stock ~= stock or stock >= math.huge or stock < needed) then
         return false, "Not enough product stock is available."
     end
@@ -433,11 +444,89 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     return true
 end
 
+-- Consume a stock counter and its matching physical pallet allocation as one
+-- operation. Most products use inventory.stock[productId]; stretch film keeps
+-- its legacy roll counters separately because the wrapper tracks uses per roll.
+function Procurement.consumeStockProduct(state, productId, quantity, options)
+    options = type(options) == "table" and options or {}
+    local stockKey = options.stockKey
+    if type(state) ~= "table" or type(state.inventory) ~= "table"
+        or (stockKey ~= nil and type(stockKey) ~= "string") then
+        return false, "Invalid product consumption request."
+    end
+    quantity = quantity == nil and 1 or quantity
+    if type(quantity) ~= "number" or quantity ~= quantity or quantity < 0 or quantity >= math.huge then
+        return false, "Invalid product consumption request."
+    end
+    local needed = math.floor(quantity)
+    if needed == 0 then return true end
+    local stockContainer = stockKey and state.inventory or state.inventory.stock
+    if type(stockContainer) ~= "table" then return false, "Not enough product stock is available." end
+    local available = stockContainer[stockKey or productId] or 0
+    if type(available) ~= "number" or available ~= available or available >= math.huge
+        or available < needed then
+        return false, "Not enough product stock is available."
+    end
+    local consumed, reason = Procurement.consumePhysicalProduct(state, productId, needed, {
+        allowAbstract = true, stockKey = stockKey,
+    })
+    if not consumed then return false, reason end
+    stockContainer[stockKey or productId] = available - needed
+    return true
+end
+
+function Procurement.consumeStockProducts(state, requirements)
+    if type(state) ~= "table" or type(state.inventory) ~= "table" or type(requirements) ~= "table" then
+        return false, "Invalid product consumption request."
+    end
+    local products, counters, pallets = {}, {}, {}
+    for _, request in ipairs(requirements) do
+        if type(request) ~= "table" or type(request.productId) ~= "string" then
+            return false, "Invalid product consumption request."
+        end
+        products[request.productId] = true
+        local stockKey = request.stockKey
+        local container = stockKey and state.inventory or state.inventory.stock
+        local key = stockKey or request.productId
+        if type(container) == "table" then
+            local identity = (stockKey and "inventory:" or "stock:") .. key
+            if counters[identity] == nil then
+                counters[identity] = { container = container, key = key, value = container[key] }
+            end
+        end
+    end
+    for _, order in ipairs(ensure(state).orders) do
+        for _, pallet in ipairs(order.pallets or {}) do
+            if products[pallet.productId] then
+                pallets[#pallets + 1] = {
+                    pallet = pallet, remainingQuantity = pallet.remainingQuantity,
+                    location = pallet.location, status = pallet.status, world = pallet.world,
+                }
+            end
+        end
+    end
+    for _, request in ipairs(requirements) do
+        local consumed, reason = Procurement.consumeStockProduct(
+            state, request.productId, request.quantity, request)
+        if not consumed then
+            for _, before in ipairs(pallets) do
+                local pallet = before.pallet
+                pallet.remainingQuantity, pallet.location = before.remainingQuantity, before.location
+                pallet.status, pallet.world = before.status, before.world
+            end
+            for _, before in pairs(counters) do before.container[before.key] = before.value end
+            return false, reason
+        end
+    end
+    return true
+end
+
 function Procurement.physicalPallets(state)
     local result = {}
     for _, order in ipairs(ensure(state).orders) do
         for _, pallet in ipairs(order.pallets or {}) do
-            if pallet.world and pallet.location == "warehouse" then
+            local remaining = pallet.remainingQuantity == nil and pallet.quantity or pallet.remainingQuantity
+            if pallet.world and pallet.location == "warehouse" and type(remaining) == "number" and remaining > 0 then
                 local progress = pallet.world.spawnProgress or 1
                 local fromX, fromY = pallet.world.fromX or pallet.world.x, pallet.world.fromY or pallet.world.y
                 result[#result + 1] = { job = order, pallet = pallet, vendor = true,

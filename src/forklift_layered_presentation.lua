@@ -2,6 +2,7 @@
 -- strips remain as a fallback when a layer cannot load.
 local Layered = {}
 local Layout = require("src.warehouse_layout")
+local rackBay=require("src.config").warehouse.roomScenes and "warehouse" or "front_left"
 local root = "assets/source/warehouse-expansion-v1/forklift-layer-study/"
 local textureWidth, textureHeight = 1536, 1024
 local scaleRatio = 0.145 / (0.22 * 1.4)
@@ -42,7 +43,7 @@ local studies = {
         -- Keep the side-view pallet lift equal to the registered deck spacing
         -- when the rack artwork changes. Both endpoints use the same body pose.
         carriageX = 0, carriageLow = 150,
-        carriageTravel = Layout.bay("front_left").upperDeckOffset / 0.145,
+        carriageTravel = Layout.bay(rackBay).upperDeckOffset / 0.145,
         loadX = 1170, loadY = 750,
     },
     frontDiagonal = {

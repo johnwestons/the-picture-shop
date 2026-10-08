@@ -70,6 +70,8 @@ function Component.install(Runtime)
             elseif Runtime.state.screen == "computer" then
                 Runtime.ComputerScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
+            elseif Runtime.state.screen == "shop_rooms" then
+                require("src.shop_room_controls").draw(Runtime)
             elseif Runtime.state.screen == "shop_clock" then
                 require("src.screens.shop_clock").draw(Runtime.state,mouseX,mouseY,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)

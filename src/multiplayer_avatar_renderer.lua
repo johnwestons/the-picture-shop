@@ -26,6 +26,7 @@ local function drawPlayer(characterAssets,player,state)
     local character = Config.characters[player.character] and player.character or Config.player.character
     local highFive = player.highFiveAnimation
     local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
+    local resting=player.resting and characterAssets.hasAction(character,"sit")
     local jack=state and state.palletJack
     local pushingJack=jack and jack.operating
         and jack.operatorPlayerId==tonumber(player.id)
@@ -34,10 +35,10 @@ local function drawPlayer(characterAssets,player,state)
         drawLabel(player)
         return
     end
-    local action = player.moving and "walk" or "idle"
+    local action = resting and "sit" or player.moving and "walk" or "idle"
     local directionScale = player.facing or 1
     local pushArtwork=false
-    if player.moving then
+    if player.moving and not resting then
         local directionalAction,mirror=CharacterAnimation.directionalWalkAction(
             player.velocityX or player.intentX,player.velocityY or player.intentY)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
@@ -56,6 +57,8 @@ local function drawPlayer(characterAssets,player,state)
         else
             action,directionScale=CharacterAnimation.directionalIdleAction(facing[1],facing[2])
         end
+    elseif resting then
+        directionScale=player.facing or 1
     elseif not player.moving then
         local directionalAction, mirror = CharacterAnimation.directionalIdleAction(
             player.intentX, player.intentY)

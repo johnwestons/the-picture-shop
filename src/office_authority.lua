@@ -49,6 +49,7 @@ function Office.command(options)
                     return false, "warehouse_not_ready", "Only the left storage expansion is ready in this build.", {}
                 end
                 if intent.kind == "buy_upgrade" and intent.optionId == "storage"
+                    and Upgrades.catalog("storage").upperRowRequiresForklift
                     and not (state.warehouse and state.warehouse.forkliftOwned)
                     and intent.confirmUpperRows ~= true then
                     return false, "forklift_warning_required", "Confirm that the upper five shelves require a forklift.", {}

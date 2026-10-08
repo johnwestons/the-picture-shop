@@ -42,6 +42,7 @@ function Component.install(Runtime)
             lastRadioRevision = -1,
             lastVisitorTick = -1,
             lastEnvironmentTick = -1,
+            lastEmployeeTick = -1,
             lastPalletJackTick = -1,
             lastForkliftTick = -1,
             lastCutterTick = -1,
@@ -139,6 +140,7 @@ function Component.install(Runtime)
         self.lastRadioRevision = -1
         self.lastVisitorTick = -1
         self.lastEnvironmentTick = -1
+        self.lastEmployeeTick = -1
         self.lastPalletJackTick = -1
         self.lastForkliftTick = -1
         self.lastCutterTick = -1

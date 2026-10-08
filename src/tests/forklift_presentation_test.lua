@@ -188,7 +188,9 @@ function Test.run(_, check)
     test("layered_side_art_still_requires_explicit_review",
         not Layered.plan(side) and not Layered.plan({owned=true,direction="up"},{review=true}))
     local smooth, stationary, mirrored = true, true, true
-    local sideTravel = WarehouseLayout.bay("front_left").upperDeckOffset / 0.145
+    local rackId=(require("src.config").warehouse.roomScenes and "warehouse" or "front_left").."-rack"
+    local deckTravel=WarehouseLayout.rackPoint(rackId,1,1).y-WarehouseLayout.rackPoint(rackId,2,1).y
+    local sideTravel = deckTravel / 0.145
     for _,heading in ipairs({"east","west"}) do
         side.direction=heading
         local previousY=math.huge
@@ -213,7 +215,7 @@ function Test.run(_, check)
     side.forkHeight=1
     local upperShelfPose=Layered.plan(side,{review=true,scale=0.308})
     test("side_forklift_lift_matches_registered_upper_rack_deck",
-        lowerShelfPose and upperShelfPose and close(lowerShelfPose.loadY-upperShelfPose.loadY,70))
+        lowerShelfPose and upperShelfPose and close(lowerShelfPose.loadY-upperShelfPose.loadY,deckTravel))
     local diagonalSmooth,diagonalStationary,diagonalMirrored=true,true,true
     for _,heading in ipairs({"southeast","southwest"}) do
         side.direction=heading

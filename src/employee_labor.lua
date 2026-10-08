@@ -26,7 +26,7 @@ function Labor.record(state,w,hours,cents)
     if cents<=0 then return end
     w.laborTotals=w.laborTotals or Labor.fromWeeks(w.weeks) or Labor.defaultTotals()
     local job
-    if state and w.assignment and w.reserved and (w.phase=="working" or w.phase=="walking") then
+    if state and w.assignment and w.reserved and (w.phase=="working" or w.phase=="walking" or w.phase=="pushing") then
         for _,candidate in ipairs(state.jobs.active or {}) do
             if candidate.id==w.assignment.jobId then job=candidate;break end
         end

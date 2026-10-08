@@ -65,6 +65,43 @@ function Footprint.penetration(obstacle, x, y)
     return obstacle.radius - math.sqrt(dx*dx + dy*dy)
 end
 
+-- Continuous collision for a point swept through a convex ground footprint.
+-- Sampling alone can miss a thin obstacle between two valid endpoints.
+function Footprint.segmentPenetrates(obstacle, x, y, nextX, nextY)
+    local dx,dy=x-obstacle.x,y-obstacle.y
+    local vx,vy=nextX-x,nextY-y
+    if not obstacle.halfWidth or not obstacle.halfHeight then
+        local squared=vx*vx+vy*vy
+        local t=squared>0 and math.max(0,math.min(1,-(dx*vx+dy*vy)/squared)) or 0
+        return (dx+t*vx)^2+(dy+t*vy)^2 < math.max(0,obstacle.radius-.001)^2
+    end
+    local planes=obstacle.planes
+    if not planes then
+        planes={{nx=1,ny=0,limit=obstacle.halfWidth},{nx=0,ny=1,limit=obstacle.halfHeight}}
+        if obstacle.shape=="diamond" then
+            local w,h=obstacle.halfWidth,obstacle.halfHeight
+            local length=math.sqrt(w*w+h*h)
+            planes[#planes+1]={nx=h/length,ny=w/length,limit=w*h/length}
+            planes[#planes+1]={nx=h/length,ny=-w/length,limit=w*h/length}
+        end
+    end
+    local enter,leave=0,1
+    for _,plane in ipairs(planes) do
+        local p=dx*plane.nx+dy*plane.ny
+        local v=vx*plane.nx+vy*plane.ny
+        local limit=plane.limit-.001
+        if math.abs(v)<.0000001 then
+            if math.abs(p)>=limit then return false end
+        else
+            local a,b=(-limit-p)/v,(limit-p)/v
+            if a>b then a,b=b,a end
+            enter,leave=math.max(enter,a),math.min(leave,b)
+            if enter>=leave then return false end
+        end
+    end
+    return enter<leave
+end
+
 function Footprint.vertices(footprint)
     local x, y, w, h = footprint.x, footprint.y, footprint.halfWidth, footprint.halfHeight
     if footprint.shape == "diamond" then return {x,y-h, x+w,y, x,y+h, x-w,y} end

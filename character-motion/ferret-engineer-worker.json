@@ -145,6 +145,69 @@
       "loop": true,
       "role": "task_action",
       "fps": 4
+    },
+    "push": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/push.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 11.2
+    },
+    "push_northeast": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/push_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 11.2
+    },
+    "push_north": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/push_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 11.2
+    },
+    "push_southeast": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/push_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 11.2
+    },
+    "push_south": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/push_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 11.2
+    },
+    "chair_east": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/chair_east.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": false,
+      "role": "seated",
+      "fps": 0.65
+    },
+    "chair_west": {
+      "path": "assets/generated/employee-motion-v2/ferret-engineer-worker/chair_west.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": false,
+      "role": "seated",
+      "fps": 0.65
     }
   },
   "directions": {
@@ -241,9 +304,27 @@
       "heidelberg_10x15": "work_press",
       "skid_wrapper": "work_wrapping"
     },
-    "future_pallet_jack_action": "push_jack",
     "frame_count": 4,
     "fps": 4,
     "baseline": 229
+  },
+  "employee_transport": {
+    "pixels_per_frame": 10,
+    "phases": 8,
+    "base_speed": 112,
+    "loaded_speed": 82,
+    "directions": "authored5_mirrored8",
+    "standing_height": 192,
+    "stationary_frame": 2,
+    "chair_actions": [
+      "chair_east",
+      "chair_west"
+    ],
+    "chair_frames": {
+      "entry": 1,
+      "rest": 2,
+      "blink": 3,
+      "exit": 4
+    }
   }
 }

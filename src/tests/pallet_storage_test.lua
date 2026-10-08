@@ -56,8 +56,8 @@ local function stackIntent(state, action, pallet, support)
 end
 
 function Test.run(context, check)
-    check("storage_legacy_defaults_are_locked_empty", Storage.normalize(nil).revision == 0
-        and next(Storage.normalize(nil).racks) == nil and Storage.rackDefinition("unknown") == nil)
+    check("storage_defaults_include_the_base_warehouse_shelves", Storage.normalize(nil).revision == 0
+        and Storage.normalize(nil).racks["warehouse-rack"]~=nil and Storage.rackDefinition("unknown") == nil)
     local state, pallets, vehicle = setup(context)
     local pallet, paper = pallets[1], pallets[1].paper
     pallet.wrapped, pallet.packaging, pallet.remainingSheets, pallet.damagedSheets = true, "boxed", 460, 40

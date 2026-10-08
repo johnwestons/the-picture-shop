@@ -25,6 +25,11 @@ function Component.install(Runtime)
     function Runtime.Session:_updateClientVisuals(dt, localPlayer)
         if not self.ready then return end
         if localPlayer and self.localTarget then
+            if (localPlayer.sceneId or "warehouse")~=(self.localTarget.sceneId or "warehouse")
+                or (localPlayer.resting==true)~=(self.localTarget.resting==true) then
+                Runtime.copyMotion(localPlayer,self.localTarget,true)
+            end
+            localPlayer.resting=self.localTarget.resting==true
             local dx = self.localTarget.x - localPlayer.x
             local dy = self.localTarget.y - localPlayer.y
             local distanceSquared = dx * dx + dy * dy

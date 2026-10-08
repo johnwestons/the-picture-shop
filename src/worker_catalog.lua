@@ -28,9 +28,17 @@ end
 function Catalog.workAction(entry)
     local worker=type(entry) == "table" and entry.worker or nil
     local assignment=type(worker) == "table" and worker.assignment or nil
+    local actor=entry and entry.actor
+    local liveActions={[4]="work_cutter",[5]="work_wrapping",[6]="work_press",
+        [24]="work_press",[25]="work_press",[26]="work_wrapping"}
+    if actor and liveActions[actor.speechCode] then return liveActions[actor.speechCode] end
+    if worker and worker.training then
+        return ({cutter="work_cutter",press="work_press",wrapping="work_wrapping"})[worker.training.skill]
+    end
     return type(assignment) == "table" and WORK_ACTIONS[assignment.machineModel] or nil
 end
-function Catalog.pushAction(character)
-    return Catalog.valid(character) and "push_jack" or nil
+function Catalog.pushAction(character,x,y)
+    if not Catalog.valid(character) then return nil end
+    return require("src.character_animation").directionalPalletJackPushAction(x,y)
 end
 return Catalog

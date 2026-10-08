@@ -13,7 +13,7 @@ function Test.run(context,check)
     x,y=computer.warehouseButtonCenter("front_left","storage")
     local result=computer.mousepressed(state,x,y,1)
     check("warehouse_app_normal_catalog_reaches_storage_confirmation",result and result.action=="warehouse_confirmation"
-        and computer.warehouseConfirmation and computer.warehouseConfirmation.warningRequired and state.money==30000)
+        and computer.warehouseConfirmation and computer.warehouseConfirmation.warningRequired==false and state.money==30000)
     x,y=computer.warehouseButtonCenter("cancel")
     computer.mousepressed(state,x,y,1)
     x,y=computer.warehouseButtonCenter("front_right","storage")

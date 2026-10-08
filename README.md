@@ -54,7 +54,7 @@ wages; **Bills** includes wages due and settles the same payroll ledger as
 **Payroll**, so wages are paid once.
 
 The first worker is Radio Cat, followed by Tinker Fox and Ferret Engineer.
-Up to three employees can work agreed shifts,
+Up to ten employees can work agreed shifts,
 operate the actual cutter, and recover fatigue and focus in a completed breakroom.
 Eight authored walking/idle views, cutter action poses and seated break poses
 are included in `assets/generated/characters/cat-worker/`. The Fox and Ferret
@@ -76,11 +76,19 @@ space; the employee keeps the finished stock and retries the return safely.
 See [implemented features and checks](docs/npc_worker_build_status.md) and the
 [remaining worker and transport plan](docs/npc_worker_hiring_plan.md).
 
-## Playable warehouse storage slice
+## Warehouse and separate rooms
 
-On the office computer's **Warehouse** page, buy **left storage** ($4,500).
-The raccoon calls, arrives through the front entrance and builds over four full
-game days. Buy the **forklift** ($6,500) to use all ten shelf slots.
+The approved open-office warehouse fills the screen with usable floor. Buy a
+storage room, break room or empty utility room on the computer's **Warehouse**
+page. The raccoon calls, arrives through the front entrance and builds over four
+game days. Use **E / ROOMS** at the front entrance beside reception to enter a
+completed room. Multiplayer players can occupy different rooms independently.
+
+Bring delivered shop stock to the warehouse entrance, lower it and park the
+pallet jack. In the storage room, use **STOCK** to store it in one of ten spaces,
+or retrieve it to clear floor space at the entrance. Storage rooms do not need
+a forklift. The base warehouse shelves keep physical pallet transfers; their
+upper row requires the **forklift**.
 Near it, use **V** to drive/park, **E** to pick up/drop, **G** to lower,
 **T** for travel height and **R** to raise. Stop before lifting; drive with cargo
 at travel height. Near the rack, **H** opens shelves; inside, **U** raises the
@@ -89,13 +97,9 @@ At full height, **K / STACK / TAKE TOP** builds or dismantles two-high piles of
 matching-footprint customer paper skids. The supporting skid cannot be moved
 until its upper pallet is removed.
 
-The taller upper warehouse walls are now registered in-game, keeping the lower
-upgrade gaps and all existing actor/equipment sizes. Construction uses concrete,
-hammer, drill and paint-roller work loops. This is still a development slice
-with provisional art: only left storage and the forklift are available; the
-complete floor/front-edge remake, other room choices and final vehicle/module
-polish are not finished.
-See [current status and verification](docs/warehouse_build_status.md).
+Construction retains its concrete, hammer, drill and paint-roller work loops.
+Room sprites, floor seams, shelf contacts, the loading dock and the open office
+are registered to the new layout. See [room controls, assets and verification](docs/warehouse_rooms.md).
 
 ## Run on Windows
 
@@ -112,17 +116,18 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 45](https://github.com/johnwestons/the-picture-shop/releases/download/android.45/ThePictureShop-0.1.0-android.45-Install.apk).
-It includes the latest local-network discovery and mobile IP-entry fixes, steadier
-jukebox playback, visible employee clock-in status, worker job and pallet-jack
-animations, weather at the open dock, a title-screen version label, and a hard
-limit of 10 active employees with the current payroll count shown on the staffing
-tabs. The warehouse lease is $3,500 per month. It also includes the current
-warehouse, staffing, production, and nine-track Vibes playlist updates. The same
-signed APK works as an update for Android 44 and as a fresh install on a phone without the
-game. No phone was connected for this build, so physical playtesting is not claimed.
+The current development installer is [Android 46](https://github.com/johnwestons/the-picture-shop/releases/download/android.46/ThePictureShop-0.1.0-android.46-Install.apk).
+It includes the new open-office warehouse, independent multiplayer rooms, storage
+rooms, physical employee pallet-jack transport, directional worker animations,
+obstacle-aware NPC navigation, and the singleplayer/multiplayer audit fixes.
+The audit covers save switching, stock ownership, room transitions, reconnects,
+mobile controls and viewport sizing, plus rendering and collision-cache costs.
+See the [audit results](docs/audit_android_46.md) for checks and remaining limits.
+All multiplayer participants need this build (protocol 30), including an updated
+PC checkout or game package. The same signed APK supports an in-place update
+from the previous installers. Physical phone playtesting is not claimed.
 The signed APK SHA-256 and automated packaging checks are listed in the
-[Android 45 release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.45).
+[Android 46 release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.46).
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Install over the old app to keep saves, or uninstall **The Picture Shop**
 without keeping its app data before installing to start with a fresh test save.
@@ -342,7 +347,8 @@ by the release tooling rather than inferred from an automated build.
 
 - Touch: drag the lower-left control to move and use the contextual lower-right work button. Extra
   **Lower**, **Park**, **Move**, and **Turn** buttons appear only when the pallet jack or a relocating
-  machine can use them. Tap an eligible skid directly to lift that exact skid.
+  machine can use them. **Lift** becomes the primary action when an eligible skid is within fork range.
+  Tap a highlighted skid or its **LIFT** label to lift that exact skid.
 - The shop floor fills ultrawide phone displays. Two-finger pinch-zoom and pan works on the title,
   shop floor, computer, machine consoles, manifests, quotes, vendor, and press screens. Each screen
   remembers its own view; one-finger taps and the movement/action controls keep their normal behavior.
@@ -471,9 +477,11 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Hover a warehouse pallet to see its company, job ID, sheet count, paper ID, current dimensions,
   status, and location. Pallets are saved, depth-sorted, and block walking.
 - Near the yellow pallet jack, press **E** to operate it. Drive with **WASD/arrow keys**, then click or
-  tap an eligible skid to lift that exact skid. Choose a green floor-grid space and press **L** (or tap
-  **Lower**, or use the controller's left shoulder) to set it down precisely. Normal **E/Use**
-  interactions remain available while pushing.
+  tap an eligible skid to lift that exact skid. Liftable skids have cyan markers; the nearest gets a green
+  outline and **LIFT** label. Hover another eligible skid to select it instead. **L** lifts the highlighted
+  skid, and **E/Use** defaults to lifting when no other control is explicitly hovered. Choose a green
+  floor-grid space and press **L** (or tap **Lower**, or use the controller's left shoulder) to set it down
+  precisely. Other shop controls remain available by clicking/tapping or deliberately hovering them.
 - Pallets and machines use an **8-by-6-pixel placement grid**. Tap between small grid marks to
   select the nearest space; the bright floor outline shows the object's actual footprint. Light
   phone/controller stick movement gives slow positioning. You can stage skids closely around
@@ -592,10 +600,11 @@ should be added as a 128x128 transparent nearest-filtered PNG and registered in 
   `python tools/generate_sfx.py --verify-only` to verify every licensed source
   recording against the release manifest without rewriting cues.
 - Warehouse props are ready in `assets/generated/`: `empty-pallet.png`, `paper-stack.png`, `toolbox-small.png`, `toolbox-large.png`, and the three-variant `paper-storage-boxes-strip.png`.
-- The active warehouse background is `assets/generated/warehouse-layout-final.png`: the approved 1536x1024 warehouse sprite with factory floor in front, loading dock upper-left, separate office upper-middle, and a client lounge in the upper-right with a couch, two armchairs, and a coffee table. Its matching walkmask is `warehouse-layout-final-walkmask.png`.
+- The active warehouse background is `assets/generated/warehouse-open-office-v1.png`: the approved 1536x1024 full-floor warehouse with back-wall shelves, a left loading dock, rear reception and an open computer office at the rear right. Floor seams use the registered scene mask in `src/shop_rooms.lua`. Separate storage, break and utility room backgrounds are in `assets/generated/shop-*-v1.png`.
 - The starter shop includes a movable skid wrapper based on the `stretchWrapper` references. Customer paperwork specifies flat or boxed pallet packaging. Move finished pallets beside the wrapper, press **E**, click the exact pallet ID in the nearby-pallet list, then press **L**, **Space**, or **WRAP PALLET**. Once its three-second cycle starts, finish the cycle before exiting, resetting, or relocating the wrapper. Each film roll wraps 11 pallets; order replacement rolls from the packaging salesperson and receive them at the loading bay. Use **M** near the wrapper to relocate it and **Q** to rotate it.
-- All three client designs (dragon, fox, tabby cat) and all three salesperson designs (tan cardigan, blue shirt, green blazer) have complete walks and matching idles for eight directions. Their eight-frame walks follow actual movement distance, pause when blocked, and keep the last direction when idling. Idle blinks are brief; suppliers stand while waiting and clients keep their lounge seating. The playable rabbit uses the same modular animation contract. Transparent runtime strips live in `assets/generated/characters/`; visitor source art, prompts and selected revisions live in `assets/source/visitor-motion-v1/`. Rebuild and visual checks are described in `docs/testing.md`.
-- `loading-bay-door-strip.png` contains five transparent closed-to-open layers. The open state reveals the exterior parking lot while preserving the approved warehouse pixels outside the doorway.
+- All three client designs (dragon, fox, tabby cat) and all three salesperson designs (tan cardigan, blue shirt, green blazer) have complete walks and matching idles for eight directions. Their eight-frame walks follow actual movement distance, pause when blocked, and keep the last direction when idling. Idle blinks are brief; suppliers and clients use the reception seats while waiting. The playable rabbit uses the same modular animation contract. Transparent runtime strips live in `assets/generated/characters/`; visitor source art, prompts and selected revisions live in `assets/source/visitor-motion-v1/`. Rebuild and visual checks are described in `docs/testing.md`.
+- Radio Cat, Tinker Fox, and Ferret Engineer use chair poses during seated breaks and machine-specific action loops for cutter, printing, and wrapping work and training. Employees collect the shared pallet jack to lift, push, and lower assigned skids. Their pushing stride follows actual jack travel and holds planted feet while stopped. If a player has the jack, an employee can start another ready job; when all eligible work needs the jack, their speech bubble asks to use it. Animation sources and prompts are in `assets/source/employee-motion-v2/`; rebuild and review details are in `docs/employee_motion.md`.
+- The loading door animates the painted shutter from the selected warehouse, clipped to its registered opening; truck cargo renders through the same aperture.
 - `delivery-truck-open.png` is the independent open-body truck sprite. `truck-cargo-door-strip.png` supplies five aligned rear-door layers from closed to fully open.
 - `machine-delivery-flatbed-loaded.png` and `machine-delivery-flatbed-empty.png` are aligned machine-delivery
   truck states. Machine deliveries use these instead of the box truck and switch states when the player unloads.

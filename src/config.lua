@@ -480,6 +480,7 @@ local Config = {
             walk_southeast = "assets/generated/characters/rabbit-worker/walk_southeast.png",
             walk_south = "assets/generated/characters/rabbit-worker/walk_south.png",
             high_five = "assets/generated/characters/rabbit-worker/high-five-v4.png",
+            sit = "assets/generated/characters/rabbit-worker/sit-room-v1.png",
         },
         ["tan-cat"] = { idle = "assets/generated/characters/tan-cat/idle.png", walk = "assets/generated/characters/tan-cat/walk.png", sit = "assets/generated/characters/tan-cat/sit.png" },
         ["green-blazer-cat"] = { idle = "assets/generated/characters/green-blazer-cat/idle.png", walk = "assets/generated/characters/green-blazer-cat/walk.png", sit = "assets/generated/characters/green-blazer-cat/sit.png", use = "assets/generated/characters/green-blazer-cat/use.png" },
@@ -591,5 +592,41 @@ for direction, frame in pairs({east=1,southeast=5,south=9,southwest=13,
         x = pose.operatorX * Config.palletJack.drawScale * Config.palletJack.resolutionScale,
         y = pose.operatorY * Config.palletJack.drawScale * Config.palletJack.resolutionScale,
     }
+end
+-- Full-floor warehouse: the authored office, reception and racks are now on
+-- the rear wall. Separate room upgrades no longer gate the foreground floor.
+Config.warehouse.roomScenes=true
+Config.characterActionFrameSizes["rabbit-worker"].sit=1254
+Config.warehouse.provisionalArt=true
+Config.warehouseScene.enabled=false
+Config.paths.warehouse="assets/generated/warehouse-open-office-v1.png"
+Config.interactables.computer={x=908,y=271,radius=52}
+Config.interactables.workPhone.x,Config.interactables.workPhone.y=876,273
+Config.interactables.workPhone.wallX,Config.interactables.workPhone.wallY=878,177
+Config.interactables.shopClock.x,Config.interactables.shopClock.y=828,268
+Config.interactables.shopClock.wallX,Config.interactables.shopClock.wallY=830,146
+Config.wallVentFan.x,Config.wallVentFan.y=864,74
+Config.loungeSeating.foregrounds={}
+Config.loadingBay.interaction={x=205,y=244,radius=52}
+Config.truck.aperture={{x=73,y=103},{x=169,y=85},{x=169,y=192},{x=73,y=230}}
+Config.truck.parked={x=5.8,y=257,scale=0.72}
+Config.truck.start={x=-150,y=194,scale=0.72}
+Config.truck.interaction={x=155,y=262,radius=55}
+Config.customer.route={{x=688,y=247},{x=688,y=264},{x=715,y=270},{x=746,y=266},{x=770,y=258}}
+Config.vendor.route={{x=688,y=247},{x=688,y=264},{x=715,y=278},{x=760,y=280}}
+Config.technician.route={{x=688,y=247},{x=688,y=264},{x=715,y=278},{x=720,y=310}}
+Config.customer.seatSpots={
+    {name="left-chair",x=715,y=205,facing=1,approach={{x=715,y=259},{x=715,y=242}},animation="sitting"},
+    {name="sofa-left",x=750,y=198,facing=-1,approach={{x=720,y=253},{x=729,y=215}}},
+    {name="sofa-right",x=788,y=202,facing=1,approach={{x=817,y=253},{x=817,y=231}}},
+    {name="right-chair",x=815,y=223,facing=-1,approach={{x=815,y=267},{x=815,y=249}},animation="sitting"},
+}
+Config.vendor.seatSpots=Config.customer.seatSpots
+Config.vendor.seatingPauseDuration=.28
+for _,character in ipairs({"cat-worker","tinker-fox-worker","ferret-engineer-worker"}) do
+    for _,action in ipairs({"push","push_northeast","push_north","push_southeast","push_south","chair_east","chair_west"}) do
+        Config.characters[character][action]="assets/generated/employee-motion-v2/"..character.."/"..action..".png"
+        Config.workerActionFrameSizes[character][action]=256
+    end
 end
 return Config

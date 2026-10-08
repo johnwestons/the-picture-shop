@@ -26,12 +26,12 @@ function Component.install(Runtime)
             local x=90+(bi-1)*380
             Runtime.panel({x=x,y=244,width=372,height=224},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
             love.graphics.setColor(0.91,0.93,0.87,1)
-            love.graphics.print((bi==1 and "LEFT" or "RIGHT").." EXPANSION BAY",x+14,256)
+            love.graphics.print("SEPARATE ROOM "..(bi==1 and "A" or "B"),x+14,256)
             for oi,option in ipairs(bay.options) do
                 control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
                     view.enabled and option.available and bay.status=="locked" and not view.pending)
             end
-            local phase=bay.status=="locked" and "Unpurchased / black area"
+            local phase=bay.status=="locked" and "Unpurchased / choose a room"
                 or bay.status=="complete" and "Ready: "..(Runtime.Upgrades.catalog(bay.optionId).name)
                 or bay.phase=="building" and ("Building / stage "..bay.stage.." of 4")
                 or "Ordered / "..tostring(bay.phase or bay.status):gsub("_"," ")
@@ -46,7 +46,7 @@ function Component.install(Runtime)
         control(Runtime.WAREHOUSE_FORKLIFT,view.forkliftOwned and "OWNED" or "REVIEW PURCHASE",
             view.enabled and not view.forkliftOwned and not view.pending)
         love.graphics.setColor(0.96,0.77,0.38,1)
-        love.graphics.printf(view.message or "Shelves: 10 spaces. Lower 5 use a jack or forklift; upper 5 require a forklift.",100,555,736,"left")
+        love.graphics.printf(view.message or "Use the front entrance to visit rooms. Storage keeps 10 stock pallets off the warehouse floor.",100,555,736,"left")
         love.graphics.setColor(0.69,0.78,0.78,1)
         love.graphics.printf(view.pending and "Waiting for the host to confirm your purchase."
             or not view.enabled and "Purchasing is not enabled in this build."
@@ -63,11 +63,11 @@ function Component.install(Runtime)
         love.graphics.setColor(0.72,0.85,0.82,1)
         love.graphics.printf(choice.kind=="buy_forklift"
             and "One warehouse forklift. Operate it to lift, lower and transfer actual pallets."
-            or ((choice.bayId=="front_left" and "Left" or "Right").." expansion bay. Construction takes 4 game days after the mechanic arrives; one full day for each stage."),
+            or ((choice.bayId=="front_left" and "Room A" or "Room B").." at the front entrance. Construction takes 4 game days after the mechanic arrives; one full day for each stage."),
             208,336,524,"left")
         if choice.optionId=="storage" then
             love.graphics.setColor(0.97,0.74,0.33,1)
-            love.graphics.printf("2 rows x 5 columns. Only the lower five slots work with a pallet jack. You must operate a forklift to use the upper five.",208,388,524,"left")
+            love.graphics.printf("10 stock spaces in a separate room. Bring shop stock to the warehouse entrance; use the storage room's stock desk to store and retrieve it.",208,388,524,"left")
         end
         if choice.warningRequired then
             control(Runtime.WAREHOUSE_ACK,(choice.confirmUpperRows and "[X]" or "[ ]").." I understand: the upper 5 shelves need a forklift.",not view.pending)

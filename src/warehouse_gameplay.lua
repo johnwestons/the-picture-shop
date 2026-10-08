@@ -54,6 +54,7 @@ local function forkPosition(state)
 end
 local function completeRack(state,rackId)
     local rack=state.storage and state.storage.racks and state.storage.racks[rackId]
+    if rack and rack.bayId=="warehouse" then return true end
     local bay=rack and Layout.bayState(state,rack.bayId)
     return rack and bay and bay.status=="complete" and bay.optionId=="storage"
 end
@@ -76,6 +77,7 @@ end
 -- are added; locked black upgrade spaces stay non-walkable even in maskless tests.
 function Gameplay.assets(assets,state)
     if not assets then return nil end
+    if Config.warehouse.roomScenes then return require("src.shop_rooms").assets(assets,"warehouse") end
     if assets._warehouseNavigationState==state then return assets end
     if assets._warehouseSource then assets=assets._warehouseSource end
     local original=assets.getData and assets.getData("walkmask")
@@ -124,34 +126,38 @@ end
 
 function Gameplay.nearRack(player,state)
     if not id(player) then return nil end
-    local nearest,best
+    local nearest,best,bestPoint
     local lift=state.forklift
     local actor=lift and lift.operating and lift.operatorPlayerId==id(player) and lift or player
-    for _,bayId in ipairs(Layout.BAY_IDS) do
+    local jack=state.palletJack
+    if actor==player and jack and jack.operating and jack.operatorPlayerId==id(player) then actor=jack end
+    for _,bayId in ipairs({"warehouse","front_left","front_right"}) do
         local rackId=bayId.."-rack"
-        if completeRack(state,rackId) then
-            if actor==lift then
+        if completeRack(state,rackId) and require("src.shop_rooms").scene(player)==bayId then
+            if actor==lift or actor==jack then
                 for row=1,2 do for column=1,5 do
                     local point=Layout.rackPoint(rackId,row,column)
                     local distance=(actor.x-point.x)^2+(actor.y-point.groundY)^2
                     if distance<=130*130 and (not best or distance<best) then
-                        nearest,best=rackId,distance
+                        nearest,best,bestPoint=rackId,distance,{x=point.x,y=point.groundY}
                     end
                 end end
             else
                 local point=Layout.rackApproach(rackId)
                 local distance=(actor.x-point.x)^2+(actor.y-point.y)^2
-                if distance<=130*130 and (not best or distance<best) then nearest,best=rackId,distance end
+                if distance<=130*130 and (not best or distance<best) then nearest,best,bestPoint=rackId,distance,point end
             end
         end
     end
-    return nearest
+    return nearest,bestPoint
 end
 
 function Gameplay.rackContext(player,state,rackId,context,row,column)
     local playerId=id(player)
     local result={playerId=playerId,near=false,aligned=false,clear=false}
     if not playerId or not completeRack(state,rackId) then return result end
+    local rack=state.storage.racks[rackId]
+    if require("src.shop_rooms").scene(player)~=rack.bayId then return result end
     local lift,jack=state.forklift,state.palletJack
     local vehicle
     if lift and lift.operating and lift.operatorPlayerId==playerId then result.vehicle,vehicle="forklift",lift
@@ -187,12 +193,21 @@ function Gameplay.rackContext(player,state,rackId,context,row,column)
         result.loadAnchor=x and {x=x,y=y} or nil
         result.loadAligned=target~=nil and x~=nil
             and math.abs(x-target.x)<=20 and math.abs(y-target.y)<=20
+        if Config.warehouse.roomScenes and target then
+            -- Match the registered bay's loading apron. Shelf deck pixels are
+            -- elevated above the walkable ground; lift height is checked by Storage.
+            result.loadAligned=x~=nil and math.abs(x-target.x)<=30
+                and vehicle.y>=target.groundY and vehicle.y<=target.groundY+105
+        end
         result.aligned=facesTarget and result.loadAligned
     end
     return result
 end
 
 function Gameplay.access(player,state,intent,context)
+    if require("src.shop_rooms").scene(player)~="warehouse" then
+        return false,"wrong_scene","Return to the warehouse to operate vehicles or its shelves."
+    end
     if not enabled() then return false,"disabled","Warehouse upgrades are not enabled." end
     local playerId=id(player)
     if not playerId or type(state)~="table" then return false,"invalid_player","An authenticated worker is required." end

@@ -84,6 +84,7 @@ function Component.install(Runtime)
         snapshot = Runtime.normalizeSnapshot,
         visitor_snapshot = Runtime.normalizeVisitorSnapshot,
         environment_snapshot = Runtime.normalizeEnvironmentSnapshot,
+        employee_snapshot = Runtime.normalizeEmployeeSnapshot,
         ping = function(payload) return Runtime.normalizePing(payload, "ping") end,
         pong = function(payload) return Runtime.normalizePing(payload, "pong") end,
         leave = Runtime.normalizeLeave,

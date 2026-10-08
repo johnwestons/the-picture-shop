@@ -11,6 +11,7 @@ function Component.install(Runtime)
         Runtime.World.player.character = Runtime.Config.characters[character] and character or Runtime.Config.player.character
         Runtime.PlayerController.reset(Runtime.World.player, position, Runtime.Config.player)
         Runtime.World.player.resting=false
+        Runtime.World.player.sceneId=position and position.sceneId or "warehouse"
         Runtime.World.bayDoor:reset()
         Runtime.World.truck:reset()
         Runtime.World.customer:reset(true)
@@ -188,14 +189,19 @@ function Component.install(Runtime)
         -- Only one reception visitor advances at a time. The other visitor keeps
         -- their full cooldown while the entrance, lounge, or desk is occupied.
         local receptionClosed = Runtime.BusinessCalendar.isWeekend(state) or Runtime.EmployeeAI.receptionOccupied(state)
+        local employeeContext = Runtime.World.employeeContext(state,assets)
         local customerEvent = Runtime.World.customer:update(dt, player,
-            receptionClosed or Runtime.World.vendor:isPresent(), motionDt)
+            receptionClosed or Runtime.World.vendor:isPresent(), motionDt, employeeContext)
         if customerEvent == "arrived" and state then
             state.message = Runtime.World.customerArrivalMessage(state)
         elseif customerEvent == "timed_out" and state then
             state.message = "The client waited five minutes without being seen and is leaving."
+        elseif customerEvent == "route_blocked" and state then
+            state.message = "The client cannot reach the lounge and is heading back to the entrance. Clear the aisle."
         elseif customerEvent == "exited" and state then
-            state.message = Runtime.World.customer.decision == "timed_out"
+            state.message = Runtime.World.customer.routeBlocked
+                and "The client left because the lounge was inaccessible."
+                or Runtime.World.customer.decision == "timed_out"
                 and "The client left after waiting five minutes."
                 or (Runtime.World.customer.decision == "accepted"
                     and "The customer left and will email the written job details."
@@ -207,19 +213,20 @@ function Component.install(Runtime)
         local category = Runtime.Procurement.category(state and state.vendorCategory)
         Runtime.World.vendor.character = category.character
         local vendorEvent = Runtime.World.vendor:update(dt, player,
-            receptionClosed or Runtime.World.customer:isPresent(), motionDt)
+            receptionClosed or Runtime.World.customer:isPresent(), motionDt, employeeContext)
         if vendorEvent == "arrived" and state then
             state.message = category.salesman .. " is waiting at reception with the " .. category.name:lower() .. " catalog."
+        elseif vendorEvent == "route_blocked" and state then
+            state.message = "The supplier cannot reach reception and is heading back to the entrance. Clear the aisle."
         elseif vendorEvent == "exited" and state then
             state.vendorCategory = state.vendorCategory % #Runtime.Procurement.categories + 1
             Runtime.World.vendor:reset(false)
             state.message = "The salesman left. Another supplier representative will visit later."
         end
         if Runtime.Technician.update(dt, state,
-            Runtime.World.customer:isPresent() or Runtime.World.vendor:isPresent(), motionDt) then
+            Runtime.World.customer:isPresent() or Runtime.World.vendor:isPresent(), motionDt, employeeContext) then
             saveNeeded = true
         end
-        local employeeContext = Runtime.World.employeeContext(state,assets)
         employeeContext.motionScale = dt > 0 and motionDt / dt or 1
         local employeeChanged=Runtime.EmployeeAI.update(state,dt,employeeContext)
         return saveNeeded or employeeChanged

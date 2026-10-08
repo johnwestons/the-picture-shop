@@ -39,11 +39,7 @@ local function fresh()
     return state,player,cx
 end
 local function rack(state)
-    assert(Upgrades.purchase(state,"front_left","storage","LIVE-RACK",0))
-    Upgrades.update(state,0,{noticeDeliveredProjectId="WUP-0001",noticeCallId="CALL-0001"})
-    Upgrades.update(state,2,{workerArrivedProjectId="WUP-0001"})
-    Upgrades.update(state,98)
-    state.storage.racks["front_left-rack"]=Storage.rackDefinition("front_left")
+    state.storage.racks["warehouse-rack"]=Storage.rackDefinition("warehouse")
 end
 local function pallet(state)
     local x,y=Forklift.dropPosition(state,Config.forklift)
@@ -144,7 +140,7 @@ local function stackTests(check)
 end
 function Test.run(_,check)
     local oldWarehouse=Config.warehouse
-    Config.warehouse={enabled=true}
+    Config.warehouse={enabled=true,roomScenes=true}
     local state,player,cx=fresh()
     check("warehouse_live_paid_forklift_spawns_once_at_registered_point",state.forklift.owned
         and state.forklift.x==Layout.forkliftSpawn().x and state.forklift.y==Layout.forkliftSpawn().y)
@@ -195,40 +191,40 @@ function Test.run(_,check)
     local headings={"northwest","north","northeast","east","southeast","south","southwest","west"}
     local scale=(Config.forklift.drawScale or 0.22)*(Config.forklift.visualScaleMultiplier or 1)
     local function positionForRackSlot(row,column,height)
-        local target=Layout.rackPoint("front_left-rack",row,column)
+        local target=Layout.rackPoint("warehouse-rack",row,column)
         for _,heading in ipairs(headings) do
             local pose={owned=true,operating=true,direction=heading,forkHeight=height,
                 targetForkHeight=height,lifting=false,moving=false,carriedPalletId=p.id,x=0,y=0}
             local plan=Layered.plan(pose,{review=true,scale=scale})
             if plan then
-                pose.x,pose.y=target.x-plan.loadX,target.y-plan.loadY
+                pose.x,pose.y=target.x-plan.loadX,target.groundY+65
                 state.forklift.x,state.forklift.y,state.forklift.direction=pose.x,pose.y,heading
                 state.forklift.forkHeight,state.forklift.targetForkHeight=height,height
                 state.forklift.lifting,state.forklift.moving=false,false
                 player.x,player.y=pose.x,pose.y
                 ForkliftCargo.sync(state,Config.forklift)
-                local access=Gameplay.rackContext(player,state,"front_left-rack",cx,row,column)
+                local access=Gameplay.rackContext(player,state,"warehouse-rack",cx,row,column)
                 if access.near and access.clear and access.aligned then return heading,access end
             end
         end
     end
     local lowerHeading,lowerAccess=positionForRackSlot(1,3,0)
-    local rc=Gameplay.rackContext(player,state,"front_left-rack",cx)
+    local rc=Gameplay.rackContext(player,state,"warehouse-rack",cx)
     check("warehouse_live_rack_context_uses_physical_vehicle_and_approach",lowerHeading
         and lowerAccess and rc.vehicle=="forklift" and rc.near and rc.aligned and rc.clear)
     local lowerSlotHeading,selectedSlot=positionForRackSlot(1,1,0)
     check("warehouse_live_rack_context_targets_the_selected_slot",lowerSlotHeading and selectedSlot
-        and selectedSlot.targetPoint and selectedSlot.targetPoint.x==Layout.rackPoint("front_left-rack",1,1).x
+        and selectedSlot.targetPoint and selectedSlot.targetPoint.x==Layout.rackPoint("warehouse-rack",1,1).x
         and selectedSlot.aligned)
     state.forklift.direction=lowerSlotHeading=="east" and "west" or "east"
-    selectedSlot=Gameplay.rackContext(player,state,"front_left-rack",cx,1,1)
+    selectedSlot=Gameplay.rackContext(player,state,"warehouse-rack",cx,1,1)
     check("warehouse_live_selected_slot_rejects_wrong_fork_heading",not selectedSlot.aligned)
     local upperHeading,upperAccess=positionForRackSlot(2,5,1)
     check("warehouse_live_upper_slot_pose_matches_carried_load",upperHeading and upperAccess
         and upperAccess.near and upperAccess.clear and upperAccess.aligned)
     state.forklift.forkHeight,state.forklift.targetForkHeight=Config.forklift.travelHeight,Config.forklift.travelHeight
     ForkliftCargo.sync(state,Config.forklift)
-    local request={kind="store",requestId="LIVE-STORE",expectedRevision=0,vehicle="forklift",palletId=p.id,rackId="front_left-rack",row=2,column=5}
+    local request={kind="store",requestId="LIVE-STORE",expectedRevision=0,vehicle="forklift",palletId=p.id,rackId="warehouse-rack",row=2,column=5}
     ok,code=Gameplay.command(player,state,request,cx)
     check("warehouse_live_upper_shelf_requires_actual_full_fork_height",not ok and code=="wrong_fork_height" and p.location=="on_forklift")
     Gameplay.command(player,state,{kind="set_height",height=1},cx)
@@ -238,7 +234,7 @@ function Test.run(_,check)
         and p.storage.row==2 and p.storage.column==5 and not state.forklift.carriedPalletId and p.world==nil)
     ok,code=Gameplay.command(player,state,request,cx)
     check("warehouse_live_duplicate_store_replays_without_second_transfer",ok and code=="replayed" and state.storage.revision==1)
-    local retrieve={kind="retrieve",requestId="LIVE-RETRIEVE",expectedRevision=1,vehicle="forklift",palletId=p.id,rackId="front_left-rack",row=2,column=5}
+    local retrieve={kind="retrieve",requestId="LIVE-RETRIEVE",expectedRevision=1,vehicle="forklift",palletId=p.id,rackId="warehouse-rack",row=2,column=5}
     state.forklift.direction=upperHeading=="east" and "west" or "east"
     ok,code=Gameplay.command(player,state,retrieve,cx)
     check("warehouse_live_shelf_transfer_checks_current_heading",not ok and code=="not_aligned" and p.location=="rack")
@@ -296,15 +292,16 @@ function Test.run(_,check)
 
     local locked=State.new()
     local wrapped=Gameplay.assets(assets(false),locked)
-    check("warehouse_live_locked_black_expansion_is_not_walkable",not Navigation.isWalkable(wrapped,60,580,{}))
+    check("warehouse_live_unpurchased_rooms_leave_whole_warehouse_floor_walkable",Navigation.isWalkable(wrapped,60,580,{}))
     locked.money=20000;rack(locked)
-    check("warehouse_live_completed_extension_joins_existing_navigation",Navigation.isWalkable(wrapped,60,580,{})
-        and not Navigation.isWalkable(wrapped,900,580,{}))
+    check("warehouse_live_upgrades_keep_both_floor_corners_walkable",Navigation.isWalkable(wrapped,60,580,{})
+        and Navigation.isWalkable(wrapped,900,580,{}))
     local existingCore=Gameplay.assets(assets(),State.new())
     check("warehouse_live_expansion_seam_never_erases_existing_core_walkmask",
         Navigation.isWalkable(existingCore,855,450,{}) and Navigation.isWalkable(existingCore,861,450,{}))
     local blocked=State.new();blocked.money=50000
     Upgrades.purchaseForklift(blocked,"BLOCKED-DELIVERY",0)
+    blocked.testObstacle=Layout.forkliftSpawn()
     Gameplay.update(0,blocked,context(false))
     check("warehouse_live_blocked_delivery_never_spawns_vehicle_inside_collision",not blocked.forklift.owned and blocked.warehouse.forkliftOwned)
     stackTests(check)

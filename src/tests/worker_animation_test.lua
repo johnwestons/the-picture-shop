@@ -40,12 +40,12 @@ function Test.run(context, check)
         end
 
         local pushAction = Catalog.pushAction(profile.character)
-        local pushImage, pushQuad, pushCount = assets.get(profile.character, pushAction, 4)
+        local pushImage, pushQuad, pushCount = assets.get(profile.character, pushAction, 8)
         local pushWidth, pushHeight = quadSize(pushQuad)
-        local validPush = pushAction == "push_jack" and pushImage and pushCount == 4
+        local validPush = pushAction == "push" and pushImage and pushCount == 8
             and pushWidth == 256 and pushHeight == 256
         cacheOkay = cacheOkay and validPush
-        check("worker_" .. profile.character .. "_has_future_pallet_jack_push_loop", validPush)
+        check("worker_" .. profile.character .. "_has_active_pallet_jack_push_gait", validPush)
     end
     check("worker_action_texture_cache_stays_within_budget",
         cacheOkay and assets.cachedTextureBytes() <= 16 * 1024 * 1024)

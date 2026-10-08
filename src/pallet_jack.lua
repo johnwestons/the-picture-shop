@@ -97,32 +97,47 @@ local function pickupBlocker(state, item)
     if require("src.pallet_storage").isSupporting(state, item.pallet.id) then
         return "supporting_pallet"
     end
-    if state.employment and require("src.employees").reservation(state, nil, item.pallet.id) then
+    if state.employment and require("src.employees").reservation(state, nil, item.pallet.id,
+        state.palletJack and state.palletJack.operatorEmployeeId) then
         return "employee_reserved"
     end
 end
 
-function PalletJack.pickupCandidate(state, config, palletId)
+function PalletJack.pickupCandidates(state, config)
     local jack = PalletJack.ensure(state, config)
     local radius = math.max(0, tonumber(config and config.pickupRadius) or 0)
-    local best, bestDistance
+    local candidates = {}
     for _, item in ipairs(PalletState.items(state)) do
-        if (palletId == nil or item.pallet.id == palletId) and not pickupBlocker(state, item) then
+        if not pickupBlocker(state, item) then
             local dx, dy = item.pallet.world.x - jack.x, item.pallet.world.y - jack.y
             local distance = dx * dx + dy * dy
-            if distance <= radius * radius and (not bestDistance or distance < bestDistance
-                or (distance == bestDistance and item.pallet.id < best.pallet.id))
-            then
-                best, bestDistance = item, distance
+            if distance <= radius * radius then
+                item.pickupDistance = distance
+                candidates[#candidates + 1] = item
             end
         end
     end
-    if best then return best, nil, bestDistance end
-    if palletId == nil then return nil, "no_pallet" end
+    table.sort(candidates, function(a, b)
+        if a.pickupDistance ~= b.pickupDistance then return a.pickupDistance < b.pickupDistance end
+        return a.pallet.id < b.pallet.id
+    end)
+    return candidates
+end
+
+function PalletJack.pickupCandidate(state, config, palletId)
+    if palletId == nil then
+        local best = PalletJack.pickupCandidates(state, config)[1]
+        if best then return best, nil, best.pickupDistance end
+        return nil, "no_pallet"
+    end
     local requested = PalletState.find(state, palletId)
     if not requested then return nil, "missing" end
     local blocker = pickupBlocker(state, requested)
     if blocker then return nil, blocker end
+    local jack = PalletJack.ensure(state, config)
+    local radius = math.max(0, tonumber(config and config.pickupRadius) or 0)
+    local distance = (requested.pallet.world.x - jack.x) ^ 2 + (requested.pallet.world.y - jack.y) ^ 2
+    if distance <= radius * radius then return requested, nil, distance end
     return nil, "out_of_range"
 end
 
@@ -147,12 +162,18 @@ function PalletJack.ensure(state, config)
     jack.direction = directionFrames[jack.direction] and jack.direction or "northwest"
     jack.operating = jack.operating == true
     if jack.operating then
+        if type(jack.operatorEmployeeId) == "string" and jack.operatorEmployeeId:match("^EMP%-%d+$") then
+            jack.operatorPlayerId = nil
+        else
+            jack.operatorEmployeeId = nil
         -- Older single-player runtime state had no explicit owner. Treat it as
         -- the local host without ever persisting this transient network field.
         jack.operatorPlayerId = validOperatorId(jack.operatorPlayerId)
             and jack.operatorPlayerId or 1
+        end
     else
         jack.operatorPlayerId = nil
+        jack.operatorEmployeeId = nil
     end
     if type(jack.candidatePalletId) ~= "string" or jack.candidatePalletId == "" then
         jack.candidatePalletId = nil
@@ -162,6 +183,29 @@ function PalletJack.ensure(state, config)
     if not jack.operating then jack.moving = false end
     jack.animationClock = type(jack.animationClock) == "number" and jack.animationClock or 0
     return jack
+end
+
+function PalletJack.mountEmployee(state, config, employeeId)
+    local worker = require("src.employees").worker(state, employeeId)
+    if not worker or not worker.visible or worker.status ~= "employed" then return false, "invalid_employee" end
+    local jack = PalletJack.ensure(state, config)
+    if jack.operating then
+        return jack.operatorEmployeeId == employeeId, jack.operatorEmployeeId == employeeId and "already_mounted" or "busy"
+    end
+    jack.operating, jack.moving = true, false
+    jack.operatorEmployeeId, jack.operatorPlayerId = employeeId, nil
+    runtimeMotion[jack] = nil
+    motionFor(jack, config)
+    return true, "mounted"
+end
+
+function PalletJack.releaseEmployee(state, config, employeeId)
+    local jack = PalletJack.ensure(state, config)
+    if jack.operatorEmployeeId ~= employeeId then return false end
+    jack.operating, jack.moving = false, false
+    jack.operatorEmployeeId, jack.operatorPlayerId = nil, nil
+    runtimeMotion[jack] = nil
+    return true
 end
 
 function PalletJack.mount(state, config, operatorPlayerId)
@@ -198,6 +242,7 @@ function PalletJack.forceRelease(state, config, operatorPlayerId)
     end
     jack.operating = false
     jack.operatorPlayerId = nil
+    jack.operatorEmployeeId = nil
     jack.moving = false
     runtimeMotion[jack] = nil
     return true, jack.carriedPalletId and "parked_loaded" or "parked"
@@ -267,6 +312,7 @@ function PalletJack.continueMotion(state, previousJack, config)
     local previousMotion = previousJack and runtimeMotion[previousJack]
     if not previousMotion or not jack.operating or not previousJack.operating
         or jack.operatorPlayerId ~= previousJack.operatorPlayerId
+        or jack.operatorEmployeeId ~= previousJack.operatorEmployeeId
         or jack.x ~= previousJack.x or jack.y ~= previousJack.y
         or jack.direction ~= previousJack.direction then return false end
     local motion = {}
@@ -483,6 +529,33 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
     return true
 end
 
+-- Autonomous routes resolve the entire loaded footprint before applying travel.
+-- Feed that achieved travel into the same jack/hand/gait presentation as players.
+function PalletJack.followNavigation(state, x, y, dt, config)
+    local jack = PalletJack.ensure(state, config)
+    local motion = motionFor(jack, config)
+    local dx, dy = x - jack.x, y - jack.y
+    local distance = math.sqrt(dx * dx + dy * dy)
+    jack.x, jack.y, jack.moving = x, y, distance > .0001
+    motion.velocityX, motion.velocityY = 0, 0
+    if jack.moving then
+        jack.direction = directionFor(dx, dy, jack.direction)
+        motion.operatorDirection = jack.direction
+        motion.targetHeading = math.atan2(dy, dx)
+        motion.distance = motion.distance + distance
+    end
+    jack.animationClock = jack.animationClock + math.max(0, dt)
+    PalletJack.updatePresentation(state, dt, config)
+    local _, pallet = findPallet(state, jack.carriedPalletId)
+    if pallet then
+        pallet.world = pallet.world or {}
+        pallet.world.x, pallet.world.y, pallet.world.fromX, pallet.world.fromY = x, y, x, y
+        pallet.world.direction, pallet.world.rotation = jack.direction, palletFrames[jack.direction]
+        pallet.world.spawnProgress = 1
+    end
+    return distance
+end
+
 function PalletJack.lift(state, config, palletId)
     local jack = PalletJack.ensure(state, config)
     if not jack.operating then return false, "not_operating" end
@@ -570,6 +643,7 @@ function PalletJack.snapshot(state, config)
         frame = directionFrames[jack.direction], palletFrame = palletFrames[jack.direction],
         operating = jack.operating,
         moving = jack.moving, operatorPlayerId = jack.operatorPlayerId,
+        operatorEmployeeId = jack.operatorEmployeeId,
         carriedPalletId = jack.carriedPalletId,
         candidatePalletId = candidate and candidate.pallet.id or nil,
     }
@@ -582,7 +656,10 @@ function PalletJack.applySnapshot(state, snapshot, config)
         or not directionFrames[snapshot.direction]
         or type(snapshot.operating) ~= "boolean" or type(snapshot.moving) ~= "boolean"
         or (snapshot.moving and not snapshot.operating)
-        or (snapshot.operating ~= validOperatorId(snapshot.operatorPlayerId))
+        or (snapshot.operatorEmployeeId ~= nil and (type(snapshot.operatorEmployeeId) ~= "string"
+            or not snapshot.operatorEmployeeId:match("^EMP%-%d+$")))
+        or (snapshot.operatorEmployeeId ~= nil and snapshot.operatorPlayerId ~= nil)
+        or (snapshot.operating ~= (validOperatorId(snapshot.operatorPlayerId) or snapshot.operatorEmployeeId ~= nil))
         or (snapshot.carriedPalletId ~= nil and type(snapshot.carriedPalletId) ~= "string")
         or (snapshot.candidatePalletId ~= nil and type(snapshot.candidatePalletId) ~= "string")
         or (snapshot.candidatePalletId ~= nil
@@ -608,7 +685,8 @@ function PalletJack.applySnapshot(state, snapshot, config)
     local dx, dy = snapshot.x - jack.x, snapshot.y - jack.y
     local distance = math.sqrt(dx * dx + dy * dy)
     local continuous = snapshot.operating and jack.operating
-        and snapshot.operatorPlayerId == jack.operatorPlayerId and distance < 80
+        and snapshot.operatorPlayerId == jack.operatorPlayerId
+        and snapshot.operatorEmployeeId == jack.operatorEmployeeId and distance < 80
     if continuous then
         motion.distance = motion.distance + distance
     else
@@ -622,6 +700,7 @@ function PalletJack.applySnapshot(state, snapshot, config)
     motion.targetHeading = directionAngles[jack.direction]
     jack.operating, jack.moving = snapshot.operating, snapshot.moving
     jack.operatorPlayerId = snapshot.operatorPlayerId
+    jack.operatorEmployeeId = snapshot.operatorEmployeeId
     jack.carriedPalletId = snapshot.carriedPalletId
     jack.candidatePalletId = snapshot.candidatePalletId
     if snapshot.carriedPalletId then

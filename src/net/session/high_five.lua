@@ -67,6 +67,9 @@ function Component.install(Runtime)
         end
         initiator.lastHighFiveAttemptAt = now
         local dx, dy = initiator.x - receiver.x, initiator.y - receiver.y
+        if not require("src.shop_rooms").sameScene(initiator,receiver) then
+            return reject("different_room","Meet in the same room before asking for a high five.")
+        end
         if dx * dx + dy * dy > Runtime.HIGH_FIVE_RANGE * Runtime.HIGH_FIVE_RANGE then
             return reject("too_far", "Move closer before asking for a high five.")
         end
@@ -145,7 +148,8 @@ function Component.install(Runtime)
             local dy = initiator and receiver and (initiator.y - receiver.y) or math.huge
             if not initiator or not receiver then
                 status, message = "cancelled", "The other player left before the high five."
-            elseif dx * dx + dy * dy > Runtime.HIGH_FIVE_RANGE * Runtime.HIGH_FIVE_RANGE then
+            elseif not require("src.shop_rooms").sameScene(initiator,receiver)
+                or dx * dx + dy * dy > Runtime.HIGH_FIVE_RANGE * Runtime.HIGH_FIVE_RANGE then
                 status, message = "cancelled", "Move closer to finish the high five."
             else
                 status, message = "accepted", tostring(receiver.name or "Worker") .. " accepted the high five!"

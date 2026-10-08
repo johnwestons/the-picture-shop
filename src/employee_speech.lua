@@ -1,5 +1,5 @@
 -- Short host-owned captions. Realtime poses carry one code, never long text.
-local Speech={MAX_CODE=26,GREETING_SECONDS=4}
+local Speech={MAX_CODE=28,GREETING_SECONDS=4}
 local messages={
     "Hello!","Hello!","Goodbye!","Cutting","Wrapping","Printing",
     "On break","Lunch break","To breakroom","To the cutter","To the wrapper",
@@ -7,6 +7,7 @@ local messages={
     "Path blocked","Finishing up","Starting shift","Heading home",
     "Waiting for pay","Work paused","Ready to work","Preparing plate",
     "Cleaning press","Preparing wrap",
+    "May I use the jack?","To the pallet jack",
 }
 function Speech.code(entry)
     if not entry or not entry.worker or not entry.actor or entry.actor.visible==false then return 0 end
@@ -20,11 +21,14 @@ function Speech.code(entry)
     if a.phase=="break" then return w.breakKind=="meal" and 8 or 7 end
     if a.phase=="break_walk" then return 9 end
     local activity=(w.activity or ""):lower()
+    if activity:find("waiting for the pallet jack",1,true) then return 27 end
     if activity:find("overdue wages",1,true) then return 21 end
     if activity:find("paused",1,true) then return 22 end
     if activity:find("blocked",1,true) or activity:find("another way",1,true) then return 17 end
     if activity:find("needs player attention",1,true) or activity:find("need attention",1,true)
         or activity:find("clear the",1,true) or activity:find("training required",1,true) then return 16 end
+    if a.phase=="pushing" then return 13 end
+    if activity:find("walking to the pallet jack",1,true) then return 28 end
     if activity:find("waiting",1,true) or activity:find("another pallet",1,true) then return 15 end
     if activity:find("safe machine cycle",1,true) then return 18 end
     if w.carryingPalletId then return 13 end

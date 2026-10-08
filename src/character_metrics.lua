@@ -3,6 +3,7 @@
 -- avoids reading pixels during startup or animation.
 return {
     ["rabbit-worker"] = {
+        sit = { {388,60,944,1168} },
         idle = { { 180, 56, 332, 466 }, { 180, 56, 333, 466 } },
         idle_north = { { 158, 56, 354, 466 }, { 159, 56, 353, 466 } },
         idle_northeast = { { 164, 56, 347, 466 }, { 164, 56, 347, 466 } },

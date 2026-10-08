@@ -14,6 +14,9 @@ Capabilities.MODES = {
 }
 
 Capabilities.INTERACTIONS = {
+    shopEntrance = {label="Shop room entrance",mode="full",supported={"enter_room","leave_room"}},
+    roomStock = {label="Storage room stock",mode="full",supported={"store_stock","retrieve_stock"}},
+    roomRest = {label="Break room seating",mode="full",supported={"rest","stand"}},
     shopClock = { label="Shop wall clock",mode="read_only",supported={"inspect_shop_time"} },
     jukebox = { label="Warehouse jukebox",mode="read_only",supported={"listen_to_host_vibes_radio"} },
     computer = {

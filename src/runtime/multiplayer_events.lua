@@ -54,6 +54,8 @@ function Component.install(Runtime)
                         "The host sent a visitor update this build could not apply.",
                         "Invalid visitor update")
                 end
+            elseif event.type == "employee_state" then
+                Runtime.World.applyEmployeeSnapshot(event.employees,Runtime.state)
             elseif event.type == "environment_state" then
                 if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees, Runtime.state) then
                     Runtime.showConnectionError(

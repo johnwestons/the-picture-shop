@@ -31,7 +31,7 @@ end
 local function employeeState(context, wrappingSkill)
     local state = context.State.new()
     local worker = {
-        id = "EMP-RECENT-001", name = "Test Operator", status = "employed",
+        id = "EMP-9901", name = "Test Operator", status = "employed",
         cutterSkill = 70, pressSkill = 60, wrappingSkill = wrappingSkill,
         visible = false, clockedIn = false, phase = "hidden", x = 645, y = 235,
         intentX = 0, intentY = 1, distance = 0, idleClock = 0,
@@ -264,21 +264,20 @@ function Test.run(context, check)
         palletEmergencyDropPoint = function(_, item) return item.world end,
         move = function(worker, point) worker.x, worker.y = point.x, point.y;return true end,
     }
+    require("src.tests.employee_transport_context")(workContext,transferState)
     Wrapper.forId(wrapperMachine.id).reset(transferState)
-    Work.update(transferState, operator, 0.1, workContext)
-    local carried = pallet.location == "on_employee" and pallet.carrierEmployeeId == operator.id
-        and operator.carryingPalletId == pallet.id
-    Work.update(transferState, operator, 0.1, workContext)
-    local stagedAtWrapper = pallet.location == "warehouse" and operator.carryingPalletId == nil
-        and pallet.world and math.abs(pallet.world.x - (transferState.wrapper.x + 80)) < 0.001
-    local startedWrapping = false
-    for _ = 1, 8 do
+    local carried,stagedAtWrapper,startedWrapping = false,false,false
+    for _ = 1, 2000 do
         Work.update(transferState, operator, 0.1, workContext)
+        carried=carried or pallet.location=="on_pallet_jack" and transferState.palletJack.carriedPalletId==pallet.id
+            and transferState.palletJack.operatorEmployeeId==operator.id
+        stagedAtWrapper=stagedAtWrapper or pallet.location=="warehouse" and operator.carryingPalletId==nil
+            and pallet.world and math.abs(pallet.world.x-(transferState.wrapper.x+80))<0.001
         if Wrapper.forId(wrapperMachine.id).isActive() then startedWrapping = true;break end
     end
     Wrapper.updateAll(Wrapper.forId(wrapperMachine.id).cycleTime + 0.1, transferState)
     Work.update(transferState, operator, 0.1, workContext)
-    check("recent_employee_carries_finished_skid_to_wrapper_and_runs_it",
+    check("recent_employee_pushes_finished_skid_to_wrapper_and_runs_it",
         staged and carried and stagedAtWrapper and startedWrapping and pallet.status == "wrapped",
         string.format("staged=%s carried=%s stagedAtWrapper=%s startedWrapping=%s status=%s location=%s activity=%s wrapperStep=%s",
             tostring(staged), tostring(carried), tostring(stagedAtWrapper),

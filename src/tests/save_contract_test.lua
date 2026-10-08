@@ -69,6 +69,14 @@ function Test.run(context, check)
         and not transientSnapshot.wrapper.moving and not transientSnapshot.wrapper.inMotion
         and not transientSnapshot.windmill.moving and not transientSnapshot.windmill.inMotion)
 
+    local priorWrapper=context.wrapper.forId("MCH-0002")
+    priorWrapper.step,priorWrapper.progress="wrapping",1
+    priorWrapper.pallet={id="OLD-SAVE-PALLET"}
+    context.wrapper.clearInstances()
+    local cleanWrapper=context.wrapper.forId("MCH-0002")
+    check("domain_switching_saves_clears_active_wrapper_and_old_pallet",cleanWrapper~=priorWrapper
+        and cleanWrapper.step=="idle" and cleanWrapper.progress==0 and cleanWrapper.pallet==nil)
+
     local function relocationSnapshotContract(kind, beginName, rotateName, placeName)
         local relocationState = context.State.new()
         if kind == "wrapper" then context.wrapper.reset(relocationState) end

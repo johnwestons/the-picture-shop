@@ -64,7 +64,7 @@ function Test.run(_, check)
         Schema.VERSION == 21 and Schema.validState(Schema.snapshot(fresh))
         and fresh.warehouse.bays.front_left.status == "locked"
         and fresh.warehouse.bays.front_right.status == "locked" and not fresh.warehouse.forkliftOwned
-        and not fresh.forklift.owned and next(fresh.storage.racks) == nil)
+        and not fresh.forklift.owned and fresh.storage.racks["warehouse-rack"]~=nil)
     local old = Schema.snapshot(fresh)
     old.warehouse, old.storage, old.forklift = nil, nil, nil
     old.money, old.inventory.paper, old.inventory.stock.shipping_cartons = 9182, 1875, 37

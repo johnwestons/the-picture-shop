@@ -257,6 +257,19 @@ function Component.install(Runtime)
         }
     end
 
+    function Runtime.normalizeEmployeeSnapshot(payload)
+        local valid,err=Runtime.shape(payload,"employee_snapshot payload",{"sessionId","serverTick","employees"})
+        if not valid then return nil,err end
+        local sessionId,fieldError=Runtime.token(payload.sessionId,Runtime.MAX_TOKEN_BYTES,"employee_snapshot.sessionId")
+        if not sessionId then return nil,fieldError end
+        local tick
+        tick,fieldError=Runtime.integerInRange(payload.serverTick,0,Runtime.UINT32_MAX,"employee_snapshot.serverTick")
+        if tick==nil then return nil,fieldError end
+        local employees=Runtime.EmployeePose.normalize(payload.employees)
+        if not employees then return nil,"employee_snapshot.employees is inconsistent" end
+        return {sessionId=sessionId,serverTick=tick,employees=employees}
+    end
+
     function Runtime.normalizeForkliftSnapshot(payload)
         local valid, fieldError = Runtime.shape(payload, "forklift_snapshot payload", { "sessionId", "serverTick", "forklift" })
         if not valid then return nil, fieldError end

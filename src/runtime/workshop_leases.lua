@@ -6,6 +6,7 @@ function Component.install(Runtime)
     function Runtime.localAuthorityPlayer()
         return {
             id = 1,
+            sceneId = Runtime.World.player.sceneId,
             x = Runtime.World.player.x,
             y = Runtime.World.player.y,
             intentX = Runtime.World.player.intentX,

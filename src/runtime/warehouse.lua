@@ -4,7 +4,8 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.warehousePlayer()
-        return {id=Runtime.World.player.id or 1,x=Runtime.World.player.x,y=Runtime.World.player.y}
+        return {id=Runtime.World.player.id or 1,x=Runtime.World.player.x,y=Runtime.World.player.y,
+            sceneId=Runtime.World.player.sceneId or "warehouse"}
     end
 
     function Runtime.sendWarehouseIntent(intent)

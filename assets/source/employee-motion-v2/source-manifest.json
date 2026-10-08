@@ -1,0 +1,116 @@
+[
+  {
+    "character": "cat-worker",
+    "source": "assets/source/employee-motion-v2/cat-worker.png",
+    "sha256": "9ddfe152e4e5dcb48a096cc2e9f413db7974ea2b4fa06d218f4ed3f1e23282b2",
+    "south_source": "assets/source/employee-motion-v2/cat-worker-south.png",
+    "south_sha256": "9189e92f12d860b237b18c600e973dd831293e7e4dd00dd0e0c775b33870d649",
+    "row_bands": [
+      [
+        0,
+        182
+      ],
+      [
+        182,
+        366
+      ],
+      [
+        366,
+        547
+      ],
+      [
+        547,
+        724
+      ],
+      [
+        724,
+        906
+      ],
+      [
+        906,
+        1086
+      ]
+    ],
+    "layout": {
+      "columns": 8,
+      "rows": 6
+    },
+    "generator": "built-in image_gen"
+  },
+  {
+    "character": "tinker-fox-worker",
+    "source": "assets/source/employee-motion-v2/tinker-fox-worker.png",
+    "sha256": "c94276bbb1ebc00b6bc27ce45aff5d6769b1ce5994ef8a178e3e32c5b987cf13",
+    "south_source": "assets/source/employee-motion-v2/tinker-fox-worker-south.png",
+    "south_sha256": "b74a21f1aa1d1ee6825f6ba4f1ab49f2f9134bf15c571f46f11cfb4a0d26b0f2",
+    "row_bands": [
+      [
+        35,
+        235
+      ],
+      [
+        235,
+        435
+      ],
+      [
+        435,
+        636
+      ],
+      [
+        636,
+        837
+      ],
+      [
+        837,
+        1046
+      ],
+      [
+        1046,
+        1250
+      ]
+    ],
+    "layout": {
+      "columns": 8,
+      "rows": 6
+    },
+    "generator": "built-in image_gen"
+  },
+  {
+    "character": "ferret-engineer-worker",
+    "source": "assets/source/employee-motion-v2/ferret-engineer-worker.png",
+    "sha256": "2539f52f3ad5e57a485bf13771eccb10d9e68254b88d46022f730d74a8ace850",
+    "south_source": "assets/source/employee-motion-v2/ferret-engineer-worker-south.png",
+    "south_sha256": "a729cb2c1354b7e1c7f555bc7b342d72911859771c4d1126971376f1c50df4bb",
+    "row_bands": [
+      [
+        35,
+        220
+      ],
+      [
+        220,
+        425
+      ],
+      [
+        425,
+        633
+      ],
+      [
+        633,
+        833
+      ],
+      [
+        833,
+        1045
+      ],
+      [
+        1045,
+        1260
+      ]
+    ],
+    "layout": {
+      "columns": 8,
+      "rows": 6
+    },
+    "generator": "built-in image_gen"
+  }
+]

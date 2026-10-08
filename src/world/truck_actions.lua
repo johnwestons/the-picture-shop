@@ -4,6 +4,19 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState)
+        if requestedKind=="shopRoom" or requestedKind=="roomStock" or requestedKind=="roomRest" then
+            local okay,code,message=require("src.shop_rooms").perform(player,state,requestedKind,desiredState,
+                {obstacles=Runtime.movementObstacles,players=function()
+                    local result={Runtime.World.player}
+                    local options=Runtime.World._employeeOptions or {}
+                    for _,p in ipairs(options.players and options.players() or {}) do result[#result+1]=p end
+                    return result
+                end})
+            return okay,code,message,requestedKind
+        end
+        if require("src.shop_rooms").scene(player)~="warehouse" then
+            return false,"wrong_scene","This control is in the warehouse.",requestedKind
+        end
         if type(player) ~= "table"
             or (requestedKind ~= "loadingBayDoor" and requestedKind ~= "truckCargoDoor")
             or (desiredState ~= "open" and desiredState ~= "closed")

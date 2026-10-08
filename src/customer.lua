@@ -2,6 +2,7 @@
 -- drives these review/resolve transitions while the visitor remains in-world.
 local CharacterAnimation = require("src.character_animation")
 local GaitMotion = require("src.gait_motion")
+local Navigator = require("src.npc_navigation")
 
 local Customer = {}
 local Instance = {}
@@ -108,6 +109,7 @@ function Customer.new(definition)
 end
 
 function Instance:reset(initialVisit)
+    Navigator.reset(self)
     if type(self.characterPool) == "table" and #self.characterPool > 0 then
         self.characterIndex = self.characterIndex % #self.characterPool + 1
         self.character = self.characterPool[self.characterIndex]
@@ -141,6 +143,8 @@ function Instance:reset(initialVisit)
     self.decision = nil
     self.waitTimer = 0
     self.seatingPause = 0
+    self.navigationBlockedFor = 0
+    self.routeBlocked = false
 end
 
 local function settleIntoSeat(instance)
@@ -168,7 +172,7 @@ local function leaveSeat(instance)
     instance.inMotion = false
 end
 
-function Instance:update(dt, player, pauseSchedule, motionDt)
+function Instance:update(dt, player, pauseSchedule, motionDt, navigationContext)
     dt = math.max(0, dt or 0)
     motionDt = math.max(0, tonumber(motionDt) or dt)
     self.inMotion = false
@@ -215,7 +219,7 @@ function Instance:update(dt, player, pauseSchedule, motionDt)
     end
 
     -- A customer politely pauses instead of walking through the player.
-    if player and distanceSquared(self, player) < 28 * 28 then
+    if not navigationContext and player and distanceSquared(self, player) < 28 * 28 then
         self.currentSpeed = 0
         self.gaitSpeedMultiplier, self.gaitAccelerationMultiplier = 1, 1
         self.idleClock = self.idleClock + motionDt
@@ -259,14 +263,64 @@ function Instance:update(dt, player, pauseSchedule, motionDt)
             break
         end
         local startX, startY = self.x, self.y
-        local reached, remaining = moveToward(self, target, travel)
+        local reached, remaining, blocked, actualDistance
+        if navigationContext then
+            reached, remaining, actualDistance, blocked = Navigator.travel(self,target,travel,motionDt,navigationContext)
+        else
+            reached, remaining = moveToward(self, target, travel)
+        end
         local dx, dy = self.x - startX, self.y - startY
         local segmentDistance = math.sqrt(dx * dx + dy * dy)
         if segmentDistance > 0.0001 then
-            distance = distance + segmentDistance
-            lastMotionX, lastMotionY = dx / segmentDistance, dy / segmentDistance
+            distance = distance + (actualDistance or segmentDistance)
+            lastMotionX, lastMotionY = navigationContext and self.intentX or dx / segmentDistance,
+                navigationContext and self.intentY or dy / segmentDistance
         end
-        if not reached then break end
+        if not reached then
+            self.navigationBlockedFor = blocked and (self.navigationBlockedFor or 0) + motionDt or 0
+            if self.navigationBlockedFor >= 2 then
+                -- Old route markers are preferences, not mandatory stops. Skip
+                -- a blocked marker only after finding a real route to a later
+                -- walking point; the chair's render anchor is never a goal.
+                local candidates = {}
+                local direction = self.state == "entering" and 1 or -1
+                local last = self.state == "entering" and (#self.route - (self.seat and 1 or 0)) or 1
+                for index = self.waypoint + direction, last, direction do
+                    local point = self.route[index]
+                    candidates[#candidates+1] = {x=point.x,y=point.y,index=index}
+                end
+                local points, goal = Navigator.findPath(self,candidates,navigationContext)
+                if points and goal then
+                    self.waypoint=goal.index;Navigator.reset(self)
+                elseif self.state == "entering" then
+                    local seats={}
+                    for index,seat in ipairs(self.seatSpots or {}) do
+                        if index~=self.seatIndex then
+                            local standing=seat.approach and seat.approach[#seat.approach]
+                                or self.baseRoute[#self.baseRoute]
+                            seats[#seats+1]={x=standing.x,y=standing.y,index=index}
+                        end
+                    end
+                    local seatPath,seatGoal=Navigator.findPath(self,seats,navigationContext)
+                    if seatPath then
+                        self.seatIndex=seatGoal.index
+                        self.route,self.seat=routeForSeat(self,self.seatIndex)
+                        self.seatFacing=self.seat.facing or 1
+                        self.waypoint=#self.route-1;Navigator.reset(self)
+                    else
+                        -- An inaccessible lounge must release the reception queue.
+                        -- Walk back out instead of pretending to occupy a seat.
+                        self.state="exiting";self.decision="timed_out"
+                        self.routeBlocked=true
+                        self.waypoint=1;Navigator.reset(self)
+                        event="route_blocked"
+                    end
+                end
+                self.navigationBlockedFor=0
+            end
+            break
+        end
+        self.navigationBlockedFor=0
         travel = remaining
         self.waypoint = self.state == "entering" and self.waypoint + 1 or self.waypoint - 1
         if self.state == "entering" and self.seat and self.waypoint == #self.route then
@@ -342,7 +396,7 @@ end
 
 function Instance:getObstacle()
     if not self.visible then return nil end
-    return { x = self.x, y = self.y, radius = 16 }
+    return { x = self.x, y = self.y, radius = 16, actor = self }
 end
 
 function Instance:isMoving()
@@ -439,6 +493,7 @@ function Instance:applySnapshot(snapshot)
     self.timer = snapshot.arrivalTimer
     self.seatingPause = 0
     self.route, self.seat = snapshotRoute, snapshotSeat
+    Navigator.reset(self)
     if self.seat then
         self.seatFacing = self.seat.facing or 1
     else

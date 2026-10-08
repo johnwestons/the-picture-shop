@@ -139,15 +139,18 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=="performance" then
+        if focus=="warehouse-rooms" then
+            Suites.runWarehouseRooms(context,check)
+        elseif focus=="domain" then
+            Suites.runDomain(context,check)
+        elseif focus=="performance" then
             runChecks(context)
             for _,name in ipairs({"performance_regression","asset_pack","save_contract",
                 "warehouse_save","network_protocol","truck_authority","multiplayer_session","multiplayer_impairment",
                 "multiplayer_workshop_reliable","guest_job_journey","employees","employee_schedule",
                 "employee_billing","shared_gui","options","sound","pallet_jack_motion",
                 "pallet_state","warehouse_controls","warehouse_app_entry","windmill_integration",
-                "warehouse_rack_presentation","warehouse_breakroom_presentation",
-                "forklift_lift_lab","mechanic_work_presentation","warehouse_construction_presentation",
+                "shop_rooms","forklift_lift_lab","mechanic_work_presentation",
                 "multiplayer_world_layers","camera_follow","computer_viewport"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
@@ -167,6 +170,17 @@ function Smoke.start(context)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="employee-network" then
+            require("src.tests.network_protocol_test").run(context,check)
+            require("src.tests.multiplayer_session_test").run(context,check)
+            require("src.tests.employees_test").run(context,check)
+            require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="employee-transport" then
+            require("src.tests.lua_limits_test").run(context,check)
+            require("src.tests.employee_transport_test").run(context,check)
+            require("src.tests.worker_animation_test").run(context,check)
+            require("src.tests.npc_navigation_test").run(context,check)
+            require("src.tests.pallet_pickup_test").run(context,check)
         elseif focus=="employee-animation" then
             require("src.tests.customer_motion_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
@@ -176,9 +190,22 @@ function Smoke.start(context)
                 context.title.versionText():match("^v[%w%._%+%-]+$") ~= nil)
         elseif focus=="recent-updates" then
             require("src.tests.recent_updates_test").run(context,check)
+        elseif focus=="stock-consumption" then
+            require("src.tests.storage_consumption_test").run(context,check)
+        elseif focus=="pallet-pickup" then
+            for _, name in ipairs({"lua_limits", "pallet_pickup", "pallet_jack_motion", "pallet_jack_audit",
+                "interaction", "input_status", "keyboard_mobile", "pallet_state",
+                "machine_relocation_authority", "machine_relocation_session", "workshop_authority",
+                "multiplayer_session", "save_contract"}) do
+                require("src.tests." .. name .. "_test").run(context, check)
+            end
         elseif focus=="pallet-jack" then
             require("src.tests.pallet_jack_motion_test").run(context,check)
             require("src.tests.pallet_jack_audit_test").run(context,check)
+            require("src.tests.pallet_pickup_test").run(context,check)
+            require("src.tests.interaction_test").run(context,check)
+            require("src.tests.input_status_test").run(context,check)
+            require("src.tests.keyboard_mobile_test").run(context,check)
             require("src.tests.pallet_state_test").run(context,check)
             require("src.tests.pallet_storage_test").run(context,check)
             require("src.tests.machine_relocation_authority_test").run(context,check)

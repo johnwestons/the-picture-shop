@@ -30,6 +30,13 @@ end
 local jackArt = require("src.pallet_jack_art")
 for action, frames in pairs(jackArt.anchors) do Anchors["rabbit-worker"][action] = frames end
 for action, frames in pairs(jackArt.metrics) do Metrics["rabbit-worker"][action] = frames end
+local employeeArt = require("src.employee_motion_art")
+for character,actions in pairs(employeeArt.anchors) do
+    for action,frames in pairs(actions) do Anchors[character][action]=frames end
+end
+for character,actions in pairs(employeeArt.metrics) do
+    for action,frames in pairs(actions) do Metrics[character][action]=frames end
+end
 
 local CharacterAssets = {
     metadata = {},

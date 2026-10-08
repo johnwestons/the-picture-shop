@@ -141,6 +141,7 @@ function Test.run(context,check)
     local okay,err=pcall(function()
         worker.breaksTaken=7;hours(continuation,40.9)
         local wc={canClaim=function() return true end,operatorPoint=function() return {x=700,y=470} end,idlePoint=function(a) return {x=a.x,y=a.y} end,freeSeat=function() end}
+        require("src.tests.employee_transport_context")(wc,continuation)
         local cutter=context.machine.forId(machine.id)
         for i=1,600 do AI.worker(continuation,worker,.1,40.9,wc);context.machine.updateAll(.1,continuation)
             if cutter.step=="cutting" and cutter.paper.activeCut==2 then break end end
@@ -163,6 +164,7 @@ function Test.run(context,check)
         hours(continuation,41);local carry=Schema.snapshot(continuation);local resumed=State.new()
         assert(carry and State.applyLocalSave(resumed,{state=carry,slot=1}))
         worker=resumed.employment.staff[1];context.machine.reset(resumed)
+        require("src.tests.employee_transport_context")(wc,resumed)
         AI.worker(resumed,worker,.1,58,wc)
         check("employee_day_off_keeps_job_queued_without_work_or_wages",not worker.visible and worker.assignment.jobId==first.id
             and #resumed.jobs.active[1].pallets[1].paper.history==history and Payroll.accrue(worker,41,105,false,resumed)==0)

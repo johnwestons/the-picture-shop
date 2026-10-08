@@ -163,7 +163,8 @@ function Component.install(Runtime)
             or ("WH-"..os.time().."-"..math.random(1,99999999))):gsub("[^%w_.%-]","-"):sub(1,40)
         local identifier=string.format("%s-%d-%d",Runtime.warehouseRequestPrefix,receiptCount,Runtime.ComputerScreen.warehouseRequestNumber)
         Runtime.ComputerScreen.warehouseConfirmation={kind=kind,bayId=bayId,optionId=optionId,requestId=identifier,
-            warningRequired=optionId=="storage" and not view.forkliftOwned,confirmUpperRows=false}
+            warningRequired=optionId=="storage" and Runtime.Upgrades.catalog("storage").upperRowRequiresForklift
+                and not view.forkliftOwned,confirmUpperRows=false}
         Runtime.ComputerScreen.warehouseMessage=nil
         return {action="warehouse_confirmation"}
     end

@@ -5,6 +5,7 @@ local PalletState = require("src.pallet_state")
 local Plates = require("src.plate_service")
 local Footprint = require("src.floor_footprint")
 local Storage = require("src.pallet_storage")
+local Procurement = require("src.procurement")
 
 local Windmill = {}
 local setupTasks = { "chase", "packing", "rollers", "ink", "feeder", "register" }
@@ -256,7 +257,8 @@ function Windmill.completeSetup(state, task, score)
             local plate = job and Plates.ensureJob(job)[p.colorIndex]
             local inkId = plate and plate.inkColor == "Black" and "black_ink" or "color_ink"
             if (stock[inkId] or 0) < 1 then return false, "The correct ink is not in inventory." end
-            stock[inkId] = stock[inkId] - 1
+            local consumed, reason = Procurement.consumeStockProduct(state, inkId, 1)
+            if not consumed then return false, reason end
             if job then
                 local totals = actual(job)
                 totals.inkUnits = (totals.inkUnits or 0) + 1
@@ -264,7 +266,8 @@ function Windmill.completeSetup(state, task, score)
             end
         elseif task == "packing" then
             if (stock.tympan_sheets or 0) < 1 then return false, "A clean tympan sheet is required." end
-            stock.tympan_sheets = stock.tympan_sheets - 1
+            local consumed, reason = Procurement.consumeStockProduct(state, "tympan_sheets", 1)
+            if not consumed then return false, reason end
             local _, job = Windmill.current(state)
             if job then
                 local totals = actual(job)
@@ -497,11 +500,18 @@ function Windmill.cleanAndUnload(state)
     local placement = placementFor(state)
     local world = { x = placement.x + 78, y = placement.y + 42,
         direction = placement.direction, spawnProgress = 1 }
+    local originalStatus, originalWorld, originalPressMachineId =
+        pallet.status, pallet.world, pallet.pressMachineId
     local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {
         status = nextPalletStatus, world = world,
     })
     if not transitioned then return false, errorMessage end
-    stock.press_wash = stock.press_wash - 1
+    local consumed, reason = Procurement.consumeStockProduct(state, "press_wash", 1)
+    if not consumed then
+        pallet.location, pallet.status, pallet.world = "at_press", originalStatus, originalWorld
+        pallet.pressMachineId = originalPressMachineId
+        return false, reason
+    end
     local totals = actual(job)
     totals.washUnits = (totals.washUnits or 0) + 1
     totals.supplyCost = (totals.supplyCost or 0) + 34 / 6

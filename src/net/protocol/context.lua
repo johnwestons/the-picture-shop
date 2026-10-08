@@ -14,7 +14,7 @@ function Component.install(Runtime)
     Runtime.RabbitColorways = require("src.rabbit_colorways")
 
     Runtime.Protocol = {
-        VERSION = 28,
+        VERSION = 30,
         MAX_PACKET_BYTES = 1200,
         MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
         MAX_PLAYERS = 4,
@@ -52,7 +52,7 @@ function Component.install(Runtime)
     Runtime.REALTIME_CODEC_LIMITS = {
         maxBytes = Runtime.Protocol.MAX_PACKET_BYTES,
         maxDepth = 8,
-        maxEntries = 128,
+        maxEntries = 256,
         -- Typed office messages are bounded to 600 bytes; other fields keep their
         -- narrower per-message schema limits below. The packet cap stays 1,200.
         maxStringBytes = 600,
@@ -96,6 +96,7 @@ function Component.install(Runtime)
         snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         visitor_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         environment_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
+        employee_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         ping = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         pong = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         leave = { channel = Runtime.Protocol.CHANNEL_CONTROL, delivery = "reliable" },
@@ -109,7 +110,7 @@ function Component.install(Runtime)
         "workshop_acquire", "workshop_grant", "workshop_command",
         "workshop_result", "workshop_release", "workshop_snapshot", "cutter_snapshot", "wrapper_snapshot",
         "windmill_snapshot", "pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
-        "visitor_snapshot", "environment_snapshot", "ping", "pong", "leave", "error",
+        "visitor_snapshot", "environment_snapshot", "employee_snapshot", "ping", "pong", "leave", "error",
     }
 end
 

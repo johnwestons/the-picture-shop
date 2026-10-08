@@ -13,6 +13,7 @@ local Intent=require("src.office_intent")
 local Office=require("src.office_authority")
 local Screen=require("src.screens.schedule_screen")
 local Test={}
+local jackContext=require("src.tests.employee_transport_context")
 local function hours(state,h)
     state.calendar=Calendar.dateFromTotalDay(math.floor(h/24));state.calendar.elapsed=(h%24)/24*Calendar.secondsPerDay(state)
 end
@@ -69,8 +70,8 @@ local function testTransfersAndPackaging(context,check)
     local transferX,transferY=context.CutterZones.inputAnchor(
         transferState,context.config.cutterPlacement)
     local transferPallet=transferJob.pallets[1]
-    transferPallet.world.x,transferPallet.world.y=transferX+500,transferY
-    transferPallet.world.fromX,transferPallet.world.fromY=transferX+500,transferY
+    transferPallet.world.x,transferPallet.world.y=350,550
+    transferPallet.world.fromX,transferPallet.world.fromY=350,550
     transferPallet.world.spawnProgress=1
     context.machine.reset(transferState)
     local transferQueued=add(transferState,transferWorker,transferJob,transferMachine)
@@ -86,10 +87,13 @@ local function testTransfersAndPackaging(context,check)
         move=function(worker,goal)
             worker.x,worker.y=goal.x,goal.y;worker.moving=false;return true
         end}
-    Work.update(transferState,transferWorker,.1,transferContext)
-    local carriedForCutter=transferPallet.location=="on_employee"
-        and transferWorker.carryingPalletId==transferPallet.id
-    Work.update(transferState,transferWorker,.1,transferContext)
+    jackContext(transferContext,transferState)
+    local carriedForCutter=false
+    for _=1,1200 do
+        Work.update(transferState,transferWorker,.1,transferContext)
+        carriedForCutter=carriedForCutter or transferPallet.location=="on_pallet_jack"
+        if carriedForCutter and transferPallet.location=="warehouse" then break end
+    end
     check("schedule_worker_moves_first_off_zone_job_into_cutter_feed_zone",
         transferQueued and carriedForCutter and transferPallet.location=="warehouse"
         and transferWorker.carryingPalletId==nil
@@ -471,7 +475,9 @@ function Test.run(context,check)
     w.weeks={}
     -- Work that needs pallet transfer stays first in the shared queue for the
     -- assigned worker instead of being skipped as a blocked cutter job.
-    AI.worker(state,w,.1,9,{idlePoint=function(actor) return {x=actor.x,y=actor.y} end})
+    local transferStartContext=jackContext({idlePoint=function(actor) return {x=actor.x,y=actor.y} end},state)
+    AI.worker(state,w,.1,9,transferStartContext)
+    require("src.employee_pallet_jack").release(state,w,transferStartContext)
     check("schedule_unstaged_first_job_stays_assigned_for_worker_transfer",
         w.assignment and w.assignment.jobId==a.id and #w.schedule.items==2
         and w.schedule.items[1].jobId==a.id)
@@ -501,6 +507,7 @@ function Test.run(context,check)
     end)
     local wc={canClaim=function() return true end,operatorPoint=function() return {x=700,y=470} end,
         move=function(actor,goal) actor.x,actor.y=goal.x,goal.y;actor.moving=false;return true end}
+    jackContext(wc,state)
     for i=1,800 do
         Work.update(state,w,.1,wc);context.machine.updateAll(.1,state)
         if cutter.step=="cutting" then break end

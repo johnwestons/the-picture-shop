@@ -1,4 +1,11 @@
 local Suites = {}
+-- The old expansion-art fixtures remain available for the legacy layout;
+-- full-floor room scenes have their own registration and live session tests.
+local function legacyGeometry(suite)
+    return {run=function(context,check)
+        if not require("src.config").warehouse.roomScenes then suite.run(context,check) end
+    end}
+end
 
 local DOMAIN_SUITES = {
     require("src.tests.lua_limits_test"),
@@ -61,6 +68,7 @@ local DOMAIN_SUITES = {
     require("src.tests.interaction_test"),
     require("src.tests.player_controller_test"),
     require("src.tests.customer_motion_test"),
+    require("src.tests.npc_navigation_test"),
     require("src.tests.time_acceleration_motion_test"),
     require("src.tests.asset_pack_test"),
     require("src.tests.work_phone_test"),
@@ -72,17 +80,19 @@ local DOMAIN_SUITES = {
     require("src.tests.pallet_state_test"),
     require("src.tests.pallet_jack_motion_test"),
     require("src.tests.pallet_jack_audit_test"),
+    require("src.tests.pallet_pickup_test"),
     require("src.tests.warehouse_upgrades_test"),
-    require("src.tests.warehouse_layout_test"),
-    require("src.tests.warehouse_rack_presentation_test"),
-    require("src.tests.warehouse_breakroom_presentation_test"),
-    require("src.tests.warehouse_breakroom_world_test"),
-    require("src.tests.warehouse_scene_test"),
-    require("src.tests.warehouse_live_acceptance_test"),
+    require("src.tests.shop_rooms_test"),
+    legacyGeometry(require("src.tests.warehouse_layout_test")),
+    legacyGeometry(require("src.tests.warehouse_rack_presentation_test")),
+    legacyGeometry(require("src.tests.warehouse_breakroom_presentation_test")),
+    legacyGeometry(require("src.tests.warehouse_breakroom_world_test")),
+    legacyGeometry(require("src.tests.warehouse_scene_test")),
+    legacyGeometry(require("src.tests.warehouse_live_acceptance_test")),
     require("src.tests.construction_service_test"),
     require("src.tests.warehouse_construction_test"),
     require("src.tests.mechanic_work_presentation_test"),
-    require("src.tests.warehouse_construction_presentation_test"),
+    legacyGeometry(require("src.tests.warehouse_construction_presentation_test")),
     require("src.tests.warehouse_gameplay_test"),
     require("src.tests.warehouse_office_test"),
     require("src.tests.warehouse_authority_test"),
@@ -108,6 +118,7 @@ local DOMAIN_SUITES = {
     require("src.tests.progression_balance_test"),
     require("src.tests.employee_billing_test"),
     require("src.tests.worker_animation_test"),
+    require("src.tests.employee_transport_test"),
     require("src.tests.outdoor_weather_test"),
     require("src.tests.shop_workflow_test"),
     require("src.tests.press_economics_test"),
@@ -117,6 +128,14 @@ local DOMAIN_SUITES = {
 
 function Suites.runDomain(context, check)
     for _, suite in ipairs(DOMAIN_SUITES) do suite.run(context, check) end
+end
+function Suites.runWarehouseRooms(context,check)
+    for _,name in ipairs({"shop_rooms","warehouse_upgrades","construction_service","warehouse_construction",
+        "pallet_storage","storage_consumption","pallet_rack_screen","warehouse_save","warehouse_office",
+        "warehouse_authority","warehouse_gameplay","warehouse_controls","warehouse_app_entry","truck_authority","truck_session",
+        "network_protocol","multiplayer_session","multiplayer_world_layers","computer_viewport","save_contract"}) do
+        require("src.tests."..name.."_test").run(context,check)
+    end
 end
 
 function Suites.verifyAuditCoverage(passed, check)

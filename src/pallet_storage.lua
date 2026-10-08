@@ -1,7 +1,7 @@
 -- Host-only, atomic transfers of existing job/procurement pallets. The rack
 -- registry contains no inventory: each pallet remains its sole durable owner.
 local Storage = { ROWS = 2, COLUMNS = 5, MAX_RECEIPTS = 128 }
-local BAYS = { front_left = true, front_right = true }
+local BAYS = { warehouse = true, front_left = true, front_right = true }
 local VEHICLES = { pallet_jack = "palletJack", forklift = "forklift" }
 local LOCATIONS = { pallet_jack = "on_pallet_jack", forklift = "on_forklift" }
 local ACTIONS = { store = true, retrieve = true, stack = true, unstack = true }
@@ -48,12 +48,13 @@ local function slotKey(rackId, row, column)
     return rackId .. ":" .. row .. ":" .. column
 end
 local function completedRack(state, rack)
+    if rack.bayId == "warehouse" then return true end
     local bay = state.warehouse and state.warehouse.bays and state.warehouse.bays[rack.bayId]
     return type(bay) == "table" and bay.status == "complete" and bay.optionId == "storage"
 end
 
 function Storage.defaultState()
-    return { revision = 0, racks = {}, appliedRequests = {} }
+    return { revision = 0, racks = { ["warehouse-rack"]={id="warehouse-rack",bayId="warehouse",revision=0} }, appliedRequests = {} }
 end
 
 function Storage.rackDefinition(bayId)
@@ -90,7 +91,7 @@ local function validRegistry(value)
         end
         count, bays[rack.bayId] = count + 1, true
     end
-    if count > 2 then return false, "Too many warehouse racks." end
+    if count > 3 then return false, "Too many warehouse racks." end
     local requests, lastRevision = {}, 0
     for _, receipt in ipairs(value.appliedRequests) do
         if not exact(receipt, { playerId=true, request=true, revision=true, code=true })
@@ -113,7 +114,9 @@ function Storage.normalize(value)
     if value == nil then return Storage.defaultState() end
     local valid, reason = validRegistry(value)
     if not valid then return nil, reason end
-    return copy(value)
+    local normalized=copy(value)
+    normalized.racks["warehouse-rack"]=normalized.racks["warehouse-rack"] or Storage.rackDefinition("warehouse")
+    return normalized
 end
 
 function Storage.normalizePlacement(pallet)

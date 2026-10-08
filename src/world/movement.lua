@@ -4,6 +4,15 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.update(dt, directionX, directionY, assets, state, cursorX, cursorY, simulationDt)
+        if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
+            Runtime.World._assets,Runtime.World._state=assets,state
+            Runtime.updateWalkingPlayer(Runtime.World.player,dt,directionX,directionY,assets,state)
+            local changed=Runtime.World.updateSimulation(simulationDt or dt,
+                Runtime.WarehouseGameplay.assets(assets,state),state,dt)
+            Runtime.World.selectedInteraction=Runtime.selectInteractionFor(Runtime.World.player,
+                Runtime.World.selectedInteraction,cursorX,cursorY)
+            return changed
+        end
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets = assets
         if directionX ~= 0 or directionY ~= 0 then Runtime.World.placementSelection = nil end
@@ -101,11 +110,7 @@ function Component.install(Runtime)
             player.facing = (jack.direction == "northeast" or jack.direction == "east"
                 or jack.direction == "southeast") and 1 or -1
         else
-            Runtime.PlayerController.update(player, directionX, directionY, dt,
-                function(currentX, currentY, nextX, nextY)
-                    return Runtime.Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY,
-                        Runtime.movementObstacles(state, false))
-                end, Runtime.Config.player)
+            Runtime.updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
         end
         if externalMovement and not localOperatesForklift then
             Runtime.PlayerController.observeExternalMove(player, playerStartX, playerStartY, player.moving, dt)
@@ -135,12 +140,19 @@ function Component.install(Runtime)
     function Runtime.updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
         if type(player) ~= "table" then return false end
         if player.resting and (math.abs(tonumber(directionX) or 0)>0.001
-            or math.abs(tonumber(directionY) or 0)>0.001) then player.resting=false end
+            or math.abs(tonumber(directionY) or 0)>0.001) then require("src.shop_rooms").stand(player) end
         assets = Runtime.WarehouseGameplay.assets(assets, state)
+        local Rooms=require("src.shop_rooms")
+        local sceneId=Rooms.scene(player)
+        if sceneId~="warehouse" then assets=Rooms.assets(assets,sceneId) end
+        -- Obstacles cannot change during one controller update. Share the same
+        -- snapshot across its axis checks and collision substeps.
+        local obstacles
         Runtime.PlayerController.update(player, directionX or 0, directionY or 0, dt,
             function(currentX, currentY, nextX, nextY)
-                return Runtime.Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY,
-                    Runtime.movementObstacles(state, false))
+                obstacles=obstacles or (sceneId~="warehouse" and Rooms.obstacles(state,sceneId)
+                    or Runtime.movementObstacles(state, false))
+                return Runtime.Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY,obstacles)
             end, Runtime.Config.player)
         return true
     end

@@ -22,7 +22,10 @@ try {
         -ArgumentList ('"' + $perfRoot + '"') -WorkingDirectory $perfRoot -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $perfOutput 'stdout.log') `
         -RedirectStandardError (Join-Path $perfOutput 'stderr.log')
+    $null = $perfProcess.Handle
     if (-not $perfProcess.WaitForExit($TimeoutSeconds * 1000)) { throw 'Performance probe timed out.' }
+    $perfProcess.WaitForExit()
+    $perfProcess.Refresh()
     Get-Content (Join-Path $perfOutput 'stdout.log')
     if ($perfProcess.ExitCode -ne 0) {
         Get-Content (Join-Path $perfOutput 'stderr.log')

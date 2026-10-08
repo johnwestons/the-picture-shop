@@ -69,6 +69,10 @@ function Component.install(Runtime)
                     self.players[record.id] = player
                 end
                 player.name, player.character = record.name, record.character
+                if (player.sceneId or "warehouse")~=(record.sceneId or "warehouse")
+                    or (player.resting==true)~=(record.resting==true) then
+                    Runtime.copyMotion(player,record,true)
+                end
                 player._targetX, player._targetY = record.x, record.y
                 player._targetRecord = record
                 if record.id == self.localId then
@@ -188,12 +192,22 @@ function Component.install(Runtime)
                 and payload.serverTick > self.lastEnvironmentTick
             then
                 self.lastEnvironmentTick = payload.serverTick
+                local employees=payload.employees
+                if employees then
+                    if payload.serverTick>(self.lastEmployeeTick or -1) then self.lastEmployeeTick=payload.serverTick
+                    else employees=nil end
+                end
                 self:_queue("environment_state", {
                     serverTick = payload.serverTick,
                     bayDoor = payload.bayDoor,
                     truck = payload.truck,
-                    employees = payload.employees,
+                    employees = employees,
                 })
+            end
+        elseif envelope.type == "employee_snapshot" then
+            if self.ready and payload.sessionId==self.sessionId and payload.serverTick>(self.lastEmployeeTick or -1) then
+                self.lastEmployeeTick=payload.serverTick
+                self:_queue("employee_state",{serverTick=payload.serverTick,employees=payload.employees})
             end
         elseif envelope.type == "pallet_jack_snapshot" then
             if self.ready and payload.sessionId == self.sessionId

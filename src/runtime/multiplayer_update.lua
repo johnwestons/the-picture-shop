@@ -92,6 +92,9 @@ function Component.install(Runtime)
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
             end,
             resolveGuestSpawn = function(hostX, hostY, guestIndex, players)
+                if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
+                    hostX,hostY=Runtime.Config.player.spawnX,Runtime.Config.player.spawnY
+                end
                 return Runtime.World.resolveNetworkSpawn(hostX, hostY, guestIndex, Runtime.Assets, Runtime.state, players)
             end,
             getShopSnapshot = function()
@@ -183,7 +186,9 @@ function Component.install(Runtime)
                 end
             end,
             performInteraction = function(player, targetKind, desiredState)
-                return Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState)
+                local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState)
+                if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
+                return okay,code,message,kind
             end,
             getRadioSnapshot = function()
                 return require("src.jukebox").networkState()

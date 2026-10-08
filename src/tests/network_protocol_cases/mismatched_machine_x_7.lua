@@ -170,7 +170,7 @@ function Component.run(Context)
         type(Context.spawnX) == "number" and type(Context.spawnY) == "number"
         and Context.context.Navigation.isWalkable(Context.context.assets, Context.spawnX, Context.spawnY, {}))
 
-    Context.routesCorrect = Context.Protocol.VERSION == 28 and Context.Protocol.CHANNEL_COUNT == 3
+    Context.routesCorrect = Context.Protocol.VERSION == 30 and Context.Protocol.CHANNEL_COUNT == 3
         and Context.Protocol.CHANNEL_CONTROL == 0 and Context.Protocol.CHANNEL_STATE == 1
         and Context.Protocol.CHANNEL_DURABLE == 2 and Context.Protocol.MAX_PLAYERS == 4
     Context.routeSummary = {}

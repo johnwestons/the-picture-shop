@@ -277,6 +277,7 @@ function Test.run(context,check)
         operatorPoint=function(_,worker) return {x=worker.x,y=worker.y} end,
         palletApproachPoint=function(pallet) return {x=pallet.world.x,y=pallet.world.y} end,
         move=function(worker,goal) worker.x,worker.y=goal.x,goal.y;return true end}
+    require("src.tests.employee_transport_context")(pressWorkContext,pressState)
     Work.update(pressState,pressWorker,.1,pressWorkContext)
     local pressAwards=pressJob.employeeSkillAwards and pressJob.employeeSkillAwards.press or {}
     check("employees_gain_printing_skill_after_press_job_completes",

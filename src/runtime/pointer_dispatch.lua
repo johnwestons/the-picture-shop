@@ -65,6 +65,7 @@ function Component.install(Runtime)
 
     function Runtime.dispatchGameMousePressed(gameX, gameY, button)
         if Runtime.state.screen == "asset_error" then return end
+        if require("src.shop_room_controls").mousepressed(gameX,gameY,button,Runtime) then return true end
         if button == 1 then Runtime.Ui.notePress(gameX, gameY) end
         if Runtime.App.sound then Runtime.App.sound:pointerPressed(button, Runtime.state.screen) end
         if Runtime.state.screen == "options" then
@@ -98,6 +99,7 @@ function Component.install(Runtime)
     function Runtime.dispatchMousePressed(x, y, button)
         if Runtime.state.screen == "asset_error" then return end
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
+        if require("src.shop_room_controls").mousepressed(gameX,gameY,button,Runtime) then return true end
         if button == 1 then Runtime.Ui.notePress(gameX, gameY) end
         if Runtime.App.sound then Runtime.App.sound:pointerPressed(button, Runtime.state.screen) end
         if Runtime.state.screen == "options" then

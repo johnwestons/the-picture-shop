@@ -56,9 +56,7 @@ end
 -- A saved game or a newly parked object can occasionally leave an actor just
 -- inside a collision circle. Allow movement that strictly increases distance
 -- from every overlapping obstacle so the player can always walk free.
-function Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstacles)
-    local mask = assets.getData("walkmask")
-    if not feetAreOnMask(mask, nextX, nextY) then return false end
+local function clearsObstaclesFrom(currentX, currentY, nextX, nextY, obstacles)
     for _, obstacle in ipairs(obstacles or {}) do
         local currentDx, currentDy = currentX - obstacle.x, currentY - obstacle.y
         local nextDx, nextDy = nextX - obstacle.x, nextY - obstacle.y
@@ -87,6 +85,42 @@ function Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstac
         end
     end
     return true
+end
+
+function Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstacles)
+    return feetAreOnMask(assets.getData("walkmask"), nextX, nextY)
+        and clearsObstaclesFrom(currentX, currentY, nextX, nextY, obstacles)
+end
+
+-- Validate the whole segment, including thin furniture and mask edges between
+-- grid nodes. Recovery permits a short escape from an invalid starting pixel;
+-- once on the floor the actor cannot cross a blocked mask pixel again.
+function Navigation.canTraverse(assets, x, y, nextX, nextY, obstacles, recover)
+    local mask = assets.getData("walkmask")
+    local dx, dy = nextX - x, nextY - y
+    local length = math.sqrt(dx * dx + dy * dy)
+    local onFloor = feetAreOnMask(mask, x, y)
+    if not onFloor and (not recover or length > 32) then return false end
+    for _,obstacle in ipairs(obstacles or {}) do
+        if Footprint.penetration(obstacle,x,y)<=.001
+            and Footprint.segmentPenetrates(obstacle,x,y,nextX,nextY) then return false end
+    end
+    local stride=1
+    if mask then
+        local width,height=mask:getDimensions()
+        stride=math.min(stride,Config.baseWidth/width,Config.baseHeight/height)*.5
+    end
+    local steps = math.max(1, math.ceil(length / stride))
+    local previousX, previousY = x, y
+    for index = 1, steps do
+        local px, py = x + dx * index / steps, y + dy * index / steps
+        local floor = feetAreOnMask(mask, px, py)
+        if (onFloor and not floor)
+            or not clearsObstaclesFrom(previousX, previousY, px, py, obstacles) then return false end
+        onFloor = onFloor or floor
+        previousX, previousY = px, py
+    end
+    return onFloor
 end
 
 function Navigation.canMoveAreaFrom(assets, currentX, currentY, nextX, nextY,

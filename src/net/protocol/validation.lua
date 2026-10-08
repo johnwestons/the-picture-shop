@@ -78,8 +78,12 @@ function Component.install(Runtime)
 
     function Runtime.normalizePlayer(value, label)
         local valid, shapeError = Runtime.shape(value, label, Runtime.PLAYER_FIELDS,
-            { "furColorway", "overallsColorway" })
+            { "furColorway", "overallsColorway", "sceneId", "resting" })
         if not valid then return nil, shapeError end
+        if value.sceneId~=nil and not require("src.shop_rooms").IDS[value.sceneId] then
+            return nil,label..".sceneId is invalid"
+        end
+        if value.resting~=nil and type(value.resting)~="boolean" then return nil,label..".resting is invalid" end
         local id, fieldError = Runtime.integerInRange(value.id, 1, Runtime.Protocol.MAX_PLAYERS, label .. ".id")
         if not id then return nil, fieldError end
         local name
@@ -132,6 +136,8 @@ function Component.install(Runtime)
         return {
             id = id,
             name = name,
+            sceneId = value.sceneId or "warehouse",
+            resting = value.resting==true,
             x = x,
             y = y,
             velocityX = velocityX,

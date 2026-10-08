@@ -206,6 +206,43 @@ local function routeAndNetworkChecks(context,check)
     check("performance_host_defers_unused_snapshots_until_guests_join",unused)
 end
 
+local function roomAndMovementChecks(context,check)
+    local roomRenderer=require("src.shop_room_renderer")
+    local originalMesh=love.graphics.newMesh
+    local meshes=0
+    local canvas=love.graphics.newCanvas(960,678)
+    local pack=context.assets.activePackName()
+    assert(context.assets.activatePack(nil))
+    roomRenderer.clearCache()
+    love.graphics.push("all");love.graphics.setCanvas({canvas,stencil=true})
+    local okay,reason=pcall(function()
+        love.graphics.newMesh=function(...) meshes=meshes+1;return originalMesh(...) end
+        for i=1,120 do roomRenderer.drawDock(context.assets,{progress=math.min(i/60,1)}) end
+        check("performance_open_dock_reuses_one_mesh_across_frames",meshes==1)
+        roomRenderer.clearCache()
+        roomRenderer.drawDock(context.assets,{progress=1})
+        check("performance_dock_recreates_after_focus_cache_release",meshes==2)
+    end)
+    love.graphics.newMesh=originalMesh
+    love.graphics.pop();canvas:release();context.assets.activatePack(pack)
+    if not okay then error(reason) end
+
+    local logistics=context.PalletLogistics
+    local originalObstacles=logistics.obstacles
+    local calls=0
+    okay,reason=pcall(function()
+        logistics.obstacles=function(...) calls=calls+1;return originalObstacles(...) end
+        local state=context.State.new()
+        local worker={id=2,x=800,y=560,velocityX=100,velocityY=0,sceneId="warehouse"}
+        context.world.updateRemotePlayer(worker,.1,1,0,context.assets,state)
+        check("performance_player_substeps_share_one_obstacle_snapshot",calls==1 and worker.x>800)
+        context.world.updateRemotePlayer(worker,.1,1,0,context.assets,state)
+        check("performance_next_movement_update_refreshes_obstacles",calls==2)
+    end)
+    logistics.obstacles=originalObstacles
+    if not okay then error(reason) end
+end
+
 function Test.run(context,check)
     cacheChecks(check)
     imageChecks(context,check)
@@ -214,5 +251,6 @@ function Test.run(context,check)
     titleChecks(context,check)
     frameChecks(check)
     routeAndNetworkChecks(context,check)
+    roomAndMovementChecks(context,check)
 end
 return Test

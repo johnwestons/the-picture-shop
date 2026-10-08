@@ -7,6 +7,7 @@ local Schedule=require("src.employee_schedule")
 local Windmill=require("src.windmill")
 local Plates=require("src.plate_service")
 local Wrapper=require("src.wrapper")
+local Transport=require("src.employee_pallet_jack")
 local Work={}
 local cutterBusy={armed=true,cutting=true,loading=true,positioning=true,unloading=true,lift_returning=true,resetting=true}
 local stageModel={cutter="polar_115",press="heidelberg_10x15",wrapping="skid_wrapper"}
@@ -31,6 +32,7 @@ end
 function Work.machine(w) return w.assignment and Machine.forId(w.assignment.machineId) end
 function Work.safe(w,state)
     if w.carryingPalletId then return false end
+    if state and Transport.owns(state,w) and state.palletJack.carriedPalletId then return false end
     local assignment=w.assignment
     if not (w.reserved and assignment) then return true end
     local fleet=state and Fleet.byId(state,assignment.machineId)
@@ -56,7 +58,7 @@ function Work.safe(w,state)
     return true
 end
 
-function Work.release(state,w)
+function Work.release(state,w,context)
     if not Work.safe(w,state) then return false end
     local assignment=w.assignment
     local machine=assignment and Fleet.byId(state,assignment.machineId)
@@ -73,6 +75,7 @@ function Work.release(state,w)
         end)
     end
     w.reserved=false;w.workFrame=nil;w._workClock=0
+    Transport.release(state,w,context)
     return true
 end
 
@@ -254,99 +257,11 @@ local function wrappingStep(state,w,machine,pallet,dt)
 end
 
 function Work.transferToWrapper(state,w,machine,pallet,dt,context)
-    local point,goal
-    if pallet.location=="on_employee" and pallet.carrierEmployeeId==w.id then
-        point=context.palletDropPoint and context.palletDropPoint(machine.id,w,pallet)
-        if not point then
-            w.activity="Clear floor beside the skid wrapper is blocked"
-            return false,"Clear floor beside the skid wrapper is blocked"
-        end
-        goal=point
-    elseif pallet.location=="warehouse" or pallet.location=="cutter_output" or pallet.location=="press_output" then
-        point=context.palletApproachPoint and context.palletApproachPoint(pallet,w)
-        if not point then w.activity="Finished skid access is blocked";return false,"Finished skid access is blocked" end
-        goal=point
-    else
-        return false,"Finished skid is not available for employee transfer"
-    end
-    local reached,blocked=context.move(w,goal,dt)
-    w.phase="walking"
-    w.activity="Moving finished skid to the pallet wrapper"
-    w.workFrame=3
-    if not reached then
-        if blocked then
-            w.activity="Finished skid route is blocked"
-            return false,"Finished skid route is blocked"
-        end
-        return false
-    end
-    if pallet.location=="on_employee" then
-        local ok,reason=Pallets.transition(state,pallet,"warehouse",{world=point})
-        if not ok then w.activity=reason or "Could not stage the finished skid";return false,reason end
-        w.phase="working"
-        w.activity="Finished skid staged beside the pallet wrapper"
-        return true
-    end
-    local ok,reason=Pallets.transition(state,pallet,"on_employee",{employeeId=w.id})
-    if not ok then w.activity=reason or "Could not lift the finished skid";return false,reason end
-    w.phase="working"
-    w.activity="Taking the finished skid to the pallet wrapper"
-    return true
+    return Transport.update(state,w,machine,pallet,"wrapping",dt,context)
 end
 
 function Work.transferToMachine(state,w,machine,pallet,stage,dt,context)
-    local point,goal
-    if pallet.location=="on_employee" and pallet.carrierEmployeeId==w.id then
-        point=context.machinePalletDropPoint
-            and context.machinePalletDropPoint(machine.id,w,pallet,stage)
-        if not point then
-            local machineName=stage=="cutter" and "cutter" or "printing press"
-            w.activity="Clear floor beside the "..machineName.." is blocked"
-            return false,"Clear floor beside the "..machineName.." is blocked"
-        end
-        goal=point
-    elseif pallet.location=="warehouse" or pallet.location=="cutter_output"
-        or pallet.location=="press_output" then
-        point=context.palletApproachPoint and context.palletApproachPoint(pallet,w)
-        if not point then
-            w.activity="Assigned pallet access is blocked"
-            return false,"Assigned pallet access is blocked"
-        end
-        goal=point
-    else
-        return false,"Assigned pallet is not available for employee transfer"
-    end
-    local reached,blocked=context.move(w,goal,dt)
-    w.phase="walking"
-    local machineName=stage=="cutter" and "cutter" or "printing press"
-    w.activity=pallet.location=="on_employee"
-        and "Moving assigned pallet beside the "..machineName
-        or "Approaching the assigned pallet for the "..machineName
-    w.workFrame=3
-    if not reached then
-        if blocked then
-            w.activity="Assigned pallet route is blocked"
-            return false,"Assigned pallet route is blocked"
-        end
-        return false
-    end
-    if pallet.location=="on_employee" then
-        local world={x=point.x,y=point.y}
-        if pallet.world then
-            world.direction=pallet.world.direction
-            world.rotation=pallet.world.rotation
-        end
-        local ok,reason=Pallets.transition(state,pallet,"warehouse",{world=world})
-        if not ok then w.activity=reason or "Could not stage the assigned pallet";return false,reason end
-        w.phase="working"
-        w.activity="Assigned pallet staged beside the "..machineName
-        return true
-    end
-    local ok,reason=Pallets.transition(state,pallet,"on_employee",{employeeId=w.id})
-    if not ok then w.activity=reason or "Could not lift the assigned pallet";return false,reason end
-    w.phase="working"
-    w.activity="Taking the assigned pallet to the "..machineName
-    return true
+    return Transport.update(state,w,machine,pallet,stage,dt,context)
 end
 
 function Work.dropCarried(state,w,context)
@@ -397,10 +312,13 @@ function Work.update(state,w,dt,context)
     local resolvedStage,resolvedMachine,resolvedPallet,stageBlocked,needsTransfer,blockedKind=
         Schedule.resolve(state,w,row,pallet.id)
     if stageBlocked then
+        local parked=Transport.owns(state,w)
+        if parked then Transport.release(state,w,context) end
         local dropped=w.carryingPalletId and Work.dropCarried(state,w,context) or false
         w.activity=stageBlocked
+        w.phase,w.moving="idle",false
         if Work.safe(w,state) then
-            Work.release(state,w)
+            Work.release(state,w,context)
             -- A one-off assignment should wait for its pallet to be staged.
             -- Scheduled work can clear the active assignment so the queue can
             -- try another ready job and resume this item on a later pass.
@@ -410,7 +328,7 @@ function Work.update(state,w,dt,context)
                 if not yieldedTeamTask then w.assignment=nil end
             end
         end
-        return dropped or experienceChanged,stageBlocked
+        return parked or dropped or experienceChanged,stageBlocked
     end
     if resolvedPallet and resolvedPallet.id~=pallet.id then
         if not Work.safe(w,state) then
@@ -493,7 +411,7 @@ function Work.update(state,w,dt,context)
     end
     w._operatorRetryKey=nil
     w.phase="working"
-    local pose=machine.world or goal
+    local pose=context.machinePose and context.machinePose(machine.id) or machine.world or goal
     local dx,dy=pose.x-w.x,pose.y-w.y
     local length=math.sqrt(dx*dx+dy*dy)
     if length>.01 then w.intentX,w.intentY=dx/length,dy/length end

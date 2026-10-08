@@ -118,7 +118,11 @@ function Assets.load()
             hasExactDimensions(architecture, Config.paths.warehouseArchitecture, 1672, 941)
         end
     end
-    local walkmask = loadData("walkmask", Config.paths.walkmask)
+    local walkmask
+    if Config.warehouse.roomScenes then
+        walkmask=require("src.shop_rooms").assets(Assets,"warehouse").getData("walkmask")
+        Assets.data.walkmask=walkmask
+    else walkmask=loadData("walkmask", Config.paths.walkmask) end
     local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
     local windmillDirections = loadImage("windmillDirections", Config.paths.windmillDirections, false)

@@ -2,6 +2,7 @@
 -- these baselines directly instead of scanning every transparent pixel at boot.
 return {
     ["rabbit-worker"] = {
+        sit = { {x=772,y=1168} },
         idle = { { x = 255.5, y = 465 }, { x = 256.0, y = 465 } },
         idle_north = { { x = 255.5, y = 465 }, { x = 255.5, y = 465 } },
         idle_northeast = { { x = 255.0, y = 465 }, { x = 255.0, y = 465 } },

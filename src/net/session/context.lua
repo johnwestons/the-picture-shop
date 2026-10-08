@@ -145,6 +145,8 @@ function Component.install(Runtime)
         record = record or {}
         return {
             id = tonumber(record.id),
+            sceneId = record.sceneId or "warehouse",
+            resting = record.resting == true,
             name = record.name or "Worker",
             character = record.character or "rabbit-worker",
             furColorway = tonumber(record.furColorway) or 1,
@@ -175,6 +177,8 @@ function Component.install(Runtime)
 
     function Runtime.copyMotion(target, source, includePosition)
         if not target or not source then return end
+        target.sceneId=source.sceneId or "warehouse"
+        target.resting=source.resting==true
         if includePosition then
             if Runtime.finite(source.x) then target.x = source.x end
             if Runtime.finite(source.y) then target.y = source.y end
@@ -194,6 +198,8 @@ function Component.install(Runtime)
     function Runtime.playerRecord(player)
         return {
             id = tonumber(player.id),
+            sceneId = player.sceneId or "warehouse",
+            resting = player.resting==true,
             name = tostring(player.name or "Worker"),
             x = tonumber(player.x) or 0,
             y = tonumber(player.y) or 0,

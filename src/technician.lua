@@ -2,8 +2,47 @@ local Config = require("src.config")
 local CutterPlacement = require("src.cutter_placement")
 local MachineMaintenance = require("src.machine_maintenance")
 local WindmillPlacement = require("src.windmill_placement")
+local Navigator = require("src.npc_navigation")
+local Fleet = require("src.machine_fleet")
 
 local Technician = {}
+local servicePoints=setmetatable({},{__mode="k"})
+
+local function servicePoint(state,visit,context,dt)
+    local model=visit.kind=="windmill" and "heidelberg_10x15" or "polar_115"
+    local machine=Fleet.installedUnits(state,model)[1]
+    if not machine then return nil end
+    local pose=machine.world or (visit.kind=="windmill"
+        and WindmillPlacement.ensure(state,Config.windmillPlacement)
+        or CutterPlacement.ensure(state,Config.cutterPlacement))
+    if pose.moving then return nil end
+    local key=string.format("%s:%g:%g:%s",machine.id,pose.x,pose.y,pose.direction)
+    local cached=servicePoints[visit]
+    local obstacles=context.obstacles(visit)
+    local Navigation=require("src.navigation")
+    if cached and cached.key==key then
+        cached.retry=math.max(0,cached.retry-dt)
+        if cached.goal and Navigation.isWalkable(context.assets,cached.goal.x,cached.goal.y,obstacles) then
+            return cached.goal
+        end
+        if cached.retry>0 then return nil end
+    end
+    local candidates={}
+    local operator=context.operatorPoint and context.operatorPoint(machine.id,visit)
+    if operator then candidates[#candidates+1]=operator end
+    -- Service can be performed from either side. Prefer the operator position,
+    -- then find accessible ground beside the machine, including wall placements.
+    for _,radius in ipairs({52,64,80,96}) do
+        for index=0,7 do
+            local angle=index*math.pi/4
+            candidates[#candidates+1]={x=pose.x+math.cos(angle)*radius,y=pose.y+math.sin(angle)*radius}
+        end
+    end
+    local goal=Navigator.findReachablePoint(visit,candidates,{
+        assets=context.assets,obstacles=function() return obstacles end})
+    servicePoints[visit]={key=key,goal=goal,retry=.75}
+    return goal
+end
 
 local function copyRoute(route)
     local result = {}
@@ -66,7 +105,7 @@ local function moveToward(visit, target, distance)
     return false, 0
 end
 
-function Technician.update(dt, state, pauseEntrance, motionDt)
+function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext)
     local visit = Technician.ensure(state)
     if not visit then return false end
     dt = math.max(0, tonumber(dt) or 0)
@@ -90,6 +129,15 @@ function Technician.update(dt, state, pauseEntrance, motionDt)
     local travel = Config.technician.speed * motionDt
     while travel > 0 do
         local target = visit.route[visit.waypoint]
+        if target and visit.status=="entering" and visit.waypoint==#visit.route
+            and navigationContext and navigationContext.operatorPoint then
+            -- A machine's old fixed operator offset may be behind a wall or
+            -- another machine. Share the employees' reachable service approach
+            -- selection and follow relocated machines before starting service.
+            target=servicePoint(state,visit,navigationContext,motionDt)
+            if not target then visit.inMotion=false;return false end
+            visit.route[#visit.route]={x=target.x,y=target.y}
+        end
         if not target then
             if visit.status == "entering" then
                 visit.status, visit.serviceTimer, visit.animationClock = "servicing", 0, 0
@@ -101,7 +149,32 @@ function Technician.update(dt, state, pauseEntrance, motionDt)
             state.message = "The technician left through the main entrance."
             return true
         end
-        local reached, remaining = moveToward(visit, target, travel)
+        local startX,startY=visit.x,visit.y
+        local reached,remaining,blocked,actualDistance
+        if navigationContext then
+            reached,remaining,actualDistance,blocked=Navigator.travel(visit,target,travel,motionDt,navigationContext)
+            local dx,dy=visit.x-startX,visit.y-startY
+            visit.inMotion=math.abs(dx)+math.abs(dy)>.001
+            if visit.inMotion then
+                visit.directionFrame=math.abs(dx)>=math.abs(dy) and (dx<0 and 1 or 4) or (dy<0 and 2 or 3)
+            end
+        else
+            reached,remaining=moveToward(visit,target,travel)
+        end
+        visit.navigationBlockedFor=blocked and (visit.navigationBlockedFor or 0)+motionDt or 0
+        if visit.navigationBlockedFor>=2 then
+            servicePoints[visit]=nil
+            local candidates={}
+            local direction=visit.status=="entering" and 1 or -1
+            local last=visit.status=="entering" and #visit.route or 1
+            for index=visit.waypoint+direction,last,direction do
+                local point=visit.route[index]
+                candidates[#candidates+1]={x=point.x,y=point.y,index=index}
+            end
+            local points,goal=Navigator.findPath(visit,candidates,navigationContext)
+            if points then visit.waypoint=goal.index;Navigator.reset(visit) end
+            visit.navigationBlockedFor=0
+        end
         if not reached then break end
         travel = remaining
         visit.waypoint = visit.waypoint + (visit.status == "entering" and 1 or -1)
@@ -111,13 +184,14 @@ end
 
 function Technician.obstacle(state)
     local visit = Technician.ensure(state)
-    return visit and visit.visible and { x = visit.x, y = visit.y, radius = 16 } or nil
+    return visit and visit.visible and { x = visit.x, y = visit.y, radius = 16, actor = visit } or nil
 end
 
 function Technician.pose(visit)
     if not visit then return 0, 0, 0 end
     local clock = math.max(0, tonumber(visit.animationClock) or 0)
     if visit.status == "entering" or visit.status == "exiting" then
+        if visit.inMotion == false then return 0,0,0 end
         local phase = clock * Config.technician.walkAnimationRate
         return 0, -math.abs(math.sin(phase)) * 2, math.sin(phase) * 0.018
     elseif visit.status == "servicing" then

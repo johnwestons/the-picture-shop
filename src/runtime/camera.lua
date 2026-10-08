@@ -5,6 +5,7 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.App.officeFitsScreen()
         return Runtime.state.screen == "computer"
+            or Runtime.state.screen == "shop_rooms"
             or Runtime.state.screen == "workshop_remote" and Runtime.WorkshopRemoteScreen.resourceId == "office_computer"
     end
 

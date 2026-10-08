@@ -183,6 +183,7 @@ local function drawConstruction(bay,stage,state)
     if not drawn then love.graphics.printf("STAGE ART UNAVAILABLE",x,y+22,172,"center") end
 end
 function Renderer.drawFloors(assets,state)
+    if Config.warehouse.roomScenes then return end
     for _,id in ipairs(Layout.BAY_IDS) do
         local bay,status=Layout.bay(id),Layout.bayState(state,id)
         if status and status.status=="complete" then drawFloor(assets,bay,4,true)
@@ -232,6 +233,9 @@ local function drawRackColumn(bay,column)
     love.graphics.draw(mesh("rack_"..bay.id.."_"..column,vertices,image))
 end
 function Renderer.addActors(actors,assets,state,drawPallet)
+    if Config.warehouse.roomScenes then
+        return require("src.shop_room_renderer").addShelfActors(actors,assets,state,drawPallet)
+    end
     for _,id in ipairs(Layout.BAY_IDS) do
         local bay,status=Layout.bay(id),Layout.bayState(state,id)
         if not status or status.status~="building" then
@@ -460,6 +464,7 @@ function Renderer.drawVehicleStatus(state)
 end
 
 function Renderer.drawDevelopmentNotice(state)
+    if Config.warehouse.roomScenes then return end
     local enabled=Config.warehouse and Config.warehouse.provisionalArt
     if not enabled or not state or not ((state.forklift and state.forklift.owned)
         or state.constructionWorker) then return end

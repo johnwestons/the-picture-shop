@@ -214,7 +214,8 @@ function Test.run(context, check)
         and context.state.jobs.active[1].delivery.status == "pending_arrival")
     context.state.screen = "world"
 
-    context.world.player.x, context.world.player.y = 500, 235
+    local computerPoint=require("src.config").interactables.computer
+    context.world.player.x, context.world.player.y = computerPoint.x, computerPoint.y
     context.world.update(0, 0, 0, context.assets, context.state)
     check("computer_world_interaction_selected", context.world.getInteraction()
         and context.world.getInteraction().kind == "computer")

@@ -5,7 +5,8 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.interactables(player)
         player = player or Runtime.World.player
-        local targets = {}
+        local targets = require("src.shop_rooms").targets(player, Runtime.World._state)
+        if require("src.shop_rooms").scene(player)~="warehouse" then return targets end
         local function addTarget(kind, target, key)
             Runtime.MultiplayerCapabilities.requireInteraction(kind)
             if target then
@@ -128,23 +129,23 @@ function Component.install(Runtime)
                     prompt=lift.operating and lift.operatorPlayerId==playerId
                         and "E: forklift controls  |  F: park" or "E: operate forklift"})
             end
-            local rackId = Runtime.World.warehouseNearRack(player, Runtime.World._state)
+            local rackId,nearbyShelf = Runtime.World.warehouseNearRack(player, Runtime.World._state)
             if rackId then
-                local approach = Runtime.WarehouseLayout.rackApproach(rackId)
+                local approach = nearbyShelf or Runtime.WarehouseLayout.rackApproach(rackId)
                 addTarget("palletRack", {x=approach.x,y=approach.y,radius=130,rackId=rackId,
                     prompt="E: view pallet shelves"})
             end
             for _,bayId in ipairs(Runtime.WarehouseLayout.BAY_IDS) do
                 local bay=Runtime.WarehouseLayout.bay(bayId)
                 local room=Runtime.WarehouseLayout.bayState(Runtime.World._state,bayId)
-                if room and room.status=="complete" and room.optionId=="breakroom" then
+                if not Runtime.Config.warehouse.roomScenes and room and room.status=="complete" and room.optionId=="breakroom" then
                     addTarget("breakroom",{x=bay.restPoint.x,y=bay.restPoint.y,radius=66,bayId=bayId,
                         prompt=player.resting and "E: get back to work" or "E: take a break"})
                 end
             end
             if jackReady and Runtime.activeMachineKind(Runtime.World._state) then
                 targets.palletJack.prompt = "E: place machine  |  Q: TURN"
-            elseif jackReady then
+            elseif jackReady and not targets.palletJack.candidatePalletId then
                 local cutter = Runtime.CutterPlacement.ensure(Runtime.World._state, Runtime.Config.cutterPlacement)
                 local wrapper = Runtime.WrapperPlacement.ensure(Runtime.World._state, Runtime.Config.wrapperPlacement)
                 local windmill = Runtime.WindmillPlacement.ensure(Runtime.World._state, Runtime.Config.windmillPlacement)
@@ -167,13 +168,20 @@ function Component.install(Runtime)
     end
 
     function Runtime.selectInteractionFor(player, previous, cursorX, cursorY)
-        return Runtime.Interaction.select(player, Runtime.interactables(player), cursorX, cursorY, previous, {
+        local ordinary = Runtime.Interaction.select(player, Runtime.interactables(player), cursorX, cursorY, previous, {
             stickiness = Runtime.Config.player.interactionStickiness,
             facingWeight = Runtime.Config.player.interactionFacingWeight,
         })
+        local pickup = Runtime.World.palletPickupSnapshot(Runtime.World._state, cursorX, cursorY, player)
+        return require("src.pallet_pickup").interaction(pickup, player, ordinary)
     end
 
     function Runtime.selectNetworkInteractionFor(player, previous, cursorX, cursorY)
+        if require("src.shop_rooms").scene(player)~="warehouse" then
+            return Runtime.selectInteractionFor(player,previous,cursorX,cursorY)
+        end
+        local selected = Runtime.selectInteractionFor(player, previous, cursorX, cursorY)
+        if selected and selected.target and selected.target.pickup then return selected end
         local previousDoor = previous and previous.kind == "loadingBayDoor" and previous or nil
         local door = Runtime.Interaction.select(player, {
             loadingBayDoor = Runtime.World.bayDoor:getInteraction(),
@@ -183,7 +191,7 @@ function Component.install(Runtime)
         })
         -- The only guest-enabled target wins throughout its operating radius, even
         -- when a parked truck's larger prompt overlaps the wall switch.
-        return door or Runtime.selectInteractionFor(player, previous, cursorX, cursorY)
+        return door or selected
     end
 
     function Runtime.World.interactionAt(x, y, networkClient)

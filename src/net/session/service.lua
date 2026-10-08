@@ -241,9 +241,14 @@ function Component.install(Runtime)
                         serverTick = self.serverTick,
                         bayDoor = environment.bayDoor,
                         truck = environment.truck,
-                        employees = environment.employees,
+                        employees = environment.employees and #environment.employees<=4 and environment.employees or nil,
                     })
                 if not environmentOk then self:_queue("error", { message = environmentError }) end
+                if environment.employees and #environment.employees>4 then
+                    local employeeOk,employeeError=self:_broadcastJoined("employee_snapshot",{
+                        sessionId=self.sessionId,serverTick=self.serverTick,employees=environment.employees})
+                    if not employeeOk then self:_queue("error",{message=employeeError}) end
+                end
             end
             local palletJack = context and context.getPalletJackSnapshot
                 and context.getPalletJackSnapshot() or nil

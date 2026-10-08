@@ -77,11 +77,17 @@ function Component.install(Runtime)
                 return true
             end
         end
+        if require("src.shop_room_controls").keypressed(key,Runtime) then return true end
         if Runtime.warehouseControls:keypressed(key) then return true end
         return Runtime.Input.keypressed(key, Runtime.inputContext)
     end
 
     function Runtime.primaryMobileAction()
+        if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
+            local selected=Runtime.World.getInteraction()
+            local labels={shopEntrance="EXIT",roomStock="STOCK",roomRest=Runtime.World.player.resting and "STAND" or "REST"}
+            return "e",selected and labels[selected.kind] or "USE"
+        end
         if Runtime.warehouseControls:ownsLift() then
             return "e",Runtime.state.forklift.carriedPalletId and "DROP" or "PICK UP"
         end
@@ -94,6 +100,8 @@ function Component.install(Runtime)
             if ownsRelocation then return "e", "PLACE" end
             return "e", "BUSY"
         end
+        local pickup = Runtime.World.palletPickupSnapshot(Runtime.state)
+        if pickup.selected then return "l", "LIFT" end
         local selected = Runtime.World.getInteraction()
         if not selected then return "e", "USE" end
         if Runtime.multiplayer:isClient() and selected.kind ~= "loadingBayDoor"
@@ -103,6 +111,7 @@ function Component.install(Runtime)
             and selected.kind ~= "jukebox"
             and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
             and selected.kind ~= "breakroom"
+            and selected.kind ~= "shopEntrance" and selected.kind ~= "roomStock" and selected.kind ~= "roomRest"
             and not Runtime.World.workshopResourceId(selected.kind)
         then
             return "e", "HOST"
@@ -124,6 +133,7 @@ function Component.install(Runtime)
             truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
             windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
             forklift = "DRIVE", palletRack = "SHELVES",
+            shopEntrance="ROOMS",roomStock="STOCK",roomRest="REST",
             breakroom = Runtime.World.player.resting and "STAND" or "REST",
         }
         return "e", labels[selected.kind] or "USE"
@@ -131,6 +141,7 @@ function Component.install(Runtime)
 
     function Runtime.extraMobileActions()
         local actions = {}
+        if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then return actions end
         if Runtime.multiplayer:isClient() then
             local info = Runtime.multiplayer:workshopInfo()
             if info and info.resourceId == "pallet_jack" then

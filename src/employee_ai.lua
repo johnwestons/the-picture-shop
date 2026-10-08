@@ -9,126 +9,44 @@ local PlayerController=require("src.player_controller")
 local Navigation=require("src.navigation")
 local Config=require("src.config")
 local Speech=require("src.employee_speech")
+local Transport=require("src.employee_pallet_jack")
 local AI={}
-local paths=setmetatable({},{__mode="k"})
+local Navigator=require("src.npc_navigation")
+local GaitMotion=require("src.gait_motion")
 local entrance={x=645,y=235}
 local reception={x=759,y=358}
-local motion={speed=72,acceleration=600,deceleration=850,maxFrameTime=.10,maxStepDistance=4,
-    walkPixelsPerFrame=13,gaitSpeedMultipliers={.96,.94,1.04,1.06,.96,.94,1.04,1.06},
+local motion={speed=72,acceleration=600,walkPixelsPerFrame=13,
+    gaitSpeedMultipliers={.96,.94,1.04,1.06,.96,.94,1.04,1.06},
     gaitAccelerationMultipliers={.92,.90,1.08,1.10,.92,.90,1.08,1.10}}
-local function distance(a,b) return math.sqrt((a.x-b.x)^2+(a.y-b.y)^2) end
+local speeds=setmetatable({},{__mode="k"})
 local function stop(a)
-    PlayerController.stop(a);a.moving=false
+    PlayerController.stop(a);speeds[a]=nil;a.moving=false
 end
 local function face(a,x,y)
     local d=math.sqrt(x*x+y*y)
     if d>.001 then a.intentX,a.intentY=x/d,y/d end
 end
-local function route(a,goal,context,alternativeGoals)
-    local step=14
-    local candidates=type(alternativeGoals)=="table" and #alternativeGoals>0
-        and alternativeGoals or {goal}
-    local obstacles=context.obstacles(a)
-    local function walk(x,y) return Navigation.isWalkable(context.assets,x,y,obstacles) end
-    local goals={}
-    for _,candidate in ipairs(candidates) do
-        if walk(candidate.x,candidate.y) then goals[#goals+1]=candidate end
-    end
-    if #goals==0 then return nil end
-    local function key(x,y) return x..":"..y end
-    local function closestGoalDistance(x,y)
-        local best=math.huge
-        for _,candidate in ipairs(goals) do
-            local distanceSquared=(candidate.x/step-x)^2+(candidate.y/step-y)^2
-            if distanceSquared<best then best=distanceSquared end
-        end
-        return math.sqrt(best)
-    end
-    local sx,sy=math.floor(a.x/step+.5),math.floor(a.y/step+.5)
-    local open,scores,parents,closed={{x=sx,y=sy,g=0,f=closestGoalDistance(sx,sy)}},{[key(sx,sy)]=0},{},{}
-    local target,targetGoal,visited
-    visited=0
-    while #open>0 and visited<3400 do
-        local best=1
-        for i=2,#open do if open[i].f<open[best].f then best=i end end
-        local node=table.remove(open,best)
-        local k=key(node.x,node.y)
-        if not closed[k] then
-            closed[k]=true;visited=visited+1
-            for _,candidate in ipairs(goals) do
-                local candidateX,candidateY=math.floor(candidate.x/step+.5),math.floor(candidate.y/step+.5)
-                if (node.x-candidateX)^2+(node.y-candidateY)^2<=1
-                    and walk(candidate.x,candidate.y)
-                then
-                    target,targetGoal=node,candidate
-                    break
-                end
-            end
-            if target then break end
-            for dx=-1,1 do for dy=-1,1 do if dx~=0 or dy~=0 then
-                local x,y=node.x+dx,node.y+dy
-                local nk=key(x,y)
-                local diagonal=dx~=0 and dy~=0
-                if not closed[nk] and walk(x*step,y*step)
-                    and (not diagonal or (walk(node.x*step,y*step) and walk(x*step,node.y*step))) then
-                    local cost=node.g+(diagonal and 1.41421356 or 1)
-                    if not scores[nk] or cost<scores[nk] then
-                        scores[nk]=cost;parents[nk]=node
-                        open[#open+1]={x=x,y=y,g=cost,f=cost+closestGoalDistance(x,y)}
-                    end
-                end
-            end end end
-        end
-    end
-    if not target then return nil end
-    local points={targetGoal or goal}
-    while target and (target.x~=sx or target.y~=sy) do
-        points[#points+1]={x=target.x*step,y=target.y*step}
-        target=parents[key(target.x,target.y)]
-    end
-    for index=1,math.floor(#points/2) do
-        local other=#points-index+1
-        points[index],points[other]=points[other],points[index]
-    end
-    return points,targetGoal or goal
-end
 function AI.findReachablePoint(actor,goals,context)
-    if type(goals)~="table" or #goals==0 then return nil end
-    local points,goal=route(actor,goals[1],context,goals)
-    if not points or not goal then return nil end
-    paths[actor]={points=points,goal={x=goal.x,y=goal.y},blocked=0}
-    return {x=goal.x,y=goal.y}
+    return Navigator.findReachablePoint(actor,goals,context)
 end
 function AI.move(a,goal,dt,context)
-    local motionDt=math.max(0,dt*(tonumber(context.motionScale) or 1))
-    if distance(a,goal)<3 then stop(a);return true,false end
-    local cached=paths[a]
-    if not cached or distance(cached.goal,goal)>2 or cached.blocked>1 then
-        cached={points=route(a,goal,context),goal={x=goal.x,y=goal.y},blocked=0}
-        paths[a]=cached
+    if (a.x-goal.x)^2+(a.y-goal.y)^2<.0001
+        and (not context.assets or Navigation.isWalkable(context.assets,a.x,a.y,
+            context.obstacles and context.obstacles(a) or {})) then
+        stop(a);return true,false
     end
-    if not cached.points or #cached.points==0 then
-        stop(a);cached.blocked=cached.blocked+motionDt;return false,cached.blocked>.4
-    end
-    local target=cached.points[1]
-    if distance(a,target)<5 then table.remove(cached.points,1);target=cached.points[1] or goal end
-    local obstacles=context.obstacles(a)
-    local beforeX,beforeY=a.x,a.y
-    local beforeIntentX,beforeIntentY=a.intentX,a.intentY
-    a.animationDistance=a.distance
-    local priorIdle=a.idleClock
-    PlayerController.update(a,target.x-a.x,target.y-a.y,motionDt,function(x,y,nx,ny)
-        return Navigation.canMoveFrom(context.assets,x,y,nx,ny,obstacles)
-    end,motion)
-    local moved=math.sqrt((a.x-beforeX)^2+(a.y-beforeY)^2)
-    a.distance=a.distance+moved;a.moving=moved>.0001
-    if moved>.0001 then
-        face(a,a.x-beforeX,a.y-beforeY);a.idleClock=0;cached.blocked=0
-    else
-        a.intentX,a.intentY=beforeIntentX,beforeIntentY
-        a.idleClock=priorIdle+motionDt;cached.blocked=cached.blocked+motionDt
-    end
-    return distance(a,goal)<3,cached.blocked>.4
+    local motionDt=math.max(0,math.min(.1,dt*(tonumber(context.motionScale) or 1)))
+    local gaitSpeed,gaitAcceleration=GaitMotion.sample(a.distance or 0,motion)
+    speeds[a]=math.min(motion.speed*gaitSpeed,
+        (speeds[a] or 0)+motion.acceleration*gaitAcceleration*motionDt)
+    local reached,_,moved,blocked=Navigator.travel(a,goal,speeds[a]*motionDt,motionDt,context)
+    a.distance=(a.distance or 0)+moved;a.animationDistance=a.distance
+    a.moving=moved>.0001
+    a.gaitSpeedMultiplier,a.gaitAccelerationMultiplier=gaitSpeed,gaitAcceleration
+    if a.moving then a.idleClock=0
+    else a.idleClock=(a.idleClock or 0)+motionDt end
+    if reached or moved<.0001 then stop(a) end
+    return reached,blocked
 end
 local function visiting(e)
     for _,a in ipairs(e.applications) do if a.actor.visible then return a end end
@@ -167,7 +85,7 @@ local function breakChoice(w,now)
     if w.fatigue>=70 or w.focus<=40 then return {bit=0,kind="rest",duration=.25} end
 end
 local function beginBreak(state,w,b,context)
-    if not Work.release(state,w) then return false end
+    if not Work.release(state,w,context) then return false end
     w._trainingMachineId=nil
     w.breaksTaken=w.breaksTaken+(b.bit or 0);w.breakKind=b.kind;w.breakRemaining=b.duration
     local seat=context.freeSeat(w)
@@ -206,6 +124,12 @@ local function trainingStep(state,w,dt,hours,context)
         return false
     end
     w.phase="working"
+    local pose=context.machinePose and context.machinePose(machine.id) or machine.world
+    if pose then
+        local dx,dy=pose.x-w.x,pose.y-w.y
+        local length=math.sqrt(dx*dx+dy*dy)
+        if length>.01 then w.intentX,w.intentY=dx/length,dy/length end
+    end
     w._trainingClock=(w._trainingClock or 0)+hours
     if w._trainingClock<.05 then
         local label=training.skill=="cutter" and "on the paper cutter"
@@ -255,6 +179,9 @@ function AI.worker(state,w,dt,now,context)
     end
     local droppedCarriedPallet=false
     if not onShift or w.stopRequested then
+        if Transport.owns(state,w) then
+            Transport.release(state,w,context);droppedCarriedPallet=true
+        end
         if w.carryingPalletId then droppedCarriedPallet=Work.dropCarried(state,w,context)==true end
         w._trainingMachineId=nil
         if Work.safe(w,state) then
@@ -303,16 +230,25 @@ function AI.worker(state,w,dt,now,context)
         if (w.fatigue>=90 or w.focus<=20) then b={bit=0,kind="rest",duration=.25} end
         if b and Work.safe(w,state) then beginBreak(state,w,b,context)
         elseif overdue then
+            local parked=Transport.owns(state,w)
+            if parked then Transport.release(state,w,context) end
             if Work.safe(w,state) then Work.release(state,w);w.phase="idle";stop(w);w.activity="Waiting for overdue wages" end
+            if parked then return true end
         elseif w.training then
             local progressed=trainingStep(state,w,dt,hours,context)
+            if w.phase=="working" then w.idleClock=w.idleClock+dt end
             w.fatigue=math.min(100,w.fatigue+hours*(w.phase=="working" and 5 or 2))
             w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 3 or 1))
             return progressed
         else
             local scheduleChanged=Schedule.advance(state,w,now)
             if w.assignment then
-                local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,
+                local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,machinePose=context.machinePose,
+                    motionScale=context.motionScale,jackNavigation=context.jackNavigation,
+                    jackApproachPoint=context.jackApproachPoint,jackPickupPoint=context.jackPickupPoint,
+                    jackDropPoint=context.jackDropPoint,jackDropClear=context.jackDropClear,
+                    jackLoadClear=context.jackLoadClear,
+                    jackEmergencyDropPoint=context.jackEmergencyDropPoint,
                     palletApproachPoint=context.palletApproachPoint,palletDropPoint=context.palletDropPoint,
                     machinePalletDropPoint=context.machinePalletDropPoint,
                     palletEmergencyDropPoint=context.palletEmergencyDropPoint,
@@ -353,7 +289,7 @@ function AI.worker(state,w,dt,now,context)
                 if AI.move(w,point,dt,context) then
                     w.phase="idle";w.idleClock=w.idleClock+dt
                     if not q.enabled then w.activity="Work schedule paused"
-                    elseif #q.items==0 then w.activity=#q.history>0 and "Work schedule complete" or "Waiting for assignment" end
+                    elseif #q.items==0 and not w._waitingForJack then w.activity=#q.history>0 and "Work schedule complete" or "Waiting for assignment" end
                 end
                 w.fatigue=math.min(100,w.fatigue+hours)
                 return scheduleChanged

@@ -6,6 +6,7 @@ function Component.install(Runtime)
     Runtime.NETWORK_INTERACTION_KINDS = {
         loadingBayDoor = true,
         truckCargoDoor = true,
+        shopRoom = true, roomStock = true, roomRest = true,
     }
 
     Runtime.INTERACTION_DOOR_STATES = {
@@ -35,8 +36,13 @@ function Component.install(Runtime)
         targetKind, fieldError = Runtime.interactionKind(
             payload.targetKind, "interaction_request.targetKind")
         if not targetKind then return nil, fieldError end
+        local roomCommand = targetKind=="shopRoom" and require("src.shop_rooms").IDS[payload.desiredState]
+            or targetKind=="roomRest" and (payload.desiredState=="rest" or payload.desiredState=="stand")
+            or targetKind=="roomStock" and type(payload.desiredState)=="string" and #payload.desiredState<=150
+                and (payload.desiredState:match("^store:[%w_.%-]+$") or payload.desiredState:match("^retrieve:[%w_.%-]+$"))
         if type(payload.desiredState) ~= "string"
-            or not Runtime.INTERACTION_DOOR_STATES[payload.desiredState]
+            or not roomCommand and not ((targetKind=="loadingBayDoor" or targetKind=="truckCargoDoor")
+                and Runtime.INTERACTION_DOOR_STATES[payload.desiredState])
         then
             return nil, "interaction_request.desiredState is invalid"
         end

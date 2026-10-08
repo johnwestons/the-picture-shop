@@ -27,6 +27,10 @@ function Component.install(Runtime)
             local selectedPallet = selected and selected.target
                 and selected.target.item and selected.target.item.pallet
             local palletId = selectedPallet and selectedPallet.id
+            if not palletId then
+                local pickup = Runtime.World.palletPickupSnapshot(Runtime.state)
+                palletId = pickup.selected and pickup.selected.pallet.id
+            end
             if type(palletId) ~= "string" or palletId == "" then
                 return nil, nil, "Tap a valid skid to lift it."
             end
@@ -40,8 +44,11 @@ function Component.install(Runtime)
             if not placementCell then return nil,nil,"Choose a green space before lowering the pallet." end
             return "lower_pallet", { palletId = jack.carriedPalletId,placementCell=placementCell }
         end
-        local candidateId = jack.candidatePalletId
-            or Runtime.World.networkPalletJackSnapshot(Runtime.state).candidatePalletId
+        local candidateId = require("src.pallet_pickup").selectedId(selected)
+        if not candidateId then
+            local pickup = Runtime.World.palletPickupSnapshot(Runtime.state)
+            candidateId = pickup.selected and pickup.selected.pallet.id
+        end
         if candidateId then return "lift_pallet", { palletId = candidateId } end
         return "park_jack", {}
     end

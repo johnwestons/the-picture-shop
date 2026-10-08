@@ -7,6 +7,11 @@ function Component.install(Runtime)
         return Runtime.PalletJack.snapshot(state, Runtime.Config.palletJack)
     end
 
+    function Runtime.World.palletPickupSnapshot(state, cursorX, cursorY, player)
+        return require("src.pallet_pickup").snapshot(state, Runtime.Config.palletJack,
+            player or Runtime.World.player, cursorX, cursorY)
+    end
+
     function Runtime.World.networkPalletJackSnapshot(state)
         local snapshot = Runtime.PalletJack.snapshot(state, Runtime.Config.palletJack)
         local machineAttached = Runtime.palletJackHasAttachedMachine(state)
@@ -19,6 +24,7 @@ function Component.install(Runtime)
             operating = snapshot.operating,
             moving = snapshot.moving,
             operatorPlayerId = snapshot.operatorPlayerId,
+            operatorEmployeeId = snapshot.operatorEmployeeId,
             carriedPalletId = snapshot.carriedPalletId,
             candidatePalletId = candidatePalletId,
         }
@@ -60,7 +66,8 @@ function Component.install(Runtime)
 
     function Runtime.World.palletTooltipAt(state, x, y)
         if type(x) ~= "number" or type(y) ~= "number" then return nil end
-        local hovered = Runtime.PalletLogistics.hovered(state, x, y)
+        local pickup = Runtime.World.palletPickupSnapshot(state, x, y)
+        local hovered = pickup.hovered and pickup.selected or Runtime.PalletLogistics.hovered(state, x, y)
         if not hovered then
             local carried = Runtime.PalletJack.carriedItem(state, Runtime.Config.palletJack)
             if carried and x >= carried.x - 58 and x <= carried.x + 58
@@ -104,6 +111,13 @@ function Component.install(Runtime)
         }
     end
 
+    function Runtime.World.applyEmployeeSnapshot(employees,state)
+        local poses=require("src.employee_pose").actors(employees)
+        state=state or Runtime.World._state
+        if not poses or not state then return false end
+        state._employeePoses=poses
+        return true
+    end
     function Runtime.World.applyEnvironmentSnapshot(bayDoor, truck, employees, state)
         if type(bayDoor) ~= "table" or type(truck) ~= "table" then return false end
         local poses
@@ -127,6 +141,9 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.snapshot()
+        if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
+            return {x=Runtime.Config.player.spawnX,y=Runtime.Config.player.spawnY,character=Runtime.World.player.character}
+        end
         return { x = Runtime.World.player.x, y = Runtime.World.player.y, character = Runtime.World.player.character }
     end
 end

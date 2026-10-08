@@ -84,6 +84,7 @@ local function label(value, maximum)
 end
 local function rackReady(state, rackId)
     local rack = state.storage and state.storage.racks and state.storage.racks[rackId]
+    if rack and rack.bayId=="warehouse" then return true end
     local bay = rack and state.warehouse and state.warehouse.bays and state.warehouse.bays[rack.bayId]
     return bay and bay.status == "complete" and bay.optionId == "storage" or false
 end

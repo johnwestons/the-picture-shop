@@ -58,7 +58,7 @@ function Component.install(Runtime)
     function Runtime.normalizePalletJackState(value, label)
         local valid, shapeError = Runtime.shape(value, label,
             { "x", "y", "direction", "operating", "moving" },
-            { "operatorPlayerId", "carriedPalletId", "candidatePalletId" })
+            { "operatorPlayerId", "operatorEmployeeId", "carriedPalletId", "candidatePalletId" })
         if not valid then return nil, shapeError end
         local x, fieldError = Runtime.numberInRange(
             value.x, -Runtime.MAX_COORDINATE, Runtime.MAX_COORDINATE, label .. ".x")
@@ -85,8 +85,14 @@ function Component.install(Runtime)
                 value.operatorPlayerId, 1, Runtime.Protocol.MAX_PLAYERS, label .. ".operatorPlayerId")
             if not operatorPlayerId then return nil, fieldError end
         end
-        if value.operating ~= (operatorPlayerId ~= nil) then
-            return nil, label .. ".operatorPlayerId must be present exactly when operating"
+        local operatorEmployeeId = value.operatorEmployeeId
+        if operatorEmployeeId ~= nil and (type(operatorEmployeeId) ~= "string" or #operatorEmployeeId > 16
+            or not operatorEmployeeId:match("^EMP%-%d+$")) then
+            return nil, label .. ".operatorEmployeeId is invalid"
+        end
+        if operatorEmployeeId and operatorPlayerId then return nil, label .. " has two operators" end
+        if value.operating ~= (operatorPlayerId ~= nil or operatorEmployeeId ~= nil) then
+            return nil, label .. " must have exactly one operator when operating"
         end
         local carriedPalletId
         if value.carriedPalletId ~= nil then
@@ -110,6 +116,7 @@ function Component.install(Runtime)
             operating = value.operating,
             moving = value.moving,
             operatorPlayerId = operatorPlayerId,
+            operatorEmployeeId = operatorEmployeeId,
             carriedPalletId = carriedPalletId,
             candidatePalletId = candidatePalletId,
         }

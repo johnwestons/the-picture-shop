@@ -1,6 +1,7 @@
 local Input = {}
 local mobileMovementProvider = nil
 local ShopClock = require("src.screens.shop_clock")
+local PalletPickup = require("src.pallet_pickup")
 
 local function radialDeadzone(x, y, deadzone)
     local magnitude = math.sqrt(x * x + y * y)
@@ -108,6 +109,7 @@ end
 
 function Input.keypressed(key, context)
     local state = context.state
+    if context.roomControl and context.roomControl(key) then return true end
     if key=="escape" and state.screen=="workshop_remote" and context.workshopRemoteScreen.hasMachineModal
         and context.workshopRemoteScreen.hasMachineModal() then
         return context.workshopRemoteScreen.keypressed(key,state,context.requestWorkshopCommand)
@@ -242,7 +244,8 @@ function Input.keypressed(key, context)
             then
                 return true
             end
-            if context.world.handlePalletJack(state, context.assets) then
+            local palletId = not state.palletJack.carriedPalletId and PalletPickup.selectedId(selected) or nil
+            if context.world.handlePalletJack(state, context.assets, palletId) then
                 context.saveCurrent()
             end
             return true
@@ -372,7 +375,8 @@ function Input.keypressed(key, context)
             context.windmill.ensure(state)
             context.pressScreen.enter(state)
         elseif selected and selected.kind == "palletJack" then
-            if context.world.handlePalletJack(state, context.assets) then context.saveCurrent() end
+            local palletId = not state.palletJack.carriedPalletId and PalletPickup.selectedId(selected) or nil
+            if context.world.handlePalletJack(state, context.assets, palletId) then context.saveCurrent() end
         end
     elseif state.screen == "machine" then
         if state.machineType == "skid_wrapper" and key == "m" then
@@ -450,24 +454,24 @@ function Input.mousepressed(x, y, button, context)
         end
         if ShopClock.hitWall(worldX,worldY) then state.screen="shop_clock";return true end
         local networkReadOnly = context.isNetworkClient and context.isNetworkClient()
-        if context.world.selectPlacement(
-            state, context.assets, worldX, worldY, networkReadOnly)
-        then
-            return true
-        end
-        local tappedPallet = context.world.palletAt
-            and context.world.palletAt(state, worldX, worldY)
+        local pickup = context.world.palletPickupSnapshot
+            and context.world.palletPickupSnapshot(state, worldX, worldY)
+        local tappedPallet = pickup and pickup.hovered and pickup.selected
+            or (context.world.palletAt and context.world.palletAt(state, worldX, worldY))
         local localPlayerId = context.world and context.world.player
             and tonumber(context.world.player.id) or 1
         local ownsPalletJack = state.palletJack and state.palletJack.operating
             and state.palletJack.operatorPlayerId == localPlayerId
         if tappedPallet and ownsPalletJack
             and not state.palletJack.carriedPalletId
+            and not (state.cutter and state.cutter.moving)
+            and not (state.wrapper and state.wrapper.moving)
+            and not (state.windmill and state.windmill.moving)
         then
             local palletSelection = {
-                kind = "palletWorkOrder",
+                kind = "palletJack",
                 hovered = true,
-                target = { item = tappedPallet },
+                target = { item = tappedPallet, pickup = true },
             }
             if context.palletJackControl
                 and context.palletJackControl("lift", palletSelection)
@@ -482,6 +486,11 @@ function Input.mousepressed(x, y, button, context)
             -- A tap on a skid is an explicit fork request while operating the
             -- jack, even if it is too far away. Consume it so it cannot open
             -- paperwork after displaying the distance error.
+            return true
+        end
+        if context.world.selectPlacement(
+            state, context.assets, worldX, worldY, networkReadOnly)
+        then
             return true
         end
         local selected = context.world.interactionAt

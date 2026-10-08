@@ -254,11 +254,12 @@ local function employeeCanCarry(w,pallet)
     return pallet.location=="warehouse" or pallet.location=="cutter_output"
         or pallet.location=="press_output"
         or pallet.location=="on_employee" and pallet.carrierEmployeeId==w.id
+        or pallet.location=="on_pallet_jack"
 end
 local function needsMachinePalletTransfer(state,w,stage,machine,pallet,reason)
     if not employeeCanCarry(w,pallet) or PalletStorage.isSupporting(state,pallet.id) then return false end
-    if pallet.location=="on_employee" then
-        return pallet.carrierEmployeeId==w.id and (stage=="cutter"
+    if pallet.location=="on_employee" or pallet.location=="on_pallet_jack" then
+        return (pallet.location=="on_pallet_jack" or pallet.carrierEmployeeId==w.id) and (stage=="cutter"
             and reason=="Stage the assigned pallet beside the selected cutter"
             or stage=="press" and reason=="Stage the cut pallet beside the printing press")
     end
@@ -297,7 +298,7 @@ function Schedule.resolve(state,w,row,preferredPalletId)
     nextPallet=scheduledPallet
     if pallet and Schedule.stage(job,pallet)=="wrapping"
         and nextPallet and Schedule.stage(job,nextPallet)~="wrapping"
-        and w.carryingPalletId~=pallet.id then
+        and w.carryingPalletId~=pallet.id and (not state.palletJack or state.palletJack.carriedPalletId~=pallet.id) then
         pallet=nil
     end
     if not pallet then pallet=nextPallet end
@@ -327,9 +328,7 @@ function Schedule.resolve(state,w,row,preferredPalletId)
             if ready then return stage,machine,pallet end
             blockedKind=blockedKind or reasonKind
             if stage=="wrapping" and reason=="Stage the finished pallet beside the skid wrapper"
-                and (pallet.location=="warehouse" or pallet.location=="cutter_output"
-                    or pallet.location=="press_output"
-                    or pallet.location=="on_employee" and pallet.carrierEmployeeId==w.id)
+                and employeeCanCarry(w,pallet)
             then
                 transferMachine=transferMachine or machine
             elseif needsMachinePalletTransfer(state,w,stage,machine,pallet,reason) then
@@ -338,7 +337,14 @@ function Schedule.resolve(state,w,row,preferredPalletId)
             failure=reason or failure
         end
     end
-    if transferMachine then return stage,transferMachine,pallet,nil,true,blockedKind end
+    if transferMachine then
+        local jack=state.palletJack
+        if jack and ((jack.operating and jack.operatorEmployeeId~=w.id)
+            or (jack.carriedPalletId and jack.carriedPalletId~=pallet.id)) then
+            return stage,nil,pallet,"Waiting for the pallet jack",nil,"pallet_jack"
+        end
+        return stage,transferMachine,pallet,nil,true,blockedKind
+    end
     return stage,nil,pallet,failure,nil,blockedKind
 end
 local function nextShiftStart(w,now)
@@ -546,6 +552,7 @@ local function returnIneligibleTeamJobs(state,w)
     return removed>0
 end
 local function claimTeamJob(state,w,now,allowQueued)
+    w._waitingForJack=false
     local team=Schedule.team(state)
     local q=Schedule.ensure(w)
     if not team or not team.enabled or (#q.items>0 and not allowQueued)
@@ -558,6 +565,7 @@ local function claimTeamJob(state,w,now,allowQueued)
             local allowed=job and Schedule.skillAllows(w,job,stage)
             if allowed and #q.items<Schedule.MAX_JOBS and q.nextId<1000000 then
                 local _,machine,readyPallet,reason=Schedule.resolve(state,w,row)
+                if reason=="Waiting for the pallet jack" then w._waitingForJack=true end
                 if not reason and machine and readyPallet then
                     local mirror={id=string.format("TASK-%06d",q.nextId),jobId=row.jobId,
                         machineId=row.machineId,addedAtHours=row.addedAtHours,
@@ -567,6 +575,7 @@ local function claimTeamJob(state,w,now,allowQueued)
                     q.revision=q.revision+1
                     w._scheduleRetryAtHours=nil
                     w._waitingMachineId=nil
+                    w._waitingForJack=false
                     return true,mirror,job,machine,readyPallet
                 end
             end
@@ -737,7 +746,8 @@ function Schedule.advance(state,w,now)
         return changed
     end
     w._waitingMachineId=nil
-    if #q.history>0 then w.activity="Work schedule complete" end
+    if w._waitingForJack then w.activity="Waiting for the pallet jack"
+    elseif #q.history>0 then w.activity="Work schedule complete" end
     return changed
 end
 function Schedule.deferBlocked(state,w)

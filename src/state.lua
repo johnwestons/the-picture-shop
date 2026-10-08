@@ -119,6 +119,7 @@ function State.applySave(state, payload)
     PalletJack.ensure(state, Config.palletJack)
     state.palletJack.operating, state.palletJack.moving = false, false
     state.palletJack.operatorPlayerId = nil
+    state.palletJack.operatorEmployeeId = nil
     state.warehouse, state.storage, state.forklift = warehouse, storage, forklift
     state.constructionWorker = constructionWorker
     Forklift.forceRelease(state, Config.forklift)
