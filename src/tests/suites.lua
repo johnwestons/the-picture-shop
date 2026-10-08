@@ -103,6 +103,7 @@ local DOMAIN_SUITES = {
     require("src.tests.placement_precision_test"),
     require("src.tests.credit_finance_test"),
     require("src.tests.employees_test"),
+    require("src.tests.employee_capacity_test"),
     require("src.tests.employee_schedule_test"),
     require("src.tests.progression_balance_test"),
     require("src.tests.employee_billing_test"),

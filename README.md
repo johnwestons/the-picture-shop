@@ -112,16 +112,17 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 44](https://github.com/johnwestons/the-picture-shop/releases/download/android.44/ThePictureShop-0.1.0-android.44-Install.apk).
+The current development installer is [Android 45](https://github.com/johnwestons/the-picture-shop/releases/download/android.45/ThePictureShop-0.1.0-android.45-Install.apk).
 It includes the latest local-network discovery and mobile IP-entry fixes, steadier
 jukebox playback, visible employee clock-in status, worker job and pallet-jack
-animations, weather at the open dock, and a title-screen version label. The
-warehouse lease is now $3,500 per month. It also includes the current warehouse,
-staffing, production, and nine-track Vibes playlist updates. The same signed APK
-works as an update for Android 43 and as a fresh install on a phone without the
+animations, weather at the open dock, a title-screen version label, and a hard
+limit of 10 active employees with the current payroll count shown on the staffing
+tabs. The warehouse lease is $3,500 per month. It also includes the current
+warehouse, staffing, production, and nine-track Vibes playlist updates. The same
+signed APK works as an update for Android 44 and as a fresh install on a phone without the
 game. No phone was connected for this build, so physical playtesting is not claimed.
 The signed APK SHA-256 and automated packaging checks are listed in the
-[Android 44 release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.44).
+[Android 45 release notes and checksums](https://github.com/johnwestons/the-picture-shop/releases/tag/android.45).
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Install over the old app to keep saves, or uninstall **The Picture Shop**
 without keeping its app data before installing to start with a fresh test save.

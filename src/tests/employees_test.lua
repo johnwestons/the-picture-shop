@@ -320,6 +320,30 @@ function Test.run(context,check)
         clockedDraw and offShiftDraw
         and clockedText:find("CLOCKED IN",1,true)~=nil
         and offShiftText:find("OFF SHIFT",1,true)~=nil)
+    local function staffingCountDraw(section)
+        local oldSection,oldView,oldSelected=screen.hiring.section,screen.hiring.view,screen.hiring.selectedId
+        local rendered={}
+        love.graphics.printf=function(text,...)
+            if type(text)=="string" then rendered[#rendered+1]=text end
+            return originalPrintf(text,...)
+        end
+        screen.hiring.section=section;screen.hiring.view="detail"
+        screen.hiring.selectedId=section=="applications" and a.id or w.id
+        love.graphics.push("all")
+        local okay,err=pcall(screen.draw,fresh,nil,nil,context.assets)
+        love.graphics.pop()
+        love.graphics.printf=originalPrintf
+        screen.hiring.section,screen.hiring.view,screen.hiring.selectedId=oldSection,oldView,oldSelected
+        return okay,table.concat(rendered,"\n"),err
+    end
+    local applicantsCounterOk,applicantsCounterText=staffingCountDraw("applications")
+    local staffCounterOk,staffCounterText=staffingCountDraw("staff")
+    local payrollCounterOk,payrollCounterText=staffingCountDraw("payroll")
+    check("employees_staffing_tabs_show_active_payroll_count",
+        applicantsCounterOk and staffCounterOk and payrollCounterOk
+        and applicantsCounterText:find("1/10 employees",1,true)~=nil
+        and staffCounterText:find("1/10 employees",1,true)~=nil
+        and payrollCounterText:find("1/10 employees",1,true)~=nil)
     screen.hiring.view="assignment";draw("employees_hiring_assignment_draws")
     screen.hiring.section="payroll";screen.hiring.view="detail";draw("employees_hiring_payroll_draws")
     screen.openEmploymentResume(a.id)

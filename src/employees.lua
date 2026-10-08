@@ -7,6 +7,7 @@ local Schedule=require("src.employee_schedule")
 local Labor=require("src.employee_labor")
 local WorkerCatalog=require("src.worker_catalog")
 local Employees={}
+Employees.MAX_STAFF=10
 local trainingSkills={
     cutter={field="cutterSkill",label="paper cutter",model="polar_115",minimum=0},
     press={field="pressSkill",label="printing press",model="heidelberg_10x15",minimum=40},
@@ -54,6 +55,13 @@ function Employees.ensure(state)
     state.employment=state.employment or Employees.defaultState(Calendar.absoluteHours(state))
     return state.employment
 end
+function Employees.employedCount(state)
+    local count=0
+    for _,worker in ipairs(Employees.ensure(state).staff) do
+        if worker.status=="employed" then count=count+1 end
+    end
+    return count
+end
 function Employees.trainingPlan(worker,skill)
     local option=trainingSkills[skill]
     local current=worker and option and worker[option.field]
@@ -89,7 +97,8 @@ function Employees.valid(e)
             or (a.counter~=nil and not Contracts.validTerms(a.counter)) then return false end
         ids[a.id]=true return true
     end) then return false end
-    return array(e.staff,24,function(w)
+    local employedCount=0
+    local staffValid=array(e.staff,24,function(w)
         if not profile(w) or not token(w.id) or ids[w.id] or not Contracts.valid(w.contract)
             or (w.status~="employed" and w.status~="dismissed" and w.status~="resigned")
             or not validActor(w) or type(w.clockedIn)~="boolean"
@@ -127,8 +136,10 @@ function Employees.valid(e)
                 or (w.assignment.cutterMachineId and row.machineId~=w.assignment.cutterMachineId) then return false end
         end
         if w.carryingPalletId and (not w.assignment or w.assignment.palletId~=w.carryingPalletId) then return false end
+        if w.status=="employed" then employedCount=employedCount+1 end
         ids[w.id]=true return true
     end)
+    return staffValid and employedCount<=Employees.MAX_STAFF
 end
 local function migrateSchedulesToTeam(employment)
     local team=employment.teamSchedule
@@ -375,13 +386,15 @@ function Employees.command(state,intent,now)
         if a and a.status=="hired" then return true,"This agreement is already signed." end
         if not a or a.status~="offer_accepted" or a.revision~=intent.expectedRevision
             or (a.expiresAtHours and now>=a.expiresAtHours) then return false,"Review the current accepted offer before signing." end
-        local count=0 for _,w in ipairs(e.staff) do if w.status=="employed" then count=count+1 end end
+        if Employees.employedCount(state)>=Employees.MAX_STAFF then
+            return false,"The payroll is full (10/10 employees). Dismiss an employee before hiring another."
+        end
         if #e.staff>=24 then
             for i,old in ipairs(e.staff) do
                 if old.status~="employed" and not old.visible and Payroll.balance(old,now,true)==0 then table.remove(e.staff,i);break end
             end
         end
-        if count>=3 or #e.staff>=24 then return false,"This shop can employ three workers at once." end
+        if #e.staff>=24 then return false,"Employee history is full. Clear an archived employee record before hiring." end
         local w=copy(a)
         w.actor=nil;w.offer=nil;w.counter=nil;w.replyAtHours=nil;w.expiresAtHours=nil
         w.id=string.format("EMP-%04d",e.nextEmployeeId);e.nextEmployeeId=e.nextEmployeeId+1

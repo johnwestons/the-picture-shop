@@ -34,6 +34,11 @@ local labels={visiting="Applying at reception",resume_requested="Resume requeste
 function Hiring.new()
     return {section="applications",view="detail",selectedId=nil,page=1,terms=nil,jobIndex=1,palletIndex=1,machineIndex=1,lifts=20}
 end
+function Hiring.employeeCountText(state)
+    local count=Employees.employedCount(state)
+    local text=string.format("%d/%d employees",count,Employees.MAX_STAFF)
+    return count>=Employees.MAX_STAFF and text.." — payroll full" or text
+end
 function Hiring.open(ui,id) ui.section="applications";ui.view="detail";ui.selectedId=id;ui.terms=nil end
 function Hiring.buttonCenter(name)
     local b=buttons[name]
@@ -175,7 +180,13 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
     elseif ui.section=="applications" then
         if current.status=="visiting" and hit("resume") then return send({kind="request_resume",applicationId=current.id}) end
         if current.status~="hired" and current.status~="offer_accepted" and hit("decline") then return send({kind="decline_application",applicationId=current.id}) end
-        if current.status=="offer_accepted" and hit("sign") then return send({kind="hire_employee",applicationId=current.id,expectedRevision=current.revision}) end
+        if current.status=="offer_accepted" and hit("sign") then
+            if Employees.employedCount(state)>=Employees.MAX_STAFF then
+                state.message="Payroll is full. Dismiss an employee before hiring another."
+                return {action="blocked"}
+            end
+            return send({kind="hire_employee",applicationId=current.id,expectedRevision=current.revision})
+        end
         if (current.status=="resume_received" and hit("offer")) or (current.status=="offer_accepted" and hit("edit")) then
             local startHour=current.shiftPreference=="night" and 21 or 9
             local endHour=current.shiftPreference=="night" and 5 or 17
@@ -267,11 +278,15 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
     hiringButtonRenderer=buttonRenderer
     local e=Employees.ensure(state)
     local now=Calendar.absoluteHours(state)
+    local employedCount=Employees.employedCount(state)
+    local payrollFull=employedCount>=Employees.MAX_STAFF
     panel(82,182,770,444)
     button("applications","APPLICANTS",pointerX,pointerY,false,ui.section=="applications")
     button("staff","STAFF",pointerX,pointerY,false,ui.section=="staff")
     button("payroll","PAYROLL",pointerX,pointerY,false,ui.section=="payroll")
     button("recruit",e.recruiting and "PAUSE RECRUITING" or "INVITE APPLICANT",pointerX,pointerY,readOnly)
+    local employeeCountText=Hiring.employeeCountText(state)
+    line(employeeCountText,100,232,730,payrollFull and {1,.62,.46} or {1,.85,.45})
     if ui.section=="payroll" then
         if ui.view=="finances" then
             local f=Finances.summary(state)
@@ -473,7 +488,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         elseif current.status=="resume_received" then button("offer","NEGOTIATE OFFER",pointerX,pointerY,readOnly)
         elseif current.status=="offer_accepted" then
             line(Contracts.summary(current.offer,twelveHourTime),410,488,426)
-            button("sign","SIGN & HIRE",pointerX,pointerY,readOnly)
+            button("sign",payrollFull and "PAYROLL FULL" or "SIGN & HIRE",pointerX,pointerY,readOnly or payrollFull)
             button("edit","RENEGOTIATE",pointerX,pointerY,readOnly)
         end
         if current.status~="hired" and current.status~="offer_accepted" then button("decline","DECLINE APPLICATION",pointerX,pointerY,readOnly) end
