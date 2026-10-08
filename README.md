@@ -116,7 +116,8 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development build is **Android 46**. The verified local installer is
+The current development installer is [Android 46](https://github.com/johnwestons/the-picture-shop/releases/download/android.46/ThePictureShop-0.1.0-android.46-Install.apk).
+The verified local copy is
 `output/android-share/0.1.0-android.46/ThePictureShop-0.1.0-android.46-Install.apk`.
 It includes the new open-office warehouse, independent multiplayer rooms, storage
 rooms, physical employee pallet-jack transport, directional worker animations,
@@ -127,8 +128,8 @@ See the [audit results](docs/audit_android_46.md) for checks and remaining limit
 All multiplayer participants need this build (protocol 30), including an updated
 PC checkout or game package. The same signed APK supports an in-place update
 from the previous installers. Physical phone playtesting is not claimed.
-The installer folder contains `SHA256SUMS.txt`, `share-report.json` and phone
-installation instructions. This APK has not been published as a GitHub Release.
+The [Android 46 release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.46)
+includes `SHA256SUMS.txt`, `share-report.json` and phone installation instructions.
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Install over the old app to keep saves, or uninstall **The Picture Shop**
 without keeping its app data before installing to start with a fresh test save.
