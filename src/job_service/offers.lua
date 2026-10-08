@@ -3,45 +3,86 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.offerHistory(state)
-        local anyPrint, receptionPrintCount, latestSequence, latestJob = false, 0, 0, nil
+    local function receptionPrintCount(state)
+        local count, seen = 0, {}
         for _, collectionName in ipairs({ "active", "completed", "declined" }) do
             for _, job in ipairs((state.jobs and state.jobs[collectionName]) or {}) do
-                if type(job) == "table" and job.press then anyPrint = true end
-                if type(job) == "table" and job.requestChannel ~= "email" then
-                    local sequence = tonumber(tostring(job.id or ""):match("^JOB%-(%d+)$"))
-                    if sequence then
-                        if job.press then receptionPrintCount = receptionPrintCount + 1 end
-                        if sequence > latestSequence then latestSequence, latestJob = sequence, job end
-                    end
+                local key = type(job) == "table" and (job.id or job) or nil
+                if type(job) == "table" and job.press and job.requestChannel ~= "email"
+                    and key and not seen[key] then
+                    count = count + 1
+                    seen[key] = true
                 end
             end
         end
-        return anyPrint, receptionPrintCount, latestJob
+        local current = state.currentOffer
+        local currentKey = type(current) == "table" and (current.id or current) or nil
+        if type(current) == "table" and current.press and current.requestChannel ~= "email"
+            and currentKey and not seen[currentKey] then
+            count = count + 1
+        end
+        return count
+    end
+
+    local function installedCount(state, modelId)
+        return #Runtime.MachineFleet.installedUnits(state, modelId)
+    end
+
+    -- The job stream follows the shop's machine mix: cutters create cut-only
+    -- opportunities, presses add print work, and print work still requires a
+    -- cutter. A repeating weighted sequence makes the split predictable.
+    local function isPrintOpportunity(sequence, cutterCount, pressCount)
+        if cutterCount < 1 or pressCount < 1 then return false end
+        local cycleLength = cutterCount + pressCount
+        local position = (sequence - 1) % cycleLength
+        return position < pressCount
+    end
+
+    local function scaleTemplateVolume(template, machineCount)
+        local counts = template.sheetCounts or {}
+        local copies = template.press and template.press.requestedCopies or counts
+        local multiplier = math.max(1, math.floor(tonumber(machineCount) or 1))
+        local maximum = Runtime.Jobs.MAX_PALLETS
+        if multiplier <= 1 or #counts == 0 or #counts >= maximum then return end
+
+        local expandedCounts, expandedCopies = {}, {}
+        for _ = 1, multiplier do
+            for index, sheets in ipairs(counts) do
+                if #expandedCounts >= maximum then break end
+                expandedCounts[#expandedCounts + 1] = sheets
+                expandedCopies[#expandedCopies + 1] = copies[index] or sheets
+            end
+            if #expandedCounts >= maximum then break end
+        end
+        template.sheetCounts = expandedCounts
+        if template.press then template.press.requestedCopies = expandedCopies end
     end
 
     function Runtime.JobService.createNextOffer(state, timestamp)
         if type(state) ~= "table" then return nil, { "shop state is required" } end
         local sequence = Runtime.nextSequence(state)
-        local pressInstalled = Runtime.MachineFleet.isInstalled(state, "heidelberg_10x15")
-        local anyPrint, receptionPrintCount, latestReceptionJob = Runtime.offerHistory(state)
-        local pressEnabled = pressInstalled and (not anyPrint
-            or (latestReceptionJob and latestReceptionJob.press == nil))
+        local cutterCount = installedCount(state, "polar_115")
+        local pressCount = installedCount(state, "heidelberg_10x15")
+        if cutterCount == 0 then
+            return nil, { "Install a cutter before accepting production jobs." }
+        end
+        local pressJob = isPrintOpportunity(sequence, cutterCount, pressCount)
+        local printCount = receptionPrintCount(state)
         local reputation = Runtime.Reputation.ensure(state)
         local _, tier = Runtime.Reputation.tier(reputation)
         local template
-        if tier <= 0 then
-            template = Runtime.copy(Runtime.starterTemplate)
-            pressEnabled = false
-        elseif pressEnabled then
+        if pressJob then
             local pressIndex
-            if receptionPrintCount == 0 or tier == 1 then pressIndex = 1
-            elseif tier == 2 then pressIndex = receptionPrintCount % 2 == 0 and 1 or 3
+            if tier <= 1 then pressIndex = 1
+            elseif tier == 2 then pressIndex = printCount % 2 == 0 and 1 or 3
             else
                 local order = { 1, 3, 2 }
-                pressIndex = order[receptionPrintCount % #order + 1]
+                pressIndex = order[printCount % #order + 1]
             end
             template = Runtime.copy(Runtime.pressTemplates[pressIndex])
+            scaleTemplateVolume(template, pressCount)
+        elseif tier <= 0 then
+            template = Runtime.copy(Runtime.starterTemplate)
         elseif tier == 1 then
             template = Runtime.copy(Runtime.templates[1])
         elseif tier == 2 then
@@ -52,10 +93,11 @@ function Component.install(Runtime)
             local order = { 2, 3, 1, 3 }
             template = Runtime.copy(Runtime.templates[order[(sequence - 1) % #order + 1]])
         end
+        if not pressJob then scaleTemplateVolume(template, cutterCount) end
         template.id = Runtime.Jobs.formatId(sequence)
         template.sequence = sequence
         template.createdAt = timestamp
-        if pressEnabled then
+        if pressJob then
             template.artworkKey = template.artwork.key
         else
             template.artworkKey = Runtime.artworkForSequence(state, sequence)

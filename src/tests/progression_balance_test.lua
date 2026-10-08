@@ -61,10 +61,11 @@ function Test.run(context,check)
     pressState.money=20000
     pressState.reputation.score=50
     local pressBought=context.machineFleet.buy(pressState,"dealer",3)
-    local pressOffers={}
+    local pressOffers,pressOfferError={},nil
     if pressBought then
         for index=1,5 do
-            local offer=context.jobService.createNextOffer(pressState,1000+index)
+            local offer,errors=context.jobService.createNextOffer(pressState,1000+index)
+            if not offer then pressOfferError=table.concat(errors or {},"; ") end
             if offer then
                 if offer.press then pressOffers[#pressOffers+1]=offer end
                 context.jobService.declineOffer(pressState,offer,2000+index)
@@ -77,7 +78,68 @@ function Test.run(context,check)
         and pressOffers[2].difficulty=="medium"
         and pressOffers[3].difficulty=="hard"
         and Schedule.skillAllows(intermediate,pressOffers[1],"press")
-        and Schedule.skillAllows(expert,pressOffers[3],"press"))
+        and Schedule.skillAllows(expert,pressOffers[3],"press"),
+        string.format("bought=%s prints=%d jobs=%s skills=%s/%s fleet=%d/%d next=%s",
+            tostring(pressBought), #pressOffers,
+            table.concat({ pressOffers[1] and pressOffers[1].id or "-",
+                pressOffers[1] and pressOffers[1].difficulty or "-",
+                pressOffers[2] and pressOffers[2].id or "-",
+                pressOffers[2] and pressOffers[2].difficulty or "-",
+                pressOffers[3] and pressOffers[3].id or "-",
+                pressOffers[3] and pressOffers[3].difficulty or "-" }, "/"),
+            tostring(pressOffers[1] and Schedule.skillAllows(intermediate,pressOffers[1],"press")),
+            tostring(pressOffers[3] and Schedule.skillAllows(expert,pressOffers[3],"press")),
+            #context.machineFleet.installedUnits(pressState,"polar_115"),
+            #context.machineFleet.installedUnits(pressState,"heidelberg_10x15"),
+            tostring(pressState.nextJobId) .. " error=" .. tostring(pressOfferError)))
+
+    local mixedFleet=context.State.new()
+    mixedFleet.money=100000
+    mixedFleet.reputation.score=20
+    local secondCutter=context.machineFleet.buy(mixedFleet,"dealer",1)
+    local onePress=context.machineFleet.buy(mixedFleet,"dealer",3)
+    local mixedPrint,mixedCut=0,0
+    local doubledCutVolume=false
+    for index=1,9 do
+        local offer=context.jobService.createNextOffer(mixedFleet,3000+index)
+        if offer then
+            if offer.press then mixedPrint=mixedPrint+1
+            else
+                mixedCut=mixedCut+1
+                if index==2 then doubledCutVolume=#offer.pallets==4 end
+            end
+            context.jobService.declineOffer(mixedFleet,offer,4000+index)
+        end
+    end
+    check("job_mix_tracks_one_press_to_two_cutter_capacity",
+        secondCutter and onePress and mixedPrint==3 and mixedCut==6 and doubledCutVolume)
+
+    local pressCapacity=context.State.new()
+    pressCapacity.money=100000
+    pressCapacity.reputation.score=0
+    local pressOne=context.machineFleet.buy(pressCapacity,"dealer",3)
+    local pressTwo=context.machineFleet.buy(pressCapacity,"dealer",3)
+    local firstExpandedPrint=context.jobService.createNextOffer(pressCapacity,5000)
+    local printShare,cutShare=firstExpandedPrint and firstExpandedPrint.press and 1 or 0,0
+    if firstExpandedPrint then context.jobService.declineOffer(pressCapacity,firstExpandedPrint,6000) end
+    for index=2,9 do
+        local offer=context.jobService.createNextOffer(pressCapacity,5000+index)
+        if offer then
+            if offer.press then printShare=printShare+1 else cutShare=cutShare+1 end
+            context.jobService.declineOffer(pressCapacity,offer,6000+index)
+        end
+    end
+    check("job_mix_and_volume_scale_with_two_printing_presses",
+        pressOne and pressTwo and firstExpandedPrint and firstExpandedPrint.press
+        and #firstExpandedPrint.pallets==2 and printShare==6 and cutShare==3)
+
+    local pressStarter=context.State.new()
+    pressStarter.money=20000
+    local starterPressBought=context.machineFleet.buy(pressStarter,"dealer",3)
+    local starterPrint=starterPressBought
+        and context.jobService.createNextOffer(pressStarter,7000)
+    check("installed_press_receives_easy_print_work_before_reputation_unlocks",
+        starterPrint and starterPrint.press and starterPrint.difficulty=="easy")
 
     local pressTraining=Employees.trainingPlan(beginner,"press")
     local wrapTraining=Employees.trainingPlan(beginner,"wrapping")
