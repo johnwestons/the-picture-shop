@@ -7,6 +7,9 @@
 - Multiplayer protocol: 34; host and guests need matching current code.
 - Build command: `./BUILD_ANDROID.ps1`
 - Local output: `output/mobile/ThePictureShop-0.1.0-android.48-debug.apk`
+- Remote download: [Android 48 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.48/ThePictureShop-0.1.0-android.48-Install.apk)
+- APK SHA-256: `0910d3ab68db681f0aaf57f40159b3a85ab4370c6a6974c12e699bd0807c8ba0`
+- APK source commit: `d0b2c090b11ea85d6364c827a2b7846d360a69c0`
 - The development APK uses the same gameplay and art source as Windows. It includes
   the current warehouse, forklift, break room, cheat menu, and Critter Kombat changes.
 - The five new Critter Kombat fighter designs are concept previews pending selection;

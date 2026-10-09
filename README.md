@@ -120,27 +120,22 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current source targets Android 48 (`versionCode` 48). Build its local development
-APK with `./BUILD_ANDROID.ps1`; the result is
-`output/mobile/ThePictureShop-0.1.0-android.48-debug.apk`. All multiplayer players
-must run matching protocol 34 code. The latest published installer remains
-[Android 46](https://github.com/johnwestons/the-picture-shop/releases/download/android.46/ThePictureShop-0.1.0-android.46-Install.apk).
+Download the [Android 48 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.48/ThePictureShop-0.1.0-android.48-Install.apk)
+from the [release page](https://github.com/johnwestons/the-picture-shop/releases/tag/android.48).
 Its verified local copy is
-`output/android-share/0.1.0-android.46/ThePictureShop-0.1.0-android.46-Install.apk`.
-It includes the new open-office warehouse, independent multiplayer rooms, storage
-rooms, physical employee pallet-jack transport, directional worker animations,
-obstacle-aware NPC navigation, and the singleplayer/multiplayer audit fixes.
-The audit covers save switching, stock ownership, room transitions, reconnects,
-mobile controls and viewport sizing, plus rendering and collision-cache costs.
-See the [audit results](docs/audit_android_46.md) for checks and remaining limits.
-All multiplayer participants on Android 46 need that build (protocol 30), including an updated
-PC checkout or game package. The same signed APK supports an in-place update
-from the previous installers. Physical phone playtesting is not claimed.
-The [Android 46 release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.46)
-includes `SHA256SUMS.txt`, `share-report.json` and phone installation instructions.
+`output/android-share/0.1.0-android.48/ThePictureShop-0.1.0-android.48-Install.apk`.
+The APK contains the current warehouse, forklift, break room, cheat menu, and
+Critter Kombat changes. Every multiplayer participant needs matching protocol 34
+code. The package ID and signing certificate match the previous Android build,
+so this APK can update it in place. The release includes `SHA256SUMS.txt`,
+`share-report.json`, and installation notes. Automated checks passed; physical
+phone gameplay has not yet been verified.
+
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Install over the old app to keep saves, or uninstall **The Picture Shop**
 without keeping its app data before installing to start with a fresh test save.
+The [Android 46 audit](docs/audit_android_46.md) remains available as historical
+verification for the earlier protocol 30 build.
 
 For a phone-shareable private test installer, double-click `PACK_ANDROID.bat`.
 It advances the Android version, runs desktop and packaged-mobile checks, verifies
