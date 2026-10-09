@@ -151,7 +151,7 @@ function Component.install(Runtime)
             local cutter = Runtime.CutterPlacement.ensure(state, Runtime.Config.cutterPlacement)
             local wrapper = Runtime.WrapperPlacement.ensure(state, Runtime.Config.wrapperPlacement)
             local windmill = Runtime.WindmillPlacement.ensure(state, Runtime.Config.windmillPlacement)
-            if cutter.moving or wrapper.moving or windmill.moving then
+            if Runtime.MachineTransport.active(state) then
                 local playerId = tonumber(player.id)
                 if not jack.operating or jack.operatorPlayerId ~= playerId then
                     return false, "equipment_moving",

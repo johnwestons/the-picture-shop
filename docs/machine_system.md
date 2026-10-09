@@ -20,8 +20,17 @@ migrates this data.
 Each cutter and wrapper keeps a separate runtime, and every Windmill keeps its production process with its own
 floor record. Pallets at a cutter or press record the owning machine ID, so separate units can hold and advance jobs
 at the same time. Legacy pallet claims without an owner ID remain attached to the original unit when a save loads.
-Additional units are installed at their assigned floor positions; pallet-jack relocation and LAN guest controls for
-those units are not yet supported. The hosting player can operate them.
+Every installed unit, including additional dealer purchases and online deliveries, can be relocated with an empty
+pallet jack. Drive beside the desired machine, use **M / MOVE** to attach it, **Q / TURN** to rotate it, and **E / PLACE**
+to set it down in a green grid cell. The machine's unique ID follows the entire operation, so moving an additional
+unit leaves the original machine in place. Loaded, reserved, or occupied machines must be freed before attachment.
+Attached units cannot run, be sold, or be carried through room doorways.
+
+`src/machine_transport.lua` resolves each unit's pose while keeping the original placement records intact.
+Local players and LAN guests share the same host-validated relocation rules. Protocol v33 carries an optional
+machine ID with relocation commands and machine poses; it never accepts client-authored placement coordinates.
+Saving during transport keeps the last committed floor position, placing commits the new position, and disconnects
+recover the attached unit before releasing the pallet jack.
 
 Do not add a marketplace listing without a live world consumer unless it is explicitly marked as unavailable. This
 keeps players from spending money on decorative or unreachable prototypes.

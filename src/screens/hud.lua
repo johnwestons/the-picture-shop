@@ -43,9 +43,11 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
         if mobile then
             shownPrompt = shownPrompt:gsub("^E%s+or%s+F:%s*", "TAP USE / PARK: ")
                 :gsub("^E:%s*", "TAP USE: ")
+                :gsub("%s+X:%s*dismiss applicant", " / use DISMISS button")
         elseif controller then
             shownPrompt = shownPrompt:gsub("^E%s+or%s+F:%s*", "A or X: ")
                 :gsub("^E:%s*", "A: ")
+                :gsub("X:%s*dismiss applicant", "B: dismiss applicant")
         end
         shadowedPrint(shownPrompt, mobile and (left + right) / 2 - 230 or 360,
             bottom - 52, { 0.95, 0.85, 0.35 })

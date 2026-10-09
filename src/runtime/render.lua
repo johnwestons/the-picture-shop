@@ -72,6 +72,10 @@ function Component.install(Runtime)
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
             elseif Runtime.state.screen == "shop_rooms" then
                 require("src.shop_room_controls").draw(Runtime)
+            elseif Runtime.state.screen == "air_hockey" then
+                require("src.screens.air_hockey_screen").draw(Runtime)
+            elseif Runtime.state.screen == "critter_kombat" then
+                require("src.screens.critter_kombat_screen").draw(Runtime)
             elseif Runtime.state.screen == "shop_clock" then
                 require("src.screens.shop_clock").draw(Runtime.state,mouseX,mouseY,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
@@ -98,7 +102,8 @@ function Component.install(Runtime)
         end
         if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error" then
             local optionsX, optionsY = Runtime.pointerPosition()
-            Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, Runtime.optionsAccessLayout())
+            local accessScreen, accessBounds = Runtime.optionsAccessLayout()
+            Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, accessScreen, accessBounds, Runtime.Assets)
         end
         Runtime.Ui.drawPressFeedback()
         if Runtime.controller then Runtime.controller:draw() end

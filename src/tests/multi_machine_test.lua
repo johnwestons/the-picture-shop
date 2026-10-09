@@ -65,7 +65,8 @@ function Test.run(context, check)
     context.input.keypressed("m", inputContext)
     check("extra_machine_does_not_move_original_cutter",
         state.cutter.moving == false
-        and state.message:find("fixed at its assigned floor position", 1, true) ~= nil)
+        and not duplicate.world.moving
+        and state.message:find("pallet jack", 1, true) ~= nil)
 
     context.machine.reset()
     for index, unit in ipairs(cutters) do

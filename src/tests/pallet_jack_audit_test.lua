@@ -86,6 +86,7 @@ local function checkClientUpdate(check)
         handleMultiplayerEvents = function() end,
         multiplayer = { isActive = function() return true end, isHost = function() return false end,
             isClient = function() return true end, update = function() end,
+            ballSnapshot = function() return {} end,
             highFiveAnimationFor = function() end, remotePlayers = function() return { actor } end },
     }
     require("src.runtime.multiplayer_update").install(client)

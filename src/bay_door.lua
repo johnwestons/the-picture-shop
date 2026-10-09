@@ -67,6 +67,9 @@ function Instance:getInteraction()
         x = self.interaction.x,
         y = self.interaction.y,
         radius = self.interaction.radius,
+        hoverX = self.interaction.hoverX,
+        hoverY = self.interaction.hoverY,
+        hoverRadius = self.interaction.hoverRadius,
         prompt = prompt,
         doorState = self.state,
     }

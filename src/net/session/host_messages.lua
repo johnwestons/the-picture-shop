@@ -208,6 +208,9 @@ function Component.install(Runtime)
             player.lastInputSequence = payload.sequence
             player.inputSequence = payload.sequence
             player.inputX, player.inputY = payload.moveX, payload.moveY
+            player.gameInputX,player.gameInputY=payload.gameX,payload.gameY
+            player.combatButtons=payload.combatButtons
+            player.taskAction = payload.taskAction
             if payload.furColorway then player.furColorway = payload.furColorway end
             if payload.overallsColorway then player.overallsColorway = payload.overallsColorway end
             player.lastInputAt = self.clock()

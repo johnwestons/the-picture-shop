@@ -38,11 +38,12 @@ function Test.run(context,check)
     check("employees_fresh_shop_has_valid_empty_staff_and_recruitment",Employees.valid(fresh.employment) and #fresh.employment.staff==0 and fresh.employment.recruiting)
     local World=require("src.world")
     local visitState=State.new();local visitor=Employees.createApplicant(visitState,0)
-    visitor.actor.visible=true;visitor.actor.phase="waiting";visitor.actor.x=759;visitor.actor.y=358
+    local reception=require("src.warehouse_registration").reception
+    visitor.actor.visible=true;visitor.actor.phase="waiting";visitor.actor.x=reception.x;visitor.actor.y=reception.y
     local oldWorldState,oldWorldAssets,oldSelection=World._state,World._assets,World.selectedInteraction
     local oldX,oldY=World.player.x,World.player.y
-    World.player.x,World.player.y=746,377;World.selectedInteraction=nil
-    local visitOkay,visitError=pcall(World.update,0,0,0,context.assets,visitState,759,358)
+    World.player.x,World.player.y=reception.x,reception.y+30;World.selectedInteraction=nil
+    local visitOkay,visitError=pcall(World.update,0,0,0,context.assets,visitState,reception.x,reception.y)
     local selectedVisit=World.selectedInteraction
     World._state,World._assets,World.selectedInteraction=oldWorldState,oldWorldAssets,oldSelection
     World.player.x,World.player.y=oldX,oldY
@@ -50,7 +51,7 @@ function Test.run(context,check)
     check("employees_reception_interaction_requests_typed_resume",World.requestEmployeeResume(visitState,visitor.id) and visitor.status=="resume_requested")
     local legacy=Schema.newPayload(1,1);legacy.version=16;legacy.state.employment=nil
     local migrated=Schema.migrate(legacy)
-    check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==21 and #migrated.state.employment.staff==0)
+    check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==Schema.VERSION and #migrated.state.employment.staff==0)
     local a=Employees.createApplicant(fresh,0)
     Employees.requestResume(fresh,a.id,0)
     local revision=a.revision

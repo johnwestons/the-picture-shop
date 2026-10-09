@@ -58,7 +58,7 @@ function Component.install(Runtime)
     function Runtime.normalizePalletJackState(value, label)
         local valid, shapeError = Runtime.shape(value, label,
             { "x", "y", "direction", "operating", "moving" },
-            { "operatorPlayerId", "operatorEmployeeId", "carriedPalletId", "candidatePalletId" })
+            { "operatorPlayerId", "operatorEmployeeId", "carriedPalletId", "candidatePalletId", "sceneId" })
         if not valid then return nil, shapeError end
         local x, fieldError = Runtime.numberInRange(
             value.x, -Runtime.MAX_COORDINATE, Runtime.MAX_COORDINATE, label .. ".x")
@@ -69,6 +69,10 @@ function Component.install(Runtime)
         if y == nil then return nil, fieldError end
         if type(value.direction) ~= "string" or not Runtime.PALLET_JACK_DIRECTIONS[value.direction] then
             return nil, label .. ".direction is invalid"
+        end
+        local sceneId=value.sceneId or "warehouse"
+        if sceneId~="warehouse" and sceneId~="front_left" and sceneId~="front_right" then
+            return nil,label..".sceneId is invalid"
         end
         if type(value.operating) ~= "boolean" then
             return nil, label .. ".operating must be boolean"
@@ -113,6 +117,7 @@ function Component.install(Runtime)
             x = x,
             y = y,
             direction = value.direction,
+            sceneId = sceneId,
             operating = value.operating,
             moving = value.moving,
             operatorPlayerId = operatorPlayerId,

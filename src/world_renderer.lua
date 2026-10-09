@@ -135,6 +135,7 @@ local function drawPalletJack(assets, state)
         drawPrintedArtwork(assets, carried, pose.x + pose.loadX, pose.y + pose.loadY, true)
     end
 end
+Renderer.drawPalletJack=drawPalletJack
 
 function Renderer.palletVisual(item)
     local boxed = not item.vendor and item.pallet.packaging == "boxed"
@@ -315,6 +316,7 @@ local function drawBackground(assets)
 end
 
 local function drawLoungeForeground(assets, seat)
+    if Config.warehouse.roomScenes then return require("src.shop_room_renderer").drawLobbyForeground(assets,seat) end
     local key = seat and seat.foreground
     local foreground = key and Config.loungeSeating.foregrounds[key]
     local image = foreground and assets.get(foreground.asset)
@@ -424,6 +426,7 @@ local pushFacing = {
 
 local function drawPlayer(characterAssets,state)
     local player = World.player
+    if require("src.basketball_renderer").draw(player,state) then return end
     local character = player.character or Config.player.character
     local highFive = player.highFiveAnimation
     local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
@@ -464,6 +467,17 @@ local function drawPlayer(characterAssets,state)
         directionScale = mirror
     end
 
+    local taskAction = player.taskAction
+    local taskActionActive = type(taskAction) == "string"
+        and characterAssets.hasAction(character, taskAction) and not pushingJack
+    if taskActionActive then
+        local directionalAction, mirror = CharacterAnimation.directionalTaskAction(
+            taskAction, player.intentX, player.intentY)
+        action = characterAssets.hasAction(character, directionalAction) and directionalAction or taskAction
+        pushArtwork = false
+        directionScale = action == directionalAction and mirror or player.facing or 1
+    end
+
     if highFiveActive then
         action = "high_five"
         pushArtwork = false
@@ -483,6 +497,8 @@ local function drawPlayer(characterAssets,state)
         -- the jack is stopped instead of freezing halfway through a stride.
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
             player.animationDistance,Config.player.walkPixelsPerFrame)
+    elseif taskActionActive then
+        frame = CharacterAnimation.frameForClock(frameCount, player.taskClock or 0, 4)
     else
         frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
             player.animationDistance, player.idleClock, Config.player.walkPixelsPerFrame,
@@ -525,7 +541,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     remotePlayers=sameRoomPlayers
     if Rooms.scene(World.player)~="warehouse" then
         require("src.shop_room_renderer").drawRoom(World,assets,characterAssets,state,remotePlayers,
-            function() drawPlayer(characterAssets,state) end,drawPallet)
+            function() drawPlayer(characterAssets,state) end,drawPallet,drawPalletJack,
+            function() PlacementGrid.draw(World.placementGridSnapshot(state,assets)) end)
         WarehouseRenderer.endFrame()
         return
     end
@@ -557,6 +574,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     end
     characterAssets.retainCharacters(visibleCharacters, true)
     local jack = state and PalletJack.ensure(state, Config.palletJack)
+    local jackInScene=jack and jack.sceneId=="warehouse"
     local cutter = state and CutterPlacement.ensure(state, Config.cutterPlacement)
     local wrapper = state and WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local windmill = state and WindmillPlacement.ensure(state, Config.windmillPlacement)
@@ -581,13 +599,16 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         if machine.status == "installed" and machine.world then
             local storedMachine = machine
             if storedMachine.modelId == "polar_115" then
-                actors[#actors + 1] = { y = storedMachine.world.y,
+                actors[#actors + 1] = { y = storedMachine.world.moving and jack.y or storedMachine.world.y,
+                    layer = storedMachine.world.moving and 2 or 0,
                     draw = function() drawCutter(assets, state, storedMachine.world) end }
             elseif storedMachine.modelId == "skid_wrapper" then
-                actors[#actors + 1] = { y = storedMachine.world.y,
+                actors[#actors + 1] = { y = storedMachine.world.moving and jack.y or storedMachine.world.y,
+                    layer = storedMachine.world.moving and 2 or 0,
                     draw = function() drawWrapper(assets, state, storedMachine.world) end }
             elseif storedMachine.modelId == "heidelberg_10x15" then
-                actors[#actors + 1] = { y = storedMachine.world.y,
+                actors[#actors + 1] = { y = storedMachine.world.moving and jack.y or storedMachine.world.y,
+                    layer = storedMachine.world.moving and 2 or 0,
                     draw = function() drawWindmill(assets, state, storedMachine.world) end }
             end
         end
@@ -599,7 +620,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local forklift = state and state.forklift
     local forkliftDriver = forklift and forklift.owned and forklift.operating and forklift.operatorPlayerId
     local jackOperator,jackEmployee
-    if jack and jack.operating then
+    if jackInScene and jack.operating then
         if jack.operatorPlayerId == (tonumber(World.player.id) or 1) then jackOperator = World.player end
         for _, remote in ipairs(remotePlayers or {}) do
             if tonumber(remote.id) == jack.operatorPlayerId then jackOperator = remote end
@@ -615,11 +636,12 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         actors[#actors + 1] = { y=forklift.y, layer=1,
             draw=function() WarehouseRenderer.drawForklift(assets,state,drawPallet) end }
     end
-    if state and state.constructionWorker and state.constructionWorker.phase~="hidden" then
+    if state and state.constructionWorker and state.constructionWorker.phase~="hidden"
+        and state.constructionWorker.phase~="working" then
         local worker=state.constructionWorker
         actors[#actors+1]={y=worker.y,draw=function() WarehouseRenderer.drawConstructionWorker(worker,state) end}
     end
-    if jack then
+    if jackInScene then
         actors[#actors + 1] = {
             y = jack.y,
             layer = jack.operating and 1 or 0,
@@ -651,9 +673,17 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         -- A realtime jack snapshot can arrive just before its reliable durable
         -- pallet transition. Suppress the host-declared carried ID immediately
         -- so the load never appears both on the floor and on the forks.
-        if (not jack or item.pallet.id ~= jack.carriedPalletId)
+        if (item.pallet.world.sceneId or "warehouse")=="warehouse"
+            and (not jack or item.pallet.id ~= jack.carriedPalletId)
             and (not forklift or item.pallet.id ~= forklift.carriedPalletId) then
             actors[#actors + 1] = { y = item.y, draw = function() drawPallet(assets, item) end }
+        end
+    end
+    for _,ball in ipairs(require("src.basketball").renderRecords(state)) do
+        if ball.sceneId=="warehouse" and (ball.mode=="placed" or ball.mode=="flight") then
+            actors[#actors+1]={y=ball.y,draw=function()
+                require("src.shop_room_renderer").drawBall(ball.x,ball.displayY or ball.y)
+            end}
         end
     end
     if World.customer.visible then
@@ -668,7 +698,10 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         }
     end
     if World.vendor.visible then
-        actors[#actors + 1] = { y = World.vendor.y, draw = function() World.vendor:draw(characterAssets) end }
+        actors[#actors + 1] = { y = World.vendor.y, draw = function()
+            World.vendor:draw(characterAssets)
+            if World.vendor.state=="waiting" or World.vendor.state=="reviewing" then drawLoungeForeground(assets,World.vendor.seat) end
+        end }
     end
     for _,entry in ipairs(employeeEntries) do
         local employee=entry

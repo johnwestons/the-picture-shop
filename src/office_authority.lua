@@ -6,6 +6,7 @@ local MachineFleet = require("src.machine_fleet")
 local Procurement = require("src.procurement")
 local Calendar = require("src.business_calendar")
 local Upgrades = require("src.warehouse_upgrades")
+local BreakroomGames = require("src.breakroom_games")
 local Credit = require("src.credit")
 local Employees = require("src.employees")
 
@@ -40,6 +41,7 @@ function Office.command(options)
                 if wages>0 then return false,"owner_only","Only the shop owner can pay employee wages.",{} end
             end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
+                or intent.kind == "buy_breakroom_fixture"
             if warehousePurchase then
                 local enabled = type(options.warehouseEnabled) == "function" and options.warehouseEnabled(state)
                     or options.warehouseEnabled == true
@@ -78,6 +80,10 @@ function Office.command(options)
                 ok, result, domainCode = Upgrades.purchase(staged, intent.bayId, intent.optionId, intent.requestId)
             elseif intent.kind == "buy_forklift" then
                 ok, result, domainCode = Upgrades.purchaseForklift(staged, intent.requestId)
+            elseif intent.kind == "buy_breakroom_fixture" then
+                ok, result, domainCode = BreakroomGames.purchase(staged, intent.bayId,
+                    intent.fixtureId, intent.requestId,
+                    type(options.players)=="function" and options.players() or nil)
             elseif intent.kind == "checkout" then
                 local screen = Computer.new()
                 local entries = {}

@@ -3,9 +3,13 @@
 local Component = {}
 
 function Component.install(Runtime)
+    local followJackTarget = { x = 0, y = 0 }
+
     function Runtime.App.officeFitsScreen()
         return Runtime.state.screen == "computer"
             or Runtime.state.screen == "shop_rooms"
+            or Runtime.state.screen == "air_hockey"
+            or Runtime.state.screen == "critter_kombat"
             or Runtime.state.screen == "workshop_remote" and Runtime.WorkshopRemoteScreen.resourceId == "office_computer"
     end
 
@@ -31,8 +35,19 @@ function Component.install(Runtime)
             if Runtime.App.cameraTransformsWorld() or Runtime.App.cameraTransformsUi() then
                 Runtime.App.mobileCamera:selectView(Runtime.cameraViewKey(), Runtime.state.screen == "world")
             end
-            Runtime.App.mobileCamera:setFollowTarget(Runtime.App.cameraTransformsWorld() and Runtime.App.settings
-                and Runtime.App.settings.followPlayerCamera and Runtime.World.player or nil)
+            local followTarget = Runtime.App.cameraTransformsWorld() and Runtime.App.settings
+                and Runtime.App.settings.followPlayerCamera and Runtime.World.player or nil
+            local targetOffsetY
+            local jack = Runtime.state.palletJack
+            local player = Runtime.World.player
+            if followTarget and jack and jack.operating
+                and jack.operatorPlayerId == (player.id or 1) then
+                -- The player's feet sit behind the jack handle. Center the
+                -- moving vehicle's steering axis while it is being driven.
+                followJackTarget.x, followJackTarget.y = jack.x, jack.y
+                followTarget, targetOffsetY = followJackTarget, 0
+            end
+            Runtime.App.mobileCamera:setFollowTarget(followTarget, targetOffsetY)
         end
         return bounds
     end

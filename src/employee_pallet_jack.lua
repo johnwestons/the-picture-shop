@@ -57,6 +57,11 @@ end
 function Transport.update(state, worker, machine, pallet, stage, dt, context)
     local jack = Jack.ensure(state, Config.palletJack)
     local name = stage == "cutter" and "cutter" or stage == "press" and "printing press" or "skid wrapper"
+    if jack.sceneId~="warehouse" and not Transport.owns(state,worker) then
+        worker.phase,worker.moving="idle",false
+        worker.activity="Waiting for the pallet jack to return to the warehouse"
+        return false,worker.activity
+    end
     if pallet.location == "on_employee" and pallet.carrierEmployeeId == worker.id then
         -- Resume legacy test saves through a real floor-to-jack pickup.
         return Pallets.transition(state, pallet, "warehouse", { world = {

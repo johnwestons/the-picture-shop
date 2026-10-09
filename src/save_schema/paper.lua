@@ -13,6 +13,8 @@ function Component.install(Runtime)
         if value == nil then return true end
         if type(value) ~= "table" or not Runtime.number(value.x) or not Runtime.number(value.y) then return false end
         if value.direction ~= nil and not Runtime.directions[value.direction] then return false end
+        if value.sceneId ~= nil and value.sceneId~="warehouse"
+            and value.sceneId~="front_left" and value.sceneId~="front_right" then return false end
         if value.rotation ~= nil and (not Runtime.integer(value.rotation) or value.rotation < 1 or value.rotation > 4) then return false end
         if not Runtime.optionalNumber(value.fromX) or not Runtime.optionalNumber(value.fromY) then return false end
         if value.spawnProgress ~= nil and (not Runtime.nonnegative(value.spawnProgress) or value.spawnProgress > 1) then return false end

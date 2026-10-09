@@ -203,7 +203,7 @@ def copy_runtime(stage: Path) -> None:
     runtime_source_paths()
     for source in (ROOT / "main.lua", ROOT / "conf.lua"):
         shutil.copy2(source, stage / source.name)
-    for source_root in (ROOT / "src", ROOT / "assets" / "generated"):
+    for source_root in (ROOT / "src", ROOT / "assets" / "generated", ROOT / "assets" / "fonts"):
         for source in source_root.rglob("*"):
             if source.is_file():
                 destination = stage / source.relative_to(ROOT)

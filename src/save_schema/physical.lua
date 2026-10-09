@@ -63,6 +63,8 @@ function Component.install(Runtime)
     function Runtime.palletJack(value)
         return Runtime.placement(value)
             and type(value.operating) == "boolean"
+            and (value.sceneId==nil or value.sceneId=="warehouse"
+                or value.sceneId=="front_left" or value.sceneId=="front_right")
             and Runtime.optionalNumber(value.animationClock)
             and (value.carriedPalletId == nil or Runtime.text(value.carriedPalletId))
     end
@@ -94,6 +96,7 @@ function Component.install(Runtime)
             and Runtime.Credit.validState(value.credit)
             and Runtime.Employees.valid(value.employment)
             and Runtime.WarehouseUpgrades.validate(value.warehouse)
+            and Runtime.BreakroomGames.validate(value.breakroomGames)
             and Runtime.WarehouseConstruction.valid(value.constructionWorker, value.warehouse)
             and type(value.storage) == "table" and Runtime.PalletStorage.normalize(value.storage) ~= nil
             and Runtime.Forklift.validState(value.forklift, Runtime.Config.forklift)

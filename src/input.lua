@@ -127,13 +127,9 @@ function Input.keypressed(key, context)
         return context.title.keypressed(key)
     elseif state.screen == "world" then
         local selected = context.world.getInteraction()
-        if (key == "m" or key == "q") and selected and selected.target
-            and selected.target.relocatable == false then
-            state.message = "This extra machine is fixed at its assigned floor position."
-            return true
-        end
         local networkClient = context.isNetworkClient and context.isNetworkClient()
-        local movingMachine = state.cutter and state.cutter.moving
+        local movingMachine = context.world.movingMachine and context.world.movingMachine(state)
+            or state.cutter and state.cutter.moving
             or state.wrapper and state.wrapper.moving
             or state.windmill and state.windmill.moving
         local networkPlayerId = context.world and context.world.player
@@ -145,6 +141,37 @@ function Input.keypressed(key, context)
             and networkPlayerId and networkPlayerId >= 2
             and state.palletJack and state.palletJack.operating
             and state.palletJack.operatorPlayerId == networkPlayerId
+        if key == "m" and context.world.nearbyMachineMove then
+            local selectedMachine = selected and selected.target and selected.target.machineId and selected
+            local nearest = context.world.nearbyMachineMove(state)
+            local target = selectedMachine and selected.hovered and selectedMachine or nearest or selectedMachine
+            if target then
+                if networkClient then
+                    return context.palletJackControl and context.palletJackControl("move_machine", target)
+                end
+                local callback = target.kind == "cutter" and context.cutterControlOccupied
+                    or target.kind == "skidWrapper" and context.wrapperControlOccupied or context.windmillControlOccupied
+                local occupied = callback and callback(target.target.machineId)
+                if context.world.beginMachineMove(state, target.target.machineId, occupied) then context.saveCurrent() end
+                return true
+            end
+        end
+        if movingMachine and not networkClient and (key == "q" or key == "e")
+            and context.world.rotateMovingMachine then
+            local ok = key == "q" and context.world.rotateMovingMachine(state)
+            if key == "e" then ok = context.world.placeMovingMachine(state, context.assets) end
+            if ok then context.saveCurrent() end
+            return true
+        end
+        if key == "q" and not movingMachine and selected and selected.target
+            and selected.target.machineId then
+            for _, unit in ipairs(state.machines and state.machines.items or {}) do
+                if unit.id == selected.target.machineId and unit.world then
+                    state.message = "Attach this machine to the pallet jack with MOVE before turning it."
+                    return true
+                end
+            end
+        end
         local relocationTarget = selected
         if networkClient and key == "m" and not (relocationTarget
             and (relocationTarget.kind == "cutter"
@@ -246,6 +273,14 @@ function Input.keypressed(key, context)
             end
             local palletId = not state.palletJack.carriedPalletId and PalletPickup.selectedId(selected) or nil
             if context.world.handlePalletJack(state, context.assets, palletId) then
+                context.saveCurrent()
+            end
+            return true
+        end
+        if key == "x" and selected and selected.kind == "applicant" then
+            if networkClient then
+                state.message = "The shop owner handles employment applications."
+            elseif context.world.dismissApplicant(state, selected.target.applicationId) then
                 context.saveCurrent()
             end
             return true
@@ -380,14 +415,12 @@ function Input.keypressed(key, context)
         end
     elseif state.screen == "machine" then
         if state.machineType == "skid_wrapper" and key == "m" then
-            for _, item in ipairs(state.machines and state.machines.items or {}) do
-                if item.id == state.machineId and item.world then
-                    state.message = "This extra wrapper is fixed at its assigned floor position."
-                    return true
-                end
-            end
             local occupied = context.wrapperControlOccupied and context.wrapperControlOccupied()
-            if context.world.beginWrapperMove(state, occupied) then
+            local moved
+            if context.world.beginMachineMove and state.machineId then
+                moved = context.world.beginMachineMove(state, state.machineId, occupied)
+            else moved = context.world.beginWrapperMove(state, occupied) end
+            if moved then
                 state.screen = "world"
                 state.machineId = nil
                 if context.wrapper.select then context.wrapper.select(nil) end
@@ -440,6 +473,12 @@ end
 
 function Input.mousepressed(x, y, button, context)
     local state = context.state
+    if state.screen=="air_hockey" then
+        return require("src.screens.air_hockey_screen").mousepressed(context.airHockeyRuntime,x,y,button)
+    end
+    if state.screen=="critter_kombat" then
+        return require("src.screens.critter_kombat_screen").mousepressed(context.airHockeyRuntime,x,y,button)
+    end
     if state.screen == "title" then
         return context.title.mousepressed(x, y, button)
     end
@@ -653,6 +692,14 @@ function Input.wheelmoved(x, y, context)
 end
 
 function Input.mousereleased(x, y, button, context)
+    if context.state.screen=="air_hockey" then
+        require("src.screens.air_hockey_screen").mousereleased()
+        return true
+    end
+    if context.state.screen=="critter_kombat" then
+        require("src.screens.critter_kombat_screen").mousereleased()
+        return true
+    end
     if context.state.screen == "title" then
         context.title.mousereleased(x, y, button)
         return true
@@ -672,6 +719,7 @@ function Input.mousemoved(x, y, context)
 end
 
 function Input.keyreleased(key, context)
+    if require("src.shop_room_controls").keyreleased(key,context.airHockeyRuntime) then return true end
     if context.state.screen == "machine" then
         context.machine.keyreleased(key)
     end

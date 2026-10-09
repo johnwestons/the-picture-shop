@@ -12,9 +12,11 @@ function Component.install(Runtime)
             love.graphics.draw(backdrop,82,190,0,770/backdrop:getWidth(),408/backdrop:getHeight())
         end
         love.graphics.setColor(0.94,0.83,0.34,1)
-        love.graphics.print("CRITTERNET / WAREHOUSE IMPROVEMENTS",100,202)
+        love.graphics.print(view.gamesPage and "CRITTERNET / BREAK ROOM GAMES"
+            or "CRITTERNET / WAREHOUSE IMPROVEMENTS",100,202)
         love.graphics.setColor(0.72,0.84,0.82,1)
-        love.graphics.print("Each expansion: four construction stages, one game day per stage.",100,224)
+        love.graphics.print(view.gamesPage and "Install a game in each completed break room. Prices are per room."
+            or "Each expansion: four construction stages, one game day per stage.",100,224)
         local function control(rect,text,enabled)
             local hovered=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
             Runtime.panel(rect,enabled and (hovered and {0.18,0.38,0.37,1} or {0.10,0.25,0.25,1}) or {0.10,0.13,0.14,1},
@@ -22,38 +24,61 @@ function Component.install(Runtime)
             love.graphics.setColor(enabled and {0.93,0.96,0.88,1} or {0.49,0.55,0.53,1})
             love.graphics.printf(text,rect.x+5,rect.y+13,rect.width-10,"center")
         end
+        control(Runtime.WAREHOUSE_PAGE_SWITCH,view.gamesPage and "ROOM UPGRADES" or "BREAK ROOM GAMES",true)
         for bi,bay in ipairs(view.bays) do
             local x=90+(bi-1)*380
             Runtime.panel({x=x,y=244,width=372,height=224},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
             love.graphics.setColor(0.91,0.93,0.87,1)
             love.graphics.print("SEPARATE ROOM "..(bi==1 and "A" or "B"),x+14,256)
-            for oi,option in ipairs(bay.options) do
-                control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
-                    view.enabled and option.available and bay.status=="locked" and not view.pending)
+            if view.gamesPage then
+                for oi,fixtureId in ipairs(Runtime.BreakroomGames.ORDER) do
+                    local item=Runtime.BreakroomGames.CATALOG[fixtureId]
+                    local owned=bay.owned[fixtureId]
+                    control(Runtime.warehouseOptionRect(bi,oi),item.name.."  /  "..
+                        (owned and "OWNED" or Runtime.money(item.price)),view.enabled and not owned
+                        and bay.status=="complete" and bay.optionId=="breakroom" and not view.pending)
+                end
+            else
+                for oi,option in ipairs(bay.options) do
+                    control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
+                        view.enabled and option.available and bay.status=="locked" and not view.pending)
+                end
             end
-            local phase=bay.status=="locked" and "Unpurchased / choose a room"
+            local phase=view.gamesPage and (bay.status=="complete" and bay.optionId=="breakroom"
+                and "Ready for games" or "Build and complete a break room first")
+                or bay.status=="locked" and "Unpurchased / choose a room"
                 or bay.status=="complete" and "Ready: "..(Runtime.Upgrades.catalog(bay.optionId).name)
                 or bay.phase=="building" and ("Building / stage "..bay.stage.." of 4")
                 or "Ordered / "..tostring(bay.phase or bay.status):gsub("_"," ")
             love.graphics.setColor(0.64,0.82,0.72,1)
             love.graphics.printf(phase,x+12,441,348,"center")
         end
-        Runtime.panel({x=90,y=480,width=752,height=64},{0.08,0.13,0.15,0.98},{0.45,0.61,0.55,1},3,1)
-        love.graphics.setColor(0.95,0.81,0.35,1)
-        love.graphics.print("FORKLIFT / "..Runtime.money(view.forklift.price),104,490)
-        love.graphics.setColor(0.74,0.84,0.79,1)
-        love.graphics.print("Raise forks for upper shelves and two-high pallet stacks.",104,518)
-        control(Runtime.WAREHOUSE_FORKLIFT,view.forkliftOwned and "OWNED" or "REVIEW PURCHASE",
-            view.enabled and not view.forkliftOwned and not view.pending)
+        if view.gamesPage then
+            Runtime.panel({x=90,y=480,width=752,height=64},{0.08,0.13,0.15,0.98},{0.45,0.61,0.55,1},3,1)
+            love.graphics.setColor(0.95,0.81,0.35,1)
+            love.graphics.print("AIR HOCKEY / BASKETBALL / CRITTER KOMBAT",104,490)
+            love.graphics.setColor(0.74,0.84,0.79,1)
+            love.graphics.print("Visit the completed room to use a purchased game.",104,518)
+        else
+            Runtime.panel({x=90,y=480,width=752,height=64},{0.08,0.13,0.15,0.98},{0.45,0.61,0.55,1},3,1)
+            love.graphics.setColor(0.95,0.81,0.35,1)
+            love.graphics.print("FORKLIFT / "..Runtime.money(view.forklift.price),104,490)
+            love.graphics.setColor(0.74,0.84,0.79,1)
+            love.graphics.print("Raise forks for upper shelves and two-high pallet stacks.",104,518)
+            control(Runtime.WAREHOUSE_FORKLIFT,view.forkliftOwned and "OWNED" or "REVIEW PURCHASE",
+                view.enabled and not view.forkliftOwned and not view.pending)
+        end
         love.graphics.setColor(0.96,0.77,0.38,1)
-        love.graphics.printf(view.message or "Use the front entrance to visit rooms. Storage keeps 10 stock pallets off the warehouse floor.",100,555,736,"left")
+        love.graphics.printf(view.message or "Use the wide passage beside the back shelves to visit rooms. Storage keeps 10 stock pallets off the warehouse floor.",100,555,736,"left")
         love.graphics.setColor(0.69,0.78,0.78,1)
         love.graphics.printf(view.pending and "Waiting for the host to confirm your purchase."
             or not view.enabled and "Purchasing is not enabled in this build."
             or "Review a choice to confirm its cost. The raccoon mechanic calls before construction.",100,578,736,"left")
         local choice=view.confirmation
         if not choice then return end
-        local product=Runtime.Upgrades.catalog(choice.optionId or "forklift")
+        local product=choice.kind=="buy_breakroom_fixture"
+            and Runtime.BreakroomGames.CATALOG[choice.fixtureId]
+            or Runtime.Upgrades.catalog(choice.optionId or "forklift")
         love.graphics.setColor(0,0,0,0.88);love.graphics.rectangle("fill",82,190,770,408)
         Runtime.panel({x=178,y=242,width=584,height=324},{0.045,0.09,0.11,1},{0.61,0.76,0.61,1},5,2)
         love.graphics.setColor(0.97,0.84,0.35,1)
@@ -61,7 +86,10 @@ function Component.install(Runtime)
         love.graphics.setColor(0.92,0.96,0.91,1)
         love.graphics.printf("Host catalog price: "..Runtime.money(product.price),204,300,532,"center")
         love.graphics.setColor(0.72,0.85,0.82,1)
-        love.graphics.printf(choice.kind=="buy_forklift"
+        love.graphics.printf(choice.kind=="buy_breakroom_fixture"
+            and ((choice.bayId=="front_left" and "Room A" or "Room B")..
+                " fixture. Host confirms ownership and saves one purchase receipt.")
+            or choice.kind=="buy_forklift"
             and "One warehouse forklift. Operate it to lift, lower and transfer actual pallets."
             or ((choice.bayId=="front_left" and "Room A" or "Room B").." at the front entrance. Construction takes 4 game days after the mechanic arrives; one full day for each stage."),
             208,336,524,"left")

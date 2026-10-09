@@ -98,6 +98,17 @@ function Component.install(Runtime)
         result.cutter.moving, result.cutter.inMotion = false, false
         result.wrapper.moving, result.wrapper.inMotion = false, false
         result.windmill.moving, result.windmill.inMotion = false, false
+        for _, unit in ipairs(result.machines and result.machines.items or {}) do
+            local pose = unit.world
+            if pose then
+                local origin = pose.moving and pose._relocationOrigin
+                if type(origin) == "table" and Runtime.number(origin.x) and Runtime.number(origin.y)
+                    and Runtime.directions[origin.direction] then
+                    pose.x, pose.y, pose.direction = origin.x, origin.y, origin.direction
+                end
+                pose.moving, pose.inMotion, pose._relocationOrigin = false, false, nil
+            end
+        end
         result.palletJack.operating = false
         result.palletJack.moving, result.palletJack.inMotion = false, false
         result.palletJack.operatorPlayerId = nil
@@ -170,7 +181,7 @@ function Component.install(Runtime)
             or payload.version == 5 or payload.version == 6 or payload.version == 7
             or payload.version == 8 or payload.version == 9 or payload.version == 10
             or payload.version == 11 or payload.version == 12 or payload.version == 13
-            or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20
+            or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20 or payload.version == 21
         then
             if not Runtime.validV2Core(payload) then return nil end
         else

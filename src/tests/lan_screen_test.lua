@@ -246,6 +246,7 @@ function Test.run(context, check)
     TitleScreen.enter(function() end, function(slot) selectedSlot = slot end)
     TitleScreen.keypressed("down")
     local openedByKeyboard = TitleScreen.keypressed("l")
+    TitleScreen.update(0.2)
     check("lan_screen_title_local_play_uses_selected_save_slot",
         openedByKeyboard == true and selectedSlot == 2)
 

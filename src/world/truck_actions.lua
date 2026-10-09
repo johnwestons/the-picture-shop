@@ -4,6 +4,19 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState)
+        if requestedKind=="roomGame" then
+            local game,action
+            if type(desiredState)=="string" then game,action=desiredState:match("^(%a+_?%a*):([%a_]+)$") end
+            local okay,code,message
+            if game=="air_hockey" then
+                okay,code,message=require("src.air_hockey").command(state,player,action)
+            elseif game=="basketball" then
+                okay,code,message=require("src.basketball").command(state,player,action)
+            elseif game=="critter_kombat" then
+                okay,code,message=require("src.critter_kombat").command(state,player,action)
+            else return false,"not_allowed","Unknown break room game.",requestedKind end
+            return okay,code,message,requestedKind
+        end
         if requestedKind=="shopRoom" or requestedKind=="roomStock" or requestedKind=="roomRest" then
             local okay,code,message=require("src.shop_rooms").perform(player,state,requestedKind,desiredState,
                 {obstacles=Runtime.movementObstacles,players=function()

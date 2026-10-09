@@ -60,6 +60,10 @@ function Animation.directionalIdleAction(x, y)
     return directionalAction("idle", x, y)
 end
 
+function Animation.directionalTaskAction(prefix, x, y)
+    return directionalAction(prefix, x, y)
+end
+
 function Animation.authoredDirection(x,y)
     local index=math.floor((math.atan2(y or 0,x or 1)+math.pi/8)/(math.pi/4))%8+1
     return ({"east","southeast","south","southwest","west","northwest","north","northeast"})[index]

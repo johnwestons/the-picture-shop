@@ -36,7 +36,7 @@ local function player(id,x,y)
     return {id=id,x=x,y=y,sceneId="warehouse",velocityX=0,velocityY=0,intentX=0,intentY=0,
         moving=false,facing=1,animationDistance=0,character="rabbit-worker",speed=155}
 end
-local function nearEntrance(id) return player(id,Rooms.entrance.x,Rooms.entrance.y+20) end
+local function nearEntrance(id) return player(id,Rooms.roomEntrance.x,Rooms.roomEntrance.y+20) end
 local function capture(context,state,sceneId,name,pose,overlay)
     local world=context.world
     local before={};for k,v in pairs(world.player) do before[k]=v end
@@ -173,7 +173,7 @@ function Test.run(context,check)
     baseShelves(context,test)
     liveSimulation(context,test)
     test("playable_rabbit_has_registered_seated_sprite",context.characterAssets.hasAction("rabbit-worker","sit"))
-    test("selected_art_is_runtime_background",Config.paths.warehouse=="assets/generated/warehouse-open-office-v1.png")
+    test("selected_art_is_runtime_background",Config.paths.warehouse=="assets/generated/warehouse-lobby-seating-v3.png")
     for _,kind in ipairs({"storage","breakroom","floor"}) do
         local im=love.image.newImageData(Rooms.paths[kind]);local w,h=im:getDimensions();im:release()
         test(kind.."_has_real_full_size_sprite",w==1536 and h==1024)
@@ -256,7 +256,7 @@ function Test.run(context,check)
     local host=Session.new({transportFactory=network.factory,clock=clock});local guest=Session.new({transportFactory=network.factory,clock=clock})
     local hp,gp=nearEntrance(1),nearEntrance(2)
     local hc={localPlayer=hp,moveRemote=function(p,dt,x,y) context.world.updateRemotePlayer(p,dt,x,y,context.assets,state) end,
-        resolveGuestSpawn=function() return Rooms.entrance.x,Rooms.entrance.y+20 end,
+        resolveGuestSpawn=function() return Rooms.roomEntrance.x,Rooms.roomEntrance.y+20 end,
         getShopSnapshot=function() return {state=Schema.snapshot(state),player={x=hp.x,y=hp.y,character=hp.character}} end,
         performInteraction=function(p,kind,command) return context.world.performNetworkInteraction(p,state,kind,command) end}
     local gc={localPlayer=gp,inputX=0,inputY=0}

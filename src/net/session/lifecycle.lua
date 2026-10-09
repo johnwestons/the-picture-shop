@@ -29,6 +29,8 @@ function Component.install(Runtime)
             port = Runtime.Address.DEFAULT_PORT,
             serverTick = 0,
             lastServerTick = -1,
+            lastFightTick = -1,
+            fightMatches = {},
             lastPlayerTicks = {},
             inputSequence = 0,
             inputAccumulator = 0,
@@ -127,6 +129,8 @@ function Component.install(Runtime)
         self.networkKind = "lan"
         self.serverTick = 0
         self.lastServerTick = -1
+        self.lastFightTick = -1
+        self.fightMatches = {}
         self.lastPlayerTicks = {}
         self.inputSequence = 0
         self.inputAccumulator = 0

@@ -30,5 +30,19 @@
     "speed_multipliers": [0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06],
     "acceleration_multipliers": [0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10]
   },
-  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 14, "center_tolerance": 28 }
+  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 14, "center_tolerance": 28 },
+  "player_actions": {
+    "standing_work": { "actions": ["work_cutter", "work_press", "work_wrapping", "work_task"], "path_pattern": "assets/generated/characters/rabbit-worker/work_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 },
+    "operate_forklift": { "path_pattern": "assets/generated/characters/rabbit-worker/operate_forklift_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 },
+    "use_computer": { "path_pattern": "assets/generated/characters/rabbit-worker/use_computer_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 },
+    "answer_phone": { "path_pattern": "assets/generated/characters/rabbit-worker/answer_phone_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 }
+  },
+  "player_action_contract": {
+    "machine_actions": { "cutter": "work_cutter", "windmill": "work_press", "skid_wrapper": "work_wrapping", "forklift": "operate_forklift" },
+    "special_actions": { "office_computer": "use_computer", "work_phone": "answer_phone" },
+    "general_interaction": "work_task",
+    "authored_directions": ["east", "northeast", "north", "southeast", "south"],
+    "mirror_directions": { "west": "east", "northwest": "northeast", "southwest": "southeast" },
+    "baseline": 229
+  }
 }

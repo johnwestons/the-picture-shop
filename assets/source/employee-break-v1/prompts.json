@@ -1,0 +1,19 @@
+{
+  "use_case": "stylized-concept",
+  "asset_type": "Production 2D game character sprite atlas; transparent 4x4 sheet; each row is one four-frame loop.",
+  "reference_role": "Use each worker's existing chair_east sprite as the exact character identity, seated pose, and rendering-style reference.",
+  "style": "Preserve the reference's polished hand-painted game-sprite style, shading, crisp silhouette, warm highlights, scale, and right-facing seated profile.",
+  "composition": "Square transparent atlas, four equal columns and four equal rows, no gutters or labels; full worker centered in every cell at a shared scale and foot baseline.",
+  "rows": [
+    "Eating a small sandwich: hands on lap, lift sandwich, take a bite, lower it while chewing.",
+    "Drinking water from a small clear bottle: bottle on lap, raise it, sip, lower it.",
+    "Drinking coffee from a small plain paper cup: cup on lap, raise it, sip, lower it.",
+    "Relaxed seated break idle with hands on lap and one brief blink."
+  ],
+  "constraints": "Keep face, clothing, goggles, scarf or satchel, tail, body proportions, and seated legs from the reference. Animate only arms, hands, prop, and slight head tilt. Props stay in the worker's hands. No chair, backdrop, extra objects, shadows, borders, or text.",
+  "subjects": {
+    "cat-worker": "The exact black cat warehouse worker with orange goggles/scarf and orange tool satchel.",
+    "tinker-fox-worker": "The exact orange fox warehouse worker with large ears, aviator goggles, red neckerchief, brown work clothes, and bushy tail.",
+    "ferret-engineer-worker": "The exact brown-and-cream ferret engineer with blue-lensed goggles, teal work shirt, brown trousers, and orange tool satchel."
+  }
+}

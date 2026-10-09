@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "rooms": [
+    {
+      "room_type": "floor",
+      "source": "assets/source/warehouse-expansion-v1/rooms/utility-room-construction-progress-atlas-v1.png",
+      "sha256": "40f1df127a566e19426d016d6608c90f2dcd5d40b1a607513f20b9bbb0169af7",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 2,
+        "rows": 2,
+        "stage_cells": {
+          "foundation": 1,
+          "framing": 2,
+          "assembly": 3,
+          "finishing": 4
+        }
+      }
+    },
+    {
+      "room_type": "storage",
+      "source": "assets/source/warehouse-expansion-v1/rooms/storage-room-construction-progress-atlas-v1.png",
+      "sha256": "4462f92d020e15a39ba2efe642fc9705f9e58927aa331e66e6d9777f1179784c",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 2,
+        "rows": 2,
+        "stage_cells": {
+          "foundation": 1,
+          "framing": 2,
+          "assembly": 3,
+          "finishing": 4
+        }
+      }
+    },
+    {
+      "room_type": "breakroom",
+      "source": "assets/source/warehouse-expansion-v1/rooms/breakroom-construction-progress-atlas-v1.png",
+      "sha256": "e04e877752ddd90b1dd7aa5ffe56a4a35f36e7d4b3498e2589ffcfde361fdd26",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 2,
+        "rows": 2,
+        "stage_cells": {
+          "foundation": 1,
+          "framing": 2,
+          "assembly": 3,
+          "finishing": 4
+        }
+      }
+    }
+  ],
+  "generated": [
+    {
+      "path": "assets/generated/shop-floor-construction-stage-1.png",
+      "stage": 1,
+      "name": "foundation",
+      "width": 960,
+      "height": 678,
+      "sha256": "942c859a977deac43f053b11ef9d5c3e67bfedd4148861ea7a802670483d13c5"
+    },
+    {
+      "path": "assets/generated/shop-floor-construction-stage-2.png",
+      "stage": 2,
+      "name": "framing",
+      "width": 960,
+      "height": 678,
+      "sha256": "d798dd2ba6b2824af0c59b65dff26a40ddb47e2bfdaa483e02dc45f5bc2bc575"
+    },
+    {
+      "path": "assets/generated/shop-floor-construction-stage-3.png",
+      "stage": 3,
+      "name": "assembly",
+      "width": 960,
+      "height": 678,
+      "sha256": "f3e0b20065f85bd15b3e8e909dd5bd6ebeb7fae682e70e8a1c3b96c67cb55250"
+    },
+    {
+      "path": "assets/generated/shop-floor-construction-stage-4.png",
+      "stage": 4,
+      "name": "finishing",
+      "width": 960,
+      "height": 678,
+      "sha256": "909e8b07a06db10bae3ff1d7e355ae86f62567dfdf26841a6aaed702d60514ec"
+    },
+    {
+      "path": "assets/generated/shop-storage-construction-stage-1.png",
+      "stage": 1,
+      "name": "foundation",
+      "width": 960,
+      "height": 678,
+      "sha256": "2e6903c61ef1b05a640c7e8a488d28617ff8d696c0b9ca821d3f5c28a5a3f179"
+    },
+    {
+      "path": "assets/generated/shop-storage-construction-stage-2.png",
+      "stage": 2,
+      "name": "framing",
+      "width": 960,
+      "height": 678,
+      "sha256": "235617ec4f4c9cd4968dd18efbd1f676faacd7da7b70d04bd1cd8fd1e7319653"
+    },
+    {
+      "path": "assets/generated/shop-storage-construction-stage-3.png",
+      "stage": 3,
+      "name": "assembly",
+      "width": 960,
+      "height": 678,
+      "sha256": "c79b1012044b23a8e8d82f6853cef3b5afef6ddb0ef1a2f7826647fe78b5330b"
+    },
+    {
+      "path": "assets/generated/shop-storage-construction-stage-4.png",
+      "stage": 4,
+      "name": "finishing",
+      "width": 960,
+      "height": 678,
+      "sha256": "7edbed212399ba7d045f19744e95fb90cf0f5613888a2d3a1aa96fa2437fb83b"
+    },
+    {
+      "path": "assets/generated/shop-breakroom-construction-stage-1.png",
+      "stage": 1,
+      "name": "foundation",
+      "width": 960,
+      "height": 678,
+      "sha256": "bd1262264ab4100323deeeba85d9560a2fd9bd7109c78e50186beeed05c5416b"
+    },
+    {
+      "path": "assets/generated/shop-breakroom-construction-stage-2.png",
+      "stage": 2,
+      "name": "framing",
+      "width": 960,
+      "height": 678,
+      "sha256": "b08309b7dd3526e29ac9a2d17d7cf71903e83d3045df4b8759df94982a3cfee4"
+    },
+    {
+      "path": "assets/generated/shop-breakroom-construction-stage-3.png",
+      "stage": 3,
+      "name": "assembly",
+      "width": 960,
+      "height": 678,
+      "sha256": "d3a151bad1ec568b07a82a88236f983ca8c6d84c155a6553d5f4754eb0c33b9f"
+    },
+    {
+      "path": "assets/generated/shop-breakroom-construction-stage-4.png",
+      "stage": 4,
+      "name": "finishing",
+      "width": 960,
+      "height": 678,
+      "sha256": "1e0248b18493c01b5b4d0e2372ca70b0bcdbddc544d87ebdb74c57f357337137"
+    }
+  ]
+}

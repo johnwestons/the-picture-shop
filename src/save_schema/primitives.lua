@@ -10,6 +10,7 @@ function Component.install(Runtime)
     Runtime.Reputation = require("src.reputation")
     Runtime.PalletState = require("src.pallet_state")
     Runtime.WarehouseUpgrades = require("src.warehouse_upgrades")
+    Runtime.BreakroomGames = require("src.breakroom_games")
     Runtime.PalletStorage = require("src.pallet_storage")
     Runtime.Forklift = require("src.forklift")
     Runtime.WarehouseConstruction = require("src.warehouse_construction")
@@ -17,7 +18,7 @@ function Component.install(Runtime)
     Runtime.Employees = require("src.employees")
     Runtime.Labor = require("src.employee_labor")
 
-    Runtime.Schema = { VERSION = 21, SLOT_COUNT = 3 }
+    Runtime.Schema = { VERSION = 22, SLOT_COUNT = 3 }
     Runtime.directions = {
         northwest = true, north = true, northeast = true, east = true,
         southeast = true, south = true, southwest = true, west = true,

@@ -13,8 +13,9 @@ local Transport=require("src.employee_pallet_jack")
 local AI={}
 local Navigator=require("src.npc_navigation")
 local GaitMotion=require("src.gait_motion")
-local entrance={x=645,y=235}
-local reception={x=759,y=358}
+local entrance=Config.customer.route[1]
+local reception=Config.warehouse.roomScenes and require("src.warehouse_registration").reception or {x=759,y=358}
+local applicantWaitSeconds=60
 local motion={speed=72,acceleration=600,walkPixelsPerFrame=13,
     gaitSpeedMultipliers={.96,.94,1.04,1.06,.96,.94,1.04,1.06},
     gaitAccelerationMultipliers={.92,.90,1.08,1.10,.92,.90,1.08,1.10}}
@@ -55,24 +56,33 @@ function AI.receptionOccupied(state) return visiting(Employees.ensure(state))~=n
 local function applications(state,dt,now,context)
     local e=Employees.ensure(state)
     local present=visiting(e)
+    local changed=false
     for _,a in ipairs(e.applications) do
         local actor=a.actor
         if a.status=="visiting" and not actor.visible and not present
             and not context.receptionBusy() and not Calendar.isWeekend(state) then
             actor.visible=true;actor.phase="entering";actor.x,actor.y=entrance.x,entrance.y
-            present=a;state.message=a.name.." is applying for a cutter job. Request a resume at reception or in Hiring."
+            present=a;state.message=a.name.." is applying for a cutter job. Request a resume or dismiss them; they will leave after one minute if not spoken to."
+            changed=true
         end
         if actor.visible then
             if actor.phase=="entering" and AI.move(actor,reception,dt,context) then
-                actor.phase="waiting";actor.arrivedAtHours=now;face(actor,-1,0)
+                actor.phase="waiting";actor.arrivedAtHours=now;actor.waitTimer=0;face(actor,-1,0)
             elseif actor.phase=="waiting" then
                 stop(actor);actor.idleClock=actor.idleClock+dt
-                if now-(actor.arrivedAtHours or now)>=4 then Employees.requestResume(state,a.id,now) end
+                actor.waitTimer=(actor.waitTimer or 0)+dt
+                if actor.waitTimer>=applicantWaitSeconds then
+                    a.status="withdrawn";a.revision=a.revision+1
+                    actor.phase="leaving"
+                    state.message=a.name.." left after waiting one minute without being spoken to."
+                    changed=true
+                end
             elseif actor.phase=="leaving" and AI.move(actor,entrance,dt,context) then
                 actor.visible=false;actor.phase="hidden";stop(actor)
             end
         end
     end
+    return changed
 end
 local function breakChoice(w,now)
     local elapsed=now-Contracts.shiftDay(w.contract,now)*24-w.contract.startHour
@@ -202,7 +212,10 @@ function AI.worker(state,w,dt,now,context)
         end
     end
     if w.phase=="leaving" then
-        if AI.move(w,entrance,dt,context)
+        local goal=context.exitPoint and context.exitPoint(w,dt) or entrance
+        local reached,blocked=AI.move(w,goal,dt,context)
+        if blocked then w.activity="Exit path blocked - clear the entrance" end
+        if reached
             and (not w.greetingUntilHours or now>=w.greetingUntilHours) then
             w.visible=false;w.phase="hidden";w.clockedIn=false;stop(w)
             if w.terminationRequested then w.status=w.resigning and "resigned" or "dismissed" end
@@ -312,7 +325,7 @@ function AI.update(state,dt,context)
     while at<now-1e-9 do
         local nextAt=math.min(now,at+.1/secondsPerHour)
         local realDt=(nextAt-at)*secondsPerHour
-        applications(state,realDt,nextAt,context)
+        if applications(state,realDt,nextAt,context) then changed=true end
         for _,w in ipairs(e.staff) do
             local oldClocked=w.clockedIn
             Payroll.accrue(w,at,nextAt,not Work.safe(w,state),state)

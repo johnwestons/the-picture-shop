@@ -170,7 +170,7 @@ function Component.run(Context)
         type(Context.spawnX) == "number" and type(Context.spawnY) == "number"
         and Context.context.Navigation.isWalkable(Context.context.assets, Context.spawnX, Context.spawnY, {}))
 
-    Context.routesCorrect = Context.Protocol.VERSION == 30 and Context.Protocol.CHANNEL_COUNT == 3
+    Context.routesCorrect = Context.Protocol.VERSION == 34 and Context.Protocol.CHANNEL_COUNT == 3
         and Context.Protocol.CHANNEL_CONTROL == 0 and Context.Protocol.CHANNEL_STATE == 1
         and Context.Protocol.CHANNEL_DURABLE == 2 and Context.Protocol.MAX_PLAYERS == 4
     Context.routeSummary = {}
@@ -185,7 +185,7 @@ function Component.run(Context)
             and channel == Context.Protocol.CHANNEL_CONTROL and delivery == "reliable"
     end
     for _, kind in ipairs({
-        "input", "snapshot", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
+        "input", "snapshot", "fight_snapshot", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
         "pallet_jack_snapshot", "cutter_snapshot", "wrapper_snapshot", "windmill_snapshot", "ping", "pong",
     }) do
         local channel, delivery = Context.Protocol.route(kind)

@@ -39,7 +39,7 @@ now assemble their systems rather than carrying their implementations:
 | --- | ---: | ---: | ---: |
 | `src/app.lua` | 4,730 | 34 | 29 / 5 |
 | `src/screens/computer_screen.lua` | 2,964 | 24 | 49 / 3 |
-| `src/net/protocol.lua` | 2,833 | 17 | 30 / 1 |
+| `src/net/protocol.lua` | 2,833 | 17 | 31 / 1 |
 | `src/net/session.lua` | 2,900 | 16 | 30 / 4 |
 | `src/world.lua` | 2,500 | 18 | 34 / 6 |
 | `src/save_schema.lua` | 1,530 | 13 | 27 / 1 |
@@ -186,11 +186,29 @@ checks, and save round trips. It redirects test saves into
   interpolation across per-frame runtime revisions, and proves drawing cannot mutate the machine or
   mirrored ticket. It writes `cutter-guest-preview.png` and `cutter-guest-unloaded-preview.png` only in
   the isolated smoke save directory for visual review.
+- `src/tests/cut_stock_margin_test.lua` checks the one-inch minimum excess in both stock dimensions,
+  all difficulty layouts and four real cuts, exact finished sizes, next-lift resets, generated offers,
+  and rotated repeat orders from older tickets. The starter now supplies 17 × 12 stock for its
+  8.5 × 11 target. Hard layouts leave at least 0.25 inches on each edge; the cutter draws remaining
+  trim at a minimum of six scene pixels and keeps already-cut edges flush. The `cut-stock-margin`
+  focus includes the job loop, cutter integration, host/guest presentation and production, progression,
+  press economics, save contracts, and guest production journeys. Desktop and forced-mobile runs each
+  pass 1,412 checks. Set `PICTURE_SHOP_CUT_STOCK_CAPTURE_DIR` to an existing output directory to capture
+  the starter and minimum-margin hard stock at desktop and mobile scene sizes.
 - `src/tests/cutter_production_session_test.lua` runs the real Session, workshop authority, remote
   controls and Machine together without device sockets. It covers loading through a completed cut,
   duplicated cut requests, next-program synchronization, stalled guest animation, an interrupted
   second cut, and actual spoiled geometry from an intentionally wrong cut. Protocol v15 validates
   the added dimension/spoil fields and keeps cutter messages inside the 1,200-byte ceiling.
+- `src/tests/purchased_machine_transport_test.lua` runs actual MOVE, TURN, and PLACE controls for additional
+  cutters, wrappers, and presses bought from dealers or unloaded from online deliveries. It checks movement,
+  original-unit isolation, mobile host/guest buttons, placement, save/reload, loaded/occupied machines, ownership,
+  sale/operation blocking, doorway blocking, and disconnect recovery. `machine_relocation_session_test.lua` also
+  repeats the guest session journey for a purchased cutter, with duplicate requests and overlapping durable saves.
+  The `machine-transport` focus includes fleet, placement, pallet-jack, save, authority, session, and wire-protocol
+  checks. Desktop and forced-mobile runs each pass 886 checks; the broader domain run passes 2,204 checks before
+  the existing camera-edge follow check fails. Set `PICTURE_SHOP_MACHINE_TRANSPORT_CAPTURE_DIR` to an existing
+  directory for live carrying/placed captures.
 
 - `src/smoke.lua` owns reporting, the final three-frame render gate, and shared engine integration setup.
 - `src/tests/lan_discovery_test.lua`, `src/tests/lan_reconnect_test.lua`, and

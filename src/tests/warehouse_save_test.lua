@@ -61,7 +61,7 @@ end
 function Test.run(_, check)
     local fresh = State.new()
     check("warehouse_save_new_schema_and_safe_defaults",
-        Schema.VERSION == 21 and Schema.validState(Schema.snapshot(fresh))
+        Schema.VERSION == 22 and Schema.validState(Schema.snapshot(fresh))
         and fresh.warehouse.bays.front_left.status == "locked"
         and fresh.warehouse.bays.front_right.status == "locked" and not fresh.warehouse.forkliftOwned
         and not fresh.forklift.owned and fresh.storage.racks["warehouse-rack"]~=nil)
@@ -77,7 +77,7 @@ function Test.run(_, check)
     local oldBefore = Schema.copy(old)
     local migrated = Schema.migrate(payload(old, 14))
     check("warehouse_save_v14_migration_keeps_money_stock_and_positions",
-        migrated and migrated.version == 21 and migrated.state.money == 9182
+        migrated and migrated.version == Schema.VERSION and migrated.state.money == 9182
         and migrated.state.inventory.paper == 1875 and migrated.state.inventory.stock.shipping_cartons == 37
         and same(migrated.state.jobs.active[1].pallets[1], oldBefore.jobs.active[1].pallets[1])
         and same(migrated.state.cutter, oldBefore.cutter)

@@ -33,7 +33,7 @@ local function employeeState(context, wrappingSkill)
     local worker = {
         id = "EMP-9901", name = "Test Operator", status = "employed",
         cutterSkill = 70, pressSkill = 60, wrappingSkill = wrappingSkill,
-        visible = false, clockedIn = false, phase = "hidden", x = 645, y = 235,
+        visible = false, clockedIn = false, phase = "hidden", x = context.config.customer.route[1].x, y = context.config.customer.route[1].y,
         intentX = 0, intentY = 1, distance = 0, idleClock = 0,
         fatigue = 0, focus = 100, breaksTaken = 0, breakRemaining = 0,
         sentHomeShiftDay = -1, terminationRequested = false, stopRequested = false,

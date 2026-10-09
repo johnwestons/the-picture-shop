@@ -117,6 +117,13 @@ function Component.install(Runtime)
                     commands = {
                         office_action = Runtime.RuntimeDependencies.OfficeAuthority.command({ state = Runtime.state, world = Runtime.World, save = Runtime.saveCurrent,
                             warehouseEnabled = Runtime.Config.warehouse.enabled,
+                            players = function()
+                                local result={Runtime.World.player}
+                                for _,guest in ipairs(Runtime.multiplayer:remotePlayers()) do
+                                    result[#result+1]=guest
+                                end
+                                return result
+                            end,
                             warehouseFirstStorageOnly = Runtime.Config.warehouse.firstStorageOnly }),
                         request_pickup = {
                             normalize = function(arguments)
@@ -577,9 +584,12 @@ function Component.install(Runtime)
             palletJack = Runtime.PalletJack,
             config = Runtime.Config,
             save = Runtime.saveCurrent,
-            controlOccupied = function(machineIndex)
+            controlOccupied = function(machineIndex, machineId)
                 local resources = { "cutter", "skid_wrapper", "windmill" }
                 local base = resources[machineIndex]
+                if machineId then
+                    return authority:leaseForResource(Runtime.MachineResource.forUnit(base, machineId)) ~= nil
+                end
                 for _, unit in ipairs(Runtime.MachineFleet.installedUnits(Runtime.state, Runtime.MachineResource.model(base))) do
                     if authority:leaseForResource(Runtime.MachineResource.forUnit(base, unit.id)) then
                         return true

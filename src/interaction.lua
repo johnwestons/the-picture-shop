@@ -28,6 +28,9 @@ function Interaction.select(player, interactables, cursorX, cursorY, previous, o
         local radius = math.max(0, tonumber(target.radius) or 0)
         if playerDistance <= radius then
             local cursorDistance = distance(cursor, target)
+            if cursorSupplied and target.hoverX and target.hoverY then
+                cursorDistance=math.min(cursorDistance,distance(cursor,{x=target.hoverX,y=target.hoverY}))
+            end
             local hovered = cursorDistance <= math.max(0, tonumber(target.hoverRadius) or 42)
             local facingPenalty = 0
             if not cursorSupplied and playerDistance > 0 and intentLength > 0 then

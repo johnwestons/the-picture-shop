@@ -96,6 +96,10 @@ function Component.install(Runtime)
             source.width, source.height = source.height, source.width
             finished.width, finished.height = finished.height, finished.width
         end
+        -- Older completed tickets may have had flush or barely visible edges.
+        -- The new shipment needs trim room, while its finished order stays exact.
+        source.width = math.max(source.width, finished.width + Runtime.Jobs.MIN_STOCK_EXCESS)
+        source.height = math.max(source.height, finished.height + Runtime.Jobs.MIN_STOCK_EXCESS)
         local artworkKey = Runtime.repeatArtwork(state, emailNumber)
         local artworkSize = completedJob.press and Runtime.copy(completedJob.press.artworkSize) or Runtime.copy(finished)
         local stockSpec = Runtime.copy(completedJob.stockSpec)

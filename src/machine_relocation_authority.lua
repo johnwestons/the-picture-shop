@@ -16,9 +16,7 @@ local function exactArguments(arguments, required, optional)
 end
 
 local function machineMoving(state)
-    return state.cutter and state.cutter.moving
-        or state.wrapper and state.wrapper.moving
-        or state.windmill and state.windmill.moving
+    return require("src.machine_transport").active(state) ~= nil
 end
 
 function MachineRelocationAuthority.resource(options)
@@ -136,20 +134,25 @@ function MachineRelocationAuthority.resource(options)
                 normalize = function(arguments)
                     local machineIndex = type(arguments) == "table"
                         and arguments.machineIndex
-                    if not exactArguments(arguments, { "machineIndex" })
+                    if not exactArguments(arguments, { "machineIndex" }, { "machineId" })
                         or type(machineIndex) ~= "number" or machineIndex % 1 ~= 0
                         or machineIndex < 1 or machineIndex > 3
                     then
                         return nil, "invalid_machine", "Choose a valid nearby machine."
                     end
-                    return { machineIndex = machineIndex }
+                    local machineId = arguments.machineId
+                    if machineId ~= nil and (type(machineId) ~= "string" or #machineId > 64
+                        or not machineId:match("^MCH%-%d+$")) then
+                        return nil, "invalid_machine", "Choose a valid owned machine."
+                    end
+                    return { machineIndex = machineIndex, machineId = machineId }
                 end,
                 perform = function(_, player, arguments)
                     local allowed, accessCode, accessMessage = validateAccess(player)
                     if not allowed then return false, accessCode, accessMessage end
                     local accepted, code, message = world.beginNetworkMachineMove(
                         player, state, arguments.machineIndex,
-                        controlOccupied(arguments.machineIndex))
+                        controlOccupied(arguments.machineIndex, arguments.machineId), arguments.machineId)
                     if accepted then save() end
                     return accepted, code, message
                 end,

@@ -6,7 +6,7 @@ function Component.install(Runtime)
     Runtime.NETWORK_INTERACTION_KINDS = {
         loadingBayDoor = true,
         truckCargoDoor = true,
-        shopRoom = true, roomStock = true, roomRest = true,
+        shopRoom = true, roomStock = true, roomRest = true, roomGame = true,
     }
 
     Runtime.INTERACTION_DOOR_STATES = {
@@ -40,6 +40,22 @@ function Component.install(Runtime)
             or targetKind=="roomRest" and (payload.desiredState=="rest" or payload.desiredState=="stand")
             or targetKind=="roomStock" and type(payload.desiredState)=="string" and #payload.desiredState<=150
                 and (payload.desiredState:match("^store:[%w_.%-]+$") or payload.desiredState:match("^retrieve:[%w_.%-]+$"))
+            or targetKind=="roomGame" and type(payload.desiredState)=="string"
+                and (payload.desiredState=="air_hockey:start_solo"
+                    or payload.desiredState=="air_hockey:start_versus"
+                    or payload.desiredState=="air_hockey:join"
+                    or payload.desiredState=="air_hockey:leave"
+                    or payload.desiredState=="critter_kombat:start_solo"
+                    or payload.desiredState=="critter_kombat:start_versus"
+                    or payload.desiredState=="critter_kombat:join"
+                    or payload.desiredState=="critter_kombat:leave"
+                    or payload.desiredState=="basketball:pickup"
+                    or payload.desiredState=="basketball:drop"
+                    or payload.desiredState=="basketball:shot_start"
+                    or payload.desiredState=="basketball:shot_release"
+                    or payload.desiredState=="basketball:contest"
+                    or payload.desiredState=="basketball:join"
+                    or payload.desiredState=="basketball:end")
         if type(payload.desiredState) ~= "string"
             or not roomCommand and not ((targetKind=="loadingBayDoor" or targetKind=="truckCargoDoor")
                 and Runtime.INTERACTION_DOOR_STATES[payload.desiredState])

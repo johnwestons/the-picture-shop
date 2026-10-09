@@ -108,7 +108,8 @@ function PalletJack.pickupCandidates(state, config)
     local radius = math.max(0, tonumber(config and config.pickupRadius) or 0)
     local candidates = {}
     for _, item in ipairs(PalletState.items(state)) do
-        if not pickupBlocker(state, item) then
+        if not pickupBlocker(state, item)
+            and (item.pallet.world.sceneId or "warehouse")==jack.sceneId then
             local dx, dy = item.pallet.world.x - jack.x, item.pallet.world.y - jack.y
             local distance = dx * dx + dy * dy
             if distance <= radius * radius then
@@ -132,9 +133,11 @@ function PalletJack.pickupCandidate(state, config, palletId)
     end
     local requested = PalletState.find(state, palletId)
     if not requested then return nil, "missing" end
+    if type(requested.pallet.world)~="table" then return nil,"unavailable" end
+    local jack = PalletJack.ensure(state, config)
+    if (requested.pallet.world.sceneId or "warehouse")~=jack.sceneId then return nil, "wrong_scene" end
     local blocker = pickupBlocker(state, requested)
     if blocker then return nil, blocker end
-    local jack = PalletJack.ensure(state, config)
     local radius = math.max(0, tonumber(config and config.pickupRadius) or 0)
     local distance = (requested.pallet.world.x - jack.x) ^ 2 + (requested.pallet.world.y - jack.y) ^ 2
     if distance <= radius * radius then return requested, nil, distance end
@@ -146,6 +149,7 @@ function PalletJack.defaultState(config)
         x = config.spawnX,
         y = config.spawnY,
         direction = "northwest",
+        sceneId = "warehouse",
         operating = false,
         operatorPlayerId = nil,
         carriedPalletId = nil,
@@ -160,6 +164,9 @@ function PalletJack.ensure(state, config)
     jack.x = type(jack.x) == "number" and jack.x or config.spawnX
     jack.y = type(jack.y) == "number" and jack.y or config.spawnY
     jack.direction = directionFrames[jack.direction] and jack.direction or "northwest"
+    if jack.sceneId~="warehouse" and jack.sceneId~="front_left" and jack.sceneId~="front_right" then
+        jack.sceneId="warehouse"
+    end
     jack.operating = jack.operating == true
     if jack.operating then
         if type(jack.operatorEmployeeId) == "string" and jack.operatorEmployeeId:match("^EMP%-%d+$") then
@@ -189,6 +196,7 @@ function PalletJack.mountEmployee(state, config, employeeId)
     local worker = require("src.employees").worker(state, employeeId)
     if not worker or not worker.visible or worker.status ~= "employed" then return false, "invalid_employee" end
     local jack = PalletJack.ensure(state, config)
+    if jack.sceneId~="warehouse" then return false,"wrong_scene" end
     if jack.operating then
         return jack.operatorEmployeeId == employeeId, jack.operatorEmployeeId == employeeId and "already_mounted" or "busy"
     end
@@ -524,6 +532,7 @@ function PalletJack.move(state, dx, dy, dt, config, canMove)
         pallet.world.direction = jack.direction
         pallet.world.rotation = palletFrames[jack.direction]
         pallet.world.fromX, pallet.world.fromY = jack.x, jack.y
+        pallet.world.sceneId = jack.sceneId
         pallet.world.spawnProgress = 1
     end
     return true
@@ -551,6 +560,7 @@ function PalletJack.followNavigation(state, x, y, dt, config)
         pallet.world = pallet.world or {}
         pallet.world.x, pallet.world.y, pallet.world.fromX, pallet.world.fromY = x, y, x, y
         pallet.world.direction, pallet.world.rotation = jack.direction, palletFrames[jack.direction]
+        pallet.world.sceneId = jack.sceneId
         pallet.world.spawnProgress = 1
     end
     return distance
@@ -572,6 +582,7 @@ function PalletJack.lift(state, config, palletId)
     nearby.pallet.world.rotation = palletFrames[jack.direction]
     nearby.pallet.world.fromX, nearby.pallet.world.fromY = jack.x, jack.y
     nearby.pallet.world.spawnProgress = 1
+    nearby.pallet.world.sceneId = jack.sceneId
     return true, "lifted", nearby.pallet
 end
 
@@ -596,6 +607,7 @@ function PalletJack.lower(state, config, canPlace, placementX, placementY, palle
     world.rotation = palletFrames[jack.direction]
     world.fromX, world.fromY = dropX, dropY
     world.spawnProgress = 1
+    world.sceneId = jack.sceneId
     local transitioned, transitionError = PalletState.transition(
         state, pallet, "warehouse", { world = world })
     if not transitioned then return false, transitionError end
@@ -640,6 +652,7 @@ function PalletJack.snapshot(state, config)
         and PalletJack.pickupCandidate(state, config) or nil
     return {
         x = jack.x, y = jack.y, direction = jack.direction,
+        sceneId = jack.sceneId,
         frame = directionFrames[jack.direction], palletFrame = palletFrames[jack.direction],
         operating = jack.operating,
         moving = jack.moving, operatorPlayerId = jack.operatorPlayerId,
@@ -654,6 +667,8 @@ function PalletJack.applySnapshot(state, snapshot, config)
         or type(snapshot.x) ~= "number" or snapshot.x ~= snapshot.x or math.abs(snapshot.x) == math.huge
         or type(snapshot.y) ~= "number" or snapshot.y ~= snapshot.y or math.abs(snapshot.y) == math.huge
         or not directionFrames[snapshot.direction]
+        or (snapshot.sceneId ~= nil and snapshot.sceneId~="warehouse"
+            and snapshot.sceneId~="front_left" and snapshot.sceneId~="front_right")
         or type(snapshot.operating) ~= "boolean" or type(snapshot.moving) ~= "boolean"
         or (snapshot.moving and not snapshot.operating)
         or (snapshot.operatorEmployeeId ~= nil and (type(snapshot.operatorEmployeeId) ~= "string"
@@ -695,6 +710,7 @@ function PalletJack.applySnapshot(state, snapshot, config)
         motion.heading = directionAngles[snapshot.direction]
     end
     jack.x, jack.y = snapshot.x, snapshot.y
+    jack.sceneId = snapshot.sceneId or "warehouse"
     jack.direction = snapshot.direction
     motion.operatorDirection = jack.direction
     motion.targetHeading = directionAngles[jack.direction]
@@ -711,6 +727,7 @@ function PalletJack.applySnapshot(state, snapshot, config)
         item.pallet.world.rotation = palletFrames[jack.direction]
         item.pallet.world.fromX, item.pallet.world.fromY = jack.x, jack.y
         item.pallet.world.spawnProgress = 1
+        item.pallet.world.sceneId = jack.sceneId
     end
     return true
 end

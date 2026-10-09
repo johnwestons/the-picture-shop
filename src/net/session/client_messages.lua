@@ -58,6 +58,8 @@ function Component.install(Runtime)
 
     function Runtime.Session:_applySnapshot(payload)
         if payload.sessionId ~= self.sessionId then return end
+        if payload.games then self.roomGames=payload.games end
+        if payload.balls then self.roomBalls=payload.balls end
         self.lastServerTick = math.max(self.lastServerTick, payload.serverTick)
         for _, record in ipairs(payload.players or {}) do
             local previousTick = self.lastPlayerTicks[record.id] or -1
@@ -86,12 +88,26 @@ function Component.install(Runtime)
         end
     end
 
+    function Runtime.Session:gameSnapshot()
+        return self.roomGames or {}
+    end
+
+    function Runtime.Session:ballSnapshot()
+        return self.roomBalls or {}
+    end
+
+    function Runtime.Session:fightSnapshot()
+        return self.fightMatches or {}
+    end
+
     function Runtime.Session:_handleClientEnvelope(envelope)
         local payload = envelope.payload
         if envelope.type == "welcome" then
             self.sessionId = payload.sessionId
             self.localId = payload.playerId
             self.lastServerTick = payload.serverTick - 1
+            self.lastFightTick = -1
+            self.fightMatches = {}
             self:_installRoster(payload.players, payload.serverTick)
             self.status = "Receiving the host shop..."
             local pending = self.pendingShopSnapshot
@@ -110,6 +126,12 @@ function Component.install(Runtime)
                 self:_bufferShopState(payload)
             elseif payload.sessionId == self.sessionId then
                 self:_acceptShopState(payload)
+            end
+        elseif envelope.type == "fight_snapshot" then
+            if self.ready and payload.sessionId == self.sessionId
+                and payload.serverTick > (self.lastFightTick or -1) then
+                self.lastFightTick=payload.serverTick
+                self.fightMatches=payload.matches
             end
         elseif envelope.type == "radio_state" then
             if self.sessionId and payload.sessionId == self.sessionId

@@ -10,6 +10,7 @@ local fields = {
     pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
     buy_forklift = { requestId = "token" },
+    buy_breakroom_fixture = { bayId = "bay", fixtureId = "breakroom_fixture", requestId = "token" },
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
     decline_application = { applicationId = "token" },
     offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
@@ -61,6 +62,8 @@ function Intent.normalize(value)
             if item ~= "front_left" and item ~= "front_right" then return nil, "Choose a warehouse bay." end
         elseif rule == "upgrade" then
             if item ~= "floor" and item ~= "storage" and item ~= "breakroom" then return nil, "Choose a warehouse upgrade." end
+        elseif rule == "breakroom_fixture" then
+            if not require("src.breakroom_games").IDS[item] then return nil, "Choose a break room game." end
         elseif rule == "optional_boolean" then
             if item ~= nil and type(item) ~= "boolean" then return nil, "Invalid shelf warning confirmation." end
         elseif rule == "token" then

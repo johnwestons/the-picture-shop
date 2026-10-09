@@ -206,17 +206,26 @@ function Component.install(Runtime)
             -- Motion is intentionally sent as one player per packet. Every shard
             -- shares the tick, and clients merge them by player id. This keeps four
             -- real, full-precision poses under the 1,200-byte unreliable limit.
-            for _, record in ipairs(self:_records()) do
+            local games=context and context.getGameSnapshot and context.getGameSnapshot() or {}
+            local balls=context and context.getBasketballSnapshot and context.getBasketballSnapshot() or {}
+            for index, record in ipairs(self:_records()) do
                 local ok, errorMessage = self:_broadcastJoined("snapshot", {
                     sessionId = self.sessionId,
                     serverTick = self.serverTick,
                     players = Runtime.Codec.array({ record }),
+                    games = index==1 and Runtime.Codec.array(games) or nil,
+                    balls = index==2 and Runtime.Codec.array(balls) or nil,
                 })
                 if not ok then
                     self:_queue("error", { message = errorMessage })
                     break
                 end
             end
+            local fights=context and context.getFightSnapshot and context.getFightSnapshot() or {}
+            local fightOk,fightError=self:_broadcastJoined("fight_snapshot",{
+                sessionId=self.sessionId,serverTick=self.serverTick,
+                matches=Runtime.Codec.array(fights)})
+            if not fightOk then self:_queue("error",{message=fightError}) end
             local visitors = context and context.getVisitorSnapshot
                 and context.getVisitorSnapshot() or nil
             if type(visitors) == "table" and type(visitors.customer) == "table"

@@ -69,7 +69,7 @@ function Component.install(Runtime)
     Runtime.starterTemplate = {
         difficulty = "easy",
         company = "Corner Copy & Mail",
-        sourceSize = { width = 17, height = 11 },
+        sourceSize = { width = 17, height = 12 },
         finishedSize = { width = 8.5, height = 11 },
         sheetCounts = { 500 },
         packaging = "flat",

@@ -2,31 +2,40 @@ local Config = require("src.config")
 local Save = require("src.save")
 local Ui = require("src.screens.ui")
 local ShopSetup = require("src.screens.shop_setup_screen")
+local Skin = require("src.screens.title_skin")
+local TitleControl = require("src.screens.title_control")
+local Props = require("src.screens.title_props")
+local Fonts = require("src.screens.title_fonts")
+local Motion = require("src.screens.title_motion")
 
 local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil,
-    onLocal = nil, onDirect = nil, hover = nil, pressed = nil }
+    onLocal = nil, onDirect = nil, hover = nil, pressed = nil, hoverSlot = nil, pressedSlot = nil }
+TitleScreen.DISPLAY_MESSAGES = {
+    "Hello Trevor, welcome back to work.", "Happy Printing", "Have a Great Day",
+    "Be a Nice Critter", "Sponsored by The CritterNet",
+}
+TitleScreen.DISPLAY_PERIOD = 5
 local BUTTONS = {
-    new = { x = 126, y = 484, width = 168, height = 52, label = "NEW SHOP" },
-    continue = { x = 306, y = 484, width = 168, height = 52, label = "CONTINUE" },
-    delete = { x = 486, y = 484, width = 168, height = 52, label = "DELETE SLOT" },
-    quit = { x = 666, y = 484, width = 168, height = 52, label = "QUIT" },
-    localPlay = { x = 373, y = 548, width = 214, height = 44, label = "LOCAL PLAY" },
-    directPlay = { x = 494, y = 548, width = 206, height = 44, label = "DIRECT PLAY" },
+    new = { x = 126, y = 522, width = 168, height = 44, label = "NEW SHOP" },
+    continue = { x = 306, y = 522, width = 168, height = 44, label = "CONTINUE" },
+    delete = { x = 486, y = 522, width = 168, height = 44, label = "DELETE SLOT" },
+    quit = { x = 666, y = 522, width = 168, height = 44, label = "QUIT" },
+    localPlay = { x = 373, y = 604, width = 214, height = 44, label = "LOCAL PLAY" },
+    directPlay = { x = 494, y = 604, width = 206, height = 44, label = "DIRECT PLAY" },
     yes = { x = 330, y = 386, width = 130, height = 48, label = "DELETE" },
     no = { x = 500, y = 386, width = 130, height = 48, label = "CANCEL" },
 }
-local DUAL_LOCAL_PLAY = { x = 260, y = 548, width = 206, height = 44, label = "LOCAL PLAY" }
+local DUAL_LOCAL_PLAY = { x = 260, y = 604, width = 206, height = 44, label = "LOCAL PLAY" }
 
 local inside = Ui.contains
 local slotCache
 local versionCache
-local titleFont, sectionFont, bodyFont, footerFont
-local function slotRect(index) return { x = 148, y = 198 + (index - 1) * 60, width = 664, height = 48 } end
+local sectionFont, bodyFont, footerFont
+local function slotRect(index) return { x = 148, y = 344 + (index - 1) * 58, width = 664, height = 52 } end
 
 local function ensureFonts()
-    titleFont = titleFont or love.graphics.newFont(40)
-    sectionFont = sectionFont or love.graphics.newFont(14)
-    bodyFont = bodyFont or love.graphics.newFont(13)
+    sectionFont = sectionFont or Fonts.get("metal", 16)
+    bodyFont = bodyFont or Fonts.get("paper", 13)
     footerFont = footerFont or love.graphics.newFont(10)
 end
 
@@ -59,8 +68,25 @@ end
 function TitleScreen.enter(onStart, onLocal, onDirect)
     slotCache = nil
     TitleScreen.selected, TitleScreen.mode, TitleScreen.message = 1, "normal", ""
-    TitleScreen.hover, TitleScreen.pressed = nil, nil
+    TitleScreen.hover, TitleScreen.pressed, TitleScreen.hoverSlot, TitleScreen.pressedSlot = nil, nil, nil, nil
     TitleScreen.onStart, TitleScreen.onLocal, TitleScreen.onDirect = onStart, onLocal, onDirect
+    TitleScreen.displayOverride = nil
+    TitleScreen.cycleTime, TitleScreen.feedbackRemaining, TitleScreen.observedMessage = 0, 0, ""
+    TitleScreen.pendingAction, TitleScreen.keyboardFocus = nil, nil
+    TitleScreen.pointerX, TitleScreen.pointerY = nil, nil
+    Motion.reset()
+end
+-- Pass nil to return to live menu feedback. The sprite's LCD stays unlettered,
+-- so notices and future player messages can change without regenerating art.
+function TitleScreen.setDisplayMessage(text)
+    assert(text == nil or type(text) == "string", "Display message must be a string or nil")
+    TitleScreen.displayOverride = text
+end
+function TitleScreen.displayText()
+    if TitleScreen.displayOverride ~= nil then return TitleScreen.displayOverride end
+    if TitleScreen.message ~= "" then return TitleScreen.message end
+    local index = math.floor((TitleScreen.cycleTime or 0) / TitleScreen.DISPLAY_PERIOD) + 1
+    return TitleScreen.DISPLAY_MESSAGES[index]
 end
 function TitleScreen.slots()
     local now = love.timer.getTime()
@@ -72,7 +98,33 @@ function TitleScreen.slots()
     end
     return slotCache.slots
 end
-function TitleScreen.update(_) end
+function TitleScreen.update(dt)
+    dt = math.max(0, tonumber(dt) or 0)
+    Motion.update(dt)
+    local cycleDt = dt
+    if TitleScreen.message ~= TitleScreen.observedMessage then
+        TitleScreen.observedMessage, TitleScreen.feedbackRemaining = TitleScreen.message, 3
+    end
+    if TitleScreen.mode == "normal" and TitleScreen.message ~= "" then
+        cycleDt = math.max(0, dt - (TitleScreen.feedbackRemaining or 0))
+        TitleScreen.feedbackRemaining = math.max(0, (TitleScreen.feedbackRemaining or 0) - dt)
+        if TitleScreen.feedbackRemaining == 0 then TitleScreen.message, TitleScreen.observedMessage = "", "" end
+    end
+    if TitleScreen.displayOverride == nil and TitleScreen.message == "" then
+        TitleScreen.cycleTime = ((TitleScreen.cycleTime or 0) + cycleDt)
+            % (TitleScreen.DISPLAY_PERIOD * #TitleScreen.DISPLAY_MESSAGES)
+    end
+    local pending = TitleScreen.pendingAction
+    if pending then
+        pending.remaining = pending.remaining - dt
+        if pending.remaining <= 0 then
+            -- Clear before invoking callbacks, which may enter another screen.
+            TitleScreen.pendingAction, TitleScreen.pressed = nil, nil
+            TitleScreen.selected = pending.slot
+            pending.callback()
+        end
+    end
+end
 function TitleScreen.buttonCenter(name)
     local rect = buttonRect(name)
     if not rect then return nil end
@@ -152,6 +204,8 @@ end
 local function moveSelection(delta)
     TitleScreen.selected = ((TitleScreen.selected - 1 + delta) % Save.SLOT_COUNT) + 1
     TitleScreen.message = "Selected slot " .. TitleScreen.selected .. "."
+    TitleScreen.keyboardFocus = "slot-" .. TitleScreen.selected
+    Motion.focus(TitleScreen.keyboardFocus)
 end
 
 local function openLocalPlay()
@@ -172,7 +226,47 @@ local function openDirectPlay()
     return true
 end
 
+local function disabledButton(name)
+    local slot = TitleScreen.slots()[TitleScreen.selected]
+    return (name == "continue" and (not slot or slot.empty or slot.corrupted))
+        or (name == "delete" and (not slot or slot.empty))
+        or (name == "localPlay" and not TitleScreen.onLocal)
+        or (name == "directPlay" and not TitleScreen.onDirect)
+end
+
+local actions = { new = requestNew, continue = continueGame, delete = requestDelete,
+    localPlay = openLocalPlay, directPlay = openDirectPlay, quit = function() love.event.quit() end }
+local function activate(name)
+    if disabledButton(name) then
+        if name == "continue" then return continueGame() end
+        if name == "localPlay" then return openLocalPlay() end
+        if name == "directPlay" then return openDirectPlay() end
+        TitleScreen.message = "That slot is empty. Choose NEW SHOP."
+        return false
+    end
+    Motion.press(name)
+    Motion.focus(name)
+    TitleScreen.pendingAction = { callback = actions[name], slot = TitleScreen.selected,
+        remaining = Motion.CLICK_DURATION }
+    return true
+end
+
+local function nextFocus(delta)
+    local order = { "slot-1", "slot-2", "slot-3", "new" }
+    for _, name in ipairs({ "continue", "delete", "quit", "localPlay", "directPlay" }) do
+        if not disabledButton(name) then order[#order + 1] = name end
+    end
+    local current = TitleScreen.selected
+    for index, id in ipairs(order) do if id == TitleScreen.keyboardFocus then current = index; break end end
+    local id = order[(current - 1 + delta) % #order + 1]
+    TitleScreen.keyboardFocus = id
+    local slot = id:match("^slot%-(%d)$")
+    if slot then TitleScreen.selected = tonumber(slot) end
+    Motion.focus(id)
+end
+
 function TitleScreen.keypressed(key)
+    if TitleScreen.pendingAction then return true end
     if TitleScreen.mode=="shop-setup" then
         local result=ShopSetup.keypressed(TitleScreen.setup,key)
         if result=="start" then startNew()
@@ -187,17 +281,23 @@ function TitleScreen.keypressed(key)
 
     if key == "up" or key == "w" then moveSelection(-1); return true end
     if key == "down" or key == "s" then moveSelection(1); return true end
-    if key == "n" then return requestNew() end
-    if key == "c" or key == "return" or key == "kpenter" then return continueGame() end
-    if key == "d" then return requestDelete() end
-    if key == "l" then return openLocalPlay() end
-    if key == "i" then return openDirectPlay() end
-    if key == "q" or key == "escape" then love.event.quit(); return true end
+    if key == "tab" or key == "left" or key == "right" then
+        local backwards = key == "left" or (key == "tab" and love.keyboard.isDown("lshift", "rshift"))
+        nextFocus(backwards and -1 or 1); return true
+    end
+    local name = ({ n = "new", c = "continue", d = "delete", l = "localPlay", i = "directPlay",
+        q = "quit", escape = "quit" })[key]
+    if key == "return" or key == "kpenter" or key == "space" then
+        name = actions[TitleScreen.keyboardFocus] and TitleScreen.keyboardFocus or "continue"
+    end
+    if name then TitleScreen.keyboardFocus = name; return activate(name) end
     return false
 end
 
 function TitleScreen.mousepressed(x, y, button)
     if button ~= 1 then return false end
+    if TitleScreen.pendingAction then return true end
+    TitleScreen.keyboardFocus = nil
     if TitleScreen.mode=="shop-setup" then
         local result=ShopSetup.mousepressed(TitleScreen.setup,x,y)
         if result=="start" then startNew()
@@ -211,38 +311,64 @@ function TitleScreen.mousepressed(x, y, button)
         return false
     end
     for index = 1, Save.SLOT_COUNT do
-        if inside(slotRect(index), x, y) then TitleScreen.selected = index; return true end
+        if inside(slotRect(index), x, y) then
+            TitleScreen.selected, TitleScreen.pressedSlot = index, index
+            Motion.press("slot-" .. index)
+            Motion.focus("slot-" .. index)
+            return true
+        end
     end
     local action = buttonAt(x, y)
     TitleScreen.pressed = action
-    if action == "new" then return requestNew() end
-    if action == "continue" then continueGame(); return true end
-    if action == "delete" then return requestDelete() end
-    if action == "localPlay" then return openLocalPlay() end
-    if action == "directPlay" then return openDirectPlay() end
-    if action == "quit" then love.event.quit(); return true end
+    if actions[action] then activate(action); return true end
     return false
 end
-function TitleScreen.mousereleased(_, _, button) if button == 1 then TitleScreen.pressed = nil end end
-function TitleScreen.setHover(x, y) TitleScreen.hover = buttonAt(x, y) end
+function TitleScreen.mousereleased(_, _, button)
+    if button == 1 then TitleScreen.pressed, TitleScreen.pressedSlot = nil, nil end
+end
+function TitleScreen.setHover(x, y)
+    if TitleScreen.pointerX ~= nil and (TitleScreen.pointerX ~= x or TitleScreen.pointerY ~= y) then
+        TitleScreen.keyboardFocus = nil
+    end
+    TitleScreen.pointerX, TitleScreen.pointerY = x, y
+    TitleScreen.hover, TitleScreen.hoverSlot = buttonAt(x, y), nil
+    if TitleScreen.mode == "normal" then
+        for index = 1, Save.SLOT_COUNT do
+            if inside(slotRect(index), x, y) then TitleScreen.hoverSlot = index; break end
+        end
+    end
+    Motion.focus(TitleScreen.mode == "normal" and (TitleScreen.keyboardFocus
+        or (TitleScreen.hoverSlot and "slot-" .. TitleScreen.hoverSlot) or TitleScreen.hover) or nil)
+end
 
 local function drawButton(assets, name, danger, label)
     local rect = buttonRect(name)
     if not rect then return end
-    local hovered = TitleScreen.hover == name
+    local hovered = TitleScreen.keyboardFocus and TitleScreen.keyboardFocus == name
+        or not TitleScreen.keyboardFocus and TitleScreen.hover == name
     local pressed = TitleScreen.pressed == name
-    love.graphics.setColor(danger and { 0.15, 0.09, 0.08, 0.96 } or { 0.055, 0.13, 0.14, 0.97 })
-    love.graphics.rectangle("fill", rect.x, rect.y + (pressed and 2 or 0), rect.width, rect.height, 7, 7)
-    love.graphics.setLineWidth(hovered and 2 or 1)
-    love.graphics.setColor(hovered and { 0.98, 0.79, 0.35, 1 }
-        or (danger and { 0.56, 0.34, 0.25, 0.95 } or { 0.30, 0.52, 0.49, 0.95 }))
-    love.graphics.rectangle("line", rect.x, rect.y + (pressed and 2 or 0), rect.width, rect.height, 7, 7)
-    love.graphics.setColor(danger and { 0.86, 0.54, 0.35, 0.95 } or { 0.85, 0.69, 0.34, 0.98 })
-    love.graphics.rectangle("fill", rect.x + 8, rect.y + 9 + (pressed and 2 or 0), 3, rect.height - 18, 1, 1)
-    love.graphics.setFont(bodyFont)
-    love.graphics.setColor(0.95, 0.95, 0.89, 1)
-    love.graphics.printf(label or rect.label, rect.x + 14, rect.y + rect.height / 2 - 7 + (pressed and 2 or 0),
-        rect.width - 22, "center")
+    local disabled = disabledButton(name)
+    local state = Motion.state(name, disabled and "disabled" or hovered and "hover" or "normal", pressed)
+    local toolbox = name == "localPlay" or name == "directPlay"
+    local ink = name == "new" or name == "continue" or name == "delete" or name == "quit"
+    if toolbox then Props.toolbox(assets, rect, state)
+    elseif ink then Props.ink(assets, rect, state, danger)
+    else Skin.button(assets, rect, state, danger) end
+    if toolbox or ink then
+        local kind = toolbox and "toolbox" or "ink"
+        local inset = rect.width * (toolbox and 0.23 or 0.15)
+        local font = Fonts.fit(toolbox and "metal" or "ink", label or rect.label, 14,
+            rect.width - inset * 2, rect.height * Props.labelHeight(kind, state))
+        love.graphics.setFont(font)
+        love.graphics.setColor(disabled and { 0.40, 0.41, 0.41, 1 } or { 0.12, 0.11, 0.09, 1 })
+        local textY = rect.y + rect.height * Props.labelCenter(kind, state) - font:getHeight() / 2
+        love.graphics.printf(label or rect.label, rect.x + inset, textY, rect.width - inset * 2, "center")
+    else
+        love.graphics.setFont(Fonts.get("metal", 16))
+        love.graphics.setColor(0.95, 0.95, 0.89, 1)
+        love.graphics.printf(label or rect.label, rect.x + 14, rect.y + rect.height / 2 - 7 + (pressed and 2 or 0),
+            rect.width - 22, "center")
+    end
 end
 
 function TitleScreen.draw(assets, mouseX, mouseY)
@@ -259,58 +385,41 @@ function TitleScreen.draw(assets, mouseX, mouseY)
     love.graphics.setColor(0.018, 0.035, 0.042, 0.64)
     love.graphics.rectangle("fill", 0, 0, Config.baseWidth, Config.baseHeight)
 
-    love.graphics.setColor(0.035, 0.065, 0.069, 0.91)
-    love.graphics.rectangle("fill", 108, 18, 744, 116, 15, 15)
-    love.graphics.setLineWidth(1)
-    love.graphics.setColor(0.75, 0.61, 0.30, 0.90)
-    love.graphics.rectangle("line", 108, 18, 744, 116, 15, 15)
-    love.graphics.setFont(titleFont)
-    love.graphics.setColor(0.96, 0.84, 0.50, 1)
-    love.graphics.printf("THE PICTURE SHOP", 130, 31, 700, "center")
+    TitleControl.draw(assets, 108, 6, 744, TitleScreen.displayText())
+    Props.shelf(assets, { x = 104, y = 310, width = 752, height = 210 })
     love.graphics.setFont(sectionFont)
-    love.graphics.setColor(0.76, 0.86, 0.81, 1)
-    love.graphics.printf("PRINT  •  PACK  •  KEEP THE DOORS OPEN", 130, 86, 700, "center")
-    love.graphics.setColor(0.48, 0.67, 0.61, 0.88)
-    love.graphics.line(278, 112, 682, 112)
-
-    love.graphics.setColor(0.025, 0.047, 0.05, 0.94)
-    love.graphics.rectangle("fill", 126, 148, 708, 307, 10, 10)
-    love.graphics.setColor(0.33, 0.48, 0.44, 0.93)
-    love.graphics.rectangle("line", 126, 148, 708, 307, 10, 10)
-    love.graphics.setFont(sectionFont)
-    love.graphics.setColor(0.90, 0.76, 0.43, 1)
-    love.graphics.print("SHOP FILES", 148, 164)
+    love.graphics.setColor(0.16, 0.15, 0.12, 1)
+    love.graphics.print("SHOP FILES", 164, 322)
     love.graphics.setFont(footerFont)
-    love.graphics.setColor(0.67, 0.76, 0.73, 1)
-    love.graphics.printf("SELECT A SHOP OR START A NEW ONE", 148, 168, 664, "right")
+    love.graphics.setColor(0.30, 0.31, 0.28, 1)
+    love.graphics.printf("SELECT A SHOP OR START A NEW ONE", 164, 326, 632, "right")
     for index, slot in ipairs(TitleScreen.slots()) do
         local rect, selected = slotRect(index), index == TitleScreen.selected
-        love.graphics.setColor(selected and { 0.11, 0.18, 0.17, 0.98 } or { 0.055, 0.085, 0.087, 0.94 })
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 6, 6)
-        love.graphics.setLineWidth(selected and 2 or 1)
-        love.graphics.setColor(selected and { 0.88, 0.70, 0.34, 1 } or { 0.28, 0.40, 0.38, 0.95 })
-        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 6, 6)
-        love.graphics.setColor(selected and { 0.89, 0.71, 0.34, 1 } or { 0.37, 0.55, 0.51, 1 })
-        love.graphics.rectangle("fill", rect.x + 1, rect.y + 7, 3, rect.height - 14, 1, 1)
+        local state = Motion.state("slot-" .. index, selected and "selected" or "normal",
+            TitleScreen.pressedSlot == index)
+        local left, right = Props.palletPair(assets, rect, state)
         love.graphics.setFont(bodyFont)
-        love.graphics.setColor(0.95, 0.94, 0.86, 1)
-        love.graphics.print(string.format("SLOT %02d", index), rect.x + 16, rect.y + 15)
-        love.graphics.setColor(slot.corrupted and { 0.98, 0.48, 0.37, 1 } or { 0.72, 0.79, 0.75, 1 })
+        love.graphics.setColor(0.13, 0.11, 0.08, 1)
+        love.graphics.print(string.format("SLOT %02d", index), left.x + 64, left.y + 5)
+        love.graphics.setColor(slot.corrupted and { 0.66, 0.15, 0.10, 1 } or { 0.26, 0.23, 0.18, 1 })
         local slotText = slot.corrupted and "SAVE DAMAGED — NO RECOVERY COPY"
             or (slot.empty and "EMPTY  •  READY FOR A NEW SHOP"
             or (slot.recovered and "RECOVERED SHOP" or "ACTIVE SHOP"))
-        love.graphics.print(slotText, rect.x + 124, rect.y + 15)
+        local statusFont = Fonts.fit("paper", slotText, 13, right.width - 85, 18)
+        love.graphics.setFont(statusFont)
+        love.graphics.printf(slotText, right.x + 20, right.y + 5, right.width - 85, "center")
         if not slot.empty and not slot.corrupted then
-            love.graphics.setColor(0.96, 0.84, 0.51, 1)
-            love.graphics.printf("CASH  $" .. tostring(slot.money), rect.x + 440, rect.y + 15, 206, "right")
+            love.graphics.setFont(bodyFont)
+            love.graphics.setColor(0.37, 0.25, 0.07, 1)
+            love.graphics.printf("CASH  $" .. tostring(slot.money), left.x + 132, left.y + 5,
+                left.width - 166, "right")
         end
     end
     if TitleScreen.mode == "shop-setup" then
-        ShopSetup.draw(TitleScreen.setup,TitleScreen.selected)
+        ShopSetup.draw(TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)
     elseif TitleScreen.mode ~= "normal" then
         local overwriting = TitleScreen.mode == "overwrite-confirm"
-        love.graphics.setColor(0.035, 0.055, 0.057, 0.98); love.graphics.rectangle("fill", 260, 330, 440, 132, 8, 8)
-        love.graphics.setColor(0.75, 0.61, 0.30, 0.96); love.graphics.rectangle("line", 260, 330, 440, 132, 8, 8)
+        Skin.panel(assets, { x = 260, y = 330, width = 440, height = 146 })
         love.graphics.setFont(sectionFont)
         love.graphics.setColor(0.94, 0.38, 0.30)
         love.graphics.printf((overwriting and "OVERWRITE SLOT " or "DELETE SLOT ") .. TitleScreen.selected .. "?", 260, 348, 440, "center")
@@ -328,14 +437,13 @@ function TitleScreen.draw(assets, mouseX, mouseY)
     love.graphics.setColor(0.68, 0.72, 0.70)
     love.graphics.setFont(footerFont)
     local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
-    love.graphics.printf(TitleScreen.message ~= "" and TitleScreen.message
-        or (mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
+    love.graphics.printf(mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
             or (TitleScreen.onDirect
-                and "Mouse or W/S/Arrows | N New | C Continue | D Delete | L Local | I Direct | Q Quit"
-                or "Mouse or W/S/Arrows | N New | C Continue | D Delete | L Local | Q Quit")),
-        12, 614, Config.baseWidth - 24, "center")
+                and "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | I Direct | Q Quit"
+                or "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | Q Quit"),
+        12, 652, Config.baseWidth - 24, "center")
     love.graphics.setColor(0.94, 0.82, 0.50, 0.95)
-    love.graphics.printf(TitleScreen.versionText(), 0, 650, Config.baseWidth, "center")
+    love.graphics.printf(TitleScreen.versionText(), 0, 663, Config.baseWidth, "center")
     love.graphics.pop()
 end
 

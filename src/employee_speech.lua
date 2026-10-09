@@ -17,7 +17,10 @@ function Speech.code(entry)
     if type(a.speechCode)=="number" and a.speechCode%1==0
         and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
     if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=3 then return a.greetingKind end
-    if a.phase=="leaving" then return 20 end
+    if a.phase=="leaving" then
+        if (w.activity or ""):find("Exit path blocked",1,true) then return 17 end
+        return 20
+    end
     if a.phase=="break" then return w.breakKind=="meal" and 8 or 7 end
     if a.phase=="break_walk" then return 9 end
     local activity=(w.activity or ""):lower()

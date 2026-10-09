@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     local jackFloors=setmetatable({}, {__mode="k"})
+    local exitContacts=setmetatable({}, {__mode="k"})
     function Runtime.World.configureEmployees(options) Runtime.World._employeeOptions=options or {} end
 
     function Runtime.World.employeeCutterReserved(state,machineId)
@@ -16,6 +17,20 @@ function Component.install(Runtime)
 
     function Runtime.World.requestEmployeeResume(state,applicationId)
         local ok,message=Runtime.Employees.requestResume(state,applicationId,Runtime.BusinessCalendar.absoluteHours(state))
+        state.message=message
+        return ok
+    end
+
+    function Runtime.World.dismissApplicant(state,applicationId)
+        local applicant=Runtime.Employees.application(state,applicationId)
+        if not applicant or applicant.status~="visiting" or not applicant.actor.visible
+            or applicant.actor.phase~="waiting" then
+            state.message="That applicant is no longer waiting at reception."
+            return false
+        end
+        local ok,message=Runtime.Employees.command(state,
+            {kind="decline_application",applicationId=applicationId},
+            Runtime.BusinessCalendar.absoluteHours(state))
         state.message=message
         return ok
     end
@@ -48,6 +63,24 @@ function Component.install(Runtime)
             local technician=state.technicianVisit
             return Runtime.World.customer:isPresent() or Runtime.World.vendor:isPresent()
                 or (technician and technician.visible) or Runtime.WarehouseConstruction.worker(state)~=nil
+        end
+        function context.exitPoint(worker,dt)
+            local primary=Runtime.Config.customer.route[1]
+            if not Runtime.Config.warehouse.roomScenes then return primary end
+            local cached=exitContacts[worker]
+            local obstacles=context.obstacles(worker)
+            if cached then
+                cached.retry=math.max(0,cached.retry-(dt or .1))
+                if Runtime.Navigation.isWalkable(assets,cached.goal.x,cached.goal.y,obstacles)
+                    or cached.retry>0 then return cached.goal end
+            end
+            local goal
+            if Runtime.Navigation.isWalkable(assets,primary.x,primary.y,obstacles) then goal=primary
+            else goal=Runtime.EmployeeAI.findReachablePoint(worker,
+                require("src.warehouse_registration").exitPoints,context) end
+            goal=goal or primary
+            exitContacts[worker]={goal=goal,retry=.75}
+            return goal
         end
         function context.canClaim(machineId)
             local pose=Runtime.MachineFleet.byId(state,machineId)

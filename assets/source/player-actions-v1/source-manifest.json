@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "character": "rabbit-worker",
+      "source": "assets/source/player-actions-v1/rabbit-worker-actions-v1.png",
+      "sha256": "83df503d8bf9ed684ae689f66bdab05750d9cf55938e78387f1c7794d2786eec",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "actions": {
+        "work_cutter": 0,
+        "work_press": 1,
+        "work_wrapping": 2,
+        "operate_forklift": 3,
+        "work_task": 2
+      }
+    }
+  ]
+}

@@ -14,6 +14,17 @@ local function selectComputerTab(context, state, tabId, throughInput)
 end
 
 function Test.run(context, check)
+    -- Let the title's press/rebound finish before checking its screen transition.
+    local function pressTitleKey(key)
+        local consumed = context.input.keypressed(key, context.inputContext)
+        context.title.update(0.2)
+        return consumed
+    end
+    local function pressTitleMouse(x, y)
+        local consumed = context.input.mousepressed(x, y, 1, context.inputContext)
+        context.title.update(0.2)
+        return consumed
+    end
     -- Title actions share one mouse/keyboard path. Exercise them against the
     -- smoke identity so the player's real save directory is never touched.
     check("title_screen_exposes_the_embedded_running_build_version",
@@ -34,55 +45,55 @@ function Test.run(context, check)
 
     context.state.screen = "title"
     context.title.enter(captureTitleStart)
-    context.input.keypressed("down", context.inputContext)
+    pressTitleKey("down")
     check("title_keyboard_down_selects", context.title.selected == 2)
-    context.input.keypressed("s", context.inputContext)
+    pressTitleKey("s")
     check("title_keyboard_s_selects", context.title.selected == 3)
-    context.input.keypressed("down", context.inputContext)
+    pressTitleKey("down")
     check("title_keyboard_down_wraps", context.title.selected == 1)
-    context.input.keypressed("up", context.inputContext)
+    pressTitleKey("up")
     check("title_keyboard_up_wraps", context.title.selected == 3)
-    context.input.keypressed("w", context.inputContext)
+    pressTitleKey("w")
     check("title_keyboard_w_selects", context.title.selected == 2)
-    context.input.keypressed("s", context.inputContext)
+    pressTitleKey("s")
 
     local newX, newY = context.title.buttonCenter("new")
     local confirmX, confirmY = context.title.buttonCenter("yes")
     local cancelX, cancelY = context.title.buttonCenter("no")
     check("title_mouse_new_requires_overwrite_confirmation",
-        context.input.mousepressed(newX, newY, 1, context.inputContext)
+        pressTitleMouse(newX, newY)
         and context.title.mode == "overwrite-confirm"
         and #titleStarts == 0
         and love.filesystem.read("saves/slot3.lua") == occupiedBytes)
     context.input.mousereleased(newX, newY, 1, context.inputContext)
     check("title_mouse_overwrite_cancel_preserves_bytes",
-        context.input.mousepressed(cancelX, cancelY, 1, context.inputContext)
+        pressTitleMouse(cancelX, cancelY)
         and context.title.mode == "normal"
         and #titleStarts == 0
         and love.filesystem.read("saves/slot3.lua") == occupiedBytes)
     context.input.mousereleased(cancelX, cancelY, 1, context.inputContext)
 
-    context.input.keypressed("n", context.inputContext)
+    pressTitleKey("n")
     check("title_keyboard_new_requires_overwrite_confirmation",
         context.title.mode == "overwrite-confirm" and #titleStarts == 0)
-    context.input.keypressed("n", context.inputContext)
+    pressTitleKey("n")
     check("title_keyboard_overwrite_cancel_preserves_bytes",
         context.title.mode == "normal"
         and #titleStarts == 0
         and love.filesystem.read("saves/slot3.lua") == occupiedBytes)
 
-    context.input.mousepressed(newX, newY, 1, context.inputContext)
-    context.input.mousepressed(confirmX, confirmY, 1, context.inputContext)
+    pressTitleMouse(newX, newY)
+    pressTitleMouse(confirmX, confirmY)
     check("title_mouse_overwrite_confirmation_opens_shop_setup",
         context.title.mode=="shop-setup" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
-    context.input.keypressed("escape",context.inputContext)
+    pressTitleKey("escape")
     check("title_cancel_shop_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
-    context.input.mousepressed(newX,newY,1,context.inputContext)
-    context.input.mousepressed(confirmX,confirmY,1,context.inputContext)
-    for i=1,13 do context.input.keypressed("right",context.inputContext) end
-    context.input.mousepressed(595,572,1,context.inputContext)
+    pressTitleMouse(newX, newY)
+    pressTitleMouse(confirmX, confirmY)
+    for i=1,13 do pressTitleKey("right") end
+    pressTitleMouse(595, 572)
     check("title_mouse_setup_creates_selected_shop",
         #titleStarts == 1
         and titleStarts[1].mode == "new"
@@ -93,10 +104,10 @@ function Test.run(context, check)
     occupiedState.money = 888
     context.save.save(3, occupiedState, { x = 333, y = 444 })
     context.title.enter(captureTitleStart)
-    context.input.keypressed("up", context.inputContext)
-    context.input.keypressed("n", context.inputContext)
-    context.input.keypressed("y", context.inputContext)
-    context.input.keypressed("return", context.inputContext)
+    pressTitleKey("up")
+    pressTitleKey("n")
+    pressTitleKey("y")
+    pressTitleKey("return")
     check("title_keyboard_overwrite_confirmation_starts",
         #titleStarts == 2
         and titleStarts[2].mode == "new"
@@ -105,10 +116,10 @@ function Test.run(context, check)
 
     context.save.delete(3)
     context.title.enter(captureTitleStart)
-    context.input.keypressed("up", context.inputContext)
-    context.input.keypressed("n", context.inputContext)
+    pressTitleKey("up")
+    pressTitleKey("n")
     check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
-    context.input.keypressed("return", context.inputContext)
+    pressTitleKey("return")
     check("title_empty_slot_setup_creates_shop",
         #titleStarts == 3
         and titleStarts[3].mode == "new"
@@ -116,13 +127,13 @@ function Test.run(context, check)
         and context.save.load(3) ~= nil)
 
     context.title.enter(captureTitleStart)
-    context.input.keypressed("up", context.inputContext)
-    context.input.keypressed("c", context.inputContext)
+    pressTitleKey("up")
+    pressTitleKey("c")
     check("title_keyboard_c_continues",
         #titleStarts == 4 and titleStarts[4].mode == "continue" and titleStarts[4].payload.slot == 3)
     context.title.enter(captureTitleStart)
-    context.input.keypressed("up", context.inputContext)
-    context.input.keypressed("return", context.inputContext)
+    pressTitleKey("up")
+    pressTitleKey("return")
     check("title_keyboard_enter_continues",
         #titleStarts == 5 and titleStarts[5].mode == "continue" and titleStarts[5].payload.slot == 3)
 
@@ -153,15 +164,15 @@ function Test.run(context, check)
 
     local beforeDeleteCancel = love.filesystem.read("saves/slot3.lua")
     context.title.enter(captureTitleStart)
-    context.input.keypressed("up", context.inputContext)
-    context.input.keypressed("d", context.inputContext)
+    pressTitleKey("up")
+    pressTitleKey("d")
     check("title_keyboard_delete_requires_confirmation", context.title.mode == "delete-confirm")
-    context.input.keypressed("n", context.inputContext)
+    pressTitleKey("n")
     check("title_keyboard_delete_cancel_preserves_bytes",
         context.title.mode == "normal"
         and love.filesystem.read("saves/slot3.lua") == beforeDeleteCancel)
-    context.input.keypressed("d", context.inputContext)
-    context.input.keypressed("y", context.inputContext)
+    pressTitleKey("d")
+    pressTitleKey("y")
     check("title_keyboard_delete_confirmation_removes_slot",
         context.title.mode == "normal" and love.filesystem.getInfo("saves/slot3.lua") == nil)
 

@@ -8,6 +8,11 @@ function Component.install(Runtime)
         inflate = inflate or { x = 0, y = 0 }
         if type(inflate) == "number" then inflate = { x = inflate, y = inflate } end
         local obstacles = {}
+        local activeKind, activePose = Runtime.MachineTransport.active(state)
+        -- Moving an extra unit must still collide with the original machine.
+        if activePose and activePose ~= state[activeKind] then
+            excludeCutter, excludeWrapper, excludeWindmill = false, false, false
+        end
         local firstCutter = Runtime.MachineFleet.installedUnits(state, "polar_115")[1]
         local firstWrapper = Runtime.MachineFleet.installedUnits(state, "skid_wrapper")[1]
         local firstWindmill = Runtime.MachineFleet.installedUnits(state, "heidelberg_10x15")[1]
@@ -41,9 +46,11 @@ function Component.install(Runtime)
             Runtime.Config.palletLogistics.collisionHalfWidth,
             Runtime.Config.palletLogistics.collisionHalfHeight,
             excludedPalletId)) do
-            obstacles[#obstacles + 1] = obstacle
+            if not obstacle.palletSceneId or obstacle.palletSceneId=="warehouse" then
+                obstacles[#obstacles + 1] = obstacle
+            end
         end
-        if not excludeJack then
+        if not excludeJack and (not state.palletJack or (state.palletJack.sceneId or "warehouse")=="warehouse") then
             local jackObstacle = Runtime.PalletJack.obstacle(state, Runtime.Config.palletJack)
             if jackObstacle then obstacles[#obstacles + 1] = jackObstacle end
         end
@@ -73,12 +80,34 @@ function Component.install(Runtime)
             or kind == "wrapper" and Runtime.Config.wrapperPlacement or Runtime.Config.windmillPlacement
     end
 
-    function Runtime.placementValidator(state, assets, kind, excludedPalletId)
+    function Runtime.placementValidator(state, assets, kind, excludedPalletId, sceneOverride)
         assets = Runtime.WarehouseGameplay.assets(assets or Runtime.World._assets, state)
         local config = Runtime.placementConfig(kind)
-        local obstacles = Runtime.movementObstacles(state, kind ~= "pallet", {
-            x=config.collisionHalfWidth,y=config.collisionHalfHeight,shape="diamond",
-        }, kind == "cutter", kind == "wrapper", excludedPalletId, kind == "windmill")
+        local Rooms=require("src.shop_rooms")
+        local sceneId=sceneOverride or Rooms.scene(Runtime.World.player)
+        local obstacles
+        if sceneId~="warehouse" and kind=="pallet" then
+            assets=Rooms.assets(assets,sceneId,state)
+            obstacles=Rooms.obstacles(state,sceneId)
+            for _,item in ipairs(Runtime.PalletLogistics.physicalPallets(state)) do
+                local world=item.pallet.world
+                if item.pallet.id~=excludedPalletId and world
+                    and (world.sceneId or "warehouse")==sceneId then
+                    obstacles[#obstacles+1]={x=item.x,y=item.y-8,
+                        halfWidth=Runtime.Config.palletLogistics.collisionHalfWidth,
+                        halfHeight=Runtime.Config.palletLogistics.collisionHalfHeight,shape="diamond"}
+                end
+            end
+            local jack=state and state.palletJack
+            if jack and jack.sceneId==sceneId then
+                local obstacle=Runtime.PalletJack.obstacle(state,Runtime.Config.palletJack)
+                if obstacle then obstacles[#obstacles+1]=obstacle end
+            end
+        else
+            obstacles = Runtime.movementObstacles(state, kind ~= "pallet", {
+                x=config.collisionHalfWidth,y=config.collisionHalfHeight,shape="diamond",
+            }, kind == "cutter", kind == "wrapper", excludedPalletId, kind == "windmill")
+        end
         return function(x,y)
             local floor = Runtime.Footprint.at(x,y,config)
             return assets and Runtime.Navigation.isAreaWalkable(assets, floor.x, floor.y,
@@ -87,8 +116,8 @@ function Component.install(Runtime)
         end
     end
 
-    function Runtime.World.isPalletPlacementClear(state, assets, x, y, excludedPalletId)
-        return Runtime.placementValidator(state,assets,"pallet",excludedPalletId)(x,y)
+    function Runtime.World.isPalletPlacementClear(state, assets, x, y, excludedPalletId, sceneId)
+        return Runtime.placementValidator(state,assets,"pallet",excludedPalletId,sceneId)(x,y)
     end
 
     function Runtime.isMachinePlacementClear(state, assets, kind, x, y)
@@ -96,9 +125,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.activeMachineKind(state)
-        if state and state.cutter and state.cutter.moving then return "cutter" end
-        if state and state.wrapper and state.wrapper.moving then return "wrapper" end
-        if state and state.windmill and state.windmill.moving then return "windmill" end
+        return Runtime.MachineTransport.active(state)
+    end
+
+    function Runtime.World.movingMachine(state)
+        return Runtime.MachineTransport.active(state)
     end
 
     function Runtime.moveNetworkAttachedMachine(player, dt, directionX, directionY, assets, state)
@@ -108,9 +139,11 @@ function Component.install(Runtime)
             or kind == "wrapper" and Runtime.WrapperPlacement or Runtime.WindmillPlacement
         local config = kind == "cutter" and Runtime.Config.cutterPlacement
             or kind == "wrapper" and Runtime.Config.wrapperPlacement or Runtime.Config.windmillPlacement
-        local item = placement.ensure(state, config)
+        local _, _, unit = Runtime.MachineTransport.active(state)
+        local moveState = Runtime.MachineTransport.view(state, kind, unit)
+        local item = placement.ensure(moveState, config)
         if directionX ~= 0 or directionY ~= 0 then Runtime.World.placementSelection = nil end
-        placement.move(state, directionX, directionY, dt, config, function(nextX, nextY)
+        placement.move(moveState, directionX, directionY, dt, config, function(nextX, nextY)
             local halfWidth, halfHeight = config.collisionHalfWidth, config.collisionHalfHeight
             local obstacles = Runtime.movementObstacles(state, false, {
                 x = halfWidth, y = halfHeight, shape = "diamond",
@@ -146,18 +179,9 @@ function Component.install(Runtime)
         local localGuestControlsMachine = networkMachineView and jack and jack.operating
             and localPlayerId >= 2 and jack.operatorPlayerId == localPlayerId
             and Runtime.activeMachineKind(state) ~= nil
-        if (not networkMachineView or localGuestControlsMachine)
-            and state and state.cutter and state.cutter.moving
-        then
-            return "cutter", state.cutter.x, state.cutter.y
-        elseif (not networkMachineView or localGuestControlsMachine)
-            and state and state.wrapper and state.wrapper.moving
-        then
-            return "wrapper", state.wrapper.x, state.wrapper.y
-        elseif (not networkMachineView or localGuestControlsMachine)
-            and state and state.windmill and state.windmill.moving
-        then
-            return "windmill", state.windmill.x, state.windmill.y
+        local kind, item = Runtime.MachineTransport.active(state)
+        if kind and (not networkMachineView or localGuestControlsMachine) then
+            return kind, item.x, item.y
         end
         if jack and jack.operating and jack.carriedPalletId then
             local x, y = Runtime.PalletJack.dropPosition(state, Runtime.Config.palletJack)
@@ -165,13 +189,14 @@ function Component.install(Runtime)
         end
     end
 
-    function Runtime.World.placementGridSnapshot(state, assets)
+    function Runtime.World.placementGridSnapshot(state, assets, sceneOverride)
         local kind, centerX, centerY = Runtime.activePlacement(state)
         if not kind then Runtime.World.placementSelection = nil; return nil end
         assets = assets or Runtime.World._assets
         local carriedId = kind == "pallet" and state.palletJack.carriedPalletId or nil
         local cells, snappedX, snappedY = Runtime.PlacementGrid.cells(
-            centerX, centerY, Runtime.Config.placementGrid, Runtime.placementValidator(state,assets,kind,carriedId))
+            centerX, centerY, Runtime.Config.placementGrid,
+            Runtime.placementValidator(state,assets,kind,carriedId,sceneOverride))
         local selected = Runtime.World.placementSelection
         if not selected or selected.kind ~= kind then
             selected = nil

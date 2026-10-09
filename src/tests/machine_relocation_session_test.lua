@@ -22,13 +22,21 @@ local function eventNamed(events, name)
     end
 end
 
-function Test.run(context, check)
+local function scenario(context, check, purchased)
     local state = context.State.new()
+    local unit
+    if purchased then
+        state.money = 100000
+        local bought
+        bought, unit = context.machineFleet.buy(state, "dealer", 1)
+        assert(bought)
+    end
+    local pose = unit and unit.world or state.cutter
+    local originalX, originalY = state.cutter.x, state.cutter.y
     context.machine.reset(state)
     context.wrapper.reset(state)
     local jack = context.PalletJack.ensure(state, context.config.palletJack)
-    jack.x, jack.y = context.config.cutterPlacement.spawnX,
-        context.config.cutterPlacement.spawnY
+    jack.x, jack.y = pose.x, pose.y
     local saves, observed = 0, {}
     local host
     local authority = WorkshopAuthority.new({
@@ -94,6 +102,7 @@ function Test.run(context, check)
             observed[#observed + 1] = payload
             local arguments = {}
             if payload.machineIndex ~= nil then arguments.machineIndex = payload.machineIndex end
+            if payload.machineId ~= nil then arguments.machineId = payload.machineId end
             if payload.placementCell ~= nil then arguments.placementCell = payload.placementCell end
             return authority:command(worker, {
                 requestId = payload.commandId, resourceId = payload.resourceId,
@@ -145,7 +154,7 @@ function Test.run(context, check)
     local clientReplica = State.new()
     State.applySharedSnapshot(clientReplica, SaveSchema.snapshot(state))
     local duplicatedMove = network:duplicateNext("client_to_host", 1, 1, true)
-    local moveSent, moved, moveEvents = command("move_machine", { machineIndex = 1 })
+    local moveSent, moved, moveEvents = command("move_machine", { machineIndex = 1, machineId = unit and unit.id })
     local activePoseApplied, activeShopApplied = false, false
     local function applyReplicaEvents(events)
         for _, event in ipairs(events) do
@@ -163,9 +172,10 @@ function Test.run(context, check)
     client:update(0, clientContext)
     local activeEvents = client:drainEvents()
     applyReplicaEvents(activeEvents)
+    local replicaPose = unit and context.machineFleet.byId(clientReplica, unit.id).world or clientReplica.cutter
     check("machine_relocation_session_active_pose_survives_same_cycle_durable_save",
         activePoseApplied and activeShopApplied and clientReplica.wrapper.moving == false
-        and clientReplica.cutter.moving == true
+        and replicaPose.moving == true
         and clientReplica.palletJack.operating
         and clientReplica.palletJack.operatorPlayerId == client.localId)
     clientContext.inputX = 1
@@ -199,15 +209,32 @@ function Test.run(context, check)
         and grant and grant.granted and duplicatedMove and moveSent
         and moved and moved.accepted and rotateSent and rotated and rotated.accepted
         and duplicatedPlace and placeSent and placed and placed.accepted
-        and not state.cutter.moving and saves == 3
+        and not pose.moving and saves == 3
         and movePayload and movePayload.machineIndex == 1
+        and movePayload.machineId == (unit and unit.id)
         and movePayload.x == nil and movePayload.y == nil
         and placePayload and placePayload.placementCell == placementCell
         and placePayload.x == nil and placePayload.y == nil)
+    if purchased then
+        host:update(0.3, hostContext)
+        client:update(0, clientContext)
+        applyReplicaEvents(client:drainEvents())
+        replicaPose = context.machineFleet.byId(clientReplica, unit.id).world
+        check("machine_relocation_session_purchased_machine_commits_to_both_peers",
+            not replicaPose.moving and replicaPose.x == pose.x and replicaPose.y == pose.y
+            and replicaPose.direction == pose.direction
+            and state.cutter.x == originalX and state.cutter.y == originalY
+            and clientReplica.cutter.x == originalX and clientReplica.cutter.y == originalY)
+    end
 
     client:stop("test_complete")
     host:update(0, hostContext)
     host:stop("test_complete")
+end
+
+function Test.run(context, check)
+    scenario(context, check, false)
+    scenario(context, function(name, condition, detail) check(name .. "_purchased", condition, detail) end, true)
 end
 
 return Test

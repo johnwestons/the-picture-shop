@@ -21,9 +21,25 @@ function Renderer.pose(entry,characterAssets)
         action,mirror=Catalog.action(character,"walk",a.intentX,a.intentY)
         frame=Animation.frameForDistance(8,a.distance,13)
     elseif entry.worker and a.phase=="break" and a.seatBay then
-            action=a.seatBay=="front_left" and "chair_west" or "chair_east"
-            frame=a.breakRemaining<.03 and 4 or a.idleClock<.2 and 1
-                or Animation.frameForIdle(2,a.idleClock,.65)==2 and 3 or 2
+        local worker=entry.worker
+        local employeeNumber=tonumber((worker.id or ""):match("EMP%-(%d+)")) or 0
+        local activeAction
+        if worker.breakKind=="meal" then
+            activeAction="break_eat"
+        else
+            local breakMask=worker.breaksTaken or 0
+            local restBreakCount=breakMask%2+math.floor(breakMask/4)%2+math.floor(breakMask/8)%2
+            activeAction=(employeeNumber+restBreakCount)%2==0 and "break_water" or "break_coffee"
+        end
+        local phase=(a.idleClock or 0)%6
+        if phase<4 then
+            action=activeAction
+            frame=Animation.frameForClock(4,phase,1.5)
+        else
+            action="break_idle"
+            frame=Animation.frameForClock(4,phase-4,.65)
+        end
+        mirror=a.seatBay=="front_left" and -1 or 1
     elseif (entry.worker and a.phase=="working") or (entry.application and a.phase=="waiting") then
         if entry.worker then
             local workAction=Catalog.workAction(entry)

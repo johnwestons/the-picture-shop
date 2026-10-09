@@ -23,6 +23,10 @@ local function drawLabel(player)
 end
 
 local function drawPlayer(characterAssets,player,state)
+    if require("src.basketball_renderer").draw(player,state) then
+        drawLabel(player)
+        return
+    end
     local character = Config.characters[player.character] and player.character or Config.player.character
     local highFive = player.highFiveAnimation
     local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
@@ -66,6 +70,17 @@ local function drawPlayer(characterAssets,player,state)
         directionScale = mirror
     end
 
+    local taskAction = player.taskAction
+    local taskActionActive = type(taskAction) == "string"
+        and characterAssets.hasAction(character, taskAction) and not pushingJack
+    if taskActionActive then
+        local directionalAction, mirror = CharacterAnimation.directionalTaskAction(
+            taskAction, player.intentX, player.intentY)
+        action = characterAssets.hasAction(character, directionalAction) and directionalAction or taskAction
+        pushArtwork = false
+        directionScale = action == directionalAction and mirror or player.facing or 1
+    end
+
     if highFiveActive then
         action = "high_five"
         pushArtwork = false
@@ -84,6 +99,8 @@ local function drawPlayer(characterAssets,player,state)
     elseif pushingJack and pushArtwork then
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
             player.animationDistance or 0,Config.player.walkPixelsPerFrame)
+    elseif taskActionActive then
+        frame = CharacterAnimation.frameForClock(frameCount, player.taskClock or 0, 4)
     else
         frame = CharacterAnimation.frameForPlayerAction(action, frameCount,
             player.animationDistance or 0, player.idleClock or 0, Config.player.walkPixelsPerFrame,

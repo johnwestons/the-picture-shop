@@ -139,7 +139,29 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=="warehouse-rooms" then
+        if focus=="machine-transport" then
+            for _,name in ipairs({"lua_limits","purchased_machine_transport","machine_fleet","multi_machine","pallet_jack_audit",
+                "pallet_state","placement_precision","machine_relocation_authority","machine_relocation_session",
+                "save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="cut-stock-margin" then
+            JobLoopIntegration.run(context,check,context.jobs)
+            CutterIntegration.run(context,check,context.jobs)
+            for _,name in ipairs({"lua_limits","cut_stock_margin","cutter_presentation","cutter_production_session",
+                "progression_balance","shop_workflow","press_economics","save_contract",
+                "guest_job_journey"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="client-seating" then
+            for _,name in ipairs({"lua_limits","client_seating","customer_motion","npc_navigation","asset_pack"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="warehouse-alignment" then
+            for _,name in ipairs({"lua_limits","warehouse_registration","npc_navigation","shop_rooms","interaction","employee_transport"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="warehouse-rooms" then
             Suites.runWarehouseRooms(context,check)
         elseif focus=="domain" then
             Suites.runDomain(context,check)

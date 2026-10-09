@@ -73,8 +73,7 @@ function Component.run(Context)
         end
     end
     Context.check("business_seated_art_receives_source_scale_correction",
-        Context.context.characterAssets.getNormalization("business-dragon", "sit") > 2
-        and Context.context.characterAssets.getNormalization("business-dragon", "sit") < 3)
+        math.abs(Context.context.characterAssets.getNormalization("business-dragon", "sit") - 256 / 192) < .01)
     Context.check("character_actions_load_on_demand", Context.context.characterAssets.residentActionCount() > 0)
     Context.context.characterAssets.retainCharacters({ ["business-dragon"] = true })
     for action in pairs(Context.expectedCharacters["business-dragon"]) do

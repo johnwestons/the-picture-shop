@@ -82,7 +82,7 @@ function Test.run(context,check)
     for _,w in ipairs(legacy.state.employment.staff) do w.contract.payWeeks=nil end
     for _,a in ipairs(legacy.state.employment.applications) do if a.offer then a.offer.payWeeks=nil end end
     local migrated=Schema.migrate(legacy)
-    check("shop_v19_migration_keeps_legacy_clock_and_weekly_pay",migrated and migrated.version==21
+    check("shop_v19_migration_keeps_legacy_clock_and_weekly_pay",migrated and migrated.version==Schema.VERSION
         and migrated.state.calendar.secondsPerDay==300 and near(Calendar.absoluteHours(migrated.state),10)
         and migrated.state.employment.staff[1].contract.payWeeks==1
         and near(migrated.state.employment.staff[1].weeks[1].earnedCents,2200)

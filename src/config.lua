@@ -390,6 +390,23 @@ local Config = {
         polarOperatorConsole = "assets/generated/polar-operator-console.png",
         cutterControlButtons = "assets/generated/cutter-control-buttons-strip.png",
         cutterGuiSteel = "assets/generated/cutter-gui-steel-skin-atlas.png",
+        titleMenuShell = "assets/generated/title-menu-polar-shell-v1.png",
+        titleMenuFields = "assets/generated/title-menu-polar-fields-v1.png",
+        titleMenuButtons = "assets/generated/title-menu-polar-buttons-v1.png",
+        titleMenuControl = "assets/generated/title-control-polar-paper-v3.png",
+        titleMenuPallets = "assets/generated/title-menu-paper-pallet-pairs-v2.png",
+        titleMenuShelf = "assets/generated/title-menu-shop-shelf-v1.png",
+        titleMenuInk = "assets/generated/title-menu-ink-container-states-v1.png",
+        titleMenuToolboxes = "assets/generated/title-menu-toolbox-states-v1.png",
+        titleMenuPalletAnimation = "assets/generated/title-menu-pallet-animations-v1.png",
+        titleMenuInkAnimation = "assets/generated/title-menu-ink-animations-v1.png",
+        titleMenuToolboxAnimation = "assets/generated/title-menu-toolbox-animations-v1.png",
+        titleMenuPalletFocus = "assets/generated/title-menu-pallet-focus-v2.png",
+        titleMenuInkFocus = "assets/generated/title-menu-ink-focus-v2.png",
+        titleMenuToolboxFocus = "assets/generated/title-menu-toolbox-focus-v2.png",
+        titleLcdFont = "assets/fonts/VT323-Regular.ttf",
+        titleInkFont = "assets/fonts/StardosStencil-Bold.ttf",
+        titleMetalFont = "assets/fonts/BarlowCondensed-SemiBold.ttf",
         cutterClamp = "assets/generated/cutter-clamp-strip.png",
         cutterBlade = "assets/generated/cutter-blade-strip.png",
         cutterMaintenanceOil = "assets/generated/cutter-maintenance-oil-atlas.png",
@@ -558,6 +575,37 @@ for _,view in ipairs({"east","west"}) do
 end
 Config.workerFrameSizes={["cat-worker"]=256,["tinker-fox-worker"]=256,["ferret-engineer-worker"]=256}
 Config.workerActionFrameSizes={["rabbit-worker"]={high_five=724}}
+local playerWorkViews = { "northeast", "north", "southeast", "south" }
+for _, action in ipairs({ "work_cutter", "work_press", "work_wrapping", "work_task" }) do
+    Config.characters["rabbit-worker"][action] = "assets/generated/characters/rabbit-worker/work_east.png"
+    Config.workerActionFrameSizes["rabbit-worker"][action] = 256
+    for _, view in ipairs(playerWorkViews) do
+        local directionalAction = action .. "_" .. view
+        Config.characters["rabbit-worker"][directionalAction] =
+            "assets/generated/characters/rabbit-worker/work_" .. view .. ".png"
+        Config.workerActionFrameSizes["rabbit-worker"][directionalAction] = 256
+    end
+end
+Config.characters["rabbit-worker"].operate_forklift =
+    "assets/generated/characters/rabbit-worker/operate_forklift_east.png"
+Config.workerActionFrameSizes["rabbit-worker"].operate_forklift = 256
+for _, view in ipairs(playerWorkViews) do
+    local directionalAction = "operate_forklift_" .. view
+    Config.characters["rabbit-worker"][directionalAction] =
+        "assets/generated/characters/rabbit-worker/" .. directionalAction .. ".png"
+    Config.workerActionFrameSizes["rabbit-worker"][directionalAction] = 256
+end
+for _, action in ipairs({ "use_computer", "answer_phone" }) do
+    Config.characters["rabbit-worker"][action] =
+        "assets/generated/characters/rabbit-worker/" .. action .. "_east.png"
+    Config.workerActionFrameSizes["rabbit-worker"][action] = 256
+    for _, view in ipairs(playerWorkViews) do
+        local directionalAction = action .. "_" .. view
+        Config.characters["rabbit-worker"][directionalAction] =
+            "assets/generated/characters/rabbit-worker/" .. directionalAction .. ".png"
+        Config.workerActionFrameSizes["rabbit-worker"][directionalAction] = 256
+    end
+end
 for _, character in ipairs({"cat-worker", "tinker-fox-worker", "ferret-engineer-worker"}) do
     Config.workerActionFrameSizes[character] = {}
     for _, action in ipairs({"work_cutter", "work_press", "work_wrapping", "push_jack"}) do
@@ -599,28 +647,22 @@ Config.warehouse.roomScenes=true
 Config.characterActionFrameSizes["rabbit-worker"].sit=1254
 Config.warehouse.provisionalArt=true
 Config.warehouseScene.enabled=false
-Config.paths.warehouse="assets/generated/warehouse-open-office-v1.png"
-Config.interactables.computer={x=908,y=271,radius=52}
-Config.interactables.workPhone.x,Config.interactables.workPhone.y=876,273
-Config.interactables.workPhone.wallX,Config.interactables.workPhone.wallY=878,177
-Config.interactables.shopClock.x,Config.interactables.shopClock.y=828,268
-Config.interactables.shopClock.wallX,Config.interactables.shopClock.wallY=830,146
+Config.paths.warehouse="assets/generated/warehouse-lobby-seating-v3.png"
+local registration=require("src.warehouse_registration")
+Config.interactables.computer=registration.computer
+for _,pair in ipairs({{"workPhone",registration.phone},{"shopClock",registration.clock},{"jukebox",registration.radio}}) do
+    local target=Config.interactables[pair[1]]
+    for key,value in pairs(pair[2]) do target[key]=value end
+    target.hoverX,target.hoverY=target.wallX,target.wallY
+end
 Config.wallVentFan.x,Config.wallVentFan.y=864,74
 Config.loungeSeating.foregrounds={}
-Config.loadingBay.interaction={x=205,y=244,radius=52}
-Config.truck.aperture={{x=73,y=103},{x=169,y=85},{x=169,y=192},{x=73,y=230}}
-Config.truck.parked={x=5.8,y=257,scale=0.72}
-Config.truck.start={x=-150,y=194,scale=0.72}
-Config.truck.interaction={x=155,y=262,radius=55}
-Config.customer.route={{x=688,y=247},{x=688,y=264},{x=715,y=270},{x=746,y=266},{x=770,y=258}}
-Config.vendor.route={{x=688,y=247},{x=688,y=264},{x=715,y=278},{x=760,y=280}}
-Config.technician.route={{x=688,y=247},{x=688,y=264},{x=715,y=278},{x=720,y=310}}
-Config.customer.seatSpots={
-    {name="left-chair",x=715,y=205,facing=1,approach={{x=715,y=259},{x=715,y=242}},animation="sitting"},
-    {name="sofa-left",x=750,y=198,facing=-1,approach={{x=720,y=253},{x=729,y=215}}},
-    {name="sofa-right",x=788,y=202,facing=1,approach={{x=817,y=253},{x=817,y=231}}},
-    {name="right-chair",x=815,y=223,facing=-1,approach={{x=815,y=267},{x=815,y=249}},animation="sitting"},
-}
+Config.loadingBay.interaction=registration.dock
+Config.truck.aperture=registration.aperture
+Config.truck.parked,Config.truck.start,Config.truck.interaction=registration.truck.parked,registration.truck.start,registration.truck.interaction
+Config.palletLogistics.unloadOrigin={x=127,y=262}
+Config.customer.route,Config.vendor.route,Config.technician.route=registration.customerRoute,registration.vendorRoute,registration.technicianRoute
+Config.customer.seatSpots=registration.lobbySeats
 Config.vendor.seatSpots=Config.customer.seatSpots
 Config.vendor.seatingPauseDuration=.28
 for _,character in ipairs({"cat-worker","tinker-fox-worker","ferret-engineer-worker"}) do
@@ -628,5 +670,14 @@ for _,character in ipairs({"cat-worker","tinker-fox-worker","ferret-engineer-wor
         Config.characters[character][action]="assets/generated/employee-motion-v2/"..character.."/"..action..".png"
         Config.workerActionFrameSizes[character][action]=256
     end
+    for _,action in ipairs({"break_eat","break_water","break_coffee","break_idle"}) do
+        Config.characters[character][action]="assets/generated/employee-break-v1/"..character.."/"..action..".png"
+        Config.workerActionFrameSizes[character][action]=256
+    end
+end
+for _, character in ipairs(Config.customer.characterPool) do
+    Config.characters[character].sit = "assets/generated/client-seating-v1/" .. character .. "/sit.png"
+    Config.characterActionFrameSizes[character] = Config.characterActionFrameSizes[character] or {}
+    Config.characterActionFrameSizes[character].sit = 256
 end
 return Config

@@ -157,29 +157,34 @@ function Logistics.physicalPallets(state)
     return result
 end
 
-function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId)
+function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId, sceneId)
     local result = {}
     for _, item in ipairs(Logistics.physicalPallets(state)) do
-        if item.pallet.id ~= excludedPalletId then
+        local world=item.pallet.world
+        if item.pallet.id ~= excludedPalletId and world
+            and (world.sceneId or "warehouse")== (sceneId or "warehouse") then
             result[#result + 1] = {
                 x = item.x,
                 y = item.y - 8,
                 halfWidth = halfWidth or 33,
                 halfHeight = halfHeight or 11,
                 shape = "diamond",
+                palletSceneId=world.sceneId or "warehouse",
             }
         end
     end
     return result
 end
 
-function Logistics.hovered(state, mouseX, mouseY)
+function Logistics.hovered(state, mouseX, mouseY, sceneId)
     if type(mouseX) ~= "number" or type(mouseY) ~= "number" then return nil end
     local best
     for _, item in ipairs(Logistics.physicalPallets(state)) do
+        local world=item.pallet.world
         local inside = mouseX >= item.x - 54 and mouseX <= item.x + 54
             and mouseY >= item.y - 82 and mouseY <= item.y + 10
-        if inside and (not best or item.y > best.y) then best = item end
+        if inside and world and (world.sceneId or "warehouse")== (sceneId or "warehouse")
+            and (not best or item.y > best.y) then best = item end
     end
     return best
 end

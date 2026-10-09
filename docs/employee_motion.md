@@ -55,3 +55,8 @@ Protocol version 30 adds employee jack ownership and larger pose rosters. Up to
 ten employees and one applicant fit a dedicated `employee_snapshot` packet under
 the existing 1,200-byte limit. Small rosters retain the environment packet path;
 both paths share NPC tick ordering so stale packets cannot restore older poses.
+
+Protocol version 31 replicates each player's active machine or task animation so
+other players continue to see an operating pose while that player uses a GUI.
+Version 32 adds dedicated computer-typing and phone-call animations to the same
+direction-aware task-action replication.

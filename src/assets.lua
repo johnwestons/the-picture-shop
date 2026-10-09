@@ -1,6 +1,7 @@
 local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local imageCache = require("src.texture_cache").new(32 * 1024 * 1024, 20)
+local incomingTextures
 
 local Assets = {
     images = {},
@@ -29,8 +30,9 @@ local function hasExactDimensions(image, path, expectedWidth, expectedHeight)
 end
 
 local function loadImage(name, path, keepData)
-    local cached = not keepData and imageCache:take(path)
+    local cached = not keepData and (incomingTextures and incomingTextures[path] or imageCache:take(path))
     if cached then
+        if incomingTextures then incomingTextures[path] = nil end
         Assets.images[name] = cached
         return cached
     end
@@ -383,6 +385,9 @@ function Assets.load()
     end
     validateExactPath(Config.paths.polarOperatorConsole, 768, 512)
     validateExactPath(Config.paths.cutterControlButtons, 512, 128)
+    for name, dimensions in pairs(require("src.screens.title_skin").dimensions) do
+        validateExactPath(Config.paths[name], dimensions[1], dimensions[2])
+    end
     validateExactPath(Config.paths.cutterClamp,
         Config.cutterGui.motionFrameWidth * Config.cutterGui.motionFrameCount,
         Config.cutterGui.motionFrameHeight)
@@ -406,7 +411,11 @@ function Assets.load()
 end
 
 local PACK_IMAGES = {
-    menu = { "polarOperatorConsole", "cutterControlButtons" },
+    menu = { "polarOperatorConsole", "cutterControlButtons", "titleMenuShell",
+        "titleMenuFields", "titleMenuButtons", "titleMenuControl", "titleMenuPallets",
+        "titleMenuInk", "titleMenuToolboxes", "titleMenuShelf", "titleMenuPalletAnimation",
+        "titleMenuInkAnimation", "titleMenuToolboxAnimation", "titleMenuPalletFocus",
+        "titleMenuInkFocus", "titleMenuToolboxFocus" },
     cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
         "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes", "cutterGuiSteel" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
@@ -415,7 +424,9 @@ local PACK_IMAGES = {
 
 local function releaseImage(name)
     local image = Assets.images[name]
-    if image then imageCache:put(Config.paths[name], image) end
+    if image and not (incomingTextures and incomingTextures[Config.paths[name]] == image) then
+        imageCache:put(Config.paths[name], image)
+    end
     Assets.images[name] = nil
 end
 
@@ -451,7 +462,7 @@ local function unloadPack(packName)
     clearPackQuads(packName)
 end
 
-local function loadMenuPack()
+local function loadCutterConsole()
     local console = loadImage("polarOperatorConsole", Config.paths.polarOperatorConsole, false)
     local buttons = loadImage("cutterControlButtons", Config.paths.cutterControlButtons, false)
     if not console or not buttons then return false end
@@ -463,8 +474,19 @@ local function loadMenuPack()
     return true
 end
 
+local function loadMenuPack()
+    if not loadCutterConsole() then return false end
+    for name, dimensions in pairs(require("src.screens.title_skin").dimensions) do
+        local image = loadImage(name, Config.paths[name], false)
+        if not image or not hasExactDimensions(image, Config.paths[name], dimensions[1], dimensions[2]) then
+            return false
+        end
+    end
+    return true
+end
+
 local function loadCutterPack()
-    if not loadMenuPack() then return false end
+    if not loadCutterConsole() then return false end
     local skin = loadImage("cutterGuiSteel", Config.paths.cutterGuiSteel, false)
     if not skin or not hasExactDimensions(skin, Config.paths.cutterGuiSteel, 1536, 1024) then return false end
     skin:setFilter("linear", "linear")
@@ -582,9 +604,17 @@ end
 function Assets.activatePack(packName)
     if packName == Assets.activePack then return true end
     if packName ~= nil and not PACK_IMAGES[packName] then return false end
+    -- Claim the next screen's textures before parking the outgoing screen.
+    -- Otherwise a large outgoing menu can evict precisely the cached machine
+    -- art that the caller is about to reuse.
+    incomingTextures = {}
+    for _, name in ipairs(PACK_IMAGES[packName] or {}) do
+        local path = Config.paths[name]
+        incomingTextures[path] = Assets.images[name] or imageCache:take(path)
+    end
     if Assets.activePack then unloadPack(Assets.activePack) end
     Assets.activePack = nil
-    if not packName then return true end
+    if not packName then incomingTextures = nil; return true end
     local loaded
     if packName == "menu" then
         loaded = loadMenuPack()
@@ -595,6 +625,8 @@ function Assets.activatePack(packName)
     else
         loaded = loadPressPack()
     end
+    for path, image in pairs(incomingTextures) do imageCache:put(path, image) end
+    incomingTextures = nil
     if not loaded then
         unloadPack(packName)
         return false

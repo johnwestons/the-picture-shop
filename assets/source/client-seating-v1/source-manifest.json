@@ -1,0 +1,56 @@
+[
+  {
+    "character": "business-dragon",
+    "source": "assets/source/client-seating-v1/business-dragon.png",
+    "sha256": "3e8ee5340e3507d15a208a927a8db42ba6efd17e5348011e3a9dd0e094795107",
+    "source_hips": [
+      [
+        578,
+        598
+      ],
+      [
+        466,
+        598
+      ]
+    ],
+    "scale": 0.2723404255319149,
+    "output": "assets/generated/client-seating-v1/business-dragon/sit.png",
+    "transparent_haze_threshold": 24
+  },
+  {
+    "character": "business-fox",
+    "source": "assets/source/client-seating-v1/business-fox.png",
+    "sha256": "8971b17b4081f266cf0a5fc8e47ef19150d71a4711feb4b2a803074fcd40eff7",
+    "source_hips": [
+      [
+        565,
+        625
+      ],
+      [
+        454,
+        625
+      ]
+    ],
+    "scale": 0.2612244897959184,
+    "output": "assets/generated/client-seating-v1/business-fox/sit.png",
+    "transparent_haze_threshold": 24
+  },
+  {
+    "character": "business-cat",
+    "source": "assets/source/client-seating-v1/business-cat.png",
+    "sha256": "b6240abfffd6015099c2861b48356016ea37fb74e37d7c1bb6abde2eb8713a21",
+    "source_hips": [
+      [
+        591,
+        643
+      ],
+      [
+        591,
+        643
+      ]
+    ],
+    "scale": 0.2615803814713896,
+    "output": "assets/generated/client-seating-v1/business-cat/sit.png",
+    "transparent_haze_threshold": 24
+  }
+]

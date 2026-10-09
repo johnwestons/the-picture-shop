@@ -5,8 +5,8 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.interactables(player)
         player = player or Runtime.World.player
-        local targets = require("src.shop_rooms").targets(player, Runtime.World._state)
-        if require("src.shop_rooms").scene(player)~="warehouse" then return targets end
+        local Rooms=require("src.shop_rooms")
+        local targets = Rooms.targets(player, Runtime.World._state)
         local function addTarget(kind, target, key)
             Runtime.MultiplayerCapabilities.requireInteraction(kind)
             if target then
@@ -14,6 +14,13 @@ function Component.install(Runtime)
                 targets[key or kind] = target
             end
         end
+        local jack=Runtime.World._state and Runtime.PalletJack.ensure(
+            Runtime.World._state,Runtime.Config.palletJack)
+        if jack and jack.sceneId==Rooms.scene(player) then
+            addTarget("palletJack",Runtime.PalletJack.interaction(
+                player,Runtime.World._state,Runtime.Config.palletJack))
+        end
+        if Rooms.scene(player)~="warehouse" then return targets end
         addTarget("computer", Runtime.Config.interactables.computer)
         addTarget("shopClock", Runtime.Config.interactables.shopClock)
         addTarget("jukebox", Runtime.Config.interactables.jukebox)
@@ -21,6 +28,9 @@ function Component.install(Runtime)
             x = Runtime.Config.interactables.workPhone.x,
             y = Runtime.Config.interactables.workPhone.y,
             radius = Runtime.Config.interactables.workPhone.radius,
+            hoverX = Runtime.Config.interactables.workPhone.hoverX,
+            hoverY = Runtime.Config.interactables.workPhone.hoverY,
+            hoverRadius = Runtime.Config.interactables.workPhone.hoverRadius,
             prompt = Runtime.World._state and Runtime.World._state.workPhone
                 and Runtime.World._state.workPhone.incoming
                 and "E: answer ringing wall phone" or "E: use wall phone",
@@ -31,8 +41,13 @@ function Component.install(Runtime)
         if Runtime.World._state then
             for _,a in ipairs(Runtime.Employees.ensure(Runtime.World._state).applications) do
                 if a.status=="visiting" and a.actor.visible and a.actor.phase=="waiting" then
+                    local employeeOptions=Runtime.World._employeeOptions
+                    local networkClient=employeeOptions and employeeOptions.isNetworkClient
+                        and employeeOptions.isNetworkClient()
                     addTarget("applicant",{x=a.actor.x,y=a.actor.y,radius=68,applicationId=a.id,
-                        prompt="E: ask "..a.name.." for an emailed resume"})
+                        prompt=networkClient
+                            and "The shop owner handles employment applications"
+                            or "E: request resume   X: dismiss applicant"})
                 end
             end
         end
@@ -49,10 +64,12 @@ function Component.install(Runtime)
             local nearestPallet
             local nearestDistance
             for _, item in ipairs(Runtime.PalletLogistics.physicalPallets(Runtime.World._state)) do
-                local distance = (player.x - item.x) ^ 2 + (player.y - item.y) ^ 2
-                local radius = Runtime.Config.palletLogistics.interactionRadius or 92
-                if distance <= radius * radius and (not nearestDistance or distance < nearestDistance) then
-                    nearestPallet, nearestDistance = item, distance
+                if item.pallet.world and (item.pallet.world.sceneId or "warehouse")=="warehouse" then
+                    local distance = (player.x - item.x) ^ 2 + (player.y - item.y) ^ 2
+                    local radius = Runtime.Config.palletLogistics.interactionRadius or 92
+                    if distance <= radius * radius and (not nearestDistance or distance < nearestDistance) then
+                        nearestPallet, nearestDistance = item, distance
+                    end
                 end
             end
             if nearestPallet then
@@ -63,7 +80,7 @@ function Component.install(Runtime)
                     item = nearestPallet,
                 })
             end
-            local jack = Runtime.PalletJack.ensure(Runtime.World._state, Runtime.Config.palletJack)
+            jack = Runtime.PalletJack.ensure(Runtime.World._state, Runtime.Config.palletJack)
             local playerId = type(player.id) == "number" and player.id
                 or (player == Runtime.World.player and 1 or nil)
             local jackReady = jack.operating and not jack.carriedPalletId
@@ -82,8 +99,9 @@ function Component.install(Runtime)
                 if item.world then addTarget("cutter", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.cutterPlacement.interactionRadius,
-                    prompt = "E: use " .. item.name .. " (" .. item.id .. ")",
-                    machineId = item.id, relocatable = false,
+                    prompt = "E: use " .. item.name .. " (" .. item.id .. ")"
+                        .. (jackReady and "  |  M: relocate with pallet jack" or ""),
+                    machineId = item.id,
                 }, "cutter:" .. item.id) end
             end
             local wrappers = Runtime.MachineFleet.installedUnits(Runtime.World._state, "skid_wrapper")
@@ -100,8 +118,9 @@ function Component.install(Runtime)
                 if item.world then addTarget("skidWrapper", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.wrapperPlacement.interactionRadius,
-                    prompt = "E: use skid wrapper (" .. item.id .. ")",
-                    machineId = item.id, relocatable = false,
+                    prompt = "E: use skid wrapper (" .. item.id .. ")"
+                        .. (jackReady and "  |  M: relocate with pallet jack" or ""),
+                    machineId = item.id,
                 }, "wrapper:" .. item.id) end
             end
             local windmills = Runtime.MachineFleet.installedUnits(Runtime.World._state, "heidelberg_10x15")
@@ -118,11 +137,11 @@ function Component.install(Runtime)
                 if item.world then addTarget("windmill", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.windmillPlacement.interactionRadius,
-                    prompt = "E: operate Windmill (" .. item.id .. ")",
-                    machineId = item.id, relocatable = false,
+                    prompt = "E: operate Windmill (" .. item.id .. ")"
+                        .. (jackReady and "  |  M: relocate with pallet jack" or ""),
+                    machineId = item.id,
                 }, "windmill:" .. item.id) end
             end
-            addTarget("palletJack", Runtime.PalletJack.interaction(player, Runtime.World._state, Runtime.Config.palletJack))
             local lift = Runtime.Forklift.ensure(Runtime.World._state, Runtime.Config.forklift)
             if lift.owned then
                 addTarget("forklift", {x=lift.x,y=lift.y,radius=(Runtime.Config.forklift and Runtime.Config.forklift.interactionRadius) or 76,
@@ -132,7 +151,9 @@ function Component.install(Runtime)
             local rackId,nearbyShelf = Runtime.World.warehouseNearRack(player, Runtime.World._state)
             if rackId then
                 local approach = nearbyShelf or Runtime.WarehouseLayout.rackApproach(rackId)
+                local shelf=Runtime.Config.warehouse.roomScenes and Runtime.WarehouseLayout.rackPoint(rackId,1,3)
                 addTarget("palletRack", {x=approach.x,y=approach.y,radius=130,rackId=rackId,
+                    hoverX=shelf and shelf.x,hoverY=shelf and shelf.y,hoverRadius=shelf and 160 or nil,
                     prompt="E: view pallet shelves"})
             end
             for _,bayId in ipairs(Runtime.WarehouseLayout.BAY_IDS) do
@@ -146,6 +167,10 @@ function Component.install(Runtime)
             if jackReady and Runtime.activeMachineKind(Runtime.World._state) then
                 targets.palletJack.prompt = "E: place machine  |  Q: TURN"
             elseif jackReady and not targets.palletJack.candidatePalletId then
+                local candidate = Runtime.World.nearbyMachineMove(Runtime.World._state)
+                if candidate then
+                    targets.palletJack.prompt = "F: park pallet jack  |  M: RELOCATE " .. candidate.target.machineId
+                end
                 local cutter = Runtime.CutterPlacement.ensure(Runtime.World._state, Runtime.Config.cutterPlacement)
                 local wrapper = Runtime.WrapperPlacement.ensure(Runtime.World._state, Runtime.Config.wrapperPlacement)
                 local windmill = Runtime.WindmillPlacement.ensure(Runtime.World._state, Runtime.Config.windmillPlacement)
@@ -155,11 +180,11 @@ function Component.install(Runtime)
                     <= Runtime.Config.wrapperPlacement.interactionRadius ^ 2
                 local windmillNear = (jack.x - windmill.x) ^ 2 + (jack.y - windmill.y) ^ 2
                     <= Runtime.Config.windmillPlacement.interactionRadius ^ 2
-                if cutterNear then
+                if not candidate and cutterNear then
                     targets.palletJack.prompt = "F: park pallet jack  |  M: RELOCATE CUTTER"
-                elseif wrapperNear then
+                elseif not candidate and wrapperNear then
                     targets.palletJack.prompt = "F: park pallet jack  |  M: RELOCATE WRAPPER"
-                elseif windmillNear then
+                elseif not candidate and windmillNear then
                     targets.palletJack.prompt = "F: park pallet jack  |  M: RELOCATE WINDMILL"
                 end
             end

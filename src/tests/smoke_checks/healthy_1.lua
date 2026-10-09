@@ -33,10 +33,11 @@ function Component.run(Context)
         Context.context.assets.get("loungeLeftChairForeground") ~= nil
         and Context.context.assets.get("loungeCoffeeTableForeground") ~= nil
         and Context.context.assets.get("loungeRightChairForeground") ~= nil)
-    Context.check("lounge_has_four_individual_seat_positions",
-        #Context.context.config.customer.seatSpots == 4
-        and Context.context.config.customer.seatSpots[2].name == "sofa-left"
-        and Context.context.config.customer.seatSpots[3].name == "sofa-right")
+    Context.check("lounge_has_three_registered_seat_positions",
+        #Context.context.config.customer.seatSpots == 3
+        and Context.context.config.customer.seatSpots[1].name == "sofa-left"
+        and Context.context.config.customer.seatSpots[2].name == "sofa-right"
+        and Context.context.config.customer.seatSpots[3].name == "right-chair")
     Context.check("wall_vent_fan_is_thirty_five_percent_larger",
         math.abs(Context.context.config.wallVentFan.drawScale - 0.405) < 0.0001)
     Context.check("pallet_jack_twenty_percent_smaller_without_shrinking_loose_pallets",

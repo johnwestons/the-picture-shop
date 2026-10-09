@@ -3,10 +3,36 @@
 local Component = {}
 
 function Component.install(Runtime)
+    local function roomMovementObstacles(state,sceneId,excludeJack)
+        local Rooms=require("src.shop_rooms")
+        local obstacles=Rooms.obstacles(state,sceneId)
+        local jack=state and state.palletJack
+        if not excludeJack and jack and jack.sceneId==sceneId then
+            local obstacle=Runtime.PalletJack.obstacle(state,Runtime.Config.palletJack)
+            if obstacle then obstacles[#obstacles+1]=obstacle end
+        end
+        for _,item in ipairs(Runtime.PalletLogistics.physicalPallets(state)) do
+            local world=item.pallet.world
+            if world and (world.sceneId or "warehouse")==sceneId
+                and (not jack or item.pallet.id~=jack.carriedPalletId) then
+                obstacles[#obstacles+1]={x=item.x,y=item.y-8,
+                    halfWidth=Runtime.Config.palletLogistics.collisionHalfWidth,
+                    halfHeight=Runtime.Config.palletLogistics.collisionHalfHeight,shape="diamond"}
+            end
+        end
+        return obstacles
+    end
+
     function Runtime.World.update(dt, directionX, directionY, assets, state, cursorX, cursorY, simulationDt)
         if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
             Runtime.World._assets,Runtime.World._state=assets,state
-            Runtime.updateWalkingPlayer(Runtime.World.player,dt,directionX,directionY,assets,state)
+            local player=Runtime.World.player
+            local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
+            if jack.operating and jack.operatorPlayerId==(tonumber(player.id) or 1) then
+                Runtime.World.updateNetworkPalletJack(player,dt,directionX,directionY,assets,state,cursorX,cursorY)
+            else
+                Runtime.updateWalkingPlayer(player,dt,directionX,directionY,assets,state)
+            end
             local changed=Runtime.World.updateSimulation(simulationDt or dt,
                 Runtime.WarehouseGameplay.assets(assets,state),state,dt)
             Runtime.World.selectedInteraction=Runtime.selectInteractionFor(Runtime.World.player,
@@ -20,79 +46,13 @@ function Component.install(Runtime)
         local player = Runtime.World.player
         local playerStartX, playerStartY = player.x, player.y
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
-        local cutter = Runtime.CutterPlacement.ensure(state, Runtime.Config.cutterPlacement)
-        local wrapper = Runtime.WrapperPlacement.ensure(state, Runtime.Config.wrapperPlacement)
-        local windmill = Runtime.WindmillPlacement.ensure(state, Runtime.Config.windmillPlacement)
         local localOperatesJack = jack.operating and jack.operatorPlayerId == 1
         local localOperatesForklift = Runtime.Forklift.isOperator(state, Runtime.Config.forklift, tonumber(player.id) or 1)
         local externalMovement = localOperatesJack or localOperatesForklift
         if localOperatesForklift then
             Runtime.World.updateNetworkForklift(player, dt, directionX, directionY, assets, state)
-        elseif localOperatesJack and cutter.moving then
-            Runtime.CutterPlacement.move(state, directionX, directionY, dt, Runtime.Config.cutterPlacement,
-                function(nextX, nextY)
-                    local halfWidth = Runtime.Config.cutterPlacement.collisionHalfWidth
-                    local halfHeight = Runtime.Config.cutterPlacement.collisionHalfHeight
-                    local obstacles = Runtime.movementObstacles(state, false,
-                        { x = halfWidth, y = halfHeight, shape = "diamond" }, true)
-                    return Runtime.Navigation.canMoveAreaFrom(assets, cutter.x, cutter.y, nextX, nextY,
-                        halfWidth, halfHeight, obstacles)
-                end)
-            Runtime.PalletJack.followPlacement(state, cutter, dt, Runtime.Config.palletJack)
-            player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
-            player.moving = cutter.inMotion
-            player.facing = player.x < cutter.x and 1 or -1
-        elseif localOperatesJack and wrapper.moving then
-            Runtime.WrapperPlacement.move(state, directionX, directionY, dt, Runtime.Config.wrapperPlacement,
-                function(nextX, nextY)
-                    local halfWidth = Runtime.Config.wrapperPlacement.collisionHalfWidth
-                    local halfHeight = Runtime.Config.wrapperPlacement.collisionHalfHeight
-                    return Runtime.Navigation.canMoveAreaFrom(assets, wrapper.x, wrapper.y, nextX, nextY,
-                        halfWidth, halfHeight, Runtime.movementObstacles(state, false, {
-                            x = Runtime.Config.wrapperPlacement.collisionHalfWidth,
-                            y = Runtime.Config.wrapperPlacement.collisionHalfHeight,
-                            shape = "diamond",
-                        }, false, true))
-                end)
-            Runtime.PalletJack.followPlacement(state, wrapper, dt, Runtime.Config.palletJack)
-            player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
-            player.moving = wrapper.inMotion
-            player.facing = player.x < wrapper.x and 1 or -1
-        elseif localOperatesJack and windmill.moving then
-            Runtime.WindmillPlacement.move(state, directionX, directionY, dt, Runtime.Config.windmillPlacement,
-                function(nextX, nextY)
-                    local halfWidth = Runtime.Config.windmillPlacement.collisionHalfWidth
-                    local halfHeight = Runtime.Config.windmillPlacement.collisionHalfHeight
-                    local obstacles = Runtime.movementObstacles(state, false, {
-                        x = halfWidth, y = halfHeight, shape = "diamond",
-                    }, false, false, nil, true)
-                    if not Runtime.Navigation.isAreaWalkable(assets, windmill.x, windmill.y, 0, 0) then
-                        -- The original spawn used an old floor mask and can sit on
-                        -- a newly blocked pixel. Permit controlled recovery motion
-                        -- until the machine center reaches the current walkable
-                        -- factory floor again.
-                        return nextX > halfWidth and nextX < Runtime.Config.baseWidth - halfWidth
-                            and nextY > halfHeight and nextY < Runtime.Config.baseHeight - halfHeight
-                    end
-                    if Runtime.Navigation.canMoveAreaFrom(assets, windmill.x, windmill.y, nextX, nextY,
-                        halfWidth, halfHeight, obstacles)
-                    then return true end
-                    -- Older/default placements can begin partly inside the edge of
-                    -- the walk mask. Let the operator move the machine's center
-                    -- toward open floor until its full footprint clears the edge.
-                    if not Runtime.Navigation.isAreaWalkable(assets, windmill.x, windmill.y,
-                        halfWidth, halfHeight)
-                    then
-                        return Runtime.Navigation.canMoveFrom(assets, windmill.x, windmill.y,
-                            nextX, nextY, obstacles)
-                            and Runtime.Navigation.isAreaWalkable(assets, nextX, nextY, 0, 0)
-                    end
-                    return false
-                end)
-            Runtime.PalletJack.followPlacement(state, windmill, dt, Runtime.Config.palletJack)
-            player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
-            player.moving = windmill.inMotion
-            player.facing = player.x < windmill.x and 1 or -1
+        elseif localOperatesJack and Runtime.activeMachineKind(state) then
+            Runtime.moveNetworkAttachedMachine(player, dt, directionX, directionY, assets, state)
         elseif localOperatesJack then
             Runtime.PalletJack.move(state, directionX, directionY, dt, Runtime.Config.palletJack, function(nextX, nextY, loaded)
                 local inflate = loaded and {
@@ -144,13 +104,13 @@ function Component.install(Runtime)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         local Rooms=require("src.shop_rooms")
         local sceneId=Rooms.scene(player)
-        if sceneId~="warehouse" then assets=Rooms.assets(assets,sceneId) end
+        if sceneId~="warehouse" then assets=Rooms.assets(assets,sceneId,state) end
         -- Obstacles cannot change during one controller update. Share the same
         -- snapshot across its axis checks and collision substeps.
         local obstacles
         Runtime.PlayerController.update(player, directionX or 0, directionY or 0, dt,
             function(currentX, currentY, nextX, nextY)
-                obstacles=obstacles or (sceneId~="warehouse" and Rooms.obstacles(state,sceneId)
+                obstacles=obstacles or (sceneId~="warehouse" and roomMovementObstacles(state,sceneId)
                     or Runtime.movementObstacles(state, false))
                 return Runtime.Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY,obstacles)
             end, Runtime.Config.player)
@@ -164,8 +124,12 @@ function Component.install(Runtime)
         Runtime.World._assets, Runtime.World._state = assets, state
         Runtime.World.placementSelection = nil
         local updated
+        local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
         if Runtime.Forklift.isOperator(state, Runtime.Config.forklift, Runtime.World.player.id) then
             updated = Runtime.World.updateNetworkForklift(Runtime.World.player, dt, directionX, directionY, assets, state, true)
+        elseif jack.operating and jack.operatorPlayerId==(tonumber(Runtime.World.player.id) or 1) then
+            updated = Runtime.World.updateNetworkPalletJack(Runtime.World.player,dt,directionX,directionY,
+                assets,state,cursorX,cursorY)
         else updated = Runtime.updateWalkingPlayer(Runtime.World.player, dt, directionX, directionY, assets, state) end
         Runtime.World.selectedInteraction = Runtime.selectNetworkInteractionFor(
             Runtime.World.player, Runtime.World.selectedInteraction, cursorX, cursorY)
@@ -178,8 +142,13 @@ function Component.install(Runtime)
         player, dt, directionX, directionY, assets, state, cursorX, cursorY)
         if type(player) ~= "table" or type(state) ~= "table" then return false end
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
-        if not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, player.id) then return false end
+        local playerId=tonumber(player.id) or (player==Runtime.World.player and 1 or nil)
+        if not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, playerId) then return false end
         assets = Runtime.WarehouseGameplay.assets(assets, state)
+        local Rooms=require("src.shop_rooms")
+        local sceneId=Rooms.scene(player)
+        if jack.sceneId~=sceneId then return false end
+        if sceneId~="warehouse" then assets=Rooms.assets(assets,sceneId,state) end
         Runtime.World._assets, Runtime.World._state = assets, state
         local playerStartX, playerStartY = player.x, player.y
         if not Runtime.moveNetworkAttachedMachine(
@@ -194,8 +163,11 @@ function Component.install(Runtime)
                         x = Runtime.Config.palletJack.collisionHalfWidth,
                         y = Runtime.Config.palletJack.collisionHalfHeight, shape = "diamond",
                     }
+                    local obstacles=sceneId=="warehouse"
+                        and Runtime.movementObstacles(state,true,footprint)
+                        or roomMovementObstacles(state,sceneId,true)
                     return Runtime.Navigation.canMoveAreaFrom(assets, jack.x, jack.y, nextX, nextY,
-                        footprint.x, footprint.y, Runtime.movementObstacles(state, true, footprint))
+                        footprint.x, footprint.y, obstacles)
                 end)
             player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
         end

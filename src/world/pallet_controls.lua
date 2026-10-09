@@ -9,15 +9,17 @@ function Component.install(Runtime)
     end
 
     function Runtime.palletJackHasAttachedMachine(state)
-        return type(state) == "table" and ((state.cutter and state.cutter.moving)
-            or (state.wrapper and state.wrapper.moving)
-            or (state.windmill and state.windmill.moving))
+        return Runtime.MachineTransport.active(state) ~= nil
     end
 
     function Runtime.World.operateNetworkPalletJack(player, state)
         local playerId = Runtime.validNetworkPlayerId(player)
         if not playerId or type(state) ~= "table" then
             return false, "invalid_player", "The host could not identify that worker."
+        end
+        if (state.palletJack and state.palletJack.sceneId or "warehouse")
+            ~=require("src.shop_rooms").scene(player) then
+            return false,"wrong_scene","Move to the room containing the pallet jack first."
         end
         local mounted, mountCode = Runtime.PalletJack.mount(state, Runtime.Config.palletJack, playerId)
         if not mounted then
@@ -71,6 +73,9 @@ function Component.install(Runtime)
         if not playerId or not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, playerId) then
             return false, "not_owner", "Acquire the pallet jack before lifting a pallet."
         end
+        if state.palletJack.sceneId~=require("src.shop_rooms").scene(player) then
+            return false,"wrong_scene","The pallet jack is in a different room."
+        end
         if Runtime.palletJackHasAttachedMachine(state) then
             return false, "equipment_moving",
                 "Place the moving machine before lifting a pallet."
@@ -101,6 +106,9 @@ function Component.install(Runtime)
         if not playerId or not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, playerId) then
             return false, "not_owner", "Acquire the pallet jack before lowering a pallet."
         end
+        if state.palletJack.sceneId~=require("src.shop_rooms").scene(player) then
+            return false,"wrong_scene","The pallet jack is in a different room."
+        end
         if Runtime.palletJackHasAttachedMachine(state) then
             return false, "equipment_moving",
                 "Place the moving machine before lowering a pallet."
@@ -113,7 +121,7 @@ function Component.install(Runtime)
         if placementCell ~= nil then
             dropX,dropY = Runtime.PlacementGrid.decode(placementCell,Runtime.Config.placementGrid)
             if not dropX then return false,"invalid_cell","Choose a valid highlighted drop cell." end
-            local grid = Runtime.World.placementGridSnapshot(state,assets)
+            local grid = Runtime.World.placementGridSnapshot(state,assets,require("src.shop_rooms").scene(player))
             local cell = Runtime.PlacementGrid.find(grid and grid.cells,dropX,dropY)
             if not cell or not cell.valid then
                 return false,"placement_blocked","That drop cell is blocked or out of reach."
@@ -124,7 +132,8 @@ function Component.install(Runtime)
         local lowered, lowerCode, pallet = Runtime.PalletJack.lower(
             state, Runtime.Config.palletJack, function(x, y)
                 return Runtime.World.isPalletPlacementClear(
-                    state, assets or Runtime.World._assets, x, y, palletId)
+                    state, assets or Runtime.World._assets, x, y, palletId,
+                    require("src.shop_rooms").scene(player))
             end, dropX, dropY, palletId)
         if not lowered then
             state.message = lowerCode == "blocked"
@@ -140,6 +149,10 @@ function Component.install(Runtime)
     function Runtime.World.handlePalletJack(state, assets, palletId)
         local localPlayerId = tonumber(Runtime.World.player.id) or 1
         local currentJack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
+        if currentJack.sceneId~=require("src.shop_rooms").scene(Runtime.World.player) then
+            state.message="The pallet jack is in a different room."
+            return false
+        end
         if Runtime.palletJackHasAttachedMachine(state) then
             state.message = "Place the moving machine before using the pallet jack."
             return false

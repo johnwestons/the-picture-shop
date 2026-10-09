@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-08",
+  "tool": "Built-in image_gen",
+  "asset": "assets/generated/title-control-polar-paper-v3.png",
+  "dimensions": [
+    1882,
+    836
+  ],
+  "references": [
+    "assets/source/title-control-concepts-v2/02-operator-console.png",
+    "assets/source/title-control-concepts-v2/01-cutting-throat.png"
+  ],
+  "title": "The Picture Shop",
+  "catchphrase": "Print , Cut , Keep the Doors Open",
+  "display": "Blank in sprite; runtime player-message text",
+  "prompt": "Use case: precise-object-edit\nAsset type: final transparent title-control sprite for The Picture Shop game.\nInput image 1 is the EDIT TARGET: chosen concept 2 (operator console cutter). Input image 2 is a SUPPORTING REFERENCE ONLY: concept 1's thick single paper stack with printed title.\nKeep image 1's exact cutter design, silhouette, viewpoint, ivory enamel stepped bridge, large rectangular LCD and bezel, right-hand keypad and two knobs, red/yellow emergency stop, brass bolted clamp, black ribbed guarded throat, sloping guard arms, stainless table and centered front notch, and two front black hand controls. Preserve its source-matched shaded pixel art.\nChange ONLY these things:\n1. Completely remove all title, subtitle, line and luminous lettering from the large LCD. It must be an EMPTY clean dark charcoal/black active-display area, very subtle screen texture only, with no words or symbols. This display will receive programmable live text in game code. Keep its interior broad and unobstructed.\n2. Replace the two small blank paper piles on the table with ONE wide thick ivory paper stack spanning most of the space between the guard arms. Feed it out from the cutting throat across the tabletop like input 2, with clearly layered paper edges and a flat calm title-printing surface.\n3. Print the title on that paper in large bold readable dark-charcoal serif lettering, exact capitalization and wording: \"The Picture Shop\". Mixed case, NOT all capitals.\n4. Beneath the title on the same paper, smaller crisp dark print, exact capitalization, punctuation and wording: \"Print , Cut , Keep the Doors Open\". Include both commas, keep the space before and after each comma. No bullets, no PACK, no extra words.\nMake the new paper title read well and appear physically sitting on the cutter table. Keep the LCD fully blank; neither title nor catch phrase is on the LCD or enamel. Preserve all mechanical details and layout from image 1.\nOne isolated sprite, genuine transparent alpha outside cutter silhouette, preserve existing transparency. No background, no checkerboard, no drop shadow, no extra caption."
+}

@@ -14,10 +14,14 @@ function Component.install(Runtime)
             sequence = self.inputSequence,
             moveX = Runtime.clamp(context and context.inputX, -1, 1),
             moveY = Runtime.clamp(context and context.inputY, -1, 1),
+            gameX = Runtime.clamp(context and context.gameX, -1, 1),
+            gameY = Runtime.clamp(context and context.gameY, -1, 1),
+            combatButtons = context and context.combatButtons or 0,
             furColorway = context and context.localPlayer and context.localPlayer.furColorway
                 or self.localFurColorway or 1,
             overallsColorway = context and context.localPlayer and context.localPlayer.overallsColorway
                 or self.localOverallsColorway or 1,
+            taskAction = context and context.localPlayer and context.localPlayer.taskAction or "none",
         })
         if not ok then self:_queue("error", { message = errorMessage }) end
     end
@@ -170,6 +174,7 @@ function Component.install(Runtime)
             moveY = 0,
             furColorway = self.localFurColorway or 1,
             overallsColorway = self.localOverallsColorway or 1,
+            taskAction = self.localTaskAction or "none",
         })
     end
 

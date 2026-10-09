@@ -27,6 +27,14 @@ for character,actions in pairs(require("src.worker_action_metrics")) do
     Metrics[character]=Metrics[character] or {}
     for action,frames in pairs(actions) do Metrics[character][action]=frames end
 end
+for character, actions in pairs(require("src.player_action_anchors")) do
+    Anchors[character] = Anchors[character] or {}
+    for action, frames in pairs(actions) do Anchors[character][action] = frames end
+end
+for character, actions in pairs(require("src.player_action_metrics")) do
+    Metrics[character] = Metrics[character] or {}
+    for action, frames in pairs(actions) do Metrics[character][action] = frames end
+end
 local jackArt = require("src.pallet_jack_art")
 for action, frames in pairs(jackArt.anchors) do Anchors["rabbit-worker"][action] = frames end
 for action, frames in pairs(jackArt.metrics) do Metrics["rabbit-worker"][action] = frames end
@@ -36,6 +44,22 @@ for character,actions in pairs(employeeArt.anchors) do
 end
 for character,actions in pairs(employeeArt.metrics) do
     for action,frames in pairs(actions) do Metrics[character][action]=frames end
+end
+local seatingArt = require("src.client_seating_art")
+for character, actions in pairs(seatingArt.anchors) do
+    for action, frames in pairs(actions) do Anchors[character][action] = frames end
+end
+for character, actions in pairs(seatingArt.metrics) do
+    for action, frames in pairs(actions) do Metrics[character][action] = frames end
+end
+local breakArt = require("src.employee_break_art")
+for character, actions in pairs(breakArt.anchors) do
+    Anchors[character] = Anchors[character] or {}
+    for action, frames in pairs(actions) do Anchors[character][action] = frames end
+end
+for character, actions in pairs(breakArt.metrics) do
+    Metrics[character] = Metrics[character] or {}
+    for action, frames in pairs(actions) do Metrics[character][action] = frames end
 end
 
 local CharacterAssets = {

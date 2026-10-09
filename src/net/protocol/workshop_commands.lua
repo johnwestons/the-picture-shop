@@ -91,7 +91,7 @@ function Component.install(Runtime)
         }, {
             "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
             "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
-            "machineIndex", "placementCell", "callId", "officeIntent", "warehouseIntent",
+            "machineIndex", "machineId", "placementCell", "callId", "officeIntent", "warehouseIntent",
         })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
@@ -117,10 +117,11 @@ function Component.install(Runtime)
         for _, field in ipairs({
             "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
             "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
-            "machineIndex", "placementCell", "callId", "officeIntent", "warehouseIntent",
+            "machineIndex", "machineId", "placementCell", "callId", "officeIntent", "warehouseIntent",
         }) do
             local dropCell = resourceId == "pallet_jack" and action == "lower_pallet" and field == "placementCell"
-            if field ~= argumentField and not dropCell and payload[field] ~= nil then
+            local machineTarget = resourceId == "pallet_jack" and action == "move_machine" and field == "machineId"
+            if field ~= argumentField and not dropCell and not machineTarget and payload[field] ~= nil then
                 return nil, "workshop_command." .. field .. " is invalid for " .. action
             end
         end
@@ -158,6 +159,12 @@ function Component.install(Runtime)
             normalized.machineIndex, fieldError = Runtime.integerInRange(
                 payload.machineIndex, 1, 3, "workshop_command.machineIndex")
             if not normalized.machineIndex then return nil, fieldError end
+            if payload.machineId ~= nil then
+                normalized.machineId, fieldError = Runtime.token(payload.machineId, 64, "workshop_command.machineId")
+                if not normalized.machineId or not normalized.machineId:match("^MCH%-%d+$") then
+                    return nil, "workshop_command.machineId is invalid"
+                end
+            end
         elseif argumentField == "placementCell" then
             normalized.placementCell, fieldError = Runtime.token(
                 payload.placementCell, 8, "workshop_command.placementCell")

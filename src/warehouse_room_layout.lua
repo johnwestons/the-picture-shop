@@ -49,7 +49,7 @@ function Layout.rackPoint(id,row,column)
     end
     return {x=x,y=y,groundY=groundY,row=row,column=column}
 end
-function Layout.obstacles() return {{x=765,y=201,halfWidth=46,halfHeight=12,kind="lobby_table"}} end
+function Layout.obstacles() return require("src.warehouse_registration").obstacles("warehouse") end
 function Layout.project(state,id)
     local bay=Layout.bayState(state,id)
     if bay then for _,p in ipairs(state.warehouse.projects or {}) do if p.id==bay.projectId then return p end end end

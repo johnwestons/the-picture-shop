@@ -91,6 +91,25 @@
       "loop": true,
       "role": "gait",
       "fps": 5.538461538461538
+    },
+    "sit": {
+      "path": "assets/generated/client-seating-v1/business-cat/sit.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "seated_idle",
+      "fps": 0.65,
+      "pose_order": [
+        "relaxed_eyes_open",
+        "brief_blink"
+      ],
+      "anchor": {
+        "x": 148,
+        "y": 179
+      },
+      "registration": "posterior cushion contact",
+      "body_height_ratio": 0.703125
     }
   },
   "directions": {

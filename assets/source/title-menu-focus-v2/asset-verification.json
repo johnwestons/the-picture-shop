@@ -1,0 +1,86 @@
+[
+  {
+    "path": "assets/generated/title-menu-pallet-animations-v1.png",
+    "sha256": "57428fcf6d5674cfafa40a9d7e412de6b7e8a28694aaa637a9e314ecd789b871",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a11e58-9108-7e32-9bfe-3050ceb174a1\\exec-fc5a9ae2-fd0d-4708-b659-c9f7598649f3.png",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "alpha_range": [
+      0,
+      254
+    ],
+    "unchanged_copy": true
+  },
+  {
+    "path": "assets/generated/title-menu-ink-animations-v1.png",
+    "sha256": "2ab7dea0fee4954a9c8192648613288200f37875d891ddccffcc84bb50ca405e",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a11e58-9108-7e32-9bfe-3050ceb174a1\\exec-a1bf45d3-055d-4e61-9862-2688ac649555.png",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "alpha_range": [
+      0,
+      254
+    ],
+    "unchanged_copy": true
+  },
+  {
+    "path": "assets/generated/title-menu-toolbox-animations-v1.png",
+    "sha256": "f33b170d50d5e3bab68497ac7b768f6f6e312050be969e1c887fb282bd1febbb",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a11e58-9108-7e32-9bfe-3050ceb174a1\\exec-8b22ee46-6579-4516-8e5b-34fe229d3140.png",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "alpha_range": [
+      0,
+      254
+    ],
+    "unchanged_copy": true
+  },
+  {
+    "path": "assets/generated/title-menu-pallet-focus-v2.png",
+    "sha256": "73f8cfdcb7624eb688f3a3ee1f80e59bcf6074a37f5c6f5cc409a3a3f423721f",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a11e58-9108-7e32-9bfe-3050ceb174a1\\exec-8edfeab1-4a9b-418c-b77d-82b94f826c06.png",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "alpha_range": [
+      0,
+      254
+    ],
+    "unchanged_copy": true
+  },
+  {
+    "path": "assets/generated/title-menu-ink-focus-v2.png",
+    "sha256": "cca450bce5494abe69c890a9e14bd9fa40e400831554de0d96c8d6880754e294",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a11e58-9108-7e32-9bfe-3050ceb174a1\\exec-5f611144-32ff-4113-b809-871d62dd438a.png",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "alpha_range": [
+      0,
+      254
+    ],
+    "unchanged_copy": true
+  },
+  {
+    "path": "assets/generated/title-menu-toolbox-focus-v2.png",
+    "sha256": "a44db9ceea75a499552ca4a3ffbe3baec00a346dce7e78c77ffe7c76bf2c35e5",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a11e58-9108-7e32-9bfe-3050ceb174a1\\exec-0ed1ef3c-edd8-4f92-bd4d-7a17a189812e.png",
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "alpha_range": [
+      0,
+      254
+    ],
+    "unchanged_copy": true
+  }
+]

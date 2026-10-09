@@ -1,5 +1,7 @@
 local Config=require("src.config")
 local Ui=require("src.screens.ui")
+local Skin=require("src.screens.title_skin")
+local Fonts=require("src.screens.title_fonts")
 local Setup={}
 local buttons={minus={x=290,y=315,width=58,height=44},plus={x=612,y=315,width=58,height=44},
     fast={x=284,y=443,width=120,height=40},standard={x=420,y=443,width=120,height=40},
@@ -35,21 +37,26 @@ function Setup.mousepressed(options,x,y)
         return "changed"
     end
 end
-function Setup.draw(options,slot)
+function Setup.draw(options,slot,assets,mouseX,mouseY)
+    assets=assets or require("src.assets")
     love.graphics.setColor(.015,.025,.03,.84);love.graphics.rectangle("fill",0,0,Config.baseWidth,Config.baseHeight)
-    Ui.box(240,146,480,470,{.055,.10,.11,.99},{.52,.72,.65,1},5)
+    Skin.panel(assets,{x=240,y=146,width=480,height=470})
     love.graphics.setColor(.98,.84,.33,1);love.graphics.printf("SHOP SETUP OPTIONS",260,169,440,"center")
     love.graphics.setColor(.83,.92,.85,1);love.graphics.printf("New shop in slot "..slot,260,203,440,"center")
     love.graphics.printf("Choose how long a full game day takes.\nThis setting belongs to this shop save.",270,247,420,"center")
     local minutes=options.dayLengthMinutes
+    Skin.field(assets,{x=358,y=315,width=244,height=44},"selected")
     love.graphics.setColor(1,.89,.40,1);love.graphics.printf(minutes.." real minutes / day",350,330,260,"center")
-    love.graphics.setColor(.24,.39,.35,1);love.graphics.rectangle("fill",slider.x,slider.y+12,slider.width,8)
-    local sx=slider.x+(minutes-5)/55*slider.width
-    love.graphics.setColor(.98,.79,.27,1);love.graphics.circle("fill",sx,slider.y+16,10)
+    Skin.slider(assets,slider,(minutes-5)/55)
     local labels={minus="-",plus="+",fast="5 MIN",standard="20 MIN",slow="60 MIN",cancel="CANCEL",start="CREATE SHOP"}
     for name,b in pairs(buttons) do
-        Ui.box(b.x,b.y,b.width,b.height,{.14,.30,.28,1},{.43,.64,.51,1},3)
-        love.graphics.setColor(.95,.98,.90,1);love.graphics.printf(labels[name],b.x,b.y+(b.height-13)/2,b.width,"center")
+        local selected=(name=="fast" and minutes==5) or (name=="standard" and minutes==20)
+            or (name=="slow" and minutes==60)
+        local hovered=mouseX and mouseY and Ui.contains(b,mouseX,mouseY)
+        Skin.button(assets,b,Ui.pressWithin(b) and "pressed" or (hovered or selected) and "hover" or "normal")
+        local font=Fonts.fit("metal",labels[name],16,b.width-20,b.height-14)
+        love.graphics.setFont(font)
+        love.graphics.setColor(.95,.98,.90,1);love.graphics.printf(labels[name],b.x+10,b.y+(b.height-font:getHeight())/2,b.width-20,"center")
     end
     love.graphics.setColor(.75,.87,.79,1)
     love.graphics.printf(string.format("8-hour shift: %.1f real minutes  |  12-hour shift: %.1f",minutes/3,minutes/2),255,505,450,"center")

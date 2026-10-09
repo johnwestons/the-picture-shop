@@ -18,9 +18,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.machineRelocationActive()
-        return Runtime.state.cutter and Runtime.state.cutter.moving
-            or Runtime.state.wrapper and Runtime.state.wrapper.moving
-            or Runtime.state.windmill and Runtime.state.windmill.moving
+        return Runtime.World.movingMachine(Runtime.state) ~= nil
     end
 
     function Runtime.customerView(offer)

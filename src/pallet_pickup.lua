@@ -7,9 +7,8 @@ function Pickup.snapshot(state, config, player, cursorX, cursorY)
     local jack = state and state.palletJack
     local playerId = player and tonumber(player.id) or 1
     if not jack or not jack.operating or jack.operatorPlayerId ~= playerId
-        or jack.carriedPalletId or (player and player.sceneId and player.sceneId ~= "warehouse")
-        or (state.cutter and state.cutter.moving) or (state.wrapper and state.wrapper.moving)
-        or (state.windmill and state.windmill.moving) then return view end
+        or jack.carriedPalletId or (jack.sceneId or "warehouse")~=(player and player.sceneId or "warehouse")
+        or require("src.machine_transport").active(state) then return view end
     view.hasPointer = type(cursorX) == "number" and type(cursorY) == "number"
     view.candidates = Jack.pickupCandidates(state, config)
     local hovered, hoverDistance

@@ -15,6 +15,7 @@ function Component.install(Runtime)
     Runtime.utf8 = require("utf8")
     Runtime.Reputation = require("src.reputation")
     Runtime.Upgrades = require("src.warehouse_upgrades")
+    Runtime.BreakroomGames = require("src.breakroom_games")
     Runtime.Credit = require("src.credit")
     Runtime.OfficeIntent = require("src.office_intent")
     Runtime.Hiring = require("src.screens.hiring_screen")
@@ -59,6 +60,7 @@ function Component.install(Runtime)
         warehousePending = false,
         warehouseMessage = nil,
         warehouseRequestNumber = 0,
+        warehouseGamesPage = false,
         creditConfirmation = nil,
         creditRequestNumber = 0,
         creditChannel = "online",

@@ -62,10 +62,11 @@ function Test.run(context,check)
     local entry={worker=worker,actor=worker}
     for _,profile in ipairs(Catalog.profiles) do
         worker.character=profile.character;worker.phase="break";worker.seatBay="front_left"
-        worker.moving=false;worker.breakRemaining=.3;worker.idleClock=1
-        local action,frame=Renderer.pose(entry,context.characterAssets)
+        worker.moving=false;worker.breakRemaining=.3;worker.idleClock=1;worker.breakKind="meal"
+        local action,frame,mirror=Renderer.pose(entry,context.characterAssets)
         local image,_,count=context.characterAssets.get(worker.character,action,frame)
-        check("employee_chair_pose_"..profile.character,image and action=="chair_west" and count==4 and frame==2)
+        check("employee_chair_pose_"..profile.character,image and action=="break_eat"
+            and count==4 and frame==2 and mirror==-1)
         worker.seatBay=nil;worker.phase="pushing";worker.intentX,worker.intentY=-1,-1
         worker.jackDistance=20;worker.moving=true
         local pushing,pushFrame,mirror=Renderer.pose(entry,context.characterAssets)

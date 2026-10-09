@@ -1,0 +1,17 @@
+{
+  "source": "assets/generated/warehouse-open-office-v1.png",
+  "sourceHash": "F43D831D1C23478283F334A1F2662AB3C6F0CC7E64F7CB6525D9C99C210A718C",
+  "edit": "assets/source/lobby-seating-v2/lobby-refined.png",
+  "editHash": "983600277338E71512EDF55DAE25449D53455B9351476AA9B593C6DC92F56551",
+  "destination": "assets/generated/warehouse-lobby-seating-v2.png",
+  "crop": [
+    1096,
+    210,
+    224,
+    144
+  ],
+  "mask": "Union of sofa and former table/rug polygons, feathered 3 native pixels inside the boundary",
+  "changedLobbyPixels": 12531,
+  "changedOutsideLobbyPixels": 0,
+  "generationTool": "built-in ImageGen"
+}

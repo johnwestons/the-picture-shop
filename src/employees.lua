@@ -40,6 +40,7 @@ local function validActor(a)
         and number(a.x,0,960) and number(a.y,0,678)
         and number(a.intentX,-1,1) and number(a.intentY,-1,1)
         and number(a.distance,0,1e12) and number(a.idleClock,0,1e12)
+        and (a.waitTimer==nil or number(a.waitTimer,0,1e12))
         and (a.moving==nil or type(a.moving)=="boolean")
         and (a.workFrame==nil or int(a.workFrame,1,4))
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
@@ -284,7 +285,8 @@ local function notice(state,a,suffix,subject,body)
         noticeKind="employment",applicationId=a.id,attachmentKind="resume"},0)
 end
 local function actor()
-    return {visible=false,phase="hidden",x=645,y=235,intentX=0,intentY=1,distance=0,idleClock=0}
+    local entrance=require("src.config").customer.route[1]
+    return {visible=false,phase="hidden",x=entrance.x,y=entrance.y,intentX=0,intentY=1,distance=0,idleClock=0}
 end
 function Employees.createApplicant(state,now)
     local e=Employees.ensure(state)

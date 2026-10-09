@@ -13,6 +13,9 @@ Jobs.MIN_SHEETS = 500
 Jobs.MAX_SHEETS = 3000
 Jobs.MAX_SOURCE_WIDTH = 25
 Jobs.MAX_SOURCE_HEIGHT = 25
+-- Hard layouts can allocate only a quarter of the excess to one edge.
+-- One extra inch per axis therefore leaves at least 0.25 inches to trim.
+Jobs.MIN_STOCK_EXCESS = 1
 Jobs.LIFT_CAPACITY = 500
 Jobs.PRICE_PER_LIFT = 150
 
@@ -28,6 +31,9 @@ local function dimension(value, name)
     local height = value.height or value.h
     if not (type(width) == "number" and type(height) == "number") then
         return nil, name .. " must include numeric width and height"
+    end
+    if width ~= width or height ~= height or width == math.huge or height == math.huge then
+        return nil, name .. " dimensions must be finite numbers"
     end
     if width <= 0 or height <= 0 then
         return nil, name .. " dimensions must be greater than zero"
@@ -258,8 +264,13 @@ function Jobs.validateSpec(spec)
     end
     local finished, finishedError = dimension(spec.finishedSize, "finishedSize")
     if finishedError then errors[#errors + 1] = finishedError end
-    if source and finished and (finished.width > source.width or finished.height > source.height) then
-        errors[#errors + 1] = "finishedSize must fit within sourceSize"
+    if source and finished then
+        if finished.width > source.width or finished.height > source.height then
+            errors[#errors + 1] = "finishedSize must fit within sourceSize"
+        elseif source.width + 0.000001 < finished.width + Jobs.MIN_STOCK_EXCESS
+            or source.height + 0.000001 < finished.height + Jobs.MIN_STOCK_EXCESS then
+            errors[#errors + 1] = "sourceSize must exceed finishedSize by at least 1 inch in both dimensions"
+        end
     end
 
     local counts = normalizedSheetCounts(spec)

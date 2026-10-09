@@ -5,6 +5,7 @@ local Component = {}
 function Component.install(Runtime)
     Runtime.inputContext = {
         state = Runtime.state,
+        airHockeyRuntime = Runtime,
         roomControl = function(key) return require("src.shop_room_controls").keypressed(key,Runtime) end,
         assets = Runtime.Assets,
         computerScreen = Runtime.ComputerScreen,
@@ -26,18 +27,21 @@ function Component.install(Runtime)
         title = Runtime.TitleScreen,
         saveCurrent = Runtime.saveCurrent,
         isNetworkClient = function() return Runtime.multiplayer:isClient() end,
-        cutterControlOccupied = function()
-            local target = Runtime.World.selectedInteraction and Runtime.World.selectedInteraction.target
+        cutterControlOccupied = function(machineId)
+            local target = machineId and { machineId = machineId }
+                or Runtime.World.selectedInteraction and Runtime.World.selectedInteraction.target
             local resourceId = Runtime.World.workshopResourceId("cutter", target)
             return Runtime.workshopAuthority and Runtime.workshopAuthority:leaseForResource(resourceId) ~= nil
         end,
-        wrapperControlOccupied = function()
-            local target = Runtime.World.selectedInteraction and Runtime.World.selectedInteraction.target
+        wrapperControlOccupied = function(machineId)
+            local target = machineId and { machineId = machineId }
+                or Runtime.World.selectedInteraction and Runtime.World.selectedInteraction.target
             local resourceId = Runtime.World.workshopResourceId("skidWrapper", target)
             return Runtime.workshopAuthority and Runtime.workshopAuthority:leaseForResource(resourceId) ~= nil
         end,
-        windmillControlOccupied = function()
-            local target = Runtime.World.selectedInteraction and Runtime.World.selectedInteraction.target
+        windmillControlOccupied = function(machineId)
+            local target = machineId and { machineId = machineId }
+                or Runtime.World.selectedInteraction and Runtime.World.selectedInteraction.target
             local resourceId = Runtime.World.workshopResourceId("windmill", target)
             return Runtime.workshopAuthority and Runtime.workshopAuthority:leaseForResource(resourceId) ~= nil
         end,

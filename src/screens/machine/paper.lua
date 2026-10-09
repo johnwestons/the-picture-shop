@@ -136,10 +136,11 @@ function Component.install(Runtime)
         else
             screenMargins = margins
         end
-        local innerX = x + math.min(width * 0.45, screenMargins.left / widthValue * width)
-        local innerY = y + math.min(height * 0.45, screenMargins.top / heightValue * height)
-        local innerRight = x + width - math.min(width * 0.45, screenMargins.right / widthValue * width)
-        local innerBottom = y + height - math.min(height * 0.45, screenMargins.bottom / heightValue * height)
+        -- Keep real uncut trim readable at bed scale; a cut edge stays flush.
+        local innerX = x + Runtime.CutGuide.marginPixels(screenMargins.left, width, widthValue)
+        local innerY = y + Runtime.CutGuide.marginPixels(screenMargins.top, height, heightValue)
+        local innerRight = x + width - Runtime.CutGuide.marginPixels(screenMargins.right, width, widthValue)
+        local innerBottom = y + height - Runtime.CutGuide.marginPixels(screenMargins.bottom, height, heightValue)
         local innerWidth, innerHeight = math.max(8, innerRight - innerX), math.max(8, innerBottom - innerY)
         local r1, g1, b1 = Runtime.artworkColor(paper.artworkId, 1)
         local r2, g2, b2 = Runtime.artworkColor(paper.artworkId, 2)

@@ -87,6 +87,8 @@ function Component.install(Runtime)
         Runtime.Machine.setMultiplayerSingleControl(Runtime.multiplayer:isActive())
         local saveNeeded = false
         local networkInputX, networkInputY = 0, 0
+        Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
+        Runtime.kombatInputX,Runtime.kombatButtons=0,0
         local predictedJackOwner
         if Runtime.state.screen ~= "world" and Runtime.PalletJack.isOperator(
             Runtime.state, Runtime.Config.palletJack, Runtime.World.player.id or 1) then
@@ -146,6 +148,10 @@ function Component.install(Runtime)
             Runtime.DirectScreen.update(dt)
         elseif Runtime.state.screen == "world" then
             local directionX, directionY = Runtime.Input.movement()
+            if require("src.basketball").isChargingFor(Runtime.state,
+                tonumber(Runtime.World.player.id) or 1) then
+                directionX,directionY=0,0
+            end
             networkInputX, networkInputY = directionX, directionY
             if Runtime.multiplayer:isClient() then
                 local cursorX, cursorY
@@ -179,6 +185,13 @@ function Component.install(Runtime)
                 end
                 if Runtime.World.update(dt, directionX, directionY, Runtime.Assets, Runtime.state, cursorX, cursorY, gameDt) then saveNeeded = true end
             end
+        elseif Runtime.state.screen == "air_hockey" then
+            local keyX,keyY=Runtime.Input.movement()
+            Runtime.airHockeyInputX,Runtime.airHockeyInputY=
+                require("src.screens.air_hockey_screen").controls(Runtime,keyX,keyY)
+        elseif Runtime.state.screen == "critter_kombat" then
+            Runtime.kombatInputX,Runtime.kombatButtons=
+                require("src.screens.critter_kombat_screen").controls(Runtime)
         elseif Runtime.state.screen == "machine" and not Runtime.multiplayer:isClient() then
             Runtime.MachineScreen.update(dt)
         elseif Runtime.state.screen == "press" and not Runtime.multiplayer:isClient() then
@@ -190,6 +203,33 @@ function Component.install(Runtime)
         -- Guests may keep walking and working while the host reads any shop menu.
         if not Runtime.multiplayer:isClient() and simulationActive and Runtime.state.screen ~= "world" then
             if Runtime.World.updateSimulation(gameDt, Runtime.Assets, Runtime.state, dt) then saveNeeded = true end
+        end
+        if not Runtime.multiplayer:isClient() and simulationActive then
+            local inputs={}
+            local participants={}
+            inputs[tonumber(Runtime.World.player.id) or 1]={x=Runtime.airHockeyInputX,y=Runtime.airHockeyInputY}
+            participants[tonumber(Runtime.World.player.id) or 1]=Runtime.World.player
+            for _,player in ipairs(Runtime.multiplayer.remotePlayers
+                and Runtime.multiplayer:remotePlayers() or {}) do
+                local fresh=Runtime.multiplayer.clock()-(player.lastInputAt or 0)<=.35
+                inputs[player.id]={x=fresh and (player.gameInputX or 0) or 0,
+                    y=fresh and (player.gameInputY or 0) or 0}
+                participants[player.id]=player
+            end
+            local hockey=require("src.air_hockey")
+            hockey.prune(participants)
+            hockey.update(dt,function(id) return inputs[id] end)
+            if require("src.basketball").update(dt,Runtime.state,participants) then saveNeeded=true end
+            local kombat=require("src.critter_kombat")
+            kombat.prune(participants)
+            kombat.update(dt,function(id)
+                if id==(tonumber(Runtime.World.player.id) or 1) then
+                    return {x=Runtime.kombatInputX,buttons=Runtime.kombatButtons}
+                end
+                local player=participants[id]
+                if not player or Runtime.multiplayer.clock()-(player.lastInputAt or 0)>.35 then return nil end
+                return {x=player.gameInputX or 0,buttons=player.combatButtons or 0}
+            end)
         end
         local advanceAuthoritativeMachines = not Runtime.multiplayer:isClient() and simulationActive
         if advanceAuthoritativeMachines then
@@ -213,6 +253,8 @@ function Component.install(Runtime)
             if Runtime.employmentSaveClock>=1 then saveNeeded = true;Runtime.employmentSaveClock=0 end
         end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
+        Runtime.syncCamera()
+        if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
         -- Commit the final frame once when several simulations change together.
         if saveNeeded then Runtime.saveCurrent() end
     end

@@ -1,0 +1,22 @@
+{
+  "source": "assets/generated/warehouse-lobby-seating-v2.png",
+  "sourceHash": "6A76263E06E780B3CF543A6C1EDB58F583E14B1A66C826358F28E4793FA03982",
+  "edit": "assets/source/warehouse-expansion-doorway-v1/warehouse-expansion-doorway-final-edit.png",
+  "editHash": "983ECFBC349690D2D7A620340B6A61B2DEEA89E50BAE61D07847897CF7A3852D",
+  "destination": "assets/generated/warehouse-lobby-seating-v3.png",
+  "crop": [
+    900,
+    80,
+    520,
+    380
+  ],
+  "masks": [
+    "pallet-jack expansion passage replacing the former window",
+    "closed former exterior-door opening",
+    "new exterior entrance and cleared marked chair area"
+  ],
+  "changedPixels": 35793,
+  "changedOutsideEntranceCrop": 0,
+  "featherPixels": 3,
+  "generationTool": "built-in ImageGen"
+}

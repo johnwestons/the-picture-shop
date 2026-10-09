@@ -508,8 +508,22 @@ local function drawButton(rect, label, active, danger)
     love.graphics.printf(label, rect.x, rect.y + rect.height / 2 - 7, rect.width, "center")
 end
 
-function OptionsScreen.drawAccessButton(mouseX, mouseY, screen, bounds)
+function OptionsScreen.drawAccessButton(mouseX, mouseY, screen, bounds, assets)
     OptionsScreen.hover = mouseX and mouseY and { x = mouseX, y = mouseY } or nil
+    if screen == "title" then
+        local rect = OptionsScreen.accessRect(screen, bounds)
+        local hovered = mouseX and mouseY and Ui.contains(rect, mouseX, mouseY)
+        require("src.screens.title_skin").button(assets or require("src.assets"), rect,
+            Ui.pressWithin(rect) and "pressed" or hovered and "hover" or "normal")
+        local previousFont = love.graphics.getFont()
+        local font = require("src.screens.title_fonts").get("metal", 16)
+        love.graphics.setFont(font)
+        love.graphics.setColor(0.94, 0.95, 0.89)
+        love.graphics.printf("OPTIONS", rect.x + 11, rect.y + (rect.height - font:getHeight()) / 2,
+            rect.width - 22, "center")
+        love.graphics.setFont(previousFont)
+        return
+    end
     drawButton(OptionsScreen.accessRect(screen, bounds), "OPTIONS", false, false)
 end
 

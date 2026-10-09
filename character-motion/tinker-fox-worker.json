@@ -262,6 +262,42 @@
       "loop": false,
       "role": "seated",
       "fps": 0.65
+    },
+    "break_eat": {
+      "path": "assets/generated/employee-break-v1/tinker-fox-worker/break_eat.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "seated_break",
+      "fps": 1.5
+    },
+    "break_water": {
+      "path": "assets/generated/employee-break-v1/tinker-fox-worker/break_water.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "seated_break",
+      "fps": 1.5
+    },
+    "break_coffee": {
+      "path": "assets/generated/employee-break-v1/tinker-fox-worker/break_coffee.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "seated_break",
+      "fps": 1.5
+    },
+    "break_idle": {
+      "path": "assets/generated/employee-break-v1/tinker-fox-worker/break_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "seated_break",
+      "fps": 0.65
     }
   },
   "directions": {
@@ -381,5 +417,18 @@
       "blink": 3,
       "exit": 4
     }
+  },
+  "break_action_contract": {
+    "actions": {
+      "meal": "break_eat",
+      "rest_water": "break_water",
+      "rest_coffee": "break_coffee",
+      "idle": "break_idle"
+    },
+    "frame_count": 4,
+    "active_fps": 1.5,
+    "idle_fps": 0.65,
+    "baseline": 229,
+    "west_view": "mirror east-facing strip"
   }
 }

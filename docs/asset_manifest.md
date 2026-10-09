@@ -13,6 +13,7 @@ The runtime boundary is organized by residency pack. `src/assets.lua` validates 
 | `windmillDirections` | 1536x1024, 2x2 | Four-way movable Windmill |
 | `technicianNpcs` | 2048x1024, 4x2 | Mouse and lizard field technicians |
 | `characters/rabbit-worker` directional idles / walks | five 1024x512, 2x1 / five 4096x512, 8x1 strips | Paired eight-sector streamed player movement pack |
+| `characters/rabbit-worker` work, forklift, computer, and phone actions | twenty 1024x256, 4x1 strips | Four action sets with five authored perspectives each; west, northwest, and southwest mirror the matching eastward views |
 | `loadingBayDoor` | 1300x260, 5x1 | Loading-bay animation |
 | `deliveryTruck` | 512x512 | Truck body |
 | `truckCargoDoor` | 2560x512, 5x1 | Truck cargo animation |
@@ -36,8 +37,8 @@ Configured `artwork:*` images are 128x128 library entries resolved by saved artw
 
 | Pack | Runtime IDs | Residency |
 |---|---|---|
-| Menu | `polarOperatorConsole` (768x512), `cutterControlButtons` (512x128) | Title only |
-| Cutter | Menu art, `cutterClamp` / `cutterBlade` (3840x512), `cutterMaintenanceOil` (512x512), `cutterMaintenanceTools` (768x512, 3x2), and `cutterMaintenanceScenes` (1024x768, 2x2) | Cutter console and maintenance minigames |
+| Menu | `polarOperatorConsole` (768x512), `cutterControlButtons` (512x128), plus the title cutter, shelf, pallet/ink/toolbox states and animation sheets listed in [title sprite details](title_menu_polar_sprites.md) | Title only |
+| Cutter | `polarOperatorConsole`, `cutterControlButtons`, `cutterClamp` / `cutterBlade` (3840x512), `cutterMaintenanceOil` (512x512), `cutterMaintenanceTools` (768x512, 3x2), and `cutterMaintenanceScenes` (1024x768, 2x2) | Cutter console and maintenance minigames |
 | Wrapper | `loadedPaperPallet` (256x256) | Wrapper console only |
 | Press | `pressProcessStage1` ... `pressProcessStage4`, cut from `press-process-stages-atlas-v3.png` (1254x1254, 2x2); `pressHandbookPage1` ... `pressHandbookPage10`, cut from `heidelberg-operator-handbook-atlas-v2.png` (2560x1024, 5x2); `pressSetupInteraction1` ... `pressSetupInteraction6`, cut from `heidelberg-setup-interactions-atlas-v2.png` (1536x1024, 3x2) | Windmill previews, illustrated Help handbook, and six setup minigames |
 

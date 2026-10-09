@@ -5,6 +5,7 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.App.load()
         Runtime.World.configureEmployees({players=function() return Runtime.multiplayer:remotePlayers() end,
+            isNetworkClient=function() return Runtime.multiplayer:isClient() end,
             canClaim=function(machineId)
                 local unit=Runtime.MachineFleet.byId(Runtime.state,machineId)
                 local base=unit and (unit.modelId=="polar_115" and "cutter"
@@ -96,7 +97,10 @@ function Component.install(Runtime)
             releaseKey = function(key) Runtime.Input.keyreleased(key, Runtime.inputContext) end,
             pressPointer = Runtime.dispatchGameMousePressed,
             releasePointer = Runtime.dispatchGameMouseReleased,
-            screenInfo = function() return Runtime.state.screen, Runtime.state.machineType end,
+            screenInfo = function()
+                return Runtime.state.screen, Runtime.state.machineType,
+                    Runtime.state.screen == "title" and Runtime.TitleScreen.keyboardFocus ~= nil
+            end,
             menuAction = Runtime.openOptions,
         })
         Runtime.Input.setMobileMovementProvider(function()

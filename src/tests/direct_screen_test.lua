@@ -19,6 +19,7 @@ function Test.run(_, check)
     TitleScreen.enter(function() end, function() end, function(slot) directSlot = slot end)
     TitleScreen.keypressed("down")
     local directOpened = TitleScreen.keypressed("i")
+    TitleScreen.update(0.2)
     check("title_screen_exposes_direct_entry_only_when_the_production_callback_exists",
         directOpened and directSlot == 2 and TitleScreen.buttonCenter("directPlay") ~= nil)
     TitleScreen.enter(function() end, function() end)

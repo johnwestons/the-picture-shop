@@ -1,0 +1,96 @@
+{
+  "version": 2,
+  "sources": [
+    {
+      "character": "rabbit-worker",
+      "action_set": "standing_work",
+      "source": "assets/source/player-actions-v2/rabbit-worker-standing-work-v2.png",
+      "sha256": "26e1febe0fdb3a1483fcffe732f3f76d1c75f14a5d9a6efb6ad15e44dbde8b82",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 5,
+        "row_views": [
+          "east",
+          "northeast",
+          "north",
+          "southeast",
+          "south"
+        ],
+        "frame_order": "left to right"
+      },
+      "actions": [
+        "work_cutter",
+        "work_press",
+        "work_wrapping",
+        "work_task"
+      ]
+    },
+    {
+      "character": "rabbit-worker",
+      "action_set": "forklift_operation",
+      "source": "assets/source/player-actions-v2/rabbit-worker-forklift-work-v2.png",
+      "sha256": "0df2acaba24e99de3f49a6f426daee1f2878c71b852fbd0fb98e80b6973b94aa",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 5,
+        "row_views": [
+          "east",
+          "northeast",
+          "north",
+          "southeast",
+          "south"
+        ],
+        "frame_order": "left to right"
+      },
+      "actions": [
+        "operate_forklift"
+      ]
+    },
+    {
+      "character": "rabbit-worker",
+      "action_set": "computer_use",
+      "source": "assets/source/player-actions-v2/rabbit-worker-computer-use-v1.png",
+      "sha256": "85fb6a7372388fd78e10c55b6c0bfcbc45e0cbb3babc51d28d559b7fccff70ff",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 5,
+        "row_views": [
+          "east",
+          "northeast",
+          "north",
+          "southeast",
+          "south"
+        ],
+        "frame_order": "left to right"
+      },
+      "actions": [
+        "use_computer"
+      ]
+    },
+    {
+      "character": "rabbit-worker",
+      "action_set": "answer_phone",
+      "source": "assets/source/player-actions-v2/rabbit-worker-answer-phone-v1.png",
+      "sha256": "ee8876aa8fcaebf87e81145b11d38fb6fa42d6dc378e247107f043c8689fde30",
+      "generator": "OpenAI imagegen",
+      "layout": {
+        "columns": 4,
+        "rows": 5,
+        "row_views": [
+          "east",
+          "northeast",
+          "north",
+          "southeast",
+          "south"
+        ],
+        "frame_order": "left to right"
+      },
+      "actions": [
+        "answer_phone"
+      ]
+    }
+  ]
+}

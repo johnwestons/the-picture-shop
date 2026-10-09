@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "character": "cat-worker",
+      "path": "assets/source/employee-break-v1/cat-worker-break-atlas-v1.png",
+      "sha256": "98db2ad623f5508417cfc0d9ab273d92f83fc67f98de64cfff598eadbd8e1e7d",
+      "generator": "built-in image_gen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "rows": [
+        "break_eat",
+        "break_water",
+        "break_coffee",
+        "break_idle"
+      ]
+    },
+    {
+      "character": "tinker-fox-worker",
+      "path": "assets/source/employee-break-v1/tinker-fox-worker-break-atlas-v1.png",
+      "sha256": "6a5e660007352ac6d7077b8989ca0ba1622a7094f14dc36cbdc2f01eb2e3d5bb",
+      "generator": "built-in image_gen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "rows": [
+        "break_eat",
+        "break_water",
+        "break_coffee",
+        "break_idle"
+      ]
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "path": "assets/source/employee-break-v1/ferret-engineer-worker-break-atlas-v1.png",
+      "sha256": "1d9a3e4646dbf22a67d92efc4cc2ecaad1198e2c2492ac41987cd2fed755cb2d",
+      "generator": "built-in image_gen",
+      "layout": {
+        "columns": 4,
+        "rows": 4,
+        "frame_order": "left to right"
+      },
+      "rows": [
+        "break_eat",
+        "break_water",
+        "break_coffee",
+        "break_idle"
+      ]
+    }
+  ]
+}

@@ -504,6 +504,7 @@ function Test.run(context, check, economy, jobs)
     check("title_corrupted_slot_cannot_continue", corruptStarts == 0
         and context.title.message:find("damaged", 1, true) ~= nil)
     context.input.keypressed("n", context.inputContext)
+    context.title.update(0.2)
     check("title_corrupted_slot_requires_overwrite_confirmation",
         context.title.mode == "overwrite-confirm" and corruptStarts == 0)
     context.input.keypressed("n", context.inputContext)

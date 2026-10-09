@@ -21,6 +21,7 @@ function Component.install(Runtime)
             x = snapshot.x,
             y = snapshot.y,
             direction = snapshot.direction,
+            sceneId = snapshot.sceneId,
             operating = snapshot.operating,
             moving = snapshot.moving,
             operatorPlayerId = snapshot.operatorPlayerId,
@@ -38,6 +39,8 @@ function Component.install(Runtime)
         local normalizedMachinePoses, machinePoseError = Runtime.MachinePose.normalize(
             machinePoses, snapshot, 100000, "network machine poses")
         if not normalizedMachinePoses then return false, machinePoseError end
+        local targetsValid, targetError = Runtime.MachinePose.canApply(state, normalizedMachinePoses)
+        if not targetsValid then return false, targetError end
         local applied, applyError = Runtime.PalletJack.applySnapshot(
             state, snapshot, Runtime.Config.palletJack)
         if not applied then return false, applyError end
@@ -61,16 +64,20 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.palletAt(state, x, y)
-        return Runtime.PalletLogistics.hovered(state, x, y)
+        return Runtime.PalletLogistics.hovered(state, x, y,
+            require("src.shop_rooms").scene(Runtime.World.player))
     end
 
     function Runtime.World.palletTooltipAt(state, x, y)
         if type(x) ~= "number" or type(y) ~= "number" then return nil end
         local pickup = Runtime.World.palletPickupSnapshot(state, x, y)
-        local hovered = pickup.hovered and pickup.selected or Runtime.PalletLogistics.hovered(state, x, y)
+        local sceneId=require("src.shop_rooms").scene(Runtime.World.player)
+        local hovered = pickup.hovered and pickup.selected
+            or Runtime.PalletLogistics.hovered(state, x, y,sceneId)
         if not hovered then
             local carried = Runtime.PalletJack.carriedItem(state, Runtime.Config.palletJack)
-            if carried and x >= carried.x - 58 and x <= carried.x + 58
+            if Runtime.PalletJack.ensure(state,Runtime.Config.palletJack).sceneId==sceneId
+                and carried and x >= carried.x - 58 and x <= carried.x + 58
                 and y >= carried.y - 92 and y <= carried.y + 12
             then hovered = carried end
         end

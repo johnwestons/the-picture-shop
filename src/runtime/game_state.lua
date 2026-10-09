@@ -18,6 +18,9 @@ function Component.install(Runtime)
         Runtime.App.gameClockSyncClock = 0
         Runtime.App.gameClockSaveClock = 0
         Runtime.World.load(payload.player)
+        require("src.air_hockey").clear()
+        require("src.basketball").clear()
+        require("src.critter_kombat").clear()
         Runtime.App.syncPlayerColorways()
         Runtime.Machine.reset()
         Runtime.Wrapper.clearInstances()

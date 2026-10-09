@@ -68,6 +68,8 @@ function PalletState.items(state) return allPallets(state) end
 
 local function validWorld(world)
     return type(world) == "table" and type(world.x) == "number" and type(world.y) == "number"
+        and (world.sceneId==nil or world.sceneId=="warehouse"
+            or world.sceneId=="front_left" or world.sceneId=="front_right")
 end
 
 function PalletState.find(state, palletId)

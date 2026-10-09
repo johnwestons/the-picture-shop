@@ -57,6 +57,7 @@ function Component.install(Runtime)
             request.enabled = arguments.enabled
         elseif action == "move_machine" then
             request.machineIndex = arguments.machineIndex
+            request.machineId = arguments.machineId
         elseif action == "place_machine" then
             request.placementCell = arguments.placementCell
         elseif action == "order_plate" or action == "begin_plate" or action == "process_plate" then

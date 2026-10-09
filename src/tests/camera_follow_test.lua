@@ -4,6 +4,9 @@ local Options = require("src.screens.options_screen")
 local Viewport = require("src.viewport")
 local Test = {}
 local function near(a,b) return math.abs(a-b)<.001 end
+local function settle(camera)
+    for _=1,240 do camera:update(1/60) end
+end
 function Test.run(context,check)
     check("camera_follow_old_device_settings_default_off",
         not Settings.normalize().followPlayerCamera
@@ -12,13 +15,16 @@ function Test.run(context,check)
     local camera=Camera.new({enabled=true,followOffsetY=-38})
     camera:setViewport(1469,678);camera:selectView("world",true)
     camera:setFollowTarget(player)
+    settle(camera)
     local x,y=camera:worldToScreen(player.x,player.y-38)
     check("camera_follow_centers_body_at_warehouse_edge",near(x,480) and near(y,339))
     local before=camera.zoom
     camera:beginGesture(600,420,200);camera:updateGesture(750,460,300)
+    settle(camera)
     x,y=camera:worldToScreen(player.x,player.y-38)
     check("camera_follow_pinch_zooms_without_panning_off_player",camera.zoom>before and near(x,480) and near(y,339))
     player.x,player.y=850,630;camera:setFollowTarget(player)
+    settle(camera)
     x,y=camera:worldToScreen(player.x,player.y-38)
     local worldX,worldY=camera:screenToWorld(x+71,y-83)
     local screenX,screenY=camera:worldToScreen(worldX,worldY)
@@ -61,7 +67,9 @@ function Test.run(context,check)
         state.screen,state.activeSlot="world",nil
         localPlayer.x,localPlayer.y,localPlayer.id=410,230,3
         app.draw()
+        settle(camera)
         before=camera.zoom;app.wheelmoved(0,3);app.draw()
+        settle(camera)
         x,y=camera:worldToScreen(localPlayer.x,localPlayer.y+camera.followOffsetY)
         check("camera_follow_real_app_zoom_centers_local_player_"..suffix,
             camera.followTarget==localPlayer and camera.zoom>before and near(x,480) and near(y,339))
@@ -75,6 +83,7 @@ function Test.run(context,check)
             not camera.followTarget and (not mobile or near(camera.zoom,1)))
         app.keypressed("escape");app.draw()
         localPlayer.x,localPlayer.y=760,570;app.draw()
+        settle(camera)
         x,y=camera:worldToScreen(localPlayer.x,localPlayer.y+camera.followOffsetY)
         check("camera_follow_real_app_rejoins_after_menu_and_movement_"..suffix,
             state.screen=="world" and near(camera.zoom,worldZoom) and near(x,480) and near(y,339),

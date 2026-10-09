@@ -87,7 +87,7 @@ function Test.run(context,check)
     legacy.state.employment.version=2
     for _,old in ipairs(legacy.state.employment.staff) do old.laborTotals=nil end
     local migrated=Schema.migrate(legacy)
-    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==21 and migrated.state.employment.version==6
+    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==6
         and near(migrated.state.employment.staff[1].laborTotals.shopCents,4400) and migrated.state.jobs.active[1].quote.totalPrice==agreed
         and legacy.state.employment.staff[1].laborTotals==nil)
     -- The Bills page and Payroll settle the same obligations exactly once.

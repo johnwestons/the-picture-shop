@@ -1,15 +1,15 @@
 # Warehouse and separate shop rooms
 
-The approved B6 open-office artwork is the active warehouse. The concrete floor reaches the screen edges, with a loading dock to the left, base shelves on the back wall, reception beside the front entrance and an open computer office at the rear right.
+The approved B6 open-office artwork is the active warehouse. The concrete floor reaches the screen edges, with a loading dock to the left, base shelves on the back wall, a wide expansion-room passage beside the racks, a relocated exterior customer door in the lounge and an open computer office at the rear right.
 
 ## Playing
 
-- Walk to the front entrance beside reception and press **E**, or tap **ROOMS** on mobile. Choose room A or B. Each player's travel is independent.
+- Walk to the wide passage beside the back-wall shelves and press **E**, or tap **ROOMS** on mobile. Choose room A or B. Each player's travel is independent.
 - Buy a storage room, break room or empty utility room from the computer's Warehouse page. Existing construction notices, worker arrival, four construction stages, prices and purchase receipts still apply. A room opens after construction completes.
 - Storage rooms contain ten stock spaces. Move delivered shop supplies to the warehouse entrance with the pallet jack, put the pallet down and park the jack. Enter the storage room, approach its shelves and use **STOCK**. Store the staged pallet or retrieve an existing one. Retrieval finds a clear drop position at the warehouse entrance; it fails safely when that area is full.
 - Customer job pallets can use the base warehouse shelves. Their lower row accepts a pallet jack; their upper row still needs a forklift. A storage-room purchase requires no forklift acknowledgement.
 - In the break room, approach the seating and press **E** or **REST**. Move or use **STAND** to get up. Employees with a completed break-room upgrade recover there using their existing break schedule.
-- Use the rear-left exit in any room to return to the warehouse. Vehicles must be parked before entering a room.
+- Use the rear-left exit in any room to return to the warehouse. Players may take an operated pallet jack and its carried pallet through either doorway; forklifts and moving attached machines must be parked or placed first.
 
 ## Scene and inventory boundaries
 
@@ -23,15 +23,17 @@ The old upgrade IDs and save schema remain compatible: `storage` purchases becom
 
 | Sprite | Runtime file | Size |
 | --- | --- | --- |
-| Selected open-office warehouse | `assets/generated/warehouse-open-office-v1.png` | 1536×1024 |
+| Selected warehouse with revised lobby seating and expansion passage | `assets/generated/warehouse-lobby-seating-v3.png` | 1536×1024 |
 | Stock room | `assets/generated/shop-storage-room-v1.png` | 1536×1024 |
 | Break room | `assets/generated/shop-breakroom-v1.png` | 1536×1024 |
 | Empty utility room | `assets/generated/shop-utility-room-v1.png` | 1536×1024 |
 | Rabbit seated pose, transparent | `assets/generated/characters/rabbit-worker/sit-room-v1.png` | 1254×1254 |
 
-All backgrounds map to the existing 960×678 logical game space. `src/shop_rooms.lua` registers authored floor seams and room furniture; `src/warehouse_room_layout.lua` registers shelf contacts and the base service apron. Dynamic pallets render behind the painted shelf lips. The loading shutter uses the selected warehouse's own pixels, clipped to its aperture. Room backgrounds load on demand through a bounded texture cache. `tools/build_mobile_package.py` includes these generated assets and scene modules in both PC and mobile `.love` packages.
+All backgrounds map to the existing 960×678 logical game space. `src/warehouse_registration.lua` registers floor seams, furniture, doors, visible control contacts and their floor approaches. `src/shop_rooms.lua` selects the floor for the purchased room kind; `src/warehouse_room_layout.lua` registers shelf contacts and the base service apron. Dynamic pallets render behind the painted shelf lips. The loading shutter uses the selected warehouse's own pixels, clipped to its aperture. Room backgrounds load on demand through a bounded texture cache. `tools/build_mobile_package.py` includes these generated assets and scene modules in both PC and mobile `.love` packages.
 
-New room and seated sprites were generated with the built-in ImageGen tool. The exact prompt set is saved in `assets/source/warehouse-redesign-v1/room-sprite-prompts.json` and `rabbit-seated-prompt.txt`. The selected warehouse source and its original edit prompt are in the same source directory.
+The wide expansion passage is registered at `(648, 212)`; the exterior customer entrance is now at `(720, 202)`. Workers, applicants, clients, suppliers and technicians use the exterior entrance. Shift-end workers finish unsafe machine cycles, return the shared jack, and walk to that entrance before leaving. If its center is occupied they can approach another clear door contact. A blocked exit displays **Path blocked** after the goodbye greeting and retries when the aisle clears. See [warehouse alignment](warehouse_alignment.md) for the registration audit and regression checks.
+
+New room and seated sprites were generated with the built-in ImageGen tool. The exact prompt set is saved in `assets/source/warehouse-redesign-v1/room-sprite-prompts.json` and `rabbit-seated-prompt.txt`. The entrance artwork edit and prompt record are in `assets/source/warehouse-expansion-doorway-v1/`.
 
 ## Verification
 

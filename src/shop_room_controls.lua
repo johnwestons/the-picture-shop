@@ -25,7 +25,8 @@ local function send(Runtime,kind,command)
     local okay,_,message=Runtime.World.performNetworkInteraction(Runtime.World.player,Runtime.state,kind,command)
     Runtime.state.message=message
     Runtime.World.selectedInteraction=nil
-    if okay and kind=="roomStock" then Runtime.saveCurrent() end
+    if okay and (kind=="roomStock" or kind=="roomGame"
+        and (command=="basketball:pickup" or command=="basketball:drop")) then Runtime.saveCurrent() end
     return okay
 end
 local function rows(Runtime)
@@ -42,10 +43,13 @@ local function rows(Runtime)
         for _,id in ipairs({"front_left","front_right"}) do
             local bay=Runtime.state.warehouse.bays[id]
             local ready=Rooms.definition(Runtime.state,id)
+            local stage=Rooms.constructionStage(Runtime.state,id)
             local product=bay.optionId and require("src.warehouse_upgrades").catalog(bay.optionId)
             local project=require("src.warehouse_layout").project(Runtime.state,id)
             result[#result+1]={label=(id=="front_left" and "ROOM A" or "ROOM B").."  /  "..(product and product.name or "Unpurchased"),
-                detail=ready and "Enter this separate room" or project and ("Construction: "..project.phase.." / stage "..(project.stage or 0).." of 4")
+                detail=stage and ("Under construction - stage "..stage.." of 4; enter the work area")
+                    or ready and "Enter this separate room"
+                    or project and ("Construction: "..project.phase.." / stage "..(project.stage or 0).." of 4")
                     or "Order this room on the office computer",
                 kind="shopRoom",command=id,enabled=ready~=nil}
         end
@@ -76,6 +80,11 @@ function Controls.keypressed(key,Runtime)
         return true
     end
     if Runtime.state.screen~="world" then return false end
+    local held=require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1)
+    if held then
+        if key=="q" then send(Runtime,"roomGame","basketball:drop");return true end
+        if key=="space" then send(Runtime,"roomGame","basketball:shot_start");return true end
+    end
     if Rooms.scene(Runtime.World.player)~="warehouse" and ({f=true,l=true,m=true,q=true,v=true,g=true,t=true,r=true,k=true,h=true})[key] then
         Runtime.state.message="Return to the warehouse to use its machines and vehicles."
         return true
@@ -88,8 +97,41 @@ function Controls.keypressed(key,Runtime)
         else send(Runtime,"shopRoom","warehouse") end
     elseif selected.kind=="roomStock" then Controls.open(Runtime,"stock")
     elseif selected.kind=="roomRest" then send(Runtime,"roomRest",Runtime.World.player.resting and "stand" or "rest")
+    elseif selected.kind=="roomGame" then
+        local fixtureId=selected.target and selected.target.fixtureId
+        if fixtureId=="air_hockey" then
+            require("src.screens.air_hockey_screen").enter(Runtime,Rooms.scene(Runtime.World.player))
+        elseif fixtureId=="critter_kombat" then
+            require("src.screens.critter_kombat_screen").enter(Runtime,Rooms.scene(Runtime.World.player))
+        elseif fixtureId=="basketball" then
+            if selected.target.ball then send(Runtime,"roomGame","basketball:pickup")
+            else
+                local contest
+                for _,entry in ipairs(require("src.basketball").renderRecords(Runtime.state)) do
+                    if entry.bayId==Rooms.scene(Runtime.World.player) then contest=entry;break end
+                end
+                local id=tonumber(Runtime.World.player.id) or 1
+                if contest and contest.contestPhase=="waiting" and contest.leftId~=id then
+                    send(Runtime,"roomGame","basketball:join")
+                elseif not contest or not contest.contestPhase or contest.contestPhase=="finished" then
+                    send(Runtime,"roomGame","basketball:contest")
+                else Runtime.state.message="Contest in progress. Pick up the ball and shoot." end
+            end
+        else
+            Runtime.state.message="This game is unavailable."
+        end
     else return false end
     return true
+end
+function Controls.keyreleased(key,Runtime)
+    if key~="space" or Runtime.state.screen~="world" then return false end
+    local id=tonumber(Runtime.World.player.id) or 1
+    local held=require("src.basketball").heldBy(Runtime.state,id)
+    if held or require("src.basketball").isCharging(id) then
+        send(Runtime,"roomGame","basketball:shot_release")
+        return true
+    end
+    return false
 end
 function Controls.mousepressed(x,y,button,Runtime)
     if Runtime.state.screen~="shop_rooms" then return false end
@@ -120,7 +162,7 @@ function Controls.draw(Runtime)
     love.graphics.setColor(.95,.97,.94,1);love.graphics.printf("BACK",760,152,85,"center")
     love.graphics.setColor(.79,.87,.88,1)
     love.graphics.printf(Controls.mode=="stock" and "Bring supplies to the warehouse entrance with a pallet jack. Park it and use this room's stock desk. Retrieved stock returns to the entrance."
-        or "Rooms are purchased on the computer and unlocked after construction. Each player can enter and leave independently.",115,194,730)
+        or "Enter a room once construction begins to watch the raccoon engineer work. Room services open when construction is complete. Each player can enter and leave independently.",115,194,730)
     local entries=rows(Runtime)
     Controls.page=math.max(1,math.min(Controls.page,math.ceil(#entries/6)))
     Controls.selected=math.max(1,math.min(Controls.selected,#entries))

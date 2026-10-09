@@ -59,14 +59,32 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchpressed(id, x, y)
+        if Runtime.state.screen=="air_hockey" then
+            return require("src.screens.air_hockey_screen").touchpressed(Runtime,id,x,y)
+        end
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").touchpressed(Runtime,id,x,y)
+        end
         if Runtime.mobileControls then return Runtime.mobileControls:touchpressed(id, x, y) end
     end
 
     function Runtime.App.touchmoved(id, x, y, dx, dy)
+        if Runtime.state.screen=="air_hockey" then
+            return require("src.screens.air_hockey_screen").touchmoved(Runtime,id,x,y)
+        end
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").touchmoved(Runtime,id,x,y)
+        end
         if Runtime.mobileControls then return Runtime.mobileControls:touchmoved(id, x, y, dx, dy) end
     end
 
     function Runtime.App.touchreleased(id, x, y)
+        if Runtime.state.screen=="air_hockey" then
+            return require("src.screens.air_hockey_screen").touchreleased(id)
+        end
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").touchreleased(id)
+        end
         if Runtime.mobileControls then return Runtime.mobileControls:touchreleased(id, x, y) end
     end
 

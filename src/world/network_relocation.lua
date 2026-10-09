@@ -3,10 +3,11 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.cutterHasPaper(state)
+    function Runtime.cutterHasPaper(state, machineId)
         for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
             for _, pallet in ipairs(job.pallets or {}) do
-                if pallet.location == "at_cutter" then return true end
+                if pallet.location == "at_cutter" and (not machineId
+                    or (pallet.cutterMachineId or "MCH-0001") == machineId) then return true end
             end
         end
         return false
@@ -44,49 +45,58 @@ function Component.install(Runtime)
         return playerId, jack
     end
 
-    function Runtime.World.beginNetworkMachineMove(player, state, machineIndex, controlOccupied)
+    function Runtime.World.beginNetworkMachineMove(player, state, machineIndex, controlOccupied, machineId)
         local playerId, jack, code, message = Runtime.networkJackOwner(player, state)
         if not playerId then return false, code, message end
+        if (jack.sceneId or "warehouse") ~= "warehouse"
+            or require("src.shop_rooms").scene(player) ~= "warehouse" then
+            return false, "wrong_scene", "Return the pallet jack to the warehouse to move machines."
+        end
         if Runtime.palletJackHasAttachedMachine(state) then
             return false, "machine_moving", "Place the moving machine before relocating another one."
         end
         local record = Runtime.NETWORK_MACHINE_KINDS[tonumber(machineIndex)]
-        if not record or not Runtime.MachineFleet.isInstalled(state, record.modelId) then
+        local unit = record and Runtime.MachineTransport.resolve(state, record.kind, machineId)
+        if not unit then
             return false, "machine_unavailable", "That machine is not installed in this shop."
         end
-        for _,unit in ipairs(Runtime.MachineFleet.installedUnits(state,record.modelId)) do
-            if Runtime.Employees.reservation(state,unit.id) then
-                return false,"employee_reserved","Pause the employee's assignment before relocating this machine."
-            end
+        if Runtime.Employees.reservation(state,unit.id) then
+            return false,"employee_reserved","Pause the employee's assignment before relocating this machine."
         end
         if controlOccupied then
             return false, "console_busy", "Close the active " .. record.label .. " console first."
         end
         if record.kind == "cutter" then
-            if Runtime.Machine.hasActiveBatch() or Runtime.cutterHasPaper(state) then
+            if Runtime.Machine.forId(unit.id).hasActiveBatch() or Runtime.cutterHasPaper(state, unit.id) then
                 return false, "machine_busy", "Unload the cutter and finish its active batch first."
             end
         elseif record.kind == "wrapper" then
-            if not Runtime.Wrapper.canRelocate(state) then
+            if not Runtime.MachineFleet.withUnit(state, unit.id, function()
+                return Runtime.Wrapper.forId(unit.id).canRelocate(state)
+            end) then
                 return false, "machine_busy", tostring(state.message)
             end
         else
-            local process = Runtime.Windmill.ensure(state)
+            local process = Runtime.MachineFleet.withUnit(state, unit.id, function()
+                return Runtime.Windmill.ensure(Runtime.MachineTransport.view(state, record.kind, unit))
+            end)
             if process.status ~= "idle" or process.palletId then
                 return false, "machine_busy", "Unload the Windmill and return it to idle first."
             end
         end
-        local item = record.placement.ensure(state, record.config)
+        local moveState = Runtime.MachineTransport.view(state, record.kind, unit)
+        local item = record.placement.ensure(moveState, record.config)
         if (jack.x - item.x) ^ 2 + (jack.y - item.y) ^ 2
             > record.config.interactionRadius ^ 2
         then
             return false, "out_of_range",
                 "Drive the empty pallet jack beside the " .. record.label .. " first."
         end
-        if not record.placement.beginMove(state, record.config) then
+        if not record.placement.beginMove(moveState, record.config) then
             return false, "machine_changed", "That machine could not be lifted safely."
         end
         Runtime.World.placementSelection = nil
+        Runtime.MachineTransport.remember(state, record.kind, unit)
         item.inMotion = false
         Runtime.PalletJack.followPlacement(state, item, 0, Runtime.Config.palletJack)
         player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
@@ -99,9 +109,11 @@ function Component.install(Runtime)
         if not playerId then return false, code, message end
         local record = Runtime.activeNetworkMachine(state)
         if not record then return false, "no_machine", "No machine is attached to this pallet jack." end
-        local rotated, direction = record.placement.rotate(state, record.config)
+        local _, _, unit = Runtime.MachineTransport.active(state)
+        local moveState = Runtime.MachineTransport.view(state, record.kind, unit)
+        local rotated, direction = record.placement.rotate(moveState, record.config)
         if not rotated then return false, "rotation_blocked", "The machine could not be rotated." end
-        local item = record.placement.ensure(state, record.config)
+        local item = record.placement.ensure(moveState, record.config)
         item.inMotion = false
         Runtime.PalletJack.followPlacement(state, item, 0, Runtime.Config.palletJack)
         player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
@@ -117,9 +129,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.finishNetworkMachinePlacement(player, state, record, x, y)
-        local item = record.placement.ensure(state, record.config)
+        local _, _, unit = Runtime.MachineTransport.active(state)
+        local moveState = Runtime.MachineTransport.view(state, record.kind, unit)
+        local item = record.placement.ensure(moveState, record.config)
         item.x, item.y = x, y
-        if not record.placement.place(state, record.config) then return false end
+        if not record.placement.place(moveState, record.config) then return false end
         Runtime.World.placementSelection = nil
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
         Runtime.PalletJack.stop(state, Runtime.Config.palletJack)
@@ -155,7 +169,8 @@ function Component.install(Runtime)
     function Runtime.World.recoverNetworkMachineMove(state, assets, player)
         local record = Runtime.activeNetworkMachine(state)
         if not record then return false end
-        local item = record.placement.ensure(state, record.config)
+        local _, _, unit = Runtime.MachineTransport.active(state)
+        local item = record.placement.ensure(Runtime.MachineTransport.view(state, record.kind, unit), record.config)
         local origin = item._relocationOrigin
         Runtime.World.placementSelection = nil
         local grid = Runtime.World.placementGridSnapshot(state, assets)
@@ -167,6 +182,56 @@ function Component.install(Runtime)
         local recovered = Runtime.finishNetworkMachinePlacement(player, state, record, x, y)
         if recovered then state.message = "Disconnected relocation recovered and the machine was locked safely." end
         return recovered
+    end
+
+    function Runtime.World.nearbyMachineMove(state)
+        local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
+        if (jack.sceneId or "warehouse") ~= "warehouse" then return nil end
+        local best, nearest
+        for index, record in ipairs(Runtime.NETWORK_MACHINE_KINDS) do
+            for _, unit in ipairs(Runtime.MachineFleet.installedUnits(state, record.modelId)) do
+                local pose = unit.world or state[record.kind]
+                local distance = (jack.x - pose.x)^2 + (jack.y - pose.y)^2
+                if not pose.moving and distance <= record.config.interactionRadius^2
+                    and (not nearest or distance < nearest) then
+                    nearest = distance
+                    best = { kind = ({"cutter", "skidWrapper", "windmill"})[index],
+                        target = { machineId = unit.id } }
+                end
+            end
+        end
+        return best
+    end
+
+    local function localControl(state, callback)
+        local player = Runtime.World.player
+        local worker = { id = tonumber(player.id) or 1, x = player.x, y = player.y, sceneId = player.sceneId }
+        local ok, _, message = callback(worker)
+        if message then state.message = message end
+        if ok then player.x, player.y = worker.x, worker.y end
+        return ok
+    end
+
+    function Runtime.World.beginMachineMove(state, machineId, occupied)
+        local unit = Runtime.MachineFleet.byId(state, machineId)
+        local index
+        for number, record in ipairs(Runtime.NETWORK_MACHINE_KINDS) do
+            if unit and unit.modelId == record.modelId then index = number end
+        end
+        return localControl(state, function(worker)
+            return Runtime.World.beginNetworkMachineMove(worker, state, index, occupied, machineId)
+        end)
+    end
+
+    function Runtime.World.rotateMovingMachine(state)
+        return localControl(state, function(worker) return Runtime.World.rotateNetworkMachine(worker, state) end)
+    end
+
+    function Runtime.World.placeMovingMachine(state, assets)
+        local cell = Runtime.World.networkPlacementCellId(state, assets)
+        return localControl(state, function(worker)
+            return Runtime.World.placeNetworkMachine(worker, state, assets, cell)
+        end)
     end
 end
 

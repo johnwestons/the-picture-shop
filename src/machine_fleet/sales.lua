@@ -53,6 +53,8 @@ function Component.install(Runtime)
             if candidate.id == machineId then foundIndex, item = index, candidate; break end
         end
         if not item then return false, "That machine is no longer owned by the shop." end
+        local pose = item.world or state[Runtime.definition(item.modelId).placementKey]
+        if pose and pose.moving then return false, "Place the moving machine before listing it for sale." end
         local hasLien, loan = require("src.credit").hasLien(state, item.id)
         if hasLien then
             return false, string.format("Pay off machine loan %s before selling this financed machine.", loan.id)

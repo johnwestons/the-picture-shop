@@ -135,6 +135,15 @@ class MobilePackageReproducibilityTests(unittest.TestCase):
                 names = archive.namelist()
                 self.assertIn("src/net/gateway_native.lua", names)
                 self.assertIn("native/route/tps_route.dll", names)
+                # The title fonts are mandatory runtime assets on both platforms.
+                for font in ("VT323-Regular.ttf", "StardosStencil-Bold.ttf",
+                             "BarlowCondensed-SemiBold.ttf", "SpecialElite-Regular.ttf"):
+                    path = "assets/fonts/" + font
+                    self.assertIn(path, names)
+                    self.assertEqual(archive.read(path), (package_builder.ROOT / path).read_bytes())
+                for license_file in ("VT323-LICENSE.txt", "StardosStencil-LICENSE.txt",
+                                     "BarlowCondensed-LICENSE.txt", "SpecialElite-LICENSE.txt"):
+                    self.assertIn("assets/fonts/" + license_file, names)
 
 
 if __name__ == "__main__":

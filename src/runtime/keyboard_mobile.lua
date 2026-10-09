@@ -47,6 +47,12 @@ function Component.install(Runtime)
     end
 
     function Runtime.dispatchKeyPressed(key)
+        if Runtime.state.screen=="air_hockey" then
+            return require("src.screens.air_hockey_screen").keypressed(Runtime,key)
+        end
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").keypressed(Runtime,key)
+        end
         if Runtime.state.screen == "options" then
             local result = Runtime.OptionsScreen.keypressed(key)
             Runtime.syncMobileKeyboard()
@@ -83,16 +89,20 @@ function Component.install(Runtime)
     end
 
     function Runtime.primaryMobileAction()
+        if Runtime.state.screen=="world" and require("src.basketball").heldBy(
+            Runtime.state,tonumber(Runtime.World.player.id) or 1) then
+            return "space","SHOOT"
+        end
         if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
             local selected=Runtime.World.getInteraction()
-            local labels={shopEntrance="EXIT",roomStock="STOCK",roomRest=Runtime.World.player.resting and "STAND" or "REST"}
+            local labels={shopEntrance="EXIT",roomStock="STOCK",roomRest=Runtime.World.player.resting and "STAND" or "REST",
+                roomGame="PLAY"}
             return "e",selected and labels[selected.kind] or "USE"
         end
         if Runtime.warehouseControls:ownsLift() then
             return "e",Runtime.state.forklift.carriedPalletId and "DROP" or "PICK UP"
         end
-        local movingMachine = Runtime.state.cutter and Runtime.state.cutter.moving
-            or Runtime.state.wrapper and Runtime.state.wrapper.moving or Runtime.state.windmill and Runtime.state.windmill.moving
+        local movingMachine = Runtime.World.movingMachine(Runtime.state)
         if movingMachine then
             local localPlayerId = tonumber(Runtime.World.player.id) or 1
             local ownsRelocation = Runtime.state.palletJack and Runtime.state.palletJack.operating
@@ -112,6 +122,7 @@ function Component.install(Runtime)
             and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
             and selected.kind ~= "breakroom"
             and selected.kind ~= "shopEntrance" and selected.kind ~= "roomStock" and selected.kind ~= "roomRest"
+            and selected.kind ~= "roomGame"
             and not Runtime.World.workshopResourceId(selected.kind)
         then
             return "e", "HOST"
@@ -141,13 +152,18 @@ function Component.install(Runtime)
 
     function Runtime.extraMobileActions()
         local actions = {}
+        if require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1) then
+            actions[#actions+1]={key="q",label="DROP"}
+        end
         if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then return actions end
+        local selected=Runtime.World.getInteraction()
+        if selected and selected.kind=="applicant" and not Runtime.multiplayer:isClient() then
+            actions[#actions+1]={key="x",label="DISMISS"}
+        end
         if Runtime.multiplayer:isClient() then
             local info = Runtime.multiplayer:workshopInfo()
             if info and info.resourceId == "pallet_jack" then
-                local movingMachine = Runtime.state.cutter and Runtime.state.cutter.moving
-                    or Runtime.state.wrapper and Runtime.state.wrapper.moving
-                    or Runtime.state.windmill and Runtime.state.windmill.moving
+                local movingMachine = Runtime.World.movingMachine(Runtime.state)
                 if movingMachine then
                     actions[#actions + 1] = { key = "q", label = "TURN" }
                 else
@@ -158,16 +174,9 @@ function Component.install(Runtime)
                     else
                         actions[#actions + 1] = { key = "f", label = "PARK" }
                         local selected = Runtime.World.getInteraction()
-                        local extraMachine = selected and selected.target
-                            and selected.target.relocatable == false
                         local canRelocate = selected and (selected.kind == "cutter"
                             or selected.kind == "skidWrapper" or selected.kind == "windmill")
-                            and not extraMachine
-                        if not canRelocate and not extraMachine then
-                            canRelocate = Runtime.World.cutterNearby and Runtime.World.cutterNearby(Runtime.state)
-                                or Runtime.World.wrapperNearby and Runtime.World.wrapperNearby(Runtime.state)
-                                or Runtime.World.windmillNearby and Runtime.World.windmillNearby(Runtime.state)
-                        end
+                        canRelocate = canRelocate or Runtime.World.nearbyMachineMove(Runtime.state) ~= nil
                         if canRelocate then
                             actions[#actions + 1] = { key = "m", label = "MOVE" }
                         end
@@ -176,8 +185,7 @@ function Component.install(Runtime)
             end
             return actions
         end
-        if Runtime.state.cutter and Runtime.state.cutter.moving or Runtime.state.wrapper and Runtime.state.wrapper.moving
-            or Runtime.state.windmill and Runtime.state.windmill.moving
+        if Runtime.World.movingMachine(Runtime.state)
         then
             actions[#actions + 1] = { key = "q", label = "TURN" }
             return actions
@@ -191,16 +199,9 @@ function Component.install(Runtime)
             else
                 actions[#actions + 1] = { key = "f", label = "PARK" }
                 local selected = Runtime.World.getInteraction()
-                local extraMachine = selected and selected.target
-                    and selected.target.relocatable == false
                 local canRelocate = selected and (selected.kind == "cutter"
                     or selected.kind == "skidWrapper" or selected.kind == "windmill")
-                    and not extraMachine
-                if not canRelocate and not extraMachine then
-                    canRelocate = Runtime.World.cutterNearby and Runtime.World.cutterNearby(Runtime.state)
-                        or Runtime.World.wrapperNearby and Runtime.World.wrapperNearby(Runtime.state)
-                        or Runtime.World.windmillNearby and Runtime.World.windmillNearby(Runtime.state)
-                end
+                canRelocate = canRelocate or Runtime.World.nearbyMachineMove(Runtime.state) ~= nil
                 if canRelocate then actions[#actions + 1] = { key = "m", label = "MOVE" } end
             end
         end

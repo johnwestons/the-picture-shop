@@ -134,8 +134,8 @@ function Component.install(Runtime)
         local placementKey = item and Runtime.MachineFleet.definitions[item.modelId]
             and Runtime.MachineFleet.definitions[item.modelId].placementKey
         if item and item.status == "installed" and placementKey
-            and currentState and currentState[placementKey]
-            and currentState[placementKey].moving
+            and currentState and (item.world or currentState[placementKey])
+            and (item.world or currentState[placementKey]).moving
         then
             return false, "Place the moving machine before listing it for sale."
         end

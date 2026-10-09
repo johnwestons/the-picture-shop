@@ -67,12 +67,13 @@ end
 function Controller:gamepadpressed(joystick, button)
     if not joystick or not joystick:isGamepad() then return false end
     self.active = joystick
-    local screen, machineType = self.screenInfo()
+    local screen, machineType, menuFocused = self.screenInfo()
     if dpadKeys[button] then return self:_pressMappedKey(button, dpadKeys[button]) end
     if button == "start" then self.menuAction(); return true end
     if screen == "world" then
         if button == "a" then return self:_pressMappedKey(button, "e")
         elseif button == "x" then return self:_pressMappedKey(button, "f")
+        elseif button == "b" then return self:_pressMappedKey(button, "x")
         elseif button == "y" then return self:_pressMappedKey(button, "m")
         elseif button == "leftshoulder" then return self:_pressMappedKey(button, "l")
         elseif button == "rightshoulder" then return self:_pressMappedKey(button, "q") end
@@ -88,6 +89,9 @@ function Controller:gamepadpressed(joystick, button)
         elseif button == "y" then return self:_pressMappedKey(button, "q") end
     end
     if button == "a" then
+        if screen == "title" and menuFocused then
+            return self:_pressMappedKey(button, "return")
+        end
         self.pointerHeld = true
         self.pressPointer(self.pointerX, self.pointerY, 1)
         return true

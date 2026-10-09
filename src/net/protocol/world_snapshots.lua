@@ -6,8 +6,11 @@ function Component.install(Runtime)
     function Runtime.normalizeInput(payload)
         local valid, shapeError = Runtime.shape(payload, "input payload",
             { "sessionId", "sequence", "moveX", "moveY" },
-            { "furColorway", "overallsColorway" })
+            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons" })
         if not valid then return nil, shapeError end
+        local taskAction, taskActionError = Runtime.normalizeTaskAction(
+            payload.taskAction, "input.taskAction")
+        if taskActionError then return nil, taskActionError end
         local sessionId, fieldError = Runtime.token(payload.sessionId, Runtime.MAX_TOKEN_BYTES, "input.sessionId")
         if not sessionId then return nil, fieldError end
         local sequence
@@ -19,6 +22,20 @@ function Component.install(Runtime)
         local moveY
         moveY, fieldError = Runtime.numberInRange(payload.moveY, -1, 1, "input.moveY")
         if not moveY then return nil, fieldError end
+        local gameX,gameY=0,0
+        if payload.gameX~=nil then
+            gameX,fieldError=Runtime.numberInRange(payload.gameX,-1,1,"input.gameX")
+            if gameX==nil then return nil,fieldError end
+        end
+        if payload.gameY~=nil then
+            gameY,fieldError=Runtime.numberInRange(payload.gameY,-1,1,"input.gameY")
+            if gameY==nil then return nil,fieldError end
+        end
+        local combatButtons=0
+        if payload.combatButtons~=nil then
+            combatButtons,fieldError=Runtime.integerInRange(payload.combatButtons,0,15,"input.combatButtons")
+            if combatButtons==nil then return nil,fieldError end
+        end
         local furColorway = payload.furColorway
         if furColorway ~= nil then
             furColorway, fieldError = Runtime.integerInRange(furColorway, 1, Runtime.RabbitColorways.count("fur"),
@@ -32,12 +49,13 @@ function Component.install(Runtime)
             if not overallsColorway then return nil, fieldError end
         end
         return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,
-            furColorway = furColorway, overallsColorway = overallsColorway }
+            furColorway = furColorway, overallsColorway = overallsColorway,
+            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons }
     end
 
     function Runtime.normalizeSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "snapshot payload",
-            { "sessionId", "serverTick", "players" })
+            { "sessionId", "serverTick", "players" }, { "games", "balls" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(payload.sessionId, Runtime.MAX_TOKEN_BYTES, "snapshot.sessionId")
         if not sessionId then return nil, fieldError end
@@ -50,7 +68,98 @@ function Component.install(Runtime)
         local players
         players, fieldError = Runtime.normalizePlayers(payload.players, "snapshot.players")
         if not players then return nil, fieldError end
-        return { sessionId = sessionId, serverTick = serverTick, players = players }
+        local games
+        if payload.games ~= nil then
+            if not Runtime.Codec.isArray(payload.games) or #payload.games > 2 then
+                return nil,"snapshot.games must contain at most two room matches"
+            end
+            games = {}
+            local seen = {}
+            for index, entry in ipairs(payload.games) do
+                local fields={"bayId","mode","phase","leftId","leftX","leftY","rightX","rightY",
+                    "puckX","puckY","leftScore","rightScore","faceoff"}
+                local okay, err=Runtime.shape(entry,"snapshot.games["..index.."]",fields,{"rightId"})
+                if not okay then return nil,err end
+                if not require("src.breakroom_games").BAYS[entry.bayId] or seen[entry.bayId]
+                    or (entry.mode~="solo" and entry.mode~="versus")
+                    or (entry.phase~="waiting" and entry.phase~="playing" and entry.phase~="finished")
+                    then return nil,"snapshot.games match identity is invalid" end
+                seen[entry.bayId]=true
+                for _,key in ipairs({"leftId","rightId"}) do
+                    if entry[key]~=nil then
+                        local id,idErr=Runtime.integerInRange(entry[key],1,Runtime.Protocol.MAX_PLAYERS,
+                            "snapshot.games."..key)
+                        if not id then return nil,idErr end
+                    end
+                end
+                for _,key in ipairs({"leftX","leftY","rightX","rightY","puckX","puckY"}) do
+                    local n,nErr=Runtime.numberInRange(entry[key],0,800,"snapshot.games."..key)
+                    if n==nil then return nil,nErr end
+                end
+                for _,key in ipairs({"leftScore","rightScore"}) do
+                    local n,nErr=Runtime.integerInRange(entry[key],0,7,"snapshot.games."..key)
+                    if n==nil then return nil,nErr end
+                end
+                local pause,pauseErr=Runtime.numberInRange(entry.faceoff,0,2,"snapshot.games.faceoff")
+                if pause==nil then return nil,pauseErr end
+                games[index]=entry
+            end
+        end
+        local balls
+        if payload.balls~=nil then
+            if not Runtime.Codec.isArray(payload.balls) or #payload.balls>2 then
+                return nil,"snapshot.balls must contain at most two basketballs"
+            end
+            balls={}
+            local seen={}
+            for index,entry in ipairs(payload.balls) do
+                local okay,err=Runtime.shape(entry,"snapshot.balls["..index.."]",
+                    {"bayId","sceneId","x","y","displayY","mode","leftScore","rightScore","streak"},
+                    {"holderPlayerId","shooterId","shotPhase","shotElapsed","leftId","rightId","contestPhase"})
+                if not okay then return nil,err end
+                local bay=require("src.breakroom_games").BAYS
+                if not bay[entry.bayId] or seen[entry.bayId]
+                    or (entry.sceneId~="warehouse" and not bay[entry.sceneId])
+                    or (entry.mode~="placed" and entry.mode~="held" and entry.mode~="flight") then
+                    return nil,"snapshot.balls identity is invalid"
+                end
+                seen[entry.bayId]=true
+                for _,key in ipairs({"x","y","displayY"}) do
+                    local n,nErr=Runtime.numberInRange(entry[key],key=="displayY" and -250 or 0,
+                        key=="x" and 960 or 678,"snapshot.balls."..key)
+                    if n==nil then return nil,nErr end
+                end
+                for _,key in ipairs({"holderPlayerId","shooterId","leftId","rightId"}) do
+                    if entry[key]~=nil then
+                        local n,nErr=Runtime.integerInRange(entry[key],1,Runtime.Protocol.MAX_PLAYERS,
+                            "snapshot.balls."..key)
+                        if not n then return nil,nErr end
+                    end
+                end
+                for _,key in ipairs({"leftScore","rightScore"}) do
+                    local n,nErr=Runtime.integerInRange(entry[key],0,11,"snapshot.balls."..key)
+                    if not n then return nil,nErr end
+                end
+                local streak,streakErr=Runtime.integerInRange(entry.streak,0,1000000,"snapshot.balls.streak")
+                if not streak then return nil,streakErr end
+                if entry.shotPhase~=nil and entry.shotPhase~="charge" and entry.shotPhase~="flight"
+                    and entry.shotPhase~="fall" and entry.shotPhase~="rebound" then
+                    return nil,"snapshot.balls.shotPhase is invalid"
+                end
+                if entry.shotElapsed~=nil then
+                    local elapsed,elapsedErr=Runtime.numberInRange(entry.shotElapsed,0,2,"snapshot.balls.shotElapsed")
+                    if not elapsed then return nil,elapsedErr end
+                end
+                if entry.contestPhase~=nil and entry.contestPhase~="waiting"
+                    and entry.contestPhase~="playing" and entry.contestPhase~="finished" then
+                    return nil,"snapshot.balls.contestPhase is invalid"
+                end
+                balls[index]=entry
+            end
+        end
+        return { sessionId = sessionId, serverTick = serverTick, players = players,
+            games = games and Runtime.Codec.array(games) or nil,
+            balls = balls and Runtime.Codec.array(balls) or nil }
     end
 
     Runtime.VISITOR_STATES = {

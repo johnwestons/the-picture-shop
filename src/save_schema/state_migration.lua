@@ -86,6 +86,15 @@ function Component.install(Runtime)
             return nil, "Invalid saved forklift state."
         end
         result.warehouse, result.storage = warehouse, storage
+        result.breakroomGames = Runtime.BreakroomGames.normalize(source.breakroomGames)
+        if not result.breakroomGames then return nil, "Invalid saved break room games." end
+        for bayId, fixtures in pairs(result.breakroomGames.bays) do
+            local bay = warehouse.bays[bayId]
+            if (fixtures.air_hockey or fixtures.basketball or fixtures.critter_kombat)
+                and (not bay or bay.optionId ~= "breakroom" or bay.status ~= "complete") then
+                return nil, "Break room fixture has no completed room."
+            end
+        end
         if not Runtime.WarehouseConstruction.valid(source.constructionWorker, warehouse) then
             return nil, "Invalid saved construction worker state."
         end
@@ -169,6 +178,7 @@ function Component.install(Runtime)
         result.palletJack = Runtime.mergePlacement(result.palletJack, source.palletJack)
         if type(source.palletJack) == "table" then
             result.palletJack.operating = source.palletJack.operating == true
+            result.palletJack.sceneId = source.palletJack.sceneId or "warehouse"
             result.palletJack.animationClock = source.palletJack.animationClock or 0
             result.palletJack.carriedPalletId = source.palletJack.carriedPalletId
         end

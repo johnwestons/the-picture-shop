@@ -14,6 +14,7 @@ local WindmillPlacement = require("src.windmill_placement")
 local Windmill = require("src.windmill")
 local WorkPhone = require("src.work_phone")
 local WarehouseUpgrades = require("src.warehouse_upgrades")
+local BreakroomGames = require("src.breakroom_games")
 local PalletStorage = require("src.pallet_storage")
 local Forklift = require("src.forklift")
 local WarehouseConstruction = require("src.warehouse_construction")
@@ -28,6 +29,7 @@ local SHARED_FIELDS = {
     "jobs",
     "palletJack",
     "warehouse",
+    "breakroomGames",
     "storage",
     "forklift",
     "constructionWorker",
@@ -65,8 +67,9 @@ function State.applySave(state, payload)
     local employment=Employees.normalize(saved.employment,BusinessCalendar.absoluteHours(saved))
     if not employment then return false end
     local warehouse = WarehouseUpgrades.normalize(saved.warehouse)
+    local breakroomGames = BreakroomGames.normalize(saved.breakroomGames)
     local storage = PalletStorage.normalize(saved.storage)
-    if not warehouse or not storage
+    if not warehouse or not breakroomGames or not storage
         or (saved.forklift ~= nil and not Forklift.validState(saved.forklift, Config.forklift)) then return false end
     local forklift = Forklift.normalize(saved.forklift, Config.forklift)
     if forklift.owned and not warehouse.forkliftOwned then return false end
@@ -121,6 +124,7 @@ function State.applySave(state, payload)
     state.palletJack.operatorPlayerId = nil
     state.palletJack.operatorEmployeeId = nil
     state.warehouse, state.storage, state.forklift = warehouse, storage, forklift
+    state.breakroomGames = breakroomGames
     state.constructionWorker = constructionWorker
     Forklift.forceRelease(state, Config.forklift)
     state.wrapper = type(saved.wrapper) == "table" and saved.wrapper or WrapperPlacement.defaultState(Config.wrapperPlacement)
@@ -175,6 +179,7 @@ function State.applySave(state, payload)
     state.machineId = nil
     state._localWorkshopMachineId = nil
     state._networkMachinePoses = nil
+    state._machinePoseUnits = nil
     state.screen = "world"
     state.message = "Shop opened."
     return true
@@ -208,6 +213,7 @@ function State.applySharedSnapshot(state, snapshot)
     state.activeSlot = nil
     state.currentOffer = nil
     state._networkMachinePoses = nil
+    state._machinePoseUnits = nil
     state._employeePoses = nil
     state.screen = "world"
     state.message = "Shop opened."

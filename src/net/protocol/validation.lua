@@ -75,15 +75,34 @@ function Component.install(Runtime)
         "id", "name", "x", "y", "velocityX", "velocityY", "intentX", "intentY",
         "moving", "facing", "animationDistance", "character", "inputSequence",
     }
+    Runtime.PLAYER_TASK_ACTIONS = {
+        work_cutter = true,
+        work_press = true,
+        work_wrapping = true,
+        work_task = true,
+        operate_forklift = true,
+        use_computer = true,
+        answer_phone = true,
+    }
+
+    function Runtime.normalizeTaskAction(value, label)
+        if value == nil or value == "none" then return nil end
+        if type(value) ~= "string" or not Runtime.PLAYER_TASK_ACTIONS[value] then
+            return nil, label .. " is invalid"
+        end
+        return value
+    end
 
     function Runtime.normalizePlayer(value, label)
         local valid, shapeError = Runtime.shape(value, label, Runtime.PLAYER_FIELDS,
-            { "furColorway", "overallsColorway", "sceneId", "resting" })
+            { "furColorway", "overallsColorway", "sceneId", "resting", "taskAction" })
         if not valid then return nil, shapeError end
         if value.sceneId~=nil and not require("src.shop_rooms").IDS[value.sceneId] then
             return nil,label..".sceneId is invalid"
         end
         if value.resting~=nil and type(value.resting)~="boolean" then return nil,label..".resting is invalid" end
+        local taskAction, taskActionError = Runtime.normalizeTaskAction(value.taskAction, label .. ".taskAction")
+        if taskActionError then return nil, taskActionError end
         local id, fieldError = Runtime.integerInRange(value.id, 1, Runtime.Protocol.MAX_PLAYERS, label .. ".id")
         if not id then return nil, fieldError end
         local name
@@ -138,6 +157,7 @@ function Component.install(Runtime)
             name = name,
             sceneId = value.sceneId or "warehouse",
             resting = value.resting==true,
+            taskAction = taskAction,
             x = x,
             y = y,
             velocityX = velocityX,

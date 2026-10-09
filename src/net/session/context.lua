@@ -161,6 +161,8 @@ function Component.install(Runtime)
             moving = record.moving == true,
             facing = record.facing == -1 and -1 or 1,
             animationDistance = tonumber(record.animationDistance) or 0,
+            taskAction = record.taskAction,
+            taskClock = 0,
             idleClock = tonumber(record.idleClock) or 0,
             interactionClock = 0,
             lastInteractionRequestId = 0,
@@ -190,6 +192,7 @@ function Component.install(Runtime)
         if Runtime.finite(source.animationDistance) then target.animationDistance = source.animationDistance end
         if source.facing == -1 or source.facing == 1 then target.facing = source.facing end
         if type(source.moving) == "boolean" then target.moving = source.moving end
+        target.taskAction = source.taskAction
         if type(source.character) == "string" then target.character = source.character end
         if Runtime.finite(source.furColorway) then target.furColorway = source.furColorway end
         if Runtime.finite(source.overallsColorway) then target.overallsColorway = source.overallsColorway end
@@ -210,6 +213,7 @@ function Component.install(Runtime)
             moving = player.moving == true,
             facing = player.facing == -1 and -1 or 1,
             animationDistance = tonumber(player.animationDistance) or 0,
+            taskAction = player.taskAction or "none",
             character = tostring(player.character or "rabbit-worker"),
             furColorway = tonumber(player.furColorway) or 1,
             overallsColorway = tonumber(player.overallsColorway) or 1,

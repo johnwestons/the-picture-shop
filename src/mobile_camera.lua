@@ -23,6 +23,10 @@ function MobileCamera.new(options)
     self.savedViews = {}
     self.followTarget = nil
     self.followOffsetY = options.followOffsetY or 0
+    self.followMaxSpeed = options.followMaxSpeed or 420
+    self.followAcceleration = options.followAcceleration or 1800
+    self.followResponse = options.followResponse or 0.18
+    self.followVelocityX, self.followVelocityY = 0, 0
     return self
 end
 
@@ -37,6 +41,7 @@ function MobileCamera:selectView(key, fillScreen)
         }
     end
     self.followTarget = nil
+    self.followVelocityX, self.followVelocityY = 0, 0
     self:endGesture()
     self.viewKey = key
     local saved = self.savedViews[key]
@@ -59,11 +64,9 @@ function MobileCamera:isEnabled()
 end
 
 function MobileCamera:_clampCenter()
-    -- Following stays centered even at the warehouse edge. Clamping to the
-    -- floor bounds would push the player off center, especially when zoomed.
+    -- Following ignores floor bounds so it can keep its target in view even
+    -- at the warehouse edge. The center itself moves in update(), not here.
     if self.followTarget then
-        self.centerX = self.followTarget.x
-        self.centerY = self.followTarget.y + self.followOffsetY
         return
     end
     local visibleWidth = self.viewWidth / self.zoom
@@ -80,10 +83,62 @@ function MobileCamera:_clampCenter()
     end
 end
 
-function MobileCamera:setFollowTarget(target)
-    if self.followTarget ~= target then self:endGesture() end
+function MobileCamera:setFollowTarget(target, offsetY)
+    if self.followTarget ~= target then
+        self:endGesture()
+        if not target then self.followVelocityX, self.followVelocityY = 0, 0 end
+    end
     self.followTarget = target
+    self.followTargetOffsetY = offsetY == nil and self.followOffsetY or offsetY
     self:_clampCenter()
+end
+
+local function moveToward(x, y, targetX, targetY, maximumDistance)
+    local dx, dy = targetX - x, targetY - y
+    local distance = math.sqrt(dx * dx + dy * dy)
+    if distance <= maximumDistance or distance < 0.000001 then return targetX, targetY end
+    local scale = maximumDistance / distance
+    return x + dx * scale, y + dy * scale
+end
+
+function MobileCamera:update(dt)
+    local target = self.followTarget
+    if not target or type(target.x) ~= "number" or type(target.y) ~= "number" then return end
+
+    -- Clamp long frames so a pause or network hitch cannot turn one camera
+    -- update into a large teleport. A speed limit also bounds catch-up after
+    -- a sudden target jump.
+    local elapsed = math.min(math.max(0, tonumber(dt) or 0), 0.1)
+    if elapsed <= 0 then return end
+    local targetX = target.x
+    local targetY = target.y + (self.followTargetOffsetY or 0)
+    local dx, dy = targetX - self.centerX, targetY - self.centerY
+    local distance = math.sqrt(dx * dx + dy * dy)
+    local speed = math.sqrt(self.followVelocityX ^ 2 + self.followVelocityY ^ 2)
+    if distance < 0.02 and speed < self.followAcceleration * elapsed then
+        self.centerX, self.centerY = targetX, targetY
+        self.followVelocityX, self.followVelocityY = 0, 0
+        return
+    end
+
+    local desiredSpeed = math.min(self.followMaxSpeed, distance / math.max(0.01, self.followResponse))
+    local desiredX, desiredY = 0, 0
+    if distance > 0.000001 then
+        desiredX, desiredY = dx / distance * desiredSpeed, dy / distance * desiredSpeed
+    end
+    self.followVelocityX, self.followVelocityY = moveToward(
+        self.followVelocityX, self.followVelocityY, desiredX, desiredY,
+        self.followAcceleration * elapsed)
+    self.centerX = self.centerX + self.followVelocityX * elapsed
+    self.centerY = self.centerY + self.followVelocityY * elapsed
+
+    -- Avoid overshooting a nearby target while retaining the eased motion for
+    -- larger corrections and quick direction changes.
+    local remainingX, remainingY = targetX - self.centerX, targetY - self.centerY
+    if dx * remainingX + dy * remainingY <= 0 then
+        self.centerX, self.centerY = targetX, targetY
+        self.followVelocityX, self.followVelocityY = 0, 0
+    end
 end
 
 function MobileCamera:zoomBy(factor)

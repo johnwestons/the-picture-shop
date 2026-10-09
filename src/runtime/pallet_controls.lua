@@ -21,7 +21,8 @@ function Component.install(Runtime)
                 windmill = 3,
             })[selected.kind]
             if not machineIndex then return nil, nil, "Move beside the machine you want to relocate." end
-            return "move_machine", { machineIndex = machineIndex }
+            return "move_machine", { machineIndex = machineIndex,
+                machineId = selected.target and selected.target.machineId }
         end
         if action == "lift" then
             local selectedPallet = selected and selected.target

@@ -3,6 +3,7 @@
 local CharacterAnimation = require("src.character_animation")
 local GaitMotion = require("src.gait_motion")
 local Navigator = require("src.npc_navigation")
+local Seating = require("src.client_seating")
 
 local Customer = {}
 local Instance = {}
@@ -409,6 +410,9 @@ function Instance:frameForAction(action, frameCount)
         return CharacterAnimation.frameForDistance(frameCount, self.animationDistance,
             motionProfile.walkPixelsPerFrame)
     end
+    if action == "sit" and Seating.supports(self.character) then
+        return CharacterAnimation.frameForIdle(frameCount, self.idleClock, self.idleAnimationRate)
+    end
     if type(action) == "string" and (action == "idle" or action:match("^idle_")) then
         return CharacterAnimation.frameForIdle(frameCount, self.idleClock,
             self.idleAnimationRate)
@@ -509,7 +513,9 @@ function Instance:poseAction(characterAssets)
         action = "use"
     end
     local directionScale = self.facing
-    if CharacterAnimation.isWalkAction(action) then
+    if action == "sit" and Seating.supports(self.character) then
+        directionScale = self.seat.seatedPose and self.seat.seatedPose.mirror or -self.facing
+    elseif CharacterAnimation.isWalkAction(action) then
         local directionalAction, mirror = CharacterAnimation.directionalWalkAction(
             self.motionX ~= 0 and self.motionX or self.intentX,
             self.motionY ~= 0 and self.motionY or self.intentY)
@@ -524,30 +530,38 @@ function Instance:poseAction(characterAssets)
     return action, directionScale
 end
 
-function Instance:draw(characterAssets)
-    if not self.visible then return end
+function Instance:renderPose(characterAssets)
     local action, directionScale = self:poseAction(characterAssets)
-    local image, quad, frameCount = characterAssets.get(self.character, action, 1)
+    local _, _, frameCount = characterAssets.get(self.character, action, 1)
     frameCount = frameCount or 1
-    -- Seated clients hold their clean atlas cell. Idle blinks use the last walk
-    -- direction; walking advances only with achieved path distance.
     local frame = self:frameForAction(action, frameCount)
-    image, quad, frameCount = characterAssets.get(self.character, action, frame)
     local anchorX, anchorY = characterAssets.getAnchor(self.character, action, frame)
     local normalization = characterAssets.getNormalization(self.character, action)
+    local x, y, scale = self.x, self.y, self.drawScale * normalization
+    if action == "sit" and Seating.supports(self.character) then
+        x, y, scale, directionScale = Seating.transform(self, characterAssets, frame, normalization)
+    end
+    return {action=action,frame=frame,x=x,y=y,scale=scale,mirror=directionScale,
+        anchorX=anchorX,anchorY=anchorY}
+end
+
+function Instance:draw(characterAssets)
+    if not self.visible then return end
+    local pose = self:renderPose(characterAssets)
+    local image, quad = characterAssets.get(self.character, pose.action, pose.frame)
 
     if image and quad then
         love.graphics.setColor(1, 1, 1)
         love.graphics.draw(
             image,
             quad,
-            self.x,
-            self.y,
+            pose.x,
+            pose.y,
             0,
-            self.drawScale * normalization * directionScale,
-            self.drawScale * normalization,
-            anchorX,
-            anchorY
+            pose.scale * pose.mirror,
+            pose.scale,
+            pose.anchorX,
+            pose.anchorY
         )
         return
     end
