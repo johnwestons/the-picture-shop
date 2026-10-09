@@ -112,7 +112,7 @@ end
 function Rooms.obstacles(state,sceneId)
     if Rooms.isComplete(state,sceneId) and Rooms.definition(state,sceneId)=="breakroom" then
         local result=Registration.obstacles("breakroom")
-        for _,id in ipairs({"air_hockey","critter_kombat"}) do
+        for _,id in ipairs(Games.ORDER) do
             if Games.owns(state,sceneId,id) then
                 local fixture=Games.CATALOG[id]
                 result[#result+1]={x=fixture.x,y=fixture.y,halfWidth=fixture.width/2,

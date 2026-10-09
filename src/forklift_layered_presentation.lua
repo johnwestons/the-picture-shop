@@ -36,24 +36,28 @@ local studies = {
     side = {
         manned = root .. "east-fixed-manned-v1.png",
         empty = root .. "east-fixed-empty-v1.png",
-        carriage = root .. "east-carriage-v2.png",
+        carriage = root .. "east-carriage-v3.png",
         bodyOriginX = 720, bodyOriginY = 955,
         emptyOriginX = 730, emptyOriginY = 966, emptyScale = 0.97,
         carriageOriginX = 720, carriageOriginY = 955,
         -- Keep the side-view pallet lift equal to the registered deck spacing
         -- when the rack artwork changes. Both endpoints use the same body pose.
-        carriageX = 0, carriageLow = 150,
+        -- At ground height both fork tips sit just above the wheel baseline.
+        carriageX = 0, carriageLow = 185,
         carriageTravel = Layout.bay(rackBay).upperDeckOffset / 0.145,
+        loadLow = 150,
         loadX = 1170, loadY = 750,
     },
     frontDiagonal = {
         manned = root .. "southeast-fixed-manned-v1.png",
         empty = root .. "southeast-fixed-empty-v1.png",
-        carriage = root .. "southeast-carriage-v1.png",
+        carriage = root .. "southeast-carriage-v2.png",
         bodyOriginX = 630, bodyOriginY = 850,
         emptyOriginX = 630, emptyOriginY = 864, emptyScale = 0.955,
         carriageOriginX = 630, carriageOriginY = 850,
-        carriageX = 150, carriageLow = 80, carriageTravel = 480,
+        carriageScale = 0.8, carriageX = 150,
+        carriageLow = 75, carriageTravel = 480,
+        loadScale = 1, loadLow = 80,
         loadX = 970, loadY = 820,
     },
     rearDiagonal = {
@@ -81,12 +85,15 @@ local studies = {
     rear = {
         manned = root .. "north-fixed-manned-v1.png",
         empty = root .. "north-fixed-empty-v1.png",
-        carriage = root .. "north-carriage-v1.png",
+        carriage = root .. "north-carriage-v2.png",
         bodyOriginX = 768, bodyOriginY = 990,
         emptyOriginX = 768, emptyOriginY = 990, emptyScale = 1,
         carriageOriginX = 768, carriageOriginY = 990,
-        carriageX = 0, carriageLow = 300, carriageTravel = 510,
+        carriageScale = 0.55, carriageX = 0,
+        carriageLow = -700, carriageTravel = 400,
+        loadScale = 1, loadLow = 300, loadTravel = 510,
         loadX = 768, loadY = 600,
+        carriageClipTopY = 70,
         frontClipY = 480,
     },
 }
@@ -124,9 +131,14 @@ function Layered.plan(vehicle, options)
     local study = direction.study
     local baseScale = oldScale * scaleRatio
     local carriageScale = baseScale * (study.carriageScale or 1)
+    -- Cargo reach is gameplay geometry. Art registration may be adjusted
+    -- independently without moving the pallet or changing rack transfers.
+    local loadScale = baseScale * (study.loadScale or study.carriageScale or 1)
     local bodyScale = baseScale * (vehicle.operating and 1 or study.emptyScale)
     local mirror = direction.mirror
     local shift = study.carriageLow - study.carriageTravel * height
+    local loadShift = (study.loadLow or study.carriageLow)
+        - (study.loadTravel or study.carriageTravel) * height
     local bodyOriginX = vehicle.operating and study.bodyOriginX or study.emptyOriginX
     local bodyOriginY = vehicle.operating and study.bodyOriginY or study.emptyOriginY
     return {
@@ -140,11 +152,12 @@ function Layered.plan(vehicle, options)
         carriageOriginY = study.carriageOriginY, carriageShift = shift,
         carriageX = study.carriageX,
         loadX = vehicle.x + mirror * (study.loadX + study.carriageX
-            - study.carriageOriginX) * carriageScale,
-        loadY = vehicle.y + (study.loadY + shift
-            - study.carriageOriginY) * carriageScale,
+            - study.carriageOriginX) * loadScale,
+        loadY = vehicle.y + (study.loadY + loadShift
+            - study.carriageOriginY) * loadScale,
         carriedPalletId = vehicle.carriedPalletId,
         frontClipY = study.frontClipY,
+        carriageClipTopY = study.carriageClipTopY,
         approved = false, review = true,
     }
 end
@@ -184,11 +197,16 @@ function Layered.draw(vehicle, getImage, options, graphics)
         graphics.draw(body, plan.x, plan.y, 0,
             plan.mirror * plan.bodyScale, plan.bodyScale,
             plan.bodyOriginX, plan.bodyOriginY)
-        if plan.frontClipY then
-            local clipBottom = plan.y + (plan.frontClipY - plan.bodyOriginY) * plan.bodyScale
+        if plan.frontClipY or plan.carriageClipTopY then
+            local clipTop = plan.carriageClipTopY and
+                plan.y + (plan.carriageClipTopY - plan.bodyOriginY) * plan.bodyScale
+                or plan.y - 1000
+            local clipBottom = plan.frontClipY and
+                plan.y + (plan.frontClipY - plan.bodyOriginY) * plan.bodyScale
+                or plan.y + 1000
             graphics.stencil(function()
-                graphics.rectangle("fill", plan.x - 1000, plan.y - 1000,
-                    2000, clipBottom - (plan.y - 1000))
+                graphics.rectangle("fill", plan.x - 1000, clipTop,
+                    2000, clipBottom - clipTop)
             end, "replace", 1)
             graphics.setStencilTest("equal", 1)
         end
@@ -196,7 +214,7 @@ function Layered.draw(vehicle, getImage, options, graphics)
             plan.y + plan.carriageShift * plan.carriageScale, 0,
             plan.mirror * plan.carriageScale, plan.carriageScale,
             plan.carriageOriginX, plan.carriageOriginY)
-        if plan.frontClipY then graphics.setStencilTest() end
+        if plan.frontClipY or plan.carriageClipTopY then graphics.setStencilTest() end
     end)
     graphics.pop()
     if not okay then return false, drawError end

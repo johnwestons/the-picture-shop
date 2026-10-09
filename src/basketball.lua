@@ -1,7 +1,8 @@
 -- One physical ball per purchased hoop. The host owns possession and shots.
 local Games=require("src.breakroom_games")
 local Ball={shots={},contests={},streaks={}}
-local HOOP_X,HOOP_Y=205,187
+local goal=Games.CATALOG.basketball
+local HOOP_X,HOOP_Y=goal.rimX,goal.rimY
 local function clamp(n,a,b) return math.max(a,math.min(b,n)) end
 local function distance(a,b) return math.sqrt((a.x-b.x)^2+(a.y-b.y)^2) end
 local function entries(state)
@@ -93,13 +94,13 @@ function Ball.command(state,player,action)
         shot.phase,shot.elapsed="flight",0
         shot.quality,shot.offset=quality,offset
         shot.duration=clamp(0.58+distanceToHoop/1000,0.58,0.98)
-        shot.endX,shot.endY=HOOP_X+offset*2.5,HOOP_Y
+        shot.endX,shot.endY=HOOP_X+offset,HOOP_Y
         shot.startX,shot.startY=player.x,player.y-18
         ball.mode,ball.holderPlayerId="flight",nil
         return true,"accepted",quality>.8 and "Great release!" or "The release was off the apex."
     elseif action=="contest" or action=="join" or action=="end" then
         if not Games.BAYS[sceneId] or not Games.owns(state,sceneId,"basketball")
-            or distance(player,{x=205,y=270})>110 then
+            or distance(player,{x=goal.interactionX,y=goal.interactionY})>110 then
             return false,"out_of_range","Stand near the break-room hoop."
         end
         local contest=Ball.contests[sceneId]
@@ -165,7 +166,8 @@ function Ball.update(dt,state,players)
                 shot.displayY=ball.y-(125+math.abs(shot.startY-HOOP_Y)*.23)*4*t*(1-t)
                 if not shot.checked and t>=1 then
                     shot.checked=true
-                    shot.scored=math.abs(shot.offset)<19 and shot.quality>=.55
+                    shot.scored=math.abs(shot.offset)<17 and shot.quality>=.55
+                    shot.rimHit=not shot.scored and math.abs(shot.offset)<31
                     if shot.scored then
                         local contest=Ball.contests[entry.bayId]
                         if contest and contest.phase=="playing" then
@@ -183,7 +185,7 @@ function Ball.update(dt,state,players)
                     shot.duration=shot.scored and .32 or .52
                     shot.endX=shot.scored and HOOP_X+18
                         or clamp(ball.x+(shot.offset>=0 and 64 or -64),35,925)
-                    shot.endY=shot.scored and 299 or 295
+                    shot.endY=shot.scored and HOOP_Y+105 or HOOP_Y+100
                 end
             elseif shot.phase=="fall" or shot.phase=="rebound" then
                 local t=clamp(shot.elapsed/shot.duration,0,1)
@@ -210,6 +212,7 @@ function Ball.snapshot(state)
             displayY=shot and shot.displayY or ball.y,mode=ball.mode,
             holderPlayerId=ball.holderPlayerId,shooterId=shot and shot.shooterId or nil,
             shotPhase=shot and shot.phase or nil,shotElapsed=shot and shot.elapsed or nil,
+            rimHit=shot and shot.rimHit or false,
             leftId=contest and contest.leftId or nil,rightId=contest and contest.rightId or nil,
             leftScore=contest and contest.leftScore or 0,rightScore=contest and contest.rightScore or 0,
             contestPhase=contest and contest.phase or nil,streak=Ball.streaks[entry.bayId] or 0}

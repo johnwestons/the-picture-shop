@@ -173,7 +173,7 @@ function Test.run(context,check)
     baseShelves(context,test)
     liveSimulation(context,test)
     test("playable_rabbit_has_registered_seated_sprite",context.characterAssets.hasAction("rabbit-worker","sit"))
-    test("selected_art_is_runtime_background",Config.paths.warehouse=="assets/generated/warehouse-lobby-seating-v3.png")
+    test("selected_art_is_runtime_background",Config.paths.warehouse=="assets/generated/warehouse-lobby-seating-v4.png")
     for _,kind in ipairs({"storage","breakroom","floor"}) do
         local im=love.image.newImageData(Rooms.paths[kind]);local w,h=im:getDimensions();im:release()
         test(kind.."_has_real_full_size_sprite",w==1536 and h==1024)

@@ -29,7 +29,6 @@ def fit(image, width=None, height=None):
 
 for source, target, size in [
     ("world-air-hockey-table-v1.png", "air-hockey-table.png", (204, None)),
-    ("world-basketball-hoop-v1.png", "basketball-hoop.png", (118, None)),
     ("world-basketball-v1.png", "basketball.png", (24, 24)),
     ("world-critter-kombat-cabinet-v1.png", "critter-kombat-cabinet.png", (91, None)),
     ("gui-air-hockey-rink-v1.png", "air-hockey-rink.png", (800, 400)),
@@ -37,6 +36,23 @@ for source, target, size in [
     img = trim(load(source))
     img = fit(img, width=size[0], height=size[1])
     img.save(OUTPUT / target, optimize=True)
+
+# All three goal poses share one crop and one resize. A net or rim reaction can
+# then swap frames without shifting the heavy wheeled base or backboard.
+goal_sources = {
+    "idle": load("world-basketball-portable-idle-v1.png"),
+    "rim": load("world-basketball-portable-rim-v1.png"),
+    "score": load("world-basketball-portable-score-v1.png"),
+}
+boxes = [image.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+         for image in goal_sources.values()]
+goal_box = (min(box[0] for box in boxes), min(box[1] for box in boxes),
+            max(box[2] for box in boxes), max(box[3] for box in boxes))
+goal_height = 235
+goal_width = round((goal_box[2] - goal_box[0]) * goal_height / (goal_box[3] - goal_box[1]))
+for pose, image in goal_sources.items():
+    image.crop(goal_box).resize((goal_width, goal_height), Image.Resampling.LANCZOS).save(
+        OUTPUT / f"basketball-goal-{pose}.png", optimize=True)
 
 pieces = load("gui-air-hockey-pieces-atlas-v1.png")
 cell = pieces.width // 3

@@ -79,6 +79,21 @@
       "file": "north-fixed-empty-v1.png",
       "generated": "C:/Users/johnw/.codex/generated_images/01a0bc6e-11e5-7e22-abde-14edbd10ebf2/exec-376c3ef1-1613-4627-b81c-4119242241fa.png",
       "promptSummary": "Remove only the rabbit from the fixed north rear body and restore an empty seat and controls while keeping mast, guard, yellow panels, wheels, lights, scale and transparency."
+    },
+    {
+      "file": "east-carriage-v3.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a11e94-0a77-7741-b809-bd8be0f9d145/exec-8033debc-2d5d-4fc1-87df-0af4b63dee96.png",
+      "promptSummary": "Edit east-carriage-v2 using east-fixed-manned-v1 as side-profile reference. At a true right side view, the near tine completely occludes the far tine at the same level and physical length, leaving one visible level blade with gold tip. Keep a compact mechanically attached carriage around x=910-1040, tine toward x=1280, 1536x1024 transparency and matching painted steel style."
+    },
+    {
+      "file": "southeast-carriage-v2.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a11e94-0a77-7741-b809-bd8be0f9d145/exec-b463f8ee-f72f-4f86-9675-d195cb9d48e3.png",
+      "promptSummary": "Edit southeast-carriage-v1 with southeast-fixed-manned-v1 as registration reference. Preserve two rigid equal-length parallel down-right steel tines and gold tips. Replace oversized upper U-frame with compact sliding crossbar; preserve 1536x1024 transparency, perspective and linework. No body, driver, floor or extra parts."
+    },
+    {
+      "file": "north-carriage-v2.png",
+      "generated": "C:/Users/johnw/.codex/generated_images/01a11e94-0a77-7741-b809-bd8be0f9d145/exec-cd992cf9-3017-4210-967f-de17f17f4f02.png",
+      "promptSummary": "Edit north-carriage-v1 with north-fixed-manned-v1 as registration reference. From directly behind, forks point away and long yellow prongs must not rise above the mast. Show compact symmetric dark-steel rear carriage with two equal mounts and horizontal crossmembers, no body or background, on 1536x1024 transparent canvas."
     }
   ],
   "rejected": "An initial oversized carriage was rejected before workspace copy."

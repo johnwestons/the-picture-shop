@@ -1,5 +1,7 @@
 # Lobby furniture edit
 
+The active `assets/generated/warehouse-lobby-seating-v4.png` smooths the expansion passage, lounge wall seam, and nearby floor texture after the v3 entrance revision.
+
 The seating edit is retained in `assets/generated/warehouse-lobby-seating-v2.png` (1536 × 1024) as the base for the current `assets/generated/warehouse-lobby-seating-v3.png` entrance revision. The coffee table, legs and shadow are removed. The brown leather couch has two broad cushion surfaces, a lower back, slimmer arms and an open front so seated clients' knees, shins and shoes read clearly. The couch was refined around the existing left/right hip contacts at `(754,176)` and `(794,185)` in the 960 × 678 game canvas. Character sprites, seat coordinates and walking approaches are unchanged.
 
 Only the couch and former table/rug region was replaced. `tools/integrate_lobby_seating_v2.ps1` installs the reviewed ImageGen edit through two local polygons with a three-pixel inward feather inside the lobby crop `(1096,210,224,144)`. It verifies every source pixel outside that crop remains identical. The integration changed 12,531 lobby pixels and zero pixels elsewhere; surrounding office fixtures, platform borders, walls, painting, plant, chairs, loading dock, storage racks and production floor keep the original source pixels outside the small edit mask. The original warehouse file is retained.

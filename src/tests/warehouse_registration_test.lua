@@ -107,7 +107,10 @@ local function controls(context,check)
                 and selected.kind==(kind=="storage" and "roomStock" or "roomRest"))
         end
     end
-    world.player.x,world.player.y=423,282;world.selectedInteraction=nil
+    local rackAction=Layout.rackApproach("warehouse-rack")
+    check("warehouse_registration_base_shelf_action_matches_orange_mark",
+        rackAction.x==374 and rackAction.y==218)
+    world.player.x,world.player.y=rackAction.x,rackAction.y;world.selectedInteraction=nil
     local shelf=Layout.rackPoint("warehouse-rack",1,3)
     world.update(0,0,0,context.assets,state,shelf.x,shelf.y)
     check("warehouse_registration_visible_base_shelf_selects_action",world.getInteraction()

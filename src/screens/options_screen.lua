@@ -9,6 +9,7 @@ local OptionsScreen = {
     tab = "game",
     selectedRow = 1,
     selectedSlot = 1,
+    cheatPage = "resources",
     message = "",
     hover = nil,
     editField = nil,
@@ -36,6 +37,17 @@ local SLOT_RECTS = {
     { x = 422, y = 166, width = 116, height = 42 },
     { x = 558, y = 166, width = 116, height = 42 },
 }
+local CHEAT_PAGES = {
+    {id="resources",label="RESOURCES"}, {id="supplies",label="SUPPLIES"},
+    {id="rooms",label="ROOMS"}, {id="machines",label="MACHINES"},
+    {id="games",label="BREAK ROOM"},
+}
+local function cheatPageRect(index)
+    return {x=164+(index-1)*128,y=210,width=120,height=28}
+end
+local function actionRect(index)
+    return {x=654,y=267+(index-1)*40,width=108,height=30}
+end
 
 local GAME_ROWS = {
     { id = "fullscreen", label = "Fullscreen", kind = "toggle" },
@@ -63,16 +75,19 @@ local CONTROL_SPECS = {
 }
 
 local function rowRect(index, cheats)
-    return { x = 164, y = (cheats and 244 or 202) + (index - 1) * (cheats and 48 or 52),
-        width = 632, height = 42 }
+    return { x = 164, y = (cheats and 264 or 202) + (index - 1) * (cheats and 40 or 52),
+        width = 632, height = cheats and 36 or 42 }
 end
 
 local function controlRects(index, cheats)
     local row = rowRect(index, cheats)
     return {
-        value = { x = 447, y = row.y + 3, width = 142, height = 36 },
-        minus = { x = 607, y = row.y + 3, width = 70, height = 36 },
-        plus = { x = 690, y = row.y + 3, width = 70, height = 36 },
+        value = { x = 447, y = row.y + (cheats and 2 or 3), width = 142,
+            height = cheats and 32 or 36 },
+        minus = { x = 607, y = row.y + (cheats and 2 or 3), width = 70,
+            height = cheats and 32 or 36 },
+        plus = { x = 690, y = row.y + (cheats and 2 or 3), width = 70,
+            height = cheats and 32 or 36 },
     }
 end
 
@@ -142,6 +157,7 @@ function OptionsScreen.enter(context)
     OptionsScreen.selectedSlot = math.max(1,
         math.min(context.save.SLOT_COUNT or 3, OptionsScreen.selectedSlot))
     OptionsScreen.selectedRow = 1
+    OptionsScreen.cheatPage = "resources"
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
     OptionsScreen.message = context.isNetworkClient and context.isNetworkClient()
@@ -187,9 +203,27 @@ local function selectTab(tab)
     OptionsScreen.message = tab == "controls"
         and "Drag each control to a comfortable position."
         or tab == "cheats"
-        and "Developer tools: save changes are immediate."
+        and (OptionsScreen.context.isNetworkClient and OptionsScreen.context.isNetworkClient()
+            and "Save cheats are host-only in multiplayer."
+            or "Developer tools: save changes are immediate.")
         or "Changes are saved immediately."
     return true
+end
+
+local function selectCheatPage(page)
+    for _,entry in ipairs(CHEAT_PAGES) do
+        if entry.id==page then
+            OptionsScreen.cheatPage=page
+            OptionsScreen.selectedRow=1
+            OptionsScreen.editField,OptionsScreen.editBuffer=nil,""
+            OptionsScreen.message=OptionsScreen.context.isNetworkClient
+                and OptionsScreen.context.isNetworkClient()
+                and "Save cheats are host-only in multiplayer."
+                or "Selected "..entry.label.." cheats for slot "..OptionsScreen.selectedSlot.."."
+            return true
+        end
+    end
+    return false
 end
 
 local function toggleSetting(id)
@@ -238,7 +272,8 @@ local function setCheatValue(field, value)
 end
 
 local function adjustCheat(index, direction)
-    local field = SaveEditor.fields()[index]
+    if OptionsScreen.cheatPage~="resources" and OptionsScreen.cheatPage~="supplies" then return false end
+    local field = SaveEditor.fields(OptionsScreen.cheatPage)[index]
     local state = slotState()
     if not field or not state then
         OptionsScreen.message = "That slot has no editable shop save."
@@ -249,7 +284,8 @@ local function adjustCheat(index, direction)
 end
 
 local function beginEdit(index)
-    local field = SaveEditor.fields()[index]
+    if OptionsScreen.cheatPage~="resources" and OptionsScreen.cheatPage~="supplies" then return false end
+    local field = SaveEditor.fields(OptionsScreen.cheatPage)[index]
     local state = slotState()
     if not field or not state then
         OptionsScreen.message = "That slot has no editable shop save."
@@ -260,6 +296,14 @@ local function beginEdit(index)
     OptionsScreen.editBuffer = tostring(math.floor(tonumber(SaveEditor.value(state, field.id)) or 0))
     OptionsScreen.message = "Type a value, then press Enter."
     return true
+end
+
+local function grantCheat(index)
+    local action=SaveEditor.actions(OptionsScreen.cheatPage)[index]
+    if not action then return false end
+    local ok,message=SaveEditor.grantSlot(editContext(),OptionsScreen.selectedSlot,action.id)
+    OptionsScreen.message=tostring(message)
+    return ok
 end
 
 local function commitEdit()
@@ -280,7 +324,9 @@ local function rowsForTab()
     if OptionsScreen.tab == "audio" then return AUDIO_ROWS end
     if OptionsScreen.tab == "controls" then return {} end
     if OptionsScreen.tab == "character" then return {} end
-    return SaveEditor.fields()
+    return (OptionsScreen.cheatPage=="resources" or OptionsScreen.cheatPage=="supplies")
+        and SaveEditor.fields(OptionsScreen.cheatPage)
+        or SaveEditor.actions(OptionsScreen.cheatPage)
 end
 
 function OptionsScreen.isControlsTab()
@@ -385,6 +431,13 @@ function OptionsScreen.keypressed(key)
         OptionsScreen.message = "Selected slot " .. key .. "."
         return true
     end
+    if OptionsScreen.tab=="cheats" and (key=="q" or key=="e") then
+        local index=1
+        for current,page in ipairs(CHEAT_PAGES) do
+            if page.id==OptionsScreen.cheatPage then index=current;break end
+        end
+        return selectCheatPage(CHEAT_PAGES[(index-1+(key=="e" and 1 or -1))%#CHEAT_PAGES+1].id)
+    end
     local rows = rowsForTab()
     if key == "up" or key == "w" then
         OptionsScreen.selectedRow = ((OptionsScreen.selectedRow - 2) % #rows) + 1
@@ -395,9 +448,13 @@ function OptionsScreen.keypressed(key)
     end
     local row = rows[OptionsScreen.selectedRow]
     if OptionsScreen.tab == "cheats" then
-        if key == "left" or key == "a" then return adjustCheat(OptionsScreen.selectedRow, -1) end
-        if key == "right" or key == "d" then return adjustCheat(OptionsScreen.selectedRow, 1) end
-        if key == "return" or key == "kpenter" then return beginEdit(OptionsScreen.selectedRow) end
+        if OptionsScreen.cheatPage=="resources" or OptionsScreen.cheatPage=="supplies" then
+            if key == "left" or key == "a" then return adjustCheat(OptionsScreen.selectedRow, -1) end
+            if key == "right" or key == "d" then return adjustCheat(OptionsScreen.selectedRow, 1) end
+            if key == "return" or key == "kpenter" then return beginEdit(OptionsScreen.selectedRow) end
+        elseif key=="right" or key=="d" or key=="return" or key=="kpenter" then
+            return grantCheat(OptionsScreen.selectedRow)
+        end
     elseif row.kind == "choice" then
         if key == "left" or key == "a" then return setTimeFormat(true) end
         if key == "right" or key == "d" then return setTimeFormat(false) end
@@ -436,6 +493,9 @@ function OptionsScreen.mousepressed(x, y, button)
                 return true
             end
         end
+        for index,page in ipairs(CHEAT_PAGES) do
+            if Ui.contains(cheatPageRect(index),x,y) then return selectCheatPage(page.id) end
+        end
     elseif OptionsScreen.tab == "controls" then
         if Ui.contains(RESET_CONTROLS, x, y) then return resetControls() end
         local control = controlAt(x, y)
@@ -452,6 +512,14 @@ function OptionsScreen.mousepressed(x, y, button)
                     return setColorway(row.id, choiceIndex)
                 end
             end
+        end
+        return false
+    end
+    if OptionsScreen.tab=="cheats" and OptionsScreen.cheatPage~="resources"
+        and OptionsScreen.cheatPage~="supplies" then
+        for index in ipairs(SaveEditor.actions(OptionsScreen.cheatPage)) do
+            if Ui.contains(rowRect(index,true),x,y) then OptionsScreen.selectedRow=index end
+            if Ui.contains(actionRect(index),x,y) then return grantCheat(index) end
         end
         return false
     end
@@ -551,6 +619,24 @@ local function drawRows(rows, values, cheats)
             drawButton(controls.minus, cheats and ("-" .. Ui.commaNumber(row.step)) or "- 5", false, false)
             drawButton(controls.plus, cheats and ("+" .. Ui.commaNumber(row.step)) or "+ 5", false, false)
         end
+    end
+end
+
+local function drawCheatActions(state)
+    for index,action in ipairs(SaveEditor.actions(OptionsScreen.cheatPage)) do
+        local rect=rowRect(index,true)
+        local selected=OptionsScreen.selectedRow==index
+        Ui.panel(rect,selected and {0.14,0.20,0.20,1} or {0.09,0.12,0.13,1},
+            selected and {0.67,0.58,0.27,1} or {0.25,0.31,0.31,1},3,1)
+        love.graphics.setColor(0.86,0.88,0.82)
+        love.graphics.print(action.label,rect.x+18,rect.y+11)
+        local status=SaveEditor.actionStatus(state,action.id)
+        love.graphics.setColor(0.66,0.74,0.70)
+        love.graphics.printf(status,487,rect.y+11,155,"right")
+        local canGrant=status~="OWNED" and status~="OTHER ROOM"
+        local caption=status=="FINISH" and "FINISH" or status=="OTHER ROOM" and "BLOCKED"
+            or status=="OWNED" and "OWNED" or "GRANT"
+        drawButton(actionRect(index),caption,false,not canGrant)
     end
 end
 
@@ -693,19 +779,28 @@ function OptionsScreen.draw(mouseX, mouseY)
             drawButton(rect, slotLabel(slot, stateForSlot, status),
                 OptionsScreen.selectedSlot == slot, status == "corrupted")
         end
+        for index,page in ipairs(CHEAT_PAGES) do
+            drawButton(cheatPageRect(index),page.label,
+                OptionsScreen.cheatPage==page.id,false)
+        end
         local stateForSlot, status = slotState()
         love.graphics.setColor(0.68, 0.72, 0.68)
         if stateForSlot then
             local jobs = stateForSlot.jobs or {}
             love.graphics.printf(string.format("%s SAVE  |  %d active jobs  |  %d completed jobs",
                 status == "live" and "LIVE" or "OFFLINE",
-                #(jobs.active or {}), #(jobs.completed or {})), 164, 220, 632, "center")
-            local values = {}
-            for index, field in ipairs(SaveEditor.fields()) do
-                local value = SaveEditor.value(stateForSlot, field.id) or 0
-                values[index] = field.money and Ui.money(value) or Ui.commaNumber(value)
+                #(jobs.active or {}), #(jobs.completed or {})), 164, 242, 632, "center")
+            if OptionsScreen.cheatPage=="resources" or OptionsScreen.cheatPage=="supplies" then
+                local values = {}
+                local fields=SaveEditor.fields(OptionsScreen.cheatPage)
+                for index, field in ipairs(fields) do
+                    local value = SaveEditor.value(stateForSlot, field.id) or 0
+                    values[index] = field.money and Ui.money(value) or Ui.commaNumber(value)
+                end
+                drawRows(fields, values, true)
+            else
+                drawCheatActions(stateForSlot)
             end
-            drawRows(SaveEditor.fields(), values, true)
         else
             love.graphics.setColor(status == "corrupted" and { 0.95, 0.35, 0.30 }
                 or { 0.70, 0.74, 0.69 })
@@ -719,7 +814,9 @@ function OptionsScreen.draw(mouseX, mouseY)
     love.graphics.setColor(0.72, 0.76, 0.70)
     love.graphics.printf(OptionsScreen.message, 116, 604, 728, "center")
     love.graphics.setColor(0.47, 0.53, 0.50)
-    love.graphics.printf("Tab changes section  |  Arrows adjust  |  Enter edits  |  Esc closes",
+    love.graphics.printf(OptionsScreen.tab=="cheats"
+        and "Tab: section  |  Q/E: cheat category  |  1-3: slot  |  Enter: edit/grant"
+        or "Tab changes section  |  Arrows adjust  |  Enter edits  |  Esc closes",
         116, 654, 728, "center")
 end
 

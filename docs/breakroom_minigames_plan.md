@@ -1,6 +1,6 @@
 # Break room games and purchasable objects
 
-The completed break room has three independent purchases: an air hockey table, a wall-mounted basketball goal with a movable ball, and a **Critter Kombat** arcade cabinet. Each supports solo play and two players in the same shop. Purchases, sprites, interactions, host simulation, and network snapshots are implemented. The gameplay and layouts have not been run through the acceptance checklist below.
+The completed break room has three independent purchases: an air hockey table, a freestanding wheeled basketball goal with a movable ball, and a **Critter Kombat** arcade cabinet. Each supports solo play and two players in the same shop. Purchases, sprites, interactions, host simulation, and network snapshots are implemented. The gameplay and layouts have not been run through the acceptance checklist below.
 
 ## Implemented controls and assets
 
@@ -16,16 +16,16 @@ Runtime art lives in `assets/generated/breakroom-games-v1/`, with the cleared wa
 
 ## Room layout
 
-The break room uses a 960 × 678 logical scene over a 1536 × 1024 background. Its left wall art was cleared for the hoop. Current fixture anchors are defined in `src/breakroom_games.lua`; the positions below are earlier layout targets for the planned visual and collision pass.
+The break room uses a 960 × 678 logical scene over a 1536 × 1024 background. Current fixture anchors are defined in `src/breakroom_games.lua`; the freestanding goal sits in the left foreground and the arcade faces left into the room.
 
 | Object | Proposed anchor in logical room coordinates | Required clearance |
 | --- | --- | --- |
-| Basketball goal | Left rear wall, rim centered near `(180, 150)` | Move the coat hooks and nearby plant in the room art; keep the door approach open. Reserve the left floor from roughly `x=120–325, y=250–560` for shooting. |
+| Basketball goal | Wheeled base at `(90, 500)`, rim at `(136, 330)` | Keep the floor approach at `(211, 475)` and a clear path for shots from the open room. |
 | Air hockey table | Open central floor near `(475, 380)` | Leave a standing point at each short end and walking space around both sides. Do not overlap the shooting lane. |
-| Critter Kombat cabinet | Right floor edge near `(890, 330)` | Keep access to the sofa, right chair, bookshelf, and return path. The cabinet has two control positions. |
+| Critter Kombat cabinet | Right floor edge at `(887, 430)`, facing left | Keep access to the sofa, right chair, bookshelf, and return path. The cabinet has two control positions. |
 | Basketball spawn | Clear left floor near `(240, 315)` | The ball can subsequently be picked up and placed on any valid floor spot in its current scene. |
 
-Place fixtures as separate transparent world sprites. Register their floor contacts, collision footprints, interaction points, and foreground order independently of the painted room background. The goal's backboard mounts to the wall; draw its rim and net in front of a flying ball when the ball crosses the hoop plane. A purchase must fail cleanly if its reserved footprint is blocked by a movable object. Existing furniture cannot silently move under a player.
+Place fixtures as separate transparent world sprites. Register their floor contacts, collision footprints, interaction points, and foreground order independently of the painted room background. The goal's weighted base rests on the floor; draw its rim and net in front of a flying ball when the ball crosses the hoop plane. A purchase must fail cleanly if its reserved footprint is blocked by a movable object. Existing furniture cannot silently move under a player.
 
 ## Purchase and shared state
 
@@ -65,7 +65,7 @@ The nine initial concepts below remain in `assets/source/breakroom-minigames-v1/
 | `world-air-hockey-table-v1.png` | Room fixture and interaction target |
 | `gui-air-hockey-rink-v1.png` | Top-down GUI playfield |
 | `gui-air-hockey-pieces-atlas-v1.png` | Orange striker, teal striker, puck |
-| `world-basketball-hoop-v1.png` | Left-wall goal |
+| `world-basketball-portable-{idle,rim,score}-v1.png` | Freestanding wheeled goal and aligned rim-hit / score feedback frames |
 | `world-basketball-v1.png` | Movable ball and projectile |
 | `player-rabbit-basketball-actions-atlas-v1.png` | Dribble idle, dribble walk, jump shot concepts |
 | `world-critter-kombat-cabinet-v1.png` | Two-player room cabinet with blank marquee |
@@ -76,11 +76,11 @@ The final reusable prompt set and reference roles are recorded in `assets/source
 
 ## Build order and acceptance
 
-1. Prepare the source art: trim true-alpha sprites, slice atlases, align feet and ball contacts, create final world-scale strips, and review the hoop, table, and cabinet composited over the room image. Clear the left wall while preserving the door route.
+1. Prepare the source art: trim true-alpha sprites, slice atlases, align feet and ball contacts, create final world-scale strips, and review the freestanding goal, table, and left-facing cabinet composited over the room image.
 2. Add fixture catalog entries, host purchase commands, receipts, save migration, room ownership, placement footprints, and multiplayer snapshots. Older saves load with no games purchased.
 3. Implement the ball state and room rendering, then pickup, drop, dribble, shoot, rebound, and solo/two-player scoring. Confirm exact ball position and ownership after save/reload and disconnect.
 4. Build the air hockey GUI and fixed-step host simulation; check solo AI, two-player joining, goals, score reset, close/reopen, keyboard, mouse, and touch controls.
 5. Finish Critter Kombat animation coverage, then implement its GUI, AI, two-player match, hit boxes, round flow, and mobile controls.
 6. Verify room walkability and access for every fixture combination, same-scene play for host and guest, joining and leaving sessions, blocked placements, duplicate purchase requests, and saved ball location. Package the source-derived runtime sprites for desktop and mobile.
 
-The remaining acceptance work is a hands-on pass through all three games, both break room bays, solo and two-player sessions, saved ball positions, and the room's furniture clearance. Basketball uses a deterministic arc, scores on the downward crossing, and follows misses with a simplified rebound arc; detailed rim and backboard collision geometry can be added during gameplay polish.
+The remaining acceptance work is a hands-on pass through all three games, both break room bays, solo and two-player sessions, saved ball positions, and the room's furniture clearance. Basketball uses a deterministic arc, scores on the downward crossing, and follows misses with a simplified rebound arc. The freestanding goal now reacts with aligned rim and swish frames when the shot outcome warrants them; detailed backboard collision geometry can be added during gameplay polish.

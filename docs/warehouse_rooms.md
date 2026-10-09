@@ -23,13 +23,15 @@ The old upgrade IDs and save schema remain compatible: `storage` purchases becom
 
 | Sprite | Runtime file | Size |
 | --- | --- | --- |
-| Selected warehouse with revised lobby seating and expansion passage | `assets/generated/warehouse-lobby-seating-v3.png` | 1536×1024 |
+| Selected warehouse with revised lobby seating and smoothed expansion passage | `assets/generated/warehouse-lobby-seating-v4.png` | 1536×1024 |
 | Stock room | `assets/generated/shop-storage-room-v1.png` | 1536×1024 |
 | Break room | `assets/generated/shop-breakroom-v1.png` | 1536×1024 |
 | Empty utility room | `assets/generated/shop-utility-room-v1.png` | 1536×1024 |
 | Rabbit seated pose, transparent | `assets/generated/characters/rabbit-worker/sit-room-v1.png` | 1254×1254 |
 
 All backgrounds map to the existing 960×678 logical game space. `src/warehouse_registration.lua` registers floor seams, furniture, doors, visible control contacts and their floor approaches. `src/shop_rooms.lua` selects the floor for the purchased room kind; `src/warehouse_room_layout.lua` registers shelf contacts and the base service apron. Dynamic pallets render behind the painted shelf lips. The loading shutter uses the selected warehouse's own pixels, clipped to its aperture. Room backgrounds load on demand through a bounded texture cache. `tools/build_mobile_package.py` includes these generated assets and scene modules in both PC and mobile `.love` packages.
+
+The twelve construction-stage backgrounds are generated from three reviewed v2 four-panel atlases in `assets/source/warehouse-expansion-v1/rooms/`. Each panel now shows a wider room view so the door, tools, and furniture read at the same apparent scale as the finished rooms. `tools/build_shop_room_construction_assets.py` extracts the runtime 960×678 sprites and records their hashes in `construction-progress-manifest.json`.
 
 The wide expansion passage is registered at `(648, 212)`; the exterior customer entrance is now at `(720, 202)`. Workers, applicants, clients, suppliers and technicians use the exterior entrance. Shift-end workers finish unsafe machine cycles, return the shared jack, and walk to that entrance before leaving. If its center is occupied they can approach another clear door contact. A blocked exit displays **Path blocked** after the goodbye greeting and retries when the aisle clears. See [warehouse alignment](warehouse_alignment.md) for the registration audit and regression checks.
 

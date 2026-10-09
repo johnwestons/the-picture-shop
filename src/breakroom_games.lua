@@ -6,8 +6,9 @@ Games.ORDER = { "air_hockey", "basketball", "critter_kombat" }
 Games.CATALOG = {
     air_hockey = { name = "Air hockey table", price = 1800, x = 465, y = 417,
         width = 162, depth = 90, interactionX = 465, interactionY = 490 },
-    basketball = { name = "Basketball goal and ball", price = 950, x = 184, y = 229,
-        width = 76, depth = 24, interactionX = 178, interactionY = 292 },
+    basketball = { name = "Portable basketball goal and ball", price = 950,
+        x = 90, y = 500, width = 150, depth = 40,
+        rimX = 136, rimY = 330, interactionX = 211, interactionY = 475 },
     critter_kombat = { name = "Critter Kombat arcade", price = 2500, x = 887, y = 430,
         width = 60, depth = 40, interactionX = 830, interactionY = 471 },
 }
@@ -99,7 +100,6 @@ function Games.owns(state, bayId, fixtureId)
     return record and record[fixtureId] == true or false
 end
 local function footprintBlocked(state, bayId, fixtureId, players)
-    if fixtureId == "basketball" then return false end
     local fixture = Games.CATALOG[fixtureId]
     local function overlaps(x,y,sceneId,margin)
         return sceneId == bayId and type(x) == "number" and type(y) == "number"

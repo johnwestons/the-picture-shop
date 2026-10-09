@@ -9,10 +9,10 @@ Map.roomEntrance={x=648,y=212,radius=52,hoverX=648,hoverY=161,hoverRadius=30}
 Map.exit={x=100,y=225,radius=44,hoverX=78,hoverY=167,hoverRadius=25}
 Map.exitPoints={{x=720,y=202},{x=710,y=211},{x=728,y=214},{x=718,y=224}}
 Map.reception={x=697,y=235}
-Map.computer={x=909,y=241,radius=44,hoverX=909,hoverY=175,hoverRadius=23}
-Map.phone={x=875,y=238,wallX=879,wallY=144,hoverRadius=18}
-Map.clock={x=843,y=234,wallX=843,wallY=121,clockRadius=13,hoverRadius=16}
-Map.radio={x=638,y=230,wallX=638,wallY=86,hoverRadius=25}
+Map.computer={x=913,y=229,radius=44,hoverX=909,hoverY=175,hoverRadius=23}
+Map.phone={x=848,y=213,wallX=879,wallY=144,hoverRadius=18}
+Map.clock={x=480,y=260,wallX=480,wallY=50,clockRadius=13,hoverRadius=16}
+Map.radio={x=65,y=258,wallX=35,wallY=115,hoverRadius=25}
 Map.dock={x=194,y=213,radius=44,hoverX=184,hoverY=129,hoverRadius=18}
 Map.aperture={{x=58,y=125},{x=151,y=87},{x=151,y=174},{x=58,y=213}}
 Map.truck={parked={x=-10.7,y=235,scale=.72},start={x=-166,y=170,scale=.72},

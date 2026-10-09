@@ -7,13 +7,15 @@ local function clamp(v,a,b) return math.max(a,math.min(b,v)) end
 local function pressed(mask,flag) return math.floor((mask or 0)/flag)%2==1 end
 local function fighter(x,face)
     return {x=x,z=0,vz=0,face=face,health=100,action="idle",actionTime=0,
-        hitApplied=false,stun=0,wins=0,previousButtons=0}
+        hitApplied=false,stun=0,hitGrace=0,wins=0,previousButtons=0}
 end
 local function startRound(match)
     local leftWins,rightWins=match.left.wins,match.right.wins
     match.left,match.right=fighter(255,1),fighter(545,-1)
     match.left.wins,match.right.wins=leftWins,rightWins
     match.seconds,match.roundDelay=60,0
+    match.aiNextAttack=match.clock+1.8
+    match.aiAttacks=0
     match.draw=false
     match.phase="playing"
 end
@@ -21,6 +23,7 @@ local function newMatch(bayId,id,mode)
     local match={bayId=bayId,leftId=id,rightId=nil,mode=mode,
         phase=mode=="solo" and "playing" or "waiting",round=1,
         seconds=60,roundDelay=0,accumulator=0,clock=0,
+        aiNextAttack=1.8,aiAttacks=0,
         left=fighter(255,1),right=fighter(545,-1)}
     return match
 end
@@ -62,15 +65,18 @@ local function aiInput(match)
     local distance=math.abs(other.x-ai.x)
     local direction=other.x<ai.x and -1 or 1
     local buttons=0
-    if other.action=="punch" or other.action=="kick" then
-        if distance<95 and other.actionTime>.07 then buttons=buttons+BLOCK end
+    if ai.stun>0 or ai.action=="hit" then return {x=0,buttons=0} end
+    if (other.action=="punch" or other.action=="kick") and distance<100
+        and other.actionTime>.13 and math.floor(match.clock*1.4)%3==0 then
+        buttons=BLOCK
+    elseif match.clock>=match.aiNextAttack and distance<100
+        and ai.action~="punch" and ai.action~="kick" then
+        match.aiAttacks=match.aiAttacks+1
+        buttons=match.aiAttacks%3==0 and KICK or PUNCH
+        match.aiNextAttack=match.clock+(match.aiAttacks%3==0 and 1.7 or 1.25)
     end
-    if distance<95 and buttons==0 then
-        local beat=math.floor(match.clock*1.7)%3
-        buttons=buttons+(beat==0 and KICK or PUNCH)
-    end
-    if distance>80 then return {x=direction*.72,buttons=buttons} end
-    if distance<48 then return {x=-direction*.35,buttons=buttons} end
+    if distance>108 then return {x=direction*.50,buttons=buttons} end
+    if distance<57 then return {x=-direction*.42,buttons=buttons} end
     return {x=0,buttons=buttons}
 end
 local function beginAttack(f,action)
@@ -87,6 +93,7 @@ local function stepFighter(f,other,input,dt)
         if f.z==0 then f.vz=0 end
     end
     f.stun=math.max(0,f.stun-dt)
+    f.hitGrace=math.max(0,f.hitGrace-dt)
     f.actionTime=f.actionTime+dt
     local attack=f.action=="punch" or f.action=="kick"
     if attack then
@@ -121,11 +128,13 @@ local function applyHit(attacker,defender)
     if math.abs(attacker.x-defender.x)>reach
         or math.abs(attacker.z-defender.z)>56 then return end
     attacker.hitApplied=true
+    if defender.hitGrace>0 then return end
     local guarded=defender.action=="block" and defender.face==-attacker.face
     local damage=guarded and 2 or punch and 8 or 12
     defender.health=math.max(0,defender.health-damage)
     if not guarded and defender.health>0 then
-        defender.stun=punch and .21 or .32
+        defender.stun=punch and .16 or .23
+        defender.hitGrace=.58
         defender.action,defender.actionTime="hit",0
         defender.x=clamp(defender.x+attacker.face*(punch and 15 or 24),65,735)
     end

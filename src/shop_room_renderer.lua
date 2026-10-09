@@ -9,7 +9,9 @@ local Renderer={}
 local activeImage,activePath
 local dockMesh,dockProgress,dockImage
 local gameImages={}
-local GAME_ASSETS={air_hockey="air-hockey-table.png",basketball="basketball-hoop.png",
+local GAME_ASSETS={air_hockey="air-hockey-table.png",
+    basketball="basketball-goal-idle.png",basketball_rim="basketball-goal-rim.png",
+    basketball_score="basketball-goal-score.png",
     critter_kombat="critter-kombat-cabinet.png",ball="basketball.png"}
 local function gameImage(id)
     if gameImages[id] then return gameImages[id] end
@@ -24,8 +26,42 @@ local function drawGame(id,x,y)
     local image=gameImage(id)
     if image then
         love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(image,x-image:getWidth()/2,y-image:getHeight())
+        if id=="critter_kombat" then
+            -- The controls and screen now face into the room, toward the left.
+            love.graphics.draw(image,x+image:getWidth()/2,y-image:getHeight(),0,-1,1)
+        else
+            love.graphics.draw(image,x-image:getWidth()/2,y-image:getHeight())
+        end
     end
+end
+local function goalReaction(state,sceneId)
+    for _,record in ipairs(require("src.basketball").renderRecords(state)) do
+        if record.bayId==sceneId then
+            local phase=record.shotPhase
+            if phase=="fall" or (phase=="rebound" and record.rimHit==true) then
+                return phase,math.max(0,record.shotElapsed or 0)
+            end
+        end
+    end
+end
+local function drawGoal(state,sceneId,fixture)
+    local phase,elapsed=goalReaction(state,sceneId)
+    local pose="basketball"
+    if phase and math.floor(elapsed/.085)%2==0 then
+        pose=phase=="fall" and "basketball_score" or "basketball_rim"
+    end
+    drawGame(pose,fixture.x,fixture.y)
+    if not phase then return end
+    local duration=phase=="fall" and .32 or .52
+    local progress=math.min(1,elapsed/duration)
+    love.graphics.push("all")
+    if phase=="fall" then love.graphics.setColor(.46,1,.75,1-progress)
+    else love.graphics.setColor(1,.62,.18,1-progress) end
+    love.graphics.setLineWidth(2)
+    love.graphics.circle("line",fixture.rimX,fixture.rimY,8+25*progress)
+    love.graphics.print(phase=="fall" and "SWISH!" or "RIM!",
+        fixture.rimX+16,fixture.rimY-33-16*progress)
+    love.graphics.pop()
 end
 function Renderer.drawBall(x,y) drawGame("ball",x,y) end
 function Renderer.pruneCache() cache:prune() end
@@ -124,7 +160,10 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
         for _,id in ipairs(Games.ORDER) do
             if Games.owns(state,sceneId,id) then
                 local fixture=Games.CATALOG[id]
-                actors[#actors+1]={y=fixture.y,draw=function() drawGame(id,fixture.x,fixture.y) end}
+                actors[#actors+1]={y=fixture.y,draw=function()
+                    if id=="basketball" then drawGoal(state,sceneId,fixture)
+                    else drawGame(id,fixture.x,fixture.y) end
+                end}
             end
         end
     end

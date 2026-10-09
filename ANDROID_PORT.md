@@ -1,6 +1,19 @@
 # The Picture Shop for Android
 
-## Current development build
+## Current source build
+
+- Application ID: `com.thepictureshop.game`
+- Version: `0.1.0-android.48` (`versionCode` 48)
+- Multiplayer protocol: 34; host and guests need matching current code.
+- Build command: `./BUILD_ANDROID.ps1`
+- Local output: `output/mobile/ThePictureShop-0.1.0-android.48-debug.apk`
+- The development APK uses the same gameplay and art source as Windows. It includes
+  the current warehouse, forklift, break room, cheat menu, and Critter Kombat changes.
+- The five new Critter Kombat fighter designs are concept previews pending selection;
+  they are source assets and are not active fighters in this build.
+- A connected phone is required to verify installation and physical gameplay.
+
+## Android 43 historical build notes
 
 - Application ID: `com.thepictureshop.game`
 - Version: `0.1.0-android.43` (`versionCode` 43)

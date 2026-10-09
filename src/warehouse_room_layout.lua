@@ -11,7 +11,7 @@ local function room(id)
 end
 function Layout.bay(id)
     if id=="warehouse" then
-        local b=room(id);b.rackApproachPoint={x=423,y=282};b.upperDeckOffset=85*678/1024;return b
+        local b=room(id);b.rackApproachPoint={x=374,y=218};b.upperDeckOffset=85*678/1024;return b
     end
     if id=="front_left" or id=="front_right" then return room(id) end
 end

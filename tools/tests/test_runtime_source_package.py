@@ -86,11 +86,11 @@ class RuntimeSourcePackageTests(unittest.TestCase):
                          package.RUNTIME_SOURCE_ASSETS)
 
     def test_continuous_side_view_layers_are_packaged(self) -> None:
-        for name in ("east-fixed-manned-v1.png", "east-fixed-empty-v1.png", "east-carriage-v2.png",
-                     "southeast-fixed-manned-v1.png", "southeast-fixed-empty-v1.png", "southeast-carriage-v1.png",
+        for name in ("east-fixed-manned-v1.png", "east-fixed-empty-v1.png", "east-carriage-v3.png",
+                     "southeast-fixed-manned-v1.png", "southeast-fixed-empty-v1.png", "southeast-carriage-v2.png",
                      "northeast-fixed-manned-v1.png", "northeast-fixed-empty-v1.png", "northeast-carriage-v2.png",
                      "south-fixed-manned-v1.png", "south-fixed-empty-v1.png", "south-carriage-v1.png",
-                     "north-fixed-manned-v1.png", "north-fixed-empty-v1.png", "north-carriage-v1.png"):
+                     "north-fixed-manned-v1.png", "north-fixed-empty-v1.png", "north-carriage-v2.png"):
             self.assertIn(package.WAREHOUSE_SOURCE_ROOT + "forklift-layer-study/" + name,
                           package.RUNTIME_SOURCE_ASSETS)
 

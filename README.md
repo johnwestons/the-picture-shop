@@ -3,8 +3,12 @@
 The always-available **OPTIONS** button (or `O` / controller Start) opens game,
 audio, movable touch-control, and developer cheat settings. In **CONTROLS**, drag
 the movement stick and action buttons in the preview; positions are saved for
-the device and applied immediately. **CHEATS** can safely edit cash and common
-inventory/progression values in the live host shop or any offline save slot.
+the device and applied immediately. **CHEATS** has Resources, Supplies, Rooms,
+Machines, and Break Room pages for the live host shop or any offline save slot.
+Resources and Supplies edit cash and stock counts. Rooms grants completed warehouse expansions
+and the forklift. Machines adds installed cutters, wrappers, and Windmill presses
+at full condition. Break Room grants each mini game and its required break room
+when the bay is empty. Grants are saved immediately and are host-only online.
 
 In **OPTIONS > GAME**, enable **Follow player camera** to keep your character
 centered while moving, including when zoomed in. Pinch on mobile or use the mouse
@@ -116,8 +120,12 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The current development installer is [Android 46](https://github.com/johnwestons/the-picture-shop/releases/download/android.46/ThePictureShop-0.1.0-android.46-Install.apk).
-The verified local copy is
+The current source targets Android 48 (`versionCode` 48). Build its local development
+APK with `./BUILD_ANDROID.ps1`; the result is
+`output/mobile/ThePictureShop-0.1.0-android.48-debug.apk`. All multiplayer players
+must run matching protocol 34 code. The latest published installer remains
+[Android 46](https://github.com/johnwestons/the-picture-shop/releases/download/android.46/ThePictureShop-0.1.0-android.46-Install.apk).
+Its verified local copy is
 `output/android-share/0.1.0-android.46/ThePictureShop-0.1.0-android.46-Install.apk`.
 It includes the new open-office warehouse, independent multiplayer rooms, storage
 rooms, physical employee pallet-jack transport, directional worker animations,
@@ -125,7 +133,7 @@ obstacle-aware NPC navigation, and the singleplayer/multiplayer audit fixes.
 The audit covers save switching, stock ownership, room transitions, reconnects,
 mobile controls and viewport sizing, plus rendering and collision-cache costs.
 See the [audit results](docs/audit_android_46.md) for checks and remaining limits.
-All multiplayer participants need this build (protocol 30), including an updated
+All multiplayer participants on Android 46 need that build (protocol 30), including an updated
 PC checkout or game package. The same signed APK supports an in-place update
 from the previous installers. Physical phone playtesting is not claimed.
 The [Android 46 release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.46)

@@ -115,7 +115,8 @@ function Component.install(Runtime)
             for index,entry in ipairs(payload.balls) do
                 local okay,err=Runtime.shape(entry,"snapshot.balls["..index.."]",
                     {"bayId","sceneId","x","y","displayY","mode","leftScore","rightScore","streak"},
-                    {"holderPlayerId","shooterId","shotPhase","shotElapsed","leftId","rightId","contestPhase"})
+                    {"holderPlayerId","shooterId","shotPhase","shotElapsed","rimHit",
+                     "leftId","rightId","contestPhase"})
                 if not okay then return nil,err end
                 local bay=require("src.breakroom_games").BAYS
                 if not bay[entry.bayId] or seen[entry.bayId]
@@ -149,6 +150,9 @@ function Component.install(Runtime)
                 if entry.shotElapsed~=nil then
                     local elapsed,elapsedErr=Runtime.numberInRange(entry.shotElapsed,0,2,"snapshot.balls.shotElapsed")
                     if not elapsed then return nil,elapsedErr end
+                end
+                if entry.rimHit~=nil and type(entry.rimHit)~="boolean" then
+                    return nil,"snapshot.balls.rimHit must be boolean"
                 end
                 if entry.contestPhase~=nil and entry.contestPhase~="waiting"
                     and entry.contestPhase~="playing" and entry.contestPhase~="finished" then

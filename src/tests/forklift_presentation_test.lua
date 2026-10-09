@@ -198,9 +198,9 @@ function Test.run(_, check)
             side.forkHeight=step/100
             local pose=Layered.plan(side,{review=true,scale=0.308})
             smooth=smooth and pose and pose.loadY<previousY
-                and close(pose.carriageShift,150-sideTravel*side.forkHeight)
+                and close(pose.carriageShift,185-sideTravel*side.forkHeight)
             stationary=stationary and pose.bodyPath:match("east%-fixed%-manned%-v1%.png$")
-                and pose.carriagePath:match("east%-carriage%-v2%.png$")
+                and pose.carriagePath:match("east%-carriage%-v3%.png$")
                 and pose.x==side.x and pose.y==side.y
             mirrored=mirrored and (heading=="east" and pose.loadX>side.x
                 or heading=="west" and pose.loadX<side.x)
@@ -224,9 +224,10 @@ function Test.run(_, check)
             side.forkHeight=step/100
             local pose=Layered.plan(side,{review=true,scale=0.308})
             diagonalSmooth=diagonalSmooth and pose and pose.loadY<previousY
-                and close(pose.carriageShift,80-480*side.forkHeight)
+                and close(pose.carriageShift,75-480*side.forkHeight)
             diagonalStationary=diagonalStationary and pose.bodyPath:match("southeast%-fixed%-manned%-v1%.png$")
-                and pose.carriagePath:match("southeast%-carriage%-v1%.png$")
+                and pose.carriagePath:match("southeast%-carriage%-v2%.png$")
+                and close(pose.carriageScale,pose.bodyScale*0.8)
                 and pose.x==side.x and pose.y==side.y
             diagonalMirrored=diagonalMirrored and (heading=="southeast" and pose.loadX>side.x
                 or heading=="southwest" and pose.loadX<side.x)
@@ -280,10 +281,12 @@ function Test.run(_, check)
         side.forkHeight=step/100
         local pose=Layered.plan(side,{review=true,scale=0.308})
         northSmooth=northSmooth and pose and pose.loadY<previousNorthY
-            and close(pose.carriageShift,300-510*side.forkHeight)
+            and close(pose.carriageShift,-700-400*side.forkHeight)
         northStationary=northStationary and pose.bodyPath:match("north%-fixed%-manned%-v1%.png$")
-            and pose.carriagePath:match("north%-carriage%-v1%.png$")
-            and pose.frontClipY==480 and pose.x==side.x and pose.y==side.y
+            and pose.carriagePath:match("north%-carriage%-v2%.png$")
+            and close(pose.carriageScale,pose.bodyScale*0.55)
+            and pose.carriageClipTopY==70 and pose.frontClipY==480
+            and pose.x==side.x and pose.y==side.y
         previousNorthY=pose.loadY
     end
     test("layered_north_forks_move_continuously",northSmooth)

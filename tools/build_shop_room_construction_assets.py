@@ -16,9 +16,9 @@ OUTPUT_ROOT = ROOT / "assets/generated"
 MANIFEST = SOURCE_ROOT / "construction-progress-manifest.json"
 OUTPUT_SIZE = (960, 678)
 ROOMS = {
-    "floor": SOURCE_ROOT / "utility-room-construction-progress-atlas-v1.png",
-    "storage": SOURCE_ROOT / "storage-room-construction-progress-atlas-v1.png",
-    "breakroom": SOURCE_ROOT / "breakroom-construction-progress-atlas-v1.png",
+    "floor": SOURCE_ROOT / "utility-room-construction-progress-atlas-v2.png",
+    "storage": SOURCE_ROOT / "storage-room-construction-progress-atlas-v2.png",
+    "breakroom": SOURCE_ROOT / "breakroom-construction-progress-atlas-v2.png",
 }
 STAGE_NAMES = ("foundation", "framing", "assembly", "finishing")
 
@@ -44,7 +44,7 @@ def write_manifest() -> None:
             },
         })
     MANIFEST.write_text(
-        json.dumps({"version": 1, "rooms": records}, indent=2) + "\n",
+        json.dumps({"version": 2, "rooms": records}, indent=2) + "\n",
         encoding="utf-8",
     )
 

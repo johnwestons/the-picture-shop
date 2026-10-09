@@ -6,15 +6,17 @@ The B6 warehouse and three separate room backgrounds use a 960 × 678 world canv
 | --- | --- | --- |
 | Expansion-room passage | 648, 212 | 648, 161 |
 | Exterior entrance / employee exit | 720, 202 | 720, 151 |
-| Computer | 909, 241 | 909, 175 |
-| Phone | 875, 238 | 879, 144 |
-| Clock | 843, 234 | 843, 121 |
-| Radio | 638, 230 | 638, 86 |
+| Computer | 913, 229 | 909, 175 |
+| Phone | 848, 213 | 879, 144 |
+| Clock | 480, 260 | 480, 50 |
+| Radio | 65, 258 | 35, 115 |
 | Loading-bay controls | 194, 213 | 184, 129 |
 | Truck cargo | 127, 242 | 109, 169 |
 | Separate room exit | 100, 225 | 78, 167 |
 | Stock-room shelves | 530, 285 | 530, 170 |
 | Break-room seating | 775, 260 | 765, 184 |
+
+The base warehouse shelf action sits at `(374,218)` on the front edge of the rack. The warehouse background uses the smoothed `warehouse-lobby-seating-v4.png` edit; the radio and clock remain separate drawn props, so their visible positions follow these registrations.
 
 The floor follows the painted seams beside the racks, passage wall, lounge and open office. Warehouse furniture has separate ground footprints for the remaining chair, sofa, divider, cabinet, desk and desk chair. The removed chair/plant area is kept clear for the relocated exterior door. Break-room furniture and room floor seams use that room's artwork. Scene adapters remain cached by source assets, scene and room kind. Collision queries return fresh copies so clearance inflation cannot enlarge the scenery permanently.
 
