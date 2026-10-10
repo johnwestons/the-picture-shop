@@ -14,6 +14,7 @@ local Config=require("src.config")
 local AI=require("src.employee_ai")
 local Schema=require("src.save_schema")
 local Navigation=require("src.navigation")
+local Footprint=require("src.floor_footprint")
 local Protocol=require("src.net.protocol")
 local Test={}
 
@@ -236,9 +237,10 @@ function Test.run(context,check)
         context.world.player.x,context.world.player.y=930,640
         local transportContext=context.world.employeeContext(state,context.assets)
         transportContext.move=function(actor,goal,dt) return AI.move(actor,goal,dt,transportContext) end
-        local lowered,blockedTransportDetail=false,nil
+        local lowered,wrapperDropValid,blockedTransportDetail,wrapperDropDetail=false,stage~="wrapping",nil,nil
         for _=1,1800 do
-            Transport.update(state,worker,destination,pallet,stage,.1,transportContext)
+            if worker._parkingJack then Transport.park(state,worker,.1,transportContext)
+            else Transport.update(state,worker,destination,pallet,stage,.1,transportContext) end
             if worker.activity=="Clear floor beside the skid wrapper is blocked" then
                 local dropX,dropY=Jack.dropPosition(state,Config.palletJack)
                 local target=worker._jackTarget and worker._jackTarget.goal
@@ -247,12 +249,25 @@ function Test.run(context,check)
                     target and string.format("%.1f,%.1f",target.x,target.y) or "nil",dropX,dropY,
                     tostring(transportContext.jackDropClear(worker,pallet.id,dropX,dropY)))
             end
-            if pallet.location=="warehouse" and not state.palletJack.operating then lowered=true;break end
+            if pallet.location=="warehouse" and not state.palletJack.operating then
+                if stage=="wrapping" then
+                    local wrapperPose=destination.world or require("src.wrapper_placement").ensure(state,Config.wrapperPlacement)
+                    local wrapperFootprint=Footprint.at(wrapperPose.x,wrapperPose.y,Config.wrapperPlacement)
+                    local skidFootprint=Footprint.at(pallet.world.x,pallet.world.y,Config.palletLogistics)
+                    local spacing=Footprint.distanceSquared(wrapperFootprint,skidFootprint)
+                    wrapperDropValid=spacing>0 and spacing<=Config.wrapperPlacement.palletReach^2
+                    wrapperDropDetail=string.format("facing=%s skid=%.1f,%.1f wrapper=%.1f,%.1f spacing=%.1f reach=%.1f",
+                        tostring(pallet.world.direction),pallet.world.x,pallet.world.y,wrapperPose.x,wrapperPose.y,
+                        math.sqrt(spacing),Config.wrapperPlacement.palletReach)
+                end
+                lowered=true;break
+            end
         end
-        check("employee_delivers_real_jack_to_"..stage,lowered,blockedTransportDetail or worker.activity)
-        if stage=="wrapping" then assert(Jack.mountEmployee(state,Config.palletJack,worker.id));assert(Jack.lift(state,Config.palletJack,pallet.id));Transport.release(state,worker,{}) end
+        check("employee_delivers_real_jack_to_"..stage,lowered and wrapperDropValid,
+            wrapperDropDetail or blockedTransportDetail or worker.activity)
         context.world.player.x,context.world.player.y=oldPX,oldPY
     end
+    state.palletJack.x,state.palletJack.y=pallet.world.x,pallet.world.y
     assert(Jack.mountEmployee(state,Config.palletJack,worker.id))
     assert(Jack.lift(state,Config.palletJack,pallet.id))
     worker.weeks={{week=-3,dueAtHours=0,paidHours=1,earnedCents=2400,paidCents=0,notified=false}}

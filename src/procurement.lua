@@ -410,7 +410,7 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
                     or remaining >= math.huge then return false, "Invalid physical product quantity." end
                 physical = physical + remaining
                 local accessibleShelf = options.autoShelf == true and productId == "stretch_film"
-                    and pallet.location == "rack"
+                    and pallet.location == "rack" and not PalletStorage.isSupporting(state, pallet.id)
                 if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
                     or accessibleShelf then
                     accessible = accessible + remaining
@@ -517,6 +517,7 @@ function Procurement.canConsumeStockProducts(state, requirements)
                         physical = physical + remaining
                         local accessibleShelf = request.autoShelf == true
                             and request.productId == "stretch_film" and pallet.location == "rack"
+                            and not PalletStorage.isSupporting(state, pallet.id)
                         if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
                             or accessibleShelf then
                             accessible = accessible + remaining

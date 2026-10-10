@@ -146,6 +146,7 @@ function Transport.update(state, worker, machine, pallet, stage, dt, context)
     end
     if loaded then
         -- The route goal is the jack's wheelbase; the pallet lands at the fork tip.
+        if goal.dropDirection then Jack.face(state, Config.palletJack, goal.dropDirection) end
         local lowered, reason = Jack.lower(state, Config.palletJack, function(x, y)
             return context.jackDropClear(worker, pallet.id, x, y)
         end, nil, nil, pallet.id)

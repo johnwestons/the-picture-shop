@@ -81,6 +81,24 @@ function PalletJack.dropPosition(state, config)
     return jack.x + offset.x, jack.y + offset.y
 end
 
+function PalletJack.dropOffset(direction)
+    local offset = dropOffsets[direction]
+    if not offset then return nil end
+    return offset.x, offset.y
+end
+
+function PalletJack.face(state, config, direction)
+    if not directionFrames[direction] then return false end
+    local jack = PalletJack.ensure(state, config)
+    jack.direction = direction
+    local motion = motionFor(jack, config)
+    motion.operatorDirection = direction
+    motion.heading = directionAngles[direction]
+    motion.targetHeading = motion.heading
+    motion.velocityX, motion.velocityY = 0, 0
+    return true
+end
+
 local function findPallet(state, palletId)
     local item = PalletState.find(state, palletId)
     if item then return item.job, item.pallet, item.vendor end

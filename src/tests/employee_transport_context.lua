@@ -12,8 +12,10 @@ return function(context,state)
     context.jackPickupPoint=function(_,pallet) return {x=pallet.world.x+40,y=pallet.world.y} end
     context.jackDropPoint=function(machineId,worker,pallet,stage)
         if stage=="wrapping" then
-            return context.palletDropPoint and context.palletDropPoint(machineId,worker,pallet)
+            local placement=context.palletDropPoint and context.palletDropPoint(machineId,worker,pallet)
                 or {x=state.wrapper.x+80,y=state.wrapper.y}
+            local offsetX,offsetY=Jack.dropOffset("east")
+            return {x=placement.x-offsetX,y=placement.y-offsetY,dropDirection="east"}
         end
         if context.machinePalletDropPoint then return context.machinePalletDropPoint(machineId,worker,pallet,stage) end
         local x,y=Zones.inputAnchor(state,Config.cutterPlacement)

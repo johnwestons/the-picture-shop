@@ -329,13 +329,35 @@ function Component.install(Runtime)
                     if skidFootprintClear(x,y)
                         and Runtime.Footprint.distanceSquared(Runtime.Footprint.at(wrapper.x,wrapper.y,Runtime.Config.wrapperPlacement),
                             Runtime.Footprint.at(x,y,Runtime.Config.palletLogistics))<=Runtime.Config.wrapperPlacement.palletReach^2 then
-                        candidates[#candidates+1]={x=x,y=y}
+                        if forJack then
+                            -- A route goal is the jack's wheelbase, while the
+                            -- pallet lands at its direction-dependent fork tip.
+                            -- Plan from the real pallet position back to a jack
+                            -- pose, and carry the intended final facing with it.
+                            for _,facing in ipairs({"northwest","north","northeast","east",
+                                "southeast","south","southwest","west"}) do
+                                local offsetX,offsetY=Runtime.PalletJack.dropOffset(facing)
+                                candidates[#candidates+1]={x=x-offsetX,y=y-offsetY,
+                                    dropDirection=facing,dropX=x,dropY=y}
+                            end
+                        else
+                            candidates[#candidates+1]={x=x,y=y}
+                        end
                     end
                 end
             end
             local routeContext=forJack and context.jackNavigation(worker,pallet.id,true)
                 or {assets=assets,obstacles=function() return obstacles end}
             local point=Runtime.EmployeeAI.findReachablePoint(forJack and context.jackActor(worker) or worker,candidates,routeContext)
+            if point and forJack then
+                for _,candidate in ipairs(candidates) do
+                    if math.abs(point.x-candidate.x)<.01 and math.abs(point.y-candidate.y)<.01 then
+                        point.dropDirection=candidate.dropDirection
+                        point.dropX,point.dropY=candidate.dropX,candidate.dropY
+                        break
+                    end
+                end
+            end
             if point then worker._palletDropKey=key;worker._palletDropPoint=point end
             return point
         end
