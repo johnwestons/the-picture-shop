@@ -61,7 +61,7 @@ end
 function Test.run(_, check)
     local fresh = State.new()
     check("warehouse_save_new_schema_and_safe_defaults",
-        Schema.VERSION == 22 and Schema.validState(Schema.snapshot(fresh))
+        Schema.VERSION == 23 and Schema.validState(Schema.snapshot(fresh))
         and fresh.warehouse.bays.front_left.status == "locked"
         and fresh.warehouse.bays.front_right.status == "locked" and not fresh.warehouse.forkliftOwned
         and not fresh.forklift.owned and fresh.storage.racks["warehouse-rack"]~=nil)
