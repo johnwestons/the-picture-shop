@@ -2,7 +2,12 @@ local Anchors = require("src.character_anchors")
 local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local Metrics = require("src.character_metrics")
-local imageCache = require("src.texture_cache").new(16 * 1024 * 1024, 20)
+local TextureCache = require("src.texture_cache")
+local imageCache = TextureCache.new(16 * 1024 * 1024, 20)
+-- The five authored rabbit walk views are 4096x512 textures (8 MiB each).
+-- Keep the complete set for the session in its own bounded cache so unrelated
+-- worker and task poses cannot evict a direction while the player turns.
+local playerWalkCache = TextureCache.new(40 * 1024 * 1024, math.huge)
 local useSequence = 0
 local frameSequence, frameDepth = 0, 0
 
@@ -105,6 +110,8 @@ local function validateAction(character, action, path)
         return
     end
     CharacterAssets.metadata[character][action] = {
+        character = character,
+        action = action,
         path = path,
         width = width,
         height = height,
@@ -116,6 +123,14 @@ local function validateAction(character, action, path)
         local metadata = CharacterAssets.metadata[character][action]
         metadata.visibleHeight = math.max(metadata.visibleHeight, bounds[4] - bounds[2])
     end
+end
+
+local function cacheFor(metadata)
+    if metadata and metadata.character == Config.player.character
+        and (metadata.action == "walk" or metadata.action:match("^walk_")) then
+        return playerWalkCache
+    end
+    return imageCache
 end
 
 local function actionHeight(character, action)
@@ -198,7 +213,7 @@ local function loadAction(character, action)
 
     local image
     local ok, frames = pcall(function()
-        image = imageCache:take(metadata.path) or love.graphics.newImage(metadata.path)
+        image = cacheFor(metadata):take(metadata.path) or love.graphics.newImage(metadata.path)
         if not image then error("image loader returned no texture") end
         image:setFilter("nearest", "nearest")
         local result = {}
@@ -232,6 +247,30 @@ function CharacterAssets.get(character, action, frame)
     return image, frames[((frame or 1) - 1) % frameCount + 1], frameCount
 end
 
+-- Load one player walk view per title frame. It keeps GPU uploads out of the
+-- first gameplay turns without adding a long blocking preload to game startup.
+function CharacterAssets.warmNextPlayerWalkAction()
+    local character = Config.player.character
+    local metadata = CharacterAssets.metadata[character]
+    local images = CharacterAssets.images[character]
+    if not metadata or not images then return nil end
+
+    local actions = {}
+    for action, entry in pairs(metadata) do
+        if action == "walk" or action:match("^walk_") then
+            local cache = cacheFor(entry)
+            if not images[action] and not cache.entries[entry.path] then
+                actions[#actions + 1] = action
+            end
+        end
+    end
+    table.sort(actions)
+    local action = actions[1]
+    if not action then return nil end
+    local image = loadAction(character, action)
+    return image and action or nil
+end
+
 function CharacterAssets.getAnchor(character, action, frame)
     local actionAnchors = Anchors[character] and Anchors[character][action]
     if not actionAnchors or #actionAnchors == 0 then return 256, 398 end
@@ -263,13 +302,18 @@ function CharacterAssets.endFrame()
         end
     end
     table.sort(retired,function(a,b) return (a.metadata.lastUse or 0)<(b.metadata.lastUse or 0) end)
-    for _,entry in ipairs(retired) do imageCache:put(entry.metadata.path,entry.image) end
+    for _,entry in ipairs(retired) do
+        cacheFor(entry.metadata):put(entry.metadata.path,entry.image)
+    end
 end
 
 function CharacterAssets.retainCharacters(activeCharacters, cacheInactive)
     -- Explicit release requests (asset checks/reloads) remain immediate. During
     -- screen changes, a small idle cache avoids decoding the same actor again.
-    if not cacheInactive then imageCache:clear() end
+    if not cacheInactive then
+        imageCache:clear()
+        playerWalkCache:clear()
+    end
     local active = {}
     for key, value in pairs(activeCharacters or {}) do
         if type(key) == "number" then active[value] = true elseif value then active[key] = true end
@@ -287,23 +331,33 @@ function CharacterAssets.retainCharacters(activeCharacters, cacheInactive)
             end
         end
     end
-    -- Keep the poses actually drawn most recently when a whole character has
-    -- more actions than the idle budget can hold.
+    -- Preserve recent use order as each pose is returned to its cache.
     table.sort(retired,function(a,b)
         return (a.metadata.lastUse or 0) < (b.metadata.lastUse or 0)
     end)
-    for _,entry in ipairs(retired) do imageCache:put(entry.metadata.path,entry.image) end
+    for _,entry in ipairs(retired) do
+        cacheFor(entry.metadata):put(entry.metadata.path,entry.image)
+    end
 end
 
 function CharacterAssets.releaseAll()
     imageCache:clear()
+    playerWalkCache:clear()
     for _, actions in pairs(CharacterAssets.images or {}) do
         for _, image in pairs(actions) do release(image) end
     end
 end
-function CharacterAssets.pruneCache() imageCache:prune() end
-function CharacterAssets.clearCache() imageCache:clear() end
-function CharacterAssets.cachedTextureBytes() return imageCache.bytes end
+function CharacterAssets.pruneCache()
+    imageCache:prune()
+    playerWalkCache:prune()
+end
+function CharacterAssets.clearCache()
+    imageCache:clear()
+    playerWalkCache:clear()
+end
+function CharacterAssets.cachedTextureBytes()
+    return imageCache.bytes + playerWalkCache.bytes
+end
 
 function CharacterAssets.textureBytes()
     local bytes = 0

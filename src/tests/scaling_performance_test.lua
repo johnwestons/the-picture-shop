@@ -83,8 +83,8 @@ local function textureChecks(context,check)
     for _,action in ipairs(characters.actions("rabbit-worker")) do
         characters.beginFrame();assert(characters.get("rabbit-worker",action,1));characters.endFrame()
     end
-    check("scaling_animation_history_stays_within_inactive_budget",
-        characters.residentActionCount()==1 and characters.cachedTextureBytes()<=16*1024*1024)
+    check("scaling_animation_history_stays_within_split_inactive_budgets",
+        characters.residentActionCount()==1 and characters.cachedTextureBytes()<=56*1024*1024)
     characters.retainCharacters({},false)
 end
 

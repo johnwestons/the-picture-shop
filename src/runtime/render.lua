@@ -40,6 +40,7 @@ function Component.install(Runtime)
             Runtime.AssetErrorScreen.draw(Runtime.state.assetErrors)
         elseif Runtime.state.screen == "title" then
             Runtime.CharacterAssets.retainCharacters({}, true)
+            Runtime.CharacterAssets.warmNextPlayerWalkAction()
             local mouseX, mouseY = Runtime.pointerPosition()
             Runtime.TitleScreen.draw(Runtime.Assets, mouseX, mouseY)
         elseif Runtime.state.screen == "lan" then

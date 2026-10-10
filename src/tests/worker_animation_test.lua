@@ -48,7 +48,7 @@ function Test.run(context, check)
         check("worker_" .. profile.character .. "_has_active_pallet_jack_push_gait", validPush)
     end
     check("worker_action_texture_cache_stays_within_budget",
-        cacheOkay and assets.cachedTextureBytes() <= 16 * 1024 * 1024)
+        cacheOkay and assets.cachedTextureBytes() <= 56 * 1024 * 1024)
 end
 
 return Test

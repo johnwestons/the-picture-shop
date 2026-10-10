@@ -41,7 +41,7 @@ local function imageChecks(context,check)
     characters.retainCharacters({"rabbit-worker"},true)
     check("performance_player_textures_survive_brief_menu_changes",
         inactive and characters.get("rabbit-worker","idle_south",1)==playerImage
-        and characters.cachedTextureBytes()<=16*1024*1024)
+        and characters.cachedTextureBytes()<=56*1024*1024)
     characters.retainCharacters({})
     check("performance_explicit_character_release_clears_cache",
         characters.textureBytes()==0 and characters.cachedTextureBytes()==0)
