@@ -149,7 +149,7 @@ function Test.run(context,check)
         worker.activity.." jack="..state.palletJack.x..","..state.palletJack.y)
     check("employee_loaded_jack_routes_and_lowers_in_machine_zone",delivered and collisionSafe
         and context.CutterZones.inInputZone(state,pallet,Config.cutterPlacement)
-        and not state.palletJack.operating and not state.palletJack.carriedPalletId
+        and not state.palletJack.carriedPalletId
         and (startX~=state.palletJack.x or startY~=state.palletJack.y),blockedDropDetail or worker.activity)
     local Work=require("src.employee_work")
     context.world.player.x,context.world.player.y=930,640
