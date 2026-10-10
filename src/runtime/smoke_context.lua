@@ -7,9 +7,16 @@ function Component.install(Runtime)
         if not Runtime.Smoke.requested() then return end
         if #Runtime.state.assetErrors == 0 then
             Runtime.startGame(Runtime.Save.newGame(1), "smoke")
-            -- Advance the transient visitor to reception so the smoke render
-            -- includes the customer sprite and depth-sorting path.
-            Runtime.World.update(10, 0, 0, Runtime.Assets, Runtime.state)
+            -- Make the render fixture independent of the live seasonal arrival
+            -- cadence, then walk the visitor to reception using normal navigation.
+            local customer = Runtime.World.customer
+            customer:reset(true, 0)
+            customer.timer = 0
+            local employeeContext = Runtime.World.employeeContext(Runtime.state, Runtime.Assets)
+            for _ = 1, 120 do
+                if customer.state == "waiting" then break end
+                customer:update(0.5, Runtime.World.player, false, 0.5, employeeContext)
+            end
         end
         Runtime.Smoke.start({
             appRuntime = Runtime,
