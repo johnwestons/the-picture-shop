@@ -124,9 +124,19 @@ function Test.run(context,check)
     worker.assignment={jobId=first.id,palletId=pallet.id,machineId=machine.id,machineModel=machine.modelId}
     worker.reserved=true
     local lifted,delivered,collisionSafe=false,false,true
+    local blockedDropDetail
     local startX,startY=state.palletJack.x,state.palletJack.y
     for _=1,2200 do
         Transport.update(state,worker,machine,pallet,"cutter",.1,ctx)
+        if worker.activity=="Clear floor beside the cutter is blocked" then
+            local dropX,dropY=Jack.dropPosition(state,Config.palletJack)
+            local target=worker._jackTarget and worker._jackTarget.goal
+            blockedDropDetail=string.format("%s jack=%.1f,%.1f facing=%s target=%s drop=%.1f,%.1f clear=%s inZone=%s",
+                worker.activity,state.palletJack.x,state.palletJack.y,state.palletJack.direction,
+                target and string.format("%.1f,%.1f",target.x,target.y) or "nil",dropX,dropY,
+                tostring(ctx.jackDropClear(worker,pallet.id,dropX,dropY)),
+                tostring(context.CutterZones.inInputZone(state,{world={x=dropX,y=dropY}},Config.cutterPlacement)))
+        end
         if pallet.location=="on_pallet_jack" then
             lifted=true
             local nav=ctx.jackNavigation(worker,pallet.id)
@@ -140,7 +150,7 @@ function Test.run(context,check)
     check("employee_loaded_jack_routes_and_lowers_in_machine_zone",delivered and collisionSafe
         and context.CutterZones.inInputZone(state,pallet,Config.cutterPlacement)
         and not state.palletJack.operating and not state.palletJack.carriedPalletId
-        and (startX~=state.palletJack.x or startY~=state.palletJack.y),worker.activity)
+        and (startX~=state.palletJack.x or startY~=state.palletJack.y),blockedDropDetail or worker.activity)
     local Work=require("src.employee_work")
     context.world.player.x,context.world.player.y=930,640
     for _=1,600 do
