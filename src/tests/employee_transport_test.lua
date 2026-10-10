@@ -165,6 +165,9 @@ function Test.run(context,check)
         capture(context,state,profile.character.."-working-in-game")
     end
     context.world.player.x,context.world.player.y=oldX,oldY
+    -- The jack has parked away from the cutter; position it at this skid for
+    -- the independent loaded-jack network snapshot fixture below.
+    state.palletJack.x,state.palletJack.y=pallet.world.x,pallet.world.y
     assert(Jack.mountEmployee(state,Config.palletJack,worker.id))
     assert(Jack.lift(state,Config.palletJack,pallet.id))
     worker.phase="pushing";worker.moving=true;worker.jackDistance=125;worker.idleClock=0
