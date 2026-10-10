@@ -203,6 +203,7 @@ function Test.run(_, check)
     local filmPallet = filmOrder.pallets[1]
     local filmUnloaded = boughtFilm and Procurement.unload(wrapState,filmOrder.id,filmPallet.id,
         Config.palletLogistics.spawnPoints,Config.palletLogistics.unloadOrigin)
+    if filmUnloaded then shelf(wrapState,filmPallet) end
     wrapState.inventory.plasticWrapUses = 1
     local wrappedPallet = {
         id="STOCK-WRAP-TEST-P01", number=1, status="cut", location="cutter_output",
@@ -213,7 +214,7 @@ function Test.run(_, check)
     Wrapper.reset(wrapState)
     local wrapStarted = filmUnloaded and Wrapper.start(wrapState)
     local wrapFinished = wrapStarted and Wrapper.update(Wrapper.cycleTime+0.01,wrapState)
-    check("stock_consumption_last_wrap_use_removes_depleted_film_skid",
+    check("stock_consumption_last_wrap_use_removes_shelved_film_skid",
         wrapFinished and wrappedPallet.wrapped and wrapState.inventory.plasticWrapRolls == 0
         and wrapState.inventory.plasticWrapUses == 0
         and filmPallet.remainingQuantity == 0 and filmPallet.location == "none"
@@ -317,7 +318,6 @@ function Test.run(_, check)
     local blockedCartons = blockedCartonOrder.pallets[1]
     local cartonsReady = cartonsOkay and Procurement.unload(atomicWrapState,blockedCartonOrder.id,blockedCartons.id,
         Config.palletLogistics.spawnPoints,Config.palletLogistics.unloadOrigin)
-    if cartonsReady then shelf(atomicWrapState,blockedCartons) end
     atomicWrapState.inventory.plasticWrapUses = 1
     local boxedPallet = {
         id="STOCK-ATOMIC-WRAP-P01", number=1, status="cut", location="cutter_output",
@@ -327,6 +327,7 @@ function Test.run(_, check)
     atomicWrapState.jobs.active = { {id="STOCK-ATOMIC-WRAP",packaging="boxed",pallets={boxedPallet}} }
     Wrapper.reset(atomicWrapState)
     local boxedStarted = cartonsReady and filmReady and Wrapper.start(atomicWrapState)
+    if boxedStarted then shelf(atomicWrapState,blockedCartons) end
     local blockedFinish = boxedStarted and Wrapper.update(Wrapper.cycleTime+0.01,atomicWrapState)
     check("stock_consumption_boxed_wrap_rolls_back_film_when_carton_skid_is_stored",
         boxedStarted and not blockedFinish and not boxedPallet.wrapped
