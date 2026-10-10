@@ -145,9 +145,10 @@ function Transport.update(state, worker, machine, pallet, stage, dt, context)
         return false, blocked and worker.activity or nil
     end
     if loaded then
+        -- The route goal is the jack's wheelbase; the pallet lands at the fork tip.
         local lowered, reason = Jack.lower(state, Config.palletJack, function(x, y)
             return context.jackDropClear(worker, pallet.id, x, y)
-        end, goal.x, goal.y, pallet.id)
+        end, nil, nil, pallet.id)
         if not lowered then worker.activity = "Clear floor beside the " .. name .. " is blocked"; return false, reason end
         worker._jackTarget=nil
         worker._jackParkingTarget=nil
