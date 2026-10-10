@@ -236,12 +236,20 @@ function Test.run(context,check)
         context.world.player.x,context.world.player.y=930,640
         local transportContext=context.world.employeeContext(state,context.assets)
         transportContext.move=function(actor,goal,dt) return AI.move(actor,goal,dt,transportContext) end
-        local lowered=false
+        local lowered,blockedTransportDetail=false,nil
         for _=1,1800 do
             Transport.update(state,worker,destination,pallet,stage,.1,transportContext)
+            if worker.activity=="Clear floor beside the skid wrapper is blocked" then
+                local dropX,dropY=Jack.dropPosition(state,Config.palletJack)
+                local target=worker._jackTarget and worker._jackTarget.goal
+                blockedTransportDetail=string.format("%s jack=%.1f,%.1f facing=%s target=%s drop=%.1f,%.1f clear=%s",
+                    worker.activity,state.palletJack.x,state.palletJack.y,state.palletJack.direction,
+                    target and string.format("%.1f,%.1f",target.x,target.y) or "nil",dropX,dropY,
+                    tostring(transportContext.jackDropClear(worker,pallet.id,dropX,dropY)))
+            end
             if pallet.location=="warehouse" and not state.palletJack.operating then lowered=true;break end
         end
-        check("employee_delivers_real_jack_to_"..stage,lowered,worker.activity)
+        check("employee_delivers_real_jack_to_"..stage,lowered,blockedTransportDetail or worker.activity)
         if stage=="wrapping" then assert(Jack.mountEmployee(state,Config.palletJack,worker.id));assert(Jack.lift(state,Config.palletJack,pallet.id));Transport.release(state,worker,{}) end
         context.world.player.x,context.world.player.y=oldPX,oldPY
     end
