@@ -7,6 +7,8 @@ function Component.install(Runtime)
         if not Runtime.Smoke.requested() then return end
         if #Runtime.state.assetErrors == 0 then
             Runtime.startGame(Runtime.Save.newGame(1), "smoke")
+            -- Install the active world assets/state used by placement and render checks.
+            Runtime.World.update(0, 0, 0, Runtime.Assets, Runtime.state)
             -- Make the render fixture independent of the live seasonal arrival
             -- cadence, then walk the visitor to reception using normal navigation.
             local customer = Runtime.World.customer
