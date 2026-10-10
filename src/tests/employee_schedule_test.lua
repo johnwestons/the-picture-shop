@@ -313,7 +313,7 @@ function Test.run(context,check)
     testTransfersAndPackaging(context,check)
     local state=State.new();local w=hire(state);local m=Fleet.installedUnits(state,"polar_115")[1]
     local a=job(state,"JOB-QUEUE-A",{500,500});local b=job(state,"JOB-QUEUE-B",{1000});local c=job(state,"JOB-QUEUE-C")
-    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==22 and Schedule.valid(w.schedule) and #w.schedule.items==0)
+    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==23 and Schedule.valid(w.schedule) and #w.schedule.items==0)
     check("schedule_rejects_job_before_delivery",not add(state,w,a,m) and #w.schedule.items==0)
     local firstSkid,_,skidsRemaining=context.PalletLogistics.unload(state,a.id,a.pallets[1].id,
         context.config.palletLogistics.spawnPoints,context.config.palletLogistics.unloadOrigin)
