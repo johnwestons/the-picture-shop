@@ -4,6 +4,9 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.focus(focused)
+        if Runtime.state.screen=="critter_kombat" then
+            require("src.screens.critter_kombat_screen").cancelInputs(not focused)
+        end
         if focused then
             if Runtime.App.multiplayerFocusGrace:isExpired() then
                 Runtime.App.multiplayerFocusGrace:clear()

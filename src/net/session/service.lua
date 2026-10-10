@@ -214,12 +214,19 @@ function Component.install(Runtime)
                     serverTick = self.serverTick,
                     players = Runtime.Codec.array({ record }),
                     games = index==1 and Runtime.Codec.array(games) or nil,
-                    balls = index==2 and Runtime.Codec.array(balls) or nil,
+                    balls = nil,
                 })
                 if not ok then
                     self:_queue("error", { message = errorMessage })
                     break
                 end
+            end
+            -- Ball aim/flight metadata is larger than a bare loose-ball pose.
+            -- Send each bay separately rather than overflowing the motion MTU.
+            for _,ball in ipairs(balls) do
+                local ballOkay,ballError=self:_broadcastJoined("snapshot",{sessionId=self.sessionId,serverTick=self.serverTick,
+                    players=Runtime.Codec.array({}),balls=Runtime.Codec.array({ball})})
+                if not ballOkay then self:_queue("error",{message=ballError}) end
             end
             local fights=context and context.getFightSnapshot and context.getFightSnapshot() or {}
             local fightOk,fightError=self:_broadcastJoined("fight_snapshot",{

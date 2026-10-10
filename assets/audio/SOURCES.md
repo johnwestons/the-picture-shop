@@ -12,11 +12,10 @@ SHA-256 fingerprints, and generator-relative paths are recorded in
 
 ## Vibes radio
 
-The warehouse jukebox uses the nine canonical tracks from the Vibes playlist in
-the sibling `Mouse Frontier 8.10` project. The tracks are downmixed to mono and
-resampled from 48 kHz to 24 kHz PCM for the warehouse radio; the duplicate `2`
-variants and every other playlist are excluded. Its radio face and button art
-also come from that project's `assets/sprites/ui/radio` folder.
+The office computer RADIO tab plays the nine canonical tracks from the Vibes
+playlist in the sibling Mouse Frontier 8.10 project. The tracks are downmixed
+to mono and resampled from 48 kHz to 24 kHz PCM; numbered duplicates and every
+other playlist are excluded.
 
 ## Attribution-required recordings
 

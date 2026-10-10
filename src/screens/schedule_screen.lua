@@ -41,6 +41,17 @@ local function selectJob(ui,jobs,index)
     ui.jobId=job and job.id or nil
     return job
 end
+local function cutterAssignment(state,machineId)
+    local machines=Fleet.installedUnits(state,"polar_115")
+    for index,machine in ipairs(machines) do
+        if machine.id==machineId then
+            return string.format("CUTTER %d · %s",index,machine.id),index
+        end
+    end
+    local machine=machineId and Fleet.byId(state,machineId)
+    if machine then return "CUTTER OFFLINE · "..machine.id,nil end
+    return "CUTTER UNAVAILABLE · "..tostring(machineId or "UNKNOWN"),nil
+end
 local function choices(state,ui)
     local jobs,index={},ui.jobIndex
     for _,job in ipairs(state.jobs.active or {}) do
@@ -62,13 +73,6 @@ local function chosenItem(q,ui)
     for i,row in ipairs(q.items) do if row.id==ui.itemId then return row,i end end
     ui.itemId=q.items[1] and q.items[1].id or nil
     return q.items[1],1
-end
-local function minimumSkillSummary(job)
-    if not job then return "" end
-    local minimum=Schedule.minimumSkills(job)
-    return "MIN CUT "..minimum.cutter
-        ..(minimum.press and " | PRINT "..minimum.press or "")
-        .." | WRAP "..minimum.wrapping
 end
 local function qualifiedCount(state,field,minimum)
     if minimum==nil then return nil end
@@ -281,9 +285,10 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
         short(job and job.company or "",154,371,400,{.62,.79,.67,1})
         local done,total=Schedule.progress(job)
         line(string.format("Finished pallets: %d/%d",done,total),98,404,514)
-        line("Installed cutter",98,425,514)
+        local _,cutterIndex=cutterAssignment(state,machine and machine.id)
+        line("Assigned cutter",98,425,514)
         button("machinePrev","<",x,y,ui.machineIndex<=1);button("machineNext",">",x,y,ui.machineIndex>=nm)
-        short(machine and machine.name or "No installed cutter",154,441,400)
+        short(machine and ("CUTTER "..tostring(cutterIndex or "?").." · "..(machine.shortName or machine.name)) or "No installed cutter",154,441,400)
         short(machine and machine.id or "",154,461,400,{.62,.79,.67,1})
         line(message,98,493,514,{1,.86,.43,1})
         button("confirm","ADD TO SCHEDULE",x,y,readOnly or not okay)
@@ -311,7 +316,8 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
             short((ui.view=="queue" and n..". " or "")..row.jobId..(job and "  |  "..job.company or ""),r.x+10,r.y+3,r.width-20)
             local status
             if ui.view=="history" then
-                status=(row.result=="complete" and "Production complete" or row.result=="removed" and "Removed from schedule" or "Job no longer available").." | Game day "..(math.floor(row.finishedAtHours/24)+1)
+                local assignedCutter=cutterAssignment(state,row.machineId)
+                status=assignedCutter.." | "..(row.result=="complete" and "Production complete" or row.result=="removed" and "Removed from schedule" or "Job no longer available").." | Game day "..(math.floor(row.finishedAtHours/24)+1)
                 if ui.team and row.workerId then
                     local worker=Employees.worker(state,row.workerId)
                     status=status.." | "..(worker and worker.name or "Worker")
@@ -322,7 +328,8 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
                 local stage=Schedule.stage(job,nextPallet)
                 local stageName=stage=="cutter" and "cutting" or stage=="press" and "printing"
                     or stage=="wrapping" and "wrapping" or "finished"
-                status=minimumSkillSummary(job)..string.format(" | %d/%d finished | %s",done,total,stageName)
+                local assignedCutter=cutterAssignment(state,row.machineId)
+                status=assignedCutter..string.format(" | %d/%d finished | %s",done,total,stageName)
                 if ui.team then
                     local assigned=teamWorker(state,row.id)
                     if assigned then status=status.." | WITH "..assigned.name end
@@ -340,7 +347,8 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
         return
     end
     if selectedRow then
-        line("Selected job #"..selectedIndex,636,334,222,{1,.86,.43,1})
+        local _,cutterIndex=cutterAssignment(state,selectedRow.machineId)
+        line("Selected job #"..selectedIndex..(cutterIndex and " · CUTTER "..cutterIndex or ""),636,334,222,{1,.86,.43,1})
         short(selectedRow.jobId,636,356,222)
         local job=Schedule.job(state,selectedRow.jobId)
         local done,total=Schedule.progress(job)

@@ -32,7 +32,8 @@ function Component.run(Context)
                 Context.message(state, "Cutter output safety is unavailable. Return to the warehouse and reopen the console.")
                 return false
             end
-            local output, outputError = Context.Machine.outputResolver(state, Context.Machine.pallet)
+            local output, outputError = Context.Machine.outputResolver(state, Context.Machine.pallet,
+                Context.machineId or "MCH-0001")
             if not output then Context.message(state, outputError); return false end
             Context.Machine.pendingOutput = output
         end

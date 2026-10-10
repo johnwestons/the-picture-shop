@@ -318,24 +318,24 @@ function Test.run(context, check)
         return source
     end
     Jukebox.trackIndex, Jukebox.source, Jukebox.active, Jukebox.paused = 1, nil, false, true
-    local radioState = { screen = "jukebox" }
-    Jukebox.mousepressed(radioState, 420, 583, 1)
-    for _ = 2, 9 do Jukebox.mousepressed(radioState, 540, 583, 1) end
+    local radioState = { screen = "computer" }
+    Jukebox.mousepressed(radioState, 120, 500, 1)
+    for _ = 2, 9 do Jukebox.mousepressed(radioState, 500, 410, 1) end
     local vibesOnly, tracksExist = #trackPaths == 9, #trackPaths == 9
     for _, path in ipairs(trackPaths) do
         vibesOnly = vibesOnly and path:match("^assets/audio/music/vibes/") ~= nil
         tracksExist = tracksExist and love.filesystem.getInfo(path, "file") ~= nil
     end
     local readonlyTrackIndex = Jukebox.trackIndex
-    local readonlyState = { screen = "jukebox" }
-    Jukebox.mousepressed(readonlyState, 540, 583, 1, true)
-    check("recent_jukebox_client_cannot_change_host_radio_controls",
+    local readonlyState = { screen = "computer" }
+    Jukebox.mousepressed(readonlyState, 500, 410, 1, true)
+    check("recent_radio_tab_client_cannot_change_host_playback",
         Jukebox.trackIndex == readonlyTrackIndex and #trackPaths == 9
         and readonlyState.message == "The host controls the radio for everyone.")
     local networkRadioApplied = Jukebox.applyNetworkState({
         trackIndex = 4, active = true, paused = true, muted = true, positionMs = 5200,
     })
-    check("recent_jukebox_client_applies_host_track_and_playback_state",
+    check("recent_radio_client_applies_host_track_and_playback_state",
         networkRadioApplied and Jukebox.trackIndex == 4 and Jukebox.active
         and Jukebox.paused and Jukebox.muted and #trackPaths == 10
         and trackPaths[#trackPaths]:match("assets/audio/music/vibes/goodbye_youre_waking_up%.wav$") ~= nil)
@@ -346,7 +346,7 @@ function Test.run(context, check)
     local retainedDuringStartup=Jukebox.trackIndex==4 and #trackPaths==10
     mockClock=2
     Jukebox.update(true,false)
-    check("recent_jukebox_slow_mobile_stream_does_not_churn_audio_sources",
+    check("recent_radio_slow_mobile_stream_does_not_churn_audio_sources",
         retainedDuringStartup and Jukebox.trackIndex==5 and #trackPaths==11
         and endedSource.released)
     if Jukebox.source then
@@ -361,7 +361,7 @@ function Test.run(context, check)
         oldJukeboxState.active, oldJukeboxState.paused, oldJukeboxState.muted,
         oldJukeboxState.radioDirty, oldJukeboxState.networkSession,
         oldJukeboxState.playbackStartedAt
-    check("recent_jukebox_plays_only_the_bundled_vibes_playlist", vibesOnly and tracksExist)
+    check("recent_radio_tab_plays_only_the_bundled_vibes_playlist", vibesOnly and tracksExist)
 end
 
 return Test

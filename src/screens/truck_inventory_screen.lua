@@ -130,7 +130,7 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
     local remaining = remainingCargo(state, snapshot)
     if remoteView then remaining=remoteView.remaining end
     local receiving = not machineDelivery and Logistics.receivingStatus(
-        state, Config.palletLogistics.spawnPoints) or nil
+        state, require("src.staging_areas").receivingPoints(state)) or nil
     local readyState = machineDelivery and snapshot.state == "parked_closed" or snapshot.state == "cargo_open"
     local ready = remaining == 0 and readyState
     if remoteView then ready=remoteView.canClose end

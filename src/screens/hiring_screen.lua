@@ -246,6 +246,43 @@ local function line(text,x,y,width,color)
     love.graphics.setColor(color[1],color[2],color[3],1)
     love.graphics.printf(text,x,y,width or 428,"left")
 end
+local function oneLine(text,x,y,width,color)
+    text=tostring(text or "")
+    local font=love.graphics.getFont()
+    local _,wrapped=font:getWrap(text,width)
+    if #wrapped>1 then
+        text=wrapped[1]
+        while font:getWidth(text.."...")>width do
+            local shorter=text:match("^(.*)%s+%S+$")
+            if not shorter then break end
+            text=shorter
+        end
+        text=text.."..."
+    end
+    line(text,x,y,width,color)
+end
+local function shiftDescription(contract,twelveHourTime)
+    if not contract then return "SHIFT NOT SET" end
+    local first=contract.startHour>=6 and contract.startHour<18
+    local label=first and "1ST SHIFT (DAY)" or "2ND SHIFT (NIGHT)"
+    local hours=Contracts.formatHour(contract.startHour,twelveHourTime).."-"
+        ..Contracts.formatHour(contract.endHour,twelveHourTime)
+        ..(contract.endHour<contract.startHour and " +1 day" or "")
+    return label.."  |  "..hours
+end
+local function shiftName(contract)
+    if not contract then return "SHIFT NOT SET" end
+    return contract.startHour>=6 and contract.startHour<18
+        and "1ST SHIFT / DAY" or "2ND SHIFT / NIGHT"
+end
+local function workDays(contract)
+    local names={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"}
+    local days={}
+    for i,name in ipairs(names) do
+        if Contracts.hasDay(contract.days,i) then days[#days+1]=name end
+    end
+    return table.concat(days," ")
+end
 function Hiring.staffScheduleStatus(state,w)
     local team=Schedule.team(state)
     if w.assignment then return w.activity,nil end
@@ -348,7 +385,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             love.graphics.rectangle("fill",r.x+2,r.y+2,r.width-4,r.height-4,2,2)
             love.graphics.setColor(row==current and {.42,.83,.79,1} or {.23,.39,.42,1})
             love.graphics.rectangle("line",r.x+1.5,r.y+1.5,r.width-3,r.height-3,3,3)
-            line(row.name,r.x+10,r.y+7,244,{.92,.95,.93})
+            oneLine(row.name,r.x+10,r.y+7,244,{.92,.95,.93})
             if ui.section=="staff" then
                 local statusText,statusColor
                 if row.status=="employed" then
@@ -364,6 +401,9 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
                 love.graphics.setColor(statusColor)
                 love.graphics.rectangle("line",badge.x+.5,badge.y+.5,badge.width-1,badge.height-1,3,3)
                 line(statusText,badge.x+3,badge.y+3,badge.width-6,statusColor)
+                if row.status=="employed" then
+                    oneLine(shiftName(row.contract),r.x+10,r.y+31,128,{.62,.79,.82,1})
+                end
             else
                 line(labels[row.status] or row.status,r.x+10,r.y+30,244,{.55,.80,.80})
             end
@@ -376,7 +416,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             or "No employees yet. Hire an applicant after accepting their emailed contract terms.",410,272,426)
         return
     end
-    line(current.name.."  |  Production worker",410,252,426,{1,.86,.50})
+    oneLine(current.name.."  |  Production worker",410,252,426,{1,.86,.50})
     if ui.view=="offer" then
         local t=ui.terms
         local f=Finances.summary(state,t,current.cutterSkill)
@@ -495,24 +535,31 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         if current.counter then line(string.format("Counteroffer: $%.2f/hr",current.counter.wageCents/100),410,574,426,{1,.85,.45}) end
     else
         local w=current
-        line(Contracts.summary(w.contract,twelveHourTime),410,290,426)
-        line("Shift preference: "..Contracts.shiftPreferenceLabel(w.shiftPreference),410,316,426,{.61,.78,.67})
-        line(string.format("Cutter %d/100 | Press %d/100 | Wrapping %d/100",w.cutterSkill,w.pressSkill,w.wrappingSkill),410,340,426)
+        oneLine(string.format("$%.2f/hr  |  Pay every %d week%s",w.contract.wageCents/100,
+            w.contract.payWeeks,w.contract.payWeeks==1 and "" or "s"),410,280,426)
+        oneLine("Work days: "..workDays(w.contract),410,302,426,{.61,.78,.67})
+        oneLine(shiftDescription(w.contract,twelveHourTime),410,324,426,{1,.85,.45})
+        oneLine(string.format("Cutter %d/100  |  Press %d/100  |  Wrapping %d/100",
+            w.cutterSkill,w.pressSkill,w.wrappingSkill),410,348,426)
         local scheduleStatus,scheduleDetail=Hiring.staffScheduleStatus(state,w)
-        line(w.training and string.format("Training: %s (%.1f paid hours left)",w.training.skill,w.training.remainingHours)
+        oneLine(w.training and string.format("Training: %s (%.1f paid hours left)",w.training.skill,w.training.remainingHours)
             or scheduleStatus or w.activity,410,374,426,{1,.85,.45})
         local assignedMachine=w.assignment and Fleet.byId(state,w.assignment.machineId)
-        line(w.assignment and ("Job "..w.assignment.jobId.."\nPallet "..w.assignment.palletId.."\n"
-            ..(assignedMachine and assignedMachine.name or "Machine").." "..w.assignment.machineId)
-            or scheduleDetail,410,404,426)
+        if w.assignment then
+            oneLine("Job "..w.assignment.jobId.."  |  Pallet "..w.assignment.palletId,410,398,426)
+            oneLine((assignedMachine and assignedMachine.name or "Machine").."  |  "..w.assignment.machineId,
+                410,418,426,{.61,.78,.67})
+        else
+            oneLine(scheduleDetail,410,398,426,{.61,.78,.67})
+        end
         local payday=Calendar.shortDate({calendar=Calendar.dateFromHours(Payroll.nextPayday(w,now))})
-        line("Payday: "..payday.." at 09:00 (every "..w.contract.payWeeks.."w)",410,458,426,{.61,.78,.67})
-        line(string.format("Wages due $%.2f | Earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,484,214)
+        oneLine("Payday: "..payday.."  |  every "..w.contract.payWeeks.."w",410,440,426,{.61,.78,.67})
+        oneLine(string.format("$%.2f due  |  $%.2f earned unpaid",
+            Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,460,426)
         if w.status=="employed" then
             button("train",w.training and "MANAGE TRAINING" or "IMPROVE EMPLOYEE SKILLS",pointerX,pointerY,readOnly)
             button("assign",w.assignment and "WORK ASSIGNED" or "ASSIGN JOB",pointerX,pointerY,readOnly or w.assignment~=nil)
             local sentHomeToday=w.sentHomeShiftDay==Contracts.shiftDay(w.contract,now)
-            line("Ends today's shift safely; unfinished work resumes next shift.",410,502,426,{.61,.78,.67})
             button("sendHome",sentHomeToday and "SENT HOME" or "SEND HOME",pointerX,pointerY,
                 readOnly or sentHomeToday or not (w.visible and w.clockedIn))
             button("pause","PAUSE ASSIGNMENT",pointerX,pointerY,readOnly or w.assignment==nil)

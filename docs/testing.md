@@ -277,6 +277,114 @@ checks, and save round trips. It redirects test saves into
 
 ## Gates
 
+### Crowded-shop performance and scaling rules (2026-10-09)
+
+Run `tools/run_performance_probe.ps1 -Label crowd-review -TimeoutSeconds 180`.
+It launches LÖVE with a fresh, private test identity under `output/performance/`,
+and writes timings, texture uploads, filesystem reads/writes, and save counts to
+`measurements.json`. The capacity fixture contains 14 installed machines, 80
+physical job pallets, 10 employees, 80 archived jobs, and 200 archived messages.
+It exercises updates, rendering, saves, dense navigation, and character actions.
+The fixture passes save-schema validation before benchmarking persistence.
+
+Measured on this Windows host (milliseconds; synthetic workload, not a phone FPS
+claim):
+
+| Work | Before | After |
+| --- | ---: | ---: |
+| Clear 750-unit route with 100 obstacles, mean | 0.608 | 0.008 |
+| Lookup all 14 machines, mean | 0.155 | <0.001 |
+| Rabbit action history, active plus cached textures | 120.5 MiB | 13 MiB |
+| Crowded updates with saves, p95 | 7.221 | 5.947 |
+| Crowded updates with saves, maximum | 29.739 | 19.989 |
+
+The first three baselines are in `output/performance/crowd-before`. The save
+baseline is `crowd-with-saves-valid`, after the collision/texture/fleet changes
+but before checkpoint coalescing; it isolated the remaining save stalls.
+`crowd-final` is the combined result. Timings vary between runs. These measurements
+cover CPU update and draw submission, not GPU completion, present/vsync, or a
+networked phone session. Employees exercise live shifts, idle travel, and payroll;
+this is not a claim that ten simultaneous production/transport jobs were measured.
+
+#### Implemented ownership and lifetime rules
+
+- **Fleet:** normalize at explicit repair/load boundaries and collection changes.
+  Runtime reads use a weak-key cache and an ID index. Buying, selling, loading,
+  delivery insertion, and array replacement invalidate through identity/length
+  checks. Code performing arbitrary in-place structural edits must call
+  `Fleet.ensure(state)`. Installed status and placement are read live. Never put
+  these indexes in a save or multiplayer snapshot.
+- **Collision:** each path search builds a 64-unit spatial grid from its current
+  obstacle snapshot when there are at least 16 obstacles. Point/segment queries
+  narrow the candidates, then retain the exact footprint and walkmask checks.
+  Rebuild for the next search so moved pallets and employees cannot leave stale
+  blockers. Continuous segment checks happen once; per-pixel obstacle checks are
+  limited to actors escaping an initial overlap. Thin walls still block travel.
+- **Pallets:** single-pallet lookup scans live owners and allocates only the result,
+  rather than allocating a temporary record for every pallet on every query.
+  Physical ownership and transfers retain their existing validation.
+- **Animation assets:** `CharacterAssets.beginFrame/endFrame` pins every action
+  actually drawn that frame, including concurrent actions of the same species.
+  Unused actions enter the existing shared 16 MiB / 20-second inactive LRU.
+  Visible actors and remote players using GUIs keep their required animations.
+  Active textures can exceed the idle budget; they are never evicted to meet it.
+- **Screen assets:** Options retains the current screen pack. It uses procedural
+  UI and no longer loads title art or displaces machine textures. Ten real cutter
+  → Options → cutter draw roundtrips averaged 0.56 ms each with zero decodes.
+- **Persistence:** continuous employee/construction/accelerated-clock checkpoints
+  coalesce at a five-second real-time interval. Durable gameplay events, explicit
+  actions, focus loss, and quit still use immediate saves. Failed checkpoints keep
+  their dirty flag and retry after the interval. Successful explicit saves clear
+  pending checkpoints; loading another shop resets the scheduler.
+  Employee GUI synchronization still marks the host shop dirty each second,
+  independently of disk checkpoints; pose snapshots keep their existing cadence.
+  Save encoding,
+  validation, verified temporary writes, and recovery semantics are unchanged.
+  An abrupt process failure can lose up to roughly five seconds of periodic
+  simulation progress, rather than the previous one-second checkpoint interval.
+
+#### Remaining stalls and the next capacity boundary
+
+This pass bounds historical texture growth and removes repeated work; it does not
+make all loading and saving asynchronous. The same probe still measures roughly
+17 ms for a crowded save, 7 ms average / 10 ms p95 for a dense new route, and large
+cold texture loads (about 78 ms for a new forklift view, 536 ms for a cold title).
+Those are separate from the steady crowded draw submission, approximately 0.4 ms.
+
+Before increasing employee capacity or room count, use this design for the next
+stage, in priority order:
+
+1. **Budget route planning:** give the host one shared resumable search queue,
+   initially a 2 ms total planning budget per rendered frame. Keep actor movement,
+   collision, machine cycles, and multiplayer input at their existing cadence.
+   Stagger blocked-route retries. Version search snapshots, cancel searches after
+   layout changes, and recheck every returned segment against live obstacles.
+   Offscreen workers must continue completing authoritative work.
+2. **Stream cold textures:** decode PNGs in a worker and upload on the graphics
+   thread under a small per-frame budget (initial target 2 ms). Prefetch the next
+   room and known upcoming action directions. Pin current-frame and pending-transition
+   dependencies, and show a transition/loading state until mandatory assets are
+   ready. Never hide multiplayer actors or substitute a wrong-facing action to
+   satisfy a texture budget. Use separate measured budgets for active assets,
+   decoded staging data, and inactive GPU images.
+3. **Move periodic save serialization/writes off the frame:** capture an immutable,
+   validated snapshot, hand it to one ordered writer, and coalesce queued older
+   checkpoints. Explicit saves must flush/join that writer before reporting success.
+   Preserve slot/identity isolation, verified atomic promotion, and recovery;
+   a worker must never serialize mutable live state or race an explicit save.
+
+Acceptance targets for the next stage: sustained p95 frame time below 16.7 ms on
+the target hardware; no unbounded increase in resident bytes during a 20-minute
+action/room loop; bounded route queues with live-obstacle rejection; and successful
+save recovery under interrupted writes. Measure real production, pallet transport,
+fully upgraded rooms, accelerated time, and a host with multiple guests on actual
+phones before claiming that these targets have been met.
+
+`PICTURE_SHOP_SMOKE_FOCUS=performance` includes spatial-index equivalence for mixed
+footprints, thin-obstacle/escape checks, fleet mutation/snapshot invalidation,
+concurrent animation residency, bounded historical action memory, and checkpoint
+failure/retry checks alongside employee, machine, save, and multiplayer suites.
+
 Run `RUN_SMOKE_TEST.bat` for domain, integration, audit-coverage, screen-pack transitions, and three-frame render checks. Set `PICTURE_SHOP_SMOKE_FOCUS=employee-shifts` to run the employee, schedule, and payroll suites, or `employee-schedule` to run only the schedule suite while diagnosing worker queues and shifts. Run `python tools/asset_doctor.py --report output/asset-audit.json` for full raster decoding, alpha, dimension, 2x2 press-atlas grid, and nonempty-cell checks.
 
 Before regenerating or releasing audio, run
@@ -311,3 +419,64 @@ selected phones in place, and compares the pre/post save manifest so installatio
 change an existing slot.
 
 Every new bug fix should add the smallest deterministic domain check possible. Add an engine integration check only when the behavior depends on LÖVE rendering, input routing, filesystem identity, scene transitions, or multiple live systems.
+
+## Basketball presentation and controls
+
+Run `PICTURE_SHOP_SMOKE_FOCUS=basketball` under LÖVE with a fresh disposable
+`PICTURE_SHOP_TEST_IDENTITY`; add `PICTURE_SHOP_MOBILE=1` for mobile input coverage.
+The focus covers trajectory and backboard collision, shot timing, mouse/touch drag
+aim, generated pose gutters, actual customization rendering, flight layering,
+strict network payloads, and two-room LAN ball replication. Set
+`PICTURE_SHOP_BASKETBALL_CAPTURE_DIR` to an existing directory for engine captures.
+
+On October 9, 2026, the final desktop and mobile-input runs each passed 931 checks;
+the broader domain run passed 4,550 checks. Reports are in
+`output/basketball-v2/desktop15.rpt`, `mobile16.rpt`, and `domain17.rpt`.
+Engine captures confirmed the yellow arc at 75% opacity, restored 24-world-pixel
+ball, and removal of the release bar and aiming instruction overlay. These are
+desktop LÖVE runs, including simulated mobile input and LAN impairment coverage;
+physical-phone acceptance remains a separate release gate.
+
+## Critter Kombat title, selection and animation expansion
+
+Run `PICTURE_SHOP_SMOKE_FOCUS=critter-kombat` under LÖVE with a fresh disposable
+test identity, optionally adding `PICTURE_SHOP_MOBILE=1`. The focus validates
+title/selection/intro routing, keyboard/mouse/multitouch input, selected characters
+across rounds, six-pose attacks and variations, all 96 pose gutters, transient
+save state, strict protocol 36 fields, worst-case two-room packet size, and live
+LAN join/ready/rematch/cancellation behavior. Set `PICTURE_SHOP_KOMBAT_CAPTURE_DIR`
+to capture title, selection, intro and combat screens.
+
+On October 9, 2026, desktop and simulated-mobile runs each passed 823 checks
+(`output/critter-kombat-v2/desktop5.rpt` and `mobile6.rpt`). The broader domain run
+passed 3,432 checks before stopping at
+`stock_consumption_boxed_wrap_rolls_back_film_when_carton_skid_is_stored`.
+The same failure reproduced in the separate `warehouse-rooms` focus without the
+Critter Kombat suite: current wrapper changes reject inaccessible carton stock
+at start, while that test expects rejection at completion. Reports are
+`domain7.rpt` and `rooms8.rpt` in the same directory. This unrelated wrapper/test
+work was not modified as part of the combat change. Physical-device acceptance
+remains separate from these desktop LÖVE runs.
+
+## Critter Kombat jumping and configurable controls
+
+The `critter-kombat` focus also checks crossovers in both directions at 30, 60
+and 120 fps, ground/air body collision, correct landing separation, facing,
+guarding and retaliation after swapping sides, held-jump edge behavior, and live
+LAN jump/facing replication. Controls tests exercise every action on keyboard,
+mouse and simulated gamepad input, signed stick/trigger bindings, deadzones,
+duplicate-binding transfer, persistence and corrupt-file fallback, controller
+menu navigation and capture cancellation, mouse/multitouch layout dragging,
+size/opacity/visibility, save failure and discard behavior, and focus recovery.
+The separate `critter-kombat-controls` focus runs input/settings checks without
+building a shop or rendering the fighter atlases.
+
+On October 9, 2026, the final desktop and simulated-mobile runs each passed 914
+checks (`output/critter-kombat-controls/desktop7.rpt` and `mobile8.rpt`). Captures
+in that directory include the four device tabs and local/LAN jump crossovers.
+Controller events and state were simulated; physical controller and phone
+acceptance are still separate. Preferences are tested through an isolated
+filesystem adapter and fresh LÖVE identities, leaving real saves untouched.
+
+The broader run passed 3,521 checks before the existing stored-carton wrapping
+test failure described above (`output/critter-kombat-controls/domain4.rpt`).

@@ -5,6 +5,8 @@ local WrapperPlacement = require("src.wrapper_placement")
 local MachineFleet = require("src.machine_fleet")
 local Footprint = require("src.floor_footprint")
 local Storage = require("src.pallet_storage")
+local PalletState = require("src.pallet_state")
+local StagingAreas = require("src.staging_areas")
 
 local function createWrapper(machineId)
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil,
@@ -96,6 +98,21 @@ function Wrapper.start(state)
         state.message = "This boxed pallet needs a shipping carton. Order cartons from the packaging supplier."
         return false
     end
+    local supplies = {}
+    if (inventory.plasticWrapUses or 0) == 1 then
+        supplies[#supplies + 1] = {
+            productId = "stretch_film", quantity = 1, stockKey = "plasticWrapRolls",
+            autoShelf = true,
+        }
+    end
+    if packaging == "boxed" then
+        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1 }
+    end
+    local suppliesReady, supplyReason = Procurement.canConsumeStockProducts(state, supplies)
+    if not suppliesReady then
+        state.message = supplyReason or "Retrieve the packaging supplies before starting the wrapper."
+        return false, state.message
+    end
     Wrapper.pallet, Wrapper.job = nearby.pallet, nearby.job
     Wrapper.selectedPalletId = nearby.pallet.id
     Wrapper.step, Wrapper.progress = "wrapping", 0
@@ -111,14 +128,49 @@ function Wrapper.update(dt, state)
     local inventory = state.inventory
     local uses = math.max(0, inventory.plasticWrapUses or 0)
     if uses <= 0 then
+        Wrapper.step, Wrapper.progress = "idle", 0
+        Wrapper.pallet, Wrapper.job = nil, nil
         state.message = "No stretch film remains. Order it from the packaging supplier and unload the delivery."
         return false
+    end
+    local outputMachineId = machineId or "MCH-0002"
+    local output
+    if StagingAreas.hasMachineOutput(state, outputMachineId) then
+        output = StagingAreas.findMachineOutput(state, outputMachineId, function(x, y)
+            return StagingAreas.slotClear(state, x, y, Wrapper.pallet.id)
+        end, false)
+        if not output then
+            state.message = "The wrapper output staging area is full. Clear a slot or move its zone."
+            return false
+        end
+    end
+    local originalLocation = Wrapper.pallet.location
+    local originalWorld = {}
+    for key, value in pairs(Wrapper.pallet.world or {}) do originalWorld[key] = value end
+    if output then
+        local world = {}
+        for key, value in pairs(originalWorld) do world[key] = value end
+        world.x, world.y = output.x, output.y
+        world.direction, world.rotation = output.direction, output.rotation
+        world.fromX, world.fromY, world.spawnProgress = output.x, output.y, 1
+        if originalLocation == "warehouse" then
+            Wrapper.pallet.world = world
+        else
+            local moved, moveError = PalletState.transition(state, Wrapper.pallet, "warehouse", { world = world })
+            if not moved then
+                Wrapper.step, Wrapper.progress = "idle", 0
+                Wrapper.pallet, Wrapper.job = nil, nil
+                state.message = moveError or "The wrapped pallet could not be moved into its output area."
+                return false
+            end
+        end
     end
     local packaging = Wrapper.pallet.packaging or (Wrapper.job and Wrapper.job.packaging) or "flat"
     local supplies = {}
     if uses == 1 then
         supplies[#supplies + 1] = {
             productId = "stretch_film", quantity = 1, stockKey = "plasticWrapRolls",
+            autoShelf = true,
         }
     end
     if packaging == "boxed" then
@@ -126,6 +178,15 @@ function Wrapper.update(dt, state)
     end
     local consumed, reason = Procurement.consumeStockProducts(state, supplies)
     if not consumed then
+        if output then
+            if originalLocation == "warehouse" then
+                Wrapper.pallet.world = originalWorld
+            else
+                PalletState.transition(state, Wrapper.pallet, originalLocation, { world = originalWorld })
+            end
+        end
+        Wrapper.step, Wrapper.progress = "idle", 0
+        Wrapper.pallet, Wrapper.job = nil, nil
         state.message = reason or "Retrieve packaging supplies onto clear warehouse floor before using them."
         return false
     end
@@ -229,6 +290,18 @@ function exported.updateAll(dt, state)
         end)
     end
     return durable
+end
+
+-- The last wrap on a roll consumes the physical film pallet at cycle finish.
+-- Keep players from lifting that stock during the short active cycle, or the
+-- wrapper can reach 100% with its supply suddenly inaccessible.
+function exported.isFilmSupplyInUse(state)
+    if type(state)~="table" or type(state.inventory)~="table"
+        or state.inventory.plasticWrapUses~=1 then return false end
+    for _,unit in ipairs(MachineFleet.installedUnits(state,"skid_wrapper")) do
+        if instance(unit.id).step=="wrapping" then return true end
+    end
+    return false
 end
 
 function exported.reset(state)

@@ -242,6 +242,16 @@ local function wrapperPalletReady(state,machine,pallet,job)
             blocked="Order a shipping carton before wrapping this boxed pallet"
             blockedKind="packaging";return
         end
+        local supplies={}
+        if (inventory.plasticWrapUses or 0)==1 then
+            supplies[#supplies+1]={productId="stretch_film",quantity=1,
+                stockKey="plasticWrapRolls",autoShelf=true}
+        end
+        if packaging=="boxed" then
+            supplies[#supplies+1]={productId="shipping_cartons",quantity=1}
+        end
+        local suppliesReady,supplyReason=Procurement.canConsumeStockProducts(state,supplies)
+        if not suppliesReady then blocked=supplyReason;blockedKind="packaging";return end
         for _,candidate in ipairs(runtime.nearbyPallets(state)) do
             if candidate.pallet.id==pallet.id then staged=true;break end
         end
@@ -624,6 +634,54 @@ finish=function(state,q,index,result,now)
         end
         if team and (removedMaster or not recorded) then team.revision=team.revision+1 end
     end
+end
+function Schedule.reconcileCompleted(state,now,releaseAssignment)
+    if type(state)~="table" or type(state.jobs)~="table"
+        or type(state.employment)~="table" then return false end
+    local completed={}
+    for _,job in ipairs(state.jobs and state.jobs.completed or {}) do
+        if type(job)=="table" and job.id then completed[job.id]=true end
+    end
+    local function resultFor(jobId)
+        local job=Schedule.job(state,jobId)
+        if job then
+            local _,total,pallet=Schedule.progress(job)
+            if pallet then return nil end
+            return total>0 and "complete" or "unavailable"
+        end
+        return completed[jobId] and "complete" or "unavailable"
+    end
+    local changed=false
+    for _,worker in ipairs(state.employment.staff or {}) do
+        local q=Schedule.ensure(worker)
+        for index=#q.items,1,-1 do
+            local row=q.items[index]
+            local result=resultFor(row.jobId)
+            if result then
+                local assignment=worker.assignment
+                local ready=not assignment or assignment.scheduleItemId~=row.id
+                if not ready and releaseAssignment then
+                    ready=releaseAssignment(worker,row)==true
+                end
+                if ready then
+                    finish(state,q,index,result,now)
+                    changed=true
+                end
+            end
+        end
+    end
+    local team=Schedule.team(state)
+    if team then
+        for index=#team.items,1,-1 do
+            local row=team.items[index]
+            local result=resultFor(row.jobId)
+            if result and not Schedule.claimed(state,nil,row.jobId,true) then
+                finish(state,team,index,result,now)
+                changed=true
+            end
+        end
+    end
+    return changed
 end
 function Schedule.isLocked(state,w,row)
     if not row then return false end

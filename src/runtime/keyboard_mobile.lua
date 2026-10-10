@@ -118,7 +118,6 @@ function Component.install(Runtime)
             and selected.kind ~= "truckCargoDoor"
             and selected.kind ~= "palletWorkOrder"
             and selected.kind ~= "shopClock"
-            and selected.kind ~= "jukebox"
             and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
             and selected.kind ~= "breakroom"
             and selected.kind ~= "shopEntrance" and selected.kind ~= "roomStock" and selected.kind ~= "roomRest"
@@ -140,7 +139,7 @@ function Component.install(Runtime)
             end
         end
         local labels = {
-            customer = "JOB", computer = "PC", shopClock = "CLOCK", jukebox = "RADIO", vendor = "TALK", loadingBayDoor = "DOOR",
+            customer = "JOB", computer = "PC", shopClock = "CLOCK", vendor = "TALK", loadingBayDoor = "DOOR",
             truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
             windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
             forklift = "DRIVE", palletRack = "SHELVES",

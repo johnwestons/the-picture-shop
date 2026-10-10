@@ -133,7 +133,10 @@ function Component.install(Runtime)
         Runtime.Screen.revision = math.max(priorRevision, resultRevision or priorRevision)
         Runtime.Screen.status = tostring(result.message or (result.accepted and "Action completed." or "Action rejected."))
         if Runtime.Screen.sharedComputer and result.action == "office_action" then
-            if Runtime.Screen.officePending == "buy_upgrade" or Runtime.Screen.officePending == "buy_forklift" then
+            if Runtime.Screen.officePending == "buy_upgrade" or Runtime.Screen.officePending == "buy_forklift"
+                or Runtime.Screen.officePending == "staging_area_add"
+                or Runtime.Screen.officePending == "staging_area_remove"
+                or Runtime.Screen.officePending == "staging_area_change" then
                 Runtime.Screen.sharedComputer.resolveWarehouse(result.accepted == true, Runtime.Screen.status)
             end
             if result.accepted then

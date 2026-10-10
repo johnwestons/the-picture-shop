@@ -39,20 +39,20 @@ function Component.install(Runtime)
 
     function Runtime.Fleet.pendingDeliveries(state)
         local result = {}
-        for _, order in ipairs(Runtime.Fleet.ensure(state).deliveries) do
+        for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
             if order.delivery.status ~= "received" then result[#result + 1] = order end
         end
         return result
     end
 
     function Runtime.Fleet.orderById(state, orderId)
-        for _, order in ipairs(Runtime.Fleet.ensure(state).deliveries) do
+        for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
             if order.id == orderId then return order end
         end
     end
 
     function Runtime.Fleet.nextInbound(state)
-        for _, order in ipairs(Runtime.Fleet.ensure(state).deliveries) do
+        for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
             -- Truck motion is intentionally transient. Any undelivered unit is
             -- schedulable again after loading a save, even if its last saved
             -- manifest state said scheduled/backing/at_bay.

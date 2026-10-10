@@ -1,5 +1,7 @@
 -- One physical ball per purchased hoop. The host owns possession and shots.
 local Games=require("src.breakroom_games")
+local Trajectory=require("src.basketball_trajectory")
+local Art=require("src.basketball_art")
 local Ball={shots={},contests={},streaks={}}
 local goal=Games.CATALOG.basketball
 local HOOP_X,HOOP_Y=goal.rimX,goal.rimY
@@ -41,7 +43,7 @@ local function setPlaced(ball,sceneId,x,y)
     ball.lastSceneId,ball.lastX,ball.lastY=sceneId,x,y
     ball.mode,ball.holderPlayerId="placed",nil
 end
-function Ball.command(state,player,action)
+function Ball.command(state,player,action,aim)
     local playerId=tonumber(player and player.id) or 1
     local sceneId=player and player.sceneId or "warehouse"
     local bayId,ball=holder(state,playerId)
@@ -54,7 +56,7 @@ function Ball.command(state,player,action)
                 candidate.mode,candidate.holderPlayerId="held",playerId
                 candidate.x,candidate.y=player.x,player.y
                 Ball.streaks[entry.bayId]=Ball.streaks[entry.bayId] or 0
-                return true,"accepted","Ball picked up. Dribble as you move; press Space to shoot or Q to drop."
+                return true,"accepted","Ball picked up. Hold Space or drag the court to aim; release to shoot. Q: drop."
             end
         end
         return false,"out_of_range","Move closer to a loose basketball."
@@ -78,26 +80,36 @@ function Ball.command(state,player,action)
         player.intentX,player.intentY=dx/length,dy/length
         player.velocityX,player.velocityY=0,0
         Ball.shots[bayId]={phase="charge",shooterId=playerId,elapsed=0,
-            startX=player.x,startY=player.y}
-        return true,"accepted","Jump shot started. Release Space at the top of the jump."
+            startX=player.x,startY=player.y,directionX=dx,aimX=0,arcHeight=105}
+        return true,"accepted","Drag to aim the arc. Release at the jump apex."
     elseif action=="shot_release" then
         local shot=bayId and Ball.shots[bayId]
         if not shot or shot.phase~="charge" or shot.shooterId~=playerId then
             return false,"no_shot","Start a jump shot first."
         end
-        local release=shot.elapsed
-        local delta=release-0.42
-        local quality=clamp(1-math.abs(delta)/0.52,0,1)
-        local distanceToHoop=distance(player,{x=HOOP_X,y=HOOP_Y})
-        -- The same early/late release has a repeatable lateral error.
-        local offset=delta*95+(distanceToHoop/480)*math.abs(delta)*45
+        if aim then
+            if type(aim)~="table" or type(aim.aimX)~="number" or aim.aimX~=aim.aimX
+                or math.abs(aim.aimX)>100 or type(aim.arcHeight)~="number"
+                or aim.arcHeight~=aim.arcHeight or aim.arcHeight<45 or aim.arcHeight>190
+                or aim.elapsed~=nil and (type(aim.elapsed)~="number" or aim.elapsed~=aim.elapsed
+                    or aim.elapsed<0 or aim.elapsed>Trajectory.MAX_CHARGE
+                    or math.abs(aim.elapsed-shot.elapsed)>.35) then
+                return false,"invalid_aim","That shot aim or release time is invalid."
+            end
+            shot.aimX,shot.arcHeight=aim.aimX,aim.arcHeight
+        end
+        local release=aim and aim.elapsed or shot.elapsed
+        local x,y=Art.releasePoint(player,release)
+        local path=Trajectory.path(x,y,shot.aimX,shot.arcHeight,release)
         shot.phase,shot.elapsed="flight",0
-        shot.quality,shot.offset=quality,offset
-        shot.duration=clamp(0.58+distanceToHoop/1000,0.58,0.98)
-        shot.endX,shot.endY=HOOP_X+offset,HOOP_Y
-        shot.startX,shot.startY=player.x,player.y-18
+        shot.quality,shot.perfect=path.quality,path.perfect
+        shot.releaseTime,shot.releaseElapsed=release,0
+        shot.path,shot.displayY=path,y
+        shot.duration=path.duration
+        ball.x,ball.y=x,clamp(y,0,678)
         ball.mode,ball.holderPlayerId="flight",nil
-        return true,"accepted",quality>.8 and "Great release!" or "The release was off the apex."
+        return true,"accepted",path.perfect and "Perfect release!"
+            or path.quality>.6 and "Good release." or "The release was off the apex."
     elseif action=="contest" or action=="join" or action=="end" then
         if not Games.BAYS[sceneId] or not Games.owns(state,sceneId,"basketball")
             or distance(player,{x=goal.interactionX,y=goal.interactionY})>110 then
@@ -142,6 +154,44 @@ function Ball.isChargingFor(state,playerId)
     end
     return false
 end
+function Ball.setAim(state,playerId,aimX,arcHeight)
+    local bayId=holder(state,playerId)
+    local shot=bayId and Ball.shots[bayId]
+    if not shot or shot.phase~="charge" then return false end
+    shot.aimX,shot.arcHeight=clamp(aimX,-100,100),clamp(arcHeight,45,190)
+    return true
+end
+local function finishAttempt(shot,bayId,scored)
+    shot.scored=scored
+    if scored then
+        local contest=Ball.contests[bayId]
+        if contest and contest.phase=="playing" then
+            if shot.shooterId==contest.leftId then contest.leftScore=contest.leftScore+1
+            elseif shot.shooterId==contest.rightId then contest.rightScore=contest.rightScore+1 end
+            if contest.leftScore>=11 or contest.rightScore>=11 then contest.phase="finished" end
+        end
+        Ball.streaks[bayId]=(Ball.streaks[bayId] or 0)+1
+    else Ball.streaks[bayId]=0 end
+end
+local function rebound(shot,ball,boardHit)
+    shot.phase,shot.elapsed,shot.duration="rebound",0,.52
+    shot.boardHit=boardHit or false
+    shot.bounceX,shot.bounceY=ball.x,shot.displayY
+    shot.endX=clamp(ball.x+(boardHit and 95 or (ball.x>=HOOP_X and 64 or -64)),35,925)
+    shot.endY=HOOP_Y+105
+    if boardHit then
+        local nx,ny=shot.contactNormalX,shot.contactNormalY
+        if not nx then nx,ny=Trajectory.boardNormal(ball.x,shot.displayY) end
+        local incoming=shot.bouncePath or shot.path
+        local vx,vy=incoming.vx,incoming.vy+Trajectory.GRAVITY*(shot.contactTime or 0)
+        local dot=vx*nx+vy*ny
+        vx,vy=(vx-2*math.min(0,dot)*nx)*.38,(vy-2*math.min(0,dot)*ny)*.38
+        local duration=(-vy+math.sqrt(vy*vy+2*Trajectory.GRAVITY*(shot.endY-shot.displayY)))/Trajectory.GRAVITY
+        shot.bouncePath={x=ball.x+nx*.1,y=shot.displayY+ny*.1,vx=vx,vy=vy,duration=duration}
+        shot.duration=duration
+        shot.endX=clamp(ball.x+vx*duration,18,942)
+    end
+end
 function Ball.update(dt,state,players)
     local changed=false
     for _,entry in ipairs(entries(state)) do
@@ -153,45 +203,57 @@ function Ball.update(dt,state,players)
         end
         local shot=Ball.shots[entry.bayId]
         if shot then
-            shot.elapsed=shot.elapsed+math.max(0,math.min(dt,0.2))
-            if shot.phase=="charge" and shot.elapsed>1.3 then
+            local step=math.max(0,math.min(dt,0.2))
+            shot.elapsed=shot.elapsed+step
+            if shot.releaseElapsed then shot.releaseElapsed=math.min(2,shot.releaseElapsed+step) end
+            local shooter=players[shot.shooterId]
+            if shot.phase=="charge" and shooter and shooter.gameInputX~=nil then
+                shot.aimX=clamp(shooter.gameInputX*100,-100,100)
+                shot.arcHeight=clamp(105+(shooter.gameInputY or 0)*85,45,190)
+            end
+            if shot.phase=="charge" and shot.elapsed>=Trajectory.MAX_CHARGE then
                 local player=players[shot.shooterId]
-                if player then Ball.command(state,player,"shot_release")
+                if player then shot.elapsed=Trajectory.MAX_CHARGE;Ball.command(state,player,"shot_release")
                 else Ball.shots[entry.bayId]=nil
                     setPlaced(ball,ball.lastSceneId,ball.lastX,ball.lastY);changed=true end
             elseif shot.phase=="flight" then
-                local t=clamp(shot.elapsed/shot.duration,0,1)
-                ball.x=shot.startX+(shot.endX-shot.startX)*t
-                ball.y=shot.startY+(shot.endY-shot.startY)*t
-                shot.displayY=ball.y-(125+math.abs(shot.startY-HOOP_Y)*.23)*4*t*(1-t)
-                if not shot.checked and t>=1 then
-                    shot.checked=true
-                    shot.scored=math.abs(shot.offset)<17 and shot.quality>=.55
-                    shot.rimHit=not shot.scored and math.abs(shot.offset)<31
-                    if shot.scored then
-                        local contest=Ball.contests[entry.bayId]
-                        if contest and contest.phase=="playing" then
-                            if shot.shooterId==contest.leftId then contest.leftScore=contest.leftScore+1
-                            elseif shot.shooterId==contest.rightId then contest.rightScore=contest.rightScore+1 end
-                            if contest.leftScore>=11 or contest.rightScore>=11 then contest.phase="finished" end
-                        end
-                        Ball.streaks[entry.bayId]=(Ball.streaks[entry.bayId] or 0)+1
-                    else Ball.streaks[entry.bayId]=0 end
-                end
-                if t>=1 then
-                    shot.phase=shot.scored and "fall" or "rebound"
-                    shot.elapsed=0
-                    shot.startX,shot.startY=ball.x,ball.y
-                    shot.duration=shot.scored and .32 or .52
-                    shot.endX=shot.scored and HOOP_X+18
-                        or clamp(ball.x+(shot.offset>=0 and 64 or -64),35,925)
-                    shot.endY=shot.scored and HOOP_Y+105 or HOOP_Y+100
+                local oldX,oldY=ball.x,shot.displayY
+                local nextX,nextY=Trajectory.point(shot.path,math.min(shot.elapsed,shot.duration))
+                local hitX,hitY,nx,ny=Trajectory.sweepFlight(oldX,oldY,nextX,nextY)
+                if hitX then
+                    ball.x,ball.y,shot.displayY=hitX,clamp(hitY,0,678),hitY
+                    shot.contactTime=shot.elapsed
+                    shot.contactNormalX,shot.contactNormalY=nx,ny
+                    finishAttempt(shot,entry.bayId,false);rebound(shot,ball,true)
+                else
+                    ball.x,ball.y,shot.displayY=clamp(nextX,0,960),clamp(nextY,0,678),nextY
+                    if shot.elapsed>=shot.duration then
+                        local offset=ball.x-HOOP_X
+                        local scored=math.abs(offset)<Trajectory.rim.halfWidth and shot.quality>=.45
+                        shot.rimHit=not scored and math.abs(offset)<26
+                        finishAttempt(shot,entry.bayId,scored)
+                        if scored then
+                            shot.phase,shot.elapsed,shot.duration="fall",0,.32
+                            shot.bounceX,shot.bounceY=ball.x,shot.displayY
+                            shot.endX,shot.endY=HOOP_X+18,HOOP_Y+105
+                        else rebound(shot,ball,false) end
+                    end
                 end
             elseif shot.phase=="fall" or shot.phase=="rebound" then
                 local t=clamp(shot.elapsed/shot.duration,0,1)
-                ball.x=shot.startX+(shot.endX-shot.startX)*t
-                ball.y=shot.startY+(shot.endY-shot.startY)*t
-                shot.displayY=shot.phase=="rebound" and ball.y-46*4*t*(1-t) or ball.y
+                if shot.bouncePath then
+                    local x,y=Trajectory.point(shot.bouncePath,math.min(shot.elapsed,shot.duration))
+                    local hx,hy,nx,ny=Trajectory.sweepFlight(ball.x,shot.displayY,x,y)
+                    if hx then
+                        ball.x,ball.y,shot.displayY=hx,clamp(hy,0,678),hy
+                        shot.contactNormalX,shot.contactNormalY=nx,ny
+                        shot.contactTime=shot.elapsed;rebound(shot,ball,true);t=0
+                    else ball.x,ball.y,shot.displayY=clamp(x,18,942),clamp(y,0,678),y end
+                else
+                    ball.x=shot.bounceX+(shot.endX-shot.bounceX)*t
+                    ball.y=shot.bounceY+(shot.endY-shot.bounceY)*t
+                    shot.displayY=shot.phase=="rebound" and ball.y-24*4*t*(1-t) or ball.y
+                end
                 if t>=1 then
                     local x,y=dropPoint(state,entry.bayId,shot.endX,shot.endY)
                     if not x then x,y=ball.lastX,ball.lastY end
@@ -212,6 +274,10 @@ function Ball.snapshot(state)
             displayY=shot and shot.displayY or ball.y,mode=ball.mode,
             holderPlayerId=ball.holderPlayerId,shooterId=shot and shot.shooterId or nil,
             shotPhase=shot and shot.phase or nil,shotElapsed=shot and shot.elapsed or nil,
+            shotStartX=shot and shot.startX,shotStartY=shot and shot.startY,
+            directionX=shot and shot.directionX,aimX=shot and shot.aimX,
+            arcHeight=shot and shot.arcHeight,releaseTime=shot and shot.releaseTime,
+            releaseElapsed=shot and shot.releaseElapsed,boardHit=shot and shot.boardHit or false,
             rimHit=shot and shot.rimHit or false,
             leftId=contest and contest.leftId or nil,rightId=contest and contest.rightId or nil,
             leftScore=contest and contest.leftScore or 0,rightScore=contest and contest.rightScore or 0,
@@ -220,10 +286,21 @@ function Ball.snapshot(state)
     return result
 end
 function Ball.renderRecords(state)
-    if type(state._networkBasketballs)=="table" and #state._networkBasketballs>0 then
-        return state._networkBasketballs
+    local records=type(state._networkBasketballs)=="table" and #state._networkBasketballs>0
+        and state._networkBasketballs or Ball.snapshot(state)
+    local aim=state._basketballAim
+    if not aim then return records end
+    local result={}
+    for _,record in ipairs(records) do
+        local copy={};for k,v in pairs(record) do copy[k]=v end
+        if record.mode=="held" and record.holderPlayerId==aim.playerId then
+            copy.shooterId,copy.shotPhase,copy.shotElapsed=aim.playerId,"charge",aim.elapsed
+            copy.shotStartX,copy.shotStartY=aim.startX,aim.startY
+            copy.directionX,copy.aimX,copy.arcHeight=aim.directionX,aim.aimX,aim.arcHeight
+        end
+        result[#result+1]=copy
     end
-    return Ball.snapshot(state)
+    return result
 end
 function Ball.heldBy(state,playerId)
     for _,record in ipairs(Ball.renderRecords(state)) do

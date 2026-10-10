@@ -3,23 +3,35 @@
 local Component = {}
 
 function Component.install(Runtime)
+    local checkpoint = require("src.save_checkpoint").new(5)
     function Runtime.saveCurrent()
         if Runtime.multiplayer:isClient() then return false end
         if not Runtime.state.activeSlot then return false end
         local saved = Runtime.Save.save(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
+        if saved then checkpoint:reset() end
         if saved and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty(true) end
         return saved
+    end
+
+    function Runtime.updateCheckpoint(dt, dirty)
+        if Runtime.multiplayer:isClient() or not Runtime.state.activeSlot then
+            checkpoint:reset()
+            return false
+        end
+        return checkpoint:update(dt,dirty,Runtime.saveCurrent)
     end
 
     function Runtime.startGame(payload, mode)
         local applied, windmillSanitized = Runtime.State.applyLocalSave(Runtime.state, payload)
         if not applied then return false, "That shop save could not be opened safely." end
+        checkpoint:reset()
         Runtime.App.gameClockSpeed = 1
         Runtime.App.gameClockSyncClock = 0
         Runtime.App.gameClockSaveClock = 0
         Runtime.World.load(payload.player)
         require("src.air_hockey").clear()
         require("src.basketball").clear()
+        require("src.basketball_controls").clear(Runtime)
         require("src.critter_kombat").clear()
         Runtime.App.syncPlayerColorways()
         Runtime.Machine.reset()

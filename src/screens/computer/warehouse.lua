@@ -3,6 +3,7 @@
 local Component = {}
 
 function Component.install(Runtime)
+    Runtime.StagingAreas = require("src.staging_areas")
     function Runtime.warehouseEnabled()
         return Runtime.dependencies.warehouseEnabled == true
             or (type(Runtime.dependencies.warehouseEnabled) == "function" and Runtime.dependencies.warehouseEnabled() == true)
@@ -26,6 +27,16 @@ function Component.install(Runtime)
     end
 
     Runtime.WAREHOUSE_PAGE_SWITCH={x=690,y=202,width=148,height=28}
+    Runtime.WAREHOUSE_STAGING_SWITCH={x=520,y=202,width=160,height=28}
+    Runtime.WAREHOUSE_STAGING_ADD={x=496,y=495,width=160,height=38}
+    Runtime.WAREHOUSE_STAGING_REMOVE={x=664,y=495,width=168,height=38}
+    Runtime.WAREHOUSE_STAGING_PURPOSE={x=500,y=291,width=332,height=34}
+    Runtime.WAREHOUSE_STAGING_COLOR={x=500,y=331,width=332,height=34}
+    Runtime.WAREHOUSE_STAGING_MACHINE={x=500,y=371,width=332,height=34}
+    Runtime.WAREHOUSE_STAGING_LEFT={x=536,y=425,width=42,height=34}
+    Runtime.WAREHOUSE_STAGING_UP={x=584,y=425,width=42,height=34}
+    Runtime.WAREHOUSE_STAGING_DOWN={x=632,y=425,width=42,height=34}
+    Runtime.WAREHOUSE_STAGING_RIGHT={x=680,y=425,width=42,height=34}
     local function productFor(choice)
         if choice.kind=="buy_breakroom_fixture" then return Runtime.BreakroomGames.CATALOG[choice.fixtureId] end
         return Runtime.Upgrades.catalog(choice.optionId or "forklift")
@@ -40,6 +51,7 @@ function Component.install(Runtime)
         if not Runtime.warehouseEnabled() and Runtime.ComputerScreen.tab=="warehouse" then Runtime.ComputerScreen.tab="active" end
         Runtime.ComputerScreen.warehouseConfirmation,Runtime.ComputerScreen.warehousePending=nil,false
         Runtime.ComputerScreen.warehouseGamesPage=false
+        Runtime.ComputerScreen.warehouseStagingPage=false
     end
 
     function Runtime.ComputerScreen.configureGameClock(options)
@@ -87,10 +99,22 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.warehouseView(state)
         local warehouse=state.warehouse or Runtime.Upgrades.defaultState()
+        local stagingAreas=Runtime.StagingAreas.areas(state)
+        local selectedAreaId=Runtime.ComputerScreen.warehouseSelectedStagingAreaId
+        local selectedArea=Runtime.StagingAreas.findById(state,selectedAreaId)
+        if not selectedArea then
+            selectedArea=stagingAreas[1]
+            if not Runtime.ComputerScreen.warehousePending then
+                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=selectedArea and selectedArea.id or nil
+            end
+        end
         local result={enabled=Runtime.warehouseEnabled(),forkliftOwned=warehouse.forkliftOwned==true,
             forklift=Runtime.Upgrades.catalog("forklift"),bays={},confirmation=Runtime.ComputerScreen.warehouseConfirmation,
             pending=Runtime.ComputerScreen.warehousePending,message=Runtime.ComputerScreen.warehouseMessage,
-            gamesPage=Runtime.ComputerScreen.warehouseGamesPage}
+            gamesPage=Runtime.ComputerScreen.warehouseGamesPage,
+            stagingPage=Runtime.ComputerScreen.warehouseStagingPage,
+            stagingAreas=stagingAreas,selectedArea=selectedArea,
+            machineOptions=Runtime.StagingAreas.machineOptions(state)}
         for _,bayId in ipairs(Runtime.WAREHOUSE_BAYS) do
             local bay=warehouse.bays and warehouse.bays[bayId] or {status="locked"}
             local project
@@ -108,6 +132,31 @@ function Component.install(Runtime)
                     options[1],options[2],options[3]}}
         end
         return result
+    end
+
+    local function submitStagingIntent(state,intent)
+        local normalized,errorMessage=Runtime.OfficeIntent.normalize(intent)
+        if not normalized then
+            Runtime.ComputerScreen.warehouseMessage=errorMessage
+            return {action="blocked"}
+        end
+        local command=Runtime.dependencies.remoteCommand or Runtime.dependencies.warehouseCommand
+        if type(command)~="function" then
+            Runtime.ComputerScreen.warehouseMessage="Staging area settings are not connected to the host."
+            return {action="blocked",reason="warehouse_unwired"}
+        end
+        Runtime.ComputerScreen.warehousePending=true
+        local called,accepted,code,message=pcall(command,normalized)
+        if not called or accepted==false then
+            Runtime.ComputerScreen.resolveWarehouse(false,called and (message or code)
+                or "The staging area change could not be sent.")
+            return {action="blocked"}
+        end
+        if not Runtime.dependencies.remoteCommand and accepted==true then
+            Runtime.ComputerScreen.resolveWarehouse(true,message)
+            return {action="staging_area_changed",hostSaved=true}
+        end
+        return {action="remote_pending"}
     end
 
     function Runtime.warehouseMousepressed(state,x,y)
@@ -155,6 +204,54 @@ function Component.install(Runtime)
                 return {action="warehouse_purchased",hostSaved=true}
             end
             return {action="remote_pending"}
+        end
+        if Runtime.contains(Runtime.WAREHOUSE_STAGING_SWITCH,x,y) then
+            Runtime.ComputerScreen.warehouseStagingPage=not Runtime.ComputerScreen.warehouseStagingPage
+            if Runtime.ComputerScreen.warehouseStagingPage then Runtime.ComputerScreen.warehouseGamesPage=false end
+            Runtime.ComputerScreen.warehouseMessage=nil
+            return {action="warehouse_staging_page_changed"}
+        end
+        if Runtime.ComputerScreen.warehouseStagingPage then
+            local view=Runtime.ComputerScreen.warehouseView(state)
+            for index,area in ipairs(view.stagingAreas) do
+                local rect={x=98,y=270+(index-1)*35,width=370,height=32}
+                if Runtime.contains(rect,x,y) then
+                    Runtime.ComputerScreen.warehouseSelectedStagingAreaId=area.id
+                    Runtime.ComputerScreen.warehouseMessage=nil
+                    return {action="staging_area_selected",areaId=area.id}
+                end
+            end
+            if Runtime.contains(Runtime.WAREHOUSE_STAGING_ADD,x,y) then
+                local settings=state.stagingAreas or Runtime.StagingAreas.defaultState()
+                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=Runtime.StagingAreas.nextAreaId(settings)
+                return submitStagingIntent(state,{kind="staging_area_add"})
+            end
+            local area=view.selectedArea
+            if area and Runtime.contains(Runtime.WAREHOUSE_STAGING_REMOVE,x,y) then
+                return submitStagingIntent(state,{kind="staging_area_remove",areaId=area.id})
+            end
+            if area then
+                local changeRects={
+                    {Runtime.WAREHOUSE_STAGING_LEFT,"left"},
+                    {Runtime.WAREHOUSE_STAGING_UP,"up"},
+                    {Runtime.WAREHOUSE_STAGING_DOWN,"down"},
+                    {Runtime.WAREHOUSE_STAGING_RIGHT,"right"},
+                    {Runtime.WAREHOUSE_STAGING_COLOR,"color_next"},
+                }
+                for _,item in ipairs(changeRects) do
+                    if Runtime.contains(item[1],x,y) then
+                        return submitStagingIntent(state,{kind="staging_area_change",areaId=area.id,change=item[2]})
+                    end
+                end
+                if Runtime.contains(Runtime.WAREHOUSE_STAGING_PURPOSE,x,y)
+                    and not Runtime.StagingAreas.isFixedPurpose(area) then
+                    return submitStagingIntent(state,{kind="staging_area_change",areaId=area.id,change="purpose_next"})
+                end
+                if Runtime.contains(Runtime.WAREHOUSE_STAGING_MACHINE,x,y) and area.purpose=="machine_output" then
+                    return submitStagingIntent(state,{kind="staging_area_change",areaId=area.id,change="machine_next"})
+                end
+            end
+            return nil
         end
         if Runtime.contains(Runtime.WAREHOUSE_PAGE_SWITCH,x,y) then
             Runtime.ComputerScreen.warehouseGamesPage=not Runtime.ComputerScreen.warehouseGamesPage

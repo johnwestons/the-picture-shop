@@ -139,7 +139,20 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=="machine-transport" then
+        if focus=="critter-kombat" then
+            for _,name in ipairs({"lua_limits","critter_kombat","critter_kombat_controls","network_protocol","multiplayer_session","keyboard_mobile","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="critter-kombat-controls" then
+            for _,name in ipairs({"lua_limits","critter_kombat_controls","keyboard_mobile","focus_grace"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="basketball" then
+            for _,name in ipairs({"lua_limits","basketball","network_protocol","multiplayer_session",
+                "keyboard_mobile","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="machine-transport" then
             for _,name in ipairs({"lua_limits","purchased_machine_transport","machine_fleet","multi_machine","pallet_jack_audit",
                 "pallet_state","placement_precision","machine_relocation_authority","machine_relocation_session",
                 "save_contract","network_protocol"}) do
@@ -167,7 +180,7 @@ function Smoke.start(context)
             Suites.runDomain(context,check)
         elseif focus=="performance" then
             runChecks(context)
-            for _,name in ipairs({"performance_regression","asset_pack","save_contract",
+            for _,name in ipairs({"performance_regression","scaling_performance","npc_navigation","machine_fleet","multi_machine","asset_pack","save_contract",
                 "warehouse_save","network_protocol","truck_authority","multiplayer_session","multiplayer_impairment",
                 "multiplayer_workshop_reliable","guest_job_journey","employees","employee_schedule",
                 "employee_billing","shared_gui","options","sound","pallet_jack_motion",

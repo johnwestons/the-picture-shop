@@ -77,7 +77,8 @@ function Component.run(Context)
                         -- A player can move stock into a reserved space while the
                         -- return animation runs. Revalidate against real floor
                         -- stock and other cutters before creating an output pallet.
-                        local checked,outputError=Context.Machine.outputResolver(state,Context.Machine.pallet)
+                        local checked,outputError=Context.Machine.outputResolver(state,Context.Machine.pallet,
+                            Context.machineId or "MCH-0001")
                         if not checked then
                             Context.Machine.pendingOutput=nil
                             Context.Machine.step,Context.Machine.progress="cut_complete",0

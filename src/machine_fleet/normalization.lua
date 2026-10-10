@@ -3,6 +3,37 @@
 local Component = {}
 
 function Component.install(Runtime)
+    -- Derived data belongs to the runtime, never saves or network payloads.
+    -- ensure remains the explicit repair/migration boundary. Normal gameplay
+    -- reads reuse its result until a collection is replaced or resized.
+    local normalizedFleets = setmetatable({}, { __mode = "k" })
+    function Runtime.Fleet.current(state)
+        local fleet = state.machines
+        local cached = fleet and normalizedFleets[fleet]
+        if not cached or cached.items ~= fleet.items or cached.itemCount ~= #fleet.items
+            or cached.deliveries ~= fleet.deliveries or cached.deliveryCount ~= #fleet.deliveries
+            or cached.notices ~= fleet.serviceNotices or cached.noticeCount ~= #fleet.serviceNotices then
+            return Runtime.Fleet.ensure(state)
+        end
+        return fleet
+    end
+
+    function Runtime.indexedMachine(state, id)
+        local fleet = Runtime.Fleet.current(state)
+        local cached = normalizedFleets[fleet]
+        local index = cached.byId[id]
+        local item = index and fleet.items[index]
+        if item and item.id == id then return item end
+        -- An explicit in-place replacement can keep the collection length.
+        -- Repair on a stale entry/miss without penalizing successful lookups.
+        for _, candidate in ipairs(fleet.items) do
+            if candidate.id == id then
+                Runtime.Fleet.ensure(state)
+                return fleet.items[normalizedFleets[fleet].byId[id]]
+            end
+        end
+    end
+
     function Runtime.normalizeItem(item)
         if type(item) ~= "table" or not Runtime.definition(item.modelId) or type(item.id) ~= "string" then return nil end
         local model = Runtime.definition(item.modelId)
@@ -261,6 +292,11 @@ function Component.install(Runtime)
         fleet.nextId = math.max(highestId + 1, math.floor(tonumber(fleet.nextId) or 1), 1)
         fleet.nextDeliveryId = math.max(highestDeliveryId + 1,
             math.floor(tonumber(fleet.nextDeliveryId) or 1), 1)
+        local byId = {}
+        for index, item in ipairs(fleet.items) do byId[item.id] = index end
+        normalizedFleets[fleet] = {items=fleet.items,itemCount=#fleet.items,byId=byId,
+            deliveries=fleet.deliveries,deliveryCount=#fleet.deliveries,
+            notices=fleet.serviceNotices,noticeCount=#fleet.serviceNotices}
         return fleet
     end
 end

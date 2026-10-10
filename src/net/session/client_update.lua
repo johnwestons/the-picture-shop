@@ -287,7 +287,7 @@ function Component.install(Runtime)
         return nil
     end
 
-    function Runtime.Session:requestInteraction(targetKind, desiredState)
+    function Runtime.Session:requestInteraction(targetKind, desiredState,shotAim)
         if not self:isClient() or self.terminal or not self.ready or not self.sessionId then
             return false, "This worker device is not ready to interact with the host shop."
         end
@@ -300,6 +300,7 @@ function Component.install(Runtime)
             requestId = self.interactionRequestId,
             targetKind = targetKind,
             desiredState = desiredState,
+            shotAim = shotAim,
         }
         local ok, errorMessage = self:_sendToServer("interaction_request", request)
         if not ok then return false, errorMessage end
@@ -314,9 +315,9 @@ function Component.install(Runtime)
 
     function Runtime.Session:publishRadioState(state)
         if not self:isHost() or self.terminal or not self.ready or not self.sessionId then
-            return false, "Only the active host can broadcast the warehouse radio."
+            return false, "Only the active host can broadcast the shop radio."
         end
-        if type(state) ~= "table" then return false, "The warehouse radio state is invalid." end
+        if type(state) ~= "table" then return false, "The shop radio state is invalid." end
         if self.radioRevision >= 4294967295 then self.radioRevision = 0 end
         self.radioRevision = self.radioRevision + 1
         self.radioState = {

@@ -96,6 +96,7 @@ function Component.install(Runtime)
             and Runtime.Credit.validState(value.credit)
             and Runtime.Employees.valid(value.employment)
             and Runtime.WarehouseUpgrades.validate(value.warehouse)
+            and Runtime.StagingAreas.valid(value.stagingAreas)
             and Runtime.BreakroomGames.validate(value.breakroomGames)
             and Runtime.WarehouseConstruction.valid(value.constructionWorker, value.warehouse)
             and type(value.storage) == "table" and Runtime.PalletStorage.normalize(value.storage) ~= nil

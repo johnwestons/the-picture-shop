@@ -40,6 +40,8 @@ local function goalReaction(state,sceneId)
             local phase=record.shotPhase
             if phase=="fall" or (phase=="rebound" and record.rimHit==true) then
                 return phase,math.max(0,record.shotElapsed or 0)
+            elseif phase=="rebound" and record.boardHit then
+                return "board",math.max(0,record.shotElapsed or 0)
             end
         end
     end
@@ -47,7 +49,7 @@ end
 local function drawGoal(state,sceneId,fixture)
     local phase,elapsed=goalReaction(state,sceneId)
     local pose="basketball"
-    if phase and math.floor(elapsed/.085)%2==0 then
+    if phase and phase~="board" and math.floor(elapsed/.085)%2==0 then
         pose=phase=="fall" and "basketball_score" or "basketball_rim"
     end
     drawGame(pose,fixture.x,fixture.y)
@@ -59,11 +61,18 @@ local function drawGoal(state,sceneId,fixture)
     else love.graphics.setColor(1,.62,.18,1-progress) end
     love.graphics.setLineWidth(2)
     love.graphics.circle("line",fixture.rimX,fixture.rimY,8+25*progress)
-    love.graphics.print(phase=="fall" and "SWISH!" or "RIM!",
+    love.graphics.print(phase=="fall" and "SWISH!" or phase=="board" and "BOARD!" or "RIM!",
         fixture.rimX+16,fixture.rimY-33-16*progress)
     love.graphics.pop()
 end
-function Renderer.drawBall(x,y) drawGame("ball",x,y) end
+function Renderer.drawBall(x,y)
+    local image=gameImage("ball")
+    if not image then return end
+    local radius=require("src.basketball_trajectory").RADIUS
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(image,x,y,0,radius*2/image:getWidth(),radius*2/image:getHeight(),
+        image:getWidth()/2,image:getHeight()/2)
+end
 function Renderer.pruneCache() cache:prune() end
 function Renderer.clearCache()
     cache:clear()
@@ -168,8 +177,8 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
         end
     end
     for _,ball in ipairs(require("src.basketball").renderRecords(state)) do
-        if ball.sceneId==sceneId and (ball.mode=="placed" or ball.mode=="flight") then
-            actors[#actors+1]={y=ball.y,draw=function() drawGame("ball",ball.x,ball.displayY or ball.y) end}
+        if ball.sceneId==sceneId and ball.mode=="placed" then
+            actors[#actors+1]={y=ball.y,draw=function() Renderer.drawBall(ball.x,ball.y) end}
         end
     end
     local builder=state and state.constructionWorker
@@ -232,6 +241,13 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
     table.sort(actors,function(a,b) return a.y<b.y end)
     Beacon.drawUnderlay(world.getInteraction(),world.player.interactionClock,{})
     for _,actor in ipairs(actors) do actor.draw() end
+    -- Ground-y sorting cannot occlude a flying ball with the elevated board.
+    for _,ball in ipairs(require("src.basketball").renderRecords(state)) do
+        if ball.sceneId==sceneId and ball.mode=="flight" then
+            Renderer.drawBall(ball.x,ball.displayY or ball.y)
+        end
+    end
+    require("src.basketball_renderer").drawArc(state,world.player)
     if Rooms.definition(state,sceneId)=="breakroom" and Games.owns(state,sceneId,"basketball") then
         for _,record in ipairs(require("src.basketball").renderRecords(state)) do
             if record.bayId==sceneId then

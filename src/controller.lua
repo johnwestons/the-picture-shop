@@ -44,7 +44,7 @@ function Controller:update(dt)
     end
     if not self.active then return end
     local screen = self.screenInfo()
-    if screen == "world" or screen == "asset_error" then return end
+    if screen == "world" or screen == "asset_error" or screen == "critter_kombat" then return end
     local x = self.active:getGamepadAxis("rightx") or 0
     local y = self.active:getGamepadAxis("righty") or 0
     if math.abs(x) < 0.18 and math.abs(y) < 0.18 then
@@ -127,7 +127,7 @@ end
 function Controller:draw()
     if not self.active then return end
     local screen = self.screenInfo()
-    if screen == "world" or screen == "asset_error" then return end
+    if screen == "world" or screen == "asset_error" or screen == "critter_kombat" then return end
     love.graphics.setColor(0.02, 0.05, 0.07, 0.92)
     love.graphics.circle("fill", self.pointerX, self.pointerY, 13)
     love.graphics.setColor(0.98, 0.82, 0.25, 1)

@@ -114,8 +114,10 @@ function Component.install(Runtime)
             localPlayer = localPlayer,
             inputX = inputX or 0,
             inputY = inputY or 0,
-            gameX = (Runtime.airHockeyInputX or 0)+(Runtime.kombatInputX or 0),
-            gameY = Runtime.airHockeyInputY or 0,
+            gameX = Runtime.basketballCharge and Runtime.basketballCharge.aimX/100
+                or (Runtime.airHockeyInputX or 0)+(Runtime.kombatInputX or 0),
+            gameY = Runtime.basketballCharge and (Runtime.basketballCharge.arcHeight-105)/85
+                or Runtime.airHockeyInputY or 0,
             combatButtons = Runtime.kombatButtons or 0,
             moveRemote = function(player, moveDt, moveX, moveY)
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
@@ -224,8 +226,8 @@ function Component.install(Runtime)
                     end
                 end
             end,
-            performInteraction = function(player, targetKind, desiredState)
-                local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState)
+            performInteraction = function(player, targetKind, desiredState, shotAim)
+                local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim)
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
                 if okay and targetKind=="roomGame" and
                     (desiredState=="basketball:pickup" or desiredState=="basketball:drop") then

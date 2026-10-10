@@ -23,7 +23,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizeInteractionRequest(payload)
         local valid, shapeError = Runtime.shape(payload, "interaction_request payload",
-            { "sessionId", "requestId", "targetKind", "desiredState" })
+            { "sessionId", "requestId", "targetKind", "desiredState" },{"shotAim"})
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "interaction_request.sessionId")
@@ -49,6 +49,9 @@ function Component.install(Runtime)
                     or payload.desiredState=="critter_kombat:start_versus"
                     or payload.desiredState=="critter_kombat:join"
                     or payload.desiredState=="critter_kombat:leave"
+                    or payload.desiredState=="critter_kombat:ready_mouse"
+                    or payload.desiredState=="critter_kombat:ready_fox"
+                    or payload.desiredState=="critter_kombat:rematch"
                     or payload.desiredState=="basketball:pickup"
                     or payload.desiredState=="basketball:drop"
                     or payload.desiredState=="basketball:shot_start"
@@ -62,11 +65,26 @@ function Component.install(Runtime)
         then
             return nil, "interaction_request.desiredState is invalid"
         end
+        if payload.shotAim~=nil then
+            if targetKind~="roomGame" or payload.desiredState~="basketball:shot_release" then
+                return nil,"shotAim is only allowed on a basketball release"
+            end
+            local okay,err=Runtime.shape(payload.shotAim,"interaction_request.shotAim",
+                {"aimX","arcHeight"},{"elapsed"})
+            if not okay then return nil,err end
+            for _,field in ipairs({{"aimX",-100,100},{"arcHeight",45,190},{"elapsed",0,1.08}}) do
+                if payload.shotAim[field[1]]~=nil then
+                    local n,nErr=Runtime.numberInRange(payload.shotAim[field[1]],field[2],field[3],"shotAim."..field[1])
+                    if n==nil then return nil,nErr end
+                end
+            end
+        end
         return {
             sessionId = sessionId,
             requestId = requestId,
             targetKind = targetKind,
             desiredState = payload.desiredState,
+            shotAim = payload.shotAim,
         }
     end
 

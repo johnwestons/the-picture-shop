@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local Footprint = require("src.floor_footprint")
+local ObstacleIndex = require("src.obstacle_index")
 
 local Navigation = {}
 
@@ -15,7 +16,7 @@ local function whiteAt(mask, x, y)
 end
 
 local function outsideFixedObstacle(x, y, obstacles)
-    for _, obstacle in ipairs(obstacles or {}) do
+    for _, obstacle in ipairs(ObstacleIndex.point(obstacles,x,y)) do
         if Footprint.penetration(obstacle, x, y) > 0.001 then
             return false
         end
@@ -96,14 +97,18 @@ end
 -- grid nodes. Recovery permits a short escape from an invalid starting pixel;
 -- once on the floor the actor cannot cross a blocked mask pixel again.
 function Navigation.canTraverse(assets, x, y, nextX, nextY, obstacles, recover)
+    obstacles = ObstacleIndex.segment(obstacles,x,y,nextX,nextY)
     local mask = assets.getData("walkmask")
     local dx, dy = nextX - x, nextY - y
     local length = math.sqrt(dx * dx + dy * dy)
     local onFloor = feetAreOnMask(mask, x, y)
     if not onFloor and (not recover or length > 32) then return false end
+    local overlapping
     for _,obstacle in ipairs(obstacles or {}) do
-        if Footprint.penetration(obstacle,x,y)<=.001
-            and Footprint.segmentPenetrates(obstacle,x,y,nextX,nextY) then return false end
+        if Footprint.penetration(obstacle,x,y)>.001 then
+            overlapping = overlapping or {}
+            overlapping[#overlapping+1] = obstacle
+        elseif Footprint.segmentPenetrates(obstacle,x,y,nextX,nextY) then return false end
     end
     local stride=1
     if mask then
@@ -116,7 +121,9 @@ function Navigation.canTraverse(assets, x, y, nextX, nextY, obstacles, recover)
         local px, py = x + dx * index / steps, y + dy * index / steps
         local floor = feetAreOnMask(mask, px, py)
         if (onFloor and not floor)
-            or not clearsObstaclesFrom(previousX, previousY, px, py, obstacles) then return false end
+            -- Continuous collision above already cleared every obstacle we
+            -- started outside. Only embedded actors need per-step escape checks.
+            or (overlapping and not clearsObstaclesFrom(previousX, previousY, px, py, overlapping)) then return false end
         onFloor = onFloor or floor
         previousX, previousY = px, py
     end

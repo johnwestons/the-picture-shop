@@ -91,6 +91,7 @@ function Component.install(Runtime)
                 invalid_pallet = "Choose a valid pallet.",
                 employee_reserved = "Pause the employee's assignment before lifting this pallet.",
                 supporting_pallet = "Use the forklift to remove the upper pallet first.",
+                wrapper_using_stock = "Wait for the skid wrapper to finish its last wrap before moving stretch film.",
             }
             state.message = messages[liftCode] or tostring(liftCode)
             return false, liftCode, state.message
@@ -193,6 +194,7 @@ function Component.install(Runtime)
                     invalid_pallet = "Tap a valid skid to lift it.",
                     employee_reserved = "Pause the employee's assignment before lifting this pallet.",
                     supporting_pallet = "Use the forklift to remove the upper pallet first.",
+                    wrapper_using_stock = "Wait for the skid wrapper to finish its last wrap before moving stretch film.",
                 }
                 state.message = messages[action] or "The carried pallet could not be found."
             end

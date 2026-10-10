@@ -65,6 +65,7 @@ function Bootstrap.install()
         function love.touchreleased(id, x, y) app.touchreleased(id, x, y) end
         function love.gamepadpressed(joystick, button) app.gamepadpressed(joystick, button) end
         function love.gamepadreleased(joystick, button) app.gamepadreleased(joystick, button) end
+        function love.gamepadaxis(joystick, axis, value) app.gamepadaxis(joystick, axis, value) end
         function love.focus(focused) app.focus(focused) end
         function love.quit() return app.quit() end
     end

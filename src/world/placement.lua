@@ -108,6 +108,22 @@ function Component.install(Runtime)
                 x=config.collisionHalfWidth,y=config.collisionHalfHeight,shape="diamond",
             }, kind == "cutter", kind == "wrapper", excludedPalletId, kind == "windmill")
         end
+        -- An operated jack normally drops out of movement collision so its
+        -- driver can steer it. Keep that same jack footprint in pallet-drop
+        -- validation, though: otherwise the selected cell can overlap the
+        -- vehicle and leave it trapped as soon as the pallet is unloaded.
+        local jack=state and state.palletJack
+        if kind=="pallet" and jack and jack.operating and jack.sceneId==sceneId then
+            local loaded=jack.carriedPalletId~=nil
+            obstacles[#obstacles+1]=Runtime.Footprint.expand({
+                x=jack.x,y=jack.y-5,
+                halfWidth=loaded and Runtime.Config.palletJack.loadedCollisionHalfWidth
+                    or Runtime.Config.palletJack.collisionHalfWidth,
+                halfHeight=loaded and Runtime.Config.palletJack.loadedCollisionHalfHeight
+                    or Runtime.Config.palletJack.collisionHalfHeight,
+                shape="diamond",
+            },{x=config.collisionHalfWidth,y=config.collisionHalfHeight,shape="diamond"})
+        end
         return function(x,y)
             local floor = Runtime.Footprint.at(x,y,config)
             return assets and Runtime.Navigation.isAreaWalkable(assets, floor.x, floor.y,
@@ -227,7 +243,7 @@ function Component.install(Runtime)
         return true
     end
 
-    function Runtime.World.findCutterOutput(state, assets, excludedPalletId)
+    function Runtime.World.findCutterOutput(state, assets, excludedPalletId, machineId)
         return Runtime.CutterStaging.find(function(x, y)
             if not Runtime.World.isPalletPlacementClear(state, assets, x, y, excludedPalletId) then return false end
             for _,unit in ipairs(Runtime.MachineFleet.installedUnits(state,"polar_115")) do
@@ -237,7 +253,7 @@ function Component.install(Runtime)
                         Runtime.Footprint.at(machine.pendingOutput.x,machine.pendingOutput.y,Runtime.Config.palletLogistics))<.01 then return false end
             end
             return true
-        end)
+        end, state, machineId)
     end
 end
 

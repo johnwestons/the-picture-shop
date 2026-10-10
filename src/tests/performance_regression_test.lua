@@ -154,6 +154,7 @@ local function frameChecks(check)
         syncCamera=noop,updateLanConvenience=noop,warehouseSaveClock=.99,employmentSaveClock=.99,
         updateMultiplayer=function() networkServiced=true end,
         saveCurrent=function() saves=saves+1 end,
+        updateCheckpoint=noop,
     }
     local originalRadio=package.loaded["src.jukebox"]
     package.loaded["src.jukebox"]={update=noop,syncMultiplayer=noop}

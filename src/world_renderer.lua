@@ -548,9 +548,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     end
     drawBackground(assets)
     WarehouseRenderer.drawFloors(assets, state)
-    CutterStaging.draw()
+    CutterStaging.draw(state)
     drawWorkPhone(assets, state)
-    require("src.jukebox").drawProp()
     drawWallVentFan(assets)
     local clock=Config.interactables.shopClock
     ShopClock.drawFace(state,clock.wallX,clock.wallY,clock.clockRadius)

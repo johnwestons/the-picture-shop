@@ -373,8 +373,9 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
 end
 
 -- Physical allocation is atomic and never reaches into shelves, vehicles or
--- stacks. Maintenance may opt into genuine abstract-only legacy supplies; a
--- delivered but inaccessible pallet must still reserve its share of stock.
+-- stacks unless packaging explicitly opts into automatic shelf withdrawal.
+-- Maintenance may opt into genuine abstract-only legacy supplies; a delivered
+-- but inaccessible pallet must still reserve its share of stock.
 -- The caller debits abstract stock only after this function succeeds.
 function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     quantity = quantity == nil and 1 or quantity
@@ -408,7 +409,10 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
                 if type(remaining) ~= "number" or remaining ~= remaining or remaining < 0
                     or remaining >= math.huge then return false, "Invalid physical product quantity." end
                 physical = physical + remaining
-                if pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id) then
+                local accessibleShelf = options.autoShelf == true and productId == "stretch_film"
+                    and pallet.location == "rack"
+                if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
+                    or accessibleShelf then
                     accessible = accessible + remaining
                     if remaining > 0 then plan[#plan + 1] = {pallet=pallet,remaining=remaining} end
                 end
@@ -417,29 +421,116 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     end
     local abstract = allowAbstract and math.max(0, stock - physical) or 0
     if accessible + abstract < needed then
-        return false, "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
+        return false, options.autoShelf == true and productId == "stretch_film"
+            and "No stretch film is available on the warehouse floor or storage shelf."
+            or "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
     end
     local committed = {}
+    local storageRevision = state.storage and state.storage.revision
+    local rackRevisions = {}
     for _, allocation in ipairs(plan) do
         if needed == 0 then break end
         local pallet = allocation.pallet
         local used = math.min(needed, allocation.remaining)
+        local placement = pallet.storage
+        local rack = placement and state.storage and state.storage.racks[placement.rackId]
+        if rack and rackRevisions[rack.id] == nil then
+            rackRevisions[rack.id] = {rack=rack, revision=rack.revision}
+        end
         local previous = {pallet=pallet,remainingQuantity=pallet.remainingQuantity,
-            location=pallet.location,status=pallet.status,world=pallet.world}
+            location=pallet.location,status=pallet.status,world=pallet.world,storage=pallet.storage}
         committed[#committed + 1] = previous
         if used == allocation.remaining then
-            local moved, reason = PalletState.transition(state, pallet, "none", {status="consumed"})
+            local moved, reason
+            if pallet.location == "rack" and options.autoShelf == true and productId == "stretch_film" then
+                moved, reason = PalletState.consumeVendorProduct(state,pallet)
+            else
+                moved, reason = PalletState.transition(state, pallet, "none", {status="consumed"})
+            end
             if not moved then
                 for _, before in ipairs(committed) do
                     local original = before.pallet
                     original.remainingQuantity, original.location = before.remainingQuantity, before.location
-                    original.status, original.world = before.status, before.world
+                    original.status, original.world, original.storage = before.status, before.world, before.storage
                 end
+                if storageRevision ~= nil and state.storage then state.storage.revision = storageRevision end
+                for _, before in pairs(rackRevisions) do before.rack.revision = before.revision end
                 return false, reason
             end
         end
         pallet.remainingQuantity = allocation.remaining - used
         needed = needed - used
+    end
+    return true
+end
+
+-- Check the exact stock and floor-access rules used by consumeStockProducts
+-- without changing inventory. Machines use this before starting a timed cycle
+-- so a missing or inaccessible supply cannot strand the machine at 100%.
+function Procurement.canConsumeStockProducts(state, requirements)
+    if type(state) ~= "table" or type(state.inventory) ~= "table" or type(requirements) ~= "table" then
+        return false, "Invalid product consumption request."
+    end
+    local orders = state.procurement and state.procurement.orders or {}
+    local hasRequirements = false
+    for _, request in ipairs(requirements) do
+        if type(request) ~= "table" or type(request.productId) ~= "string"
+            or (request.stockKey ~= nil and type(request.stockKey) ~= "string") then
+            return false, "Invalid product consumption request."
+        end
+        local quantity = request.quantity == nil and 1 or request.quantity
+        if type(quantity) ~= "number" or quantity ~= quantity or quantity < 0 or quantity >= math.huge then
+            return false, "Invalid product consumption request."
+        end
+        local needed = math.floor(quantity)
+        if needed > 0 then
+            hasRequirements = true
+            local stockContainer = request.stockKey and state.inventory or state.inventory.stock
+            local stockKey = request.stockKey or request.productId
+            local stock = type(stockContainer) == "table" and stockContainer[stockKey] or nil
+            stock = stock or 0
+            if type(stock) ~= "number" or stock ~= stock or stock >= math.huge or stock < needed then
+                return false, "Not enough product stock is available."
+            end
+        end
+    end
+    if hasRequirements and not PalletState.validate(state) then
+        return false, "Physical stock must be reconciled before using supplies."
+    end
+    for _, request in ipairs(requirements) do
+        local needed = math.floor(request.quantity == nil and 1 or request.quantity)
+        if needed > 0 then
+            local stockContainer = request.stockKey and state.inventory or state.inventory.stock
+            local stockKey = request.stockKey or request.productId
+            local stock = type(stockContainer) == "table" and stockContainer[stockKey] or 0
+            stock = stock or 0
+            local physical, accessible = 0, 0
+            for _, order in ipairs(orders) do
+                for _, pallet in ipairs(order.pallets or {}) do
+                    if pallet.productId == request.productId
+                        and pallet.location ~= "awaiting_delivery" and pallet.location ~= "none" then
+                        local remaining = pallet.remainingQuantity == nil and pallet.quantity or pallet.remainingQuantity
+                        if type(remaining) ~= "number" or remaining ~= remaining
+                            or remaining < 0 or remaining >= math.huge then
+                            return false, "Invalid physical product quantity."
+                        end
+                        physical = physical + remaining
+                        local accessibleShelf = request.autoShelf == true
+                            and request.productId == "stretch_film" and pallet.location == "rack"
+                        if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
+                            or accessibleShelf then
+                            accessible = accessible + remaining
+                        end
+                    end
+                end
+            end
+            local abstract = math.max(0, stock - physical)
+            if accessible + abstract < needed then
+                return false, request.autoShelf == true and request.productId == "stretch_film"
+                    and "No stretch film is available on the warehouse floor or storage shelf."
+                    or "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
+            end
+        end
     end
     return true
 end
@@ -468,7 +559,7 @@ function Procurement.consumeStockProduct(state, productId, quantity, options)
         return false, "Not enough product stock is available."
     end
     local consumed, reason = Procurement.consumePhysicalProduct(state, productId, needed, {
-        allowAbstract = true, stockKey = stockKey,
+        allowAbstract = true, stockKey = stockKey, autoShelf = options.autoShelf == true,
     })
     if not consumed then return false, reason end
     stockContainer[stockKey or productId] = available - needed
@@ -480,6 +571,8 @@ function Procurement.consumeStockProducts(state, requirements)
         return false, "Invalid product consumption request."
     end
     local products, counters, pallets = {}, {}, {}
+    local storageRevision = state.storage and state.storage.revision
+    local rackRevisions = {}
     for _, request in ipairs(requirements) do
         if type(request) ~= "table" or type(request.productId) ~= "string" then
             return false, "Invalid product consumption request."
@@ -501,7 +594,13 @@ function Procurement.consumeStockProducts(state, requirements)
                 pallets[#pallets + 1] = {
                     pallet = pallet, remainingQuantity = pallet.remainingQuantity,
                     location = pallet.location, status = pallet.status, world = pallet.world,
+                    storage = pallet.storage,
                 }
+                local placement = pallet.storage
+                local rack = placement and state.storage and state.storage.racks[placement.rackId]
+                if rack and rackRevisions[rack.id] == nil then
+                    rackRevisions[rack.id] = {rack=rack, revision=rack.revision}
+                end
             end
         end
     end
@@ -512,9 +611,11 @@ function Procurement.consumeStockProducts(state, requirements)
             for _, before in ipairs(pallets) do
                 local pallet = before.pallet
                 pallet.remainingQuantity, pallet.location = before.remainingQuantity, before.location
-                pallet.status, pallet.world = before.status, before.world
+                pallet.status, pallet.world, pallet.storage = before.status, before.world, before.storage
             end
             for _, before in pairs(counters) do before.container[before.key] = before.value end
+            if storageRevision ~= nil and state.storage then state.storage.revision = storageRevision end
+            for _, before in pairs(rackRevisions) do before.rack.revision = before.revision end
             return false, reason
         end
     end

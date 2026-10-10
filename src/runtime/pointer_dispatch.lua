@@ -65,6 +65,9 @@ function Component.install(Runtime)
 
     function Runtime.dispatchGameMousePressed(gameX, gameY, button)
         if Runtime.state.screen == "asset_error" then return end
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
+        end
         if require("src.shop_room_controls").mousepressed(gameX,gameY,button,Runtime) then return true end
         if button == 1 then Runtime.Ui.notePress(gameX, gameY) end
         if Runtime.App.sound then Runtime.App.sound:pointerPressed(button, Runtime.state.screen) end
@@ -89,6 +92,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.dispatchGameMouseReleased(gameX, gameY, button)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").mousereleased(gameX,gameY,button)
+        end
+        if require("src.basketball_controls").mousereleased(gameX,gameY,button,Runtime) then return true end
         if Runtime.state.screen == "options" then return Runtime.OptionsScreen.mousereleased(gameX, gameY, button) end
         if Runtime.state.screen == "lan" then return Runtime.LanScreen.mousereleased(gameX, gameY, button) end
         if Runtime.state.screen == "direct" then return Runtime.DirectScreen.mousereleased(gameX, gameY, button) end
@@ -99,6 +106,9 @@ function Component.install(Runtime)
     function Runtime.dispatchMousePressed(x, y, button)
         if Runtime.state.screen == "asset_error" then return end
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
+        end
         if require("src.shop_room_controls").mousepressed(gameX,gameY,button,Runtime) then return true end
         if button == 1 then Runtime.Ui.notePress(gameX, gameY) end
         if Runtime.App.sound then Runtime.App.sound:pointerPressed(button, Runtime.state.screen) end
@@ -137,6 +147,10 @@ function Component.install(Runtime)
 
     function Runtime.dispatchMouseReleased(x, y, button)
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").mousereleased(gameX,gameY,button)
+        end
+        if require("src.basketball_controls").mousereleased(gameX,gameY,button,Runtime) then return true end
         if Runtime.state.screen == "options" then return Runtime.OptionsScreen.mousereleased(gameX, gameY, button) end
         if Runtime.state.screen == "lan" then return Runtime.LanScreen.mousereleased(gameX, gameY, button) end
         if Runtime.state.screen == "direct" then return Runtime.DirectScreen.mousereleased(gameX, gameY, button) end
@@ -146,6 +160,10 @@ function Component.install(Runtime)
 
     function Runtime.dispatchMouseMoved(x, y)
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").mousemoved(Runtime,gameX,gameY)
+        end
+        if require("src.basketball_controls").mousemoved(gameX,gameY,Runtime) then return true end
         if Runtime.state.screen == "options" then return Runtime.OptionsScreen.mousemoved(gameX, gameY) end
         return Runtime.Input.mousemoved(gameX, gameY, Runtime.inputContext)
     end

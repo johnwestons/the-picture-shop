@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.draw()
+        Runtime.CharacterAssets.beginFrame()
         love.graphics.clear(0.04, 0.05, 0.07)
         local viewBounds = Runtime.syncCamera()
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
@@ -12,17 +13,21 @@ function Component.install(Runtime)
         Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight, not (mobileWorld or mobileUi), Runtime.App.officeFitsScreen())
         if Runtime.spriteLabActive then
             Runtime.SpriteMotionLab.draw(Runtime.CharacterAssets)
+            Runtime.CharacterAssets.endFrame()
             Runtime.Viewport.endDraw()
             Runtime.Smoke.drawn()
             return
         end
         Runtime.WorldRenderer.beginFrame()
         local desiredPack = (Runtime.state.screen == "title" or Runtime.state.screen == "lan"
-            or Runtime.state.screen == "direct" or Runtime.state.screen == "options") and "menu"
+            or Runtime.state.screen == "direct") and "menu"
             or Runtime.state.screen == "machine"
                 and (Runtime.state.machineType == "skid_wrapper" and "wrapper" or "cutter")
             or Runtime.state.screen == "workshop_remote" and Runtime.WorkshopRemoteScreen.requiredAssetPack()
             or Runtime.state.screen == "press" and "press" or nil
+        -- Options uses procedural UI. Keep the underlying screen's textures
+        -- pinned instead of decoding the large title art and evicting the machine.
+        if Runtime.state.screen == "options" then desiredPack = Runtime.Assets.activePackName() end
         if not Runtime.Assets.activatePack(desiredPack) then
             local _, failures = Runtime.Assets.assertHealthy()
             Runtime.state.assetErrors = Runtime.AssetErrorScreen.normalize(failures)
@@ -79,8 +84,6 @@ function Component.install(Runtime)
             elseif Runtime.state.screen == "shop_clock" then
                 require("src.screens.shop_clock").draw(Runtime.state,mouseX,mouseY,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
-            elseif Runtime.state.screen == "jukebox" then
-                require("src.jukebox").drawScreen(mouseX, mouseY, Runtime.multiplayer:isClient())
             elseif Runtime.state.screen == "work_phone" then
                 Runtime.WorkPhoneScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets)
             elseif Runtime.state.screen == "machine" then
@@ -100,7 +103,8 @@ function Component.install(Runtime)
             end
             Runtime.warehouseControls:draw(Runtime.Assets)
         end
-        if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error" then
+        if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
+            and Runtime.state.screen ~= "critter_kombat" then
             local optionsX, optionsY = Runtime.pointerPosition()
             local accessScreen, accessBounds = Runtime.optionsAccessLayout()
             Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, accessScreen, accessBounds, Runtime.Assets)
@@ -110,6 +114,7 @@ function Component.install(Runtime)
         if mobileUi then Runtime.App.mobileCamera:endDraw() end
         if Runtime.mobileControls then Runtime.mobileControls:draw() end
         Runtime.WorldRenderer.endFrame()
+        Runtime.CharacterAssets.endFrame()
         Runtime.Viewport.endDraw()
         Runtime.Smoke.drawn()
     end

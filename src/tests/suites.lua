@@ -9,7 +9,11 @@ end
 
 local DOMAIN_SUITES = {
     require("src.tests.lua_limits_test"),
+    require("src.tests.basketball_test"),
+    require("src.tests.critter_kombat_test"),
+    require("src.tests.critter_kombat_controls_test"),
     require("src.tests.performance_regression_test"),
+    require("src.tests.scaling_performance_test"),
     require("src.tests.acceptance_host_bootstrap_test"),
     require("src.tests.ip_scope_test"),
     require("src.tests.ipv6_address_test"),

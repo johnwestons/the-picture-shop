@@ -1,6 +1,7 @@
 -- World loading, deliveries, and authoritative simulation.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
     function Runtime.World.load(position)
@@ -14,7 +15,7 @@ function Component.install(Runtime)
         Runtime.World.player.sceneId=position and position.sceneId or "warehouse"
         Runtime.World.bayDoor:reset()
         Runtime.World.truck:reset()
-        Runtime.World.customer:reset(true)
+        Runtime.World.customer:reset(true, CustomerDemand.delayMultiplier(Runtime.state))
         Runtime.World.vendor:reset(true)
         Runtime.World.selectedInteraction = nil
         Runtime.World.placementSelection = nil
@@ -208,7 +209,7 @@ function Component.install(Runtime)
                     or "The customer left after you declined the job.")
             -- Bring the next business client into the arrival queue after this
             -- visit so the configured roster is experienced during one session.
-            Runtime.World.customer:reset(false)
+            Runtime.World.customer:reset(false, CustomerDemand.delayMultiplier(state))
         end
         local category = Runtime.Procurement.category(state and state.vendorCategory)
         Runtime.World.vendor.character = category.character

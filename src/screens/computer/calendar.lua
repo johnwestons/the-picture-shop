@@ -1,6 +1,7 @@
 -- Calendar presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
     function Runtime.drawCalendar(state, pointerX, pointerY, twelveHourTime)
@@ -19,6 +20,10 @@ function Component.install(Runtime)
         love.graphics.setColor(0.96, 0.84, 0.30)
         love.graphics.printf(string.upper(Runtime.BusinessCalendar.monthName(month)) .. " " .. year,
             146, 210, 388, "center")
+        local season = CustomerDemand.seasonForMonth(month)
+        love.graphics.setColor(0.60, 0.77, 0.75)
+        love.graphics.printf(string.format("%s  •  Seasonal demand %d%%",
+            season.name, math.floor(season.demand * 100 + 0.5)), 102, 233, 476, "center")
         local weekdayLabels = { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" }
         local gridX, gridY, cellW, cellH = Runtime.CAL_GRID.x, Runtime.CAL_GRID.y - 24,
             Runtime.CAL_GRID.cellWidth, Runtime.CAL_GRID.cellHeight

@@ -59,7 +59,7 @@ local function controls(context,check)
     local world=context.world
     local state=State.new();state.employment.recruiting=false;state.screen="world"
     local ctx=world.employeeContext(state,context.assets)
-    for _,kind in ipairs({"computer","workPhone","shopClock","jukebox"}) do
+    for _,kind in ipairs({"computer","workPhone","shopClock"}) do
         local point=Config.interactables[kind]
         local actor={x=Config.player.spawnX,y=Config.player.spawnY}
         local arrived=false
@@ -123,7 +123,7 @@ local function controls(context,check)
         local font=love.graphics.newFont(10);love.graphics.setFont(font)
         for _,row in ipairs({{"Entrance",Map.entrance},{"Computer",Config.interactables.computer},
             {"Phone",Config.interactables.workPhone},{"Clock",Config.interactables.shopClock},
-            {"Radio",Config.interactables.jukebox},{"Dock",Map.dock}}) do
+            {"Dock",Map.dock}}) do
             local p=row[2];love.graphics.setColor(.2,.95,.8,1);love.graphics.circle("line",p.x,p.y,5)
             love.graphics.line(p.x,p.y,p.hoverX,p.hoverY);love.graphics.circle("line",p.hoverX,p.hoverY,5)
             local labelY=p.y+8+(row[1]=="Phone" and 18 or row[1]=="Computer" and 36 or 0)

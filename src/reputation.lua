@@ -53,8 +53,8 @@ end
 function Reputation.completeJob(state, job)
     local reputation = Reputation.ensure(state)
     local price = job and job.quote and tonumber(job.quote.totalPrice) or 0
-    local gain = clamp(5 + math.floor(price / 1000), 5, 12)
-    if job and job.clientTemperament == "demanding" then gain = gain + 2 end
+    local gain = clamp(2 + math.floor(price / 2500), 2, 5)
+    if job and job.clientTemperament == "demanding" then gain = math.min(6, gain + 1) end
     reputation.score = clamp(reputation.score + gain, -100, 100)
     reputation.completedJobs = reputation.completedJobs + 1
     return gain, reputation.score

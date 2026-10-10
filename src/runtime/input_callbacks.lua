@@ -59,6 +59,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchpressed(id, x, y)
+        local px,py=Runtime.toPointerCoordinates(x,y)
+        if require("src.basketball_controls").touchpressed(id,px,py,Runtime) then return true end
         if Runtime.state.screen=="air_hockey" then
             return require("src.screens.air_hockey_screen").touchpressed(Runtime,id,x,y)
         end
@@ -69,6 +71,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchmoved(id, x, y, dx, dy)
+        local px,py=Runtime.toPointerCoordinates(x,y)
+        if require("src.basketball_controls").touchmoved(id,px,py,Runtime) then return true end
         if Runtime.state.screen=="air_hockey" then
             return require("src.screens.air_hockey_screen").touchmoved(Runtime,id,x,y)
         end
@@ -79,6 +83,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchreleased(id, x, y)
+        local px,py=Runtime.toPointerCoordinates(x,y)
+        if require("src.basketball_controls").touchreleased(id,px,py,Runtime) then return true end
         if Runtime.state.screen=="air_hockey" then
             return require("src.screens.air_hockey_screen").touchreleased(id)
         end
@@ -89,11 +95,23 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadpressed(joystick, button)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").gamepadpressed(Runtime,joystick,button)
+        end
         if Runtime.controller then return Runtime.controller:gamepadpressed(joystick, button) end
     end
 
     function Runtime.App.gamepadreleased(joystick, button)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").gamepadreleased(Runtime,joystick,button)
+        end
         if Runtime.controller then return Runtime.controller:gamepadreleased(joystick, button) end
+    end
+
+    function Runtime.App.gamepadaxis(joystick,axis,value)
+        if Runtime.state.screen=="critter_kombat" then
+            return require("src.screens.critter_kombat_screen").gamepadaxis(Runtime,joystick,axis,value)
+        end
     end
 end
 

@@ -5,7 +5,7 @@ function Component.install(Runtime)
         hit=true,knockout=true,victory=true}
     local function fighter(value,label)
         local okay,err=Runtime.shape(value,label,
-            {"x","z","face","health","action","actionTime","wins"})
+            {"x","z","face","health","action","actionTime","wins","character","variant"})
         if not okay then return nil,err end
         for _,field in ipairs({"x","z","health","actionTime"}) do
             local minimum,maximum=0,field=="x" and 800 or field=="z" and 300
@@ -16,6 +16,9 @@ function Component.install(Runtime)
         if value.face~=1 and value.face~=-1 or not actions[value.action] then
             return nil,label.." pose is invalid"
         end
+        if value.character~="mouse" and value.character~="fox" then return nil,label.." character is invalid" end
+        local variant,variantError=Runtime.integerInRange(value.variant,1,2,label..".variant")
+        if not variant then return nil,variantError end
         local wins,winsError=Runtime.integerInRange(value.wins,0,2,label..".wins")
         if not wins then return nil,winsError end
         return value
@@ -37,16 +40,21 @@ function Component.install(Runtime)
         for index,match in ipairs(payload.matches) do
             local label="fight_snapshot.matches["..index.."]"
             okay,err=Runtime.shape(match,label,
-                {"bayId","mode","phase","leftId","round","seconds","left","right"},
+                {"bayId","mode","phase","leftId","round","seconds","left","right","leftReady","rightReady","countdown"},
                 {"rightId"})
             if not okay then return nil,err end
             if not require("src.breakroom_games").BAYS[match.bayId] or seen[match.bayId]
                 or (match.mode~="solo" and match.mode~="versus")
-                or (match.phase~="waiting" and match.phase~="playing"
+                or (match.phase~="selecting" and match.phase~="intro" and match.phase~="playing"
                     and match.phase~="round_over" and match.phase~="finished") then
                 return nil,label.." identity is invalid"
             end
             seen[match.bayId]=true
+            if type(match.leftReady)~="boolean" or type(match.rightReady)~="boolean" then
+                return nil,label.." readiness is invalid"
+            end
+            local countdown,countdownErr=Runtime.numberInRange(match.countdown,0,1.2,label..".countdown")
+            if countdown==nil then return nil,countdownErr end
             for _,field in ipairs({"leftId","rightId"}) do
                 if match[field]~=nil then
                     local id,idErr=Runtime.integerInRange(match[field],1,Runtime.Protocol.MAX_PLAYERS,

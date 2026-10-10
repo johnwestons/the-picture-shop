@@ -5,12 +5,12 @@ Games.BAYS = { front_left = true, front_right = true }
 Games.ORDER = { "air_hockey", "basketball", "critter_kombat" }
 Games.CATALOG = {
     air_hockey = { name = "Air hockey table", price = 1800, x = 465, y = 417,
-        width = 162, depth = 90, interactionX = 465, interactionY = 490 },
+        width = 162, depth = 90, interactionX = 506, interactionY = 408 },
     basketball = { name = "Portable basketball goal and ball", price = 950,
-        x = 90, y = 500, width = 150, depth = 40,
-        rimX = 136, rimY = 330, interactionX = 211, interactionY = 475 },
+        x = 126, y = 450, width = 150, depth = 40,
+        rimX = 172, rimY = 280, interactionX = 40, interactionY = 385 },
     critter_kombat = { name = "Critter Kombat arcade", price = 2500, x = 887, y = 430,
-        width = 60, depth = 40, interactionX = 830, interactionY = 471 },
+        width = 60, depth = 40, interactionX = 860, interactionY = 436 },
 }
 
 local function token(value)

@@ -4,6 +4,7 @@ local ImageContract = require("src.image_contract")
 local Metrics = require("src.character_metrics")
 local imageCache = require("src.texture_cache").new(16 * 1024 * 1024, 20)
 local useSequence = 0
+local frameSequence, frameDepth = 0, 0
 
 -- Merge the separately built visitor pack without changing established seat,
 -- use, player, or pallet-jack anchor contracts.
@@ -174,6 +175,7 @@ end
 function CharacterAssets.load()
     CharacterAssets.releaseAll()
     useSequence = 0
+    frameSequence, frameDepth = 0, 0
     CharacterAssets.metadata, CharacterAssets.images = {}, {}
     CharacterAssets.frames, CharacterAssets.failures, CharacterAssets.loadFailures = {}, {}, {}
     for character, actions in pairs(Config.characters) do
@@ -223,6 +225,7 @@ function CharacterAssets.get(character, action, frame)
     if metadata then
         useSequence = useSequence + 1
         metadata.lastUse = useSequence
+        metadata.lastFrame = frameSequence
     end
     local image, frames, frameCount = loadAction(character, action)
     if not image or not frames or frameCount == 0 then return nil end
@@ -234,6 +237,33 @@ function CharacterAssets.getAnchor(character, action, frame)
     if not actionAnchors or #actionAnchors == 0 then return 256, 398 end
     local anchor = actionAnchors[((frame or 1) - 1) % #actionAnchors + 1]
     return anchor.x, anchor.y
+end
+
+-- Pin every pose drawn by every actor this frame (including remote players
+-- using a GUI). Old directions/actions share the bounded inactive LRU instead
+-- of remaining resident for the lifetime of a visible character species.
+function CharacterAssets.beginFrame()
+    if frameDepth == 0 then frameSequence = frameSequence + 1 end
+    frameDepth = frameDepth + 1
+end
+
+function CharacterAssets.endFrame()
+    if frameDepth == 0 then return end
+    frameDepth = frameDepth - 1
+    if frameDepth > 0 then return end
+    local retired = {}
+    for character, actions in pairs(CharacterAssets.images) do
+        for action, image in pairs(actions) do
+            local metadata = CharacterAssets.metadata[character][action]
+            if metadata.lastFrame ~= frameSequence then
+                retired[#retired+1] = {metadata=metadata,image=image}
+                actions[action] = nil
+                CharacterAssets.frames[character][action] = nil
+            end
+        end
+    end
+    table.sort(retired,function(a,b) return (a.metadata.lastUse or 0)<(b.metadata.lastUse or 0) end)
+    for _,entry in ipairs(retired) do imageCache:put(entry.metadata.path,entry.image) end
 end
 
 function CharacterAssets.retainCharacters(activeCharacters, cacheInactive)

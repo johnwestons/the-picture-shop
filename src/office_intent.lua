@@ -11,6 +11,9 @@ local fields = {
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
     buy_forklift = { requestId = "token" },
     buy_breakroom_fixture = { bayId = "bay", fixtureId = "breakroom_fixture", requestId = "token" },
+    staging_area_add = {},
+    staging_area_remove = { areaId = "token" },
+    staging_area_change = { areaId = "token", change = "staging_change" },
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
     decline_application = { applicationId = "token" },
     offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
@@ -45,6 +48,11 @@ function Intent.normalize(value)
             if not integer(item,1,1000000000) then return nil,"Review the latest record revision." end
         elseif rule == "queue_direction" then
             if item~=-1 and item~=1 then return nil,"Move this job up or down one place." end
+        elseif rule == "staging_change" then
+            local allowed = { left=true, right=true, up=true, down=true,
+                purpose_next=true, purpose_previous=true, color_next=true, color_previous=true,
+                machine_next=true, machine_previous=true }
+            if not allowed[item] then return nil, "Choose a valid staging area adjustment." end
         elseif rule == "employee_skill" then
             if item~="cutter" and item~="press" and item~="wrapping" then
                 return nil,"Choose paper-cutter, printing-press, or pallet-wrapping training."

@@ -12,10 +12,12 @@ function Component.install(Runtime)
             love.graphics.draw(backdrop,82,190,0,770/backdrop:getWidth(),408/backdrop:getHeight())
         end
         love.graphics.setColor(0.94,0.83,0.34,1)
-        love.graphics.print(view.gamesPage and "CRITTERNET / BREAK ROOM GAMES"
+        love.graphics.print(view.stagingPage and "CRITTERNET / PALLET STAGING"
+            or view.gamesPage and "CRITTERNET / BREAK ROOM GAMES"
             or "CRITTERNET / WAREHOUSE IMPROVEMENTS",100,202)
         love.graphics.setColor(0.72,0.84,0.82,1)
-        love.graphics.print(view.gamesPage and "Install a game in each completed break room. Prices are per room."
+        love.graphics.print(view.stagingPage and "Move and organize floor staging areas. Changes sync to every player."
+            or view.gamesPage and "Install a game in each completed break room. Prices are per room."
             or "Each expansion: four construction stages, one game day per stage.",100,224)
         local function control(rect,text,enabled)
             local hovered=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
@@ -24,7 +26,73 @@ function Component.install(Runtime)
             love.graphics.setColor(enabled and {0.93,0.96,0.88,1} or {0.49,0.55,0.53,1})
             love.graphics.printf(text,rect.x+5,rect.y+13,rect.width-10,"center")
         end
-        control(Runtime.WAREHOUSE_PAGE_SWITCH,view.gamesPage and "ROOM UPGRADES" or "BREAK ROOM GAMES",true)
+        if not view.stagingPage then
+            control(Runtime.WAREHOUSE_PAGE_SWITCH,view.gamesPage and "ROOM UPGRADES" or "BREAK ROOM GAMES",true)
+        end
+        control(Runtime.WAREHOUSE_STAGING_SWITCH,view.stagingPage and "ROOM UPGRADES" or "PALLET STAGING",
+            view.enabled and not view.pending)
+        if view.stagingPage then
+            local StagingAreas=Runtime.StagingAreas
+            Runtime.panel({x=90,y=244,width=386,height=244},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
+            love.graphics.setColor(0.91,0.93,0.87,1)
+            love.graphics.print("AREAS / "..#view.stagingAreas.." OF 6",104,252)
+            for index,area in ipairs(view.stagingAreas) do
+                local rect={x=98,y=270+(index-1)*35,width=370,height=32}
+                local selected=area.id==view.selectedArea.id
+                local hovered=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
+                Runtime.panel(rect,selected and {0.16,0.34,0.34,1} or hovered and {0.10,0.23,0.25,1}
+                    or {0.06,0.13,0.16,1},selected and {0.42,0.78,0.68,1} or {0.25,0.43,0.43,1},2,1)
+                local swatch=StagingAreas.color(area.color)
+                love.graphics.setColor(swatch.rgb[1],swatch.rgb[2],swatch.rgb[3],1)
+                love.graphics.circle("fill",114,rect.y+16,7)
+                love.graphics.setColor(0.92,0.95,0.9,1)
+                love.graphics.print(StagingAreas.label(state,area),130,rect.y+8)
+                love.graphics.setColor(0.64,0.78,0.74,1)
+                love.graphics.printf(string.format("%d, %d",area.x,area.y),374,rect.y+8,84,"right")
+            end
+            Runtime.panel({x=488,y=244,width=354,height=244},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
+            local area=view.selectedArea
+            local function setting(rect,label,enabled)
+                control(rect,label,enabled and view.enabled and not view.pending)
+            end
+            love.graphics.setColor(0.95,0.82,0.38,1)
+            love.graphics.print("SELECTED AREA",502,252)
+            love.graphics.setColor(0.91,0.93,0.87,1)
+            love.graphics.printf(area.id=="cutter-output" and StagingAreas.label(state,area)
+                or area.id=="inbound-shipping" and "Inbound Shipping"
+                or "Staging Area "..area.id:gsub("^staging%-", ""),502,269,326,"left")
+            local fixedPurpose=StagingAreas.isFixedPurpose(area)
+            setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
+                ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
+            local swatch=StagingAreas.color(area.color)
+            setting(Runtime.WAREHOUSE_STAGING_COLOR,"COLOR  /  "..swatch.label.."  /  NEXT",true)
+            if area.purpose=="machine_output" then
+                local machineLabel="NO INSTALLED MACHINE"
+                for _,machine in ipairs(view.machineOptions) do
+                    if machine.id==area.machineId then machineLabel=machine.label end
+                end
+                setting(Runtime.WAREHOUSE_STAGING_MACHINE,"MACHINE  /  "..machineLabel
+                    ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
+                    area.id~="cutter-output" and #view.machineOptions>0)
+            else
+                love.graphics.setColor(0.63,0.75,0.72,1)
+                love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO ANY INSTALLED MACHINE.",502,378,326,"center")
+            end
+            love.graphics.setColor(0.64,0.78,0.74,1)
+            love.graphics.printf(string.format("POSITION  /  X %d   Y %d",area.x,area.y),502,408,326,"center")
+            setting(Runtime.WAREHOUSE_STAGING_LEFT,"<",true)
+            setting(Runtime.WAREHOUSE_STAGING_UP,"^",true)
+            setting(Runtime.WAREHOUSE_STAGING_DOWN,"v",true)
+            setting(Runtime.WAREHOUSE_STAGING_RIGHT,">",true)
+            setting(Runtime.WAREHOUSE_STAGING_ADD,"ADD AREA",#view.stagingAreas<StagingAreas.MAX_AREAS)
+            setting(Runtime.WAREHOUSE_STAGING_REMOVE,"REMOVE AREA",not fixedPurpose)
+            love.graphics.setColor(0.96,0.77,0.38,1)
+            love.graphics.printf(view.message or "Each area holds up to six pallets. Move it 16 pixels per tap.",100,548,736,"left")
+            love.graphics.setColor(0.69,0.78,0.78,1)
+            love.graphics.printf(view.pending and "Waiting for the host to save this staging area change."
+                or "Inbound pallets unload into Inbound Shipping. Machines use their assigned output area.",100,574,736,"left")
+            return
+        end
         for bi,bay in ipairs(view.bays) do
             local x=90+(bi-1)*380
             Runtime.panel({x=x,y=244,width=372,height=224},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)

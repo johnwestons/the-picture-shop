@@ -3,17 +3,16 @@
 ## Current source build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.48` (`versionCode` 48)
-- Multiplayer protocol: 34; host and guests need matching current code.
+- Version: `0.1.0-android.49` (`versionCode` 49)
+- Multiplayer protocol: 36; host and guests need matching current code.
 - Build command: `./BUILD_ANDROID.ps1`
-- Local output: `output/mobile/ThePictureShop-0.1.0-android.48-debug.apk`
-- Remote download: [Android 48 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.48/ThePictureShop-0.1.0-android.48-Install.apk)
-- APK SHA-256: `0910d3ab68db681f0aaf57f40159b3a85ab4370c6a6974c12e699bd0807c8ba0`
-- APK source commit: `d0b2c090b11ea85d6364c827a2b7846d360a69c0`
-- The development APK uses the same gameplay and art source as Windows. It includes
-  the current warehouse, forklift, break room, cheat menu, and Critter Kombat changes.
-- The five new Critter Kombat fighter designs are concept previews pending selection;
-  they are source assets and are not active fighters in this build.
+- Local output: `output/mobile/ThePictureShop-0.1.0-android.49-debug.apk`
+- Remote download: [Android 49 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.49/ThePictureShop-0.1.0-android.49-Install.apk)
+- The development APK uses the same gameplay and art source as Windows, including
+  warehouse staging controls, seasonal customer-demand tuning, updated pallet and
+  supplies flow, performance improvements, and current gameplay and multiplayer changes.
+- The package ID and signing certificate are kept compatible with the previous
+  Android build, so installing over it preserves existing saves.
 - A connected phone is required to verify installation and physical gameplay.
 
 ## Android 43 historical build notes
@@ -46,7 +45,7 @@
   Live HUD/computer time and calendar shifts/paydays show shop time. The computer uses a digital clock
   and lets the host set 1x, 2x, 5x or 10x time; guests cannot change it. Player options recolor rabbit fur
   and overalls and share those colorways online. Early game offers more Express jobs and estimate emails
-  include expected arrival time. The warehouse jukebox includes only the nine-track Vibes playlist.
+  include expected arrival time. The computer's RADIO tab includes only the nine-track Vibes playlist.
   Cutter margins are highlighted with correct-rotation feedback; finished pallets occupy six ordered
   front staging slots, safely waiting when full. All three walk/idle sets use the reviewed Mouse Frontier
   source art. Fox/ferret work/rest use original single poses; dedicated machine action sequences remain

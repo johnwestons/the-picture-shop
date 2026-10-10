@@ -74,8 +74,18 @@ end
 
 function PalletState.find(state, palletId)
     if type(palletId) ~= "string" then return nil end
-    for _, item in ipairs(allPallets(state)) do
-        if item.pallet.id == palletId then return item end
+    -- Hot lookup: avoid materializing a wrapper table for every pallet merely
+    -- to return one. Read the live collections so transfers/snapshots are seen
+    -- immediately, without a stale location or ownership cache.
+    for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
+        for _, pallet in ipairs(job.pallets or {}) do
+            if pallet.id == palletId then return {job=job,pallet=pallet,vendor=false} end
+        end
+    end
+    for _, order in ipairs(state and state.procurement and state.procurement.orders or {}) do
+        for _, pallet in ipairs(order.pallets or {}) do
+            if pallet.id == palletId then return {job=order,pallet=pallet,vendor=true} end
+        end
     end
 end
 
@@ -396,6 +406,23 @@ function PalletState.transition(state, pallet, target, options)
         return false, table.concat(errors, "; ")
     end
     return true, pallet
+end
+
+-- Packaging rolls can be consumed directly from an accessible rack. This is a
+-- narrow inventory operation: ordinary job pallets still need a real storage
+-- transfer, and a shelf slot is released only when its vendor pallet is empty.
+function PalletState.consumeVendorProduct(state, pallet)
+    if type(state) ~= "table" or type(pallet) ~= "table"
+        or pallet.kind ~= "vendor_product" then
+        return false, "Only purchased stock can be consumed from storage."
+    end
+    if pallet.location == "rack" then
+        return PalletStorage.consumeVendorProduct(state,pallet)
+    end
+    if pallet.location == "warehouse" then
+        return PalletState.transition(state, pallet, "none", {status="consumed"})
+    end
+    return false, "Stretch film must be on the warehouse floor or shelf to be used."
 end
 
 return PalletState

@@ -64,10 +64,9 @@ local Config = {
         useAnimationRate = 2.5,
         seatingPauseDuration = 0.28,
         motionProfiles = {},
-        -- The first customer demonstrates the reception loop quickly. Later
-        -- clients arrive at varied business-day intervals instead of in a queue.
-        initialArrivalDelayMin = 2,
-        initialArrivalDelayMax = 6,
+        -- The first client arrives soon, then the shop builds a slower seasonal cadence.
+        initialArrivalDelayMin = 8,
+        initialArrivalDelayMax = 15,
         arrivalDelayMin = 60,
         arrivalDelayMax = 150,
         maxWaitSeconds = 300,
@@ -361,11 +360,6 @@ local Config = {
             x = 399, y = 260, radius = 72,
             wallX = 399, wallY = 181, drawScale = 0.084,
         },
-        jukebox = {
-            x = 80, y = 330, radius = 70,
-            wallX = 56, wallY = 292, drawScale = 0.07,
-            prompt = "E: tune the Vibes radio",
-        },
         cutter = { x = 625, y = 405, radius = 78 },
     },
     -- Only the taller upper architecture is registered in this slice. Existing
@@ -650,7 +644,7 @@ Config.warehouseScene.enabled=false
 Config.paths.warehouse="assets/generated/warehouse-lobby-seating-v4.png"
 local registration=require("src.warehouse_registration")
 Config.interactables.computer=registration.computer
-for _,pair in ipairs({{"workPhone",registration.phone},{"shopClock",registration.clock},{"jukebox",registration.radio}}) do
+for _,pair in ipairs({{"workPhone",registration.phone},{"shopClock",registration.clock}}) do
     local target=Config.interactables[pair[1]]
     for key,value in pairs(pair[2]) do target[key]=value end
     target.hoverX,target.hoverY=target.wallX,target.wallY

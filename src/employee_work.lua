@@ -13,6 +13,16 @@ local cutterBusy={armed=true,cutting=true,loading=true,positioning=true,unloadin
 local stageModel={cutter="polar_115",press="heidelberg_10x15",wrapping="skid_wrapper"}
 local skillField={cutter="cutterSkill",press="pressSkill",wrapping="wrappingSkill"}
 
+local function wrapperWaitActivity(reason)
+    local message=string.lower(tostring(reason or ""))
+    if message:find("film",1,true) or message:find("carton",1,true)
+        or message:find("packaging",1,true) or message:find("product stock",1,true)
+        or message:find("supplies",1,true) then
+        return "Waiting for packaging supplies"
+    end
+    return "Waiting for the skid wrapper"
+end
+
 local function improveSkill(w,job,stage)
     local field=skillField[stage]
     if not field or not w.id or not job then return false end
@@ -249,9 +259,17 @@ local function wrappingStep(state,w,machine,pallet,dt)
         if runtime.step=="finished" then runtime.reset(state) end
         if runtime.selectedPalletId~=pallet.id then
             changed=runtime.selectPallet(state,pallet.id)
-            if not changed then blocked=state.message or "Select the finished pallet for wrapping";return end
+            if not changed then
+                blocked=state.message or "Select the finished pallet for wrapping"
+                w.activity="Waiting to stage a pallet at the skid wrapper"
+                return
+            end
         end
         changed,blocked=runtime.start(state)
+        if not changed then
+            blocked=blocked or state.message or "The skid wrapper is not ready"
+            w.activity=wrapperWaitActivity(blocked)
+        end
     end)
     return changed,blocked
 end
@@ -290,6 +308,7 @@ function Work.update(state,w,dt,context)
         return true
     end
     local pallet,job=item.pallet,item.job
+    if w._parkingJack then return Transport.park(state,w,dt,context) end
     if pallet.status=="wrapped" or pallet.wrapped then
         if assignment.machineModel==stageModel.wrapping then improveSkill(w,job,"wrapping") end
         if w.carryingPalletId==pallet.id then Work.dropCarried(state,w,context) end

@@ -131,7 +131,9 @@ function Component.install(Runtime)
         self.lastServerTick = -1
         self.lastFightTick = -1
         self.fightMatches = {}
+        self.fightReceivedAt = nil
         self.lastPlayerTicks = {}
+        self.roomBalls,self.roomBallTicks={},{}
         self.inputSequence = 0
         self.inputAccumulator = 0
         self.snapshotAccumulator = 0

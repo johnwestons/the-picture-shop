@@ -138,7 +138,7 @@ function Storage.normalizePlacement(pallet)
 end
 
 function Storage.find(state, palletId)
-    for _, item in ipairs(items(state)) do if item.pallet.id == palletId then return item end end
+    return require("src.pallet_state").find(state,palletId)
 end
 
 function Storage.isSupporting(state, palletId)
@@ -160,6 +160,33 @@ function Storage.slots(state, rackId)
         end
     end
     return result
+end
+
+-- Automatic consumables still update the storage revision so stale shelf
+-- transfer requests cannot act on a rack layout that has since changed.
+function Storage.consumeVendorProduct(state, pallet)
+    if type(state) ~= "table" or type(pallet) ~= "table"
+        or pallet.kind ~= "vendor_product" or pallet.location ~= "rack" then
+        return false, "Only purchased stock stored on a shelf can be consumed this way."
+    end
+    local placement = Storage.normalizePlacement(pallet)
+    local registry = state.storage
+    local rack = placement and registry and registry.racks[placement.rackId]
+    if not rack or not completedRack(state,rack)
+        or Storage.slots(state,placement.rackId)[placement.row][placement.column] ~= pallet.id then
+        return false, "The stored supply no longer occupies its shelf slot."
+    end
+    if Storage.isSupporting(state,pallet.id) then
+        return false, "Remove the pallet stacked above this supply first."
+    end
+    if registry.revision >= 2147483647 or rack.revision >= 2147483647 then
+        return false, "The storage revision is exhausted."
+    end
+    pallet.location,pallet.status="none","consumed"
+    pallet.storage,pallet.world,pallet.remainingQuantity=nil,nil,0
+    registry.revision=registry.revision+1
+    rack.revision=rack.revision+1
+    return true,pallet
 end
 
 function Storage.validate(state)
@@ -302,6 +329,10 @@ function Storage.apply(state, request, context)
         if request.action == "store" and occupant ~= nil then return false, "slot_occupied" end
         if request.action == "retrieve" and (occupant ~= pallet.id or pallet.location ~= "rack") then
             return false, "wrong_slot"
+        end
+        if request.action=="retrieve" and item.vendor and pallet.productId=="stretch_film"
+            and require("src.wrapper").isFilmSupplyInUse(state) then
+            return false,"wrapper_using_stock"
         end
     else
         local supportItem = Storage.find(state, request.supportPalletId)

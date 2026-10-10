@@ -45,6 +45,8 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.wwwSiteChangedAt = 0
         Runtime.ComputerScreen.tabDropdownOpen = false
         Runtime.ComputerScreen.warehouseConfirmation,Runtime.ComputerScreen.warehousePending,Runtime.ComputerScreen.warehouseMessage=nil,false,nil
+        Runtime.ComputerScreen.warehouseGamesPage=false
+        Runtime.ComputerScreen.warehouseStagingPage=false
         Runtime.ComputerScreen.creditConfirmation = nil
         Runtime.ensureSelection(state)
     end

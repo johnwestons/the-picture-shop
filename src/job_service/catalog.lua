@@ -83,6 +83,32 @@ function Component.install(Runtime)
         },
     }
 
+    -- Regular cutter offers used to cycle three production specs and therefore
+    -- three customer names. Keep those specs and introduce a broader customer
+    -- rotation after the five established early-game clients.
+    Runtime.additionalCuttingCompanies = {
+        "Cedar & Finch Packaging",
+        "Hightide Paper Works",
+        "Foxglove Print & Mail",
+        "Copperline Label Company",
+        "Alderbrook Stationery",
+        "Westward Carton & Crate",
+        "Briar Patch Bookbinders",
+        "Brightwell Candle Company",
+        "Otter Creek Outfitters",
+        "Hearth & Harbor Market",
+        "Redtail Coffee Roasters",
+        "Stonebridge Seed Company",
+        "Wildwood Soapworks",
+        "Goodenough Garden Supply",
+        "Silver Loon Brewing",
+        "Cattail Creek Chocolates",
+        "Cloudberry Toy Works",
+        "Spruce & Sparrow Boutique",
+        "Suncatcher Art Cooperative",
+        "Paper Lantern Theater Group",
+    }
+
     Runtime.pressTemplates = {
         {
             difficulty = "easy",

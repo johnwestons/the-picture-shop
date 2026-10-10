@@ -3,7 +3,7 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState)
+    function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim)
         if requestedKind=="roomGame" then
             local game,action
             if type(desiredState)=="string" then game,action=desiredState:match("^(%a+_?%a*):([%a_]+)$") end
@@ -11,7 +11,7 @@ function Component.install(Runtime)
             if game=="air_hockey" then
                 okay,code,message=require("src.air_hockey").command(state,player,action)
             elseif game=="basketball" then
-                okay,code,message=require("src.basketball").command(state,player,action)
+                okay,code,message=require("src.basketball").command(state,player,action,shotAim)
             elseif game=="critter_kombat" then
                 okay,code,message=require("src.critter_kombat").command(state,player,action)
             else return false,"not_allowed","Unknown break room game.",requestedKind end
@@ -159,7 +159,7 @@ function Component.install(Runtime)
             state,
             Runtime.World.truck.jobId,
             palletId,
-            Runtime.Config.palletLogistics.spawnPoints,
+            Runtime.StagingAreas.receivingPoints(state),
             Runtime.Config.palletLogistics.unloadOrigin
         )
         if state then

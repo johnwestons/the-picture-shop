@@ -7,7 +7,6 @@ local EXPECTED_INTERACTIONS = {
     shopEntrance=true,roomStock=true,roomRest=true,roomGame=true,
     computer = true,
     shopClock = true,
-    jukebox = true,
     workPhone = true,
     customer = true,
     applicant = true,
@@ -67,7 +66,7 @@ function Test.run(context, check)
     local windmill = Capabilities.forInteraction("windmill")
     local palletJack = Capabilities.forInteraction("palletJack")
     local workPhone = Capabilities.forInteraction("workPhone")
-    local jukebox = Capabilities.forInteraction("jukebox")
+    local computer = Capabilities.forInteraction("computer")
     check("multiplayer_unfinished_guest_work_is_explicitly_classified",
         vendor.mode == "candidate" and vendor.roadmapStep == "vendor_purchasing"
         and vendor.resourceId == "vendor" and #vendor.physicalAcceptance == 6
@@ -82,8 +81,8 @@ function Test.run(context, check)
         and #windmill.physicalAcceptance == 6
         and workPhone.mode == "candidate" and workPhone.resourceId == "work_phone"
         and workPhone.missing == nil and #workPhone.physicalAcceptance == 3
-        and jukebox.mode == "read_only"
-        and jukebox.supported[1] == "listen_to_host_vibes_radio"
+        and Capabilities.forInteraction("jukebox") == nil
+        and table.concat(computer.supported, ","):find("control_shop_radio", 1, true) ~= nil
         and palletJack.mode == "candidate" and palletJack.missing == nil
         and #palletJack.physicalAcceptance == 6)
 

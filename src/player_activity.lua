@@ -4,7 +4,6 @@ local Activity = {}
 
 local taskScreens = {
     job_offer = true,
-    jukebox = true,
     pallet_work_order = true,
     shop_clock = true,
     shop_rooms = true,

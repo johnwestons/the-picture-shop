@@ -83,7 +83,7 @@ function Controls.keypressed(key,Runtime)
     local held=require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1)
     if held then
         if key=="q" then send(Runtime,"roomGame","basketball:drop");return true end
-        if key=="space" then send(Runtime,"roomGame","basketball:shot_start");return true end
+        if key=="space" then return require("src.basketball_controls").start(Runtime) end
     end
     if Rooms.scene(Runtime.World.player)~="warehouse" and ({f=true,l=true,m=true,q=true,v=true,g=true,t=true,r=true,k=true,h=true})[key] then
         Runtime.state.message="Return to the warehouse to use its machines and vehicles."
@@ -127,13 +127,14 @@ function Controls.keyreleased(key,Runtime)
     if key~="space" or Runtime.state.screen~="world" then return false end
     local id=tonumber(Runtime.World.player.id) or 1
     local held=require("src.basketball").heldBy(Runtime.state,id)
-    if held or require("src.basketball").isCharging(id) then
-        send(Runtime,"roomGame","basketball:shot_release")
+    if held or require("src.basketball").isChargingFor(Runtime.state,id) then
+        require("src.basketball_controls").release(Runtime)
         return true
     end
     return false
 end
 function Controls.mousepressed(x,y,button,Runtime)
+    if require("src.basketball_controls").mousepressed(x,y,button,Runtime) then return true end
     if Runtime.state.screen~="shop_rooms" then return false end
     if button~=1 then return true end
     if x>=760 and x<=845 and y>=140 and y<=180 then Runtime.state.screen="world";return true end

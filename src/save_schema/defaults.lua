@@ -48,6 +48,7 @@ function Component.install(Runtime)
             cutter = Runtime.defaultPlacement(Runtime.Config.cutterPlacement),
             palletJack = jack,
             warehouse = Runtime.WarehouseUpgrades.defaultState(),
+            stagingAreas = Runtime.StagingAreas.defaultState(),
             breakroomGames = Runtime.BreakroomGames.defaultState(),
             storage = Runtime.PalletStorage.defaultState(),
             forklift = Runtime.Forklift.defaultState(Runtime.Config.forklift),

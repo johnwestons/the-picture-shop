@@ -6,6 +6,7 @@ local Plates = require("src.plate_service")
 local Footprint = require("src.floor_footprint")
 local Storage = require("src.pallet_storage")
 local Procurement = require("src.procurement")
+local StagingAreas = require("src.staging_areas")
 
 local Windmill = {}
 local setupTasks = { "chase", "packing", "rollers", "ink", "feeder", "register" }
@@ -498,7 +499,16 @@ function Windmill.cleanAndUnload(state)
     local nextPressStatus = p.colorIndex >= (job.press.colors or 1) and "complete" or "drying"
     local nextPalletStatus = nextPressStatus == "complete" and "printed" or pallet.status
     local placement = placementFor(state)
-    local world = { x = placement.x + 78, y = placement.y + 42,
+    local output
+    local pressMachine = MachineFleet.installed(state,"heidelberg_10x15",pallet.pressMachineId)
+    if pressMachine and StagingAreas.hasMachineOutput(state,pressMachine.id) then
+        output = StagingAreas.findMachineOutput(state,pressMachine.id,function(x,y)
+            return StagingAreas.slotClear(state,x,y,pallet.id)
+        end,false)
+        if not output then return false,"The Windmill output staging area is full. Clear a slot or move its zone." end
+    end
+    local world = output and { x=output.x,y=output.y,direction=output.direction,
+        rotation=output.rotation,spawnProgress=1 } or { x = placement.x + 78, y = placement.y + 42,
         direction = placement.direction, spawnProgress = 1 }
     local originalStatus, originalWorld, originalPressMachineId =
         pallet.status, pallet.world, pallet.pressMachineId

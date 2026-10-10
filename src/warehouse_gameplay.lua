@@ -35,7 +35,9 @@ local MESSAGES={mounted="Operating forklift. Stop, then lower forks to pick up a
     not_owned="Buy the forklift from CritterNet first.",delivery_blocked="Clear the forklift delivery area in the center-front of the warehouse.",
     forklift_required="A forklift is required to use the upper row.",not_operator="Operate a pallet jack or forklift before transferring stock.",
     no_pallet="Move the lowered forks up to a floor pallet.",slot_occupied="That shelf already contains a pallet.",
-    stale_revision="The shelves changed. Select the space again.",already_operating_vehicle="Park the pallet jack before operating the forklift.",
+    stale_revision="The shelves changed. Select the space again.",wrapper_using_stock="Wait for the skid wrapper to finish its last wrap before moving stretch film.",
+    jack_clearance="Move the empty pallet jack farther from the rack before retrieving; the loaded jack needs an open path out.",
+    already_operating_vehicle="Park the pallet jack before operating the forklift.",
     wrong_vehicle="The requested vehicle is not the one you are operating.",rack_unavailable="That storage upgrade is not complete yet."}
 local function message(code) return MESSAGES[code] or ("Warehouse action unavailable: "..tostring(code)..".") end
 local function enabled() return not Config.warehouse or Config.warehouse.enabled~=false end
@@ -188,6 +190,27 @@ function Gameplay.rackContext(player,state,rackId,context,row,column)
         vehicle.x,vehicle.y,obstacles(context,state,w,h,vehicle.carriedPalletId,
             result.vehicle=="forklift",result.vehicle=="pallet_jack"))==true or false
     result.clear=result.footprintClear and result.obstaclesClear
+    if result.vehicle=="pallet_jack" and not vehicle.carriedPalletId then
+        local jc=Config.palletJack
+        local loadedWidth,loadedHeight=jc.loadedCollisionHalfWidth,jc.loadedCollisionHalfHeight
+        local loadedObstacles=obstacles(context,state,loadedWidth,loadedHeight,nil,false,true)
+        result.loadedFootprintClear=navigationAssets
+            and Navigation.isAreaWalkable(navigationAssets,vehicle.x,vehicle.y,loadedWidth,loadedHeight)==true or false
+        result.loadedObstaclesClear=navigationAssets
+            and Navigation.isWalkable(navigationAssets,vehicle.x,vehicle.y,loadedObstacles)==true or false
+        result.loadedExitClear=false
+        if result.loadedFootprintClear and result.loadedObstaclesClear then
+            for _,vector in pairs(VECTORS) do
+                if Navigation.canMoveAreaFrom(navigationAssets,vehicle.x,vehicle.y,
+                    vehicle.x+vector[1]*8,vehicle.y+vector[2]*8,
+                    loadedWidth,loadedHeight,loadedObstacles) then
+                    result.loadedExitClear=true;break
+                end
+            end
+        end
+        result.loadedClear=result.loadedFootprintClear and result.loadedObstaclesClear and result.loadedExitClear
+        result.clear=result.clear and result.loadedClear
+    end
     if result.vehicle=="forklift" and vehicle.carriedPalletId then
         local x,y=forkliftLoadAnchor(vehicle)
         result.loadAnchor=x and {x=x,y=y} or nil
@@ -413,6 +436,9 @@ function Gameplay.command(player,state,rawIntent,context)
     else
         local access=Gameplay.rackContext(player,state,intent.rackId,context,intent.row,intent.column)
         if access.vehicle~=intent.vehicle then return false,"wrong_vehicle",message("wrong_vehicle") end
+        if intent.kind=="retrieve" and access.vehicle=="pallet_jack" and access.loadedClear==false then
+            return false,"jack_clearance",message("jack_clearance")
+        end
         local request={action=intent.kind}
         for key,value in pairs(intent) do if key~="kind" then request[key]=value end end
         okay,code=Storage.apply(state,request,access)

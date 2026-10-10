@@ -94,6 +94,10 @@ function Component.install(Runtime)
             template = Runtime.copy(Runtime.templates[order[(sequence - 1) % #order + 1]])
         end
         if not pressJob then scaleTemplateVolume(template, cutterCount) end
+        if not pressJob and sequence > 5 then
+            local companies = Runtime.additionalCuttingCompanies
+            template.company = companies[(sequence - 6) % #companies + 1]
+        end
         template.id = Runtime.Jobs.formatId(sequence)
         template.sequence = sequence
         template.createdAt = timestamp

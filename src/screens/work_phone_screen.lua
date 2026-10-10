@@ -85,34 +85,33 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
 
     panel({ x = 432, y = 120, width = 426, height = 342 },
         { 0.045, 0.075, 0.105, 1 }, { 0.20, 0.46, 0.52, 1 })
+    local answered = call and call.answered == true
     love.graphics.setColor(lamp)
-    love.graphics.print(call and call.role or "NO ACTIVE CALL", 458, 145)
+    love.graphics.print(call and (answered and call.role or "INCOMING CALL") or "NO ACTIVE CALL", 458, 145)
     love.graphics.setColor(0.96, 0.83, 0.30, 1)
     love.graphics.printf(call and call.caller or "The wall phone is quiet.",
         458, 178, 372, "left")
     love.graphics.setColor(0.72, 0.84, 0.86, 1)
-    love.graphics.printf(call and call.subject or "CALL HISTORY", 458, 211, 372, "left")
+    love.graphics.printf(call and (answered and call.subject or "MESSAGE WAITING")
+        or "CALL HISTORY", 458, 211, 372, "left")
     love.graphics.setColor(0.90, 0.94, 0.92, 1)
-    local body = call and call.message or Screen.lastResponse
+    local body = call and (answered and call.message
+        or "Answer the call to hear what they have to say.") or Screen.lastResponse
     if not body then
         local latest = phone.history[#phone.history]
         body = latest and (latest.caller .. ": " .. tostring(latest.response or latest.outcome))
             or "Customers can place orders or ask where a job is and when it will be done. Supplier and service calls use the amber light."
     end
     love.graphics.printf(body, 458, 246, 372, "left")
-    if call and not call.answered then
+    if call and not answered then
         love.graphics.setColor(0.60, 0.70, 0.72, 1)
-        love.graphics.printf(call.kind == "construction_notice"
-            and "Answer to acknowledge. A missed notice does not cancel the visit."
-            or "Answer before discussing the job or placing an order.",
-            458, 405, 372, "left")
+        love.graphics.printf("Answer to hear the caller's message.", 458, 405, 372, "left")
     end
 
     local actionLabel = call and (call.answered and WorkPhone.actionLabel(state) or "ANSWER")
         or "NO CALL"
     button(ACTION, actionLabel, call ~= nil and not waiting, pointerX, pointerY)
-    button(HANG_UP, call and (call.answered and "HANG UP"
-        or call.kind == "construction_notice" and "SAVE NOTICE" or "DECLINE CALL") or "HANG UP",
+    button(HANG_UP, call and (answered and "HANG UP" or "DECLINE CALL") or "HANG UP",
         call ~= nil and not waiting, pointerX, pointerY, { 0.38, 0.13, 0.19, 1 }, { 0.88, 0.30, 0.42, 1 })
 end
 

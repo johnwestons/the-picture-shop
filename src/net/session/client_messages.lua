@@ -59,7 +59,20 @@ function Component.install(Runtime)
     function Runtime.Session:_applySnapshot(payload)
         if payload.sessionId ~= self.sessionId then return end
         if payload.games then self.roomGames=payload.games end
-        if payload.balls then self.roomBalls=payload.balls end
+        if payload.balls then
+            self.roomBallTicks=self.roomBallTicks or {}
+            self.roomBalls=self.roomBalls or {}
+            for _,ball in ipairs(payload.balls) do
+                if payload.serverTick>(self.roomBallTicks[ball.bayId] or -1) then
+                    self.roomBallTicks[ball.bayId]=payload.serverTick
+                    local replaced=false
+                    for index,old in ipairs(self.roomBalls) do
+                        if old.bayId==ball.bayId then self.roomBalls[index]=ball;replaced=true;break end
+                    end
+                    if not replaced then self.roomBalls[#self.roomBalls+1]=ball end
+                end
+            end
+        end
         self.lastServerTick = math.max(self.lastServerTick, payload.serverTick)
         for _, record in ipairs(payload.players or {}) do
             local previousTick = self.lastPlayerTicks[record.id] or -1
@@ -132,6 +145,7 @@ function Component.install(Runtime)
                 and payload.serverTick > (self.lastFightTick or -1) then
                 self.lastFightTick=payload.serverTick
                 self.fightMatches=payload.matches
+                self.fightReceivedAt=self.clock()
             end
         elseif envelope.type == "radio_state" then
             if self.sessionId and payload.sessionId == self.sessionId

@@ -1,5 +1,3 @@
-local Config = require("src.config")
-
 local Jukebox = {
     trackIndex = 1,
     source = nil,
@@ -23,42 +21,15 @@ local TRACKS = {
     { file = "time_time.wav", title = "Time Time" },
 }
 
-local RADIO_FACE = "assets/generated/jukebox-radio.png"
-local RADIO_BUTTONS = "assets/generated/jukebox-buttons.png"
 local MUSIC_ROOT = "assets/audio/music/vibes/"
-local PLAYLIST_BUTTON = { x = 438, y = 468, width = 82, height = 54 }
-local CLOSE_BUTTON = { x = 628, y = 468, width = 82, height = 54 }
-local PREVIOUS_BUTTON = { x = 242, y = 560, width = 110, height = 46 }
-local PLAY_BUTTON = { x = 364, y = 560, width = 110, height = 46 }
-local NEXT_BUTTON = { x = 486, y = 560, width = 110, height = 46 }
-local MUTE_BUTTON = { x = 608, y = 560, width = 110, height = 46 }
+local RADIO_PANEL = { x = 82, y = 190, width = 792, height = 444 }
+local CONTROL_BUTTONS = {
+    previous = { x = 154, y = 402, width = 150, height = 42 },
+    play = { x = 322, y = 402, width = 150, height = 42 },
+    next = { x = 490, y = 402, width = 150, height = 42 },
+    mute = { x = 658, y = 402, width = 150, height = 42 },
+}
 local PLAYBACK_START_GRACE_SECONDS = 1.5
-
-local radioFace
-local radioButtons
-local radioQuads
-
-local function loadRadioImages()
-    if not love or not love.graphics then return nil, nil, nil end
-    if not radioFace then
-        local ok, image = pcall(love.graphics.newImage, RADIO_FACE)
-        if ok then radioFace = image end
-    end
-    if not radioButtons then
-        local ok, image = pcall(love.graphics.newImage, RADIO_BUTTONS)
-        if ok then
-            radioButtons = image
-            radioQuads = {}
-            local width, height = image:getDimensions()
-            local frameWidth = math.floor(width / 3)
-            for index = 1, 3 do
-                radioQuads[index] = love.graphics.newQuad(
-                    (index - 1) * frameWidth, 0, frameWidth, height, width, height)
-            end
-        end
-    end
-    return radioFace, radioButtons, radioQuads
-end
 
 local function currentTrack()
     return TRACKS[Jukebox.trackIndex] or TRACKS[1]
@@ -130,142 +101,149 @@ local function contains(rect, x, y)
         and y >= rect.y and y <= rect.y + rect.height
 end
 
-local function drawRadioButton(rect, label, frame, active, hovered, disabled)
-    local _, buttons, quads = loadRadioImages()
-    if buttons and quads then
-        love.graphics.setColor(1, 1, 1, 1)
-        local _, _, frameWidth, frameHeight = quads[frame]:getViewport()
-        love.graphics.draw(buttons, quads[frame], rect.x, rect.y, 0,
-            rect.width / frameWidth, rect.height / frameHeight)
-    else
-        love.graphics.setColor(0.10, 0.15, 0.16, 1)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 5, 5)
-    end
-    if disabled then
-        love.graphics.setColor(0.46, 0.50, 0.48, 0.62)
-        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 5, 5)
-    else
-        love.graphics.setColor(1, 1, 1, 1)
-    end
-    if (active or hovered) and not disabled then
-        love.graphics.setColor(active and { 0.96, 0.77, 0.30, 1 } or { 0.59, 0.78, 0.75, 1 })
-        love.graphics.setLineWidth(active and 3 or 1)
-        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 5, 5)
-        love.graphics.setLineWidth(1)
-    end
-    love.graphics.setColor(disabled and { 0.68, 0.70, 0.66, 0.86 }
-        or { 0.96, 0.92, 0.78, 1 })
-    love.graphics.printf(label, rect.x + 2, rect.y + rect.height / 2 - 8,
-        rect.width - 4, "center")
+local function trackRect(index)
+    local column = (index - 1) % 3
+    local row = math.floor((index - 1) / 3)
+    return { x = 106 + column * 250, y = 486 + row * 46, width = 240, height = 38 }
 end
 
-function Jukebox.drawProp()
-    local face = loadRadioImages()
-    local config = Config.interactables.jukebox
-    if not face or not config then return end
-    local scale = config.drawScale or 0.10
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(face, config.wallX - face:getWidth() * scale / 2,
-        config.wallY - face:getHeight() * scale / 2, 0, scale, scale)
+local function trackPosition()
+    if not Jukebox.source or type(Jukebox.source.tell) ~= "function" then return 0 end
+    local ok, value = pcall(Jukebox.source.tell, Jukebox.source)
+    return ok and type(value) == "number" and math.max(0, value) or 0
 end
 
-function Jukebox.drawScreen(pointerX, pointerY, readOnly)
-    local face = loadRadioImages()
-    love.graphics.setColor(0, 0, 0, 0.72)
-    love.graphics.rectangle("fill", 0, 0, 960, 678)
-    if face then
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(face, 130, 95, 0, 700 / face:getWidth(), 450 / face:getHeight())
-    else
-        love.graphics.setColor(0.055, 0.075, 0.08, 1)
-        love.graphics.rectangle("fill", 130, 95, 700, 450, 9, 9)
-    end
+local function trackDuration()
+    if not Jukebox.source or type(Jukebox.source.getDuration) ~= "function" then return 0 end
+    local ok, value = pcall(Jukebox.source.getDuration, Jukebox.source)
+    return ok and type(value) == "number" and math.max(0, value) or 0
+end
 
+local function formatTime(seconds)
+    seconds = math.floor(math.max(0, seconds or 0))
+    return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
+end
+
+local function playPause()
+    if Jukebox.active and not Jukebox.paused and Jukebox.source then
+        pcall(Jukebox.source.pause, Jukebox.source)
+        Jukebox.paused = true
+        Jukebox.radioDirty = true
+    elseif Jukebox.source and Jukebox.paused then
+        local ok = pcall(Jukebox.source.play, Jukebox.source)
+        if ok then
+            Jukebox.active, Jukebox.paused = true, false
+            Jukebox.playbackStartedAt = clock()
+            Jukebox.radioDirty = true
+        end
+    else
+        startCurrentTrack()
+    end
+end
+
+function Jukebox.drawComputerTab(pointerX, pointerY, readOnly, drawButton)
+    love.graphics.setColor(0.025, 0.045, 0.055, 1)
+    love.graphics.rectangle("fill", RADIO_PANEL.x, RADIO_PANEL.y,
+        RADIO_PANEL.width, RADIO_PANEL.height, 5, 5)
+    love.graphics.setColor(0.25, 0.48, 0.50, 1)
+    love.graphics.rectangle("line", RADIO_PANEL.x, RADIO_PANEL.y,
+        RADIO_PANEL.width, RADIO_PANEL.height, 5, 5)
     love.graphics.setColor(0.96, 0.84, 0.43, 1)
-    love.graphics.printf("VIBES RADIO", 245, 360, 470, "center")
+    love.graphics.print("CRITTERNET RADIO  /  VIBES FM", 104, 204)
+    love.graphics.setColor(0.60, 0.76, 0.72, 1)
+    love.graphics.printf(readOnly and "HOST CONTROLLED" or "LOCAL RADIO CONTROLS",
+        620, 204, 230, "right")
+
+    love.graphics.setColor(0.01, 0.12, 0.14, 1)
+    love.graphics.rectangle("fill", 106, 235, 748, 150, 4, 4)
+    love.graphics.setColor(0.24, 0.45, 0.45, 1)
+    love.graphics.rectangle("line", 106, 235, 748, 150, 4, 4)
+    love.graphics.setColor(0.40, 0.83, 0.65, 1)
+    love.graphics.print(string.format("STATION 01  /  TRACK %02d OF %02d",
+        Jukebox.trackIndex, #TRACKS), 128, 250)
+    local status = not Jukebox.active and "READY"
+        or Jukebox.paused and "PAUSED" or "NOW PLAYING"
     love.graphics.setColor(0.96, 0.93, 0.81, 1)
-    local track = currentTrack()
-    local playback = not Jukebox.active and "READY  •  "
-        or Jukebox.paused and "PAUSED  •  " or "NOW PLAYING  •  "
-    love.graphics.printf(playback
-        .. track.title, 220, 389, 520, "center")
-    love.graphics.setColor(0.70, 0.79, 0.77, 1)
-    love.graphics.printf(string.format("VIBES PLAYLIST  •  TRACK %d OF %d",
-        Jukebox.trackIndex, #TRACKS), 260, 421, 440, "center")
-    if readOnly then
-        love.graphics.setColor(0.73, 0.82, 0.76, 1)
-        love.graphics.printf("THE HOST CONTROLS THE RADIO FOR EVERYONE", 220, 444, 520, "center")
-    end
+    love.graphics.printf(currentTrack().title, 128, 273, 704, "center")
+    love.graphics.setColor(0.66, 0.79, 0.75, 1)
+    love.graphics.printf(status .. "  •  " .. formatTime(trackPosition())
+        .. " / " .. formatTime(trackDuration()), 128, 312, 704, "center")
     if Jukebox.loadError then
         love.graphics.setColor(1, 0.48, 0.40, 1)
-        love.graphics.printf("Radio audio could not be loaded.", 260, 469, 440, "center")
+        love.graphics.printf("Radio audio could not be loaded.", 128, 333, 704, "center")
+    end
+    love.graphics.setColor(0.08, 0.18, 0.18, 1)
+    love.graphics.rectangle("fill", 128, 356, 704, 8, 2, 2)
+    local duration = trackDuration()
+    local progress = duration > 0 and math.min(1, trackPosition() / duration) or 0
+    love.graphics.setColor(0.40, 0.83, 0.65, 1)
+    love.graphics.rectangle("fill", 128, 356, 704 * progress, 8, 2, 2)
+
+    local controls = {
+        { id = "previous", label = "|<  PREVIOUS" },
+        { id = "play", label = Jukebox.active and not Jukebox.paused and "PAUSE" or "PLAY" },
+        { id = "next", label = "NEXT  >|" },
+        { id = "mute", label = Jukebox.muted and "UNMUTE" or "MUTE" },
+    }
+    for _, control in ipairs(controls) do
+        local rect = CONTROL_BUTTONS[control.id]
+        local hovered = pointerX and contains(rect, pointerX, pointerY)
+        local style = readOnly and "disabled" or control.id == "play"
+            and Jukebox.active and not Jukebox.paused and "primary"
+            or hovered and "hover" or "secondary"
+        drawButton(rect, control.label, style)
     end
 
-    drawRadioButton(PLAYLIST_BUTTON, "VIBES", 1, true,
-        pointerX and contains(PLAYLIST_BUTTON, pointerX, pointerY), readOnly)
-    drawRadioButton(CLOSE_BUTTON, "CLOSE", 3, false,
-        pointerX and contains(CLOSE_BUTTON, pointerX, pointerY))
-    love.graphics.setColor(0.045, 0.065, 0.07, 0.96)
-    love.graphics.rectangle("fill", 230, 552, 500, 62, 6, 6)
-    love.graphics.setColor(0.47, 0.56, 0.54, 1)
-    love.graphics.rectangle("line", 230, 552, 500, 62, 6, 6)
-    drawRadioButton(PREVIOUS_BUTTON, "|<  PREV", 2, false,
-        pointerX and contains(PREVIOUS_BUTTON, pointerX, pointerY), readOnly)
-    drawRadioButton(PLAY_BUTTON, Jukebox.active and not Jukebox.paused and "PAUSE" or "PLAY",
-        2, false, pointerX and contains(PLAY_BUTTON, pointerX, pointerY), readOnly)
-    drawRadioButton(NEXT_BUTTON, "NEXT  >|", 2, false,
-        pointerX and contains(NEXT_BUTTON, pointerX, pointerY), readOnly)
-    drawRadioButton(MUTE_BUTTON, Jukebox.muted and "UNMUTE" or "MUTE", 2, false,
-        pointerX and contains(MUTE_BUTTON, pointerX, pointerY), readOnly)
+    love.graphics.setColor(0.72, 0.85, 0.79, 1)
+    love.graphics.print("VIBES PLAYLIST", 106, 461)
+    for index, track in ipairs(TRACKS) do
+        local rect = trackRect(index)
+        local hovered = pointerX and contains(rect, pointerX, pointerY)
+        local style = readOnly and "disabled" or index == Jukebox.trackIndex
+            and "primary" or hovered and "hover" or "secondary"
+        drawButton(rect, string.format("%02d  %s", index, track.title), style)
+    end
 end
 
 function Jukebox.mousepressed(state, x, y, button, readOnly)
-    if button ~= 1 then return true end
-    if contains(CLOSE_BUTTON, x, y) then
-        state.screen = "world"
-        state.message = "Radio controls closed."
-    elseif readOnly then
+    if button ~= 1 then return nil end
+    local control
+    for name, rect in pairs(CONTROL_BUTTONS) do
+        if contains(rect, x, y) then control = name; break end
+    end
+    local selectedTrack
+    for index = 1, #TRACKS do
+        if contains(trackRect(index), x, y) then selectedTrack = index; break end
+    end
+    if not control and not selectedTrack then return nil end
+    if readOnly then
         state.message = "The host controls the radio for everyone."
-        return true
-    elseif contains(PLAYLIST_BUTTON, x, y) then
-        if not Jukebox.active or Jukebox.paused then
-            if Jukebox.source and Jukebox.paused then
-                Jukebox.source:play()
-                Jukebox.active, Jukebox.paused = true, false
-                Jukebox.radioDirty = true
-            else
-                startCurrentTrack()
-            end
-        end
-    elseif contains(PREVIOUS_BUTTON, x, y) then
-        if Jukebox.source and Jukebox.source:tell() > 3 then
-            Jukebox.source:seek(0)
+        return { action = "blocked" }
+    end
+    if selectedTrack then
+        Jukebox.trackIndex = selectedTrack
+        startCurrentTrack()
+        return { action = "radio_track_changed", trackIndex = selectedTrack }
+    elseif control == "previous" then
+        local position = trackPosition()
+        if Jukebox.source and position > 3 then
+            pcall(Jukebox.source.seek, Jukebox.source, 0)
             Jukebox.radioDirty = true
         else
             Jukebox.trackIndex = (Jukebox.trackIndex - 2) % #TRACKS + 1
             startCurrentTrack()
         end
-    elseif contains(PLAY_BUTTON, x, y) then
-        if Jukebox.active and not Jukebox.paused and Jukebox.source then
-            Jukebox.source:pause()
-            Jukebox.paused = true
-            Jukebox.radioDirty = true
-        elseif Jukebox.source and Jukebox.paused then
-            Jukebox.source:play()
-            Jukebox.active, Jukebox.paused = true, false
-            Jukebox.radioDirty = true
-        else
-            startCurrentTrack()
-        end
-    elseif contains(NEXT_BUTTON, x, y) then
+    elseif control == "play" then
+        playPause()
+    elseif control == "next" then
         Jukebox.trackIndex = Jukebox.trackIndex % #TRACKS + 1
         startCurrentTrack()
-    elseif contains(MUTE_BUTTON, x, y) then
+    elseif control == "mute" then
         Jukebox.muted = not Jukebox.muted
         setVolume()
         Jukebox.radioDirty = true
     end
-    return true
+    return { action = "radio_control", control = control }
 end
 
 function Jukebox.update(keepPlaying, readOnly)

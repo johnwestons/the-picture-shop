@@ -22,7 +22,7 @@ function Component.install(Runtime)
 
     function Runtime.Fleet.owned(state)
         local result = {}
-        for _, item in ipairs(Runtime.Fleet.ensure(state).items) do result[#result + 1] = item end
+        for _, item in ipairs(Runtime.Fleet.current(state).items) do result[#result + 1] = item end
         return result
     end
 
@@ -43,7 +43,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.Fleet.serviceInbox(state)
-        return Runtime.Fleet.ensure(state).serviceNotices
+        return Runtime.Fleet.current(state).serviceNotices
     end
 
     function Runtime.Fleet.dismissServiceNotice(state, noticeId)

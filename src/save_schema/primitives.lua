@@ -14,11 +14,12 @@ function Component.install(Runtime)
     Runtime.PalletStorage = require("src.pallet_storage")
     Runtime.Forklift = require("src.forklift")
     Runtime.WarehouseConstruction = require("src.warehouse_construction")
+    Runtime.StagingAreas = require("src.staging_areas")
     Runtime.Credit = require("src.credit")
     Runtime.Employees = require("src.employees")
     Runtime.Labor = require("src.employee_labor")
 
-    Runtime.Schema = { VERSION = 22, SLOT_COUNT = 3 }
+    Runtime.Schema = { VERSION = 23, SLOT_COUNT = 3 }
     Runtime.directions = {
         northwest = true, north = true, northeast = true, east = true,
         southeast = true, south = true, southwest = true, west = true,

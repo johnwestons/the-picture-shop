@@ -94,6 +94,10 @@ end
 
 local function pickupBlocker(state, item)
     if not eligibleForJack(item) then return "unavailable" end
+    if item.vendor and item.pallet.productId=="stretch_film"
+        and require("src.wrapper").isFilmSupplyInUse(state) then
+        return "wrapper_using_stock"
+    end
     if require("src.pallet_storage").isSupporting(state, item.pallet.id) then
         return "supporting_pallet"
     end

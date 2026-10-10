@@ -46,6 +46,10 @@ function Component.install(Runtime)
                 return {action="blocked"}
             end
         end
+        if Runtime.ComputerScreen.tab=="radio" then
+            return require("src.jukebox").mousepressed(state,x,y,button,
+                Runtime.ComputerScreen.radioReadOnly())
+        end
         if Runtime.ComputerScreen.tab == "warehouse" then return Runtime.warehouseMousepressed(state,x,y) end
         if Runtime.ComputerScreen.tab == "hiring" then
             return Runtime.ComputerScreen.hiringMousepressed(state,x,y)

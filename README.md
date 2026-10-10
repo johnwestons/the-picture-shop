@@ -120,16 +120,17 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-Download the [Android 48 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.48/ThePictureShop-0.1.0-android.48-Install.apk)
-from the [release page](https://github.com/johnwestons/the-picture-shop/releases/tag/android.48).
+Download the [Android 49 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.49/ThePictureShop-0.1.0-android.49-Install.apk)
+from the [release page](https://github.com/johnwestons/the-picture-shop/releases/tag/android.49).
 Its verified local copy is
-`output/android-share/0.1.0-android.48/ThePictureShop-0.1.0-android.48-Install.apk`.
-The APK contains the current warehouse, forklift, break room, cheat menu, and
-Critter Kombat changes. Every multiplayer participant needs matching protocol 34
+`output/android-share/0.1.0-android.49/ThePictureShop-0.1.0-android.49-Install.apk`.
+This update includes the latest warehouse staging controls, customer-demand and
+seasonal tuning, supplies and pallet flow, performance work, and gameplay and
+multiplayer changes. Every multiplayer participant needs matching protocol 36
 code. The package ID and signing certificate match the previous Android build,
-so this APK can update it in place. The release includes `SHA256SUMS.txt`,
-`share-report.json`, and installation notes. Automated checks passed; physical
-phone gameplay has not yet been verified.
+so installing this APK over the current app keeps its saves. The release includes
+`SHA256SUMS.txt`, `share-report.json`, and installation notes. Physical phone
+gameplay has not yet been verified.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Install over the old app to keep saves, or uninstall **The Picture Shop**
@@ -422,13 +423,13 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 ## Controls
 
 - Move: **WASD** or arrow keys
-- Interact with the office computer, wall-mounted work phone, warehouse jukebox, or Polar 115: **E**
+- Interact with the office computer, wall-mounted work phone, or Polar 115: **E**
 - At reception, press **E** to open the customer's cutting or print-order paperwork.
 - Review the job sample and click **Request Email Details**. No price or award is decided at the counter.
   **Back** and **Escape** close the paperwork without deciding, so the customer remains available.
 - At the office computer, press **E**, click the address-bar dropdown arrow, and choose Active Jobs,
   Completed Jobs, Deliveries, Estimating, Calendar, Inventory, the retro CritterNet WWW browser, Email,
-  or Bills. The current section appears in the CritterNet URL field instead of a row of tabs. Deliveries includes customer inbound jobs,
+  Bills, or Radio. The current section appears in the CritterNet URL field instead of a row of tabs. Deliveries includes customer inbound jobs,
   outbound pickups, and vendor purchase orders; Inventory includes every currently usable supply.
 - Click a job row to inspect its cutting ticket and pallet progress; click **Back** to close the computer.
 - The work phone hangs on the outside face of the office's left wall. Its lamp is cyan-green for customer
@@ -436,8 +437,8 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
   Customers can place a new order or ask for a job update after all its stock has arrived at the warehouse.
   Supplier and service callers can report delivery status or arrange maintenance-supply orders; completed
   calls remain in the phone history, and phone orders continue through the normal email and receipt workflow.
-- The warehouse jukebox plays the Vibes radio playlist. Use its screen to play, pause, skip, replay, or mute
-  the music; radio playback stays local to each player.
+- The computer's **Radio** tab plays the Vibes playlist. Select a track or use its previous, play/pause, next,
+  and mute controls; the host controls radio playback for all players.
 - Completing, delivering, and receiving payment for a client's first job establishes a repeat-client
   relationship. That company can send a varied follow-up request by email 1-3 game days later. The
   computer's **Estimate** tab shows the sender, proposed dimensions, pallet and sheet quantities,

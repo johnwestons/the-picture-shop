@@ -80,12 +80,14 @@ function Component.install(Runtime)
         local result = Runtime.Schema.defaultState()
         local warehouse, warehouseError = Runtime.WarehouseUpgrades.normalize(source.warehouse)
         if not warehouse then return nil, warehouseError end
+        local stagingAreas, stagingError = Runtime.StagingAreas.normalize(source.stagingAreas)
+        if not stagingAreas then return nil, stagingError end
         local storage, storageError = Runtime.PalletStorage.normalize(source.storage)
         if not storage then return nil, storageError end
         if source.forklift ~= nil and not Runtime.Forklift.validState(source.forklift, Runtime.Config.forklift) then
             return nil, "Invalid saved forklift state."
         end
-        result.warehouse, result.storage = warehouse, storage
+        result.warehouse, result.stagingAreas, result.storage = warehouse, stagingAreas, storage
         result.breakroomGames = Runtime.BreakroomGames.normalize(source.breakroomGames)
         if not result.breakroomGames then return nil, "Invalid saved break room games." end
         for bayId, fixtures in pairs(result.breakroomGames.bays) do

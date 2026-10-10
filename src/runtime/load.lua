@@ -38,6 +38,9 @@ function Component.install(Runtime)
             canChange=function() return not Runtime.multiplayer:isClient() end,
             setSpeed=function(speed) return Runtime.App.setGameClockSpeed(speed) end,
         })
+        Runtime.ComputerScreen.configureRadio({
+            isNetworkClient=function() return Runtime.multiplayer:isClient() end,
+        })
         local Sound = require("src.sound")
         local acceptanceHost, acceptanceHostError = Runtime.RuntimeDependencies.AcceptanceHostBootstrap.plan({
             osName = love.system and love.system.getOS and love.system.getOS() or nil,
@@ -132,8 +135,9 @@ function Component.install(Runtime)
             Runtime.state.screen = "asset_error"
             Runtime.state.message = string.format("Startup stopped: %d required asset error(s).", #Runtime.state.assetErrors)
         end
-        Runtime.Machine.setOutputResolver(function(targetState, pallet)
-            return Runtime.World.findCutterOutput(targetState, Runtime.Assets, pallet and pallet.id)
+        Runtime.Machine.setOutputResolver(function(targetState, pallet, machineId)
+            return Runtime.World.findCutterOutput(targetState, Runtime.Assets, pallet and pallet.id,
+                machineId or "MCH-0001")
         end)
 
         Runtime.runSmoke(startupTextureBytes, Sound)

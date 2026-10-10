@@ -9,6 +9,7 @@ local Upgrades = require("src.warehouse_upgrades")
 local BreakroomGames = require("src.breakroom_games")
 local Credit = require("src.credit")
 local Employees = require("src.employees")
+local StagingAreas = require("src.staging_areas")
 
 local Office = {}
 local function merge(target, source)
@@ -42,10 +43,14 @@ function Office.command(options)
             end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
                 or intent.kind == "buy_breakroom_fixture"
-            if warehousePurchase then
+            local stagingAction = intent.kind == "staging_area_add" or intent.kind == "staging_area_remove"
+                or intent.kind == "staging_area_change"
+            if warehousePurchase or stagingAction then
                 local enabled = type(options.warehouseEnabled) == "function" and options.warehouseEnabled(state)
                     or options.warehouseEnabled == true
-                if enabled ~= true then return false, "warehouse_disabled", "Warehouse upgrades are not enabled in this build.", {} end
+                if enabled ~= true then return false, "warehouse_disabled", "Warehouse controls are not enabled in this build.", {} end
+            end
+            if warehousePurchase then
                 if options.warehouseFirstStorageOnly == true and intent.kind == "buy_upgrade"
                     and (intent.bayId ~= "front_left" or intent.optionId ~= "storage") then
                     return false, "warehouse_not_ready", "Only the left storage expansion is ready in this build.", {}
@@ -84,6 +89,9 @@ function Office.command(options)
                 ok, result, domainCode = BreakroomGames.purchase(staged, intent.bayId,
                     intent.fixtureId, intent.requestId,
                     type(options.players)=="function" and options.players() or nil)
+            elseif intent.kind == "staging_area_add" or intent.kind == "staging_area_remove"
+                or intent.kind == "staging_area_change" then
+                ok, result = StagingAreas.apply(staged, intent)
             elseif intent.kind == "checkout" then
                 local screen = Computer.new()
                 local entries = {}

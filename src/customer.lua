@@ -109,7 +109,7 @@ function Customer.new(definition)
     return instance
 end
 
-function Instance:reset(initialVisit)
+function Instance:reset(initialVisit, delayMultiplier)
     Navigator.reset(self)
     if type(self.characterPool) == "table" and #self.characterPool > 0 then
         self.characterIndex = self.characterIndex % #self.characterPool + 1
@@ -127,10 +127,11 @@ function Instance:reset(initialVisit)
     self.x, self.y = spawn.x, spawn.y
     self.state = "scheduled"
     self.visible = false
-    self.timer = initialVisit
+    self.timer = (initialVisit
         and randomDelay(self.initialArrivalDelayMin, self.initialArrivalDelayMax,
             self.initialArrivalDelay ~= nil and self.initialArrivalDelay or self.arrivalDelay)
-        or randomDelay(self.arrivalDelayMin, self.arrivalDelayMax, self.arrivalDelay)
+        or randomDelay(self.arrivalDelayMin, self.arrivalDelayMax, self.arrivalDelay))
+        * math.max(0, tonumber(delayMultiplier) or 1)
     self.waypoint = 2
     self.facing = 1
     self.intentX, self.intentY = 1, 0

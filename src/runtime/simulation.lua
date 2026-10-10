@@ -85,7 +85,9 @@ function Component.install(Runtime)
         Runtime.DirectIpv4Runtime.updateConnection()
         Runtime.updateLanConvenience(dt)
         Runtime.Machine.setMultiplayerSingleControl(Runtime.multiplayer:isActive())
+        require("src.basketball_controls").update(dt,Runtime)
         local saveNeeded = false
+        local checkpointNeeded = false
         local networkInputX, networkInputY = 0, 0
         Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
         Runtime.kombatInputX,Runtime.kombatButtons=0,0
@@ -116,7 +118,7 @@ function Component.install(Runtime)
             Runtime.App.gameClockSaveClock = Runtime.App.gameClockSaveClock + dt
             if Runtime.App.gameClockSaveClock >= 5 then
                 Runtime.App.gameClockSaveClock = Runtime.App.gameClockSaveClock % 5
-                saveNeeded = true
+                checkpointNeeded = true
             end
         else
             Runtime.App.gameClockSaveClock = 0
@@ -135,7 +137,7 @@ function Component.install(Runtime)
             Runtime.warehouseSaveClock=Runtime.warehouseSaveClock+dt
             if warehouseChanged and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             if Runtime.warehouseSaveClock>=1 and (warehouseChanged or Runtime.state.constructionWorker) then
-                saveNeeded = true; Runtime.warehouseSaveClock=0
+                checkpointNeeded = true; Runtime.warehouseSaveClock=0
             end
         end
         if Runtime.state.screen == "asset_error" then
@@ -148,7 +150,7 @@ function Component.install(Runtime)
             Runtime.DirectScreen.update(dt)
         elseif Runtime.state.screen == "world" then
             local directionX, directionY = Runtime.Input.movement()
-            if require("src.basketball").isChargingFor(Runtime.state,
+            if Runtime.basketballCharge or require("src.basketball").isChargingFor(Runtime.state,
                 tonumber(Runtime.World.player.id) or 1) then
                 directionX,directionY=0,0
             end
@@ -250,13 +252,22 @@ function Component.install(Runtime)
         if not Runtime.multiplayer:isClient() and simulationActive and Runtime.state.employment
             and (#Runtime.state.employment.applications>0 or #Runtime.state.employment.staff>0) then
             Runtime.employmentSaveClock=Runtime.employmentSaveClock+dt
-            if Runtime.employmentSaveClock>=1 then saveNeeded = true;Runtime.employmentSaveClock=0 end
+            if Runtime.employmentSaveClock>=1 then
+                checkpointNeeded = true;Runtime.employmentSaveClock=0
+                -- Payroll/assignment GUI freshness is independent of disk cadence.
+                if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
+            end
         end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
         Runtime.syncCamera()
         if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
         -- Commit the final frame once when several simulations change together.
-        if saveNeeded then Runtime.saveCurrent() end
+        if saveNeeded then
+            local saved = Runtime.saveCurrent()
+            Runtime.updateCheckpoint(dt,not saved)
+        else
+            Runtime.updateCheckpoint(dt,checkpointNeeded)
+        end
     end
 end
 

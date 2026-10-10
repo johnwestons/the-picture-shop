@@ -53,7 +53,6 @@ function Component.install(Runtime)
         end
         -- Sitting is local presentation only and carries no shared state.
         if selected and selected.kind=="breakroom" then return false end
-        if selected and selected.kind=="jukebox" then return false end
             if not Runtime.multiplayer:isActive() then return false end
             if not selected then
                 if Runtime.multiplayer:isClient() then

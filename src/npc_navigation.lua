@@ -2,6 +2,7 @@
 -- retry clocks deliberately stay out of saves and network snapshots.
 local Navigation = require("src.navigation")
 local Config = require("src.config")
+local ObstacleIndex = require("src.obstacle_index")
 local Navigator = {}
 local routes = setmetatable({}, { __mode = "k" })
 local STEP, RETRY, STALL = 10, .75, .9
@@ -35,7 +36,7 @@ local function pop(heap)
 end
 
 function Navigator.findPath(actor, candidates, context)
-    local obstacles = context.obstacles(actor)
+    local obstacles = ObstacleIndex.new(context.obstacles(actor))
     local goals = {}
     for _, goal in ipairs(candidates or {}) do
         if Navigation.isWalkable(context.assets, goal.x, goal.y, obstacles) then

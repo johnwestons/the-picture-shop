@@ -65,6 +65,8 @@ local REASONS = {
     readonly="Rack viewing is available; transfer controls are not connected.",
     two_vehicles="Park the other vehicle before using this one.",
     stale_revision="The rack changed. Review its current contents and try again.",
+    jack_clearance="Move the empty pallet jack farther from the rack. The loaded jack needs a clear path out.",
+    wrapper_using_stock="Wait for the skid wrapper to finish its last wrap before moving stretch film.",
     wrong_fork_height="Move the forks to this shelf's height before transferring.",
     slot_occupied="Another pallet is already on that shelf.",
 }
@@ -237,6 +239,9 @@ function Screen:view(state)
     elseif not vehicle.operating or vehicle.operatorPlayerId ~= context.playerId then common="not_operator"
     elseif context.near ~= true then common="out_of_range"
     elseif context.aligned ~= true then common="not_aligned"
+    elseif kind=="pallet_jack" and not vehicle.carriedPalletId and context.loadedClear==false then common="jack_clearance"
+    elseif not vehicle.carriedPalletId and selectedItem and selectedItem.vendor and selectedItem.pallet.productId=="stretch_film"
+        and require("src.wrapper").isFilmSupplyInUse(state) then common="wrapper_using_stock"
     elseif context.clear ~= true then common="blocked"
     elseif vehicle.moving then common="moving"
     elseif kind == "pallet_jack" and row == 2 then common="forklift_required"

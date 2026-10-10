@@ -71,7 +71,7 @@ function love.load()
     local width,height=mobile and 1600 or 960,mobile and 720 or 678
     love.window.setMode(width,height,{vsync=0,resizable=false})
     local assets,characters=runtime.Assets,runtime.CharacterAssets
-    measure("cutter_options_roundtrip",10,function()
+    measure("cutter_menu_pack_roundtrip",10,function()
         assert(assets.activatePack("cutter"));assert(assets.activatePack("menu"))
     end)
     measure("press_world_roundtrip",10,function()
@@ -92,6 +92,17 @@ function love.load()
         love.graphics.flushBatch()
     end
     measure("world_draw",180,draw)
+    runtime.state.screen="machine"
+    runtime.state.machineType="polar_115"
+    draw()
+    local originalClamp=assert(assets.get("cutterClamp"))
+    measure("cutter_options_ui_roundtrip",10,function()
+        assert(runtime.openOptions());draw()
+        assert(assets.activePackName()=="cutter" and assets.get("cutterClamp")==originalClamp)
+        assert(runtime.closeOptions());draw()
+    end)
+    runtime.state.screen="world"
+    runtime.state.optionsReturnScreen=nil
     populate(runtime)
     runtime.state.screen="computer";runtime.ComputerScreen.enter(runtime.state)
     measure("office_draw_populated",180,draw)
@@ -135,6 +146,7 @@ function love.load()
         draw()
     end)
     rows[#rows].additional_gpu_texture_bytes=love.graphics.getStats().texturememory-gpuBefore
+    require("tools.performance_probe.crowded_shop")(runtime,app,measure,draw,rows)
     local result=require("tools.performance_probe.json")({rows=rows,
         active_texture_bytes=assets.textureBytes()+characters.textureBytes(),
         cached_texture_bytes=assets.cachedTextureBytes()+characters.cachedTextureBytes(),

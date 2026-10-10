@@ -18,6 +18,7 @@ local BreakroomGames = require("src.breakroom_games")
 local PalletStorage = require("src.pallet_storage")
 local Forklift = require("src.forklift")
 local WarehouseConstruction = require("src.warehouse_construction")
+local StagingAreas = require("src.staging_areas")
 local Credit = require("src.credit")
 local Employees = require("src.employees")
 
@@ -29,6 +30,7 @@ local SHARED_FIELDS = {
     "jobs",
     "palletJack",
     "warehouse",
+    "stagingAreas",
     "breakroomGames",
     "storage",
     "forklift",
@@ -67,9 +69,10 @@ function State.applySave(state, payload)
     local employment=Employees.normalize(saved.employment,BusinessCalendar.absoluteHours(saved))
     if not employment then return false end
     local warehouse = WarehouseUpgrades.normalize(saved.warehouse)
+    local stagingAreas = StagingAreas.normalize(saved.stagingAreas)
     local breakroomGames = BreakroomGames.normalize(saved.breakroomGames)
     local storage = PalletStorage.normalize(saved.storage)
-    if not warehouse or not breakroomGames or not storage
+    if not warehouse or not stagingAreas or not breakroomGames or not storage
         or (saved.forklift ~= nil and not Forklift.validState(saved.forklift, Config.forklift)) then return false end
     local forklift = Forklift.normalize(saved.forklift, Config.forklift)
     if forklift.owned and not warehouse.forkliftOwned then return false end
@@ -123,7 +126,7 @@ function State.applySave(state, payload)
     state.palletJack.operating, state.palletJack.moving = false, false
     state.palletJack.operatorPlayerId = nil
     state.palletJack.operatorEmployeeId = nil
-    state.warehouse, state.storage, state.forklift = warehouse, storage, forklift
+    state.warehouse, state.stagingAreas, state.storage, state.forklift = warehouse, stagingAreas, storage, forklift
     state.breakroomGames = breakroomGames
     state.constructionWorker = constructionWorker
     Forklift.forceRelease(state, Config.forklift)

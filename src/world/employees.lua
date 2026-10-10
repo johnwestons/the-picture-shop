@@ -177,6 +177,13 @@ function Component.install(Runtime)
             local width,height=Runtime.Config.palletLogistics.collisionHalfWidth,Runtime.Config.palletLogistics.collisionHalfHeight
             if not Runtime.Navigation.isAreaWalkable(assets,x,y,width,height) then return false end
             local footprint={x=width,y=height,shape="diamond"}
+            local jack=state.palletJack
+            if jack and jack.operating and jack.operatorEmployeeId==worker.id then
+                local clearance=Runtime.Footprint.expand({x=jack.x,y=jack.y-5,
+                    halfWidth=Runtime.Config.palletJack.loadedCollisionHalfWidth,
+                    halfHeight=Runtime.Config.palletJack.loadedCollisionHalfHeight,shape="diamond"},footprint)
+                if Runtime.Footprint.penetration(clearance,x,y)>0 then return false end
+            end
             for _,obstacle in ipairs(Runtime.movementObstacles(state,true,footprint,false,false,palletId)) do
                 if obstacle.actor~=worker and Runtime.Footprint.penetration(obstacle,x,y)>0 then return false end
             end
@@ -195,6 +202,32 @@ function Component.install(Runtime)
                     if context.jackDropClear(worker,jack.carriedPalletId,x,y) then return {x=x,y=y} end
                 end
             end
+        end
+        function context.jackParkingPoint(worker)
+            local route=context.jackNavigation(worker,nil,false)
+            local obstacles=route.obstacles()
+            local minimumClearance=24
+            local function clear(x,y)
+                if not Runtime.Navigation.isWalkable(route.assets,x,y,obstacles) then return false end
+                for _,obstacle in ipairs(obstacles) do
+                    if Runtime.Footprint.pointDistanceSquared(x,y,obstacle)<minimumClearance^2 then
+                        return false
+                    end
+                end
+                return true
+            end
+            local parking={x=Runtime.Config.palletJack.spawnX,y=Runtime.Config.palletJack.spawnY}
+            if clear(parking.x,parking.y) then
+                local point=Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),{parking},route)
+                if point then return point end
+            end
+            local candidates={}
+            for y=112,Runtime.Config.baseHeight-72,40 do
+                for x=72,Runtime.Config.baseWidth-72,40 do
+                    if clear(x,y) then candidates[#candidates+1]={x=x,y=y} end
+                end
+            end
+            return Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),candidates,route)
         end
         function context.machinePose(machineId)
             local item=Runtime.MachineFleet.byId(state,machineId)

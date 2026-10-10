@@ -56,6 +56,9 @@ function Component.install(Runtime)
             Runtime.drawBills(state, pointerX, pointerY)
         elseif Runtime.ComputerScreen.tab == "credit" then
             Runtime.drawCredit(state, pointerX, pointerY)
+        elseif Runtime.ComputerScreen.tab == "radio" then
+            require("src.jukebox").drawComputerTab(pointerX,pointerY,
+                Runtime.ComputerScreen.radioReadOnly(),Runtime.drawComputerButton)
         else
             Runtime.drawJobList(state, pointerX, pointerY)
             Runtime.drawDetail(state, pointerX, pointerY, assets)

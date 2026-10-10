@@ -260,6 +260,7 @@ function AI.worker(state,w,dt,now,context)
                     motionScale=context.motionScale,jackNavigation=context.jackNavigation,
                     jackApproachPoint=context.jackApproachPoint,jackPickupPoint=context.jackPickupPoint,
                     jackDropPoint=context.jackDropPoint,jackDropClear=context.jackDropClear,
+                    jackParkingPoint=context.jackParkingPoint,
                     jackLoadClear=context.jackLoadClear,
                     jackEmergencyDropPoint=context.jackEmergencyDropPoint,
                     palletApproachPoint=context.palletApproachPoint,palletDropPoint=context.palletDropPoint,
@@ -316,6 +317,14 @@ function AI.update(state,dt,context)
     local now=Calendar.absoluteHours(state)
     local previous=math.min(now,e.lastAtHours)
     local changed=Employees.advance(state,now)
+    local schedulesChanged=Schedule.reconcileCompleted(state,now,function(w)
+        if not Work.safe(w,state) then return false end
+        Work.release(state,w)
+        w.assignment=nil
+        w.activity="Scheduled job complete"
+        return true
+    end)
+    if schedulesChanged then changed=true end
     -- Time only advances with the active shop, never from real-world offline
     -- elapsed time. Small slices keep arrivals, breaks, and wage clipping exact.
     local secondsPerHour=Calendar.secondsPerDay(state)/24

@@ -1,6 +1,7 @@
 -- Client email state, repeat offers, and delayed arrivals.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
     function Runtime.ensureEmails(state)
@@ -144,7 +145,8 @@ function Component.install(Runtime)
         local number = emails.nextEmailId
         local offer = Runtime.repeatOffer(state, completedJob, number)
         if not offer then return false end
-        local followupHours = (1 + number % 3) * 24
+        local followupHours = math.floor((1 + number % 3) * 24
+            * CustomerDemand.delayMultiplier(state) + 0.5)
         emails.nextEmailId = number + 1
         emails.pending[#emails.pending + 1] = {
             id = string.format("EMAIL-%04d", number),

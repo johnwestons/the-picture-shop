@@ -4,16 +4,14 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.Fleet.byId(state, machineId)
-        for _, item in ipairs(Runtime.Fleet.ensure(state).items) do
-            if item.id == machineId then return item end
-        end
+        return Runtime.indexedMachine(state, machineId)
     end
 
     function Runtime.Fleet.installed(state, modelId, machineId)
         local first
         local activeId = machineId or state._operatingMachineId
             or ((state.screen == "machine" or state.screen == "press") and state.machineId)
-        for _, item in ipairs(Runtime.Fleet.ensure(state).items) do
+        for _, item in ipairs(Runtime.Fleet.current(state).items) do
             if item.modelId == modelId and item.status == "installed" then
                 if activeId == item.id then return item end
                 first = first or item
@@ -33,7 +31,7 @@ function Component.install(Runtime)
 
     function Runtime.Fleet.installedUnits(state, modelId)
         local units = {}
-        for _, item in ipairs(Runtime.Fleet.ensure(state).items) do
+        for _, item in ipairs(Runtime.Fleet.current(state).items) do
             if item.status == "installed" and (modelId == nil or item.modelId == modelId) then
                 units[#units + 1] = item
             end

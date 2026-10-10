@@ -12,7 +12,6 @@ Map.reception={x=697,y=235}
 Map.computer={x=913,y=229,radius=44,hoverX=909,hoverY=175,hoverRadius=23}
 Map.phone={x=848,y=213,wallX=879,wallY=144,hoverRadius=18}
 Map.clock={x=480,y=260,wallX=480,wallY=50,clockRadius=13,hoverRadius=16}
-Map.radio={x=65,y=258,wallX=35,wallY=115,hoverRadius=25}
 Map.dock={x=194,y=213,radius=44,hoverX=184,hoverY=129,hoverRadius=18}
 Map.aperture={{x=58,y=125},{x=151,y=87},{x=151,y=174},{x=58,y=213}}
 Map.truck={parked={x=-10.7,y=235,scale=.72},start={x=-166,y=170,scale=.72},

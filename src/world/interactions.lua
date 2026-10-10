@@ -23,7 +23,6 @@ function Component.install(Runtime)
         if Rooms.scene(player)~="warehouse" then return targets end
         addTarget("computer", Runtime.Config.interactables.computer)
         addTarget("shopClock", Runtime.Config.interactables.shopClock)
-        addTarget("jukebox", Runtime.Config.interactables.jukebox)
         local phoneTarget = {
             x = Runtime.Config.interactables.workPhone.x,
             y = Runtime.Config.interactables.workPhone.y,

@@ -50,7 +50,38 @@ function Transport.release(state, worker, context)
     end
     Jack.releaseEmployee(state, Config.palletJack, worker.id)
     worker._jackNavigator, worker.jackDistance, worker._jackTarget = nil, nil, nil
+    worker._jackParkingTarget, worker._parkingJack = nil, nil
     worker.phase,worker.moving = "idle",false
+    return true
+end
+
+function Transport.park(state, worker, dt, context)
+    local jack=Jack.ensure(state,Config.palletJack)
+    if not Transport.owns(state,worker) or jack.carriedPalletId then
+        worker._jackParkingTarget,worker._parkingJack=nil,nil
+        return true
+    end
+    local goal=worker._jackParkingTarget
+    if not goal then
+        goal=context.jackParkingPoint and context.jackParkingPoint(worker)
+        worker._jackParkingTarget=goal
+    end
+    if not goal then
+        Transport.release(state,worker,context)
+        return true
+    end
+    worker.activity="Parking pallet jack in a clear space"
+    local reached,blocked=Transport.move(state,worker,goal,dt,context)
+    if blocked then
+        worker._jackParkingTarget=nil
+        return false,"Pallet jack parking route is blocked"
+    end
+    if not reached then return false end
+    Jack.releaseEmployee(state,Config.palletJack,worker.id)
+    worker._jackNavigator,worker.jackDistance,worker._jackTarget=nil,nil,nil
+    worker._jackParkingTarget,worker._parkingJack=nil,nil
+    worker.phase,worker.moving="walking",false
+    worker.activity="Pallet jack parked in a clear space"
     return true
 end
 
@@ -118,8 +149,10 @@ function Transport.update(state, worker, machine, pallet, stage, dt, context)
             return context.jackDropClear(worker, pallet.id, x, y)
         end, goal.x, goal.y, pallet.id)
         if not lowered then worker.activity = "Clear floor beside the " .. name .. " is blocked"; return false, reason end
-        Transport.release(state, worker, context)
-        worker.phase, worker.activity = "walking", "Pallet staged; walking to the " .. name
+        worker._jackTarget=nil
+        worker._jackParkingTarget=nil
+        worker._parkingJack=true
+        worker.activity="Pallet staged; parking the pallet jack"
         return true
     end
     if context.jackLoadClear and not context.jackLoadClear(worker,pallet.id,jack.x,jack.y) then

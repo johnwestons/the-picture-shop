@@ -14,6 +14,10 @@ function Component.install(Runtime)
                 local lastId = player.lastInteractionRequestId or 0
                 local now = self.clock()
                 local fingerprint = tostring(request.targetKind) .. ":" .. tostring(request.desiredState)
+                if request.shotAim then
+                    fingerprint=fingerprint..":"..request.shotAim.aimX..":"..request.shotAim.arcHeight
+                        ..":"..tostring(request.shotAim.elapsed)
+                end
                 if request.requestId == lastId and player.lastInteractionResult
                     and player.lastInteractionFingerprint ~= fingerprint
                 then
@@ -48,7 +52,7 @@ function Component.install(Runtime)
                     elseif context and type(context.performInteraction) == "function" then
                         local called, result, resultCode, resultMessage = pcall(
                             context.performInteraction, player, request.targetKind,
-                            request.desiredState)
+                            request.desiredState,request.shotAim)
                         if called then
                             accepted = result == true
                             code = tostring(resultCode or (accepted and "accepted" or "rejected"))

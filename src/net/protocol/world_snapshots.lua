@@ -62,11 +62,13 @@ function Component.install(Runtime)
         local serverTick
         serverTick, fieldError = Runtime.integerInRange(payload.serverTick, 0, Runtime.UINT32_MAX, "snapshot.serverTick")
         if not serverTick then return nil, fieldError end
-        if not Runtime.Codec.isArray(payload.players) or #payload.players ~= 1 then
-            return nil, "snapshot.players must contain exactly one player"
+        local ballShard=Runtime.Codec.isArray(payload.players) and #payload.players==0
+            and Runtime.Codec.isArray(payload.balls) and #payload.balls==1 and payload.games==nil
+        if not Runtime.Codec.isArray(payload.players) or #payload.players~=1 and not ballShard then
+            return nil, "snapshot.players must contain one player or one ball shard"
         end
         local players
-        players, fieldError = Runtime.normalizePlayers(payload.players, "snapshot.players")
+        if ballShard then players=Runtime.Codec.array({}) else players,fieldError=Runtime.normalizePlayers(payload.players,"snapshot.players") end
         if not players then return nil, fieldError end
         local games
         if payload.games ~= nil then
@@ -116,7 +118,8 @@ function Component.install(Runtime)
                 local okay,err=Runtime.shape(entry,"snapshot.balls["..index.."]",
                     {"bayId","sceneId","x","y","displayY","mode","leftScore","rightScore","streak"},
                     {"holderPlayerId","shooterId","shotPhase","shotElapsed","rimHit",
-                     "leftId","rightId","contestPhase"})
+                     "leftId","rightId","contestPhase","shotStartX","shotStartY","directionX",
+                     "aimX","arcHeight","releaseTime","releaseElapsed","boardHit"})
                 if not okay then return nil,err end
                 local bay=require("src.breakroom_games").BAYS
                 if not bay[entry.bayId] or seen[entry.bayId]
@@ -148,11 +151,21 @@ function Component.install(Runtime)
                     return nil,"snapshot.balls.shotPhase is invalid"
                 end
                 if entry.shotElapsed~=nil then
-                    local elapsed,elapsedErr=Runtime.numberInRange(entry.shotElapsed,0,2,"snapshot.balls.shotElapsed")
+                    local elapsed,elapsedErr=Runtime.numberInRange(entry.shotElapsed,0,3,"snapshot.balls.shotElapsed")
                     if not elapsed then return nil,elapsedErr end
                 end
                 if entry.rimHit~=nil and type(entry.rimHit)~="boolean" then
                     return nil,"snapshot.balls.rimHit must be boolean"
+                end
+                if entry.boardHit~=nil and type(entry.boardHit)~="boolean" then
+                    return nil,"snapshot.balls.boardHit must be boolean"
+                end
+                for _,field in ipairs({{"shotStartX",0,960},{"shotStartY",0,678},{"directionX",-960,960},
+                    {"aimX",-100,100},{"arcHeight",45,190},{"releaseTime",0,1.08},{"releaseElapsed",0,2}}) do
+                    if entry[field[1]]~=nil then
+                        local n,nErr=Runtime.numberInRange(entry[field[1]],field[2],field[3],"snapshot.balls."..field[1])
+                        if n==nil then return nil,nErr end
+                    end
                 end
                 if entry.contestPhase~=nil and entry.contestPhase~="waiting"
                     and entry.contestPhase~="playing" and entry.contestPhase~="finished" then

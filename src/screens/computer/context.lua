@@ -61,12 +61,23 @@ function Component.install(Runtime)
         warehouseMessage = nil,
         warehouseRequestNumber = 0,
         warehouseGamesPage = false,
+        warehouseStagingPage = false,
+        warehouseSelectedStagingAreaId = "cutter-output",
         creditConfirmation = nil,
         creditRequestNumber = 0,
         creditChannel = "online",
         hiring = Runtime.Hiring.new(),
         schedule = Runtime.ScheduleScreen.new(),
     }
+    function Runtime.ComputerScreen.configureRadio(options)
+        Runtime.dependencies.isNetworkClient=options and options.isNetworkClient
+    end
+    function Runtime.ComputerScreen.radioReadOnly()
+        if Runtime.dependencies.isNetworkClient then
+            return Runtime.dependencies.isNetworkClient()==true
+        end
+        return Runtime.dependencies.remoteCommand~=nil
+    end
 
     Runtime.PANEL = { x = 52, y = 34, width = 856, height = 610 }
     Runtime.CLOSE = { x = 756, y = 48, width = 132, height = 40 }
@@ -85,6 +96,7 @@ function Component.install(Runtime)
         { id = "bills", label = "BILLS", url = "www.thecritternet.com/job-desk/bills" },
         { id = "credit", label = "CREDIT", url = "www.thecritternet.com/job-desk/credit" },
         { id = "warehouse", label = "WAREHOUSE", url = "www.thecritternet.com/warehouse" },
+        { id = "radio", label = "RADIO", url = "www.thecritternet.com/shop/radio" },
     }
     Runtime.TAB_ADDRESS = { x = 170, y = 136, width = 478, height = 40 }
     Runtime.TAB_DROPDOWN_ARROW = { x = 648, y = 136, width = 40, height = 40 }
