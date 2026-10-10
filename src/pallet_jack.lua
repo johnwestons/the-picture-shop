@@ -19,11 +19,13 @@ local dropOffsets = {
     northwest = { x = -56, y = -32 },
     north = { x = 0, y = -48 },
     northeast = { x = 56, y = -32 },
-    east = { x = 56, y = 0 },
+    -- Clear the combined loaded-jack and loose-pallet footprints along the
+    -- horizontal axis before lowering a skid beside the forks.
+    east = { x = 80, y = 0 },
     southeast = { x = 56, y = 32 },
     south = { x = 0, y = 48 },
     southwest = { x = -56, y = 32 },
-    west = { x = -56, y = 0 },
+    west = { x = -80, y = 0 },
 }
 
 local directionVectors = {
