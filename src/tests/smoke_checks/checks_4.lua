@@ -182,12 +182,14 @@ function Component.run(Context)
     Context.check("completed_client_schedules_followup_email",
         Context.context.jobService.scheduleRepeatEmail(emailState, priorClientJob)
         and #emailState.clientEmails.pending == 1 and #emailState.clientEmails.inbox == 0)
+    local followupDelayHours = emailState.clientEmails.pending[1].readyAtHours
+        - Context.context.businessCalendar.absoluteHours(emailState)
+    local secondsPerGameHour = Context.context.config.businessCalendar.secondsPerDay / 24
     Context.context.businessCalendar.update(emailState,
-        47 / 24 * Context.context.config.businessCalendar.secondsPerDay)
+        (followupDelayHours - 1) * secondsPerGameHour)
     Context.check("repeat_client_email_observes_delay", not Context.context.jobService.updateClientEmails(emailState)
         and #emailState.clientEmails.inbox == 0)
-    Context.context.businessCalendar.update(emailState,
-        1 / 24 * Context.context.config.businessCalendar.secondsPerDay + 0.01)
+    Context.context.businessCalendar.update(emailState, secondsPerGameHour + 0.01)
     Context.check("repeat_client_email_arrives", Context.context.jobService.updateClientEmails(emailState)
         and #emailState.clientEmails.pending == 0 and #emailState.clientEmails.inbox == 1
         and emailState.clientEmails.inbox[1].sender == "Returning Client Co."
