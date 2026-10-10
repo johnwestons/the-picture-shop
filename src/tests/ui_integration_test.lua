@@ -177,6 +177,16 @@ function Test.run(context, check)
         context.title.mode == "normal" and love.filesystem.getInfo("saves/slot3.lua") == nil)
 
     context.state.screen = "world"
+    -- Earlier integration suites reload the world and reset its transient
+    -- visitor. Recreate the reception fixture without depending on demand timing.
+    local visitor = context.world.customer
+    visitor:reset(true, 0)
+    visitor.timer = 0
+    local visitorContext = context.world.employeeContext(context.state, context.assets)
+    for _ = 1, 120 do
+        if visitor.state == "waiting" then break end
+        visitor:update(0.5, context.world.player, false, 0.5, visitorContext)
+    end
     local reception = context.world.customerSnapshot()
     context.world.player.x, context.world.player.y = reception.x, reception.y + 28
     context.world.update(0, 0, 0, context.assets, context.state)
