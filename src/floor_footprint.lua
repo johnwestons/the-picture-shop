@@ -115,6 +115,10 @@ local function segmentDistanceSquared(x, y, ax, ay, bx, by)
 end
 
 function Footprint.pointDistanceSquared(x, y, footprint)
+    if not footprint.halfWidth or not footprint.halfHeight then
+        local distance = math.sqrt((x - footprint.x)^2 + (y - footprint.y)^2)
+        return math.max(0, distance - (tonumber(footprint.radius) or 0))^2
+    end
     if Footprint.penetration(footprint, x, y) >= 0 then return 0 end
     local vertices, distance = Footprint.vertices(footprint), math.huge
     for i = 1, #vertices, 2 do
