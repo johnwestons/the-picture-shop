@@ -73,7 +73,7 @@ function Test.run(context, check)
     end
     local bad = {{kind="operate",playerId=1},{kind="operate",x=0},{kind="set_height",height=0.5},
         {kind="set_height",height=0/0},{kind="pickup",palletId=""},{kind="drop",palletId="X"},
-        {kind="store",requestId="x",expectedRevision=0,vehicle="forklift",palletId="P",rackId="R",row=3,column=1},
+        {kind="store",requestId="x",expectedRevision=0,vehicle="forklift",palletId="P",rackId="R",row=4,column=1},
         {kind="store",requestId="x",expectedRevision=-1,vehicle="forklift",palletId="P",rackId="R",row=1,column=1},
         {kind="store",requestId="x",expectedRevision=0,vehicle="forklift",palletId="P",rackId="R",row=1,column=1,near=true},
         {kind="purchase",price=0}, {kind="move",dx=1,dt=999}, {},
