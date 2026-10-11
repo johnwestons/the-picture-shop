@@ -59,7 +59,7 @@ function Test.run(context, check)
     actualStackAuthority(context,check)
     local valid = {
         {kind="operate"}, {kind="release"}, {kind="pickup",palletId="JOB-1-P01"}, {kind="drop"},
-        {kind="set_height",height=0}, {kind="set_height",height=0.08}, {kind="set_height",height=1},
+        {kind="set_height",height=0}, {kind="set_height",height=0.08}, {kind="set_height",height=0.5}, {kind="set_height",height=1},
         {kind="store",requestId="STORE-1",expectedRevision=0,vehicle="forklift",palletId="JOB-1-P01",rackId="front_left-rack",row=2,column=5},
         {kind="retrieve",requestId="TAKE-1",expectedRevision=1,vehicle="pallet_jack",palletId="JOB-1-P01",rackId="front_left-rack",row=1,column=1},
         {kind="stack",requestId="STACK-1",expectedRevision=0,vehicle="forklift",palletId="JOB-1-P01",supportPalletId="JOB-1-P02"},
@@ -71,7 +71,7 @@ function Test.run(context, check)
             resourceId="warehouse",leaseId="warehouse-lease",action="warehouse_action",expectedRevision=0,warehouseIntent=intent})
         check("warehouse_intent_round_trip_"..i, normalized and bytes and #bytes<=1200 and Protocol.decode(bytes)~=nil)
     end
-    local bad = {{kind="operate",playerId=1},{kind="operate",x=0},{kind="set_height",height=0.5},
+    local bad = {{kind="operate",playerId=1},{kind="operate",x=0},{kind="set_height",height=1.5},
         {kind="set_height",height=0/0},{kind="pickup",palletId=""},{kind="drop",palletId="X"},
         {kind="store",requestId="x",expectedRevision=0,vehicle="forklift",palletId="P",rackId="R",row=4,column=1},
         {kind="store",requestId="x",expectedRevision=-1,vehicle="forklift",palletId="P",rackId="R",row=1,column=1},
