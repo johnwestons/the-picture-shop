@@ -294,8 +294,8 @@ function Test.run(context,check)
         load.location="rack";load.storage={rackId="warehouse-rack",row=math.floor((i-1)/5)+1,column=(i-1)%5+1}
         load.world=Layout.rackPoint("warehouse-rack",load.storage.row,load.storage.column)
         local roomLoad=stock(renderState)
-        local sitter=player(1,Rooms.shelves.x,Rooms.shelves.y);sitter.sceneId="front_left"
-        assert(Rooms.transfer(sitter,renderState,"store",roomLoad.id))
+        roomLoad.location="rack";roomLoad.storage={rackId="front_left-rack",row=math.floor((i-1)/5)+1,column=(i-1)%5+1}
+        roomLoad.world=Layout.rackPoint("front_left-rack",roomLoad.storage.row,roomLoad.storage.column)
     end
     local overflow=stock(renderState)
     local stockWorker=player(1,Rooms.shelves.x,Rooms.shelves.y);stockWorker.sceneId="front_left"
