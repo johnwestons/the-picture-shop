@@ -38,11 +38,12 @@ function Test.run(context,check)
     controls:keypressed("v")
     check("warehouse_controls_drive_emits_intent_without_mounting",sent[1].kind=="operate" and not state.forklift.operating)
     state.forklift.operating,state.forklift.operatorPlayerId=true,2
-    for _,key in ipairs({"g","t","r"}) do controls:keypressed(key) end
-    check("warehouse_controls_lower_travel_upper_height_targets",sent[2].height==0 and sent[3].height==0.08 and sent[4].height==1)
+    for _,key in ipairs({"g","t","m","r"}) do controls:keypressed(key) end
+    check("warehouse_controls_lower_travel_middle_top_height_targets",
+        sent[2].height==0 and sent[3].height==0.08 and sent[4].height==0.5 and sent[5].height==1)
     local count=#sent
     local hotkeysBlocked=true
-    for _,key in ipairs({"f","l","m","q","space"}) do hotkeysBlocked=controls:keypressed(key) and hotkeysBlocked end
+    for _,key in ipairs({"f","l","q","space"}) do hotkeysBlocked=controls:keypressed(key) and hotkeysBlocked end
     check("warehouse_controls_mounted_blocks_machine_hotkeys",hotkeysBlocked and #sent==count)
     check("warehouse_controls_keeps_movement_keys_available",not controls:keypressed("a") and not controls:keypressed("w"))
     check("warehouse_controls_mounted_world_tap_cannot_open_other_machine",controls:mousepressed(120,250,1) and #sent==count)
