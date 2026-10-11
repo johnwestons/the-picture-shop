@@ -88,7 +88,7 @@ function Layout.rackApproach(id)
 end
 function Layout.rackPoint(id,row,column)
     local bay = forRack(id)
-    if not bay or (row ~= 1 and row ~= 2) or type(column) ~= "number"
+    if not bay or type(row) ~= "number" or row ~= math.floor(row) or row < 1 or row > 3 or type(column) ~= "number"
         or column < 1 or column > 5 or column ~= math.floor(column) then return nil end
     local fraction = (column-0.5)/5
     local x = bay.rackStart.x+(bay.rackEnd.x-bay.rackStart.x)*fraction

@@ -263,7 +263,7 @@ function Renderer.addActors(actors,assets,state,drawPallet)
                     actors[#actors+1]={y=base.groundY,layer=-1,draw=function()
                         drawRackColumn(bay,col)
                         if drawPallet then
-                            for row=1,2 do
+                            for row=1,Storage.ROWS do
                                 local item=slots[row][col] and Storage.find(state,slots[row][col])
                                 if item then
                                     local point=Layout.rackPoint(id,row,col)
@@ -291,7 +291,7 @@ function Renderer.addActors(actors,assets,state,drawPallet)
                 -- copied or redrawn using the first-person menu's pallet art.
                 if drawPallet then
                     for column=1,5 do
-                        for row=1,2 do
+                        for row=1,Storage.ROWS do
                             local item=slots[row][column] and Storage.find(state,slots[row][column])
                             if item then
                                 local point=RackPresentation.slotPoint(plan,row,column)

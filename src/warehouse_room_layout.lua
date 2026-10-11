@@ -6,12 +6,12 @@ local function room(id)
         walkPolygon={{x=8,y=285},{x=952,y=285},{x=952,y=670},{x=8,y=670}},seam={{x=8,y=285},{x=952,y=285}},
         workPoint={x=642,y=314},approach={x=668,y=310},
         rackApproachPoint={x=530,y=285},restPoint={x=775,y=260},
-        rackStart={x=222,y=118},rackEnd={x=881,y=208},upperDeckOffset=99*678/1024,rackHeight=120,
+        rackStart={x=222,y=118},rackEnd={x=881,y=208},upperDeckOffset=85*678/1024,rackHeight=120,
         rackGroundPosts={{x=221,y=175},{x=330,y=195},{x=439,y=215},{x=548,y=235},{x=657,y=255},{x=766,y=275}}}
 end
 function Layout.bay(id)
     if id=="warehouse" then
-        local b=room(id);b.rackApproachPoint={x=374,y=218};b.upperDeckOffset=85*678/1024;return b
+        local b=room(id);b.rackApproachPoint={x=374,y=218};b.upperDeckOffset=80*678/1024;return b
     end
     if id=="front_left" or id=="front_right" then return room(id) end
 end

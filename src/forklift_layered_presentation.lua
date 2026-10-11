@@ -44,7 +44,7 @@ local studies = {
         -- when the rack artwork changes. Both endpoints use the same body pose.
         -- At ground height both fork tips sit just above the wheel baseline.
         carriageX = 0, carriageLow = 185,
-        carriageTravel = Layout.bay(rackBay).upperDeckOffset / 0.145,
+        carriageTravel = 2 * Layout.bay(rackBay).upperDeckOffset / 0.145,
         loadLow = 150,
         loadX = 1170, loadY = 750,
     },
@@ -56,7 +56,7 @@ local studies = {
         emptyOriginX = 630, emptyOriginY = 864, emptyScale = 0.955,
         carriageOriginX = 630, carriageOriginY = 850,
         carriageScale = 0.8, carriageX = 150,
-        carriageLow = 75, carriageTravel = 480,
+        carriageLow = 75, carriageTravel = 960,
         loadScale = 1, loadLow = 80,
         loadX = 970, loadY = 820,
     },
@@ -68,7 +68,7 @@ local studies = {
         emptyOriginX = 680, emptyOriginY = 890, emptyScale = 1,
         carriageOriginX = 680, carriageOriginY = 890,
         carriageScale = 0.8, carriageX = 265,
-        carriageLow = 150, carriageTravel = 563,
+        carriageLow = 150, carriageTravel = 1126,
         loadX = 1000, loadY = 440,
     },
     front = {
@@ -79,7 +79,7 @@ local studies = {
         emptyOriginX = 768, emptyOriginY = 965, emptyScale = 1,
         carriageOriginX = 782, carriageOriginY = 792,
         carriageScale = 0.65, carriageX = 0,
-        carriageLow = 0, carriageTravel = 846,
+        carriageLow = 0, carriageTravel = 1692,
         loadX = 768, loadY = 720,
     },
     rear = {
@@ -90,8 +90,8 @@ local studies = {
         emptyOriginX = 768, emptyOriginY = 990, emptyScale = 1,
         carriageOriginX = 768, carriageOriginY = 990,
         carriageScale = 0.55, carriageX = 0,
-        carriageLow = -700, carriageTravel = 400,
-        loadScale = 1, loadLow = 300, loadTravel = 510,
+        carriageLow = -700, carriageTravel = 800,
+        loadScale = 1, loadLow = 300, loadTravel = 1020,
         loadX = 768, loadY = 600,
         carriageClipTopY = 70,
         frontClipY = 480,

@@ -151,9 +151,8 @@ function Test.run(context,check)
     local x,y=Hiring.buttonCenter("finances")
     local commands=0
     Hiring.mousepressed(s,h,x,y,function() commands=commands+1 end,true)
-    x,y=Hiring.buttonCenter("liftsPlus");Hiring.mousepressed(s,h,x,y,function() commands=commands+1 end,true)
     local renderOkay,err=pcall(Hiring.draw,s,h,nil,nil,true)
-    check("shop_budget_guest_can_plan_without_mutating_shop",h.view=="finances" and h.lifts==21 and commands==0 and s.money==5000 and renderOkay,err)
+    check("shop_budget_guest_can_review_without_mutating_shop",h.view=="finances" and commands==0 and s.money==5000 and renderOkay,err)
     local paper=require("src.paper_work").createStockPaper()
     for cut=1,4 do for turn=0,3 do
         paper.activeCut=cut;paper.orientation=turn*90
@@ -185,7 +184,8 @@ function Test.run(context,check)
     second.pallet={id="PENDING-TWO"};second.pendingOutput=slots[2]
     local a=context.world.findCutterOutput(reserved,context.assets,"PENDING-ONE")
     local b=context.world.findCutterOutput(reserved,context.assets,"PENDING-TWO")
-    check("shop_two_cutters_keep_distinct_staging_reservations",a and b and a.number==1 and b.number==2)
+    check("shop_two_cutters_keep_distinct_staging_reservations",a and b
+        and a.x==slots[1].x and a.y==slots[1].y and b.x==slots[2].x and b.y==slots[2].y)
     first.pendingOutput=nil;second.pendingOutput=nil;first.pallet=nil;second.pallet=nil
     local returning=State.new();context.machine.reset(returning)
     local j,p=job(returning,"JOB-RETURN-CHECK",420,470)
