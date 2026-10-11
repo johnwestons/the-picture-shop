@@ -53,6 +53,7 @@ function Test.run(context,check)
     pallet.location,pallet.world="on_forklift",{x=500,y=440}
     controls:keypressed("e")
     check("warehouse_controls_loaded_use_requests_drop",sent[#sent].kind=="drop")
+    state.forklift.forkHeight,state.forklift.targetForkHeight=1,1
     count=#sent
     controls:keypressed("k")
     check("warehouse_controls_missing_stack_target_does_not_send",#sent==count and state.message:find("nearby matching skid")~=nil)
@@ -90,6 +91,7 @@ function Test.run(context,check)
     end
     check("warehouse_controls_mobile_targets_are_44px_and_nonoverlapping",minimumSize and noOverlap)
     controls:openRack()
+    controls.rack:select(3,1)
     check("warehouse_controls_rack_opens_same_presenter",state.screen=="pallet_rack" and controls.rack.rackId=="front_left-rack")
     local rackLayout=controls.rack:layout()
     check("warehouse_controls_rack_transfer_and_back_targets_are_44px",rackLayout.store.height>=44
@@ -110,7 +112,7 @@ function Test.run(context,check)
     check("warehouse_controls_local_success_does_not_stay_pending",not request.pending and controls.rack.pending==nil)
     controls:keypressed("escape")
     check("warehouse_controls_rack_back_restores_world",state.screen=="world" and controls.rack.closed)
-    controls:openRack();response=nil
+    controls:openRack();controls.rack:select(3,1);response=nil
     request=controls.rack:activate(state,"store")
     check("warehouse_controls_reopening_never_reuses_prior_request_id",request.request.requestId~=requestId)
     controls:resolve(sent[#sent],true,"Stored.")
