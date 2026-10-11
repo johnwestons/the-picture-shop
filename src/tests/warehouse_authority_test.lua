@@ -91,8 +91,8 @@ function Test.run(context, check)
     end
     check("warehouse_jack_lease_accepts_its_strict_rack_transfer",jackPacket(jackTransfer)~=nil)
     check("warehouse_jack_lease_rejects_forklift_actions_on_wire",jackPacket({kind="operate"})==nil
-        and jackPacket({kind="set_height",height=1})==nil and jackPacket(valid[8])==nil)
-    check("warehouse_jack_lease_rejects_floor_stack_actions_on_wire",jackPacket(valid[10])==nil and jackPacket(valid[11])==nil)
+        and jackPacket({kind="set_height",height=1})==nil and jackPacket(valid[9])==nil)
+    check("warehouse_jack_lease_rejects_floor_stack_actions_on_wire",jackPacket(valid[11])==nil and jackPacket(valid[12])==nil)
 
     local state = context.State.new()
     state.warehouse.forkliftOwned, state.forklift.owned = true, true
