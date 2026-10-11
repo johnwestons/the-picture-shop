@@ -46,7 +46,7 @@ function MobileControls.new(options)
     self.releasePointer = assert(options.releasePointer, "mobile controls require releasePointer")
     self.gameplayActive = assert(options.gameplayActive, "mobile controls require gameplayActive")
     self.gestureActive = options.gestureActive or self.gameplayActive
-    self.primaryAction = options.primaryAction or function() return "e", "USE" end
+    self.primaryAction = options.primaryAction or function() return "e", "" end
     self.extraActions = options.extraActions or function() return {} end
     self.afterInput = options.afterInput or function() end
     self.beginGesture = options.beginGesture or function() end
@@ -289,7 +289,7 @@ local function drawRoundButton(button, label, active, small)
     love.graphics.setLineWidth(small and 3 or 4)
     love.graphics.circle("line", button.x, button.y, button.radius)
     love.graphics.setColor(0.96, 0.98, 0.92, 0.98)
-    love.graphics.printf(label or "USE", button.x - button.radius, button.y - (small and 6 or 8),
+    love.graphics.printf(label or "", button.x - button.radius, button.y - (small and 6 or 8),
         button.radius * 2, "center", 0, small and 0.72 or 0.88, small and 0.72 or 0.88)
 end
 
@@ -308,7 +308,7 @@ function MobileControls:draw()
         stick.y + self.axisY * stick.radius * 0.70, stick.knob)
 
     local _, primaryLabel = self.primaryAction()
-    drawRoundButton(self.primary, primaryLabel or "USE", false, false)
+    drawRoundButton(self.primary, primaryLabel or "", false, false)
     for index, action in ipairs(self.extraActions() or {}) do
         if self.extra[index] then drawRoundButton(self.extra[index], action.label, false, true) end
     end

@@ -1,5 +1,6 @@
 -- Seasonal client demand and the shop's early-business ramp.
 local Demand = {}
+local Reputation = require("src.reputation")
 
 local MONTHS = {
     { name = "Post-holiday slowdown", demand = 0.72 },
@@ -31,7 +32,8 @@ function Demand.delayMultiplier(state)
     -- A new shop starts with fewer inbound leads. Higher reputation gradually
     -- brings the visitor cadence back up, while the month adjusts it for season.
     local earlyShopDelay = 1.35 - reputation / 80 * 0.35
-    return earlyShopDelay / season.demand
+    -- Customer reviews can speed up or slow down future inbound sales.
+    return earlyShopDelay / season.demand / Reputation.demandMultiplier(state)
 end
 
 return Demand

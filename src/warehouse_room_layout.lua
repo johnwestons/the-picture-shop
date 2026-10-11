@@ -6,12 +6,12 @@ local function room(id)
         walkPolygon={{x=8,y=285},{x=952,y=285},{x=952,y=670},{x=8,y=670}},seam={{x=8,y=285},{x=952,y=285}},
         workPoint={x=642,y=314},approach={x=668,y=310},
         rackApproachPoint={x=530,y=285},restPoint={x=775,y=260},
-        rackStart={x=222,y=118},rackEnd={x=881,y=208},upperDeckOffset=99*678/1024,rackHeight=120,
+        rackStart={x=222,y=118},rackEnd={x=881,y=208},upperDeckOffset=85*678/1024,rackHeight=120,
         rackGroundPosts={{x=221,y=175},{x=330,y=195},{x=439,y=215},{x=548,y=235},{x=657,y=255},{x=766,y=275}}}
 end
 function Layout.bay(id)
     if id=="warehouse" then
-        local b=room(id);b.rackApproachPoint={x=374,y=218};b.upperDeckOffset=85*678/1024;return b
+        local b=room(id);b.rackApproachPoint={x=374,y=218};b.upperDeckOffset=80*678/1024;return b
     end
     if id=="front_left" or id=="front_right" then return room(id) end
 end
@@ -34,17 +34,17 @@ local function idForRack(id) return id and id:gsub("%-rack$","") end
 function Layout.rackApproach(id) local b=Layout.bay(idForRack(id));return b and b.rackApproachPoint end
 function Layout.rackPoint(id,row,column)
     local bayId=idForRack(id)
-    if not Layout.bay(bayId) or (row~=1 and row~=2) or type(column)~="number"
+    if not Layout.bay(bayId) or type(row)~="number" or row~=math.floor(row) or row<1 or row>3 or type(column)~="number"
         or column<1 or column>5 or column~=math.floor(column) then return nil end
     local x,y,groundY
     if bayId=="warehouse" then
         x=(432+(column-1)*104)*960/1536
-        y=(162+(column-1)*26-(row-1)*85)*678/1024
+        y=(207+(column-1)*25-(row-1)*80)*678/1024
         groundY=(268+(column-1)*25)*678/1024
     else
         -- Five of the six visible bays are registered as stock slots.
         x=(431+(column-1)*174)*960/1536
-        y=(188+(column-1)*29-(row-1)*99)*678/1024
+        y=(250+(column-1)*31-(row-1)*85)*678/1024
         groundY=(257+(column-1)*30)*678/1024
     end
     return {x=x,y=y,groundY=groundY,row=row,column=column}

@@ -128,12 +128,13 @@ function Test.run(context,check)
         local scale=(Config.forklift.drawScale or 0.22)*(Config.forklift.visualScaleMultiplier or 1)
         local function scanRackPoses()
             local poses,diagnostics={},{}
-            for row=1,2 do for column=1,5 do
+            for row=1,3 do for column=1,5 do
                 local target=Layout.rackPoint("front_left-rack",row,column)
                 local slotDiagnostics={}
                 for _,heading in ipairs(headings) do
-                    local pose={owned=true,operating=true,direction=heading,forkHeight=row==2 and 1 or 0,
-                        targetForkHeight=row==2 and 1 or 0,lifting=false,moving=false,carriedPalletId=pallet.id,
+                    local height=row==1 and 0 or row==2 and 0.5 or 1
+                    local pose={owned=true,operating=true,direction=heading,forkHeight=height,
+                        targetForkHeight=height,lifting=false,moving=false,carriedPalletId=pallet.id,
                         x=0,y=0}
                     local plan=Layered.plan(pose,{review=true,scale=scale})
                     if plan then
@@ -163,10 +164,10 @@ function Test.run(context,check)
             originalLoadedWidth,originalLoadedHeight
         local poseCount=0
         for _ in pairs(rackPoses) do poseCount=poseCount+1 end
-        test("all_ten_rack_slots_have_a_clear_loaded_forklift_pose",poseCount==10,
+        test("all_fifteen_rack_slots_have_a_clear_loaded_forklift_pose",poseCount==15,
             "found="..poseCount.." "..table.concat((function() local out={} for key,value in pairs(rackDiagnostics) do
                 out[#out+1]=key..":"..value end table.sort(out);return out end)()," "))
-        local rackPose=rackPoses["2:3"]
+        local rackPose=rackPoses["3:3"]
         test("upper_rack_pose_matches_selected_slot_load_anchor",rackPose~=nil,
             "valid="..table.concat((function() local out={} for key,value in pairs(rackPoses) do
                 out[#out+1]=key.."/"..value.direction end table.sort(out);return out end)(),","))
@@ -203,16 +204,16 @@ function Test.run(context,check)
         test("real_rack_approach_uses_clearance_and_alignment",aisleApproach
             and lift.direction==rackPose.direction,
             "expected="..rackPose.direction.." actual="..lift.direction)
-        local access=World.warehouseRackContext(player,state,"front_left-rack",2,3)
+        local access=World.warehouseRackContext(player,state,"front_left-rack",3,3)
         test("real_mask_rack_clearance_while_traveling",access.near and access.clear,
             "near="..tostring(access.near).." clear="..tostring(access.clear).." aligned="..tostring(access.aligned))
         local store={kind="store",requestId="ACCEPT-UPPER-STORE",expectedRevision=0,vehicle="forklift",
-            palletId=pallet.id,rackId="front_left-rack",row=2,column=3}
+            palletId=pallet.id,rackId="front_left-rack",row=3,column=3}
         success,why=World.warehouseCommand(player,state,store)
         test("upper_shelf_rejects_unraised_forks",not success and why=="wrong_fork_height",why)
         World.warehouseCommand(player,state,{kind="set_height",height=1})
         World.updateWarehouse(3,state,assets)
-        access=World.warehouseRackContext(player,state,"front_left-rack",2,3)
+        access=World.warehouseRackContext(player,state,"front_left-rack",3,3)
         test("raised_load_anchor_aligns_with_selected_upper_slot",access.near and access.clear and access.aligned,
             "near="..tostring(access.near).." clear="..tostring(access.clear).." aligned="..tostring(access.aligned))
         if context.captureWarehouse then
@@ -221,7 +222,7 @@ function Test.run(context,check)
         end
         success,why=World.warehouseCommand(player,state,store)
         test("upper_shelf_accepts_raised_forks",success and pallet.location=="rack"
-            and pallet.storage.row==2 and pallet.storage.column==3 and not lift.carriedPalletId,why)
+            and pallet.storage.row==3 and pallet.storage.column==3 and not lift.carriedPalletId,why)
         local rack=Rack.new("front_left-rack",{
             requestPrefix="ACCEPT-UI",context=function(_,rackId,row,column)
                 return World.warehouseRackContext(player,state,"front_left-rack",row,column)
@@ -233,10 +234,10 @@ function Test.run(context,check)
             end})
         local WorldRackPresentation=require("src.warehouse_rack_presentation")
         local worldRackPlan=WorldRackPresentation.plan(state,"front_left",{review=true})
-        local upperAnchor=WorldRackPresentation.slotPoint(worldRackPlan,2,3)
+        local upperAnchor=WorldRackPresentation.slotPoint(worldRackPlan,3,3)
         test("real_world_rack_registers_upper_stock_anchor",worldRackPlan~=nil and upperAnchor~=nil
             and upperAnchor.y<upperAnchor.groundY and pallet.location=="rack"
-            and pallet.storage.row==2 and pallet.storage.column==3)
+            and pallet.storage.row==3 and pallet.storage.column==3)
         rack:select(2,3)
         test("real_rack_gui_enables_retrieval",rack:view(state).canRetrieve)
         if context.captureWarehouse then

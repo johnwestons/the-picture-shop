@@ -195,7 +195,7 @@ end
 function StagingAreas.positions(zone)
     local result = {}
     for index, point in ipairs(zone and zone.slots or {}) do
-        result[index] = { number = index, x = zone.x + point.x, y = zone.y + point.y,
+        result[index] = { x = zone.x + point.x, y = zone.y + point.y,
             direction = "northwest", rotation = 1 }
     end
     return result
@@ -329,6 +329,12 @@ function StagingAreas.apply(state, intent)
         local dy = change == "up" and -16 or change == "down" and 16 or 0
         zone.x = math.max(60, math.min(Config.baseWidth - zone.width - 60, zone.x + dx))
         zone.y = math.max(80, math.min(Config.baseHeight - zone.height - 30, zone.y + dy))
+    elseif change == "move_to" then
+        if not finite(intent.x) or not finite(intent.y) then
+            return false, "Choose a valid staging area position."
+        end
+        zone.x = math.floor(math.max(60, math.min(Config.baseWidth - zone.width - 60, intent.x)) + 0.5)
+        zone.y = math.floor(math.max(80, math.min(Config.baseHeight - zone.height - 30, intent.y)) + 0.5)
     elseif change == "purpose_next" or change == "purpose_previous" then
         if StagingAreas.isFixedPurpose(zone) then return false, "The cutter and inbound areas have fixed purposes." end
         local direction = change == "purpose_next" and 1 or -1
@@ -360,7 +366,6 @@ function StagingAreas.apply(state, intent)
 end
 
 function StagingAreas.draw(state)
-    local font = love.graphics.getFont()
     for _, zone in ipairs(StagingAreas.areas(state)) do
         local palette = StagingAreas.color(zone.color)
         love.graphics.push("all")
@@ -377,8 +382,6 @@ function StagingAreas.draw(state)
             love.graphics.polygon("fill", slot.x, slot.y - 9, slot.x + 28, slot.y, slot.x, slot.y + 9, slot.x - 28, slot.y)
             love.graphics.setColor(palette.rgb[1], palette.rgb[2], palette.rgb[3], 0.6)
             love.graphics.polygon("line", slot.x, slot.y - 9, slot.x + 28, slot.y, slot.x, slot.y + 9, slot.x - 28, slot.y)
-            love.graphics.setColor(1, 1, 1, 0.85)
-            love.graphics.printf(tostring(slot.number), slot.x - 8, slot.y - font:getHeight() / 2, 16, "center")
         end
         love.graphics.pop()
     end

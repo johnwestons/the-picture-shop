@@ -82,25 +82,31 @@ function Component.install(Runtime)
     Runtime.PANEL = { x = 52, y = 34, width = 856, height = 610 }
     Runtime.CLOSE = { x = 756, y = 48, width = 132, height = 40 }
     Runtime.TABS = {
-        { id = "active", label = "ACTIVE JOBS", url = "www.thecritternet.com/job-desk/active" },
-        { id = "completed", label = "COMPLETED JOBS", url = "www.thecritternet.com/job-desk/completed" },
-        { id = "deliveries", label = "DELIVERIES", url = "www.thecritternet.com/job-desk/deliveries" },
-        { id = "estimating", label = "ESTIMATING", url = "www.thecritternet.com/job-desk/estimating" },
-        { id = "calendar", label = "CALENDAR", url = "www.thecritternet.com/job-desk/calendar" },
-        { id = "clock", label = "SHOP CLOCK", url = "www.thecritternet.com/shop/clock" },
-        { id = "inventory", label = "INVENTORY", url = "www.thecritternet.com/job-desk/inventory" },
-        { id = "www", label = "CRITTERNET WWW", url = "www.thecritternet.com" },
-        { id = "email", label = "EMAIL", url = "www.thecritternet.com/job-desk/email" },
-        { id = "hiring", label = "HIRING", url = "www.thecritternet.com/shop/hiring" },
-        { id = "schedule", label = "SCHEDULE", url = "www.thecritternet.com/shop/schedule" },
-        { id = "bills", label = "BILLS", url = "www.thecritternet.com/job-desk/bills" },
-        { id = "credit", label = "CREDIT", url = "www.thecritternet.com/job-desk/credit" },
-        { id = "warehouse", label = "WAREHOUSE", url = "www.thecritternet.com/warehouse" },
-        { id = "radio", label = "RADIO", url = "www.thecritternet.com/shop/radio" },
+        { id = "active", label = "ACTIVE JOBS", group = "customers", url = "www.thecritternet.com/job-desk/active" },
+        { id = "completed", label = "COMPLETED JOBS", group = "customers", url = "www.thecritternet.com/job-desk/completed" },
+        { id = "deliveries", label = "DELIVERIES", group = "customers", url = "www.thecritternet.com/job-desk/deliveries" },
+        { id = "estimating", label = "ESTIMATING", group = "customers", url = "www.thecritternet.com/job-desk/estimating" },
+        { id = "email", label = "EMAIL", group = "customers", url = "www.thecritternet.com/job-desk/email" },
+        { id = "reviews", label = "REVIEWS", group = "customers", url = "www.thecritternet.com/job-desk/reviews" },
+        { id = "clock", label = "SHOP CLOCK", group = "shop", url = "www.thecritternet.com/shop/clock" },
+        { id = "inventory", label = "INVENTORY", group = "shop", url = "www.thecritternet.com/job-desk/inventory" },
+        { id = "hiring", label = "HIRING", group = "shop", url = "www.thecritternet.com/shop/hiring" },
+        { id = "schedule", label = "SCHEDULE", group = "shop", url = "www.thecritternet.com/shop/schedule" },
+        { id = "warehouse", label = "WAREHOUSE", group = "shop", url = "www.thecritternet.com/warehouse" },
+        { id = "radio", label = "RADIO", group = "shop", url = "www.thecritternet.com/shop/radio" },
+        { id = "calendar", label = "CALENDAR", group = "office", url = "www.thecritternet.com/job-desk/calendar" },
+        { id = "www", label = "CRITTERNET WWW", group = "office", url = "www.thecritternet.com" },
+        { id = "bills", label = "BILLS", group = "office", url = "www.thecritternet.com/job-desk/bills" },
+        { id = "credit", label = "CREDIT", group = "office", url = "www.thecritternet.com/job-desk/credit" },
+    }
+    Runtime.TAB_GROUPS = {
+        { id = "customers", label = "CUSTOMERS" },
+        { id = "shop", label = "SHOP" },
+        { id = "office", label = "OFFICE" },
     }
     Runtime.TAB_ADDRESS = { x = 170, y = 136, width = 478, height = 40 }
     Runtime.TAB_DROPDOWN_ARROW = { x = 648, y = 136, width = 40, height = 40 }
-    Runtime.TAB_DROPDOWN = { x = 170, y = 179, width = 518, rowHeight = 33 }
+    Runtime.TAB_DROPDOWN = { x = 170, y = 179, width = 518, rowHeight = 33, headerHeight = 28 }
     Runtime.LIST = { x = 82, y = 190, width = 310, height = 370 }
     Runtime.DETAIL = { x = 412, y = 190, width = 440, height = 444 }
     Runtime.PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }

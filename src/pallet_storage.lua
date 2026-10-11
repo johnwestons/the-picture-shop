@@ -1,6 +1,6 @@
 -- Host-only, atomic transfers of existing job/procurement pallets. The rack
 -- registry contains no inventory: each pallet remains its sole durable owner.
-local Storage = { ROWS = 2, COLUMNS = 5, MAX_RECEIPTS = 128 }
+local Storage = { ROWS = 3, COLUMNS = 5, MAX_RECEIPTS = 128 }
 local BAYS = { warehouse = true, front_left = true, front_right = true }
 local VEHICLES = { pallet_jack = "palletJack", forklift = "forklift" }
 local LOCATIONS = { pallet_jack = "on_pallet_jack", forklift = "on_forklift" }
@@ -124,7 +124,7 @@ function Storage.normalizePlacement(pallet)
     local value = pallet.storage
     if pallet.location == "rack" then
         if not exact(value, { rackId=true, row=true, column=true }) or not token(value.rackId)
-            or not integer(value.row, 1, 2) or not integer(value.column, 1, 5) then
+            or not integer(value.row, 1, Storage.ROWS) or not integer(value.column, 1, Storage.COLUMNS) then
             return nil, "Invalid rack placement."
         end
     elseif pallet.location == "stacked" then
@@ -151,11 +151,11 @@ function Storage.isSupporting(state, palletId)
 end
 
 function Storage.slots(state, rackId)
-    local result = { {}, {} }
+    local result = { {}, {}, {} }
     for _, item in ipairs(items(state)) do
         local pallet, placement = item.pallet, item.pallet.storage
         if pallet.location == "rack" and type(placement) == "table" and placement.rackId == rackId
-            and integer(placement.row, 1, 2) and integer(placement.column, 1, 5) then
+            and integer(placement.row, 1, Storage.ROWS) and integer(placement.column, 1, Storage.COLUMNS) then
             result[placement.row][placement.column] = pallet.id
         end
     end
@@ -267,18 +267,22 @@ local function vehicleFor(state, request, context)
     if vehicle.moving or not finite(vehicle.x) or not finite(vehicle.y) then return nil, "vehicle_not_stationary" end
     local other = state[request.vehicle == "forklift" and "palletJack" or "forklift"]
     if other and other.operating and other.operatorPlayerId == context.playerId then return nil, "two_vehicles" end
+    if (request.action == "store" or request.action == "retrieve") then
+        if request.row == 1 and request.vehicle ~= "pallet_jack" then return nil, "pallet_jack_required" end
+        if request.row > 1 and request.vehicle ~= "forklift" then return nil, "forklift_required" end
+    end
     if request.vehicle == "forklift" then
         if not (state.warehouse and state.warehouse.forkliftOwned == true) or vehicle.owned ~= true then
             return nil, "forklift_not_owned"
         end
         if vehicle.lifting == true then return nil, "lift_in_progress" end
-        local required = (request.row == 2 or request.action == "stack" or request.action == "unstack") and 1 or 0
+        local required = request.row == 2 and 0.5 or 1
         if not finite(vehicle.forkHeight) or math.abs(vehicle.forkHeight - required) > 0.001
             or (vehicle.targetForkHeight ~= nil and (not finite(vehicle.targetForkHeight)
                 or math.abs(vehicle.targetForkHeight - vehicle.forkHeight) > 0.001)) then
             return nil, "wrong_fork_height"
         end
-    elseif request.row == 2 then return nil, "forklift_required" end
+    end
     return vehicle
 end
 

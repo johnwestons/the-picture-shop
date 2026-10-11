@@ -22,12 +22,15 @@ function Test.run(_,check)
     definition.rackStart.x=-1000
     test("layout_is_detached",Layout.bay("front_left").rackStart.x==25)
     for column=1,5 do
-        local lower=Layout.rackPoint("front_left-rack",1,column)
-        local upper=Layout.rackPoint("front_left-rack",2,column)
-        test("shelf_anchor_"..column,lower.x==upper.x and lower.groundY==upper.groundY
-            and lower.y-upper.y==70 and Layout.containsUnlocked(state,lower.x,lower.groundY))
+        local bottom=Layout.rackPoint("front_left-rack",1,column)
+        local middle=Layout.rackPoint("front_left-rack",2,column)
+        local top=Layout.rackPoint("front_left-rack",3,column)
+        test("three_tier_shelf_anchor_"..column,bottom.x==middle.x and middle.x==top.x
+            and bottom.groundY==middle.groundY and middle.groundY==top.groundY
+            and math.abs((bottom.y-middle.y)-(middle.y-top.y))<0.000001
+            and Layout.containsUnlocked(state,bottom.x,bottom.groundY))
     end
-    test("ten_slots_only",not Layout.rackPoint("front_left-rack",3,1)
+    test("fifteen_slots_only",not Layout.rackPoint("front_left-rack",4,1)
         and not Layout.rackPoint("front_left-rack",1,6)
         and not Layout.rackPoint("bogus",1,1))
     local obstacles=Layout.obstacles(state)

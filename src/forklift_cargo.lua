@@ -9,7 +9,7 @@ local FLOOR = {warehouse=true,cutter_output=true,press_output=true}
 local ROTATIONS = {northwest=1,north=1,northeast=2,east=2,southeast=4,south=4,southwest=3,west=3}
 local MAX_COORDINATE, GROUND_EPSILON = 1000000, 0.000001
 local VIEW_FIELDS = {"owned","x","y","direction","operating","operatorPlayerId","carriedPalletId",
-    "moving","animationDistance","forkHeight","targetForkHeight","lifting"}
+    "moving","animationDistance","forkHeight","targetForkHeight","lifting","sceneId"}
 local function copy(value)
     if type(value) ~= "table" then return value end
     local result={}
@@ -44,6 +44,7 @@ local function worldAt(pallet,lift,x,y)
     local world=copy(pallet.world or {})
     world.x,world.y,world.fromX,world.fromY=x,y,x,y
     world.direction,world.rotation,world.spawnProgress=lift.direction,ROTATIONS[lift.direction],1
+    world.sceneId=lift.sceneId or "warehouse"
     return world
 end
 
@@ -86,6 +87,9 @@ function Cargo.callback(state,config,operator,options)
         end
         if type(pallet.world)~="table" or not coordinate(pallet.world.x) or not coordinate(pallet.world.y) then
             return false,"invalid_pallet_position"
+        end
+        if action=="attach" and (pallet.world.sceneId or "warehouse")~=(lift.sceneId or "warehouse") then
+            return false,"wrong_scene"
         end
         if action=="attach" and pallet.world.spawnProgress~=nil and pallet.world.spawnProgress~=1 then
             return false,"pallet_in_motion"
@@ -137,7 +141,7 @@ function Cargo.sync(state,config)
     local item=PalletState.find(state,lift.carriedPalletId)
     if not item or item.pallet.location~="on_forklift" then return false,"wrong_pallet" end
     local world=item.pallet.world
-    local fields={x=lift.x,y=lift.y,fromX=lift.x,fromY=lift.y,direction=lift.direction,
+    local fields={x=lift.x,y=lift.y,fromX=lift.x,fromY=lift.y,sceneId=lift.sceneId or "warehouse",direction=lift.direction,
         rotation=ROTATIONS[lift.direction],spawnProgress=1}
     local changed=false
     for key,value in pairs(fields) do if world[key]~=value then changed=true end end

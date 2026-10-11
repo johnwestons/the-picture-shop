@@ -11,7 +11,7 @@ local adapters=setmetatable({}, {__mode="k"})
 Rooms.entrance,Rooms.roomEntrance,Rooms.exit=Registration.entrance,Registration.roomEntrance,Registration.exit
 Rooms.shelves,Rooms.rest,Rooms.seats=Registration.shelves,Registration.rest,Registration.roomSeats
 Rooms.paths = {
-    storage="assets/generated/shop-storage-room-v1.png",
+    storage="assets/generated/shop-storage-room-v2-three-tier.png",
     breakroom="assets/generated/shop-breakroom-games-v1.png",
     floor="assets/generated/shop-utility-room-v1.png",
 }
@@ -126,7 +126,10 @@ end
 function Rooms.targets(player,state)
     if Rooms.scene(player)=="warehouse" then
         local jack=state and state.palletJack
-        local mounted=jack and jack.operating and jack.operatorPlayerId==(tonumber(player and player.id) or 1)
+        local lift=state and state.forklift
+        local mounted=(jack and jack.operating and jack.operatorPlayerId==(tonumber(player and player.id) or 1))
+            or (lift and lift.operating and (lift.sceneId or "warehouse")=="warehouse"
+                and lift.operatorPlayerId==(tonumber(player and player.id) or 1))
         local targets={shopEntrance={kind="shopEntrance",x=Rooms.roomEntrance.x,y=Rooms.roomEntrance.y,
             radius=mounted and 82 or Rooms.roomEntrance.radius,hoverX=Rooms.roomEntrance.hoverX,
             hoverY=Rooms.roomEntrance.hoverY,hoverRadius=Rooms.roomEntrance.hoverRadius,
@@ -135,7 +138,10 @@ function Rooms.targets(player,state)
         return targets
     end
     local jack=state and state.palletJack
-    local mounted=jack and jack.operating and jack.operatorPlayerId==(tonumber(player and player.id) or 1)
+    local lift=state and state.forklift
+    local mounted=(jack and jack.operating and jack.operatorPlayerId==(tonumber(player and player.id) or 1))
+        or (lift and lift.operating and (lift.sceneId or "warehouse")==Rooms.scene(player)
+            and lift.operatorPlayerId==(tonumber(player and player.id) or 1))
     local targets={shopEntrance={kind="shopEntrance",x=Rooms.exit.x,y=Rooms.exit.y,
         radius=mounted and 82 or Rooms.exit.radius,hoverX=Rooms.exit.hoverX,hoverY=Rooms.exit.hoverY,
         hoverRadius=Rooms.exit.hoverRadius,prompt="E: return to the warehouse"}}
@@ -188,6 +194,22 @@ local function moveJackBetweenScenes(state,dx,dy,destination)
         end
     end
 end
+local function moveForkliftBetweenScenes(state,dx,dy,destination)
+    local lift=state.forklift
+    lift.x,lift.y=lift.x+dx,lift.y+dy
+    lift.sceneId=destination
+    lift.moving=false
+    if lift.carriedPalletId then
+        local item=require("src.pallet_state").find(state,lift.carriedPalletId)
+        local world=item and item.pallet.world
+        if world then
+            world.x,world.y=lift.x,lift.y
+            world.fromX,world.fromY=lift.x,lift.y
+            world.sceneId=destination
+            world.spawnProgress=1
+        end
+    end
+end
 local function availableSeat(player,state,context)
     local occupied={}
     for _,other in ipairs(context and context.players and context.players() or {}) do
@@ -211,31 +233,51 @@ function Rooms.transition(player,state,destination)
     local jack=state and state.palletJack
     local playerId=tonumber(player.id) or 1
     local ownsJack=jack and jack.operating and jack.operatorPlayerId==playerId
-    local ownsForklift=state and state.forklift and state.forklift.operating
-        and state.forklift.operatorPlayerId==playerId
-    if ownsForklift or operating(player,state) and not ownsJack or movingAttachedMachine(state) then
+    local lift=state and state.forklift
+    local ownsForklift=lift and lift.operating and lift.operatorPlayerId==playerId
+    if ownsForklift and (lift.sceneId or "warehouse")~=current then
+        return false,"wrong_scene","The forklift is in another room."
+    end
+    if operating(player,state) and not ownsJack and not ownsForklift or movingAttachedMachine(state) then
         return false,"park_first","Place the moving equipment before entering a room."
     end
     if ownsJack and jack.moving then return false,"stop_first","Stop the pallet jack at the doorway first." end
+    if ownsForklift then
+        if lift.moving or lift.lifting or lift.forkHeight>0.081 then
+            return false,"stop_first","Stop the forklift and set its forks to travel height at the doorway."
+        end
+        if destination~="warehouse" and (not Rooms.isComplete(state,destination)
+            or Rooms.definition(state,destination)~="storage") then
+            return false,"room_locked","The forklift can enter a completed storage room."
+        end
+    end
     local doorway=current=="warehouse" and Rooms.roomEntrance or Rooms.exit
     if current=="warehouse" then
-        if not near(player,doorway) and not (ownsJack and near(jack,doorway)) then
+        if not near(player,doorway) and not (ownsJack and near(jack,doorway))
+            and not (ownsForklift and near(lift,doorway)) then
             return false,"out_of_range","Use the wide expansion doorway to enter another room."
         end
         if ownsJack and not near(jack,{x=doorway.x,y=doorway.y,radius=doorway.radius+34}) then
             return false,"out_of_range","Bring the pallet jack to the expansion doorway first."
         end
+        if ownsForklift and not near(lift,{x=doorway.x,y=doorway.y,radius=doorway.radius+34}) then
+            return false,"out_of_range","Bring the forklift to the expansion doorway first."
+        end
         if not Rooms.definition(state,destination) then return false,"room_locked","Wait until construction starts before entering this room." end
-    elseif destination~="warehouse" or not near(player,doorway) and not (ownsJack and near(jack,doorway)) then
+    elseif destination~="warehouse" or not near(player,doorway) and not (ownsJack and near(jack,doorway))
+        and not (ownsForklift and near(lift,doorway)) then
         return false,"out_of_range","Use the room's exit to return to the warehouse."
     elseif ownsJack and not near(jack,{x=doorway.x,y=doorway.y,radius=doorway.radius+34}) then
         return false,"out_of_range","Bring the pallet jack to the room exit first."
+    elseif ownsForklift and not near(lift,{x=doorway.x,y=doorway.y,radius=doorway.radius+34}) then
+        return false,"out_of_range","Bring the forklift to the room exit first."
     end
     local point=destination=="warehouse"
         and {x=Rooms.roomEntrance.x,y=Rooms.roomEntrance.y+46}
         or {x=Rooms.exit.x,y=Rooms.exit.y+38}
     local dx,dy=point.x-player.x,point.y-player.y
     if ownsJack then moveJackBetweenScenes(state,dx,dy,destination) end
+    if ownsForklift then moveForkliftBetweenScenes(state,dx,dy,destination) end
     player.sceneId=destination
     player.x,player.y=point.x,point.y
     require("src.basketball").onTransition(state,player,destination)
@@ -249,7 +291,8 @@ function Rooms.stockItems(state,sceneId)
     local items={}
     for _,item in ipairs(require("src.pallet_state").items(state)) do
         local p=item.pallet
-        if p.location=="rack" and p.storage and p.storage.rackId==sceneId.."-rack" then
+        if item.vendor and p.location=="rack" and p.storage
+            and p.storage.rackId==sceneId.."-rack" and p.storage.row==1 then
             items[#items+1]={item=item,stored=true}
         elseif item.vendor and p.location=="warehouse" and p.world
             and near(p.world,{x=Rooms.entrance.x,y=Rooms.entrance.y+70,radius=105})
@@ -285,13 +328,16 @@ function Rooms.transfer(player,state,action,palletId,context)
         end
         local slots=Storage.slots(state,rackId)
         local row,column
-        for r=1,2 do for c=1,5 do if not row and not slots[r][c] then row,column=r,c end end end
-        if not row then return false,"room_full","All ten stock spaces are occupied." end
+        for c=1,Storage.COLUMNS do if not column and not slots[1][c] then row,column=1,c end end
+        if not row then return false,"room_full","The bottom row is full. Use the forklift for middle or top shelves." end
         local point=require("src.warehouse_layout").rackPoint(rackId,row,column)
         pallet.location,pallet.storage,pallet.world="rack",{rackId=rackId,row=row,column=column},{x=point.x,y=point.y}
     elseif action=="retrieve" then
         if pallet.location~="rack" or not pallet.storage or pallet.storage.rackId~=rackId then
             return false,"stock_changed","This pallet is no longer stored in your room."
+        end
+        if pallet.storage.row~=1 then
+            return false,"forklift_required","Use the forklift at the rack to retrieve this pallet."
         end
         local drop
         for _,offset in ipairs({{0,75},{80,75},{-80,75},{0,140},{80,140},{-80,140}}) do

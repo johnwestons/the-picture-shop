@@ -62,7 +62,7 @@ local function applications(state,dt,now,context)
         if a.status=="visiting" and not actor.visible and not present
             and not context.receptionBusy() and not Calendar.isWeekend(state) then
             actor.visible=true;actor.phase="entering";actor.x,actor.y=entrance.x,entrance.y
-            present=a;state.message=a.name.." is applying for a cutter job. Request a resume or dismiss them; they will leave after one minute if not spoken to."
+            present=a;state.message=a.name.." is applying for a cutter job. Talk to them before they leave in one minute."
             changed=true
         end
         if actor.visible then

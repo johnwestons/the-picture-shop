@@ -13,7 +13,7 @@ local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payro
     recruit=rect(660,192,184,40),resume=rect(410,512,208,46),decline=rect(632,512,208,46),
     offer=rect(410,512,208,46),sign=rect(410,512,208,46),edit=rect(632,512,208,46),
     back=rect(96,572,130,42),send=rect(606,572,234,42),pay=rect(590,554,250,46),
-    finances=rect(364,554,214,46),liftsMinus=rect(490,424,48,40),liftsPlus=rect(788,424,48,40),
+    finances=rect(364,554,214,46),
     assign=rect(410,518,208,46),pause=rect(410,572,208,42),dismiss=rect(632,572,208,42),
     sendHome=rect(632,518,208,46),
     train=rect(632,478,208,34),trainingPress=rect(410,518,208,46),
@@ -32,7 +32,7 @@ local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payro
 local labels={visiting="Applying at reception",resume_requested="Resume requested",resume_received="Resume received",
     negotiating="Awaiting email reply",offer_accepted="Accepted - sign to hire",hired="Hired",declined="Declined",withdrawn="Withdrawn",expired="Expired"}
 function Hiring.new()
-    return {section="applications",view="detail",selectedId=nil,page=1,terms=nil,jobIndex=1,palletIndex=1,machineIndex=1,lifts=20}
+    return {section="applications",view="detail",selectedId=nil,page=1,terms=nil,jobIndex=1,palletIndex=1,machineIndex=1}
 end
 function Hiring.employeeCountText(state)
     local count=Employees.employedCount(state)
@@ -81,8 +81,6 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
     if ui.section=="payroll" then
         if hit("finances") then ui.view=ui.view=="finances" and "detail" or "finances";return {action="hiring_view"} end
         if ui.view=="finances" then
-            if hit("liftsMinus") then ui.lifts=math.max(0,(ui.lifts or 20)-1);return {action="hiring_plan"} end
-            if hit("liftsPlus") then ui.lifts=math.min(500,(ui.lifts or 20)+1);return {action="hiring_plan"} end
             return nil
         end
         if hit("pay") then
@@ -327,7 +325,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
     if ui.section=="payroll" then
         if ui.view=="finances" then
             local f=Finances.summary(state)
-            local plan=Finances.plan(f,ui.lifts or 20)
+            local plan=Finances.plan(f)
             line("WEEKLY SHOP BUDGET",100,250,740,{1,.85,.45})
             line(string.format("Wages incl. rest / overtime: $%.2f",f.weeklyWages),100,284,370)
             line(string.format("Shop bills allowance: $%.2f",f.weeklyOperating),100,310,370)
@@ -338,15 +336,14 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             line(string.format("Break-even: %d cutting lifts / week",f.breakEvenLifts),490,284,350,{1,.85,.45})
             line(string.format("Standard charge: $%.2f / lift",f.pricePerLift),490,310,350)
             line(string.format("Estimated staff capacity: %d lifts / week",f.capacity),490,336,350)
-            line("PLAN COMPLETED LIFTS PER WEEK",490,394,350)
-            button("liftsMinus","-",pointerX,pointerY);button("liftsPlus","+",pointerX,pointerY)
-            line(tostring(ui.lifts or 20).." lifts",562,436,206)
-            line(string.format("Income $%.2f | Machine reserve $%.2f",plan.revenue,plan.machineReserve),490,474,350)
-            line(string.format("Money for growth: $%.2f / week",plan.profit),490,504,350,
+            line("IN-HOUSE ORDER FORECAST",490,394,350)
+            line(string.format("%d delivered jobs | %d work units left",f.inHouseJobs,f.inHouseWorkUnits),490,424,350)
+            line(string.format("Automatic forecast: %d units / week",plan.forecastUnits),490,450,350)
+            line(string.format("Income $%.2f | Machine reserve $%.2f",plan.revenue,plan.machineReserve),490,480,350)
+            line(string.format("Money for growth: $%.2f / week",plan.profit),490,510,350,
                 plan.profit<0 and {1,.55,.40} or {.65,.9,.72})
-            line("500-sheet cutting lifts; client supplies stock. Budget includes the full shift, even idle time.",100,526,740,{.61,.78,.67})
-            line(plan.withinCapacity and "Estimates assume staged stock, working equipment and completed, paid orders."
-                or "Plan exceeds capacity. Use more shifts / cutters, help, or lower the plan.",100,606,740,{.61,.78,.67})
+            line("Only delivered, unpaid orders count; ready jobs count at full value.",100,526,740,{.61,.78,.67})
+            line("Output follows remaining in-house work and staff capacity. Wages, bills and loans are deducted.",100,606,740,{.61,.78,.67})
             button("finances","BACK TO PAYROLL",pointerX,pointerY)
             return
         end

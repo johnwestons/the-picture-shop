@@ -106,6 +106,7 @@ function Component.install(Runtime)
             return { action = "cart_opened" }
         end
         if Runtime.ComputerScreen.tab == "inventory" then return nil end
+        if Runtime.ComputerScreen.tab == "reviews" then return nil end
         if Runtime.ComputerScreen.tab == "www" then
             for index = 1, #Runtime.WWW_SITES do
                 if Runtime.contains(Runtime.wwwSiteRect(index), x, y) then
@@ -431,6 +432,20 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.calendarScroll = math.min(maximum,
             math.max(0, Runtime.ComputerScreen.calendarScroll - (y > 0 and 1 or -1)))
         return true
+    end
+
+    function Runtime.ComputerScreen.mousemoved(state,x,y)
+        if Runtime.ComputerScreen.tab=="warehouse" then
+            return Runtime.warehouseMouseMoved(state,x,y)
+        end
+        return false
+    end
+
+    function Runtime.ComputerScreen.mousereleased(state,x,y,button)
+        if Runtime.ComputerScreen.tab=="warehouse" then
+            return Runtime.warehouseMouseReleased(state,x,y,button)
+        end
+        return false
     end
 end
 

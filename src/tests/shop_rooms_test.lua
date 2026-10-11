@@ -132,8 +132,9 @@ local function menuTests(context,state,test)
             and ox+960*scale<=size[1]-12 and oy+678*scale<=size[2]-8 and math.abs(x-350)<.001 and math.abs(y-258)<.001)
     end
     love.graphics.getDimensions,love.window.getSafeArea=dimensions,safeArea
-    state.screen="world"
-    test("warehouse_shortcuts_cannot_cross_scenes",Controls.keypressed("l",runtime) and Controls.keypressed("m",runtime))
+    state.screen,p.sceneId="world","front_right"
+    test("breakroom_blocks_warehouse_vehicle_and_lift_shortcuts",
+        Controls.keypressed("l",runtime) and Controls.keypressed("m",runtime))
 end
 local function liveSimulation(context,test)
     local world=context.world
@@ -173,7 +174,7 @@ function Test.run(context,check)
     baseShelves(context,test)
     liveSimulation(context,test)
     test("playable_rabbit_has_registered_seated_sprite",context.characterAssets.hasAction("rabbit-worker","sit"))
-    test("selected_art_is_runtime_background",Config.paths.warehouse=="assets/generated/warehouse-lobby-seating-v4.png")
+    test("selected_art_is_runtime_background",Config.paths.warehouse=="assets/generated/warehouse-lobby-seating-v5-three-tier.png")
     for _,kind in ipairs({"storage","breakroom","floor"}) do
         local im=love.image.newImageData(Rooms.paths[kind]);local w,h=im:getDimensions();im:release()
         test(kind.."_has_real_full_size_sprite",w==1536 and h==1024)
@@ -289,19 +290,19 @@ function Test.run(context,check)
     test("reliable_repeated_stock_request_preserves_single_owner",state.storage.revision==revision and netStock.location=="rack")
     host:stop("test complete");guest:stop("test complete");network:dispose()
     local renderState=fixture()
-    for i=1,10 do
+    for i=1,15 do
         local load=stock(renderState)
-        load.location="rack";load.storage={rackId="warehouse-rack",row=i<=5 and 1 or 2,column=(i-1)%5+1}
+        load.location="rack";load.storage={rackId="warehouse-rack",row=math.floor((i-1)/5)+1,column=(i-1)%5+1}
         load.world=Layout.rackPoint("warehouse-rack",load.storage.row,load.storage.column)
         local roomLoad=stock(renderState)
-        local sitter=player(1,Rooms.shelves.x,Rooms.shelves.y);sitter.sceneId="front_left"
-        assert(Rooms.transfer(sitter,renderState,"store",roomLoad.id))
+        roomLoad.location="rack";roomLoad.storage={rackId="front_left-rack",row=math.floor((i-1)/5)+1,column=(i-1)%5+1}
+        roomLoad.world=Layout.rackPoint("front_left-rack",roomLoad.storage.row,roomLoad.storage.column)
     end
     local overflow=stock(renderState)
     local stockWorker=player(1,Rooms.shelves.x,Rooms.shelves.y);stockWorker.sceneId="front_left"
     local stockRevision=renderState.storage.revision
     local stored,fullCode=Rooms.transfer(stockWorker,renderState,"store",overflow.id)
-    test("full_storage_room_rejects_eleventh_pallet_atomically",not stored and fullCode=="room_full"
+    test("full_storage_room_rejects_sixteenth_pallet_atomically",not stored and fullCode=="room_full"
         and overflow.location=="warehouse" and renderState.storage.revision==stockRevision)
     renderState.storage.revision=-1
     stored,fullCode=Rooms.transfer(stockWorker,renderState,"store",overflow.id)

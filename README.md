@@ -89,14 +89,15 @@ game days. Use **E / ROOMS** at the front entrance beside reception to enter a
 completed room. Multiplayer players can occupy different rooms independently.
 
 Bring delivered shop stock to the warehouse entrance, lower it and park the
-pallet jack. In the storage room, use **STOCK** to store it in one of ten spaces,
-or retrieve it to clear floor space at the entrance. Storage rooms do not need
-a forklift. The base warehouse shelves keep physical pallet transfers; their
-upper row requires the **forklift**.
+pallet jack. In the storage room, use **STOCK** for one of five bottom-row supply spaces,
+or retrieve it to clear floor space at the entrance. Each rack has fifteen physical
+positions: the pallet jack serves the bottom row, and the forklift serves the
+middle at 50% fork height and the top at 100%. A stopped forklift carrying a pallet
+can enter a completed storage room through the expansion doorway at travel height.
 Near it, use **V** to drive/park, **E** to pick up/drop, **G** to lower,
-**T** for travel height and **R** to raise. Stop before lifting; drive with cargo
-at travel height. Near the rack, **H** opens shelves; inside, **U** raises the
-forks while **R** retains Retrieve. On-screen buttons provide touch equivalents.
+**T** for travel height, **M** for middle height and **R** for top height. Stop before lifting;
+drive with cargo at travel height. Near the rack, **H** opens shelves; inside, **U**
+raises the forks to the top while **R** retains Retrieve. On-screen buttons provide touch equivalents.
 At full height, **K / STACK / TAKE TOP** builds or dismantles two-high piles of
 matching-footprint customer paper skids. The supporting skid cannot be moved
 until its upper pallet is removed.
@@ -120,10 +121,10 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-Download the [Android 49 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.49/ThePictureShop-0.1.0-android.49-Install.apk)
-from the [release page](https://github.com/johnwestons/the-picture-shop/releases/tag/android.49).
+Download the [Android 51 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.51/ThePictureShop-0.1.0-android.51-Install.apk)
+from the [release page](https://github.com/johnwestons/the-picture-shop/releases/tag/android.51).
 Its verified local copy is
-`output/android-share/0.1.0-android.49/ThePictureShop-0.1.0-android.49-Install.apk`.
+`output/android-share/0.1.0-android.51/ThePictureShop-0.1.0-android.51-Install.apk`.
 This update includes the latest warehouse staging controls, customer-demand and
 seasonal tuning, supplies and pallet flow, performance work, and gameplay and
 multiplayer changes. Every multiplayer participant needs matching protocol 36

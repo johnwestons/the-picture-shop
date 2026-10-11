@@ -696,6 +696,10 @@ function Input.mousereleased(x, y, button, context)
     if context.state.screen == "machine" then
         return context.machineScreen.mousereleased(context.state, x, y, button)
     end
+    if context.state.screen=="computer" and context.computerScreen.mousereleased then
+        local result=context.computerScreen.mousereleased(context.state,x,y,button)
+        return result or false
+    end
     return false
 end
 
@@ -706,6 +710,9 @@ function Input.mousemoved(x, y, context)
     if context.state.screen == "title" then
         context.title.setHover(x, y)
         return true
+    end
+    if context.state.screen=="computer" and context.computerScreen.mousemoved then
+        return context.computerScreen.mousemoved(context.state,x,y)
     end
     return false
 end

@@ -408,7 +408,7 @@ function Component.install(Runtime)
         valid, fieldError = Runtime.shape(payload.forklift, "forklift_snapshot.forklift", {
             "owned", "x", "y", "direction", "operating", "moving", "animationDistance",
             "forkHeight", "targetForkHeight", "lifting",
-        }, { "operatorPlayerId", "carriedPalletId" })
+        }, { "operatorPlayerId", "carriedPalletId", "sceneId" })
         if not valid then return nil, fieldError end
         if not Runtime.Forklift.validState(payload.forklift) then return nil, "forklift_snapshot.forklift is inconsistent" end
         return { sessionId = sessionId, serverTick = tick, forklift = Runtime.Forklift.normalize(payload.forklift) }

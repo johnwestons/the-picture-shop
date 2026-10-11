@@ -112,12 +112,13 @@ function Renderer.drawShelves(assets,state,sceneId,drawPallet)
     if sceneId~="warehouse" and (not Rooms.isComplete(state,sceneId) or Rooms.definition(state,sceneId)~="storage") then return end
     if not state.storage or not state.storage.racks[rackId] then return end
     local slots=Storage.slots(state,rackId)
-    for row=2,1,-1 do for column=1,5 do
+    for row=Storage.ROWS,1,-1 do for column=1,Storage.COLUMNS do
         local item=slots[row][column] and Storage.find(state,slots[row][column])
         if item then
             local point=Layout.rackPoint(rackId,row,column)
             drawPallet(assets,{pallet=item.pallet,job=item.job,vendor=item.vendor,x=point.x,y=point.y,
-                visualScale=sceneId=="warehouse" and 0.58 or 0.82,hideWorldLabel=true})
+                visualScale=row==3 and (sceneId=="warehouse" and 0.30 or 0.55)
+                    or (sceneId=="warehouse" and 0.58 or 0.82),hideWorldLabel=true})
             -- Restore the authored front lip over the load; its shelf contact
             -- stays visible and the skid reads behind, rather than on a beam.
             local image=background(state,sceneId,assets)
@@ -160,10 +161,20 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
     local visible={[world.player.character]=true}
     local jack=state and require("src.pallet_jack").ensure(state,require("src.config").palletJack)
     local jackInScene=jack and jack.sceneId==sceneId
+    local lift=state and state.forklift
+    local liftInScene=lift and lift.owned and (lift.sceneId or "warehouse")==sceneId
     local playerId=tonumber(world.player.id) or 1
     local localJackOperator=jackInScene and jack.operating and jack.operatorPlayerId==playerId
+    local localLiftOperator=liftInScene and lift.operating and lift.operatorPlayerId==playerId
     local actors={}
-    if not localJackOperator then actors[#actors+1]={y=world.player.y,draw=drawPlayer} end
+    if not localJackOperator and not localLiftOperator then actors[#actors+1]={y=world.player.y,draw=drawPlayer} end
+    if liftInScene then
+        actors[#actors+1]={y=lift.y,layer=1,draw=function()
+            local warehouse=require("src.warehouse_renderer")
+            warehouse.drawForklift(assets,state,drawPallet)
+            warehouse.drawVehicleStatus(state)
+        end}
+    end
     if Rooms.isComplete(state,sceneId) and Rooms.definition(state,sceneId)=="breakroom" then
         actors[#actors+1]={y=231,draw=function() tableForeground(state,sceneId,assets) end}
         for _,id in ipairs(Games.ORDER) do
@@ -226,7 +237,7 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
         end}
     end
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,world.player) then
-        if p~=jackRemote then
+        if p~=jackRemote and not (liftInScene and lift.operating and tonumber(p.id)==lift.operatorPlayerId) then
             visible[p.character]=true
             actors[#actors+1]={y=p.y,draw=function() Avatar.draw(characters,{p},state) end}
         end

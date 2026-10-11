@@ -27,6 +27,52 @@ local function copy(t)
     if type(t)~="table" then return t end
     local r={} for k,v in pairs(t) do r[k]=copy(v) end return r
 end
+local function usedNames(employment,ignoreLegacy)
+    local used={}
+    for _,group in ipairs({employment.applications or {},employment.staff or {}}) do
+        for _,person in ipairs(group) do
+            if type(person)=="table" and type(person.name)=="string"
+                and (not ignoreLegacy or not WorkerCatalog.isLegacyName(person.name)) then
+                used[person.name:lower()]=true
+            end
+        end
+    end
+    return used
+end
+local function refreshLegacyNames(employment)
+    if type(employment.applications)~="table" or type(employment.staff)~="table" then return end
+    local used=usedNames(employment,true)
+    local workerById={}
+    for _,worker in ipairs(employment.staff) do
+        if type(worker)=="table" and type(worker.id)=="string" then workerById[worker.id]=worker end
+    end
+    local applicationByWorker={}
+    for _,application in ipairs(employment.applications) do
+        if type(application)=="table" then
+            if type(application.employeeId)=="string" then applicationByWorker[application.employeeId]=application end
+            if WorkerCatalog.isLegacyName(application.name) then
+                local worker=application.employeeId and workerById[application.employeeId]
+                if worker and not WorkerCatalog.isLegacyName(worker.name) then
+                    application.name=worker.name
+                else
+                    application.name=WorkerCatalog.generatedName(application.id,used)
+                    used[application.name:lower()]=true
+                end
+            end
+        end
+    end
+    for _,worker in ipairs(employment.staff) do
+        if type(worker)=="table" and WorkerCatalog.isLegacyName(worker.name) then
+            local application=applicationByWorker[worker.id]
+            if application then
+                worker.name=application.name
+            else
+                worker.name=WorkerCatalog.generatedName(worker.id,used)
+                used[worker.name:lower()]=true
+            end
+        end
+    end
+end
 local function array(t,max,check)
     if type(t)~="table" or #t>max then return false end
     local n=0
@@ -257,6 +303,7 @@ function Employees.normalize(e,now)
         end
         normalizePreferences(result.applications)
         normalizePreferences(result.staff)
+        refreshLegacyNames(result)
     end
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
@@ -296,7 +343,8 @@ function Employees.createApplicant(state,now)
     local n=e.nextApplicantId
     e.nextApplicantId=n+1
     local profile=WorkerCatalog.profiles[(n-1)%#WorkerCatalog.profiles+1]
-    local a={id=string.format("APP-%04d",n),name=profile.name,character=profile.character,
+    local id=string.format("APP-%04d",n)
+    local a={id=id,name=WorkerCatalog.generatedName(id,usedNames(e)),character=profile.character,
         cutterSkill=profile.cutterSkill,attention=profile.attention,
         pressSkill=profile.pressSkill,wrappingSkill=profile.wrappingSkill,
         reliability=profile.reliability,shiftPreference=profile.shiftPreference or "flexible",
@@ -317,7 +365,7 @@ function Employees.requestResume(state,id,now)
     if a.status~="visiting" then return true,"The resume has already been requested." end
     a.status="resume_requested";a.replyAtHours=now+.5;a.revision=a.revision+1
     if a.actor.visible then a.actor.phase="leaving" end
-    return true,a.name.." will email a resume shortly."
+    return true,a.name..' says, "I will email my resume before I leave."'
 end
 function Employees.advance(state,now)
     local e=Employees.ensure(state)

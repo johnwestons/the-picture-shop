@@ -59,6 +59,8 @@ function Component.install(Runtime)
         elseif Runtime.ComputerScreen.tab == "radio" then
             require("src.jukebox").drawComputerTab(pointerX,pointerY,
                 Runtime.ComputerScreen.radioReadOnly(),Runtime.drawComputerButton)
+        elseif Runtime.ComputerScreen.tab == "reviews" then
+            Runtime.drawReviews(state, pointerX, pointerY, twelveHourTime)
         else
             Runtime.drawJobList(state, pointerX, pointerY)
             Runtime.drawDetail(state, pointerX, pointerY, assets)

@@ -13,7 +13,7 @@ rack, authorize network packets, persist a save, or calculate approach geometry.
 Register a completed storage bay using
 `storage.racks[bayId .. "-rack"] = Storage.rackDefinition(bayId)`.
 The rack is `{id="front_left-rack",bayId="front_left",revision=0}`. Rack registry
-entries contain no slots or cargo. `Storage.slots(state,rackId)` derives a 2-by-5
+entries contain no slots or cargo. `Storage.slots(state,rackId)` derives a 3-by-5
 table of stable pallet IDs; row 1 is the ground row. Empty positions are `nil`.
 
 A stored pallet owns `location="rack"` and
@@ -66,11 +66,11 @@ The host constructs context from fresh world checks:
 Never accept these booleans from a client. Missing access booleans deny the
 transfer. The domain also verifies the actual operating vehicle's owner, physical
 position, stationary state and exact cargo ID. One worker cannot operate both
-vehicles. Upper slots and stacking require a purchased forklift, with forks at
-upper level (`forkHeight=1`); lower forklift transfers require ground
-(`forkHeight=0`), within a 0.001 tolerance. A nonmatching target height also blocks
-transfer. In-progress lifting blocks
-all transfer until the fork height settles. A jack cannot access upper slots.
+vehicles. Rack rows are numbered bottom to top. Row 1 uses a pallet jack; rows 2
+and 3 require a purchased forklift with forks at `forkHeight=0.5` and `1`,
+respectively, within a 0.001 tolerance. Floor stacking also requires full height.
+A nonmatching target height or in-progress lift blocks transfers. A forklift
+cannot transfer to row 1, and a jack cannot access rows 2 or 3.
 
 Success returns `true, action, receipt`; identical replay returns
 `true, "replayed", originalReceipt` without changing anything. Reused request IDs
@@ -134,7 +134,7 @@ be transformed into the same logical UI coordinates as drawing. Touch uses
 `:touchpressed(state,x,y)`. Resize with `:resize(width,height)` when logical UI
 bounds change. Select by `:select(row,column)`; `:getSelected()` returns a copy.
 `:view(state)` supplies stable IDs, source-variant numbers, physical action gates,
-and messages without touching graphics or stock. Row 2 is the visual upper row.
+and messages without touching graphics or stock. Rows 1, 2 and 3 are the visual bottom, middle and top rows.
 
 Synchronous callback `true`/`false,reason` resolves the operation immediately;
 `nil` means the host reply is pending. Deliver an asynchronous reply through

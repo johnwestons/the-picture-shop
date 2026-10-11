@@ -188,9 +188,9 @@ function Test.run(_, check)
     test("layered_side_art_still_requires_explicit_review",
         not Layered.plan(side) and not Layered.plan({owned=true,direction="up"},{review=true}))
     local smooth, stationary, mirrored = true, true, true
-    local rackId=(require("src.config").warehouse.roomScenes and "warehouse" or "front_left").."-rack"
+    local rackId=(originalWarehouse.roomScenes and "warehouse" or "front_left").."-rack"
     local deckTravel=WarehouseLayout.rackPoint(rackId,1,1).y-WarehouseLayout.rackPoint(rackId,2,1).y
-    local sideTravel = deckTravel / 0.145
+    local sideTravel = 2 * deckTravel / 0.145
     for _,heading in ipairs({"east","west"}) do
         side.direction=heading
         local previousY=math.huge
@@ -212,10 +212,14 @@ function Test.run(_, check)
     test("layered_side_views_keep_cargo_on_correct_side",mirrored)
     side.direction,side.forkHeight="west",0
     local lowerShelfPose=Layered.plan(side,{review=true,scale=0.308})
+    side.forkHeight=0.5
+    local middleShelfPose=Layered.plan(side,{review=true,scale=0.308})
     side.forkHeight=1
     local upperShelfPose=Layered.plan(side,{review=true,scale=0.308})
     test("side_forklift_lift_matches_registered_upper_rack_deck",
-        lowerShelfPose and upperShelfPose and close(lowerShelfPose.loadY-upperShelfPose.loadY,deckTravel))
+        lowerShelfPose and middleShelfPose and upperShelfPose
+            and close(lowerShelfPose.loadY-middleShelfPose.loadY,deckTravel)
+            and close(middleShelfPose.loadY-upperShelfPose.loadY,deckTravel))
     local diagonalSmooth,diagonalStationary,diagonalMirrored=true,true,true
     for _,heading in ipairs({"southeast","southwest"}) do
         side.direction=heading
@@ -224,7 +228,7 @@ function Test.run(_, check)
             side.forkHeight=step/100
             local pose=Layered.plan(side,{review=true,scale=0.308})
             diagonalSmooth=diagonalSmooth and pose and pose.loadY<previousY
-                and close(pose.carriageShift,75-480*side.forkHeight)
+                and close(pose.carriageShift,75-960*side.forkHeight)
             diagonalStationary=diagonalStationary and pose.bodyPath:match("southeast%-fixed%-manned%-v1%.png$")
                 and pose.carriagePath:match("southeast%-carriage%-v2%.png$")
                 and close(pose.carriageScale,pose.bodyScale*0.8)
@@ -245,7 +249,7 @@ function Test.run(_, check)
             side.forkHeight=step/100
             local pose=Layered.plan(side,{review=true,scale=0.308})
             rearSmooth=rearSmooth and pose and pose.loadY<previousY
-                and close(pose.carriageShift,150-563*side.forkHeight)
+                and close(pose.carriageShift,150-1126*side.forkHeight)
             rearStationary=rearStationary and pose.bodyPath:match("northeast%-fixed%-manned%-v1%.png$")
                 and pose.carriagePath:match("northeast%-carriage%-v2%.png$")
                 and pose.x==side.x and pose.y==side.y
@@ -265,7 +269,7 @@ function Test.run(_, check)
         side.forkHeight=step/100
         local pose=Layered.plan(side,{review=true,scale=0.308})
         frontSmooth=frontSmooth and pose and pose.loadY<previousFrontY
-            and close(pose.carriageShift,-846*side.forkHeight)
+            and close(pose.carriageShift,-1692*side.forkHeight)
         frontStationary=frontStationary and pose.bodyPath:match("south%-fixed%-manned%-v1%.png$")
             and pose.carriagePath:match("south%-carriage%-v1%.png$")
             and pose.x==side.x and pose.y==side.y
@@ -281,7 +285,7 @@ function Test.run(_, check)
         side.forkHeight=step/100
         local pose=Layered.plan(side,{review=true,scale=0.308})
         northSmooth=northSmooth and pose and pose.loadY<previousNorthY
-            and close(pose.carriageShift,-700-400*side.forkHeight)
+            and close(pose.carriageShift,-700-800*side.forkHeight)
         northStationary=northStationary and pose.bodyPath:match("north%-fixed%-manned%-v1%.png$")
             and pose.carriagePath:match("north%-carriage%-v2%.png$")
             and close(pose.carriageScale,pose.bodyScale*0.55)

@@ -1,8 +1,8 @@
 local Presentation=require("src.warehouse_rack_presentation")
 local Test={}
 local function fixture()
-    local slots={{},{}}
-    for row=1,2 do for column=1,5 do
+    local slots={{},{},{}}
+    for row=1,3 do for column=1,5 do
         slots[row][column]={x=column*200,y=400+column*50-(row-1)*160,groundY=425+column*50}
     end end
     return {front_left={path="authored-world-rack.png",bayId="front_left",approved=false,
@@ -22,7 +22,7 @@ function Test.run(_,check)
         local authored=Presentation.plan(registeredState,bayId,{review=true})
         test("registered_source_for_"..bayId,valid and entry.path=="assets/source/warehouse-expansion-v1/rack-world-left-v9-perspective-candidate.png")
         test("registered_unapproved_review_art_for_"..bayId,authored and not authored.approved)
-        for column=1,5 do for row=1,2 do
+        for column=1,5 do for row=1,3 do
             local actual=authored and Presentation.slotPoint(authored,row,column)
             local expected=Layout.rackPoint(bayId,row,column)
             test("registered_slot_matches_world_contract_"..bayId.."_"..row.."_"..column,
@@ -41,9 +41,11 @@ function Test.run(_,check)
     test("native_sprite_transform",plan and plan.scale==0.25 and plan.originY==900 and not plan.approved)
     for column=1,5 do
         local lower=Presentation.slotPoint(plan,1,column)
-        local upper=Presentation.slotPoint(plan,2,column)
-        test("two_levels_"..column,lower.x==upper.x and lower.groundY==upper.groundY
-            and lower.y-upper.y==40 and lower.x==20+column*50)
+        local middle=Presentation.slotPoint(plan,2,column)
+        local upper=Presentation.slotPoint(plan,3,column)
+        test("three_levels_"..column,lower.x==middle.x and middle.x==upper.x
+            and lower.groundY==middle.groundY and middle.groundY==upper.groundY
+            and lower.y-middle.y==40 and middle.y-upper.y==40 and lower.x==20+column*50)
     end
     test("slot_bounds",not Presentation.slotPoint(plan,0,1) and not Presentation.slotPoint(plan,1,6)
         and not Presentation.slotPoint(plan,1,1.5))
@@ -52,9 +54,9 @@ function Test.run(_,check)
     test("plan_detached_from_registration",catalog.front_left.registration.slots[1][1].x==original)
     catalog.front_left.path="assets/source/warehouse-expansion-v1/rack-front-2x5-approved.png"
     test("first_person_backdrop_forbidden",not Presentation.validateEntry(catalog.front_left))
-    catalog=fixture();catalog.front_left.registration.slots[2][5]=nil
+    catalog=fixture();catalog.front_left.registration.slots[3][5]=nil
     test("incomplete_slot_registration_rejected",not Presentation.validateEntry(catalog.front_left))
-    catalog=fixture();catalog.front_left.registration.slots[2][1].y=900
+    catalog=fixture();catalog.front_left.registration.slots[3][1].y=900
     test("inverted_upper_anchor_rejected",not Presentation.validateEntry(catalog.front_left))
     catalog=fixture();catalog.front_left.registration.scale=0/0
     test("nonfinite_scale_rejected",not Presentation.validateEntry(catalog.front_left))
@@ -80,9 +82,9 @@ function Test.run(_,check)
         return {getDimensions=function()return 100,100 end}end,graphics))
     local Renderer=require("src.warehouse_renderer")
     local pallets,byId={},{}
-    for column=1,5 do for row=1,2 do
+    for column=1,5 do for row=1,3 do
         local pallet={id="WORLD-RACK-"..row.."-"..column,number=#pallets+1,location="rack",
-            wrapped=row==2,remainingSheets=100+column,paper={marker=column},
+            wrapped=row>1,remainingSheets=100+column,paper={marker=column},
             storage={rackId="front_left-rack",row=row,column=column}}
         pallets[#pallets+1]=pallet;byId[pallet.id]=pallet
     end end
@@ -106,13 +108,13 @@ function Test.run(_,check)
     Renderer.addActors(fallbackActors,{},state)
     test("registered_world_sprite_replaces_projected_rack",#fallbackActors==1
         and Renderer.rackIssue("front_left")==nil)
-    test("rear_then_ten_pallets_then_front",#sequence==12 and sequence[1]=="back" and sequence[12]=="front")
+    test("rear_then_fifteen_pallets_then_front",#sequence==17 and sequence[1]=="back" and sequence[17]=="front")
     local canonical,unchangedScale=true,true
     for _,item in ipairs(draws) do
         canonical=canonical and byId[item.pallet.id]==item.pallet and item.pallet.paper==byId[item.pallet.id].paper
         unchangedScale=unchangedScale and item.scale==nil and item.drawScale==nil
     end
-    test("all_ten_pallets_remain_canonical",#draws==10 and canonical)
+    test("all_fifteen_pallets_remain_canonical",#draws==15 and canonical)
     test("world_pallet_scale_not_overridden",unchangedScale)
 end
 return Test

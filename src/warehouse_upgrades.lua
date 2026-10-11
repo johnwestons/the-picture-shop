@@ -8,8 +8,8 @@ local BAYS = { front_left = true, front_right = true }
 local CATALOG = {
     floor = { id = "floor", name = "Separate utility room", price = 2500 },
     storage = { id = "storage", name = "Separate storage room", price = 1200,
-        rows = 2, columns = 5, capacity = 10, upperRowRequiresForklift = false,
-        warning = "10 shop stock spaces in a separate room. Stage stock at the front entrance, then store it inside." },
+        rows = 3, columns = 5, capacity = 15, upperRowRequiresForklift = false,
+        warning = "15 pallet spaces in a separate room. Stage stock for the bottom row, or use a forklift for higher shelves." },
     breakroom = { id = "breakroom", name = "Employee breakroom", price = 8300 },
     forklift = { id = "forklift", name = "Warehouse forklift", price = 33000 },
 }

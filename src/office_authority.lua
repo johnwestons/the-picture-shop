@@ -59,7 +59,7 @@ function Office.command(options)
                     and Upgrades.catalog("storage").upperRowRequiresForklift
                     and not (state.warehouse and state.warehouse.forkliftOwned)
                     and intent.confirmUpperRows ~= true then
-                    return false, "forklift_warning_required", "Confirm that the upper five shelves require a forklift.", {}
+                    return false, "forklift_warning_required", "Confirm that the middle and top shelves require a forklift.", {}
                 end
             end
             local staged = Projection.copy(state)

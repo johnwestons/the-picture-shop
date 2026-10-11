@@ -27,13 +27,14 @@ local MESSAGES={mounted="Operating forklift. Stop, then lower forks to pick up a
     invalid_support="Choose another floor skid as the base of the stack.",wrong_stack="The selected upper pallet no longer belongs to that stack.",
     vehicle_not_stationary="Stop the forklift before transferring a pallet.",lift_in_progress="Wait for the forks to finish moving.",
     lower_forks_first="Lower the forks fully before this action.",raise_to_travel_height="Raise the load to travel height first.",
-    wrong_fork_height="Set forks to ground for the lower shelf, or full height for the upper shelf / floor stack.",
+    wrong_fork_height="Set forks to 50% for the middle shelf or 100% for the top shelf / floor stack.",
+    pallet_jack_required="Use a pallet jack for the bottom row.",
     not_stationary="Stop driving and wait for the forks to finish moving.",moving="Stop the forklift first.",
     not_aligned="Face the rack or pallet with the forks before transferring it.",out_of_range="Move closer to the forklift or rack loading position.",
     blocked="That space is blocked. Clear the loading area first.",no_exit="There is no clear place to step out. Move to an open area first.",
     not_owner="Only the worker operating this forklift can use its controls.",busy="Another worker is operating this forklift.",
     not_owned="Buy the forklift from CritterNet first.",delivery_blocked="Clear the forklift delivery area in the center-front of the warehouse.",
-    forklift_required="A forklift is required to use the upper row.",not_operator="Operate a pallet jack or forklift before transferring stock.",
+    forklift_required="A forklift is required for the middle and top rows.",not_operator="Operate a pallet jack or forklift before transferring stock.",
     no_pallet="Move the lowered forks up to a floor pallet.",slot_occupied="That shelf already contains a pallet.",
     stale_revision="The shelves changed. Select the space again.",wrapper_using_stock="Wait for the skid wrapper to finish its last wrap before moving stretch film.",
     jack_clearance="Move the empty pallet jack farther from the rack before retrieving; the loaded jack needs an open path out.",
@@ -77,9 +78,9 @@ end
 
 -- Keep original core pixels and registration. Only completed extension polygons
 -- are added; locked black upgrade spaces stay non-walkable even in maskless tests.
-function Gameplay.assets(assets,state)
+function Gameplay.assets(assets,state,sceneId)
     if not assets then return nil end
-    if Config.warehouse.roomScenes then return require("src.shop_rooms").assets(assets,"warehouse") end
+    if Config.warehouse.roomScenes then return require("src.shop_rooms").assets(assets,sceneId or "warehouse",state) end
     if assets._warehouseNavigationState==state then return assets end
     if assets._warehouseSource then assets=assets._warehouseSource end
     local original=assets.getData and assets.getData("walkmask")
@@ -109,11 +110,27 @@ function Gameplay.assets(assets,state)
 end
 
 local function obstacles(context,state,halfWidth,halfHeight,excludedPallet,excludeLift,excludeJack)
+    if context.sceneId and context.sceneId~="warehouse" then
+        local sceneId=context.sceneId
+        local result=require("src.shop_rooms").obstacles(state,sceneId)
+        for _,obstacle in ipairs(require("src.pallet_logistics").obstacles(state,
+            Config.palletLogistics.collisionHalfWidth,Config.palletLogistics.collisionHalfHeight,
+            excludedPallet,sceneId)) do result[#result+1]=obstacle end
+        if not excludeJack and state.palletJack and state.palletJack.sceneId==sceneId then
+            local jack=require("src.pallet_jack").obstacle(state,Config.palletJack)
+            if jack then result[#result+1]=jack end
+        end
+        if not excludeLift and state.forklift and state.forklift.sceneId==sceneId then
+            local lift=Forklift.obstacle(state,Config.forklift)
+            if lift then result[#result+1]=lift end
+        end
+        return result
+    end
     return context.obstacles(state,excludeJack==true,{x=halfWidth or 0,y=halfHeight or 0},
         false,false,excludedPallet,false,excludeLift==true)
 end
 local function clear(context,state,x,y,halfWidth,halfHeight,excludedPallet,excludeLift,excludeJack)
-    local assets=Gameplay.assets(context.assets,state)
+    local assets=Gameplay.assets(context.assets,state,context.sceneId)
     return assets and Navigation.isAreaWalkable(assets,x,y,halfWidth,halfHeight)
         and Navigation.isWalkable(assets,x,y,obstacles(context,state,halfWidth,halfHeight,excludedPallet,excludeLift,excludeJack))
 end
@@ -130,14 +147,17 @@ function Gameplay.nearRack(player,state)
     if not id(player) then return nil end
     local nearest,best,bestPoint
     local lift=state.forklift
-    local actor=lift and lift.operating and lift.operatorPlayerId==id(player) and lift or player
+    local sceneId=require("src.shop_rooms").scene(player)
+    local actor=lift and lift.operating and lift.operatorPlayerId==id(player)
+        and (lift.sceneId or "warehouse")==sceneId and lift or player
     local jack=state.palletJack
-    if actor==player and jack and jack.operating and jack.operatorPlayerId==id(player) then actor=jack end
+    if actor==player and jack and jack.operating and jack.operatorPlayerId==id(player)
+        and (jack.sceneId or "warehouse")==sceneId then actor=jack end
     for _,bayId in ipairs({"warehouse","front_left","front_right"}) do
         local rackId=bayId.."-rack"
         if completeRack(state,rackId) and require("src.shop_rooms").scene(player)==bayId then
             if actor==lift or actor==jack then
-                for row=1,2 do for column=1,5 do
+                for row=1,Storage.ROWS do for column=1,Storage.COLUMNS do
                     local point=Layout.rackPoint(rackId,row,column)
                     local distance=(actor.x-point.x)^2+(actor.y-point.groundY)^2
                     if distance<=130*130 and (not best or distance<best) then
@@ -159,11 +179,15 @@ function Gameplay.rackContext(player,state,rackId,context,row,column)
     local result={playerId=playerId,near=false,aligned=false,clear=false}
     if not playerId or not completeRack(state,rackId) then return result end
     local rack=state.storage.racks[rackId]
-    if require("src.shop_rooms").scene(player)~=rack.bayId then return result end
+    local sceneId=require("src.shop_rooms").scene(player)
+    if sceneId~=rack.bayId then return result end
+    context.sceneId=sceneId
     local lift,jack=state.forklift,state.palletJack
     local vehicle
-    if lift and lift.operating and lift.operatorPlayerId==playerId then result.vehicle,vehicle="forklift",lift
-    elseif jack and jack.operating and jack.operatorPlayerId==playerId then result.vehicle,vehicle="pallet_jack",jack end
+    if lift and lift.operating and lift.operatorPlayerId==playerId
+        and (lift.sceneId or "warehouse")==sceneId then result.vehicle,vehicle="forklift",lift
+    elseif jack and jack.operating and jack.operatorPlayerId==playerId
+        and (jack.sceneId or "warehouse")==sceneId then result.vehicle,vehicle="pallet_jack",jack end
     local actor=vehicle or player
     local target=Layout.rackPoint(rackId,row or 1,column or 3)
     result.targetPoint=target
@@ -183,7 +207,7 @@ function Gameplay.rackContext(player,state,rackId,context,row,column)
         w=vehicle.carriedPalletId and jc.loadedCollisionHalfWidth or jc.collisionHalfWidth
         h=vehicle.carriedPalletId and jc.loadedCollisionHalfHeight or jc.collisionHalfHeight
     end
-    local navigationAssets=Gameplay.assets(context.assets,state)
+    local navigationAssets=Gameplay.assets(context.assets,state,sceneId)
     result.footprintClear=navigationAssets
         and Navigation.isAreaWalkable(navigationAssets,vehicle.x,vehicle.y,w,h)==true or false
     result.obstaclesClear=navigationAssets and Navigation.isWalkable(navigationAssets,
@@ -228,13 +252,18 @@ function Gameplay.rackContext(player,state,rackId,context,row,column)
 end
 
 function Gameplay.access(player,state,intent,context)
-    if require("src.shop_rooms").scene(player)~="warehouse" then
-        return false,"wrong_scene","Return to the warehouse to operate vehicles or its shelves."
+    local sceneId=require("src.shop_rooms").scene(player)
+    context.sceneId=sceneId
+    if sceneId~="warehouse" and (not require("src.shop_rooms").isComplete(state,sceneId)
+        or require("src.shop_rooms").definition(state,sceneId)~="storage") then
+        return false,"wrong_scene","Warehouse vehicles can enter completed storage rooms."
     end
     if not enabled() then return false,"disabled","Warehouse upgrades are not enabled." end
     local playerId=id(player)
     if not playerId or type(state)~="table" then return false,"invalid_player","An authenticated worker is required." end
     local lift=state.forklift
+    if lift and (lift.sceneId or "warehouse")~=sceneId and intent and intent.kind~="store"
+        and intent.kind~="retrieve" then return false,"wrong_scene","Use the forklift in its current room." end
     if intent and (intent.kind=="store" or intent.kind=="retrieve") then
         local access=Gameplay.rackContext(player,state,intent.rackId,context,intent.row,intent.column)
         if not access.near then return false,"out_of_range",message("out_of_range") end
@@ -263,6 +292,7 @@ function Gameplay.candidate(state)
     for _,item in ipairs(Pallets.items(state)) do
         local pallet=item.pallet
         if FLOOR[pallet.location] and pallet.world and (pallet.world.spawnProgress==nil or pallet.world.spawnProgress==1)
+            and (pallet.world.sceneId or "warehouse")== (lift.sceneId or "warehouse")
             and not Storage.isSupporting(state,pallet.id) then
             local distance=(pallet.world.x-x)^2+(pallet.world.y-y)^2
             if distance<=config("floorPickupRadius",24)^2 and (not best or distance<best) then closest,best=pallet.id,distance end
@@ -281,6 +311,7 @@ function Gameplay.stackCandidate(state)
     for _,item in ipairs(Pallets.items(state)) do
         local support=item.pallet
         if FLOOR[support.location] and support.world and support.id~=lift.carriedPalletId
+            and (support.world.sceneId or "warehouse")== (lift.sceneId or "warehouse")
             and (support.world.spawnProgress==nil or support.world.spawnProgress==1) then
             local supported,topId=Storage.isSupporting(state,support.id)
             local eligible=lift.carriedPalletId and not supported or not lift.carriedPalletId and supported
@@ -366,6 +397,7 @@ function Gameplay.forceRelease(player,state,context)
     local playerId=id(player)
     if not playerId or type(state)~="table" or not state.forklift
         or state.forklift.operatorPlayerId~=playerId then return false,"not_owner" end
+    context.sceneId=require("src.shop_rooms").scene(player)
     local exit=exitPoint(state,context)
     local okay,code=Forklift.forceRelease(state,Config.forklift,playerId)
     if okay then placeOperator(player,exit) end
@@ -375,11 +407,14 @@ end
 function Gameplay.stackContext(player,state,intent,context)
     local result={playerId=id(player),near=false,aligned=false,clear=false,stackable=false,compatible=false}
     local lift=state.forklift
+    context.sceneId=require("src.shop_rooms").scene(player)
     if not result.playerId or not lift or not lift.operating or lift.operatorPlayerId~=result.playerId then return result end
+    if (lift.sceneId or "warehouse")~=context.sceneId then return result end
     local supportItem=Storage.find(state,intent.supportPalletId)
     local item=Storage.find(state,intent.palletId)
     local support=supportItem and supportItem.pallet
     if not support or not FLOOR[support.location] or not support.world
+        or (support.world.sceneId or "warehouse")~=context.sceneId
         or (support.world.spawnProgress~=nil and support.world.spawnProgress~=1) then return result end
     local forkX,forkY=forkPosition(state)
     result.near=near(forkX,forkY,support.world.x,support.world.y,config("floorPickupRadius",40))
@@ -451,8 +486,10 @@ end
 function Gameplay.move(player,dt,dx,dy,state,context,readOnly)
     if not id(player) or not Forklift.isOperator(state,Config.forklift,player.id) then return false end
     local lift=state.forklift
+    context.sceneId=require("src.shop_rooms").scene(player)
+    if (lift.sceneId or "warehouse")~=context.sceneId then return false end
     if not readOnly then
-        local assets=Gameplay.assets(context.assets,state)
+        local assets=Gameplay.assets(context.assets,state,context.sceneId)
         Forklift.move(state,dx or 0,dy or 0,math.min(math.max(0,dt or 0),0.1),Config.forklift,function(x,y,loaded)
             local w,h=footprint(loaded)
             return assets and Navigation.canMoveAreaFrom(assets,lift.x,lift.y,x,y,w,h,

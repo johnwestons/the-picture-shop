@@ -5,10 +5,42 @@ local WORK_ACTIONS={
     skid_wrapper="work_wrapping",
 }
 Catalog.profiles={
-    {name="Radio Cat",character="cat-worker",cutterSkill=65,pressSkill=0,wrappingSkill=25,attention=75,reliability=90,requestedWage=2200,minimumWage=2000,shiftPreference="day"},
-    {name="Tinker Fox",character="tinker-fox-worker",cutterSkill=76,pressSkill=45,wrappingSkill=65,attention=80,reliability=86,requestedWage=2300,minimumWage=2100,shiftPreference="night"},
-    {name="Ferret Engineer",character="ferret-engineer-worker",cutterSkill=84,pressSkill=80,wrappingSkill=80,attention=88,reliability=92,requestedWage=2400,minimumWage=2200,shiftPreference="flexible"},
+    {character="cat-worker",cutterSkill=65,pressSkill=0,wrappingSkill=25,attention=75,reliability=90,requestedWage=2200,minimumWage=2000,shiftPreference="day"},
+    {character="tinker-fox-worker",cutterSkill=76,pressSkill=45,wrappingSkill=65,attention=80,reliability=86,requestedWage=2300,minimumWage=2100,shiftPreference="night"},
+    {character="ferret-engineer-worker",cutterSkill=84,pressSkill=80,wrappingSkill=80,attention=88,reliability=92,requestedWage=2400,minimumWage=2200,shiftPreference="flexible"},
 }
+local firstNames={
+    "Alder","Ansel","Beryl","Bram","Briony","Cal","Calla","Clover","Corin","Cricket",
+    "Della","Ellery","Fern","Fennel","Gale","Hazel","Hollis","Ida","Jasper","Juniper",
+    "Kestrel","Kit","Lark","Mabel","Marlow","Moss","Nettle","Nori","Olive","Orla",
+    "Otis","Pippa","Pip","Quincy","Remy","Rue","Silas","Tansy","Tilda","Wren",
+}
+local familyNames={
+    "Bellwether","Brasswhisk","Brightpaper","Brushwell","Cardwell","Chatterwick","Coppercoil","Copperspool",
+    "Crinkletail","Cutler","Dovetail","Dryden","Everpress","Fairpage","Feltwhistle","Folden",
+    "Foxglove","Gearhart","Goldenleaf","Goodpaper","Granger","Inkblot","Inkwell","Labelle",
+    "Lockwood","Millwright","Paperfield","Quickquill","Reamwell","Rivetpaw","Sable","Shears",
+    "Spindle","Staple","Swiftpaw","Tapeley","Thimble","Tuckwell","Underleaf","Whetstone",
+}
+local legacyNames={ ["radio cat"]=true,["tinker fox"]=true,["ferret engineer"]=true }
+function Catalog.isLegacyName(name)
+    return type(name)=="string" and legacyNames[name:lower()]==true
+end
+function Catalog.generatedName(identity,usedNames)
+    local sequence=tonumber(tostring(identity or ""):match("(%d+)$")) or 1
+    sequence=math.max(1,math.floor(sequence))
+    local combinations=#firstNames*#familyNames
+    local start=((sequence-1)*173)%combinations
+    for offset=0,combinations-1 do
+        local slot=(start+offset)%combinations
+        local first=firstNames[math.floor(slot/#familyNames)+1]
+        local family=familyNames[slot%#familyNames+1]
+        local name=first.." "..family
+        if not usedNames or not usedNames[name:lower()] then return name end
+    end
+    return firstNames[(sequence-1)%#firstNames+1].." "
+        ..familyNames[(sequence-1)%#familyNames+1].." "..sequence
+end
 function Catalog.valid(character)
     for _,p in ipairs(Catalog.profiles) do if p.character==character then return true end end
     return false

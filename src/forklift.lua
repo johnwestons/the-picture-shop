@@ -65,13 +65,16 @@ function Forklift.defaultState(config)
     return { owned = false, x = configValues.spawnX, y = configValues.spawnY,
         direction = "northwest", operating = false, operatorPlayerId = nil,
         carriedPalletId = nil, moving = false, animationDistance = 0,
-        forkHeight = 0, targetForkHeight = 0, lifting = false }
+        forkHeight = 0, targetForkHeight = 0, lifting = false, sceneId = "warehouse" }
 end
 
 function Forklift.normalize(value, config)
     value = type(value) == "table" and value or {}
     local result, configValues = Forklift.defaultState(config), options(config)
     result.owned = value.owned == true
+    if value.sceneId == "warehouse" or value.sceneId == "front_left" or value.sceneId == "front_right" then
+        result.sceneId = value.sceneId
+    end
     if bounded(value.x, -MAX_COORDINATE, MAX_COORDINATE) then result.x = value.x end
     if bounded(value.y, -MAX_COORDINATE, MAX_COORDINATE) then result.y = value.y end
     if directionFrames[value.direction] then result.direction = value.direction end
@@ -113,13 +116,17 @@ function Forklift.validState(value, config)
         or type(value.lifting) ~= "boolean"
         or not bounded(value.forkHeight, 0, 1) or not bounded(value.targetForkHeight, 0, 1)
         or not bounded(value.animationDistance, 0, MAX_DISTANCE)
+        or (value.sceneId ~= nil and value.sceneId ~= "warehouse"
+            and value.sceneId ~= "front_left" and value.sceneId ~= "front_right")
         or (value.carriedPalletId ~= nil and not palletId(value.carriedPalletId))
         or (value.operating and not operatorId(value.operatorPlayerId))
         or (not value.operating and value.operatorPlayerId ~= nil)
     then return false, "invalid" end
     local expected = Forklift.normalize(value, config)
     for key, item in pairs(expected) do
-        if value[key] ~= item then return false, "inconsistent" end
+        if (key ~= "sceneId" or value.sceneId ~= nil) and value[key] ~= item then
+            return false, "inconsistent"
+        end
     end
     if value.carriedPalletId ~= expected.carriedPalletId
         or value.operatorPlayerId ~= expected.operatorPlayerId

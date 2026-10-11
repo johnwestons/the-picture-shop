@@ -34,8 +34,8 @@ local function registration(bayId)
     local worldX=bay.rackGroundPosts[1].x
     local worldY=bay.rackGroundPosts[1].y
     local direction=mirror and -1 or 1
-    local slots={{},{}}
-    for row=1,2 do for column=1,5 do
+    local slots={{},{},{}}
+    for row=1,3 do for column=1,5 do
         local point=Layout.rackPoint(bayId,row,column)
         local sourceX=ORIGIN_X+(point.x-worldX)/(SCALE_X*direction)
         local sourceY=ORIGIN_Y+(point.y-worldY)/SCALE_Y
@@ -69,18 +69,18 @@ function Presentation.validateEntry(entry)
         or (r.scaleY~=nil and (not finite(r.scaleY) or r.scaleY<=0 or r.scaleY>4))
         or not finite(r.originX) or not finite(r.originY) or not finite(r.depthY)
         or r.originX<0 or r.originX>r.textureWidth or r.originY<0 or r.originY>r.textureHeight
-        or type(r.slots)~="table" or #r.slots~=2 or type(r.frontPolygons)~="table" then
+        or type(r.slots)~="table" or #r.slots~=3 or type(r.frontPolygons)~="table" then
         return false,"invalid_world_rack_registration"
     end
-    for row=1,2 do
-        if type(r.slots[row])~="table" or #r.slots[row]~=5 then return false,"world_rack_requires_ten_slots" end
+    for row=1,3 do
+        if type(r.slots[row])~="table" or #r.slots[row]~=5 then return false,"world_rack_requires_fifteen_slots" end
         for column=1,5 do
             local p=r.slots[row][column]
             if type(p)~="table" or not finite(p.x) or not finite(p.y) or not finite(p.groundY)
                 or p.x<0 or p.x>r.textureWidth or p.y<0 or p.y>r.textureHeight
                 or p.groundY<0 or p.groundY>r.textureHeight then return false,"invalid_world_rack_slot" end
-            if row==2 then
-                local lower=r.slots[1][column]
+            if row>1 then
+                local lower=r.slots[row-1][column]
                 if p.x~=lower.x or p.groundY~=lower.groundY or p.y>=lower.y then
                     return false,"invalid_world_rack_upper_slot"
                 end
@@ -122,7 +122,8 @@ function Presentation.sourceToWorld(plan,x,y)
         plan.y+(y-plan.originY)*scaleY
 end
 function Presentation.slotPoint(plan,row,column)
-    if not plan or (row~=1 and row~=2) or not finite(column) or column%1~=0 or column<1 or column>5 then return nil end
+    if not plan or not finite(row) or row%1~=0 or row<1 or row>3
+        or not finite(column) or column%1~=0 or column<1 or column>5 then return nil end
     local p=plan.slots[row][column]
     local x,y=Presentation.sourceToWorld(plan,p.x,p.y)
     local _,groundY=Presentation.sourceToWorld(plan,p.x,p.groundY)
