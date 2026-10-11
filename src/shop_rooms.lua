@@ -336,7 +336,7 @@ function Rooms.transfer(player,state,action,palletId,context)
         if pallet.location~="rack" or not pallet.storage or pallet.storage.rackId~=rackId then
             return false,"stock_changed","This pallet is no longer stored in your room."
         end
-        if pallet.storage.row~=1 or not item.vendor then
+        if pallet.storage.row~=1 then
             return false,"forklift_required","Use the forklift at the rack to retrieve this pallet."
         end
         local drop
