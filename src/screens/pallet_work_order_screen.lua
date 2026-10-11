@@ -45,6 +45,77 @@ local function labelValue(label, value, x, y, width)
     line(value, x, y + 14, width)
 end
 
+local function processRoute(order, pallet)
+    local steps = { "CUT" }
+    local printRequired = type(order.press) == "table"
+    if printRequired then steps[#steps + 1] = "PRINT" end
+    steps[#steps + 1] = "WRAP"
+    steps[#steps + 1] = "SHIP"
+
+    local location = pallet.location
+    local status = pallet.status
+    local shipped = location == "outbound_truck" or status == "loaded_for_pickup"
+        or status == "picked_up"
+    local cutComplete = status == "cut" or status == "printed" or status == "finished"
+        or status == "wrapped" or location == "at_press" or location == "press_output"
+    local current = 1
+    if shipped or pallet.wrapped == true or status == "wrapped" then
+        current = #steps
+    elseif cutComplete and printRequired
+        and not (type(pallet.press) == "table" and pallet.press.status == "complete") then
+        current = 2
+    elseif cutComplete then
+        current = #steps - 1
+    end
+    return steps, current
+end
+
+local function labelProcess(order, pallet, x, y, width)
+    local steps, current = processRoute(order, pallet)
+    setFont(12)
+    love.graphics.setColor(MUTED_INK)
+    line("JOB PROCESS", x, y, width)
+
+    local font = workOrderFont(15)
+    love.graphics.setFont(font)
+    local separator = "/"
+    local separatorWidth = font:getWidth(separator)
+    local gap = 7
+    local pad = 4
+    local textWidths, totalWidth = {}, 0
+    for index, step in ipairs(steps) do
+        textWidths[index] = font:getWidth(step)
+        totalWidth = totalWidth + textWidths[index] + pad * 2
+        if index < #steps then totalWidth = totalWidth + separatorWidth + gap * 2 end
+    end
+    local scale = totalWidth > width and width / totalWidth or 1
+    local cursor = x + math.max(0, (width - totalWidth * scale) / 2)
+    local rowY = y + 14
+    for index, step in ipairs(steps) do
+        local textWidth = textWidths[index] * scale
+        local boxWidth = textWidth + pad * 2 * scale
+        local textX = cursor + pad * scale
+        if index == current then
+            love.graphics.setColor(0.55, 0.22, 0.16, 0.13)
+            love.graphics.rectangle("fill", cursor, rowY - 1, boxWidth, 19, 2, 2)
+            love.graphics.setColor(STAMP)
+            love.graphics.setLineWidth(1)
+            love.graphics.rectangle("line", cursor, rowY - 1, boxWidth, 19, 2, 2)
+            love.graphics.setColor(STAMP)
+        else
+            love.graphics.setColor(MUTED_INK)
+        end
+        love.graphics.print(step, textX, rowY, 0, scale, 1)
+        cursor = cursor + boxWidth
+        if index < #steps then
+            cursor = cursor + gap * scale
+            love.graphics.setColor(MUTED_INK)
+            love.graphics.print(separator, cursor, rowY, 0, scale, 1)
+            cursor = cursor + separatorWidth * scale + gap * scale
+        end
+    end
+end
+
 local function artworkKey(order)
     if not order then return nil end
     return order.artwork and order.artwork.key or order.artworkKey
@@ -159,10 +230,7 @@ local function drawCustomerOrder(item, assets)
     labelValue("Current sheet", paper and sizeText(paper.currentSize) or sizeText(order.sourceSize),
         337, 334, 286)
 
-    local cut = paper and paper.cuts and paper.cuts[paper.activeCut]
-    local cutText = cut and string.format("%s margin %.2f in / gauge %.2f",
-        tostring(cut.edge), tonumber(cut.margin) or 0, tonumber(cut.gauge) or 0) or "Cutting complete"
-    labelValue("Next cut", cutText, 337, 383, 286)
+    labelProcess(order, pallet, 337, 383, 286)
 
     local quote = order.quote or {}
     labelValue("Job value / lifts", string.format("%s / %s", money(quote.totalPrice),

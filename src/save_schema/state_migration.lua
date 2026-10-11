@@ -151,6 +151,18 @@ function Component.install(Runtime)
         result.clientEmails.archive = type(result.clientEmails.archive) == "table" and result.clientEmails.archive or {}
         result.clientEmails.sentPromotions = type(result.clientEmails.sentPromotions) == "table"
             and result.clientEmails.sentPromotions or {}
+        local applicantNames={}
+        for _,application in ipairs(result.employment.applications) do
+            if type(application)=="table" and type(application.id)=="string" then
+                applicantNames[application.id]=application.name
+            end
+        end
+        for _,collection in ipairs({result.clientEmails.pending,result.clientEmails.inbox}) do
+            for _,email in ipairs(collection) do
+                local name=type(email)=="table" and applicantNames[email.applicationId]
+                if name then email.sender=name end
+            end
+        end
         Runtime.normalizeEmailJobs(result.clientEmails)
         result.workPhone = type(source.workPhone) == "table"
             and Runtime.copy(source.workPhone) or result.workPhone

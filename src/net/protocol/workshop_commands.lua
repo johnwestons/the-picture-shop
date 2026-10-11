@@ -91,7 +91,7 @@ function Component.install(Runtime)
         }, {
             "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
             "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
-            "machineIndex", "machineId", "placementCell", "callId", "officeIntent", "warehouseIntent",
+            "machineIndex", "machineId", "placementCell", "callId", "contactId", "officeIntent", "warehouseIntent",
         })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
@@ -117,7 +117,7 @@ function Component.install(Runtime)
         for _, field in ipairs({
             "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
             "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
-            "machineIndex", "machineId", "placementCell", "callId", "officeIntent", "warehouseIntent",
+            "machineIndex", "machineId", "placementCell", "callId", "contactId", "officeIntent", "warehouseIntent",
         }) do
             local dropCell = resourceId == "pallet_jack" and action == "lower_pallet" and field == "placementCell"
             local machineTarget = resourceId == "pallet_jack" and action == "move_machine" and field == "machineId"

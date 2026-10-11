@@ -20,9 +20,25 @@ function Component.install(Runtime)
             addTarget("palletJack",Runtime.PalletJack.interaction(
                 player,Runtime.World._state,Runtime.Config.palletJack))
         end
-        if Rooms.scene(player)~="warehouse" then return targets end
+        if Rooms.scene(player)~="warehouse" then
+            local lift=Runtime.World._state and Runtime.World._state.forklift
+            if lift and lift.owned and (lift.sceneId or "warehouse")==Rooms.scene(player) then
+                addTarget("forklift",{x=lift.x,y=lift.y,
+                    radius=(Runtime.Config.forklift and Runtime.Config.forklift.interactionRadius) or 76,
+                    prompt=lift.operating and lift.operatorPlayerId==(tonumber(player.id) or 1)
+                        and "E: forklift controls  |  F: park" or "E: operate forklift"})
+            end
+            local rackId,approach=Runtime.World.warehouseNearRack(player,Runtime.World._state)
+            if rackId and approach then
+                addTarget("palletRack",{x=approach.x,y=approach.y,radius=130,rackId=rackId,
+                    prompt="E: view pallet shelves"})
+            end
+            return targets
+        end
         addTarget("computer", Runtime.Config.interactables.computer)
         addTarget("shopClock", Runtime.Config.interactables.shopClock)
+        local phoneRinging = Runtime.World._state and Runtime.World._state.workPhone
+            and Runtime.World._state.workPhone.incoming ~= nil
         local phoneTarget = {
             x = Runtime.Config.interactables.workPhone.x,
             y = Runtime.Config.interactables.workPhone.y,
@@ -30,9 +46,8 @@ function Component.install(Runtime)
             hoverX = Runtime.Config.interactables.workPhone.hoverX,
             hoverY = Runtime.Config.interactables.workPhone.hoverY,
             hoverRadius = Runtime.Config.interactables.workPhone.hoverRadius,
-            prompt = Runtime.World._state and Runtime.World._state.workPhone
-                and Runtime.World._state.workPhone.incoming
-                and "E: answer ringing wall phone" or "E: use wall phone",
+            actionLabel = phoneRinging and "ANSWER" or "PHONE",
+            prompt = phoneRinging and "E: answer phone" or "E: use phone",
         }
         addTarget("workPhone", phoneTarget)
         local customerInteraction = Runtime.World.customer:getInteraction()
@@ -44,9 +59,10 @@ function Component.install(Runtime)
                     local networkClient=employeeOptions and employeeOptions.isNetworkClient
                         and employeeOptions.isNetworkClient()
                     addTarget("applicant",{x=a.actor.x,y=a.actor.y,radius=68,applicationId=a.id,
+                        actionLabel="TALK",
                         prompt=networkClient
                             and "The shop owner handles employment applications"
-                            or "E: request resume   X: dismiss applicant"})
+                            or "E: talk to applicant   X: dismiss applicant"})
                 end
             end
         end
@@ -142,7 +158,7 @@ function Component.install(Runtime)
                 }, "windmill:" .. item.id) end
             end
             local lift = Runtime.Forklift.ensure(Runtime.World._state, Runtime.Config.forklift)
-            if lift.owned then
+            if lift.owned and (lift.sceneId or "warehouse")=="warehouse" then
                 addTarget("forklift", {x=lift.x,y=lift.y,radius=(Runtime.Config.forklift and Runtime.Config.forklift.interactionRadius) or 76,
                     prompt=lift.operating and lift.operatorPlayerId==playerId
                         and "E: forklift controls  |  F: park" or "E: operate forklift"})

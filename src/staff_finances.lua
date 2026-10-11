@@ -8,8 +8,33 @@ local Jobs=require("src.jobs")
 local Fleet=require("src.machine_fleet")
 local Finances={}
 local function cents(n) return math.floor(n*100+.5+1e-7)/100 end
+local function inHouseForecast(state,result)
+    for _,job in ipairs(state.jobs and state.jobs.active or {}) do
+        if job.status~="completed" and job.delivery and job.delivery.status=="received" then
+            local work,cuttingLifts,hasDeliverable=0,0,false
+            for _,pallet in ipairs(job.pallets or {}) do
+                if pallet.status~="spoiled_discarded" and pallet.status~="picked_up" then
+                    hasDeliverable=true
+                    local remaining=math.max(0,(pallet.requiredLifts or 1)-(pallet.completedLifts or 0))
+                    cuttingLifts=cuttingLifts+remaining
+                    if remaining==0 and pallet.status~="wrapped" and not pallet.wrapped then remaining=1 end
+                    work=work+remaining
+                end
+            end
+            if hasDeliverable then
+                local value=math.max(0,tonumber(job.quote and job.quote.totalPrice) or 0)
+                result.inHouseJobs=result.inHouseJobs+1
+                result.inHouseWorkUnits=result.inHouseWorkUnits+work
+                result.inHouseCuttingLifts=result.inHouseCuttingLifts+cuttingLifts
+                result.inHouseRevenue=result.inHouseRevenue+value
+                if work==0 then result.readyRevenue=result.readyRevenue+value end
+            end
+        end
+    end
+end
 function Finances.summary(state,proposed,skill)
-    local result={weeklyWages=0,cycleReserve=0,capacity=0,pricePerLift=Jobs.PRICE_PER_LIFT,machinePerLift=0}
+    local result={weeklyWages=0,cycleReserve=0,capacity=0,pricePerLift=Jobs.PRICE_PER_LIFT,machinePerLift=0,
+        inHouseJobs=0,inHouseWorkUnits=0,inHouseCuttingLifts=0,inHouseRevenue=0,readyRevenue=0}
     local operators={}
     -- A standard cutting lift has 500 customer-supplied sheets and four trims.
     local standard={pallets={{requiredLifts=1,paper={cuts={1,2,3,4}}}}}
@@ -66,13 +91,33 @@ function Finances.summary(state,proposed,skill)
     result.contributionPerLift=result.pricePerLift-result.machinePerLift
     result.breakEvenLifts=math.ceil(result.weeklyFixed/math.max(.01,result.contributionPerLift))
     result.capacity=math.floor(result.capacity)
+    inHouseForecast(state,result)
     return result
 end
-function Finances.plan(summary,lifts)
-    local revenue=lifts*summary.pricePerLift
-    local machineReserve=lifts*summary.machinePerLift
+function Finances.plan(summary,plannedLifts)
+    local automatic=plannedLifts==nil
+    local lifts
+    if automatic then lifts=math.min(summary.inHouseWorkUnits,summary.capacity)
+    else lifts=math.max(0,math.floor(plannedLifts)) end
+    local activeRevenue=math.max(0,summary.inHouseRevenue-summary.readyRevenue)
+    local revenue
+    if automatic then
+        revenue=summary.readyRevenue
+        if summary.inHouseWorkUnits>0 then
+            revenue=revenue+activeRevenue*lifts/summary.inHouseWorkUnits
+        end
+    else
+        revenue=lifts*summary.pricePerLift
+    end
+    local cuttingShare=summary.inHouseWorkUnits>0 and lifts/summary.inHouseWorkUnits or 0
+    local machineReserve=automatic
+        and summary.inHouseCuttingLifts*math.min(1,cuttingShare)*summary.machinePerLift
+        or lifts*summary.machinePerLift
+    local withinCapacity
+    if automatic then withinCapacity=summary.inHouseWorkUnits<=summary.capacity
+    else withinCapacity=lifts<=summary.capacity end
     return {revenue=cents(revenue),machineReserve=cents(machineReserve),
         profit=cents(revenue-machineReserve-summary.weeklyFixed),
-        withinCapacity=lifts<=summary.capacity}
+        forecastUnits=lifts,withinCapacity=withinCapacity}
 end
 return Finances

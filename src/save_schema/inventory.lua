@@ -9,6 +9,8 @@ function Component.install(Runtime)
         supplier_status = true,
         service_order = true,
         construction_notice = true,
+        outgoing_power = true,
+        outgoing_supplier = true,
     }
 
     function Runtime.phoneCall(value)
@@ -19,8 +21,10 @@ function Component.install(Runtime)
             and Runtime.text(value.role)
             and Runtime.text(value.subject)
             and Runtime.text(value.message)
+            and (value.direction == nil or value.direction == "incoming" or value.direction == "outgoing")
             and Runtime.nonnegative(value.receivedAtHours)
             and type(value.answered) == "boolean"
+            and (value.direction ~= "outgoing" or value.answered)
             and Runtime.optionalText(value.jobId)
             and Runtime.optionalText(value.orderId)
             and Runtime.optionalText(value.projectId)
@@ -31,6 +35,9 @@ function Component.install(Runtime)
                 and (value.bayId == "front_left" or value.bayId == "front_right")
                 and (value.optionId == "floor" or value.optionId == "storage" or value.optionId == "breakroom")))
             and Runtime.optionalPositiveInteger(value.categoryIndex)
+            and (value.kind ~= "outgoing_supplier" or (value.direction == "outgoing"
+                and Runtime.integer(value.categoryIndex) and value.categoryIndex >= 1 and value.categoryIndex <= 4))
+            and (value.kind ~= "outgoing_power" or value.direction == "outgoing")
             and Runtime.optionalPositiveInteger(value.itemIndex)
             and Runtime.optionalText(value.outcome)
             and Runtime.optionalText(value.response)

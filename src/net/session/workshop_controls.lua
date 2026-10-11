@@ -28,7 +28,7 @@ function Component.install(Runtime)
             expectedRevision = active.revision,
         }
         if action == "submit_quote" then request.amount = arguments.amount
-        elseif action == "purchase_stock" or action == "purchase_machine"
+        elseif action == "purchase_stock" or action == "purchase_machine" or action == "phone_order"
             or action == "move_item" or action == "service_view"
             or action == "service_tool" or action == "service_point"
             or action == "remove_blade_bolt" or action == "service_target"
@@ -39,6 +39,7 @@ function Component.install(Runtime)
         elseif action == "warehouse_action" then request.warehouseIntent = arguments.warehouseIntent
         elseif action == "phone_answer" or action == "phone_respond" or action == "phone_dismiss" then
             request.callId = arguments.callId
+        elseif action == "phone_call" then request.contactId = arguments.contactId
         elseif action == "select_pallet" or action == "start_cycle"
             or action == "lift_pallet" or action == "lower_pallet"
             or action == "load_pallet"

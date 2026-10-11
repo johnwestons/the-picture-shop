@@ -4,7 +4,7 @@ local Ui = require("src.screens.ui")
 local Storage = require("src.pallet_storage")
 local Screen = {}
 Screen.__index = Screen
-Screen.RACK_IMAGE = "assets/source/warehouse-expansion-v1/rack-front-2x5-approved.png"
+Screen.RACK_IMAGE = "assets/source/warehouse-expansion-v1/rack-front-3x5-no-lamps-v1.png"
 Screen.PALLET_IMAGE = "assets/source/warehouse-expansion-v1/pallet-front-variants-v1.png"
 Screen.PALLET_EXTENDED_IMAGE = "assets/source/warehouse-expansion-v1/pallet-front-variants-v2-candidate.png"
 
@@ -44,7 +44,7 @@ local extendedEdgeShaderSource = [[
     }
 ]]
 local COLUMNS = { {110,240}, {382,234}, {650,245}, {929,227}, {1190,240} }
-local ROWS = { [1]={y=483,height=185}, [2]={y=240,height=186} }
+local ROWS = { [1]={y=483,height=185}, [2]={y=240,height=186}, [3]={y=16,height=160} }
 local REASONS = {
     no_vehicle="Operate a nearby pallet jack or forklift to move stock.",
     not_operator="Only the worker operating this vehicle can transfer its load.",
@@ -53,8 +53,9 @@ local REASONS = {
     blocked="The shelf approach is blocked.",
     moving="Stop the vehicle before transferring a pallet.",
     lifting="Wait until the forks finish raising or lowering.",
-    wrong_height="Lower forks for the bottom row; raise them fully for the top row.",
-    forklift_required="Upper row: buy and operate a forklift to use these five spaces.",
+    wrong_height="Set forks to 50% for the middle row or 100% for the top row.",
+    forklift_required="Middle and top rows require an operated forklift.",
+    pallet_jack_required="The bottom row requires an operated pallet jack.",
     forklift_not_owned="Purchase the forklift before using it for rack transfers.",
     rack_unavailable="This storage bay is not yet complete.",
     no_load="The vehicle must physically carry the pallet you want to store.",
@@ -158,14 +159,14 @@ function Screen:layout(width,height)
         width=SOURCE.width*scale,height=SOURCE.height*scale,scale=scale}
     local bottom = panel.y+panel.height
     local actionWidth = (panel.width-40)/2
-    local result = {panel=panel,art=art,slots={{},{}},
+    local result = {panel=panel,art=art,slots={{},{},{}},
         close={x=panel.x+panel.width-112,y=panel.y+4,width=100,height=44},
         title={x=panel.x+16,y=panel.y+12,width=panel.width-264,height=28},
         details={x=panel.x+16,y=bottom-footerHeight+5,width=panel.width-32,height=38},
         warning={x=panel.x+16,y=bottom-76,width=panel.width-32,height=26},
         store={x=panel.x+16,y=bottom-54,width=actionWidth,height=44},
         retrieve={x=panel.x+24+actionWidth,y=bottom-54,width=actionWidth,height=44}}
-    for row=1,2 do
+    for row=1,Storage.ROWS do
         for column=1,5 do
             local source = {x=COLUMNS[column][1],y=ROWS[row].y,width=COLUMNS[column][2],height=ROWS[row].height}
             result.slots[row][column] = {x=art.x+source.x*scale,y=art.y+source.y*scale,
@@ -186,7 +187,7 @@ function Screen:getSelected() return copy(self.selected) end
 function Screen:setContext(context) self.context = context end
 
 function Screen:select(row,column)
-    if row ~= 1 and row ~= 2 then return false end
+    if not finite(row) or row ~= math.floor(row) or row < 1 or row > Storage.ROWS then return false end
     if not finite(column) or column ~= math.floor(column) or column < 1 or column > 5 then return false end
     self.selected, self.message = {row=row,column=column},nil
     return true
@@ -244,11 +245,12 @@ function Screen:view(state)
         and require("src.wrapper").isFilmSupplyInUse(state) then common="wrapper_using_stock"
     elseif context.clear ~= true then common="blocked"
     elseif vehicle.moving then common="moving"
-    elseif kind == "pallet_jack" and row == 2 then common="forklift_required"
+    elseif kind == "pallet_jack" and row > 1 then common="forklift_required"
+    elseif kind == "forklift" and row == 1 then common="pallet_jack_required"
     elseif kind == "forklift" then
         if vehicle.owned ~= true or not (state.warehouse and state.warehouse.forkliftOwned) then common="forklift_not_owned"
         elseif vehicle.lifting then common="lifting"
-        elseif not finite(vehicle.forkHeight) or math.abs(vehicle.forkHeight-(row==2 and 1 or 0))>0.001
+        elseif not finite(vehicle.forkHeight) or math.abs(vehicle.forkHeight-(row==2 and 0.5 or 1))>0.001
             or (vehicle.targetForkHeight ~= nil and (not finite(vehicle.targetForkHeight)
                 or math.abs(vehicle.targetForkHeight-vehicle.forkHeight)>0.001)) then common="wrong_height" end
     end
@@ -263,15 +265,16 @@ function Screen:view(state)
     local warning = common and REASONS[common]
         or (selectedId and retrieveReason and REASONS[retrieveReason])
         or (not selectedId and storeReason and REASONS[storeReason])
-        or (row==2 and "Forklift at upper height. This transfer moves the actual loaded pallet."
-            or "Lower row accepts a pallet jack or forklift. Upper row requires a forklift.")
-    local slots = {{},{}}
-    for r=1,2 do for c=1,5 do
+        or (row==1 and "Bottom: use a pallet jack."
+            or row==2 and "Middle: stop the forklift with forks at 50%."
+            or "Top: stop the forklift with forks at 100%.")
+    local slots = {{},{},{}}
+    for r=1,Storage.ROWS do for c=1,Storage.COLUMNS do
         local id=ids[r][c]
         local item=id and Storage.find(state,id)
         slots[r][c]={palletId=id,variant=item and Screen.appearance(item.pallet),
             wrapped=item and item.pallet.wrapped==true or false,
-            label=(r==2 and "U" or "L")..c,selected=r==row and c==column}
+            label=({"L","M","T"})[r]..c,selected=r==row and c==column}
     end end
     return {rackId=self.rackId,selected=copy(self.selected),selectedId=selectedId,slots=slots,
         title=title,detail=detail,warning=self.message or warning,vehicle=kind,playerId=context.playerId,
@@ -324,7 +327,7 @@ function Screen:mousepressed(state,x,y,button)
     if self.closed or button~=1 then return nil end
     local layout=self:layout()
     if Ui.contains(layout.close,x,y) then return self:close() end
-    for row=1,2 do for column=1,5 do
+    for row=1,Storage.ROWS do for column=1,Storage.COLUMNS do
         local rect=layout.slots[row][column]
         local hitWidth,hitHeight=math.max(44,rect.width),math.max(44,rect.height)
         local hit={x=rect.x+(rect.width-hitWidth)/2,y=rect.y+(rect.height-hitHeight)/2,width=hitWidth,height=hitHeight}
@@ -346,8 +349,8 @@ function Screen:keypressed(state,key,isRepeat)
     local row,column=self.selected.row,self.selected.column
     if key=="left" then column=math.max(1,column-1)
     elseif key=="right" then column=math.min(5,column+1)
-    elseif key=="up" then row=2
-    elseif key=="down" then row=1
+    elseif key=="up" then row=math.min(Storage.ROWS,row+1)
+    elseif key=="down" then row=math.max(1,row-1)
     elseif not isRepeat and (key=="return" or key=="kpenter" or key=="space") then
         return self:activate(state,self:view(state).selectedId and "retrieve" or "store")
     elseif not isRepeat and key=="s" then return self:activate(state,"store")
@@ -389,9 +392,9 @@ function Screen:draw(state,fonts,assets)
         local warning={x=layout.art.x+layout.art.width*0.24,y=layout.art.y+layout.art.scale*120,
             width=layout.art.width*0.52,height=math.max(16,layout.art.scale*30)}
         g.setColor(0.05,0.05,0.035,0.92); g.rectangle("fill",warning.x,warning.y,warning.width,warning.height,2,2)
-        g.setColor(0.97,0.76,0.36,1); centerText("TOP ROW: FORKLIFT REQUIRED",warning)
+        g.setColor(0.97,0.76,0.36,1); centerText("MIDDLE + TOP: FORKLIFT REQUIRED",warning)
     end
-    for row=1,2 do for column=1,5 do
+    for row=1,Storage.ROWS do for column=1,Storage.COLUMNS do
         local slot,rect=view.slots[row][column],layout.slots[row][column]
         if slot.variant and art then
             -- All three source pallets share baseline y=648. A single scale
@@ -433,7 +436,7 @@ function Screen:draw(state,fonts,assets)
             g.setLineWidth(slot.selected and 2 or 1)
             g.rectangle("line",rect.x+2,rect.y+2,math.max(0,rect.width-4),math.max(0,rect.height-4),2,2)
         end
-        if row==2 and view.upperLocked then
+        if row>1 and view.upperLocked then
             g.setColor(0.06,0.05,0.03,0.28)
             g.rectangle("fill",rect.x,rect.y,rect.width,rect.height)
         end

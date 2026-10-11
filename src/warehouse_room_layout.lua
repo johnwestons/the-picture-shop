@@ -34,17 +34,17 @@ local function idForRack(id) return id and id:gsub("%-rack$","") end
 function Layout.rackApproach(id) local b=Layout.bay(idForRack(id));return b and b.rackApproachPoint end
 function Layout.rackPoint(id,row,column)
     local bayId=idForRack(id)
-    if not Layout.bay(bayId) or (row~=1 and row~=2) or type(column)~="number"
+    if not Layout.bay(bayId) or type(row)~="number" or row~=math.floor(row) or row<1 or row>3 or type(column)~="number"
         or column<1 or column>5 or column~=math.floor(column) then return nil end
     local x,y,groundY
     if bayId=="warehouse" then
         x=(432+(column-1)*104)*960/1536
-        y=(162+(column-1)*26-(row-1)*85)*678/1024
+        y=(207+(column-1)*25-(row-1)*80)*678/1024
         groundY=(268+(column-1)*25)*678/1024
     else
         -- Five of the six visible bays are registered as stock slots.
         x=(431+(column-1)*174)*960/1536
-        y=(188+(column-1)*29-(row-1)*99)*678/1024
+        y=(250+(column-1)*31-(row-1)*85)*678/1024
         groundY=(257+(column-1)*30)*678/1024
     end
     return {x=x,y=y,groundY=groundY,row=row,column=column}

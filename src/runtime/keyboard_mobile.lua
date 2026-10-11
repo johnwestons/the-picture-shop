@@ -2,6 +2,60 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 
+local function mobileActionLabel(Runtime, selected)
+    if not selected then return "" end
+    local kind = selected.kind
+    local target = selected.target or {}
+    if kind == "applicant" then return target.actionLabel or "TALK" end
+    if kind == "workPhone" then
+        return target.actionLabel or (Runtime.state.workPhone and Runtime.state.workPhone.incoming
+            and "ANSWER" or "PHONE")
+    end
+    if kind == "loadingBayDoor" then
+        if target.doorState == "closed" then return "OPEN" end
+        if target.doorState == "open" then return "CLOSE" end
+        return "WAIT"
+    end
+    if kind == "truckCargoDoor" then
+        if target.truckState == "parked_closed" then
+            return target.truckMode == "machine_delivery" and "MANIFEST" or "OPEN"
+        end
+        if target.truckState == "cargo_open" then return "INVENTORY" end
+        return "WAIT"
+    end
+    if kind == "customer" then
+        return target.customerState == "reviewing" and "REVIEW" or "TALK"
+    end
+    if kind == "shopEntrance" then
+        return require("src.shop_rooms").scene(Runtime.World.player) == "warehouse"
+            and "ROOMS" or "EXIT"
+    end
+    if kind == "roomGame" then return target.ball and "PICK UP" or "PLAY" end
+    if kind == "roomRest" or kind == "breakroom" then
+        return Runtime.World.player.resting and "STAND" or "REST"
+    end
+    if kind == "palletJack" then
+        local jack = target.jackState
+        if not jack or not jack.operating then return "DRIVE" end
+        if not target.ownsJack then return "BUSY" end
+        if jack.carriedPalletId then return "LOWER" end
+        return target.candidatePalletId and "LIFT" or "PARK"
+    end
+    if kind == "forklift" then
+        local lift = Runtime.state.forklift
+        local playerId = tonumber(Runtime.World.player.id) or 1
+        return lift and lift.operating and lift.operatorPlayerId ~= playerId
+            and "BUSY" or "DRIVE"
+    end
+    local labels = {
+        computer = "OPEN", shopClock = "CHECK", vendor = "TALK",
+        cutter = "OPERATE", skidWrapper = "WRAP", windmill = "PRINT",
+        palletWorkOrder = "READ", palletRack = "STOCK",
+        roomStock = "STOCK",
+    }
+    return target.actionLabel or labels[kind] or ""
+end
+
 function Component.install(Runtime)
     local mobileTextInputState
 
@@ -95,9 +149,7 @@ function Component.install(Runtime)
         end
         if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
             local selected=Runtime.World.getInteraction()
-            local labels={shopEntrance="EXIT",roomStock="STOCK",roomRest=Runtime.World.player.resting and "STAND" or "REST",
-                roomGame="PLAY"}
-            return "e",selected and labels[selected.kind] or "USE"
+            return "e",mobileActionLabel(Runtime,selected)
         end
         if Runtime.warehouseControls:ownsLift() then
             return "e",Runtime.state.forklift.carriedPalletId and "DROP" or "PICK UP"
@@ -113,7 +165,7 @@ function Component.install(Runtime)
         local pickup = Runtime.World.palletPickupSnapshot(Runtime.state)
         if pickup.selected then return "l", "LIFT" end
         local selected = Runtime.World.getInteraction()
-        if not selected then return "e", "USE" end
+        if not selected then return "e", "" end
         if Runtime.multiplayer:isClient() and selected.kind ~= "loadingBayDoor"
             and selected.kind ~= "truckCargoDoor"
             and selected.kind ~= "palletWorkOrder"
@@ -126,27 +178,7 @@ function Component.install(Runtime)
         then
             return "e", "HOST"
         end
-        local jackLabel = "DRIVE"
-        if Runtime.state.palletJack and Runtime.state.palletJack.operating then
-            local localPlayerId = tonumber(Runtime.World.player.id) or 1
-            if Runtime.state.palletJack.operatorPlayerId ~= localPlayerId then
-                jackLabel = "BUSY"
-            else
-                local candidateId = Runtime.state.palletJack.candidatePalletId
-                    or Runtime.World.networkPalletJackSnapshot(Runtime.state).candidatePalletId
-                jackLabel = Runtime.state.palletJack.carriedPalletId and "LOWER"
-                    or candidateId and "LIFT" or "PARK"
-            end
-        end
-        local labels = {
-            customer = "JOB", computer = "PC", shopClock = "CLOCK", vendor = "TALK", loadingBayDoor = "DOOR",
-            truckCargoDoor = "TRUCK", cutter = "CUTTER", skidWrapper = "WRAP",
-            windmill = "PRESS", palletJack = jackLabel, palletWorkOrder = "VIEW",
-            forklift = "DRIVE", palletRack = "SHELVES",
-            shopEntrance="ROOMS",roomStock="STOCK",roomRest="REST",
-            breakroom = Runtime.World.player.resting and "STAND" or "REST",
-        }
-        return "e", labels[selected.kind] or "USE"
+        return "e", mobileActionLabel(Runtime,selected)
     end
 
     function Runtime.extraMobileActions()

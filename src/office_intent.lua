@@ -1,4 +1,5 @@
 local Codec = require("src.net.codec")
+local Config = require("src.config")
 local Intent = {}
 local fields = {
     estimate = { id = "token", amount = "amount" }, decline = { id = "token" },
@@ -13,7 +14,7 @@ local fields = {
     buy_breakroom_fixture = { bayId = "bay", fixtureId = "breakroom_fixture", requestId = "token" },
     staging_area_add = {},
     staging_area_remove = { areaId = "token" },
-    staging_area_change = { areaId = "token", change = "staging_change" },
+    staging_area_change = { areaId = "token", change = "staging_change", x = "staging_x", y = "staging_y" },
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
     decline_application = { applicationId = "token" },
     offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
@@ -50,9 +51,17 @@ function Intent.normalize(value)
             if item~=-1 and item~=1 then return nil,"Move this job up or down one place." end
         elseif rule == "staging_change" then
             local allowed = { left=true, right=true, up=true, down=true,
-                purpose_next=true, purpose_previous=true, color_next=true, color_previous=true,
+                purpose_next=true, purpose_previous=true, color_next=true, color_previous=true, move_to=true,
                 machine_next=true, machine_previous=true }
             if not allowed[item] then return nil, "Choose a valid staging area adjustment." end
+        elseif rule == "staging_x" then
+            if item ~= nil and not integer(item, 0, Config.baseWidth) then
+                return nil, "Choose a valid staging area position."
+            end
+        elseif rule == "staging_y" then
+            if item ~= nil and not integer(item, 0, Config.baseHeight) then
+                return nil, "Choose a valid staging area position."
+            end
         elseif rule == "employee_skill" then
             if item~="cutter" and item~="press" and item~="wrapping" then
                 return nil,"Choose paper-cutter, printing-press, or pallet-wrapping training."
@@ -107,6 +116,12 @@ function Intent.normalize(value)
             item = Codec.array(rows)
         end
         result[key] = item
+    end
+    if value.kind == "staging_area_change" then
+        local moving = result.change == "move_to"
+        if moving ~= (result.x ~= nil and result.y ~= nil) then
+            return nil, "A staging move needs both coordinates."
+        end
     end
     return result
 end

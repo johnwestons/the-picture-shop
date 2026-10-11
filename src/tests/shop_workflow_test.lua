@@ -227,9 +227,13 @@ function Test.run(context,check)
     local renderer=require("src.employee_renderer")
     local crew=State.new();crew.money=100000
     local directions={{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}}
+    local crewNames={}
     for i,profile in ipairs(catalog.profiles) do
         local employee=hire(crew,Contracts.terms(profile.requestedWage,31,8,20,4))
-        check("shop_mouse_worker_can_negotiate_and_hire_"..i,employee.name==profile.name and employee.character==profile.character
+        local generatedName=type(employee.name)=="string" and #employee.name>0
+            and not catalog.isLegacyName(employee.name) and not crewNames[employee.name:lower()]
+        if type(employee.name)=="string" then crewNames[employee.name:lower()]=true end
+        check("shop_mouse_worker_can_negotiate_and_hire_"..i,generatedName and employee.character==profile.character
             and employee.contract.payWeeks==4 and Contracts.duration(employee.contract)==12)
         local entry={worker=employee,actor=employee}
         for dir,v in ipairs(directions) do

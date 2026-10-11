@@ -19,6 +19,8 @@ local VALID_KINDS = {
     supplier_status = true,
     service_order = true,
     construction_notice = true,
+    outgoing_power = true,
+    outgoing_supplier = true,
 }
 
 local LIGHTS = {
@@ -28,7 +30,31 @@ local LIGHTS = {
     service_order = 3,
     construction_notice = 3,
     customer_status = 4,
+    outgoing_power = 3,
+    outgoing_supplier = 3,
 }
+
+local POWER_CONTACT = {
+    id = "power_company",
+    name = "CritterNet Power & Light",
+    description = "Outage reports and power account",
+    kind = "outgoing_power",
+}
+
+local function contactList()
+    local contacts = { POWER_CONTACT }
+    for categoryIndex = 1, 4 do
+        local category = Procurement.category(categoryIndex)
+        contacts[#contacts + 1] = {
+            id = "supplier_" .. tostring(categoryIndex),
+            name = category.salesman,
+            description = category.name .. " • phone orders",
+            kind = "outgoing_supplier",
+            categoryIndex = categoryIndex,
+        }
+    end
+    return contacts
+end
 
 local LOCATION_LABELS = {
     awaiting_delivery = "waiting for customer stock",
@@ -88,7 +114,20 @@ function WorkPhone.ensure(state)
         phone.nextCallAtHours = math.max(phone.nextCallAtHours,
             BusinessCalendar.absoluteHours(state) + 6)
     end
+    if phone.incoming and phone.incoming.direction == nil then
+        phone.incoming.direction = "incoming"
+    end
     return phone
+end
+
+function WorkPhone.contacts()
+    return contactList()
+end
+
+function WorkPhone.contact(contactId)
+    for _, contact in ipairs(contactList()) do
+        if contact.id == contactId then return contact end
+    end
 end
 
 local function findPurchaseOrder(state, orderId)
@@ -205,10 +244,37 @@ function WorkPhone.queueCall(state, spec, nowHours)
         optionId = spec.optionId,
         categoryIndex = spec.categoryIndex,
         itemIndex = spec.itemIndex,
+        direction = "incoming",
         receivedAtHours = nowHours or BusinessCalendar.absoluteHours(state),
         answered = false,
     }
     state.message = phone.incoming.caller .. " is calling the work phone."
+    return true, phone.incoming
+end
+
+function WorkPhone.placeCall(state, contactId)
+    local phone = WorkPhone.ensure(state)
+    if phone.incoming then return false, "The line is busy. Hang up before dialing another contact." end
+    local contact = WorkPhone.contact(contactId)
+    if not contact then return false, "Choose a contact from the phone directory." end
+    local number = phone.nextCallId
+    phone.nextCallId = number + 1
+    local power = contact.kind == "outgoing_power"
+    phone.incoming = {
+        id = string.format("CALL-%04d", number),
+        kind = contact.kind,
+        caller = contact.name,
+        role = power and "POWER COMPANY" or "SUPPLIER",
+        subject = power and "OUTAGE OR ACCOUNT STATUS" or "SUPPLY ORDER",
+        message = power
+            and "Thanks for calling CritterNet Power & Light. We can check your account and local outage reports."
+            or string.format("Thanks for calling %s. Choose an item and we will send it to the loading dock.", contact.name),
+        categoryIndex = contact.categoryIndex,
+        direction = "outgoing",
+        receivedAtHours = BusinessCalendar.absoluteHours(state),
+        answered = true,
+    }
+    state.message = "Calling " .. contact.name .. "..."
     return true, phone.incoming
 end
 
@@ -224,8 +290,44 @@ end
 function WorkPhone.answer(state)
     local call = WorkPhone.ensure(state).incoming
     if not call then return false, "No one is calling right now." end
+    if call.direction == "outgoing" then return false, "This outgoing call is already connected." end
     call.answered = true
     return true, call
+end
+
+local function powerCompanyResponse(state)
+    local _, bills = BusinessCalendar.ensure(state)
+    for _, invoice in ipairs(bills.ledger or {}) do
+        if invoice.status == "unpaid" then
+            for _, charge in ipairs(invoice.charges or {}) do
+                if charge.id == "power" then
+                    return string.format(
+                        "Your account has an unpaid power charge of $%d on %s. If service was suspended, pay the shop bills on the office computer and call us back.",
+                        math.floor(tonumber(charge.amount) or 0), invoice.id)
+                end
+            end
+        end
+    end
+    return "Your power account is current. The outage board shows a tree down across the line near the shop; a crew estimates restoration in 2 game hours."
+end
+
+function WorkPhone.orderSupply(state, itemIndex)
+    local call = WorkPhone.ensure(state).incoming
+    if not call or call.direction ~= "outgoing" or call.kind ~= "outgoing_supplier" then
+        return false, "Call a supplier before placing a phone order."
+    end
+    if call.orderId then return false, "This phone call already placed an order." end
+    local category = Procurement.category(call.categoryIndex)
+    itemIndex = math.floor(tonumber(itemIndex) or 0)
+    if not category.items[itemIndex] then return false, "Choose an item from this supplier's catalog." end
+    local purchased, orderOrError = Procurement.buy(state, call.categoryIndex, itemIndex, "salesman")
+    if not purchased then return false, tostring(orderOrError) end
+    call.orderId = orderOrError.id
+    call.response = string.format(
+        "%s placed: %s, $%d. Dock delivery in about 4 game hours.",
+        orderOrError.id, orderOrError.productName, orderOrError.price)
+    state.message = call.response
+    return true, call.response
 end
 
 local function uniqueLocations(job)
@@ -299,7 +401,7 @@ local function archiveCurrent(state, outcome, response, nowHours)
     local call = phone.incoming
     if not call then return nil end
     call.outcome = outcome
-    call.response = response
+    if call.direction ~= "outgoing" or not call.response then call.response = response end
     call.endedAtHours = math.max(call.receivedAtHours or 0,
         validHours(nowHours) and nowHours or BusinessCalendar.absoluteHours(state))
     phone.history[#phone.history + 1] = call
@@ -315,7 +417,16 @@ function WorkPhone.respond(state)
     if not call then return false, "No call is active." end
     if not call.answered then return false, "Answer the phone before responding." end
     local response
-    if call.kind == "customer_order" then
+    if call.direction == "outgoing" then
+        if call.kind ~= "outgoing_power" then
+            return false, "Choose an item from the supplier catalog to place an order."
+        end
+        if call.response then return false, "The power company has already checked this account." end
+        response = powerCompanyResponse(state)
+        call.response = response
+        state.message = response
+        return true, response
+    elseif call.kind == "customer_order" then
         local offer, errors = JobService.createNextOffer(state, os.time())
         if not offer then return false, table.concat(errors or { "Could not prepare the order." }, "; ") end
         offer.company = call.caller
@@ -390,6 +501,12 @@ end
 function WorkPhone.actionLabel(state)
     local call = WorkPhone.ensure(state).incoming
     if not call then return "" end
+    if call.direction == "outgoing" then
+        if call.kind == "outgoing_power" then
+            return call.response and "ACCOUNT CHECKED" or "ASK WHAT'S UP?!"
+        end
+        return call.orderId and "ORDER PLACED" or "CHOOSE A SUPPLY ABOVE"
+    end
     if call.kind == "customer_order" then return "TAKE ORDER" end
     if call.kind == "customer_status" then return "GIVE JOB UPDATE" end
     if call.kind == "supplier_status" then return "HEAR DELIVERY UPDATE" end

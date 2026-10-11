@@ -34,8 +34,8 @@ function Intent.normalize(value)
     for key in pairs(allowed) do
         local item = value[key]
         local valid
-        if key == "height" then valid = item == 0 or item == 0.08 or item == 1
-        elseif key == "row" then valid = integer(item, 1, 2)
+        if key == "height" then valid = item == 0 or item == 0.08 or item == 0.5 or item == 1
+        elseif key == "row" then valid = integer(item, 1, 3)
         elseif key == "column" then valid = integer(item, 1, 5)
         elseif key == "expectedRevision" then valid = integer(item, 0, 2147483647)
         elseif key == "vehicle" then valid = item == "forklift" or item == "pallet_jack"

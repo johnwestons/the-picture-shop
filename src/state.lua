@@ -261,6 +261,7 @@ function State.applySharedUpdate(state, snapshot)
     -- never let an old cargo ID resurrect a pallet now stored on a shelf.
     if liveForklift and state.forklift.owned
         and liveForklift.carriedPalletId == state.forklift.carriedPalletId
+        and (liveForklift.sceneId or "warehouse")== (state.forklift.sceneId or "warehouse")
         and not (state.palletJack.operating
             and state.palletJack.operatorPlayerId == liveForklift.operatorPlayerId)
         and Forklift.applySnapshot(state, liveForklift, Config.forklift) then
@@ -269,6 +270,7 @@ function State.applySharedUpdate(state, snapshot)
             local world = cargo.pallet.world
             world.x, world.y = liveForklift.x, liveForklift.y
             world.fromX, world.fromY = liveForklift.x, liveForklift.y
+            world.sceneId = liveForklift.sceneId or "warehouse"
             world.direction, world.spawnProgress = liveForklift.direction, 1
         end
     end

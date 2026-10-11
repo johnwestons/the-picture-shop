@@ -15,6 +15,7 @@ local function create(dependencies)
     require("src.screens.computer.finance").install(Runtime)
     require("src.screens.computer.email").install(Runtime)
     require("src.screens.computer.calendar").install(Runtime)
+    require("src.screens.computer.reviews").install(Runtime)
     require("src.screens.computer.render").install(Runtime)
     return Runtime.ComputerScreen
 end

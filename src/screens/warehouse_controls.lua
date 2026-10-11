@@ -54,19 +54,20 @@ function Controls:reset(message)
 end
 function Controls:buttons()
     local c=self.context
-    if require("src.shop_rooms").scene(self:player())~="warehouse" then return {} end
+    local scene=require("src.shop_rooms").scene(self:player())
     if c.state.screen~="world" and c.state.screen~="pallet_rack" then return {} end
     local lift=c.state.forklift
     local player=self:player()
-    local near=lift and lift.owned and (player.x-lift.x)^2+(player.y-lift.y)^2<=100^2
-    local owned=self:ownsLift()
+    local near=lift and lift.owned and (lift.sceneId or "warehouse")==scene
+        and (player.x-lift.x)^2+(player.y-lift.y)^2<=100^2
+    local owned=self:ownsLift() and (lift.sceneId or "warehouse")==scene
     local rackId=c.world.warehouseNearRack(player,c.state)
     local specs={}
     if c.state.screen=="pallet_rack" then
-        if owned then specs={{"g","LOWER",0},{"t","TRAVEL",0.08},{"u","UPPER",1}} end
+        if owned then specs={{"g","LOWER",0},{"t","TRAVEL",0.08},{"m","MIDDLE",0.5},{"u","TOP",1}} end
     elseif owned then
         specs={{"e",lift.carriedPalletId and "DROP" or "PICK UP"},{"g","LOWER",0},
-            {"t","TRAVEL",0.08},{"r","RAISE",1},{"v","PARK"},
+            {"t","TRAVEL",0.08},{"m","MIDDLE",0.5},{"r","TOP",1},{"v","PARK"},
             {"k",self.stackPending and "WAITING..." or lift.carriedPalletId and "STACK" or "TAKE TOP"}}
         if rackId then specs[#specs+1]={"h","SHELVES"} end
     else
@@ -86,7 +87,7 @@ function Controls:activate(key)
     local c=self.context
     if key=="h" then self:openRack(); return true end
     if key=="v" then c.command({kind=self:ownsLift() and "release" or "operate"}); return true end
-    local height=({g=0,t=0.08,r=1,u=1})[key]
+    local height=({g=0,t=0.08,m=0.5,r=1,u=1})[key]
     if height~=nil then c.command({kind="set_height",height=height}); return true end
     if key=="k" then
         if self.stackPending then c.state.message="Waiting for the host to confirm the stack transfer.";return true end
@@ -116,6 +117,10 @@ function Controls:activate(key)
 end
 function Controls:keypressed(key)
     local c=self.context
+    if key=="e" and c.state.screen=="world" then
+        local selected=c.world.getInteraction and c.world.getInteraction()
+        if selected and selected.kind=="shopEntrance" then return false end
+    end
     for _,button in ipairs(self:buttons()) do if key==button.key then return self:activate(key) end end
     if c.state.screen=="pallet_rack" and self.rack then self.rack:keypressed(c.state,key); return true end
     -- Mounted workers cannot operate a second machine through its old hotkeys.

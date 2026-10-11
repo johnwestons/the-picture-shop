@@ -6,25 +6,26 @@ The approved B6 open-office artwork is the active warehouse. The concrete floor 
 
 - Walk to the wide passage beside the back-wall shelves and press **E**, or tap **ROOMS** on mobile. Choose room A or B. Each player's travel is independent.
 - Buy a storage room, break room or empty utility room from the computer's Warehouse page. Existing construction notices, worker arrival, four construction stages, prices and purchase receipts still apply. A room opens after construction completes.
-- Storage rooms contain ten stock spaces. Move delivered shop supplies to the warehouse entrance with the pallet jack, put the pallet down and park the jack. Enter the storage room, approach its shelves and use **STOCK**. Store the staged pallet or retrieve an existing one. Retrieval finds a clear drop position at the warehouse entrance; it fails safely when that area is full.
-- Customer job pallets can use the base warehouse shelves. Their lower row accepts a pallet jack; their upper row still needs a forklift. A storage-room purchase requires no forklift acknowledgement.
+- Storage rooms contain fifteen pallet spaces across bottom, middle and top rows. Move delivered shop supplies to the warehouse entrance with the pallet jack, put the pallet down and park the jack. The room's **STOCK** desk can store and retrieve these supplies on the five bottom shelves; retrieval finds a clear drop position at the warehouse entrance. Use a forklift for physical transfers to the middle and top shelves.
+- Customer job pallets can use the base warehouse shelves and completed storage-room racks. Use a pallet jack for the bottom row, a stopped forklift with forks at 50% for the middle row, and a stopped forklift with forks at 100% for the top row. A storage-room purchase requires no forklift acknowledgement.
 - In the break room, approach the seating and press **E** or **REST**. Move or use **STAND** to get up. Employees with a completed break-room upgrade recover there using their existing break schedule.
-- Use the rear-left exit in any room to return to the warehouse. Players may take an operated pallet jack and its carried pallet through either doorway; forklifts and moving attached machines must be parked or placed first.
+- Use the rear-left exit in any room to return to the warehouse. Players may take an operated pallet jack or forklift and its carried pallet through the doorway. Stop the forklift and lower its forks to travel height first. Forklifts may enter completed storage rooms; moving attached machines must be placed first.
 
 ## Scene and inventory boundaries
 
-Player records carry a host-authoritative `sceneId`: `warehouse`, `front_left` (room A), or `front_right` (room B). Reliable interaction requests validate actual player location, completed room ownership and the relevant doorway or stock-desk range. Scene changes snap player position instead of interpolating across different maps. Remote avatars and employees draw only in their current room; workshop access and vehicle shortcuts check the warehouse scene. The host keeps simulating warehouse visitors, deliveries, production and workers even while its player is in another room. Players can remain in three different scenes at once.
+Player records carry a host-authoritative `sceneId`: `warehouse`, `front_left` (room A), or `front_right` (room B). Reliable interaction requests validate actual player location, completed room ownership and the relevant doorway or stock-desk range. Scene changes snap player position instead of interpolating across different maps. Remote avatars and employees draw only in their current room; pallet jacks and forklifts also retain their room identity. The host keeps simulating warehouse visitors, deliveries, production and workers even while its player is in another room. Players can remain in three different scenes at once.
 
 Room stock remains on its original procurement pallet, using the existing rack placement fields. Transfers move that same record, preserve quantities, choose a free slot on the host and update the shared stock revision. Client retries cannot add a second copy. Other rooms cannot retrieve the stock, supporting pallets cannot be moved, and invalid storage records or exhausted revisions reject mutations.
 
-The old upgrade IDs and save schema remain compatible: `storage` purchases become storage rooms, `breakroom` purchases become break rooms and `floor` purchases become empty utility rooms. The two persistent bay IDs still own construction projects and purchases. The base `warehouse-rack` is added when normalizing existing storage registries. Stored pallets and room ownership persist; customer pallets already on old paid shelves can be retrieved from the room menu, although new room storage accepts only delivered shop supplies. An offline reload starts the player in the warehouse. Old foreground triangle geometry and its presentation fixtures are retained only for the legacy configuration.
+The old upgrade IDs and save schema remain compatible: `storage` purchases become storage rooms, `breakroom` purchases become break rooms and `floor` purchases become empty utility rooms. The two persistent bay IDs still own construction projects and purchases. The base `warehouse-rack` is added when normalizing existing storage registries. Existing row 1 and row 2 pallet placements retain their coordinates, while row 3 adds five new top spaces. An offline reload starts the player in the warehouse. Old foreground triangle geometry and its presentation fixtures are retained only for the legacy configuration.
 
 ## Runtime sprites and registration
 
 | Sprite | Runtime file | Size |
 | --- | --- | --- |
-| Selected warehouse with revised lobby seating and smoothed expansion passage | `assets/generated/warehouse-lobby-seating-v4.png` | 1536×1024 |
-| Stock room | `assets/generated/shop-storage-room-v1.png` | 1536×1024 |
+| Selected warehouse with three rack tiers | `assets/generated/warehouse-lobby-seating-v5-three-tier.png` | 1536×1024 |
+| Stock room with three rack tiers | `assets/generated/shop-storage-room-v2-three-tier.png` | 1536×1024 |
+| First-person rack without hanging lamps | `assets/source/warehouse-expansion-v1/rack-front-3x5-no-lamps-v1.png` | 1536×1024 |
 | Break room | `assets/generated/shop-breakroom-v1.png` | 1536×1024 |
 | Empty utility room | `assets/generated/shop-utility-room-v1.png` | 1536×1024 |
 | Rabbit seated pose, transparent | `assets/generated/characters/rabbit-worker/sit-room-v1.png` | 1254×1254 |

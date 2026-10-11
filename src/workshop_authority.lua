@@ -49,7 +49,13 @@ Authority.RESOURCES = {
 
 Authority.ACTIONS = {
     warehouse = { warehouse_action = true },
-    work_phone = { phone_answer = true, phone_respond = true, phone_dismiss = true },
+    work_phone = {
+        phone_call = true,
+        phone_answer = true,
+        phone_respond = true,
+        phone_dismiss = true,
+        phone_order = true,
+    },
     reception_customer = {
         request_details = true,
         submit_quote = true,

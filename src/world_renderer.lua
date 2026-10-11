@@ -617,7 +617,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     -- so assuming World.player is the operator would duplicate a remote owner
     -- and incorrectly move the host avatar.
     local forklift = state and state.forklift
-    local forkliftDriver = forklift and forklift.owned and forklift.operating and forklift.operatorPlayerId
+    local forkliftDriver = forklift and forklift.owned and (forklift.sceneId or "warehouse")=="warehouse"
+        and forklift.operating and forklift.operatorPlayerId
     local jackOperator,jackEmployee
     if jackInScene and jack.operating then
         if jack.operatorPlayerId == (tonumber(World.player.id) or 1) then jackOperator = World.player end
@@ -631,7 +632,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     if forkliftDriver ~= (tonumber(World.player.id) or 1) and jackOperator ~= World.player then
     actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets,state) end }
     end
-    if forklift and forklift.owned then
+    if forklift and forklift.owned and (forklift.sceneId or "warehouse")=="warehouse" then
         actors[#actors + 1] = { y=forklift.y, layer=1,
             draw=function() WarehouseRenderer.drawForklift(assets,state,drawPallet) end }
     end
@@ -746,7 +747,9 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         active = type(remotePlayers) == "table" and #remotePlayers > 0,
     })
     drawPalletTooltip(state, mouseX, mouseY)
-    WarehouseRenderer.drawVehicleStatus(state)
+    if forklift and (forklift.sceneId or "warehouse")=="warehouse" then
+        WarehouseRenderer.drawVehicleStatus(state)
+    end
     WarehouseRenderer.drawDevelopmentNotice(state)
     WarehouseRenderer.endFrame()
 end

@@ -47,6 +47,7 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.warehouseConfirmation,Runtime.ComputerScreen.warehousePending,Runtime.ComputerScreen.warehouseMessage=nil,false,nil
         Runtime.ComputerScreen.warehouseGamesPage=false
         Runtime.ComputerScreen.warehouseStagingPage=false
+        Runtime.ComputerScreen.warehouseStagingDrag=nil
         Runtime.ComputerScreen.creditConfirmation = nil
         Runtime.ensureSelection(state)
     end
@@ -76,6 +77,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.activateTab(state, tab)
+        if tab.id~="warehouse" then Runtime.ComputerScreen.warehouseStagingDrag=nil end
         Runtime.ComputerScreen.tab = tab.id
         Runtime.ComputerScreen.tabDropdownOpen = false
         Runtime.ComputerScreen.cartOpen = false

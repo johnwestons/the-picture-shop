@@ -85,7 +85,12 @@ function Controls.keypressed(key,Runtime)
         if key=="q" then send(Runtime,"roomGame","basketball:drop");return true end
         if key=="space" then return require("src.basketball_controls").start(Runtime) end
     end
-    if Rooms.scene(Runtime.World.player)~="warehouse" and ({f=true,l=true,m=true,q=true,v=true,g=true,t=true,r=true,k=true,h=true})[key] then
+    local sceneId=Rooms.scene(Runtime.World.player)
+    local storageRoom=sceneId~="warehouse" and Rooms.isComplete(Runtime.state,sceneId)
+        and Rooms.definition(Runtime.state,sceneId)=="storage"
+    local warehouseKey=({m=true,v=true,g=true,t=true,r=true,k=true,h=true})[key]
+    if sceneId~="warehouse" and ({f=true,l=true,q=true})[key]
+        or sceneId~="warehouse" and warehouseKey and not storageRoom then
         Runtime.state.message="Return to the warehouse to use its machines and vehicles."
         return true
     end

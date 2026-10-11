@@ -11,14 +11,6 @@ function Component.install(Runtime)
             love.graphics.setColor(1,1,1,0.06)
             love.graphics.draw(backdrop,82,190,0,770/backdrop:getWidth(),408/backdrop:getHeight())
         end
-        love.graphics.setColor(0.94,0.83,0.34,1)
-        love.graphics.print(view.stagingPage and "CRITTERNET / PALLET STAGING"
-            or view.gamesPage and "CRITTERNET / BREAK ROOM GAMES"
-            or "CRITTERNET / WAREHOUSE IMPROVEMENTS",100,202)
-        love.graphics.setColor(0.72,0.84,0.82,1)
-        love.graphics.print(view.stagingPage and "Move and organize floor staging areas. Changes sync to every player."
-            or view.gamesPage and "Install a game in each completed break room. Prices are per room."
-            or "Each expansion: four construction stages, one game day per stage.",100,224)
         local function control(rect,text,enabled)
             local hovered=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
             Runtime.panel(rect,enabled and (hovered and {0.18,0.38,0.37,1} or {0.10,0.25,0.25,1}) or {0.10,0.13,0.14,1},
@@ -26,42 +18,107 @@ function Component.install(Runtime)
             love.graphics.setColor(enabled and {0.93,0.96,0.88,1} or {0.49,0.55,0.53,1})
             love.graphics.printf(text,rect.x+5,rect.y+13,rect.width-10,"center")
         end
-        if not view.stagingPage then
-            control(Runtime.WAREHOUSE_PAGE_SWITCH,view.gamesPage and "ROOM UPGRADES" or "BREAK ROOM GAMES",true)
-        end
-        control(Runtime.WAREHOUSE_STAGING_SWITCH,view.stagingPage and "ROOM UPGRADES" or "PALLET STAGING",
-            view.enabled and not view.pending)
         if view.stagingPage then
             local StagingAreas=Runtime.StagingAreas
-            Runtime.panel({x=90,y=244,width=386,height=244},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
-            love.graphics.setColor(0.91,0.93,0.87,1)
-            love.graphics.print("AREAS / "..#view.stagingAreas.." OF 6",104,252)
+            Runtime.panel({x=62,y=184,width=836,height=444},{0.035,0.07,0.085,0.995},{0.43,0.68,0.63,1},5,2)
+            love.graphics.setColor(0.96,0.83,0.36,1)
+            love.graphics.print("PALLET STAGING AREA EDITOR",78,195)
+            control(Runtime.WAREHOUSE_STAGING_EDITOR_EXIT,"ROOM UPGRADES",true)
+
+            local selected=view.selectedArea or view.stagingAreas[1]
             for index,area in ipairs(view.stagingAreas) do
-                local rect={x=98,y=270+(index-1)*35,width=370,height=32}
-                local selected=area.id==view.selectedArea.id
+                local rect=Runtime.warehouseStagingAreaTabRect(index)
+                local selectedTab=selected and area.id==selected.id
                 local hovered=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
-                Runtime.panel(rect,selected and {0.16,0.34,0.34,1} or hovered and {0.10,0.23,0.25,1}
-                    or {0.06,0.13,0.16,1},selected and {0.42,0.78,0.68,1} or {0.25,0.43,0.43,1},2,1)
+                Runtime.panel(rect,selectedTab and {0.13,0.36,0.34,1}
+                    or hovered and {0.11,0.25,0.26,1} or {0.055,0.13,0.16,1},
+                    selectedTab and {0.48,0.89,0.75,1} or {0.28,0.48,0.47,1},3,1)
                 local swatch=StagingAreas.color(area.color)
                 love.graphics.setColor(swatch.rgb[1],swatch.rgb[2],swatch.rgb[3],1)
-                love.graphics.circle("fill",114,rect.y+16,7)
-                love.graphics.setColor(0.92,0.95,0.9,1)
-                love.graphics.print(StagingAreas.label(state,area),130,rect.y+8)
-                love.graphics.setColor(0.64,0.78,0.74,1)
-                love.graphics.printf(string.format("%d, %d",area.x,area.y),374,rect.y+8,84,"right")
+                love.graphics.circle("fill",rect.x+11,rect.y+15,5)
+                love.graphics.setColor(selectedTab and {0.98,0.99,0.93,1} or {0.77,0.87,0.83,1})
+                local label=StagingAreas.label(state,area)
+                local font=love.graphics.getFont()
+                local scale=math.min(1,(rect.width-24)/math.max(1,font:getWidth(label)))
+                love.graphics.print(label,rect.x+20,rect.y+10,0,scale,scale)
             end
-            Runtime.panel({x=488,y=244,width=354,height=244},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
-            local area=view.selectedArea
+
+            local map=Runtime.warehouseStagingMapLayout()
+            local mapRect=Runtime.WAREHOUSE_STAGING_MAP
+            Runtime.panel(mapRect,{0.085,0.12,0.12,1},{0.34,0.55,0.51,1},3,1)
+            love.graphics.setColor(0.20,0.25,0.24,1)
+            love.graphics.rectangle("fill",map.x,map.y,map.width,map.height)
+            love.graphics.setScissor(map.x,map.y,map.width,map.height)
+            love.graphics.setColor(0.29,0.34,0.31,0.35)
+            for worldX=0,Runtime.Config.baseWidth,48 do
+                local gridX=map.x+worldX*map.scale
+                love.graphics.line(gridX,map.y,gridX,map.y+map.height)
+            end
+            for worldY=0,Runtime.Config.baseHeight,48 do
+                local gridY=map.y+worldY*map.scale
+                love.graphics.line(map.x,gridY,map.x+map.width,gridY)
+            end
+            local machineMap={
+                polar_115={key="cutter",label="CUTTER",color={0.72,0.81,0.84,1}},
+                skid_wrapper={key="wrapper",label="WRAPPER",color={0.48,0.77,0.85,1}},
+                heidelberg_10x15={key="windmill",label="PRESS",color={0.84,0.70,0.46,1}},
+            }
+            for _,machine in ipairs(state.machines and state.machines.items or {}) do
+                local marker=machineMap[machine.modelId]
+                if machine.status=="installed" and marker then
+                    local placement=machine.world or state[marker.key]
+                    local config=Runtime.Config[marker.key.."Placement"]
+                    if not placement and config then placement={x=config.spawnX,y=config.spawnY} end
+                    if placement then
+                        local halfWidth=(config.collisionHalfWidth or 42)*map.scale
+                        local halfHeight=(config.collisionHalfHeight or 16)*map.scale
+                        local mx,my=map.x+placement.x*map.scale,map.y+placement.y*map.scale
+                        love.graphics.setColor(0.035,0.07,0.08,0.88)
+                        love.graphics.rectangle("fill",mx-halfWidth,my-halfHeight,
+                            halfWidth*2,halfHeight*2,2,2)
+                        love.graphics.setColor(marker.color)
+                        love.graphics.setLineWidth(2)
+                        love.graphics.rectangle("line",mx-halfWidth,my-halfHeight,
+                            halfWidth*2,halfHeight*2,2,2)
+                        local font=love.graphics.getFont()
+                        local labelScale=math.min(0.9,(halfWidth*2-4)/math.max(1,font:getWidth(marker.label)))
+                        love.graphics.printf(marker.label,mx-halfWidth+2,my-font:getHeight()*labelScale/2,
+                            halfWidth*2-4,"center",0,labelScale,labelScale)
+                    end
+                end
+            end
+            for _,zone in ipairs(view.stagingAreas) do
+                local shown=Runtime.warehouseStagingPreviewArea(zone)
+                local palette=StagingAreas.color(zone.color)
+                local x,y=map.x+shown.x*map.scale,map.y+shown.y*map.scale
+                local width,height=shown.width*map.scale,shown.height*map.scale
+                local focused=selected and zone.id==selected.id
+                love.graphics.setColor(palette.rgb[1],palette.rgb[2],palette.rgb[3],focused and 0.35 or 0.20)
+                love.graphics.rectangle("fill",x,y,width,height)
+                love.graphics.setColor(palette.rgb[1],palette.rgb[2],palette.rgb[3],focused and 1 or 0.75)
+                love.graphics.setLineWidth(focused and 3 or 2)
+                love.graphics.rectangle("line",x,y,width,height)
+                for _,slot in ipairs(StagingAreas.positions(shown)) do
+                    local sx,sy=map.x+slot.x*map.scale,map.y+slot.y*map.scale
+                    local rx,ry=28*map.scale,9*map.scale
+                    love.graphics.setColor(palette.rgb[1],palette.rgb[2],palette.rgb[3],0.26)
+                    love.graphics.polygon("fill",sx,sy-ry,sx+rx,sy,sx,sy+ry,sx-rx,sy)
+                    love.graphics.setColor(palette.rgb[1],palette.rgb[2],palette.rgb[3],0.82)
+                    love.graphics.polygon("line",sx,sy-ry,sx+rx,sy,sx,sy+ry,sx-rx,sy)
+                end
+            end
+            love.graphics.setScissor()
+            love.graphics.setColor(0.53,0.67,0.61,1)
+            love.graphics.rectangle("line",map.x,map.y,map.width,map.height)
+
+            Runtime.panel({x=610,y=260,width=274,height=344},{0.045,0.09,0.10,0.98},{0.31,0.52,0.49,1},3,1)
+            local area=selected
+            love.graphics.setColor(0.95,0.82,0.39,1)
+            love.graphics.print(area and StagingAreas.label(state,area) or "STAGING AREA",624,270)
+            local fixedPurpose=StagingAreas.isFixedPurpose(area)
             local function setting(rect,label,enabled)
                 control(rect,label,enabled and view.enabled and not view.pending)
             end
-            love.graphics.setColor(0.95,0.82,0.38,1)
-            love.graphics.print("SELECTED AREA",502,252)
-            love.graphics.setColor(0.91,0.93,0.87,1)
-            love.graphics.printf(area.id=="cutter-output" and StagingAreas.label(state,area)
-                or area.id=="inbound-shipping" and "Inbound Shipping"
-                or "Staging Area "..area.id:gsub("^staging%-", ""),502,269,326,"left")
-            local fixedPurpose=StagingAreas.isFixedPurpose(area)
             setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
                 ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
             local swatch=StagingAreas.color(area.color)
@@ -75,11 +132,14 @@ function Component.install(Runtime)
                     ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
                     area.id~="cutter-output" and #view.machineOptions>0)
             else
-                love.graphics.setColor(0.63,0.75,0.72,1)
-                love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO ANY INSTALLED MACHINE.",502,378,326,"center")
+                love.graphics.setColor(0.59,0.72,0.69,1)
+                love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO ANY INSTALLED MACHINE.",620,390,264,"center")
             end
-            love.graphics.setColor(0.64,0.78,0.74,1)
-            love.graphics.printf(string.format("POSITION  /  X %d   Y %d",area.x,area.y),502,408,326,"center")
+            local shownArea=Runtime.warehouseStagingPreviewArea(area)
+            love.graphics.setColor(0.75,0.86,0.82,1)
+            love.graphics.printf(string.format("POSITION  /  X %d   Y %d",shownArea.x,shownArea.y),620,430,264,"center")
+            love.graphics.setColor(0.65,0.79,0.75,1)
+            love.graphics.printf("DRAG ON THE MAP  /  NUDGE",620,454,264,"center")
             setting(Runtime.WAREHOUSE_STAGING_LEFT,"<",true)
             setting(Runtime.WAREHOUSE_STAGING_UP,"^",true)
             setting(Runtime.WAREHOUSE_STAGING_DOWN,"v",true)
@@ -87,12 +147,21 @@ function Component.install(Runtime)
             setting(Runtime.WAREHOUSE_STAGING_ADD,"ADD AREA",#view.stagingAreas<StagingAreas.MAX_AREAS)
             setting(Runtime.WAREHOUSE_STAGING_REMOVE,"REMOVE AREA",not fixedPurpose)
             love.graphics.setColor(0.96,0.77,0.38,1)
-            love.graphics.printf(view.message or "Each area holds up to six pallets. Move it 16 pixels per tap.",100,548,736,"left")
-            love.graphics.setColor(0.69,0.78,0.78,1)
-            love.graphics.printf(view.pending and "Waiting for the host to save this staging area change."
-                or "Inbound pallets unload into Inbound Shipping. Machines use their assigned output area.",100,574,736,"left")
+            love.graphics.printf(view.message or (view.pending and "Waiting for the host to save this change."
+                or "Drag a colored zone to move it; use the arrows to nudge. Each zone holds up to six pallets."),78,610,800,"left")
             return
         end
+        love.graphics.setColor(0.94,0.83,0.34,1)
+        love.graphics.print(view.gamesPage and "CRITTERNET / BREAK ROOM GAMES"
+            or "CRITTERNET / WAREHOUSE IMPROVEMENTS",100,202)
+        love.graphics.setColor(0.72,0.84,0.82,1)
+        love.graphics.print(view.gamesPage and "Install a game in each completed break room. Prices are per room."
+            or "Each expansion: four construction stages, one game day per stage.",100,224)
+        if not view.stagingPage then
+            control(Runtime.WAREHOUSE_PAGE_SWITCH,view.gamesPage and "ROOM UPGRADES" or "BREAK ROOM GAMES",true)
+        end
+        control(Runtime.WAREHOUSE_STAGING_SWITCH,view.stagingPage and "ROOM UPGRADES" or "PALLET STAGING",
+            view.enabled and not view.pending)
         for bi,bay in ipairs(view.bays) do
             local x=90+(bi-1)*380
             Runtime.panel({x=x,y=244,width=372,height=224},{0.04,0.08,0.10,0.97},{0.27,0.46,0.45,1},3,1)
@@ -132,12 +201,12 @@ function Component.install(Runtime)
             love.graphics.setColor(0.95,0.81,0.35,1)
             love.graphics.print("FORKLIFT / "..Runtime.money(view.forklift.price),104,490)
             love.graphics.setColor(0.74,0.84,0.79,1)
-            love.graphics.print("Raise forks for upper shelves and two-high pallet stacks.",104,518)
+            love.graphics.print("Raise forks to 50% for middle shelves, 100% for top shelves and stacks.",104,518)
             control(Runtime.WAREHOUSE_FORKLIFT,view.forkliftOwned and "OWNED" or "REVIEW PURCHASE",
                 view.enabled and not view.forkliftOwned and not view.pending)
         end
         love.graphics.setColor(0.96,0.77,0.38,1)
-        love.graphics.printf(view.message or "Use the wide passage beside the back shelves to visit rooms. Storage keeps 10 stock pallets off the warehouse floor.",100,555,736,"left")
+        love.graphics.printf(view.message or "Use the wide passage beside the back shelves to visit rooms. Storage keeps 15 stock pallets off the warehouse floor.",100,555,736,"left")
         love.graphics.setColor(0.69,0.78,0.78,1)
         love.graphics.printf(view.pending and "Waiting for the host to confirm your purchase."
             or not view.enabled and "Purchasing is not enabled in this build."
@@ -163,10 +232,10 @@ function Component.install(Runtime)
             208,336,524,"left")
         if choice.optionId=="storage" then
             love.graphics.setColor(0.97,0.74,0.33,1)
-            love.graphics.printf("10 stock spaces in a separate room. Bring shop stock to the warehouse entrance; use the storage room's stock desk to store and retrieve it.",208,388,524,"left")
+            love.graphics.printf("15 pallet spaces in a separate room. The stock desk handles bottom-row shop supplies; use a forklift for middle and top shelves.",208,388,524,"left")
         end
         if choice.warningRequired then
-            control(Runtime.WAREHOUSE_ACK,(choice.confirmUpperRows and "[X]" or "[ ]").." I understand: the upper 5 shelves need a forklift.",not view.pending)
+            control(Runtime.WAREHOUSE_ACK,(choice.confirmUpperRows and "[X]" or "[ ]").." I understand: the middle and top shelves need a forklift.",not view.pending)
         end
         if view.message then
             love.graphics.setColor(0.96,0.72,0.41,1)

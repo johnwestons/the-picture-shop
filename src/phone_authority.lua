@@ -33,6 +33,42 @@ function Phone.resource(options)
             end,
         }
     end
+    commands.phone_call = {
+        normalize = function(args)
+            if type(args) ~= "table" then return nil, "invalid_contact", "Choose a phone contact." end
+            for key in pairs(args) do if key ~= "contactId" then return nil, "invalid_arguments" end end
+            if type(args.contactId) ~= "string" or not WorkPhone.contact(args.contactId) then
+                return nil, "invalid_contact", "Choose a contact from the phone directory."
+            end
+            return { contactId = args.contactId }
+        end,
+        perform = function(_, player, args)
+            local allowed, code, message = options.world.validateNetworkWorkshopAccess(player, state, "work_phone")
+            if not allowed then return false, code, message, {} end
+            local ok, result = WorkPhone.placeCall(state, args.contactId)
+            if ok then options.save() end
+            return ok == true, ok and "completed" or "phone_blocked",
+                type(result) == "string" and result or (ok and "Phone line connected." or "Phone call unavailable."), {}
+        end,
+    }
+    commands.phone_order = {
+        normalize = function(args)
+            if type(args) ~= "table" or type(args.itemIndex) ~= "number"
+                or args.itemIndex ~= math.floor(args.itemIndex) or args.itemIndex < 1 or args.itemIndex > 16 then
+                return nil, "invalid_item", "Choose a supply from the current catalog."
+            end
+            for key in pairs(args) do if key ~= "itemIndex" then return nil, "invalid_arguments" end end
+            return { itemIndex = args.itemIndex }
+        end,
+        perform = function(_, player, args)
+            local allowed, code, message = options.world.validateNetworkWorkshopAccess(player, state, "work_phone")
+            if not allowed then return false, code, message, {} end
+            local ok, result = WorkPhone.orderSupply(state, args.itemIndex)
+            if ok then options.save() end
+            return ok == true, ok and "completed" or "phone_blocked",
+                type(result) == "string" and result or (ok and "Phone order placed." or "Phone order unavailable."), {}
+        end,
+    }
     return {
         canAcquire = function(player)
             return options.world.validateNetworkWorkshopAccess(player, state, "work_phone")

@@ -28,15 +28,51 @@ function Component.install(Runtime)
 
     Runtime.WAREHOUSE_PAGE_SWITCH={x=690,y=202,width=148,height=28}
     Runtime.WAREHOUSE_STAGING_SWITCH={x=520,y=202,width=160,height=28}
-    Runtime.WAREHOUSE_STAGING_ADD={x=496,y=495,width=160,height=38}
-    Runtime.WAREHOUSE_STAGING_REMOVE={x=664,y=495,width=168,height=38}
-    Runtime.WAREHOUSE_STAGING_PURPOSE={x=500,y=291,width=332,height=34}
-    Runtime.WAREHOUSE_STAGING_COLOR={x=500,y=331,width=332,height=34}
-    Runtime.WAREHOUSE_STAGING_MACHINE={x=500,y=371,width=332,height=34}
-    Runtime.WAREHOUSE_STAGING_LEFT={x=536,y=425,width=42,height=34}
-    Runtime.WAREHOUSE_STAGING_UP={x=584,y=425,width=42,height=34}
-    Runtime.WAREHOUSE_STAGING_DOWN={x=632,y=425,width=42,height=34}
-    Runtime.WAREHOUSE_STAGING_RIGHT={x=680,y=425,width=42,height=34}
+    Runtime.WAREHOUSE_STAGING_EDITOR_EXIT={x=690,y=190,width=160,height=32}
+    Runtime.WAREHOUSE_STAGING_ADD={x=620,y=550,width=126,height=36}
+    Runtime.WAREHOUSE_STAGING_REMOVE={x=754,y=550,width=130,height=36}
+    Runtime.WAREHOUSE_STAGING_PURPOSE={x=620,y=302,width=264,height=36}
+    Runtime.WAREHOUSE_STAGING_COLOR={x=620,y=344,width=264,height=36}
+    Runtime.WAREHOUSE_STAGING_MACHINE={x=620,y=386,width=264,height=36}
+    Runtime.WAREHOUSE_STAGING_LEFT={x=674,y=508,width=40,height=32}
+    Runtime.WAREHOUSE_STAGING_UP={x=718,y=472,width=40,height=32}
+    Runtime.WAREHOUSE_STAGING_DOWN={x=718,y=508,width=40,height=32}
+    Runtime.WAREHOUSE_STAGING_RIGHT={x=762,y=508,width=40,height=32}
+    Runtime.WAREHOUSE_STAGING_MAP={x=76,y=260,width=520,height=344}
+
+    function Runtime.warehouseStagingAreaTabRect(index)
+        return {x=76+(index-1)*130,y=226,width=124,height=28}
+    end
+
+    function Runtime.warehouseStagingMapLayout()
+        local rect=Runtime.WAREHOUSE_STAGING_MAP
+        local scale=math.min(rect.width/Runtime.Config.baseWidth,rect.height/Runtime.Config.baseHeight)
+        local width,height=Runtime.Config.baseWidth*scale,Runtime.Config.baseHeight*scale
+        return {rect=rect,scale=scale,width=width,height=height,
+            x=rect.x+(rect.width-width)/2,y=rect.y+(rect.height-height)/2}
+    end
+
+    function Runtime.warehouseStagingMapWorldPoint(x,y,clampToFloor)
+        local layout=Runtime.warehouseStagingMapLayout()
+        if clampToFloor then
+            x=math.max(layout.x,math.min(layout.x+layout.width,x))
+            y=math.max(layout.y,math.min(layout.y+layout.height,y))
+        elseif x<layout.x or y<layout.y or x>layout.x+layout.width or y>layout.y+layout.height then
+            return nil
+        end
+        return (x-layout.x)/layout.scale,(y-layout.y)/layout.scale
+    end
+
+    function Runtime.warehouseStagingPreviewArea(area)
+        local drag=Runtime.ComputerScreen.warehouseStagingDrag
+        if drag and area and drag.areaId==area.id then
+            local preview={}
+            for key,value in pairs(area) do preview[key]=value end
+            preview.x,preview.y=drag.previewX,drag.previewY
+            return preview
+        end
+        return area
+    end
     local function productFor(choice)
         if choice.kind=="buy_breakroom_fixture" then return Runtime.BreakroomGames.CATALOG[choice.fixtureId] end
         return Runtime.Upgrades.catalog(choice.optionId or "forklift")
@@ -52,6 +88,7 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.warehouseConfirmation,Runtime.ComputerScreen.warehousePending=nil,false
         Runtime.ComputerScreen.warehouseGamesPage=false
         Runtime.ComputerScreen.warehouseStagingPage=false
+        Runtime.ComputerScreen.warehouseStagingDrag=nil
     end
 
     function Runtime.ComputerScreen.configureGameClock(options)
@@ -205,16 +242,23 @@ function Component.install(Runtime)
             end
             return {action="remote_pending"}
         end
-        if Runtime.contains(Runtime.WAREHOUSE_STAGING_SWITCH,x,y) then
-            Runtime.ComputerScreen.warehouseStagingPage=not Runtime.ComputerScreen.warehouseStagingPage
-            if Runtime.ComputerScreen.warehouseStagingPage then Runtime.ComputerScreen.warehouseGamesPage=false end
+        if Runtime.ComputerScreen.warehouseStagingPage
+            and Runtime.contains(Runtime.WAREHOUSE_STAGING_EDITOR_EXIT,x,y) then
+            Runtime.ComputerScreen.warehouseStagingPage=false
+            Runtime.ComputerScreen.warehouseStagingDrag=nil
+            Runtime.ComputerScreen.warehouseMessage=nil
+            return {action="warehouse_staging_page_changed"}
+        elseif not Runtime.ComputerScreen.warehouseStagingPage
+            and Runtime.contains(Runtime.WAREHOUSE_STAGING_SWITCH,x,y) then
+            Runtime.ComputerScreen.warehouseStagingPage=true
+            Runtime.ComputerScreen.warehouseGamesPage=false
             Runtime.ComputerScreen.warehouseMessage=nil
             return {action="warehouse_staging_page_changed"}
         end
         if Runtime.ComputerScreen.warehouseStagingPage then
             local view=Runtime.ComputerScreen.warehouseView(state)
             for index,area in ipairs(view.stagingAreas) do
-                local rect={x=98,y=270+(index-1)*35,width=370,height=32}
+                local rect=Runtime.warehouseStagingAreaTabRect(index)
                 if Runtime.contains(rect,x,y) then
                     Runtime.ComputerScreen.warehouseSelectedStagingAreaId=area.id
                     Runtime.ComputerScreen.warehouseMessage=nil
@@ -249,6 +293,25 @@ function Component.install(Runtime)
                 end
                 if Runtime.contains(Runtime.WAREHOUSE_STAGING_MACHINE,x,y) and area.purpose=="machine_output" then
                     return submitStagingIntent(state,{kind="staging_area_change",areaId=area.id,change="machine_next"})
+                end
+                local mapX,mapY=Runtime.warehouseStagingMapWorldPoint(x,y,false)
+                if mapX then
+                    local hitArea
+                    for index=#view.stagingAreas,1,-1 do
+                        local candidate=Runtime.warehouseStagingPreviewArea(view.stagingAreas[index])
+                        if mapX>=candidate.x and mapX<=candidate.x+candidate.width
+                            and mapY>=candidate.y and mapY<=candidate.y+candidate.height then
+                            hitArea=candidate
+                            break
+                        end
+                    end
+                    if hitArea then
+                        Runtime.ComputerScreen.warehouseSelectedStagingAreaId=hitArea.id
+                        Runtime.ComputerScreen.warehouseStagingDrag={areaId=hitArea.id,
+                            offsetX=mapX-hitArea.x,offsetY=mapY-hitArea.y,
+                            previewX=hitArea.x,previewY=hitArea.y}
+                        return {action="staging_area_drag_started",areaId=hitArea.id}
+                    end
                 end
             end
             return nil
@@ -293,6 +356,34 @@ function Component.install(Runtime)
                 and not view.forkliftOwned,confirmUpperRows=false}
         Runtime.ComputerScreen.warehouseMessage=nil
         return {action="warehouse_confirmation"}
+    end
+
+    function Runtime.warehouseMouseMoved(state,x,y)
+        local drag=Runtime.ComputerScreen.warehouseStagingDrag
+        if not drag then return false end
+        local area=state and Runtime.StagingAreas.findById(state,drag.areaId)
+        if not area then return true end
+        local worldX,worldY=Runtime.warehouseStagingMapWorldPoint(x,y,true)
+        drag.previewX=math.floor(math.max(60,math.min(Runtime.Config.baseWidth-area.width-60,
+            worldX-drag.offsetX))+0.5)
+        drag.previewY=math.floor(math.max(80,math.min(Runtime.Config.baseHeight-area.height-30,
+            worldY-drag.offsetY))+0.5)
+        return true
+    end
+
+    function Runtime.warehouseMouseReleased(state,x,y,button)
+        if button~=1 then return false end
+        local drag=Runtime.ComputerScreen.warehouseStagingDrag
+        if not drag then return false end
+        if Runtime.warehouseStagingMapWorldPoint(x,y,false) then
+            Runtime.warehouseMouseMoved(state,x,y)
+        end
+        drag=Runtime.ComputerScreen.warehouseStagingDrag
+        Runtime.ComputerScreen.warehouseStagingDrag=nil
+        local area=Runtime.StagingAreas.findById(state,drag.areaId)
+        if not area or (area.x==drag.previewX and area.y==drag.previewY) then return true end
+        return submitStagingIntent(state,{kind="staging_area_change",areaId=area.id,
+            change="move_to",x=drag.previewX,y=drag.previewY})
     end
 end
 

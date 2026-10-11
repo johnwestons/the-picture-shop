@@ -38,7 +38,13 @@ function Component.install(Runtime)
             request_pickup = "jobId",
             office_action = "officeIntent",
         },
-        work_phone = { phone_answer = "callId", phone_respond = "callId", phone_dismiss = "callId" },
+        work_phone = {
+            phone_call = "contactId",
+            phone_answer = "callId",
+            phone_respond = "callId",
+            phone_dismiss = "callId",
+            phone_order = "itemIndex",
+        },
         skid_wrapper = {
             select_pallet = "palletId",
             start_cycle = "palletId",

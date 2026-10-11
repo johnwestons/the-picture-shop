@@ -54,7 +54,7 @@ function Component.install(Runtime)
             local jackObstacle = Runtime.PalletJack.obstacle(state, Runtime.Config.palletJack)
             if jackObstacle then obstacles[#obstacles + 1] = jackObstacle end
         end
-        if not excludeForklift then
+        if not excludeForklift and (not state.forklift or (state.forklift.sceneId or "warehouse")=="warehouse") then
             local liftObstacle = Runtime.Forklift.obstacle(state, Runtime.Config.forklift)
             if liftObstacle then obstacles[#obstacles + 1] = liftObstacle end
         end

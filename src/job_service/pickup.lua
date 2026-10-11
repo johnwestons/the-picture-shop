@@ -160,6 +160,7 @@ function Component.install(Runtime)
         state.accountsReceivable = math.max(0, (state.accountsReceivable or 0) - payment)
         state.money = math.max(0, state.money or 0) + payment
         local reputationGain, reputationScore = Runtime.Reputation.completeJob(state, job)
+        Runtime.Reputation.recordReview(state, job, Runtime.BusinessCalendar.absoluteHours(state))
         job.reputationGain = reputationGain
         job.reputationAfter = reputationScore
         Runtime.JobService.scheduleRepeatEmail(state, job)

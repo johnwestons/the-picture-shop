@@ -169,6 +169,7 @@ function Instance:getInteraction()
         hoverRadius = self.interaction.hoverRadius,
         prompt = prompt,
         truckState = self.state,
+        truckMode = self.mode,
     }
 end
 

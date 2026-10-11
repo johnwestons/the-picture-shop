@@ -33,7 +33,8 @@ Capabilities.INTERACTIONS = {
         label = "Wall-mounted work phone",
         mode = "candidate",
         resourceId = "work_phone",
-        supported = { "see_phone", "see_call_light", "answer_calls", "place_phone_orders", "respond", "dismiss" },
+        supported = { "see_phone", "see_call_light", "answer_calls", "call_contacts",
+            "check_utility_status", "place_phone_orders", "respond", "dismiss" },
         physicalAcceptance = { "two_guest_contention", "exact_once_phone_order", "disconnect_and_reacquire" },
     },
     customer = {

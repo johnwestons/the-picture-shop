@@ -243,6 +243,17 @@ function Component.install(Runtime)
         end
 
         if not Runtime.ComputerScreen.tabDropdownOpen then return end
+        local groups,dropdownHeight=Runtime.tabDropdownGroups()
+        Runtime.panel({x=Runtime.TAB_DROPDOWN.x,y=Runtime.TAB_DROPDOWN.y,
+            width=Runtime.TAB_DROPDOWN.width,height=dropdownHeight},
+            {0.035,0.055,0.065,0.995},{0.31,0.56,0.58,1},4,1)
+        for _,group in ipairs(groups) do
+            love.graphics.setColor(0.56,0.82,0.76,1)
+            love.graphics.printf(group.label,group.x+6,Runtime.TAB_DROPDOWN.y+7,group.width-12,"center")
+            love.graphics.setColor(0.25,0.43,0.45,1)
+            love.graphics.line(group.x+8,Runtime.TAB_DROPDOWN.y+Runtime.TAB_DROPDOWN.headerHeight-2,
+                group.x+group.width-8,Runtime.TAB_DROPDOWN.y+Runtime.TAB_DROPDOWN.headerHeight-2)
+        end
         for index, tab in ipairs(Runtime.visibleTabs()) do
             local rect = Runtime.tabDropdownRect(index)
             local selected = Runtime.ComputerScreen.tab == tab.id
@@ -253,15 +264,16 @@ function Component.install(Runtime)
                 love.graphics.setColor(0.53, 0.98, 0.84, 1)
                 love.graphics.rectangle("fill", rect.x + 4, rect.y + 7, 2, rect.height - 14)
             end
+            local unread = Runtime.tabUnreadCount(state, tab.id)
             local foreground = itemHovered and { 0.025, 0.10, 0.13, 1 }
                 or { 0.035, 0.105, 0.14, 1 }
             if selected then foreground = { 0.98, 0.99, 0.94, 1 } end
             love.graphics.setColor(foreground)
             local textY = rect.y + (rect.height - love.graphics.getFont():getHeight()) / 2
-            love.graphics.print(tab.label, rect.x + 14, textY)
-            local unread = Runtime.tabUnreadCount(state, tab.id)
+            local labelWidth=rect.width-(unread>0 and 48 or 16)
+            love.graphics.printf(tab.label,rect.x+10,textY,labelWidth,"left")
             if unread > 0 then
-                local badge = { x = rect.x + 130, y = rect.y + 6, width = 32, height = 21 }
+                local badge = { x = rect.x+rect.width-38,y=rect.y+5,width=32,height=21 }
                 love.graphics.setColor(0.82, 0.22, 0.12, 1)
                 love.graphics.rectangle("fill", badge.x, badge.y, badge.width, badge.height, 5, 5)
                 love.graphics.setColor(1, 0.97, 0.91, 1)
@@ -269,11 +281,6 @@ function Component.install(Runtime)
                     badge.y + (badge.height - love.graphics.getFont():getHeight()) / 2,
                     badge.width, "center")
             end
-            love.graphics.setColor(selected and { 0.78, 0.95, 0.89, 1 }
-                or itemHovered and { 0.035, 0.12, 0.15, 1 }
-                or { 0.22, 0.31, 0.34, 1 })
-            love.graphics.printf(tab.url, rect.x + 168, textY,
-                rect.width - 182, "right")
         end
     end
 end
