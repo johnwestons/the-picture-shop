@@ -289,9 +289,9 @@ function Test.run(context,check)
     test("reliable_repeated_stock_request_preserves_single_owner",state.storage.revision==revision and netStock.location=="rack")
     host:stop("test complete");guest:stop("test complete");network:dispose()
     local renderState=fixture()
-    for i=1,10 do
+    for i=1,15 do
         local load=stock(renderState)
-        load.location="rack";load.storage={rackId="warehouse-rack",row=i<=5 and 1 or 2,column=(i-1)%5+1}
+        load.location="rack";load.storage={rackId="warehouse-rack",row=math.floor((i-1)/5)+1,column=(i-1)%5+1}
         load.world=Layout.rackPoint("warehouse-rack",load.storage.row,load.storage.column)
         local roomLoad=stock(renderState)
         local sitter=player(1,Rooms.shelves.x,Rooms.shelves.y);sitter.sceneId="front_left"
@@ -301,7 +301,7 @@ function Test.run(context,check)
     local stockWorker=player(1,Rooms.shelves.x,Rooms.shelves.y);stockWorker.sceneId="front_left"
     local stockRevision=renderState.storage.revision
     local stored,fullCode=Rooms.transfer(stockWorker,renderState,"store",overflow.id)
-    test("full_storage_room_rejects_eleventh_pallet_atomically",not stored and fullCode=="room_full"
+    test("full_storage_room_rejects_sixteenth_pallet_atomically",not stored and fullCode=="room_full"
         and overflow.location=="warehouse" and renderState.storage.revision==stockRevision)
     renderState.storage.revision=-1
     stored,fullCode=Rooms.transfer(stockWorker,renderState,"store",overflow.id)
