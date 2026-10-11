@@ -28,7 +28,7 @@ local function fixture()
     job.pallets[1].location,job.pallets[1].world="on_pallet_jack",{x=500,y=400}
     job.pallets[2].location,job.pallets[2].storage="rack",{rackId="front_left-rack",row=1,column=3}
     job.pallets[2].paper.status="complete"
-    job.pallets[3].location,job.pallets[3].storage="rack",{rackId="front_left-rack",row=2,column=4}
+    job.pallets[3].location,job.pallets[3].storage="rack",{rackId="front_left-rack",row=3,column=4}
     job.pallets[3].wrapped=true
     return state,job.pallets
 end
@@ -44,14 +44,15 @@ function Test.run(testContext,check)
     local before=copy(state)
     local view=screen:view(state)
     check("rack_screen_projects_same_canonical_slot_ids", view.slots[1][3].palletId==pallets[2].id
-        and view.slots[2][4].palletId==pallets[3].id and view.slots[1][1].palletId==nil
-        and view.slots[1][3].variant==2 and view.slots[2][4].variant==3 and same(state,before))
+        and view.slots[3][4].palletId==pallets[3].id and view.slots[1][1].palletId==nil
+        and view.slots[1][3].variant==2 and view.slots[3][4].variant==3 and same(state,before))
     check("rack_screen_lower_selection_allows_loaded_jack", view.canStore and not view.canRetrieve
         and view.carriedPalletId==pallets[1].id and view.upperLocked)
     local layout=screen:layout()
-    check("rack_screen_geometry_places_upper_row_above_lower", layout.slots[2][1].y<layout.slots[1][1].y
-        and layout.slots[1][1].source.y==483 and layout.slots[2][1].source.y==240)
-    for row=1,2 do for column=1,5 do
+    check("rack_screen_geometry_places_three_tiers_in_order",layout.slots[3][1].y<layout.slots[2][1].y
+        and layout.slots[2][1].y<layout.slots[1][1].y and layout.slots[1][1].source.y==483
+        and layout.slots[2][1].source.y==240 and layout.slots[3][1].source.y==16)
+    for row=1,3 do for column=1,5 do
         local selected=screen:touchpressed(state,center(layout.slots[row][column]))
         check("rack_screen_touch_selects_"..row.."_"..column,selected and selected.action=="selected"
             and screen:getSelected().row==row and screen:getSelected().column==column and #sent==0 and same(state,before))
@@ -141,16 +142,16 @@ function Test.run(testContext,check)
     state.warehouse.forkliftOwned,state.forklift.owned=true,true
     state.forklift.operating,state.forklift.operatorPlayerId=true,1
     local forkContext=context();forkContext.vehicle="forklift"
-    screen:setContext(forkContext);screen:select(2,4)
+    screen:setContext(forkContext);screen:select(3,4)
     check("rack_screen_raised_shelf_requires_matching_fork_height",screen:view(state).retrieveReason=="wrong_height")
     state.forklift.forkHeight,state.forklift.targetForkHeight,state.forklift.lifting=1,1,true
     check("rack_screen_fork_raise_animation_blocks_early_transfer",screen:view(state).retrieveReason=="lifting")
     state.forklift.lifting=false
-    check("rack_screen_upper_retrieve_unlocks_after_raise",screen:view(state).canRetrieve and not screen:view(state).upperLocked)
+    check("rack_screen_top_retrieve_unlocks_after_full_raise",screen:view(state).canRetrieve and not screen:view(state).upperLocked)
     state.forklift.targetForkHeight=0
     check("rack_screen_fork_lower_target_blocks_transfer",screen:view(state).retrieveReason=="wrong_height")
     state.forklift.targetForkHeight=1
-    screen:keypressed(state,"left");screen:keypressed(state,"down")
+    screen:keypressed(state,"left");screen:keypressed(state,"down");screen:keypressed(state,"down")
     check("rack_screen_keyboard_matches_visual_rows",screen:getSelected().row==1 and screen:getSelected().column==3)
     local beforeRepeat=#sent
     screen:keypressed(state,"return",true)
@@ -168,7 +169,7 @@ function Test.run(testContext,check)
         assert(screen:resize(dimensions[1],dimensions[2]))
         local responsive=screen:layout()
         local valid=true
-        for row=1,2 do for column=1,5 do
+        for row=1,3 do for column=1,5 do
             local r=responsive.slots[row][column]
             valid=valid and r.x>=0 and r.y>=0 and r.x+r.width<=dimensions[1]
                 and r.y+r.height<=responsive.details.y and r.height>0 and r.width>0
