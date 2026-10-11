@@ -132,8 +132,9 @@ local function menuTests(context,state,test)
             and ox+960*scale<=size[1]-12 and oy+678*scale<=size[2]-8 and math.abs(x-350)<.001 and math.abs(y-258)<.001)
     end
     love.graphics.getDimensions,love.window.getSafeArea=dimensions,safeArea
-    state.screen="world"
-    test("warehouse_shortcuts_cannot_cross_scenes",Controls.keypressed("l",runtime) and Controls.keypressed("m",runtime))
+    state.screen,p.sceneId="world","front_right"
+    test("breakroom_blocks_warehouse_vehicle_and_lift_shortcuts",
+        Controls.keypressed("l",runtime) and Controls.keypressed("m",runtime))
 end
 local function liveSimulation(context,test)
     local world=context.world
