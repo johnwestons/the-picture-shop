@@ -219,22 +219,22 @@ function Test.run(_,check)
     state.forklift.direction=lowerSlotHeading=="east" and "west" or "east"
     selectedSlot=Gameplay.rackContext(player,state,"warehouse-rack",cx,1,1)
     check("warehouse_live_selected_slot_rejects_wrong_fork_heading",not selectedSlot.aligned)
-    local upperHeading,upperAccess=positionForRackSlot(2,5,1)
+    local upperHeading,upperAccess=positionForRackSlot(3,5,1)
     check("warehouse_live_upper_slot_pose_matches_carried_load",upperHeading and upperAccess
         and upperAccess.near and upperAccess.clear and upperAccess.aligned)
     state.forklift.forkHeight,state.forklift.targetForkHeight=Config.forklift.travelHeight,Config.forklift.travelHeight
     ForkliftCargo.sync(state,Config.forklift)
-    local request={kind="store",requestId="LIVE-STORE",expectedRevision=0,vehicle="forklift",palletId=p.id,rackId="warehouse-rack",row=2,column=5}
+    local request={kind="store",requestId="LIVE-STORE",expectedRevision=0,vehicle="forklift",palletId=p.id,rackId="warehouse-rack",row=3,column=5}
     ok,code=Gameplay.command(player,state,request,cx)
     check("warehouse_live_upper_shelf_requires_actual_full_fork_height",not ok and code=="wrong_fork_height" and p.location=="on_forklift")
     Gameplay.command(player,state,{kind="set_height",height=1},cx)
     Gameplay.update(3,state,cx)
     ok=Gameplay.command(player,state,request,cx)
     check("warehouse_live_store_upper_row_moves_same_pallet_into_selected_slot",ok and p.location=="rack"
-        and p.storage.row==2 and p.storage.column==5 and not state.forklift.carriedPalletId and p.world==nil)
+        and p.storage.row==3 and p.storage.column==5 and not state.forklift.carriedPalletId and p.world==nil)
     ok,code=Gameplay.command(player,state,request,cx)
     check("warehouse_live_duplicate_store_replays_without_second_transfer",ok and code=="replayed" and state.storage.revision==1)
-    local retrieve={kind="retrieve",requestId="LIVE-RETRIEVE",expectedRevision=1,vehicle="forklift",palletId=p.id,rackId="warehouse-rack",row=2,column=5}
+    local retrieve={kind="retrieve",requestId="LIVE-RETRIEVE",expectedRevision=1,vehicle="forklift",palletId=p.id,rackId="warehouse-rack",row=3,column=5}
     state.forklift.direction=upperHeading=="east" and "west" or "east"
     ok,code=Gameplay.command(player,state,retrieve,cx)
     check("warehouse_live_shelf_transfer_checks_current_heading",not ok and code=="not_aligned" and p.location=="rack")
