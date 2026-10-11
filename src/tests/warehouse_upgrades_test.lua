@@ -41,8 +41,8 @@ function Test.run(_, check)
         and Upgrades.validate(Upgrades.normalize(nil)))
     local catalog = Upgrades.catalog("storage")
     catalog.price = 1
-    check("warehouse_upgrades_storage_room_has_ten_spaces_without_forklift_and_catalog_is_detached",
-        catalog.rows == 2 and catalog.columns == 5 and catalog.capacity == 10
+    check("warehouse_upgrades_storage_room_has_three_rows_and_catalog_is_detached",
+        catalog.rows == 3 and catalog.columns == 5 and catalog.capacity == 15
         and catalog.upperRowRequiresForklift==false and catalog.warning:find("separate room", 1, true)
         and Upgrades.catalog("storage").price == 1200)
     check("warehouse_upgrades_stage_tools_match_approved_sequence",
