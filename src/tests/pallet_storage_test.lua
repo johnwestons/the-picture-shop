@@ -256,11 +256,12 @@ function Test.run(context, check)
     check("storage_retrieve_rejects_incorrect_selected_slot", not wrongAllowed and wrongReason == "wrong_slot"
         and same(wrongSlot,wrongSlotBefore))
     local lowerFork, lowerLoads, lowerLift = setup(context,"forklift")
-    check("storage_forklift_lower_row_roundtrip", Storage.apply(lowerFork,intent(lowerFork,"store",lowerLoads[1],"forklift"),access())
-        and Storage.apply(lowerFork,intent(lowerFork,"retrieve",lowerLoads[1],"forklift"),access())
-        and lowerLift.carriedPalletId == lowerLoads[1].id and Storage.validate(lowerFork))
+    local lowerForkStore,lowerForkCode=Storage.apply(lowerFork,intent(lowerFork,"store",lowerLoads[1],"forklift"),access())
+    check("storage_forklift_rejects_pallet_jack_bottom_row",not lowerForkStore
+        and lowerForkCode=="pallet_jack_required" and lowerLift.carriedPalletId==lowerLoads[1].id
+        and Storage.validate(lowerFork))
     lowerLift.targetForkHeight = 1
-    local targetAllowed, targetReason = Storage.apply(lowerFork,intent(lowerFork,"store",lowerLoads[1],"forklift"),access())
+    local targetAllowed, targetReason = Storage.apply(lowerFork,intent(lowerFork,"store",lowerLoads[1],"forklift",2,1),access())
     check("storage_forklift_unsettled_target_cannot_transfer", not targetAllowed and targetReason == "wrong_fork_height")
     local pending, pendingLoads = setup(context)
     assert(Storage.apply(pending,intent(pending,"store",pendingLoads[1]),access()))
