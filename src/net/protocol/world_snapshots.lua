@@ -6,7 +6,7 @@ function Component.install(Runtime)
     function Runtime.normalizeInput(payload)
         local valid, shapeError = Runtime.shape(payload, "input payload",
             { "sessionId", "sequence", "moveX", "moveY" },
-            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons" })
+            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade" })
         if not valid then return nil, shapeError end
         local taskAction, taskActionError = Runtime.normalizeTaskAction(
             payload.taskAction, "input.taskAction")
@@ -37,6 +37,38 @@ function Component.install(Runtime)
             if combatButtons==nil then return nil,fieldError end
         end
         local furColorway = payload.furColorway
+        local arcade
+        if payload.arcade~=nil then
+            local good,err=Runtime.shape(payload.arcade,'input.arcade',{'x','y','buttons','x2','y2','buttons2'},
+                {'roundId','sequences','sequences2','suspended'})
+            if not good then return nil,err end
+            arcade={}
+            for _,key in ipairs({'x','y','x2','y2'}) do
+                arcade[key],err=Runtime.numberInRange(payload.arcade[key],-1,1,'input.arcade.'..key)
+                if arcade[key]==nil then return nil,err end
+            end
+            for _,key in ipairs({'buttons','buttons2'}) do
+                arcade[key],err=Runtime.integerInRange(payload.arcade[key],0,255,'input.arcade.'..key)
+                if arcade[key]==nil then return nil,err end
+            end
+            if payload.arcade.roundId~=nil then
+                arcade.roundId,err=Runtime.integerInRange(payload.arcade.roundId,1,Runtime.UINT32_MAX,'input.arcade.roundId')
+                if not arcade.roundId then return nil,err end
+                if type(payload.arcade.suspended)~='boolean' then return nil,'invalid arcade focus state' end
+                arcade.suspended=payload.arcade.suspended
+                for _,key in ipairs({'sequences','sequences2'}) do
+                    local values=payload.arcade[key]
+                    if not Runtime.Codec.isArray(values) or #values~=6 then return nil,'invalid arcade press counters' end
+                    arcade[key]={}
+                    for i,value in ipairs(values) do
+                        arcade[key][i],err=Runtime.integerInRange(value,0,65535,'input.arcade.'..key)
+                        if arcade[key][i]==nil then return nil,err end
+                    end
+                end
+            elseif payload.arcade.sequences~=nil or payload.arcade.sequences2~=nil or payload.arcade.suspended~=nil then
+                return nil,'arcade press counters require a round'
+            end
+        end
         if furColorway ~= nil then
             furColorway, fieldError = Runtime.integerInRange(furColorway, 1, Runtime.RabbitColorways.count("fur"),
                 "input.furColorway")
@@ -50,7 +82,7 @@ function Component.install(Runtime)
         end
         return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,
             furColorway = furColorway, overallsColorway = overallsColorway,
-            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons }
+            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade }
     end
 
     function Runtime.normalizeSnapshot(payload)

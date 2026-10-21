@@ -1,0 +1,9 @@
+{
+  "path": "dist/folder.lua",
+  "sha256": "c63bad1646178fffd320d0e70879e3ebc1f088ea4e26bffc64b6c60403c070c5",
+  "sprite": "assets/generated/regal-moll-folder-v2/regal-moll-eight-angles.png",
+  "runtime": "Fengari Web 0.1.4 (Lua 5.3); experimental test-page rules",
+  "baselineSha256": "9f4ad71f881a502a7a6d87aa2c475258ea8f7d6aeaa70f2424f0909b860c40ce",
+  "label": "Balance test 02",
+  "experimental": true
+}

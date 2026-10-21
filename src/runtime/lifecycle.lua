@@ -4,6 +4,10 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.focus(focused)
+        if Runtime.state.screen=="air_hockey" then
+            require("src.screens.air_hockey_screen").cancelInputs(not focused)
+            Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
+        end
         if Runtime.state.screen=="critter_kombat" then
             require("src.screens.critter_kombat_screen").cancelInputs(not focused)
         end
@@ -18,7 +22,11 @@ function Component.install(Runtime)
                 and love.window and love.window.setDisplaySleepEnabled then
                 love.window.setDisplaySleepEnabled(false)
             end
-        elseif Runtime.multiplayer:isActive() then
+        elseif Runtime.multiplayer:isActive()
+            or (Runtime.directConnection and Runtime.isAndroidPlatform()) then
+            -- Android players must be able to switch to a messaging app to
+            -- exchange the host/reply codes. Keep the existing expiring setup
+            -- for the same bounded grace period as an active session.
             Runtime.App.multiplayerFocusGrace:start()
         else
             Runtime.App.multiplayerFocusGrace:clear()
@@ -36,7 +44,8 @@ function Component.install(Runtime)
             Runtime.saveCurrent()
             local activeDirectHost = Runtime.multiplayer:isHost()
                 and Runtime.multiplayer.networkKind == "direct"
-            if Runtime.directConnection then
+            if Runtime.directConnection and not (Runtime.isAndroidPlatform()
+                and Runtime.App.multiplayerFocusGrace:isTracking()) then
                 local cleaned, cleanupError = Runtime.closeDirectConnection()
                 if not cleaned then
                     Runtime.state.screen = "direct"

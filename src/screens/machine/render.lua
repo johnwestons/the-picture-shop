@@ -37,7 +37,7 @@ function Component.install(Runtime)
         love.graphics.pop()
     end
 
-    function Runtime.drawTouchscreen(assets, pointerX, pointerY)
+    function Runtime.drawTouchscreen(state, assets, pointerX, pointerY)
         if Runtime.Screen.gaugeReplaceOnType then
             Runtime.Screen.gaugeText = string.format("%.2f", Runtime.Machine.gauge or 0)
         end
@@ -65,6 +65,20 @@ function Component.install(Runtime)
         else
             love.graphics.print("NO PAPER BATCH LOADED", 62, 130)
         end
+        local cutter = Runtime.MachineFleet.installed(state, "polar_115", state and state.machineId)
+        local blade = cutter and cutter.variables and tonumber(cutter.variables.bladeSharpness) or 0
+        blade = math.max(0, math.min(100, blade))
+        local bladeRemoved = cutter and cutter.maintenance and cutter.maintenance.cutter
+            and cutter.maintenance.cutter.bladeRemoved
+        love.graphics.setColor(0.68, 0.78, 0.80)
+        love.graphics.print(bladeRemoved and "BLADE OUT" or string.format("BLADE %d%%", math.floor(blade + 0.5)), 246, 76)
+        love.graphics.setColor(0.12, 0.15, 0.17)
+        love.graphics.rectangle("fill", 246, 91, 90, 5, 2, 2)
+        if bladeRemoved then love.graphics.setColor(0.89, 0.31, 0.22)
+        elseif blade >= 70 then love.graphics.setColor(0.28, 0.72, 0.43)
+        elseif blade >= 40 then love.graphics.setColor(0.88, 0.67, 0.22)
+        else love.graphics.setColor(0.89, 0.31, 0.22) end
+        if not bladeRemoved then love.graphics.rectangle("fill", 246, 91, 90 * blade / 100, 5, 2, 2) end
         Runtime.CutterSkin.panel(Runtime.gaugeInput.x, Runtime.gaugeInput.y, Runtime.gaugeInput.width, Runtime.gaugeInput.height,
             Runtime.Screen.gaugeFocused, true)
         love.graphics.setColor(0.68, 0.78, 0.80)
@@ -232,7 +246,7 @@ function Component.install(Runtime)
         love.graphics.setColor(0.94, 0.94, 0.90)
         love.graphics.printf("EXIT", Runtime.exitButton.x, Runtime.exitButton.y + Runtime.exitButton.height / 2 - 6,
             Runtime.exitButton.width, "center")
-        Runtime.drawTouchscreen(assets, pointerX, pointerY)
+        Runtime.drawTouchscreen(state, assets, pointerX, pointerY)
         Runtime.drawMachine(assets)
         -- Top-level controls are deliberately drawn after the machine art so the
         -- cabinet can never cover them.

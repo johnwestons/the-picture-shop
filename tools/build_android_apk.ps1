@@ -8,6 +8,7 @@ param(
     [switch]$EngineeringIpv6UdpProbe,
     [ValidateSet('host','client')][string]$Ipv6UdpProbeRole,
     [switch]$EngineeringGatewayDiscoveryProbe,
+    [switch]$EngineeringManualDirectTest,
     [string]$SensitiveBuildRoot
 )
 
@@ -49,7 +50,8 @@ $engineeringProbeCount = @(
     $EngineeringNativeCryptoProbe,
     $EngineeringDirectTransportProbe,
     $EngineeringIpv6UdpProbe,
-    $EngineeringGatewayDiscoveryProbe
+    $EngineeringGatewayDiscoveryProbe,
+    $EngineeringManualDirectTest
 ).Where({ $_ }).Count
 if ($engineeringProbeCount -gt 1) {
     throw 'Select only one engineering probe type.'
@@ -70,7 +72,8 @@ if ($Ipv6UdpProbeRole -and -not $EngineeringIpv6UdpProbe) {
     throw '-Ipv6UdpProbeRole requires -EngineeringIpv6UdpProbe.'
 }
 if ($SensitiveBuildRoot -and
-        -not ($EngineeringDirectTransportProbe -or $EngineeringIpv6UdpProbe)) {
+        -not ($EngineeringDirectTransportProbe -or $EngineeringIpv6UdpProbe -or
+            $EngineeringManualDirectTest)) {
     throw '-SensitiveBuildRoot is restricted to an engineering Internet probe.'
 }
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -200,6 +203,20 @@ elseif ($EngineeringGatewayDiscoveryProbe) {
     $requiresInternetPermission = $false
     $requiresNetworkStatePermission = $true
     $exactPermissions = @('android.permission.ACCESS_NETWORK_STATE')
+}
+elseif ($EngineeringManualDirectTest) {
+    $config = [pscustomobject]@{
+        applicationId = 'com.thepictureshop.direct_test'
+        applicationName = 'Picture Shop Direct Test'
+        versionName = ([string]$config.versionName).Replace('-android.', '-direct-test.')
+        versionCode = [int]$config.versionCode
+        loveVersion = [string]$config.loveVersion
+    }
+    $apkFileName = "ThePictureShop-DirectTest-$($config.versionName).apk"
+    $reportFileName = 'manual-direct-test-apk-report.json'
+    $artifactKind = 'manual-direct-engineering-test'
+    # Use the game's exact permission allowlist and native packaging audits.
+    # Both roles use this APK; no invite, endpoint, or key is embedded.
 }
 $resolvedPackage = (Resolve-Path -LiteralPath $PackagePath).Path
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
@@ -775,6 +792,9 @@ try {
     $env:ANDROID_HOME = $buildAndroidRoot
     $env:ANDROID_SDK_ROOT = $buildAndroidRoot
 
+    . (Join-Path $PSScriptRoot 'android_native_cache.ps1')
+    Reset-StaleAndroidNativeCache -WrapperRoot $loveAndroidRoot -BuildRoot $buildLoveRoot
+
     $buildLabel = if ($EngineeringNativeCryptoProbe) {
         'engineering native-crypto probe'
     } elseif ($EngineeringDirectTransportProbe) {
@@ -783,6 +803,8 @@ try {
         "engineering IPv6 UDP $Ipv6UdpProbeRole probe"
     } elseif ($EngineeringGatewayDiscoveryProbe) {
         'engineering Android gateway-discovery probe'
+    } elseif ($EngineeringManualDirectTest) {
+        'manual Direct engineering test'
     } else {
         'Picture Shop Android APK'
     }
@@ -892,6 +914,12 @@ finally { $env:JAVA_HOME = $signatureJavaHome }
 $aapt = Join-Path $buildToolsRoot 'aapt.exe'
 $badging = & $aapt dump badging $apkPath | Out-String
 if ($badging -notmatch [regex]::Escape("package: name='$($config.applicationId)'")) { throw 'APK application ID verification failed' }
+if ($EngineeringManualDirectTest -and (
+        $badging -notmatch [regex]::Escape("versionCode='$($config.versionCode)'") -or
+        $badging -notmatch [regex]::Escape("versionName='$($config.versionName)'") -or
+        $badging -notmatch [regex]::Escape("application-label:'$($config.applicationName)'"))) {
+    throw 'Manual Direct APK label or version does not match the engineering metadata.'
+}
 $analyzerRoot = Join-Path $androidRoot 'cmdline-tools\12.0'
 $analyzerClasspath = Join-Path $analyzerRoot 'lib\apkanalyzer-classpath.jar'
 if (-not (Test-Path -LiteralPath $analyzerClasspath -PathType Leaf)) {

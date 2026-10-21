@@ -129,6 +129,9 @@ function Controls.keypressed(key,Runtime)
     return true
 end
 function Controls.keyreleased(key,Runtime)
+    if Runtime.state.screen=="critter_kombat" then
+        return require("src.screens.critter_kombat_screen").keyreleased(key)
+    end
     if key~="space" or Runtime.state.screen~="world" then return false end
     local id=tonumber(Runtime.World.player.id) or 1
     local held=require("src.basketball").heldBy(Runtime.state,id)

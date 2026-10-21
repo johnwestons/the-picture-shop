@@ -95,6 +95,10 @@ Capabilities.INTERACTIONS = {
         mode = "candidate",
         supported = { "inspect_shelves", "store_pallets", "retrieve_pallets", "stack_pallets", "unstack_pallets" },
     },
+    regalFolder = {
+        label = "Regal Moll folder practice run", mode = "candidate",
+        supported = { "local_two_station_practice" },
+    },
     cutter = {
         label = "Polar cutter",
         mode = "candidate",

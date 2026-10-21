@@ -209,9 +209,21 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
             jackEmployee=entry
         else
         visible[(entry.worker or entry.application).character]=true
-        actors[#actors+1]={y=Rooms.seats[3].y,draw=function()
+        local actorX,actorY=Rooms.seats[3].x,Rooms.seats[3].y
+        local worker=entry.worker
+        if worker and worker.activity then
+            for _,gameId in ipairs(Games.ORDER) do
+                local fixture=Games.CATALOG[gameId]
+                local label=fixture.name:gsub(" table$", ""):lower()
+                if worker.activity=="Playing "..label.." after shift" then
+                    actorX,actorY=fixture.interactionX,fixture.interactionY+24
+                    break
+                end
+            end
+        end
+        actors[#actors+1]={y=actorY,draw=function()
             local oldX,oldY=entry.actor.x,entry.actor.y
-            entry.actor.x,entry.actor.y=Rooms.seats[3].x,Rooms.seats[3].y
+            entry.actor.x,entry.actor.y=actorX,actorY
             EmployeeRenderer.draw(entry,characters)
             entry.actor.x,entry.actor.y=oldX,oldY
         end}
@@ -293,7 +305,6 @@ function Renderer.drawDock(assets,door)
     local polygon={};for _,p in ipairs(aperture) do polygon[#polygon+1]=p.x;polygon[#polygon+1]=p.y end
     love.graphics.stencil(function() love.graphics.polygon("fill",unpack(polygon)) end,"replace",1)
     love.graphics.setStencilTest("greater",0)
-    love.graphics.setColor(.09,.12,.14,1);love.graphics.polygon("fill",unpack(polygon))
     love.graphics.setColor(1,1,1)
     -- Texture only the shutter polygon. Translating the entire background
     -- would paint concrete floor into the open doorway below the lifted door.

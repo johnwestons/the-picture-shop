@@ -13,6 +13,7 @@ require("src.net.protocol.workshop_commands").install(Runtime)
 require("src.net.protocol.workshop_snapshots").install(Runtime)
 require("src.net.protocol.world_snapshots").install(Runtime)
 require("src.net.protocol.breakroom_fights").install(Runtime)
+require("src.net.protocol.critter_crisis").install(Runtime)
 require("src.net.protocol.envelope").install(Runtime)
 
 return Runtime.Protocol

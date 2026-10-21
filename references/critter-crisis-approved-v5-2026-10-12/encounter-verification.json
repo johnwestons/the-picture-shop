@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "scope": "Isolated preview logic; browser appearance checked separately",
+  "checks": [
+    "SMG earned only after 3 defeats; shotgun only after 6; animated rewards still require shooting to equip",
+    "SMG holds full-auto fire on touch FIRE and mouse, stops on release; shotgun has slower follow-up and per-weapon reload",
+    "Rewards carry between areas without duplication and reset for a new encounter",
+    "SMG fires an entire magazine on one hold, stops at zero, and releases safely on cancellation and keyboard key-up",
+    "Boat characters and player use no crates; crouched enemies have no exposed hit target; land crates retained",
+    "Aim wheel moves continuously while held and stops on release",
+    "Cover automatically reloads and blocks incoming damage",
+    "Exposed player takes damage after enemy wind-up",
+    "yard: fixed scenery exists before entry, runners are exposed, cover blocks shots, and scenery stays after defeat",
+    "reactor: fixed scenery exists before entry, runners are exposed, cover blocks shots, and scenery stays after defeat",
+    "docks: fixed scenery exists before entry, runners are exposed, cover blocks shots, and scenery stays after defeat",
+    "yard: both areas completed with actual hit detection and automatic advance",
+    "reactor: both areas completed with actual hit detection and automatic advance",
+    "docks: both areas completed with actual hit detection and automatic advance",
+    "boat: both areas completed with actual hit detection and automatic advance",
+    "Pause freezes encounter timer"
+  ]
+}

@@ -35,6 +35,31 @@ function Test.run(_, check)
     now = 621
     check("focus_grace_tracks_a_new_background_period",
         grace:isExpired() and grace:clear() and not grace:isExpired())
+
+    local monotonic, wall = 10, 1000
+    grace = FocusGrace.new({clock=function() return monotonic end,
+        wallClock=function() return wall end, timeoutSeconds=120})
+    grace:start()
+    wall=1120
+    check("focus_grace_wall_clock_keeps_exact_two_minute_boundary_during_suspend",
+        not grace:isExpired() and grace:elapsed()==120)
+    wall=1121
+    check("focus_grace_phone_deep_sleep_expires_without_monotonic_updates",
+        grace:isExpired() and grace:elapsed()==121)
+    grace:clear()
+    check("focus_grace_clear_resets_both_clock_baselines",
+        not grace:isTracking() and grace:elapsed()==nil and grace.lostAtWall==nil)
+    grace:start()
+    monotonic=131
+    wall=900
+    check("focus_grace_wall_clock_rollback_cannot_extend_monotonic_grace",
+        grace:isExpired() and grace:elapsed()==121)
+    grace:clear()
+    grace:start()
+    monotonic=150
+    wall=919
+    check("focus_grace_new_background_period_uses_fresh_dual_clock_baselines",
+        not grace:isExpired() and grace:elapsed()==19)
 end
 
 return Test

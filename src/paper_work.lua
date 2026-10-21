@@ -57,6 +57,7 @@ function PaperWork.create(job, pallet, difficulty, seed)
         activeCut = 1,
         cuts = cuts,
         status = "uncut",
+        cutQuality = 1,
         history = {},
     }
 end
@@ -89,7 +90,7 @@ function PaperWork.gaugeMatches(paper, gauge)
     return cut ~= nil and math.abs((gauge or 0) - cut.gauge) < 0.011
 end
 
-function PaperWork.applyCut(paper, gauge, programIndex)
+function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness)
     local cut = PaperWork.currentCut(paper)
     if not cut then return false, "No remaining programmed cut." end
     gauge = round(tonumber(gauge) or 0)
@@ -98,6 +99,9 @@ function PaperWork.applyCut(paper, gauge, programIndex)
     local correctRotation = paper.orientation == cut.orientation
     local correctGauge = PaperWork.gaugeMatches(paper, gauge)
     local offSpec = not correctProgram or not correctRotation or not correctGauge
+    local sharpness = math.max(0, math.min(100, tonumber(bladeSharpness) or 100))
+    local edgeQuality = 0.70 + 0.30 * sharpness / 100
+    paper.cutQuality = math.min(tonumber(paper.cutQuality) or 1, edgeQuality)
     local horizontal = correctRotation and (cut.edge == "left" or cut.edge == "right")
         or paper.orientation == 90 or paper.orientation == 270
     if horizontal then
@@ -115,6 +119,7 @@ function PaperWork.applyCut(paper, gauge, programIndex)
             or round(math.max(0, paper.sourceSize.height - paper.currentSize.height)),
         gauge = gauge,
         resultingSize = { width = paper.currentSize.width, height = paper.currentSize.height },
+        edgeQuality = edgeQuality,
         offSpec = offSpec,
         expectedGauge = cut.gauge,
         selectedProgram = programIndex,

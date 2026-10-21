@@ -1,4 +1,5 @@
 local DirectIpv4Host = require("src.net.direct_ipv4_host")
+local GatewayDiscovery = require("src.net.gateway_discovery")
 
 local Test = {}
 
@@ -28,15 +29,19 @@ local function pcpResponse(request, lifetime, epoch, address, port)
 end
 
 local function route()
-    return {
+    local candidate = {
         family = 4,
         platform = "Android",
         internalAddress = "192.168.70.20",
         gatewayAddress = "192.168.70.1",
-        routePrefixLength = 24,
+        routePrefixLength = 0,
         networkGeneration = "android-route-v2-0000000000000007-00000001",
         routeFingerprint = "route-v1-abcdef12",
     }
+    return assert(GatewayDiscovery.discover({
+        platform = "Android",
+        provider = function() return candidate end,
+    }))
 end
 
 local function provider(log)
@@ -153,7 +158,10 @@ function Test.run(_, check)
         discoverRoute = function() return activeRoute end,
         revalidateRoute = function(snapshot)
             routeRevalidationCount = routeRevalidationCount + 1
-            return snapshot
+            return GatewayDiscovery.revalidate(snapshot, {
+                platform = "Android",
+                provider = function() return activeRoute end,
+            })
         end,
         requestedLeaseSeconds = 120,
     }))
@@ -164,6 +172,12 @@ function Test.run(_, check)
     local openIndex = eventIndex(log, "mapping_socket_open")
     local sendIndex = eventIndex(log, "mapping_send")
     local socket = sockets.sockets[1]
+    check("direct_ipv4_host_preserves_discovered_route_for_real_revalidation",
+        host.listener.route.routePrefixLength == 0
+        and GatewayDiscovery.revalidate(host.listener.route, {
+            platform = "Android", provider = function() return activeRoute end,
+        }) ~= nil
+        and host.state == "mapping")
     local createRequest = socket.sent[1]
     check("direct_ipv4_host_orders_secure_listener_before_exact_mapping_socket_and_packet",
         started and bindIndex and mappingOpenBeforeUpdate == nil
@@ -263,7 +277,12 @@ function Test.run(_, check)
         baseFactory = baseFactory(manualLog),
         clock = function() return manualNow end,
         discoverRoute = function() return activeRoute end,
-        revalidateRoute = function(snapshot) return snapshot end,
+        revalidateRoute = function(snapshot)
+            return GatewayDiscovery.revalidate(snapshot, {
+                platform = "Android",
+                provider = function() return activeRoute end,
+            })
+        end,
     }))
     local manualStarted = manualHost:startManualSetup(22129, {
         externalAddress = "8.8.8.8",

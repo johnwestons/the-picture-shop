@@ -21,7 +21,7 @@ local Test={}
 local function capture(context,state,name)
     local root=os.getenv("PICTURE_SHOP_EMPLOYEE_CAPTURE_DIR")
     if not root then
-        if love.filesystem.getSource():match("%.love$") then return end
+        if love.filesystem.getSource():match("%.love$") or love.filesystem.getSource():match("%.exe$") then return end
         root=love.filesystem.getSource().."/output/employee-motion-v2"
     end
     local canvas=love.graphics.newCanvas(Config.baseWidth,Config.baseHeight)

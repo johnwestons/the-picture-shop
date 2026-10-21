@@ -1,0 +1,8 @@
+{
+  "generator": "Built-in image_gen",
+  "sourceSheet": "../regal-moll-folder-v1/regal-moll-eight-angles.png",
+  "generatedGateCorrection": "gate-correction-generated.png",
+  "finalSheet": "regal-moll-eight-angles.png",
+  "changedCells": ["top row, column 1", "top row, column 3"],
+  "edit": "Square each white ribbed folding gate across the roller width, aligned with the machine's crossbars. Preserve the other six cells from the original sheet."
+}

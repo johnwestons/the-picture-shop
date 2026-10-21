@@ -59,13 +59,15 @@ local function fakeSockets()
         }
         function socket:settimeout(value) self.timeout = value; return 1 end
         function socket:setsockname(address, port)
+            if module.failBind then return nil, "cannot assign requested address" end
             self.address = address
             self.port = port == 0 and module.nextPort or port
             module.nextPort = module.nextPort + 1
             return 1
         end
         function socket:getsockname()
-            return self.address, module.stringPorts and tostring(self.port) or self.port
+            return module.reportedAddress or self.address,
+                module.stringPorts and tostring(self.port) or self.port
         end
         function socket:sendto() return 1 end
         function socket:receivefrom() return nil, "timeout" end
@@ -195,7 +197,7 @@ function Test.run(_, check)
         and parsedHost.address == HOST_ADDRESS
         and parsedHost.port == DirectConnection.DEFAULT_OUTER_PORT
         and #parsedHost.masterKey == 32 and #parsedHost.invitationId == 16
-        and sockets.sockets[1].address == "::" and sockets.sockets[1].timeout == 0)
+        and sockets.sockets[1].address == HOST_ADDRESS and sockets.sockets[1].timeout == 0)
 
     local androidSockets = fakeSockets()
     androidSockets.stringPorts = true
@@ -208,6 +210,41 @@ function Test.run(_, check)
         androidStarted and androidParsed and androidParsed.port == 57842
         and type(androidParsed.port) == "number")
     androidHost:close()
+
+    local canonicalSockets = fakeSockets()
+    canonicalSockets.reportedAddress = "2606:4700:4700:0000:0000:0000:0000:1111"
+    local canonicalHost = assert(DirectConnection.new(connectionOptions(
+        now, fakeProvider(true), canonicalSockets, {}, {})))
+    local canonicalStarted = canonicalHost:startHost(
+        "2606:4700:4700:0:0:0:0:1111")
+    check("direct_connection_exact_bind_compares_canonical_ipv6_addresses",
+        canonicalStarted and canonicalSockets.sockets[1].address == HOST_ADDRESS)
+    canonicalHost:close()
+
+    for _, role in ipairs({ "host", "guest" }) do
+        for _, fault in ipairs({ "wrong_address", "nonlocal_address" }) do
+            local rejectedSockets, rejectedProvider = fakeSockets(), fakeProvider(true)
+            if fault == "wrong_address" then
+                rejectedSockets.reportedAddress = "2606:4700:4700::1001"
+            else
+                rejectedSockets.failBind = true
+            end
+            local rejected = assert(DirectConnection.new(connectionOptions(
+                now, rejectedProvider, rejectedSockets, {}, {})))
+            local started, message
+            if role == "host" then
+                started, message = rejected:startHost(HOST_ADDRESS)
+            else
+                started, message = rejected:startGuest(hostCode, GUEST_ADDRESS)
+            end
+            check("direct_connection_" .. role .. "_rejects_" .. fault .. "_before_invitation",
+                started == false and rejected.state == "failed"
+                and message == "The Direct Internet socket could not be opened."
+                and rejected:code() == nil and rejectedProvider.randomCalls == 0
+                and rejectedSockets.sockets[1].closeCalls == 1)
+            rejected:close()
+        end
+    end
 
     local badResponse = responseCode(hostCode, provider, GUEST_ADDRESS)
     badResponse = badResponse:sub(1, -2) .. (badResponse:sub(-1) == "A" and "B" or "A")
@@ -252,6 +289,7 @@ function Test.run(_, check)
         guestStarted and matched and guestState == "ready"
         and guestFactory and guestRole == "guest"
         and parsedResponse.address == GUEST_ADDRESS
+        and guestSockets.sockets[1].address == GUEST_ADDRESS
         and parsedResponse.port == parsedHost.port
         and guestOpeningLog[1].role == "guest"
         and guestTransportLog.bridge.role == "guest"

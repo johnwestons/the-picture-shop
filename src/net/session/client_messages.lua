@@ -113,6 +113,18 @@ function Component.install(Runtime)
         return self.fightMatches or {}
     end
 
+    function Runtime.Session:crisisSnapshot()
+        local out={}
+        for _,bay in ipairs({"front_left","front_right"}) do
+            if self.crisisSessions and self.crisisSessions[bay] then out[#out+1]=self.crisisSessions[bay] end
+        end
+        return out
+    end
+    function Runtime.Session:crisisFrontier(session)
+        local record=self.crisisFrames and self.crisisFrames[session.bayId]
+        if record and record.roundId==session.roundId and record.frame.kind==session.game then return record.frame end
+    end
+
     function Runtime.Session:_handleClientEnvelope(envelope)
         local payload = envelope.payload
         if envelope.type == "welcome" then
@@ -121,6 +133,9 @@ function Component.install(Runtime)
             self.lastServerTick = payload.serverTick - 1
             self.lastFightTick = -1
             self.fightMatches = {}
+            self.crisisSessions = {}
+            self.crisisTicks = {}
+            self.crisisFrames={};self.crisisAssembly={}
             self:_installRoster(payload.players, payload.serverTick)
             self.status = "Receiving the host shop..."
             local pending = self.pendingShopSnapshot
@@ -146,6 +161,18 @@ function Component.install(Runtime)
                 self.lastFightTick=payload.serverTick
                 self.fightMatches=payload.matches
                 self.fightReceivedAt=self.clock()
+            end
+        elseif envelope.type == "crisis_snapshot" then
+            if self.ready and payload.sessionId==self.sessionId
+                and payload.serverTick>(self.crisisTicks[payload.bayId] or -1) then
+                self.crisisTicks[payload.bayId]=payload.serverTick
+                self.crisisSessions[payload.bayId]=payload.session~=false and payload.session or nil
+            end
+        elseif envelope.type=='crisis_frame' then
+            if self.ready and payload.sessionId==self.sessionId then
+                self.crisisAssembly=self.crisisAssembly or {};self.crisisFrames=self.crisisFrames or {}
+                local frame=require('src.critter_crisis_wire').accept(self.crisisAssembly,payload,self.clock())
+                if frame then self.crisisFrames[payload.bayId]={roundId=payload.roundId,frame=frame} end
             end
         elseif envelope.type == "radio_state" then
             if self.sessionId and payload.sessionId == self.sessionId

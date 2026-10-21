@@ -39,6 +39,44 @@ function Test.run(context, check)
     local gameDaylight, _, _, gameHour = Weather.sample(state)
     check("outdoor_weather_reads_the_saved_game_clock",
         math.abs(gameHour - 12) < 0.001 and gameDaylight == 1)
+
+    local image=context.assets.get("loadingBayExterior")
+    check("outdoor_parking_scene_is_registered_sprite",image~=nil)
+    local draw,stencil=love.graphics.draw,love.graphics.setStencilTest
+    local calls,clipped=0,false
+    love.graphics.setStencilTest=function(mode,...) clipped=mode=="greater";return stencil(mode,...) end
+    love.graphics.draw=function(sprite,x,y,rotation,sx,sy,...)
+        if sprite==image then
+            calls=calls+1
+            check("outdoor_sprite_draw_is_clipped_and_scaled",clipped and sx>0 and sy>0)
+        end
+        return draw(sprite,x,y,rotation,sx,sy,...)
+    end
+    local okay,err=pcall(function()
+        Weather.drawExterior(state,{progress=0},context.config,context.assets)
+        check("outdoor_closed_door_does_not_draw_scene",calls==0)
+        Weather.drawExterior(state,{progress=1},context.config,context.assets)
+        check("outdoor_open_door_draws_one_sprite",calls==1)
+    end)
+    love.graphics.draw,love.graphics.setStencilTest=draw,stencil
+    if not okay then error(err) end
+
+    local directory=os.getenv("PICTURE_SHOP_EXTERIOR_CAPTURE_DIR")
+    if directory then
+        local door=context.world.bayDoor
+        local oldProgress=door.progress
+        local canvas=love.graphics.newCanvas(960,678)
+        for _,scene in ipairs({{"day",1,12},{"half",.5,12},{"closed",0,12},{"night",1,23}}) do
+            door.progress=scene[2];state.calendar.elapsed=state.calendar.secondsPerDay*scene[3]/24
+            love.graphics.push("all");love.graphics.setCanvas({canvas,stencil=true});love.graphics.origin();love.graphics.clear(0,0,0,1)
+            context.world.draw(context.assets,context.characterAssets,state,nil,nil,{})
+            love.graphics.pop()
+            local data=canvas:newImageData();local encoded=data:encode("png")
+            local file=assert(io.open(directory.."/garage-"..scene[1]..".png","wb"))
+            file:write(encoded:getString());file:close();encoded:release();data:release()
+        end
+        canvas:release();door.progress=oldProgress
+    end
 end
 
 return Test

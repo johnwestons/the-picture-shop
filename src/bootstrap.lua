@@ -3,7 +3,7 @@ local Bootstrap = {}
 
 function Bootstrap.install()
     -- Hidden smoke runs need a failing exit instead of an invisible error dialog.
-    if os.getenv("PICTURE_SHOP_SMOKE") == "1" then
+    if os.getenv("PICTURE_SHOP_SMOKE") == "1" or os.getenv("CRITTER_PREVIEW_REVIEW") then
         function love.errorhandler(message)
             io.stderr:write(tostring(message) .. "\n" .. debug.traceback() .. "\n")
             io.stderr:flush()
@@ -11,7 +11,10 @@ function Bootstrap.install()
         end
     end
 
-    if os.getenv("PICTURE_SHOP_PERFORMANCE_PROBE") == "1" then
+    if os.getenv("PICTURE_SHOP_CRISIS_PREVIEW") == "1" then
+        love.filesystem.setIdentity("the-picture-shop-crisis-preview")
+        require("tools.critter_crisis_preview.main")
+    elseif os.getenv("PICTURE_SHOP_PERFORMANCE_PROBE") == "1" then
         require("tools.performance_probe.main")
     elseif os.getenv("PICTURE_SHOP_PALLET_JACK_PREVIEW") == "1" then
         require("tools.pallet_jack_preview.main")

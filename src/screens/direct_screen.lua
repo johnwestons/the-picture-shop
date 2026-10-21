@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local IpScope = require("src.net.ip_scope")
+local Ipv6Address = require("src.net.ipv6_address")
 local Ui = require("src.screens.ui")
 
 local DirectScreen = {
@@ -114,11 +115,32 @@ local function setMode(mode, message, focused)
     DirectScreen.pressed = nil
 end
 
+-- Only an explicitly supplied engineering callback enables local address
+-- selection. The normal screen retains its manual entry behavior.
+local function detectLocalIpv6(hostCode)
+    local callback = DirectScreen.callbacks and DirectScreen.callbacks.detectLocalIpv6
+    if type(callback) ~= "function" then return nil end
+    local called, address, message = pcall(callback, hostCode)
+    local parsed = called and Ipv6Address.parse(address) or nil
+    if not parsed or parsed.isGlobal ~= true then
+        DirectScreen.localAddress = ""
+        DirectScreen.message = called and type(message) == "string" and message
+            or "A public IPv6 address could not be selected. Check the network and retry."
+        return false
+    end
+    DirectScreen.localAddress = parsed.address
+    DirectScreen.message = hostCode
+        and "IPv6 address selected. Select START CONNECTION to create your reply code."
+        or "IPv6 address selected. Select CREATE HOST CODE to continue."
+    return true
+end
+
 local function chooseHost()
     clearSensitive()
     setMode("host_setup",
         "Enter the global IPv6 address shown by this device, then create an expiring host code.",
         "address")
+    detectLocalIpv6()
     return true
 end
 
@@ -135,6 +157,9 @@ local function isIpv4Invite(code)
 end
 
 local function requestHost()
+    if DirectScreen.localAddress == "" then
+        if detectLocalIpv6() == false then return false end
+    end
     if DirectScreen.localAddress == "" then
         DirectScreen.message = "Enter this device's global IPv6 address first."
         return false
@@ -368,6 +393,9 @@ local function requestGuest()
         return true
     end
     if DirectScreen.localAddress == "" then
+        if detectLocalIpv6(DirectScreen.hostCodeInput) == false then return false end
+    end
+    if DirectScreen.localAddress == "" then
         DirectScreen.message = "Enter this device's global IPv6 address first."
         DirectScreen.focused = "address"
         return false
@@ -442,11 +470,13 @@ local function pasteCode()
     elseif DirectScreen.mode == "guest_setup" then
         DirectScreen.hostCodeInput = value
         if isIpv4Invite(value) then
+            DirectScreen.localAddress = ""
             DirectScreen.focused = "hostCode"
             DirectScreen.message = "IPv4 host code pasted. No global IPv6 address is needed."
         else
             DirectScreen.focused = "address"
             DirectScreen.message = "IPv6 host code pasted. Now enter this device's global IPv6 address."
+            detectLocalIpv6(value)
         end
     else
         return false
@@ -579,6 +609,7 @@ function DirectScreen.enter(options)
         setMode("host_setup",
         "Invite one more worker using IPv6, automatic IPv4 mapping, or manual UDP forwarding if enabled.",
             "address")
+        detectLocalIpv6()
     else
         setMode("menu",
             "No account or relay is used. Each invitation connects one worker with fresh keys.")

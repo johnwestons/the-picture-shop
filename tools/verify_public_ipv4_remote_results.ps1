@@ -9,6 +9,12 @@ param(
     [string]$KitZip,
     [string]$BuildReport,
     [string]$ReportPath,
+    [ValidatePattern('^[0-9a-fA-F]{64}$')]
+    [string]$ExpectedZipSha256,
+    [ValidatePattern('^[0-9a-f]{40}$')]
+    [string]$ExpectedSourceCommit,
+    [ValidateSet('True','False')]
+    [string]$ExpectedSourceDirty,
     [switch]$FirewallCleanupConfirmed,
     [switch]$SameAttemptConfirmed
 )
@@ -17,6 +23,11 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $validator = Join-Path $PSScriptRoot 'verify_public_ipv4_remote_results.py'
+$profileOptions = @('ExpectedZipSha256','ExpectedSourceCommit','ExpectedSourceDirty')
+$providedProfileOptions = @($profileOptions | Where-Object { $PSBoundParameters.ContainsKey($_) })
+if ($providedProfileOptions.Count -ne 0 -and $providedProfileOptions.Count -ne 3) {
+    throw 'ExpectedZipSha256, ExpectedSourceCommit, and ExpectedSourceDirty must be supplied together.'
+}
 
 function Find-ValidationPython {
     $candidates = @(
@@ -54,6 +65,11 @@ if ($BuildReport) {
 }
 if ($ReportPath) {
     $arguments += @('--report', [IO.Path]::GetFullPath($ReportPath))
+}
+if ($providedProfileOptions.Count -eq 3) {
+    $arguments += @('--expected-zip-sha256', $ExpectedZipSha256,
+        '--expected-source-commit', $ExpectedSourceCommit,
+        '--expected-source-dirty', $ExpectedSourceDirty)
 }
 if ($FirewallCleanupConfirmed) {
     $arguments += '--firewall-cleanup-confirmed'

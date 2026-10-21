@@ -233,6 +233,25 @@ function Component.install(Runtime)
                 sessionId=self.sessionId,serverTick=self.serverTick,
                 matches=Runtime.Codec.array(fights)})
             if not fightOk then self:_queue("error",{message=fightError}) end
+            local crises=context and context.getCrisisSnapshot and context.getCrisisSnapshot() or {}
+            for _,bay in ipairs({"front_left","front_right"}) do
+                local current=false
+                for _,session in ipairs(crises) do if session.bayId==bay then current=session;break end end
+                local crisisOk,crisisError=self:_broadcastJoined("crisis_snapshot",{
+                    sessionId=self.sessionId,serverTick=self.serverTick,bayId=bay,session=current})
+                if not crisisOk then self:_queue("error",{message=crisisError}) end
+            end
+            if self.serverTick%2==0 and context and context.getCrisisEncounters then
+                for bay,encounter in pairs(context.getCrisisEncounters()) do
+                    local parts,err=require('src.critter_crisis_wire').parts(encounter)
+                    if not parts then self:_queue('error',{message=err})
+                    else for index,data in ipairs(parts) do
+                        local okay,message=self:_broadcastJoined('crisis_frame',{sessionId=self.sessionId,serverTick=self.serverTick,
+                            bayId=bay,roundId=encounter.roundId,part=index,total=#parts,data=data})
+                        if not okay then self:_queue('error',{message=message}) end
+                    end end
+                end
+            end
             local visitors = context and context.getVisitorSnapshot
                 and context.getVisitorSnapshot() or nil
             if type(visitors) == "table" and type(visitors.customer) == "table"

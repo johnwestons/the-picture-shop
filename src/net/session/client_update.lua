@@ -17,6 +17,7 @@ function Component.install(Runtime)
             gameX = Runtime.clamp(context and context.gameX, -1, 1),
             gameY = Runtime.clamp(context and context.gameY, -1, 1),
             combatButtons = context and context.combatButtons or 0,
+            arcade = context and context.arcade,
             furColorway = context and context.localPlayer and context.localPlayer.furColorway
                 or self.localFurColorway or 1,
             overallsColorway = context and context.localPlayer and context.localPlayer.overallsColorway

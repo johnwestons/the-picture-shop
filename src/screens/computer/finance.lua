@@ -62,6 +62,7 @@ function Component.install(Runtime)
                 polar_115={key="cutter",label="CUTTER",color={0.72,0.81,0.84,1}},
                 skid_wrapper={key="wrapper",label="WRAPPER",color={0.48,0.77,0.85,1}},
                 heidelberg_10x15={key="windmill",label="PRESS",color={0.84,0.70,0.46,1}},
+                regal_moll={key="regalFolder",label="FOLDER",color={0.84,0.40,0.36,1}},
             }
             for _,machine in ipairs(state.machines and state.machines.items or {}) do
                 local marker=machineMap[machine.modelId]
@@ -368,18 +369,19 @@ function Component.install(Runtime)
             local action = Runtime.creditMachineActionRect(index)
             Runtime.panel(rect, { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.37, 0.40, 1 })
             love.graphics.setColor(0.91, 0.94, 0.92)
-            love.graphics.printf(quote.name, rect.x + 10, rect.y + 8, 238, "left")
+            local nameScale = math.min(1, 238 / math.max(1, love.graphics.getFont():getWidth(quote.name)))
+            love.graphics.print(quote.name, rect.x + 10, rect.y + 3, 0, nameScale, nameScale)
             local red, green, blue = Runtime.conditionColor(quote.condition)
             love.graphics.setColor(red, green, blue)
             love.graphics.print(string.format("%s used  •  %.0f%% condition  •  %s",
                 quote.channel == "dealer" and "Dealer" or "Online", quote.condition, Runtime.money(quote.price)),
-                rect.x + 10, rect.y + 27)
+                rect.x + 10, rect.y + 19)
             love.graphics.setColor(0.72, 0.81, 0.81)
             love.graphics.printf(string.format("Down %s  •  loan %s",
                 Runtime.money(quote.downPayment), Runtime.money(quote.principal)),
-                rect.x + 10, rect.y + 46, 242, "left")
+                rect.x + 10, rect.y + 35, 242, "left")
             love.graphics.printf(string.format("%d mo  •  %.2f%% APR",
-                quote.termMonths, quote.apr), rect.x + 10, rect.y + 60, 242, "left")
+                quote.termMonths, quote.apr), rect.x + 10, rect.y + 50, 242, "left")
             local hovered = quote.eligible and pointerX and Runtime.contains(action, pointerX, pointerY)
             Runtime.drawComputerButton(action,
                 quote.eligible and ("REVIEW\n" .. Runtime.money(quote.monthlyPayment) .. "/mo")
@@ -423,7 +425,7 @@ function Component.install(Runtime)
         love.graphics.printf(latest and ("LATEST CREDIT UPDATE: " .. latest.reason .. "  (" ..
             (latest.delta >= 0 and "+" or "") .. latest.delta .. ", score " .. latest.score .. ")")
             or "Pay monthly shop bills and loan installments on time to build credit. Late accounts are reported after 30 days.",
-            100, 566, 730, "left")
+            472, 552, 350, "left")
 
         local choice = Runtime.ComputerScreen.creditConfirmation
         if choice then

@@ -1,0 +1,27 @@
+{
+  "title": "Critter Crisis approved preview",
+  "version": 5,
+  "savedDate": "2026-10-12",
+  "status": "Approved preview saved locally; do not upload or install until requested.",
+  "entryPoint": "index.html",
+  "features": [
+    "Phone aim wheel and cover/reload controls",
+    "Fixed land cover exists before enemy entry and remains after defeat",
+    "Enemies enter exposed, move to predetermined cover, duck and peek; cover blocks hits",
+    "Boat chase uses boat hulls and player bow for cover; no crates on boats",
+    "Detailed weapon pickup and first-person art",
+    "SMG earned after 3 defeats; shotgun earned after 6 defeats",
+    "Shoot earned weapon drops to equip; no manual switching",
+    "SMG full auto while FIRE, mouse, or F is held",
+    "Yard, reactor, docks and boat chase previews; two areas per encounter",
+    "Mouse Frontier modes excluded from the Critter Crisis preview menu"
+  ],
+  "limitations": [
+    "This is the approved interactive preview, not a newly built Android APK.",
+    "The 2-player selection previews the layout; this HTML does not implement LAN networking.",
+    "Production Lua integration and Android packaging remain separate work."
+  ],
+  "saveHandling": "No game saves touched.",
+  "uploaded": false,
+  "installed": false
+}

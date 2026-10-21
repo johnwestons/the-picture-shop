@@ -31,6 +31,8 @@ DEFAULT_REPORT = (
 FROZEN_KIT_SHA256 = "faa680e5594a5680d78a9dc3fef341c04af5ca76e57de450009ba612906a8792"
 FROZEN_BUILD_REPORT_SHA256 = "f7a5aa92b4608a6df774eda94d006a6186c92bb8ed66d128861543e116f04e90"
 FROZEN_KIT_BYTES = 9_768_011
+FROZEN_SOURCE_COMMIT = "d27a62bab4e5d0ca952c6f6487b1542c4a6b226a"
+FROZEN_SOURCE_DIRTY = True
 MAX_RESULT_BYTES = 4096
 MAX_BUILD_REPORT_BYTES = 8192
 MARKER_LINE = re.compile(
@@ -40,7 +42,7 @@ SHA256_TEXT = re.compile(r"^[0-9a-f]{64}$")
 
 BUILD_REPORT_CONTRACT = (
     ("TPS_PUBLIC_IPV4_KIT_BUILD", "PASS"),
-    ("SOURCE_COMMIT", "d27a62bab4e5d0ca952c6f6487b1542c4a6b226a"),
+    ("SOURCE_COMMIT", FROZEN_SOURCE_COMMIT),
     ("SOURCE_DIRTY", "True"),
     ("HOST_MANIFEST_VERIFIED", "True"),
     ("GUEST_MANIFEST_VERIFIED", "True"),
@@ -346,10 +348,19 @@ def validate_reference_kit(
     kit_zip: Path,
     build_report_path: Path,
     expected_zip_sha256: str,
+    *,
+    expected_source_commit: str | None = None,
+    expected_source_dirty: bool | None = None,
 ) -> tuple[str, str]:
     expected = expected_zip_sha256.lower()
     if not SHA256_TEXT.fullmatch(expected):
         raise ValidationError("expected_zip_hash_invalid", "The expected kit hash is not a SHA-256 value.")
+    if (expected_source_commit is None) != (expected_source_dirty is None):
+        raise ValidationError("reference_profile_incomplete", "Both source provenance expectations are required.")
+    source_commit = FROZEN_SOURCE_COMMIT if expected_source_commit is None else expected_source_commit
+    source_dirty = FROZEN_SOURCE_DIRTY if expected_source_dirty is None else expected_source_dirty
+    if not re.fullmatch(r"[0-9a-f]{40}", source_commit) or type(source_dirty) is not bool:
+        raise ValidationError("reference_profile_invalid", "The expected source provenance is invalid.")
 
     build = read_marker_file(
         build_report_path,
@@ -357,7 +368,10 @@ def validate_reference_kit(
         max_bytes=MAX_BUILD_REPORT_BYTES,
         allow_crlf=True,
     )
-    expected_build = BUILD_REPORT_CONTRACT + (("ZIP_SHA256", expected),)
+    expected_build = tuple(
+        (key, source_commit if key == "SOURCE_COMMIT" else str(source_dirty) if key == "SOURCE_DIRTY" else value)
+        for key, value in BUILD_REPORT_CONTRACT
+    ) + (("ZIP_SHA256", expected),)
     require_contract(build, expected_build, code="build_report_contract_invalid")
     if expected == FROZEN_KIT_SHA256 and build.sha256 != FROZEN_BUILD_REPORT_SHA256:
         raise ValidationError(
@@ -411,6 +425,8 @@ def validate_result_pair(
     kit_zip: Path,
     build_report: Path,
     expected_zip_sha256: str = FROZEN_KIT_SHA256,
+    expected_source_commit: str | None = None,
+    expected_source_dirty: bool | None = None,
     firewall_cleanup_confirmed: bool = False,
     same_attempt_confirmed: bool = False,
     now: datetime | None = None,
@@ -421,6 +437,8 @@ def validate_result_pair(
         kit_zip,
         build_report,
         expected_zip_sha256,
+        expected_source_commit=expected_source_commit,
+        expected_source_dirty=expected_source_dirty,
     )
     host = validate_host_result(host_result)
     guest = validate_guest_result(guest_result)
@@ -467,6 +485,8 @@ def validate_result_pair(
             "actualZipSha256": kit_sha256,
             "buildReportSha256": build_report_sha256,
             "referenceKitVerified": True,
+            "expectedSourceCommit": FROZEN_SOURCE_COMMIT if expected_source_commit is None else expected_source_commit,
+            "expectedSourceDirty": FROZEN_SOURCE_DIRTY if expected_source_dirty is None else expected_source_dirty,
         },
         "evidenceSetDigest": evidence_set_digest(kit_sha256, host.sha256, guest.sha256),
         "evidence": {
@@ -574,13 +594,16 @@ def invalid_report(code: str, *, now: datetime | None = None) -> dict[str, objec
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Strictly validate the frozen public-IPv4 host and guest result files.",
+        description="Strictly validate public-IPv4 results against the frozen or an explicitly pinned reference kit.",
     )
     parser.add_argument("--host-result", type=Path, required=True)
     parser.add_argument("--guest-result", type=Path, required=True)
     parser.add_argument("--kit-zip", type=Path, default=DEFAULT_KIT_ZIP)
     parser.add_argument("--build-report", type=Path, default=DEFAULT_BUILD_REPORT)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--expected-zip-sha256", help="Pinned kit SHA-256; requires both source expectation options.")
+    parser.add_argument("--expected-source-commit", help="Pinned 40-character source commit; requires the full reference profile.")
+    parser.add_argument("--expected-source-dirty", choices=("True", "False"), help="Pinned worktree state; requires the full reference profile.")
     parser.add_argument(
         "--firewall-cleanup-confirmed",
         action="store_true",
@@ -605,7 +628,13 @@ def main(
     *,
     expected_zip_sha256: str = FROZEN_KIT_SHA256,
 ) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    profile_values = (args.expected_zip_sha256, args.expected_source_commit, args.expected_source_dirty)
+    if any(value is not None for value in profile_values) and not all(value is not None for value in profile_values):
+        parser.error("Reference overrides require --expected-zip-sha256, --expected-source-commit, and --expected-source-dirty together.")
+    if args.expected_zip_sha256 is not None:
+        expected_zip_sha256 = args.expected_zip_sha256
     input_paths = (args.host_result, args.guest_result, args.kit_zip, args.build_report)
     try:
         collision = paths_collide(args.report, input_paths)
@@ -635,6 +664,8 @@ def main(
             kit_zip=args.kit_zip,
             build_report=args.build_report,
             expected_zip_sha256=expected_zip_sha256,
+            expected_source_commit=args.expected_source_commit,
+            expected_source_dirty=None if args.expected_source_dirty is None else args.expected_source_dirty == "True",
             firewall_cleanup_confirmed=args.firewall_cleanup_confirmed,
             same_attempt_confirmed=args.same_attempt_confirmed,
         )

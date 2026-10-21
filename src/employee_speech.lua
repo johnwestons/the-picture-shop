@@ -1,5 +1,5 @@
 -- Short host-owned captions. Realtime poses carry one code, never long text.
-local Speech={MAX_CODE=28,GREETING_SECONDS=4}
+local Speech={MAX_CODE=31,GREETING_SECONDS=4}
 local messages={
     "Hello!","Hello!","Goodbye!","Cutting","Wrapping","Printing",
     "On break","Lunch break","To breakroom","To the cutter","To the wrapper",
@@ -8,6 +8,7 @@ local messages={
     "Waiting for pay","Work paused","Ready to work","Preparing plate",
     "Cleaning press","Preparing wrap",
     "May I use the jack?","To the pallet jack",
+    "Playing air hockey","Playing basketball","Playing Critter Kombat",
 }
 function Speech.code(entry)
     if not entry or not entry.worker or not entry.actor or entry.actor.visible==false then return 0 end
@@ -21,7 +22,13 @@ function Speech.code(entry)
         if (w.activity or ""):find("Exit path blocked",1,true) then return 17 end
         return 20
     end
-    if a.phase=="break" then return w.breakKind=="meal" and 8 or 7 end
+    if a.phase=="break" then
+        local activity=(w.activity or ""):lower()
+        if activity:find("playing air hockey after shift",1,true) then return 29 end
+        if activity:find("playing portable basketball",1,true) then return 30 end
+        if activity:find("playing critter kombat",1,true) then return 31 end
+        return w.breakKind=="meal" and 8 or 7
+    end
     if a.phase=="break_walk" then return 9 end
     local activity=(w.activity or ""):lower()
     if activity:find("waiting for the pallet jack",1,true) then return 27 end

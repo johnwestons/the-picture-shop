@@ -42,6 +42,8 @@ function Component.install(Runtime)
             and Runtime.nonnegative(value.margin)
             and Runtime.nonnegative(value.gauge)
             and Runtime.dimensions(value.resultingSize)
+            and (value.edgeQuality == nil or (Runtime.number(value.edgeQuality)
+                and value.edgeQuality >= 0 and value.edgeQuality <= 1))
     end
 
     function Runtime.paper(value)
@@ -65,6 +67,8 @@ function Component.install(Runtime)
             and Runtime.positiveInteger(value.activeCut)
             and Runtime.array(value.cuts, Runtime.cut)
             and Runtime.text(value.status)
+            and (value.cutQuality == nil or (Runtime.number(value.cutQuality)
+                and value.cutQuality >= 0 and value.cutQuality <= 1))
             and Runtime.array(value.history, Runtime.historyEntry)
     end
 

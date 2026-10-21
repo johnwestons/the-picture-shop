@@ -367,7 +367,7 @@ function Maintenance.requestTechnician(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false, "No cutter is installed." end
     if not cutter.bladeInSleeve then return false, "Remove the blade and place it in its wooden sleeve first." end
-    if cutter.nextTechnicianDay then return false, "A blade technician is already scheduled." end
+    if cutter.nextTechnicianDay then return false, "A blade exchange courier is already scheduled." end
     cutter.nextTechnicianDay = state.calendar.totalDays + 1
     cutter.appointmentType = "requested"
     return true, cutter.nextTechnicianDay
@@ -401,20 +401,23 @@ local function updateCutterTechnician(state)
     local outcome = technicianOutcome(item, appointmentDay)
     if outcome < 15 then
         MachineFleet.addServiceNotice(state, "Technician unable to attend",
-            "We cannot make today's cutter-blade appointment. We have moved the visit to next week and apologize for the disruption.")
+            "Mara Mouse cannot make today's blade exchange. The visit is moved to next week.",
+            "Mara Mouse — Blade Exchange")
         cutter.nextTechnicianDay = appointmentDay + 7
-        state.message = "The blade technician emailed: this week's visit was cancelled."
+        state.message = "Mara Mouse emailed: this week's blade exchange was cancelled."
     elseif outcome < 35 then
-        MachineFleet.addServiceNotice(state, "Blade technician running late",
-            "Our technician is running behind and will arrive one business day late for the cutter-blade service.")
+        MachineFleet.addServiceNotice(state, "Blade exchange courier running late",
+            "Mara Mouse is running behind and will arrive one business day late to collect the dull blade and install a fresh one.",
+            "Mara Mouse — Blade Exchange")
         cutter.nextTechnicianDay = appointmentDay + 1
-        state.message = "The blade technician emailed that the appointment is running late."
+        state.message = "Mara Mouse emailed that the blade exchange is running late."
     elseif not cutter.bladeInSleeve then
         MachineFleet.addServiceNotice(state, "Blade was not ready for service",
-            "The cutter blade was not removed and secured in its wooden sleeve, so it could not be sharpened during today's visit.")
+            "The dull cutter blade was not removed and secured in its wooden sleeve, so Mara Mouse could not collect it or install a fresh blade.",
+            "Mara Mouse — Blade Exchange")
         cutter.nextTechnicianDay = cutter.weeklyTechnician and appointmentDay + 7 or nil
         cutter.appointmentType = cutter.weeklyTechnician and "weekly" or nil
-        state.message = "The technician could not sharpen the cutter blade because it was not sleeved."
+        state.message = "Mara Mouse could not exchange the cutter blade because the dull blade was not in its wooden sleeve."
     else
         local Technician = require("src.technician")
         if not Technician.schedule(state, "cutter", appointmentDay, cutter.weeklyTechnician) then return false end
@@ -473,8 +476,10 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
     local recurring = visit and visit.recurring or cutter.weeklyTechnician
     cutter.nextTechnicianDay = recurring and appointmentDay + 7 or nil
     cutter.appointmentType = recurring and "weekly" or nil
-    MachineFleet.addServiceNotice(state, "Cutter blade sharpened",
-        "The mouse technician sharpened, inspected, and reinstalled the sleeved cutter blade. The cutter is ready for production.")
+    local courier = visit and visit.name or "Mara Mouse"
+    MachineFleet.addServiceNotice(state, "Fresh cutter blade delivered",
+        courier .. " collected the dull blade in its wooden sleeve and fitted a freshly sharpened replacement. The Polar 115 is ready for production.",
+        "Polar 115 Blade Exchange")
     return true
 end
 

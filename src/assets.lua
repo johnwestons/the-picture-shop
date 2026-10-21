@@ -128,8 +128,38 @@ function Assets.load()
     local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
     local windmillDirections = loadImage("windmillDirections", Config.paths.windmillDirections, false)
+    local regalFolderDirections = loadImage("regalFolderDirections", Config.paths.regalFolderDirections, false)
+    if regalFolderDirections then
+        local width, height = regalFolderDirections:getDimensions()
+        if width ~= 1774 or height ~= 887 then
+            recordFailure(Config.paths.regalFolderDirections,
+                string.format("expected 1774x887 eight-angle folder sheet, got %dx%d", width, height))
+        else
+            local edges = { 0, 444, 887, 1331, 1774 }
+            for frame = 1, 8 do
+                local column, row = (frame - 1) % 4 + 1, math.floor((frame - 1) / 4)
+                local top = row == 0 and 0 or 444
+                local bottom = row == 0 and 444 or height
+                makeQuad("regalFolderDirection" .. frame, regalFolderDirections,
+                    edges[column], top, edges[column + 1] - edges[column], bottom - top)
+            end
+        end
+    end
     local technicianNpcs = loadImage("technicianNpcs", Config.paths.technicianNpcs, false)
     local loadingBayDoor = loadImage("loadingBayDoor", Config.paths.loadingBayDoor, false)
+    local exterior = loadImage("loadingBayExterior", Config.paths.loadingBayExterior, false)
+    if exterior and exterior:getWidth()>256 then
+        -- The doorway is only ~100 pixels wide. Retain a compact GPU sprite
+        -- instead of the full generated source texture, including in the cache.
+        exterior:setFilter("linear", "linear")
+        local sprite=love.graphics.newCanvas(256,256)
+        love.graphics.push("all");love.graphics.setCanvas(sprite);love.graphics.origin()
+        love.graphics.setScissor();love.graphics.clear(0,0,0,0);love.graphics.setColor(1,1,1,1)
+        love.graphics.draw(exterior,0,0,0,256/exterior:getWidth(),256/exterior:getHeight())
+        love.graphics.pop();exterior:release()
+        exterior=sprite;Assets.images.loadingBayExterior=sprite
+    end
+    if exterior then exterior:setFilter("linear", "linear") end
     local deliveryTruck = loadImage("deliveryTruck", Config.paths.deliveryTruck, false)
     local truckCargoDoor = loadImage("truckCargoDoor", Config.paths.truckCargoDoor, false)
     local machineFlatbedLoaded = loadImage("machineFlatbedLoaded", Config.paths.machineFlatbedLoaded, false)

@@ -89,15 +89,18 @@ local function publicAddress(value)
     return parsed.address
 end
 
-local function createSocket(socketModule, port)
+local function createSocket(socketModule, address, port)
     local ok, socket = pcall(socketModule.udp6)
     if not ok or not socketShape(socket) then
         if socket then closeSocket(socket) end
         return nil
     end
     local timeoutOk, timeoutResult = pcall(socket.settimeout, socket, 0)
-    local bindOk, bindResult = pcall(socket.setsockname, socket, "::", port)
-    local nameOk, _, reportedPort = pcall(socket.getsockname, socket)
+    -- The invitation authenticates this exact source address. A wildcard bind
+    -- lets the OS choose a different privacy/interface address, which the peer
+    -- correctly rejects even when both advertised addresses are reachable.
+    local bindOk, bindResult = pcall(socket.setsockname, socket, address, port)
+    local nameOk, reportedAddress, reportedPort = pcall(socket.getsockname, socket)
     -- Android's bundled LuaSocket reports the bound UDP port as a numeric
     -- string, while desktop LuaSocket reports a number.  Normalize the
     -- transport-owned value before validating it; never accept a fractional,
@@ -105,7 +108,8 @@ local function createSocket(socketModule, port)
     local boundPort = tonumber(reportedPort)
     if not timeoutOk or not successful(timeoutResult)
         or not bindOk or not successful(bindResult)
-        or not nameOk or not wholeNumber(boundPort, 1, 65535)
+        or not nameOk or publicAddress(reportedAddress) ~= address
+        or not wholeNumber(boundPort, 1, 65535)
         or (port ~= 0 and boundPort ~= port)
     then
         closeSocket(socket)
@@ -266,7 +270,7 @@ function Connection:startHost(localAddress, port)
 
     local now = self:_now()
     if not now then return self:_fail(ERROR_OPTIONS) end
-    local socket, boundPort = createSocket(self.socketModule, port)
+    local socket, boundPort = createSocket(self.socketModule, address, port)
     if not socket then return self:_fail(ERROR_SOCKET) end
     self.socket = socket
 
@@ -333,7 +337,7 @@ function Connection:startGuest(hostCode, localAddress)
     if not address then return false, ERROR_ADDRESS end
     if host.port == self.loopbackHostPort then return false, ERROR_HOST_CODE end
 
-    local socket, boundPort = createSocket(self.socketModule, host.port)
+    local socket, boundPort = createSocket(self.socketModule, address, host.port)
     if not socket then return self:_fail(ERROR_SOCKET) end
     self.socket = socket
     self.host = host

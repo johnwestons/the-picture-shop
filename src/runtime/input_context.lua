@@ -23,6 +23,7 @@ function Component.install(Runtime)
         vendorScreen = Runtime.VendorScreen,
         palletWorkOrderScreen = Runtime.RuntimeDependencies.PalletWorkOrderScreen,
         pressScreen = Runtime.PressScreen,
+        regalFolderScreen = Runtime.RegalFolderScreen,
         windmill = Runtime.Windmill,
         title = Runtime.TitleScreen,
         saveCurrent = Runtime.saveCurrent,

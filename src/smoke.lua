@@ -139,7 +139,17 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=="critter-kombat" then
+        if focus=="regal-folder" then
+            require("src.tests.regal_folder_game_test").run(context,check)
+            require("src.tests.lua_limits_test").run(context,check)
+        elseif focus=="garage-exterior" then
+            require("src.tests.outdoor_weather_test").run(context,check)
+            require("src.tests.lua_limits_test").run(context,check)
+        elseif focus=="arcade-ui" then
+            for _,name in ipairs({"lua_limits","arcade_mobile_ui","critter_kombat_controls","keyboard_mobile"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="critter-kombat" then
             for _,name in ipairs({"lua_limits","critter_kombat","critter_kombat_controls","network_protocol","multiplayer_session","keyboard_mobile","save_contract"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
@@ -254,6 +264,17 @@ function Smoke.start(context)
         elseif focus=="radio-network" then
             require("src.tests.network_protocol_test").run(context,check)
             require("src.tests.multiplayer_session_test").run(context,check)
+        elseif focus=="direct-multiplayer" then
+            for _,name in ipairs({"lua_limits","ip_scope","ipv6_address","local_ipv6","gateway_discovery",
+                "pcp","nat_pmp","reachability","router_mapping_adapter","upnp_igd","upnp_mapping_adapter",
+                "direct_invite","direct_ipv4_listener","direct_ipv4_host","public_ipv4_probe_protocol",
+                "public_ipv4_probe_watchdog","direct_opening_code","direct_opening","direct_bridge",
+                "transport_ipv6_bridge","direct_connection","direct_transport","direct_session",
+                "direct_screen","focus_grace","direct_focus_lifecycle","direct_composite_transport","direct_composite_session_integration",
+                "transport_enet","network_protocol","multiplayer_session","multiplayer_impairment",
+                "multiplayer_soak","lan_screen","lan_discovery","lan_reconnect","lan_reconnect_session"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="lan-connection" then
             require("src.tests.lan_screen_test").run(context,check)
             require("src.tests.lan_discovery_test").run(context,check)

@@ -37,8 +37,20 @@ function Component.install(Runtime)
         return result
     end
 
-    Runtime.Fleet.order = { "polar_115", "skid_wrapper", "heidelberg_10x15" }
+    Runtime.Fleet.order = { "polar_115", "skid_wrapper", "heidelberg_10x15", "regal_moll" }
     Runtime.Fleet.definitions = {
+        regal_moll = {
+            id = "regal_moll", name = "Regal Moll practice folder",
+            shortName = "Regal Moll folder", placementKey = "regalFolder",
+            requiresWorldPosition = true,
+            basePrice = 18000, onlineCondition = 94, dealerCondition = 60,
+            components = {
+                feedRollers = { label = "Feed rollers", weight = 0.5, wear = 0.1,
+                    serviceTask = "Clean the feed rollers" },
+                foldGuides = { label = "Fold guides", weight = 0.5, wear = 0.1,
+                    serviceTask = "Inspect the fold guides" },
+            },
+        },
         polar_115 = {
             id = "polar_115",
             name = "Polar 115 programmable cutter",

@@ -14,6 +14,8 @@ function Component.install(Runtime)
                 okay,code,message=require("src.basketball").command(state,player,action,shotAim)
             elseif game=="critter_kombat" then
                 okay,code,message=require("src.critter_kombat").command(state,player,action)
+            elseif game=="critter_crisis" then
+                okay,code,message=require("src.critter_crisis").command(state,player,action)
             else return false,"not_allowed","Unknown break room game.",requestedKind end
             return okay,code,message,requestedKind
         end

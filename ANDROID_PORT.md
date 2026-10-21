@@ -3,16 +3,26 @@
 ## Current source build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.49` (`versionCode` 49)
-- Multiplayer protocol: 36; host and guests need matching current code.
+- Version: `0.1.0-android.61` (`versionCode` 61)
+- Multiplayer protocol: 41; host and guests need matching current code.
 - Build command: `./BUILD_ANDROID.ps1`
-- Local output: `output/mobile/ThePictureShop-0.1.0-android.49-debug.apk`
-- Remote download: [Android 49 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.49/ThePictureShop-0.1.0-android.49-Install.apk)
+- Local installer: `output/android-share/0.1.0-android.61/ThePictureShop-0.1.0-android.61-Install.apk`
+- The view outside the garage is a textured parking-lot sprite, with a compact
+  runtime texture to stay within the existing mobile memory budget.
+- The arcade cabinet has a neon 1980s game selector. Air hockey has a movement
+  wheel to the left of the table, with corrected Android touch mapping and touch ownership.
+- The Regal Moll practice folder is now purchase-only. Updating removes the free
+  floor prop from existing shops without a save reset; purchased units remain saved.
+- Download the development APK from the [Android 61 GitHub release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61).
 - The development APK uses the same gameplay and art source as Windows, including
   warehouse staging controls, seasonal customer-demand tuning, updated pallet and
   supplies flow, performance improvements, and current gameplay and multiplayer changes.
 - The package ID and signing certificate are kept compatible with the previous
   Android build, so installing over it preserves existing saves.
+- Installation readiness and remaining device checks are recorded in
+  [the Android 61 release notes](docs/android_61_release.md).
+- Fresh test saves were requested for this handoff. Download the installer first,
+  uninstall only The Picture Shop without keeping app data, then install it.
 - A connected phone is required to verify installation and physical gameplay.
 
 ## Android 43 historical build notes

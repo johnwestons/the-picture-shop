@@ -78,16 +78,16 @@ function Component.install(Runtime)
             "Lockout, clean and grease the service fittings, then inspect the gearbox sight glass. Uses one kit.",
             (stock.maintenance_kit or 0) > 0 and not cutter.bladeRemoved, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.bladeServiceButton, "REMOVE & SLEEVE BLADE",
-            cutter.bladeInSleeve and "Blade is ready for Precision Blade Service."
+            cutter.bladeInSleeve and "Dull blade is sleeved and ready for the exchange courier."
                 or "Release the fasteners, remove the knife, and secure it inside the wooden transport sleeve.",
             not cutter.bladeInSleeve, pointerX, pointerY)
-        Runtime.drawMaintenanceCard(Runtime.technicianButton, "REQUEST TECHNICIAN",
-            cutter.bladeInSleeve and "Book the next available blade-sharpening visit."
+        Runtime.drawMaintenanceCard(Runtime.technicianButton, "REQUEST BLADE COURIER",
+            cutter.bladeInSleeve and "Book Mara Mouse to collect this blade and fit a sharpened replacement."
                 or "Prepare the blade in its sleeve before booking.",
             cutter.bladeInSleeve and not cutter.nextTechnicianDay, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.weeklyButton, cutter.weeklyTechnician and "WEEKLY SERVICE: ON" or "WEEKLY SERVICE: OFF",
-            cutter.weeklyTechnician and "Click to cancel the recurring appointment."
-                or "Schedule a technician every seven game days. Delays or missed visits arrive by email.",
+            cutter.weeklyTechnician and "Click to cancel the recurring blade exchange."
+                or "Schedule a blade exchange every seven game days. Delays arrive by email.",
             true, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.maintenanceBack, "RETURN TO CUTTER", "", true, pointerX, pointerY)
         love.graphics.setColor(0.70, 0.78, 0.79)

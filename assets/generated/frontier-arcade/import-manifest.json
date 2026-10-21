@@ -1,0 +1,355 @@
+{
+  "sourceProject": "Mouse Frontier 8.10",
+  "adaptation": "Requires and asset paths namespaced; campaign services replaced by disposable arcade adapters; Last Stand and Train Attack expose shared damage and update hooks for local and LAN co-op.",
+  "files": [
+    {
+      "source": "game/shooting_range.lua",
+      "sha256": "C667D3E84997C8623F9D88C73F6F5F386E09DF30AF34F562F8C3F8FD84D249C6"
+    },
+    {
+      "source": "game/last_stand_shootout.lua",
+      "sha256": "E97B63BB91FC49336A1BE6E45B30EE9B2BF50AD2B7B98465E590A6F0FC5FB06A"
+    },
+    {
+      "source": "game/last_stand_tuning.lua",
+      "sha256": "0D033D60E649104505FFA934B8F742FF7A2A41043D9BC22A1D2950C176CC8B8D"
+    },
+    {
+      "source": "game/last_stand_scene_data.lua",
+      "sha256": "F5F235FAEEA6CB77F474191BF7E9E8D93839E9C93D5C710DC2744F0527C5C16A"
+    },
+    {
+      "source": "game/window_scene.lua",
+      "sha256": "E3BF6727CB8210D6072D725AE61D45D9A0A28F42E25D250179F0057FAAE8494F"
+    },
+    {
+      "source": "game/train_ambush.lua",
+      "sha256": "7658909AF27D54312B0682C2AEC5DBDCF6C4C322DBCC4752C790E9B885E57C7F"
+    },
+    {
+      "source": "game/train_ambush_rules.lua",
+      "sha256": "87DD53583B816B9D1E94C1D5B0DDFFCF30B3800E5FA7999BB4398C0B03584870"
+    },
+    {
+      "source": "game/train_ambush_scene.lua",
+      "sha256": "1E923083902C6CDCE62CDECD782AE56F9B13571A3104E15A148335C3C9C77315"
+    },
+    {
+      "source": "game/first_person_shooting.lua",
+      "sha256": "59496C488D26EE09D07B434BD310CBCC2E8C74A581B3030497685BF37FF1E381"
+    },
+    {
+      "source": "game/first_person_weapon_views.lua",
+      "sha256": "3DDC64B3827B03483BC7835041D372977D69436C6B4F6AA77AAEEA5A1B0C1A76"
+    },
+    {
+      "source": "game/first_person_weapon_manifest.lua",
+      "sha256": "AF93270801C678551274509D0BB4B6EE6BD20F3DF8C036E9A00736D33EC646E3"
+    },
+    {
+      "source": "game/first_person_weapon_actions.lua",
+      "sha256": "CB54B03EC4B3EE074A5C0B2E2BC9414B1F6922908B78A8633702BD870FCD0151"
+    },
+    {
+      "source": "game/first_person_weapon_grips.lua",
+      "sha256": "C2568624DDF1C9DEF3FA6A7E3575759596675A05D80E8D44CE2F8679E8B948AD"
+    },
+    {
+      "source": "game/first_person_weapon_muzzles.lua",
+      "sha256": "C32B39DBCD1999CB48EA69251D1DBB646D8393A980FB976348311427DEE4DA23"
+    },
+    {
+      "source": "game/mobile_weapon_aim.lua",
+      "sha256": "F9EC2C8BDFEE0F9F700C6EE135D5150BFAAE080A2F973175681C09A6A8BB8EEE"
+    },
+    {
+      "source": "game/weapon_sound_profiles.lua",
+      "sha256": "33BDB213AA637A89EE7F11162ECEF66D19762E0D1A28A2BA0E37EADE603672F3"
+    },
+    {
+      "source": "game/typography.lua",
+      "sha256": "0DC0509497FD7293F36C76768A51886761ACD7FB3DA9C74415323011AEFFC68E"
+    },
+    {
+      "source": "game/world_view.lua",
+      "sha256": "5C14D3EAD17EB297E4AF5F74C912BF069693871F9FB4399FBBF6BFC2A31F5130"
+    },
+    {
+      "source": "game/accessibility.lua",
+      "sha256": "F9830E8B1506A145AFCA4957314B837F5F99423B3E7025E71EF90D9B525431A1"
+    },
+    {
+      "source": "assets/backgrounds/stop-12-industrial-waste.png",
+      "sha256": "8FA721BE062A2A8F42B94F329CE9F90F62C9E7C482BB9FA640E0C551BDC76186"
+    },
+    {
+      "source": "assets/fonts/CourierPrime-Bold.ttf",
+      "sha256": "FF1F38786C849D1C41FA8E447960ABDB2BD75FDFB0CFCDEB524FAD65A5AF3638"
+    },
+    {
+      "source": "assets/fonts/CourierPrime-Regular.ttf",
+      "sha256": "72F793376F8E2841656BF21D77A5DE010F2929BD6956A22EE848AD0C7EB978AF"
+    },
+    {
+      "source": "assets/sprites/events/train-ambush/bandit-cargo-truck-damage.png",
+      "sha256": "2F4A7C3CD11628E449841918139DFA6DE010C7AED8D7791C1661D0C112B1DF86"
+    },
+    {
+      "source": "assets/sprites/events/train-ambush/bandit-wagon-damage.png",
+      "sha256": "4E73CB954DC98B489B7EBA1E28FF48942D09C4F5F2BFF96BF6E1BA64A5F32664"
+    },
+    {
+      "source": "assets/sprites/events/train-ambush/pickup-damage.png",
+      "sha256": "B0F603BCF02068167DDF922D68BAD40A753F81533B74C96B9EA3506C103FFA33"
+    },
+    {
+      "source": "assets/sprites/events/train-ambush/pickup-wheel-frames-source.png",
+      "sha256": "2015BCD11634262A349B8ADD6C0CF12CAD45D4E46163069293A26BF503DE033A"
+    },
+    {
+      "source": "assets/sprites/events/train-ambush/vehicle-bullet-holes.png",
+      "sha256": "66D2FCA693690DFDF9AB577BBE3D5FA6CF71DE95FD3A9EA358C558AF0BA3F274"
+    },
+    {
+      "source": "assets/sprites/events/train-ambush/window-rattle.png",
+      "sha256": "BBBCBB51CC229A09D11010540487471096E82884DB66D350CA405BE59AA915ED"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/dirt-impact-atlas.png",
+      "sha256": "A92DF830D29A86D3EBBEE7A7C312188964E92D75421859A3072EA998A7FBD869"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/impact-atlas.png",
+      "sha256": "9EB383C4B6D25D30582482847FF002A8C1A984101FD1ABA965B5BBA2D7BF2961"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/range-background.png",
+      "sha256": "DA0AD5C650F3F23922AF0B56CC873D5A98C5B54E24DBC7BDB21CE1AC9FB3C8F5"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/range-entrance.png",
+      "sha256": "91367476FEEBE3E2836E4B8293A05E9CA254CF28D9510656E7384BDE560052C8"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/range-long-background.png",
+      "sha256": "FC8ED3FE9C6AEA430F3CC1C3826314C9E48433955BBF20C96043D7C5A43ADC29"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/range-trail-flag-atlas.png",
+      "sha256": "1E30078376BCCF361BA3FB90B66AC386EBF09B521656161E4A7E506E901AB30F"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/sectioned-paper-target-frame.png",
+      "sha256": "CCF70E9EC2F6339ABF50D0FDEE19E7FFF8AC7A2F82A211B666700FA3B5067271"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/sectioned-paper-target.png",
+      "sha256": "64C5BE458C5277390DFCBCE7C8C56EDFFAD44AA99759690C08043927F607432C"
+    },
+    {
+      "source": "assets/sprites/props/shooting-range/target-atlas.png",
+      "sha256": "8D34C1C1E6281CA9B0CEF0BE21B9D924D2A2527B3B36A8CED1F0835A287366D8"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/cowboy-mouse-rifle-target-atlas.png",
+      "sha256": "78CBD961B4D0CC50DE4C9B31C4040A0FA2DDF5969A054753FE014B7149A8B7C2"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/distant-dust-loop.png",
+      "sha256": "63A2DFD0E4DBCDE2B12AAA888628B5E792E4DB1088E6FB069B1161C8F261EAAB"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/domestic-siege-props-atlas.png",
+      "sha256": "11A85E78C468DA1BF9F9323C95A9D7887682F4DDCA0CD695434DFEE73BD7396A"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/friendly-house-backyard-shell.png",
+      "sha256": "C1CD88EAADB64068F2DA53F8E878BEE9ECC1E59AF38E33426A570D46FFCC82AB"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/friendly-house-interior-shell.png",
+      "sha256": "5A5013840C76BE21FDA99F03F6079800B2A32F9D564C9D87250C52270497C5C6"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/gecko-ranger-pistol-action-atlas.png",
+      "sha256": "0381CEF54DEF642C971107D482C817D0872B7B2061E7C153F6DD08E4F64DB334"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/guard-fox-rifle-action-atlas.png",
+      "sha256": "E42A7EA69D4F81D22FE23076AC8A9F34C6930E1F34D098A980E18E632ACBD565"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/house-firing-window-tall.png",
+      "sha256": "724751F1A1A80DE2B75320320BDDD3DC664830AE643B6F152678C7140CABB1DC"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/house-firing-window-wide.png",
+      "sha256": "03D1C691F48569713D6845B6A250F4ED8316810964853697920462F9EF3E06FA"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/house-surface-damage-decals.png",
+      "sha256": "59B1D37FE9BE8274D8D0D8B215B835B99AC2C9DA9148444AFC00FF7EC3DE1B57"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/mouse-bandit-rifle-target-atlas.png",
+      "sha256": "2D6931382E5953C00DFAEADC3663C9A826D125A7A50907E1DC28628552CA4C5C"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/otter-scout-approach-walk.png",
+      "sha256": "C9F28F32F4C68DD5716841A8E1CCD6A469EACEAA464B4CEF7347FCD279AA2175"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/otter-scout-support-action-atlas.png",
+      "sha256": "C6319B01655393601C573F477EBFB610C91641794181934F8B9929E689B3BAA2"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/rail-relay-facade-cutout.png",
+      "sha256": "482F6492EC5377372392002937A9C5EF6C2688243371931D7C62D88934A647B7"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/shootout-effects-atlas.png",
+      "sha256": "63A4BB88B01DA0C2167D39C982428F23AC04FBC7878BA0343BF683EBB0C37740"
+    },
+    {
+      "source": "assets/sprites/quests/last-stand/runtime/tunnel-badger-rifle-target-atlas.png",
+      "sha256": "2B3A6E515DC96F4CE83B84FB95ACD2D6AECFC690BF363E84A9D625C024BBF181"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/actions/frontier-22-lever-rifle-actions.png",
+      "sha256": "DF8767CAE648ECA6DF65ED0E8F172D28DF638B52AC67575FFC6F41318C493E5E"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/actions/frontier-22-lever-rifle-ads-fire.png",
+      "sha256": "EE048B58431B32470FCB79B5DEA6E2D2D3DFA9DDF75119DA6484E3DC970D8FC6"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/actions/frontier-9mm-service-pistol-actions.png",
+      "sha256": "CA42D410C9EE09D9E806EA67F760E76A465A21BF86FF883C4B577EBB5B0D8A00"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/actions/frontier-9mm-service-pistol-ads-fire.png",
+      "sha256": "4F0D64A53E8B1D0D4FFE06BFD8251BAE27E0A23D2DE04FA453C9BDFB9DCFC8C6"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/actions/sawed-off-shotgun-actions.png",
+      "sha256": "CDD4C06E692B63D4F25328539E6D6E23C667ED41D9A268A986F2BDA451814469"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/actions/sawed-off-shotgun-ads-fire.png",
+      "sha256": "97D8C34F00A976CFF0301D4528B9838824A241D88798A9FD0C8F46E8830C302C"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/frontier-22-lever-rifle-hip.png",
+      "sha256": "B8FE2F6C3E53050144042EF0F2CBC1D496801579B990633E7164CC56099B4661"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/frontier-22-lever-rifle-sights.png",
+      "sha256": "FF8A0953A064F1306B5F17417AD51F5478C709361AF0A4FE11E8C9920734AB7E"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/frontier-9mm-service-pistol-hip.png",
+      "sha256": "4149DBAED12F867834E8A6E0C96478B225454DA43DFCD8D73DF4DC61433C4732"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/frontier-9mm-service-pistol-sights.png",
+      "sha256": "964E9E2F9F540C711370398849E35B7F9CD044163EF2C9359AB6EFC4EC388B9E"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/sawed-off-shotgun-hip.png",
+      "sha256": "D0A514B0E28EA8284D735BF553B9EDD2157CAC6BC19C019A832808893680851D"
+    },
+    {
+      "source": "assets/sprites/weapons/first-person/sawed-off-shotgun-sights.png",
+      "sha256": "2A7BD82D492BBC44394A48AD0835064E0CE74775CEF249EB1B637D0D331B646E"
+    },
+    {
+      "source": "sounds/soundEffects/bow/179996__calvarychurchatlanta__arrow-release-and-hit.wav",
+      "sha256": "22DA5143F903CCDD007310548C07CB9FF1EB11E842C6B6112CDA03E994E2A846"
+    },
+    {
+      "source": "sounds/soundEffects/bow/394179__saturdaysoundguy__longbow-release-2.wav",
+      "sha256": "07167082E13D5DB5B0D5EB59E1BCAFD7518F18F44FDA473E665F10187D0126A5"
+    },
+    {
+      "source": "sounds/soundEffects/bow/536068__eminyildirim__bow-release-hit.wav",
+      "sha256": "902711832F03EFE40EE62D798E1377A46A4AD162EF9A6F7EDAFA404B2434A760"
+    },
+    {
+      "source": "sounds/soundEffects/bow/649335__sonofxaudio__arrow_loose01.wav",
+      "sha256": "D0B2D900FDB6BDBF48D30C9AA2EB4AF91FBC1B4D225597211F39E0B9CD8EE01A"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/147901__tcawte__gunshot.mp3",
+      "sha256": "2342BB0B868463382FCE3EBECFB7C7AB20DFA1EA956D9569150B2BE39F267580"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/171236__alukahn__gunshot2.wav",
+      "sha256": "7D5A1DF368AE3E4FB9AF108EC2014E4A4F3CCE69310A3EB88F07A62D73AD1A39"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/385811__morganpurkis__single-pistol-gunshot-3.wav",
+      "sha256": "43B88631C37AA948CC5EDD420191F90C04CF8DA5284152F7F98B22E03BA570C5"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/391328__morganpurkis__single-pistol-gunshot-4.wav",
+      "sha256": "6E3477C357B6F340CDF6ADC81F5C998E4313FDFC19C668EFF33FE006AC4A05BF"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/391846__morganpurkis__single-pistol-gunshot-42.wav",
+      "sha256": "D61B7606FFC8B92574C3B773987311877755F14D85BBB66E23E3C53B1BB3D920"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/392229__morganpurkis__single-pistol-gunshot-33.wav",
+      "sha256": "E521E0C1B2C48E8A9568D4547AD7DF06F196BFE5153CB1004A6262F584B11DA5"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/427594__michorvath__22-magnum-pistol-shot.wav",
+      "sha256": "8BA4864BE7CFE98547F4A0EB54D1B53E0A54D23720ABA42ADBC53B2EDB04D177"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/427598__michorvath__ar15-pistol-shot.wav",
+      "sha256": "461717A5A239BA206F3B32B00C41A4C06929C200F9FB51FD5F34BA7480074198"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/569174__coolabc__makarov-shoot.wav",
+      "sha256": "E5AFBF1D582748FD5EEE5B6BA21849A76960F75D517F5A8A3D161FBCE51419FB"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/615028__zreimbach__designed-gunshot.wav",
+      "sha256": "2EA1A56B8243859201579F9913F6875F9AD95A02D7AA33FDD247535D52AC7AA0"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/718174__tb0y298__pistol-shot-1.wav",
+      "sha256": "C501040A54BBBA38966AC75B97A7A2B2E5D0AD9457E736D63C5BCDD80A249FFC"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/718965__tb0y298__pistol-shot-2.wav",
+      "sha256": "D8141F6229F3FCD351D336056B1F557E40B1689526765D961172C335B54429C0"
+    },
+    {
+      "source": "sounds/soundEffects/gunshot/773867__mrgungus__gunshot-4.wav",
+      "sha256": "CD2D95F347C6584E0AEA8E718B33AAC512E6516B3B0CD4D3D00D2CB2ADE1EB13"
+    }
+  ],
+  "modules": [
+    "shooting_range",
+    "last_stand_shootout",
+    "last_stand_tuning",
+    "last_stand_scene_data",
+    "window_scene",
+    "train_ambush",
+    "train_ambush_rules",
+    "train_ambush_scene",
+    "first_person_shooting",
+    "first_person_weapon_views",
+    "first_person_weapon_manifest",
+    "first_person_weapon_actions",
+    "first_person_weapon_grips",
+    "first_person_weapon_muzzles",
+    "mobile_weapon_aim",
+    "weapon_sound_profiles",
+    "typography",
+    "world_view",
+    "accessibility"
+  ]
+}

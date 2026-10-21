@@ -23,7 +23,7 @@ function Component.install(Runtime)
         local step = tostring(view.serviceStep or "idle")
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("CUTTER SERVICE  ·  HOST-AUTHORITATIVE LOCKOUT", 122, 132)
-        love.graphics.printf(string.format("KITS %d  ·  BLADE %s  ·  TECHNICIAN %s",
+        love.graphics.printf(string.format("KITS %d  ·  BLADE %s  ·  COURIER %s",
             status.maintenanceKits,
             status.bladeInSleeve and "SLEEVED" or status.bladeRemoved and "REMOVED" or "INSTALLED",
             status.technicianScheduled and "SCHEDULED" or "NOT SCHEDULED"),
@@ -36,10 +36,10 @@ function Component.install(Runtime)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.blade, "REMOVE + SLEEVE BLADE", pointerX, pointerY,
                 Runtime.cutterServiceButtonEnabled("begin_blade", state), true)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.technician,
-                status.technicianScheduled and "TECHNICIAN SCHEDULED" or "BOOK BLADE TECHNICIAN",
+                status.technicianScheduled and "COURIER SCHEDULED" or "BOOK BLADE COURIER",
                 pointerX, pointerY, Runtime.cutterServiceButtonEnabled("book_blade_technician", state), true)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.weekly,
-                status.weeklyTechnician and "CANCEL WEEKLY SERVICE" or "SCHEDULE WEEKLY SERVICE",
+                status.weeklyTechnician and "CANCEL WEEKLY EXCHANGE" or "WEEKLY BLADE EXCHANGE",
                 pointerX, pointerY, Runtime.cutterServiceButtonEnabled("set_weekly_technician", state), true)
             love.graphics.setColor(0.32, 0.35, 0.36)
             love.graphics.printf("Lubrication consumes one delivered maintenance kit only after every point and the gearbox inspection pass. Blade removal becomes durable only when the blade reaches its wooden sleeve.",

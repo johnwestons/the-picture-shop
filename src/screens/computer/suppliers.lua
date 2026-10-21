@@ -202,13 +202,15 @@ function Component.install(Runtime)
             Runtime.panel({ x = Runtime.MACHINE_OFFER.x, y = y, width = Runtime.MACHINE_OFFER.width, height = Runtime.MACHINE_OFFER.height },
                 { 0.06, 0.09, 0.12, 1 }, { 0.24, 0.40, 0.46, 1 })
             love.graphics.setColor(0.92, 0.95, 0.93)
-            love.graphics.print(offer.name, Runtime.MACHINE_OFFER.x + 12, y + 12)
+            local nameScale = math.min(1, (buy.x - Runtime.MACHINE_OFFER.x - 20)
+                / math.max(1, love.graphics.getFont():getWidth(offer.name)))
+            love.graphics.print(offer.name, Runtime.MACHINE_OFFER.x + 12, y + 5, 0, nameScale, nameScale)
             local red, green, blue = Runtime.conditionColor(offer.condition)
             love.graphics.setColor(red, green, blue)
             love.graphics.print(string.format("%s • %.0f%% condition", offer.conditionStatus, offer.condition),
-                Runtime.MACHINE_OFFER.x + 12, y + 38)
+                Runtime.MACHINE_OFFER.x + 12, y + 24)
             love.graphics.setColor(0.58, 0.67, 0.69)
-            love.graphics.print("Inspected • flatbed delivery", Runtime.MACHINE_OFFER.x + 12, y + 58)
+            love.graphics.print("Inspected • flatbed delivery", Runtime.MACHINE_OFFER.x + 12, y + 43)
             local total = Runtime.cartTotal()
             local affordable = (state.money or 0) >= total + offer.price
             local canFinance = (state.money or 0) < offer.price

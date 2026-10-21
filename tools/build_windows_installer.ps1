@@ -4,6 +4,7 @@ param(
     [string]$InnoCompiler,
     [string]$OutputDirectory,
     [string]$RouteProviderPath,
+    [string]$CryptoProviderPath,
     [switch]$SkipInstaller
 )
 
@@ -99,6 +100,67 @@ $displayVersion = '{0}.{1}.{2}-test.{3}' -f $versionMatch.Groups[1].Value,
 $outputName = "ThePictureShop-Windows-Setup-$displayVersion"
 
 $python = Find-Python
+$cryptoProvider = $null
+$expectedCryptoProvider = [IO.Path]::GetFullPath((Join-Path $projectRoot `
+    'output\native-crypto\build\windows-x64\tps_crypto.dll'))
+if ($CryptoProviderPath) {
+    $cryptoProvider = [IO.Path]::GetFullPath(
+        (Resolve-Path -LiteralPath $CryptoProviderPath -ErrorAction Stop).Path)
+    if (-not [string]::Equals($cryptoProvider, $expectedCryptoProvider,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'An alternate Windows crypto provider cannot be used for this package.'
+    }
+} else {
+    & (Join-Path $projectRoot 'tools\build_native_crypto.ps1')
+    $cryptoProvider = $expectedCryptoProvider
+}
+if (-not (Test-Path -LiteralPath $cryptoProvider -PathType Leaf)) {
+    throw 'The conformance-tested Windows crypto provider was not produced.'
+}
+$cryptoBuildReportPath = Join-Path ([IO.Path]::GetDirectoryName($cryptoProvider)) `
+    'native_crypto_report.json'
+if (-not (Test-Path -LiteralPath $cryptoBuildReportPath -PathType Leaf)) {
+    throw 'The Windows crypto provider conformance report is missing.'
+}
+$cryptoBuildReport = Get-Content -Raw -LiteralPath $cryptoBuildReportPath | ConvertFrom-Json
+$cryptoProviderHash = (Get-FileHash -LiteralPath $cryptoProvider -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($cryptoBuildReport.schemaVersion -ne 1 -or
+    $cryptoBuildReport.status -ne 'engineering-candidate-non-production' -or
+    $cryptoBuildReport.productionReady -ne $false -or
+    $cryptoBuildReport.abiVersion -ne 3 -or
+    $cryptoBuildReport.target -ne 'x86_64-windows-gnu' -or
+    $cryptoBuildReport.suite -ne 'TPS-Direct-v3/Noise_NNpsk0_25519_ChaChaPoly_BLAKE2s/XChaCha20-Poly1305' -or
+    $cryptoBuildReport.artifacts.library.path -ne 'output/native-crypto/build/windows-x64/tps_crypto.dll' -or
+    $cryptoBuildReport.artifacts.library.sha256 -ne $cryptoProviderHash -or
+    (Get-PeMachine $cryptoProvider) -ne 0x8664) {
+    throw 'The Windows crypto provider does not match a non-production ABI 3 conformance report.'
+}
+foreach ($check in @(
+    'pinnedArchiveHashes', 'cleanSourceExtraction', 'noiseCMaintainedPatch',
+    'libsodiumKnownAnswerTests', 'pinnedCacophonyNoiseVector',
+    'deterministicTpsProviderV2KnownAnswer', 'providerHandshakeAndReplayConformance',
+    'responseAuthenticationConformance', 'simultaneousOpeningConformance',
+    'bridgeFragmentAuthenticationConformance', 'exactAbiExportSurface'
+)) {
+    if ($cryptoBuildReport.checks.$check -ne 'pass') {
+        throw "The Windows crypto provider conformance check did not pass: $check"
+    }
+}
+$cryptoInputs = [ordered]@{
+    providerSourceSha256 = 'native\crypto\src\tps_crypto.c'
+    abiHeaderSha256 = 'native\crypto\include\tps_crypto.h'
+    testSourceSha256 = 'native\crypto\tests\tps_crypto_test.c'
+    dependencyManifestSha256 = 'native\crypto\dependencies.json'
+    noiseCPatchSha256 = 'native\crypto\patches\noise-c-rev32-tps.patch'
+    buildScriptSha256 = 'tools\build_native_crypto.ps1'
+}
+foreach ($inputName in $cryptoInputs.Keys) {
+    $inputHash = (Get-FileHash -LiteralPath (Join-Path $projectRoot $cryptoInputs[$inputName]) `
+        -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($cryptoBuildReport.inputs.$inputName -ne $inputHash) {
+        throw "The Windows crypto provider is stale; rebuild after changing $($cryptoInputs[$inputName])."
+    }
+}
 $routeProvider = $null
 if ($RouteProviderPath) {
     $routeProvider = [IO.Path]::GetFullPath(
@@ -180,6 +242,14 @@ New-Item -ItemType Directory -Path $windowsRoot -Force | Out-Null
 Reset-Stage
 foreach ($name in $runtimeFiles) {
     Copy-Item -LiteralPath (Join-Path $LoveRoot $name) -Destination $stageRoot
+}
+# Native libraries must be real files beside the fused executable for FFI to load.
+# Bundling the conformance-tested candidate does not change the runtime production gate.
+$stagedCryptoProvider = Join-Path $stageRoot 'tps_crypto.dll'
+Copy-Item -LiteralPath $cryptoProvider -Destination $stagedCryptoProvider
+if ((Get-FileHash -LiteralPath $stagedCryptoProvider -Algorithm SHA256).Hash.ToLowerInvariant() `
+        -ne $cryptoProviderHash) {
+    throw 'The staged Windows crypto provider does not match its conformance report.'
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\windows\README-TESTERS.txt') `
     -Destination $stageRoot
@@ -283,6 +353,14 @@ $report = [ordered]@{
     sourceDirty = $sourceDirty
     package = $package
     packageSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $package).Hash.ToLowerInvariant()
+    windowsCryptoProvider = [ordered]@{
+        path = 'tps_crypto.dll'
+        sha256 = $cryptoProviderHash
+        abiVersion = [int]$cryptoBuildReport.abiVersion
+        suite = [string]$cryptoBuildReport.suite
+        status = [string]$cryptoBuildReport.status
+        productionReady = $false
+    }
     gameExecutable = $gameExecutable
     gameExecutableBytes = (Get-Item -LiteralPath $gameExecutable).Length
     gameExecutableSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $gameExecutable).Hash.ToLowerInvariant()

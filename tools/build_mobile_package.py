@@ -37,6 +37,11 @@ VIBES_MUSIC_TRACKS = (
     "this_is_not_your_song.wav",
     "time_time.wav",
 )
+# The standalone Frontier arcade is unfinished 2.5D content. Critter Crisis
+# keeps its internal compatibility modules, but Android ships neither its
+# player-facing entry screen nor its art bundle.
+EXCLUDED_RUNTIME_PATHS = {"src/screens/frontier_arcade.lua"}
+EXCLUDED_RUNTIME_PREFIXES = ("assets/generated/frontier-arcade/",)
 RUNTIME_SOURCE_ASSETS = tuple(
     WAREHOUSE_SOURCE_ROOT + relative
     for relative in (
@@ -207,6 +212,11 @@ def copy_runtime(stage: Path) -> None:
     for source_root in (ROOT / "src", ROOT / "assets" / "generated", ROOT / "assets" / "fonts"):
         for source in source_root.rglob("*"):
             if source.is_file():
+                relative = source.relative_to(ROOT).as_posix()
+                if relative in EXCLUDED_RUNTIME_PATHS or any(
+                    relative.startswith(prefix) for prefix in EXCLUDED_RUNTIME_PREFIXES
+                ):
+                    continue
                 destination = stage / source.relative_to(ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, destination)

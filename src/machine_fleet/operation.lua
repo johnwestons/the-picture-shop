@@ -49,7 +49,7 @@ function Component.install(Runtime)
         local pose = item.world or state[Runtime.definition(item.modelId).placementKey]
         if pose and pose.moving then return false, "Place the moving machine before operating it." end
         if modelId == "polar_115" and item.maintenance.cutter.bladeRemoved then
-            return false, "The cutter blade is removed for sharpening. Reinstall it before production."
+            return false, "The blade is removed for exchange. Wait for the sharpened replacement before production."
         end
         if modelId == "heidelberg_10x15" and item.variables.safetyCircuit < 20 then
             return false, "The Windmill safety circuit must be serviced before production."

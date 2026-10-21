@@ -106,7 +106,7 @@ function Wrapper.start(state)
         }
     end
     if packaging == "boxed" then
-        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1 }
+        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1, autoShelf = true }
     end
     local suppliesReady, supplyReason = Procurement.canConsumeStockProducts(state, supplies)
     if not suppliesReady then
@@ -174,7 +174,7 @@ function Wrapper.update(dt, state)
         }
     end
     if packaging == "boxed" then
-        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1 }
+        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1, autoShelf = true }
     end
     local consumed, reason = Procurement.consumeStockProducts(state, supplies)
     if not consumed then

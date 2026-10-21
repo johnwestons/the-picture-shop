@@ -121,21 +121,33 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-Download the [Android 51 installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.51/ThePictureShop-0.1.0-android.51-Install.apk)
-from the [release page](https://github.com/johnwestons/the-picture-shop/releases/tag/android.51).
-Its verified local copy is
-`output/android-share/0.1.0-android.51/ThePictureShop-0.1.0-android.51-Install.apk`.
-This update includes the latest warehouse staging controls, customer-demand and
-seasonal tuning, supplies and pallet flow, performance work, and gameplay and
-multiplayer changes. Every multiplayer participant needs matching protocol 36
-code. The package ID and signing certificate match the previous Android build,
-so installing this APK over the current app keeps its saves. The release includes
-`SHA256SUMS.txt`, `share-report.json`, and installation notes. Physical phone
-gameplay has not yet been verified.
+Download the [Android 61 test installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.61/ThePictureShop-0.1.0-android.61-Install.apk)
+from the [GitHub release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61).
+The local copy is `output/android-share/0.1.0-android.61/ThePictureShop-0.1.0-android.61-Install.apk`.
+Every multiplayer participant
+needs matching current protocol 41 code. The Regal Moll practice folder is now
+purchase-only through Used Machinery or the computer's Machine Market; it is no
+longer placed on every warehouse floor. This change needs no save reset.
+The arcade has a neon 1980s game selector, and air hockey has a movement wheel
+to the left of the table. Hold and move within the wheel to steer your paddle;
+release to stop. Another finger cannot take over the wheel.
+The handoff includes checksums,
+installation notes, and automated verification reports. See the
+[Android 61 release notes](docs/android_61_release.md) for the included changes
+and remaining physical phone/tablet acceptance.
+
+The open garage doorway now shows a textured outdoor parking-lot sprite, retaining
+the shutter, time-of-day lighting and rain. Test the Regal folder separately in
+the private [browser test bench](https://picture-shop-regal-folder-lab.rockycoot12.chatgpt.site),
+which runs experimental folder rules without loading a shop save. Its work-order
+tickets and balance changes remain test-page-only. A source snapshot is kept in
+`web/regal-folder-lab`; the newer tactile GUI picture in `references/regal-folder-ui`
+is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
-install. Install over the old app to keep saves, or uninstall **The Picture Shop**
-without keeping its app data before installing to start with a fresh test save.
+install. For this handoff, fresh test saves were requested: download the APK first,
+then uninstall only **The Picture Shop** without keeping its app data before
+installing. Installing over the old app instead keeps saves.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
 

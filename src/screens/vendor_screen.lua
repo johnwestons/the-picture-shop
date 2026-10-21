@@ -6,7 +6,7 @@ local Screen = {}
 local CLOSE = { x = 742, y = 70, width = 132, height = 42 }
 local NO_THANKS = { x = 676, y = 486, width = 180, height = 46 }
 local ROW = { x = 104, y = 178, width = 752, height = 52, gap = 6 }
-local MACHINE_ROW = { x = 104, y = 190, width = 752, height = 84, gap = 8 }
+local MACHINE_ROW = { x = 104, y = 190, width = 752, height = 64, gap = 8 }
 
 local inside = Ui.contains
 local function box(rect, fill, line) Ui.panel(rect, fill, line, 5, 2) end
@@ -26,7 +26,7 @@ end
 
 local function machineBuyRect(index)
     local r = machineRow(index)
-    return { x = r.x + r.width - 158, y = r.y + 18, width = 132, height = 48 }
+    return { x = r.x + r.width - 158, y = r.y + 8, width = 132, height = 48 }
 end
 
 function Screen.draw(state, assets, pointerX, pointerY)
@@ -45,13 +45,13 @@ function Screen.draw(state, assets, pointerX, pointerY)
             local affordable = (state.money or 0) >= offer.price
             box(r, { 0.075, 0.11, 0.14, 1 }, { 0.26, 0.43, 0.49, 1 })
             love.graphics.setColor(0.94, 0.97, 0.95)
-            love.graphics.print(offer.name, r.x + 22, r.y + 18)
+            love.graphics.print(offer.name, r.x + 22, r.y + 5)
             love.graphics.setColor(offer.condition >= 55 and 0.91 or 0.94,
                 offer.condition >= 55 and 0.69 or 0.38, 0.24)
             love.graphics.print(string.format("%s • %.0f%% condition • used dealer inventory",
-                offer.conditionStatus, offer.condition), r.x + 22, r.y + 47)
+                offer.conditionStatus, offer.condition), r.x + 22, r.y + 24)
             love.graphics.setColor(0.62, 0.70, 0.72)
-            love.graphics.print("Lower purchase price; component service may be due.", r.x + 22, r.y + 66)
+            love.graphics.print("Lower purchase price; component service may be due.", r.x + 22, r.y + 43)
             box(buy, affordable and { 0.16, 0.45, 0.31, 1 } or { 0.18, 0.19, 0.20, 1 },
                 affordable and { 0.48, 0.86, 0.58, 1 } or { 0.36, 0.38, 0.40, 1 })
             love.graphics.setColor(affordable and 0.95 or 0.58, affordable and 0.98 or 0.62,

@@ -64,38 +64,71 @@ function Weather.sample(state, config)
     return Weather.sampleAtHours(Calendar.absoluteHours(state), config)
 end
 
-function Weather.draw(state, bayDoor, config)
+local function bayOpening(bayDoor, config)
     local graphics = love and love.graphics
     local progress = bayDoor and tonumber(bayDoor.progress) or 0
     local aperture = config and config.truck and config.truck.aperture
     if not graphics or progress <= 0 or type(aperture) ~= "table" or #aperture ~= 4 then return end
 
+    local polygon, bounds = {}, { left = math.huge, right = -math.huge, top = math.huge, bottom = -math.huge }
+    for _, point in ipairs(aperture) do
+        polygon[#polygon + 1] = point.x
+        polygon[#polygon + 1] = point.y
+        bounds.left, bounds.right = math.min(bounds.left, point.x), math.max(bounds.right, point.x)
+        bounds.top, bounds.bottom = math.min(bounds.top, point.y), math.max(bounds.bottom, point.y)
+    end
+    return graphics, progress, polygon, bounds
+end
+
+function Weather.drawExterior(state, bayDoor, config, assets)
+    local graphics, progress, aperture, bounds = bayOpening(bayDoor, config)
+    if not graphics then return end
+    local sprite = assets and assets.get and assets.get("loadingBayExterior")
+    if not sprite then return end
+    local daylight, raining = Weather.sample(state, config)
+    graphics.push("all")
+    graphics.setStencilTest()
+    graphics.stencil(function() graphics.polygon("fill", unpack(aperture)) end, "replace", 1)
+    graphics.setStencilTest("greater", 0)
+    -- The scene is a real asset; the shutter and weather remain independent layers.
+    local shade = raining and .78 or 1
+    graphics.setColor((.20 + .80 * daylight) * shade,
+        (.26 + .74 * daylight) * shade, (.38 + .62 * daylight) * shade, 1)
+    graphics.draw(sprite, bounds.left, bounds.top, 0,
+        (bounds.right - bounds.left) / sprite:getWidth(),
+        (bounds.bottom - bounds.top) / sprite:getHeight())
+    graphics.setStencilTest()
+    graphics.pop()
+end
+function Weather.draw(state, bayDoor, config)
+    local graphics, progress, aperture, bounds = bayOpening(bayDoor, config)
+    if not graphics then return end
+
     local daylight, raining, seed, hour = Weather.sample(state, config)
     local night = 1 - daylight
-    local x1, y1 = aperture[1].x, aperture[1].y
-    local x2, y2 = aperture[2].x, aperture[2].y
-    local x3, y3 = aperture[3].x, aperture[3].y
-    local x4, y4 = aperture[4].x, aperture[4].y
     graphics.push("all")
     graphics.setStencilTest()
     graphics.stencil(function()
-        graphics.polygon("fill", x1, y1, x2, y2, x3, y3, x4, y4)
+        graphics.polygon("fill", unpack(aperture))
     end, "replace", 1)
     graphics.setStencilTest("greater", 0)
 
-    local tintAlpha = (0.04 + night * 0.38 + (raining and 0.11 or 0)) * math.min(1, progress)
-    graphics.setColor(0.14, 0.21, 0.31, tintAlpha)
-    graphics.polygon("fill", x1, y1, x2, y2, x3, y3, x4, y4)
+    local tintAlpha = (0.025 + night * 0.28 + (raining and 0.14 or 0)) * math.min(1, progress)
+    graphics.setColor(0.12, 0.18, 0.25, tintAlpha)
+    graphics.polygon("fill", unpack(aperture))
 
     if raining then
         local count = math.max(1, math.floor((settings(config).rainDropCount or 18) * math.min(1, progress)))
-        local drift = math.floor(hour * 36 + seed % 23)
-        graphics.setLineWidth(1)
-        graphics.setColor(0.78, 0.88, 0.96, 0.42 * math.min(1, progress))
+        local elapsed = love.timer and love.timer.getTime and love.timer.getTime() or hour * 3600
+        local fall = math.floor(elapsed * 116 + seed % 149)
+        local spanX = math.max(1, math.floor(bounds.right - bounds.left))
+        local spanY = math.max(1, math.floor(bounds.bottom - bounds.top))
+        graphics.setLineWidth(1.2)
+        graphics.setColor(0.78, 0.88, 0.96, 0.66 * math.min(1, progress))
         for index = 1, count do
-            local x = 143 + ((index * 37 + seed % 41) % 120)
-            local y = 132 + ((index * 53 + drift) % 128)
-            graphics.line(x, y, x - 4, y + 10)
+            local x = bounds.left + ((index * 37 + seed % 41 + math.floor(elapsed * 13)) % spanX)
+            local y = bounds.top + ((index * 53 + fall) % spanY)
+            graphics.line(x, y, x - 3, y + 9)
         end
     end
 

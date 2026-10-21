@@ -63,6 +63,7 @@ function Component.install(Runtime)
     Runtime.PlateService = require("src.plate_service")
     Runtime.PressSetupGames = require("src.press_setup_games")
     Runtime.PressScreen = require("src.screens.press_screen")
+    Runtime.RegalFolderScreen = require("src.screens.regal_folder_screen")
     Runtime.Receiving = require("src.receiving")
     Runtime.Save = require("src.save")
     Runtime.SaveSchema = require("src.save_schema")
@@ -106,6 +107,7 @@ function Component.install(Runtime)
             if love and love.timer and love.timer.getTime then return love.timer.getTime() end
             return os.time()
         end,
+        wallClock = os.time,
         timeoutSeconds = 120,
     })
     Runtime.lanDiscovery = Runtime.RuntimeDependencies.LanDiscovery.new()

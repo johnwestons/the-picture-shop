@@ -151,7 +151,7 @@ function Component.install(Runtime)
                 local completed, result = Runtime.MachineMaintenance.prepareBladeForTechnician(state)
                 if completed then
                     Runtime.Screen.maintenanceView, Runtime.Screen.bladeStage, Runtime.Screen.bladeBolts = "hub", nil, nil
-                    state.message = "Cutter blade removed and secured in its wooden sleeve. Book the technician when ready."
+                    state.message = "Dull cutter blade sleeved. Book Mara Mouse to exchange it for a fresh blade."
                     return { action = "blade_sleeved" }
                 end
                 state.message = tostring(result)
@@ -175,12 +175,12 @@ function Component.install(Runtime)
                 return { action = "maintenance_minigame", game = "blade_removal" }
             elseif Runtime.inside(Runtime.technicianButton, x, y) and cutter.bladeInSleeve and not cutter.nextTechnicianDay then
                 local booked, day = Runtime.MachineMaintenance.requestTechnician(state)
-                if booked then state.message = "Blade technician booked for game day " .. tostring(day) .. "." end
+                if booked then state.message = "Mara Mouse booked for a blade exchange on game day " .. tostring(day) .. "." end
                 return { action = "technician_booked" }
             elseif Runtime.inside(Runtime.weeklyButton, x, y) then
                 Runtime.MachineMaintenance.setWeeklyTechnician(state, not cutter.weeklyTechnician)
-                state.message = cutter.weeklyTechnician and "Weekly blade service scheduled."
-                    or "Weekly blade service cancelled."
+                state.message = cutter.weeklyTechnician and "Weekly blade exchanges scheduled."
+                    or "Weekly blade exchanges cancelled."
                 return { action = "technician_schedule" }
             end
             return true

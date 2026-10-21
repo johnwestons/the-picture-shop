@@ -405,7 +405,7 @@ function CutterMaintenanceAuthority.create(options)
                 local accepted, result = MachineMaintenance.requestTechnician(state)
                 if not accepted then return false, "technician_blocked", result end
                 return true, "technician_booked",
-                    "Blade technician booked for game day " .. tostring(result) .. "."
+                    "Mara Mouse booked for a blade exchange on game day " .. tostring(result) .. "."
             end, true)
         end,
     }
@@ -420,14 +420,14 @@ function CutterMaintenanceAuthority.create(options)
                 local _, cutter = MachineMaintenance.cutterStatus(state)
                 if cutter and cutter.weeklyTechnician == arguments.enabled then
                     return false, "schedule_unchanged", arguments.enabled
-                        and "Weekly blade service is already scheduled."
-                        or "Weekly blade service is already disabled."
+                        and "Weekly blade exchanges are already scheduled."
+                        or "Weekly blade exchanges are already disabled."
                 end
                 local accepted, result = MachineMaintenance.setWeeklyTechnician(state, arguments.enabled)
                 if not accepted then return false, "technician_blocked", result end
                 return true, "technician_schedule", arguments.enabled
-                    and "Weekly blade service scheduled."
-                    or "Weekly blade service cancelled."
+                    and "Weekly blade exchanges scheduled."
+                    or "Weekly blade exchanges cancelled."
             end, true)
         end,
     }

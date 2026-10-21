@@ -402,6 +402,9 @@ function Input.keypressed(key, context)
             state.screen = "press"
             context.windmill.ensure(state)
             context.pressScreen.enter(state)
+        elseif selected and selected.kind == "regalFolder" then
+            state.screen = "regal_folder"
+            context.regalFolderScreen.enter()
         elseif selected and selected.kind == "palletJack" then
             local palletId = not state.palletJack.carriedPalletId and PalletPickup.selectedId(selected) or nil
             if context.world.handlePalletJack(state, context.assets, palletId) then context.saveCurrent() end
@@ -433,6 +436,8 @@ function Input.keypressed(key, context)
             context.machineScreen.syncGauge()
             if state.machineType == "cutter" then context.saveCurrent() end
         end
+    elseif state.screen == "regal_folder" then
+        return context.regalFolderScreen.keypressed(key)
     elseif state.screen == "computer" then
         return context.computerScreen.keypressed(state, key)
     elseif state.screen == "pallet_work_order" then
@@ -577,6 +582,13 @@ function Input.mousepressed(x, y, button, context)
             context.saveCurrent()
         elseif result and state.machineType == "cutter" then
             context.saveCurrent()
+        end
+        return result
+    end
+    if state.screen == "regal_folder" then
+        local result = context.regalFolderScreen.mousepressed(x, y, button)
+        if type(result) == "table" and result.action == "exit" then
+            return Input.closeScreen(context)
         end
         return result
     end

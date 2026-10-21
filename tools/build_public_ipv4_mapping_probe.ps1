@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$LoveRoot = 'C:\Program Files\LOVE'
+    [string]$LoveRoot = 'C:\Program Files\LOVE',
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_-]*$')]
+    [string]$OutputName = 'public-ipv4-probe'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -8,8 +10,8 @@ Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$outputRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot `
-    'output\public-ipv4-probe'))
+$outputRoot = [IO.Path]::GetFullPath((Join-Path `
+    (Join-Path $repoRoot 'output') $OutputName))
 $workRoot = Join-Path $outputRoot 'work'
 $appStage = Join-Path $workRoot 'love-app'
 $kitStage = Join-Path $workRoot 'kit'
@@ -77,6 +79,57 @@ function Copy-RequiredFile([string]$Source,[string]$Destination) {
     $parent = Split-Path -Parent $Destination
     New-Item -ItemType Directory -Path $parent -Force | Out-Null
     Copy-Item -LiteralPath $Source -Destination $Destination -Force
+}
+
+function Add-LuaSourceDependencies(
+        [Collections.IDictionary]$Files,[string]$SourceRoot) {
+    # Follow literal require("src.module") and pcall(require, "src.module")
+    # dependencies before staging. Refactoring a reviewed module into smaller
+    # modules must not leave the isolated probe with missing runtime imports.
+    $pending = [Collections.Generic.Queue[string]]::new()
+    foreach ($relative in @($Files.Keys)) { $pending.Enqueue($relative) }
+    $seen = @{}
+    $pattern = '\brequire\s*(?:\(\s*|,\s*|\s+)(["''])(src(?:\.[A-Za-z_][A-Za-z0-9_]*)+)\1'
+    while ($pending.Count -gt 0) {
+        $relative = $pending.Dequeue()
+        if ($seen.ContainsKey($relative)) { continue }
+        $seen[$relative] = $true
+        Assert-File $Files[$relative] 'Required acceptance-kit Lua input'
+        $source = Get-Content -Raw -LiteralPath $Files[$relative]
+        foreach ($match in [regex]::Matches($source,$pattern)) {
+            $dependency = $match.Groups[2].Value.Replace('.','/') + '.lua'
+            if (-not $Files.Contains($dependency)) {
+                $path = Join-Path $SourceRoot $dependency.Replace('/','\')
+                Assert-File $path "Required Lua dependency of $relative"
+                $Files[$dependency] = $path
+            }
+            if (-not $seen.ContainsKey($dependency)) {
+                $pending.Enqueue($dependency)
+            }
+        }
+    }
+}
+
+function Assert-NoExternalServicePaths(
+        [string]$Relative,[string]$Source) {
+    # Allow only the existing gateway-local URL construction and fixed SOAP
+    # namespaces in their exact modules. Other URLs and service helpers remain
+    # forbidden, including in dependencies added by the closure above.
+    switch -CaseSensitive ($Relative) {
+        'src/net/upnp_igd/context.lua' {
+            $Source = $Source.Replace('http://schemas.xmlsoap.org/soap/envelope/','')
+        }
+        'src/net/upnp_igd/soap_requests.lua' {
+            $Source = $Source.Replace('http://schemas.xmlsoap.org/soap/encoding/','')
+        }
+        'src/net/upnp_igd/urls.lua' {
+            $Source = $Source.Replace('"http://"','')
+            $Source = $Source.Replace('"http:"','')
+        }
+    }
+    if ($Source -match '(?i)https?://|socket\.http|io\.popen|os\.execute') {
+        throw "The local acceptance probe contains an external-service path: $Relative"
+    }
 }
 
 function Assert-ReportedArtifact($Report,[string]$ArtifactPath,[string]$Key) {
@@ -230,6 +283,7 @@ $appFiles = [ordered]@{
     'src/net/public_ipv4_probe_protocol.lua' = Join-Path $repoRoot 'src\net\public_ipv4_probe_protocol.lua'
     'src/net/public_ipv4_probe_watchdog.lua' = Join-Path $repoRoot 'src\net\public_ipv4_probe_watchdog.lua'
 }
+Add-LuaSourceDependencies $appFiles $repoRoot
 foreach ($relative in $appFiles.Keys) {
     Copy-RequiredFile $appFiles[$relative] (Join-Path $appStage `
         $relative.Replace('/','\'))
@@ -267,18 +321,9 @@ if ($trafficCheckText -match "'--file-name'|'--pkt-size'|'etl2") {
 foreach ($file in @(Get-ChildItem -LiteralPath $appStage -Recurse `
         -File -Filter '*.lua')) {
     $text = Get-Content -Raw -LiteralPath $file.FullName
-    # UPnP uses gateway-local numeric HTTP plus two XML namespace identifiers.
-    # Remove only those reviewed literals; every other URL/service path remains
-    # forbidden in this self-contained probe.
-    if ($file.Name -eq 'upnp_igd.lua') {
-        $text = $text.Replace('http://schemas.xmlsoap.org/soap/envelope/','')
-        $text = $text.Replace('http://schemas.xmlsoap.org/soap/encoding/','')
-        $text = $text.Replace('"http://"','')
-        $text = $text.Replace('"http:"','')
-    }
-    if ($text -match '(?i)https?://|socket\.http|io\.popen|os\.execute') {
-        throw "The local acceptance probe contains an external-service path: $($file.Name)"
-    }
+    $relative = $file.FullName.Substring($appStage.Length).
+        TrimStart('\').Replace('\','/')
+    Assert-NoExternalServicePaths $relative $text
 }
 
 [IO.Compression.ZipFile]::CreateFromDirectory($appStage,$lovePackage,

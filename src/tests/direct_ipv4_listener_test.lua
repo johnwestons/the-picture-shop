@@ -11,6 +11,7 @@ local function route()
         internalAddress = "192.168.10.20",
         gatewayAddress = "192.168.10.1",
         interfaceIndex = 7,
+        routePrefixLength = 0,
         networkGeneration = "windows-route-v2-0000000000000001",
         routeFingerprint = "route-v1-12345678",
     }
@@ -85,6 +86,7 @@ function Test.run(_, check)
         and log[1][1] == "entropy" and log[2][1] == "bind"
         and log[2][2] == "192.168.10.20" and log[2][3] == 22123
         and log[2][4] == 1 and log[2][5] == 12
+        and listener.route.routePrefixLength == 0
         and listener:invitation() == nil
         and DirectIpv4Listener.IPV6_POLICY == "separate_authenticated_listener")
 
@@ -109,6 +111,30 @@ function Test.run(_, check)
         and parsed.endpoint == "8.8.4.4:40000"
         and parsed.psk == string.rep("k", 32)
         and listener:invitation() == code)
+
+    for _, method in ipairs({ "pcp", "nat_pmp", "upnp_igd", "manual" }) do
+        listener:unpublish()
+        local nonGlobal = listener:publish({
+            externalAddress = "100.64.1.2", externalPort = 40000, method = method,
+        })
+        local published = listener:publish({
+            externalAddress = "8.8.4.4", externalPort = 40000, method = method,
+        })
+        local invitation = published and DirectInvite.parse(published)
+        check("direct_ipv4_listener_accepts_global_" .. method .. "_candidate",
+            nonGlobal == nil and invitation ~= nil
+            and invitation.endpoint == "8.8.4.4:40000"
+            and listener:invitation() == published)
+    end
+    listener:unpublish()
+    local unknownMethod = listener:publish({
+        externalAddress = "8.8.4.4", externalPort = 40000, method = "unknown",
+    })
+    check("direct_ipv4_listener_rejects_unrecognized_mapping_method",
+        unknownMethod == nil and listener:invitation() == nil)
+    listener:publish({
+        externalAddress = "8.8.4.4", externalPort = 40000, method = "pcp",
+    })
 
     local prepared = listener:transportFactory()
     local wildcard = prepared.createHost({ bind = "*", port = 22123 })
@@ -191,6 +217,7 @@ function Test.run(_, check)
         cleanupOwner ~= nil
         and cleanupError == "Secure IPv4 listener binding failed; cleanup could not be verified."
         and cleanupOwner.closed == true and cleanupOwner.closeOk == false
+        and cleanupOwner.route.routePrefixLength == 0
         and retainedTransport ~= nil and cleanupStillUnverified == false
         and cleanupOwner.transport == retainedTransport)
 end

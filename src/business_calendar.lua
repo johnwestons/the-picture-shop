@@ -378,9 +378,9 @@ function Calendar.events(state,twelveHour)
     for _, machine in ipairs((state.machines and state.machines.items) or {}) do
         local cutter = machine.maintenance and machine.maintenance.cutter
         if machine.modelId == "polar_115" and cutter and cutter.nextTechnicianDay then
-            add(cutter.nextTechnicianDay, "Cutter blade technician", "machine",
-                cutter.weeklyTechnician and "Recurring weekly sharpening visit"
-                    or "Requested blade-sharpening visit",
+            add(cutter.nextTechnicianDay, "Mara Mouse — blade exchange", "machine",
+                cutter.weeklyTechnician and "Weekly dull-blade pickup and fresh blade delivery"
+                    or "Dull-blade pickup and fresh blade delivery",
                 machine.id .. ":technician")
         end
     end

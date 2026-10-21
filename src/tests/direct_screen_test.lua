@@ -14,7 +14,99 @@ local function click(name)
     return DirectScreen.mousepressed(x, y, 1)
 end
 
+local function testLocalIpv6Selection(check)
+    local calls, requestedAddress = 0, nil
+    DirectScreen.enter({
+        detectLocalIpv6 = function(code)
+            calls = calls + 1
+            assert(code == nil)
+            return "2606:4700:4700:0:0:0:0:1111"
+        end,
+        host = function(_, _, address) requestedAddress = address; return true, HOST_CODE end,
+    })
+    DirectScreen.keypressed("h")
+    local selected = DirectScreen.localAddress == HOST_ADDRESS
+    local created = DirectScreen.keypressed("return")
+    check("direct_screen_opt_in_selector_fills_host_address_without_typing",
+        selected and created and calls == 1 and requestedAddress == HOST_ADDRESS)
+    DirectScreen.leave()
+
+    local clipboard, selectedCode = HOST_CODE, nil
+    DirectScreen.enter({
+        readClipboard = function() return clipboard end,
+        detectLocalIpv6 = function(code) selectedCode = code; return GUEST_ADDRESS end,
+        join = function(code, address)
+            requestedAddress = address
+            return code == HOST_CODE, RESPONSE_CODE
+        end,
+    })
+    DirectScreen.keypressed("j")
+    local pasted = click("paste")
+    selected = DirectScreen.localAddress == GUEST_ADDRESS
+    local joined = click("start")
+    check("direct_screen_opt_in_guest_selection_receives_pasted_host_code",
+        pasted and selected and joined and selectedCode == HOST_CODE
+        and requestedAddress == GUEST_ADDRESS and DirectScreen.localAddress == "")
+    DirectScreen.leave()
+
+    calls = 0
+    DirectScreen.enter({
+        detectLocalIpv6 = function()
+            calls = calls + 1
+            if calls == 1 then return nil, "This network has no public IPv6 address." end
+            return HOST_ADDRESS
+        end,
+        host = function() return true, HOST_CODE end,
+    })
+    DirectScreen.keypressed("h")
+    local failedCleanly = DirectScreen.localAddress == ""
+        and DirectScreen.message == "This network has no public IPv6 address."
+    local retried = click("create")
+    check("direct_screen_selector_failure_preserves_useful_message_and_can_retry",
+        failedCleanly and retried and calls == 2 and DirectScreen.mode == "host_reply")
+    DirectScreen.leave()
+
+    DirectScreen.enter({ detectLocalIpv6 = function() error(HOST_ADDRESS) end })
+    DirectScreen.keypressed("h")
+    check("direct_screen_selector_exceptions_do_not_echo_native_error_details",
+        DirectScreen.localAddress == "" and not DirectScreen.message:find(HOST_ADDRESS, 1, true))
+    DirectScreen.leave()
+    DirectScreen.enter({ detectLocalIpv6 = function() return "fe80::1" end })
+    DirectScreen.keypressed("h")
+    check("direct_screen_revalidates_selector_addresses_as_public_ipv6",
+        DirectScreen.localAddress == "" and click("create") == false)
+    DirectScreen.leave()
+
+    calls, selectedCode = 0, nil
+    DirectScreen.enter({
+        readClipboard = function() return IPV4_CODE end,
+        detectLocalIpv6 = function(code) calls = calls + 1; selectedCode = code; return GUEST_ADDRESS end,
+        joinIpv4 = function() return true end,
+    })
+    DirectScreen.keypressed("j")
+    pasted, joined = click("paste"), click("start")
+    check("direct_screen_ipv4_join_does_not_run_optional_ipv6_selection",
+        pasted and joined and calls == 0 and selectedCode == nil)
+    DirectScreen.leave()
+
+    DirectScreen.enter({
+        detectLocalIpv6 = function(code) selectedCode = code; return GUEST_ADDRESS end,
+        join = function() return true, RESPONSE_CODE end,
+    })
+    DirectScreen.keypressed("j")
+    DirectScreen.textinput(HOST_CODE)
+    joined = click("start")
+    check("direct_screen_typed_ipv6_code_selects_address_when_connection_starts",
+        joined and selectedCode == HOST_CODE)
+    DirectScreen.leave()
+    DirectScreen.enter({ inviteOnly = true, detectLocalIpv6 = function() return HOST_ADDRESS end })
+    check("direct_screen_invite_only_can_use_optional_ipv6_selection",
+        DirectScreen.mode == "host_setup" and DirectScreen.localAddress == HOST_ADDRESS)
+    DirectScreen.leave()
+end
+
 function Test.run(_, check)
+    testLocalIpv6Selection(check)
     local directSlot
     TitleScreen.enter(function() end, function() end, function(slot) directSlot = slot end)
     TitleScreen.keypressed("down")

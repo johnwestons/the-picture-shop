@@ -10,7 +10,7 @@ function Component.install(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
-        Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight, not (mobileWorld or mobileUi), Runtime.App.officeFitsScreen())
+        Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight, not (mobileWorld or mobileUi), Runtime.App.officeUsesSafeArea())
         if Runtime.spriteLabActive then
             Runtime.SpriteMotionLab.draw(Runtime.CharacterAssets)
             Runtime.CharacterAssets.endFrame()
@@ -89,6 +89,8 @@ function Component.install(Runtime)
                 Runtime.WorkPhoneScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets)
             elseif Runtime.state.screen == "machine" then
                 Runtime.MachineScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
+            elseif Runtime.state.screen == "regal_folder" then
+                Runtime.RegalFolderScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             elseif Runtime.state.screen == "press" then
                 Runtime.PressScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             elseif Runtime.state.screen == "job_offer" then

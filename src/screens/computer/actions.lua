@@ -173,7 +173,7 @@ function Component.install(Runtime)
 
     function Runtime.creditMachineActionRect(index)
         local row = Runtime.creditMachineRect(index)
-        return { x = Runtime.CREDIT_MACHINE_ACTION.x, y = row.y + 39,
+        return { x = Runtime.CREDIT_MACHINE_ACTION.x, y = row.y + 30,
             width = Runtime.CREDIT_MACHINE_ACTION.width, height = Runtime.CREDIT_MACHINE_ACTION.height }
     end
 

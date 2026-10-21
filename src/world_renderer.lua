@@ -363,6 +363,16 @@ local function drawCutter(assets, state, placement)
     )
 end
 
+local function drawRegalFolder(assets, placement)
+    local image = assets.get("regalFolderDirections")
+    local sprite = assets.getQuad("regalFolderDirection1")
+    local station = Config.regalFolderPlacement
+    if not image or not sprite then return end
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, sprite.quad, placement.x, placement.y, 0,
+        station.drawScale, station.drawScale, sprite.width / 2, sprite.height * 0.96)
+end
+
 local function drawWrapper(assets, state, placement)
     local wrapper = placement or WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local image = assets.get("skidWrapperDirections")
@@ -553,8 +563,9 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     drawWallVentFan(assets)
     local clock=Config.interactables.shopClock
     ShopClock.drawFace(state,clock.wallX,clock.wallY,clock.clockRadius)
-    drawBayDoor(assets)
+    OutdoorWeather.drawExterior(state,World.bayDoor,Config,assets)
     OutdoorWeather.draw(state,World.bayDoor,Config)
+    drawBayDoor(assets)
     drawTruck(assets, state)
     PlacementGrid.draw(World.placementGridSnapshot(state, assets))
     local visibleCharacters = {}
@@ -597,7 +608,10 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     for _, machine in ipairs(MachineFleet.owned(state)) do
         if machine.status == "installed" and machine.world then
             local storedMachine = machine
-            if storedMachine.modelId == "polar_115" then
+            if storedMachine.modelId == "regal_moll" then
+                actors[#actors + 1] = { y = storedMachine.world.y, layer = 0,
+                    draw = function() drawRegalFolder(assets, storedMachine.world) end }
+            elseif storedMachine.modelId == "polar_115" then
                 actors[#actors + 1] = { y = storedMachine.world.moving and jack.y or storedMachine.world.y,
                     layer = storedMachine.world.moving and 2 or 0,
                     draw = function() drawCutter(assets, state, storedMachine.world) end }

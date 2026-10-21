@@ -31,6 +31,10 @@ function Component.install(Runtime)
             lastServerTick = -1,
             lastFightTick = -1,
             fightMatches = {},
+            crisisSessions = {},
+            crisisTicks = {},
+            crisisFrames = {},
+            crisisAssembly = {},
             lastPlayerTicks = {},
             inputSequence = 0,
             inputAccumulator = 0,
@@ -131,6 +135,10 @@ function Component.install(Runtime)
         self.lastServerTick = -1
         self.lastFightTick = -1
         self.fightMatches = {}
+        self.crisisSessions = {}
+        self.crisisTicks = {}
+        self.crisisFrames = {}
+        self.crisisAssembly = {}
         self.fightReceivedAt = nil
         self.lastPlayerTicks = {}
         self.roomBalls,self.roomBallTicks={},{}

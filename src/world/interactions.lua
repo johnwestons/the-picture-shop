@@ -157,6 +157,14 @@ function Component.install(Runtime)
                     machineId = item.id,
                 }, "windmill:" .. item.id) end
             end
+            for _, folder in ipairs(Runtime.MachineFleet.installedUnits(Runtime.World._state, "regal_moll")) do
+                if folder.world then
+                    addTarget("regalFolder", { x = folder.world.x, y = folder.world.y,
+                        radius = Runtime.Config.regalFolderPlacement.interactionRadius,
+                        machineId = folder.id,
+                        prompt = "E: run Regal Moll folder practice batch" }, "regalFolder:" .. folder.id)
+                end
+            end
             local lift = Runtime.Forklift.ensure(Runtime.World._state, Runtime.Config.forklift)
             if lift.owned and (lift.sceneId or "warehouse")=="warehouse" then
                 addTarget("forklift", {x=lift.x,y=lift.y,radius=(Runtime.Config.forklift and Runtime.Config.forklift.interactionRadius) or 76,

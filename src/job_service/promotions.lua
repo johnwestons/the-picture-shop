@@ -1,21 +1,29 @@
 -- Promotion terms and client follow-up offers.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
     function Runtime.JobService.promotionTerms(state, customMessage)
         local messageLength = #tostring(customMessage or ""):sub(1, 240)
-        local reputation = Runtime.Reputation.ensure(state)
-        local chance = 0.10 + messageLength / 240 * 0.65 + reputation.score / 100 * 0.15
+        local month = state and state.calendar and state.calendar.month or 1
+        local season = CustomerDemand.seasonForMonth(month)
+        -- Slow seasons have no follow-up orders. During busier seasons the
+        -- chance rises with the same seasonal demand already shown in the
+        -- calendar. A personal note and shop reputation do not change it.
+        local chance = math.max(0, math.min(0.80,
+            (season.demand - 0.84) / (1.30 - 0.84) * 0.80))
         return {
             messageLength = messageLength,
-            responseChance = math.max(0.10, math.min(0.90, chance)),
+            responseChance = chance,
+            seasonName = season.name,
+            seasonDemand = season.demand,
         }
     end
 
-    function Runtime.promotionRoll(sourceJob, promoNumber, customMessage)
-        local hash = promoNumber * 7919 + #customMessage * 104729
-        local source = tostring(sourceJob and sourceJob.id or "PROMO") .. customMessage
+    function Runtime.promotionRoll(sourceJob, promoNumber)
+        local hash = promoNumber * 7919 + 104729
+        local source = tostring(sourceJob and sourceJob.id or "PROMO")
         for index = 1, #source do hash = (hash * 33 + string.byte(source, index)) % 2147483647 end
         return (hash % 10000) / 10000
     end
@@ -48,14 +56,14 @@ function Component.install(Runtime)
         emails.nextEmailId = emailNumber + 1
         local promoId = string.format("PROMO-%04d", promoNumber)
         local terms = Runtime.JobService.promotionTerms(state, customMessage)
-        local roll = Runtime.promotionRoll(sourceJob, promoNumber, customMessage)
-        local outcome = roll <= terms.responseChance and "new_job"
-            or roll <= math.min(1, terms.responseChance + 0.18) and "thank_you" or "no_response"
+        local roll = Runtime.promotionRoll(sourceJob, promoNumber)
+        local outcome = roll < terms.responseChance and "new_job"
+            or roll < math.min(1, terms.responseChance + 0.18) and "thank_you" or "no_response"
         local promotion = {
             id = promoId, recipient = sourceJob.company, discountPercent = 10,
             customMessage = customMessage, sentAtHours = Runtime.BusinessCalendar.absoluteHours(state),
             responseOutcome = outcome, sourceJobId = sourceJob.id,
-            messageLength = terms.messageLength, responseChance = terms.responseChance,
+            messageLength = terms.messageLength, seasonName = terms.seasonName,
         }
         emails.sentPromotions[#emails.sentPromotions + 1] = promotion
         sourceJob.promotionSent = true

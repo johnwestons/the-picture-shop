@@ -15,7 +15,7 @@ local function check(name,condition)
     assert(condition,name);checks=checks+1;print("PASS "..name)
 end
 local function player(id)
-    return {id=id,x=Rooms.entrance.x,y=Rooms.entrance.y+20,sceneId="warehouse",
+    return {id=id,x=Rooms.roomEntrance.x,y=Rooms.roomEntrance.y+20,sceneId="warehouse",
         velocityX=0,velocityY=0,intentX=0,intentY=0,moving=false,facing=1,
         animationDistance=0,character="rabbit-worker"}
 end
@@ -39,7 +39,7 @@ local function run()
         addressOptions={socket={dns={gethostname=function() return "loopback" end,
             toip=function() return "127.0.0.1" end}}}}))
     local hp=player(1)
-    local hc={localPlayer=hp,resolveGuestSpawn=function() return Rooms.entrance.x,Rooms.entrance.y+20 end,
+    local hc={localPlayer=hp,resolveGuestSpawn=function() return Rooms.roomEntrance.x,Rooms.roomEntrance.y+20 end,
         getShopSnapshot=function() return {state=assert(Schema.snapshot(state)),player=hp} end,
         moveRemote=function(p,dt,x,y) p.x=p.x+x*80*dt;p.y=p.y+y*80*dt end,
         performInteraction=function(p,kind,command)

@@ -52,6 +52,12 @@ function Component.install(Runtime)
                     or payload.desiredState=="critter_kombat:ready_mouse"
                     or payload.desiredState=="critter_kombat:ready_fox"
                     or payload.desiredState=="critter_kombat:rematch"
+                    or payload.desiredState=="critter_crisis:start_solo"
+                    or payload.desiredState=="critter_crisis:start_coop"
+                    or require('src.critter_crisis').startAction(payload.desiredState:match('^critter_crisis:(.+)$'))~=nil
+                    or payload.desiredState=="critter_crisis:join"
+                    or payload.desiredState=="critter_crisis:restart"
+                    or payload.desiredState=="critter_crisis:leave"
                     or payload.desiredState=="basketball:pickup"
                     or payload.desiredState=="basketball:drop"
                     or payload.desiredState=="basketball:shot_start"

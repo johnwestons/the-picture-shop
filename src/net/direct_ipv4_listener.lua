@@ -154,6 +154,7 @@ function DirectIpv4Listener.open(options)
                     internalAddress = route.internalAddress,
                     gatewayAddress = route.gatewayAddress,
                     interfaceIndex = route.interfaceIndex,
+                    routePrefixLength = route.routePrefixLength,
                     networkGeneration = route.networkGeneration,
                     routeFingerprint = route.routeFingerprint,
                 },
@@ -180,6 +181,7 @@ function DirectIpv4Listener.open(options)
             internalAddress = route.internalAddress,
             gatewayAddress = route.gatewayAddress,
             interfaceIndex = route.interfaceIndex,
+            routePrefixLength = route.routePrefixLength,
             networkGeneration = route.networkGeneration,
             routeFingerprint = route.routeFingerprint,
         },
@@ -221,6 +223,7 @@ function Listener:publish(candidate)
         or not IpScope.isGlobal(candidate.externalAddress)
         or not wholeNumber(candidate.externalPort, 1, 65535)
         or (candidate.method ~= "pcp" and candidate.method ~= "nat_pmp"
+            and candidate.method ~= "upnp_igd"
             and candidate.method ~= "manual") then
         return nil, "Mapped IPv4 endpoint is invalid."
     end

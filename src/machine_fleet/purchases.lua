@@ -138,7 +138,8 @@ function Component.install(Runtime)
                 break
             end
         end
-        if additional and not Runtime.assignFloorPosition(state, fleet, item) then
+        if (additional or Runtime.definition(item.modelId).requiresWorldPosition)
+            and not Runtime.assignFloorPosition(state, fleet, item) then
             return false, "Clear floor space before unloading this machine."
         end
         item.status = "installed"
@@ -168,7 +169,8 @@ function Component.install(Runtime)
         local additional = Runtime.Fleet.installed(state, offer.modelId) ~= nil
         local item = Runtime.createItem(id, offer.modelId, offer.condition, offer.channel, "installed", offer.price)
         Runtime.normalizeItem(item)
-        if additional and not Runtime.assignFloorPosition(state, fleet, item) then
+        if (additional or Runtime.definition(item.modelId).requiresWorldPosition)
+            and not Runtime.assignFloorPosition(state, fleet, item) then
             fleet.nextId = fleet.nextId - 1
             return false, "Clear floor space before buying another machine."
         end

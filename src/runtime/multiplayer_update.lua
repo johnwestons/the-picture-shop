@@ -117,8 +117,10 @@ function Component.install(Runtime)
             gameX = Runtime.basketballCharge and Runtime.basketballCharge.aimX/100
                 or (Runtime.airHockeyInputX or 0)+(Runtime.kombatInputX or 0),
             gameY = Runtime.basketballCharge and (Runtime.basketballCharge.arcHeight-105)/85
-                or Runtime.airHockeyInputY or 0,
+                or (Runtime.airHockeyInputY or 0)+(Runtime.kombatInputY or 0),
             combatButtons = Runtime.kombatButtons or 0,
+            arcade = Runtime.state.screen=='critter_kombat'
+                and require('src.screens.critter_crisis_screen').arcadeInputs(Runtime) or nil,
             moveRemote = function(player, moveDt, moveX, moveY)
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
@@ -150,6 +152,10 @@ function Component.install(Runtime)
             getFightSnapshot = function()
                 return require("src.critter_kombat").snapshot()
             end,
+            getCrisisSnapshot = function()
+                return require("src.critter_crisis").snapshot()
+            end,
+            getCrisisEncounters = function() return require('src.critter_crisis').sessions end,
             getEnvironmentSnapshot = function()
                 return Runtime.World.environmentSnapshot()
             end,

@@ -148,7 +148,7 @@ function Component.install(Runtime)
     Runtime.CAL_EVENT_LIST = { x = 624, y = 240, width = 216, rowHeight = 34, visibleRows = 9 }
     Runtime.CAL_SCROLL_UP = { x = 624, y = 558, width = 102, height = 28 }
     Runtime.CAL_SCROLL_DOWN = { x = 738, y = 558, width = 102, height = 28 }
-    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 82, gap = 10 }
+    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 62, gap = 6 }
     Runtime.OWNED_MACHINE = { x = 486, y = 296, width = 354, height = 64, gap = 8 }
     Runtime.ComputerScreen.machinePageSize = 4
     Runtime.ComputerScreen.machinePreviousRect = { x = 490, y = 588, width = 78, height = 28 }
@@ -164,7 +164,7 @@ function Component.install(Runtime)
     Runtime.WAREHOUSE_CONFIRM = {x=508,y=514,width=228,height=40}
     Runtime.WAREHOUSE_CANCEL = {x=216,y=514,width=180,height=40}
     Runtime.WAREHOUSE_ACK = {x=206,y=430,width=542,height=48}
-    Runtime.CREDIT_MACHINE = { x = 98, y = 306, width = 350, height = 76, gap = 8 }
+    Runtime.CREDIT_MACHINE = { x = 98, y = 306, width = 350, height = 66, gap = 4 }
     Runtime.CREDIT_MACHINE_ACTION = { x = 354, width = 88, height = 32 }
     Runtime.CREDIT_CHANNEL_ONLINE = { x = 262, y = 279, width = 78, height = 22 }
     Runtime.CREDIT_CHANNEL_DEALER = { x = 344, y = 279, width = 88, height = 22 }

@@ -13,6 +13,14 @@ function Component.install(Runtime)
             or Runtime.state.screen == "workshop_remote" and Runtime.WorkshopRemoteScreen.resourceId == "office_computer"
     end
 
+    function Runtime.App.officeUsesSafeArea()
+        -- Android runs the office interface in landscape and the fitted canvas
+        -- is letterboxed on the sides. Applying Android's safe-area rectangle
+        -- as well can shift/shrink the office canvas when the platform reports
+        -- insets in a different orientation than the drawable surface.
+        return Runtime.App.officeFitsScreen() and not Runtime.isAndroidPlatform()
+    end
+
     function Runtime.App.cameraTransformsUi()
         return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and Runtime.state.screen ~= "world"
             and not Runtime.App.officeFitsScreen()
@@ -29,7 +37,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.syncCamera()
-        local bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeFitsScreen())
+        local bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
         if Runtime.App.mobileCamera then
             Runtime.App.mobileCamera:setViewport(bounds.width, bounds.height)
             if Runtime.App.cameraTransformsWorld() or Runtime.App.cameraTransformsUi() then
@@ -54,7 +62,7 @@ function Component.install(Runtime)
 
     function Runtime.toPointerCoordinates(x, y)
         Runtime.syncCamera()
-        local gameX, gameY = Runtime.Viewport.toGame(x, y, Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeFitsScreen())
+        local gameX, gameY = Runtime.Viewport.toGame(x, y, Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
         if Runtime.App.cameraTransformsUi() then return Runtime.App.mobileCamera:screenToWorld(gameX, gameY) end
         return gameX, gameY
     end

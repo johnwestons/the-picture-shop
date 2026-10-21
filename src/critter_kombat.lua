@@ -42,6 +42,11 @@ function Kombat.command(state,player,action)
     local id=tonumber(player.id) or 1
     local match=Kombat.matches[bay]
     if action=="start_solo" or action=="start_versus" then
+        local crisis=require("src.critter_crisis").sessions[bay]
+        if crisis and crisis.phase~="finished" and crisis.phase~="failed" then
+            return false,"cabinet_busy","Finish the Critter Crisis mission first."
+        end
+        if crisis then require("src.critter_crisis").sessions[bay]=nil end
         if match and match.phase~="finished" then return false,"cabinet_busy","Finish or leave this match first." end
         Kombat.matches[bay]=newMatch(bay,id,action=="start_solo" and "solo" or "versus")
         return true,"accepted","Choose your fighter, then confirm."

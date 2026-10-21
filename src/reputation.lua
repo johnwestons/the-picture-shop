@@ -2,12 +2,53 @@ local Reputation = {}
 
 local MAX_REVIEWS = 20
 local REVIEW_TEXT = {
+    [1] = {
+        "The print was off-spec and unusable. We need this corrected.",
+        "Major quality problems made this order a loss for us.",
+        "We had to reject the material because it missed the approved specs.",
+        "This run had serious defects and delayed our own work.",
+        "The order was badly spoiled. We cannot use what was delivered.",
+    },
+    [2] = {
+        "Too much of the order needed rework before we could use it.",
+        "We had to spend extra time sorting out quality problems.",
+        "The replacement sheets helped, but this job still caused a headache.",
+        "The run was rough and arrived with more defects than we can accept.",
+        "We expected better. Several parts of the order needed fixing.",
+    },
+    [3] = {
+        "The order met our needs. Nothing special, but no major issues.",
+        "A decent job overall. There are a few things that could be sharper.",
+        "It turned out fine, though the finishing could use more care.",
+        "Good enough for this order. We'll see how the next one goes.",
+        "The job got done as expected, with some room to improve.",
+    },
+    [4] = {
+        "Nice work overall. We'd be happy to order from the shop again.",
+        "Everything arrived in good shape. Thanks for taking care with it.",
+        "A solid run and an easy pickup. We appreciate the good work.",
+        "The order came out well, and the shop was helpful throughout.",
+        "Good quality on this job. We'll keep the shop in mind for next time.",
+    },
+    [5] = {
+        "Excellent quality from start to finish. We'll definitely be back!",
+        "Perfect run! The finished order looks great.",
+        "Fantastic work and a smooth pickup. Highly recommended.",
+        "The print looks terrific. This is exactly why we order here.",
+        "Fast, careful, and beautifully done. We couldn't be happier.",
+        "Another excellent order from the shop. Five paws from us!",
+    },
+}
+
+local LEGACY_REVIEW_TEXT = {
     [1] = "The order had serious quality problems. We will not order again yet.",
     [2] = "Several issues needed follow-up. We expected a smoother job.",
     [3] = "The order met our needs, though there was room to improve.",
     [4] = "Good quality work and helpful service. We would order again.",
     [5] = "Excellent quality and a smooth pickup. Highly recommended!",
 }
+
+local CLEAN_JOB_REVIEW_CHANCE = 0.25
 
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
@@ -16,6 +57,18 @@ end
 local function integer(value, minimum, maximum)
     return type(value) == "number" and value == math.floor(value)
         and value >= minimum and value <= maximum
+end
+
+local function stableHash(key)
+    key = tostring(key or "job")
+    local hash = 0
+    for index = 1, #key do hash = (hash * 31 + key:byte(index)) % 2147483647 end
+    return hash
+end
+
+local function reviewTextFor(jobId, rating)
+    local variants = REVIEW_TEXT[rating]
+    return variants[(math.floor(stableHash(jobId) / 100) % #variants) + 1]
 end
 
 local function validReview(value)
@@ -60,9 +113,13 @@ function Reputation.ensure(state)
     local reviews = {}
     for _, review in ipairs(type(reputation.reviews) == "table" and reputation.reviews or {}) do
         if validReview(review) then
+            local text = review.text
+            if text == LEGACY_REVIEW_TEXT[review.rating] then
+                text = reviewTextFor(review.jobId, review.rating)
+            end
             reviews[#reviews + 1] = {
                 jobId = review.jobId, customer = review.customer, rating = review.rating,
-                text = review.text, gameHours = review.gameHours,
+                text = text, gameHours = review.gameHours,
             }
         end
     end
@@ -110,32 +167,56 @@ function Reputation.demandMultiplier(state)
     return clamp(1 + (average - 3) * 0.08, 0.84, 1.16)
 end
 
-local function customerRating(job)
+local function stableJobHash(job)
+    return stableHash(job.id or job.company or "job")
+end
+
+local function customerReview(job)
     local totalSheets = math.max(1, tonumber(job.quote and job.quote.totalSheets) or 1)
-    local spoiledSheets = math.max(0, tonumber(job.replacementSheets) or 0)
+    local spoiledSheets = math.max(0, tonumber(job.replacementSheets) or 0,
+        tonumber(job.spoiledSheets) or 0)
     local offSpec = false
+    local edgeQuality = 1
     for _, pallet in ipairs(job.pallets or {}) do
-        if pallet.paper and pallet.paper.offSpec then offSpec = true; break end
+        if pallet.paper then
+            if pallet.paper.offSpec then offSpec = true end
+            edgeQuality = math.min(edgeQuality, tonumber(pallet.paper.cutQuality) or 1)
+        end
     end
     local spoilRate = spoiledSheets / totalSheets
-    if offSpec or spoilRate >= 0.20 then return 1 end
-    if spoilRate >= 0.10 then return 2 end
-    if spoilRate >= 0.02 then return 3 end
-    if spoilRate > 0 then return 4 end
-    local key = tostring(job.id or job.company or "job")
-    local hash = 0
-    for index = 1, #key do hash = (hash * 31 + key:byte(index)) % 2147483647 end
-    return hash % 3 == 0 and 4 or 5
+    local rating, hash
+    if offSpec or spoiledSheets > 0 then
+        -- A spoiled or off-spec order always draws a negative review.
+        hash = stableJobHash(job)
+        rating = (offSpec or spoilRate >= 0.20) and 1 or 2
+    elseif edgeQuality < 0.73 then
+        hash = stableJobHash(job)
+        rating = 1
+    elseif edgeQuality < 0.80 then
+        hash = stableJobHash(job)
+        rating = 2
+    else
+        hash = stableJobHash(job)
+        if hash % 100 >= CLEAN_JOB_REVIEW_CHANCE * 100 then return nil end
+        rating = 3 + hash % 3
+    end
+    local text = reviewTextFor(job.id or job.company or "job", rating)
+    return rating, text
 end
 
 function Reputation.recordReview(state, job, gameHours)
     local reputation = Reputation.ensure(state)
-    local rating = customerRating(job)
+    local jobId = tostring(job.id or "JOB")
+    for _, existing in ipairs(reputation.reviews) do
+        if existing.jobId == jobId then return existing, Reputation.averageRating(reputation) end
+    end
+    local rating, text = customerReview(job)
+    if not rating then return nil, Reputation.averageRating(reputation) end
     local review = {
-        jobId = tostring(job.id or "JOB"),
+        jobId = jobId,
         customer = tostring(job.company or "Customer"),
         rating = rating,
-        text = REVIEW_TEXT[rating],
+        text = text,
         gameHours = math.max(0, tonumber(gameHours) or 0),
     }
     reputation.ratingCount = reputation.ratingCount + 1

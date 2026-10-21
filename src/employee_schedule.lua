@@ -248,7 +248,7 @@ local function wrapperPalletReady(state,machine,pallet,job)
                 stockKey="plasticWrapRolls",autoShelf=true}
         end
         if packaging=="boxed" then
-            supplies[#supplies+1]={productId="shipping_cartons",quantity=1}
+            supplies[#supplies+1]={productId="shipping_cartons",quantity=1,autoShelf=true}
         end
         local suppliesReady,supplyReason=Procurement.canConsumeStockProducts(state,supplies)
         if not suppliesReady then blocked=supplyReason;blockedKind="packaging";return end

@@ -408,7 +408,7 @@ function PalletState.transition(state, pallet, target, options)
     return true, pallet
 end
 
--- Packaging rolls can be consumed directly from an accessible rack. This is a
+-- Packaging supplies can be consumed directly from an accessible rack. This is a
 -- narrow inventory operation: ordinary job pallets still need a real storage
 -- transfer, and a shelf slot is released only when its vendor pallet is empty.
 function PalletState.consumeVendorProduct(state, pallet)
@@ -422,7 +422,7 @@ function PalletState.consumeVendorProduct(state, pallet)
     if pallet.location == "warehouse" then
         return PalletState.transition(state, pallet, "none", {status="consumed"})
     end
-    return false, "Stretch film must be on the warehouse floor or shelf to be used."
+    return false, "Purchased stock must be on the warehouse floor or a storage shelf to be used."
 end
 
 return PalletState

@@ -19,6 +19,7 @@ local EXPECTED_INTERACTIONS = {
     cutter = true,
     skidWrapper = true,
     windmill = true,
+    regalFolder = true,
     palletJack = true,
     forklift = true,
 }

@@ -240,9 +240,13 @@ function Component.run(Context)
         and type(highTerms.relationshipJobs) == "number")
     local shortPromotion = Context.context.jobService.promotionTerms(emailState, "Hi")
     local longPromotion = Context.context.jobService.promotionTerms(emailState, string.rep("x", 200))
-    Context.check("promotion_message_length_increases_new_job_chance",
+    emailState.calendar.month = 11
+    local busySeasonPromotion = Context.context.jobService.promotionTerms(emailState, "Hi")
+    Context.check("promotion_new_job_chance_uses_season_not_message_length",
         longPromotion.messageLength == 200
-        and longPromotion.responseChance > shortPromotion.responseChance)
+        and longPromotion.responseChance == shortPromotion.responseChance
+        and shortPromotion.responseChance == 0
+        and busySeasonPromotion.responseChance > shortPromotion.responseChance)
     priorClientJob.status = "completed"
     local promotionMessage = string.rep("x", 240)
     local promotionSent, promotion = Context.context.jobService.sendPromotion(
@@ -250,12 +254,11 @@ function Component.run(Context)
     Context.check("player_can_send_personalized_ten_percent_promotion", promotionSent
         and promotion.discountPercent == 10
         and promotion.customMessage == promotionMessage
-        and promotion.messageLength == 240 and promotion.responseChance > 0.70
-        and promotion.responseOutcome == "new_job"
-        and #emailState.clientEmails.sentPromotions == 1
-        and emailState.clientEmails.pending[1].discountedTotal
-            == emailState.clientEmails.pending[1].job.quote.totalPrice
-        and emailState.clientEmails.pending[1].body:find("discounted total", 1, true))
+        and promotion.messageLength == 240 and #emailState.clientEmails.sentPromotions == 1)
+    Context.check("promotion_records_the_season_used_for_its_random_reply",
+        promotion.seasonName == busySeasonPromotion.seasonName
+        and (promotion.responseOutcome == "new_job" or promotion.responseOutcome == "thank_you"
+            or promotion.responseOutcome == "no_response"))
     local duplicatePromotion = Context.context.jobService.sendPromotion(
         emailState, priorClientJob, "A duplicate offer should not send.")
     Context.check("completed_job_ten_percent_promotion_is_single_use",

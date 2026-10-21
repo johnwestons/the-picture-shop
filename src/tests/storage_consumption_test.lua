@@ -232,8 +232,9 @@ function Test.run(_, check)
 
     local cartonState = fresh()
     local cartonPallet = delivered(cartonState,3,1)
+    shelf(cartonState,cartonPallet)
     local cartonsUsed = Procurement.consumeCartons(cartonState,101)
-    check("stock_consumption_empty_shipping_carton_skid_despawns",
+    check("stock_consumption_empty_shipping_carton_skid_despawns_from_shelf",
         cartonsUsed and cartonState.inventory.stock.shipping_cartons == 19
         and cartonPallet.remainingQuantity == 0 and cartonPallet.location == "none"
         and cartonPallet.status == "consumed" and #Procurement.physicalPallets(cartonState) == 0
@@ -325,19 +326,20 @@ function Test.run(_, check)
         world={x=atomicWrapState.wrapper.x-60,y=atomicWrapState.wrapper.y,spawnProgress=1},
     }
     atomicWrapState.jobs.active = { {id="STOCK-ATOMIC-WRAP",packaging="boxed",pallets={boxedPallet}} }
+    if cartonsReady then shelf(atomicWrapState,blockedCartons) end
     Wrapper.reset(atomicWrapState)
     local boxedStarted = cartonsReady and filmReady and Wrapper.start(atomicWrapState)
-    if boxedStarted then shelf(atomicWrapState,blockedCartons) end
-    local blockedFinish = boxedStarted and Wrapper.update(Wrapper.cycleTime+0.01,atomicWrapState)
-    check("stock_consumption_boxed_wrap_rolls_back_film_when_carton_skid_is_stored",
-        boxedStarted and not blockedFinish and not boxedPallet.wrapped
-        and atomicWrapState.inventory.plasticWrapRolls == 1
-        and atomicWrapState.inventory.plasticWrapUses == 1
-        and blockedFilm.remainingQuantity == nil and blockedFilm.quantity == 1
-        and blockedFilm.location == "warehouse"
-        and blockedCartons.location == "rack" and blockedCartons.remainingQuantity == nil
+    local wrappedFinish = boxedStarted and Wrapper.update(Wrapper.cycleTime+0.01,atomicWrapState)
+    check("stock_consumption_boxed_wrap_pulls_carton_from_storage_shelf",
+        boxedStarted and wrappedFinish and boxedPallet.wrapped
+        and atomicWrapState.inventory.plasticWrapRolls == 0
+        and atomicWrapState.inventory.plasticWrapUses == 0
+        and blockedFilm.remainingQuantity == 0 and blockedFilm.quantity == 1
+        and blockedFilm.location == "none" and blockedFilm.status == "consumed"
+        and blockedCartons.location == "rack" and blockedCartons.remainingQuantity == blockedCartons.quantity - 1
+        and atomicWrapState.inventory.stock.shipping_cartons == blockedCartons.quantity - 1
         and PalletState.validate(atomicWrapState),
-        "started="..tostring(boxedStarted).." finished="..tostring(blockedFinish)
+        "started="..tostring(boxedStarted).." finished="..tostring(wrappedFinish)
             .." rolls="..tostring(atomicWrapState.inventory.plasticWrapRolls)
             .." uses="..tostring(atomicWrapState.inventory.plasticWrapUses)
             .." film="..tostring(blockedFilm.remainingQuantity).."/"..tostring(blockedFilm.location)

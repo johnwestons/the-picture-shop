@@ -64,6 +64,7 @@ function Technician.schedule(state, kind, appointmentDay, recurring)
     route[#route + 1] = { x = x, y = y }
     state.technicianVisit = {
         kind = kind, species = kind == "windmill" and "lizard" or "mouse",
+        name = kind ~= "windmill" and "Mara Mouse" or nil,
         status = "scheduled", visible = false, x = route[1].x, y = route[1].y,
         route = route, waypoint = 2, facing = 1, directionFrame = 4,
         animationClock = 0, serviceTimer = 0,
@@ -76,6 +77,7 @@ function Technician.ensure(state)
     local visit = state and state.technicianVisit
     if type(visit) ~= "table" then return nil end
     visit.route = type(visit.route) == "table" and visit.route or copyRoute(Config.technician.route)
+    if visit.kind ~= "windmill" then visit.name = visit.name or "Mara Mouse" end
     if #visit.route < 2 then
         local x, y = targetFor(state, visit.kind)
         visit.route[#visit.route + 1] = { x = x, y = y }
@@ -114,15 +116,18 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
     if visit.status == "scheduled" then
         if pauseEntrance then return false end
         visit.status, visit.visible, visit.animationClock = "entering", true, 0
-        state.message = (visit.species == "mouse" and "The mouse blade technician"
-            or "The lizard press technician") .. " arrived and is walking to the machine."
+        state.message = visit.kind == "windmill"
+            and "The lizard press technician arrived and is walking to the machine."
+            or (visit.name .. ", the blade exchange courier, arrived and is walking to the cutter.")
         return true
     elseif visit.status == "servicing" then
         visit.serviceTimer = visit.serviceTimer + dt
         if visit.serviceTimer < Config.technician.serviceDuration then return false end
         MachineMaintenance.completeTechnicianVisit(state, visit.kind, visit)
         visit.status, visit.waypoint, visit.animationClock = "exiting", #visit.route - 1, 0
-        state.message = "The technician finished the service and is heading out."
+        state.message = visit.kind == "windmill"
+            and "The technician finished the service and is heading out."
+            or (visit.name .. " fitted a freshly sharpened cutter blade and is taking the dull one back.")
         return true
     end
     if visit.status ~= "entering" and visit.status ~= "exiting" then return false end
@@ -141,8 +146,9 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
         if not target then
             if visit.status == "entering" then
                 visit.status, visit.serviceTimer, visit.animationClock = "servicing", 0, 0
-                state.message = "The technician is servicing the "
-                    .. (visit.kind == "windmill" and "Heidelberg Windmill." or "Polar cutter blade.")
+                state.message = visit.kind == "windmill"
+                    and "The technician is servicing the Heidelberg Windmill."
+                    or (visit.name .. " is exchanging the Polar 115 blade.")
                 return true
             end
             state.technicianVisit = nil

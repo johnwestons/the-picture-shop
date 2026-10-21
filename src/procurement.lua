@@ -15,6 +15,10 @@ local CRITTER_NET_VENDORS = {
     equipment = "CritterNet WrenchWorks",
 }
 
+local function autoShelfProduct(productId)
+    return productId == "stretch_film" or productId == "shipping_cartons"
+end
+
 Procurement.categories = {
     {
         id = "paper", name = "PAPER & BOARD", salesman = "Milo Stockwell", character = "tan-cat", assetRow = 1,
@@ -243,7 +247,7 @@ function Procurement.consumeCartons(state, quantity)
     local needed = math.max(0, math.floor(quantity or 1))
     local available = Procurement.cartonsAvailable(state)
     if available < needed then return false, "Not enough shipping cartons." end
-    return Procurement.consumeStockProduct(state, "shipping_cartons", needed)
+    return Procurement.consumeStockProduct(state, "shipping_cartons", needed, { autoShelf = true })
 end
 
 function Procurement.inventoryRows(state)
@@ -409,7 +413,7 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
                 if type(remaining) ~= "number" or remaining ~= remaining or remaining < 0
                     or remaining >= math.huge then return false, "Invalid physical product quantity." end
                 physical = physical + remaining
-                local accessibleShelf = options.autoShelf == true and productId == "stretch_film"
+                local accessibleShelf = options.autoShelf == true and autoShelfProduct(productId)
                     and pallet.location == "rack" and not PalletStorage.isSupporting(state, pallet.id)
                 if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
                     or accessibleShelf then
@@ -421,8 +425,8 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     end
     local abstract = allowAbstract and math.max(0, stock - physical) or 0
     if accessible + abstract < needed then
-        return false, options.autoShelf == true and productId == "stretch_film"
-            and "No stretch film is available on the warehouse floor or storage shelf."
+        return false, options.autoShelf == true and autoShelfProduct(productId)
+            and "No packaging supplies are available on the warehouse floor or storage shelf."
             or "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
     end
     local committed = {}
@@ -442,7 +446,7 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
         committed[#committed + 1] = previous
         if used == allocation.remaining then
             local moved, reason
-            if pallet.location == "rack" and options.autoShelf == true and productId == "stretch_film" then
+            if pallet.location == "rack" and options.autoShelf == true and autoShelfProduct(productId) then
                 moved, reason = PalletState.consumeVendorProduct(state,pallet)
             else
                 moved, reason = PalletState.transition(state, pallet, "none", {status="consumed"})
@@ -516,7 +520,7 @@ function Procurement.canConsumeStockProducts(state, requirements)
                         end
                         physical = physical + remaining
                         local accessibleShelf = request.autoShelf == true
-                            and request.productId == "stretch_film" and pallet.location == "rack"
+                            and autoShelfProduct(request.productId) and pallet.location == "rack"
                             and not PalletStorage.isSupporting(state, pallet.id)
                         if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
                             or accessibleShelf then
@@ -527,8 +531,8 @@ function Procurement.canConsumeStockProducts(state, requirements)
             end
             local abstract = math.max(0, stock - physical)
             if accessible + abstract < needed then
-                return false, request.autoShelf == true and request.productId == "stretch_film"
-                    and "No stretch film is available on the warehouse floor or storage shelf."
+                return false, request.autoShelf == true and autoShelfProduct(request.productId)
+                    and "No packaging supplies are available on the warehouse floor or storage shelf."
                     or "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
             end
         end

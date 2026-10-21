@@ -26,7 +26,7 @@ class RuntimeSourcePackageTests(unittest.TestCase):
 
     def test_allowlist_is_complete_unique_and_existing(self) -> None:
         paths = package.runtime_source_paths()
-        self.assertEqual(len(paths), 69)
+        self.assertEqual(len(paths), 70)
         self.assertEqual(len(paths), len(set(paths)))
         self.assertTrue(all(path.suffix == ".png" for path in paths))
 

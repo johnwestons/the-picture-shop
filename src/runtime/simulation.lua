@@ -37,7 +37,21 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.expireBackgroundMultiplayer()
-        if not Runtime.multiplayer:isActive() then return false end
+        if not Runtime.multiplayer:isActive() then
+            if not Runtime.directConnection then return false end
+            -- Pending host/reply exchange has no active game session yet, but
+            -- still owns a socket and invitation material during Android grace.
+            local cleaned, cleanupError = Runtime.closeDirectConnection()
+            Runtime.state.screen = "direct"
+            if cleaned then
+                Runtime.DirectScreen.showError(
+                    "Direct setup ended because the game stayed in the background for more than 2 minutes. Create a new invitation.")
+            else
+                Runtime.DirectScreen.showCleanupError(cleanupError)
+            end
+            if Runtime.syncMobileKeyboard then Runtime.syncMobileKeyboard() end
+            return true
+        end
         local networkKind = Runtime.multiplayer.networkKind
         local hostSession = Runtime.multiplayer:isHost()
         local reason = "Game stayed in the background for more than 2 minutes"
@@ -90,7 +104,7 @@ function Component.install(Runtime)
         local checkpointNeeded = false
         local networkInputX, networkInputY = 0, 0
         Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
-        Runtime.kombatInputX,Runtime.kombatButtons=0,0
+        Runtime.kombatInputX,Runtime.kombatButtons,Runtime.kombatInputY=0,0,0
         local predictedJackOwner
         if Runtime.state.screen ~= "world" and Runtime.PalletJack.isOperator(
             Runtime.state, Runtime.Config.palletJack, Runtime.World.player.id or 1) then
@@ -192,10 +206,13 @@ function Component.install(Runtime)
             Runtime.airHockeyInputX,Runtime.airHockeyInputY=
                 require("src.screens.air_hockey_screen").controls(Runtime,keyX,keyY)
         elseif Runtime.state.screen == "critter_kombat" then
-            Runtime.kombatInputX,Runtime.kombatButtons=
+            require("src.screens.critter_crisis_screen").update(dt,Runtime)
+            Runtime.kombatInputX,Runtime.kombatButtons,Runtime.kombatInputY=
                 require("src.screens.critter_kombat_screen").controls(Runtime)
         elseif Runtime.state.screen == "machine" and not Runtime.multiplayer:isClient() then
             Runtime.MachineScreen.update(dt)
+        elseif Runtime.state.screen == "regal_folder" then
+            Runtime.RegalFolderScreen.update(dt)
         elseif Runtime.state.screen == "press" and not Runtime.multiplayer:isClient() then
             Runtime.PressScreen.update(dt, Runtime.state)
         elseif Runtime.state.screen == "workshop_remote" then
@@ -231,6 +248,28 @@ function Component.install(Runtime)
                 local player=participants[id]
                 if not player or Runtime.multiplayer.clock()-(player.lastInputAt or 0)>.35 then return nil end
                 return {x=player.gameInputX or 0,buttons=player.combatButtons or 0}
+            end)
+            local crisis=require("src.critter_crisis")
+            crisis.prune(participants)
+            crisis.update(dt,function(id,session)
+                local owner=id==0 and session.ownerId or id
+                local arcade
+                if owner==(tonumber(Runtime.World.player.id) or 1) then
+                    arcade=require('src.screens.critter_crisis_screen').arcadeInputs(Runtime)
+                else
+                    local remote=participants[owner]
+                    if remote and Runtime.multiplayer.clock()-(remote.lastInputAt or 0)<=.35 then arcade=remote.arcadeInput end
+                end
+                if arcade then
+                    return require('src.critter_crisis_actions').seat(arcade,id==0,session.roundId)
+                end
+                if id==0 then return nil end
+                if id==(tonumber(Runtime.World.player.id) or 1) then
+                    return {x=Runtime.kombatInputX,y=Runtime.kombatInputY,buttons=Runtime.kombatButtons}
+                end
+                local player=participants[id]
+                if not player or Runtime.multiplayer.clock()-(player.lastInputAt or 0)>.35 then return nil end
+                return {x=player.gameInputX or 0,y=player.gameInputY or 0,buttons=player.combatButtons or 0}
             end)
         end
         local advanceAuthoritativeMachines = not Runtime.multiplayer:isClient() and simulationActive

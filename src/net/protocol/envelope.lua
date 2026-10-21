@@ -76,6 +76,8 @@ function Component.install(Runtime)
         workshop_release = Runtime.normalizeWorkshopRelease,
         workshop_snapshot = Runtime.normalizeWorkshopSnapshot,
         fight_snapshot = Runtime.normalizeFightSnapshot,
+        crisis_snapshot = Runtime.normalizeCrisisSnapshot,
+        crisis_frame = Runtime.normalizeCrisisFrame,
         cutter_snapshot = Runtime.normalizeCutterSnapshot,
         wrapper_snapshot = Runtime.normalizeWrapperSnapshot,
         windmill_snapshot = Runtime.normalizeWindmillSnapshot,

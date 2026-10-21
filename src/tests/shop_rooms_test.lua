@@ -51,7 +51,8 @@ local function capture(context,state,sceneId,name,pose,overlay)
     love.graphics.pop()
     local bytes=canvas:newImageData():encode("png"):getString()
     local source=love.filesystem.getSource()
-    local output=os.getenv("PICTURE_SHOP_ROOM_CAPTURE_DIR") or (not source:match("%.love$") and source.."/.stabilization")
+    local packaged=source:match("%.love$") or source:match("%.exe$")
+    local output=os.getenv("PICTURE_SHOP_ROOM_CAPTURE_DIR") or (not packaged and source.."/.stabilization")
     if output then
         local file=assert(io.open(output.."/"..name..".png","wb"));file:write(bytes);file:close()
     end

@@ -251,7 +251,8 @@ function Component.install(Runtime)
                 item.status = "installed"
                 item.world = nil
             end
-            if not seenOnFloor[item.modelId] or Runtime.assignFloorPosition(state, fleet, item) then
+            if (not seenOnFloor[item.modelId] and not Runtime.definition(item.modelId).requiresWorldPosition)
+                or Runtime.assignFloorPosition(state, fleet, item) then
                 seenOnFloor[item.modelId] = true
             else
                 item.status = "stored"

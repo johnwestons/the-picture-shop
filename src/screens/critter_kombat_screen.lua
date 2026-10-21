@@ -3,20 +3,22 @@ local Kombat=require("src.critter_kombat")
 local Art=require("src.critter_kombat_art")
 local Bindings=require("src.critter_kombat_controls")
 local Options=require("src.screens.critter_kombat_options")
-local Screen={held={},touches={},view="title",selected="mouse"}
+local CrisisScreen=require("src.screens.critter_crisis_screen")
+local CabinetMenu=require("src.screens.arcade_menu")
+local Screen={held={},touches={},view="cabinet",selected="mouse"}
 local stage,stageQuad
 local fonts={}
 local buttons={
     solo={210,525,260,56},versus={490,525,260,56},join={350,598,260,44},
     leave={836,28,96,40},back={28,28,96,40},
-    options={28,28,188,40},
+    options={28,28,188,40},games={28,81,145,39},
     mouse={150,194,300,310},fox={510,194,300,310},confirm={340,549,280,54},
     rematch={350,555,260,48},
     left={90,614,70,48},right={166,614,70,48},jump={490,614,76,48},
     punch={572,614,86,48},kick={664,614,78,48},block={748,614,81,48},
 }
 local labels={solo="1   SOLO VS AI",versus="2   VERSUS PLAYER",join="3   JOIN PLAYER",
-    leave="EXIT",back="BACK",options="O   OPTIONS",confirm="ENTER   READY TO FIGHT",rematch="CHOOSE FIGHTERS",
+    leave="EXIT",back="BACK",options="O   OPTIONS",games="GAMES",confirm="ENTER   READY TO FIGHT",rematch="CHOOSE FIGHTERS",
     left="LEFT",right="RIGHT",jump="JUMP",punch="PUNCH",kick="KICK",block="BLOCK"}
 local function inside(x,y,r) return x>=r[1] and x<=r[1]+r[3] and y>=r[2] and y<=r[2]+r[4] end
 local function font(size)
@@ -43,6 +45,7 @@ local function localSide(runtime,match)
     end
 end
 function Screen.page(runtime)
+    if Screen.view=="cabinet" or Screen.view=="crisis" then return Screen.view end
     local match=matchFor(runtime)
     if Screen.view=="title" or Screen.view=="options" then return Screen.view end
     if match then return match.phase=="selecting" and "select" or "fight" end
@@ -51,6 +54,11 @@ end
 local function clearControls() Screen.held={};Screen.touches={};Screen.mouse={};Screen.mouseButton=nil end
 function Screen.cancelInputs(suspended)
     clearControls();Screen.suspended=suspended==true;Screen.awaitNeutral=not suspended
+    if Screen.view=="crisis" then
+        CrisisScreen.focus(not suspended)
+        CrisisScreen.mouseFire=false;CrisisScreen.tapFire=false;CrisisScreen.cover=false
+        CrisisScreen.reload=false;CrisisScreen.padFire=false;CrisisScreen.padCover=false;CrisisScreen.padReload=false
+    end
     if Screen.view=="options" then Options.cancelPending() end
 end
 function Screen.openControls()
@@ -66,11 +74,15 @@ local function rect(name)
 end
 function Screen.enter(runtime,bayId)
     runtime.state.roomGameBay=bayId;runtime.state.screen="critter_kombat"
-    runtime.state.message="Choose solo play or challenge another player."
+    runtime.state.message="Choose an arcade game."
     local match=matchFor(runtime)
-    Screen.view=localSide(runtime,match) and (match.phase=="selecting" and "select" or "fight") or "title"
+    local crisis=CrisisScreen.sessionFor(runtime)
+    Screen.view=localSide(runtime,match) and (match.phase=="selecting" and "select" or "fight")
+        or crisis and (crisis.ownerId==(tonumber(runtime.World.player.id) or 1)
+            or crisis.partnerId==(tonumber(runtime.World.player.id) or 1)) and "crisis" or "cabinet"
+    CrisisScreen.enter()
     Screen.selected="mouse";Screen.exitRequested=false;Screen.backRequested=false
-    Screen.bindings=Bindings.load();Screen.menuIndex=1;Screen.pad=nil;Screen.suspended=false;Screen.awaitNeutral=false
+    Screen.bindings=Bindings.load();Screen.menuIndex=1;Screen.cabinetIndex=1;Screen.pad=nil;Screen.suspended=false;Screen.awaitNeutral=false
     Screen.hadMatch=localSide(runtime,match)~=nil
     clearControls()
 end
@@ -94,10 +106,24 @@ local function close(runtime,toTitle)
     Screen.hadMatch=false
     if not toTitle then runtime.state.screen="world";runtime.state.roomGameBay=nil;Art.clear() end
 end
-function Screen.leave(runtime) close(runtime,false) end
+function Screen.leave(runtime)
+    if Screen.view=="crisis" then
+        CrisisScreen.leave(runtime)
+        clearControls();Screen.view="cabinet"
+        runtime.state.screen="world";runtime.state.roomGameBay=nil
+    else close(runtime,false) end
+end
+local function leaveCabinet(runtime)
+    clearControls();Screen.view="cabinet";Screen.hadMatch=false
+    CrisisScreen.leave(runtime)
+end
+local function selectCabinet(runtime,name)
+    if name=="kombat" then Screen.view="title";clearControls()
+    elseif name=="crisis" then Screen.view="crisis";CrisisScreen.enter() end
+end
 local function enabled(runtime,name)
     local match=matchFor(runtime);local side=localSide(runtime,match)
-    if name=="leave" or name=="back" or name=="options" then return true end
+    if name=="leave" or name=="back" or name=="options" or name=="games" then return true end
     if name=="solo" or name=="versus" then return not match or match.phase=="finished" end
     if name=="join" then return match and match.mode=="versus" and match.phase=="selecting" and not match.rightId and not side end
     if name=="confirm" or name=="mouse" or name=="fox" then
@@ -110,6 +136,7 @@ end
 local function activate(runtime,name)
     if not enabled(runtime,name) then return false end
     if name=="leave" then Screen.leave(runtime)
+    elseif name=="games" then Screen.view="cabinet";clearControls()
     elseif name=="options" then Screen.openControls()
     elseif name=="back" then close(runtime,true)
     elseif name=="solo" or name=="versus" or name=="join" then
@@ -127,7 +154,7 @@ local function activate(runtime,name)
 end
 local function visible(runtime)
     local page=Screen.page(runtime)
-    if page=="title" then return {"solo","versus","join","options","leave"} end
+    if page=="title" then return {"solo","versus","join","options","games","leave"} end
     if page=="select" then return {"mouse","fox","confirm","back","leave"} end
     local result={"leave"}
     if Screen.bindings.showTouch then for _,name in ipairs(Bindings.ACTIONS) do result[#result+1]=name end end
@@ -137,8 +164,27 @@ local function visible(runtime)
 end
 function Screen.keypressed(runtime,key)
     local page=Screen.page(runtime)
+    if page=="cabinet" then
+        if key=="1" then selectCabinet(runtime,"kombat")
+        elseif key=="2" then selectCabinet(runtime,"crisis")
+        elseif key=="left" or key=="a" then Screen.cabinetIndex=1
+        elseif key=="right" or key=="d" then Screen.cabinetIndex=2
+        elseif key=="return" or key=="space" then selectCabinet(runtime,Screen.cabinetIndex==2 and "crisis" or "kombat")
+        elseif key=="escape" then Screen.leave(runtime) end
+        return true
+    end
+    if page=="crisis" then
+        local result=CrisisScreen.keypressed(runtime,key)
+        if result=="back" then leaveCabinet(runtime) end
+        return true
+    end
     if page=="options" then return Options.keypressed(key) end
-    if key=="escape" then if page=="select" then close(runtime,true) else Screen.leave(runtime) end;return true end
+    if key=="escape" then
+        if page=="select" then close(runtime,true)
+        elseif page=="title" then Screen.view="cabinet"
+        else Screen.leave(runtime) end
+        return true
+    end
     if page=="title" then
         local name=({["1"]="solo",["2"]="versus",["3"]="join",["return"]="solo",space="solo",o="options"})[key]
         if name then activate(runtime,name);return true end
@@ -146,6 +192,10 @@ function Screen.keypressed(runtime,key)
         local name=({["1"]="mouse",["2"]="fox",left="mouse",a="mouse",right="fox",d="fox",["return"]="confirm",space="confirm"})[key]
         if name then activate(runtime,name);return true end
     elseif key=="return" then activate(runtime,"rematch");return true end
+    return false
+end
+function Screen.keyreleased(key)
+    if Screen.view=="crisis" then CrisisScreen.keyreleased(key);return true end
     return false
 end
 local function press(runtime,x,y,pointer)
@@ -162,6 +212,19 @@ local function press(runtime,x,y,pointer)
     return true
 end
 function Screen.mousepressed(runtime,x,y,button)
+    if Screen.page(runtime)=="cabinet" then
+        if button==1 then
+            local choice=CabinetMenu.hit(x,y)
+            if choice then Screen.cabinetIndex=choice;selectCabinet(runtime,choice==1 and "kombat" or "crisis")
+            elseif inside(x,y,buttons.leave) then Screen.leave(runtime) end
+        end
+        return true
+    end
+    if Screen.page(runtime)=="crisis" then
+        local result=CrisisScreen.mousepressed(runtime,x,y,button)
+        if result=="back" then leaveCabinet(runtime) end
+        return true
+    end
     if Screen.page(runtime)=="options" then return Options.mousepressed(x,y,button) end
     if Screen.page(runtime)=="fight" then
         if button==1 and (inside(x,y,buttons.leave) or inside(x,y,buttons.rematch) and enabled(runtime,"rematch")) then
@@ -176,6 +239,7 @@ function Screen.mousepressed(runtime,x,y,button)
     if button~=1 then return true end;return press(runtime,x,y)
 end
 function Screen.mousereleased(_,_,button)
+    if Screen.view=="crisis" then CrisisScreen.mousereleased(button);return true end
     if Screen.view=="options" then return Options.released() end
     if button then Screen.mouse[button]=nil else Screen.mouse={} end
     if button==1 or not button then
@@ -184,21 +248,36 @@ function Screen.mousereleased(_,_,button)
     return true
 end
 function Screen.mousemoved(runtime,x,y)
+    if Screen.view=="crisis" then return CrisisScreen.mousemoved(runtime,x,y) end
     if Screen.page(runtime)=="options" then return Options.mousemoved(x,y) end
     return true
 end
 function Screen.touchpressed(runtime,id,sx,sy)
-    local x,y=runtime.Viewport.toGame(sx,sy,runtime.Config.baseWidth,runtime.Config.baseHeight,runtime.App.officeFitsScreen())
+    if Screen.view=="crisis" then
+        local result=CrisisScreen.touchpressed(runtime,id,sx,sy)
+        if result=="back" then leaveCabinet(runtime) end
+        return true
+    end
+    local x,y
+    if runtime.toPointerCoordinates then x,y=runtime.toPointerCoordinates(sx,sy)
+    else x,y=runtime.Viewport.toGame(sx,sy,runtime.Config.baseWidth,runtime.Config.baseHeight,
+        runtime.App.officeUsesSafeArea and runtime.App.officeUsesSafeArea() or false) end
+    if Screen.view=="cabinet" then return Screen.mousepressed(runtime,x,y,1) end
     if Screen.page(runtime)=="options" then return Options.mousepressed(x,y,1,id) end
     return press(runtime,x,y,id)
 end
 function Screen.touchmoved(runtime,id,sx,sy)
-    local x,y=runtime.Viewport.toGame(sx,sy,runtime.Config.baseWidth,runtime.Config.baseHeight,runtime.App.officeFitsScreen())
+    if Screen.view=="crisis" then return CrisisScreen.touchmoved(runtime,id,sx,sy) end
+    local x,y
+    if runtime.toPointerCoordinates then x,y=runtime.toPointerCoordinates(sx,sy)
+    else x,y=runtime.Viewport.toGame(sx,sy,runtime.Config.baseWidth,runtime.Config.baseHeight,
+        runtime.App.officeUsesSafeArea and runtime.App.officeUsesSafeArea() or false) end
     if Screen.page(runtime)=="options" then return Options.mousemoved(x,y,id) end
     local name=Screen.touches[id];if not name then return false end
     if not inside(x,y,rect(name)) then Screen.touches[id]=nil end;return true
 end
 function Screen.touchreleased(id)
+    if Screen.view=="crisis" then return CrisisScreen.touchreleased(id) end
     if Screen.view=="options" then return Options.released(id) end
     Screen.touches[id]=nil;return true
 end
@@ -206,13 +285,26 @@ function Screen.gamepadpressed(runtime,pad,button)
     if Screen.suspended then return true end
     Screen.pad=pad
     local page=Screen.page(runtime)
+    if page=="cabinet" then
+        if button=="dpleft" then Screen.cabinetIndex=1
+        elseif button=="dpright" then Screen.cabinetIndex=2
+        elseif button=="a" then selectCabinet(runtime,Screen.cabinetIndex==2 and "crisis" or "kombat")
+        elseif button=="x" or button=="y" then selectCabinet(runtime,"crisis")
+        elseif button=="b" or button=="back" then Screen.leave(runtime) end
+        return true
+    end
+    if page=="crisis" then
+        local result=CrisisScreen.gamepadpressed(runtime,pad,button)
+        if result=="back" then leaveCabinet(runtime) end
+        return true
+    end
     if page=="options" then return Options.gamepadpressed(button) end
     if page=="title" then
         local names={"solo","versus","join","options"}
         if button=="dpup" or button=="dpdown" then Screen.menuIndex=(Screen.menuIndex-1+(button=="dpup" and -1 or 1))%4+1
         elseif button=="a" then activate(runtime,names[Screen.menuIndex])
         elseif button=="start" then Screen.openControls()
-        elseif button=="b" or button=="back" then Screen.leave(runtime) end
+        elseif button=="b" or button=="back" then Screen.view="cabinet" end
     elseif page=="select" then
         if button=="dpleft" then activate(runtime,"mouse") elseif button=="dpright" then activate(runtime,"fox")
         elseif button=="a" then activate(runtime,"confirm") elseif button=="b" or button=="back" then close(runtime,true) end
@@ -220,14 +312,25 @@ function Screen.gamepadpressed(runtime,pad,button)
     elseif button=="start" then activate(runtime,"rematch") end
     return true
 end
-function Screen.gamepadreleased() return true end
+function Screen.gamepadreleased(_,pad,button)
+    if Screen.view=="crisis" then return CrisisScreen.gamepadreleased(pad,button) end
+    return true
+end
 function Screen.gamepadaxis(runtime,pad,axis,value)
+    if Screen.view=="crisis" then return CrisisScreen.gamepadaxis(runtime,pad,axis,value) end
+    if Screen.view=="cabinet" then return true end
     if Screen.suspended then return true end
     Screen.pad=pad
     if Screen.page(runtime)=="options" then return Options.gamepadaxis(axis,value) end
     return true
 end
 function Screen.controls(runtime)
+    if Screen.view=="crisis" then
+        if Screen.suspended then return 0,0,0 end
+        local x,y,bits=CrisisScreen.controls(runtime)
+        return x,bits,y
+    end
+    if Screen.view=="cabinet" then return 0,0,0 end
     if Screen.exitRequested or Screen.backRequested then close(runtime,Screen.backRequested);return 0,0 end
     local match=matchFor(runtime)
     if Screen.view~="title" and Screen.view~="options" then
@@ -283,7 +386,7 @@ local function drawTitle(runtime)
     text("RAIL YARD RUMBLE",80,183,800,29,{.73,.84,.84,1})
     preview("mouse",305,490,1.29,1);preview("fox",655,490,1.29,-1)
     text("VS",420,327,120,60)
-    for _,name in ipairs({"solo","versus","join","options","leave"}) do drawButton(runtime,name) end
+    for _,name in ipairs({"solo","versus","join","options","games","leave"}) do drawButton(runtime,name) end
 end
 local function drawSelect(runtime,match)
     drawStage();love.graphics.setColor(.015,.025,.04,.82);love.graphics.rectangle("fill",0,0,960,678)
@@ -350,7 +453,13 @@ end
 function Screen.draw(runtime)
     love.graphics.push("all");love.graphics.setColor(.025,.035,.055,1);love.graphics.rectangle("fill",0,0,960,678)
     local match=matchFor(runtime);local page=Screen.page(runtime)
-    if page=="options" then Options.draw()
+    if page=="cabinet" then
+        local px,py
+        if runtime.pointerPosition then px,py=runtime.pointerPosition() end
+        CabinetMenu.draw(Screen.cabinetIndex or 1,px,py)
+        drawButton(runtime,"leave")
+    elseif page=="crisis" then CrisisScreen.draw(runtime)
+    elseif page=="options" then Options.draw()
     elseif page=="title" then drawTitle(runtime)
     elseif page=="select" then drawSelect(runtime,match)
     else drawFight(runtime,match) end

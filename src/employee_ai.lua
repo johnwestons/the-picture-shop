@@ -10,12 +10,31 @@ local Navigation=require("src.navigation")
 local Config=require("src.config")
 local Speech=require("src.employee_speech")
 local Transport=require("src.employee_pallet_jack")
+local BreakroomGames=require("src.breakroom_games")
 local AI={}
 local Navigator=require("src.npc_navigation")
 local GaitMotion=require("src.gait_motion")
 local entrance=Config.customer.route[1]
 local reception=Config.warehouse.roomScenes and require("src.warehouse_registration").reception or {x=759,y=358}
 local applicantWaitSeconds=60
+local function afterShiftGame(state,w,day)
+    local options={}
+    for _,bayId in ipairs(require("src.warehouse_layout").BAY_IDS) do
+        local room=require("src.warehouse_layout").bayState(state,bayId)
+        if room and room.status=="complete" and room.optionId=="breakroom" then
+            for _,gameId in ipairs(BreakroomGames.ORDER) do
+                if BreakroomGames.owns(state,bayId,gameId) then
+                    options[#options+1]={bayId=bayId,gameId=gameId}
+                end
+            end
+        end
+    end
+    if #options==0 then return nil end
+    local hash=day*97
+    for i=1,#w.id do hash=hash+w.id:byte(i)*i end
+    if hash%100>=30 then return nil end
+    return options[hash%#options+1]
+end
 local motion={speed=72,acceleration=600,walkPixelsPerFrame=13,
     gaitSpeedMultipliers={.96,.94,1.04,1.06,.96,.94,1.04,1.06},
     gaitAccelerationMultipliers={.92,.90,1.08,1.10,.92,.90,1.08,1.10}}
@@ -203,9 +222,22 @@ function AI.worker(state,w,dt,now,context)
                     w.greetingKind=3
                     w.greetingUntilHours=now+Speech.GREETING_SECONDS*24/Calendar.secondsPerDay(state)
                 end
-                w.phase="leaving";w.clockedIn=false
-                w.activity=rolledOver and "Handing unfinished jobs to the next shift"
-                    or (w.assignment and "Off shift - unfinished job resumes next working shift" or "Shift ended")
+                w.clockedIn=false
+                if w.phase~="break" or not (w.activity or ""):match("^Playing .+ after shift$") then
+                    local game=afterShiftGame(state,w,day)
+                    if game then
+                        local info=BreakroomGames.CATALOG[game.gameId]
+                        w.phase="break";w.seatBay=game.bayId;w.breakKind="rest"
+                        w.breakRemaining=1
+                        w.activity="Playing "..info.name:gsub(" table$", ""):lower().." after shift"
+                        state.message=w.name.." stayed after their shift to play "
+                            ..info.name:gsub(" table$", "")..". Join them in the breakroom!"
+                    else
+                        w.phase="leaving"
+                        w.activity=rolledOver and "Handing unfinished jobs to the next shift"
+                            or (w.assignment and "Off shift - unfinished job resumes next working shift" or "Shift ended")
+                    end
+                end
             end
         else
             w.activity="Finishing safe machine cycle";return false
@@ -236,8 +268,17 @@ function AI.worker(state,w,dt,now,context)
         w.fatigue=math.max(0,w.fatigue-160*hours*recovery)
         w.focus=math.min(100,w.focus+128*hours*recovery)
         w.breakRemaining=math.max(0,w.breakRemaining-hours)
-        w.activity=w.breakKind=="meal" and "Unpaid meal break" or "Paid rest break"
-        if w.breakRemaining<=.000001 then w.phase="idle";w.seatBay=nil;w.breakKind=nil end
+        local afterShiftPlaying=(w.activity or ""):match("^Playing .+ after shift$")~=nil
+        if not afterShiftPlaying then
+            w.activity=w.breakKind=="meal" and "Unpaid meal break" or "Paid rest break"
+        end
+        if w.breakRemaining<=.000001 then
+            w.seatBay=nil;w.breakKind=nil
+            if afterShiftPlaying then
+                w.phase="leaving";w.x,w.y=entrance.x,entrance.y
+                w.activity="Heading home after playing a game"
+            else w.phase="idle" end
+        end
     else
         local b=breakChoice(w,now)
         if (w.fatigue>=90 or w.focus<=20) then b={bit=0,kind="rest",duration=.25} end

@@ -38,20 +38,26 @@ function Component.install(Runtime)
                 or "We'd like to offer you 10% off your next paper-cutting job.",
                 434, 278, 392, "left")
             love.graphics.setColor(0.58, 0.67, 0.68)
-            love.graphics.print("ADD YOUR OWN MESSAGE — MORE DETAIL HELPS", 434, 320)
+            love.graphics.print("ADD A PERSONAL NOTE — OPTIONAL", 434, 320)
             Runtime.panel(Runtime.PROMO_INPUT, { 0.045, 0.085, 0.10, 1 },
                 Runtime.ComputerScreen.promoFocused and { 0.32, 0.78, 0.73, 1 }
                     or { 0.20, 0.34, 0.39, 1 }, 3, 1)
             love.graphics.setColor(0.88, 0.91, 0.89)
             local custom = Runtime.ComputerScreen.promoText
-            if custom == "" then custom = "Click here and type a personal note. More characters improve the chance of a new job." end
+            if custom == "" then custom = "Write a personal note to your client (optional)." end
             love.graphics.printf(custom .. (Runtime.ComputerScreen.promoFocused and "_" or ""),
                 Runtime.PROMO_INPUT.x + 10, Runtime.PROMO_INPUT.y + 10, Runtime.PROMO_INPUT.width - 20, "left")
             local promoTerms = Runtime.JobService.promotionTerms(state, Runtime.ComputerScreen.promoText)
             love.graphics.setColor(0.95, 0.84, 0.30)
-            love.graphics.printf(string.format("%d / 240 characters   •   %.0f%% chance of a new job",
-                promoTerms.messageLength, promoTerms.responseChance * 100),
-                434, 474, 392, "center")
+            love.graphics.printf(string.format("%d / 240 characters", promoTerms.messageLength),
+                434, 468, 392, "center")
+            love.graphics.setColor(0.66, 0.78, 0.75)
+            local seasonalNote = promoTerms.seasonDemand <= 0.84
+                and (promoTerms.seasonName .. " • no new jobs right now")
+                or promoTerms.seasonDemand < 1.12
+                and (promoTerms.seasonName .. " • follow-up work is possible")
+                or (promoTerms.seasonName .. " • more work is likely")
+            love.graphics.printf(seasonalNote, 434, 491, 392, "center")
             local function promoButton(rect, label, green)
                 local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
                 Runtime.drawComputerButton(rect, label, green
@@ -152,9 +158,9 @@ function Component.install(Runtime)
         end
         if selected.serviceNotice then
             love.graphics.setColor(0.96, 0.84, 0.30)
-            love.graphics.print("CUTTER BLADE SERVICE UPDATE", 434, 392)
+            love.graphics.print("BLADE EXCHANGE UPDATE", 434, 392)
             love.graphics.setColor(0.66, 0.75, 0.76)
-            love.graphics.printf("This is an automated maintenance message from your blade technician.",
+            love.graphics.printf("This is an update from Mara Mouse, the cutter blade exchange courier.",
                 434, 424, 392, "left")
             local hovered = pointerX and Runtime.contains(Runtime.EMAIL_DECLINE, pointerX, pointerY)
             Runtime.drawComputerButton(Runtime.EMAIL_DECLINE, "ARCHIVE NOTICE",

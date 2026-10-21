@@ -105,6 +105,79 @@ class PublicIpv4RemoteResultTests(unittest.TestCase):
         )
         self.assertEqual(FROZEN_KIT_SHA256, actual)
 
+    def test_explicit_reference_profile_accepts_matching_source_and_rejects_mismatch(self) -> None:
+        source_commit = "a" * 40
+        contract = tuple(
+            (key, source_commit if key == "SOURCE_COMMIT" else "False" if key == "SOURCE_DIRTY" else value)
+            for key, value in BUILD_REPORT_CONTRACT
+        )
+        self.build_report.write_bytes(marker_bytes(contract + (("ZIP_SHA256", self.kit_hash),)))
+        report = self.validate(expected_source_commit=source_commit, expected_source_dirty=False)
+        self.assertEqual(source_commit, report["artifact"]["expectedSourceCommit"])
+        self.assertFalse(report["artifact"]["expectedSourceDirty"])
+        self.assert_validation_error_for(
+            "build_report_contract_invalid", expected_source_commit="b" * 40,
+            expected_source_dirty=False,
+        )
+        self.assert_validation_error_for(
+            "build_report_contract_invalid", expected_source_commit=source_commit,
+            expected_source_dirty=True,
+        )
+        self.assert_validation_error_for(
+            "kit_zip_hash_mismatch", expected_source_commit=source_commit,
+            expected_source_dirty=False,
+            kit_zip=self.host,
+        )
+
+    def test_cli_rejects_partial_or_malformed_reference_profiles(self) -> None:
+        base = ["--host-result", str(self.host), "--guest-result", str(self.guest),
+                "--kit-zip", str(self.kit), "--build-report", str(self.build_report),
+                "--report", str(self.root / "profile-report.json")]
+        options = ["--expected-zip-sha256", "--expected-source-commit", "--expected-source-dirty"]
+        values = [self.kit_hash, "a" * 40, "True"]
+        for index in range(3):
+            with self.subTest(partial=options[index]), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as caught:
+                    main(base + [options[index], values[index]])
+                self.assertEqual(2, caught.exception.code)
+        for index, invalid in enumerate(("not-a-hash", "bad-source", "yes")):
+            profile = values.copy()
+            profile[index] = invalid
+            arguments = base + [item for pair in zip(options, profile) for item in pair]
+            with self.subTest(malformed=options[index]), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                if index == 2:
+                    with self.assertRaises(SystemExit) as caught:
+                        main(arguments)
+                    self.assertEqual(2, caught.exception.code)
+                else:
+                    self.assertEqual(2, main(arguments))
+
+    def test_windows_wrapper_accepts_a_fully_pinned_fresh_reference(self) -> None:
+        powershell = shutil.which("powershell.exe")
+        if not powershell:
+            self.skipTest("Windows PowerShell is unavailable.")
+        source_commit = "c" * 40
+        contract = tuple(
+            (key, source_commit if key == "SOURCE_COMMIT" else value)
+            for key, value in BUILD_REPORT_CONTRACT
+        )
+        self.build_report.write_bytes(marker_bytes(contract + (("ZIP_SHA256", self.kit_hash),)))
+        report_path = self.root / "fresh-profile-report.json"
+        arguments = [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                     str(TOOLS / "verify_public_ipv4_remote_results.ps1"),
+                     "-HostResult", str(self.host), "-GuestResult", str(self.guest),
+                     "-KitZip", str(self.kit), "-BuildReport", str(self.build_report),
+                     "-ReportPath", str(report_path), "-ExpectedZipSha256", self.kit_hash,
+                     "-ExpectedSourceCommit", source_commit, "-ExpectedSourceDirty", "True"]
+        completed = subprocess.run(arguments, check=False, capture_output=True, text=True, timeout=30)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.assertEqual(source_commit, report["artifact"]["expectedSourceCommit"])
+        self.assertFalse(report["outcome"]["fullAcceptanceReady"])
+        incomplete = subprocess.run(arguments[:-2], check=False, capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(0, incomplete.returncode)
+        self.assertIn("must be supplied together", incomplete.stderr)
+
     def test_windows_wrapper_runs_the_strict_validator(self) -> None:
         powershell = shutil.which("powershell.exe")
         wrapper = TOOLS / "verify_public_ipv4_remote_results.ps1"

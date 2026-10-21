@@ -38,7 +38,7 @@ function Test.run(context, check)
     check("windmill_quote_rejects_artwork_larger_than_chase", tooLarge == nil)
 
     local structured = context.jobs.createOffer({
-        id = "PRINT-DOMAIN-001",
+        id = "PRINT-DOMAIN-030",
         company = "Structured Print Client",
         sourceSize = { width = 10, height = 15 },
         finishedSize = { width = 5, height = 7 },
@@ -134,9 +134,11 @@ function Test.run(context, check)
         and repeatJob.press.requestedCopies[1] == repeatJob.pallets[1].requestedCopies
         and repeatJob.quote.orderedCopies < repeatJob.quote.suppliedSheets
         and repeatState.clientEmails.pending[1].subject == "Request for another print job")
-    local promoted = context.jobService.sendPromotion(repeatState, structured, string.rep("x", 240))
+    repeatState.calendar.month = 11
+    local promoted, promotion = context.jobService.sendPromotion(repeatState, structured, string.rep("x", 240))
     local promotionReply = repeatState.clientEmails.pending[#repeatState.clientEmails.pending]
-    check("print_promotion_reply_describes_cut_and_print_work", promoted and promotionReply
+    check("print_promotion_reply_describes_cut_and_print_work", promoted
+        and promotion.responseOutcome == "new_job" and promotionReply
         and promotionReply.body:find("cut%-and%-print") ~= nil and promotionReply.job.press ~= nil
         and promotionReply.standardPrice > promotionReply.discountedTotal
         and promotionReply.discountAmount == promotionReply.standardPrice - promotionReply.discountedTotal
@@ -146,6 +148,7 @@ function Test.run(context, check)
         not duplicatePromotion and structured.promotionSent
         and #repeatState.clientEmails.sentPromotions == 1)
     legacy.status = "completed"
+    repeatState.calendar.month = 1
     local thanked, thankPromotion = context.jobService.sendPromotion(repeatState, legacy, string.rep("a", 41))
     local thankReply = repeatState.clientEmails.pending[#repeatState.clientEmails.pending]
     local pendingBeforeSilence = #repeatState.clientEmails.pending
