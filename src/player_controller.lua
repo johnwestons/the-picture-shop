@@ -4,10 +4,11 @@ local PlayerController = {}
 
 local EPSILON = 0.0001
 
-local function approach(value, target, amount)
-    if value < target then return math.min(target, value + amount) end
-    if value > target then return math.max(target, value - amount) end
-    return target
+local function approachVelocity(x, y, targetX, targetY, amount)
+    local dx, dy = targetX - x, targetY - y
+    local distance = math.sqrt(dx * dx + dy * dy)
+    if distance <= amount or distance <= EPSILON then return targetX, targetY end
+    return x + dx / distance * amount, y + dy / distance * amount
 end
 
 local function movementConfig(player, definition)
@@ -93,8 +94,8 @@ function PlayerController.update(player, inputX, inputY, dt, canMove, definition
         and (targetX * (player.velocityX or 0) + targetY * (player.velocityY or 0) >= 0)
     local response = changingSpeed and (definition.acceleration or 1050) * gaitAcceleration
         or (definition.deceleration or 1350)
-    player.velocityX = approach(player.velocityX or 0, targetX, response * dt)
-    player.velocityY = approach(player.velocityY or 0, targetY, response * dt)
+    player.velocityX, player.velocityY = approachVelocity(
+        player.velocityX or 0, player.velocityY or 0, targetX, targetY, response * dt)
 
     local travelX, travelY = player.velocityX * dt, player.velocityY * dt
     local maximumTravel = math.max(math.abs(travelX), math.abs(travelY))

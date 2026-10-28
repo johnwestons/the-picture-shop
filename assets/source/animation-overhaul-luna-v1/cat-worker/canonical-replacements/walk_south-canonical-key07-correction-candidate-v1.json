@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "status": "single_key_candidate_staged_for_root_review_only",
+  "character": "cat-worker south view; canonical key 7 left-passing replacement only",
+  "generation": {
+    "tool": "built-in image_gen",
+    "generation_id": "exec-64a7fdbb-d380-4784-9a7f-8627bc33a263.png",
+    "raw_image": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/walk_south-canonical-key07-correction-imagegen-v1.png",
+    "raw_size_px": [
+      1254,
+      1254
+    ],
+    "raw_sha256": "09329cc7750f8cacf08277e52a2af2fc6de9e1e8b865b130eb864e7dffa30753",
+    "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/prompts/walk_south-canonical-key07-passing-correction-v1.txt",
+    "prompt_sha256": "6358f538aab9b345209fccb30026cb88a6788b2a1ca0ee7091d57a6ae195a9e8",
+    "reference_roles": {
+      "previous_key6": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key06-transition12-endpoint.png",
+      "next_key8": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key08-left-kneeup-endpoint.png",
+      "identity_style": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-phase1-style-reference.png",
+      "leg_role_guide": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-leg-role-diagram-v1.png"
+    },
+    "reference_sha256": {
+      "previous_key6": "4bea3e54aa9ccfe4c8dfc4610b09a5f18fda97a055ecb670a8e2ba613aa07329",
+      "next_key8": "583d3dde195fd6365d76c32b0a633fbb7ece4306c3513ec7766923f4597e9f6a",
+      "identity_style": "09ccd6f1fef354f3fd83c2554915d224c3b8c1823e7d3cad730a1fac80192dc7",
+      "leg_role_guide": "a51ec422c7d799415df3c718c1023992dcce1a244925f50c4308a006e691fe20"
+    }
+  },
+  "source_endpoints": {
+    "canonical_master": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+    "canonical_master_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+    "key6_cell_index_1based": 6,
+    "key8_cell_index_1based": 8,
+    "key6_original_in_master_bbox_alpha_ge16": [
+      119,
+      77,
+      393,
+      458
+    ],
+    "key8_original_in_master_bbox_alpha_ge16": [
+      122,
+      69,
+      398,
+      458
+    ],
+    "key7_original_remains_unchanged": true
+  },
+  "transform": {
+    "scale_factor": 0.40707497,
+    "method": "one uniform scale for this raw imagegen source master, followed only by rigid whole-sprite translation; no per-cell or part scaling, warping, mirroring, repainting, or alpha-height normalization",
+    "resampling": "Pillow LANCZOS on the complete 1254x1254 master",
+    "resized_canvas_px": [
+      510,
+      510
+    ],
+    "raw_master_torso_axis_after_scale_px": 252.5,
+    "target_torso_axis_from_key6_key8_midpoint_px": 254.25,
+    "rigid_x_translation_px": 2,
+    "scaled_master_ground_row_before_translation_px": 453,
+    "target_ground_row_from_key6_key8_px": 457,
+    "rigid_y_translation_px": 4,
+    "candidate_bbox_alpha_ge16": [
+      121,
+      73,
+      397,
+      458
+    ],
+    "candidate_torso_axis_after_translation_px": 254.5,
+    "candidate_ground_row_after_translation_px": 457,
+    "candidate_bottom_row_x_mid_px": 260.0,
+    "neighbor_support_sole_x_midpoints_px": [
+      255.5,
+      259.5
+    ],
+    "head_landmark_measurement": "bbox of alpha>=16 in upper 43% of significant alpha box; diagnostic only",
+    "head_width_raw_scaled_px": 229,
+    "neighbor_head_widths_px": [
+      232,
+      232
+    ],
+    "candidate_head_width_px": 229
+  },
+  "outputs": {
+    "single_key_candidate": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-canonical-key07-correction-candidate-v1.png",
+    "candidate_sha256": "996caae74ee2902bdf5574a9b5f3eeb4ed986ef7fe181e7fd7b6c00521bc161e",
+    "same_scale_neighbor_review": "output/animation-overhaul/luna-cat/canonical-correction-candidate/walk_south-canonical-key07-correction-v1-neighbor-review.png",
+    "review_sha256": "c0d052c470c215b9b1f1686fcde50cbb203ae2ed1438af5e376d8d18c656b4a9",
+    "right_passing_neighbor_zoom": "output/animation-overhaul/luna-cat/canonical-correction-candidate/walk_south-v2-right-passing-neighbor-zoom.png"
+  },
+  "visual_audit": {
+    "K3_right_passing": "Screen-right free-leg ownership is correct: the ankle/boot tucks under the pelvis with screen-left support planted, and it progresses to K4 knee-up. However, a 2x same-scale K2/K3/K4 review shows K3 is only weakly distinct from K2 weight-down because the free boot is partly occluded by the satchel/body. Treat the phase separation as borderline for root review, not a confirmed defect.",
+    "K7_original": "fails: screen-left boot presents a broad forward-facing sole, too similar to adjacent contact/knee-up pose rather than passing beneath the hips.",
+    "K7_candidate": "visual generation shows exactly two ears, two arms/hands, two legs/boots, one screen-right tail; screen-right boot appears grounded, screen-left free boot compact and tucked under pelvis with toe down; screen-right paw remains on strap/bag side; screen-left arm remains free.",
+    "limitations": "Candidate is staged only. Visual inspection is not automated anatomical proof. Root must review face/body proportions, bag-hand grip, boot support-foot identity, exact foot anchor, and interpolation to both neighbors before using it in any 8- or 16-phase strip. No additional midpoint was generated."
+  }
+}

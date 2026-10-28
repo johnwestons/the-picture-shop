@@ -1,0 +1,4413 @@
+{
+  "version": 1,
+  "character": "rabbit-worker",
+  "owner_batch": "animation-overhaul-luna-player-v1",
+  "status": "staged-review-only; not promoted to runtime",
+  "prompt_log": {
+    "path": "assets/source/animation-overhaul-luna-player-v1/imagegen-prompt-log.json",
+    "sha256": "1e2216984c812af689ed97ce5f16d8de2a2cbecd1ea5c46857a11b6a3c98f170",
+    "exact_prompt_count": 13,
+    "reference_roles": "recorded verbatim in each prompt; num_last_images_to_include is also captured"
+  },
+  "unselected_generated_candidates": [
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-first-attempt-unselected.png",
+      "sha256": "3cb5910b8c155aa2d3c9b47a62231e94314ea6a870cd35587491f1c480ea1630",
+      "reason": "Unselected output from the first of two east first-half prompt attempts; second output was used."
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-raw.png",
+      "sha256": "ba54ba8036a58f98dcef92403c632d73596c3caf5264dbc63ef38dcb331b65bf",
+      "reason": "Redundant copy; SHA-256 matches east-between-atlas-v1-generated.png."
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/northeast-between-atlas-v1-background-fail.png",
+      "sha256": "7508a367d13950f94af7961dcc7b79dc36aa70efb3ebe74863ebe77f1ef8e791",
+      "reason": "Rejected because the candidate includes a visible colored radial background glow; v2 is selected."
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-v3-generated.png",
+      "sha256": "4189d63e1a9e4ee7d1c6d3e703db7de626a18344e1fbd2ce3078549a8fdc8b16",
+      "reason": "Superseded by the new proportion-constrained east first-half master; transition 3 torso landmark was 12.58% below the canonical median."
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/east-secondhalf-atlas-v2-generated.png",
+      "sha256": "13039e55827515ae6cbea30c9e8763c87229665978f13a4a0a185c08401b3e36",
+      "reason": "Superseded by the new proportion-constrained east second-half master; transition 5 head was 13.13% above and transition 8 torso was 13.91% below canonical medians."
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v2-generated.png",
+      "sha256": "b55ccbfb4169933da6e4e00c3997fd8acf61a7a4141ae0461b4fa507bcf490b7",
+      "reason": "Rejected because opaque pixels crossed the 2-row atlas boundary between y=511 and y=512."
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v3-generated.png",
+      "sha256": "2aa7a26f319d3b3dc97ca05ed1bec1c088820e524b0d85e4af2ba779752afb95",
+      "reason": "Superseded by a new proportion-constrained northeast second-half master; its normalized cells still had up to 14.98% head and 12.05% torso landmark deviations."
+    }
+  ],
+  "normalization": {
+    "frame_width": 512,
+    "frame_height": 512,
+    "strip_width": 8192,
+    "strip_height": 512,
+    "alpha_threshold": 16,
+    "anchor_x": 256,
+    "ground_y": 465,
+    "method": "one uniform scale per raw generated source master, derived from the geometric mean of canonical-to-source median orange head-and-ear width and centered blue torso/bib width; crop transparent cell padding; translate each cell's torso anchor to x=256 and lowest supporting alpha to y=465; preserve each canonical input cell pixel-for-pixel",
+    "landmark_measurement": {
+      "head": "orange fur pixels above 42% of each significant-alpha bbox height; measured width includes head and ears",
+      "torso": "blue overall/bib pixels in the centered 48% of the significant-alpha bbox width and the 30%-52% height band",
+      "per_cell_rescaling": false,
+      "pose_height_used_to_choose_scale": false
+    }
+  },
+  "canonical_pose_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing",
+    "right_knee_up",
+    "right_contact",
+    "right_weight_down",
+    "left_passing",
+    "left_knee_up"
+  ],
+  "transition_order": [
+    "left_contact_to_left_weight_down",
+    "left_weight_down_to_right_passing",
+    "right_passing_to_right_knee_up",
+    "right_knee_up_to_right_contact",
+    "right_contact_to_right_weight_down",
+    "right_weight_down_to_left_passing",
+    "left_passing_to_left_knee_up",
+    "left_knee_up_to_left_contact"
+  ],
+  "interleaved_pose_order": [
+    "left_contact",
+    "left_contact_to_left_weight_down",
+    "left_weight_down",
+    "left_weight_down_to_right_passing",
+    "right_passing",
+    "right_passing_to_right_knee_up",
+    "right_knee_up",
+    "right_knee_up_to_right_contact",
+    "right_contact",
+    "right_contact_to_right_weight_down",
+    "right_weight_down",
+    "right_weight_down_to_left_passing",
+    "left_passing",
+    "left_passing_to_left_knee_up",
+    "left_knee_up",
+    "left_knee_up_to_left_contact"
+  ],
+  "preview_timing": {
+    "existing_config_speed_px_s": 155,
+    "existing_config_pixels_per_canonical_frame": 20,
+    "recommended_pixels_per_16_frame_subdivision": 10,
+    "canonical_cycle_duration_ms": 1032,
+    "nominal_16_frame_rate_fps": 15.5,
+    "one_x_gif_durations_ms": [
+      60,
+      70,
+      60,
+      70,
+      60,
+      70,
+      60,
+      70,
+      60,
+      70,
+      60,
+      70,
+      60,
+      70,
+      60,
+      70
+    ],
+    "half_speed_gif_duration_per_frame_ms": 130,
+    "note": "Timing contract is a preview recommendation; engine subdivision and timing integration remain with the primary owner."
+  },
+  "directions": {
+    "east": {
+      "camera_view": "east",
+      "mirror_policy": "authored unique view; west sectors remain mirrored by the parent motion spec",
+      "canonical_source": "assets/generated/characters/rabbit-worker/walk.png",
+      "canonical_source_sha256": "93acbce84f34ad7817bf9599bf9983f3345f1e42955601169c7cfc83409d01ca",
+      "canonical_source_frame_pixel_hashes": [
+        "0c00fa6457125f2b6e87912570b2a9da086bc85abc2e0f06228d6d94e59a91be",
+        "2de6049556ae59cfc449631c5d0aafb53b2de732881b585576dfac588ee2c3bd",
+        "80edf7f11bf28eedde6c47fbe43b0f5027d6bf822ea935aab28a24ee7eff33e5",
+        "7d80d4547bb9184546f9e6125d85aca2f3b53afeff78464de11732ad2a8f010b",
+        "8ce1527c5decc71fd3b18191e207f342ad3f050fd36fc0ee68756c78873a2f06",
+        "d2ec733e24a99ea86f8d73fe7c3cf15996e27fa6448a495fb0b20d7742216777",
+        "b79e86e410e3040d5af00c35a832c2e681656d97a8eb444a0b4d8865098c6989",
+        "cdc6699912e9ec1abe1f2878227879b4a01c77320ae150843b72fb841b3c3f4a"
+      ],
+      "canonical_cells_unchanged_in_interleaved_strip": true,
+      "canonical_median_landmark_widths_px": {
+        "head_width_px": 148.5,
+        "torso_width_px": 75.5
+      },
+      "transition_landmark_fit": [
+        {
+          "head_width_px": 164.0,
+          "torso_width_px": 70.0,
+          "head_delta_from_canonical_median_pct": 10.44,
+          "torso_delta_from_canonical_median_pct": -7.28
+        },
+        {
+          "head_width_px": 163.0,
+          "torso_width_px": 68.0,
+          "head_delta_from_canonical_median_pct": 9.76,
+          "torso_delta_from_canonical_median_pct": -9.93
+        },
+        {
+          "head_width_px": 161.0,
+          "torso_width_px": 72.0,
+          "head_delta_from_canonical_median_pct": 8.42,
+          "torso_delta_from_canonical_median_pct": -4.64
+        },
+        {
+          "head_width_px": 139.0,
+          "torso_width_px": 74.0,
+          "head_delta_from_canonical_median_pct": -6.4,
+          "torso_delta_from_canonical_median_pct": -1.99
+        },
+        {
+          "head_width_px": 167.0,
+          "torso_width_px": 64.0,
+          "head_delta_from_canonical_median_pct": 12.46,
+          "torso_delta_from_canonical_median_pct": -15.23
+        },
+        {
+          "head_width_px": 168.0,
+          "torso_width_px": 79.0,
+          "head_delta_from_canonical_median_pct": 13.13,
+          "torso_delta_from_canonical_median_pct": 4.64
+        },
+        {
+          "head_width_px": 167.0,
+          "torso_width_px": 57.0,
+          "head_delta_from_canonical_median_pct": 12.46,
+          "torso_delta_from_canonical_median_pct": -24.5
+        },
+        {
+          "head_width_px": 165.0,
+          "torso_width_px": 60.0,
+          "head_delta_from_canonical_median_pct": 11.11,
+          "torso_delta_from_canonical_median_pct": -20.53
+        }
+      ],
+      "manual_visual_review": {
+        "contact_sheet_reviewed": true,
+        "scope": "static contact-sheet comparison of each transition with its neighboring canonical frames; this does not replace in-engine review",
+        "notes": "Updated v4/v3 atlas contact-sheet review pending; proportions are checked against canonical head and torso landmarks with one uniform scale per raw source master."
+      },
+      "generated_atlases": {
+        "first_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-v5-generated.png",
+          "sha256": "41881f7fb3a808bc420c6d9532e2e1d556dbcc366fca65d488ca07c96ce8f338",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3
+          ],
+          "unselected_row_major_cells": [
+            4
+          ],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 148.5,
+            "canonical_median_torso_width_px": 75.5,
+            "source_master_median_head_width_px": 217.0,
+            "source_master_median_torso_width_px": 91.5,
+            "head_landmark_scale": 0.684332,
+            "torso_landmark_scale": 0.825137,
+            "uniform_master_scale": 0.751443,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 218,
+                "head_bbox_xyxy": [
+                  337,
+                  30,
+                  555,
+                  228
+                ],
+                "torso_width_px": 93,
+                "torso_bbox_xyxy": [
+                  396,
+                  245,
+                  489,
+                  275
+                ]
+              },
+              {
+                "head_width_px": 218,
+                "head_bbox_xyxy": [
+                  181,
+                  28,
+                  399,
+                  227
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  243,
+                  244,
+                  333,
+                  274
+                ]
+              },
+              {
+                "head_width_px": 214,
+                "head_bbox_xyxy": [
+                  341,
+                  9,
+                  555,
+                  206
+                ],
+                "torso_width_px": 97,
+                "torso_bbox_xyxy": [
+                  393,
+                  160,
+                  490,
+                  253
+                ]
+              },
+              {
+                "head_width_px": 216,
+                "head_bbox_xyxy": [
+                  204,
+                  9,
+                  420,
+                  208
+                ],
+                "torso_width_px": 85,
+                "torso_bbox_xyxy": [
+                  272,
+                  221,
+                  357,
+                  256
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                768,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                298,
+                30,
+                576,
+                502
+              ],
+              "raw_visible_height_px": 472,
+              "group_uniform_scale": 0.751443,
+              "raw_landmarks": {
+                "head_width_px": 218,
+                "head_bbox_xyxy": [
+                  337,
+                  30,
+                  555,
+                  228
+                ],
+                "torso_width_px": 93,
+                "torso_bbox_xyxy": [
+                  396,
+                  245,
+                  489,
+                  275
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 164,
+                "head_bbox_xyxy": [
+                  176,
+                  110,
+                  340,
+                  259
+                ],
+                "torso_width_px": 70,
+                "torso_bbox_xyxy": [
+                  221,
+                  272,
+                  291,
+                  295
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                147,
+                110,
+                356,
+                465
+              ],
+              "normalized_visible_height_px": 355,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 10.44,
+                "torso_width": -7.28
+              },
+              "phase": "left_contact_to_left_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_01_left_contact_to_left_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-v5-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                0,
+                1536,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                154,
+                28,
+                416,
+                502
+              ],
+              "raw_visible_height_px": 474,
+              "group_uniform_scale": 0.751443,
+              "raw_landmarks": {
+                "head_width_px": 218,
+                "head_bbox_xyxy": [
+                  181,
+                  28,
+                  399,
+                  227
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  243,
+                  244,
+                  333,
+                  274
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 163,
+                "head_bbox_xyxy": [
+                  176,
+                  109,
+                  339,
+                  259
+                ],
+                "torso_width_px": 68,
+                "torso_bbox_xyxy": [
+                  222,
+                  271,
+                  290,
+                  294
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                155,
+                109,
+                352,
+                465
+              ],
+              "normalized_visible_height_px": 356,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 9.76,
+                "torso_width": -9.93
+              },
+              "phase": "left_weight_down_to_right_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_02_left_weight_down_to_right_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-v5-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                512,
+                768,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                295,
+                9,
+                571,
+                479
+              ],
+              "raw_visible_height_px": 470,
+              "group_uniform_scale": 0.751443,
+              "raw_landmarks": {
+                "head_width_px": 214,
+                "head_bbox_xyxy": [
+                  341,
+                  9,
+                  555,
+                  206
+                ],
+                "torso_width_px": 97,
+                "torso_bbox_xyxy": [
+                  393,
+                  160,
+                  490,
+                  253
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 161,
+                "head_bbox_xyxy": [
+                  180,
+                  113,
+                  341,
+                  260
+                ],
+                "torso_width_px": 72,
+                "torso_bbox_xyxy": [
+                  220,
+                  226,
+                  292,
+                  296
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                146,
+                112,
+                353,
+                465
+              ],
+              "normalized_visible_height_px": 353,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 8.42,
+                "torso_width": -4.64
+              },
+              "phase": "right_passing_to_right_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_03_right_passing_to_right_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-between-atlas-v5-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                1254,
+                1254
+              ],
+              "raw_alpha_bbox_16": [
+                451,
+                232,
+                884,
+                1060
+              ],
+              "raw_visible_height_px": 828,
+              "group_uniform_scale": 0.429112,
+              "raw_landmarks": {
+                "head_width_px": 354,
+                "head_bbox_xyxy": [
+                  466,
+                  235,
+                  820,
+                  580
+                ],
+                "torso_width_px": 172,
+                "torso_bbox_xyxy": [
+                  565,
+                  583,
+                  737,
+                  663
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 139,
+                "head_bbox_xyxy": [
+                  176,
+                  112,
+                  315,
+                  259
+                ],
+                "torso_width_px": 74,
+                "torso_bbox_xyxy": [
+                  219,
+                  260,
+                  293,
+                  294
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                169,
+                109,
+                356,
+                465
+              ],
+              "normalized_visible_height_px": 356,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-between-04-replacement-v1-generated.png",
+              "selected_source_kind": "standalone generated pose; not an atlas cell",
+              "selected_cell_number": null,
+              "rejected_atlas_cell_number": 4,
+              "selection_reason": "The first atlas cell 4 exceeded the canonical contact stride; this shorter descending-contact pose is the selected replacement.",
+              "canonical_landmark_delta_pct": {
+                "head_width": -6.4,
+                "torso_width": -1.99
+              },
+              "phase": "right_knee_up_to_right_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_04_right_knee_up_to_right_contact.png"
+            }
+          ]
+        },
+        "second_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/east-secondhalf-atlas-v5-generated.png",
+          "sha256": "ae032a6706eb48a847c053991a0677b9ce37f660211dd254870e5ad3d15a58ab",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 148.5,
+            "canonical_median_torso_width_px": 75.5,
+            "source_master_median_head_width_px": 216.5,
+            "source_master_median_torso_width_px": 86.5,
+            "head_landmark_scale": 0.685912,
+            "torso_landmark_scale": 0.872832,
+            "uniform_master_scale": 0.773748,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 216,
+                "head_bbox_xyxy": [
+                  318,
+                  19,
+                  534,
+                  222
+                ],
+                "torso_width_px": 82,
+                "torso_bbox_xyxy": [
+                  383,
+                  234,
+                  465,
+                  270
+                ]
+              },
+              {
+                "head_width_px": 216,
+                "head_bbox_xyxy": [
+                  210,
+                  19,
+                  426,
+                  223
+                ],
+                "torso_width_px": 103,
+                "torso_bbox_xyxy": [
+                  262,
+                  238,
+                  365,
+                  272
+                ]
+              },
+              {
+                "head_width_px": 217,
+                "head_bbox_xyxy": [
+                  320,
+                  7,
+                  537,
+                  207
+                ],
+                "torso_width_px": 91,
+                "torso_bbox_xyxy": [
+                  377,
+                  216,
+                  468,
+                  255
+                ]
+              },
+              {
+                "head_width_px": 218,
+                "head_bbox_xyxy": [
+                  249,
+                  9,
+                  467,
+                  204
+                ],
+                "torso_width_px": 80,
+                "torso_bbox_xyxy": [
+                  326,
+                  216,
+                  406,
+                  251
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                768,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                273,
+                19,
+                557,
+                502
+              ],
+              "raw_visible_height_px": 483,
+              "group_uniform_scale": 0.773748,
+              "raw_landmarks": {
+                "head_width_px": 216,
+                "head_bbox_xyxy": [
+                  318,
+                  19,
+                  534,
+                  222
+                ],
+                "torso_width_px": 82,
+                "torso_bbox_xyxy": [
+                  383,
+                  234,
+                  465,
+                  270
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 167,
+                "head_bbox_xyxy": [
+                  174,
+                  91,
+                  341,
+                  248
+                ],
+                "torso_width_px": 64,
+                "torso_bbox_xyxy": [
+                  224,
+                  258,
+                  288,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                139,
+                91,
+                359,
+                465
+              ],
+              "normalized_visible_height_px": 374,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 12.46,
+                "torso_width": -15.23
+              },
+              "phase": "right_contact_to_right_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_05_right_contact_to_right_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                0,
+                1536,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                185,
+                19,
+                428,
+                505
+              ],
+              "raw_visible_height_px": 486,
+              "group_uniform_scale": 0.773748,
+              "raw_landmarks": {
+                "head_width_px": 216,
+                "head_bbox_xyxy": [
+                  210,
+                  19,
+                  426,
+                  223
+                ],
+                "torso_width_px": 103,
+                "torso_bbox_xyxy": [
+                  262,
+                  238,
+                  365,
+                  272
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 168,
+                "head_bbox_xyxy": [
+                  175,
+                  89,
+                  343,
+                  247
+                ],
+                "torso_width_px": 79,
+                "torso_bbox_xyxy": [
+                  216,
+                  259,
+                  295,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                156,
+                89,
+                344,
+                465
+              ],
+              "normalized_visible_height_px": 376,
+              "normalized_torso_anchor_x": 255.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 13.13,
+                "torso_width": 4.64
+              },
+              "phase": "right_weight_down_to_left_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_06_right_weight_down_to_left_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                512,
+                768,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                310,
+                4,
+                537,
+                487
+              ],
+              "raw_visible_height_px": 483,
+              "group_uniform_scale": 0.773748,
+              "raw_landmarks": {
+                "head_width_px": 217,
+                "head_bbox_xyxy": [
+                  320,
+                  7,
+                  537,
+                  207
+                ],
+                "torso_width_px": 91,
+                "torso_bbox_xyxy": [
+                  377,
+                  216,
+                  468,
+                  255
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 167,
+                "head_bbox_xyxy": [
+                  184,
+                  91,
+                  351,
+                  248
+                ],
+                "torso_width_px": 57,
+                "torso_bbox_xyxy": [
+                  228,
+                  255,
+                  285,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                176,
+                91,
+                351,
+                465
+              ],
+              "normalized_visible_height_px": 374,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 12.46,
+                "torso_width": -24.5
+              },
+              "phase": "left_passing_to_left_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_07_left_passing_to_left_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                512,
+                1536,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                185,
+                6,
+                500,
+                477
+              ],
+              "raw_visible_height_px": 471,
+              "group_uniform_scale": 0.773748,
+              "raw_landmarks": {
+                "head_width_px": 218,
+                "head_bbox_xyxy": [
+                  249,
+                  9,
+                  467,
+                  204
+                ],
+                "torso_width_px": 80,
+                "torso_bbox_xyxy": [
+                  326,
+                  216,
+                  406,
+                  251
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 165,
+                "head_bbox_xyxy": [
+                  164,
+                  103,
+                  329,
+                  253
+                ],
+                "torso_width_px": 60,
+                "torso_bbox_xyxy": [
+                  226,
+                  263,
+                  286,
+                  290
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                115,
+                100,
+                359,
+                465
+              ],
+              "normalized_visible_height_px": 365,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 11.11,
+                "torso_width": -20.53
+              },
+              "phase": "left_knee_up_to_left_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_08_left_knee_up_to_left_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/east-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "east_replacement": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/east-between-04-replacement-v1-generated.png",
+          "sha256": "8c98494221c494761039a8c72c38affb57da9b66841e82eff2007a1a3a3e52e4",
+          "selected": true,
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 148.5,
+            "canonical_median_torso_width_px": 75.5,
+            "source_master_median_head_width_px": 354.0,
+            "source_master_median_torso_width_px": 172.0,
+            "head_landmark_scale": 0.419492,
+            "torso_landmark_scale": 0.438953,
+            "uniform_master_scale": 0.429112,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 354,
+                "head_bbox_xyxy": [
+                  466,
+                  235,
+                  820,
+                  580
+                ],
+                "torso_width_px": 172,
+                "torso_bbox_xyxy": [
+                  565,
+                  583,
+                  737,
+                  663
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "details": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                1254,
+                1254
+              ],
+              "raw_alpha_bbox_16": [
+                451,
+                232,
+                884,
+                1060
+              ],
+              "raw_visible_height_px": 828,
+              "group_uniform_scale": 0.429112,
+              "raw_landmarks": {
+                "head_width_px": 354,
+                "head_bbox_xyxy": [
+                  466,
+                  235,
+                  820,
+                  580
+                ],
+                "torso_width_px": 172,
+                "torso_bbox_xyxy": [
+                  565,
+                  583,
+                  737,
+                  663
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 139,
+                "head_bbox_xyxy": [
+                  176,
+                  112,
+                  315,
+                  259
+                ],
+                "torso_width_px": 74,
+                "torso_bbox_xyxy": [
+                  219,
+                  260,
+                  293,
+                  294
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                169,
+                109,
+                356,
+                465
+              ],
+              "normalized_visible_height_px": 356,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false
+            }
+          ]
+        }
+      },
+      "deliverables": {
+        "normalized_strip": "output/animation-overhaul/luna-player/walk-16frame-east.png",
+        "strip_dimensions": [
+          8192,
+          512
+        ],
+        "contact_sheet": "output/animation-overhaul/luna-player/contact-sheet-16phase-east.png",
+        "one_x_preview": "output/animation-overhaul/luna-player/walk-16frame-east-1x.gif",
+        "half_speed_preview": "output/animation-overhaul/luna-player/walk-16frame-east-halfspeed.gif",
+        "normalized_transitions": [
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_01_left_contact_to_left_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_02_left_weight_down_to_right_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_03_right_passing_to_right_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_04_right_knee_up_to_right_contact.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_05_right_contact_to_right_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_06_right_weight_down_to_left_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_07_left_passing_to_left_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/east/transition_08_left_knee_up_to_left_contact.png"
+        ]
+      },
+      "quality_warnings": [
+        "transition 5 head landmark differs from canonical median by more than 12%",
+        "transition 5 torso landmark differs from canonical median by more than 12%",
+        "transition 6 head landmark differs from canonical median by more than 12%",
+        "transition 7 head landmark differs from canonical median by more than 12%",
+        "transition 7 torso landmark differs from canonical median by more than 12%",
+        "transition 8 torso landmark differs from canonical median by more than 12%"
+      ]
+    },
+    "southeast": {
+      "camera_view": "southeast",
+      "mirror_policy": "authored unique view; west sectors remain mirrored by the parent motion spec",
+      "canonical_source": "assets/generated/characters/rabbit-worker/walk_southeast.png",
+      "canonical_source_sha256": "80541ee88f166db6afbdc22dd6f320cdba17e4a14d80c267900f8817cae39ee4",
+      "canonical_source_frame_pixel_hashes": [
+        "1dff4250625f725f4e3f30827829af269b7a44cd9dcb4d2c21cb554b9c6fb434",
+        "2ee17480e8e6046fed88165fcaab751f2e7d7877ece48a2408df945bcd37d783",
+        "fb0700ade76c339aa5e3adb0a075f1bae8fc5e9f2779c60d15d450ab6e2c8921",
+        "1aeb882e6ffd8839bd95579372b0ae5a062534ac1993a8e9d50b5c47e274f72e",
+        "a3926beb566477853379d98363c91ea56a736b4fc11281027f8e90a7f5b8d687",
+        "86761e816c892024cad2bc99d327591a48c5e11eed7319696720ba5698080723",
+        "407e495aac010b88b389efdcbb442c9ffc2e4158880ca95cc6ef9a112adc12e4",
+        "7d3d805b84f4721045e0ffe5fed059121399ff3e5a975545838f90b02b074506"
+      ],
+      "canonical_cells_unchanged_in_interleaved_strip": true,
+      "canonical_median_landmark_widths_px": {
+        "head_width_px": 131.0,
+        "torso_width_px": 78.0
+      },
+      "transition_landmark_fit": [
+        {
+          "head_width_px": 132.0,
+          "torso_width_px": 76.0,
+          "head_delta_from_canonical_median_pct": 0.76,
+          "torso_delta_from_canonical_median_pct": -2.56
+        },
+        {
+          "head_width_px": 132.0,
+          "torso_width_px": 71.0,
+          "head_delta_from_canonical_median_pct": 0.76,
+          "torso_delta_from_canonical_median_pct": -8.97
+        },
+        {
+          "head_width_px": 137.0,
+          "torso_width_px": 76.0,
+          "head_delta_from_canonical_median_pct": 4.58,
+          "torso_delta_from_canonical_median_pct": -2.56
+        },
+        {
+          "head_width_px": 138.0,
+          "torso_width_px": 79.0,
+          "head_delta_from_canonical_median_pct": 5.34,
+          "torso_delta_from_canonical_median_pct": 1.28
+        },
+        {
+          "head_width_px": 134.0,
+          "torso_width_px": 73.0,
+          "head_delta_from_canonical_median_pct": 2.29,
+          "torso_delta_from_canonical_median_pct": -6.41
+        },
+        {
+          "head_width_px": 139.0,
+          "torso_width_px": 72.0,
+          "head_delta_from_canonical_median_pct": 6.11,
+          "torso_delta_from_canonical_median_pct": -7.69
+        },
+        {
+          "head_width_px": 139.0,
+          "torso_width_px": 73.0,
+          "head_delta_from_canonical_median_pct": 6.11,
+          "torso_delta_from_canonical_median_pct": -6.41
+        },
+        {
+          "head_width_px": 140.0,
+          "torso_width_px": 75.0,
+          "head_delta_from_canonical_median_pct": 6.87,
+          "torso_delta_from_canonical_median_pct": -3.85
+        }
+      ],
+      "manual_visual_review": {
+        "contact_sheet_reviewed": true,
+        "scope": "static contact-sheet comparison of each transition with its neighboring canonical frames; this does not replace in-engine review",
+        "notes": "Static 16-frame contact-sheet review: boot placements progress between neighboring canonical phases; two ears and carried tools remain consistent, with no matte or clipping defect observed."
+      },
+      "generated_atlases": {
+        "first_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/southeast-between-atlas-v1-generated.png",
+          "sha256": "934ed7a2eedfd63f94b337a9dd49b81dd16ddb46ba00415dd89a19be67774e0a",
+          "dimensions": [
+            1261,
+            1247
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "unselected_row_major_cells": [],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 131.0,
+            "canonical_median_torso_width_px": 78.0,
+            "source_master_median_head_width_px": 188.0,
+            "source_master_median_torso_width_px": 106.5,
+            "head_landmark_scale": 0.696809,
+            "torso_landmark_scale": 0.732394,
+            "uniform_master_scale": 0.71438,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 186,
+                "head_bbox_xyxy": [
+                  256,
+                  83,
+                  442,
+                  294
+                ],
+                "torso_width_px": 106,
+                "torso_bbox_xyxy": [
+                  302,
+                  295,
+                  408,
+                  345
+                ]
+              },
+              {
+                "head_width_px": 185,
+                "head_bbox_xyxy": [
+                  229,
+                  81,
+                  414,
+                  295
+                ],
+                "torso_width_px": 100,
+                "torso_bbox_xyxy": [
+                  282,
+                  293,
+                  382,
+                  346
+                ]
+              },
+              {
+                "head_width_px": 190,
+                "head_bbox_xyxy": [
+                  258,
+                  43,
+                  448,
+                  257
+                ],
+                "torso_width_px": 107,
+                "torso_bbox_xyxy": [
+                  312,
+                  253,
+                  419,
+                  308
+                ]
+              },
+              {
+                "head_width_px": 193,
+                "head_bbox_xyxy": [
+                  208,
+                  45,
+                  401,
+                  259
+                ],
+                "torso_width_px": 111,
+                "torso_bbox_xyxy": [
+                  261,
+                  258,
+                  372,
+                  310
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                630,
+                624
+              ],
+              "raw_alpha_bbox_16": [
+                192,
+                80,
+                493,
+                590
+              ],
+              "raw_visible_height_px": 510,
+              "group_uniform_scale": 0.71438,
+              "raw_landmarks": {
+                "head_width_px": 186,
+                "head_bbox_xyxy": [
+                  256,
+                  83,
+                  442,
+                  294
+                ],
+                "torso_width_px": 106,
+                "torso_bbox_xyxy": [
+                  302,
+                  295,
+                  408,
+                  345
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 132,
+                "head_bbox_xyxy": [
+                  186,
+                  100,
+                  318,
+                  253
+                ],
+                "torso_width_px": 76,
+                "torso_bbox_xyxy": [
+                  218,
+                  253,
+                  294,
+                  289
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                139,
+                99,
+                354,
+                465
+              ],
+              "normalized_visible_height_px": 366,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 0.76,
+                "torso_width": -2.56
+              },
+              "phase": "left_contact_to_left_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_01_left_contact_to_left_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-between-atlas-v1-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                630,
+                0,
+                1261,
+                624
+              ],
+              "raw_alpha_bbox_16": [
+                168,
+                79,
+                470,
+                593
+              ],
+              "raw_visible_height_px": 514,
+              "group_uniform_scale": 0.71438,
+              "raw_landmarks": {
+                "head_width_px": 185,
+                "head_bbox_xyxy": [
+                  229,
+                  81,
+                  414,
+                  295
+                ],
+                "torso_width_px": 100,
+                "torso_bbox_xyxy": [
+                  282,
+                  293,
+                  382,
+                  346
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 132,
+                "head_bbox_xyxy": [
+                  183,
+                  99,
+                  315,
+                  252
+                ],
+                "torso_width_px": 71,
+                "torso_bbox_xyxy": [
+                  221,
+                  251,
+                  292,
+                  289
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                139,
+                98,
+                355,
+                465
+              ],
+              "normalized_visible_height_px": 367,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 0.76,
+                "torso_width": -8.97
+              },
+              "phase": "left_weight_down_to_right_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_02_left_weight_down_to_right_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-between-atlas-v1-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                624,
+                630,
+                1247
+              ],
+              "raw_alpha_bbox_16": [
+                204,
+                41,
+                515,
+                555
+              ],
+              "raw_visible_height_px": 514,
+              "group_uniform_scale": 0.71438,
+              "raw_landmarks": {
+                "head_width_px": 190,
+                "head_bbox_xyxy": [
+                  258,
+                  43,
+                  448,
+                  257
+                ],
+                "torso_width_px": 107,
+                "torso_bbox_xyxy": [
+                  312,
+                  253,
+                  419,
+                  308
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 137,
+                "head_bbox_xyxy": [
+                  179,
+                  98,
+                  316,
+                  252
+                ],
+                "torso_width_px": 76,
+                "torso_bbox_xyxy": [
+                  218,
+                  249,
+                  294,
+                  289
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                141,
+                98,
+                364,
+                465
+              ],
+              "normalized_visible_height_px": 367,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 4.58,
+                "torso_width": -2.56
+              },
+              "phase": "right_passing_to_right_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_03_right_passing_to_right_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-between-atlas-v1-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                630,
+                624,
+                1261,
+                1247
+              ],
+              "raw_alpha_bbox_16": [
+                162,
+                42,
+                468,
+                558
+              ],
+              "raw_visible_height_px": 516,
+              "group_uniform_scale": 0.71438,
+              "raw_landmarks": {
+                "head_width_px": 193,
+                "head_bbox_xyxy": [
+                  208,
+                  45,
+                  401,
+                  259
+                ],
+                "torso_width_px": 111,
+                "torso_bbox_xyxy": [
+                  261,
+                  258,
+                  372,
+                  310
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 138,
+                "head_bbox_xyxy": [
+                  179,
+                  97,
+                  317,
+                  252
+                ],
+                "torso_width_px": 79,
+                "torso_bbox_xyxy": [
+                  217,
+                  251,
+                  296,
+                  288
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                146,
+                97,
+                365,
+                465
+              ],
+              "normalized_visible_height_px": 368,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 5.34,
+                "torso_width": 1.28
+              },
+              "phase": "right_knee_up_to_right_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_04_right_knee_up_to_right_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-between-atlas-v1-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "second_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/southeast-secondhalf-atlas-v1-generated.png",
+          "sha256": "8ee2ff5efa0efa6e45cf871c7512fd23610424d29cfd28ed4ea46573a4770379",
+          "dimensions": [
+            2171,
+            724
+          ],
+          "grid_columns": 4,
+          "grid_rows": 1,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 131.0,
+            "canonical_median_torso_width_px": 78.0,
+            "source_master_median_head_width_px": 205.0,
+            "source_master_median_torso_width_px": 107.5,
+            "head_landmark_scale": 0.639024,
+            "torso_landmark_scale": 0.725581,
+            "uniform_master_scale": 0.680929,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 198,
+                "head_bbox_xyxy": [
+                  205,
+                  92,
+                  403,
+                  320
+                ],
+                "torso_width_px": 107,
+                "torso_bbox_xyxy": [
+                  254,
+                  316,
+                  361,
+                  374
+                ]
+              },
+              {
+                "head_width_px": 205,
+                "head_bbox_xyxy": [
+                  180,
+                  84,
+                  385,
+                  318
+                ],
+                "torso_width_px": 106,
+                "torso_bbox_xyxy": [
+                  238,
+                  313,
+                  344,
+                  373
+                ]
+              },
+              {
+                "head_width_px": 205,
+                "head_bbox_xyxy": [
+                  173,
+                  84,
+                  378,
+                  318
+                ],
+                "torso_width_px": 108,
+                "torso_bbox_xyxy": [
+                  229,
+                  314,
+                  337,
+                  373
+                ]
+              },
+              {
+                "head_width_px": 205,
+                "head_bbox_xyxy": [
+                  164,
+                  85,
+                  369,
+                  314
+                ],
+                "torso_width_px": 110,
+                "torso_bbox_xyxy": [
+                  220,
+                  316,
+                  330,
+                  369
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                543,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                133,
+                89,
+                450,
+                638
+              ],
+              "raw_visible_height_px": 549,
+              "group_uniform_scale": 0.680929,
+              "raw_landmarks": {
+                "head_width_px": 198,
+                "head_bbox_xyxy": [
+                  205,
+                  92,
+                  403,
+                  320
+                ],
+                "torso_width_px": 107,
+                "torso_bbox_xyxy": [
+                  254,
+                  316,
+                  361,
+                  374
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 134,
+                "head_bbox_xyxy": [
+                  188,
+                  92,
+                  322,
+                  248
+                ],
+                "torso_width_px": 73,
+                "torso_bbox_xyxy": [
+                  220,
+                  245,
+                  293,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                138,
+                90,
+                353,
+                465
+              ],
+              "normalized_visible_height_px": 375,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 2.29,
+                "torso_width": -6.41
+              },
+              "phase": "right_contact_to_right_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_05_right_contact_to_right_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                543,
+                0,
+                1086,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                145,
+                84,
+                423,
+                640
+              ],
+              "raw_visible_height_px": 556,
+              "group_uniform_scale": 0.680929,
+              "raw_landmarks": {
+                "head_width_px": 205,
+                "head_bbox_xyxy": [
+                  180,
+                  84,
+                  385,
+                  318
+                ],
+                "torso_width_px": 106,
+                "torso_bbox_xyxy": [
+                  238,
+                  313,
+                  344,
+                  373
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 139,
+                "head_bbox_xyxy": [
+                  181,
+                  86,
+                  320,
+                  245
+                ],
+                "torso_width_px": 72,
+                "torso_bbox_xyxy": [
+                  220,
+                  242,
+                  292,
+                  283
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                156,
+                86,
+                346,
+                465
+              ],
+              "normalized_visible_height_px": 379,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 6.11,
+                "torso_width": -7.69
+              },
+              "phase": "right_weight_down_to_left_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_06_right_weight_down_to_left_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                1086,
+                0,
+                1628,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                117,
+                84,
+                436,
+                640
+              ],
+              "raw_visible_height_px": 556,
+              "group_uniform_scale": 0.680929,
+              "raw_landmarks": {
+                "head_width_px": 205,
+                "head_bbox_xyxy": [
+                  173,
+                  84,
+                  378,
+                  318
+                ],
+                "torso_width_px": 108,
+                "torso_bbox_xyxy": [
+                  229,
+                  314,
+                  337,
+                  373
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 139,
+                "head_bbox_xyxy": [
+                  182,
+                  89,
+                  321,
+                  245
+                ],
+                "torso_width_px": 73,
+                "torso_bbox_xyxy": [
+                  220,
+                  243,
+                  293,
+                  283
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                143,
+                86,
+                361,
+                465
+              ],
+              "normalized_visible_height_px": 379,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 6.11,
+                "torso_width": -6.41
+              },
+              "phase": "left_passing_to_left_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_07_left_passing_to_left_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                1628,
+                0,
+                2171,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                107,
+                85,
+                416,
+                631
+              ],
+              "raw_visible_height_px": 546,
+              "group_uniform_scale": 0.680929,
+              "raw_landmarks": {
+                "head_width_px": 205,
+                "head_bbox_xyxy": [
+                  164,
+                  85,
+                  369,
+                  314
+                ],
+                "torso_width_px": 110,
+                "torso_bbox_xyxy": [
+                  220,
+                  316,
+                  330,
+                  369
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 140,
+                "head_bbox_xyxy": [
+                  180,
+                  94,
+                  320,
+                  249
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  218,
+                  250,
+                  293,
+                  286
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                141,
+                92,
+                351,
+                465
+              ],
+              "normalized_visible_height_px": 373,
+              "normalized_torso_anchor_x": 255.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 6.87,
+                "torso_width": -3.85
+              },
+              "phase": "left_knee_up_to_left_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_08_left_knee_up_to_left_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/southeast-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "east_replacement": null
+      },
+      "deliverables": {
+        "normalized_strip": "output/animation-overhaul/luna-player/walk-16frame-southeast.png",
+        "strip_dimensions": [
+          8192,
+          512
+        ],
+        "contact_sheet": "output/animation-overhaul/luna-player/contact-sheet-16phase-southeast.png",
+        "one_x_preview": "output/animation-overhaul/luna-player/walk-16frame-southeast-1x.gif",
+        "half_speed_preview": "output/animation-overhaul/luna-player/walk-16frame-southeast-halfspeed.gif",
+        "normalized_transitions": [
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_01_left_contact_to_left_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_02_left_weight_down_to_right_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_03_right_passing_to_right_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_04_right_knee_up_to_right_contact.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_05_right_contact_to_right_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_06_right_weight_down_to_left_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_07_left_passing_to_left_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/southeast/transition_08_left_knee_up_to_left_contact.png"
+        ]
+      },
+      "quality_warnings": []
+    },
+    "north": {
+      "camera_view": "north",
+      "mirror_policy": "authored unique view; west sectors remain mirrored by the parent motion spec",
+      "canonical_source": "assets/generated/characters/rabbit-worker/walk_north.png",
+      "canonical_source_sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b",
+      "canonical_source_frame_pixel_hashes": [
+        "2ae840063f83213d67042f0713f661f84b8490fc992a36ca151ac5d3a5285a56",
+        "33d4c29977310dfbbf1213eaa31e91c879d135b8eca8611dd31a0303bff6b4e8",
+        "616c2488495dac3fcb9451e68450856138e40c52e9f78950703dd14f6fbb0532",
+        "2990fe9cc92783eb2cada5c0e401c20126817c3c79735d18adc6e3f52b32c2d7",
+        "3a565e7af783d98c721fb3b2fb72ef688ce30904186f28d23cac4d16a9e672f0",
+        "d0f564927f8412c747dce8d87d193c635c72040d45b41926fe9063324383c434",
+        "abaa6341ac7a6166484531b263be7ef7a21713ea3ba0fcdcdd85e24b3ad4b484",
+        "e7722baa9d2d3ce0293da21c4b27310312d36fd05d1409279d1925d3a4b6a78f"
+      ],
+      "canonical_cells_unchanged_in_interleaved_strip": true,
+      "canonical_median_landmark_widths_px": {
+        "head_width_px": 114.0,
+        "torso_width_px": 78.0
+      },
+      "transition_landmark_fit": [
+        {
+          "head_width_px": 116.0,
+          "torso_width_px": 79.0,
+          "head_delta_from_canonical_median_pct": 1.75,
+          "torso_delta_from_canonical_median_pct": 1.28
+        },
+        {
+          "head_width_px": 116.0,
+          "torso_width_px": 77.0,
+          "head_delta_from_canonical_median_pct": 1.75,
+          "torso_delta_from_canonical_median_pct": -1.28
+        },
+        {
+          "head_width_px": 115.0,
+          "torso_width_px": 75.0,
+          "head_delta_from_canonical_median_pct": 0.88,
+          "torso_delta_from_canonical_median_pct": -3.85
+        },
+        {
+          "head_width_px": 113.0,
+          "torso_width_px": 74.0,
+          "head_delta_from_canonical_median_pct": -0.88,
+          "torso_delta_from_canonical_median_pct": -5.13
+        },
+        {
+          "head_width_px": 114.0,
+          "torso_width_px": 80.0,
+          "head_delta_from_canonical_median_pct": 0.0,
+          "torso_delta_from_canonical_median_pct": 2.56
+        },
+        {
+          "head_width_px": 118.0,
+          "torso_width_px": 77.0,
+          "head_delta_from_canonical_median_pct": 3.51,
+          "torso_delta_from_canonical_median_pct": -1.28
+        },
+        {
+          "head_width_px": 118.0,
+          "torso_width_px": 75.0,
+          "head_delta_from_canonical_median_pct": 3.51,
+          "torso_delta_from_canonical_median_pct": -3.85
+        },
+        {
+          "head_width_px": 118.0,
+          "torso_width_px": 70.0,
+          "head_delta_from_canonical_median_pct": 3.51,
+          "torso_delta_from_canonical_median_pct": -10.26
+        }
+      ],
+      "manual_visual_review": {
+        "contact_sheet_reviewed": true,
+        "scope": "static contact-sheet comparison of each transition with its neighboring canonical frames; this does not replace in-engine review",
+        "notes": "Static 16-frame contact-sheet review: alternating rear-view boot placements remain distinct across the cycle; no anatomy, tool, matte, or clipping defect observed."
+      },
+      "generated_atlases": {
+        "first_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/north-between-atlas-v1-generated.png",
+          "sha256": "08d1b5e8e2cb01e14ebeba2276b7fde65c35fc45827b43a45b2d6b93f6cd4321",
+          "dimensions": [
+            1298,
+            1212
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "unselected_row_major_cells": [],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 114.0,
+            "canonical_median_torso_width_px": 78.0,
+            "source_master_median_head_width_px": 140.5,
+            "source_master_median_torso_width_px": 93.0,
+            "head_landmark_scale": 0.811388,
+            "torso_landmark_scale": 0.83871,
+            "uniform_master_scale": 0.824936,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 143,
+                "head_bbox_xyxy": [
+                  296,
+                  63,
+                  439,
+                  260
+                ],
+                "torso_width_px": 95,
+                "torso_bbox_xyxy": [
+                  324,
+                  257,
+                  419,
+                  315
+                ]
+              },
+              {
+                "head_width_px": 141,
+                "head_bbox_xyxy": [
+                  217,
+                  66,
+                  358,
+                  259
+                ],
+                "torso_width_px": 94,
+                "torso_bbox_xyxy": [
+                  240,
+                  260,
+                  334,
+                  313
+                ]
+              },
+              {
+                "head_width_px": 140,
+                "head_bbox_xyxy": [
+                  302,
+                  46,
+                  442,
+                  234
+                ],
+                "torso_width_px": 92,
+                "torso_bbox_xyxy": [
+                  326,
+                  232,
+                  418,
+                  291
+                ]
+              },
+              {
+                "head_width_px": 137,
+                "head_bbox_xyxy": [
+                  223,
+                  50,
+                  360,
+                  235
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  241,
+                  233,
+                  331,
+                  296
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                649,
+                606
+              ],
+              "raw_alpha_bbox_16": [
+                250,
+                62,
+                495,
+                549
+              ],
+              "raw_visible_height_px": 487,
+              "group_uniform_scale": 0.824936,
+              "raw_landmarks": {
+                "head_width_px": 143,
+                "head_bbox_xyxy": [
+                  296,
+                  63,
+                  439,
+                  260
+                ],
+                "torso_width_px": 95,
+                "torso_bbox_xyxy": [
+                  324,
+                  257,
+                  419,
+                  315
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 116,
+                "head_bbox_xyxy": [
+                  194,
+                  63,
+                  310,
+                  227
+                ],
+                "torso_width_px": 79,
+                "torso_bbox_xyxy": [
+                  217,
+                  224,
+                  296,
+                  272
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                156,
+                63,
+                359,
+                465
+              ],
+              "normalized_visible_height_px": 402,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 1.75,
+                "torso_width": 1.28
+              },
+              "phase": "left_contact_to_left_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_01_left_contact_to_left_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-between-atlas-v1-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                649,
+                0,
+                1298,
+                606
+              ],
+              "raw_alpha_bbox_16": [
+                171,
+                66,
+                400,
+                541
+              ],
+              "raw_visible_height_px": 475,
+              "group_uniform_scale": 0.824936,
+              "raw_landmarks": {
+                "head_width_px": 141,
+                "head_bbox_xyxy": [
+                  217,
+                  66,
+                  358,
+                  259
+                ],
+                "torso_width_px": 94,
+                "torso_bbox_xyxy": [
+                  240,
+                  260,
+                  334,
+                  313
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 116,
+                "head_bbox_xyxy": [
+                  199,
+                  73,
+                  315,
+                  234
+                ],
+                "torso_width_px": 77,
+                "torso_bbox_xyxy": [
+                  218,
+                  233,
+                  295,
+                  277
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                160,
+                73,
+                350,
+                465
+              ],
+              "normalized_visible_height_px": 392,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 1.75,
+                "torso_width": -1.28
+              },
+              "phase": "left_weight_down_to_right_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_02_left_weight_down_to_right_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-between-atlas-v1-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                606,
+                649,
+                1212
+              ],
+              "raw_alpha_bbox_16": [
+                267,
+                46,
+                493,
+                518
+              ],
+              "raw_visible_height_px": 472,
+              "group_uniform_scale": 0.824936,
+              "raw_landmarks": {
+                "head_width_px": 140,
+                "head_bbox_xyxy": [
+                  302,
+                  46,
+                  442,
+                  234
+                ],
+                "torso_width_px": 92,
+                "torso_bbox_xyxy": [
+                  326,
+                  232,
+                  418,
+                  291
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 115,
+                "head_bbox_xyxy": [
+                  198,
+                  75,
+                  313,
+                  230
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  218,
+                  228,
+                  293,
+                  278
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                169,
+                75,
+                356,
+                465
+              ],
+              "normalized_visible_height_px": 390,
+              "normalized_torso_anchor_x": 255.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 0.88,
+                "torso_width": -3.85
+              },
+              "phase": "right_passing_to_right_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_03_right_passing_to_right_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-between-atlas-v1-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                649,
+                606,
+                1298,
+                1212
+              ],
+              "raw_alpha_bbox_16": [
+                162,
+                50,
+                390,
+                524
+              ],
+              "raw_visible_height_px": 474,
+              "group_uniform_scale": 0.824936,
+              "raw_landmarks": {
+                "head_width_px": 137,
+                "head_bbox_xyxy": [
+                  223,
+                  50,
+                  360,
+                  235
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  241,
+                  233,
+                  331,
+                  296
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 113,
+                "head_bbox_xyxy": [
+                  204,
+                  74,
+                  317,
+                  227
+                ],
+                "torso_width_px": 74,
+                "torso_bbox_xyxy": [
+                  219,
+                  226,
+                  293,
+                  277
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                153,
+                74,
+                342,
+                465
+              ],
+              "normalized_visible_height_px": 391,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": -0.88,
+                "torso_width": -5.13
+              },
+              "phase": "right_knee_up_to_right_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_04_right_knee_up_to_right_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-between-atlas-v1-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "second_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/north-secondhalf-atlas-v1-generated.png",
+          "sha256": "70a08139054254a44a6c34257123ab09a0967d96714ca11a6b0de0b93f8ff0a6",
+          "dimensions": [
+            2171,
+            724
+          ],
+          "grid_columns": 4,
+          "grid_rows": 1,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 114.0,
+            "canonical_median_torso_width_px": 78.0,
+            "source_master_median_head_width_px": 144.5,
+            "source_master_median_torso_width_px": 93.5,
+            "head_landmark_scale": 0.788927,
+            "torso_landmark_scale": 0.834225,
+            "uniform_master_scale": 0.81126,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 139,
+                "head_bbox_xyxy": [
+                  203,
+                  165,
+                  342,
+                  340
+                ],
+                "torso_width_px": 99,
+                "torso_bbox_xyxy": [
+                  224,
+                  336,
+                  323,
+                  390
+                ]
+              },
+              {
+                "head_width_px": 145,
+                "head_bbox_xyxy": [
+                  199,
+                  141,
+                  344,
+                  326
+                ],
+                "torso_width_px": 95,
+                "torso_bbox_xyxy": [
+                  225,
+                  324,
+                  320,
+                  379
+                ]
+              },
+              {
+                "head_width_px": 144,
+                "head_bbox_xyxy": [
+                  194,
+                  136,
+                  338,
+                  323
+                ],
+                "torso_width_px": 92,
+                "torso_bbox_xyxy": [
+                  223,
+                  321,
+                  315,
+                  376
+                ]
+              },
+              {
+                "head_width_px": 145,
+                "head_bbox_xyxy": [
+                  194,
+                  140,
+                  339,
+                  327
+                ],
+                "torso_width_px": 86,
+                "torso_bbox_xyxy": [
+                  222,
+                  325,
+                  308,
+                  379
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                543,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                145,
+                162,
+                389,
+                601
+              ],
+              "raw_visible_height_px": 439,
+              "group_uniform_scale": 0.81126,
+              "raw_landmarks": {
+                "head_width_px": 139,
+                "head_bbox_xyxy": [
+                  203,
+                  165,
+                  342,
+                  340
+                ],
+                "torso_width_px": 99,
+                "torso_bbox_xyxy": [
+                  224,
+                  336,
+                  323,
+                  390
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 114,
+                "head_bbox_xyxy": [
+                  198,
+                  112,
+                  312,
+                  254
+                ],
+                "torso_width_px": 80,
+                "torso_bbox_xyxy": [
+                  216,
+                  251,
+                  296,
+                  295
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                152,
+                110,
+                349,
+                465
+              ],
+              "normalized_visible_height_px": 355,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 0.0,
+                "torso_width": 2.56
+              },
+              "phase": "right_contact_to_right_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_05_right_contact_to_right_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                543,
+                0,
+                1086,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                150,
+                138,
+                384,
+                601
+              ],
+              "raw_visible_height_px": 463,
+              "group_uniform_scale": 0.81126,
+              "raw_landmarks": {
+                "head_width_px": 145,
+                "head_bbox_xyxy": [
+                  199,
+                  141,
+                  344,
+                  326
+                ],
+                "torso_width_px": 95,
+                "torso_bbox_xyxy": [
+                  225,
+                  324,
+                  320,
+                  379
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 118,
+                "head_bbox_xyxy": [
+                  196,
+                  89,
+                  314,
+                  242
+                ],
+                "torso_width_px": 77,
+                "torso_bbox_xyxy": [
+                  218,
+                  240,
+                  295,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                157,
+                89,
+                347,
+                465
+              ],
+              "normalized_visible_height_px": 376,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 3.51,
+                "torso_width": -1.28
+              },
+              "phase": "right_weight_down_to_left_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_06_right_weight_down_to_left_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                1086,
+                0,
+                1628,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                146,
+                136,
+                374,
+                598
+              ],
+              "raw_visible_height_px": 462,
+              "group_uniform_scale": 0.81126,
+              "raw_landmarks": {
+                "head_width_px": 144,
+                "head_bbox_xyxy": [
+                  194,
+                  136,
+                  338,
+                  323
+                ],
+                "torso_width_px": 92,
+                "torso_bbox_xyxy": [
+                  223,
+                  321,
+                  315,
+                  376
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 118,
+                "head_bbox_xyxy": [
+                  195,
+                  91,
+                  313,
+                  241
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  219,
+                  240,
+                  294,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                156,
+                90,
+                342,
+                465
+              ],
+              "normalized_visible_height_px": 375,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 3.51,
+                "torso_width": -3.85
+              },
+              "phase": "left_passing_to_left_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_07_left_passing_to_left_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                1628,
+                0,
+                2171,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                163,
+                139,
+                391,
+                601
+              ],
+              "raw_visible_height_px": 462,
+              "group_uniform_scale": 0.81126,
+              "raw_landmarks": {
+                "head_width_px": 145,
+                "head_bbox_xyxy": [
+                  194,
+                  140,
+                  339,
+                  327
+                ],
+                "torso_width_px": 86,
+                "torso_bbox_xyxy": [
+                  222,
+                  325,
+                  308,
+                  379
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 118,
+                "head_bbox_xyxy": [
+                  198,
+                  90,
+                  316,
+                  241
+                ],
+                "torso_width_px": 70,
+                "torso_bbox_xyxy": [
+                  221,
+                  241,
+                  291,
+                  285
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                173,
+                90,
+                358,
+                465
+              ],
+              "normalized_visible_height_px": 375,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 3.51,
+                "torso_width": -10.26
+              },
+              "phase": "left_knee_up_to_left_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_08_left_knee_up_to_left_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/north-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "east_replacement": null
+      },
+      "deliverables": {
+        "normalized_strip": "output/animation-overhaul/luna-player/walk-16frame-north.png",
+        "strip_dimensions": [
+          8192,
+          512
+        ],
+        "contact_sheet": "output/animation-overhaul/luna-player/contact-sheet-16phase-north.png",
+        "one_x_preview": "output/animation-overhaul/luna-player/walk-16frame-north-1x.gif",
+        "half_speed_preview": "output/animation-overhaul/luna-player/walk-16frame-north-halfspeed.gif",
+        "normalized_transitions": [
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_01_left_contact_to_left_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_02_left_weight_down_to_right_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_03_right_passing_to_right_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_04_right_knee_up_to_right_contact.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_05_right_contact_to_right_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_06_right_weight_down_to_left_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_07_left_passing_to_left_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/north/transition_08_left_knee_up_to_left_contact.png"
+        ]
+      },
+      "quality_warnings": []
+    },
+    "northeast": {
+      "camera_view": "northeast",
+      "mirror_policy": "authored unique view; west sectors remain mirrored by the parent motion spec",
+      "canonical_source": "assets/generated/characters/rabbit-worker/walk_northeast.png",
+      "canonical_source_sha256": "8b0b30631b84191929af1176fc837e457f02f69b88eaa5e49860b58d95077b6e",
+      "canonical_source_frame_pixel_hashes": [
+        "e8d11f5ddbb7c86fb3e003cd377e2abbbb39ed0ace0bddf396a0bc32d882226b",
+        "31d9ccdd8606059bdb6a0dc952d191ee6af6295d305e0c87c52432814b678148",
+        "db644f6356c92c3c026822c864762925721f97c2d6391e0d5e68df91f888d00f",
+        "20798bd83ee1d73a6af6badcda87ee720e1bf5b258d9fe9c1615ea7bba7ed592",
+        "17d5b4827cb5e1c77c17cbd262c20ae37bae0b7bc676ad768d88c09697ebc583",
+        "58b80cb26708dfe2227650ab65ebb34f9f3049178af65fdb50103c6fc76e57f2",
+        "15ca192c9f1d8887f35eb99b7de10ca1bf466e6c67c03aca0cbf8c8d80158643",
+        "8911b2cf61f3a80550b51161180d75b571af110155db4cc44ed0b8ead02d36fb"
+      ],
+      "canonical_cells_unchanged_in_interleaved_strip": true,
+      "canonical_median_landmark_widths_px": {
+        "head_width_px": 123.5,
+        "torso_width_px": 83.0
+      },
+      "transition_landmark_fit": [
+        {
+          "head_width_px": 133.0,
+          "torso_width_px": 76.0,
+          "head_delta_from_canonical_median_pct": 7.69,
+          "torso_delta_from_canonical_median_pct": -8.43
+        },
+        {
+          "head_width_px": 132.0,
+          "torso_width_px": 76.0,
+          "head_delta_from_canonical_median_pct": 6.88,
+          "torso_delta_from_canonical_median_pct": -8.43
+        },
+        {
+          "head_width_px": 132.0,
+          "torso_width_px": 77.0,
+          "head_delta_from_canonical_median_pct": 6.88,
+          "torso_delta_from_canonical_median_pct": -7.23
+        },
+        {
+          "head_width_px": 133.0,
+          "torso_width_px": 80.0,
+          "head_delta_from_canonical_median_pct": 7.69,
+          "torso_delta_from_canonical_median_pct": -3.61
+        },
+        {
+          "head_width_px": 131.0,
+          "torso_width_px": 76.0,
+          "head_delta_from_canonical_median_pct": 6.07,
+          "torso_delta_from_canonical_median_pct": -8.43
+        },
+        {
+          "head_width_px": 127.0,
+          "torso_width_px": 74.0,
+          "head_delta_from_canonical_median_pct": 2.83,
+          "torso_delta_from_canonical_median_pct": -10.84
+        },
+        {
+          "head_width_px": 136.0,
+          "torso_width_px": 73.0,
+          "head_delta_from_canonical_median_pct": 10.12,
+          "torso_delta_from_canonical_median_pct": -12.05
+        },
+        {
+          "head_width_px": 133.0,
+          "torso_width_px": 76.0,
+          "head_delta_from_canonical_median_pct": 7.69,
+          "torso_delta_from_canonical_median_pct": -8.43
+        }
+      ],
+      "manual_visual_review": {
+        "contact_sheet_reviewed": true,
+        "scope": "static contact-sheet comparison of each transition with its neighboring canonical frames; this does not replace in-engine review",
+        "notes": "Updated v3/v4 atlas contact-sheet review pending; proportions are checked against canonical head and torso landmarks with one uniform scale per raw source master."
+      },
+      "generated_atlases": {
+        "first_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/northeast-between-atlas-v3-generated.png",
+          "sha256": "e0f50610fa6376236a1afa895b5fcbd9a1986647d3fb4c228211515d6b1c3bdb",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "unselected_row_major_cells": [],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 123.5,
+            "canonical_median_torso_width_px": 83.0,
+            "source_master_median_head_width_px": 161.5,
+            "source_master_median_torso_width_px": 91.0,
+            "head_landmark_scale": 0.764706,
+            "torso_landmark_scale": 0.912088,
+            "uniform_master_scale": 0.835152,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 161,
+                "head_bbox_xyxy": [
+                  363,
+                  25,
+                  524,
+                  211
+                ],
+                "torso_width_px": 91,
+                "torso_bbox_xyxy": [
+                  386,
+                  211,
+                  477,
+                  266
+                ]
+              },
+              {
+                "head_width_px": 162,
+                "head_bbox_xyxy": [
+                  235,
+                  25,
+                  397,
+                  211
+                ],
+                "torso_width_px": 91,
+                "torso_bbox_xyxy": [
+                  257,
+                  212,
+                  348,
+                  263
+                ]
+              },
+              {
+                "head_width_px": 163,
+                "head_bbox_xyxy": [
+                  364,
+                  23,
+                  527,
+                  209
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  387,
+                  210,
+                  477,
+                  258
+                ]
+              },
+              {
+                "head_width_px": 156,
+                "head_bbox_xyxy": [
+                  224,
+                  23,
+                  380,
+                  209
+                ],
+                "torso_width_px": 95,
+                "torso_bbox_xyxy": [
+                  249,
+                  209,
+                  344,
+                  263
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                768,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                308,
+                25,
+                567,
+                488
+              ],
+              "raw_visible_height_px": 463,
+              "group_uniform_scale": 0.835152,
+              "raw_landmarks": {
+                "head_width_px": 161,
+                "head_bbox_xyxy": [
+                  363,
+                  25,
+                  524,
+                  211
+                ],
+                "torso_width_px": 91,
+                "torso_bbox_xyxy": [
+                  386,
+                  211,
+                  477,
+                  266
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 133,
+                "head_bbox_xyxy": [
+                  199,
+                  79,
+                  332,
+                  234
+                ],
+                "torso_width_px": 76,
+                "torso_bbox_xyxy": [
+                  218,
+                  234,
+                  294,
+                  280
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                152,
+                79,
+                369,
+                465
+              ],
+              "normalized_visible_height_px": 386,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 7.69,
+                "torso_width": -8.43
+              },
+              "phase": "left_contact_to_left_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_01_left_contact_to_left_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-between-atlas-v3-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                0,
+                1536,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                189,
+                25,
+                439,
+                482
+              ],
+              "raw_visible_height_px": 457,
+              "group_uniform_scale": 0.835152,
+              "raw_landmarks": {
+                "head_width_px": 162,
+                "head_bbox_xyxy": [
+                  235,
+                  25,
+                  397,
+                  211
+                ],
+                "torso_width_px": 91,
+                "torso_bbox_xyxy": [
+                  257,
+                  212,
+                  348,
+                  263
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 132,
+                "head_bbox_xyxy": [
+                  199,
+                  85,
+                  331,
+                  239
+                ],
+                "torso_width_px": 76,
+                "torso_bbox_xyxy": [
+                  218,
+                  240,
+                  294,
+                  282
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                160,
+                84,
+                369,
+                465
+              ],
+              "normalized_visible_height_px": 381,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 6.88,
+                "torso_width": -8.43
+              },
+              "phase": "left_weight_down_to_right_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_02_left_weight_down_to_right_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-between-atlas-v3-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                512,
+                768,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                311,
+                23,
+                558,
+                475
+              ],
+              "raw_visible_height_px": 452,
+              "group_uniform_scale": 0.835152,
+              "raw_landmarks": {
+                "head_width_px": 163,
+                "head_bbox_xyxy": [
+                  364,
+                  23,
+                  527,
+                  209
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  387,
+                  210,
+                  477,
+                  258
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 132,
+                "head_bbox_xyxy": [
+                  202,
+                  87,
+                  334,
+                  242
+                ],
+                "torso_width_px": 77,
+                "torso_bbox_xyxy": [
+                  218,
+                  243,
+                  295,
+                  284
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                157,
+                87,
+                363,
+                465
+              ],
+              "normalized_visible_height_px": 378,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 6.88,
+                "torso_width": -7.23
+              },
+              "phase": "right_passing_to_right_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_03_right_passing_to_right_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-between-atlas-v3-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                512,
+                1536,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                168,
+                23,
+                427,
+                485
+              ],
+              "raw_visible_height_px": 462,
+              "group_uniform_scale": 0.835152,
+              "raw_landmarks": {
+                "head_width_px": 156,
+                "head_bbox_xyxy": [
+                  224,
+                  23,
+                  380,
+                  209
+                ],
+                "torso_width_px": 95,
+                "torso_bbox_xyxy": [
+                  249,
+                  209,
+                  344,
+                  263
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 133,
+                "head_bbox_xyxy": [
+                  195,
+                  80,
+                  328,
+                  235
+                ],
+                "torso_width_px": 80,
+                "torso_bbox_xyxy": [
+                  216,
+                  235,
+                  296,
+                  280
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                148,
+                80,
+                366,
+                465
+              ],
+              "normalized_visible_height_px": 385,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 7.69,
+                "torso_width": -3.61
+              },
+              "phase": "right_knee_up_to_right_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_04_right_knee_up_to_right_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-between-atlas-v3-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "second_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v5-generated.png",
+          "sha256": "3c364292ed72da8d0ddaa3ff322ec938c69ba3d58a92037cb2bea049a005be59",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 123.5,
+            "canonical_median_torso_width_px": 83.0,
+            "source_master_median_head_width_px": 167.5,
+            "source_master_median_torso_width_px": 93.0,
+            "head_landmark_scale": 0.737313,
+            "torso_landmark_scale": 0.892473,
+            "uniform_master_scale": 0.811192,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 165,
+                "head_bbox_xyxy": [
+                  381,
+                  27,
+                  546,
+                  213
+                ],
+                "torso_width_px": 94,
+                "torso_bbox_xyxy": [
+                  399,
+                  214,
+                  493,
+                  270
+                ]
+              },
+              {
+                "head_width_px": 167,
+                "head_bbox_xyxy": [
+                  222,
+                  25,
+                  389,
+                  215
+                ],
+                "torso_width_px": 92,
+                "torso_bbox_xyxy": [
+                  245,
+                  216,
+                  337,
+                  270
+                ]
+              },
+              {
+                "head_width_px": 168,
+                "head_bbox_xyxy": [
+                  362,
+                  13,
+                  530,
+                  195
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  392,
+                  195,
+                  482,
+                  255
+                ]
+              },
+              {
+                "head_width_px": 170,
+                "head_bbox_xyxy": [
+                  219,
+                  12,
+                  389,
+                  196
+                ],
+                "torso_width_px": 94,
+                "torso_bbox_xyxy": [
+                  244,
+                  197,
+                  338,
+                  256
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                768,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                326,
+                27,
+                582,
+                494
+              ],
+              "raw_visible_height_px": 467,
+              "group_uniform_scale": 0.811192,
+              "raw_landmarks": {
+                "head_width_px": 165,
+                "head_bbox_xyxy": [
+                  381,
+                  27,
+                  546,
+                  213
+                ],
+                "torso_width_px": 94,
+                "torso_bbox_xyxy": [
+                  399,
+                  214,
+                  493,
+                  270
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 131,
+                "head_bbox_xyxy": [
+                  203,
+                  86,
+                  334,
+                  237
+                ],
+                "torso_width_px": 76,
+                "torso_bbox_xyxy": [
+                  218,
+                  237,
+                  294,
+                  283
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                159,
+                86,
+                367,
+                465
+              ],
+              "normalized_visible_height_px": 379,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 6.07,
+                "torso_width": -8.43
+              },
+              "phase": "right_contact_to_right_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_05_right_contact_to_right_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                0,
+                1536,
+                512
+              ],
+              "raw_alpha_bbox_16": [
+                168,
+                25,
+                428,
+                496
+              ],
+              "raw_visible_height_px": 471,
+              "group_uniform_scale": 0.811192,
+              "raw_landmarks": {
+                "head_width_px": 167,
+                "head_bbox_xyxy": [
+                  222,
+                  25,
+                  389,
+                  215
+                ],
+                "torso_width_px": 92,
+                "torso_bbox_xyxy": [
+                  245,
+                  216,
+                  337,
+                  270
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 127,
+                "head_bbox_xyxy": [
+                  200,
+                  84,
+                  327,
+                  238
+                ],
+                "torso_width_px": 74,
+                "torso_bbox_xyxy": [
+                  219,
+                  239,
+                  293,
+                  282
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                156,
+                84,
+                368,
+                465
+              ],
+              "normalized_visible_height_px": 381,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 2.83,
+                "torso_width": -10.84
+              },
+              "phase": "right_weight_down_to_left_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_06_right_weight_down_to_left_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                512,
+                768,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                317,
+                13,
+                575,
+                478
+              ],
+              "raw_visible_height_px": 465,
+              "group_uniform_scale": 0.811192,
+              "raw_landmarks": {
+                "head_width_px": 168,
+                "head_bbox_xyxy": [
+                  362,
+                  13,
+                  530,
+                  195
+                ],
+                "torso_width_px": 90,
+                "torso_bbox_xyxy": [
+                  392,
+                  195,
+                  482,
+                  255
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 136,
+                "head_bbox_xyxy": [
+                  195,
+                  87,
+                  331,
+                  236
+                ],
+                "torso_width_px": 73,
+                "torso_bbox_xyxy": [
+                  219,
+                  235,
+                  292,
+                  284
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                159,
+                87,
+                367,
+                465
+              ],
+              "normalized_visible_height_px": 378,
+              "normalized_torso_anchor_x": 255.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 10.12,
+                "torso_width": -12.05
+              },
+              "phase": "left_passing_to_left_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_07_left_passing_to_left_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                768,
+                512,
+                1536,
+                1024
+              ],
+              "raw_alpha_bbox_16": [
+                165,
+                12,
+                428,
+                481
+              ],
+              "raw_visible_height_px": 469,
+              "group_uniform_scale": 0.811192,
+              "raw_landmarks": {
+                "head_width_px": 170,
+                "head_bbox_xyxy": [
+                  219,
+                  12,
+                  389,
+                  196
+                ],
+                "torso_width_px": 94,
+                "torso_bbox_xyxy": [
+                  244,
+                  197,
+                  338,
+                  256
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 133,
+                "head_bbox_xyxy": [
+                  198,
+                  85,
+                  331,
+                  234
+                ],
+                "torso_width_px": 76,
+                "torso_bbox_xyxy": [
+                  218,
+                  234,
+                  294,
+                  283
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                155,
+                85,
+                368,
+                465
+              ],
+              "normalized_visible_height_px": 380,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 7.69,
+                "torso_width": -8.43
+              },
+              "phase": "left_knee_up_to_left_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_08_left_knee_up_to_left_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/northeast-secondhalf-atlas-v5-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "east_replacement": null
+      },
+      "deliverables": {
+        "normalized_strip": "output/animation-overhaul/luna-player/walk-16frame-northeast.png",
+        "strip_dimensions": [
+          8192,
+          512
+        ],
+        "contact_sheet": "output/animation-overhaul/luna-player/contact-sheet-16phase-northeast.png",
+        "one_x_preview": "output/animation-overhaul/luna-player/walk-16frame-northeast-1x.gif",
+        "half_speed_preview": "output/animation-overhaul/luna-player/walk-16frame-northeast-halfspeed.gif",
+        "normalized_transitions": [
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_01_left_contact_to_left_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_02_left_weight_down_to_right_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_03_right_passing_to_right_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_04_right_knee_up_to_right_contact.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_05_right_contact_to_right_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_06_right_weight_down_to_left_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_07_left_passing_to_left_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/northeast/transition_08_left_knee_up_to_left_contact.png"
+        ]
+      },
+      "quality_warnings": [
+        "transition 7 torso landmark differs from canonical median by more than 12%"
+      ]
+    },
+    "south": {
+      "camera_view": "south",
+      "mirror_policy": "authored unique view; west sectors remain mirrored by the parent motion spec",
+      "canonical_source": "assets/generated/characters/rabbit-worker/walk_south.png",
+      "canonical_source_sha256": "751b00128d2103969948c05410d4486aa7d78b2b903bfa311f675ff6297174e8",
+      "canonical_source_frame_pixel_hashes": [
+        "a13cbb72b34515bea8c3178df521890cb9e43915385a2f75ce549333722d980c",
+        "463febcec619d10dbb609825017a050d46b5eab018873e0782c2026c7ee7ad8a",
+        "76ad8f7b7fd20166684706333ec95712ff99b682712eca800561ceaa63bb2fed",
+        "e379f94be27c370d171c522b20b916e7532ee6d7cac614925691dc414143504f",
+        "b02ef5aafd5154671f6117a26544f4a8e87b9748b9220650e8d0d15f08da3e20",
+        "7bf0b5e65da5b602ddc1698397fc51fa67e0fc02ee16b133cbdd75e74c9916c8",
+        "f5d692e0aff7b415796485bbce7559aa1a0983f14207faf2a6cee55c98e3e540",
+        "3170b29c4f0f76d4f1dad98ed456cd809a39343ebded0b0028748bb1ad1203a3"
+      ],
+      "canonical_cells_unchanged_in_interleaved_strip": true,
+      "canonical_median_landmark_widths_px": {
+        "head_width_px": 106.5,
+        "torso_width_px": 75.0
+      },
+      "transition_landmark_fit": [
+        {
+          "head_width_px": 118.0,
+          "torso_width_px": 67.0,
+          "head_delta_from_canonical_median_pct": 10.8,
+          "torso_delta_from_canonical_median_pct": -10.67
+        },
+        {
+          "head_width_px": 116.0,
+          "torso_width_px": 68.0,
+          "head_delta_from_canonical_median_pct": 8.92,
+          "torso_delta_from_canonical_median_pct": -9.33
+        },
+        {
+          "head_width_px": 118.0,
+          "torso_width_px": 68.0,
+          "head_delta_from_canonical_median_pct": 10.8,
+          "torso_delta_from_canonical_median_pct": -9.33
+        },
+        {
+          "head_width_px": 115.0,
+          "torso_width_px": 72.0,
+          "head_delta_from_canonical_median_pct": 7.98,
+          "torso_delta_from_canonical_median_pct": -4.0
+        },
+        {
+          "head_width_px": 114.0,
+          "torso_width_px": 70.0,
+          "head_delta_from_canonical_median_pct": 7.04,
+          "torso_delta_from_canonical_median_pct": -6.67
+        },
+        {
+          "head_width_px": 115.0,
+          "torso_width_px": 70.0,
+          "head_delta_from_canonical_median_pct": 7.98,
+          "torso_delta_from_canonical_median_pct": -6.67
+        },
+        {
+          "head_width_px": 117.0,
+          "torso_width_px": 71.0,
+          "head_delta_from_canonical_median_pct": 9.86,
+          "torso_delta_from_canonical_median_pct": -5.33
+        },
+        {
+          "head_width_px": 116.0,
+          "torso_width_px": 68.0,
+          "head_delta_from_canonical_median_pct": 8.92,
+          "torso_delta_from_canonical_median_pct": -9.33
+        }
+      ],
+      "manual_visual_review": {
+        "contact_sheet_reviewed": true,
+        "scope": "static contact-sheet comparison of each transition with its neighboring canonical frames; this does not replace in-engine review",
+        "notes": "Static 16-frame contact-sheet review: front-view boot placements alternate through the cycle; head/torso residuals are recorded in transition_landmark_fit; no anatomy, tool, matte, or clipping defect observed."
+      },
+      "generated_atlases": {
+        "first_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/south-between-atlas-v1-generated.png",
+          "sha256": "fefbaee326e9bdc33bba9300f1a31a590d72da8d38392a5a3ffbc789feb7625b",
+          "dimensions": [
+            1774,
+            887
+          ],
+          "grid_columns": 2,
+          "grid_rows": 2,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "unselected_row_major_cells": [],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 106.5,
+            "canonical_median_torso_width_px": 75.0,
+            "source_master_median_head_width_px": 128.0,
+            "source_master_median_torso_width_px": 75.0,
+            "head_landmark_scale": 0.832031,
+            "torso_landmark_scale": 1.0,
+            "uniform_master_scale": 0.912157,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 130,
+                "head_bbox_xyxy": [
+                  587,
+                  19,
+                  717,
+                  190
+                ],
+                "torso_width_px": 74,
+                "torso_bbox_xyxy": [
+                  614,
+                  183,
+                  688,
+                  231
+                ]
+              },
+              {
+                "head_width_px": 127,
+                "head_bbox_xyxy": [
+                  181,
+                  19,
+                  308,
+                  191
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  209,
+                  181,
+                  284,
+                  232
+                ]
+              },
+              {
+                "head_width_px": 129,
+                "head_bbox_xyxy": [
+                  588,
+                  14,
+                  717,
+                  184
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  613,
+                  171,
+                  688,
+                  225
+                ]
+              },
+              {
+                "head_width_px": 126,
+                "head_bbox_xyxy": [
+                  181,
+                  14,
+                  307,
+                  182
+                ],
+                "torso_width_px": 78,
+                "torso_bbox_xyxy": [
+                  207,
+                  171,
+                  285,
+                  223
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                887,
+                444
+              ],
+              "raw_alpha_bbox_16": [
+                560,
+                19,
+                749,
+                427
+              ],
+              "raw_visible_height_px": 408,
+              "group_uniform_scale": 0.912157,
+              "raw_landmarks": {
+                "head_width_px": 130,
+                "head_bbox_xyxy": [
+                  587,
+                  19,
+                  717,
+                  190
+                ],
+                "torso_width_px": 74,
+                "torso_bbox_xyxy": [
+                  614,
+                  183,
+                  688,
+                  231
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 118,
+                "head_bbox_xyxy": [
+                  198,
+                  92,
+                  316,
+                  249
+                ],
+                "torso_width_px": 67,
+                "torso_bbox_xyxy": [
+                  223,
+                  242,
+                  290,
+                  286
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                174,
+                92,
+                346,
+                465
+              ],
+              "normalized_visible_height_px": 373,
+              "normalized_torso_anchor_x": 256.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 10.8,
+                "torso_width": -10.67
+              },
+              "phase": "left_contact_to_left_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_01_left_contact_to_left_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-between-atlas-v1-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                887,
+                0,
+                1774,
+                444
+              ],
+              "raw_alpha_bbox_16": [
+                158,
+                19,
+                346,
+                428
+              ],
+              "raw_visible_height_px": 409,
+              "group_uniform_scale": 0.912157,
+              "raw_landmarks": {
+                "head_width_px": 127,
+                "head_bbox_xyxy": [
+                  181,
+                  19,
+                  308,
+                  191
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  209,
+                  181,
+                  284,
+                  232
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 116,
+                "head_bbox_xyxy": [
+                  196,
+                  92,
+                  312,
+                  249
+                ],
+                "torso_width_px": 68,
+                "torso_bbox_xyxy": [
+                  222,
+                  240,
+                  290,
+                  286
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                175,
+                92,
+                347,
+                465
+              ],
+              "normalized_visible_height_px": 373,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 8.92,
+                "torso_width": -9.33
+              },
+              "phase": "left_weight_down_to_right_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_02_left_weight_down_to_right_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-between-atlas-v1-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                444,
+                887,
+                887
+              ],
+              "raw_alpha_bbox_16": [
+                561,
+                14,
+                742,
+                419
+              ],
+              "raw_visible_height_px": 405,
+              "group_uniform_scale": 0.912157,
+              "raw_landmarks": {
+                "head_width_px": 129,
+                "head_bbox_xyxy": [
+                  588,
+                  14,
+                  717,
+                  184
+                ],
+                "torso_width_px": 75,
+                "torso_bbox_xyxy": [
+                  613,
+                  171,
+                  688,
+                  225
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 118,
+                "head_bbox_xyxy": [
+                  199,
+                  95,
+                  317,
+                  250
+                ],
+                "torso_width_px": 68,
+                "torso_bbox_xyxy": [
+                  222,
+                  238,
+                  290,
+                  287
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                174,
+                95,
+                339,
+                465
+              ],
+              "normalized_visible_height_px": 370,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 10.8,
+                "torso_width": -9.33
+              },
+              "phase": "right_passing_to_right_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_03_right_passing_to_right_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-between-atlas-v1-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                887,
+                444,
+                1774,
+                887
+              ],
+              "raw_alpha_bbox_16": [
+                152,
+                14,
+                335,
+                415
+              ],
+              "raw_visible_height_px": 401,
+              "group_uniform_scale": 0.912157,
+              "raw_landmarks": {
+                "head_width_px": 126,
+                "head_bbox_xyxy": [
+                  181,
+                  14,
+                  307,
+                  182
+                ],
+                "torso_width_px": 78,
+                "torso_bbox_xyxy": [
+                  207,
+                  171,
+                  285,
+                  223
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 115,
+                "head_bbox_xyxy": [
+                  197,
+                  100,
+                  312,
+                  253
+                ],
+                "torso_width_px": 72,
+                "torso_bbox_xyxy": [
+                  220,
+                  242,
+                  292,
+                  290
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                171,
+                100,
+                338,
+                465
+              ],
+              "normalized_visible_height_px": 365,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 7.98,
+                "torso_width": -4.0
+              },
+              "phase": "right_knee_up_to_right_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_04_right_knee_up_to_right_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-between-atlas-v1-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "second_half": {
+          "path": "assets/source/animation-overhaul-luna-player-v1/south-secondhalf-atlas-v1-generated.png",
+          "sha256": "a252aff928281c47189ebd6457edb50068ecc5c34c5e106d874b60afb666f977",
+          "dimensions": [
+            2171,
+            724
+          ],
+          "grid_columns": 4,
+          "grid_rows": 1,
+          "selected_row_major_cells": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "scale_fit": {
+            "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+            "canonical_median_head_width_px": 106.5,
+            "canonical_median_torso_width_px": 75.0,
+            "source_master_median_head_width_px": 164.5,
+            "source_master_median_torso_width_px": 98.5,
+            "head_landmark_scale": 0.647416,
+            "torso_landmark_scale": 0.761421,
+            "uniform_master_scale": 0.702109,
+            "source_cell_landmarks": [
+              {
+                "head_width_px": 163,
+                "head_bbox_xyxy": [
+                  206,
+                  84,
+                  369,
+                  315
+                ],
+                "torso_width_px": 98,
+                "torso_bbox_xyxy": [
+                  236,
+                  298,
+                  334,
+                  369
+                ]
+              },
+              {
+                "head_width_px": 164,
+                "head_bbox_xyxy": [
+                  179,
+                  82,
+                  343,
+                  313
+                ],
+                "torso_width_px": 100,
+                "torso_bbox_xyxy": [
+                  210,
+                  299,
+                  310,
+                  367
+                ]
+              },
+              {
+                "head_width_px": 166,
+                "head_bbox_xyxy": [
+                  193,
+                  74,
+                  359,
+                  308
+                ],
+                "torso_width_px": 99,
+                "torso_bbox_xyxy": [
+                  225,
+                  294,
+                  324,
+                  364
+                ]
+              },
+              {
+                "head_width_px": 165,
+                "head_bbox_xyxy": [
+                  170,
+                  76,
+                  335,
+                  306
+                ],
+                "torso_width_px": 97,
+                "torso_bbox_xyxy": [
+                  203,
+                  296,
+                  300,
+                  360
+                ]
+              }
+            ],
+            "per_cell_scale_used": false
+          },
+          "cell_normalization": [
+            {
+              "cell_number": 1,
+              "atlas_cell_bounds_xyxy": [
+                0,
+                0,
+                543,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                163,
+                84,
+                416,
+                633
+              ],
+              "raw_visible_height_px": 549,
+              "group_uniform_scale": 0.702109,
+              "raw_landmarks": {
+                "head_width_px": 163,
+                "head_bbox_xyxy": [
+                  206,
+                  84,
+                  369,
+                  315
+                ],
+                "torso_width_px": 98,
+                "torso_bbox_xyxy": [
+                  236,
+                  298,
+                  334,
+                  369
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 114,
+                "head_bbox_xyxy": [
+                  201,
+                  79,
+                  315,
+                  241
+                ],
+                "torso_width_px": 70,
+                "torso_bbox_xyxy": [
+                  221,
+                  229,
+                  291,
+                  280
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                170,
+                79,
+                348,
+                465
+              ],
+              "normalized_visible_height_px": 386,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 7.04,
+                "torso_width": -6.67
+              },
+              "phase": "right_contact_to_right_weight_down",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_05_right_contact_to_right_weight_down.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 1,
+              "selected_row_major_cell": 1
+            },
+            {
+              "cell_number": 2,
+              "atlas_cell_bounds_xyxy": [
+                543,
+                0,
+                1086,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                130,
+                82,
+                383,
+                631
+              ],
+              "raw_visible_height_px": 549,
+              "group_uniform_scale": 0.702109,
+              "raw_landmarks": {
+                "head_width_px": 164,
+                "head_bbox_xyxy": [
+                  179,
+                  82,
+                  343,
+                  313
+                ],
+                "torso_width_px": 100,
+                "torso_bbox_xyxy": [
+                  210,
+                  299,
+                  310,
+                  367
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 115,
+                "head_bbox_xyxy": [
+                  199,
+                  80,
+                  314,
+                  241
+                ],
+                "torso_width_px": 70,
+                "torso_bbox_xyxy": [
+                  221,
+                  231,
+                  291,
+                  279
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                164,
+                78,
+                343,
+                465
+              ],
+              "normalized_visible_height_px": 387,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 7.98,
+                "torso_width": -6.67
+              },
+              "phase": "right_weight_down_to_left_passing",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_06_right_weight_down_to_left_passing.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 2,
+              "selected_row_major_cell": 2
+            },
+            {
+              "cell_number": 3,
+              "atlas_cell_bounds_xyxy": [
+                1086,
+                0,
+                1628,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                152,
+                74,
+                411,
+                632
+              ],
+              "raw_visible_height_px": 558,
+              "group_uniform_scale": 0.702109,
+              "raw_landmarks": {
+                "head_width_px": 166,
+                "head_bbox_xyxy": [
+                  193,
+                  74,
+                  359,
+                  308
+                ],
+                "torso_width_px": 99,
+                "torso_bbox_xyxy": [
+                  225,
+                  294,
+                  324,
+                  364
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 117,
+                "head_bbox_xyxy": [
+                  198,
+                  76,
+                  315,
+                  238
+                ],
+                "torso_width_px": 71,
+                "torso_bbox_xyxy": [
+                  220,
+                  227,
+                  291,
+                  277
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                170,
+                73,
+                352,
+                465
+              ],
+              "normalized_visible_height_px": 392,
+              "normalized_torso_anchor_x": 255.5,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 9.86,
+                "torso_width": -5.33
+              },
+              "phase": "left_passing_to_left_knee_up",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_07_left_passing_to_left_knee_up.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 3,
+              "selected_row_major_cell": 3
+            },
+            {
+              "cell_number": 4,
+              "atlas_cell_bounds_xyxy": [
+                1628,
+                0,
+                2171,
+                724
+              ],
+              "raw_alpha_bbox_16": [
+                121,
+                76,
+                374,
+                623
+              ],
+              "raw_visible_height_px": 547,
+              "group_uniform_scale": 0.702109,
+              "raw_landmarks": {
+                "head_width_px": 165,
+                "head_bbox_xyxy": [
+                  170,
+                  76,
+                  335,
+                  306
+                ],
+                "torso_width_px": 97,
+                "torso_bbox_xyxy": [
+                  203,
+                  296,
+                  300,
+                  360
+                ]
+              },
+              "normalized_landmarks": {
+                "head_width_px": 116,
+                "head_bbox_xyxy": [
+                  199,
+                  81,
+                  315,
+                  242
+                ],
+                "torso_width_px": 68,
+                "torso_bbox_xyxy": [
+                  222,
+                  235,
+                  290,
+                  281
+                ]
+              },
+              "normalized_alpha_bbox_16": [
+                165,
+                81,
+                342,
+                465
+              ],
+              "normalized_visible_height_px": 384,
+              "normalized_torso_anchor_x": 256.0,
+              "normalized_ground_y": 465,
+              "edge_clipped": false,
+              "canonical_landmark_delta_pct": {
+                "head_width": 8.92,
+                "torso_width": -9.33
+              },
+              "phase": "left_knee_up_to_left_contact",
+              "normalized_asset": "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_08_left_knee_up_to_left_contact.png",
+              "selected_source": "assets/source/animation-overhaul-luna-player-v1/south-secondhalf-atlas-v1-generated.png",
+              "selected_cell_number": 4,
+              "selected_row_major_cell": 4
+            }
+          ]
+        },
+        "east_replacement": null
+      },
+      "deliverables": {
+        "normalized_strip": "output/animation-overhaul/luna-player/walk-16frame-south.png",
+        "strip_dimensions": [
+          8192,
+          512
+        ],
+        "contact_sheet": "output/animation-overhaul/luna-player/contact-sheet-16phase-south.png",
+        "one_x_preview": "output/animation-overhaul/luna-player/walk-16frame-south-1x.gif",
+        "half_speed_preview": "output/animation-overhaul/luna-player/walk-16frame-south-halfspeed.gif",
+        "normalized_transitions": [
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_01_left_contact_to_left_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_02_left_weight_down_to_right_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_03_right_passing_to_right_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_04_right_knee_up_to_right_contact.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_05_right_contact_to_right_weight_down.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_06_right_weight_down_to_left_passing.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_07_left_passing_to_left_knee_up.png",
+          "assets/source/animation-overhaul-luna-player-v1/normalized-transitions/south/transition_08_left_knee_up_to_left_contact.png"
+        ]
+      },
+      "quality_warnings": []
+    }
+  }
+}

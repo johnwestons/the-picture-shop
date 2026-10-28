@@ -78,7 +78,7 @@ function Upgrades.stageInfo(stage) return copy(STAGES[stage]) end
 
 function Upgrades.validate(value)
     if not exact(value, { layoutVersion=true, nextProjectId=true, bays=true, projects=true,
-        receipts=true, forkliftOwned=true, activeProjectId=true })
+        receipts=true, forkliftOwned=true, activeProjectId=true, garageDoors=true })
         or value.layoutVersion ~= Upgrades.LAYOUT_VERSION
         or not integer(value.nextProjectId) or value.nextProjectId < 1 or value.nextProjectId > 3
         or type(value.forkliftOwned) ~= "boolean"
@@ -186,6 +186,7 @@ function Upgrades.validate(value)
     end
     for id in pairs(ids) do if not paidProjects[id] then return false, "Construction has no purchase receipt." end end
     if value.forkliftOwned ~= forkliftReceipt then return false, "Forklift entitlement and receipt disagree." end
+    if not require("src.room_loading_bays").validate(value) then return false,"Invalid room garage door purchase." end
     return true
 end
 
@@ -206,6 +207,11 @@ function Upgrades.ensure(state)
 end
 
 local function priorPurchase(warehouse, requestId, kind, bayId, optionId)
+    for _,receipt in pairs(warehouse.garageDoors or {}) do
+        if receipt.requestId==requestId then
+            return false,"That purchase request ID was already used for a garage door.","request_conflict"
+        end
+    end
     for _, receipt in ipairs(warehouse.receipts) do
         if receipt.requestId == requestId then
             if receipt.kind ~= kind or receipt.bayId ~= bayId or receipt.optionId ~= optionId then

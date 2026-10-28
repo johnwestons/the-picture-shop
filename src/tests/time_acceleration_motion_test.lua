@@ -56,7 +56,9 @@ function Test.run(_, check)
     } }
     Technician.update(1, technicianState, false, 0.1)
     check("technician_walking_uses_real_time_during_shop_acceleration",
-        math.abs(technicianState.technicianVisit.x - 507.8) < 0.0001
+        technicianState.technicianVisit.x > 500 and technicianState.technicianVisit.x < 507.8
+        and math.abs(technicianState.technicianVisit.animationDistance
+            - (technicianState.technicianVisit.x-500)) < .0001
         and math.abs(technicianState.technicianVisit.animationClock - 0.1) < 0.0001)
 
     local truck = Truck.new({

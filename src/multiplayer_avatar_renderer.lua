@@ -43,8 +43,7 @@ local function drawPlayer(characterAssets,player,state)
     local directionScale = player.facing or 1
     local pushArtwork=false
     if player.moving and not resting then
-        local directionalAction,mirror=CharacterAnimation.directionalWalkAction(
-            player.velocityX or player.intentX,player.velocityY or player.intentY)
+        local directionalAction,mirror=CharacterAnimation.actorWalkAction(player)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     end
@@ -98,7 +97,7 @@ local function drawPlayer(characterAssets,player,state)
             highFive.elapsed, highFive.duration)
     elseif pushingJack and pushArtwork then
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
-            player.animationDistance or 0,Config.player.walkPixelsPerFrame)
+            player.animationDistance or 0,Config.palletJack.gaitPixelsPerFrame or 20)
     elseif taskActionActive then
         frame = CharacterAnimation.frameForClock(frameCount, player.taskClock or 0, 4)
     else

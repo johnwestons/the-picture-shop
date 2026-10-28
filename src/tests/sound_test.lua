@@ -54,6 +54,13 @@ function Test.run(context, check)
     check("sound_loop_ownership_tracks_warehouse_and_press",
         started.warehouse == "warehouse_ambience_loop"
         and started.press == "press_running_loop")
+    active.pressMotor=false
+    stopped.press=nil
+    instance:syncPersistentLoops(active)
+    check("sound_stopped_motor_is_silent_even_with_stale_production_status",stopped.press==true)
+    active.pressMotor=true;active.screen="title";stopped.press=nil
+    instance:syncPersistentLoops(active)
+    check("sound_title_cannot_keep_a_production_motor_loop",stopped.press==true)
     active.screen, active.pressStatus = "title", "idle"
     instance:syncPersistentLoops(active)
     check("sound_loops_stop_outside_their_owners", stopped.warehouse and stopped.press)

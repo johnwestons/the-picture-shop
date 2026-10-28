@@ -1,4 +1,4 @@
-param()
+param([switch]$UseConfiguredVersion)
 
 $ErrorActionPreference = 'Stop'
 # The existing native builder uses modern .NET APIs and long archive paths.
@@ -33,15 +33,25 @@ $previousApk = Get-ChildItem -LiteralPath $mobileRoot -Filter 'ThePictureShop-*-
     Where-Object { $_.Name -match '^ThePictureShop-\d+\.\d+\.\d+-android\.\d+-debug\.apk$' } |
     Sort-Object { [int]([regex]::Match($_.Name, '-android\.(\d+)').Groups[1].Value) } -Descending |
     Select-Object -First 1
-$highestCode = [int]$config.versionCode
+$latestApkCode = 0
 if ($previousApk) {
-    $highestCode = [Math]::Max($highestCode, [int]([regex]::Match($previousApk.Name, '-android\.(\d+)').Groups[1].Value))
+    $latestApkCode = [int]([regex]::Match($previousApk.Name, '-android\.(\d+)').Groups[1].Value)
 }
-$config.versionCode = $highestCode + 1
-$config.versionName = "$baseVersion-android.$($config.versionCode)"
+if ($UseConfiguredVersion) {
+    $expectedVersionName = "$baseVersion-android.$($config.versionCode)"
+    if ([int]$config.versionCode -le $latestApkCode -or $config.versionName -ne $expectedVersionName) {
+        throw 'The configured Android version must be internally consistent and newer than the latest APK.'
+    }
+} else {
+    $highestCode = [Math]::Max([int]$config.versionCode, $latestApkCode)
+    $config.versionCode = $highestCode + 1
+    $config.versionName = "$baseVersion-android.$($config.versionCode)"
+}
 $shareRoot = Join-Path $projectRoot "output\android-share\$($config.versionName)"
 if (Test-Path -LiteralPath $shareRoot) { throw "Share folder already exists: $shareRoot" }
-[System.IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json) + "`n", $utf8)
+if (-not $UseConfiguredVersion) {
+    [System.IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json) + "`n", $utf8)
+}
 
 & $buildShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $projectRoot 'BUILD_ANDROID.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Android build failed; no share package created.' }

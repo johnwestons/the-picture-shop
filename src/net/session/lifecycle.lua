@@ -50,6 +50,7 @@ function Component.install(Runtime)
             lastEnvironmentTick = -1,
             lastEmployeeTick = -1,
             lastPalletJackTick = -1,
+            lastExtraPalletJackTicks = {},
             lastForkliftTick = -1,
             lastCutterTick = -1,
             lastWindmillTick = -1,
@@ -156,6 +157,7 @@ function Component.install(Runtime)
         self.lastEnvironmentTick = -1
         self.lastEmployeeTick = -1
         self.lastPalletJackTick = -1
+        self.lastExtraPalletJackTicks = {}
         self.lastForkliftTick = -1
         self.lastCutterTick = -1
         self.lastWindmillTick = -1

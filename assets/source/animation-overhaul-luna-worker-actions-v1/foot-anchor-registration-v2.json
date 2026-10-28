@@ -1,0 +1,5551 @@
+{
+  "version": 2,
+  "status": "staged review only; no runtime installation",
+  "alpha_threshold_exclusive": 16,
+  "actions": [
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_press",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v3-generated.png",
+      "selected_atlas_sha256": "A470303E30F7FE88F86A4E5B50A20FF9473E2A4BA3263D97F8BEA7792942BD99",
+      "normalized_strip": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_press-8frame-v2-foot-registered.png",
+      "contact_sheet": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_press-8frame-v2-foot-registered-contact-sheet.png",
+      "timed_preview": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_press-8frame-v2-foot-registered-timed-preview-4fps.gif",
+      "dimensions": {
+        "frame_width": 256,
+        "frame_height": 256,
+        "frame_count": 8,
+        "strip_width": 2048,
+        "strip_height": 256,
+        "preview_duration_ms_per_frame": 250
+      },
+      "registration": {
+        "method": "per-frame rigid translation aligning midpoint of the two reviewed foot sole contacts",
+        "support_foot_regions_reviewed": {
+          "image_left": "source x 0..219; lower 90 rows",
+          "image_right": "source x 220..354; lower 90 rows (excludes ferret tail at far right)"
+        },
+        "contact_measurement": "alpha >16; lowest row with merged contiguous run >=12px; runs may bridge gaps <=14px",
+        "target_foot_midpoint_px": {
+          "x": 128,
+          "y": 229
+        },
+        "scale_policy": "same per-atlas scale formula as v1, one scale shared by all eight frames; no per-frame resizing",
+        "torso_and_limb_policy": "translate whole source pose only; do not alter torso lean or foot separation",
+        "legacy_fixed_x_fraction_foot_midpoint_range_px": [
+          99.715,
+          112.871
+        ],
+        "legacy_fixed_x_fraction_foot_midpoint_drift_range_px": 13.156,
+        "registered_interfoot_horizontal_spread_range_px": [
+          72.357,
+          78.935
+        ],
+        "registered_interfoot_horizontal_spread_range_width_px": 6.578
+      },
+      "frames": [
+        {
+          "frame": 1,
+          "semantics": "ready_orient_to_press",
+          "source_cell": 1,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 136.5,
+                "y": 403
+              },
+              "sole_span_x_px_inclusive": [
+                119,
+                154
+              ],
+              "sole_run_width_px": 36,
+              "merged_runs_on_contact_row": [
+                [
+                  119,
+                  154
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 282.5,
+                "y": 402
+              },
+              "sole_span_x_px_inclusive": [
+                260,
+                305
+              ],
+              "sole_run_width_px": 46,
+              "merged_runs_on_contact_row": [
+                [
+                  260,
+                  305
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 209.5,
+            "y": 402.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 146.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 54,
+              "y": 26
+            },
+            "composite_offset_px": {
+              "x": 49,
+              "y": 38
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 21.676,
+              "y": 24.844
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.063,
+              "y": 229.253
+            },
+            "image_right": {
+              "x": 164.937,
+              "y": 228.747
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 73.875,
+            "vertical": -0.506
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 110.72,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.241,
+          "normalized_bbox_px": [
+            49,
+            38,
+            202,
+            229
+          ]
+        },
+        {
+          "frame": 2,
+          "semantics": "reach_toward_feeder",
+          "source_cell": 2,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 117.5,
+                "y": 403
+              },
+              "sole_span_x_px_inclusive": [
+                107,
+                128
+              ],
+              "sole_run_width_px": 22,
+              "merged_runs_on_contact_row": [
+                [
+                  107,
+                  128
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 273.5,
+                "y": 401
+              },
+              "sole_span_x_px_inclusive": [
+                252,
+                295
+              ],
+              "sole_run_width_px": 44,
+              "merged_runs_on_contact_row": [
+                [
+                  252,
+                  295
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 195.5,
+            "y": 402.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 156.0,
+            "vertical": -2
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 39,
+              "y": 27
+            },
+            "composite_offset_px": {
+              "x": 49,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 29.266,
+              "y": 25.338
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 88.533,
+              "y": 229.506
+            },
+            "image_right": {
+              "x": 167.467,
+              "y": 228.494
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 78.935,
+            "vertical": -1.012
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 103.636,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.988,
+          "normalized_bbox_px": [
+            49,
+            39,
+            218,
+            230
+          ]
+        },
+        {
+          "frame": 3,
+          "semantics": "contact_outer_feed_surface",
+          "source_cell": 3,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 114.0,
+                "y": 403
+              },
+              "sole_span_x_px_inclusive": [
+                107,
+                121
+              ],
+              "sole_run_width_px": 15,
+              "merged_runs_on_contact_row": [
+                [
+                  107,
+                  121
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 261.5,
+                "y": 400
+              },
+              "sole_span_x_px_inclusive": [
+                238,
+                285
+              ],
+              "sole_run_width_px": 48,
+              "merged_runs_on_contact_row": [
+                [
+                  238,
+                  285
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 187.75,
+            "y": 401.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 147.5,
+            "vertical": -3
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 28,
+              "y": 29
+            },
+            "composite_offset_px": {
+              "x": 47,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 32.832,
+              "y": 26.326
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.683,
+              "y": 229.759
+            },
+            "image_right": {
+              "x": 165.317,
+              "y": 228.241
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.634,
+            "vertical": -1.518
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 99.715,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.735,
+          "normalized_bbox_px": [
+            47,
+            41,
+            236,
+            231
+          ]
+        },
+        {
+          "frame": 4,
+          "semantics": "align_on_supported_outer_edge",
+          "source_cell": 4,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 128.5,
+                "y": 403
+              },
+              "sole_span_x_px_inclusive": [
+                114,
+                143
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  114,
+                  143
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 271.5,
+                "y": 401
+              },
+              "sole_span_x_px_inclusive": [
+                258,
+                285
+              ],
+              "sole_run_width_px": 28,
+              "merged_runs_on_contact_row": [
+                [
+                  258,
+                  285
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 200.0,
+            "y": 402.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 143.0,
+            "vertical": -2
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 47,
+              "y": 28
+            },
+            "composite_offset_px": {
+              "x": 51,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 27.218,
+              "y": 25.832
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.822,
+              "y": 229.506
+            },
+            "image_right": {
+              "x": 164.178,
+              "y": 228.494
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 72.357,
+            "vertical": -1.012
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 105.913,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.988,
+          "normalized_bbox_px": [
+            51,
+            40,
+            214,
+            230
+          ]
+        },
+        {
+          "frame": 5,
+          "semantics": "withdraw_toward_external_controls",
+          "source_cell": 5,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 139.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                120,
+                158
+              ],
+              "sole_run_width_px": 39,
+              "merged_runs_on_contact_row": [
+                [
+                  120,
+                  158
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 288.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                272,
+                305
+              ],
+              "sole_run_width_px": 34,
+              "merged_runs_on_contact_row": [
+                [
+                  272,
+                  305
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 213.75,
+            "y": 393.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 149.5,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 55,
+              "y": 22
+            },
+            "composite_offset_px": {
+              "x": 48,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 20.17,
+              "y": 29.868
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.177,
+              "y": 229.253
+            },
+            "image_right": {
+              "x": 165.823,
+              "y": 228.747
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 75.646,
+            "vertical": -0.506
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 112.871,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.735,
+          "normalized_bbox_px": [
+            48,
+            41,
+            206,
+            230
+          ]
+        },
+        {
+          "frame": 6,
+          "semantics": "brief_safe_control_hold",
+          "source_cell": 6,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 137.5,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                126,
+                149
+              ],
+              "sole_run_width_px": 24,
+              "merged_runs_on_contact_row": [
+                [
+                  126,
+                  149
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 285.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                271,
+                300
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  271,
+                  300
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 211.5,
+            "y": 394.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 148.0,
+            "vertical": -2
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 50,
+              "y": 16
+            },
+            "composite_offset_px": {
+              "x": 46,
+              "y": 38
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 20.7,
+              "y": 29.904
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.557,
+              "y": 229.506
+            },
+            "image_right": {
+              "x": 165.443,
+              "y": 228.494
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.887,
+            "vertical": -1.012
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 111.732,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.988,
+          "normalized_bbox_px": [
+            46,
+            38,
+            218,
+            230
+          ]
+        },
+        {
+          "frame": 7,
+          "semantics": "release_and_retract",
+          "source_cell": 7,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 134.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                117,
+                151
+              ],
+              "sole_run_width_px": 35,
+              "merged_runs_on_contact_row": [
+                [
+                  117,
+                  151
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 285.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                270,
+                301
+              ],
+              "sole_run_width_px": 32,
+              "merged_runs_on_contact_row": [
+                [
+                  270,
+                  301
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 209.75,
+            "y": 393.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 151.5,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 53,
+              "y": 22
+            },
+            "composite_offset_px": {
+              "x": 49,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 22.182,
+              "y": 29.868
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 89.671,
+              "y": 229.253
+            },
+            "image_right": {
+              "x": 166.329,
+              "y": 228.747
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 76.658,
+            "vertical": -0.506
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 110.847,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.241,
+          "normalized_bbox_px": [
+            49,
+            41,
+            206,
+            230
+          ]
+        },
+        {
+          "frame": 8,
+          "semantics": "recover_to_ready",
+          "source_cell": 8,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 133.5,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                115,
+                152
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  115,
+                  152
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 280.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                262,
+                299
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  262,
+                  299
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 207.0,
+            "y": 393.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 147.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.505992,
+            "crop_offset_px": {
+              "x": 54,
+              "y": 23
+            },
+            "composite_offset_px": {
+              "x": 51,
+              "y": 42
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 23.676,
+              "y": 30.362
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.81,
+              "y": 229.253
+            },
+            "image_right": {
+              "x": 165.19,
+              "y": 228.747
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.381,
+            "vertical": -0.506
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 109.455,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.735,
+          "normalized_bbox_px": [
+            51,
+            42,
+            203,
+            231
+          ]
+        }
+      ],
+      "raw_foot_contact_review": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_press-v2-foot-contact-review.png"
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_wrapping",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v11-margin-cleanup-generated.png",
+      "selected_atlas_sha256": "90FA6D6DD20E6E112C942E7F582C5D90E2DAB8724D3799F850CF5719E5D60964",
+      "normalized_strip": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_wrapping-8frame-v2-foot-registered.png",
+      "contact_sheet": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_wrapping-8frame-v2-foot-registered-contact-sheet.png",
+      "timed_preview": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_wrapping-8frame-v2-foot-registered-timed-preview-4fps.gif",
+      "dimensions": {
+        "frame_width": 256,
+        "frame_height": 256,
+        "frame_count": 8,
+        "strip_width": 2048,
+        "strip_height": 256,
+        "preview_duration_ms_per_frame": 250
+      },
+      "registration": {
+        "method": "per-frame rigid translation aligning midpoint of the two reviewed foot sole contacts",
+        "support_foot_regions_reviewed": {
+          "image_left": "source x 0..219; lower 90 rows",
+          "image_right": "source x 220..354; lower 90 rows (excludes ferret tail at far right)"
+        },
+        "contact_measurement": "alpha >16; lowest row with merged contiguous run >=12px; runs may bridge gaps <=14px",
+        "target_foot_midpoint_px": {
+          "x": 128,
+          "y": 229
+        },
+        "scale_policy": "same per-atlas scale formula as v1, one scale shared by all eight frames; no per-frame resizing",
+        "torso_and_limb_policy": "translate whole source pose only; do not alter torso lean or foot separation",
+        "legacy_fixed_x_fraction_foot_midpoint_range_px": [
+          104.079,
+          120.694
+        ],
+        "legacy_fixed_x_fraction_foot_midpoint_drift_range_px": 16.615,
+        "registered_interfoot_horizontal_spread_range_px": [
+          69.252,
+          74.072
+        ],
+        "registered_interfoot_horizontal_spread_range_width_px": 4.82
+      },
+      "frames": [
+        {
+          "frame": 1,
+          "semantics": "ready_face_wrapper_panel",
+          "source_cell": 1,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 140.5,
+                "y": 427
+              },
+              "sole_span_x_px_inclusive": [
+                127,
+                154
+              ],
+              "sole_run_width_px": 28,
+              "merged_runs_on_contact_row": [
+                [
+                  127,
+                  154
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 277.5,
+                "y": 434
+              },
+              "sole_span_x_px_inclusive": [
+                254,
+                301
+              ],
+              "sole_run_width_px": 48,
+              "merged_runs_on_contact_row": [
+                [
+                  254,
+                  301
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 209.0,
+            "y": 430.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 137.0,
+            "vertical": 7
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 97,
+              "y": 60
+            },
+            "composite_offset_px": {
+              "x": 71,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 21.788,
+              "y": 10.559
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 93.247,
+              "y": 227.224
+            },
+            "image_right": {
+              "x": 162.753,
+              "y": 230.776
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 69.506,
+            "vertical": 3.551
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 110.421,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.717,
+          "normalized_bbox_px": [
+            71,
+            41,
+            239,
+            231
+          ]
+        },
+        {
+          "frame": 2,
+          "semantics": "reach_toward_exterior_panel",
+          "source_cell": 2,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 158.5,
+                "y": 429
+              },
+              "sole_span_x_px_inclusive": [
+                143,
+                174
+              ],
+              "sole_run_width_px": 32,
+              "merged_runs_on_contact_row": [
+                [
+                  143,
+                  174
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 300.0,
+                "y": 434
+              },
+              "sole_span_x_px_inclusive": [
+                275,
+                325
+              ],
+              "sole_run_width_px": 51,
+              "merged_runs_on_contact_row": [
+                [
+                  275,
+                  325
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 229.25,
+            "y": 431.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 141.5,
+            "vertical": 5
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 27,
+              "y": 59
+            },
+            "composite_offset_px": {
+              "x": 25,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 11.302,
+              "y": 10.067
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.105,
+              "y": 227.732
+            },
+            "image_right": {
+              "x": 163.895,
+              "y": 230.268
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 71.789,
+            "vertical": 2.537
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 120.694,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.224,
+          "normalized_bbox_px": [
+            25,
+            40,
+            236,
+            231
+          ]
+        },
+        {
+          "frame": 3,
+          "semantics": "contact_exterior_control",
+          "source_cell": 3,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 154.0,
+                "y": 429
+              },
+              "sole_span_x_px_inclusive": [
+                137,
+                171
+              ],
+              "sole_run_width_px": 35,
+              "merged_runs_on_contact_row": [
+                [
+                  137,
+                  171
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 292.5,
+                "y": 435
+              },
+              "sole_span_x_px_inclusive": [
+                270,
+                315
+              ],
+              "sole_run_width_px": 46,
+              "merged_runs_on_contact_row": [
+                [
+                  270,
+                  315
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 223.25,
+            "y": 432.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 138.5,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 28,
+              "y": 60
+            },
+            "composite_offset_px": {
+              "x": 29,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 14.794,
+              "y": 9.559
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.866,
+              "y": 227.478
+            },
+            "image_right": {
+              "x": 163.134,
+              "y": 230.522
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 70.267,
+            "vertical": 3.044
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 117.65,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.971,
+          "normalized_bbox_px": [
+            29,
+            40,
+            235,
+            231
+          ]
+        },
+        {
+          "frame": 4,
+          "semantics": "press_single_external_control",
+          "source_cell": 4,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 156.5,
+                "y": 430
+              },
+              "sole_span_x_px_inclusive": [
+                140,
+                173
+              ],
+              "sole_run_width_px": 34,
+              "merged_runs_on_contact_row": [
+                [
+                  140,
+                  173
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 295.5,
+                "y": 435
+              },
+              "sole_span_x_px_inclusive": [
+                273,
+                318
+              ],
+              "sole_run_width_px": 46,
+              "merged_runs_on_contact_row": [
+                [
+                  273,
+                  318
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 226.0,
+            "y": 432.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 139.0,
+            "vertical": 5
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 28,
+              "y": 60
+            },
+            "composite_offset_px": {
+              "x": 28,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 13.794,
+              "y": 9.559
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.74,
+              "y": 227.732
+            },
+            "image_right": {
+              "x": 163.26,
+              "y": 230.268
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 70.521,
+            "vertical": 2.537
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 119.045,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.224,
+          "normalized_bbox_px": [
+            28,
+            40,
+            235,
+            231
+          ]
+        },
+        {
+          "frame": 5,
+          "semantics": "hold_contact_and_monitor_cycle",
+          "source_cell": 5,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 158.5,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                145,
+                172
+              ],
+              "sole_run_width_px": 28,
+              "merged_runs_on_contact_row": [
+                [
+                  145,
+                  172
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 295.0,
+                "y": 405
+              },
+              "sole_span_x_px_inclusive": [
+                274,
+                316
+              ],
+              "sole_run_width_px": 43,
+              "merged_runs_on_contact_row": [
+                [
+                  274,
+                  316
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 226.75,
+            "y": 402.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 136.5,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 27,
+              "y": 32
+            },
+            "composite_offset_px": {
+              "x": 27,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 13.302,
+              "y": 24.765
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 93.374,
+              "y": 227.478
+            },
+            "image_right": {
+              "x": 162.626,
+              "y": 230.522
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 69.252,
+            "vertical": 3.044
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 119.426,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.971,
+          "normalized_bbox_px": [
+            27,
+            41,
+            238,
+            231
+          ]
+        },
+        {
+          "frame": 6,
+          "semantics": "release_and_retract_hand",
+          "source_cell": 6,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 123.5,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                108,
+                139
+              ],
+              "sole_run_width_px": 32,
+              "merged_runs_on_contact_row": [
+                [
+                  108,
+                  139
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 269.5,
+                "y": 405
+              },
+              "sole_span_x_px_inclusive": [
+                250,
+                289
+              ],
+              "sole_run_width_px": 40,
+              "merged_runs_on_contact_row": [
+                [
+                  250,
+                  289
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 196.5,
+            "y": 402.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 146.0,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 16,
+              "y": 32
+            },
+            "composite_offset_px": {
+              "x": 36,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 27.883,
+              "y": 24.765
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.964,
+              "y": 227.478
+            },
+            "image_right": {
+              "x": 165.036,
+              "y": 230.522
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.072,
+            "vertical": 3.044
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 104.079,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.971,
+          "normalized_bbox_px": [
+            36,
+            41,
+            244,
+            231
+          ]
+        },
+        {
+          "frame": 7,
+          "semantics": "stand_clear_and_observe",
+          "source_cell": 7,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 135.0,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                120,
+                150
+              ],
+              "sole_run_width_px": 31,
+              "merged_runs_on_contact_row": [
+                [
+                  120,
+                  150
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 277.5,
+                "y": 405
+              },
+              "sole_span_x_px_inclusive": [
+                255,
+                300
+              ],
+              "sole_run_width_px": 46,
+              "merged_runs_on_contact_row": [
+                [
+                  255,
+                  300
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 206.25,
+            "y": 402.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 142.5,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 86,
+              "y": 33
+            },
+            "composite_offset_px": {
+              "x": 67,
+              "y": 42
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 23.368,
+              "y": 25.258
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.852,
+              "y": 227.478
+            },
+            "image_right": {
+              "x": 164.148,
+              "y": 230.522
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 72.296,
+            "vertical": 3.044
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 109.025,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.971,
+          "normalized_bbox_px": [
+            67,
+            42,
+            243,
+            231
+          ]
+        },
+        {
+          "frame": 8,
+          "semantics": "ready_with_hand_at_belt",
+          "source_cell": 8,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 139.5,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                125,
+                154
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  125,
+                  154
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 279.0,
+                "y": 405
+              },
+              "sole_span_x_px_inclusive": [
+                256,
+                302
+              ],
+              "sole_run_width_px": 47,
+              "merged_runs_on_contact_row": [
+                [
+                  256,
+                  302
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 209.25,
+            "y": 402.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 139.5,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.507343,
+            "crop_offset_px": {
+              "x": 89,
+              "y": 32
+            },
+            "composite_offset_px": {
+              "x": 67,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 21.846,
+              "y": 24.765
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.613,
+              "y": 227.478
+            },
+            "image_right": {
+              "x": 163.387,
+              "y": 230.522
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 70.774,
+            "vertical": 3.044
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 110.547,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.971,
+          "normalized_bbox_px": [
+            67,
+            41,
+            241,
+            231
+          ]
+        }
+      ],
+      "raw_foot_contact_review": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_wrapping-v2-foot-contact-review.png"
+    },
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_cutter",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v3-generated.png",
+      "selected_atlas_sha256": "AE2583B8AB481B2CA3809144A91BC541B32DF7F4A4748F83EC93651B6B326681",
+      "normalized_strip": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_cutter-8frame-v2-foot-registered.png",
+      "contact_sheet": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_cutter-8frame-v2-foot-registered-contact-sheet.png",
+      "timed_preview": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_cutter-8frame-v2-foot-registered-timed-preview-4fps.gif",
+      "dimensions": {
+        "frame_width": 256,
+        "frame_height": 256,
+        "frame_count": 8,
+        "strip_width": 2048,
+        "strip_height": 256,
+        "preview_duration_ms_per_frame": 250
+      },
+      "registration": {
+        "method": "per-frame rigid translation aligning midpoint of the two reviewed foot sole contacts",
+        "support_foot_regions_reviewed": {
+          "image_left": "source x 0..219; lower 90 rows",
+          "image_right": "source x 220..354; lower 90 rows (excludes ferret tail at far right)"
+        },
+        "contact_measurement": "alpha >16; lowest row with merged contiguous run >=12px; runs may bridge gaps <=14px",
+        "target_foot_midpoint_px": {
+          "x": 128,
+          "y": 229
+        },
+        "scale_policy": "same per-atlas scale formula as v1, one scale shared by all eight frames; no per-frame resizing",
+        "torso_and_limb_policy": "translate whole source pose only; do not alter torso lean or foot separation",
+        "legacy_fixed_x_fraction_foot_midpoint_range_px": [
+          91.18,
+          125.591
+        ],
+        "legacy_fixed_x_fraction_foot_midpoint_drift_range_px": 34.411,
+        "registered_interfoot_horizontal_spread_range_px": [
+          72.018,
+          75.951
+        ],
+        "registered_interfoot_horizontal_spread_range_width_px": 3.933
+      },
+      "frames": [
+        {
+          "frame": 1,
+          "semantics": "ready_at_cutter",
+          "source_cell": 1,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 163.0,
+                "y": 411
+              },
+              "sole_span_x_px_inclusive": [
+                152,
+                174
+              ],
+              "sole_run_width_px": 23,
+              "merged_runs_on_contact_row": [
+                [
+                  152,
+                  174
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 309.5,
+                "y": 409
+              },
+              "sole_span_x_px_inclusive": [
+                298,
+                321
+              ],
+              "sole_run_width_px": 24,
+              "merged_runs_on_contact_row": [
+                [
+                  298,
+                  321
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 236.25,
+            "y": 410.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 146.5,
+            "vertical": -2
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 75,
+              "y": 27
+            },
+            "composite_offset_px": {
+              "x": 49,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 12.131,
+              "y": 27.727
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.991,
+              "y": 229.492
+            },
+            "image_right": {
+              "x": 164.009,
+              "y": 228.508
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 72.018,
+            "vertical": -0.983
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 124.362,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.017,
+          "normalized_bbox_px": [
+            49,
+            41,
+            199,
+            230
+          ]
+        },
+        {
+          "frame": 2,
+          "semantics": "reach_safe_feed_edge",
+          "source_cell": 2,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 108.5,
+                "y": 410
+              },
+              "sole_span_x_px_inclusive": [
+                90,
+                127
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  90,
+                  127
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 261.5,
+                "y": 409
+              },
+              "sole_span_x_px_inclusive": [
+                244,
+                279
+              ],
+              "sole_run_width_px": 36,
+              "merged_runs_on_contact_row": [
+                [
+                  244,
+                  279
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 185.0,
+            "y": 409.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 153.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 27,
+              "y": 25
+            },
+            "composite_offset_px": {
+              "x": 50,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 36.727,
+              "y": 27.71
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.393,
+              "y": 229.246
+            },
+            "image_right": {
+              "x": 165.607,
+              "y": 228.754
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 75.213,
+            "vertical": -0.492
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 99.168,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.263,
+          "normalized_bbox_px": [
+            50,
+            40,
+            223,
+            230
+          ]
+        },
+        {
+          "frame": 3,
+          "semantics": "contact_outer_feed_edge",
+          "source_cell": 3,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 101.5,
+                "y": 410
+              },
+              "sole_span_x_px_inclusive": [
+                84,
+                119
+              ],
+              "sole_run_width_px": 36,
+              "merged_runs_on_contact_row": [
+                [
+                  84,
+                  119
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 248.5,
+                "y": 409
+              },
+              "sole_span_x_px_inclusive": [
+                240,
+                257
+              ],
+              "sole_run_width_px": 18,
+              "merged_runs_on_contact_row": [
+                [
+                  240,
+                  257
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 175.0,
+            "y": 409.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 147.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 16,
+              "y": 26
+            },
+            "composite_offset_px": {
+              "x": 50,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 42.135,
+              "y": 27.219
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.868,
+              "y": 229.246
+            },
+            "image_right": {
+              "x": 164.132,
+              "y": 228.754
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 72.264,
+            "vertical": -0.492
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 94.252,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.263,
+          "normalized_bbox_px": [
+            50,
+            40,
+            236,
+            229
+          ]
+        },
+        {
+          "frame": 4,
+          "semantics": "align_clear_of_blade",
+          "source_cell": 4,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 93.0,
+                "y": 409
+              },
+              "sole_span_x_px_inclusive": [
+                76,
+                110
+              ],
+              "sole_run_width_px": 35,
+              "merged_runs_on_contact_row": [
+                [
+                  76,
+                  110
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 244.5,
+                "y": 405
+              },
+              "sole_span_x_px_inclusive": [
+                226,
+                263
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  226,
+                  263
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 168.75,
+            "y": 407.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 151.5,
+            "vertical": -4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 6,
+              "y": 24
+            },
+            "composite_offset_px": {
+              "x": 48,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 45.05,
+              "y": 29.202
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.762,
+              "y": 229.983
+            },
+            "image_right": {
+              "x": 165.238,
+              "y": 228.017
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.476,
+            "vertical": -1.966
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 91.18,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.525,
+          "normalized_bbox_px": [
+            48,
+            41,
+            225,
+            231
+          ]
+        },
+        {
+          "frame": 5,
+          "semantics": "withdraw_to_safety_controls",
+          "source_cell": 5,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 163.0,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                149,
+                177
+              ],
+              "sole_run_width_px": 29,
+              "merged_runs_on_contact_row": [
+                [
+                  149,
+                  177
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 314.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                296,
+                333
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  296,
+                  333
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 238.75,
+            "y": 394.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 151.5,
+            "vertical": -2
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 75,
+              "y": 6
+            },
+            "composite_offset_px": {
+              "x": 48,
+              "y": 38
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 11.131,
+              "y": 35.05
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.762,
+              "y": 229.492
+            },
+            "image_right": {
+              "x": 165.238,
+              "y": 228.508
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.476,
+            "vertical": -0.983
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 125.591,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.017,
+          "normalized_bbox_px": [
+            48,
+            38,
+            214,
+            230
+          ]
+        },
+        {
+          "frame": 6,
+          "semantics": "press_both_external_controls",
+          "source_cell": 6,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 125.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                106,
+                144
+              ],
+              "sole_run_width_px": 39,
+              "merged_runs_on_contact_row": [
+                [
+                  106,
+                  144
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 279.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                260,
+                299
+              ],
+              "sole_run_width_px": 40,
+              "merged_runs_on_contact_row": [
+                [
+                  260,
+                  299
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 202.25,
+            "y": 393.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 154.5,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 43,
+              "y": 7
+            },
+            "composite_offset_px": {
+              "x": 50,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 28.862,
+              "y": 35.559
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.025,
+              "y": 229.246
+            },
+            "image_right": {
+              "x": 165.975,
+              "y": 228.754
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 75.951,
+            "vertical": -0.492
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 107.648,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.263,
+          "normalized_bbox_px": [
+            50,
+            39,
+            212,
+            230
+          ]
+        },
+        {
+          "frame": 7,
+          "semantics": "release_and_retract",
+          "source_cell": 7,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 133.5,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                115,
+                152
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  115,
+                  152
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 284.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                266,
+                303
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  266,
+                  303
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 209.0,
+            "y": 393.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 151.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 43,
+              "y": 7
+            },
+            "composite_offset_px": {
+              "x": 46,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 24.862,
+              "y": 35.559
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.885,
+              "y": 229.246
+            },
+            "image_right": {
+              "x": 165.115,
+              "y": 228.754
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.23,
+            "vertical": -0.492
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 110.966,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.263,
+          "normalized_bbox_px": [
+            46,
+            39,
+            224,
+            230
+          ]
+        },
+        {
+          "frame": 8,
+          "semantics": "recover_to_ready",
+          "source_cell": 8,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 125.5,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                107,
+                144
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  107,
+                  144
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 272.5,
+                "y": 393
+              },
+              "sole_span_x_px_inclusive": [
+                254,
+                291
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  254,
+                  291
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 199.0,
+            "y": 393.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 147.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.491591,
+            "crop_offset_px": {
+              "x": 36,
+              "y": 8
+            },
+            "composite_offset_px": {
+              "x": 48,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 30.303,
+              "y": 35.067
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.868,
+              "y": 229.246
+            },
+            "image_right": {
+              "x": 164.132,
+              "y": 228.754
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 72.264,
+            "vertical": -0.492
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 106.05,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.263,
+          "normalized_bbox_px": [
+            48,
+            39,
+            197,
+            229
+          ]
+        }
+      ],
+      "raw_foot_contact_review": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_cutter-v2-foot-contact-review.png"
+    },
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_wrapping",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_wrapping-v1-generated.png",
+      "selected_atlas_sha256": "34503E7C325DDD96ABBD335AD00E7AACE117AD229BA1BC46AA52B3991BE33495",
+      "normalized_strip": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_wrapping-8frame-v2-foot-registered.png",
+      "contact_sheet": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_wrapping-8frame-v2-foot-registered-contact-sheet.png",
+      "timed_preview": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_wrapping-8frame-v2-foot-registered-timed-preview-4fps.gif",
+      "dimensions": {
+        "frame_width": 256,
+        "frame_height": 256,
+        "frame_count": 8,
+        "strip_width": 2048,
+        "strip_height": 256,
+        "preview_duration_ms_per_frame": 250
+      },
+      "registration": {
+        "method": "per-frame rigid translation aligning midpoint of the two reviewed foot sole contacts",
+        "support_foot_regions_reviewed": {
+          "image_left": "source x 0..219; lower 90 rows",
+          "image_right": "source x 220..354; lower 90 rows (excludes ferret tail at far right)"
+        },
+        "contact_measurement": "alpha >16; lowest row with merged contiguous run >=12px; runs may bridge gaps <=14px",
+        "target_foot_midpoint_px": {
+          "x": 128,
+          "y": 229
+        },
+        "scale_policy": "same per-atlas scale formula as v1, one scale shared by all eight frames; no per-frame resizing",
+        "torso_and_limb_policy": "translate whole source pose only; do not alter torso lean or foot separation",
+        "legacy_fixed_x_fraction_foot_midpoint_range_px": [
+          106.856,
+          126.055
+        ],
+        "legacy_fixed_x_fraction_foot_midpoint_drift_range_px": 19.199,
+        "registered_interfoot_horizontal_spread_range_px": [
+          76.05,
+          80.289
+        ],
+        "registered_interfoot_horizontal_spread_range_width_px": 4.239
+      },
+      "frames": [
+        {
+          "frame": 1,
+          "semantics": "ready_at_wrapper",
+          "source_cell": 1,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 155.5,
+                "y": 412
+              },
+              "sole_span_x_px_inclusive": [
+                138,
+                173
+              ],
+              "sole_run_width_px": 36,
+              "merged_runs_on_contact_row": [
+                [
+                  138,
+                  173
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 308.0,
+                "y": 409
+              },
+              "sole_span_x_px_inclusive": [
+                291,
+                325
+              ],
+              "sole_run_width_px": 35,
+              "merged_runs_on_contact_row": [
+                [
+                  291,
+                  325
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 231.75,
+            "y": 410.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 152.5,
+            "vertical": -3
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 63,
+              "y": 33
+            },
+            "composite_offset_px": {
+              "x": 44,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 12.583,
+              "y": 24.543
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 89.975,
+              "y": 229.748
+            },
+            "image_right": {
+              "x": 166.025,
+              "y": 228.252
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 76.05,
+            "vertical": -1.496
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 122.066,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.753,
+          "normalized_bbox_px": [
+            44,
+            41,
+            199,
+            231
+          ]
+        },
+        {
+          "frame": 2,
+          "semantics": "reach_exterior_panel",
+          "source_cell": 2,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 124.0,
+                "y": 410
+              },
+              "sole_span_x_px_inclusive": [
+                106,
+                142
+              ],
+              "sole_run_width_px": 37,
+              "merged_runs_on_contact_row": [
+                [
+                  106,
+                  142
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 278.5,
+                "y": 407
+              },
+              "sole_span_x_px_inclusive": [
+                264,
+                293
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  264,
+                  293
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 201.25,
+            "y": 408.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 154.5,
+            "vertical": -3
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 38,
+              "y": 31
+            },
+            "composite_offset_px": {
+              "x": 47,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 28.05,
+              "y": 25.541
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 89.476,
+              "y": 229.748
+            },
+            "image_right": {
+              "x": 166.524,
+              "y": 228.252
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 77.047,
+            "vertical": -1.496
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 106.856,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.753,
+          "normalized_bbox_px": [
+            47,
+            41,
+            226,
+            231
+          ]
+        },
+        {
+          "frame": 3,
+          "semantics": "contact_external_control",
+          "source_cell": 3,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 146.0,
+                "y": 412
+              },
+              "sole_span_x_px_inclusive": [
+                129,
+                163
+              ],
+              "sole_run_width_px": 35,
+              "merged_runs_on_contact_row": [
+                [
+                  129,
+                  163
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 304.5,
+                "y": 411
+              },
+              "sole_span_x_px_inclusive": [
+                289,
+                320
+              ],
+              "sole_run_width_px": 32,
+              "merged_runs_on_contact_row": [
+                [
+                  289,
+                  320
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 225.25,
+            "y": 411.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 158.5,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 66,
+              "y": 36
+            },
+            "composite_offset_px": {
+              "x": 49,
+              "y": 42
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 16.087,
+              "y": 24.047
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 88.479,
+              "y": 229.249
+            },
+            "image_right": {
+              "x": 167.521,
+              "y": 228.751
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 79.042,
+            "vertical": -0.499
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 118.824,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.252,
+          "normalized_bbox_px": [
+            49,
+            42,
+            217,
+            230
+          ]
+        },
+        {
+          "frame": 4,
+          "semantics": "press_control",
+          "source_cell": 4,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 146.0,
+                "y": 412
+              },
+              "sole_span_x_px_inclusive": [
+                128,
+                164
+              ],
+              "sole_run_width_px": 37,
+              "merged_runs_on_contact_row": [
+                [
+                  128,
+                  164
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 306.0,
+                "y": 411
+              },
+              "sole_span_x_px_inclusive": [
+                291,
+                321
+              ],
+              "sole_run_width_px": 31,
+              "merged_runs_on_contact_row": [
+                [
+                  291,
+                  321
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 226.0,
+            "y": 411.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 160.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 63,
+              "y": 30
+            },
+            "composite_offset_px": {
+              "x": 47,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 15.583,
+              "y": 24.039
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 88.105,
+              "y": 229.249
+            },
+            "image_right": {
+              "x": 167.895,
+              "y": 228.751
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 79.79,
+            "vertical": -0.499
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 119.198,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.252,
+          "normalized_bbox_px": [
+            47,
+            39,
+            211,
+            230
+          ]
+        },
+        {
+          "frame": 5,
+          "semantics": "hold_and_monitor",
+          "source_cell": 5,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 160.5,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                142,
+                179
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  142,
+                  179
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 317.5,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                306,
+                329
+              ],
+              "sole_run_width_px": 24,
+              "merged_runs_on_contact_row": [
+                [
+                  306,
+                  329
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 239.0,
+            "y": 395.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 157.0,
+            "vertical": 0
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 69,
+              "y": 13
+            },
+            "composite_offset_px": {
+              "x": 43,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 8.591,
+              "y": 32.517
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 88.853,
+              "y": 229.0
+            },
+            "image_right": {
+              "x": 167.147,
+              "y": 229.0
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 78.294,
+            "vertical": 0.0
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 125.681,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.501,
+          "normalized_bbox_px": [
+            43,
+            39,
+            208,
+            230
+          ]
+        },
+        {
+          "frame": 6,
+          "semantics": "release_and_retract",
+          "source_cell": 6,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 152.5,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                134,
+                171
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  134,
+                  171
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 313.5,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                298,
+                329
+              ],
+              "sole_run_width_px": 32,
+              "merged_runs_on_contact_row": [
+                [
+                  298,
+                  329
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 233.0,
+            "y": 394.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 161.0,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 63,
+              "y": 18
+            },
+            "composite_offset_px": {
+              "x": 43,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 11.583,
+              "y": 32.024
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 87.856,
+              "y": 229.249
+            },
+            "image_right": {
+              "x": 168.144,
+              "y": 228.751
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 80.289,
+            "vertical": -0.499
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 122.689,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.252,
+          "normalized_bbox_px": [
+            43,
+            41,
+            184,
+            230
+          ]
+        },
+        {
+          "frame": 7,
+          "semantics": "stand_clear_observe",
+          "source_cell": 7,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 162.0,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                144,
+                180
+              ],
+              "sole_run_width_px": 37,
+              "merged_runs_on_contact_row": [
+                [
+                  144,
+                  180
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 317.5,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                300,
+                335
+              ],
+              "sole_run_width_px": 36,
+              "merged_runs_on_contact_row": [
+                [
+                  300,
+                  335
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 239.75,
+            "y": 394.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 155.5,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 66,
+              "y": 14
+            },
+            "composite_offset_px": {
+              "x": 41,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 8.087,
+              "y": 32.018
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 89.227,
+              "y": 229.249
+            },
+            "image_right": {
+              "x": 166.773,
+              "y": 228.751
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 77.546,
+            "vertical": -0.499
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 126.055,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.252,
+          "normalized_bbox_px": [
+            41,
+            39,
+            184,
+            229
+          ]
+        },
+        {
+          "frame": 8,
+          "semantics": "recover_to_ready",
+          "source_cell": 8,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 153.5,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                135,
+                172
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  135,
+                  172
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 312.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                294,
+                330
+              ],
+              "sole_run_width_px": 37,
+              "merged_runs_on_contact_row": [
+                [
+                  294,
+                  330
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 232.75,
+            "y": 394.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 158.5,
+            "vertical": -1
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.498688,
+            "crop_offset_px": {
+              "x": 68,
+              "y": 14
+            },
+            "composite_offset_px": {
+              "x": 46,
+              "y": 39
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 12.089,
+              "y": 32.018
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 88.479,
+              "y": 229.249
+            },
+            "image_right": {
+              "x": 167.521,
+              "y": 228.751
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 79.042,
+            "vertical": -0.499
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 122.564,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 228.252,
+          "normalized_bbox_px": [
+            46,
+            39,
+            193,
+            229
+          ]
+        }
+      ],
+      "raw_foot_contact_review": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_wrapping-v2-foot-contact-review.png"
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_cutter",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_cutter-v3-refined-generated.png",
+      "selected_atlas_sha256": "6637D26D1071D8BC8EC358B1EE59E284E9AF2A229D05BD9EC50FB547D3FB0D60",
+      "normalized_strip": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_cutter-8frame-v2-foot-registered.png",
+      "contact_sheet": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_cutter-8frame-v2-foot-registered-contact-sheet.png",
+      "timed_preview": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_cutter-8frame-v2-foot-registered-timed-preview-4fps.gif",
+      "dimensions": {
+        "frame_width": 256,
+        "frame_height": 256,
+        "frame_count": 8,
+        "strip_width": 2048,
+        "strip_height": 256,
+        "preview_duration_ms_per_frame": 250
+      },
+      "registration": {
+        "method": "per-frame rigid translation aligning midpoint of the two reviewed foot sole contacts",
+        "support_foot_regions_reviewed": {
+          "image_left": "source x 0..219; lower 90 rows",
+          "image_right": "source x 220..354; lower 90 rows (excludes ferret tail at far right)"
+        },
+        "contact_measurement": "alpha >16; lowest row with merged contiguous run >=12px; runs may bridge gaps <=14px",
+        "target_foot_midpoint_px": {
+          "x": 128,
+          "y": 229
+        },
+        "scale_policy": "same per-atlas scale formula as v1, one scale shared by all eight frames; no per-frame resizing",
+        "torso_and_limb_policy": "translate whole source pose only; do not alter torso lean or foot separation",
+        "legacy_fixed_x_fraction_foot_midpoint_range_px": [
+          100.656,
+          121.265
+        ],
+        "legacy_fixed_x_fraction_foot_midpoint_drift_range_px": 20.609,
+        "registered_interfoot_horizontal_spread_range_px": [
+          66.601,
+          74.894
+        ],
+        "registered_interfoot_horizontal_spread_range_width_px": 8.293
+      },
+      "frames": [
+        {
+          "frame": 1,
+          "semantics": "ready_at_cutter",
+          "source_cell": 1,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 151.5,
+                "y": 434
+              },
+              "sole_span_x_px_inclusive": [
+                133,
+                170
+              ],
+              "sole_run_width_px": 38,
+              "merged_runs_on_contact_row": [
+                [
+                  133,
+                  170
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 284.0,
+                "y": 440
+              },
+              "sole_span_x_px_inclusive": [
+                257,
+                311
+              ],
+              "sole_run_width_px": 55,
+              "merged_runs_on_contact_row": [
+                [
+                  257,
+                  311
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 217.75,
+            "y": 437.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 132.5,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 105,
+              "y": 57
+            },
+            "composite_offset_px": {
+              "x": 71,
+              "y": 38
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 18.222,
+              "y": 9.349
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 94.7,
+              "y": 227.492
+            },
+            "image_right": {
+              "x": 161.3,
+              "y": 230.508
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 66.601,
+            "vertical": 3.016
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 114.981,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.989,
+          "normalized_bbox_px": [
+            71,
+            38,
+            234,
+            231
+          ]
+        },
+        {
+          "frame": 2,
+          "semantics": "reach_safe_feed_edge",
+          "source_cell": 2,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 159.5,
+                "y": 435
+              },
+              "sole_span_x_px_inclusive": [
+                143,
+                176
+              ],
+              "sole_run_width_px": 34,
+              "merged_runs_on_contact_row": [
+                [
+                  143,
+                  176
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 301.0,
+                "y": 440
+              },
+              "sole_span_x_px_inclusive": [
+                274,
+                328
+              ],
+              "sole_run_width_px": 55,
+              "merged_runs_on_contact_row": [
+                [
+                  274,
+                  328
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 230.25,
+            "y": 437.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 141.5,
+            "vertical": 5
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 3,
+              "y": 91
+            },
+            "composite_offset_px": {
+              "x": 14,
+              "y": 55
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 12.492,
+              "y": 9.259
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.438,
+              "y": 227.743
+            },
+            "image_right": {
+              "x": 163.562,
+              "y": 230.257
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 71.124,
+            "vertical": 2.513
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 121.265,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.241,
+          "normalized_bbox_px": [
+            14,
+            55,
+            221,
+            231
+          ]
+        },
+        {
+          "frame": 3,
+          "semantics": "contact_outer_feed_edge",
+          "source_cell": 3,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 148.5,
+                "y": 434
+              },
+              "sole_span_x_px_inclusive": [
+                134,
+                163
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  134,
+                  163
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 297.5,
+                "y": 440
+              },
+              "sole_span_x_px_inclusive": [
+                272,
+                323
+              ],
+              "sole_run_width_px": 52,
+              "merged_runs_on_contact_row": [
+                [
+                  272,
+                  323
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 223.0,
+            "y": 437.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 149.0,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 20,
+              "y": 98
+            },
+            "composite_offset_px": {
+              "x": 26,
+              "y": 59
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 15.947,
+              "y": 9.741
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.553,
+              "y": 227.492
+            },
+            "image_right": {
+              "x": 165.447,
+              "y": 230.508
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.894,
+            "vertical": 3.016
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 117.62,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.989,
+          "normalized_bbox_px": [
+            26,
+            59,
+            232,
+            231
+          ]
+        },
+        {
+          "frame": 4,
+          "semantics": "align_clear_of_blade",
+          "source_cell": 4,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 139.0,
+                "y": 434
+              },
+              "sole_span_x_px_inclusive": [
+                118,
+                160
+              ],
+              "sole_run_width_px": 43,
+              "merged_runs_on_contact_row": [
+                [
+                  118,
+                  160
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 281.0,
+                "y": 440
+              },
+              "sole_span_x_px_inclusive": [
+                256,
+                306
+              ],
+              "sole_run_width_px": 51,
+              "merged_runs_on_contact_row": [
+                [
+                  256,
+                  306
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 210.0,
+            "y": 437.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 142.0,
+            "vertical": 6
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 23,
+              "y": 91
+            },
+            "composite_offset_px": {
+              "x": 34,
+              "y": 55
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 22.439,
+              "y": 9.259
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.312,
+              "y": 227.492
+            },
+            "image_right": {
+              "x": 163.688,
+              "y": 230.508
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 71.376,
+            "vertical": 3.016
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 111.086,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.989,
+          "normalized_bbox_px": [
+            34,
+            55,
+            229,
+            231
+          ]
+        },
+        {
+          "frame": 5,
+          "semantics": "withdraw_to_safety_controls",
+          "source_cell": 5,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 130.5,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                109,
+                152
+              ],
+              "sole_run_width_px": 44,
+              "merged_runs_on_contact_row": [
+                [
+                  109,
+                  152
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 269.0,
+                "y": 402
+              },
+              "sole_span_x_px_inclusive": [
+                248,
+                290
+              ],
+              "sole_run_width_px": 43,
+              "merged_runs_on_contact_row": [
+                [
+                  248,
+                  290
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 199.75,
+            "y": 398.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 138.5,
+            "vertical": 7
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 77,
+              "y": 25
+            },
+            "composite_offset_px": {
+              "x": 66,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 27.296,
+              "y": 28.434
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 93.192,
+              "y": 227.241
+            },
+            "image_right": {
+              "x": 162.808,
+              "y": 230.759
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 69.616,
+            "vertical": 3.519
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 105.934,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.738,
+          "normalized_bbox_px": [
+            66,
+            41,
+            237,
+            231
+          ]
+        },
+        {
+          "frame": 6,
+          "semantics": "press_both_external_controls",
+          "source_cell": 6,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 151.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                126,
+                176
+              ],
+              "sole_run_width_px": 51,
+              "merged_runs_on_contact_row": [
+                [
+                  126,
+                  176
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 286.0,
+                "y": 402
+              },
+              "sole_span_x_px_inclusive": [
+                261,
+                311
+              ],
+              "sole_run_width_px": 51,
+              "merged_runs_on_contact_row": [
+                [
+                  261,
+                  311
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 218.5,
+            "y": 398.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 135.0,
+            "vertical": 8
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 24,
+              "y": 25
+            },
+            "composite_offset_px": {
+              "x": 30,
+              "y": 42
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 17.937,
+              "y": 29.434
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 94.071,
+              "y": 226.989
+            },
+            "image_right": {
+              "x": 161.929,
+              "y": 231.011
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 67.857,
+            "vertical": 4.021
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 115.358,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.487,
+          "normalized_bbox_px": [
+            30,
+            42,
+            240,
+            232
+          ]
+        },
+        {
+          "frame": 7,
+          "semantics": "release_and_retract",
+          "source_cell": 7,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 121.5,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                96,
+                147
+              ],
+              "sole_run_width_px": 52,
+              "merged_runs_on_contact_row": [
+                [
+                  96,
+                  147
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 261.5,
+                "y": 402
+              },
+              "sole_span_x_px_inclusive": [
+                247,
+                276
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  247,
+                  276
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 191.5,
+            "y": 398.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 140.0,
+            "vertical": 8
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 76,
+              "y": 18
+            },
+            "composite_offset_px": {
+              "x": 70,
+              "y": 38
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 31.799,
+              "y": 28.952
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.815,
+              "y": 226.989
+            },
+            "image_right": {
+              "x": 163.185,
+              "y": 231.011
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 70.37,
+            "vertical": 4.021
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 101.787,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.487,
+          "normalized_bbox_px": [
+            70,
+            38,
+            238,
+            232
+          ]
+        },
+        {
+          "frame": 8,
+          "semantics": "recover_to_ready",
+          "source_cell": 8,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 122.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                97,
+                147
+              ],
+              "sole_run_width_px": 51,
+              "merged_runs_on_contact_row": [
+                [
+                  97,
+                  147
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 256.5,
+                "y": 402
+              },
+              "sole_span_x_px_inclusive": [
+                236,
+                277
+              ],
+              "sole_run_width_px": 42,
+              "merged_runs_on_contact_row": [
+                [
+                  236,
+                  277
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 189.25,
+            "y": 398.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 134.5,
+            "vertical": 8
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.502646,
+            "crop_offset_px": {
+              "x": 78,
+              "y": 24
+            },
+            "composite_offset_px": {
+              "x": 72,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 32.794,
+              "y": 28.937
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 94.197,
+              "y": 226.989
+            },
+            "image_right": {
+              "x": 161.803,
+              "y": 231.011
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 67.606,
+            "vertical": 4.021
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 100.656,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 226.487,
+          "normalized_bbox_px": [
+            72,
+            41,
+            235,
+            232
+          ]
+        }
+      ],
+      "raw_foot_contact_review": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_cutter-v2-foot-contact-review.png"
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_press",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_press-v2-refined-generated.png",
+      "selected_atlas_sha256": "4F5EE52CB95D2B31229D7B6FF0F77E6B522786B26ECCB84F62B76614870C8CB6",
+      "normalized_strip": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_press-8frame-v2-foot-registered.png",
+      "contact_sheet": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_press-8frame-v2-foot-registered-contact-sheet.png",
+      "timed_preview": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_press-8frame-v2-foot-registered-timed-preview-4fps.gif",
+      "dimensions": {
+        "frame_width": 256,
+        "frame_height": 256,
+        "frame_count": 8,
+        "strip_width": 2048,
+        "strip_height": 256,
+        "preview_duration_ms_per_frame": 250
+      },
+      "registration": {
+        "method": "per-frame rigid translation aligning midpoint of the two reviewed foot sole contacts",
+        "support_foot_regions_reviewed": {
+          "image_left": "source x 0..219; lower 90 rows",
+          "image_right": "source x 220..354; lower 90 rows (excludes ferret tail at far right)"
+        },
+        "contact_measurement": "alpha >16; lowest row with merged contiguous run >=12px; runs may bridge gaps <=14px",
+        "target_foot_midpoint_px": {
+          "x": 128,
+          "y": 229
+        },
+        "scale_policy": "same per-atlas scale formula as v1, one scale shared by all eight frames; no per-frame resizing",
+        "torso_and_limb_policy": "translate whole source pose only; do not alter torso lean or foot separation",
+        "legacy_fixed_x_fraction_foot_midpoint_range_px": [
+          98.711,
+          127.526
+        ],
+        "legacy_fixed_x_fraction_foot_midpoint_drift_range_px": 28.815,
+        "registered_interfoot_horizontal_spread_range_px": [
+          67.895,
+          76.316
+        ],
+        "registered_interfoot_horizontal_spread_range_width_px": 8.421
+      },
+      "frames": [
+        {
+          "frame": 1,
+          "semantics": "ready_at_press",
+          "source_cell": 1,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 161.5,
+                "y": 416
+              },
+              "sole_span_x_px_inclusive": [
+                148,
+                175
+              ],
+              "sole_run_width_px": 28,
+              "merged_runs_on_contact_row": [
+                [
+                  148,
+                  175
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 290.5,
+                "y": 420
+              },
+              "sole_span_x_px_inclusive": [
+                266,
+                315
+              ],
+              "sole_run_width_px": 50,
+              "merged_runs_on_contact_row": [
+                [
+                  266,
+                  315
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 226.0,
+            "y": 418.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 129.0,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 115,
+              "y": 59
+            },
+            "composite_offset_px": {
+              "x": 70,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 9.474,
+              "y": 8.947
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 94.053,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 161.947,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 67.895,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 118.711,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            70,
+            40,
+            234,
+            231
+          ]
+        },
+        {
+          "frame": 2,
+          "semantics": "reach_safe_feeder",
+          "source_cell": 2,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 175.5,
+                "y": 416
+              },
+              "sole_span_x_px_inclusive": [
+                164,
+                187
+              ],
+              "sole_run_width_px": 24,
+              "merged_runs_on_contact_row": [
+                [
+                  164,
+                  187
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 310.0,
+                "y": 420
+              },
+              "sole_span_x_px_inclusive": [
+                291,
+                329
+              ],
+              "sole_run_width_px": 39,
+              "merged_runs_on_contact_row": [
+                [
+                  291,
+                  329
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 242.75,
+            "y": 418.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 134.5,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 50,
+              "y": 62
+            },
+            "composite_offset_px": {
+              "x": 27,
+              "y": 42
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 0.684,
+              "y": 9.368
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 92.605,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 163.395,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 70.789,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 127.526,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            27,
+            42,
+            232,
+            231
+          ]
+        },
+        {
+          "frame": 3,
+          "semantics": "contact_outer_feed_surface",
+          "source_cell": 3,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 148.5,
+                "y": 416
+              },
+              "sole_span_x_px_inclusive": [
+                133,
+                164
+              ],
+              "sole_run_width_px": 32,
+              "merged_runs_on_contact_row": [
+                [
+                  133,
+                  164
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 289.5,
+                "y": 420
+              },
+              "sole_span_x_px_inclusive": [
+                268,
+                311
+              ],
+              "sole_run_width_px": 44,
+              "merged_runs_on_contact_row": [
+                [
+                  268,
+                  311
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 219.0,
+            "y": 418.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 141.0,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 13,
+              "y": 64
+            },
+            "composite_offset_px": {
+              "x": 20,
+              "y": 43
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 13.158,
+              "y": 9.316
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 90.895,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 165.105,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 74.211,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 115.026,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            20,
+            43,
+            238,
+            231
+          ]
+        },
+        {
+          "frame": 4,
+          "semantics": "align_on_supported_edge",
+          "source_cell": 4,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 118.5,
+                "y": 416
+              },
+              "sole_span_x_px_inclusive": [
+                104,
+                133
+              ],
+              "sole_run_width_px": 30,
+              "merged_runs_on_contact_row": [
+                [
+                  104,
+                  133
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 257.5,
+                "y": 420
+              },
+              "sole_span_x_px_inclusive": [
+                235,
+                280
+              ],
+              "sole_run_width_px": 46,
+              "merged_runs_on_contact_row": [
+                [
+                  235,
+                  280
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 354",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 188.0,
+            "y": 418.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 139.0,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 36,
+              "y": 64
+            },
+            "composite_offset_px": {
+              "x": 48,
+              "y": 43
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 29.053,
+              "y": 9.316
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.421,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 164.579,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 73.158,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 98.711,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            48,
+            43,
+            235,
+            231
+          ]
+        },
+        {
+          "frame": 5,
+          "semantics": "withdraw_to_external_controls",
+          "source_cell": 5,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 164.0,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                152,
+                176
+              ],
+              "sole_run_width_px": 25,
+              "merged_runs_on_contact_row": [
+                [
+                  152,
+                  176
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 293.0,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                267,
+                319
+              ],
+              "sole_run_width_px": 53,
+              "merged_runs_on_contact_row": [
+                [
+                  267,
+                  319
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 228.5,
+            "y": 397.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 129.0,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 123,
+              "y": 39
+            },
+            "composite_offset_px": {
+              "x": 72,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 7.263,
+              "y": 20.474
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 94.053,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 161.947,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 67.895,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 120.026,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            72,
+            41,
+            240,
+            231
+          ]
+        },
+        {
+          "frame": 6,
+          "semantics": "hold_safe_control",
+          "source_cell": 6,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 147.0,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                141,
+                153
+              ],
+              "sole_run_width_px": 13,
+              "merged_runs_on_contact_row": [
+                [
+                  141,
+                  153
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 292.0,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                266,
+                318
+              ],
+              "sole_run_width_px": 53,
+              "merged_runs_on_contact_row": [
+                [
+                  266,
+                  318
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 219.5,
+            "y": 397.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 145.0,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 60,
+              "y": 39
+            },
+            "composite_offset_px": {
+              "x": 44,
+              "y": 41
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 12.421,
+              "y": 20.474
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 89.842,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 166.158,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 76.316,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 115.289,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            44,
+            41,
+            237,
+            231
+          ]
+        },
+        {
+          "frame": 7,
+          "semantics": "release_and_retract",
+          "source_cell": 7,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 142.0,
+                "y": 394
+              },
+              "sole_span_x_px_inclusive": [
+                123,
+                161
+              ],
+              "sole_run_width_px": 39,
+              "merged_runs_on_contact_row": [
+                [
+                  123,
+                  161
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 282.0,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                256,
+                308
+              ],
+              "sole_run_width_px": 53,
+              "merged_runs_on_contact_row": [
+                [
+                  256,
+                  308
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 212.0,
+            "y": 396.5
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 140.0,
+            "vertical": 5
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 79,
+              "y": 38
+            },
+            "composite_offset_px": {
+              "x": 58,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 16.421,
+              "y": 20.0
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 91.158,
+              "y": 227.684
+            },
+            "image_right": {
+              "x": 164.842,
+              "y": 230.316
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 73.684,
+            "vertical": 2.632
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 111.342,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.158,
+          "normalized_bbox_px": [
+            58,
+            40,
+            241,
+            231
+          ]
+        },
+        {
+          "frame": 8,
+          "semantics": "recover_to_ready",
+          "source_cell": 8,
+          "source_foot_contacts": {
+            "image_left": {
+              "contact_px": {
+                "x": 137.0,
+                "y": 395
+              },
+              "sole_span_x_px_inclusive": [
+                123,
+                151
+              ],
+              "sole_run_width_px": 29,
+              "merged_runs_on_contact_row": [
+                [
+                  123,
+                  151
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  0,
+                  219
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            },
+            "image_right": {
+              "contact_px": {
+                "x": 270.0,
+                "y": 399
+              },
+              "sole_span_x_px_inclusive": [
+                244,
+                296
+              ],
+              "sole_run_width_px": 53,
+              "merged_runs_on_contact_row": [
+                [
+                  244,
+                  296
+                ]
+              ],
+              "detection": {
+                "alpha_threshold_exclusive": 16,
+                "row_search": "source y >= 353",
+                "source_x_roi_inclusive": [
+                  220,
+                  354
+                ],
+                "minimum_merged_span_px": 12,
+                "maximum_gap_merged_px": 14
+              }
+            }
+          },
+          "source_foot_midpoint_px": {
+            "x": 203.5,
+            "y": 397.0
+          },
+          "source_interfoot_spread_px": {
+            "horizontal": 133.0,
+            "vertical": 4
+          },
+          "rigid_translation": {
+            "uniform_scale": 0.526316,
+            "crop_offset_px": {
+              "x": 92,
+              "y": 38
+            },
+            "composite_offset_px": {
+              "x": 69,
+              "y": 40
+            },
+            "source_cell_to_normalized_translation_after_scale_px": {
+              "x": 20.579,
+              "y": 20.0
+            }
+          },
+          "normalized_foot_contacts_px_before_raster_rounding": {
+            "image_left": {
+              "x": 93.0,
+              "y": 227.947
+            },
+            "image_right": {
+              "x": 163.0,
+              "y": 230.053
+            }
+          },
+          "normalized_foot_midpoint_target_px": {
+            "x": 128,
+            "y": 229
+          },
+          "normalized_interfoot_spread_px": {
+            "horizontal": 70.0,
+            "vertical": 2.105
+          },
+          "legacy_fixed_x_fraction_foot_midpoint_x_px": 106.868,
+          "legacy_body_bbox_ground_foot_midpoint_y_px": 227.421,
+          "normalized_bbox_px": [
+            69,
+            40,
+            235,
+            231
+          ]
+        }
+      ],
+      "raw_foot_contact_review": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_press-v2-foot-contact-review.png"
+    }
+  ]
+}

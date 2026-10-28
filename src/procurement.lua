@@ -16,7 +16,7 @@ local CRITTER_NET_VENDORS = {
 }
 
 local function autoShelfProduct(productId)
-    return productId == "stretch_film" or productId == "shipping_cartons"
+    return type(productId) == "string" and productId ~= ""
 end
 
 Procurement.categories = {
@@ -61,6 +61,8 @@ Procurement.categories = {
             { id = "safety_supplies", name = "Warehouse safety case", price = 110, quantity = 1, unit = "case",
                 retailName = "Warehouse safety case", retailPrice = 135, retailQuantity = 1,
                 available = false, unavailableReason = "Requires the warehouse safety upgrade." },
+            { id = "pallet_jack", name = "Manual pallet jack", price = 350, quantity = 1, unit = "jack",
+                retailName = "Manual pallet jack", retailPrice = 425, retailQuantity = 1 },
         },
     },
     {
@@ -344,7 +346,11 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
                 world = world,
             })
             if not transitioned then return false, transitionError end
-            if pallet.productId == "stretch_film" then
+            if pallet.productId == "pallet_jack" then
+                -- Equipment becomes a separate vehicle, not consumable stock.
+                assert(PalletState.transition(state,pallet,"none"))
+                require("src.pallet_jack_fleet").add(state,order.id.."-JACK",point)
+            elseif pallet.productId == "stretch_film" then
                 local inventory = state.inventory
                 inventory.plasticWrapRolls = (inventory.plasticWrapRolls or 0) + pallet.quantity
                 if (inventory.plasticWrapUses or 0) == 0 and inventory.plasticWrapRolls > 0 then

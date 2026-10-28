@@ -189,6 +189,41 @@ function Storage.consumeVendorProduct(state, pallet)
     return true,pallet
 end
 
+-- An on-shift employee may put purchased supplies on the bottom shelf using
+-- the physical pallet jack. This does not impersonate a player request or
+-- create a network receipt; the pallet and rack remain the durable owners.
+function Storage.employeeStore(state, employeeId, palletId, rackId, column)
+    local worker=require("src.employees").worker(state,employeeId)
+    local jack=state and state.palletJack
+    local registry=state and state.storage
+    local rack=registry and registry.racks[rackId]
+    local item=Storage.find(state,palletId)
+    local pallet=item and item.pallet
+    local target=require("src.warehouse_layout").rackPoint(rackId,1,column)
+    if not worker or worker.status~="employed" or not worker.visible
+        or not jack or not jack.operating or jack.operatorEmployeeId~=employeeId
+        or jack.moving or jack.carriedPalletId~=palletId
+        or not rack or rack.bayId~="warehouse" or not completedRack(state,rack)
+        or not target or not pallet or not item.vendor or pallet.kind~="vendor_product"
+        or pallet.location~="on_pallet_jack" or Storage.isSupporting(state,palletId)
+        or registry.revision>=2147483647 or rack.revision>=2147483647 then
+        return false,"stock_store_unavailable"
+    end
+    if (jack.x-target.x)^2+(jack.y-target.groundY)^2>130^2 then
+        return false,"rack_out_of_range"
+    end
+    if Storage.slots(state,rackId)[1][column] then return false,"slot_occupied" end
+    local valid=Storage.validate(state)
+    if not valid then return false,"invalid_state" end
+    pallet.location="rack"
+    pallet.storage={rackId=rackId,row=1,column=column}
+    pallet.world=nil
+    jack.carriedPalletId,jack.candidatePalletId=nil,nil
+    registry.revision=registry.revision+1
+    rack.revision=rack.revision+1
+    return true,"store"
+end
+
 function Storage.validate(state)
     if type(state) ~= "table" then return false, { "A shop state is required." } end
     for _, field in pairs(VEHICLES) do
@@ -241,7 +276,18 @@ function Storage.validate(state)
             errors[#errors + 1] = "Stack upper pallet has drifted from its support: " .. tostring(topId)
         end
     end
-    for kind, field in pairs(VEHICLES) do
+    local fleetValid,jackLoads=require("src.pallet_jack_fleet").validate(state)
+    if not fleetValid then errors[#errors+1]="Conflicting pallet jack ownership." end
+    jackLoads=jackLoads or {}
+    for _,palletId in ipairs(vehicles.on_pallet_jack) do
+        if not jackLoads[palletId] then errors[#errors+1]="Pallet has no matching jack: "..palletId end
+    end
+    for palletId in pairs(jackLoads) do
+        if not ids[palletId] or ids[palletId].location~="on_pallet_jack" then
+            errors[#errors+1]="Pallet jack cargo mismatch: "..tostring(palletId)
+        end
+    end
+    for kind, field in pairs({forklift="forklift"}) do
         local vehicle, loads = state[field] or {}, vehicles[LOCATIONS[kind]]
         if #loads > 1 then errors[#errors + 1] = "Multiple pallets claimed by " .. kind end
         if vehicle.carriedPalletId ~= nil then

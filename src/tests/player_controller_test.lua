@@ -57,6 +57,16 @@ function Test.run(_, check)
     end
     check("player_idle_animation_covers_eight_direction_sectors", idlesCorrect)
 
+    local idleTimingCorrect = true
+    for _, expected in ipairs(expectedIdles) do
+        local action = expected[3]
+        idleTimingCorrect = idleTimingCorrect
+            and CharacterAnimation.frameForPlayerAction(action, 2, 0, 2, 20, .65) == 1
+            and CharacterAnimation.frameForPlayerAction(action, 2, 0, 2 / .65 - .07, 20, .65) == 2
+            and CharacterAnimation.frameForPlayerAction(action, 2, 0, 2 / .65 + .01, 20, .65) == 1
+    end
+    check("player_directional_idle_alternate_pose_is_brief", idleTimingCorrect)
+
     local walkActions = {
         "walk", "walk_north", "walk_northeast", "walk_southeast", "walk_south",
     }
@@ -155,6 +165,38 @@ function Test.run(_, check)
     local diagonalSpeed = math.sqrt(diagonal.velocityX ^ 2 + diagonal.velocityY ^ 2)
     check("player_diagonal_input_does_not_move_faster", diagonalSpeed <= definition.speed + 0.001)
 
+    local straightStart, diagonalStart = player(), player()
+    PlayerController.reset(straightStart, nil, definition)
+    PlayerController.reset(diagonalStart, nil, definition)
+    local straightTravel = PlayerController.update(straightStart, 1, 0, .02, function() return true end, definition)
+    local diagonalTravel = PlayerController.update(diagonalStart, 1, 1, .02, function() return true end, definition)
+    check("player_starts_with_equal_acceleration_in_every_direction", math.abs(straightTravel - diagonalTravel) < .0001)
+    local analog = player()
+    PlayerController.reset(analog, nil, definition)
+    for _ = 1, 10 do PlayerController.update(analog, .3, .4, .02, function() return true end, definition) end
+    check("player_analog_input_retains_half_speed", math.abs(math.sqrt(analog.velocityX^2 + analog.velocityY^2) - 50) < .0001)
+    PlayerController.update(straightStart, 0, 0, .02, function() return true end, definition)
+    PlayerController.update(diagonalStart, 0, 0, .02, function() return true end, definition)
+    check("player_release_braking_is_equal_in_every_direction", straightStart.velocityX == 0
+        and diagonalStart.velocityX == 0 and diagonalStart.velocityY == 0)
+
+    local loadedReverse, propulsionReverse = player(), player()
+    for _, actor in ipairs({loadedReverse, propulsionReverse}) do
+        PlayerController.reset(actor, nil, gaitMovementDefinition)
+        actor.velocityX = 60
+    end
+    loadedReverse.animationDistance, propulsionReverse.animationDistance = 20, 60
+    PlayerController.update(loadedReverse, -1, 0, .01, function() return true end, gaitMovementDefinition)
+    PlayerController.update(propulsionReverse, -1, 0, .01, function() return true end, gaitMovementDefinition)
+    check("player_reversal_braking_does_not_depend_on_gait_phase",
+        math.abs(loadedReverse.velocityX - 52) < .0001 and math.abs(propulsionReverse.velocityX - 52) < .0001)
+
+    local blocked = player()
+    PlayerController.reset(blocked, nil, definition)
+    PlayerController.update(blocked, 1, 1, .1, function() return false end, definition)
+    check("player_blocked_motion_keeps_stride_frozen", not blocked.moving and blocked.blocked
+        and blocked.animationDistance == 0 and blocked.velocityX == 0 and blocked.velocityY == 0)
+
     local sliding = player()
     PlayerController.reset(sliding, { x = 0, y = 0 }, {
         speed = 100, acceleration = 2000, deceleration = 2000,
@@ -186,6 +228,10 @@ function Test.run(_, check)
         externallyMoved.intentX, externallyMoved.intentY)
     check("externally_moved_player_retains_observed_direction_for_idle",
         externalIdle == "idle_northeast" and externalMirror == -1)
+    local externalWalk, walkMirror = CharacterAnimation.actorWalkAction(externallyMoved)
+    check("externally_moved_player_walk_uses_observed_direction", externalWalk == "walk_northeast" and walkMirror == -1)
+    local slideWalk = CharacterAnimation.actorWalkAction(sliding)
+    check("player_wall_slide_faces_achieved_motion", slideWalk == "walk_south")
 end
 
 return Test

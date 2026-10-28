@@ -11,8 +11,11 @@ The runtime boundary is organized by residency pack. `src/assets.lua` validates 
 | `polarDirections` | 4096x512, 8x1 | Eight-way movable cutter |
 | `skidWrapperDirections` | 2048x512, 4x1 | Movable wrapper |
 | `windmillDirections` | 1536x1024, 2x2 | Four-way movable Windmill |
-| `technicianNpcs` | 2048x1024, 4x2 | Mouse and lizard field technicians |
+| `technicianNpcs` | 2048x1024, 4x2 | Legacy technician moving/service fallback |
+| `technician-motion-v2` directional idles | sixteen 512x256, 2x1 strips | Eight authored stopped views for each technician; five walk views per species and service replacement remain pending |
+| `technician-motion-v2` north/south/east walks | six 2048x256, 8x1 strips | Authored contact/loading/passing/propulsion cycles for mouse and lizard; phase shared by host and interpolated guest presentation |
 | `characters/rabbit-worker` directional idles / walks | five 1024x512, 2x1 / five 4096x512, 8x1 strips | Paired eight-sector streamed player movement pack |
+| `characters/rabbit-worker/high-five-v5.png` | 4096x512, 8x1 | Planted one-shot gesture: anticipation, impact, recoil, return and settle; shared local/remote timing |
 | `characters/rabbit-worker` work, forklift, computer, and phone actions | twenty 1024x256, 4x1 strips | Four action sets with five authored perspectives each; west, northwest, and southwest mirror the matching eastward views |
 | `loadingBayDoor` | 1300x260, 5x1 | Loading-bay animation |
 | `deliveryTruck` | 512x512 | Truck body |
@@ -86,3 +89,11 @@ metal wall plate. Its first row contains dark, cyan-green customer, amber suppli
 urgent-job lamps; the second row shifts the handset for the ringing animation. The generated checkerboard is
 converted to true alpha by the same preparation tool. The installed atlas is
 `assets/generated/critter-net-work-phone-atlas-v1.png`.
+
+## Reviewed character animation replacements
+
+The animation-overhaul sources, exact ImageGen prompts, reference roles and rejected drafts are preserved under `assets/source/animation-overhaul-*` and `assets/source/technician-motion-v2/`. Root review and validation are recorded in `docs/animation_overhaul.md` and `docs/luna_animation_review.md`.
+
+The current cat south walk is `assets/generated/worker-walk-v3/cat-worker/walk_south.png`: eight canonical drawings with opposite contact feet and separately repaired passing poses. `tools/build_cat_south_walk_v1.py` pins the source/provenance and derives the 2048x256 runtime strip with one .5 scale over the entire master. Metadata is `src/worker_walk_art.lua`. The original strip is retained.
+
+The current player north walk is `assets/generated/player-walk-v6/walk_north.png`: an eight-phase rear-view cycle based on the clean V5 full cycle, with improved opposite weight-down and knee-up leg poses at phases 2/4/6/8. The same fixed scale, 512px frame and 76.8px rendered body height are retained. V5 remains available for comparison. The cross-view audit found coherent body proportions and outline weight; support-foot travel through actual movement remains an open gait issue. `tools/build_player_north_v8_review.py` reproduces the reviewed V7/V8 candidate, and `tools/install_player_north_v8.py --apply` installs it with pinned input hashes and metadata.

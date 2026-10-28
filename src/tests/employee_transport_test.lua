@@ -76,8 +76,12 @@ function Test.run(context,check)
         local _,stopped=Renderer.pose(entry,context.characterAssets)
         check("employee_stopped_push_plants_feet_"..profile.character,stopped==2)
         worker.phase="working";worker.training={skill="press"};worker.idleClock=.75
+        local presentation=require("src.employee_work_presentation")
+        presentation.reset(worker)
+        presentation.update(state,worker,.36)
         local operating,workFrame=Renderer.pose(entry,context.characterAssets)
-        check("employee_training_uses_machine_animation_"..profile.character,operating=="work_press" and workFrame==4)
+        check("employee_training_uses_machine_animation_"..profile.character,operating=="work_press" and workFrame==(profile.character=="cat-worker" and 3 or 4))
+        presentation.reset(worker)
         worker.training=nil
     end
     worker.character="cat-worker";worker.phase="idle"
@@ -182,7 +186,7 @@ function Test.run(context,check)
     local rows=Pose.capture({entry});local actors=Pose.actors(rows)
     check("employee_push_gait_survives_guest_pose",actors and actors[worker.id].phase=="pushing" and actors[worker.id].jackDistance==125)
     local maximum=require("src.net.codec").array()
-    for i=1,11 do maximum[i]=require("src.net.codec").array({"EMP-9999"..string.format("%02d",i),96000,67800,8,15999,12999,1,10,4,2,1000,28}) end
+    for i=1,11 do maximum[i]=require("src.net.codec").array({"EMP-9999"..string.format("%02d",i),96000,67800,8,15999,12999,1,10,124,2,1000,28}) end
     local rosterPacket,rosterError=Protocol.encode("employee_snapshot",{sessionId=string.rep("s",64),serverTick=4294967295,employees=maximum})
     check("full_employee_roster_and_push_poses_fit_network_packet",rosterPacket and #rosterPacket<=Protocol.MAX_PACKET_BYTES,rosterError)
     local Session=require("src.net.session")

@@ -175,6 +175,7 @@ function Test.run(_, check)
 
     local inkState = fresh()
     local inkPallet = delivered(inkState,2,1)
+    shelf(inkState,inkPallet)
     local inkJob = { id="STOCK-INK-TEST", press={colors=1,colorSequence={"Black"}} }
     inkState.jobs.active = { inkJob }
     local inkProcess = Windmill.ensure(inkState)
@@ -186,9 +187,9 @@ function Test.run(_, check)
     inkUsed = inkCallOkay and inkUsed
     check("stock_consumption_windmill_ink_setup_decrements_its_physical_skid",
         inkUsed and inkState.inventory.stock.black_ink == 139
-        and inkPallet.remainingQuantity == 139 and inkPallet.location == "warehouse"
+        and inkPallet.remainingQuantity == 139 and inkPallet.location == "rack"
         and PalletState.validate(inkState))
-    local lastInkUsed = Procurement.consumeStockProduct(inkState,"black_ink",139)
+    local lastInkUsed = Procurement.consumeStockProduct(inkState,"black_ink",139,{autoShelf=true})
     check("stock_consumption_empty_ink_skid_despawns_after_final_unit",
         lastInkUsed and inkState.inventory.stock.black_ink == 0
         and inkPallet.remainingQuantity == 0 and inkPallet.location == "none"
@@ -242,6 +243,7 @@ function Test.run(_, check)
 
     local plateState = fresh()
     local plateKit = delivered(plateState,2,5)
+    shelf(plateState,plateKit)
     local allPlateKitsUsed, plateFailure = true, nil
     for index = 1,10 do
         local job = { id="STOCK-PLATE-"..index, press={colors=1,colorSequence={"Black"}} }

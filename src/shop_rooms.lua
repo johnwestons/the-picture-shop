@@ -52,7 +52,7 @@ function Rooms.scene(player) return player and player.sceneId or "warehouse" end
 function Rooms.sameScene(a,b) return Rooms.scene(a)==Rooms.scene(b) end
 function Rooms.employeeScene(entry)
     local actor=entry.actor
-    return actor.phase=="break" and actor.seatBay or "warehouse"
+    return actor.phase=="break" and actor.seatBay or actor.sceneId or "warehouse"
 end
 function Rooms.bayStatus(state,id)
     local warehouse=state and state.warehouse
@@ -226,7 +226,7 @@ local function availableSeat(player,state,context)
         if not occupied[index] then return Rooms.seats[index],index end
     end
 end
-function Rooms.transition(player,state,destination)
+function Rooms.transition(player,state,destination,context)
     if not Rooms.IDS[destination] then return false,"not_allowed","Unknown shop room." end
     local current=Rooms.scene(player)
     if current==destination then return true,"already_applied","You are already in this room." end
@@ -275,6 +275,21 @@ function Rooms.transition(player,state,destination)
     local point=destination=="warehouse"
         and {x=Rooms.roomEntrance.x,y=Rooms.roomEntrance.y+46}
         or {x=Rooms.exit.x,y=Rooms.exit.y+38}
+    if ownsJack or ownsForklift then
+        local vehicle=ownsJack and jack or lift
+        local assets=Rooms.assets(context and context.assets or {},destination,state)
+        local obstacles=context and context.obstacles and context.obstacles(state,vehicle,{x=0,y=0},
+            false,false,vehicle.carriedPalletId,false,ownsForklift,destination)
+            or require("src.room_vehicle_access").obstacles(state,destination,vehicle,vehicle.carriedPalletId,ownsForklift and lift)
+        for _,other in ipairs(context and context.players and context.players() or {}) do
+            if other~=player and Rooms.scene(other)==destination then
+                obstacles[#obstacles+1]={x=other.x,y=other.y,radius=18}
+            end
+        end
+        local landing=require("src.room_vehicle_access").landing(assets,destination,vehicle,obstacles)
+        if not landing then return false,"doorway_blocked","Clear the floor on the other side of the doorway." end
+        point={x=player.x+landing.x-vehicle.x,y=player.y+landing.y-vehicle.y}
+    end
     local dx,dy=point.x-player.x,point.y-player.y
     if ownsJack then moveJackBetweenScenes(state,dx,dy,destination) end
     if ownsForklift then moveForkliftBetweenScenes(state,dx,dy,destination) end
@@ -358,7 +373,7 @@ function Rooms.transfer(player,state,action,palletId,context)
     return true,"accepted",action=="store" and "Shop stock stored in this room." or "Stock returned to the warehouse entrance."
 end
 function Rooms.perform(player,state,kind,command,context)
-    if kind=="shopRoom" then return Rooms.transition(player,state,command) end
+    if kind=="shopRoom" then return Rooms.transition(player,state,command,context) end
     if kind=="roomRest" then
         if command~="rest" and command~="stand" then return false,"not_allowed","Unknown break room action." end
         if not Rooms.isComplete(state,Rooms.scene(player)) or Rooms.definition(state,Rooms.scene(player))~="breakroom"

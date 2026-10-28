@@ -4,15 +4,19 @@ local Pallets = require("src.pallet_state")
 local Navigator = require("src.npc_navigation")
 local Gait = require("src.gait_motion")
 local Config = require("src.config")
+local Storage = require("src.pallet_storage")
+local Procurement = require("src.procurement")
+local Fleet = require("src.pallet_jack_fleet")
 local Transport = {}
 
 function Transport.owns(state, worker)
-    local jack = state.palletJack
+    local jack = Fleet.owned(state,worker.id)
     return jack and jack.operating and jack.operatorEmployeeId == worker.id
 end
 
 local function align(state, worker)
     worker.x, worker.y = Jack.operatorPosition(state, Config.palletJack)
+    worker.sceneId=state.palletJack.sceneId or "warehouse"
     worker.jackDistance = Jack.animationDistance(state, Config.palletJack)
     worker.phase, worker.moving = "pushing", state.palletJack.moving
     local pose = Jack.visualPose(state, Config.palletJack)
@@ -20,6 +24,7 @@ local function align(state, worker)
 end
 
 function Transport.move(state, worker, goal, dt, context)
+    state=Fleet.employeeView(state,worker)
     local jack = Jack.ensure(state, Config.palletJack)
     local actor = worker._jackNavigator
     if not actor then actor = {}; worker._jackNavigator = actor end
@@ -38,7 +43,9 @@ function Transport.move(state, worker, goal, dt, context)
 end
 
 function Transport.release(state, worker, context)
+    worker._shippingPalletId=nil
     if not Transport.owns(state, worker) then return true end
+    state=Fleet.employeeView(state,worker)
     local jack = state.palletJack
     if jack.carriedPalletId then
         local point = context and context.jackEmergencyDropPoint and context.jackEmergencyDropPoint(worker)
@@ -56,6 +63,7 @@ function Transport.release(state, worker, context)
 end
 
 function Transport.park(state, worker, dt, context)
+    state=Fleet.employeeView(state,worker)
     local jack=Jack.ensure(state,Config.palletJack)
     if not Transport.owns(state,worker) or jack.carriedPalletId then
         worker._jackParkingTarget,worker._parkingJack=nil,nil
@@ -86,12 +94,20 @@ function Transport.park(state, worker, dt, context)
 end
 
 function Transport.update(state, worker, machine, pallet, stage, dt, context)
+    if not Fleet.employee(state,worker,pallet.id) then
+        worker.phase,worker.moving="idle",false
+        worker.activity="Waiting for an available pallet jack"
+        return false,worker.activity
+    end
+    state=Fleet.employeeView(state,worker,pallet.id)
     local jack = Jack.ensure(state, Config.palletJack)
     local name = stage == "cutter" and "cutter" or stage == "press" and "printing press" or "skid wrapper"
-    if jack.sceneId~="warehouse" and not Transport.owns(state,worker) then
-        worker.phase,worker.moving="idle",false
-        worker.activity="Waiting for the pallet jack to return to the warehouse"
-        return false,worker.activity
+    if (worker.sceneId or "warehouse")~=jack.sceneId and not Transport.owns(state,worker) then
+        if context.travelScene then
+            local _,changed=context.travelScene(worker,jack.sceneId,dt)
+            return changed
+        end
+        return false,"Waiting for the pallet jack to return to the warehouse"
     end
     if pallet.location == "on_employee" and pallet.carrierEmployeeId == worker.id then
         -- Resume legacy test saves through a real floor-to-jack pickup.
@@ -150,7 +166,11 @@ function Transport.update(state, worker, machine, pallet, stage, dt, context)
         local lowered, reason = Jack.lower(state, Config.palletJack, function(x, y)
             return context.jackDropClear(worker, pallet.id, x, y)
         end, nil, nil, pallet.id)
-        if not lowered then worker.activity = "Clear floor beside the " .. name .. " is blocked"; return false, reason end
+        if not lowered then
+            worker._jackTarget=nil
+            worker.activity = "Clear floor beside the " .. name .. " is blocked"
+            return false, reason
+        end
         worker._jackTarget=nil
         worker._jackParkingTarget=nil
         worker._parkingJack=true
@@ -167,6 +187,102 @@ function Transport.update(state, worker, machine, pallet, stage, dt, context)
     worker._jackTarget = nil
     align(state, worker)
     return true
+end
+
+function Transport.storeSupplies(state,worker,dt,context)
+    if not Fleet.employee(state,worker) then return false,false end
+    state=Fleet.employeeView(state,worker)
+    if worker._parkingJack and Transport.owns(state,worker) then
+        return true,Transport.park(state,worker,dt,context)==true
+    end
+    local jack=Jack.ensure(state,Config.palletJack)
+    local function finishStocking()
+        if not Transport.owns(state,worker) then return false,false end
+        if jack.carriedPalletId then
+            Transport.release(state,worker,context)
+            return true,true
+        end
+        worker._parkingJack=true
+        return true,Transport.park(state,worker,dt,context)==true
+    end
+    local rackId="warehouse-rack"
+    local rack=state.storage and state.storage.racks[rackId]
+    if not rack or jack.sceneId~="warehouse" then return finishStocking() end
+    local slots=Storage.slots(state,rackId)
+    local column
+    for index=1,Storage.COLUMNS do
+        if not slots[1][index] then column=index;break end
+    end
+    if not column then return finishStocking() end
+    local pallet
+    if jack.carriedPalletId then
+        local item=Pallets.find(state,jack.carriedPalletId)
+        if item and item.vendor and item.pallet.kind=="vendor_product" then pallet=item.pallet end
+    else
+        for _,item in ipairs(Procurement.physicalPallets(state)) do
+            if item.pallet.kind=="vendor_product"
+                and not Storage.isSupporting(state,item.pallet.id) then
+                pallet=item.pallet;break
+            end
+        end
+    end
+    if not pallet then return finishStocking() end
+    if jack.operating and jack.operatorEmployeeId~=worker.id then return false,false end
+    if not Transport.owns(state,worker) then
+        local goal=context.jackApproachPoint and context.jackApproachPoint(worker)
+        if not goal then return false,false end
+        local reached=context.move(worker,goal,dt)
+        worker.phase,worker.activity="walking","Walking to pallet jack for stock"
+        if reached then
+            local mounted=Jack.mountEmployee(state,Config.palletJack,worker.id)
+            if mounted then align(state,worker);return true,true end
+        end
+        return true,false
+    end
+    if not jack.carriedPalletId then
+        local goal=context.jackPickupPoint and context.jackPickupPoint(worker,pallet)
+        if not goal then worker.activity="Stock pallet access is blocked";return true,false end
+        worker.activity="Pushing pallet jack to stock supplies"
+        local reached,blocked=Transport.move(state,worker,goal,dt,context)
+        if blocked then worker.activity="Stock pallet jack route is blocked" end
+        if reached then
+            if context.jackLoadClear and not context.jackLoadClear(worker,pallet.id,jack.x,jack.y) then
+                worker.activity="Stock pallet pickup route is blocked"
+                return true,false
+            end
+            local lifted=Jack.lift(state,Config.palletJack,pallet.id)
+            if lifted then align(state,worker);return true,true end
+        end
+        return true,false
+    end
+    local goal
+    if context.jackShelfPoint then
+        for candidate=1,Storage.COLUMNS do
+            if not slots[1][candidate] then
+                goal=context.jackShelfPoint(worker,rackId,candidate)
+                if goal then column=candidate;break end
+            end
+        end
+    end
+    if not goal then worker.activity="Stock shelf access is blocked";return true,false end
+    worker.activity="Putting stock supplies on the shelf"
+    local reached,blocked=Transport.move(state,worker,goal,dt,context)
+    if blocked then
+        worker._jackShelfKey,worker._jackShelfPoint=nil,nil
+        worker.activity="Stock shelf route is blocked"
+    end
+    if not reached then return true,false end
+    Jack.face(state,Config.palletJack,"north")
+    Jack.stop(state,Config.palletJack)
+    local stored=Storage.employeeStore(state,worker.id,pallet.id,rackId,column)
+    if stored then
+        worker._jackShelfKey,worker._jackShelfPoint=nil,nil
+        worker._parkingJack=true
+        worker.activity="Stock supplies stored; clearing the shelf aisle"
+        return true,true
+    end
+    worker.activity="Stock shelf slot needs attention"
+    return true,false
 end
 
 return Transport

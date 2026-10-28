@@ -1,0 +1,99 @@
+{
+  "status": "single-transition review candidate only; not merged into the 16-frame strip and not runtime registered",
+  "transition": "F12; corrected key6 right weight-down -> corrected key7 left passing",
+  "generator": "built-in image_gen",
+  "generation_id": "exec-e6ec72e5-cc32-466e-98d0-075d9baff07e.png",
+  "imagegen_output_original": "C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07\\exec-e6ec72e5-cc32-466e-98d0-075d9baff07e.png",
+  "imagegen_output_staged": "assets\\source\\animation-overhaul-luna-v1\\cat-worker\\generated\\walk_south-f12-midpoint-imagegen-v1.png",
+  "imagegen_sha256": "9b0133d981ba94d4726720a68d6a6e546efb6d28198f5667ad1793eed627e581",
+  "imagegen_dimensions_px": [
+    1254,
+    1254
+  ],
+  "alpha_ge_16_bbox_raw_px": [
+    322,
+    192,
+    985,
+    1125
+  ],
+  "exact_prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/prompts/transition-south-f12-single-midpoint-v1.txt",
+  "input_images": [
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key06-transition12-endpoint.png",
+      "role": "corrected key6 start pose; screen-right support, screen-left free/trailing leg",
+      "sha256": "4bea3e54aa9ccfe4c8dfc4610b09a5f18fda97a055ecb670a8e2ba613aa07329"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key07-transition12-endpoint.png",
+      "role": "corrected key7 end pose; screen-right support, screen-left near-passing leg",
+      "sha256": "2f9fb3c109f67b60ae01d63e0ffa59485876331eec5703c3aeb382a73b3ded44"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-leg-role-diagram-v1.png",
+      "role": "screen-left/red vs screen-right/blue leg ownership only",
+      "sha256": "a51ec422c7d799415df3c718c1023992dcce1a244925f50c4308a006e691fe20"
+    }
+  ],
+  "selected_output": "assets\\source\\animation-overhaul-luna-v1\\cat-worker\\canonical-replacements\\walk_south-f12-midpoint-candidate-v1.png",
+  "selected_output_sha256": "638a8bec0e82fd5735b1e8f6a6c1a0a6b76e9f21a147554b72925a8c8d267dd4",
+  "review_sheet": "output\\animation-overhaul\\luna-cat\\canonical-correction-candidate\\walk_south-f12-v1-key6-midpoint-key7-review.png",
+  "source_key6_sha256": "aeae82e6415b49817d56599fed42b6d8362abd51148779ceb53534b6fb7cbb93",
+  "source_key7_sha256": "abd0e023cd676c1800fd8b958e0ea94f06068098b941187fbc7d20e0daccb68b",
+  "source_key6_bbox_ge_16_px": [
+    119,
+    77,
+    393,
+    458
+  ],
+  "source_key7_bbox_ge_16_px": [
+    119,
+    74,
+    397,
+    458
+  ],
+  "source_key6_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 229,
+    "x_max_px": 282,
+    "x_mid_px": 255.5
+  },
+  "source_key7_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 229,
+    "x_max_px": 282,
+    "x_mid_px": 255.5
+  },
+  "transform": {
+    "uniform_scale_factor_fixed_from_reviewed_F08": 0.40707497,
+    "scale_method": "same fixed master scale as reviewed F08; no per-frame scale fit",
+    "raw_alpha_ge_16_height_px": 933,
+    "scaled_alpha_ge_16_height_px": 380,
+    "endpoint_mean_alpha_ge_16_height_px": 382.5,
+    "raw_torso_axis_x_px": 643.0,
+    "target_torso_axis_x_px": 254.0,
+    "rigid_x_translation_px": -8,
+    "rigid_y_translation_px": 0,
+    "target_support_sole_row_px": 457,
+    "method": "one fixed uniform scale shared with reviewed F08, followed by rigid x/y translations only; no per-part warping or independent scaling"
+  },
+  "candidate_alpha_ge_16_bbox_px": [
+    123,
+    78,
+    393,
+    458
+  ],
+  "candidate_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 228,
+    "x_max_px": 280,
+    "x_mid_px": 254.0
+  },
+  "candidate_support_anchor_x_delta_vs_key6_px": -1.5,
+  "candidate_torso_axis_x_px": 253.0,
+  "candidate_torso_axis_delta_vs_key6_px": 0.5,
+  "candidate_limits": [
+    "Single F12 only; other transitions are unchanged.",
+    "Root visual review required; contact semantics are not established by bounds checks.",
+    "Visual interpolation limitation: although the screen-left boot is lower than in key6, its inward progression toward key7 passing is subtle; root should judge whether F12 is a usable midpoint before this interval is accepted."
+  ]
+}

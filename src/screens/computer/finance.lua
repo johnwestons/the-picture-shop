@@ -48,7 +48,10 @@ function Component.install(Runtime)
             Runtime.panel(mapRect,{0.085,0.12,0.12,1},{0.34,0.55,0.51,1},3,1)
             love.graphics.setColor(0.20,0.25,0.24,1)
             love.graphics.rectangle("fill",map.x,map.y,map.width,map.height)
-            love.graphics.setScissor(map.x,map.y,map.width,map.height)
+            -- Scissor rectangles use window pixels, while the mobile viewport
+            -- scales these game coordinates. Clip using the active transform.
+            local oldScissor={love.graphics.getScissor()}
+            love.graphics.setScissor(Runtime.ComputerScreen.warehouseStagingMapScissor())
             love.graphics.setColor(0.29,0.34,0.31,0.35)
             for worldX=0,Runtime.Config.baseWidth,48 do
                 local gridX=map.x+worldX*map.scale
@@ -108,7 +111,8 @@ function Component.install(Runtime)
                     love.graphics.polygon("line",sx,sy-ry,sx+rx,sy,sx,sy+ry,sx-rx,sy)
                 end
             end
-            love.graphics.setScissor()
+            if oldScissor[1] then love.graphics.setScissor(unpack(oldScissor))
+            else love.graphics.setScissor() end
             love.graphics.setColor(0.53,0.67,0.61,1)
             love.graphics.rectangle("line",map.x,map.y,map.width,map.height)
 
@@ -177,9 +181,20 @@ function Component.install(Runtime)
                         and bay.status=="complete" and bay.optionId=="breakroom" and not view.pending)
                 end
             else
-                for oi,option in ipairs(bay.options) do
-                    control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
-                        view.enabled and option.available and bay.status=="locked" and not view.pending)
+                if bay.status=="locked" then
+                    for oi,option in ipairs(bay.options) do
+                        control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
+                            view.enabled and option.available and not view.pending)
+                    end
+                elseif bay.garageAvailable then
+                    love.graphics.setColor(.74,.84,.79,1)
+                    love.graphics.printf("Add a loading bay for customer pickup trucks.",110+(bi-1)*380,290,330,"left")
+                    love.graphics.printf("Employees carry finished skids through the room passage and load their assigned truck.",110+(bi-1)*380,326,330,"left")
+                end
+                if bay.garageAvailable then
+                    control(Runtime.warehouseOptionRect(bi,4),"TRUCK GARAGE DOOR / "..
+                        (bay.garageOwned and "OWNED" or Runtime.money(require("src.room_loading_bays").PRICE)),
+                        view.enabled and not bay.garageOwned and not view.pending)
                 end
             end
             local phase=view.gamesPage and (bay.status=="complete" and bay.optionId=="breakroom"
@@ -214,7 +229,8 @@ function Component.install(Runtime)
             or "Review a choice to confirm its cost. The raccoon mechanic calls before construction.",100,578,736,"left")
         local choice=view.confirmation
         if not choice then return end
-        local product=choice.kind=="buy_breakroom_fixture"
+        local product=choice.kind=="buy_garage_door" and require("src.room_loading_bays").catalog()
+            or choice.kind=="buy_breakroom_fixture"
             and Runtime.BreakroomGames.CATALOG[choice.fixtureId]
             or Runtime.Upgrades.catalog(choice.optionId or "forklift")
         love.graphics.setColor(0,0,0,0.88);love.graphics.rectangle("fill",82,190,770,408)
@@ -224,7 +240,9 @@ function Component.install(Runtime)
         love.graphics.setColor(0.92,0.96,0.91,1)
         love.graphics.printf("Host catalog price: "..Runtime.money(product.price),204,300,532,"center")
         love.graphics.setColor(0.72,0.85,0.82,1)
-        love.graphics.printf(choice.kind=="buy_breakroom_fixture"
+        love.graphics.printf(choice.kind=="buy_garage_door"
+            and "Install a truck loading bay in this room. Employees bring wrapped skids to their assigned pickup truck."
+            or choice.kind=="buy_breakroom_fixture"
             and ((choice.bayId=="front_left" and "Room A" or "Room B")..
                 " fixture. Host confirms ownership and saves one purchase receipt.")
             or choice.kind=="buy_forklift"

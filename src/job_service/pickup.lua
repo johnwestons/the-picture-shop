@@ -105,14 +105,17 @@ function Component.install(Runtime)
         return remaining
     end
 
-    function Runtime.JobService.loadForPickup(state, jobId, palletId, timestamp)
+    function Runtime.JobService.loadForPickup(state, jobId, palletId, timestamp, employeeId)
         local job = Runtime.activeJob(state, jobId)
         if not job or job.status ~= "pickup_in_progress" then return false, "pickup is not in progress" end
         for _, pallet in ipairs(job.pallets or {}) do
             if pallet.id == palletId then
                 if pallet.location == "outbound_truck" then return false, "that pallet is already on the truck" end
                 if pallet.status ~= "wrapped" or not pallet.wrapped then return false, "that pallet is not wrapped" end
-                if pallet.location ~= "warehouse" and pallet.location ~= "cutter_output"
+                local jack=state.palletJack
+                local employeeLoad=employeeId and pallet.location=="on_pallet_jack" and jack
+                    and jack.carriedPalletId==palletId and jack.operating and jack.operatorEmployeeId==employeeId
+                if not employeeLoad and pallet.location ~= "warehouse" and pallet.location ~= "cutter_output"
                     and pallet.location ~= "press_output" then
                     return false, "lower the wrapped pallet onto the warehouse floor before loading"
                 end

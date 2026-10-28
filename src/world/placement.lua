@@ -4,9 +4,16 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper,
-        excludedPalletId, excludeWindmill, excludeForklift)
+        excludedPalletId, excludeWindmill, excludeForklift, sceneOverride)
         inflate = inflate or { x = 0, y = 0 }
         if type(inflate) == "number" then inflate = { x = inflate, y = inflate } end
+        if sceneOverride and sceneOverride~="warehouse" then
+            local result=require("src.room_vehicle_access").obstacles(state,sceneOverride,
+                type(excludeJack)=="table" and excludeJack or excludeJack and state.palletJack,excludedPalletId,
+                excludeForklift and state.forklift)
+            for i,o in ipairs(result) do result[i]=Runtime.Footprint.expand(o,inflate) end
+            return result
+        end
         local obstacles = {}
         local activeKind, activePose = Runtime.MachineTransport.active(state)
         -- Moving an extra unit must still collide with the original machine.
@@ -40,7 +47,7 @@ function Component.install(Runtime)
         if vendorObstacle then obstacles[#obstacles + 1] = vendorObstacle end
         local technicianObstacle = Runtime.Technician.obstacle(state)
         if technicianObstacle then obstacles[#obstacles + 1] = technicianObstacle end
-        local truckObstacle = Runtime.World.truck:getObstacle()
+        local truckObstacle = (Runtime.World.truck.sceneId or "warehouse")=="warehouse" and Runtime.World.truck:getObstacle()
         if truckObstacle then obstacles[#obstacles + 1] = truckObstacle end
         for _, obstacle in ipairs(Runtime.PalletLogistics.obstacles(state,
             Runtime.Config.palletLogistics.collisionHalfWidth,
@@ -50,9 +57,20 @@ function Component.install(Runtime)
                 obstacles[#obstacles + 1] = obstacle
             end
         end
-        if not excludeJack and (not state.palletJack or (state.palletJack.sceneId or "warehouse")=="warehouse") then
-            local jackObstacle = Runtime.PalletJack.obstacle(state, Runtime.Config.palletJack)
-            if jackObstacle then obstacles[#obstacles + 1] = jackObstacle end
+        local JackFleet=require("src.pallet_jack_fleet")
+        for _,jack in ipairs(JackFleet.all(state)) do
+            local excluded=excludeJack==true and jack==state.palletJack or excludeJack==jack
+            if not excluded and (jack.sceneId or "warehouse")=="warehouse" then
+                -- Other jacks remain solid while their employees are driving.
+                local loaded=jack.carriedPalletId~=nil
+                local jackObstacle=Runtime.PalletJack.obstacle(JackFleet.view(state,jack),Runtime.Config.palletJack)
+                if not jackObstacle and jack.operatorEmployeeId then
+                    jackObstacle={x=jack.x,y=jack.y-5,
+                        halfWidth=loaded and Runtime.Config.palletJack.loadedCollisionHalfWidth or Runtime.Config.palletJack.collisionHalfWidth,
+                        halfHeight=loaded and Runtime.Config.palletJack.loadedCollisionHalfHeight or Runtime.Config.palletJack.collisionHalfHeight}
+                end
+                if jackObstacle then obstacles[#obstacles+1]=jackObstacle end
+            end
         end
         if not excludeForklift and (not state.forklift or (state.forklift.sceneId or "warehouse")=="warehouse") then
             local liftObstacle = Runtime.Forklift.obstacle(state, Runtime.Config.forklift)
@@ -199,7 +217,7 @@ function Component.install(Runtime)
         if kind and (not networkMachineView or localGuestControlsMachine) then
             return kind, item.x, item.y
         end
-        if jack and jack.operating and jack.carriedPalletId then
+        if jack and jack.operating and not jack.operatorEmployeeId and jack.carriedPalletId then
             local x, y = Runtime.PalletJack.dropPosition(state, Runtime.Config.palletJack)
             return "pallet", x, y
         end

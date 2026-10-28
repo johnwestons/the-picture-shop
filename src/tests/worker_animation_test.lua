@@ -32,11 +32,11 @@ function Test.run(context, check)
             local width1, height1 = quadSize(firstQuad)
             local width2, height2 = quadSize(laterQuad)
             local valid = action == task.action and laterAction == task.action
-                and firstImage and laterImage and firstCount == 4 and laterCount == 4
-                and firstFrame == 1 and laterFrame == 4
+                and firstImage and laterImage and firstCount == (profile.character=="cat-worker" and 4 or 8) and laterCount == firstCount
+                and firstFrame == 1 and laterFrame == 1
                 and width1 == 256 and height1 == 256 and width2 == 256 and height2 == 256
             cacheOkay = cacheOkay and valid
-            check("worker_" .. profile.character .. "_" .. task.action .. "_loops_four_anchored_frames", valid)
+            check("worker_" .. profile.character .. "_" .. task.action .. "_holds_pose_until_task_changes", valid)
         end
 
         local pushAction = Catalog.pushAction(profile.character)

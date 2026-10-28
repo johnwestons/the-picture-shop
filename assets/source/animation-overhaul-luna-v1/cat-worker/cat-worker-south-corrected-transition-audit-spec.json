@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "character": "cat-worker-south-corrected-transitions",
+  "status": "staged_art_review_only",
+  "animations": {
+    "walk_north_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_north-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_north": {
+      "path": "assets/generated/characters/cat-worker/idle_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_northeast_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_northeast-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_northeast": {
+      "path": "assets/generated/characters/cat-worker/idle_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_east_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_east-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_east": {
+      "path": "assets/generated/characters/cat-worker/idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_southeast_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_southeast-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_southeast": {
+      "path": "assets/generated/characters/cat-worker/idle_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_south_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-transitions-8phase-v2.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_south": {
+      "path": "assets/generated/characters/cat-worker/idle_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_southwest_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_southwest-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_southwest": {
+      "path": "assets/generated/characters/cat-worker/idle_southwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_west_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_west-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_west": {
+      "path": "assets/generated/characters/cat-worker/idle_west.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_northwest_transitions": {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/transitions/walk_northwest-transitions-8frame-audit.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_northwest": {
+      "path": "assets/generated/characters/cat-worker/idle_northwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    }
+  },
+  "directions": {
+    "north": {
+      "walk_animation": "walk_north_transitions",
+      "idle_animation": "idle_north",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "walk_northeast_transitions",
+      "idle_animation": "idle_northeast",
+      "mirror_x": false
+    },
+    "east": {
+      "walk_animation": "walk_east_transitions",
+      "idle_animation": "idle_east",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "walk_southeast_transitions",
+      "idle_animation": "idle_southeast",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "walk_south_transitions",
+      "idle_animation": "idle_south",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "walk_southwest_transitions",
+      "idle_animation": "idle_southwest",
+      "mirror_x": false
+    },
+    "west": {
+      "walk_animation": "walk_west_transitions",
+      "idle_animation": "idle_west",
+      "mirror_x": false
+    },
+    "northwest": {
+      "walk_animation": "walk_northwest_transitions",
+      "idle_animation": "idle_northwest",
+      "mirror_x": false
+    }
+  },
+  "gait": {
+    "pose_order": [
+      "transition_left_contact_to_left_weight_down",
+      "transition_left_weight_down_to_right_passing",
+      "transition_right_passing_to_right_knee_up",
+      "transition_right_knee_up_to_right_contact",
+      "transition_right_contact_to_right_weight_down",
+      "transition_right_weight_down_to_left_passing",
+      "transition_left_passing_to_left_knee_up",
+      "transition_left_knee_up_to_left_contact"
+    ],
+    "pixels_per_frame": 13,
+    "base_speed": 72,
+    "speed_multipliers": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "acceleration_multipliers": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 4,
+    "center_tolerance": 14
+  },
+  "audit_note": "The south transition strip was regenerated against the corrected south canonical candidate. Other transition strips remain the original direction-specific generated candidates. This is a strict art audit only; parent review still owns foot-role and interpolation acceptance."
+}

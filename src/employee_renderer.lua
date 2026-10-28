@@ -5,21 +5,27 @@ local Speech=require("src.employee_speech")
 local Config=require("src.config")
 local Jack=require("src.pallet_jack")
 local MotionArt=require("src.employee_motion_art")
+local WorkPresentation=require("src.employee_work_presentation")
 local Renderer={}
 local bubbleFont
+local function gaitFrameCount(assets,character,action)
+    local count=assets and assets.getFrameCount and assets.getFrameCount(character,action)
+    return count and count>0 and count or 8
+end
 function Renderer.pose(entry,characterAssets)
     local a=entry.actor
     local action,frame
     local character=Catalog.character(entry)
     local mirror=1
     local direction=Animation.authoredDirection(a.intentX,a.intentY)
+    local workAction,workFrame=WorkPresentation.pose(a)
     if entry.worker and a.phase=="pushing" then
         action,mirror=Catalog.pushAction(character,a.intentX,a.intentY)
-        frame=Animation.frameForPalletJackPush(8,a.moving,a.jackDistance or a.distance,
+        frame=Animation.frameForPalletJackPush(gaitFrameCount(characterAssets,character,action),a.moving,a.jackDistance or a.distance,
             Config.palletJack.gaitPixelsPerFrame or 20)
     elseif a.moving then
         action,mirror=Catalog.action(character,"walk",a.intentX,a.intentY)
-        frame=Animation.frameForDistance(8,a.distance,13)
+        frame=Animation.frameForGait(gaitFrameCount(characterAssets,character,action),a.distance,Catalog.motion.walkPixelsPerFrame)
     elseif entry.worker and a.phase=="break" and a.seatBay then
         local worker=entry.worker
         local employeeNumber=tonumber((worker.id or ""):match("EMP%-(%d+)")) or 0
@@ -40,11 +46,16 @@ function Renderer.pose(entry,characterAssets)
             frame=Animation.frameForClock(4,phase-4,.65)
         end
         mirror=a.seatBay=="front_left" and -1 or 1
+    elseif entry.worker and workAction then
+        action,frame=workAction,workFrame
+        mirror=(character=="ferret-engineer-worker" and -1 or 1)*(a.intentX<0 and -1 or 1)
     elseif (entry.worker and a.phase=="working") or (entry.application and a.phase=="waiting") then
         if entry.worker then
             local workAction=Catalog.workAction(entry)
             if workAction then
-                action,frame=workAction,Animation.frameForClock(4,a.idleClock,4)
+                local expanded=require("src.worker_work_art").paths[character]
+                local frames=expanded and expanded[workAction] and {1,2,workAction=="work_wrapping" and 3 or 4,workAction=="work_wrapping" and 5 or 6} or {1,2,3,4}
+                action,frame=workAction,frames[math.max(1,math.min(4,a.workFrame or 1))]
                 mirror=(character=="ferret-engineer-worker" and -1 or 1)*(a.intentX<0 and -1 or 1)
             elseif character=="cat-worker" then action="operate_"..direction;frame=a.workFrame or 1
             else action,frame="operate",1 end
@@ -63,9 +74,10 @@ local function drawPose(entry,characterAssets,state)
     local scale=.30*characterAssets.getNormalization(character,action)
     if action:match("^chair_") then scale=.30*Config.characterRendering.referenceHeight/192 end
     local x,y=a.x,a.y
-    if state and state.palletJack and state.palletJack.operatorEmployeeId==(entry.worker and entry.worker.id)
-        and a.phase=="pushing" then
-        local pose=Jack.visualPose(state,Config.palletJack)
+    local fleet=require("src.pallet_jack_fleet")
+    local jack=state and entry.worker and fleet.owned(state,entry.worker.id)
+    if jack and a.phase=="pushing" then
+        local pose=Jack.visualPose(fleet.view(state,jack),Config.palletJack)
         local hand=MotionArt.hands[character][action][frame]
         x=pose.x+pose.handleX-(hand.x-ax)*scale*mirror
         y=pose.y+pose.handleY-(hand.y-ay)*scale
@@ -77,14 +89,18 @@ function Renderer.draw(entry,characterAssets,state)
     local character,action,frame,mirror,ax,ay,scale,x,y=drawPose(entry,characterAssets,state)
     local image,quad=characterAssets.get(character,action,frame)
     if not image then return end
-    love.graphics.setColor(.02,.02,.02,.20)
-    love.graphics.ellipse("fill",x,y+1,13,4)
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay)
     if entry.application and a.phase=="waiting" then
         love.graphics.setColor(.96,.85,.42,1)
         love.graphics.printf("APPLICANT",a.x-44,a.y-94,88,"center")
     end
+end
+function Renderer.bubbleLayout(message,font)
+    local width=math.min(176,math.max(52,font:getWidth(message)+16))
+    local _,lines=font:getWrap(message,width-12)
+    local height=math.max(22,math.ceil(#lines*font:getHeight()*font:getLineHeight())+10)
+    return width,height
 end
 function Renderer.drawBubble(entry,characterAssets,state)
     local message=Speech.message(Speech.code(entry))
@@ -99,8 +115,7 @@ function Renderer.drawBubble(entry,characterAssets,state)
     local headY=top and originY-(anchorY-top)*scale
         or originY-Config.characterRendering.referenceHeight*.30
     bubbleFont=bubbleFont or love.graphics.newFont(11)
-    local width=math.min(124,math.max(52,bubbleFont:getWidth(message)+16))
-    local height=22
+    local width,height=Renderer.bubbleLayout(message,bubbleFont)
     local x=math.max(4,math.min(Config.baseWidth-width-4,originX-width/2))
     local y=math.max(4,headY-height-9)
     local tailX=math.max(x+8,math.min(x+width-8,originX))

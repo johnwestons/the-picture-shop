@@ -223,6 +223,7 @@ local function drawPalletTooltip(state, mouseX, mouseY)
 end
 
 local function drawTruck(assets, state)
+    if (World.truck.sceneId or "warehouse")~="warehouse" then return end
     if not World.truck:isVisible() then return end
     local machineDelivery = World.truck.mode == "machine_delivery"
     local truckImage, cargoImage, cargoSprite
@@ -466,8 +467,7 @@ local function drawPlayer(characterAssets,state)
         directionScale=player.facing or -1
     elseif player.moving then
         local directionalAction,mirror
-        directionalAction,mirror=CharacterAnimation.directionalWalkAction(
-            player.velocityX or player.intentX,player.velocityY or player.intentY)
+        directionalAction,mirror=CharacterAnimation.actorWalkAction(player)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     else
@@ -506,7 +506,7 @@ local function drawPlayer(characterAssets,state)
         -- Hold a planted, two-foot stance with both hands on the handle when
         -- the jack is stopped instead of freezing halfway through a stride.
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
-            player.animationDistance,Config.player.walkPixelsPerFrame)
+            player.animationDistance,Config.palletJack.gaitPixelsPerFrame or 20)
     elseif taskActionActive then
         frame = CharacterAnimation.frameForClock(frameCount, player.taskClock or 0, 4)
     else
@@ -518,8 +518,6 @@ local function drawPlayer(characterAssets,state)
     if image and quad then
         local anchorX, anchorY = characterAssets.getAnchor(character, action, frame)
         local scale = Config.player.drawScale * characterAssets.getNormalization(character, action)
-        love.graphics.setColor(0.03, 0.04, 0.05, 0.24)
-        love.graphics.ellipse("fill", player.x, player.y + 1, 13, 5)
         love.graphics.setColor(1, 1, 1)
         if character == "rabbit-worker" then
             RabbitColorways.draw(image, quad, player.x, player.y, 0,
@@ -633,17 +631,20 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local forklift = state and state.forklift
     local forkliftDriver = forklift and forklift.owned and (forklift.sceneId or "warehouse")=="warehouse"
         and forklift.operating and forklift.operatorPlayerId
-    local jackOperator,jackEmployee
-    if jackInScene and jack.operating then
-        if jack.operatorPlayerId == (tonumber(World.player.id) or 1) then jackOperator = World.player end
-        for _, remote in ipairs(remotePlayers or {}) do
-            if tonumber(remote.id) == jack.operatorPlayerId then jackOperator = remote end
-        end
-        for _,entry in ipairs(employeeEntries) do
-            if entry.worker and entry.worker.id==jack.operatorEmployeeId then jackEmployee=entry end
+    local JackFleet=require("src.pallet_jack_fleet")
+    local jackOperators,jackEmployees={},{}
+    for _,vehicle in ipairs(JackFleet.all(state)) do
+        if (vehicle.sceneId or "warehouse")=="warehouse" and vehicle.operating then
+            if vehicle.operatorPlayerId==(tonumber(World.player.id) or 1) then jackOperators[World.player]=true end
+            for _,remote in ipairs(remotePlayers or {}) do
+                if tonumber(remote.id)==vehicle.operatorPlayerId then jackOperators[remote]=true end
+            end
+            for _,entry in ipairs(employeeEntries) do
+                if entry.worker and entry.worker.id==vehicle.operatorEmployeeId then jackEmployees[entry]=true end
+            end
         end
     end
-    if forkliftDriver ~= (tonumber(World.player.id) or 1) and jackOperator ~= World.player then
+    if forkliftDriver ~= (tonumber(World.player.id) or 1) and not jackOperators[World.player] then
     actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets,state) end }
     end
     if forklift and forklift.owned and (forklift.sceneId or "warehouse")=="warehouse" then
@@ -655,28 +656,41 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         local worker=state.constructionWorker
         actors[#actors+1]={y=worker.y,draw=function() WarehouseRenderer.drawConstructionWorker(worker,state) end}
     end
-    if jackInScene then
+    for _,vehicle in ipairs(JackFleet.all(state)) do
+      if (vehicle.sceneId or "warehouse")=="warehouse" then
+        local vehicleState=JackFleet.view(state,vehicle)
+        local jackOperator,jackEmployee
+        if vehicle.operating then
+            if vehicle.operatorPlayerId==(tonumber(World.player.id) or 1) then jackOperator=World.player end
+            for _,remote in ipairs(remotePlayers or {}) do
+                if tonumber(remote.id)==vehicle.operatorPlayerId then jackOperator=remote end
+            end
+            for _,entry in ipairs(employeeEntries) do
+                if entry.worker and entry.worker.id==vehicle.operatorEmployeeId then jackEmployee=entry end
+            end
+        end
         actors[#actors + 1] = {
-            y = jack.y,
-            layer = jack.operating and 1 or 0,
+            y = vehicle.y,
+            layer = vehicle.operating and 1 or 0,
             draw = function()
-                local pose = PalletJack.visualPose(state, Config.palletJack)
+                local pose = PalletJack.visualPose(vehicleState, Config.palletJack)
                 local workerBehind = math.sin(pose.heading) >= 0
                 local function drawOperator()
-                    if jackOperator == World.player then drawPlayer(characterAssets, state)
-                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, state)
-                    elseif jackEmployee then EmployeeRenderer.draw(jackEmployee,characterAssets,state) end
+                    if jackOperator == World.player then drawPlayer(characterAssets, vehicleState)
+                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, vehicleState)
+                    elseif jackEmployee then EmployeeRenderer.draw(jackEmployee,characterAssets,vehicleState) end
                 end
                 if workerBehind then drawOperator() end
-                drawPalletJack(assets, state)
+                drawPalletJack(assets, vehicleState)
                 if not workerBehind then drawOperator() end
             end,
         }
+      end
     end
     for _, remotePlayer in ipairs(remotePlayers or {}) do
         local player = remotePlayer
         if type(player) == "table" and type(player.y) == "number"
-            and forkliftDriver ~= tonumber(player.id) and player ~= jackOperator then
+            and forkliftDriver ~= tonumber(player.id) and not jackOperators[player] then
             actors[#actors + 1] = {
                 y = player.y,
                 draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player },state) end,
@@ -736,13 +750,13 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             local room=WarehouseRenderer.breakroomPlan(state,employee.actor.seatBay)
             if room then depth=room.depthY+.1 end
         end
-        if employee~=jackEmployee then
+        if not jackEmployees[employee] then
             actors[#actors+1]={y=depth,draw=function() EmployeeRenderer.draw(employee,characterAssets,state) end}
         end
     end
-    local technician = state and Technician.ensure(state)
+    local technician = state and Technician.presentation(state)
     if technician and technician.visible then
-        actors[#actors + 1] = { y = technician.y, draw = function() Technician.draw(assets, state) end }
+        actors[#actors + 1] = { y = technician.y, draw = function() Technician.draw(assets, state, characterAssets) end }
     end
     table.sort(actors, function(a, b)
         if a.y == b.y then return (a.layer or 0) < (b.layer or 0) end

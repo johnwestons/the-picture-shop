@@ -105,17 +105,20 @@ function Component.install(Runtime)
         return true
     end
 
-    function Runtime.World.toggleBayDoor(state)
-        if Runtime.World.bayDoor.state == "open" and Runtime.World.truck:blocksBayClosure() then
+    function Runtime.World.toggleBayDoor(state,scene)
+        scene=scene or require("src.shop_rooms").scene(Runtime.World.player)
+        local door=Runtime.World.doorForScene(scene)
+        if door.state == "open" and (Runtime.World.truck.sceneId or "warehouse")==scene
+            and Runtime.World.truck:blocksBayClosure() then
             if state then state.message = "The truck is occupying the bay. Keep the loading door open." end
             return false
         end
-        if not Runtime.World.bayDoor:toggle() then
+        if not door:toggle() then
             if state then state.message = "Wait for the loading bay door to finish moving." end
             return false
         end
         if state then
-            state.message = Runtime.World.bayDoor.state == "opening"
+            state.message = door.state == "opening"
                 and "Opening the loading bay door..."
                 or "Closing the loading bay door..."
         end

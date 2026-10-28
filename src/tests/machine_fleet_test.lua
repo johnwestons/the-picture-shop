@@ -188,6 +188,8 @@ function Test.run(context, check)
         context.config.businessCalendar.secondsPerDay)
     context.machineMaintenance.prepareBladeForTechnician(missedVisitState)
     local visitRequested = context.machineMaintenance.requestTechnician(missedVisitState)
+    -- Exercise the now-rare call-out rather than relying on the old 15% rate.
+    fleet.installed(missedVisitState,"polar_115").maintenance.cutter.technicianSequence=34
     context.businessCalendar.update(missedVisitState,
         context.config.businessCalendar.secondsPerDay)
     local missedVisit = context.machineMaintenance.updateTechnician(missedVisitState)

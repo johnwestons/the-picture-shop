@@ -1,0 +1,15 @@
+Create one clean 4-column by 2-row sprite sheet of eight complete rear-view walk poses for the SAME orange rabbit worker. Use a transparent background. Every cell contains exactly one whole character, row-major phases 1 through 8. No labels, text, cell borders, shadows, extra marks, scenery, cropping, or overlap. Keep all eight centered at identical camera distance and character scale, with the same head/ear span, torso width and length, outline thickness, outfit, palette, shading, and detail. Match the first reference as the sole full-character identity, style, proportion, outfit, camera, and outline reference. The second reference is only a lower-body pose-role guide for a compact passing step; do not copy its style, colors, or upper body.
+
+Preserve this exact design: orange-furred rabbit worker facing away from camera, exactly two long upright ears, one round white tail, two arms and two legs, blue overalls over an off-white short-sleeve shirt, brown boots, a brown pouch at the character's anatomical-right hip (viewer-right) holding exactly one bright red and one yellow tool. Keep the black/dark outline clean and consistent. Use transparent true alpha beyond the dark outline, with no colored rim, glow, fringe, matte, or stray pixels. Red may appear only in the actual red tool in the pouch; no red outline or fur edge. Keep both ears fully visible with clean edges. Do not mirror any drawing.
+
+Make one readable eight-phase walk cycle, with modest natural bob, a stable upright torso, subtle opposing arm swing, and feet sharing a common planted baseline. The poses should differ through real articulated leg and arm changes, not duplicated poses or shifting the whole character:
+1. Anatomical-left/viewer-left foot forward and planted in contact; right trailing heel low.
+2. Weight settles over the planted left foot; right heel begins to release, body slightly lower.
+3. True compact passing: left foot supports flat; anatomical-right/viewer-right ankle passes directly under the pelvis, boot just above the ground, toe angled down, narrow side/rear edge only, sole surface hidden. Do not raise the knee high and do not show a camera-facing sole.
+4. Right knee lifts into a distinct modest heel-recovery pose, clearly different from the low pass.
+5. Anatomical-right/viewer-right foot forward and planted in contact; left trailing heel low.
+6. Weight settles over the planted right foot; left heel begins to release, body slightly lower.
+7. Opposite compact passing: right foot supports flat; anatomical-left/viewer-left ankle passes directly under the pelvis at the same low amplitude as phase 3, boot just above ground, toe angled down, narrow side/rear edge only, sole surface hidden. Do not raise the knee high and do not show a camera-facing sole.
+8. Left knee lifts into a distinct modest heel-recovery pose, clearly different from the low pass.
+
+Show exactly eight complete consistent drawings in the specified order. Preserve the reference's recognizable head and body proportions and linework across the entire sheet. No extra ears, limbs, duplicate boots, detached tools, or anatomy errors.

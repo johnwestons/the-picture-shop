@@ -6,6 +6,10 @@ function Component.install(Runtime)
     function Runtime.App.load()
         Runtime.World.configureEmployees({players=function() return Runtime.multiplayer:remotePlayers() end,
             isNetworkClient=function() return Runtime.multiplayer:isClient() end,
+            canLoadTruck=function()
+                return Runtime.state.screen~="truck_inventory" and
+                    (not Runtime.workshopAuthority or not Runtime.workshopAuthority:leaseForResource("truck"))
+            end,
             canClaim=function(machineId)
                 local unit=Runtime.MachineFleet.byId(Runtime.state,machineId)
                 local base=unit and (unit.modelId=="polar_115" and "cutter"
@@ -150,6 +154,13 @@ function Component.install(Runtime)
         })
         local soundHealthy, soundErrors = Runtime.App.sound:initialize()
         Runtime.Settings.applyAudio(Runtime.App.settings, Runtime.App.sound)
+        Runtime.App.playerFeedback = require("src.player_feedback").new({
+            state = Runtime.state,
+            world = Runtime.World,
+            playSound = function(name, options)
+                if Runtime.App.sound then return Runtime.App.sound:play(name, options) end
+            end,
+        })
         if Runtime.Smoke.requested() and not soundHealthy then
             error("Sound startup failed: " .. table.concat(soundErrors or {}, "; "))
         end

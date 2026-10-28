@@ -82,6 +82,7 @@ function Component.install(Runtime)
         wrapper_snapshot = Runtime.normalizeWrapperSnapshot,
         windmill_snapshot = Runtime.normalizeWindmillSnapshot,
         pallet_jack_snapshot = Runtime.normalizePalletJackSnapshot,
+        extra_pallet_jack_snapshot = Runtime.normalizeExtraPalletJackSnapshot,
         forklift_snapshot = Runtime.normalizeForkliftSnapshot,
         input = Runtime.normalizeInput,
         snapshot = Runtime.normalizeSnapshot,

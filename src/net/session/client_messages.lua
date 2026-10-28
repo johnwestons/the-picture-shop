@@ -263,8 +263,10 @@ function Component.install(Runtime)
                 self:_queue("environment_state", {
                     serverTick = payload.serverTick,
                     bayDoor = payload.bayDoor,
+                    roomDoors = payload.roomDoors,
                     truck = payload.truck,
                     employees = employees,
+                    technician = payload.technician,
                 })
             end
         elseif envelope.type == "employee_snapshot" then
@@ -281,7 +283,14 @@ function Component.install(Runtime)
                     serverTick = payload.serverTick,
                     jack = payload.jack,
                     machines = payload.machines,
+                    jackId = payload.jackId,
                 })
+            end
+        elseif envelope.type=="extra_pallet_jack_snapshot" then
+            if self.ready and payload.sessionId==self.sessionId
+                and payload.serverTick>(self.lastExtraPalletJackTicks[payload.jackId] or -1) then
+                self.lastExtraPalletJackTicks[payload.jackId]=payload.serverTick
+                self:_queue("extra_pallet_jack_state",{jackId=payload.jackId,jack=payload.jack,serverTick=payload.serverTick})
             end
         elseif envelope.type == "forklift_snapshot" then
             if self.ready and payload.sessionId == self.sessionId

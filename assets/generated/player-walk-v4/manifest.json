@@ -1,0 +1,295 @@
+{
+  "version": 1,
+  "scope": "Root-reviewed eight-frame player north walk; the clean V2 full cycle is retained and only phase 7 is replaced with the compact opposite-side pass.",
+  "runtime_path": "assets/generated/player-walk-v4/walk_north.png",
+  "frame_size": [
+    512,
+    512
+  ],
+  "frame_count": 8,
+  "fps": 7.75,
+  "sources": {
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v2/north-consistent-v2-generated-raw.png": "0fce24948744ba68d614af1e5a994b88659c05e5f840a54e80c5d0df661c63f7",
+    "output/animation-overhaul/luna-player/consistent-north-v2/north-v2-full8-native.png": "4477238ea7096cf078778b787f644be8d4433d06071b5f32366225aa6739466e",
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v2/north-v2-phase7-root-imageedit-generated-raw.png": "1880da44bb554d562e45f24c0a4fe820b39104ff404857121a520eacb6f85913",
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v2/north-v2-phase7-root-imageedit-exact-prompt.txt": "ab1afaf0be6e0aacd0a369bea38784ac42ddc93cda502020f2f98c530f524376"
+  },
+  "normalization": {
+    "scale": 0.8770053475935828,
+    "translation_xy": [
+      88,
+      43
+    ],
+    "source_visible_heights": [
+      467,
+      466,
+      467,
+      470,
+      469,
+      467,
+      469,
+      468
+    ]
+  },
+  "phase7_registration": {
+    "source_bbox_alpha_gt16": [
+      352,
+      134,
+      854,
+      1142
+    ],
+    "head_anchor_centroid_x": 609.7036916262449,
+    "scale": 0.40773276015281634,
+    "translation_xy": [
+      7,
+      1
+    ],
+    "metrics": {
+      "alpha_bbox_threshold_16": [
+        150,
+        56,
+        355,
+        466
+      ],
+      "visible_height_px": 410,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 192,
+        "width": 113,
+        "x_min": 198,
+        "x_max": 310
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 92.0,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 286,
+        "width": 113,
+        "x_min": 198,
+        "x_max": 310
+      },
+      "bright_red_pixels_total_alpha64": 899,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 614,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.321,
+      "visible_alpha64_pixel_count": 46979
+    }
+  },
+  "changed_pixel_count_by_phase_vs_v2": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    55626,
+    0
+  ],
+  "phase_metrics": [
+    {
+      "alpha_bbox_threshold_16": [
+        169,
+        57,
+        381,
+        467
+      ],
+      "visible_height_px": 410,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 196,
+        "width": 112,
+        "x_min": 204,
+        "x_max": 315
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 86.5,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 290,
+        "width": 106,
+        "x_min": 208,
+        "x_max": 313
+      },
+      "bright_red_pixels_total_alpha64": 942,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 739,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.365,
+      "visible_alpha64_pixel_count": 49956
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        157,
+        58,
+        376,
+        467
+      ],
+      "visible_height_px": 409,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 196,
+        "width": 113,
+        "x_min": 194,
+        "x_max": 306
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 89.0,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 290,
+        "width": 109,
+        "x_min": 198,
+        "x_max": 306
+      },
+      "bright_red_pixels_total_alpha64": 863,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 653,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.412,
+      "visible_alpha64_pixel_count": 49951
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        152,
+        58,
+        363,
+        468
+      ],
+      "visible_height_px": 410,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 195,
+        "width": 113,
+        "x_min": 190,
+        "x_max": 302
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 88,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 292,
+        "width": 110,
+        "x_min": 193,
+        "x_max": 302
+      },
+      "bright_red_pixels_total_alpha64": 957,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 688,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.329,
+      "visible_alpha64_pixel_count": 48909
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        157,
+        57,
+        379,
+        469
+      ],
+      "visible_height_px": 412,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 194,
+        "width": 112,
+        "x_min": 198,
+        "x_max": 309
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 93,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 291,
+        "width": 110,
+        "x_min": 201,
+        "x_max": 310
+      },
+      "bright_red_pixels_total_alpha64": 875,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 653,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.386,
+      "visible_alpha64_pixel_count": 49069
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        146,
+        55,
+        361,
+        467
+      ],
+      "visible_height_px": 412,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 193,
+        "width": 113,
+        "x_min": 206,
+        "x_max": 318
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 92.0,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 292,
+        "width": 111,
+        "x_min": 209,
+        "x_max": 319
+      },
+      "bright_red_pixels_total_alpha64": 1038,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 786,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.313,
+      "visible_alpha64_pixel_count": 50157
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        137,
+        57,
+        349,
+        467
+      ],
+      "visible_height_px": 410,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 193,
+        "width": 115,
+        "x_min": 194,
+        "x_max": 308
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 94.0,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 291,
+        "width": 110,
+        "x_min": 199,
+        "x_max": 308
+      },
+      "bright_red_pixels_total_alpha64": 1092,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 853,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.349,
+      "visible_alpha64_pixel_count": 48896
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        150,
+        56,
+        355,
+        466
+      ],
+      "visible_height_px": 410,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 192,
+        "width": 113,
+        "x_min": 198,
+        "x_max": 310
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 92.0,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 286,
+        "width": 113,
+        "x_min": 198,
+        "x_max": 310
+      },
+      "bright_red_pixels_total_alpha64": 899,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 614,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.321,
+      "visible_alpha64_pixel_count": 46979
+    },
+    {
+      "alpha_bbox_threshold_16": [
+        138,
+        56,
+        354,
+        467
+      ],
+      "visible_height_px": 411,
+      "orange_head_band_y170_249_max_row_width_px": {
+        "y": 192,
+        "width": 113,
+        "x_min": 199,
+        "x_max": 311
+      },
+      "blue_overall_band_y245_334_median_row_width_px": 94.0,
+      "blue_overall_band_y245_334_max_row_width_px": {
+        "y": 285,
+        "width": 110,
+        "x_min": 202,
+        "x_max": 311
+      },
+      "bright_red_pixels_total_alpha64": 872,
+      "bright_red_pixels_outside_expected_tool_roi_alpha64": 620,
+      "dark_ink_pixel_share_of_visible_alpha64_percent": 14.625,
+      "visible_alpha64_pixel_count": 48498
+    }
+  ],
+  "review": "Root compared phase 3 and phase 7 at the fixed 410px scale, checked the full eight-phase contact and timed 64px loop on white. Phase 3 and phase 7 use opposite screen-side free legs; phase 7 passes low under the pelvis, with a narrower tread presentation than phase 3. Transparent edges are clean on white. Other seven phases are exact V2 pixels."
+}

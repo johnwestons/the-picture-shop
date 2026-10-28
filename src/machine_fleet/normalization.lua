@@ -76,6 +76,7 @@ function Component.install(Runtime)
             cutter.appointmentType = cutter.appointmentType == "weekly" and "weekly"
                 or cutter.appointmentType == "requested" and "requested" or nil
             cutter.technicianSequence = math.max(0, math.floor(tonumber(cutter.technicianSequence) or 0))
+            cutter.technicianRescheduled = cutter.technicianRescheduled == true
         else
             item.maintenance.cutter = nil
         end

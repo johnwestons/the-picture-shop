@@ -38,17 +38,20 @@ function Navigation.isWalkable(assets, x, y, obstacles)
     return feetAreOnMask(mask, x, y) and outsideFixedObstacle(x, y, obstacles)
 end
 
-function Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight)
-    local mask = assets.getData("walkmask")
+local function areaSamples(halfWidth,halfHeight)
     halfWidth, halfHeight = math.max(0, halfWidth or 0), math.max(0, halfHeight or 0)
-    local samples = {
+    return {
         { 0, 0 },
         { -halfWidth, -halfHeight }, { halfWidth, -halfHeight },
         { -halfWidth, halfHeight }, { halfWidth, halfHeight },
         { -halfWidth, 0 }, { halfWidth, 0 },
         { 0, -halfHeight }, { 0, halfHeight },
     }
-    for _, offset in ipairs(samples) do
+end
+
+function Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight)
+    local mask = assets.getData("walkmask")
+    for _, offset in ipairs(areaSamples(halfWidth,halfHeight)) do
         if not feetAreOnMask(mask, x + offset[1], y + offset[2]) then return false end
     end
     return true
@@ -135,7 +138,25 @@ function Navigation.canMoveAreaFrom(assets, currentX, currentY, nextX, nextY,
     if not Navigation.canMoveFrom(assets, currentX, currentY, nextX, nextY, obstacles) then
         return false
     end
-    return Navigation.isAreaWalkable(assets, nextX, nextY, halfWidth, halfHeight)
+    if Navigation.isAreaWalkable(assets, nextX, nextY, halfWidth, halfHeight) then return true end
+    if Navigation.isAreaWalkable(assets,currentX,currentY,halfWidth,halfHeight) then return false end
+    -- Loading a skid or restoring a placement can leave a corner of the larger
+    -- vehicle beyond the floor edge. Permit small steps toward a verified clear
+    -- exit; requiring the entire footprint to clear in one step trapped drivers.
+    local dx,dy=nextX-currentX,nextY-currentY
+    local length=math.sqrt(dx*dx+dy*dy)
+    if length<.000001 then return false end
+    for _,reach in ipairs({4,8,16,24,32}) do
+        local x,y=currentX+dx/length*reach,currentY+dy/length*reach
+        if Navigation.isAreaWalkable(assets,x,y,halfWidth,halfHeight) then
+            for _,offset in ipairs(areaSamples(halfWidth,halfHeight)) do
+                if not Navigation.canTraverse(assets,currentX+offset[1],currentY+offset[2],
+                    x+offset[1],y+offset[2],{},true) then return false end
+            end
+            return true
+        end
+    end
+    return false
 end
 
 return Navigation

@@ -1,0 +1,15 @@
+Generate exactly ONE full-body transparent sprite drawing: south-facing cat-worker at canonical walking key 7 (left passing), between the supplied key 6 and key 8 endpoint references. This must be a single character pose, not a contact sheet, strip, collage, or multiple variants.
+
+Reference roles:
+- south-phase1-style-reference.png: identity, exact south-facing camera, pixel-art texture, palette, outline, lighting, body scale, costume, satchel, scarf, and tail placement.
+- south-v2-key06-transition12-endpoint.png: previous key 6 endpoint, including screen-right support-foot ownership and current bag/hand ownership.
+- south-v2-key08-left-kneeup-endpoint.png: next key 8 endpoint, including screen-right support-foot ownership and the screen-left leg's next phase.
+- south-leg-role-diagram-v1.png: use only to identify screen-left versus screen-right legs and their phase roles; ignore its colors, body shape, labels, and drawing style.
+
+Camera and identity: face directly SOUTH toward camera. Preserve the same recognizable cat-worker exactly: two pointed ears, two arms and hands, two legs and boots, and one attached tail on screen-right. Keep the established face, olive-yellow scarf and knot on screen-right, orange-brown work jacket, dark trousers, boots, cross-body strap, and tool satchel/clasp on screen-right. The screen-right/bag-side hand remains the hand holding the strap; the screen-left hand stays free. Do not mirror the character or swap the hands, strap, tools, clothing details, or tail.
+
+Required key-7 pose and leg ownership: the SCREEN-RIGHT boot is the planted support foot, clearly grounded under the screen-right hip at the shared floor baseline. Keep the torso axis above this support, with a small natural rise from key 6 toward key 8. The SCREEN-LEFT leg is the free passing leg: it moves close beneath the pelvis toward the body's midline, with its knee softly bent and its ankle/boot tucked under the hips, only slightly above the floor. Its toe points down; show a compact side/three-quarter boot shape rather than a broad sole facing the viewer. This is a pass, neither a contact nor a knee-up. Do not send the free leg far forward or backward. The screen-left boot must NOT repeat the broad forward-facing sole visible in the supplied key-6-style contact/knee poses; keep the screen-right support foot planted and unmistakable.
+
+Arms and carried item: keep the screen-right paw engaged on the satchel strap as in the references. Let only the free screen-left arm make a small, plausible counter-swing between keys 6 and 8. Preserve the bag's position and shape; do not freeze both forearms into a new pose or let paws merge into the bag.
+
+Production constraints: match the source's compact body proportions, pixel-art texture, dark outline, palette, highlights, and light direction. Keep the character centered at the same apparent scale, with modest natural weight motion only. Transparent background with genuine alpha; no checkerboard, matte, floor, shadow, scenery, extra objects, labels, grid lines, or watermark. Generous edge clearance.

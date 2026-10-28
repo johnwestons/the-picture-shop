@@ -4,6 +4,12 @@ local Receiving = {}
 local physicalLocations = { warehouse = true, cutter_output = true, on_pallet_jack = true, at_cutter = true }
 
 local function occupant(state, lane, radius, excludedId)
+    for _,jack in ipairs(require("src.pallet_jack_fleet").all(state)) do
+        if (jack.sceneId or "warehouse")=="warehouse"
+            and (jack.x-lane.x)^2+(jack.y-lane.y)^2<=radius^2 then
+            return {pallet={id=jack.id or "PALLET-JACK"}}
+        end
+    end
     for _, item in ipairs(PalletState.items(state)) do
         local pallet, world = item.pallet, item.pallet.world
         if pallet.id ~= excludedId and physicalLocations[pallet.location]

@@ -3,24 +3,13 @@
 local Component = {}
 
 function Component.install(Runtime)
-    local function roomMovementObstacles(state,sceneId,excludeJack)
-        local Rooms=require("src.shop_rooms")
-        local obstacles=Rooms.obstacles(state,sceneId)
-        local jack=state and state.palletJack
-        if not excludeJack and jack and jack.sceneId==sceneId then
-            local obstacle=Runtime.PalletJack.obstacle(state,Runtime.Config.palletJack)
-            if obstacle then obstacles[#obstacles+1]=obstacle end
+    local function roomMovementObstacles(state,sceneId,excludeJack,footprint)
+        local result=require("src.room_vehicle_access").obstacles(state,sceneId,excludeJack and state.palletJack,
+            excludeJack and state.palletJack and state.palletJack.carriedPalletId)
+        if footprint then
+            for i,o in ipairs(result) do result[i]=Runtime.Footprint.expand(o,footprint) end
         end
-        for _,item in ipairs(Runtime.PalletLogistics.physicalPallets(state)) do
-            local world=item.pallet.world
-            if world and (world.sceneId or "warehouse")==sceneId
-                and (not jack or item.pallet.id~=jack.carriedPalletId) then
-                obstacles[#obstacles+1]={x=item.x,y=item.y-8,
-                    halfWidth=Runtime.Config.palletLogistics.collisionHalfWidth,
-                    halfHeight=Runtime.Config.palletLogistics.collisionHalfHeight,shape="diamond"}
-            end
-        end
-        return obstacles
+        return result
     end
 
     function Runtime.World.update(dt, directionX, directionY, assets, state, cursorX, cursorY, simulationDt)
@@ -81,8 +70,12 @@ function Component.install(Runtime)
         return saveNeeded
     end
 
-    function Runtime.World.updatePalletJackPresentation(state, dt, players, localPlayer)
-        Runtime.PalletJack.updatePresentation(state, dt, Runtime.Config.palletJack)
+    function Runtime.World.updatePalletJackPresentation(state, dt, players, localPlayer, observerDt)
+        Runtime.PalletJack.updateRemotePresentation(state, dt, Runtime.Config.palletJack)
+        local fleet=require("src.pallet_jack_fleet")
+        for _,extra in ipairs(fleet.root(state).extraPalletJacks or {}) do
+            Runtime.PalletJack.updateRemotePresentation(fleet.view(state,extra),observerDt or dt,Runtime.Config.palletJack)
+        end
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
         if not jack.operating then return end
         local x, y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
@@ -165,7 +158,7 @@ function Component.install(Runtime)
                     }
                     local obstacles=sceneId=="warehouse"
                         and Runtime.movementObstacles(state,true,footprint)
-                        or roomMovementObstacles(state,sceneId,true)
+                        or roomMovementObstacles(state,sceneId,true,footprint)
                     return Runtime.Navigation.canMoveAreaFrom(assets, jack.x, jack.y, nextX, nextY,
                         footprint.x, footprint.y, obstacles)
                 end)

@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "batch": "luna-player-north-transition-05-to-06-review-v1",
+  "status": "no selected transition; keep all trial sources immutable and out of runtime",
+  "canonical_endpoints": {
+    "phase5_candidate_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-05-trial-06-uniform.png",
+    "phase5_sha256": "1b55ca0f529776adb290c5ca680e6547772b4df4edafedeb64743ed4ab6e0979",
+    "phase5_landmarks": {
+      "head_width_px": 112,
+      "head_bbox_xyxy": [
+        196,
+        52,
+        308,
+        211
+      ],
+      "torso_width_px": 77,
+      "torso_bbox_xyxy": [
+        218,
+        212,
+        295,
+        265
+      ]
+    },
+    "phase6_path": "assets/generated/characters/rabbit-worker/walk_north.png cell 6",
+    "phase6_sha256": "d0f564927f8412c747dce8d87d193c635c72040d45b41926fe9063324383c434",
+    "phase6_landmarks": {
+      "head_width_px": 115,
+      "head_bbox_xyxy": [
+        200,
+        57,
+        315,
+        223
+      ],
+      "torso_width_px": 76,
+      "torso_bbox_xyxy": [
+        220,
+        224,
+        296,
+        269
+      ]
+    }
+  },
+  "reference_roles": [
+    {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-05-trial-06-uniform.png",
+      "role": "selected phase-5 endpoint; screen-left contact sole and counter-swing"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-canonical-06-reference.png",
+      "role": "canonical phase-6 weight-down endpoint; both feet grounded"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-canonical-04-reference.png",
+      "role": "adjacent cycle context for phase 4"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-canonical-upper-body-rigid-reference.png",
+      "role": "rigid head/ear/torso shape constraint"
+    }
+  ],
+  "source_master_policy": "one scale per raw source master from head/torso landmarks, with only anchor/ground translation per cell; no per-cell alpha-height fitting, no deformation",
+  "attempts": [
+    {
+      "imagegen_output_id": "exec-d29632b3-d6ff-48da-b64d-2bef33e38ba4",
+      "raw_source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-transition-05-to-06-trial-01-generated.png",
+      "raw_source_sha256": "7eade40c951aece16a6cd16592a7cf1dcd9c3f39607adccf5bc2083421ba37e0",
+      "raw_dimensions_px": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        0,
+        255
+      ],
+      "normalized_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-transition-05-to-06-trial-01-uniform.png",
+      "normalized_sha256": "b4b50612dcc3375c5fc11a862205a42742bf63e2e1756a17827151be3d514acb",
+      "normalized_visible_bbox_xyxy": [
+        150,
+        83,
+        354,
+        465
+      ],
+      "normalized_visible_height_px": 382,
+      "normalized_landmarks": {
+        "head_width_px": 107,
+        "head_bbox_xyxy": [
+          202,
+          86,
+          309,
+          234
+        ],
+        "torso_width_px": 80,
+        "torso_bbox_xyxy": [
+          216,
+          236,
+          296,
+          282
+        ]
+      },
+      "normalization": "one uniform master scale; translation only to torso x=256 and ground y=465",
+      "prompt_log_status": "rejected; normalized height 382px and visibly too short",
+      "review_result": "rejected; too short and near-contact sole"
+    },
+    {
+      "imagegen_output_id": "exec-0d76e693-4bf8-47c7-8b1e-dc7f6abbe1f6",
+      "raw_source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-transition-05-to-06-trial-02-generated.png",
+      "raw_source_sha256": "529ad9d965856c6c2dae9a77d70258201a6217e50968170846cbf0db1e0ec1c3",
+      "raw_dimensions_px": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        0,
+        255
+      ],
+      "normalized_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-transition-05-to-06-trial-02-uniform.png",
+      "normalized_sha256": "1bf582d9e69b7aabda577a06c8819d26931a12b0210722ada0c5bd2445911eb0",
+      "normalized_visible_bbox_xyxy": [
+        145,
+        71,
+        351,
+        465
+      ],
+      "normalized_visible_height_px": 394,
+      "normalized_landmarks": {
+        "head_width_px": 107,
+        "head_bbox_xyxy": [
+          201,
+          73,
+          308,
+          225
+        ],
+        "torso_width_px": 80,
+        "torso_bbox_xyxy": [
+          216,
+          228,
+          296,
+          276
+        ]
+      },
+      "normalization": "one uniform master scale; translation only to torso x=256 and ground y=465",
+      "prompt_log_status": "unselected; still reads close to phase-5 contact with large forward sole, normalized height 394px",
+      "review_result": "unselected; sole remains broad and too similar to phase 5"
+    },
+    {
+      "imagegen_output_id": "exec-d47dd1d2-4e31-434f-9c91-ee4866ed02c9",
+      "raw_source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-transition-05-to-06-trial-03-generated.png",
+      "raw_source_sha256": "e9f3b02b777e2378d10fd1da459777efe0f07fbae800c03d87cae0d09fd00df7",
+      "raw_dimensions_px": [
+        1254,
+        1254
+      ],
+      "raw_alpha_extrema": [
+        0,
+        255
+      ],
+      "normalized_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-transition-05-to-06-trial-03-uniform.png",
+      "normalized_sha256": "a598c60f656921d806d1f938eed58d9998263f36a845d3b96b4e43d988e33895",
+      "normalized_visible_bbox_xyxy": [
+        149,
+        79,
+        353,
+        465
+      ],
+      "normalized_visible_height_px": 386,
+      "normalized_landmarks": {
+        "head_width_px": 109,
+        "head_bbox_xyxy": [
+          200,
+          81,
+          309,
+          232
+        ],
+        "torso_width_px": 81,
+        "torso_bbox_xyxy": [
+          215,
+          234,
+          296,
+          280
+        ]
+      },
+      "normalization": "one uniform master scale; translation only to torso x=256 and ground y=465",
+      "prompt_log_status": "unselected; screen-left sole remains contact-like and normalized height 386px; does not establish a convincing midpoint",
+      "review_result": "unselected; foot remains contact-like despite arm transition; too short"
+    }
+  ],
+  "neighbor_review_contact_sheet": {
+    "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-transition-05-to-06-trial03-landmark-and-boot-review.png",
+    "sha256": "876ffb8788f57b71647633a20a4d3eb9b44ac1d011890a9d14936647f12888b9"
+  },
+  "prompt_log": {
+    "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/imagegen-prompt-log-v1.json",
+    "sha256": "ee1b6c785b0e768a0a81dbd8bea0b158845c446419cc1739dba60d5f428047d3"
+  },
+  "limitations": [
+    "All three new frames retain too much of the phase-5 contact sole or fail to show a clear midpoint foot lowering.",
+    "After uniform whole-source scaling, visible heights are 382px, 394px and 386px respectively, below the adjacent canonical scale range.",
+    "No 16-frame North gait is accepted from this work; root owns further runtime integration and review."
+  ],
+  "additional_neighbor_contact_sheet": {
+    "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-transition-neighbor-audit-v3.png",
+    "sha256": "876ffb8788f57b71647633a20a4d3eb9b44ac1d011890a9d14936647f12888b9"
+  },
+  "accepted_5_to_6_transition": null
+}

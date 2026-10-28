@@ -49,7 +49,11 @@ function Component.install(Runtime)
     -- physical target from its current shop state and checks the authoritative
     -- player position directly before granting an exclusive console lease.
     function Runtime.World.validateNetworkWorkshopAccess(player, state, resourceId)
-        if require("src.shop_rooms").scene(player)~="warehouse" then
+        local scene=require("src.shop_rooms").scene(player)
+        if resourceId=="truck" and scene~=(Runtime.World.truck.sceneId or "warehouse") then
+            return false,"wrong_scene","Use the loading bay assigned to this truck."
+        end
+        if scene~="warehouse" and resourceId~="truck" then
             return false,"wrong_scene","Return to the warehouse to use this console."
         end
         if type(player) ~= "table" or type(state) ~= "table" then

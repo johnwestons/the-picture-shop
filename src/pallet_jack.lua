@@ -178,6 +178,7 @@ function PalletJack.defaultState(config)
         operatorPlayerId = nil,
         carriedPalletId = nil,
         moving = false,
+        inMotion = false,
         animationClock = 0,
     }
 end
@@ -220,10 +221,11 @@ function PalletJack.mountEmployee(state, config, employeeId)
     local worker = require("src.employees").worker(state, employeeId)
     if not worker or not worker.visible or worker.status ~= "employed" then return false, "invalid_employee" end
     local jack = PalletJack.ensure(state, config)
-    if jack.sceneId~="warehouse" then return false,"wrong_scene" end
+    if jack.sceneId~=(worker.sceneId or "warehouse") then return false,"wrong_scene" end
     if jack.operating then
         return jack.operatorEmployeeId == employeeId, jack.operatorEmployeeId == employeeId and "already_mounted" or "busy"
     end
+    if require("src.pallet_jack_fleet").owned(state,employeeId) then return false,"already_operating" end
     jack.operating, jack.moving = true, false
     jack.operatorEmployeeId, jack.operatorPlayerId = employeeId, nil
     runtimeMotion[jack] = nil
@@ -378,6 +380,12 @@ function PalletJack.updatePresentation(state, dt, config)
         * math.max(0, math.min(tonumber(dt) or 0, .1))
     local delta = angleDelta(motion.heading, motion.targetHeading)
     motion.heading = motion.heading + math.max(-amount, math.min(amount, delta))
+end
+
+function PalletJack.updateRemotePresentation(state,dt,config)
+    local jack=PalletJack.ensure(state,config)
+    jack.animationClock=jack.animationClock+math.max(0,tonumber(dt) or 0)
+    PalletJack.updatePresentation(state,dt,config)
 end
 
 function PalletJack.obstacle(state, config)
@@ -686,7 +694,15 @@ function PalletJack.snapshot(state, config)
     }
 end
 
+function PalletJack.presentationSnapshot(state,config)
+    local pose=PalletJack.visualPose(state,config)
+    return require("src.pallet_jack_pose").capture(pose.distance,pose.heading,state.palletJack.animationClock)
+end
+
 function PalletJack.applySnapshot(state, snapshot, config)
+    if type(state)~="table" or type(snapshot)~="table" then return false,"invalid" end
+    local presentation=snapshot and snapshot.motion~=nil and require("src.pallet_jack_pose").normalize(snapshot.motion)
+    if snapshot and snapshot.motion~=nil and not presentation then return false,"invalid" end
     if type(state) ~= "table" or type(snapshot) ~= "table"
         or type(snapshot.x) ~= "number" or snapshot.x ~= snapshot.x or math.abs(snapshot.x) == math.huge
         or type(snapshot.y) ~= "number" or snapshot.y ~= snapshot.y or math.abs(snapshot.y) == math.huge
@@ -707,10 +723,11 @@ function PalletJack.applySnapshot(state, snapshot, config)
         return false, "invalid"
     end
     local durableCarriedPalletId
-    for _, item in ipairs(PalletState.items(state)) do
-        if item.pallet.location == "on_pallet_jack" then
-            durableCarriedPalletId = item.pallet.id
-            break
+    if state.extraPalletJacks and #state.extraPalletJacks>0 then
+        durableCarriedPalletId=state.palletJack and state.palletJack.carriedPalletId
+    else
+        for _, item in ipairs(PalletState.items(state)) do
+            if item.pallet.location == "on_pallet_jack" then durableCarriedPalletId=item.pallet.id;break end
         end
     end
     -- Realtime and durable packets use different ENet channels. Never let an
@@ -739,6 +756,16 @@ function PalletJack.applySnapshot(state, snapshot, config)
     motion.operatorDirection = jack.direction
     motion.targetHeading = directionAngles[jack.direction]
     jack.operating, jack.moving = snapshot.operating, snapshot.moving
+    if presentation then
+        local cycle=require("src.pallet_jack_pose").CYCLE_DISTANCE
+        local phase=presentation[1]/100
+        -- Use the authoritative phase, selecting the nearest nonnegative cycle
+        -- to displacement-based history. A join or missed curved path must not
+        -- restart a worker's legs, and quantization must not add a whole stride.
+        motion.distance=math.max(phase,phase+math.floor((motion.distance-phase)/cycle+.5)*cycle)
+        motion.heading=presentation[2]/10000
+        jack.animationClock=presentation[3]/1000
+    end
     jack.operatorPlayerId = snapshot.operatorPlayerId
     jack.operatorEmployeeId = snapshot.operatorEmployeeId
     jack.carriedPalletId = snapshot.carriedPalletId

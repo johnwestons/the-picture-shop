@@ -73,6 +73,7 @@ function Component.install(Runtime)
                     or (cutter.appointmentType ~= nil and cutter.appointmentType ~= "weekly"
                         and cutter.appointmentType ~= "requested")
                     or type(cutter.technicianSequence) ~= "number" or cutter.technicianSequence < 0
+                    or (cutter.technicianRescheduled ~= nil and type(cutter.technicianRescheduled) ~= "boolean")
                 then return false end
             end
             if item.modelId == "heidelberg_10x15" then

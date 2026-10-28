@@ -42,7 +42,7 @@ function Office.command(options)
                 if wages>0 then return false,"owner_only","Only the shop owner can pay employee wages.",{} end
             end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
-                or intent.kind == "buy_breakroom_fixture"
+                or intent.kind == "buy_breakroom_fixture" or intent.kind == "buy_garage_door"
             local stagingAction = intent.kind == "staging_area_add" or intent.kind == "staging_area_remove"
                 or intent.kind == "staging_area_change"
             if warehousePurchase or stagingAction then
@@ -85,6 +85,8 @@ function Office.command(options)
                 ok, result, domainCode = Upgrades.purchase(staged, intent.bayId, intent.optionId, intent.requestId)
             elseif intent.kind == "buy_forklift" then
                 ok, result, domainCode = Upgrades.purchaseForklift(staged, intent.requestId)
+            elseif intent.kind == "buy_garage_door" then
+                ok, result, domainCode = require("src.room_loading_bays").purchase(staged,intent.bayId,intent.requestId)
             elseif intent.kind == "buy_breakroom_fixture" then
                 ok, result, domainCode = BreakroomGames.purchase(staged, intent.bayId,
                     intent.fixtureId, intent.requestId,

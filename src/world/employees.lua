@@ -1,6 +1,7 @@
 -- Employee reservations, applications, and work context.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local JackFleet = require("src.pallet_jack_fleet")
 
 function Component.install(Runtime)
     local jackFloors=setmetatable({}, {__mode="k"})
@@ -47,7 +48,8 @@ function Component.install(Runtime)
         function context.obstacles(actor,excludedPalletId)
             local result={}
             local scene=actor and actor.sceneId or "warehouse"
-            for _,o in ipairs(Runtime.movementObstacles(state,false,{x=5,y=4},false,false,excludedPalletId)) do
+            local ownJack=actor and actor.id and JackFleet.owned(state,actor.id)
+            for _,o in ipairs(Runtime.movementObstacles(state,ownJack or false,{x=5,y=4},false,false,excludedPalletId,false,false,scene)) do
                 if o.actor~=actor and (not o.actor or (o.actor.sceneId or "warehouse")==scene) then
                     result[#result+1]=o
                 end
@@ -58,6 +60,41 @@ function Component.install(Runtime)
                 end
             end
             return result
+        end
+        function context.forActor(actor)
+            return {assets=require("src.shop_rooms").assets(assets,actor.sceneId or "warehouse",state),
+                motionScale=context.motionScale,obstacles=function() return context.obstacles(actor) end}
+        end
+        function context.move(actor,goal,dt) return Runtime.EmployeeAI.move(actor,goal,dt,context) end
+        function context.travelScene(worker,destination,dt)
+            return require("src.employee_room_travel").step(state,worker,destination,dt,context)
+        end
+        function context.sceneLanding(worker,jack,destination)
+            local obstacles=Runtime.movementObstacles(state,jack or false,{x=0,y=0},false,false,
+                jack and jack.carriedPalletId,false,false,destination)
+            for _,p in ipairs(players()) do
+                if (p.sceneId or "warehouse")==destination then obstacles[#obstacles+1]={x=p.x,y=p.y,radius=18} end
+            end
+            return require("src.room_vehicle_access").landing(
+                require("src.shop_rooms").assets(assets,destination,state),destination,jack,obstacles)
+        end
+        function context.pickupTruck() return Runtime.World.truck end
+        function context.truckLoadingPoint(worker,pallet)
+            local target=Runtime.World.truck:getInteraction()
+            if not target then return nil end
+            local candidates={}
+            for _,distance in ipairs({76,96,116}) do
+                for _,v in ipairs({{0,1},{1,1},{-1,1},{1,0},{-1,0}}) do
+                    local length=math.sqrt(v[1]^2+v[2]^2)
+                    candidates[#candidates+1]={x=target.x+v[1]/length*distance,y=target.y+v[2]/length*distance}
+                end
+            end
+            local route=context.jackNavigation(worker,pallet.id,true)
+            return Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),candidates,route)
+        end
+        function context.canLoadTruck() return not options.canLoadTruck or options.canLoadTruck() end
+        function context.loadPickup(worker,palletId)
+            return Runtime.World.loadEmployeePickup(state,worker,palletId)
         end
         function context.receptionBusy()
             local technician=state.technicianVisit
@@ -88,7 +125,9 @@ function Component.install(Runtime)
             return pose and not pose.moving and (not options.canClaim or options.canClaim(machineId))
         end
         function context.jackNavigation(worker,excludedPalletId,loaded)
-            local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
+            local jack=Runtime.PalletJack.ensure(JackFleet.employeeView(state,worker),Runtime.Config.palletJack)
+            local scene=jack.sceneId or "warehouse"
+            local assets=require("src.shop_rooms").assets(context.assets,scene,state)
             loaded=loaded or jack.carriedPalletId~=nil
             local width=loaded and Runtime.Config.palletJack.loadedCollisionHalfWidth or Runtime.Config.palletJack.collisionHalfWidth
             local height=loaded and Runtime.Config.palletJack.loadedCollisionHalfHeight or Runtime.Config.palletJack.collisionHalfHeight
@@ -120,11 +159,11 @@ function Component.install(Runtime)
             end
             return {assets=routeAssets,obstacles=function()
                 local result={}
-                for _,obstacle in ipairs(Runtime.movementObstacles(state,true,footprint,false,false,excludedPalletId)) do
+                for _,obstacle in ipairs(Runtime.movementObstacles(state,jack,footprint,false,false,excludedPalletId,false,false,scene)) do
                     if obstacle.actor~=worker then result[#result+1]=obstacle end
                 end
                 for _,p in ipairs(players()) do
-                    if (p.sceneId or "warehouse")=="warehouse" then
+                    if (p.sceneId or "warehouse")==scene then
                         result[#result+1]=Runtime.Footprint.expand({x=p.x,y=p.y,radius=18},footprint)
                     end
                 end
@@ -133,14 +172,15 @@ function Component.install(Runtime)
         end
         function context.jackActor(worker)
             worker._jackNavigator=worker._jackNavigator or {}
-            local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
+            local jack=Runtime.PalletJack.ensure(JackFleet.employeeView(state,worker),Runtime.Config.palletJack)
             worker._jackNavigator.x,worker._jackNavigator.y=jack.x,jack.y
             return worker._jackNavigator
         end
         function context.jackApproachPoint(worker)
-            local x,y=Runtime.PalletJack.operatorPosition(state,Runtime.Config.palletJack)
+            local selectedState=JackFleet.employeeView(state,worker)
+            local x,y=Runtime.PalletJack.operatorPosition(selectedState,Runtime.Config.palletJack)
             local candidates={{x=x,y=y}}
-            local jack=state.palletJack
+            local jack=selectedState.palletJack
             -- The previous operator's feet can end up beside another skid or
             -- machine after parking. Approach a clear side of the same handle.
             for index=0,15 do
@@ -148,7 +188,31 @@ function Component.install(Runtime)
                 local radius=Runtime.Config.palletJack.interactionRadius*.98
                 candidates[#candidates+1]={x=jack.x+math.cos(angle)*radius,y=jack.y+math.sin(angle)*radius}
             end
-            return Runtime.EmployeeAI.findReachablePoint(worker,candidates,context)
+            return Runtime.EmployeeAI.findReachablePoint(worker,candidates,context.forActor(worker))
+        end
+        local function loadedExit(worker,palletId,x,y,route)
+            local item=require("src.pallet_state").find(state,palletId)
+            local origin=item and item.pallet.world
+            if not origin then return false end
+            local obstacles=route.obstacles()
+            local goals={}
+            local function add(px,py)
+                if Runtime.Navigation.isWalkable(route.assets,px,py,obstacles) then
+                    goals[#goals+1]={x=px,y=py}
+                end
+            end
+            local jack=JackFleet.employeeView(state,worker).palletJack
+            if (jack.x-origin.x)^2+(jack.y-origin.y)^2>=96^2 then add(jack.x,jack.y) end
+            -- A fit at the pickup pixel is insufficient: require a continuous
+            -- loaded route out to an aisle beyond the surrounding skids.
+            for _,radius in ipairs({160,240}) do
+                for index=0,15 do
+                    local angle=index*math.pi/8
+                    add(origin.x+math.cos(angle)*radius,origin.y+math.sin(angle)*radius)
+                end
+            end
+            return require("src.npc_navigation").findPath({x=x,y=y},goals,
+                {assets=route.assets,obstacles=function() return obstacles end})~=nil
         end
         function context.jackPickupPoint(worker,pallet)
             local origin=pallet.world
@@ -166,25 +230,37 @@ function Component.install(Runtime)
                     end
                 end
             end
-            return Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),candidates,
-                context.jackNavigation(worker))
+            local actor=context.jackActor(worker)
+            local empty=context.jackNavigation(worker)
+            while #candidates>0 do
+                local point=Runtime.EmployeeAI.findReachablePoint(actor,candidates,empty)
+                if not point then return nil end
+                if loadedExit(worker,pallet.id,point.x,point.y,loaded) then return point end
+                for index=#candidates,1,-1 do
+                    if math.abs(candidates[index].x-point.x)<.01 and math.abs(candidates[index].y-point.y)<.01 then
+                        table.remove(candidates,index)
+                    end
+                end
+                require("src.npc_navigation").reset(actor)
+            end
         end
         function context.jackLoadClear(worker,palletId,x,y)
             local nav=context.jackNavigation(worker,palletId,true)
             return Runtime.Navigation.isWalkable(nav.assets,x,y,nav.obstacles())
+                and loadedExit(worker,palletId,x,y,nav)
         end
         function context.jackDropClear(worker,palletId,x,y)
             local width,height=Runtime.Config.palletLogistics.collisionHalfWidth,Runtime.Config.palletLogistics.collisionHalfHeight
             if not Runtime.Navigation.isAreaWalkable(assets,x,y,width,height) then return false end
             local footprint={x=width,y=height,shape="diamond"}
-            local jack=state.palletJack
+            local jack=JackFleet.employeeView(state,worker).palletJack
             if jack and jack.operating and jack.operatorEmployeeId==worker.id then
                 local clearance=Runtime.Footprint.expand({x=jack.x,y=jack.y-5,
                     halfWidth=Runtime.Config.palletJack.loadedCollisionHalfWidth,
                     halfHeight=Runtime.Config.palletJack.loadedCollisionHalfHeight,shape="diamond"},footprint)
                 if Runtime.Footprint.penetration(clearance,x,y)>0 then return false end
             end
-            for _,obstacle in ipairs(Runtime.movementObstacles(state,true,footprint,false,false,palletId)) do
+            for _,obstacle in ipairs(Runtime.movementObstacles(state,jack,footprint,false,false,palletId)) do
                 if obstacle.actor~=worker and Runtime.Footprint.penetration(obstacle,x,y)>0 then return false end
             end
             for _,p in ipairs(players()) do
@@ -194,7 +270,7 @@ function Component.install(Runtime)
             return true
         end
         function context.jackEmergencyDropPoint(worker)
-            local jack=state.palletJack
+            local jack=JackFleet.employeeView(state,worker).palletJack
             for _,distance in ipairs({0,36,72,108}) do
                 for index=0,15 do
                     local angle=index*math.pi/8
@@ -207,8 +283,20 @@ function Component.install(Runtime)
             local route=context.jackNavigation(worker,nil,false)
             local obstacles=route.obstacles()
             local minimumClearance=24
+            local jack=JackFleet.employeeView(state,worker).palletJack
+            local width,height=Runtime.Config.palletJack.collisionHalfWidth,Runtime.Config.palletJack.collisionHalfHeight
             local function clear(x,y)
                 if not Runtime.Navigation.isWalkable(route.assets,x,y,obstacles) then return false end
+                if not Runtime.Navigation.isAreaWalkable(assets,x,y,width+12,height+24) then return false end
+                for _,zone in ipairs(Runtime.StagingAreas.areas(state)) do
+                    if x+width+12>zone.x and x-width-12<zone.x+zone.width
+                        and y+height+12>zone.y and y-height-12<zone.y+zone.height then return false end
+                end
+                -- Leave the rack's loading apron open for the next vehicle.
+                for column=1,5 do
+                    local shelf=Runtime.WarehouseLayout.rackPoint("warehouse-rack",1,column)
+                    if shelf and (x-shelf.x)^2+(y-shelf.groundY)^2<130^2 then return false end
+                end
                 for _,obstacle in ipairs(obstacles) do
                     if Runtime.Footprint.pointDistanceSquared(x,y,obstacle)<minimumClearance^2 then
                         return false
@@ -227,6 +315,9 @@ function Component.install(Runtime)
                     if clear(x,y) then candidates[#candidates+1]={x=x,y=y} end
                 end
             end
+            table.sort(candidates,function(a,b)
+                return (a.x-jack.x)^2+(a.y-jack.y)^2<(b.x-jack.x)^2+(b.y-jack.y)^2
+            end)
             return Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),candidates,route)
         end
         function context.machinePose(machineId)
@@ -429,9 +520,30 @@ function Component.install(Runtime)
                     end
                 end
             end
+            if forJack then
+                local wheelPoints={}
+                for _,drop in ipairs(candidates) do
+                    for _,facing in ipairs({"northwest","north","northeast","east",
+                        "southeast","south","southwest","west"}) do
+                        local ox,oy=Runtime.PalletJack.dropOffset(facing)
+                        wheelPoints[#wheelPoints+1]={x=drop.x-ox,y=drop.y-oy,
+                            dropDirection=facing,dropX=drop.x,dropY=drop.y}
+                    end
+                end
+                candidates=wheelPoints
+            end
             local routeContext=forJack and context.jackNavigation(worker,pallet.id,true)
                 or {assets=assets,obstacles=function() return obstacles end}
             local point=Runtime.EmployeeAI.findReachablePoint(forJack and context.jackActor(worker) or worker,candidates,routeContext)
+            if point and forJack then
+                for _,candidate in ipairs(candidates) do
+                    if math.abs(point.x-candidate.x)<.01 and math.abs(point.y-candidate.y)<.01 then
+                        point.dropDirection=candidate.dropDirection
+                        point.dropX,point.dropY=candidate.dropX,candidate.dropY
+                        break
+                    end
+                end
+            end
             if point then worker._machinePalletDropKey=key;worker._machinePalletDropPoint=point end
             return point
         end
@@ -443,6 +555,29 @@ function Component.install(Runtime)
         function context.jackDropPoint(machineId,worker,pallet,stage)
             if stage=="wrapping" then return context.palletDropPoint(machineId,worker,pallet,true) end
             return context.machinePalletDropPoint(machineId,worker,pallet,stage,true)
+        end
+        function context.jackShelfPoint(worker,rackId,column)
+            local target=Runtime.WarehouseLayout.rackPoint(rackId,1,column)
+            if not target then return nil end
+            local key=rackId..":"..column
+            local route=context.jackNavigation(worker,JackFleet.employeeView(state,worker).palletJack.carriedPalletId,true)
+            if worker._jackShelfKey==key and worker._jackShelfPoint
+                and Runtime.Navigation.isWalkable(route.assets,worker._jackShelfPoint.x,
+                    worker._jackShelfPoint.y,route.obstacles()) then
+                return worker._jackShelfPoint
+            end
+            local candidates={}
+            for _,distance in ipairs({55,70,85,100}) do
+                for _,offset in ipairs({0,-20,20,-40,40}) do
+                    candidates[#candidates+1]={x=target.x+offset,y=target.groundY+distance}
+                end
+            end
+            local point=Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),candidates,route)
+            if point then
+                worker._jackShelfKey=key
+                worker._jackShelfPoint=point
+            end
+            return point
         end
         function context.idlePoint(worker)
             local n=tonumber(worker.id:match("(%d+)$")) or 1

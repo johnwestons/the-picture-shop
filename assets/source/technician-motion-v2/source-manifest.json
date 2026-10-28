@@ -1,0 +1,765 @@
+{
+  "version": 2,
+  "generator": "OpenAI imagegen (built-in)",
+  "sources": [
+    {
+      "path": "mouse-idle.png",
+      "sha256": "6f1015b99ce2e36a8382228ec4a81dad5c6f5320e44e6b8283e5f445169b0071",
+      "status": "selected_cells",
+      "role": "directional_idle",
+      "prompt": "mouse-idle-prompt.txt",
+      "layout": [
+        4,
+        4
+      ],
+      "view_cells": {
+        "east": 0,
+        "southeast": 1,
+        "south": 2,
+        "southwest": 3,
+        "northwest": 5,
+        "north": 6,
+        "northeast": 7
+      },
+      "blink_cell_offset": 8,
+      "selected_cells": [
+        0,
+        8,
+        1,
+        9,
+        2,
+        10,
+        3,
+        11,
+        5,
+        13,
+        6,
+        14,
+        7,
+        15
+      ],
+      "excluded_cells": [
+        4,
+        12
+      ],
+      "exclusion_reason": "Original west neutral/blink have three ear-shaped lobes; use reviewed v2 pair."
+    },
+    {
+      "path": "mouse-west-idle-v2.png",
+      "sha256": "deac502b4f4996659f440f9e2a14a3ce2e687c275cd78b35a74539cbb8c6c61e",
+      "status": "selected_cells",
+      "role": "directional_idle_correction",
+      "view": "west",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "prompt": "mouse-west-idle-v2-prompt.txt",
+      "references": [
+        "references/mouse-west-idle-original-pair.png"
+      ],
+      "anatomy_review": "Two anatomical ears in both neutral and blink; removed extra rear gray ear inherited from original west reference."
+    },
+    {
+      "path": "mouse-north-contacts.png",
+      "sha256": "d209ec3a191da89bed0a1369be18c0188035a33992125d81693aacbf02e3de7a",
+      "status": "selected_cells",
+      "role": "walk_north",
+      "prompt": "mouse-north-contacts-prompt.txt",
+      "layout": [
+        2,
+        2
+      ],
+      "selected_cells": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "phase_indices": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "references": [
+        "references/mouse-north.png"
+      ],
+      "head_reference_width": 292.5
+    },
+    {
+      "path": "mouse-north-right-swing.png",
+      "sha256": "71578d8664dd1baad7aa138b801a48241021895f00d0ef6853e600787ef0ca81",
+      "status": "selected_cells",
+      "role": "walk_north",
+      "prompt": "mouse-north-right-swing-prompt.txt",
+      "layout": [
+        2,
+        2
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        2,
+        3
+      ],
+      "references": [
+        "mouse-north-contacts.png"
+      ],
+      "head_reference_width": 292.5
+    },
+    {
+      "path": "mouse-north-left-swing.png",
+      "sha256": "0642c2c518f5ce17d8861c08404fcbda93ecd15c07a67ab8dc718da5a7946c9a",
+      "status": "selected_cells",
+      "role": "walk_north",
+      "prompt": "mouse-north-left-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        6,
+        7
+      ],
+      "references": [
+        "references/mouse-north.png"
+      ],
+      "head_reference_width": 401.5
+    },
+    {
+      "path": "mouse-south-left-contacts.png",
+      "sha256": "ea51fe8993e7bc56f11c049900ad0589f31ddf8d0ce135e4a17bbd62fe364dd7",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "mouse-south-left-contacts-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        0,
+        1
+      ],
+      "references": [
+        "references/mouse-south.png"
+      ],
+      "head_reference_width": 444.0
+    },
+    {
+      "path": "mouse-south-right-contacts.png",
+      "sha256": "15835ff3e26c7a1777da1229459c4d4957ebb985cf3acf35b26392a47ca7c8c9",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "mouse-south-right-contacts-prompt.txt",
+      "layout": [
+        2,
+        2
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        4,
+        5
+      ],
+      "references": [
+        "references/mouse-south.png"
+      ],
+      "head_reference_width": 293.5
+    },
+    {
+      "path": "mouse-south-right-swing.png",
+      "sha256": "cde4eb2ab1fc1c7454574086901fae97fc1ccca3ecb3a89e504fc074e1b3c09b",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "mouse-south-right-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        2,
+        3
+      ],
+      "references": [
+        "references/mouse-south.png"
+      ],
+      "head_reference_width": 366.5
+    },
+    {
+      "path": "mouse-south-left-swing.png",
+      "sha256": "faa39090c6a40badbcc70fc2538fb74bf40616944c3719f6c8fbbaa193936020",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "mouse-south-left-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        6,
+        7
+      ],
+      "references": [
+        "references/mouse-south.png"
+      ],
+      "head_reference_width": 413.5
+    },
+    {
+      "path": "mouse-east-left-contacts-v2.png",
+      "sha256": "f15ca13d646af1adc244eb1fcf5bc49c12ae342610020a0363c9133c77cf940c",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "mouse-east-left-contacts-v2-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        0,
+        1
+      ],
+      "references": [
+        "mouse-east-left-swing-v2.png"
+      ],
+      "head_reference_width": 411.5
+    },
+    {
+      "path": "mouse-east-right-contacts-v2.png",
+      "sha256": "444a3edb6cb88f374625429d681a840a265c7b2dd237ef4041464f7e16efb3f1",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "mouse-east-right-contacts-v2-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        4,
+        5
+      ],
+      "references": [
+        "mouse-east-right-swing.png"
+      ],
+      "head_reference_width": 409.0
+    },
+    {
+      "path": "mouse-east-right-swing.png",
+      "sha256": "4c3a4b57c9540c0dc9ea512629306e43b03f44bd590f82e4ea4c4aa0a1d1536d",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "mouse-east-right-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        2,
+        3
+      ],
+      "references": [
+        "references/mouse-east.png"
+      ],
+      "head_reference_width": 408.0
+    },
+    {
+      "path": "mouse-east-left-swing-v2.png",
+      "sha256": "4eec77c7e38ca232eb80c5331901ecdfb33653b4c0611baeb8370e7bae43d3e6",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "mouse-east-left-swing-v2-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        6,
+        7
+      ],
+      "references": [
+        "mouse-east-left-swing.png"
+      ],
+      "head_reference_width": 408.5
+    },
+    {
+      "path": "lizard-idle.png",
+      "sha256": "4b43556da8166057d2163d3762b83a28fa806fee768048ec2a88843b9f00ec31",
+      "status": "selected_cells",
+      "role": "directional_idle",
+      "prompt": "lizard-idle-prompt.txt",
+      "layout": [
+        4,
+        4
+      ],
+      "view_cells": {
+        "east": 0,
+        "southeast": 1,
+        "south": 2,
+        "southwest": 3,
+        "west": 4,
+        "northwest": 7,
+        "north": 6,
+        "northeast": 5
+      },
+      "blink_cell_offset": 8,
+      "selected_cells": [
+        0,
+        8,
+        1,
+        9,
+        2,
+        10,
+        3,
+        11,
+        4,
+        12,
+        7,
+        15,
+        6,
+        14,
+        5,
+        13
+      ],
+      "excluded_cells": [],
+      "exclusion_reason": null
+    },
+    {
+      "path": "lizard-north-contacts.png",
+      "sha256": "14d55305d75d667f51ef31b199ad31048bf3dfdf8e11261df6791a7ce9abe3af",
+      "status": "selected_cells",
+      "role": "walk_north",
+      "prompt": "lizard-north-contacts-prompt.txt",
+      "layout": [
+        2,
+        2
+      ],
+      "selected_cells": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "phase_indices": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "references": [
+        "references/lizard-north.png"
+      ],
+      "head_reference_width": 201.0
+    },
+    {
+      "path": "lizard-north-right-swing.png",
+      "sha256": "74078f43503fb311f44562cc68720f4ceddf7558cdb811ad430aeafc37da7592",
+      "status": "selected_cells",
+      "role": "walk_north",
+      "prompt": "lizard-north-right-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        2,
+        3
+      ],
+      "references": [
+        "references/lizard-north.png"
+      ],
+      "head_reference_width": 300.5
+    },
+    {
+      "path": "lizard-north-left-swing.png",
+      "sha256": "88fdc95ade16b3a08222c41c277168e89b748e1f25f63488490a9155efdca056",
+      "status": "selected_cells",
+      "role": "walk_north",
+      "prompt": "lizard-north-left-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        6,
+        7
+      ],
+      "references": [
+        "mouse-north-left-swing.png",
+        "references/lizard-north.png"
+      ],
+      "head_reference_width": 297.0
+    },
+    {
+      "path": "lizard-south-left-contacts.png",
+      "sha256": "6a1e7483e4133c219c6b3df9ffd638dc087d1ee9093f3358f8c63d8393c9ff55",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "lizard-south-left-contacts-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        0,
+        1
+      ],
+      "references": [
+        "mouse-south-left-contacts.png",
+        "references/lizard-south.png"
+      ],
+      "head_reference_width": 306.0
+    },
+    {
+      "path": "lizard-south-right-contacts.png",
+      "sha256": "e31fa42797af3baa2d83156d249e3fed5b2461da6beb8b2efb1bb0c4c31280a4",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "lizard-south-right-contacts-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        4,
+        5
+      ],
+      "references": [
+        "references/mouse-south-right-contacts-selected.png",
+        "references/lizard-south.png"
+      ],
+      "head_reference_width": 285.0
+    },
+    {
+      "path": "lizard-south-right-swing.png",
+      "sha256": "d3d52bde17ec53896606210577a4703e0d200369050e3ddb341ded4b8a43cb1e",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "lizard-south-right-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        2,
+        3
+      ],
+      "references": [
+        "mouse-south-right-swing.png",
+        "references/lizard-south.png"
+      ],
+      "head_reference_width": 287.5
+    },
+    {
+      "path": "lizard-south-left-swing-v2.png",
+      "sha256": "0f1055967bdf1e398f232480bea126b4c45df1bc6e337f581329bbd9bf6abaee",
+      "status": "selected_cells",
+      "role": "walk_south",
+      "prompt": "lizard-south-left-swing-v2-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        6,
+        7
+      ],
+      "references": [
+        "lizard-south-left-swing.png",
+        "lizard-south-right-swing.png"
+      ],
+      "head_reference_width": 304.0
+    },
+    {
+      "path": "lizard-east-left-contacts.png",
+      "sha256": "d1086263a17b9a2f1943a60647d062843fd8d53766322acd50a4302a8adf1949",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "lizard-east-left-contacts-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        0,
+        1
+      ],
+      "references": [
+        "mouse-east-left-contacts-v2.png",
+        "references/lizard-east.png"
+      ],
+      "head_reference_width": 350.0
+    },
+    {
+      "path": "lizard-east-right-contacts.png",
+      "sha256": "dd29807817fb2151e005bc424500922f2c0172bd79f1e2702bf0aec9972b1171",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "lizard-east-right-contacts-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        4,
+        5
+      ],
+      "references": [
+        "mouse-east-right-contacts-v2.png",
+        "references/lizard-east.png"
+      ],
+      "head_reference_width": 338.0
+    },
+    {
+      "path": "lizard-east-right-swing.png",
+      "sha256": "4cb03dc49dba2d8841d0e19cb0949b217caf7c787db37086f457894d0b08ce25",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "lizard-east-right-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        2,
+        3
+      ],
+      "references": [
+        "mouse-east-right-swing.png",
+        "references/lizard-east.png"
+      ],
+      "head_reference_width": 355.0
+    },
+    {
+      "path": "lizard-east-left-swing.png",
+      "sha256": "59198adc5ed1a0fe496f19668b141700eaa6b98cc8aea2182791aa758b5d056e",
+      "status": "selected_cells",
+      "role": "walk_east",
+      "prompt": "lizard-east-left-swing-prompt.txt",
+      "layout": [
+        2,
+        1
+      ],
+      "selected_cells": [
+        0,
+        1
+      ],
+      "phase_indices": [
+        6,
+        7
+      ],
+      "references": [
+        "mouse-east-left-swing-v2.png",
+        "references/lizard-east.png"
+      ],
+      "head_reference_width": 359.0
+    },
+    {
+      "path": "lizard-north-left-swing-correction-rejected.png",
+      "sha256": "fe37c8ecd5b6b00894844a0a86af826d686d3373cb21523d3e69bef23ed87dec",
+      "prompt": "lizard-north-left-swing-correction-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "lizard-north-left-swing-draft-rejected.png",
+      "sha256": "64f7c0518fc133f835f0a307e6b0d3c5ef79a476ef2fe4a24549971dcae8ae83",
+      "prompt": "lizard-north-left-swing-draft-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "mouse-east-cycle-rejected.png",
+      "sha256": "a362d9ca85cd1af7f631aabdfa03cbb722d0fc957103eb84accf0a8c6f2bd31d",
+      "prompt": "mouse-east-cycle-prompt.txt",
+      "status": "rejected",
+      "reason": "Opaque painted backdrop and unclear foreground leg order; never runtime art.",
+      "references": [
+        "references/mouse-east.png",
+        "references/guide-east.png"
+      ]
+    },
+    {
+      "path": "mouse-walk-back-rejected.png",
+      "sha256": "5b0af479ad37b45b249b42d4fd751c1e48d792661ebd8b00add9a21206d39b67",
+      "prompt": "mouse-walk-back-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "mouse-walk-east-rejected.png",
+      "sha256": "76d58589f081b5c0aaf516ee334a80bb9ca713414a5b8e12e105f1d07fa03539",
+      "prompt": "mouse-walk-east-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "mouse-walk-front-rejected.png",
+      "sha256": "c6e058c8e96af0f2895c60380395bd3532bc08d7e9867e8418011ed00ebbd0c7",
+      "prompt": "mouse-walk-front-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "mouse-walk-north-correction-rejected.png",
+      "sha256": "73024896367811012e0ebc34ec9483e37e2cc9d46ea235f5636e8ad711faa0de",
+      "prompt": "mouse-walk-north-correction-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "mouse-walk-north-rejected.png",
+      "sha256": "18a281d35a5a3efbaf822ac2a8ba7a8a5c6bcd61550bb4d5c4f61c225daae2d9",
+      "prompt": "mouse-walk-north-prompt.txt",
+      "status": "rejected",
+      "reason": "Camera drift, repeated leading foot or diagnostic case changes hands; never runtime art."
+    },
+    {
+      "path": "mouse-west-cycle-rejected.png",
+      "sha256": "7814abe6e0ed8a46dcca2dc031ad6e5ba3b2da6ed9125ae7eb809ed91959178b",
+      "prompt": "mouse-west-cycle-prompt.txt",
+      "status": "rejected",
+      "reason": "Three-ear anatomy inherited from original west reference, repeated leading leg and little free-arm swing; never runtime art.",
+      "references": [
+        "references/mouse-west-original.png"
+      ]
+    },
+    {
+      "path": "lizard-south-left-swing.png",
+      "sha256": "1f82e8322cb8029b3db0b20ea1b62c0b2295e8e8ff882882511c959f71e9fd20",
+      "prompt": "lizard-south-left-swing-prompt.txt",
+      "status": "rejected",
+      "reason": "Oversize case in both left-swing cells; replaced by reviewed v2 correction, never runtime art.",
+      "references": [
+        "mouse-south-left-swing.png",
+        "references/lizard-south.png"
+      ]
+    },
+    {
+      "path": "mouse-east-left-swing.png",
+      "sha256": "d970c8c2fe023e7bca606a3bc0045bcdc769cb846e0a73f21420f22585c8fb28",
+      "prompt": "mouse-east-left-swing-prompt.txt",
+      "status": "rejected",
+      "reason": "Second far-leg pose repeats the bent-back passing pose; reviewed v2 advances boot before next contact.",
+      "references": [
+        "references/mouse-east.png"
+      ]
+    },
+    {
+      "path": "mouse-east-left-contacts.png",
+      "sha256": "9c4f77102bebeba9ba3280d1c2ff3c9c0d7e6a38cc5aff71f7b1d6f041684095",
+      "prompt": "mouse-east-left-contacts-prompt.txt",
+      "status": "rejected",
+      "reason": "Contact/body proportions produced excessive down/up bob after rigid head-scale alignment; v2 uses swing-pose proportions.",
+      "references": [
+        "references/mouse-east.png"
+      ]
+    },
+    {
+      "path": "mouse-east-right-contacts.png",
+      "sha256": "8abca6d4454502fdfe17e729068b93fb75de3ff818cd821e84ada9f895198d0c",
+      "prompt": "mouse-east-right-contacts-prompt.txt",
+      "status": "rejected",
+      "reason": "Contact/body proportions produced excessive down/up bob after rigid head-scale alignment; v2 uses swing-pose proportions.",
+      "references": [
+        "references/mouse-east.png"
+      ]
+    },
+    {
+      "path": "mouse-west-left-swing.png",
+      "sha256": "0268886f5d5ae8e64e5a88fda3b9589e32035d2e674566383a43f5e686064d6b",
+      "prompt": "mouse-west-left-swing-prompt.txt",
+      "status": "rejected",
+      "reason": "Three-ear anatomy inherited from the original west reference; not eligible for runtime.",
+      "references": [
+        "references/mouse-west-original.png"
+      ]
+    },
+    {
+      "path": "mouse-west-right-swing.png",
+      "sha256": "55f8c6f8a3ef041fdc3e83a865a6d45e9c62fae5021294e8c7bc84e7e9a54ae5",
+      "prompt": "mouse-west-right-swing-prompt.txt",
+      "status": "rejected",
+      "reason": "Three-ear anatomy inherited from the original west reference; not eligible for runtime.",
+      "references": [
+        "references/mouse-west-original.png"
+      ]
+    }
+  ],
+  "runtime_status": "directional idles and reviewed north/south/east walks; remaining walk and service sets pending"
+}

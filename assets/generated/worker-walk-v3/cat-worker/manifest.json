@@ -1,0 +1,76 @@
+{
+  "status": "installed",
+  "source": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-proposal-key03v1.png",
+  "source_sha256": "360ec1aa4523cc71049a308c6253622c673b011fc0ac0744246e9ab7dacf05ab",
+  "provenance": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-canonical-key03-correction-candidate-v1.json",
+  "provenance_sha256": "c24eee4e7168ad44426d57205878ff8eb2160f8676e5c5109406e52f3584bf27",
+  "runtime": "assets/generated/worker-walk-v3/cat-worker/walk_south.png",
+  "runtime_sha256": "3ecb49c91c2c85d12ad2f7004f78881cc1acc77850dd27e370bac86f7121343f",
+  "transform": "Entire 4096x512 source resized once by .5 with Lanczos. No per-cell scaling or deformation.",
+  "anchors": [
+    128,
+    228.5
+  ],
+  "metrics": [
+    [
+      61,
+      36,
+      196,
+      229
+    ],
+    [
+      61,
+      39,
+      196,
+      229
+    ],
+    [
+      59,
+      34,
+      196,
+      229
+    ],
+    [
+      59,
+      36,
+      196,
+      229
+    ],
+    [
+      58,
+      36,
+      197,
+      229
+    ],
+    [
+      59,
+      38,
+      196,
+      229
+    ],
+    [
+      60,
+      36,
+      199,
+      229
+    ],
+    [
+      61,
+      34,
+      199,
+      229
+    ]
+  ],
+  "cell_rgba_hashes": [
+    "6a316a5c4cd531f7f11ce5a853c353ce0080583896d664f1f22f206924b0e866",
+    "539d4255aef597d6951dd8d9dbd6210aef6b196ee0307afdb709b3fc2a986cbd",
+    "84e5526aabd0a3466fc0c29d3719895d9e0872d8fbf6128387c31112d0062702",
+    "2a080d5f515c7621b5ea24c31c619c4df08cf104d0dbf5c693e60c132bfdc94c",
+    "cd070dc2c524e1b55c67b6e084f4d22f2f28a20026c74b0e4217b3c81a271d22",
+    "fd194aeacec24e02bab058ba20c0d1c443be89b909829a99a6913a4afc345dae",
+    "c46a939cd6c234e4c2a58e6bd367e87e21a5d89c815072c32f5b5193f8d3881c",
+    "b625331ef370b80df259733c7b03f271fa9bdab4603183aa36bb3997196ea1ab"
+  ],
+  "review": "Root checked complete eight-key contact sheet and all phases through production host/guest desktop/phone renderers. Opposite contact owners and K3/K7 passing roles read consistently at game scale. K3 boot is legitimately partly occluded by satchel/body; it remains distinct from K2 and is not a duplicated drawing.",
+  "remaining": "Other directions and sixteen-frame transitions are not accepted. This is a contained south-cycle improvement, not complete character acceptance."
+}

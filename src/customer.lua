@@ -408,7 +408,7 @@ end
 function Instance:frameForAction(action, frameCount)
     local motionProfile = self.motionProfiles[self.character]
     if motionProfile and CharacterAnimation.isWalkAction(action) then
-        return CharacterAnimation.frameForDistance(frameCount, self.animationDistance,
+        return CharacterAnimation.frameForGait(frameCount, self.animationDistance,
             motionProfile.walkPixelsPerFrame)
     end
     if action == "sit" and Seating.supports(self.character) then

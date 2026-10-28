@@ -88,6 +88,7 @@ local function validActor(a)
         and number(a.distance,0,1e12) and number(a.idleClock,0,1e12)
         and (a.waitTimer==nil or number(a.waitTimer,0,1e12))
         and (a.moving==nil or type(a.moving)=="boolean")
+        and (a.sceneId==nil or a.sceneId=="warehouse" or a.sceneId=="front_left" or a.sceneId=="front_right")
         and (a.workFrame==nil or int(a.workFrame,1,4))
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
         and (a.greetingKind==nil or int(a.greetingKind,1,3))
@@ -147,6 +148,7 @@ function Employees.valid(e)
     local employedCount=0
     local staffValid=array(e.staff,24,function(w)
         if not profile(w) or not token(w.id) or ids[w.id] or not Contracts.valid(w.contract)
+            or (w.pendingSchedule~=nil and not Contracts.validTerms(w.pendingSchedule))
             or (w.status~="employed" and w.status~="dismissed" and w.status~="resigned")
             or not validActor(w) or type(w.clockedIn)~="boolean"
             or not number(w.fatigue,0,100) or not number(w.focus,0,100)
@@ -309,8 +311,10 @@ function Employees.normalize(e,now)
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock,w._trainingClock,w._trainingMachineId=nil,nil,nil,nil,nil
         w._jackNavigator,w._jackTarget,w.jackDistance,w._waitingForJack=nil,nil,nil,nil
+        w._shippingPalletId=nil
         w.greetingKind,w.greetingUntilHours=nil,nil
         w._scheduleRetryAtHours,w._blockedWorkHours,w._waitingMachineId=nil,nil,nil
+        w._scheduleBlockedReason=nil
         w._palletApproachKey,w._palletApproachPoint,w._palletDropKey,w._palletDropPoint=nil,nil,nil,nil
         if w.assignment then
             w.assignment.cutterMachineId=w.assignment.cutterMachineId or w.assignment.machineId
@@ -464,6 +468,29 @@ function Employees.command(state,intent,now)
     local w=intent.employeeId and Employees.worker(state,intent.employeeId)
     if not w or w.status~="employed" then return false,"Choose a current employee." end
     if Schedule.isIntent(intent.kind) then return Schedule.command(state,w,intent,now) end
+    if intent.kind=="change_employee_hours" then
+        if intent.expectedRevision~=w.contract.revision then
+            return false,"Review the employee's current schedule before changing it." end
+        local terms=Contracts.terms(w.contract.wageCents,intent.days,
+            intent.startHour,intent.endHour,w.contract.payWeeks)
+        if not Contracts.validTerms(terms) then
+            return false,"Choose at least one workday and a 4-12 hour shift." end
+        if not Contracts.preferenceAllows(w.shiftPreference,terms.startHour) then
+            return false,w.name.." prefers "..Contracts.shiftPreferenceDescription(w.shiftPreference).."." end
+        if Contracts.same(terms,w.pendingSchedule or w.contract) then
+            return true,"This schedule is already agreed." end
+        w.contract.revision=w.contract.revision+1
+        if Contracts.onShift(w.contract,now) then
+            w.pendingSchedule=terms
+            return true,"Schedule agreed. New hours start after this shift ends."
+        end
+        terms.revision=w.contract.revision
+        terms.signedAtHours=now
+        terms.startDay=Contracts.nextDay(terms,now)
+        w.contract=terms
+        w.pendingSchedule=nil
+        return true,"Schedule agreed. New hours begin on the next selected workday."
+    end
     if intent.kind=="train_employee" then
         if w.assignment and w.reserved then
             return false,"Let the current machine cycle finish before starting training."
@@ -498,7 +525,9 @@ function Employees.command(state,intent,now)
         w.sentHomeShiftDay=shiftDay
         w.activity="Going home for the day"
         return true,"Shift ended. A safe machine cycle will finish before the employee leaves; unfinished work resumes next shift."
-    elseif intent.kind=="dismiss_employee" then w.terminationRequested=true;w.stopRequested=true;return true,"Dismissal requested. Earned wages remain owed."
+    elseif intent.kind=="dismiss_employee" then
+        w.pendingSchedule=nil;w.terminationRequested=true;w.stopRequested=true
+        return true,"Dismissal requested. Earned wages remain owed."
     elseif intent.kind=="unassign_employee" then
         w.stopRequested=true
         if #w.schedule.items>0 then w.schedule.enabled=false;w.schedule.revision=w.schedule.revision+1 end
@@ -509,19 +538,21 @@ function Employees.command(state,intent,now)
         local job,pallet
         for _,j in ipairs(state.jobs.active or {}) do if j.id==intent.jobId then job=j end end
         for _,p in ipairs(job and job.pallets or {}) do if p.id==intent.palletId then pallet=p end end
-        local machine=Fleet.byId(state,intent.machineId)
-        if not job or not pallet or not pallet.paper or not machine or machine.modelId~="polar_115" or machine.status~="installed" then return false,"Choose an accepted job, its pallet, and an installed cutter." end
+        if not job or not pallet or not pallet.paper or #Fleet.installedUnits(state,"polar_115")==0 then
+            return false,"Choose an accepted job and its pallet; a cutter must be installed." end
         if not Schedule.stockArrived(job) then return false,"Wait until every skid for this job has been unloaded at the shop." end
         if (pallet.status=="cut" or pallet.status=="printed" or pallet.status=="wrapped") or (pallet.remainingSheets or 0)<=0 and pallet.location~="at_cutter" then return false,"This pallet no longer needs cutting." end
         local skilled,skillReason=Schedule.skillAllows(w,job,"cutter")
         if not skilled then return false,skillReason=="Required cutter skill"
             and "This employee needs more paper-cutting skill for this job." or "This employee is not trained for this cutter job." end
         for _,other in ipairs(e.staff) do if other~=w and other.assignment
-            and (other.assignment.machineId==machine.id or other.assignment.palletId==pallet.id) then return false,"Another employee is assigned to that cutter or pallet." end end
+            and other.assignment.palletId==pallet.id then return false,"Another employee is assigned to that pallet." end end
         if Schedule.claimed(state,w,job.id) then return false,"This job is queued for another employee." end
         if w.schedule.enabled and #w.schedule.items>0 then return false,"Pause the work schedule before assigning a separate pallet." end
+        local _,machine,_,reason=Schedule.resolve(state,w,{jobId=job.id,machineId="auto"},pallet.id)
+        if not machine then return false,reason or "No available cutter can take this pallet." end
         w.assignment={jobId=job.id,palletId=pallet.id,machineId=machine.id,
-            cutterMachineId=machine.id,machineModel=machine.modelId};w.stopRequested=false
+            cutterMachineId="auto",machineModel=machine.modelId};w.stopRequested=false
         w.activity="Waiting for shift / staged stock"
         return true,"Assignment saved. Stage this pallet beside the cutter; the worker handles each lift."
     end
@@ -529,6 +560,7 @@ function Employees.command(state,intent,now)
 end
 function Employees.isIntent(kind)
     return Schedule.isIntent(kind) or ({recruit_workers=true,request_resume=true,offer_employee=true,hire_employee=true,
+        change_employee_hours=true,
         decline_application=true,assign_employee=true,unassign_employee=true,pay_wages=true,dismiss_employee=true,
         send_employee_home=true,train_employee=true,cancel_employee_training=true})[kind]==true
 end

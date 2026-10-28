@@ -6,6 +6,7 @@ local PalletState = require("src.pallet_state")
 local ForkliftPresentation = require("src.forklift_presentation")
 local ForkliftLayeredPresentation = require("src.forklift_layered_presentation")
 local MechanicWorkPresentation = require("src.mechanic_work_presentation")
+local Construction = require("src.warehouse_construction")
 local ConstructionPresentation = require("src.warehouse_construction_presentation")
 local RackPresentation = require("src.warehouse_rack_presentation")
 local BreakroomPresentation = require("src.warehouse_breakroom_presentation")
@@ -333,8 +334,6 @@ end
 
 function Renderer.drawConstructionWorker(worker,state)
     if not worker or worker.phase=="hidden" or worker.phase=="exited" then return end
-    love.graphics.setColor(0.02,0.02,0.02,0.2)
-    love.graphics.ellipse("fill",worker.x,worker.y+1,14,5)
     local review=Config.warehouse and Config.warehouse.provisionalArt==true
     local working,plan=MechanicWorkPresentation.draw(worker,state,sourceImage,
         {review=review,edgeCleanup=true})
@@ -344,8 +343,8 @@ function Renderer.drawConstructionWorker(worker,state)
         local path=ROOT.."mechanic-raccoon/"..action..(direction=="east" and "" or "_"..direction)..".png"
         local image=sourceImage(path)
         if not image then return end
-        local frame=worker.moving and (math.floor((worker.animationDistance or 0)/13)%8+1)
-            or (math.floor(math.max(0,worker.idleTime or 0)*0.65)%2+1)
+        local width=image:getDimensions()
+        local frame=Construction.frame(worker,math.floor(width/512))
         local quad=sourceQuad(path,frame,512,512)
         if not quad then return end
         love.graphics.setColor(1,1,1,1)

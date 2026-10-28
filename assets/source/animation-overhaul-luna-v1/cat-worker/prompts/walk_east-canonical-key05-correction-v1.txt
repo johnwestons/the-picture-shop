@@ -1,0 +1,16 @@
+Create one single full-body East-facing canonical K5 contact pose for the same cat-worker shown in these references.
+
+Reference roles:
+1. Original East K1 contact. Use for the exact character identity, camera angle, body construction, and the contact pose that this new K5 must oppose.
+2. Original East K2 weight-down. Use for neighboring gait continuity and proportions.
+3. Original East K4 knee-up. Use for neighboring gait continuity and proportions.
+4. Original East K6 weight-down. Use for neighboring gait continuity and proportions.
+5. The approved complete East source walk strip. Use for the approved East identity, outfit, palette, pixel shading, outlines, scale, and asymmetric satchel/tool placement only; do not copy a different frame's leg pose.
+
+The character faces screen-right and walks East in the same side-profile camera view. Preserve the approved charcoal cat head and face, orange work jacket and gloves, olive scarf and trousers, dark boots, single dark tail, and orange cross-body satchel/tool bag. Keep the satchel on the same screen-left rear hip, with the same strap crossing the torso on the same diagonal. Do not mirror, flip, rotate, or change the view. Keep the body/head proportions and pose scale consistent with the neighboring original cells.
+
+This is the opposite contact from K1: the far-side leg now reaches forward toward screen-right and its boot is the planted contact foot; the near-side leg trails behind the pelvis toward screen-left and is not planted forward. Make that ownership change clear in the leg silhouettes. Keep both knees and ankles natural, with the support boot's sole flat on the same ground line as the references. Do not repeat K1's near-side forward planted boot.
+
+Keep the satchel-side arm and the free arm on their existing sides; use only a small natural counter-swing consistent with this profile walk. Change only the walking leg pose and the small limb motion required by the contact. Preserve the character's exact head, torso, outfit, camera, lighting, palette, pixel-art rendering, outline weight, and body scale.
+
+Output one isolated character cutout on a transparent background, framed like one 512-by-512 sprite cell. Exactly two ears, two arms/hands, two legs/boots, and one tail. No extra or missing appendages, no duplicated limbs, no new tool or accessory, no text, no labels, no grid, no multiple poses, no background, no blur, no body-part resizing or deformation.

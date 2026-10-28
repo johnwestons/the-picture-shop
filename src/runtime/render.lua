@@ -70,7 +70,8 @@ function Component.install(Runtime)
                 Runtime.RuntimeDependencies.Hud.draw(Runtime.state, Runtime.World.prompt(), Runtime.Assets, mouseX, mouseY,
                     Runtime.mobileControls and Runtime.mobileControls:isEnabled(), Runtime.controller and Runtime.controller:isActive(), viewBounds,
                     Runtime.App.settings and Runtime.App.settings.followPlayerCamera,
-                    Runtime.App.settings and Runtime.App.settings.twelveHourTime)
+                    Runtime.App.settings and Runtime.App.settings.twelveHourTime,
+                    Runtime.App.playerFeedback)
                 Runtime.MultiplayerHud.draw(Runtime.multiplayerHudInfo())
                 Runtime.HighFiveUi.draw(Runtime.multiplayer:highFiveInfo())
             elseif Runtime.state.screen == "computer" then
@@ -111,6 +112,12 @@ function Component.install(Runtime)
             local optionsX, optionsY = Runtime.pointerPosition()
             local accessScreen, accessBounds = Runtime.optionsAccessLayout()
             Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, accessScreen, accessBounds, Runtime.Assets)
+        end
+        if Runtime.App.playerFeedback and Runtime.state.screen ~= "title"
+            and Runtime.state.screen ~= "lan" and Runtime.state.screen ~= "direct"
+            and Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
+        then
+            Runtime.App.playerFeedback:drawToast(viewBounds, Runtime.state.screen)
         end
         Runtime.Ui.drawPressFeedback()
         if Runtime.controller then Runtime.controller:draw() end

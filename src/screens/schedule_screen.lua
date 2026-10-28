@@ -42,6 +42,7 @@ local function selectJob(ui,jobs,index)
     return job
 end
 local function cutterAssignment(state,machineId)
+    if not machineId or machineId=="auto" then return "AUTO MACHINE",nil end
     local machines=Fleet.installedUnits(state,"polar_115")
     for index,machine in ipairs(machines) do
         if machine.id==machineId then
@@ -100,12 +101,10 @@ function Screen.mousepressed(state,ui,x,y,command,readOnly)
             local job,machine,_,nm,jobs=choices(state,ui)
             if hit("jobPrev") then selectJob(ui,jobs,ui.jobIndex-1)
             elseif hit("jobNext") then selectJob(ui,jobs,ui.jobIndex+1)
-            elseif hit("machinePrev") then ui.machineIndex=math.max(1,ui.machineIndex-1)
-            elseif hit("machineNext") then ui.machineIndex=math.min(nm,ui.machineIndex+1)
             elseif hit("confirm") and job and machine then
-                local okay,message=Schedule.canQueueTeam(state,job.id,machine.id)
+                local okay,message=Schedule.canQueueTeam(state,job.id,"auto")
                 if not okay then state.message=message;return {action="blocked"} end
-                local result=send({kind="queue_team_job",jobId=job.id,machineId=machine.id})
+                local result=send({kind="queue_team_job",jobId=job.id,machineId="auto"})
                 if result and result.action~="blocked" then
                     ui.view="queue";ui.page=1;ui.itemId=team.items[#team.items] and team.items[#team.items].id
                 end
@@ -145,15 +144,13 @@ function Screen.mousepressed(state,ui,x,y,command,readOnly)
         local job,machine,_,nm,jobs=choices(state,ui)
         if hit("jobPrev") then selectJob(ui,jobs,ui.jobIndex-1)
         elseif hit("jobNext") then selectJob(ui,jobs,ui.jobIndex+1)
-        elseif hit("machinePrev") then ui.machineIndex=math.max(1,ui.machineIndex-1)
-        elseif hit("machineNext") then ui.machineIndex=math.min(nm,ui.machineIndex+1)
         elseif hit("confirm") and job and machine then
-            local okay,message=Schedule.canQueue(state,w,job.id,machine.id)
+            local okay,message=Schedule.canQueue(state,w,job.id,"auto")
             if not okay then
                 state.message=message
                 return {action="blocked"}
             end
-            local result=send({kind="queue_employee_job",employeeId=w.id,jobId=job.id,machineId=machine.id})
+            local result=send({kind="queue_employee_job",employeeId=w.id,jobId=job.id,machineId="auto"})
             if result and result.action~="blocked" then ui.view="queue";ui.page=1;ui.itemId=q.items[#q.items] and q.items[#q.items].id end
             return result
         else return nil end
@@ -276,8 +273,8 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
         local okay,message=false,"Install a cutter to schedule this job."
         if not job then message="Jobs appear here after every skid has been unloaded into the shop." end
         if job and machine then
-            if ui.team then okay,message=Schedule.canQueueTeam(state,job.id,machine.id)
-            else okay,message=Schedule.canQueue(state,w,job.id,machine.id) end
+            if ui.team then okay,message=Schedule.canQueueTeam(state,job.id,"auto")
+            else okay,message=Schedule.canQueue(state,w,job.id,"auto") end
         end
         line("Job on shop floor",98,330,514)
         button("jobPrev","<",x,y,ui.jobIndex<=1);button("jobNext",">",x,y,ui.jobIndex>=nj)
@@ -285,11 +282,8 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
         short(job and job.company or "",154,371,400,{.62,.79,.67,1})
         local done,total=Schedule.progress(job)
         line(string.format("Finished pallets: %d/%d",done,total),98,404,514)
-        local _,cutterIndex=cutterAssignment(state,machine and machine.id)
-        line("Assigned cutter",98,425,514)
-        button("machinePrev","<",x,y,ui.machineIndex<=1);button("machineNext",">",x,y,ui.machineIndex>=nm)
-        short(machine and ("CUTTER "..tostring(cutterIndex or "?").." · "..(machine.shortName or machine.name)) or "No installed cutter",154,441,400)
-        short(machine and machine.id or "",154,461,400,{.62,.79,.67,1})
+        line("Machine assignment",98,425,514)
+        short(machine and "Automatic: next available machine for each stage" or "No installed cutter",98,447,514)
         line(message,98,493,514,{1,.86,.43,1})
         button("confirm","ADD TO SCHEDULE",x,y,readOnly or not okay)
         drawMinimumSkills(state,job,636,332,222)

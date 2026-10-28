@@ -214,7 +214,7 @@ function Sound:syncPersistentLoops(snapshot)
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end
-    if snapshot.pressStatus == "production" then
+    if inShop and snapshot.pressMotor and snapshot.pressStatus == "production" then
         self:startLoop("press_running_loop", "press")
     else
         self:stopLoop("press")

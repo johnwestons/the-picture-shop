@@ -13,7 +13,7 @@ function Staging.slots(state)
     return slots
 end
 function Staging.find(isClear,state,machineId)
-    return StagingAreas.findMachineOutput(state,machineId,isClear,false)
+    return StagingAreas.findMachineOutput(state,machineId,isClear,true)
 end
 function Staging.draw(state) StagingAreas.draw(state) end
 return Staging

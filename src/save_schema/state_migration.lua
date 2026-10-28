@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.repairLegacyPhysicalOwnership(state)
+        if state.extraPalletJacks and #state.extraPalletJacks>0 then return end
         -- Legacy machine repair predates racks/stacks/forklifts. Never let it move
         -- newly-owned stock to a machine or floor based on a stale old claim.
         if state.forklift and state.forklift.carriedPalletId then return end
@@ -190,7 +191,9 @@ function Component.install(Runtime)
         result.technicianVisit = type(source.technicianVisit) == "table"
             and Runtime.copy(source.technicianVisit) or nil
         result.palletJack = Runtime.mergePlacement(result.palletJack, source.palletJack)
+        result.extraPalletJacks=Runtime.copy(source.extraPalletJacks or {})
         if type(source.palletJack) == "table" then
+            result.palletJack.id=source.palletJack.id
             result.palletJack.operating = source.palletJack.operating == true
             result.palletJack.sceneId = source.palletJack.sceneId or "warehouse"
             result.palletJack.animationClock = source.palletJack.animationClock or 0

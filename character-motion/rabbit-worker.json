@@ -2,47 +2,283 @@
   "version": 1,
   "character": "rabbit-worker",
   "animations": {
-    "idle_east": { "path": "assets/generated/characters/rabbit-worker/idle.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
-    "idle_north": { "path": "assets/generated/characters/rabbit-worker/idle_north.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
-    "idle_northeast": { "path": "assets/generated/characters/rabbit-worker/idle_northeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
-    "idle_southeast": { "path": "assets/generated/characters/rabbit-worker/idle_southeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
-    "idle_south": { "path": "assets/generated/characters/rabbit-worker/idle_south.png", "frame_width": 512, "frame_height": 512, "frame_count": 2, "loop": true, "role": "directional_idle", "fps": 0.65 },
-    "walk_east": { "path": "assets/generated/characters/rabbit-worker/walk.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 7.75 },
-    "walk_north": { "path": "assets/generated/characters/rabbit-worker/walk_north.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 7.75 },
-    "walk_northeast": { "path": "assets/generated/characters/rabbit-worker/walk_northeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 7.75 },
-    "walk_southeast": { "path": "assets/generated/characters/rabbit-worker/walk_southeast.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 7.75 },
-    "walk_south": { "path": "assets/generated/characters/rabbit-worker/walk_south.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait", "fps": 7.75 }
+    "idle_east": {
+      "path": "assets/generated/characters/rabbit-worker/idle.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_north": {
+      "path": "assets/generated/characters/rabbit-worker/idle_north.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_northeast": {
+      "path": "assets/generated/characters/rabbit-worker/idle_northeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_southeast": {
+      "path": "assets/generated/characters/rabbit-worker/idle_southeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "idle_south": {
+      "path": "assets/generated/characters/rabbit-worker/idle_south.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_east": {
+      "path": "assets/generated/characters/rabbit-worker/walk.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 7.75
+    },
+    "walk_north": {
+      "path": "assets/generated/player-walk-v7/walk_north.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 7.75
+    },
+    "walk_northeast": {
+      "path": "assets/generated/characters/rabbit-worker/walk_northeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 7.75
+    },
+    "walk_southeast": {
+      "path": "assets/generated/characters/rabbit-worker/walk_southeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 7.75
+    },
+    "walk_south": {
+      "path": "assets/generated/characters/rabbit-worker/walk_south.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "fps": 7.75
+    },
+    "high_five": {
+      "path": "assets/generated/characters/rabbit-worker/high-five-v5.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "loop": false,
+      "role": "gesture",
+      "fps": 8.421052631578947
+    }
   },
   "directions": {
-    "north": { "walk_animation": "walk_north", "idle_animation": "idle_north", "mirror_x": false },
-    "northeast": { "walk_animation": "walk_northeast", "idle_animation": "idle_northeast", "mirror_x": false },
-    "east": { "walk_animation": "walk_east", "idle_animation": "idle_east", "mirror_x": false },
-    "southeast": { "walk_animation": "walk_southeast", "idle_animation": "idle_southeast", "mirror_x": false },
-    "south": { "walk_animation": "walk_south", "idle_animation": "idle_south", "mirror_x": false },
-    "southwest": { "walk_animation": "walk_southeast", "idle_animation": "idle_southeast", "mirror_x": true },
-    "west": { "walk_animation": "walk_east", "idle_animation": "idle_east", "mirror_x": true },
-    "northwest": { "walk_animation": "walk_northeast", "idle_animation": "idle_northeast", "mirror_x": true }
+    "north": {
+      "walk_animation": "walk_north",
+      "idle_animation": "idle_north",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "mirror_x": false
+    },
+    "east": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "walk_south",
+      "idle_animation": "idle_south",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "mirror_x": true
+    },
+    "west": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "mirror_x": true
+    },
+    "northwest": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "mirror_x": true
+    }
   },
   "gait": {
-    "pose_order": ["left_contact", "left_weight_down", "right_passing", "right_knee_up", "right_contact", "right_weight_down", "left_passing", "left_knee_up"],
+    "pose_order": [
+      "left_contact",
+      "left_weight_down",
+      "right_passing",
+      "right_knee_up",
+      "right_contact",
+      "right_weight_down",
+      "left_passing",
+      "left_knee_up"
+    ],
     "pixels_per_frame": 20,
     "base_speed": 155,
-    "speed_multipliers": [0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06],
-    "acceleration_multipliers": [0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10]
+    "speed_multipliers": [
+      0.96,
+      0.94,
+      1.04,
+      1.06,
+      0.96,
+      0.94,
+      1.04,
+      1.06
+    ],
+    "acceleration_multipliers": [
+      0.92,
+      0.9,
+      1.08,
+      1.1,
+      0.92,
+      0.9,
+      1.08,
+      1.1
+    ]
   },
-  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 14, "center_tolerance": 28 },
+  "foot_contact_contract": {
+    "walk_animation": "walk_north",
+    "reference_frame_width_px": 512,
+    "root_travel_per_pose_world_px": 20,
+    "reference_world_scale_per_source_px": 0.18640776699029127,
+    "target_support_sole_delta_y_source_px_per_pose": 107.29166666666666,
+    "maximum_track_error_source_px": 18,
+    "north_support_tracks": [
+      {
+        "foot": "screen_left",
+        "points": [
+          { "phase": 1, "roi": [180, 395, 265, 900] },
+          { "phase": 2, "roi": [180, 395, 255, 900] },
+          { "phase": 3, "roi": [180, 395, 245, 900] }
+        ],
+        "toe_off_by_phase": 4
+      },
+      {
+        "foot": "screen_right",
+        "points": [
+          { "phase": 5, "roi": [245, 395, 325, 900] },
+          { "phase": 6, "roi": [255, 395, 320, 900] },
+          { "phase": 7, "roi": [255, 395, 330, 900] }
+        ],
+        "toe_off_by_phase": 8
+      }
+    ],
+    "measurement": "lowest alpha>16 source pixel inside each phase's manually reviewed support-boot ROI; as the root moves north, the sprite-local sole must move down in image-Y by the same projected distance to remain fixed in world space",
+    "next_candidate_layout": {
+      "frame_width_px": 256,
+      "frame_height_px": 384,
+      "columns": 8,
+      "rows": 4,
+      "frame_count": 32,
+      "normalization_height_px": 205,
+      "notes": "Half-resolution frame cells retain the V7 body scale and leave room for both support tracks. Complete the eight canonical keys before adding the remaining in-betweens."
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 14,
+    "center_tolerance": 28
+  },
   "player_actions": {
-    "standing_work": { "actions": ["work_cutter", "work_press", "work_wrapping", "work_task"], "path_pattern": "assets/generated/characters/rabbit-worker/work_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 },
-    "operate_forklift": { "path_pattern": "assets/generated/characters/rabbit-worker/operate_forklift_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 },
-    "use_computer": { "path_pattern": "assets/generated/characters/rabbit-worker/use_computer_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 },
-    "answer_phone": { "path_pattern": "assets/generated/characters/rabbit-worker/answer_phone_{direction}.png", "frame_size": 256, "frame_count": 4, "fps": 4 }
+    "standing_work": {
+      "actions": [
+        "work_cutter",
+        "work_press",
+        "work_wrapping",
+        "work_task"
+      ],
+      "path_pattern": "assets/generated/characters/rabbit-worker/work_{direction}.png",
+      "frame_size": 256,
+      "frame_count": 4,
+      "fps": 4
+    },
+    "operate_forklift": {
+      "path_pattern": "assets/generated/characters/rabbit-worker/operate_forklift_{direction}.png",
+      "frame_size": 256,
+      "frame_count": 4,
+      "fps": 4
+    },
+    "use_computer": {
+      "path_pattern": "assets/generated/characters/rabbit-worker/use_computer_{direction}.png",
+      "frame_size": 256,
+      "frame_count": 4,
+      "fps": 4
+    },
+    "answer_phone": {
+      "path_pattern": "assets/generated/characters/rabbit-worker/answer_phone_{direction}.png",
+      "frame_size": 256,
+      "frame_count": 4,
+      "fps": 4
+    }
   },
   "player_action_contract": {
-    "machine_actions": { "cutter": "work_cutter", "windmill": "work_press", "skid_wrapper": "work_wrapping", "forklift": "operate_forklift" },
-    "special_actions": { "office_computer": "use_computer", "work_phone": "answer_phone" },
+    "machine_actions": {
+      "cutter": "work_cutter",
+      "windmill": "work_press",
+      "skid_wrapper": "work_wrapping",
+      "forklift": "operate_forklift"
+    },
+    "special_actions": {
+      "office_computer": "use_computer",
+      "work_phone": "answer_phone"
+    },
     "general_interaction": "work_task",
-    "authored_directions": ["east", "northeast", "north", "southeast", "south"],
-    "mirror_directions": { "west": "east", "northwest": "northeast", "southwest": "southeast" },
+    "authored_directions": [
+      "east",
+      "northeast",
+      "north",
+      "southeast",
+      "south"
+    ],
+    "mirror_directions": {
+      "west": "east",
+      "northwest": "northeast",
+      "southwest": "southeast"
+    },
     "baseline": 229
   }
 }

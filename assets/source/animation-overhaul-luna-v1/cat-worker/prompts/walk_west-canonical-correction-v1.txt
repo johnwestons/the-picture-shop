@@ -1,0 +1,14 @@
+Use the approved west-facing idle cat-worker for exact identity, outfit, pixel style, palette, lighting and side details. Use the original eight-frame west walk strip only to identify camera angle, stride size and phase order; it repeats a leg role at the two contacts, so correct that. Draw exactly eight full-body canonical walk poses in a transparent 4-column by 2-row sheet, row-major, facing screen-LEFT in exact west profile. One cat in every cell, equal scale and consistent body position.
+
+The phases are:
+1 LEFT CONTACT: the near-side foreground leg is planted forward toward SCREEN-LEFT; the far leg trails to SCREEN-RIGHT.
+2 LEFT WEIGHT-DOWN: load the left support and lower the body slightly.
+3 RIGHT PASSING: the far-side leg passes under the pelvis and is distinct from the phase-7 passing leg.
+4 RIGHT KNEE-UP: lift the far-side/right knee while near-side/left supports.
+5 RIGHT CONTACT: the far-side/right leg owns the forward SCREEN-LEFT planted boot; the foreground near-side/left leg trails to SCREEN-RIGHT and is slightly lifted. This must be a visually opposite support from phase 1. Reverse the ankle/knee order and leg overlap; do not repeat the same boot forward.
+6 RIGHT WEIGHT-DOWN: load the far-side/right support and lower the body slightly.
+7 LEFT PASSING: the near-side/left leg passes beneath the pelvis; switch overlap from phase 3.
+8 LEFT KNEE-UP: lift the near-side/left knee while the far-side/right leg supports.
+The near-side leg is the visible foreground leg and the far-side is behind it. Preserve clear separation so both legs and boots read, including when the far-side leg owns phase-5 contact. Keep a modest walking stride, feet on one shared floor line at contacts, slight natural weight bob and subtle tail counterbalance. Each pose must show a different useful gait action. No near-duplicate contact keys.
+
+Character: upright charcoal-black cat with exactly two pointed ears, two arms, two legs and one attached tail. Keep the tail behind at screen-RIGHT. Preserve the west-facing eye and muzzle toward screen-LEFT, olive-yellow scarf knot at back/right, orange-brown jacket with dark bands, cross-body strap, brown/orange tool satchel with silver clasp on the same side as reference, dark trousers and boots. Do not mirror or flip the character; preserve all asymmetric outfit/tool sides. Match exact source body proportions, pixel scale, outline, textured painted pixels and warm upper-left light. Transparent background. No checkerboard, background, ground, shadow, labels, numbers, borders, scenery, extra props or watermark.

@@ -1,0 +1,115 @@
+{
+  "status": "single-transition review candidate only; not merged into the 16-frame strip and not runtime registered",
+  "generator": "built-in image_gen",
+  "imagegen_output_original": "C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07\\exec-8db48fa5-b4dd-433a-985d-992640902f36.png",
+  "imagegen_output_staged": "assets\\source\\animation-overhaul-luna-v1\\cat-worker\\generated\\walk_south-f08-midpoint-imagegen-v1.png",
+  "imagegen_sha256": "4feea829a8004c28b85502a4e386b199dac729a79b0b446bc43d173e785e2892",
+  "imagegen_dimensions_px": [
+    1254,
+    1254
+  ],
+  "alpha_ge_16_bbox_raw_px": [
+    296,
+    176,
+    962,
+    1123
+  ],
+  "input_images": [
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key04-transition08-endpoint.png",
+      "role": "corrected key4 start pose, identity/style/scale and support/swing leg ownership",
+      "sha256": "1345f627aaad85250caa0db711d190e88980e722576410c38faa20466fb58ee7"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key05-transition08-endpoint.png",
+      "role": "corrected key5 end pose, identity/style/scale and screen-right contact placement",
+      "sha256": "504237b5869c43deffb1d066902775e982f84cf89f11f2eee8e30598b4f7aaf8"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-leg-role-diagram-v1.png",
+      "role": "screen-left/red vs screen-right/blue leg ownership guide only",
+      "sha256": "a51ec422c7d799415df3c718c1023992dcce1a244925f50c4308a006e691fe20"
+    }
+  ],
+  "selected_output": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-f08-midpoint-candidate-v1.png",
+  "selected_output_sha256": "fa362debcf754b04c4ce7b0ca282ec0034aeb3e3bbdb9a83db085f3e15bcbc38",
+  "review_sheet": "output\\animation-overhaul\\luna-cat\\canonical-correction-candidate\\walk_south-f08-v1-key4-midpoint-key5-review.png",
+  "source_key4_sha256": "f822197172349e9f431b145405706e3f48787660764b87ea3cc8aefa8a7c9441",
+  "source_key5_sha256": "e0a06c7484960b7c5d3dc1249ecb3ec06ecbd922aae97350765e21aa6fbeff88",
+  "source_key4_bbox_ge_16_px": [
+    119,
+    72,
+    391,
+    458
+  ],
+  "source_key5_bbox_ge_16_px": [
+    115,
+    73,
+    394,
+    458
+  ],
+  "source_key4_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 185,
+    "x_max_px": 237,
+    "x_mid_px": 211.0
+  },
+  "source_key5_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 228,
+    "x_max_px": 281,
+    "x_mid_px": 254.5
+  },
+  "transform": {
+    "one_uniform_scale_factor_for_the_single_generated_midpoint": 0.40707497,
+    "basis": "mean alpha>=16 height of corrected canonical key4 and key5 vs alpha>=16 height of this single generated midpoint",
+    "raw_alpha_ge_16_height_px": 947,
+    "endpoint_mean_alpha_ge_16_height_px": 385.5,
+    "rigid_torso_axis_x_source_px": 640.0,
+    "target_torso_axis_x_px": 250.0,
+    "rigid_x_translation_px": -11,
+    "target_support_sole_row_px": 457,
+    "rigid_y_translation_px": 1,
+    "method": "one uniform scale for this one generated frame, followed by rigid x/y translations only; no per-part warping or independent body/limb scaling",
+    "transformed_full_canvas_origin_px": [
+      -11,
+      1
+    ],
+    "rigid_torso_axis_candidate_px_after_translation": 249.53,
+    "transformed_full_canvas_rect_before_cell_crop_px": [
+      -11,
+      1,
+      499,
+      511
+    ],
+    "transformed_alpha_ge_16_bbox_before_cell_crop_px": [
+      109,
+      73,
+      381,
+      458
+    ],
+    "candidate_torso_axis_x_px_after_resampling_and_translation": 248.0,
+    "candidate_torso_axis_delta_vs_key4_px": -2.5,
+    "source_key4_torso_axis_x_px": 250.5
+  },
+  "candidate_limits": [
+    "This is one transition only; all other transition slots remain unchanged and previously rejected.",
+    "Root visual review still required; no automated test can verify planted-foot semantics.",
+    "The fitted visible support sole shares key4 y=457, but its x-center is 12.5 px left of key4; torso axis is aligned within 2.5 px. Root must judge whether this relative foot-to-torso placement is acceptable or needs rigid-x correction."
+  ],
+  "generation_id": "exec-8db48fa5-b4dd-433a-985d-992640902f36.png",
+  "exact_prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/prompts/transition-south-f08-single-midpoint-v1.txt",
+  "candidate_alpha_ge_16_bbox_px": [
+    109,
+    73,
+    381,
+    458
+  ],
+  "candidate_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 172,
+    "x_max_px": 225,
+    "x_mid_px": 198.5
+  },
+  "candidate_support_anchor_x_delta_vs_key4_px": -12.5
+}

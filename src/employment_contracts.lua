@@ -28,13 +28,11 @@ end
 function Contracts.weekday(day) return (3+day)%7+1 end
 function Contracts.duration(t) return (t.endHour-t.startHour)%24 end
 function Contracts.paidRestHours(t)
-    local rests=0
-    for at=2,Contracts.duration(t)-.001,4 do rests=rests+.25 end
-    return rests
+    return Contracts.duration(t)>=2.25 and .25 or 0
 end
 function Contracts.productiveHours(t)
     local duration=Contracts.duration(t)
-    return duration-(duration>=6 and .5 or 0)-Contracts.paidRestHours(t)
+    return duration-.75-Contracts.paidRestHours(t)
 end
 function Contracts.validTerms(t)
     return type(t)=="table" and t.role=="cutter"
@@ -94,7 +92,7 @@ function Contracts.weeklyEstimate(t)
     local days=0
     for i=1,7 do if Contracts.hasDay(t.days,i) then days=days+1 end end
     local duration=Contracts.duration(t)
-    local hours=(duration-(duration>=6 and .5 or 0))*days
+    local hours=(duration-.75)*days
     return (math.min(40,hours)+math.max(0,hours-40)*1.5)*t.wageCents/100,hours
 end
 return Contracts

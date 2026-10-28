@@ -170,7 +170,7 @@ function Component.run(Context)
         type(Context.spawnX) == "number" and type(Context.spawnY) == "number"
         and Context.context.Navigation.isWalkable(Context.context.assets, Context.spawnX, Context.spawnY, {}))
 
-    Context.routesCorrect = Context.Protocol.VERSION == 41 and Context.Protocol.CHANNEL_COUNT == 3
+    Context.routesCorrect = Context.Protocol.VERSION == 47 and Context.Protocol.CHANNEL_COUNT == 3
         and Context.Protocol.CHANNEL_CONTROL == 0 and Context.Protocol.CHANNEL_STATE == 1
         and Context.Protocol.CHANNEL_DURABLE == 2 and Context.Protocol.MAX_PLAYERS == 4
     Context.routeSummary = {}
@@ -186,7 +186,7 @@ function Component.run(Context)
     end
     for _, kind in ipairs({
         "input", "snapshot", "fight_snapshot", "crisis_snapshot", "crisis_frame", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
-        "pallet_jack_snapshot", "cutter_snapshot", "wrapper_snapshot", "windmill_snapshot", "ping", "pong",
+        "pallet_jack_snapshot", "extra_pallet_jack_snapshot", "cutter_snapshot", "wrapper_snapshot", "windmill_snapshot", "ping", "pong",
     }) do
         local channel, delivery = Context.Protocol.route(kind)
         Context.routeSummary[#Context.routeSummary + 1] = kind .. "=" .. tostring(channel) .. "/" .. tostring(delivery)

@@ -11,10 +11,12 @@ function Component.install(Runtime)
     Runtime.MachineResource = require("src.machine_resource_id")
     Runtime.PlacementGrid = require("src.placement_grid")
     Runtime.EmployeePose = require("src.employee_pose")
+    Runtime.TechnicianPose = require("src.technician_pose")
+    Runtime.PalletJackPose = require("src.pallet_jack_pose")
     Runtime.RabbitColorways = require("src.rabbit_colorways")
 
     Runtime.Protocol = {
-        VERSION = 41,
+        VERSION = 47,
         MAX_PACKET_BYTES = 1200,
         MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
         MAX_PLAYERS = 4,
@@ -94,6 +96,7 @@ function Component.install(Runtime)
         wrapper_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         windmill_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         pallet_jack_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
+        extra_pallet_jack_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         forklift_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         input = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -112,7 +115,7 @@ function Component.install(Runtime)
         "highfive_request_result", "highfive_result", "highfive_start",
         "workshop_acquire", "workshop_grant", "workshop_command",
         "workshop_result", "workshop_release", "workshop_snapshot", "fight_snapshot", "crisis_snapshot", "crisis_frame", "cutter_snapshot", "wrapper_snapshot",
-        "windmill_snapshot", "pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
+        "windmill_snapshot", "pallet_jack_snapshot", "extra_pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
         "visitor_snapshot", "environment_snapshot", "employee_snapshot", "ping", "pong", "leave", "error",
     }
 end

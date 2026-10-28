@@ -1,0 +1,46 @@
+{
+  "runtime_source": "assets\\generated\\characters\\rabbit-worker\\walk.png",
+  "runtime_sha256": "93acbce84f34ad7817bf9599bf9983f3345f1e42955601169c7cfc83409d01ca",
+  "cell_size": [
+    512,
+    512
+  ],
+  "source_role_files": {
+    "edit_target_phase7": {
+      "path": "assets\\source\\animation-overhaul-luna-player-v1\\east-passing-correction-v1\\east-edit-target-phase7-reference.png",
+      "phase": 7,
+      "sha256": "5d46e1375af45d8d6baa91458dbdf971a73dd98be8b751ce530d112df21f8394"
+    },
+    "opposite_passing_phase3": {
+      "path": "assets\\source\\animation-overhaul-luna-player-v1\\east-passing-correction-v1\\east-opposite-passing-phase3-reference.png",
+      "phase": 3,
+      "sha256": "537d511f2fb3a98f423ec1c267e401dc22deb8c4f0516f10143c8ba2a3dbd3d1"
+    },
+    "left_weight_down_phase6": {
+      "path": "assets\\source\\animation-overhaul-luna-player-v1\\east-passing-correction-v1\\east-left-weight-down-phase6-reference.png",
+      "phase": 6,
+      "sha256": "3265851827c60200b6b8ccdf0b20ae2319fca4083fa1c5728a46ea989d442e79"
+    },
+    "left_knee_up_phase8": {
+      "path": "assets\\source\\animation-overhaul-luna-player-v1\\east-passing-correction-v1\\east-left-knee-up-phase8-reference.png",
+      "phase": 8,
+      "sha256": "72062e4c4ae9714116540462c0936a8ca91aca266862f39e2261d64a40798ffe"
+    },
+    "left_contact_phase1": {
+      "path": "assets\\source\\animation-overhaul-luna-player-v1\\east-passing-correction-v1\\east-left-contact-phase1-reference.png",
+      "phase": 1,
+      "sha256": "908092eeed06348172c6543bd862d2f7b8d67c21835d50e6db8c62175c77e2c3"
+    }
+  },
+  "imagegen_output": {
+    "returned_output_hint": "C:\\Users\\johnw\\.codex\\generated_images\\01a17bec-a216-72b3-ac73-5e56d3da1c90\\exec-b7bfb74b-7bcf-4690-ad13-20c9683233c9.png",
+    "staged_raw": "assets\\source\\animation-overhaul-luna-player-v1\\east-passing-correction-v1\\east-phase7-imagegen-raw-unregistered.png",
+    "sha256": "2c453d17eb4f5236604323cb109642fe68e633ce50db3e091b3b9fe1e3335ee6",
+    "status": "rejected_by_root_review_before_strip_registration",
+    "root_review_reasons": [
+      "Visible red/green edge fringing on the raw artwork.",
+      "The lower-body silhouette does not prove an opposite-owner passing pose at runtime size."
+    ]
+  },
+  "prompt_sha256": "66b56b4e722409a8c8e34044fcdd49d940a2267336795ecc43c3ba910c805c64"
+}

@@ -50,16 +50,17 @@ local function manifest(state, world)
     return snapshot, record, inventory or {}
 end
 
-local function available(item, mode)
+local function available(item, mode,scene)
     if mode == "machine_delivery" then return item ~= nil end
     if mode == "pickup" then
-        return item.location == "warehouse" or item.location == "cutter_output"
-            or item.location == "press_output"
+        local world=item.pallet and item.pallet.world
+        return (item.location == "warehouse" or item.location == "cutter_output" or item.location == "press_output")
+            and (not world or (world.sceneId or "warehouse")== (scene or "warehouse"))
     end
     return item.location == "awaiting_delivery"
 end
 
-local function itemCopy(item, mode, rowIndex)
+local function itemCopy(item, mode, rowIndex,scene)
     local label, detail
     if mode == "machine_delivery" then
         local model = MachineFleet.definition(item.modelId)
@@ -84,7 +85,7 @@ local function itemCopy(item, mode, rowIndex)
         itemIndex = rowIndex,
         label = label,
         detail = detail,
-        available = available(item, mode),
+        available = available(item, mode,scene),
     }
 end
 
@@ -104,7 +105,7 @@ function TruckAuthority.view(state, world, page)
     local rows = {}
     local first = (page - 1) * PAGE_SIZE + 1
     for absoluteIndex = first, math.min(#inventory, first + PAGE_SIZE - 1) do
-        rows[#rows + 1] = itemCopy(inventory[absoluteIndex], snapshot.mode, #rows + 1)
+        rows[#rows + 1] = itemCopy(inventory[absoluteIndex], snapshot.mode, #rows + 1,snapshot.sceneId)
     end
     local cargoRemaining = math.max(0, tonumber(remaining(state, world, snapshot)) or 0)
     return {
@@ -169,7 +170,7 @@ function TruckAuthority.resource(options)
                     local absoluteIndex = ((lease.private and lease.private.page or 1) - 1)
                         * PAGE_SIZE + arguments.itemIndex
                     local item = inventory[absoluteIndex]
-                    if not item or not available(item, snapshot.mode) then
+                    if not item or not available(item, snapshot.mode,snapshot.sceneId) then
                         return false, "cargo_changed",
                             "That manifest row is no longer available; review the refreshed manifest.",
                             currentView(lease)

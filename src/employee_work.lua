@@ -9,6 +9,7 @@ local Plates=require("src.plate_service")
 local Wrapper=require("src.wrapper")
 local Transport=require("src.employee_pallet_jack")
 local Work={}
+local operationStarts=setmetatable({},{__mode="k"})
 local cutterBusy={armed=true,cutting=true,loading=true,positioning=true,unloading=true,lift_returning=true,resetting=true}
 local stageModel={cutter="polar_115",press="heidelberg_10x15",wrapping="skid_wrapper"}
 local skillField={cutter="cutterSkill",press="pressSkill",wrapping="wrappingSkill"}
@@ -42,7 +43,8 @@ end
 function Work.machine(w) return w.assignment and Machine.forId(w.assignment.machineId) end
 function Work.safe(w,state)
     if w.carryingPalletId then return false end
-    if state and Transport.owns(state,w) and state.palletJack.carriedPalletId then return false end
+    local jack=state and require("src.pallet_jack_fleet").owned(state,w.id)
+    if jack and jack.carriedPalletId then return false end
     local assignment=w.assignment
     if not (w.reserved and assignment) then return true end
     local fleet=state and Fleet.byId(state,assignment.machineId)
@@ -266,6 +268,7 @@ local function wrappingStep(state,w,machine,pallet,dt)
             end
         end
         changed,blocked=runtime.start(state)
+        if changed then operationStarts[w]=true end
         if not changed then
             blocked=blocked or state.message or "The skid wrapper is not ready"
             w.activity=wrapperWaitActivity(blocked)
@@ -299,6 +302,7 @@ function Work.dropCarried(state,w,context)
 end
 
 function Work.update(state,w,dt,context)
+    operationStarts[w]=nil
     if not w.assignment then return false end
     local assignment=w.assignment
     local item=Pallets.find(state,assignment.palletId)
@@ -329,7 +333,7 @@ function Work.update(state,w,dt,context)
     end
     local row={jobId=job.id,machineId=assignment.cutterMachineId or assignment.machineId}
     local resolvedStage,resolvedMachine,resolvedPallet,stageBlocked,needsTransfer,blockedKind=
-        Schedule.resolve(state,w,row,pallet.id)
+        Schedule.resolve(state,w,row,pallet.id,context.canClaim)
     if stageBlocked then
         local parked=Transport.owns(state,w)
         if parked then Transport.release(state,w,context) end
@@ -443,6 +447,7 @@ function Work.update(state,w,dt,context)
     if stage=="cutter" then changed,blocked=cutterStep(state,w,dt,machine,pallet)
     elseif stage=="press" then changed,blocked=pressStep(state,w,machine,pallet,job,dt)
     else changed,blocked=wrappingStep(state,w,machine,pallet,dt) end
+    if type(blocked)=="string" and require("src.employee_speech").reason(blocked) then w.activity=blocked end
     state.message=priorMessage
     if stage=="cutter" and Schedule.stage(job,pallet)~="cutter" then
         experienceChanged=improveSkill(w,job,"cutter") or experienceChanged
@@ -452,4 +457,37 @@ function Work.update(state,w,dt,context)
     return changed or experienceChanged,blocked
 end
 
+-- Read actual machine state after the work step; coarse workFrame alone cannot
+-- distinguish a clamped cutter from a running blade or an active press cycle.
+function Work.presentation(state,w)
+    local safe=Work.safe(w,state)
+    if w.phase~="working" and not (w.phase=="idle" and not safe) then return nil end
+    local action=require("src.worker_catalog").workAction({worker=w,actor=w})
+    if not action then return nil end
+    local a=w.assignment
+    local key=a and table.concat({a.machineId or "",a.palletId or "",a.jobId or "",action},":")
+        or "training:"..action
+    local input={mode="contact",action=action,taskKey=key,safeToRecover=safe}
+    if w.training or not a then return input end
+    local machine=Fleet.byId(state,a.machineId)
+    if not machine then return nil end
+    if machine.modelId=="polar_115" then
+        local m=Machine.forId(machine.id)
+        if m.emergencyStopped or not m.barrierClear or m.step=="blocked" then input.mode="release"
+        elseif m.step=="armed" or m.step=="cutting" then input.mode="operate"
+        else input.contactFrame=({loading=3,positioning=4,unloading=3,lift_returning=5,resetting=5,clamped=5})[m.step] or 4 end
+    elseif machine.modelId=="heidelberg_10x15" then
+        Fleet.withUnit(state,machine.id,function()
+            local process=Windmill.ensure(state)
+            if process.status=="production" then input.mode="operate"
+            elseif process.status=="stopped" or process.status=="stock_shortage" then input.mode="release"
+            else input.contactFrame=process.status=="approved" and 5 or 4 end
+        end)
+    elseif machine.modelId=="skid_wrapper" then
+        input.mode=Wrapper.forId(machine.id).isActive() and "operate" or "contact"
+        input.contactFrame=3
+        input.operationStarted=operationStarts[w]==true
+    end
+    return input
+end
 return Work

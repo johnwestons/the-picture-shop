@@ -88,7 +88,7 @@ function Plates.beginInHouse(state, job, colorIndex)
         if (stock[id] or 0) < amount then return false, "In-house platemaking needs raw plate, film, adhesive, and chemistry." end
     end
     local kitConsumed, kitError = Procurement.consumePhysicalProduct(state, "plate_room_kit", 1, {
-        allowAbstract = true, stockKey = "raw_press_plates", stockScope = "stock",
+        allowAbstract = true, stockKey = "raw_press_plates", stockScope = "stock", autoShelf = true,
     })
     if not kitConsumed then return false, kitError end
     for id, amount in pairs(required) do stock[id] = stock[id] - amount end

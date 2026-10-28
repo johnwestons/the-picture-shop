@@ -297,6 +297,7 @@ function Component.install(Runtime)
                 if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             end
         end
+        if Runtime.App.playerFeedback then Runtime.App.playerFeedback:update(dt) end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
         Runtime.syncCamera()
         if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end

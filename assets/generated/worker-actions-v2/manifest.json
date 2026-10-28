@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "selection": "assets/source/animation-overhaul-luna-worker-actions-v1/runtime-selection-v2.json",
+  "actions": [
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_press",
+      "source": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v3-generated.png",
+      "source_sha256": "a470303e30f7fe88f86a4e5b50a20ff9473e2a4ba3263d97f8bea7792942bd99",
+      "strip": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_press-8frame-v2-foot-registered.png",
+      "strip_sha256": "6ba8c381a563f1b26de5a1ba615b9de5aaf06ed747e59b20d98ab90a5b558168",
+      "runtime_path": "assets/generated/worker-actions-v2/tinker-fox-worker/work_press.png",
+      "runtime_sha256": "6ba8c381a563f1b26de5a1ba615b9de5aaf06ed747e59b20d98ab90a5b558168"
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_wrapping",
+      "source": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v11-margin-cleanup-generated.png",
+      "source_sha256": "90fa6d6dd20e6e112c942e7f582c5d90e2dab8724d3799f850cf5719e5d60964",
+      "strip": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_wrapping-8frame-v2-foot-registered.png",
+      "strip_sha256": "5fc6edf438c3df310a45e5730179ab625964112501a236211f81ad0877ff9e62",
+      "runtime_path": "assets/generated/worker-actions-v2/ferret-engineer-worker/work_wrapping.png",
+      "runtime_sha256": "5fc6edf438c3df310a45e5730179ab625964112501a236211f81ad0877ff9e62"
+    },
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_cutter",
+      "source": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v3-generated.png",
+      "source_sha256": "ae2583b8ab481b2ca3809144a91bc541b32df7f4a4748f83ec93651b6b326681",
+      "strip": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_cutter-8frame-v2-foot-registered.png",
+      "strip_sha256": "11b3864bab8b6dc304229ca8b89d6ea1f1147a6436b67e32cb3fa7c1787c0f31",
+      "runtime_path": "assets/generated/worker-actions-v2/tinker-fox-worker/work_cutter.png",
+      "runtime_sha256": "11b3864bab8b6dc304229ca8b89d6ea1f1147a6436b67e32cb3fa7c1787c0f31"
+    },
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_wrapping",
+      "source": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_wrapping-v1-generated.png",
+      "source_sha256": "34503e7c325ddd96abbd335ad00e7aace117ad229ba1bc46aa52b3991be33495",
+      "strip": "output/animation-overhaul/luna-worker-actions/tinker-fox-worker-work_wrapping-8frame-v2-foot-registered.png",
+      "strip_sha256": "96e2372917225eb196ee9a1b2c2bcfcab3d4ad56915e18654abdab6a945b6292",
+      "runtime_path": "assets/generated/worker-actions-v2/tinker-fox-worker/work_wrapping.png",
+      "runtime_sha256": "96e2372917225eb196ee9a1b2c2bcfcab3d4ad56915e18654abdab6a945b6292"
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_cutter",
+      "source": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_cutter-v3-refined-generated.png",
+      "source_sha256": "6637d26d1071d8bc8ec358b1ee59e284e9af2a229d05bd9ec50fb547d3fb0d60",
+      "strip": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_cutter-8frame-v2-foot-registered.png",
+      "strip_sha256": "d67d0bedaab559b68222dbe7103a273dcc7cfeeafff60904d46eb58793b066dc",
+      "runtime_path": "assets/generated/worker-actions-v2/ferret-engineer-worker/work_cutter.png",
+      "runtime_sha256": "d67d0bedaab559b68222dbe7103a273dcc7cfeeafff60904d46eb58793b066dc"
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_press",
+      "source": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_press-v2-refined-generated.png",
+      "source_sha256": "4f5ee52cb95d2b31229d7b6ff0f77e6b522786b26eccb84f62b76614870c8cb6",
+      "strip": "output/animation-overhaul/luna-worker-actions/ferret-engineer-worker-work_press-8frame-v2-foot-registered.png",
+      "strip_sha256": "336cb65a5c035f7b9e2266f07b654d7d0bddd08228715c5bde7aecd054f442f5",
+      "runtime_path": "assets/generated/worker-actions-v2/ferret-engineer-worker/work_press.png",
+      "runtime_sha256": "336cb65a5c035f7b9e2266f07b654d7d0bddd08228715c5bde7aecd054f442f5"
+    }
+  ]
+}

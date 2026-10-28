@@ -149,6 +149,7 @@ function Component.install(Runtime)
 
     function Runtime.World.handlePalletJack(state, assets, palletId)
         local localPlayerId = tonumber(Runtime.World.player.id) or 1
+        if not palletId then require("src.pallet_jack_fleet").selectPlayer(state,Runtime.World.player) end
         local currentJack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
         if currentJack.sceneId~=require("src.shop_rooms").scene(Runtime.World.player) then
             state.message="The pallet jack is in a different room."

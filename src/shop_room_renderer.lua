@@ -75,6 +75,7 @@ function Renderer.drawBall(x,y)
 end
 function Renderer.pruneCache() cache:prune() end
 function Renderer.clearCache()
+    require("src.room_loading_bay_renderer").clear()
     cache:clear()
     require("src.basketball_renderer").clear()
     for id,image in pairs(gameImages) do if image.release then image:release() end;gameImages[id]=nil end
@@ -156,6 +157,7 @@ end
 function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlayer,drawPallet,drawPalletJack,drawPlacement)
     local sceneId=Rooms.scene(world.player)
     Renderer.drawBackground(state,sceneId,assets)
+    require("src.room_loading_bay_renderer").draw(world,assets,state,sceneId)
     if drawPlacement then drawPlacement() end
     Renderer.drawShelves(assets,state,sceneId,drawPallet)
     local visible={[world.player.character]=true}
@@ -204,12 +206,16 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
     end
     local EmployeeRenderer=require("src.employee_renderer")
     local jackEmployee
+    local jackEmployees={}
     for _,entry in ipairs(EmployeeRenderer.entries(state)) do if Rooms.employeeScene(entry)==sceneId then
-        if jackInScene and jack.operating and jack.operatorEmployeeId==entry.actor.id then
-            jackEmployee=entry
+        local owned=require("src.pallet_jack_fleet").owned(state,entry.actor.id)
+        if owned and owned.sceneId==sceneId then
+            jackEmployees[owned]=entry
+            if owned==jack then jackEmployee=entry end
         else
         visible[(entry.worker or entry.application).character]=true
-        local actorX,actorY=Rooms.seats[3].x,Rooms.seats[3].y
+        local actorX,actorY=entry.actor.x,entry.actor.y
+        if entry.actor.phase=="break" then actorX,actorY=Rooms.seats[3].x,Rooms.seats[3].y end
         local worker=entry.worker
         if worker and worker.activity then
             for _,gameId in ipairs(Games.ORDER) do
@@ -247,6 +253,19 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
             drawPalletJack(assets,state)
             if math.sin(pose.heading)<0 and operator then operator() end
         end}
+    end
+    for _,extra in ipairs(state.extraPalletJacks or {}) do
+        if extra.sceneId==sceneId and drawPalletJack then
+            local entry=jackEmployees[extra]
+            local view=require("src.pallet_jack_fleet").view(state,extra)
+            if entry then visible[(entry.worker or entry.application).character]=true end
+            actors[#actors+1]={y=extra.y,layer=extra.operating and 1 or 0,draw=function()
+                local pose=require("src.pallet_jack").visualPose(view,require("src.config").palletJack)
+                if entry and math.sin(pose.heading)>=0 then EmployeeRenderer.draw(entry,characters) end
+                drawPalletJack(assets,view)
+                if entry and math.sin(pose.heading)<0 then EmployeeRenderer.draw(entry,characters) end
+            end}
+        end
     end
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,world.player) then
         if p~=jackRemote and not (liftInScene and lift.operating and tonumber(p.id)==lift.operatorPlayerId) then

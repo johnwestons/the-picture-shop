@@ -112,5 +112,14 @@ function Test.run(_,check)
     local phaseWorker={animationDistance=0,idleTime=0,moving=true}
     for n=0,7 do phaseWorker.animationDistance=n*13
         check("construction_live_gait_frame_"..(n+1),Construction.frame(phaseWorker)==n+1) end
+    phaseWorker.animationDistance=52
+    check("construction_added_drawings_keep_same_physical_half_stride",Construction.frame(phaseWorker,16)==9)
+    phaseWorker.moving=false
+    phaseWorker.idleTime=1.7
+    check("construction_idle_does_not_hold_alternate_pose_for_half_cycle",Construction.frame(phaseWorker)==1)
+    phaseWorker.idleTime=2/.65-.05
+    check("construction_idle_brief_alternate_appears_at_cycle_end",Construction.frame(phaseWorker)==2)
+    phaseWorker.idleTime=2/.65+.05
+    check("construction_idle_returns_to_neutral_after_brief_alternate",Construction.frame(phaseWorker)==1)
 end
 return Test

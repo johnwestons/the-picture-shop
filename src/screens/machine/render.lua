@@ -1,17 +1,19 @@
 -- Machine scene, touchscreen, and console rendering.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local CutterMotion = require("src.screens.cutter_motion")
 
 function Component.install(Runtime)
     function Runtime.motionFrame(progress)
-        return math.max(1, math.min(5, math.floor(progress * 4 + 0.5) + 1))
+        return CutterMotion.frame(progress)
     end
 
     function Runtime.drawMotion(assets, name, imageName, progress)
-        local image, sprite = assets.get(imageName), assets.getQuad(name .. Runtime.motionFrame(progress))
+        local frame,offsetY=CutterMotion.sample(name,progress)
+        local image, sprite = assets.get(imageName), assets.getQuad(name .. frame)
         if not image or not sprite then return end
         love.graphics.setColor(1, 1, 1)
-        love.graphics.draw(image, sprite.quad, 400, 78, 0, 520 / 768, 347 / 512)
+        love.graphics.draw(image, sprite.quad, 400, 78+offsetY*347/512, 0, 520 / 768, 347 / 512)
     end
 
     function Runtime.drawMachine(assets, machine)
@@ -23,7 +25,14 @@ function Component.install(Runtime)
         end
         Runtime.drawPaper(assets, machine)
         Runtime.drawMotion(assets, "cutterClamp", "cutterClamp", machine.clampProgress)
-        if machine.step == "cutting" then Runtime.drawMotion(assets, "cutterBlade", "cutterBlade", machine.progress / machine.cycleTime) end
+        if machine.step == "cutting" then
+            Runtime.drawMotion(assets, "cutterBlade", "cutterBlade", machine.progress / machine.cycleTime)
+        elseif (machine.step=="blocked" or machine.step=="resetting") and (machine.bladeProgress or 0)>0 then
+            -- The overlay's first half travels from home to full depth. A
+            -- safety interruption retains physical depth even though the
+            -- production-cycle clock resets; draw that held/recovering blade.
+            Runtime.drawMotion(assets,"cutterBlade","cutterBlade",machine.bladeProgress*.5)
+        end
     end
 
     -- Shared, read-only scene: remote callers supply a presentation model, never

@@ -14,6 +14,7 @@ local Staging=require("src.cutter_staging")
 local Setup=require("src.screens.shop_setup_screen")
 local Clock=require("src.screens.shop_clock")
 local Hiring=require("src.screens.hiring_screen")
+local Reputation=require("src.reputation")
 local Test={}
 local function near(a,b) return math.abs(a-b)<1e-5 end
 local function hours(s,h)
@@ -53,6 +54,22 @@ local function paidWeek(s,w,weekStart)
     end
 end
 function Test.run(context,check)
+    local reviewState=State.new()
+    for index=1,20 do
+        Reputation.recordReview(reviewState,{id=string.format("JOB-%06d",index),
+            company="Review customer",quote={totalSheets=500},pallets={}},index)
+    end
+    check("shop_every_completed_clean_job_receives_customer_review",
+        reviewState.reputation.ratingCount==20 and #reviewState.reputation.reviews==20
+        and Reputation.averageRating(reviewState)>=3)
+    local legacyReviews=State.new()
+    legacyReviews.jobs.completed={{id="JOB-000001",company="Earlier customer",
+        completedAtHours=12,quote={totalSheets=500},pallets={}}}
+    local restored=Reputation.backfillCompleted(legacyReviews)
+    check("shop_existing_completed_orders_fill_empty_reviews_tab_once",
+        restored and legacyReviews.reputation.ratingCount==1
+        and legacyReviews.reputation.reviews[1].customer=="Earlier customer"
+        and not Reputation.backfillCompleted(legacyReviews))
     for minutes=5,60 do
         local payload=context.save.newGame(1,{dayLengthMinutes=minutes})
         local s=State.new();State.applyLocalSave(s,payload)
@@ -107,7 +124,7 @@ function Test.run(context,check)
     local nightContext={idlePoint=function(w) return {x=w.x,y=w.y} end,freeSeat=function() end}
     nw.shiftDay=3;nw.breaksTaken=7;nw.fatigue=0;nw.focus=100;hours(night,4*24+6)
     AI.worker(night,nw,.1,4*24+6,nightContext)
-    check("shop_twelve_hour_shift_has_third_paid_rest",nw.phase=="break" and nw.breakKind=="rest" and nw.breaksTaken==15 and nw.shiftDay==3)
+    check("shop_twelve_hour_shift_has_only_one_paid_rest",nw.phase~="break" and nw.breaksTaken==7 and nw.shiftDay==3)
     for cycle=1,4 do
         local s=State.new();s.money=100000
         local w=hire(s,Contracts.terms(2200,31,8,20,cycle));w.contract.startDay=4
@@ -131,8 +148,8 @@ function Test.run(context,check)
             finishedSize={width=10,height=8},sheetCounts={500}}))
         local quote=context.jobService.quoteTerms(s,quoteJob)
         check("shop_regular_twelve_hour_staff_can_profit_at_pace_"..minutes.."_end_"..endHour,
-            near(f.weeklyWages,1457.5) and f.weeklyLoans>0 and p.profit>0 and p.withinCapacity
-            and f.breakEvenLifts<=20 and near(f.cycleReserve,5830) and quote.recommendedPrice>=f.pricePerLift,
+            near(f.weeklyWages,1416.25) and f.weeklyLoans>0 and p.profit>0 and p.withinCapacity
+            and f.breakEvenLifts<=20 and near(f.cycleReserve,5665) and quote.recommendedPrice>=f.pricePerLift,
             string.format("wages=%s loans=%s profit=%s capacity=%s breakEven=%s reserve=%s quote=%s lift=%s",
                 tostring(f.weeklyWages),tostring(f.weeklyLoans),tostring(p.profit),tostring(p.withinCapacity),
                 tostring(f.breakEvenLifts),tostring(f.cycleReserve),tostring(quote.recommendedPrice),tostring(f.pricePerLift)))

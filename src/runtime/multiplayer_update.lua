@@ -162,6 +162,8 @@ function Component.install(Runtime)
             getPalletJackSnapshot = function()
                 return Runtime.World.networkPalletJackSnapshot(Runtime.state)
             end,
+            getPalletJackId=function() return Runtime.state.palletJack and Runtime.state.palletJack.id end,
+            getExtraPalletJackSnapshots=function() return require("src.pallet_jack_fleet").snapshots(Runtime.state) end,
             getForkliftSnapshot=function() return Runtime.Forklift.snapshot(Runtime.state,Runtime.Config.forklift) end,
             getMachinePoseSnapshot = function()
                 return Runtime.World.networkMachinePoseSnapshot(Runtime.state)
@@ -293,13 +295,14 @@ function Component.install(Runtime)
             end
         end
         if Runtime.multiplayer:isClient() then
+            require("src.technician_replica").update(Runtime.state,dt)
             local jack = Runtime.PalletJack.ensure(Runtime.state, Runtime.Config.palletJack)
             -- Predicting drivers already advanced their turn during movement.
             -- Observers (including clients in menus) still need one visual step.
             local presentationDt = predictedJackOwner ~= nil
                 and predictedJackOwner == jack.operatorPlayerId and 0 or dt
             Runtime.World.updatePalletJackPresentation(Runtime.state, presentationDt,
-                Runtime.multiplayer:remotePlayers(), Runtime.World.player)
+                Runtime.multiplayer:remotePlayers(), Runtime.World.player,dt)
         end
     end
 end

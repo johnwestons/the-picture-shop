@@ -17,6 +17,7 @@ local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payro
     assign=rect(410,518,208,46),pause=rect(410,572,208,42),dismiss=rect(632,572,208,42),
     sendHome=rect(632,518,208,46),
     train=rect(632,478,208,34),trainingPress=rect(410,518,208,46),
+    scheduleEdit=rect(410,478,208,34),
     trainingWrap=rect(632,518,208,46),trainingCutter=rect(410,572,208,42),
     cancelTraining=rect(410,518,430,46),trainingBack=rect(632,572,208,42),
     confirmDismiss=rect(410,518,430,46),cancelDismiss=rect(410,572,430,42),
@@ -95,7 +96,7 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         return nil
     end
     local all=rows(state,ui)
-    for i=1,ui.view=="offer" and 3 or 5 do
+    for i=1,(ui.view=="offer" or ui.view=="renegotiate") and 3 or 5 do
         local row=all[(ui.page-1)*5+i]
         if row and Ui.contains(rect(96,252+(i-1)*61,264,55),x,y) then
             ui.selectedId=row.id;ui.view="detail";ui.terms=nil;return {action="hiring_selected"}
@@ -125,10 +126,10 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         end
         return nil
     end
-    if ui.view=="offer" then
+    if ui.view=="offer" or ui.view=="renegotiate" then
         local t=ui.terms
-        if hit("wageMinus") then t.wageCents=math.max(1000,t.wageCents-100)
-        elseif hit("wagePlus") then t.wageCents=math.min(10000,t.wageCents+100)
+        if ui.view=="offer" and hit("wageMinus") then t.wageCents=math.max(1000,t.wageCents-100)
+        elseif ui.view=="offer" and hit("wagePlus") then t.wageCents=math.min(10000,t.wageCents+100)
         elseif hit("startMinus") then t.startHour=(t.startHour-1)%24
         elseif hit("startPlus") then t.startHour=(t.startHour+1)%24
         elseif hit("endMinus") then t.endHour=(t.endHour-1)%24
@@ -142,11 +143,18 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
                 return {action="blocked"}
             end
             t.startHour,t.endHour=hit("dayShift") and 8 or 20,hit("dayShift") and 20 or 8
-        elseif hit("payMinus") then t.payWeeks=math.max(1,t.payWeeks-1)
-        elseif hit("payPlus") then t.payWeeks=math.min(4,t.payWeeks+1)
+        elseif ui.view=="offer" and hit("payMinus") then t.payWeeks=math.max(1,t.payWeeks-1)
+        elseif ui.view=="offer" and hit("payPlus") then t.payWeeks=math.min(4,t.payWeeks+1)
         elseif hit("send") then
-            local result=send({kind="offer_employee",applicationId=current.id,expectedRevision=current.revision,
-                wageCents=t.wageCents,days=t.days,startHour=t.startHour,endHour=t.endHour,payWeeks=t.payWeeks})
+            local result
+            if ui.view=="renegotiate" then
+                result=send({kind="change_employee_hours",employeeId=current.id,
+                    expectedRevision=current.contract.revision,days=t.days,
+                    startHour=t.startHour,endHour=t.endHour})
+            else
+                result=send({kind="offer_employee",applicationId=current.id,expectedRevision=current.revision,
+                    wageCents=t.wageCents,days=t.days,startHour=t.startHour,endHour=t.endHour,payWeeks=t.payWeeks})
+            end
             if result and result.action~="blocked" then ui.view="detail" end
             return result
         else
@@ -163,10 +171,8 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         elseif hit("jobNext") then ui.jobIndex=math.min(nj,ui.jobIndex+1);ui.palletIndex=1
         elseif hit("palletPrev") then ui.palletIndex=math.max(1,ui.palletIndex-1)
         elseif hit("palletNext") then ui.palletIndex=math.min(np,ui.palletIndex+1)
-        elseif hit("machinePrev") then ui.machineIndex=math.max(1,ui.machineIndex-1)
-        elseif hit("machineNext") then ui.machineIndex=math.min(nm,ui.machineIndex+1)
         elseif hit("assignConfirm") and job and pallet and machine then
-            local result=send({kind="assign_employee",employeeId=current.id,jobId=job.id,palletId=pallet.id,machineId=machine.id})
+            local result=send({kind="assign_employee",employeeId=current.id,jobId=job.id,palletId=pallet.id,machineId="auto"})
             if result and result.action~="blocked" then ui.view="detail" end
             return result
         else return nil end
@@ -194,6 +200,12 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
             ui.view="offer";return {action="hiring_view"}
         end
     elseif current.status=="employed" then
+        if hit("scheduleEdit") then
+            local t=current.pendingSchedule or current.contract
+            ui.terms={role="cutter",wageCents=t.wageCents,days=t.days,
+                startHour=t.startHour,endHour=t.endHour,payWeeks=t.payWeeks}
+            ui.view="renegotiate";return {action="hiring_view"}
+        end
         if hit("train") then ui.view="training";return {action="hiring_view"} end
         if hit("assign") and not current.assignment then ui.view="assignment";return {action="hiring_view"} end
         if hit("sendHome") then return send({kind="send_employee_home",employeeId=current.id}) end
@@ -414,16 +426,26 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         return
     end
     oneLine(current.name.."  |  Production worker",410,252,426,{1,.86,.50})
-    if ui.view=="offer" then
+    if ui.view=="offer" or ui.view=="renegotiate" then
         local t=ui.terms
-        local f=Finances.summary(state,t,current.cutterSkill)
+        local renegotiating=ui.view=="renegotiate"
         local shiftAllowed=Contracts.preferenceAllows(current.shiftPreference,t.startHour)
-        line("SHOP AFTER THIS HIRE",104,448,250,{1,.85,.45})
-        line(string.format("All wages + bills: $%.2f / week",f.weeklyFixed),104,472,250)
-        line(string.format("Break-even: %d lifts / week",f.breakEvenLifts),104,496,250)
-        line(string.format("Payroll reserve: $%.2f",f.cycleReserve),104,520,250)
-        line("See PAYROLL > SHOP BUDGET.",104,544,250,{.61,.78,.67})
-        button("wageMinus","-",pointerX,pointerY);button("wagePlus","+",pointerX,pointerY)
+        if renegotiating then
+            local _,oldHours=Contracts.weeklyEstimate(current.contract)
+            local _,newHours=Contracts.weeklyEstimate(t)
+            line("EMPLOYEE SCHEDULE",104,448,250,{1,.85,.45})
+            line(string.format("Current: %.1f paid h / week",oldHours),104,478,250)
+            line(string.format("Proposed: %.1f paid h / week",newHours),104,505,250)
+            line("Current shift finishes first.",104,540,250,{.61,.78,.67})
+        else
+            local f=Finances.summary(state,t,current.cutterSkill)
+            line("SHOP AFTER THIS HIRE",104,448,250,{1,.85,.45})
+            line(string.format("All wages + bills: $%.2f / week",f.weeklyFixed),104,472,250)
+            line(string.format("Break-even: %d lifts / week",f.breakEvenLifts),104,496,250)
+            line(string.format("Payroll reserve: $%.2f",f.cycleReserve),104,520,250)
+            line("See PAYROLL > SHOP BUDGET.",104,544,250,{.61,.78,.67})
+            button("wageMinus","-",pointerX,pointerY);button("wagePlus","+",pointerX,pointerY)
+        end
         line("Applicant preference: "..Contracts.shiftPreferenceLabel(current.shiftPreference),412,276,426,{.62,.79,.67,1})
         line(string.format("Hourly wage: $%.2f",t.wageCents/100),478,302,292)
         button("startMinus","-",pointerX,pointerY);button("startPlus","+",pointerX,pointerY)
@@ -446,13 +468,16 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             line(name,r.x+7,r.y+14,45)
         end
         local estimate,hours=Contracts.weeklyEstimate(t)
-        button("payMinus","-",pointerX,pointerY);button("payPlus","+",pointerX,pointerY)
+        if not renegotiating then
+            button("payMinus","-",pointerX,pointerY);button("payPlus","+",pointerX,pointerY)
+        end
         line(string.format("Pay every %d week%s",t.payWeeks,t.payWeeks==1 and "" or "s"),478,500,292)
         line(string.format("Weekly $%.2f | Cycle estimate $%.2f",estimate,estimate*t.payWeeks),412,534,426)
-        line(shiftAllowed and "4-12h shifts. Meals unpaid; rest and overtime paid."
+        line(shiftAllowed and "One 15m paid break, one 45m unpaid lunch per shift."
             or "Offer hours do not match this applicant's shift preference.",412,552,426,
             shiftAllowed and {.61,.78,.67} or {1,.56,.48})
-        button("send","EMAIL OFFER",pointerX,pointerY,readOnly or not Contracts.validTerms(t) or not shiftAllowed)
+        button("send",renegotiating and "AGREE NEW SCHEDULE" or "EMAIL OFFER",pointerX,pointerY,
+            readOnly or not Contracts.validTerms(t) or not shiftAllowed)
         return
     elseif ui.view=="assignment" then
         local job,pallet,machine=choices(state,ui)
@@ -462,10 +487,9 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         line("Exact pallet",412,344,426)
         button("palletPrev","<",pointerX,pointerY);button("palletNext",">",pointerX,pointerY)
         line(pallet and pallet.id or "No pallet",474,374,300)
-        line("Installed cutter",412,412,426)
-        button("machinePrev","<",pointerX,pointerY);button("machineNext",">",pointerX,pointerY)
-        line(machine and machine.name.." ("..machine.id..")" or "No installed cutter",474,442,300)
-        line("Stage this pallet beside the chosen cutter. The employee loads, programs, cuts and returns each lift.",412,490,426,{.61,.78,.67})
+        line("Machine assignment",412,412,426)
+        line(machine and "Automatic: next available cutter" or "No installed cutter",474,442,300)
+        line("The employee moves the pallet to an available cutter, then loads, cuts and returns each lift.",412,490,426,{.61,.78,.67})
         button("assignConfirm","ASSIGN CUTTING WORK",pointerX,pointerY,readOnly or not (job and pallet and machine))
         return
     elseif ui.view=="dismiss" then
@@ -536,6 +560,9 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             w.contract.payWeeks,w.contract.payWeeks==1 and "" or "s"),410,280,426)
         oneLine("Work days: "..workDays(w.contract),410,302,426,{.61,.78,.67})
         oneLine(shiftDescription(w.contract,twelveHourTime),410,324,426,{1,.85,.45})
+        if w.pendingSchedule then
+            oneLine("New schedule begins after current shift",410,332,426,{.61,.78,.67})
+        end
         oneLine(string.format("Cutter %d/100  |  Press %d/100  |  Wrapping %d/100",
             w.cutterSkill,w.pressSkill,w.wrappingSkill),410,348,426)
         local scheduleStatus,scheduleDetail=Hiring.staffScheduleStatus(state,w)
@@ -554,6 +581,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         oneLine(string.format("$%.2f due  |  $%.2f earned unpaid",
             Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),410,460,426)
         if w.status=="employed" then
+            button("scheduleEdit","CHANGE DAYS / HOURS",pointerX,pointerY,readOnly)
             button("train",w.training and "MANAGE TRAINING" or "IMPROVE EMPLOYEE SKILLS",pointerX,pointerY,readOnly)
             button("assign",w.assignment and "WORK ASSIGNED" or "ASSIGN JOB",pointerX,pointerY,readOnly or w.assignment~=nil)
             local sentHomeToday=w.sentHomeShiftDay==Contracts.shiftDay(w.contract,now)

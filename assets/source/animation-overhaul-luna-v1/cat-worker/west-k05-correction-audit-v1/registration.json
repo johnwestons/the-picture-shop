@@ -1,0 +1,247 @@
+{
+  "version": 1,
+  "status": "audit_staged_no_accepted_correction",
+  "original_walk_path": "assets/source/cat-worker-v1/locomotion/walk_west.png",
+  "original_walk_sha256": "1e710f8328a2f05a4fefb8184e1fe3c3813ae81f51ea9d548d2f888a5cc3e8ce",
+  "original_idle_path": "assets/source/cat-worker-v1/locomotion/idle_west.png",
+  "original_idle_sha256": "6a4577345d17a0a5592f2633c08ce636e9233d0ecc67e5e92c3d51694c8bcbfc",
+  "issue": "West K1 and K5 both visibly use the near-side screen-left forward boot; K5 should transfer support to far-side/right.",
+  "evidence": [
+    "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_contact_owners_source.png",
+    "output/animation-overhaul/luna-cat/view-audit/lower-body/west-opposite-phase-pairs-2x.png",
+    "output/animation-overhaul/luna-cat/view-audit/source-skill-audit/contact-sheets/walk_west.png"
+  ],
+  "attempts": [
+    {
+      "name": "attempt-01-full-pose",
+      "generation_id": "exec-e185ead1-acf0-493d-be62-7615d580f2e0.png",
+      "original_generated_image_path": "C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-e185ead1-acf0-493d-be62-7615d580f2e0.png",
+      "created_utc": "2026-10-27T19:39:27Z",
+      "staged_raw_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/attempt-01-full-pose.png",
+      "sha256": "bf27f8473c3920aba96bc9ef8b2df40ca2e01629f9f4938f6964c74b46a708b1",
+      "size": [
+        1254,
+        1254
+      ],
+      "alpha16_bbox": [
+        254,
+        175,
+        1016,
+        1128
+      ],
+      "alpha16_pixels": 435344,
+      "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/prompt-attempt-01.txt",
+      "prompt_sha256": "8ee8db91654f0293cd73b7591f6661e71d7cfe8632ab6fcdcd68349694abe025",
+      "tool": "built-in image_gen.imagegen",
+      "result_metadata": {
+        "result_type": "object",
+        "result_keys": [
+          "image_url",
+          "output_hint"
+        ],
+        "output_hint": "Generated images are saved to C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07 as C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-e185ead1-acf0-493d-be62-7615d580f2e0.png by default."
+      },
+      "reference_images": [
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/idle_west_key01_source.png",
+          "role": "West identity, outfit, style and asymmetric details",
+          "sha256": "5e3b3ebe1e0a757306e9022dbd66a2db457fffbcbd9201dc30cb58aa5dd22834"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key01_source.png",
+          "role": "K1 opposite left-contact foot-owner reference",
+          "sha256": "aaf6cc655cfcca26928f49ffb4eda05a602d9e9fcdab4ed644e603ab706f8fe0"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key04_source.png",
+          "role": "K4 right knee-up far-side/right leg anatomy",
+          "sha256": "b425bbf08e329d8f3c861accea9a263d7719b94b983a95fd5d0169bdbcc21023"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key05_source.png",
+          "role": "K5 head/body/upper-body placement; current leg owner is wrong",
+          "sha256": "8645aff3b7275455021e7ddc5a9c14e88e0c1ebb5186e236ec4054900ea7693b"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key06_source.png",
+          "role": "K6 right-support leg context",
+          "sha256": "03727ddbcb8af9acaf5f54539c568f5fb82afe643d3ca1890da4f89a2ea9bbc5"
+        }
+      ],
+      "review_transform": {
+        "kind": "uniform_scale_and_rigid_translation_for_review_only",
+        "uniform_scale": 0.39979013641133265,
+        "alpha16_bbox_before_transform": [
+          254,
+          175,
+          1016,
+          1128
+        ],
+        "translation_xy": [
+          2,
+          7
+        ],
+        "target": "original K5 alpha16 height and silhouette center",
+        "not_usable_as_source_or_runtime_art": true
+      },
+      "review_status": "rejected_after_visual_inspection",
+      "reason": "View drifts toward a broad front three-quarter angle; contact ownership remains unclear."
+    },
+    {
+      "name": "attempt-02-source-edit",
+      "generation_id": "exec-f77cdbc0-0ae0-452d-8c99-d1bbb30b12ed.png",
+      "original_generated_image_path": "C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-f77cdbc0-0ae0-452d-8c99-d1bbb30b12ed.png",
+      "created_utc": "2026-10-27T19:42:54Z",
+      "staged_raw_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/attempt-02-source-edit.png",
+      "sha256": "c721cbd211ac1ae8685b8264d5b19b7104d0e9ae1e5e40f1caab55fcba8e29c0",
+      "size": [
+        1254,
+        1254
+      ],
+      "alpha16_bbox": [
+        244,
+        191,
+        1010,
+        1127
+      ],
+      "alpha16_pixels": 432823,
+      "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/prompt-attempt-02.txt",
+      "prompt_sha256": "88192ab774059486a1aac2e5d8264ec9598a7afb84d7c2a84cf0e90999562199",
+      "tool": "built-in image_gen.imagegen",
+      "result_metadata": {
+        "result_type": "object",
+        "result_keys": [
+          "image_url",
+          "output_hint"
+        ],
+        "output_hint": "Generated images are saved to C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07 as C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-f77cdbc0-0ae0-452d-8c99-d1bbb30b12ed.png by default."
+      },
+      "reference_images": [
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key05_source.png",
+          "role": "K5 exact source pose to edit",
+          "sha256": "8645aff3b7275455021e7ddc5a9c14e88e0c1ebb5186e236ec4054900ea7693b"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key01_source.png",
+          "role": "K1 opposite left-contact owner reference",
+          "sha256": "aaf6cc655cfcca26928f49ffb4eda05a602d9e9fcdab4ed644e603ab706f8fe0"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key06_source.png",
+          "role": "K6 right-support leg context",
+          "sha256": "03727ddbcb8af9acaf5f54539c568f5fb82afe643d3ca1890da4f89a2ea9bbc5"
+        }
+      ],
+      "review_transform": {
+        "kind": "uniform_scale_and_rigid_translation_for_review_only",
+        "uniform_scale": 0.40705128205128205,
+        "alpha16_bbox_before_transform": [
+          244,
+          191,
+          1010,
+          1127
+        ],
+        "translation_xy": [
+          1,
+          -1
+        ],
+        "target": "original K5 alpha16 height and silhouette center",
+        "not_usable_as_source_or_runtime_art": true
+      },
+      "review_status": "rejected_after_visual_inspection",
+      "reason": "The broad green trouser/boot still occupies screen-left forward position; the opposite far-side owner is not identifiable, and the generated outline has a vivid magenta edge."
+    },
+    {
+      "name": "attempt-03-owner-guide-edit",
+      "generation_id": "exec-fa0c0992-b6ae-40b6-ab6c-8f95bd2e2cf8.png",
+      "original_generated_image_path": "C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-fa0c0992-b6ae-40b6-ab6c-8f95bd2e2cf8.png",
+      "created_utc": "2026-10-27T20:32:41Z",
+      "staged_raw_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/attempt-03-owner-guide-edit.png",
+      "sha256": "c7c14acf8d93ece33843f9e4018fb59b44775a2e2834ec2aa1f15f8e0f1058d8",
+      "size": [
+        1254,
+        1254
+      ],
+      "alpha16_bbox": [
+        249,
+        190,
+        1011,
+        1120
+      ],
+      "alpha16_pixels": 426140,
+      "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/prompt-attempt-03-owner-guide.txt",
+      "prompt_sha256": "1e8ddd269999ebdac719e960aecbfbb9a72f0c97ef3f5faec7de7f3543289821",
+      "tool": "built-in image_gen.imagegen",
+      "result_metadata": {
+        "result_type": "object",
+        "result_keys": [
+          "image_url",
+          "output_hint"
+        ],
+        "output_hint": "Generated images are saved to C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07 as C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-fa0c0992-b6ae-40b6-ab6c-8f95bd2e2cf8.png by default."
+      },
+      "reference_images": [
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key05_source.png",
+          "role": "Original K5 target pose",
+          "sha256": "8645aff3b7275455021e7ddc5a9c14e88e0c1ebb5186e236ec4054900ea7693b"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key01_source.png",
+          "role": "K1 opposite left-contact owner",
+          "sha256": "aaf6cc655cfcca26928f49ffb4eda05a602d9e9fcdab4ed644e603ab706f8fe0"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key04_source.png",
+          "role": "K4 right-knee-up transition",
+          "sha256": "b425bbf08e329d8f3c861accea9a263d7719b94b983a95fd5d0169bdbcc21023"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-candidate-references/walk_west_key06_source.png",
+          "role": "K6 right-weight-down continuation",
+          "sha256": "03727ddbcb8af9acaf5f54539c568f5fb82afe643d3ca1890da4f89a2ea9bbc5"
+        },
+        {
+          "path": "output/animation-overhaul/luna-cat/view-audit/west-k05-correction-attempts/west-k05-leg-owner-guide.png",
+          "role": "Annotated leg-owner phase guide",
+          "sha256": "2cb8d474f0d00c44b069fd87cc632c8515b37617a2d49070bc7e0aff25ae5c60"
+        }
+      ],
+      "review_transform": {
+        "kind": "uniform_scale_and_rigid_translation_for_review_only",
+        "uniform_scale": 0.4096774193548387,
+        "alpha16_bbox_before_transform": [
+          249,
+          190,
+          1011,
+          1120
+        ],
+        "translation_xy": [
+          -2,
+          -1
+        ],
+        "target": "original K5 alpha16 height and silhouette center",
+        "not_usable_as_source_or_runtime_art": true
+      },
+      "review_status": "rejected_after_visual_inspection",
+      "reason": "Even with the owner guide, the broad green screen-left leg remains the forward support and the far-side/right ownership is not visually distinguishable; outline and body style still drift from the source."
+    }
+  ],
+  "cycle_review": {
+    "script": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-correction-audit-v1/build_cycle_64px_review.py",
+    "source_variant": "immutable original West eight-key source strip, with each candidate substituted into K5 for review only",
+    "runtime_source_scale_256_to_64px": 0.32989690721649484,
+    "source_master_scale_512_to_64px": 0.16494845360824742,
+    "nominal_key_duration_ms": 180,
+    "half_speed_key_duration_ms": 360,
+    "outputs": [
+      "output/animation-overhaul/luna-cat/view-audit/west-k05-correction-attempts/west-complete-cycle-64px-review.png",
+      "output/animation-overhaul/luna-cat/view-audit/west-k05-correction-attempts/west-k04-k05-k06-64px-review.png",
+      "output/animation-overhaul/luna-cat/view-audit/west-k05-correction-attempts/west-contact-owner-feet-4x.png",
+      "output/animation-overhaul/luna-cat/view-audit/west-k05-correction-attempts/west-k04-k05-k06-feet-4x.png"
+    ],
+    "review_conclusion": "All candidates preserve the screen-left contact trajectory, but none makes the far/right owner independently identifiable through the satchel and leg overlap; no candidate is accepted."
+  },
+  "scope": "source-only audit; no runtime, spec, docs, tests, or canonical strip changed"
+}

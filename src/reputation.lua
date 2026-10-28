@@ -48,7 +48,6 @@ local LEGACY_REVIEW_TEXT = {
     [5] = "Excellent quality and a smooth pickup. Highly recommended!",
 }
 
-local CLEAN_JOB_REVIEW_CHANCE = 0.25
 
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
@@ -197,7 +196,6 @@ local function customerReview(job)
         rating = 2
     else
         hash = stableJobHash(job)
-        if hash % 100 >= CLEAN_JOB_REVIEW_CHANCE * 100 then return nil end
         rating = 3 + hash % 3
     end
     local text = reviewTextFor(job.id or job.company or "job", rating)
@@ -224,6 +222,21 @@ function Reputation.recordReview(state, job, gameHours)
     reputation.reviews[#reputation.reviews + 1] = review
     while #reputation.reviews > MAX_REVIEWS do table.remove(reputation.reviews, 1) end
     return review, Reputation.averageRating(reputation)
+end
+
+function Reputation.backfillCompleted(state)
+    local reputation=Reputation.ensure(state)
+    if reputation.ratingCount>0 or #reputation.reviews>0 then return false end
+    local completed=state.jobs and state.jobs.completed or {}
+    local changed=false
+    for index=math.max(1,#completed-MAX_REVIEWS+1),#completed do
+        local job=completed[index]
+        if type(job)=="table" then
+            local review=Reputation.recordReview(state,job,job.completedAtHours or 0)
+            changed=review~=nil or changed
+        end
+    end
+    return changed
 end
 
 function Reputation.tier(value)

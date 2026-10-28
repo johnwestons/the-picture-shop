@@ -1,4 +1,7 @@
 local Catalog={}
+Catalog.motion={speed=72,acceleration=600,walkPixelsPerFrame=13,
+    gaitSpeedMultipliers={.96,.94,1.04,1.06,.96,.94,1.04,1.06},
+    gaitAccelerationMultipliers={.92,.90,1.08,1.10,.92,.90,1.08,1.10}}
 local WORK_ACTIONS={
     polar_115="work_cutter",
     heidelberg_10x15="work_press",

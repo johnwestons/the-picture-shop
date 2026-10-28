@@ -51,7 +51,7 @@ function Component.run(Context)
         Context.blockedCustomer.x > 0 and Context.blockedCustomer:isMoving()
         and Context.blockedCustomer.animationClock == 0.25)
     Context.walkingX, Context.walkingY, Context.walkingRotation = Context.context.Technician.pose({
-        status = "entering", animationClock = 0.1,
+        status = "entering", inMotion = true, animationDistance = 7.8,
     })
     Context.serviceX, Context.serviceY, Context.serviceRotation = Context.context.Technician.pose({
         status = "servicing", animationClock = 0.1,

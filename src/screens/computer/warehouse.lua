@@ -23,6 +23,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.warehouseOptionRect(bayIndex,optionIndex)
+        if optionIndex==4 then optionIndex=3 end
         return {x=96+(bayIndex-1)*380,y=280+(optionIndex-1)*51,width=360,height=43}
     end
 
@@ -52,6 +53,14 @@ function Component.install(Runtime)
             x=rect.x+(rect.width-width)/2,y=rect.y+(rect.height-height)/2}
     end
 
+    function Runtime.ComputerScreen.warehouseStagingMapScissor()
+        local map=Runtime.warehouseStagingMapLayout()
+        local left,top=love.graphics.transformPoint(map.x,map.y)
+        local right,bottom=love.graphics.transformPoint(map.x+map.width,map.y+map.height)
+        local x,y=math.floor(math.min(left,right)),math.floor(math.min(top,bottom))
+        return x,y,math.ceil(math.max(left,right))-x,math.ceil(math.max(top,bottom))-y
+    end
+
     function Runtime.warehouseStagingMapWorldPoint(x,y,clampToFloor)
         local layout=Runtime.warehouseStagingMapLayout()
         if clampToFloor then
@@ -74,6 +83,7 @@ function Component.install(Runtime)
         return area
     end
     local function productFor(choice)
+        if choice.kind=="buy_garage_door" then return require("src.room_loading_bays").catalog() end
         if choice.kind=="buy_breakroom_fixture" then return Runtime.BreakroomGames.CATALOG[choice.fixtureId] end
         return Runtime.Upgrades.catalog(choice.optionId or "forklift")
     end
@@ -127,6 +137,11 @@ function Component.install(Runtime)
         elseif bayId=="cancel" then rect=Runtime.WAREHOUSE_CANCEL
         elseif bayId=="acknowledge" then rect=Runtime.WAREHOUSE_ACK
         else
+            if optionId=="garage_door" then
+                for bi,bay in ipairs(Runtime.WAREHOUSE_BAYS) do
+                    if bayId==bay then rect=Runtime.warehouseOptionRect(bi,4) end
+                end
+            end
             for bi,bay in ipairs(Runtime.WAREHOUSE_BAYS) do for oi,option in ipairs(Runtime.WAREHOUSE_OPTIONS) do
                 if bayId==bay and optionId==option then rect=Runtime.warehouseOptionRect(bi,oi) end
             end end
@@ -165,6 +180,8 @@ function Component.install(Runtime)
                 owned[fixtureId]=Runtime.BreakroomGames.owns(state,bayId,fixtureId)
             end
             result.bays[#result.bays+1]={id=bayId,status=bay.status,optionId=bay.optionId,owned=owned,
+                garageOwned=require("src.room_loading_bays").owns(state,bayId),
+                garageAvailable=bay.status=="complete" and (bay.optionId=="storage" or bay.optionId=="floor"),
                 phase=project and project.phase,stage=project and project.stage or 0,options={
                     options[1],options[2],options[3]}}
         end
@@ -324,6 +341,10 @@ function Component.install(Runtime)
         local view=Runtime.ComputerScreen.warehouseView(state)
         local kind,bayId,optionId,fixtureId
         for bi,bay in ipairs(view.bays) do
+            if not view.gamesPage and bay.garageAvailable and not bay.garageOwned
+                and Runtime.contains(Runtime.warehouseOptionRect(bi,4),x,y) then
+                kind,bayId="buy_garage_door",bay.id
+            end
             local choices=view.gamesPage and Runtime.BreakroomGames.ORDER or Runtime.WAREHOUSE_OPTIONS
             for oi,option in ipairs(choices) do
                 if Runtime.contains(Runtime.warehouseOptionRect(bi,oi),x,y) then

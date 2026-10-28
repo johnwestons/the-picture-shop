@@ -113,6 +113,10 @@ function Component.install(Runtime)
         result.palletJack.moving, result.palletJack.inMotion = false, false
         result.palletJack.operatorPlayerId = nil
         result.palletJack.operatorEmployeeId = nil
+        for _,jack in ipairs(result.extraPalletJacks or {}) do
+            jack.operating,jack.moving,jack.inMotion=false,false,false
+            jack.operatorPlayerId,jack.operatorEmployeeId=nil,nil
+        end
         Runtime.Forklift.forceRelease(result, Runtime.Config.forklift)
         Runtime.Schema.reconcile(result)
         return result

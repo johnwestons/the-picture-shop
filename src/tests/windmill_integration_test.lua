@@ -513,6 +513,22 @@ function Test.run(context, check)
         and proofDuringRunReason == "Stop production before pulling another proof."
         and context.windmill.ensure(state).status == "production"
         and context.windmill.ensure(state).counter == proofCounterBeforeRun)
+    local motorStopped=context.windmill.control(state,"motor")
+    local stoppedProcess=context.windmill.ensure(state)
+    check("windmill_stopping_motor_exits_run_and_keeps_approved_work",
+        motorStopped and stoppedProcess.status=="approved" and not stoppedProcess.motor
+        and not stoppedProcess.feeder and not stoppedProcess.impression
+        and stoppedProcess.proofApproved and stoppedProcess.counter==proofCounterBeforeRun)
+    context.windmill.update(.1,state)
+    check("windmill_motor_stop_does_not_consume_sheets",
+        stoppedProcess.counter==proofCounterBeforeRun)
+    local motorRestarted=context.windmill.control(state,"motor")
+    local feederRestarted=context.windmill.control(state,"feeder")
+    local impressionRestarted=context.windmill.control(state,"impression")
+    local runRestarted=context.windmill.startProduction(state)
+    check("windmill_stopped_motor_can_restart_the_same_approved_run",
+        motorRestarted and feederRestarted and impressionRestarted and runRestarted
+        and stoppedProcess.status=="production" and stoppedProcess.counter==proofCounterBeforeRun)
     local feederPaused = context.windmill.control(state, "feeder")
     local counterBeforePause = context.windmill.ensure(state).counter
     local pauseChanged, pauseDurable = context.windmill.update(1, state)

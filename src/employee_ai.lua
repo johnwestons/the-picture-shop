@@ -2,6 +2,7 @@ local Employees=require("src.employees")
 local Contracts=require("src.employment_contracts")
 local Payroll=require("src.payroll")
 local Work=require("src.employee_work")
+local WorkPresentation=require("src.employee_work_presentation")
 local Schedule=require("src.employee_schedule")
 local Fleet=require("src.machine_fleet")
 local Calendar=require("src.business_calendar")
@@ -35,9 +36,7 @@ local function afterShiftGame(state,w,day)
     if hash%100>=30 then return nil end
     return options[hash%#options+1]
 end
-local motion={speed=72,acceleration=600,walkPixelsPerFrame=13,
-    gaitSpeedMultipliers={.96,.94,1.04,1.06,.96,.94,1.04,1.06},
-    gaitAccelerationMultipliers={.92,.90,1.08,1.10,.92,.90,1.08,1.10}}
+local motion=require("src.worker_catalog").motion
 local speeds=setmetatable({},{__mode="k"})
 local function stop(a)
     PlayerController.stop(a);speeds[a]=nil;a.moving=false
@@ -50,6 +49,7 @@ function AI.findReachablePoint(actor,goals,context)
     return Navigator.findReachablePoint(actor,goals,context)
 end
 function AI.move(a,goal,dt,context)
+    if context.forActor then context=context.forActor(a) end
     if (a.x-goal.x)^2+(a.y-goal.y)^2<.0001
         and (not context.assets or Navigation.isWalkable(context.assets,a.x,a.y,
             context.obstacles and context.obstacles(a) or {})) then
@@ -106,12 +106,11 @@ end
 local function breakChoice(w,now)
     local elapsed=now-Contracts.shiftDay(w.contract,now)*24-w.contract.startHour
     local duration=Contracts.duration(w.contract)
-    for _,b in ipairs({{at=2,bit=1,kind="rest",duration=.25},{at=4,bit=2,kind="meal",duration=.5},
-        {at=6,bit=4,kind="rest",duration=.25},{at=10,bit=8,kind="rest",duration=.25}}) do
-        if b.at<duration and (b.kind~="meal" or duration>=6) and elapsed>=b.at
+    for _,b in ipairs({{at=2,bit=1,kind="rest",duration=.25},
+        {at=3,bit=2,kind="meal",duration=.75}}) do
+        if b.at+b.duration<=duration and elapsed>=b.at
             and math.floor(w.breaksTaken/b.bit)%2==0 then return b end
     end
-    if w.fatigue>=70 or w.focus<=40 then return {bit=0,kind="rest",duration=.25} end
 end
 local function beginBreak(state,w,b,context)
     if not Work.release(state,w,context) then return false end
@@ -186,6 +185,13 @@ local function trainingStep(state,w,dt,hours,context)
     return true
 end
 function AI.worker(state,w,dt,now,context)
+    if w.pendingSchedule and not Contracts.onShift(w.contract,now) then
+        local terms=w.pendingSchedule
+        terms.revision=w.contract.revision
+        terms.signedAtHours=now
+        terms.startDay=Contracts.nextDay(terms,now)
+        w.contract,w.pendingSchedule=terms,nil
+    end
     if w.greetingUntilHours and now>=w.greetingUntilHours then
         w.greetingKind,w.greetingUntilHours=nil,nil
     end
@@ -207,6 +213,11 @@ function AI.worker(state,w,dt,now,context)
         return false
     end
     local droppedCarriedPallet=false
+    if (w.sceneId or "warehouse")~="warehouse" and context.travelScene
+        and (not onShift or w.stopRequested or w.training or w.assignment or breakChoice(w,now)) then
+        local _,changed=context.travelScene(w,"warehouse",dt)
+        return changed
+    end
     if not onShift or w.stopRequested then
         if Transport.owns(state,w) then
             Transport.release(state,w,context);droppedCarriedPallet=true
@@ -281,7 +292,6 @@ function AI.worker(state,w,dt,now,context)
         end
     else
         local b=breakChoice(w,now)
-        if (w.fatigue>=90 or w.focus<=20) then b={bit=0,kind="rest",duration=.25} end
         if b and Work.safe(w,state) then beginBreak(state,w,b,context)
         elseif overdue then
             local parked=Transport.owns(state,w)
@@ -295,9 +305,14 @@ function AI.worker(state,w,dt,now,context)
             w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 3 or 1))
             return progressed
         else
-            local scheduleChanged=Schedule.advance(state,w,now)
+            if not w.assignment then
+                local shipping,changed=require("src.employee_shipping").update(state,w,dt,context)
+                if shipping then return changed end
+            end
+            local scheduleChanged=Schedule.advance(state,w,now,context.canClaim)
             if w.assignment then
                 local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,machinePose=context.machinePose,
+                    travelScene=context.travelScene,
                     motionScale=context.motionScale,jackNavigation=context.jackNavigation,
                     jackApproachPoint=context.jackApproachPoint,jackPickupPoint=context.jackPickupPoint,
                     jackDropPoint=context.jackDropPoint,jackDropClear=context.jackDropClear,
@@ -336,6 +351,8 @@ function AI.worker(state,w,dt,now,context)
                 w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 6 or 2))
                 return changed or scheduleChanged or deferred
             else
+                    local stocking,stockChanged=Transport.storeSupplies(state,w,dt,context)
+                    if stocking then return scheduleChanged or stockChanged end
                 local point=context.idlePoint(w)
                 local q=Schedule.ensure(w)
                 if q.enabled and #q.items>0 and w._waitingMachineId and context.operatorPoint then
@@ -343,8 +360,7 @@ function AI.worker(state,w,dt,now,context)
                 end
                 if AI.move(w,point,dt,context) then
                     w.phase="idle";w.idleClock=w.idleClock+dt
-                    if not q.enabled then w.activity="Work schedule paused"
-                    elseif #q.items==0 and not w._waitingForJack then w.activity=#q.history>0 and "Work schedule complete" or "Waiting for assignment" end
+                    w.activity=Schedule.idleActivity(state,w)
                 end
                 w.fatigue=math.min(100,w.fatigue+hours)
                 return scheduleChanged
@@ -358,6 +374,7 @@ function AI.update(state,dt,context)
     local now=Calendar.absoluteHours(state)
     local previous=math.min(now,e.lastAtHours)
     local changed=Employees.advance(state,now)
+    if context.pickupTruck and require("src.employee_shipping").requestCompleted(state) then changed=true end
     local schedulesChanged=Schedule.reconcileCompleted(state,now,function(w)
         if not Work.safe(w,state) then return false end
         Work.release(state,w)
@@ -380,6 +397,7 @@ function AI.update(state,dt,context)
             local oldClocked=w.clockedIn
             Payroll.accrue(w,at,nextAt,not Work.safe(w,state),state)
             if AI.worker(state,w,realDt,nextAt,context) or oldClocked~=w.clockedIn then changed=true end
+            WorkPresentation.update(state,w,realDt*(context.motionScale or 1))
         end
         at=nextAt
     end

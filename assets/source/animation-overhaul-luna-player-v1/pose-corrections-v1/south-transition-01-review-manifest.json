@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "batch": "luna-player-south-transition-01-review-v1",
+  "status": "no accepted South transition; candidate trial07 remains unselected",
+  "canonical_endpoints": {
+    "phase1_path": "assets/generated/characters/rabbit-worker/walk_south.png cell 1",
+    "phase1_rgba_sha256": "a13cbb72b34515bea8c3178df521890cb9e43915385a2f75ce549333722d980c",
+    "phase1_landmarks": {
+      "head_width_px": 109,
+      "head_bbox_xyxy": [
+        200,
+        59,
+        309,
+        228
+      ],
+      "torso_width_px": 76,
+      "torso_bbox_xyxy": [
+        216,
+        210,
+        292,
+        269
+      ]
+    },
+    "phase2_path": "assets/generated/characters/rabbit-worker/walk_south.png cell 2",
+    "phase2_rgba_sha256": "463febcec619d10dbb609825017a050d46b5eab018873e0782c2026c7ee7ad8a",
+    "phase2_landmarks": {
+      "head_width_px": 111,
+      "head_bbox_xyxy": [
+        203,
+        58,
+        314,
+        228
+      ],
+      "torso_width_px": 77,
+      "torso_bbox_xyxy": [
+        220,
+        214,
+        297,
+        269
+      ]
+    }
+  },
+  "trial07": {
+    "source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/south-transition-01-trial-07-generated.png",
+    "source_sha256": "011c4de3ad1b8991fc6a86e1f6e987bdad3931824557910f6df949bff9b558a2",
+    "source_dimensions_px": [
+      1254,
+      1254
+    ],
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "normalized_path": "output/animation-overhaul/luna-player/pose-corrections-v1/south-transition-01-trial-07-uniform.png",
+    "normalized_sha256": "2e732ce05e50ab47e3d19d1f3038aeec1b637d2ea8d98ed68ddddfd9678f3ebc",
+    "uniform_scale_info": {
+      "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+      "canonical_median_head_width_px": 106.5,
+      "canonical_median_torso_width_px": 75.0,
+      "source_master_median_head_width_px": 281.0,
+      "source_master_median_torso_width_px": 182.0,
+      "head_landmark_scale": 0.379004,
+      "torso_landmark_scale": 0.412088,
+      "uniform_master_scale": 0.3952,
+      "source_cell_landmarks": [
+        {
+          "head_width_px": 281,
+          "head_bbox_xyxy": [
+            489,
+            139,
+            770,
+            558
+          ],
+          "torso_width_px": 182,
+          "torso_bbox_xyxy": [
+            537,
+            518,
+            719,
+            658
+          ]
+        }
+      ],
+      "per_cell_scale_used": false
+    },
+    "normalized_metrics": {
+      "cell_number": 1,
+      "atlas_cell_bounds_xyxy": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "raw_alpha_bbox_16": [
+        404,
+        139,
+        850,
+        1137
+      ],
+      "raw_visible_height_px": 998,
+      "group_uniform_scale": 0.3952,
+      "raw_landmarks": {
+        "head_width_px": 281,
+        "head_bbox_xyxy": [
+          489,
+          139,
+          770,
+          558
+        ],
+        "torso_width_px": 182,
+        "torso_bbox_xyxy": [
+          537,
+          518,
+          719,
+          658
+        ]
+      },
+      "normalized_landmarks": {
+        "head_width_px": 109,
+        "head_bbox_xyxy": [
+          202,
+          73,
+          311,
+          236
+        ],
+        "torso_width_px": 72,
+        "torso_bbox_xyxy": [
+          220,
+          222,
+          292,
+          275
+        ]
+      },
+      "normalized_alpha_bbox_16": [
+        167,
+        70,
+        344,
+        465
+      ],
+      "normalized_visible_height_px": 395,
+      "normalized_torso_anchor_x": 256.0,
+      "normalized_ground_y": 465,
+      "edge_clipped": false
+    },
+    "reference_roles": [
+      "canonical phase 1 constrains screen-right leading/contact boot",
+      "canonical phase 2 constrains both-boots-down weight pose",
+      "unscaled rigid upper body constrains head/ear/torso proportions"
+    ],
+    "review_status": "unselected; correct screen-right leading boot and two tools, but hands remain close to endpoint poses; no South transition accepted"
+  },
+  "rejected_trial06": {
+    "source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/rejected/south-transition-01-trial-06-rejected-extra-tool-endpoint-hands.png",
+    "sha256": "bca5d4b3bdf61c12e8bf90fce620359ba3da16617a9da63a75789cb3611bdb3b",
+    "reason": "three tools and endpoint-like hands"
+  },
+  "contact_sheet": {
+    "path": "output/animation-overhaul/luna-player/pose-corrections-v1/south-transition01-trial07-candidates-review-v2.png",
+    "sha256": "f821e958dda2da9af335879603c3a0c396be36ca3bde0775a36676d1a11fa174"
+  },
+  "prompt_log": {
+    "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/imagegen-prompt-log-v1.json",
+    "sha256": "ee1b6c785b0e768a0a81dbd8bea0b158845c446419cc1739dba60d5f428047d3"
+  },
+  "normalization_policy": "one uniform scale per generated raw source master derived from head/torso landmark widths, then anchor/ground translation only; no per-cell scale or shape deformation",
+  "limitations": [
+    "Trial 7 keeps the screen-right leading boot but its hands remain too close to endpoint poses for a clear halfway transition.",
+    "No South transition selected; canonical South frames remain unchanged."
+  ]
+}

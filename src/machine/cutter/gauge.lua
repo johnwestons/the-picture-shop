@@ -213,7 +213,7 @@ function Component.run(Context)
             and (Context.Machine._blockedResume or Context.safeResumeStep(Context.Machine.step)) or "idle"
         Context.Machine.emergencyStopped, Context.Machine.barrierClear = false, true
         Context.Machine.clamp, Context.Machine.leftDown, Context.Machine.rightDown = false, false, false
-        Context.Machine.step, Context.Machine.progress, Context.Machine.bladeProgress = "resetting", 0, 0
+        Context.Machine.step, Context.Machine.progress = "resetting", 0
         Context.message(state, "Resetting safety controls...")
         Context.bumpRevision()
         return true

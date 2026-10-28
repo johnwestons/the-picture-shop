@@ -16,11 +16,28 @@ function Component.install(Runtime)
         end
         local jack=Runtime.World._state and Runtime.PalletJack.ensure(
             Runtime.World._state,Runtime.Config.palletJack)
+        local jackState=Runtime.World._state
+        if jack then
+            -- Guests retain the host's shared control slot. Offline/host
+            -- interaction can select any available physical jack.
+            local options=Runtime.World._employeeOptions
+            if player==Runtime.World.player and not (options and options.isNetworkClient and options.isNetworkClient()) then
+                local fleet=require("src.pallet_jack_fleet")
+                jack=fleet.playerChoice(Runtime.World._state,player)
+                jackState=fleet.view(Runtime.World._state,jack)
+            end
+        end
         if jack and jack.sceneId==Rooms.scene(player) then
             addTarget("palletJack",Runtime.PalletJack.interaction(
-                player,Runtime.World._state,Runtime.Config.palletJack))
+                player,jackState,Runtime.Config.palletJack))
         end
         if Rooms.scene(player)~="warehouse" then
+            if require("src.room_loading_bays").owns(Runtime.World._state,Rooms.scene(player)) then
+                addTarget("loadingBayDoor",Runtime.World.doorForScene(Rooms.scene(player)):getInteraction())
+                if Runtime.World.truck.sceneId==Rooms.scene(player) then
+                    addTarget("truckCargoDoor",Runtime.World.truck:getInteraction())
+                end
+            end
             local lift=Runtime.World._state and Runtime.World._state.forklift
             if lift and lift.owned and (lift.sceneId or "warehouse")==Rooms.scene(player) then
                 addTarget("forklift",{x=lift.x,y=lift.y,
@@ -72,7 +89,7 @@ function Component.install(Runtime)
             addTarget("vendor", vendorInteraction)
         end
         addTarget("loadingBayDoor", Runtime.World.bayDoor:getInteraction())
-        local truckInteraction = Runtime.World.truck:getInteraction()
+        local truckInteraction = Runtime.World.truck.sceneId=="warehouse" and Runtime.World.truck:getInteraction()
         addTarget("truckCargoDoor", truckInteraction)
         if Runtime.World._state then
             local networkMachineView = Runtime.World._state._networkMachinePoses ~= nil

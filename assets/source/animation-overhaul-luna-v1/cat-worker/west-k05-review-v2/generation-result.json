@@ -1,0 +1,18 @@
+{
+  "tool": "image_gen.imagegen",
+  "result_keys": ["image_url", "output_hint"],
+  "output_hint": "Generated images are saved to C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07 as C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07\\exec-4847afcf-e4a3-435f-84a6-a75828e6417f.png by default. If you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it. The image is already displayed to the user.",
+  "generated_file": "C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-4847afcf-e4a3-435f-84a6-a75828e6417f.png",
+  "generated_file_timestamp_utc": "2026-10-28T01:02:41.001Z",
+  "staged_copy": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/candidate_raw.png",
+  "staged_copy_sha256": "6267a4e9a6a61edec5907c47e57162200de347a4960cccca45e9c3c4b435f1ee",
+  "referenced_image_roles": [
+    {"path": "references/walk_west_k05_source.png", "role": "edit target, original authored K5"},
+    {"path": "references/walk_west_k01_source.png", "role": "opposite contact role and identity reference"},
+    {"path": "references/walk_west_k04_source.png", "role": "preceding phase, K4"},
+    {"path": "references/walk_west_k06_source.png", "role": "following phase, K6"},
+    {"path": "references/west_k05_explicit_owner_map.png", "role": "viewer-left/right and near/far owner labels"}
+  ],
+  "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/prompt-west-k05-correction.txt",
+  "prompt_sha256": "5a9b012ce0c04b57cdc6fb4d11f2af6305bdcb9772137df049c972b70653fb33"
+}

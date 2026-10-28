@@ -42,12 +42,14 @@ function Component.install(Runtime)
                 end
             elseif event.type == "pallet_jack_state" then
                 local applied, applyError = Runtime.World.applyNetworkPalletJackSnapshot(
-                    Runtime.state, event.jack, event.machines)
+                    Runtime.state, event.jack, event.machines,event.jackId)
                 if not applied and applyError ~= "awaiting_durable" then
                     Runtime.showConnectionError(
                         "The host sent a pallet-jack update this build could not apply.",
                         "Invalid pallet-jack update")
                 end
+            elseif event.type=="extra_pallet_jack_state" then
+                require("src.pallet_jack_fleet").applySnapshot(Runtime.state,event.jackId,event.jack)
             elseif event.type == "visitor_state" then
                 if not Runtime.World.applyVisitorSnapshot(event.customer, event.vendor) then
                     Runtime.showConnectionError(
@@ -57,7 +59,7 @@ function Component.install(Runtime)
             elseif event.type == "employee_state" then
                 Runtime.World.applyEmployeeSnapshot(event.employees,Runtime.state)
             elseif event.type == "environment_state" then
-                if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees, Runtime.state) then
+                if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees, Runtime.state, event.technician,event.roomDoors) then
                     Runtime.showConnectionError(
                         "The host sent an environment update this build could not apply.",
                         "Invalid environment update")

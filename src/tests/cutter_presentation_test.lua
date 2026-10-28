@@ -73,10 +73,22 @@ function Test.run(context, check)
         and presentation.phase == finalPhase and current.phasePermille == 600)
     current.runtimeRevision, current.step, current.emergencyStopped = 3, "blocked", true
     current.phasePermille = 0
+    current.bladePermille=600
     presentation:accept(current)
     check("cutter_presentation_safety_transition_cancels_blade_animation",
         presentation.phase == 0 and presentation:model(state, current).step == "blocked"
         and not presentation:accept(view()) and presentation.revision == 3)
+    check("cutter_presentation_safety_keeps_authoritative_stopped_blade_depth",
+        presentation:model(state,current).bladeProgress==.6)
+    current.runtimeRevision,current.step,current.phasePermille=4,"resetting",0
+    presentation:accept(current)
+    current.runtimeRevision,current.phasePermille,current.bladePermille=5,300,300
+    presentation:accept(current);presentation:update(.05)
+    check("cutter_presentation_reset_interpolates_confirmed_blade_return",
+        math.abs(presentation:model(state,current).bladeProgress-.45)<.001)
+    presentation:update(2)
+    check("cutter_presentation_packet_gap_does_not_invent_a_completed_return",
+        presentation:model(state,current).bladeProgress==.3)
 
     local sent = {}
     local function send(action, args)

@@ -8,7 +8,7 @@ local function fraction(value)
 end
 
 function Presentation.new()
-    return setmetatable({ elapsed = 0, phase = 0, clamp = 0 }, Presentation)
+    return setmetatable({ elapsed = 0, phase = 0, clamp = 0, blade = 0 }, Presentation)
 end
 
 function Presentation:accept(view)
@@ -16,6 +16,7 @@ function Presentation:accept(view)
     local revision = tonumber(view.runtimeRevision) or -1
     if self.revision and revision < self.revision then return false end
     local phase, clamp = fraction(view.phasePermille), fraction(view.clampPermille)
+    local blade=fraction(view.bladePermille)
     local paper = type(view.paper) == "table" and view.paper or {}
     local paperKey = table.concat({ tostring(paper.palletId), tostring(paper.activeLift),
         tostring(paper.activeCut), tostring(paper.orientation) }, ":")
@@ -26,8 +27,11 @@ function Presentation:accept(view)
         and self.loaded == view.loaded and self.emergency == view.emergencyStopped
     self.fromPhase = continuous and self.phase or phase
     self.fromClamp = continuous and self.clamp or clamp
+    self.fromBlade=continuous and self.blade or blade
     self.targetPhase, self.targetClamp = phase, clamp
+    self.targetBlade=blade
     self.phase, self.clamp = self.fromPhase, self.fromClamp
+    self.blade=self.fromBlade
     self.step, self.revision = view.step, revision
     self.paperKey = paperKey
     self.loaded, self.emergency = view.loaded, view.emergencyStopped
@@ -40,6 +44,7 @@ function Presentation:update(dt)
     local t = self.elapsed / 0.1
     self.phase = (self.fromPhase or 0) + ((self.targetPhase or 0) - (self.fromPhase or 0)) * t
     self.clamp = (self.fromClamp or 0) + ((self.targetClamp or 0) - (self.fromClamp or 0)) * t
+    self.blade=(self.fromBlade or 0)+((self.targetBlade or 0)-(self.fromBlade or 0))*t
 end
 
 local function findPaper(state, id)
@@ -57,6 +62,7 @@ function Presentation:model(state, view)
         step = view.step or "idle", loaded = view.loaded == true,
         transferTime = 1, cycleTime = 1, progress = self.phase,
         clampProgress = self.clamp,
+        bladeProgress = self.blade,
         programIndex = view.programIndex,
     }
     local record = view.paper

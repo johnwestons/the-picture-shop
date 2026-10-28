@@ -2,6 +2,12 @@ local Anchors = require("src.character_anchors")
 local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local Metrics = require("src.character_metrics")
+local HighFiveArt = require("src.high_five_art")
+Anchors["rabbit-worker"].high_five = HighFiveArt.anchors
+Metrics["rabbit-worker"].high_five = HighFiveArt.metrics
+local TechnicianArt = require("src.technician_art")
+for character,actions in pairs(TechnicianArt.anchors) do Anchors[character]=actions end
+for character,actions in pairs(TechnicianArt.metrics) do Metrics[character]=actions end
 local TextureCache = require("src.texture_cache")
 local imageCache = TextureCache.new(16 * 1024 * 1024, 20)
 -- The five authored rabbit walk views are 4096x512 textures (8 MiB each).
@@ -68,6 +74,24 @@ for character, actions in pairs(breakArt.metrics) do
     for action, frames in pairs(actions) do Metrics[character][action] = frames end
 end
 
+local workArt = require("src.worker_work_art")
+for character, actions in pairs(workArt.anchors) do
+    for action, frames in pairs(actions) do Anchors[character][action] = frames end
+end
+for character, actions in pairs(workArt.metrics) do
+    for action, frames in pairs(actions) do Metrics[character][action] = frames end
+end
+local playerWalkArt=require("src.player_walk_art")
+Anchors["rabbit-worker"].walk_north=playerWalkArt.anchors["rabbit-worker"].walk_north
+Metrics["rabbit-worker"].walk_north=playerWalkArt.metrics["rabbit-worker"].walk_north
+local workerWalkArt=require("src.worker_walk_art")
+for character,actions in pairs(workerWalkArt.anchors) do
+    for action,frames in pairs(actions) do Anchors[character][action]=frames end
+end
+for character,actions in pairs(workerWalkArt.metrics) do
+    for action,frames in pairs(actions) do Metrics[character][action]=frames end
+end
+
 local CharacterAssets = {
     metadata = {},
     images = {},
@@ -75,6 +99,80 @@ local CharacterAssets = {
     failures = {},
     loadFailures = {},
 }
+
+local function positiveInteger(value)
+    value = tonumber(value)
+    if not value or value < 1 or value % 1 ~= 0 then return nil end
+    return value
+end
+
+-- Character strips are square and one-row by default. Explicit layouts can
+-- pack taller, lower-resolution poses into a bounded texture width.
+function CharacterAssets.frameGrid(width, height, layout, defaultFrameSize)
+    layout = type(layout) == "table" and layout or {}
+    width, height = positiveInteger(width), positiveInteger(height)
+    local fallback = positiveInteger(defaultFrameSize) or height
+    local frameWidth = layout.frameWidth == nil and fallback or positiveInteger(layout.frameWidth)
+    local frameHeight = layout.frameHeight == nil and fallback or positiveInteger(layout.frameHeight)
+    if layout.frameWidth ~= nil and not frameWidth or layout.frameHeight ~= nil and not frameHeight then
+        return nil, "character frame dimensions are invalid"
+    end
+    if not width or not height or not frameWidth or not frameHeight
+        or width % frameWidth ~= 0 or height % frameHeight ~= 0
+    then
+        return nil, "image dimensions do not divide into character frames"
+    end
+    local columns, rows = width / frameWidth, height / frameHeight
+    local expectedColumns = layout.columns ~= nil and positiveInteger(layout.columns) or nil
+    local expectedRows = layout.rows ~= nil and positiveInteger(layout.rows) or nil
+    local expectedCount = layout.frameCount ~= nil and positiveInteger(layout.frameCount) or nil
+    if (layout.columns ~= nil and not expectedColumns)
+        or (layout.rows ~= nil and not expectedRows)
+        or (layout.frameCount ~= nil and not expectedCount)
+    then
+        return nil, "character frame grid contains an invalid layout value"
+    end
+    if (expectedColumns and columns ~= expectedColumns)
+        or (expectedRows and rows ~= expectedRows)
+    then
+        return nil, "character frame grid does not match its declared layout"
+    end
+    local frameCount = columns * rows
+    if expectedCount and frameCount ~= expectedCount then
+        return nil, "character frame count does not match its declared layout"
+    end
+    local normalizationHeight = tonumber(layout.normalizationHeight)
+    if normalizationHeight and (normalizationHeight <= 0
+        or normalizationHeight ~= normalizationHeight or math.abs(normalizationHeight) == math.huge)
+    then
+        return nil, "character normalization height is invalid"
+    end
+    return {
+        frameWidth = frameWidth,
+        frameHeight = frameHeight,
+        columns = columns,
+        rows = rows,
+        frameCount = frameCount,
+        normalizationHeight = normalizationHeight,
+    }
+end
+
+function CharacterAssets.frameRectFor(frame, grid)
+    frame = positiveInteger(frame)
+    if not frame or type(grid) ~= "table" or frame > (grid.frameCount or 0)
+        or not positiveInteger(grid.columns) or not positiveInteger(grid.frameWidth)
+        or not positiveInteger(grid.frameHeight)
+    then
+        return nil
+    end
+    local zeroBased = frame - 1
+    return {
+        x = (zeroBased % grid.columns) * grid.frameWidth,
+        y = math.floor(zeroBased / grid.columns) * grid.frameHeight,
+        width = grid.frameWidth,
+        height = grid.frameHeight,
+    }
+end
 
 local function release(image)
     if image and image.release then pcall(image.release, image) end
@@ -89,19 +187,30 @@ local function validateAction(character, action, path)
     local actionSizes = Config.characterActionFrameSizes and Config.characterActionFrameSizes[character]
     local additionalActionSizes = Config.workerActionFrameSizes
         and Config.workerActionFrameSizes[character]
+    local actionLayouts = Config.characterActionFrameLayouts
+        and Config.characterActionFrameLayouts[character]
+    local actionLayout = actionLayouts and actionLayouts[action]
     local frameSize = actionSizes and actionSizes[action]
         or additionalActionSizes and additionalActionSizes[action]
         or Config.workerFrameSizes[character] or 512
-    if height ~= frameSize or width % frameSize ~= 0 then
+    local grid = CharacterAssets.frameGrid(width, height, actionLayout, frameSize)
+    if not grid then
         CharacterAssets.failures[#CharacterAssets.failures + 1] = path .. ": invalid character frame strip size"
         return
     end
-    local frameCount = width / frameSize
+    local frameCount = grid.frameCount
     local actionAnchors = Anchors[character] and Anchors[character][action]
     if not actionAnchors or #actionAnchors ~= frameCount then
         CharacterAssets.failures[#CharacterAssets.failures + 1] = string.format(
             "%s: expected %d precomputed character anchors", path, frameCount)
         return
+    end
+    for _,anchor in ipairs(actionAnchors) do
+        local function finite(value) return type(value)=="number" and value==value and math.abs(value)<math.huge end
+        if not finite(anchor.x) or not finite(anchor.y) then
+            CharacterAssets.failures[#CharacterAssets.failures+1]=path..": invalid character anchor coordinates"
+            return
+        end
     end
     local actionMetrics = Metrics[character] and Metrics[character][action]
     if not actionMetrics or #actionMetrics ~= frameCount then
@@ -116,7 +225,14 @@ local function validateAction(character, action, path)
         width = width,
         height = height,
         frameCount = frameCount,
-        frameSize = frameSize,
+        frameSize = grid.frameWidth,
+        frameWidth = grid.frameWidth,
+        frameHeight = grid.frameHeight,
+        columns = grid.columns,
+        rows = grid.rows,
+        frameColumns = grid.columns,
+        frameRows = grid.rows,
+        normalizationHeight = grid.normalizationHeight,
         visibleHeight = 0,
     }
     for _, bounds in ipairs(actionMetrics) do
@@ -145,7 +261,8 @@ function CharacterAssets.getNormalization(character, action)
     -- This lets playable and visiting characters use the same rendering path.
     local reference = Config.characterRendering.referenceHeight
     local metadata = CharacterAssets.metadata[character] and CharacterAssets.metadata[character][action]
-    local height = metadata and metadata.visibleHeight or actionHeight(character, action)
+    local height = metadata and metadata.normalizationHeight
+        or metadata and metadata.visibleHeight or actionHeight(character, action)
     if reference <= 0 or height <= 0 then return 1 end
     return reference / height
 end
@@ -187,6 +304,12 @@ function CharacterAssets.hasAction(character, action)
         and CharacterAssets.metadata[character][action] ~= nil
 end
 
+-- Read counts without uploading or retaining a texture merely to select a pose.
+function CharacterAssets.getFrameCount(character,action)
+    local metadata=CharacterAssets.metadata[character] and CharacterAssets.metadata[character][action]
+    return metadata and metadata.frameCount or 0
+end
+
 function CharacterAssets.load()
     CharacterAssets.releaseAll()
     useSequence = 0
@@ -218,8 +341,9 @@ local function loadAction(character, action)
         image:setFilter("nearest", "nearest")
         local result = {}
         for frame = 1, metadata.frameCount do
+            local rect = CharacterAssets.frameRectFor(frame, metadata)
             result[frame] = love.graphics.newQuad(
-                (frame - 1) * metadata.frameSize, 0, metadata.frameSize, metadata.frameSize, metadata.width, metadata.height)
+                rect.x, rect.y, rect.width, rect.height, metadata.width, metadata.height)
         end
         return result
     end)

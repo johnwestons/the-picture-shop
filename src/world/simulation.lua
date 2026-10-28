@@ -4,6 +4,9 @@ local Component = {}
 local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
+    function Runtime.World.doorForScene(scene)
+        return Runtime.World.roomDoors[scene] or Runtime.World.bayDoor
+    end
     function Runtime.World.load(position)
         local character = position and position.character or Runtime.Config.player.character
         local playerId = position and tonumber(position.id) or nil
@@ -14,6 +17,7 @@ function Component.install(Runtime)
         Runtime.World.player.resting=false
         Runtime.World.player.sceneId=position and position.sceneId or "warehouse"
         Runtime.World.bayDoor:reset()
+        for _,door in pairs(Runtime.World.roomDoors) do door:reset() end
         Runtime.World.truck:reset()
         Runtime.World.customer:reset(true, CustomerDemand.delayMultiplier(Runtime.state))
         Runtime.World.vendor:reset(true)
@@ -32,8 +36,10 @@ function Component.install(Runtime)
     function Runtime.scheduleTruck(state)
         if not state or Runtime.World.truck.state ~= "absent" then return false end
         local pickup = Runtime.JobService.nextPickup(state)
-        if pickup and Runtime.World.truck:schedule(pickup.id, "pickup") then
+        local pickupScene=pickup and require("src.room_loading_bays").pickupScene(state,pickup)
+        if pickup and Runtime.World.truck:schedule(pickup.id, "pickup", pickupScene) then
             Runtime.JobService.schedulePickup(pickup, os.time())
+            pickup.pickup.sceneId=pickupScene
             state.message = "Customer pickup scheduled for " .. pickup.id .. "."
             return true
         end
@@ -81,7 +87,8 @@ function Component.install(Runtime)
     function Runtime.updateTruck(dt, motionDt, state)
         local saveNeeded = Runtime.scheduleTruck(state)
         local truckJobId, truckMode = Runtime.World.truck.jobId, Runtime.World.truck.mode
-        local event = Runtime.World.truck:update(dt, Runtime.World.bayDoor.state, motionDt)
+        local door=Runtime.World.doorForScene(Runtime.World.truck.sceneId)
+        local event = Runtime.World.truck:update(dt, door.state, motionDt)
         if not event then return saveNeeded end
         local job = Runtime.activeJobById(state, truckJobId)
         local purchase = Runtime.Procurement.orderById(state, truckJobId)
@@ -90,7 +97,7 @@ function Component.install(Runtime)
         local replacementDelivery = job and job.delivery
             and job.delivery.kind == "replacement" and not pickup
         if event == "request_bay_open" then
-            if Runtime.World.bayDoor.state == "closed" then Runtime.World.bayDoor:open() end
+            if door.state == "closed" then door:open() end
             if state then
                 state.message = pickup and "Pickup truck arrived. Opening the loading bay..."
                     or (machineOrder and "Machine flatbed arrived. Opening the loading bay..."
@@ -149,7 +156,7 @@ function Component.install(Runtime)
                 state.message = "Truck cargo door closed."
             end
         elseif event == "departed" then
-            if Runtime.World.bayDoor.state == "open" then Runtime.World.bayDoor:close() end
+            if door.state == "open" then door:close() end
             if pickup then
                 local completed, completedJob, payment = Runtime.JobService.completePickup(state, pickup.id, os.time())
                 if completed then
@@ -179,6 +186,7 @@ function Component.install(Runtime)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets, Runtime.World._state = assets, state
         local player = Runtime.World.player
+        for _,door in pairs(Runtime.World.roomDoors) do door:update(motionDt) end
         local doorEvent = Runtime.World.bayDoor:update(motionDt)
         if doorEvent == "opened" and state then
             state.message = "Loading bay door open. The parking lot is visible."
@@ -230,6 +238,16 @@ function Component.install(Runtime)
         end
         employeeContext.motionScale = dt > 0 and motionDt / dt or 1
         local employeeChanged=Runtime.EmployeeAI.update(state,dt,employeeContext)
+        local truck=Runtime.World.truck
+        if truck.mode=="pickup" and Runtime.JobService.remainingPickup(state,truck.jobId)==0
+            and employeeContext.canLoadTruck() then
+            if truck.state=="cargo_open" then truck:toggleCargoDoor();saveNeeded=true
+            elseif truck.state=="parked_closed" and truck:depart() then
+                local job=Runtime.activeJobById(state,truck.jobId)
+                Runtime.JobService.setPickupStatus(job,"departing")
+                saveNeeded=true
+            end
+        end
         return saveNeeded or employeeChanged
     end
 end

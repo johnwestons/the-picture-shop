@@ -275,15 +275,22 @@ function Component.install(Runtime)
                         sessionId = self.sessionId,
                         serverTick = self.serverTick,
                         bayDoor = environment.bayDoor,
+                        roomDoors = environment.roomDoors,
                         truck = environment.truck,
-                        employees = environment.employees and #environment.employees<=4 and environment.employees or nil,
+                        employees = environment.employees and #environment.employees<=3 and environment.employees or nil,
+                        technician = environment.technician,
                     })
                 if not environmentOk then self:_queue("error", { message = environmentError }) end
-                if environment.employees and #environment.employees>4 then
+                if environment.employees and #environment.employees>3 then
                     local employeeOk,employeeError=self:_broadcastJoined("employee_snapshot",{
                         sessionId=self.sessionId,serverTick=self.serverTick,employees=environment.employees})
                     if not employeeOk then self:_queue("error",{message=employeeError}) end
                 end
+            end
+            for _,unit in ipairs(context and context.getExtraPalletJackSnapshots and context.getExtraPalletJackSnapshots() or {}) do
+                local sent,reason=self:_broadcastJoined("extra_pallet_jack_snapshot",{
+                    sessionId=self.sessionId,serverTick=self.serverTick,jackId=unit.id,jack=unit.jack})
+                if not sent then self:_queue("error",{message=reason}) end
             end
             local palletJack = context and context.getPalletJackSnapshot
                 and context.getPalletJackSnapshot() or nil
@@ -295,6 +302,7 @@ function Component.install(Runtime)
                         sessionId = self.sessionId,
                         serverTick = self.serverTick,
                         jack = palletJack,
+                        jackId = context.getPalletJackId and context.getPalletJackId() or nil,
                         machines = machinePoses,
                     })
                 if os.getenv("PICTURE_SHOP_ACCEPTANCE_HOST_SLOT") then

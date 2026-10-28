@@ -24,7 +24,20 @@ computer shows the shop time as a digital readout at the bottom right. In the
 computer's clock view, the shop can run at 1x, 2x, 5x, or 10x speed; multiplayer
 guests can view the controls, but only the host can change the speed.
 
+Employee speech bubbles explain why work is waiting: insufficient cutter,
+press or wrapping skill, no jobs on the schedule, missing supplies, a machine
+in use or needing service, or blocked access to a skid, shelf or doorway.
+Longer reasons wrap inside the bubble, and multiplayer guests see the current
+host reason. The warning clears when the employee can resume work.
+
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
+
+Buy additional **Manual pallet jacks** from **Otis Wrench > Tools & Maintenance**
+for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
+delivery truck at the loading dock. Employees automatically choose available
+jacks and can transport separate pallets at the same time. Each jack and its
+load survives saving; approach a free jack to operate it yourself. The current
+source uses multiplayer protocol **42**, so all players need the same build.
 
 ## NPC workers and hiring
 
@@ -88,6 +101,15 @@ page. The raccoon calls, arrives through the front entrance and builds over four
 game days. Use **E / ROOMS** at the front entrance beside reception to enter a
 completed room. Multiplayer players can occupy different rooms independently.
 
+After completing a storage or utility room, buy its **Truck garage door** for
+**$1,800** on **CritterNet / Warehouse**. The room gains a working truck loading
+bay without losing any of its fifteen storage positions. Pickup trucks use an
+upgraded room, preferring the room where that job's skids are staged. Employees
+request pickup when their assigned job is fully wrapped, use available pallet
+jacks to bring its skids through the room doorway, and load only that truck's
+job manifest. Two employees can load with separate jacks, then return and park
+them. Clear both sides of a doorway if a worker reports that access is blocked.
+
 Bring delivered shop stock to the warehouse entrance, lower it and park the
 pallet jack. In the storage room, use **STOCK** for one of five bottom-row supply spaces,
 or retrieve it to clear floor space at the entrance. Each rack has fifteen physical
@@ -121,20 +143,13 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-Download the [Android 61 test installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.61/ThePictureShop-0.1.0-android.61-Install.apk)
-from the [GitHub release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61).
-The local copy is `output/android-share/0.1.0-android.61/ThePictureShop-0.1.0-android.61-Install.apk`.
-Every multiplayer participant
-needs matching current protocol 41 code. The Regal Moll practice folder is now
-purchase-only through Used Machinery or the computer's Machine Market; it is no
-longer placed on every warehouse floor. This change needs no save reset.
-The arcade has a neon 1980s game selector, and air hockey has a movement wheel
-to the left of the table. Hold and move within the wheel to steer your paddle;
-release to stop. Another finger cannot take over the wheel.
-The handoff includes checksums,
-installation notes, and automated verification reports. See the
-[Android 61 release notes](docs/android_61_release.md) for the included changes
-and remaining physical phone/tablet acceptance.
+The latest public Android test installer is [Android 61](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61),
+which uses multiplayer protocol 41. The current source uses protocol 47 and is
+configured for Android 65; build a matching private installer with
+`PACK_ANDROID.bat`. Every multiplayer participant needs the same build and
+protocol. Android 65's handoff and remaining physical phone/tablet checks are in
+[the Android 65 release notes](docs/android_65_release.md). The older
+[Android 61 release notes](docs/android_61_release.md) remain historical.
 
 The open garage doorway now shows a textured outdoor parking-lot sprite, retaining
 the shutter, time-of-day lighting and rain. Test the Regal folder separately in

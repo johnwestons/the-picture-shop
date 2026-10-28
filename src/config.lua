@@ -139,7 +139,12 @@ local Config = {
     },
     technician = {
         speed = 78,
+        acceleration = 420,
+        walkPixelsPerFrame = 13,
+        gaitSpeedMultipliers = { .96, .94, 1.04, 1.06, .96, .94, 1.04, 1.06 },
+        gaitAccelerationMultipliers = { .92, .90, 1.08, 1.10, .92, .90, 1.08, 1.10 },
         drawScale = 0.15,
+        worldHeight = 64,
         serviceDuration = 4,
         walkAnimationRate = 9,
         serviceAnimationRate = 5,
@@ -495,7 +500,7 @@ local Config = {
             walk_northeast = "assets/generated/characters/rabbit-worker/walk_northeast.png",
             walk_southeast = "assets/generated/characters/rabbit-worker/walk_southeast.png",
             walk_south = "assets/generated/characters/rabbit-worker/walk_south.png",
-            high_five = "assets/generated/characters/rabbit-worker/high-five-v4.png",
+            high_five = require("src.high_five_art").path,
             sit = "assets/generated/characters/rabbit-worker/sit-room-v1.png",
         },
         ["tan-cat"] = { idle = "assets/generated/characters/tan-cat/idle.png", walk = "assets/generated/characters/tan-cat/walk.png", sit = "assets/generated/characters/tan-cat/sit.png" },
@@ -573,7 +578,7 @@ for _,view in ipairs({"east","west"}) do
     Config.characters["cat-worker"]["rest_"..view]="assets/generated/characters/cat-worker/rest_"..view..".png"
 end
 Config.workerFrameSizes={["cat-worker"]=256,["tinker-fox-worker"]=256,["ferret-engineer-worker"]=256}
-Config.workerActionFrameSizes={["rabbit-worker"]={high_five=724}}
+Config.workerActionFrameSizes={["rabbit-worker"]={high_five=require("src.high_five_art").frameSize}}
 local playerWorkViews = { "northeast", "north", "southeast", "south" }
 for _, action in ipairs({ "work_cutter", "work_press", "work_wrapping", "work_task" }) do
     Config.characters["rabbit-worker"][action] = "assets/generated/characters/rabbit-worker/work_east.png"
@@ -678,5 +683,23 @@ for _, character in ipairs(Config.customer.characterPool) do
     Config.characters[character].sit = "assets/generated/client-seating-v1/" .. character .. "/sit.png"
     Config.characterActionFrameSizes[character] = Config.characterActionFrameSizes[character] or {}
     Config.characterActionFrameSizes[character].sit = 256
+end
+local technicianArt=require("src.technician_art")
+Config.technician.characters=technicianArt.characters
+for character,actions in pairs(technicianArt.paths) do
+    Config.characters[character]=actions
+    Config.characterActionFrameSizes[character]={}
+    for action in pairs(actions) do Config.characterActionFrameSizes[character][action]=technicianArt.frameSize end
+end
+for character,actions in pairs(require("src.worker_work_art").paths) do
+    for action,path in pairs(actions) do
+        Config.characters[character][action]=path
+        Config.workerActionFrameSizes[character][action]=256
+    end
+end
+Config.characters["rabbit-worker"].walk_north=require("src.player_walk_art").paths["rabbit-worker"].walk_north
+Config.characterActionFrameLayouts = Config.characterActionFrameLayouts or {}
+for character,actions in pairs(require("src.worker_walk_art").paths) do
+    for action,path in pairs(actions) do Config.characters[character][action]=path end
 end
 return Config

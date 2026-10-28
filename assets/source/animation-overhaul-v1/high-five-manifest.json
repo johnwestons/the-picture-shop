@@ -1,0 +1,94 @@
+{
+  "generator": "OpenAI imagegen (built-in)",
+  "source": "assets/source/animation-overhaul-v1/rabbit-high-five-draft.png",
+  "sha256": "43ffbb60d737f27da3e62acb25cb15ba5ad584a1ce40aa88da1c4e33a4771587",
+  "crops": [
+    [
+      0,
+      0,
+      384,
+      512
+    ],
+    [
+      384,
+      0,
+      768,
+      512
+    ],
+    [
+      768,
+      0,
+      1152,
+      512
+    ],
+    [
+      1152,
+      0,
+      1536,
+      512
+    ],
+    [
+      0,
+      512,
+      464,
+      1024
+    ],
+    [
+      464,
+      512,
+      768,
+      1024
+    ],
+    [
+      768,
+      512,
+      1152,
+      1024
+    ],
+    [
+      1152,
+      512,
+      1536,
+      1024
+    ]
+  ],
+  "review_status": "selected",
+  "phases": [
+    "neutral",
+    "anticipation",
+    "raise",
+    "extend",
+    "contact",
+    "recoil",
+    "return",
+    "settle"
+  ],
+  "duration_weights": [
+    0.08,
+    0.1,
+    0.12,
+    0.12,
+    0.1,
+    0.12,
+    0.18,
+    0.18
+  ],
+  "boot_axes": [
+    256.5,
+    256.0,
+    256.0,
+    255.5,
+    256.0,
+    256.5,
+    255.5,
+    255.5
+  ],
+  "scale": 0.8577405857740585,
+  "baseline": 465,
+  "runtime": "assets/generated/characters/rabbit-worker/high-five-v5.png",
+  "prompt": "assets/source/animation-overhaul-v1/high-five-prompt.txt",
+  "reviewed_audit_findings": {
+    "frame_5_detached_component": "Intentional contact spark; present only at impact.",
+    "center_jitter": "Extended arm moves the alpha-box center. Planted boot anchor drift is separately bounded to 2px."
+  }
+}

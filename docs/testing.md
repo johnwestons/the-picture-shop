@@ -1,5 +1,117 @@
 # Test layout
 
+## Employee speech reasons
+
+The `employee-speech` focus exercises low skill on personal and shared schedules,
+empty versus paused queues, removal of stale warnings, and resumption after a
+skill increase. Real scheduling checks distinguish missing stretch film, delivery,
+player and employee machine ownership, blade exchange, and pallet-jack access.
+Blocked reasons persist while walking to the idle point and take priority over
+greetings. All caption lengths are checked against the rendered bubble's wrapped
+height; a capture can be written with `PICTURE_SHOP_EMPLOYEE_SPEECH_CAPTURE_DIR`.
+
+Protocol 45 extends the caption code catalog without adding text to realtime
+packets. Guest tests check host reason delivery, stale packet suppression,
+unknown-code rejection, and the full eleven-actor packet ceiling. Reports and
+fresh isolated profiles are in `output/employee-speech-20261026/`.
+
+October 26 validation: 22 focused checks, 6,316 desktop checks and 6,317 forced
+mobile checks pass. The compiler guard passes 609 files and 8,546 functions.
+The three-caption gameplay capture was reviewed for wrapping and head placement.
+
+## Room loading bays and employee shipping
+
+The `room-shipping` smoke focus covers garage purchases through CritterNet and
+host authority, catalog prices, replay safety, eligibility, and disk persistence.
+It drives two independent loaded pallet jacks through each completed room's
+entrance, loads only the matching truck manifest, and returns both jacks to clear
+warehouse parking. Blocked destination floors reject the whole room transfer.
+The host loading boundary rechecks the job, room, jack custody, distance, and
+player manifest lease. Player manifests also reject skids in another room.
+
+The full host cycle requests pickup for completed employee work, waits while a
+player uses the manifest, handles the garage and cargo doors, loads, departs,
+and pays once. It reloads a parked, loaded extra jack inside the room and again
+after every skid is aboard the truck. Environment/employee wire cases exercise
+room identities, separate garage-door progress, client delivery, malformed
+updates, and the packet ceiling. Protocol 44 adds these room dock states.
+
+Reports and disposable identities are in `output/room-shipping/`. Set
+`PICTURE_SHOP_SMOKE_FOCUS=room-shipping` for the focused run and optionally set
+`PICTURE_SHOP_ROOM_SHIPPING_CAPTURE_DIR` to an existing absolute directory for
+CritterNet and both open/closed room bay captures. Phone checks use forced-mobile
+LÖVE rendering and input; they do not replace testing on a physical device.
+
+October 26 validation: the focused run passes 28 checks; desktop and forced-mobile
+full runs each pass 6,292 checks. The Lua guard compiles 607 files and 8,525
+functions within the slot/upvalue budgets. Purchase UI and both open/closed room
+doors were reviewed in the capture directory.
+
+## Service visit reliability
+
+The blade courier now has a 2% call-out band and a 5% late band, down from
+15% and 20%. A booking waits for an active technician visit to finish before
+its outcome is evaluated. A postponed booking keeps its replacement date
+without another random disruption, including across save/reload; completion
+or a new booking resets that protection. Blade preparation is still required.
+
+`src/tests/service_reliability_test.lua` tests 100 independent appointment dates
+(93 on-time, five late, two call-outs), 500 busy-actor updates without extra
+rolls or notices, single notices, replacement dates after disk reload, and
+resetting the next booking. The `service-reliability` smoke focus also runs
+machine-fleet, cutter authority/session, and technician motion/network checks.
+Reports and disposable test identities are under `output/service-reliability/`.
+
+## Pallet jack shelf and staging routes
+
+The `pallet-routing` smoke focus reproduces the shelf-edge driving lock, a
+cached shelf approach blocked by another parked jack, and a pickup pocket that
+an empty jack can enter but a loaded jack cannot leave. It also exercises every
+slot in a full six-pallet staging area, two simultaneous stock-to-shelf routes,
+parking outside staging and shelf service space, and releasing a jack when the
+last stock pallet disappears. The eight cases live in
+`src/tests/pallet_jack_navigation_test.lua` and also run in the full suite.
+
+Pickup selection and its final load check now require a continuous loaded exit.
+Shelf access refreshes when blocked, and employees clear the rack aisle after
+stocking. Parking avoids the painted staging rectangles, including the vehicle
+footprint and a margin. Manual vehicle recovery permits bounded steps toward a
+verified clear footprint after loading at a floor edge; collision and wall
+checks still apply.
+
+Desktop and forced-mobile full suites each pass 6,245 checks, including all
+eight routing cases and the three-frame render check. Reports are in
+`output/pallet-routing/full-desktop.rpt` and
+`output/pallet-routing/full-mobile.rpt`; the original failures are recorded in
+the baseline reports alongside them. Tests use fresh disposable identities under
+`output/pallet-routing/appdata`. The Lua compiler guard passes 600 files and
+8,459 functions within the project budgets.
+
+## Purchasable pallet jacks
+
+`src/tests/pallet_jack_fleet_test.lua` covers salesman and CritterNet purchase
+buttons, channel prices, dock unloading, repeat-delivery protection, independent
+cargo ownership, loaded disk saves, legacy saves, player selection, simultaneous
+employee movement, collision with another loaded jack, and two complete
+pickup/delivery/parking routes to separate cutters. It also verifies extra-jack
+realtime packets, guest application, replay suppression, and reliable shop
+updates retaining a live employee operator. Multiplayer protocol 42 adds
+per-vehicle extra-jack updates within the existing 1,200-byte packet limit.
+
+The `pallet-fleet` smoke focus runs the fleet checks alongside employee
+transport/scheduling, pallet/storage ownership, save contracts, vendor authority,
+and computer viewport coverage. Use an output-local `APPDATA` directory and a
+fresh `the-picture-shop-test-...` identity for disposable saves. Set
+`PICTURE_SHOP_PALLET_FLEET_CAPTURE_DIR` to an existing absolute directory to render
+the salesman catalog, CritterNet Tools page, and two employees pushing loads.
+
+The full desktop and forced-mobile suites each pass 6,216 checks, including the
+three-frame render check, with reports in `output/pallet-fleet-full-desktop.rpt`
+and `output/pallet-fleet-full-mobile.rpt`. Visual captures are in
+`output/pallet-fleet-review/`. The compiler guard passes 596 Lua files and 8,404
+functions; all 11 runtime-source packaging tests pass. These checks use the
+desktop LÖVE engine; physical Android device testing is separate.
+
 ## Lua modules and compiler headroom
 
 `main.lua` delegates LÖVE callbacks and diagnostic modes to `src/bootstrap.lua`.
@@ -118,6 +230,8 @@ current rack/breakroom art and excludes their superseded packaged versions.
 The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save identity. It never reads or writes the player's normal save directory. To use a fresh profile without touching earlier test saves, set `PICTURE_SHOP_TEST_IDENTITY` to a unique name beginning `the-picture-shop-test-`; that override is accepted only in smoke mode.
 
 `RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. Visitors and the player show all eight directions together: enlarged walking poses use distance timing, while matching idle poses show actual shop size and brief blinks. Older auxiliary character actions retain the raw/normalized comparison.
+
+The lab also covers employees and technicians. Tab switches to individual action contact sheets; Up/Down selects an action. `tools/run_animation_review.ps1` captures the paired local/remote eight-frame high-five, employee directions/work/break poses, technician idles and north/south/east walks through host/interpolated guest poses at desktop and phone sizes. The `animation` smoke focus covers movement, character timing, visitors, technician wire/presentation, pallet-jack motion, title animation, mechanic work and world layers. See `docs/animation_overhaul.md` for source provenance, rebuild steps, evidence and the remaining active goal.
 
 The completed visitor pack covers the dragon, fox and tabby clients plus the tan-cardigan, blue-shirt and green-blazer cat salespeople. Five authored views and deliberate western mirrors give every design eight directions, an eight-frame forward walk loop and two-frame matching idles. Suppliers stand while waiting; seated clients keep the existing lounge poses. Walk phase follows achieved path distance, including turns, and freezes during courtesy stops. LAN snapshots already carry that distance and facing.
 

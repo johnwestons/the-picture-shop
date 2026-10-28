@@ -6,6 +6,7 @@ local Upgrades = require("src.warehouse_upgrades")
 local Service = require("src.construction_service")
 local Storage = require("src.pallet_storage")
 local Gait = require("src.gait_motion")
+local Animation = require("src.character_animation")
 
 local Construction = { SPEED=72, PIXELS_PER_FRAME=13, MAX_FRAME_TIME=0.1 }
 local paths = setmetatable({}, {__mode="k"})
@@ -89,9 +90,11 @@ function Construction.worker(state)
     return worker
 end
 
-function Construction.frame(worker)
-    if worker.moving then return math.floor(worker.animationDistance/Construction.PIXELS_PER_FRAME)%8+1 end
-    return math.floor(worker.idleTime*0.65)%2+1
+function Construction.frame(worker,frameCount)
+    if worker.moving then
+        return Animation.frameForGait(frameCount or 8,worker.animationDistance,Construction.PIXELS_PER_FRAME)
+    end
+    return Animation.frameForIdle(frameCount or 2,worker.idleTime,.65)
 end
 
 local function clear(canMove,x,y,tx,ty)

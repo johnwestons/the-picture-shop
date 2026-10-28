@@ -124,7 +124,7 @@
       "fps": 5.538461538461538
     },
     "walk_south": {
-      "path": "assets/generated/characters/cat-worker/walk_south.png",
+      "path": "assets/generated/worker-walk-v3/cat-worker/walk_south.png",
       "frame_width": 256,
       "frame_height": 256,
       "frame_count": 8,

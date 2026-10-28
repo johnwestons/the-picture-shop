@@ -1,0 +1,241 @@
+{
+  "title": "Tinker fox worker action, northwest cutter direction; one repaired frame 6 candidate",
+  "status": "staged for root review only; not runtime-registered or accepted",
+  "character": "tinker-fox-worker",
+  "action": "work_cutter",
+  "direction": "northwest, viewed from behind/right",
+  "source_scope": "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/",
+  "output_scope": "output/animation-overhaul/luna-worker-actions/directional-northwest/",
+  "source_atlas": {
+    "path": "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/tinker-fox-worker-work_cutter-northwest-v1-generated.png",
+    "sha256": "c0339dffbbe8cb496e678e29fa70fe9db2786fa22b2997741c908807fd5d3eed",
+    "dimensions_px": [
+      1774,
+      887
+    ],
+    "selected_source_cells": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "source_unchanged": true
+  },
+  "phase_mapping": [
+    "ready",
+    "reach up-left",
+    "contact outer supported feed lip",
+    "align at lip",
+    "withdraw toward controls",
+    "two-hand exterior-control hold (repaired cell6 candidate)",
+    "release and retract",
+    "recover to ready"
+  ],
+  "runtime_durations": "None assigned; root owns start/hold/release/recovery timing.",
+  "references": [
+    {
+      "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v3-generated.png",
+      "role": "approved fox identity, outfit, palette, outline, style",
+      "sha256": "a470303e30f7fe88f86a4e5b50a20ff9473e2a4ba3263d97f8bea7792942bd99"
+    },
+    {
+      "path": "assets/generated/characters/tinker-fox-worker/idle_northwest.png",
+      "role": "approved NW/back-right identity view and scale",
+      "sha256": "dffff5e2d32f472847e33500f4bd894735e7ec73abdbc0058e744458f825120b"
+    },
+    {
+      "path": "output/animation-overhaul/engine/desktop-tinker-fox-worker-work_cutter-host-contact-4.png",
+      "role": "actual default-machine screenshot and worker placement",
+      "sha256": "063d49dace622abc7dfd20e3c114c82c36aae232ac4d30273ad8715b45cce325"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v3-generated.png",
+      "role": "prior cutter action intent/tool identity only",
+      "sha256": "ae2583b8ab481b2ca3809144a91bc541b32df7f4a4748f83ec93651b6b326681"
+    },
+    {
+      "path": "output/animation-overhaul/luna-worker-actions/directional-northwest/contact-target-desktop-tinker-cutter.png",
+      "role": "original target reference used for v1; target later found below supported lip",
+      "sha256": "edac06d021b0f52d4d70a3f5bbe12ee7792d312b9358daec6837a504db0dce9d",
+      "generation_prompts_recorded_sha256": "c5a4637db322aa87a914b3451de01e78a3f5560e746033dcef5a51871c514f20",
+      "hash_mismatch_note": "the reference file changed after its first hash record; generation-time bytes were not separately retained"
+    },
+    {
+      "path": "output/animation-overhaul/luna-worker-actions/directional-northwest/contact-target-desktop-tinker-cutter-v2.png",
+      "role": "corrected proposed near/front lip target; post-generation review aid",
+      "sha256": "77141cc1b852b1e0dfdc10f6df4cd1ba3fabda7356fdd31fb46e675bef208266"
+    }
+  ],
+  "frame6_repair": {
+    "selected_raw_path": "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repaired-v2-generated.png",
+    "selected_raw_sha256": "643fc50d70be730f84ab24678378d7b7df84de4b0ae2ca47b3a147dcc9286225",
+    "two_prior_outputs_retained_as_rejected_or_intermediate": [
+      "tinker-fox-worker-work_cutter-nw-frame6-repaired-v1-generated.png",
+      "tinker-fox-worker-work_cutter-nw-frame6-repair-rejected-alt1.png"
+    ],
+    "prompt_record": "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/generation-prompts.md",
+    "review_metrics": "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repair-v2-review-metrics.json"
+  },
+  "registration": {
+    "v1_atlas_scale": 0.5765765765765766,
+    "v1_boot_anchor_256px": [
+      128,
+      229
+    ],
+    "source_boot_rois_x": {
+      "near": [
+        160,
+        245
+      ],
+      "far": [
+        270,
+        340
+      ]
+    },
+    "source_alpha_threshold_exclusive": 16,
+    "raw_foot_midpoint_drift_px": {
+      "x": 10.0,
+      "y": 9.5
+    },
+    "raw_interfoot_spread_px": [
+      82,
+      90
+    ],
+    "frame6_repair_scale": 0.20414673046251994,
+    "frame6_repair_boot_anchor_256px": [
+      128,
+      229
+    ],
+    "frame6_repair_translation_px": [
+      -11.0239,
+      -0.9713
+    ],
+    "no_per_pose_resize": true
+  },
+  "contact_target": {
+    "original_target_screen_px": [
+      630,
+      398
+    ],
+    "corrected_proposal_screen_px": [
+      642,
+      385
+    ],
+    "current_desktop_boot_anchor_px": [
+      663,
+      447
+    ],
+    "placement_anchor_root_proposed_px": [
+      688,
+      441
+    ],
+    "frame3_glove_tip_cell_px_approx": [
+      12,
+      89
+    ],
+    "frame3_glove_tip_offset_from_anchor_cell_px_approx": [
+      -116,
+      -140
+    ],
+    "review_overlay_scale": 0.4,
+    "contact_preview_glove_point_px_approx": [
+      642,
+      385
+    ]
+  },
+  "composite_cell_equality_check": [
+    {
+      "cell": 1,
+      "pixel_identical": true
+    },
+    {
+      "cell": 2,
+      "pixel_identical": true
+    },
+    {
+      "cell": 3,
+      "pixel_identical": true
+    },
+    {
+      "cell": 4,
+      "pixel_identical": true
+    },
+    {
+      "cell": 5,
+      "pixel_identical": true
+    },
+    {
+      "cell": 7,
+      "pixel_identical": true
+    },
+    {
+      "cell": 8,
+      "pixel_identical": true
+    }
+  ],
+  "review_artifacts": {
+    "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/tinker-fox-worker-work_cutter-northwest-v1-generated.png": {
+      "sha256": "c0339dffbbe8cb496e678e29fa70fe9db2786fa22b2997741c908807fd5d3eed",
+      "bytes": 1248049
+    },
+    "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repaired-v1-generated.png": {
+      "sha256": "8ef4ce7ca31ba972c20d0fffdf249ef450306cb7d2adcd16f063eb36fafcba7f",
+      "bytes": 862781
+    },
+    "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repair-rejected-alt1.png": {
+      "sha256": "5d104eb6b1cbcfdffa6cce7f937dca6d820aeddbf5a376f5bcffb928ee0564fe",
+      "bytes": 809728
+    },
+    "assets/source/animation-overhaul-luna-worker-actions-v1/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repaired-v2-generated.png": {
+      "sha256": "643fc50d70be730f84ab24678378d7b7df84de4b0ae2ca47b3a147dcc9286225",
+      "bytes": 895258
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/tinker-fox-worker-work_cutter-northwest-v1-registered-1024x512.png": {
+      "sha256": "5b6692fb76ddfca0744cdaaafff66fde8c2b6c73470dc54c778cb132d633d072",
+      "bytes": 485423
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/tinker-fox-worker-work_cutter-northwest-v3-frame6-repaired-1024x512.png": {
+      "sha256": "c6e91ebe09b0c72a66731ee8dd06eab7eec1fe7bc5f39fc41bcf66a0a6cb0366",
+      "bytes": 491518
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/tinker-fox-worker-work_cutter-northwest-v3-frame6-repaired-contact-sheet.png": {
+      "sha256": "9159d3a52d59fbf513634a7f859db8b99b300b5f4e49201ad7f1234f4b4570de",
+      "bytes": 820678
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/tinker-fox-worker-work_cutter-northwest-v3-frame6-repaired-timed-preview-4fps.gif": {
+      "sha256": "ffe1981b32562d01e352bef628f995c1cc3e77685c21852aa378cab16d2670eb",
+      "bytes": 99122
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repair-v2-contact-sheet.png": {
+      "sha256": "bf06617c6ca4734e4503a200f81ed6e040b4968dce513a3e0bb54f0c3e78164b",
+      "bytes": 401198
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/tinker-fox-worker-work_cutter-nw-frame6-repair-v2-review-metrics.json": {
+      "sha256": "e25963eb7ad5eceaab69f6ab8296fda02d40230986e15f7a5d5a998631951f75",
+      "bytes": 2962
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/tinker-fox-cutter-nw-frame3-contact-overlay-preview.png": {
+      "sha256": "8fbd88eae7f8d215eecfedcc389e13afa0216f76fc5f4375251c43031513f9e3",
+      "bytes": 1080917
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/tinker-fox-cutter-nw-frame6-v2-controls-overlay-preview.png": {
+      "sha256": "34dd881fe7309490af5076a9c5e0554e5d7338553cdb7a2bf81aa725c6ace60f",
+      "bytes": 1080869
+    },
+    "output/animation-overhaul/luna-worker-actions/directional-northwest/frame6-repair/generation-prompts.md": {
+      "sha256": "4b7774504776e72d373a78bd61b476a987bb92a30f6f6a9a6d74b39d03fd899f",
+      "bytes": 11036
+    }
+  },
+  "review_findings": [
+    "Camera is a useful NW/back-right improvement; anatomy review found exactly 2 ears, 2 arms, 2 legs, 1 tail, no detached extra ear marks.",
+    "Initial v1 frame3 target marker was on machine fascia, not supported lip; corrected v2 target diagram and overlay are staged. The source atlas was generated against original v1 target and may still need a contact-height revision.",
+    "Frame2/3/4 in source atlas may read too similarly at shop scale.",
+    "The selected frame6 v2 candidate has two separated glove/forearm silhouettes at 256px. Its right-side glove reaches far screen-right; the actual control-point compatibility remains root review, and its overlay shows that hand near the adjacent jack area in the current screenshot.",
+    "Generated candidate sheet and overlays are review-only; no runtime registration."
+  ]
+}

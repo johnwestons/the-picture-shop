@@ -258,7 +258,7 @@ function Windmill.completeSetup(state, task, score)
             local plate = job and Plates.ensureJob(job)[p.colorIndex]
             local inkId = plate and plate.inkColor == "Black" and "black_ink" or "color_ink"
             if (stock[inkId] or 0) < 1 then return false, "The correct ink is not in inventory." end
-            local consumed, reason = Procurement.consumeStockProduct(state, inkId, 1)
+            local consumed, reason = Procurement.consumeStockProduct(state, inkId, 1, {autoShelf=true})
             if not consumed then return false, reason end
             if job then
                 local totals = actual(job)
@@ -267,7 +267,7 @@ function Windmill.completeSetup(state, task, score)
             end
         elseif task == "packing" then
             if (stock.tympan_sheets or 0) < 1 then return false, "A clean tympan sheet is required." end
-            local consumed, reason = Procurement.consumeStockProduct(state, "tympan_sheets", 1)
+            local consumed, reason = Procurement.consumeStockProduct(state, "tympan_sheets", 1, {autoShelf=true})
             if not consumed then return false, reason end
             local _, job = Windmill.current(state)
             if job then
@@ -343,7 +343,10 @@ function Windmill.control(state, action)
             if not operable then return false, reason end
         end
         p.motor = not p.motor
-        if not p.motor then p.feeder, p.impression = false, false end
+        if not p.motor then
+            p.feeder, p.impression = false, false
+            if p.status=="production" then p.status="approved" end
+        end
     elseif action == "feeder" then if not p.motor then return false, "Start the motor first." end; p.feeder = not p.feeder
     elseif action == "impression" then if not p.motor then return false, "Start the motor first." end; p.impression = not p.impression
     elseif action == "speed_up" then p.speed = clamp(p.speed + 500, 1000, 5500)
@@ -516,7 +519,7 @@ function Windmill.cleanAndUnload(state)
         status = nextPalletStatus, world = world,
     })
     if not transitioned then return false, errorMessage end
-    local consumed, reason = Procurement.consumeStockProduct(state, "press_wash", 1)
+    local consumed, reason = Procurement.consumeStockProduct(state, "press_wash", 1, {autoShelf=true})
     if not consumed then
         pallet.location, pallet.status, pallet.world = "at_press", originalStatus, originalWorld
         pallet.pressMachineId = originalPressMachineId

@@ -11,6 +11,9 @@ local Calendar=require("src.business_calendar")
 local Contracts=require("src.employment_contracts")
 local Intent=require("src.office_intent")
 local Office=require("src.office_authority")
+local Procurement=require("src.procurement")
+local Storage=require("src.pallet_storage")
+local WarehouseLayout=require("src.warehouse_layout")
 local Screen=require("src.screens.schedule_screen")
 local Test={}
 local jackContext=require("src.tests.employee_transport_context")
@@ -60,6 +63,251 @@ local function markDelivered(j)
         p.world.fromX,p.world.fromY=p.world.x,p.world.y
         p.world.spawnProgress=1
     end
+end
+local function testDuplicateCutters(context,check)
+    local state=State.new()
+    local firstWorker=hire(state)
+    local secondWorker=hire(state)
+    firstWorker.cutterSkill,secondWorker.cutterSkill=100,100
+    firstWorker.contract.days,secondWorker.contract.days=127,127
+    firstWorker.contract.startDay,secondWorker.contract.startDay=0,0
+    firstWorker.contract.startHour,secondWorker.contract.startHour=9,9
+    firstWorker.contract.endHour,secondWorker.contract.endHour=17,17
+    local firstMachine=Fleet.installedUnits(state,"polar_115")[1]
+    state.money=10000
+    local bought,secondMachine=Fleet.buy(state,"dealer",1)
+    assert(bought,secondMachine)
+    local firstJob=job(state,"JOB-DUPLICATE-CUTTER-ONE")
+    local secondJob=job(state,"JOB-DUPLICATE-CUTTER-TWO")
+    markDelivered(firstJob);markDelivered(secondJob)
+    local function stage(machine,pallet)
+        Fleet.withUnit(state,machine.id,function()
+            local x,y=context.CutterZones.inputAnchor(state,context.config.cutterPlacement)
+            pallet.world.x,pallet.world.y=x,y
+            pallet.world.fromX,pallet.world.fromY=x,y
+            pallet.world.spawnProgress=1
+        end)
+    end
+    stage(firstMachine,firstJob.pallets[1])
+    stage(secondMachine,secondJob.pallets[1])
+    context.machine.reset(state)
+    assert(Employees.command(state,{kind="queue_employee_job",employeeId=firstWorker.id,
+        jobId=firstJob.id,machineId="auto"},9))
+    assert(Employees.command(state,{kind="queue_employee_job",employeeId=secondWorker.id,
+        jobId=secondJob.id,machineId="auto"},9))
+    Schedule.advance(state,firstWorker,9.1)
+    Schedule.advance(state,secondWorker,9.1)
+    check("duplicate_cutters_dispatch_two_employees_to_separate_machines",
+        firstWorker.assignment and secondWorker.assignment
+        and firstWorker.assignment.machineId~=secondWorker.assignment.machineId
+        and secondWorker.assignment.machineId==secondMachine.id,
+        "first="..tostring(firstWorker.assignment and firstWorker.assignment.machineId)
+            .." second="..tostring(secondWorker.assignment and secondWorker.assignment.machineId)
+            .." activity="..tostring(secondWorker.activity))
+    local workContext={canClaim=function() return true end,
+        operatorPoint=function(_,worker) return {x=worker.x,y=worker.y} end,
+        move=function(worker,goal)
+            worker.x,worker.y=goal.x,goal.y;worker.moving=false;return true
+        end}
+    local firstRuntime=context.machine.forId(firstMachine.id)
+    local secondRuntime=context.machine.forId(secondMachine.id)
+    local firstStarted,secondStarted=false,false
+    for _=1,1400 do
+        Work.update(state,firstWorker,.1,workContext)
+        Work.update(state,secondWorker,.1,workContext)
+        context.machine.updateAll(.1,state)
+        firstStarted=firstStarted or firstRuntime.step=="cutting"
+        secondStarted=secondStarted or secondRuntime.step=="cutting"
+        if firstStarted and secondStarted then break end
+    end
+    check("duplicate_cutters_run_concurrently_without_switching_operators",
+        firstStarted and secondStarted
+        and firstWorker.assignment.machineId==firstMachine.id
+        and secondWorker.assignment.machineId==secondMachine.id,
+        "first="..tostring(firstRuntime.step).." second="..tostring(secondRuntime.step)
+            .." firstActivity="..tostring(firstWorker.activity)
+            .." secondActivity="..tostring(secondWorker.activity))
+    for _=1,4000 do
+        Work.update(state,firstWorker,.1,workContext)
+        Work.update(state,secondWorker,.1,workContext)
+        context.machine.updateAll(.1,state)
+        if firstJob.pallets[1].status=="cut" and secondJob.pallets[1].status=="cut" then break end
+    end
+    check("duplicate_cutters_complete_both_purchased_and_original_cut_jobs",
+        firstJob.pallets[1].status=="cut" and secondJob.pallets[1].status=="cut"
+        and firstJob.pallets[1].finishedSheets==500 and secondJob.pallets[1].finishedSheets==500,
+        "first="..tostring(firstRuntime.step).." second="..tostring(secondRuntime.step)
+            .." secondActivity="..tostring(secondWorker.activity))
+    context.machine.reset(state)
+end
+local function testStockShelving(context,check)
+    local state=State.new()
+    local worker=hire(state)
+    worker.contract.days,worker.contract.startDay=127,0
+    worker.contract.startHour,worker.contract.endHour=9,17
+    state.money=50000
+    local bought,order=Procurement.buy(state,2,1)
+    assert(bought,order)
+    local pallet=order.pallets[1]
+    assert(Procurement.unload(state,order.id,pallet.id,
+        context.config.palletLogistics.spawnPoints,context.config.palletLogistics.unloadOrigin))
+    pallet.world.spawnProgress=1
+    local target=WarehouseLayout.rackPoint("warehouse-rack",1,1)
+    local workContext={canClaim=function() return true end,
+        idlePoint=function(actor) return {x=actor.x,y=actor.y} end,
+        move=function(actor,goal) actor.x,actor.y=goal.x,goal.y;actor.moving=false;return true end,
+        jackShelfPoint=function() return {x=target.x,y=target.groundY+55} end}
+    jackContext(workContext,state)
+    local touchedJack=false
+    for _=1,2200 do
+        AI.worker(state,worker,.1,9.1,workContext)
+        touchedJack=touchedJack or state.palletJack.operatorEmployeeId==worker.id
+        if pallet.location=="rack" then break end
+    end
+    check("employee_uses_pallet_jack_to_shelve_purchased_press_supplies",
+        touchedJack and pallet.location=="rack" and pallet.storage
+        and pallet.storage.rackId=="warehouse-rack" and pallet.storage.row==1
+        and state.palletJack.carriedPalletId==nil and Storage.validate(state),
+        "location="..tostring(pallet.location).." activity="..tostring(worker.activity)
+            .." jack="..tostring(state.palletJack.carriedPalletId))
+end
+local function testEmployeePressCycle(context,check)
+    local state=State.new()
+    local worker=hire(state)
+    worker.pressSkill,worker.wrappingSkill=60,100
+    worker.contract.days,worker.contract.startDay=127,0
+    worker.contract.startHour,worker.contract.endHour=9,17
+    state.money=20000
+    local bought,machine=Fleet.buy(state,"dealer",3)
+    assert(bought,machine)
+    local printed=assert(Jobs.createOffer({id="JOB-EMPLOYEE-PRESS-CYCLE",company="Press QA",
+        sourceSize={width=10,height=15},finishedSize={width=5,height=7},sheetCounts={1050},
+        packaging="flat",difficulty="easy",artworkKey="flower",
+        press={colors=2,coverage=.35,artworkSize={width=4.25,height=6.25},
+            colorSequence={"Black","Red"},requestedCopies={1000}}}))
+    Jobs.accept(printed);state.jobs.active[#state.jobs.active+1]=printed
+    markDelivered(printed)
+    local pallet=printed.pallets[1]
+    pallet.status,pallet.location="cut","cutter_output"
+    pallet.paper.status,pallet.remainingSheets,pallet.finishedSheets="complete",0,pallet.initialSheets
+    local pressPose=machine.world or state.windmill
+    pallet.world.x,pallet.world.y=pressPose.x-60,pressPose.y+30
+    pallet.world.fromX,pallet.world.fromY=pallet.world.x,pallet.world.y
+    local stock=state.inventory.stock
+    stock.raw_press_plates,stock.negative_film,stock.plate_adhesive,stock.plate_chemistry=2,2,2,2
+    stock.black_ink,stock.color_ink,stock.tympan_sheets,stock.press_wash=2,2,2,2
+    assert(Employees.command(state,{kind="queue_employee_job",employeeId=worker.id,
+        jobId=printed.id,machineId="auto"},9))
+    local workContext={canClaim=function() return true end,
+        operatorPoint=function(_,actor) return {x=actor.x,y=actor.y} end,
+        idlePoint=function(actor) return {x=actor.x,y=actor.y} end,
+        freeSeat=function() return nil end,
+        seat=function() return nil end}
+    jackContext(workContext,state)
+    local ran=false
+    for _=1,2500 do
+        AI.worker(state,worker,.1,9.1,workContext)
+        Windmill.updateAll(.1,state)
+        local process
+        Fleet.withUnit(state,machine.id,function() process=Windmill.ensure(state) end)
+        if process.status=="production" or process.status=="pass_complete" then ran=true;break end
+    end
+    check("employee_completes_press_setup_and_starts_production",
+        ran and worker.assignment and worker.assignment.machineId==machine.id,
+        "activity="..tostring(worker.activity).." pallet="..tostring(pallet.location)
+            .." stockInk="..tostring(stock.black_ink))
+    local lastActivity
+    for _=1,4000 do
+        AI.worker(state,worker,.1,9.1,workContext)
+        lastActivity=worker.activity
+        Windmill.updateAll(.1,state)
+        if pallet.press.status=="drying" and pallet.location=="press_output" then break end
+    end
+    check("employee_finishes_first_color_and_unloads_for_drying",
+        pallet.press.status=="drying" and pallet.location=="press_output"
+        and pallet.press.completedColors==1 and #pallet.press.passHistory==1,
+        "activity="..tostring(lastActivity).." press="..tostring(pallet.press.status))
+    hours(state,12)
+    for _=1,4000 do
+        AI.worker(state,worker,.1,12.1,workContext)
+        lastActivity=worker.activity
+        Windmill.updateAll(.1,state)
+        if pallet.press.status=="complete" and pallet.location=="press_output" then break end
+    end
+    check("employee_runs_press_through_output_and_unloads_finished_skid",
+        pallet.press.status=="complete" and pallet.location=="press_output"
+        and pallet.status=="printed" and pallet.press.completedColors==2
+        and #pallet.press.passHistory==2
+        and pallet.press.goodSheets>=1000,
+        "activity="..tostring(lastActivity).." pallet="..tostring(pallet.location)
+            .." press="..tostring(pallet.press.status)
+            .." good="..tostring(pallet.press.goodSheets))
+end
+
+local function testConcurrentEmployeePresses(context,check)
+    local state=State.new()
+    local workers={hire(state),hire(state)}
+    state.money=40000
+    assert(Fleet.buy(state,"dealer",3))
+    assert(Fleet.buy(state,"dealer",3))
+    local machines=Fleet.installedUnits(state,"heidelberg_10x15")
+    local pallets={}
+    for index,machine in ipairs(machines) do
+        local printed=assert(Jobs.createOffer({id="JOB-EMPLOYEE-PRESS-DUP-"..index,
+            company="Press duplicate QA",sourceSize={width=10,height=15},
+            finishedSize={width=5,height=7},sheetCounts={1050},
+            packaging="flat",difficulty="easy",artworkKey="flower",
+            press={colors=1,coverage=.35,artworkSize={width=4.25,height=6.25},
+                colorSequence={"Black"},requestedCopies={1000}}}))
+        Jobs.accept(printed);state.jobs.active[#state.jobs.active+1]=printed
+        markDelivered(printed)
+        local pallet=printed.pallets[1]
+        pallet.status,pallet.location="cut","cutter_output"
+        pallet.paper.status,pallet.remainingSheets,pallet.finishedSheets="complete",0,pallet.initialSheets
+        local pose=machine.world or state.windmill
+        pallet.world.x,pallet.world.y=pose.x-60,pose.y+30
+        pallet.world.fromX,pallet.world.fromY=pallet.world.x,pallet.world.y
+        pallets[index]=pallet
+        local worker=workers[index]
+        worker.pressSkill,worker.wrappingSkill=40,100
+        worker.contract.days,worker.contract.startDay=127,0
+        worker.contract.startHour,worker.contract.endHour=9,17
+    end
+    local stock=state.inventory.stock
+    stock.raw_press_plates,stock.negative_film,stock.plate_adhesive,stock.plate_chemistry=2,2,2,2
+    stock.black_ink,stock.tympan_sheets,stock.press_wash=2,2,2
+    for index,worker in ipairs(workers) do
+        assert(Employees.command(state,{kind="queue_employee_job",employeeId=worker.id,
+            jobId=state.jobs.active[index].id,machineId="auto"},9))
+        Schedule.advance(state,worker,9.1)
+    end
+    check("duplicate_printers_assign_two_workers_to_separate_presses",
+        #machines==2 and workers[1].assignment and workers[2].assignment
+        and workers[1].assignment.machineId~=workers[2].assignment.machineId)
+    local workContext={canClaim=function() return true end,
+        operatorPoint=function(_,actor) return {x=actor.x,y=actor.y} end,
+        move=function(actor,goal) actor.x,actor.y=goal.x,goal.y;actor.moving=false;return true end}
+    jackContext(workContext,state)
+    local bothRan=false
+    for _=1,6000 do
+        for _,worker in ipairs(workers) do Work.update(state,worker,.1,workContext) end
+        Windmill.updateAll(.1,state)
+        local running=0
+        for _,machine in ipairs(machines) do
+            Fleet.withUnit(state,machine.id,function()
+                if Windmill.ensure(state).counter>0 then running=running+1 end
+            end)
+        end
+        bothRan=bothRan or running==2
+        if pallets[1].press.status=="complete" and pallets[2].press.status=="complete" then break end
+    end
+    check("duplicate_printers_complete_both_employee_jobs_independently",
+        bothRan and pallets[1].location=="press_output" and pallets[2].location=="press_output"
+        and pallets[1].press.status=="complete" and pallets[2].press.status=="complete"
+        and pallets[1].press.goodSheets>=1000 and pallets[2].press.goodSheets>=1000,
+        "first="..tostring(pallets[1].press.status).." second="..tostring(pallets[2].press.status)
+            .." firstActivity="..tostring(workers[1].activity)
+            .." secondActivity="..tostring(workers[2].activity))
 end
 local function testTransfersAndPackaging(context,check)
     local transferState=State.new();local transferWorker=hire(transferState)
@@ -310,6 +558,10 @@ local function testTransfersAndPackaging(context,check)
 end
 
 function Test.run(context,check)
+    testDuplicateCutters(context,check)
+    testStockShelving(context,check)
+    testEmployeePressCycle(context,check)
+    testConcurrentEmployeePresses(context,check)
     testTransfersAndPackaging(context,check)
     local state=State.new();local w=hire(state);local m=Fleet.installedUnits(state,"polar_115")[1]
     local a=job(state,"JOB-QUEUE-A",{500,500});local b=job(state,"JOB-QUEUE-B",{1000});local c=job(state,"JOB-QUEUE-C")
@@ -570,8 +822,8 @@ function Test.run(context,check)
     local final=Schema.snapshot(state)
     check("schedule_finished_jobs_survive_save_reload_without_restarting",final and State.applyLocalSave(reopened,{state=final,slot=1}) and #reopened.employment.staff[1].schedule.items==0 and #reopened.employment.staff[1].schedule.history==3)
     cutter.setOutputResolver(oldResolver);context.machine.reset(state)
-    -- Closed jobs leave a visible history record; unavailable cutters block
-    -- the first job rather than discarding it or silently changing its machine.
+    -- Closed jobs leave a visible history record; a shop without any cutter
+    -- keeps the next job queued until one is installed.
     local closed=State.new();local cw=hire(closed);local cm=Fleet.installedUnits(closed,"polar_115")[1]
     local removed=job(closed,"JOB-CANCELLED");local nextJob=job(closed,"JOB-AFTER-CANCEL")
     deliver(closed,removed,context);deliver(closed,nextJob,context)
@@ -585,7 +837,7 @@ function Test.run(context,check)
     cw.assignment=nil
     local sold,saleMessage=Fleet.sell(closed,cm.id,"online");assert(sold,saleMessage)
     Schedule.advance(closed,cw,9)
-    check("schedule_missing_machine_waits_without_losing_job",cw.assignment==nil and #cw.schedule.items==1 and cw.activity:find("unavailable",1,true),cw.activity.." "..tostring(cw.assignment and cw.assignment.jobId))
+    check("schedule_missing_machine_waits_without_losing_job",cw.assignment==nil and #cw.schedule.items==1 and cw.activity:find("No available paper cutter",1,true),cw.activity.." "..tostring(cw.assignment and cw.assignment.jobId))
     local bounded=State.new();local bw=hire(bounded);local bm=Fleet.installedUnits(bounded,"polar_115")[1]
     local lastAddMessage
     for i=1,17 do local j=job(bounded,"JOB-LIMIT-"..i);markDelivered(j);local added,message=add(bounded,bw,j,bm);if not added then lastAddMessage=message end end

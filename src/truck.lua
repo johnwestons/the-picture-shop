@@ -29,6 +29,7 @@ end
 
 function Instance:reset()
     self.state = "absent"
+    self.sceneId = "warehouse"
     self.jobId = nil
     self.mode = nil
     self.timer = 0
@@ -36,10 +37,11 @@ function Instance:reset()
     self.cargoProgress = 0
 end
 
-function Instance:schedule(jobId, mode)
+function Instance:schedule(jobId, mode, sceneId)
     if self.state ~= "absent" or type(jobId) ~= "string" then return false end
     self.jobId = jobId
     self.mode = mode or "delivery"
+    self.sceneId = sceneId or "warehouse"
     self.timer = self.scheduleDelay
     self.state = "scheduled"
     return true
@@ -83,6 +85,7 @@ function Instance:update(dt, bayDoorState, motionDt)
         self.backingProgress = math.max(0, self.backingProgress - motionDt / self.backingDuration)
         if self.backingProgress <= 0 then
             self.state = "absent"
+            self.sceneId = "warehouse"
             self.jobId = nil
             self.mode = nil
             return "departed"
@@ -133,14 +136,20 @@ function Instance:blocksBayClosure()
     return self.state == "waiting_for_bay" or self:isVisible()
 end
 
-function Instance:transform()
+-- Normalized visual position shared by every truck renderer; simulation keeps
+-- backingProgress as the unsmoothed, time-based motion fraction.
+function Instance:visualTravelProgress()
     local amount = (self.state == "backing" or self.state == "departing")
         and self.backingProgress
         or (self:isParked() and 1 or 0)
+    return smoothstep(amount)
+end
+
+function Instance:transform()
     -- Ease both ends of the maneuver so the truck pulls away from rest and
     -- settles against the dock without the visible start/stop snap produced
     -- by a constant-speed interpolation.
-    amount = smoothstep(amount)
+    local amount = self:visualTravelProgress()
     return {
         x = lerp(self.start.x, self.parked.x, amount),
         y = lerp(self.start.y, self.parked.y, amount),
@@ -160,13 +169,14 @@ function Instance:getInteraction()
     else
         prompt = "Truck cargo door is " .. self.state:gsub("cargo_", "")
     end
+    local contact=self.sceneId~="warehouse" and require("src.room_loading_bays").truckInteraction or self.interaction
     return {
-        x = self.interaction.x,
-        y = self.interaction.y,
-        radius = self.interaction.radius,
-        hoverX = self.interaction.hoverX,
-        hoverY = self.interaction.hoverY,
-        hoverRadius = self.interaction.hoverRadius,
+        x = contact.x,
+        y = contact.y,
+        radius = contact.radius,
+        hoverX = contact.hoverX,
+        hoverY = contact.hoverY,
+        hoverRadius = contact.hoverRadius,
         prompt = prompt,
         truckState = self.state,
         truckMode = self.mode,
@@ -175,6 +185,8 @@ end
 
 function Instance:getObstacle()
     if not self:isVisible() then return nil end
+    -- Room trucks stop outside the threshold; the approach apron stays clear.
+    if self.sceneId~="warehouse" then return nil end
     local transform = self:transform()
     return {
         x = transform.x + self.obstacle.offsetX,
@@ -189,6 +201,7 @@ function Instance:snapshot()
         state = self.state,
         jobId = self.jobId,
         mode = self.mode,
+        sceneId = self.sceneId,
         backingProgress = self.backingProgress,
         cargoProgress = self.cargoProgress,
         cargoFrame = self:cargoFrame(),
@@ -228,6 +241,10 @@ function Instance:applySnapshot(snapshot)
     then
         return false
     end
+    local scene=snapshot.sceneId or "warehouse"
+    if scene~="warehouse" and scene~="front_left" and scene~="front_right" then return false end
+    if scene~="warehouse" and snapshot.mode~="pickup" then return false end
+    self.sceneId=scene
     self.state = snapshot.state
     self.jobId = snapshot.jobId
     self.mode = snapshot.mode

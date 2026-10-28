@@ -215,17 +215,39 @@ function Smoke.start(context)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="employee-speech" then
+            require("src.tests.employee_speech_test").run(context,check)
         elseif focus=="employee-network" then
             require("src.tests.network_protocol_test").run(context,check)
             require("src.tests.multiplayer_session_test").run(context,check)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="service-reliability" then
+            for _,name in ipairs({"service_reliability","machine_fleet","cutter_maintenance_authority",
+                "cutter_maintenance_session","technician_motion","technician_network"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="room-shipping" then
+            require("src.tests.room_shipping_test").run(context,check)
+        elseif focus=="pallet-routing" then
+            require("src.tests.pallet_jack_navigation_test").run(context,check)
+        elseif focus=="pallet-fleet" then
+            for _,name in ipairs({"lua_limits","pallet_jack_fleet","employee_transport","employee_schedule",
+                "pallet_state","pallet_storage","warehouse_save","save_contract","vendor_authority","computer_viewport"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="employee-transport" then
             require("src.tests.lua_limits_test").run(context,check)
             require("src.tests.employee_transport_test").run(context,check)
             require("src.tests.worker_animation_test").run(context,check)
             require("src.tests.npc_navigation_test").run(context,check)
             require("src.tests.pallet_pickup_test").run(context,check)
+        elseif focus=="animation" then
+            for _,name in ipairs({"lua_limits", "player_controller", "character_animation", "employee_work_animation", "employee_work_presentation", "technician_motion", "technician_network", "customer_motion", "client_seating",
+                "worker_animation", "npc_navigation", "time_acceleration_motion", "pallet_jack_motion", "pallet_jack_presentation",
+                "title_menu_animation", "warehouse_construction", "mechanic_work_presentation", "machine_motion", "cutter_presentation", "sound", "multiplayer_world_layers", "asset_pack"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="employee-animation" then
             require("src.tests.customer_motion_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)

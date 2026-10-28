@@ -91,7 +91,49 @@ function Test.run(context,check)
     check("employees_staff_panel_reports_empty_shared_schedule_accurately",
         emptyStatus=="No scheduled work" and emptyDetail:find("Add jobs",1,true)~=nil)
     check("employees_contract_has_next_upcoming_shift_and_pay_preview",w.contract.startDay==0
-        and Contracts.weeklyEstimate(w.contract)==825 and Contracts.onShift(w.contract,9) and not Contracts.onShift(w.contract,17))
+        and Contracts.weeklyEstimate(w.contract)==797.5 and Contracts.onShift(w.contract,9) and not Contracts.onShift(w.contract,17))
+    local changeState=State.new();local changing=hire(changeState)
+    changing.shiftPreference="flexible"
+    local originalDays,originalEnd=changing.contract.days,changing.contract.endHour
+    local changed=Employees.command(changeState,{kind="change_employee_hours",employeeId=changing.id,
+        expectedRevision=changing.contract.revision,days=3,startHour=10,endHour=16},10)
+    check("employees_schedule_change_waits_for_current_shift_to_end",
+        changed and changing.pendingSchedule and changing.pendingSchedule.days==3
+        and changing.contract.days==originalDays and changing.contract.endHour==originalEnd
+        and Schema.validState(Schema.snapshot(changeState)))
+    local stale=Employees.command(changeState,{kind="change_employee_hours",employeeId=changing.id,
+        expectedRevision=changing.contract.revision-1,days=31,startHour=9,endHour=17},10.1)
+    check("employees_stale_schedule_change_cannot_replace_agreed_hours",not stale
+        and changing.pendingSchedule.days==3)
+    check("employees_schedule_change_has_network_intent_validation",
+        Intent.normalize({kind="change_employee_hours",employeeId=changing.id,
+            expectedRevision=changing.contract.revision,days=3,startHour=10,endHour=16})~=nil
+        and Intent.normalize({kind="change_employee_hours",employeeId=changing.id,
+            expectedRevision=changing.contract.revision,days=0,startHour=10,endHour=16})==nil)
+    AI.worker(changeState,changing,.1,17.1,{})
+    check("employees_revised_days_and_hours_activate_after_shift",
+        changing.pendingSchedule==nil and changing.contract.days==3
+        and changing.contract.startHour==10 and changing.contract.endHour==16
+        and changing.contract.wageCents==2200 and changing.contract.payWeeks==1)
+    local shortened=Employees.command(changeState,{kind="change_employee_hours",employeeId=changing.id,
+        expectedRevision=changing.contract.revision,days=1,startHour=10,endHour=14},17.2)
+    check("employees_can_reduce_days_and_hours_between_shifts",shortened
+        and changing.contract.days==1 and changing.contract.endHour==14
+        and Schema.validState(Schema.snapshot(changeState)))
+    local scheduleUi=Hiring.new()
+    scheduleUi.section,scheduleUi.selectedId="staff",changing.id
+    local editX,editY=Hiring.buttonCenter("scheduleEdit")
+    Hiring.mousepressed(changeState,scheduleUi,editX,editY,function() return {action="blocked"} end,false)
+    local plusX,plusY=Hiring.buttonCenter("endPlus")
+    Hiring.mousepressed(changeState,scheduleUi,plusX,plusY,function() return {action="blocked"} end,false)
+    local sendX,sendY=Hiring.buttonCenter("send")
+    local uiResult=Hiring.mousepressed(changeState,scheduleUi,sendX,sendY,function(intent)
+        local okay=Employees.command(changeState,intent,17.3)
+        return {action=okay and "employment_changed" or "blocked"}
+    end,false)
+    check("employees_staff_screen_can_renegotiate_existing_shift",
+        uiResult and uiResult.action=="employment_changed" and scheduleUi.view=="detail"
+        and changing.contract.endHour==15 and changing.contract.days==1)
     local snapshot=Schema.snapshot(fresh)
     check("employees_contract_and_resume_round_trip",snapshot and Schema.validState(snapshot)
         and snapshot.employment.staff[1].contract.wageCents==2200 and snapshot.clientEmails.inbox[1].applicationId==a.id)
@@ -121,8 +163,11 @@ function Test.run(context,check)
     local shortState=State.new();local shortWorker=hire(shortState)
     shortWorker.visible=true;shortWorker.clockedIn=true;shortWorker.phase="idle";shortWorker.breaksTaken=1
     shortWorker.contract.endHour=14
-    AI.worker(shortState,shortWorker,.1,13.1,{idlePoint=function(worker) return {x=worker.x,y=worker.y} end})
-    check("employees_short_shift_meal_matches_contract_estimate",shortWorker.phase=="idle" and shortWorker.breakKind==nil and Contracts.weeklyEstimate(shortWorker.contract)==550)
+    AI.worker(shortState,shortWorker,.1,13.1,{idlePoint=function(worker) return {x=worker.x,y=worker.y} end,
+        freeSeat=function() return nil end})
+    check("employees_short_shift_meal_matches_contract_estimate",shortWorker.phase=="break"
+        and shortWorker.breakKind=="meal" and shortWorker.breakRemaining==.75
+        and Contracts.weeklyEstimate(shortWorker.contract)==467.5)
     wageWorker.weeks={};wageWorker.visible=true;wageWorker.contract.days=127
     for day=4,9 do Payroll.accrue(wageWorker,day*24+9,day*24+17) end
     check("employees_weekly_overtime_after_40_paid_hours",Payroll.balance(wageWorker,273,true)==114400 and wageWorker.weeks[1].paidHours==48)
@@ -140,7 +185,7 @@ function Test.run(context,check)
     check("employees_offer_expiry_is_persisted",ea.status=="expired" and not Employees.command(expired,{kind="hire_employee",applicationId=ea.id,expectedRevision=ea.revision},4))
 
     local maximum=Codec.array()
-    for i=1,4 do maximum[i]=Codec.array({i==4 and "APP-999999" or ("EMP-99999"..i),96000,67800,8,10399,12999,1,9,4,2,1000,0}) end
+    for i=1,4 do maximum[i]=Codec.array({i==4 and "APP-999999" or ("EMP-99999"..i),96000,67800,8,10399,12999,1,9,124,2,1000,0}) end
     local env={sessionId=string.rep("s",64),serverTick=4294967295,bayDoor={state="open",progress=1},
         truck={state="backing",jobId=string.rep("J",64),mode="delivery",backingProgress=.123456789012345,cargoProgress=0},employees=maximum}
     local packet,packetError=Protocol.encode("environment_snapshot",env)
@@ -300,6 +345,9 @@ function Test.run(context,check)
     screen.hiring.section="applications";screen.hiring.selectedId=a.id;draw("employees_hiring_resume_draws")
     screen.hiring.view="offer";screen.hiring.terms=Contracts.terms(2200,31,9,17);draw("employees_hiring_offer_draws")
     screen.hiring.section="staff";screen.hiring.view="detail";screen.hiring.selectedId=w.id;draw("employees_hiring_staff_draws")
+    screen.hiring.view="renegotiate";screen.hiring.terms=Contracts.terms(2200,31,9,17)
+    draw("employees_hiring_post_hire_schedule_editor_draws")
+    screen.hiring.view="detail"
     local oldClockedIn=w.clockedIn
     local originalPrintf=love.graphics.printf
     local function staffStatusDraw(clockIn)

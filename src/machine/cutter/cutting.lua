@@ -138,6 +138,7 @@ function Component.run(Context)
             end
         elseif Context.Machine.step == "resetting" then
             Context.Machine.progress = Context.Machine.progress + dt
+            Context.Machine.bladeProgress = math.max(0,Context.Machine.bladeProgress-dt/.25)
             if Context.Machine.progress >= 0.35 then
                 local resume = Context.Machine._resetResume
                 if resume == nil or resume == "idle" then

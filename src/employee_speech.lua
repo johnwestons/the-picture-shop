@@ -7,9 +7,25 @@ local messages={
     "Path blocked","Finishing up","Starting shift","Heading home",
     "Waiting for pay","Work paused","Ready to work","Preparing plate",
     "Cleaning press","Preparing wrap",
-    "May I use the jack?","To the pallet jack",
+    "Waiting for a free pallet jack","To the pallet jack",
     "Playing air hockey","Playing basketball","Playing Critter Kombat",
 }
+local reasons=require("src.employee_speech_reasons")
+Speech.REASONS={}
+for index,reason in ipairs(reasons) do
+    local code=31+index
+    Speech.REASONS[reason[1]]=code
+    messages[code]=reason[2]
+end
+Speech.MAX_CODE=31+#reasons
+function Speech.reason(activity)
+    local value=string.lower(tostring(activity or ""))
+    for index,reason in ipairs(reasons) do
+        for _,pattern in ipairs(reason[3]) do
+            if value:find(pattern,1,true) then return 31+index end
+        end
+    end
+end
 function Speech.code(entry)
     if not entry or not entry.worker or not entry.actor or entry.actor.visible==false then return 0 end
     local a,w=entry.actor,entry.worker
@@ -17,6 +33,8 @@ function Speech.code(entry)
     -- an older assignment/activity from the reliable shop snapshot.
     if type(a.speechCode)=="number" and a.speechCode%1==0
         and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
+    local reason=Speech.reason(w.activity)
+    if reason then return reason end
     if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=3 then return a.greetingKind end
     if a.phase=="leaving" then
         if (w.activity or ""):find("Exit path blocked",1,true) then return 17 end
@@ -31,7 +49,8 @@ function Speech.code(entry)
     end
     if a.phase=="break_walk" then return 9 end
     local activity=(w.activity or ""):lower()
-    if activity:find("waiting for the pallet jack",1,true) then return 27 end
+    if activity:find("waiting for the pallet jack",1,true)
+        or activity:find("waiting for an available pallet jack",1,true) then return 27 end
     if activity:find("overdue wages",1,true) then return 21 end
     if activity:find("paused",1,true) then return 22 end
     if activity:find("blocked",1,true) or activity:find("another way",1,true) then return 17 end

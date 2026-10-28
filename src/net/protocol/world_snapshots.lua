@@ -355,10 +355,17 @@ function Component.install(Runtime)
 
     function Runtime.normalizeTruck(value, label)
         local valid, shapeError = Runtime.shape(value, label,
-            { "state", "backingProgress", "cargoProgress" }, { "jobId", "mode" })
+            { "state", "backingProgress", "cargoProgress" }, { "jobId", "mode", "sceneId" })
         if not valid then return nil, shapeError end
         if not Runtime.TRUCK_STATES[value.state] then return nil, label .. ".state is invalid" end
         local normalized = { state = value.state }
+        if value.sceneId~=nil then
+            if value.sceneId~="warehouse" and value.sceneId~="front_left" and value.sceneId~="front_right" then
+                return nil,label..".sceneId is invalid"
+            end
+            if value.sceneId~="warehouse" and value.mode~="pickup" then return nil,label..".room truck must be a pickup" end
+            normalized.sceneId=value.sceneId
+        end
         local fieldError
         normalized.backingProgress, fieldError = Runtime.numberInRange(
             value.backingProgress, 0, 1, label .. ".backingProgress")
@@ -386,7 +393,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizeEnvironmentSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "environment_snapshot payload",
-            { "sessionId", "serverTick", "bayDoor", "truck" }, { "employees" })
+            { "sessionId", "serverTick", "bayDoor", "truck" }, { "employees", "technician", "roomDoors" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "environment_snapshot.sessionId")
@@ -406,13 +413,23 @@ function Component.install(Runtime)
             employees=Runtime.EmployeePose.normalize(payload.employees)
             if not employees then return nil,"environment_snapshot.employees is inconsistent" end
         end
-        return {
-            sessionId = sessionId,
-            serverTick = serverTick,
-            bayDoor = bayDoor,
-            truck = truck,
-            employees = employees,
-        }
+        local technician
+        if payload.technician~=nil then
+            technician=Runtime.TechnicianPose.normalize(payload.technician)
+            if not technician then return nil,"environment_snapshot.technician is inconsistent" end
+        end
+        local roomDoors
+        if payload.roomDoors~=nil then
+            local okay,errorMessage=Runtime.shape(payload.roomDoors,"roomDoors",{"front_left","front_right"})
+            if not okay then return nil,errorMessage end
+            roomDoors={}
+            for _,id in ipairs({"front_left","front_right"}) do
+                roomDoors[id],errorMessage=Runtime.normalizeBayDoor(payload.roomDoors[id],"roomDoors."..id)
+                if not roomDoors[id] then return nil,errorMessage end
+            end
+        end
+        return {sessionId=sessionId,serverTick=serverTick,bayDoor=bayDoor,
+            truck=truck,employees=employees,technician=technician,roomDoors=roomDoors}
     end
 
     function Runtime.normalizeEmployeeSnapshot(payload)
