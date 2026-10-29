@@ -145,10 +145,11 @@ warning; public releases should be code-signed.
 
 The latest public Android test installer is [Android 61](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61),
 which uses multiplayer protocol 41. The current source uses protocol 47 and is
-configured for Android 66; build a matching private installer with
+configured for Android 67; build a matching private installer with
 `PACK_ANDROID.bat`. Every multiplayer participant needs the same build and
-protocol. Android 66's handoff and remaining physical phone/tablet checks are in
-[the Android 66 release notes](docs/android_66_release.md). Android 65 remains documented in
+protocol. Android 67's handoff and device verification are in
+[the Android 67 release notes](docs/android_67_release.md). Android 66 remains documented in
+[the Android 66 release notes](docs/android_66_release.md), and Android 65 remains documented in
 [the Android 65 release notes](docs/android_65_release.md). The older
 [Android 61 release notes](docs/android_61_release.md) remain historical.
 
