@@ -177,6 +177,15 @@ function Component.install(Runtime)
             local obstacles = Runtime.movementObstacles(state, state.palletJack, {
                 x = halfWidth, y = halfHeight, shape = "diamond",
             }, kind == "cutter", kind == "wrapper", nil, kind == "windmill",false,sceneId)
+            local doorway=sceneId=="warehouse" and Rooms.roomEntrance or Rooms.exit
+            local doorwayRadius=doorway.radius+math.max(halfWidth,halfHeight)+32
+            local function nearDoorway(x,y)
+                return (x-doorway.x)^2+(y-doorway.y)^2<=doorwayRadius^2
+            end
+            if (nearDoorway(item.x,item.y) or nearDoorway(nextX,nextY))
+                and Runtime.Navigation.isAreaWalkable(moveAssets,nextX,nextY,0,0)
+                and Runtime.Navigation.canMoveFrom(moveAssets,item.x,item.y,nextX,nextY,obstacles)
+            then return true end
             if kind == "windmill"
                 and not Runtime.Navigation.isAreaWalkable(moveAssets, item.x, item.y, 0, 0)
             then

@@ -183,6 +183,9 @@ local function roomRelocation(context, check, index)
     if index == 1 then
         unit = Fleet.installedUnits(state, "polar_115")[1]
         context.machine.forId(unit.id).reset(state)
+    elseif index == 2 then
+        unit = Fleet.installedUnits(state, "skid_wrapper")[1]
+        context.wrapper.forId(unit.id).reset(state)
     else
         local bought
         bought, unit = Fleet.buy(state, "dealer", 3)
@@ -275,13 +278,18 @@ local function roomRelocation(context, check, index)
         local movedAgain = context.world.beginMachineMove(state, unit.id, false)
         if movedAgain then
             unit.world.x, unit.world.y, unit.world.moving, unit.world.inMotion =
-                Rooms.exit.x, Rooms.exit.y, true, false
+                Rooms.exit.x, Rooms.exit.y + 72, true, false
             jack.x, jack.y, jack.moving = unit.world.x, unit.world.y + 8, false
             context.world.player.x, context.world.player.y =
                 context.PalletJack.operatorPosition(state, context.config.palletJack)
-            local crossed = Rooms.transition(context.world.player, state, "warehouse", {
-                assets = context.assets,
-            })
+            local exitTarget=Rooms.targets(context.world.player,state).shopEntrance
+            local targetReachable=exitTarget and ((context.world.player.x-exitTarget.x)^2
+                +(context.world.player.y-exitTarget.y)^2<=exitTarget.radius^2)
+            check(prefix .. "room_exit_action_reaches_attached_machine_door", targetReachable,
+                string.format("radius=%s player=%.1f,%.1f jack=%.1f,%.1f",
+                    tostring(exitTarget and exitTarget.radius),context.world.player.x,context.world.player.y,jack.x,jack.y))
+            local crossed = context.world.performNetworkInteraction(
+                context.world.player,state,"shopRoom","warehouse")
             if crossed then returned = choosePlacement() end
         end
     end
@@ -296,6 +304,7 @@ function Test.run(context, check)
         for _, channel in ipairs({ "dealer", "online" }) do controlLoop(context, check, index, channel) end
     end
     roomRelocation(context, check, 1)
+    roomRelocation(context, check, 2)
     roomRelocation(context, check, 3)
     guards(context, check)
     context.world.load()

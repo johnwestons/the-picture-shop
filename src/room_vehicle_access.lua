@@ -55,12 +55,17 @@ function Access.landing(assets,scene,vehicle,obstacles,attachedFootprint)
         height=math.max(height,tonumber(attachedFootprint.y) or 0)
     end
     local base=scene=="warehouse" and Rooms.roomEntrance or Rooms.exit
+    local doorwayRadius=base.radius+math.max(width,height)
     local candidates={}
-    -- Both sides are fully inside the walkable floor, beyond the door jamb.
+    -- Prefer landing beyond the jamb; large machines may overhang the doorway
+    -- while their center remains on the walkable passage.
     for _,dy in ipairs({72,96,120}) do
         for _,dx in ipairs({0,32,-32,64,-64}) do
             local x,y=base.x+dx,base.y+dy
-            if Navigation.isAreaWalkable(assets,x,y,width,height) then
+            local withinDoorway=(x-base.x)^2+(y-base.y)^2<=doorwayRadius^2
+            local walkable=Navigation.isAreaWalkable(assets,x,y,width,height)
+                or withinDoorway and Navigation.isAreaWalkable(assets,x,y,0,0)
+            if walkable then
                 local clear=true
                 for _,o in ipairs(obstacles or {}) do
                     if Footprint.penetration(Footprint.expand(o,{x=width,y=height,shape="diamond"}),x,y)>0 then clear=false;break end
