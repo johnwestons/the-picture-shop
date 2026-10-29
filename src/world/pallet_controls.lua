@@ -3,6 +3,49 @@
 local Component = {}
 
 function Component.install(Runtime)
+    function Runtime.World.takeEmployeePalletJack(state,jackId,playerId)
+        local fleet=require("src.pallet_jack_fleet")
+        local jack=fleet.byId(state,jackId)
+        if not jack or not jack.operating or not jack.operatorEmployeeId then
+            state.message="That employee is no longer operating this pallet jack."
+            return false
+        end
+        if (jack.sceneId or "warehouse")~=require("src.shop_rooms").scene(Runtime.World.player) then
+            state.message="Move to the room containing this pallet jack first."
+            return false
+        end
+        if Runtime.palletJackHasAttachedMachine(state) then
+            state.message="Place the moving machine before taking the pallet jack."
+            return false
+        end
+        for _,other in ipairs(fleet.all(state)) do
+            if other~=jack and other.operating and other.operatorPlayerId==playerId then
+                state.message="Park your current pallet jack before taking another one."
+                return false
+            end
+        end
+        if state.forklift and state.forklift.operating and state.forklift.operatorPlayerId==playerId then
+            state.message="Park the forklift before taking the pallet jack."
+            return false
+        end
+        local employeeId=jack.operatorEmployeeId
+        fleet.selectJack(state,jack)
+        local accepted,reason=require("src.employee_pallet_jack").takeFromEmployee(state,employeeId,playerId)
+        if not accepted then
+            state.message=reason=="operating_forklift"
+                and "Park the forklift before taking the pallet jack."
+                or "The pallet jack could not be transferred from the employee."
+            return false
+        end
+        Runtime.World.player.x,Runtime.World.player.y=Runtime.PalletJack.operatorPosition(state,Runtime.Config.palletJack)
+        Runtime.World.player.sceneId=state.palletJack.sceneId or "warehouse"
+        Runtime.World.player.moving=false
+        local worker=Runtime.Employees.worker(state,employeeId)
+        state.message="You took the pallet jack from "..(worker and worker.name or "the employee")
+            ..". They will resume assigned work."
+        return true
+    end
+
     function Runtime.validNetworkPlayerId(player)
         local id = type(player) == "table" and tonumber(player.id) or nil
         return id and id == math.floor(id) and id >= 1 and id <= 4 and id or nil

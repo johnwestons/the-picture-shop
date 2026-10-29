@@ -257,6 +257,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.findCutterOutput(state, assets, excludedPalletId, machineId)
+        machineId=machineId or "MCH-0001"
         local unit=Runtime.MachineFleet.byId(state,machineId)
         local sceneId=unit and unit.world and unit.world.sceneId or "warehouse"
         local function outputClear(x,y,outputScene)

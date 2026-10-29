@@ -148,7 +148,7 @@ local function routes(context,check,scene)
     local s=shop();assert(Bays.purchase(s,scene,"GARAGE-"..scene))
     local w1,w2=hire(s),hire(s)
     Fleet.add(s,"SHIP-JACK-2",{x=510,y=575})
-    local j=job(s,"SHIP-"..scene)
+    local j=job(s,"SHIP-"..scene,scene)
     local other=job(s,"OTHER-"..scene)
     local world=context.world
     world.load();world.player.x,world.player.y=930,640
@@ -167,9 +167,12 @@ local function routes(context,check,scene)
         if (w1.sceneId or "warehouse")==scene or (w2.sceneId or "warehouse")==scene then crossed=true end
         if Service.remainingPickup(s,j.id)==0 then break end
     end
-    local details=string.format("remaining=%d / %s %.1f,%.1f %s / %s %.1f,%.1f %s",
-        Service.remainingPickup(s,j.id),w1.activity,w1.x,w1.y,w1.sceneId or "warehouse",
-        w2.activity,w2.x,w2.y,w2.sceneId or "warehouse")
+    local details=string.format("remaining=%d truck=%s pickup=%s / %s %.1f,%.1f %s / %s %.1f,%.1f %s / %s / %s",
+        Service.remainingPickup(s,j.id),tostring(world.truck.sceneId),tostring(j.pickup and j.pickup.sceneId),
+        w1.activity,w1.x,w1.y,w1.sceneId or "warehouse",
+        w2.activity,w2.x,w2.y,w2.sceneId or "warehouse",
+        tostring(j.pallets[1].world and j.pallets[1].world.sceneId or "none")..":"..j.pallets[1].location,
+        tostring(j.pallets[2].world and j.pallets[2].world.sceneId or "none")..":"..j.pallets[2].location)
     check("room_shipping_two_employees_drive_loaded_jacks_through_"..scene,simultaneous and crossed
         and Service.remainingPickup(s,j.id)==0,details)
     check("room_shipping_correct_truck_manifest_"..scene,other.pallets[1].location=="warehouse"
@@ -248,12 +251,9 @@ local function wire(context,check)
 end
 local function fullCycle(context,check)
     local s=shop();assert(Bays.purchase(s,"front_right","CYCLE-GARAGE"))
-    local w=hire(s);local j=job(s,"SHIP-FULL-CYCLE")
+    local w=hire(s);local j=job(s,"SHIP-FULL-CYCLE","front_right")
     s.palletJack.x,s.palletJack.y=200,600
     Fleet.add(s,"CYCLE-EXTRA-JACK",{x=560,y=520})
-    j.status,j.pickup="in_production",nil
-    local machine=require("src.machine_fleet").installedUnits(s,"skid_wrapper")[1]
-    w.assignment={jobId=j.id,palletId=j.pallets[1].id,machineId=machine.id,machineModel="skid_wrapper"}
     local Calendar=require("src.business_calendar")
     s.calendar.elapsed=Calendar.secondsPerDay(s)*9.5/24
     s.employment.lastAtHours=Calendar.absoluteHours(s)
@@ -266,8 +266,12 @@ local function fullCycle(context,check)
     for _=1,100 do
         Calendar.update(s,.1);world.updateSimulation(.1,context.assets,s,.1)
     end
-    check("room_shipping_completed_employee_assignment_requests_correct_room_truck",j.status=="pickup_in_progress"
-        and world.truck.jobId==j.id and world.truck.sceneId=="front_right")
+    check("room_shipping_ready_room_job_schedules_correct_room_truck",j.status=="pickup_in_progress"
+        and world.truck.jobId==j.id and world.truck.sceneId=="front_right",
+        string.format("job=%s pickup=%s truck=%s/%s worker=%s scene=%s pallet=%s:%s/%s",
+            tostring(j.status),tostring(j.pickup and j.pickup.status),tostring(world.truck.jobId),
+            tostring(world.truck.sceneId),w.activity,tostring(w.sceneId),tostring(j.pallets[1].location),
+            tostring(j.pallets[1].status),tostring(j.pallets[1].world and j.pallets[1].world.sceneId)))
     check("room_shipping_waits_while_player_uses_manifest",j.pallets[1].location=="warehouse"
         and j.pallets[2].location=="warehouse" and not Fleet.owned(s,w.id))
     blocked=false

@@ -111,7 +111,10 @@ local function controlLoop(context, check, index, channel)
         and not committed.moving and not committed.inMotion and committed._relocationOrigin == nil)
     local roomPlayer = { id = 1, x = Rooms.roomEntrance.x, y = Rooms.roomEntrance.y, sceneId = "warehouse" }
     local entered, entryCode = Rooms.transition(roomPlayer, state, "front_left")
-    check(prefix .. "cannot_carry_machine_into_another_room", not entered and entryCode == "park_first")
+    check(prefix .. "cannot_enter_locked_room_while_moving_machine", not entered and entryCode == "room_locked",
+        string.format("entered=%s code=%s jackMoving=%s machineMoving=%s jackOwner=%s",
+            tostring(entered), tostring(entryCode), tostring(state.palletJack.moving), tostring(pose.moving),
+            tostring(state.palletJack.operatorPlayerId)))
     capture(context, state, kind .. "-" .. channel .. "-carrying")
     local grid = context.world.placementGridSnapshot(state, context.assets)
     local cell = grid and grid.selected

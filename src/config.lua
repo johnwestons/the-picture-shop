@@ -292,7 +292,7 @@ local Config = {
     cutterStaging = {
         x = 392, y = 566, width = 176, height = 80,
         columns = 2, rows = 3, firstX = 430, firstY = 588,
-        columnSpacing = 100, rowSpacing = 24,
+        columnSpacing = 100, rowSpacing = 28,
         direction = "northwest",
     },
     warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = false },

@@ -62,6 +62,27 @@ function Transport.release(state, worker, context)
     return true
 end
 
+function Transport.takeFromEmployee(state, employeeId, playerId)
+    local worker=require("src.employees").worker(state,employeeId)
+    local jack=Fleet.owned(state,employeeId)
+    if not worker or not jack then return false,"not_operating" end
+    local jackState=Fleet.view(state,jack)
+    Jack.stop(jackState,Config.palletJack)
+    Jack.releaseEmployee(jackState,Config.palletJack,employeeId)
+    local mounted,reason=Jack.mount(jackState,Config.palletJack,playerId)
+    if not mounted then
+        Jack.mountEmployee(jackState,Config.palletJack,employeeId)
+        return false,reason or "busy"
+    end
+    worker._jackNavigator,worker._jackTarget,worker.jackDistance=nil,nil,nil
+    worker._jackParkingTarget,worker._parkingJack,worker._shippingPalletId=nil,nil,nil
+    worker._waitingForJack,worker._scheduleBlockedReason,worker._waitingMachineId=nil,nil,nil
+    worker._scheduleRetryAtHours=nil
+    worker.phase,worker.moving="idle",false
+    worker.activity="The player took the pallet jack; returning to assigned work"
+    return true,jack
+end
+
 function Transport.park(state, worker, dt, context)
     state=Fleet.employeeView(state,worker)
     local jack=Jack.ensure(state,Config.palletJack)

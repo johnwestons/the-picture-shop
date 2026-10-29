@@ -324,6 +324,16 @@ function Input.keypressed(key, context)
             return true
         end
         if selected and selected.kind == "palletJack"
+            and selected.target and selected.target.operatorEmployeeId
+        then
+            if networkClient then
+                state.message="The shop host must take an employee-operated pallet jack."
+            elseif context.world.takeEmployeePalletJack
+                and context.world.takeEmployeePalletJack(state,selected.target.jackId,localPlayerId)
+            then context.saveCurrent() end
+            return true
+        end
+        if selected and selected.kind == "palletJack"
             and context.palletJackControl
             and context.palletJackControl("use", selected)
         then

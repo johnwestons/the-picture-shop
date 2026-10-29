@@ -104,6 +104,13 @@ function Fleet.selectPlayer(state, player)
     state=Fleet.root(state)
     local primary=state.palletJack
     local selected=Fleet.playerChoice(state,player)
+    return Fleet.selectJack(state,selected)
+end
+
+function Fleet.selectJack(state, selected)
+    state=Fleet.root(state)
+    if type(selected)~="table" then return state.palletJack end
+    local primary=state.palletJack
     if selected~=primary then
         for index,jack in ipairs(state.extraPalletJacks or {}) do
             if jack==selected then state.extraPalletJacks[index]=primary;break end

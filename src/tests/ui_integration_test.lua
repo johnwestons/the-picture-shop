@@ -468,39 +468,44 @@ function Test.run(context, check)
     context.state.palletJack.operating = true
     context.state.palletJack.carriedPalletId = nil
     context.state.palletJack.x, context.state.palletJack.y = context.state.cutter.x, context.state.cutter.y
+    local cutterUnit=require("src.machine_fleet").installedUnits(context.state,"polar_115")[1]
+    local function cutterPose() return cutterUnit.world or context.state.cutter end
+    local mountedForCutterMove=context.PalletJack.mount(context.state,context.config.palletJack,1)
     context.world.player.x = context.state.cutter.x
     context.world.player.y = context.state.cutter.y + 70
     context.world.update(0, 0, 0, context.assets, context.state)
+    check("cutter_relocation_test_has_player_control",mountedForCutterMove
+        and context.state.palletJack.operatorPlayerId==1)
     check("cutter_relocate_prompt_requires_active_jack", context.world.getInteraction()
         and context.world.prompt():lower():find("relocate", 1, true))
     context.input.keypressed("m", context.inputContext)
-    check("cutter_relocation_begins", context.world.cutterSnapshot(context.state).moving)
-    local cutterBeforeMove = context.world.cutterSnapshot(context.state)
+    check("cutter_relocation_begins", cutterPose().moving)
+    local cutterBeforeMove = {x=cutterPose().x}
     context.world.update(0.15, -1, 0, context.assets, context.state)
-    check("cutter_relocation_moves", context.world.cutterSnapshot(context.state).x < cutterBeforeMove.x
-        and context.world.cutterSnapshot(context.state).inMotion
+    check("cutter_relocation_moves", cutterPose().x < cutterBeforeMove.x
+        and cutterPose().inMotion
         and context.world.player.moving)
     check("cutter_floor_sprites_are_twenty_percent_smaller",
         math.abs(context.config.cutterPlacement.drawScale - 0.272) < 0.0001)
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_north", context.world.cutterSnapshot(context.state).frame == 2)
+    check("cutter_rotates_north", cutterPose().direction == "north")
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_northeast", context.world.cutterSnapshot(context.state).frame == 3)
+    check("cutter_rotates_northeast", cutterPose().direction == "northeast")
     if os.getenv("PICTURE_SHOP_CUTTER_PLACEMENT_PREVIEW") == "1" then return end
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_east", context.world.cutterSnapshot(context.state).frame == 4)
+    check("cutter_rotates_east", cutterPose().direction == "east")
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_southeast", context.world.cutterSnapshot(context.state).frame == 5)
+    check("cutter_rotates_southeast", cutterPose().direction == "southeast")
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_south", context.world.cutterSnapshot(context.state).frame == 6)
+    check("cutter_rotates_south", cutterPose().direction == "south")
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_southwest", context.world.cutterSnapshot(context.state).frame == 7)
+    check("cutter_rotates_southwest", cutterPose().direction == "southwest")
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_west", context.world.cutterSnapshot(context.state).frame == 8)
+    check("cutter_rotates_west", cutterPose().direction == "west")
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_northwest", context.world.cutterSnapshot(context.state).frame == 1)
+    check("cutter_rotates_northwest", cutterPose().direction == "northwest")
     context.input.keypressed("e", context.inputContext)
-    check("cutter_relocation_places", not context.world.cutterSnapshot(context.state).moving)
+    check("cutter_relocation_places", not cutterPose().moving)
     check("customer_arrival_identifies_known_print_work",
         context.world.customerArrivalMessage({ currentOffer = { press = { colors = 1 } } })
             == "A customer is waiting at reception with a print job.")

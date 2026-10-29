@@ -411,7 +411,9 @@ function PalletJack.interaction(player, state, config)
     if not jack.operating then
         prompt = "E: operate pallet jack"
     elseif not ownsJack then
-        prompt = "Pallet jack in use by another worker"
+        prompt = jack.operatorEmployeeId
+            and "E: take pallet jack from employee"
+            or "Pallet jack in use by another worker"
     elseif jack.carriedPalletId then
         prompt = "L: lower pallet at the selected position"
     elseif nearby then
@@ -427,6 +429,8 @@ function PalletJack.interaction(player, state, config)
         y = jack.y,
         radius = config.interactionRadius,
         prompt = prompt,
+        jackId = jack.id,
+        operatorEmployeeId = jack.operatorEmployeeId,
         jackState = jack,
         candidatePalletId = nearby and nearby.pallet.id or nil,
         ownsJack = ownsJack,

@@ -27,9 +27,25 @@ function Component.install(Runtime)
                 jackState=fleet.view(Runtime.World._state,jack)
             end
         end
-        if jack and jack.sceneId==Rooms.scene(player) then
-            addTarget("palletJack",Runtime.PalletJack.interaction(
-                player,jackState,Runtime.Config.palletJack))
+        if jack and (jack.sceneId or "warehouse")==Rooms.scene(player) then
+            local target=Runtime.PalletJack.interaction(player,jackState,Runtime.Config.palletJack)
+            target.jackId=jack.id
+            addTarget("palletJack",target)
+        end
+        if Runtime.World._state then
+            local fleet=require("src.pallet_jack_fleet")
+            for _,employeeJack in ipairs(fleet.all(Runtime.World._state)) do
+                if employeeJack.operating and employeeJack.operatorEmployeeId
+                    and employeeJack.id~= (jack and jack.id)
+                    and (employeeJack.sceneId or "warehouse")==Rooms.scene(player) then
+                    local view=fleet.view(Runtime.World._state,employeeJack)
+                    local target=Runtime.PalletJack.interaction(player,view,Runtime.Config.palletJack)
+                    local worker=Runtime.Employees.worker(Runtime.World._state,employeeJack.operatorEmployeeId)
+                    target.jackId=employeeJack.id
+                    target.prompt="E: take pallet jack from "..(worker and worker.name or "employee")
+                    addTarget("palletJack",target,"palletJack:"..tostring(employeeJack.id))
+                end
+            end
         end
         if Rooms.scene(player)~="warehouse" then
             local sceneId=Rooms.scene(player)

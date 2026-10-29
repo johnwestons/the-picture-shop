@@ -308,6 +308,10 @@ local function publicLease(lease)
     }
 end
 
+local function printableMessage(value)
+    return tostring(value or ""):gsub("[%c]+", " ")
+end
+
 local function baseResult(operation, request, accepted, code, message, revision)
     return {
         operation = operation,
@@ -315,7 +319,7 @@ local function baseResult(operation, request, accepted, code, message, revision)
         resourceId = request and request.resourceId or "unknown",
         accepted = accepted == true,
         code = tostring(code or (accepted and "accepted" or "rejected")),
-        message = tostring(message or (accepted
+        message = printableMessage(message or (accepted
             and "The workshop request was accepted."
             or "The workshop request was rejected.")),
         revision = math.max(0, math.floor(tonumber(revision) or 0)),

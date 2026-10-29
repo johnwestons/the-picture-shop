@@ -101,7 +101,9 @@ function Intent.normalize(value)
             if item == nil then item = "online" end
             if item ~= "online" and item ~= "dealer" then return nil, "Choose a listed machine channel." end
         elseif rule == "text" then
-            if type(item) ~= "string" or item:find("[%z\1-\8\11\12\14-\31]") then return nil, "Invalid message." end
+            if type(item) ~= "string" or #item > 600 or item:find("[%z\1-\8\11\12\14-\31\127]") then
+                return nil, "Invalid message."
+            end
         elseif rule == "cart" then
             if type(item) ~= "table" or #item < 1 or #item > 6 then return nil, "Use a cart of 1–6 different products." end
             local rows, count = {}, 0

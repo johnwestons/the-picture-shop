@@ -61,7 +61,17 @@ function Test.run(context,check)
         commands=commands+1
         if duplicate then network:duplicateNext("client_to_host",1,1,true) end
         local sent=guest:requestWorkshopCommand(action,args)
-        local result=event(pump(),"workshop_result")
+        local commandId=guest.workshopRequestId
+        local result
+        if sent then
+            for _=1,8 do
+                for _,item in ipairs(pump()) do
+                    if item.type=="workshop_result" and item.commandId==commandId then result=item end
+                end
+                if result then break end
+            end
+        end
+        if duplicate and result then for _=1,3 do pump() end end
         check("office_phone_receives_"..action.."_result_"..commands,sent and result~=nil)
         return result
     end
@@ -77,16 +87,19 @@ function Test.run(context,check)
     check("phone_answer_round_trip_is_exactly_once",reply.accepted and state.workPhone.incoming.answered and saves==1)
     local before=state.money
     reply=command("phone_respond",{callId=callId},true)
+    check("phone_order_review_round_trip_is_exactly_once",reply.accepted and #state.procurement.orders==0
+        and state.workPhone.incoming.pendingItemIndex==1 and state.money==before and saves==2)
+    reply=command("phone_respond",{callId=callId},true)
     check("phone_order_round_trip_is_exactly_once",reply.accepted and #state.procurement.orders==1 and state.money<before
-        and state.workPhone.incoming==nil and #state.workPhone.history==1 and saves==2)
+        and state.workPhone.incoming==nil and #state.workPhone.history==1 and saves==3)
     Phone.queueCall(state,{kind="customer_order",caller="Another Client",role="CUSTOMER",subject="NEW JOB",message="Please quote our order."})
     local newId=state.workPhone.incoming.id
     reply=command("phone_dismiss",{callId=callId})
-    check("phone_stale_call_cannot_dismiss_new_caller",not reply.accepted and state.workPhone.incoming.id==newId and saves==2)
+    check("phone_stale_call_cannot_dismiss_new_caller",not reply.accepted and state.workPhone.incoming.id==newId and saves==3)
     inRange=false; reply=command("phone_answer",{callId=newId})
-    check("phone_rechecks_host_range_for_every_action",not reply.accepted and reply.code=="out_of_range" and saves==2)
+    check("phone_rechecks_host_range_for_every_action",not reply.accepted and reply.code=="out_of_range" and saves==3)
     inRange=true; reply=command("phone_dismiss",{callId=newId})
-    check("phone_guest_can_decline_current_call",reply.accepted and saves==3 and state.workPhone.incoming==nil)
+    check("phone_guest_can_decline_current_call",reply.accepted and saves==4 and state.workPhone.incoming==nil)
     guest:releaseWorkshop("closed"); pump()
     check("phone_exit_releases_for_next_worker",authority:acquire({id=3},{requestId=2,resourceId="work_phone"},{}).accepted)
 
@@ -96,14 +109,14 @@ function Test.run(context,check)
     reply=command("office_action",{officeIntent=intent},true)
     local price=context.procurement.categories[1].items[1].retailPrice
     check("office_cart_round_trip_uses_host_prices_exactly_once",reply.accepted and #state.procurement.orders==3
-        and state.money==before-price*2 and saves==4)
+        and state.money==before-price*2 and saves==5)
     Calendar.addCharge(state,"Spoiled customer stock",123,"GUI-CLAIM")
     before=state.money
     reply=command("office_action",{officeIntent={kind="pay_bills"}},true)
-    check("office_guest_pays_host_bills_once",reply.accepted and state.money==before-123 and state.bills.balance==0 and saves==5)
+    check("office_guest_pays_host_bills_once",reply.accepted and state.money==before-123 and state.bills.balance==0 and saves==6)
     inRange=false
     reply=command("office_action",{officeIntent=intent})
-    check("office_payment_rechecks_range",not reply.accepted and reply.code=="out_of_range" and saves==5)
+    check("office_payment_rechecks_range",not reply.accepted and reply.code=="out_of_range" and saves==6)
     inRange=true
     local invalid={
         {kind="checkout",items={{kind="supply",categoryIndex=1,itemIndex=1,quantity=1,price=0}}},
@@ -116,7 +129,7 @@ function Test.run(context,check)
         {kind="supply",categoryIndex=1,itemIndex=16,quantity=1}}})
     before=state.money
     local ok=Office.command(options).perform({}, {id=2},{officeIntent=normalized})
-    check("office_failed_checkout_is_atomic",not ok and state.money==before and #state.procurement.orders==3 and saves==5)
+    check("office_failed_checkout_is_atomic",not ok and state.money==before and #state.procurement.orders==3 and saves==6)
     local packet=Protocol.encode("workshop_command",{sessionId="office-phone-test",commandId=200,resourceId="office_computer",
         leaseId="office-phone-2",expectedRevision=1,action="office_action",officeIntent={kind="promotion",id="JOB-1",text=string.rep("x",600)}})
     check("office_long_typed_promotion_fits_bounded_protocol",packet~=nil and Protocol.decode(packet)~=nil)

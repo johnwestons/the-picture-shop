@@ -66,11 +66,13 @@ function Test.run(context, check)
     })
     check("work_phone_supplier_light_is_amber", WorkPhone.lightIndex(serviceState) == 3)
     WorkPhone.answer(serviceState)
+    local reviewed, review = WorkPhone.respond(serviceState)
     local ordered = WorkPhone.respond(serviceState)
     local purchase = serviceState.procurement.orders[1]
     local receipt = serviceState.clientEmails.inbox[#serviceState.clientEmails.inbox]
     check("work_phone_service_person_places_order_and_sends_confirmation",
-        ordered and purchase and purchase.channel == "salesman"
+        reviewed and review:find("Confirm below", 1, true) ~= nil
+        and ordered and purchase and purchase.channel == "salesman"
         and receipt and receipt.noticeKind == "salesman_confirmation"
         and receipt.body:find("Thanks so much", 1, true) ~= nil)
 

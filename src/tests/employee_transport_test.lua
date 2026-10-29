@@ -2,6 +2,7 @@ local State=require("src.state")
 local Employees=require("src.employees")
 local Jobs=require("src.jobs")
 local Fleet=require("src.machine_fleet")
+local JackFleet=require("src.pallet_jack_fleet")
 local Jack=require("src.pallet_jack")
 local Transport=require("src.employee_pallet_jack")
 local Schedule=require("src.employee_schedule")
@@ -271,6 +272,27 @@ function Test.run(context,check)
             wrapperDropDetail or blockedTransportDetail or worker.activity)
         context.world.player.x,context.world.player.y=oldPX,oldPY
     end
+    local takeoverState=State.new()
+    local takeoverWorker=hire(takeoverState)
+    local takeoverJob,takeoverPallet=job(takeoverState,"JOB-JACK-TAKEOVER",560,520)
+    local takeoverJack=takeoverState.palletJack
+    takeoverJack.x,takeoverJack.y=takeoverPallet.world.x,takeoverPallet.world.y
+    assert(Jack.mountEmployee(takeoverState,Config.palletJack,takeoverWorker.id))
+    assert(Jack.lift(takeoverState,Config.palletJack,takeoverPallet.id))
+    takeoverWorker.assignment={jobId=takeoverJob.id,machineId=machine.id,machineModel="polar_115"}
+    takeoverWorker.phase,takeoverWorker.moving="pushing",true
+    takeoverWorker._jackTarget={key="stale",goal={x=1,y=1}}
+    takeoverWorker._shippingPalletId=takeoverPallet.id
+    local tookJack,transferredJack=Transport.takeFromEmployee(takeoverState,takeoverWorker.id,1)
+    check("player_takes_employee_pallet_jack_without_losing_its_load",tookJack
+        and transferredJack==takeoverState.palletJack and takeoverJack.operating
+        and takeoverJack.operatorPlayerId==1 and takeoverJack.operatorEmployeeId==nil
+        and takeoverJack.carriedPalletId==takeoverPallet.id
+        and takeoverPallet.location=="on_pallet_jack")
+    check("employee_resumes_with_assignment_after_jack_takeover",takeoverWorker.assignment.jobId==takeoverJob.id
+        and takeoverWorker.phase=="idle" and not takeoverWorker.moving
+        and takeoverWorker._jackTarget==nil and takeoverWorker._shippingPalletId==nil
+        and takeoverWorker._waitingForJack==nil and JackFleet.validate(takeoverState))
     state.palletJack.x,state.palletJack.y=pallet.world.x,pallet.world.y
     assert(Jack.mountEmployee(state,Config.palletJack,worker.id))
     assert(Jack.lift(state,Config.palletJack,pallet.id))
