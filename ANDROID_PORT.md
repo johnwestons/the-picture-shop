@@ -3,15 +3,16 @@
 ## Current source build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.67` (`versionCode` 67)
+- Version: `0.1.0-android.68` (`versionCode` 68)
 - Multiplayer protocol: 47; host and guests need matching current code.
 - Build command: `./BUILD_ANDROID.ps1` (or `PACK_ANDROID.bat` for a share folder)
-- Local installer: `output/android-share/0.1.0-android.67/ThePictureShop-0.1.0-android.67-Install.apk`
+- Local installer: `output/android-share/0.1.0-android.68/ThePictureShop-0.1.0-android.68-Install.apk`
 - The development APK uses the shared gameplay and art source as Windows. This
-  update fixes printing-press and paper-cutter relocation into extra rooms:
-  machines appear and collide only in their assigned room, remain movable
-  within it, and can be moved back into the main warehouse. Mobile pallet-jack
-  move controls are available inside those rooms. It also includes
+  update fixes machine travel through expansion-room doors. The cutter, skid
+  wrapper, and printing press can be moved into an extra room and back out;
+  doorway interaction and clearance account for the attached machine's size.
+  Machines remain assigned to the correct room, and mobile pallet-jack move
+  controls are available inside those rooms. It also includes
   room-specific warehouse loading bays, expanded-room pallet staging and
   output areas, print-press jobs, independent machine audio, and late-game
   simulation/rendering and save/image-loading improvements. The player can
@@ -20,7 +21,7 @@
 - The package ID and signing certificate remain compatible with the previous
   Android build, so installing over it preserves existing saves.
 - Build verification and package details are recorded in
-  [the Android 67 release notes](docs/android_67_release.md).
+  [the Android 68 release notes](docs/android_68_release.md).
 - This is a private development build. Physical-device play and multiplayer
   acceptance remain separate from package verification; use the device
   checklist below before a public release.
