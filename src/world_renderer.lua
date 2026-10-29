@@ -37,6 +37,18 @@ function Renderer.clearCache()
     require("src.shop_room_renderer").clearCache()
 end
 
+function Renderer.machineUnitsInScene(state, sceneId)
+    sceneId = sceneId or "warehouse"
+    local result = {}
+    for _, machine in ipairs(MachineFleet.owned(state)) do
+        if machine.status == "installed" and machine.world
+            and (machine.world.sceneId or "warehouse") == sceneId then
+            result[#result + 1] = machine
+        end
+    end
+    return result
+end
+
 local function drawPrintedArtwork(assets, item, x, y, carried)
     if not item or item.vendor or not item.job or not item.job.press then return end
     local press = item.pallet and item.pallet.press
@@ -612,8 +624,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         actors[#actors + 1] = { y = windmill.moving and jack.y or windmill.y,
             layer = windmill.moving and 2 or 0, draw = function() drawWindmill(assets, state) end }
     end
-    for _, machine in ipairs(MachineFleet.owned(state)) do
-        if machine.status == "installed" and machine.world then
+    for _, machine in ipairs(Renderer.machineUnitsInScene(state, "warehouse")) do
+        if machine.world then
             local storedMachine = machine
             if storedMachine.modelId == "regal_moll" then
                 actors[#actors + 1] = { y = storedMachine.world.y, layer = 0,

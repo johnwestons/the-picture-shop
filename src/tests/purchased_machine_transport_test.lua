@@ -176,10 +176,127 @@ local function guards(context, check)
     context.world.releaseNetworkPalletJack(worker, state, true)
 end
 
+local function roomRelocation(context, check, index)
+    local state = context.State.new()
+    state.screen, state.money = "world", 1000000
+    local unit
+    if index == 1 then
+        unit = Fleet.installedUnits(state, "polar_115")[1]
+        context.machine.forId(unit.id).reset(state)
+    else
+        local bought
+        bought, unit = Fleet.buy(state, "dealer", 3)
+        assert(bought)
+    end
+    local kind = kinds[index]
+    local prefix = "room_machine_" .. kind .. "_"
+    local roomId = "front_left"
+    state.warehouse.bays[roomId].status = "complete"
+    state.warehouse.bays[roomId].optionId = "floor"
+    local legacyPose = state[kind]
+    local jack = context.PalletJack.ensure(state, context.config.palletJack)
+    jack.x, jack.y, jack.direction = legacyPose.x, legacyPose.y + 8, legacyPose.direction
+    assert(context.PalletJack.mount(state, context.config.palletJack, 1))
+    local playerX, playerY = context.PalletJack.operatorPosition(state, context.config.palletJack)
+    context.world.load({ id = 1, x = playerX, y = playerY, sceneId = "warehouse", character = "rabbit-worker" })
+    context.world.update(0, 0, 0, context.assets, state, legacyPose.x, legacyPose.y)
+
+    local Renderer = require("src.world_renderer")
+    local Rooms = require("src.shop_rooms")
+    local function contains(items, target)
+        for _, item in ipairs(items or {}) do if item.id == target.id then return true end end
+        return false
+    end
+    local function choosePlacement()
+        local grid = context.world.placementGridSnapshot(state, context.assets)
+        local cell = grid and grid.selected
+        if not cell then
+            for _, candidate in ipairs(grid and grid.cells or {}) do
+                if candidate.valid then cell = candidate; break end
+            end
+        end
+        if not cell then return false end
+        context.world.selectPlacement(state, context.assets, cell.x, cell.y)
+        return context.world.placeMovingMachine(state, context.assets)
+    end
+
+    local beganInWarehouse = context.world.beginMachineMove(state, unit.id, false)
+    check(prefix .. "first_move_promotes_legacy_pose_to_owned_unit",
+        beganInWarehouse and unit.world and unit.world.moving)
+    if beganInWarehouse then
+        unit.world.x, unit.world.y = Rooms.roomEntrance.x, Rooms.roomEntrance.y
+        unit.world.sceneId = "warehouse"
+        jack.x, jack.y, jack.moving = unit.world.x, unit.world.y + 8, false
+        context.world.player.x, context.world.player.y =
+            context.PalletJack.operatorPosition(state, context.config.palletJack)
+    end
+    local entered = beganInWarehouse
+        and Rooms.transition(context.world.player, state, roomId, { assets = context.assets })
+    local firstRoomPlacement = entered and choosePlacement()
+    check(prefix .. "can_move_into_room_and_lock_machine",
+        firstRoomPlacement and unit.world.sceneId == roomId, state.message)
+
+    jack.sceneId = roomId
+    jack.x, jack.y = unit.world.x, unit.world.y + 8
+    context.world.player.x, context.world.player.y =
+        context.PalletJack.operatorPosition(state, context.config.palletJack)
+    context.world.player.sceneId = roomId
+    context.world.update(0, 0, 0, context.assets, state, unit.world.x, unit.world.y)
+
+    local function hasAction(actions, key, label)
+        for _, action in ipairs(actions or {}) do
+            if action.key == key and (not label or action.label == label) then return true end
+        end
+        return false
+    end
+    check(prefix .. "rendered_only_in_own_room",
+        not contains(Renderer.machineUnitsInScene(state, "warehouse"), unit)
+        and contains(Renderer.machineUnitsInScene(state, roomId), unit))
+
+    local mobile = { state = state, World = context.world,
+        warehouseControls = { ownsLift = function() return false end },
+        multiplayer = { isClient = function() return false end } }
+    require("src.runtime.keyboard_mobile").install(mobile)
+    context.world.selectedInteraction = { kind = "palletJack", target = {} }
+    check(prefix .. "mobile_move_action_available_in_room",
+        hasAction(mobile.extraMobileActions(), "m", "MOVE"))
+
+    local beganInRoom = context.world.beginMachineMove(state, unit.id, false)
+    local beforeX, beforeY = unit.world.x, unit.world.y
+    if beganInRoom then context.world.update(0.2, 1, 0, context.assets, state) end
+    check(prefix .. "can_lift_and_move_within_room",
+        beganInRoom and (unit.world.x ~= beforeX or unit.world.y ~= beforeY), state.message)
+    local placedAgainInRoom = beganInRoom and choosePlacement()
+    check(prefix .. "can_place_inside_room",
+        placedAgainInRoom and unit.world.sceneId == roomId, state.message)
+
+    local returned = false
+    if placedAgainInRoom then
+        local movedAgain = context.world.beginMachineMove(state, unit.id, false)
+        if movedAgain then
+            unit.world.x, unit.world.y, unit.world.moving, unit.world.inMotion =
+                Rooms.exit.x, Rooms.exit.y, true, false
+            jack.x, jack.y, jack.moving = unit.world.x, unit.world.y + 8, false
+            context.world.player.x, context.world.player.y =
+                context.PalletJack.operatorPosition(state, context.config.palletJack)
+            local crossed = Rooms.transition(context.world.player, state, "warehouse", {
+                assets = context.assets,
+            })
+            if crossed then returned = choosePlacement() end
+        end
+    end
+    check(prefix .. "can_move_back_to_warehouse", returned
+        and unit.world.sceneId == "warehouse"
+        and contains(Renderer.machineUnitsInScene(state, "warehouse"), unit)
+        and not contains(Renderer.machineUnitsInScene(state, roomId), unit), state.message)
+end
+
 function Test.run(context, check)
     for index = 1, 3 do
         for _, channel in ipairs({ "dealer", "online" }) do controlLoop(context, check, index, channel) end
     end
+    roomRelocation(context, check, 1)
+    roomRelocation(context, check, 3)
     guards(context, check)
     context.world.load()
     context.world.player.id = 1

@@ -186,7 +186,9 @@ function Component.install(Runtime)
         if require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1) then
             actions[#actions+1]={key="q",label="DROP"}
         end
-        if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then return actions end
+        local Rooms = require("src.shop_rooms")
+        local sceneId = Rooms.scene(Runtime.World.player)
+        if sceneId ~= "warehouse" and not Rooms.machineRoomAllowed(Runtime.state, sceneId) then return actions end
         local selected=Runtime.World.getInteraction()
         if selected and selected.kind=="applicant" and not Runtime.multiplayer:isClient() then
             actions[#actions+1]={key="x",label="DISMISS"}

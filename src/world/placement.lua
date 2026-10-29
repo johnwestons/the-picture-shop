@@ -36,7 +36,7 @@ function Component.install(Runtime)
             if pressObstacle then obstacles[#obstacles + 1] = pressObstacle end
         end
         for _, item in ipairs(Runtime.MachineFleet.installedUnits(state)) do
-            if item.world and not item.world.moving then
+            if item.world and (item.world.sceneId or "warehouse") == "warehouse" and not item.world.moving then
                 local config = Runtime.Config[Runtime.MachineFleet.definition(item.modelId).placementKey .. "Placement"]
                 obstacles[#obstacles + 1] = Runtime.Footprint.at(item.world.x, item.world.y, config)
             end

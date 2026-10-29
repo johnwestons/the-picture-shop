@@ -173,7 +173,7 @@ function Component.install(Runtime)
             end
             for index = 1, #cutters do
                 local item = cutters[index]
-                if item.world then addTarget("cutter", {
+                if item.world and (item.world.sceneId or "warehouse") == "warehouse" then addTarget("cutter", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.cutterPlacement.interactionRadius,
                     prompt = "E: use " .. item.name .. " (" .. item.id .. ")"
@@ -192,7 +192,7 @@ function Component.install(Runtime)
             end
             for index = 1, #wrappers do
                 local item = wrappers[index]
-                if item.world then addTarget("skidWrapper", {
+                if item.world and (item.world.sceneId or "warehouse") == "warehouse" then addTarget("skidWrapper", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.wrapperPlacement.interactionRadius,
                     prompt = "E: use skid wrapper (" .. item.id .. ")"
@@ -211,7 +211,7 @@ function Component.install(Runtime)
             end
             for index = 1, #windmills do
                 local item = windmills[index]
-                if item.world then addTarget("windmill", {
+                if item.world and (item.world.sceneId or "warehouse") == "warehouse" then addTarget("windmill", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.windmillPlacement.interactionRadius,
                     prompt = "E: operate Windmill (" .. item.id .. ")"
