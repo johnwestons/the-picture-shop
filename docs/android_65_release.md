@@ -31,3 +31,17 @@ The Picture Shop and choosing to remove its app data.
 Automated checks do not replace a physical phone/tablet acceptance pass. This
 development handoff does not claim physical-device, touch, background/resume or
 multiplayer soak testing.
+
+## Build verification, October 28
+
+The private installer was built from source commit
+`ddb25649973ef721be194908b8abdd07a7d9cdc0` with a clean working tree. The full
+desktop smoke suite passed 6,464 checks; the packaged-mobile smoke passed 6,463
+checks. Both completed the three-frame render check. APK manifest, signing
+certificate continuity and checksum verification passed; the installer is
+457,807,571 bytes, SHA-256
+`0a2f44965d9733753a405bc99f7bed23463bd42f1eeb7b04eb22e0e0d5e20e18`.
+
+No Android device was connected, so the build was not installed or launched on
+a phone or tablet. Native crypto and gateway discovery remain explicitly
+non-production candidates in the APK report.
