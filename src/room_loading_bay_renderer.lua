@@ -1,12 +1,26 @@
 local Bays=require("src.room_loading_bays")
 local Renderer={}
-local shutter
+local shutter,exterior
+local sourceCorner={2,1,4,3}
 function Renderer.clear()
     if shutter then shutter:release();shutter=nil end
+    if exterior then exterior:release();exterior=nil end
 end
 local function polygon(points)
     local out={};for _,p in ipairs(points) do out[#out+1]=p.x;out[#out+1]=p.y end
     return out
+end
+local function roomMesh(mesh,image,destination,source,offsetY,sourceWidth,sourceHeight)
+    local vertices={}
+    for i,p in ipairs(destination) do
+        local q=source[sourceCorner[i]]
+        vertices[i]={p.x,p.y+(offsetY or 0),q.x/(sourceWidth or image:getWidth()),
+            q.y/(sourceHeight or image:getHeight()),1,1,1,1}
+    end
+    if not mesh then mesh=love.graphics.newMesh(vertices,"fan","dynamic")
+    else mesh:setVertices(vertices) end
+    mesh:setTexture(image)
+    return mesh
 end
 function Renderer.truckTransform(truck)
     local progress=truck:visualTravelProgress()
@@ -31,8 +45,27 @@ function Renderer.draw(world,assets,state,scene)
     love.graphics.polygon("fill",unpack(outline))
     love.graphics.stencil(function() love.graphics.polygon("fill",unpack(outline)) end,"replace",1)
     love.graphics.setStencilTest("greater",0)
-    love.graphics.setColor(.28,.31,.32)
-    love.graphics.rectangle("fill",770,230,170,60)
+    local exteriorImage=assets.get("loadingBayExterior")
+    local source=require("src.config").truck.aperture
+    if exteriorImage then
+        exterior=roomMesh(exterior,exteriorImage,a,{
+            {x=0,y=0},{x=exteriorImage:getWidth(),y=0},
+            {x=exteriorImage:getWidth(),y=exteriorImage:getHeight()},{x=0,y=exteriorImage:getHeight()},
+        })
+        local daylight,raining=require("src.outdoor_weather").sample(state)
+        local night=1-daylight
+        love.graphics.setColor((.20+.80*daylight)*(raining and .78 or 1),
+            (.26+.74*daylight)*(raining and .78 or 1),(.38+.62*daylight)*(raining and .78 or 1),1)
+        love.graphics.draw(exterior)
+        local tintAlpha=(.025+night*.28+(raining and .14 or 0))*math.min(1,door.progress or 0)
+        if tintAlpha>0 then
+            love.graphics.setColor(.12,.18,.25,tintAlpha)
+            love.graphics.polygon("fill",unpack(outline))
+        end
+    else
+        love.graphics.setColor(.12,.15,.18)
+        love.graphics.polygon("fill",unpack(outline))
+    end
     love.graphics.setColor(.86,.78,.48)
     love.graphics.setLineWidth(3)
     love.graphics.line(780,255,924,277)
@@ -46,17 +79,15 @@ function Renderer.draw(world,assets,state,scene)
         if image then love.graphics.draw(image,transform.x,transform.y,0,transform.scale,transform.scale,256,430) end
         if cargo and sprite then love.graphics.draw(cargo,sprite.quad,transform.x,transform.y,0,transform.scale,transform.scale,256,430) end
     end
+    -- The dock faces the opposite direction from the main warehouse bay. Flip
+    -- the source art horizontally so rooflines and the lifted shutter follow
+    -- the room wall's perspective instead of leaning the wrong way. Draw this
+    -- after the truck so a closed or partly raised shutter masks it correctly.
     local image=assets.get("warehouse")
     if image then
-        local source=require("src.config").truck.aperture
-        local vertices={}
-        for i,p in ipairs(a) do
-            local q=source[i]
-            vertices[i]={p.x,p.y-(door.progress or 0)*170,q.x/960,q.y/678,1,1,1,1}
-        end
-        if not shutter then shutter=love.graphics.newMesh(vertices,"fan","dynamic")
-        else shutter:setVertices(vertices) end
-        shutter:setTexture(image);love.graphics.setColor(1,1,1);love.graphics.draw(shutter)
+        shutter=roomMesh(shutter,image,a,source,-(door.progress or 0)*170,960,678)
+        love.graphics.setColor(1,1,1)
+        love.graphics.draw(shutter)
     end
     love.graphics.setStencilTest()
     love.graphics.setColor(.10,.13,.15);love.graphics.setLineWidth(7)

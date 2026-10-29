@@ -43,21 +43,33 @@ function Component.install(Runtime)
                 Runtime.ComputerScreen.promoFocused and { 0.32, 0.78, 0.73, 1 }
                     or { 0.20, 0.34, 0.39, 1 }, 3, 1)
             love.graphics.setColor(0.88, 0.91, 0.89)
-            local custom = Runtime.ComputerScreen.promoText
-            if custom == "" then custom = "Write a personal note to your client (optional)." end
-            love.graphics.printf(custom .. (Runtime.ComputerScreen.promoFocused and "_" or ""),
-                Runtime.PROMO_INPUT.x + 10, Runtime.PROMO_INPUT.y + 10, Runtime.PROMO_INPUT.width - 20, "left")
-            local promoTerms = Runtime.JobService.promotionTerms(state, Runtime.ComputerScreen.promoText)
-            love.graphics.setColor(0.95, 0.84, 0.30)
-            love.graphics.printf(string.format("%d / 240 characters", promoTerms.messageLength),
-                434, 468, 392, "center")
-            love.graphics.setColor(0.66, 0.78, 0.75)
-            local seasonalNote = promoTerms.seasonDemand <= 0.84
-                and (promoTerms.seasonName .. " • no new jobs right now")
-                or promoTerms.seasonDemand < 1.12
-                and (promoTerms.seasonName .. " • follow-up work is possible")
-                or (promoTerms.seasonName .. " • more work is likely")
-            love.graphics.printf(seasonalNote, 434, 491, 392, "center")
+            local note = Runtime.ComputerScreen.promoText
+            if note == "" then note = "Write a personal note to your client (optional)." end
+            note = note .. (Runtime.ComputerScreen.promoFocused and "_" or "")
+            local input = Runtime.PROMO_INPUT
+            local font = love.graphics.getFont()
+            local _, lines = font:getWrap(note, input.width - 20)
+            local lineHeight = font:getHeight() * font:getLineHeight()
+            local visibleLines = math.max(1, math.floor((input.height - 20) / lineHeight))
+            local firstLine = math.max(1, #lines - visibleLines + 1)
+            local textX, textY = input.x + 10, input.y + 10
+            local previousScissorX, previousScissorY, previousScissorWidth, previousScissorHeight = love.graphics.getScissor()
+            love.graphics.setScissor(input.x + 1, input.y + 1, input.width - 2, input.height - 2)
+            if firstLine > 1 then
+                love.graphics.print("…", textX, textY)
+                textY = textY + lineHeight
+                firstLine = math.max(1, #lines - visibleLines + 2)
+            end
+            for index = firstLine, #lines do
+                love.graphics.print(lines[index], textX, textY)
+                textY = textY + lineHeight
+            end
+            if previousScissorX then
+                love.graphics.setScissor(previousScissorX, previousScissorY,
+                    previousScissorWidth, previousScissorHeight)
+            else
+                love.graphics.setScissor()
+            end
             local function promoButton(rect, label, green)
                 local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
                 Runtime.drawComputerButton(rect, label, green

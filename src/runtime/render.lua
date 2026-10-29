@@ -28,7 +28,27 @@ function Component.install(Runtime)
         -- Options uses procedural UI. Keep the underlying screen's textures
         -- pinned instead of decoding the large title art and evicting the machine.
         if Runtime.state.screen == "options" then desiredPack = Runtime.Assets.activePackName() end
-        if not Runtime.Assets.activatePack(desiredPack) then
+        local packReady=Runtime.Assets.activatePack(desiredPack)
+        if packReady==nil then
+            -- Keep world simulation and networking live while the next screen
+            -- streams. This panel itself requires no cold textures.
+            local background=Runtime.Assets.get("warehouse")
+            if background then
+                love.graphics.setColor(.55,.58,.60,1)
+                love.graphics.draw(background,0,0,0,Runtime.Config.baseWidth/background:getWidth(),
+                    Runtime.Config.baseHeight/background:getHeight())
+            end
+            love.graphics.setColor(.035,.055,.065,.94)
+            love.graphics.rectangle("fill",350,290,260,76,8,8)
+            love.graphics.setColor(.65,.94,.87,1)
+            local clock=love.timer.getTime()
+            love.graphics.arc("line","open",380,328,10,clock*4,clock*4+4.5)
+            love.graphics.printf("Loading...",402,319,180,"left")
+            Runtime.WorldRenderer.endFrame()
+            Runtime.CharacterAssets.endFrame()
+            Runtime.Viewport.endDraw()
+            return
+        elseif packReady==false then
             local _, failures = Runtime.Assets.assertHealthy()
             Runtime.state.assetErrors = Runtime.AssetErrorScreen.normalize(failures)
             Runtime.state.screen = "asset_error"

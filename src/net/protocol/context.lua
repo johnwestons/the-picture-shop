@@ -55,9 +55,9 @@ function Component.install(Runtime)
         maxBytes = Runtime.Protocol.MAX_PACKET_BYTES,
         maxDepth = 8,
         maxEntries = 256,
-        -- Typed office messages are bounded to 600 bytes; other fields keep their
-        -- narrower per-message schema limits below. The packet cap stays 1,200.
-        maxStringBytes = 600,
+        -- Individual requests still fit within the packet cap; field-specific
+        -- validation below supplies tighter limits where an action requires one.
+        maxStringBytes = Runtime.Protocol.MAX_PACKET_BYTES,
         maxNumberBytes = 32,
     }
 

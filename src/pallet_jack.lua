@@ -132,11 +132,13 @@ function PalletJack.pickupCandidates(state, config)
     local radius = math.max(0, tonumber(config and config.pickupRadius) or 0)
     local candidates = {}
     for _, item in ipairs(PalletState.items(state)) do
-        if not pickupBlocker(state, item)
+        if eligibleForJack(item)
             and (item.pallet.world.sceneId or "warehouse")==jack.sceneId then
             local dx, dy = item.pallet.world.x - jack.x, item.pallet.world.y - jack.y
             local distance = dx * dx + dy * dy
-            if distance <= radius * radius then
+            -- Inventory-wide support/reservation checks only matter for the
+            -- handful of pallets actually within this vehicle's pickup range.
+            if distance <= radius * radius and not pickupBlocker(state, item) then
                 item.pickupDistance = distance
                 candidates[#candidates + 1] = item
             end

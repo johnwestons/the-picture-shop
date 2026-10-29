@@ -199,12 +199,13 @@ local function drawPallet(assets, item)
     end
 end
 
-local function drawPalletTooltip(state, mouseX, mouseY)
+local function drawPalletTooltip(state, mouseX, mouseY, physicalPallets, pickupView)
     -- Non-world screens still render the live shop as a backdrop, but App
     -- deliberately withholds hover coordinates from that backdrop. A pallet
     -- can become carried between reliable and realtime snapshots, so never
     -- enter the carried-item hit test without an actual pointer position.
-    local tooltip = World and World.palletTooltipAt(state, mouseX, mouseY) or nil
+    local tooltip = World and World.palletTooltipAt(state, mouseX, mouseY,
+        physicalPallets,pickupView) or nil
     if not tooltip then return end
     local width, height = 390, 86
     local x = math.min(Config.baseWidth - width - 12, mouseX + 16)
@@ -496,6 +497,7 @@ local function drawPlayer(characterAssets,state)
             and (partnerX < player.x and -1 or 1)
             or (tonumber(highFive.partnerId) or 0) < (tonumber(player.id) or 0) and -1 or 1
     end
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(character,action) end
     local image, quad, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
     local frame
@@ -544,13 +546,20 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     palletPickup = state.screen == "world" and World.palletPickupSnapshot(state, mouseX, mouseY) or nil
     local Rooms=require("src.shop_rooms")
     require("src.shop_room_renderer").selectScene(Rooms.scene(World.player))
+    local physicalPallets=PalletLogistics.physicalPallets(state)
     local sameRoomPlayers={}
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,World.player) then sameRoomPlayers[#sameRoomPlayers+1]=p end end
     remotePlayers=sameRoomPlayers
     if Rooms.scene(World.player)~="warehouse" then
         require("src.shop_room_renderer").drawRoom(World,assets,characterAssets,state,remotePlayers,
             function() drawPlayer(characterAssets,state) end,drawPallet,drawPalletJack,
-            function() PlacementGrid.draw(World.placementGridSnapshot(state,assets)) end)
+            function() PlacementGrid.draw(World.placementGridSnapshot(state,assets)) end,
+            function(machine)
+                if machine.modelId=="polar_115" then drawCutter(assets,state,machine.world)
+                elseif machine.modelId=="skid_wrapper" then drawWrapper(assets,state,machine.world)
+                elseif machine.modelId=="heidelberg_10x15" then drawWindmill(assets,state,machine.world)
+                elseif machine.modelId=="regal_moll" then drawRegalFolder(assets,machine.world) end
+            end,physicalPallets)
         WarehouseRenderer.endFrame()
         return
     end
@@ -697,7 +706,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             }
         end
     end
-    for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
+    for _, item in ipairs(physicalPallets) do
         -- A realtime jack snapshot can arrive just before its reliable durable
         -- pallet transition. Suppress the host-declared carried ID immediately
         -- so the load never appears both on the floor and on the forks.
@@ -774,7 +783,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     HighFiveUi.drawWorld(mouseX, mouseY, remotePlayers, World.player, {
         active = type(remotePlayers) == "table" and #remotePlayers > 0,
     })
-    drawPalletTooltip(state, mouseX, mouseY)
+    drawPalletTooltip(state, mouseX, mouseY,physicalPallets,palletPickup)
     if forklift and (forklift.sceneId or "warehouse")=="warehouse" then
         WarehouseRenderer.drawVehicleStatus(state)
     end

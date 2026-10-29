@@ -12,10 +12,12 @@ local RackPresentation = require("src.warehouse_rack_presentation")
 local BreakroomPresentation = require("src.warehouse_breakroom_presentation")
 local Config = require("src.config")
 local Renderer = {}
+local ImageLoader=require("src.image_loader")
 local meshes, rackImage = {}, nil
 local sourceImages, sourceQuads = {}, {}
 local sourceCache = require("src.texture_cache").new(64 * 1024 * 1024, 20)
 local sourceUse, sourceSequence, touched, frameDepth = {}, 0, {}, 0
+local forkliftPoses=setmetatable({}, {__mode="k"})
 local constructionIssues={}
 local constructionImages={}
 local rackIssues={}
@@ -30,7 +32,12 @@ local function sourceImage(path)
     if not sourceImages[path] then
         local cached=sourceCache:take(path)
         local okay,image=true,cached
-        if not image then okay,image=pcall(love.graphics.newImage,path) end
+        if not image then
+            local reason
+            image,reason=ImageLoader.load(path)
+            if not image and reason=="pending" then return nil end
+            okay=image~=nil
+        end
         sourceImages[path]=okay and image or false
         if okay then image:setFilter("linear","linear") end
     end
@@ -82,11 +89,12 @@ end
 local function constructionImage(bayId,path)
     local current=constructionImages[bayId]
     if not current or current.path~=path then
+        local image=ImageLoader.load(path)
+        if not image then return current and current.image or nil end
         releaseConstructionImage(bayId)
-        local okay,image=pcall(love.graphics.newImage,path)
-        current={path=path,image=okay and image or false}
+        current={path=path,image=image}
         constructionImages[bayId]=current
-        if okay then image:setFilter("linear","linear") end
+        image:setFilter("linear","linear")
     end
     return current.image or nil
 end
@@ -114,8 +122,9 @@ end
 local function loadRack()
     if rackImage==false then return nil end
     if not rackImage then
-        local okay,value=pcall(love.graphics.newImage,RACK_PATH)
-        rackImage=okay and value or false
+        local value,reason=ImageLoader.load(RACK_PATH)
+        if not value and reason=="pending" then return nil end
+        rackImage=value or false
         if rackImage then rackImage:setFilter("linear","linear") end
     end
     return rackImage or nil
@@ -398,6 +407,27 @@ end
 function Renderer.drawForklift(assets,state,drawPallet)
     local vehicle=state and state.forklift
     if not vehicle or not vehicle.owned then return end
+    if ImageLoader.enabled then
+        local prior=forkliftPoses[vehicle]
+        if not prior then sourceImage(ROOT.."forklift-eight-directions-unmanned-v1.png") end
+        local function ready(candidate)
+            local layered=Renderer.layeredForkliftPlan(candidate)
+            if layered then
+                local body,forks=sourceImage(layered.bodyPath),sourceImage(layered.carriagePath)
+                return body and forks
+            end
+            local plan=Renderer.forkliftPlan(candidate)
+            return plan and sourceImage(plan.path)
+        end
+        if ready(vehicle) then
+            forkliftPoses[vehicle]={direction=vehicle.direction,operating=vehicle.operating}
+        elseif prior then
+            local fallback={}
+            for key,value in pairs(vehicle) do fallback[key]=value end
+            fallback.direction,fallback.operating=prior.direction,prior.operating
+            if ready(fallback) then vehicle=fallback end
+        end
+    end
     local layeredPlan=Renderer.layeredForkliftPlan(vehicle)
     local plan=layeredPlan or Renderer.forkliftPlan(vehicle)
     local operatingScale,_,multiplier=Renderer.forkliftScales()

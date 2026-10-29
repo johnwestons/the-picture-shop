@@ -66,8 +66,11 @@ function Component.install(Runtime)
         if cutterCount == 0 then
             return nil, { "Install a cutter before accepting production jobs." }
         end
-        local pressJob = isPrintOpportunity(sequence, cutterCount, pressCount)
         local printCount = receptionPrintCount(state)
+        -- A newly press-equipped shop should receive a first printing job
+        -- before the regular weighted machine-mix rotation begins.
+        local pressJob = pressCount > 0 and printCount == 0
+            or isPrintOpportunity(sequence, cutterCount, pressCount)
         local reputation = Runtime.Reputation.ensure(state)
         local _, tier = Runtime.Reputation.tier(reputation)
         local template

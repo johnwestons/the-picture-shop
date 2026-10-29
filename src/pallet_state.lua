@@ -240,6 +240,22 @@ local function nearCutter(state, pallet, radius)
     return CutterZones.inInputZone(state, pallet, Config.cutterPlacement, radius)
 end
 
+local function machineScene(state,modelId)
+    local selected=ownerId(state,modelId)
+    for _,machine in ipairs(state.machines and state.machines.items or {}) do
+        if machine.id==selected then
+            local world=machine.world or state[modelId=="polar_115" and "cutter" or "windmill"]
+            return world and world.sceneId or "warehouse"
+        end
+    end
+    return "warehouse"
+end
+
+local function sameScene(state,pallet,modelId)
+    return pallet and pallet.world
+        and (pallet.world.sceneId or "warehouse")==machineScene(state,modelId)
+end
+
 function PalletState.cutterCandidates(state, radius)
     local owned, staged = {}, {}
     for _, item in ipairs(allPallets(state)) do
@@ -247,9 +263,11 @@ function PalletState.cutterCandidates(state, radius)
         if not item.vendor and paper then
             local candidate = { job = item.job, pallet = pallet, paper = paper }
             if pallet.location == "at_cutter"
-                and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115") then
+                and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115")
+                and sameScene(state,pallet,"polar_115") then
                 owned[#owned + 1] = candidate
             elseif paper.status ~= "complete" and pallet.location == "warehouse"
+                and sameScene(state,pallet,"polar_115")
                 and not PalletStorage.isSupporting(state,pallet.id) and nearCutter(state, pallet, radius)
             then
                 candidate.inputDistance = CutterZones.inputDistanceSquared(
@@ -346,7 +364,8 @@ function PalletState.transition(state, pallet, target, options)
     end
     if target == "at_cutter" then
         local radius = options.cutterRadius or Config.cutterPlacement.palletInputZoneRadius
-        if source ~= "warehouse" or not nearCutter(state, pallet, radius) then
+        if source ~= "warehouse" or not sameScene(state,pallet,"polar_115")
+            or not nearCutter(state, pallet, radius) then
             return false, "stage the pallet on clear floor beside the cutter"
         end
         for _, item in ipairs(allPallets(state)) do
@@ -359,6 +378,9 @@ function PalletState.transition(state, pallet, target, options)
     if target == "at_press" then
         if source ~= "warehouse" and source ~= "cutter_output" and source ~= "press_output" then
             return false, "stage the pallet on the warehouse floor before press loading"
+        end
+        if not sameScene(state,pallet,"heidelberg_10x15") then
+            return false,"move the pallet into the Windmill's room before loading it"
         end
         for _, item in ipairs(allPallets(state)) do
             if item.pallet ~= pallet and item.pallet.location == "at_press"

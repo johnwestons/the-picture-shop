@@ -246,7 +246,9 @@ function Technician.spritePose(visit,characterAssets)
     -- Missing art remains explicit; never substitute a reversed, mirrored or
     -- duplicated walk strip to make an incomplete pack look complete.
     if not characterAssets.hasAction(character,action) then return nil end
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(character,action) end
     local _,_,count=characterAssets.get(character,action,1)
+    if not count then return nil end
     local frame=prefix=="walk" and Animation.frameForGait(count,visit.animationDistance,Config.technician.walkPixelsPerFrame)
         or prefix=="idle" and Animation.frameForIdle(count,visit.idleClock,.65)
         or Animation.frameForClock(count,visit.animationClock,Config.technician.serviceAnimationRate)

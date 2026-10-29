@@ -184,11 +184,13 @@ function Windmill.candidates(state)
                     or BusinessCalendar.absoluteHours(state) >= press.dryUntilHours
                 local world = pallet.world
                 local placement = placementFor(state)
+                local sceneId=placement.sceneId or "warehouse"
                 local distance = world and Footprint.distanceSquared(
                     Footprint.at(placement.x,placement.y,Config.windmillPlacement),
                     Footprint.at(world.x,world.y,Config.palletLogistics)) or math.huge
                 local staged = distance <= Config.windmillPlacement.palletReach ^ 2
                 if paperReady and dry and color <= (job.press.colors or 1)
+                    and world and (world.sceneId or "warehouse")==sceneId
                     and not pallet.wrapped and staged and not Storage.isSupporting(state,pallet.id)
                     and (pallet.location == "warehouse" or pallet.location == "cutter_output"
                         or pallet.location == "press_output")
@@ -505,14 +507,15 @@ function Windmill.cleanAndUnload(state)
     local output
     local pressMachine = MachineFleet.installed(state,"heidelberg_10x15",pallet.pressMachineId)
     if pressMachine and StagingAreas.hasMachineOutput(state,pressMachine.id) then
-        output = StagingAreas.findMachineOutput(state,pressMachine.id,function(x,y)
-            return StagingAreas.slotClear(state,x,y,pallet.id)
+        output = StagingAreas.findMachineOutput(state,pressMachine.id,function(x,y,sceneId)
+            return StagingAreas.slotClear(state,x,y,pallet.id,sceneId)
         end,false)
         if not output then return false,"The Windmill output staging area is full. Clear a slot or move its zone." end
     end
+    local sceneId=pressMachine and pressMachine.world and pressMachine.world.sceneId or "warehouse"
     local world = output and { x=output.x,y=output.y,direction=output.direction,
-        rotation=output.rotation,spawnProgress=1 } or { x = placement.x + 78, y = placement.y + 42,
-        direction = placement.direction, spawnProgress = 1 }
+        rotation=output.rotation,sceneId=sceneId,spawnProgress=1 } or { x = placement.x + 78, y = placement.y + 42,
+        direction = placement.direction,sceneId=sceneId, spawnProgress = 1 }
     local originalStatus, originalWorld, originalPressMachineId =
         pallet.status, pallet.world, pallet.pressMachineId
     local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {

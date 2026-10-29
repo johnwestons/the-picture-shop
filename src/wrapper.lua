@@ -23,6 +23,7 @@ end
 function Wrapper.nearbyPallets(state)
     local machine = machineId and MachineFleet.byId(state, machineId)
     local wrapper = machine and machine.world or WrapperPlacement.ensure(state, Config.wrapperPlacement)
+    local sceneId=wrapper.sceneId or "warehouse"
     local nearby = {}
     for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
         local pallet = item.pallet
@@ -34,7 +35,8 @@ function Wrapper.nearbyPallets(state)
         local distance = Footprint.distanceSquared(
             Footprint.at(wrapper.x,wrapper.y,Config.wrapperPlacement),
             Footprint.at(item.x,item.y,Config.palletLogistics))
-        if eligible and not Storage.isSupporting(state,pallet.id)
+        if eligible and (pallet.world.sceneId or "warehouse")==sceneId
+            and not Storage.isSupporting(state,pallet.id)
             and distance <= Config.wrapperPlacement.palletReach ^ 2 then
             nearby[#nearby + 1] = { pallet = pallet, job = item.job, distance = distance }
         end
@@ -134,10 +136,12 @@ function Wrapper.update(dt, state)
         return false
     end
     local outputMachineId = machineId or "MCH-0002"
+    local machine=MachineFleet.byId(state,outputMachineId)
+    local sceneId=machine and machine.world and machine.world.sceneId or "warehouse"
     local output
     if StagingAreas.hasMachineOutput(state, outputMachineId) then
-        output = StagingAreas.findMachineOutput(state, outputMachineId, function(x, y)
-            return StagingAreas.slotClear(state, x, y, Wrapper.pallet.id)
+        output = StagingAreas.findMachineOutput(state, outputMachineId, function(x, y,outputScene)
+            return StagingAreas.slotClear(state, x, y, Wrapper.pallet.id,outputScene)
         end, false)
         if not output then
             state.message = "The wrapper output staging area is full. Clear a slot or move its zone."
@@ -151,6 +155,7 @@ function Wrapper.update(dt, state)
         local world = {}
         for key, value in pairs(originalWorld) do world[key] = value end
         world.x, world.y = output.x, output.y
+        world.sceneId=sceneId
         world.direction, world.rotation = output.direction, output.rotation
         world.fromX, world.fromY, world.spawnProgress = output.x, output.y, 1
         if originalLocation == "warehouse" then

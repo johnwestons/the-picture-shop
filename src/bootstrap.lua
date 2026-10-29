@@ -2,6 +2,14 @@
 local Bootstrap = {}
 
 function Bootstrap.install()
+    local defaultThreadError=love.threaderror
+    function love.threaderror(thread,reason)
+        -- These workers report failures through their result queues/pollers.
+        if require("src.save").ownsWorker(thread)
+            or require("src.image_loader").ownsWorker(thread) then return end
+        if defaultThreadError then return defaultThreadError(thread,reason) end
+        error(reason)
+    end
     -- Hidden smoke runs need a failing exit instead of an invisible error dialog.
     if os.getenv("PICTURE_SHOP_SMOKE") == "1" or os.getenv("CRITTER_PREVIEW_REVIEW") then
         function love.errorhandler(message)

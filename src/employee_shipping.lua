@@ -3,25 +3,6 @@ local Jack=require("src.pallet_jack")
 local Config=require("src.config")
 local Transport=require("src.employee_pallet_jack")
 local Shipping={}
-function Shipping.requestCompleted(state)
-    local assigned={}
-    for _,worker in ipairs(state.employment.staff) do
-        if worker.status=="employed" then
-            if worker.assignment then assigned[worker.assignment.jobId]=true end
-            for _,group in ipairs({worker.schedule and worker.schedule.items or {},worker.schedule and worker.schedule.history or {}}) do
-                for _,row in ipairs(group) do assigned[row.jobId]=true end
-            end
-        end
-    end
-    local changed=false
-    local Service=require("src.job_service")
-    for _,job in ipairs(state.jobs.active) do
-        if assigned[job.id] and Service.completionReady(job) then
-            if Service.requestPickup(state,job,os.time()) then changed=true end
-        end
-    end
-    return changed
-end
 local function reserved(state,worker,palletId)
     for _,w in ipairs(state.employment.staff) do
         if w~=worker and w.visible and w.clockedIn and w._shippingPalletId==palletId then return true end

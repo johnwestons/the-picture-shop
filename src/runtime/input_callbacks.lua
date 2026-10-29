@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.keypressed(key)
+        if Runtime.Assets.isLoading() and key~="escape" and key~="back" then return end
         if Runtime.spriteLabActive then Runtime.SpriteMotionLab.keypressed(key, Runtime.CharacterAssets); return end
         if Runtime.state.screen == "asset_error" then
             if key == "escape" or key == "q" then love.event.quit() end
@@ -35,6 +36,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousepressed(x, y, button, isTouch)
+        if Runtime.Assets.isLoading() then return end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
         return Runtime.dispatchMousePressed(x, y, button)
     end
@@ -59,6 +61,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchpressed(id, x, y)
+        if Runtime.Assets.isLoading() then return end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if require("src.basketball_controls").touchpressed(id,px,py,Runtime) then return true end
         if Runtime.state.screen=="air_hockey" then
@@ -95,6 +98,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadpressed(joystick, button)
+        if Runtime.Assets.isLoading() and button~="b" then return end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").gamepadpressed(Runtime,joystick,button)
         end

@@ -40,9 +40,10 @@ function Component.install(Runtime)
     Runtime.WAREHOUSE_STAGING_DOWN={x=718,y=508,width=40,height=32}
     Runtime.WAREHOUSE_STAGING_RIGHT={x=762,y=508,width=40,height=32}
     Runtime.WAREHOUSE_STAGING_MAP={x=76,y=260,width=520,height=344}
+    Runtime.WAREHOUSE_STAGING_ROOM={x=76,y=226,width=232,height=28}
 
     function Runtime.warehouseStagingAreaTabRect(index)
-        return {x=76+(index-1)*130,y=226,width=124,height=28}
+        return {x=314+(index-1)*94,y=226,width=90,height=28}
     end
 
     function Runtime.warehouseStagingMapLayout()
@@ -151,9 +152,22 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.warehouseView(state)
         local warehouse=state.warehouse or Runtime.Upgrades.defaultState()
-        local stagingAreas=Runtime.StagingAreas.areas(state)
+        local roomOptions=Runtime.StagingAreas.roomOptions(state)
+        local selectedRoomId=Runtime.ComputerScreen.warehouseSelectedStagingRoomId or "warehouse"
+        local selectedRoom
+        for index,room in ipairs(roomOptions) do
+            if room.id==selectedRoomId then selectedRoom=room;Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex=index;break end
+        end
+        if not selectedRoom then
+            selectedRoom=roomOptions[1]
+            selectedRoomId=selectedRoom.id
+            Runtime.ComputerScreen.warehouseSelectedStagingRoomId=selectedRoomId
+            Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex=1
+        end
+        local stagingAreas=Runtime.StagingAreas.areas(state,selectedRoomId)
         local selectedAreaId=Runtime.ComputerScreen.warehouseSelectedStagingAreaId
         local selectedArea=Runtime.StagingAreas.findById(state,selectedAreaId)
+        if selectedArea and (selectedArea.sceneId or "warehouse")~=selectedRoomId then selectedArea=nil end
         if not selectedArea then
             selectedArea=stagingAreas[1]
             if not Runtime.ComputerScreen.warehousePending then
@@ -166,7 +180,8 @@ function Component.install(Runtime)
             gamesPage=Runtime.ComputerScreen.warehouseGamesPage,
             stagingPage=Runtime.ComputerScreen.warehouseStagingPage,
             stagingAreas=stagingAreas,selectedArea=selectedArea,
-            machineOptions=Runtime.StagingAreas.machineOptions(state)}
+            roomOptions=roomOptions,selectedRoom=selectedRoom,selectedRoomId=selectedRoomId,
+            machineOptions=Runtime.StagingAreas.machineOptions(state,selectedRoomId)}
         for _,bayId in ipairs(Runtime.WAREHOUSE_BAYS) do
             local bay=warehouse.bays and warehouse.bays[bayId] or {status="locked"}
             local project
@@ -274,6 +289,16 @@ function Component.install(Runtime)
         end
         if Runtime.ComputerScreen.warehouseStagingPage then
             local view=Runtime.ComputerScreen.warehouseView(state)
+            if Runtime.contains(Runtime.WAREHOUSE_STAGING_ROOM,x,y) then
+                local nextIndex=(Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex or 1)%#view.roomOptions+1
+                local room=view.roomOptions[nextIndex]
+                Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex=nextIndex
+                Runtime.ComputerScreen.warehouseSelectedStagingRoomId=room.id
+                local areas=Runtime.StagingAreas.areas(state,room.id)
+                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=areas[1] and areas[1].id or nil
+                Runtime.ComputerScreen.warehouseMessage=nil
+                return {action="staging_room_selected",roomId=room.id}
+            end
             for index,area in ipairs(view.stagingAreas) do
                 local rect=Runtime.warehouseStagingAreaTabRect(index)
                 if Runtime.contains(rect,x,y) then
@@ -284,8 +309,9 @@ function Component.install(Runtime)
             end
             if Runtime.contains(Runtime.WAREHOUSE_STAGING_ADD,x,y) then
                 local settings=state.stagingAreas or Runtime.StagingAreas.defaultState()
-                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=Runtime.StagingAreas.nextAreaId(settings)
-                return submitStagingIntent(state,{kind="staging_area_add"})
+                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=Runtime.StagingAreas.nextAreaId(
+                    settings,view.selectedRoomId)
+                return submitStagingIntent(state,{kind="staging_area_add",sceneId=view.selectedRoomId})
             end
             local area=view.selectedArea
             if area and Runtime.contains(Runtime.WAREHOUSE_STAGING_REMOVE,x,y) then

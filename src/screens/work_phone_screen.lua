@@ -76,7 +76,8 @@ end
 local function canAct(call)
     if not call then return false end
     if call.direction ~= "outgoing" then return true end
-    return call.kind == "outgoing_power" and not call.response
+    if call.kind == "outgoing_power" then return not call.response end
+    return call.kind == "outgoing_supplier" and call.pendingItemIndex ~= nil and not call.orderId
 end
 
 local function canOrderSupply(state, call, itemIndex, waiting)
@@ -121,22 +122,33 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     local outgoing = call and call.direction == "outgoing"
     if call then
         love.graphics.setColor(lamp)
-        love.graphics.print(outgoing and "OUTGOING CALL"
-            or (answered and call.role or "INCOMING CALL"), 458, 145)
+        local reviewingOrder = call.pendingItemIndex ~= nil and not call.orderId
+        love.graphics.print(reviewingOrder and "ORDER REVIEW"
+            or (outgoing and "OUTGOING CALL" or (answered and call.role or "INCOMING CALL")), 458, 145)
         love.graphics.setColor(0.96, 0.83, 0.30, 1)
         love.graphics.printf(call.caller, 458, 178, 372, "left")
         love.graphics.setColor(0.72, 0.84, 0.86, 1)
         love.graphics.printf(call.subject, 458, 211, 372, "left")
         love.graphics.setColor(0.90, 0.94, 0.92, 1)
-        love.graphics.printf(call.response or (answered and call.message
-            or "Answer the call to hear what they have to say."), 458, 246, 372, "left")
+        local callMessage = call.response or (answered and call.message
+            or "Answer the call to hear what they have to say.")
+        if reviewingOrder and outgoing and call.kind == "outgoing_supplier" then
+            local item = Procurement.category(call.categoryIndex).items[call.pendingItemIndex]
+            if item then
+                callMessage = string.format("Order: %s — $%d\nDock delivery. Does that look right?",
+                    shortProductName(item.name), item.price)
+            end
+        end
+        love.graphics.printf(callMessage, 458, 246, 372, "left")
         if outgoing and call.kind == "outgoing_supplier" then
             local category = Procurement.category(call.categoryIndex)
             for index, item in ipairs(category.items) do
                 local row = supplyRow(index)
                 local canOrder = canOrderSupply(state, call, index, waiting)
+                local selected = call.pendingItemIndex == index and not call.orderId
                 local hovered = canOrder and pointerX and pointerY and Ui.contains(row, pointerX, pointerY)
-                panel(row, canOrder and (hovered and { 0.13, 0.34, 0.32, 1 } or { 0.08, 0.20, 0.22, 1 })
+                panel(row, selected and { 0.30, 0.27, 0.12, 1 }
+                    or canOrder and (hovered and { 0.13, 0.34, 0.32, 1 } or { 0.08, 0.20, 0.22, 1 })
                     or { 0.12, 0.14, 0.16, 1 }, canOrder and { 0.25, 0.61, 0.59, 1 }
                     or { 0.27, 0.30, 0.31, 1 })
                 love.graphics.setColor(canOrder and { 0.89, 0.94, 0.91, 1 }
@@ -173,7 +185,8 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     local actionEnabled = canAct(call) and not waiting
     local actionLabel = call and (answered and WorkPhone.actionLabel(state) or "ANSWER") or "NO CALL"
     button(ACTION, actionLabel, actionEnabled, pointerX, pointerY)
-    button(HANG_UP, call and (answered and "HANG UP" or "DECLINE CALL") or "NO CALL",
+    button(HANG_UP, call and (call.pendingItemIndex and "CANCEL ORDER"
+        or (answered and "HANG UP" or "DECLINE CALL")) or "NO CALL",
         call ~= nil and not waiting, pointerX, pointerY,
         { 0.38, 0.13, 0.19, 1 }, { 0.88, 0.30, 0.42, 1 })
 end
@@ -222,7 +235,7 @@ function Screen.mousepressed(state, x, y, button)
         for index, _ in ipairs(category.items) do
             if Ui.contains(supplyRow(index), x, y) and canOrderSupply(state, call, index) then
                 local ordered, response = WorkPhone.orderSupply(state, index)
-                if ordered then return { action = "supply_ordered", response = response } end
+                if ordered then return { action = "supply_selected", response = response } end
                 state.message = tostring(response)
                 return { action = "blocked" }
             end

@@ -1,5 +1,6 @@
 local Sound = {}
 Sound.__index = Sound
+local MachineFleet = require("src.machine_fleet")
 
 local CATALOG = {
     ui_click = { path = "assets/audio/sfx/ui_click.wav", volume = 0.55 },
@@ -141,7 +142,8 @@ function Sound:play(name, options)
     local spec, prototype = CATALOG[name], self.prototypes[name]
     if not spec or not prototype or self.paused then return nil end
     local cooldown = tonumber(options.cooldown) or 0
-    if cooldown > 0 and self.clock - (self.lastPlayed[name] or -math.huge) < cooldown then return nil end
+    local cooldownKey = options.cooldownKey and (name .. ":" .. tostring(options.cooldownKey)) or name
+    if cooldown > 0 and self.clock - (self.lastPlayed[cooldownKey] or -math.huge) < cooldown then return nil end
     local source = cloneSource(prototype)
     if not source then
         report(self, "Could not clone cue " .. tostring(name))
@@ -151,7 +153,7 @@ function Sound:play(name, options)
     source:setVolume(self:volumeFor(name, options.volume))
     source:play()
     self.active[#self.active + 1] = source
-    self.lastPlayed[name] = self.clock
+    self.lastPlayed[cooldownKey] = self.clock
     return source
 end
 
@@ -194,6 +196,29 @@ function Sound:capture()
     local jack = state.palletJack or {}
     local effectiveScreen = state.screen == "options" and state.optionsReturnScreen
         or state.screen
+    local cutters, presses, wrappers
+    if machine and type(machine.forId) == "function" then
+        cutters, presses = {}, {}
+        for _, unit in ipairs(MachineFleet.installedUnits(state, "polar_115")) do
+            local runtime = machine.forId(unit.id)
+            cutters[unit.id] = {
+                step = runtime.step,
+                clamp = runtime.clamp == true,
+            }
+        end
+        local installedPresses = MachineFleet.installedUnits(state, "heidelberg_10x15")
+        for index, unit in ipairs(installedPresses) do
+            local placement = unit.world or (index == 1 and (state.windmill or {})) or {}
+            local process = placement.process or {}
+            presses[unit.id] = { motor = process.motor == true, status = process.status }
+        end
+        if wrapper and type(wrapper.forId) == "function" then
+            wrappers = {}
+            for _, unit in ipairs(MachineFleet.installedUnits(state, "skid_wrapper")) do
+                wrappers[unit.id] = { step = wrapper.forId(unit.id).step }
+            end
+        end
+    end
     return {
         screen = effectiveScreen,
         message = state.message,
@@ -203,8 +228,11 @@ function Sound:capture()
         truck = world and world.truck and world.truck.state,
         pallet = jack.carriedPalletId,
         wrapper = wrapper and wrapper.step,
+        wrappers = wrappers,
         cutterStep = machine and machine.step,
         cutterClamp = machine and machine.clamp == true,
+        cutters = cutters,
+        presses = presses,
         pressMotor = press.motor == true,
         pressStatus = press.status,
     }
@@ -214,7 +242,24 @@ function Sound:syncPersistentLoops(snapshot)
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end
-    if inShop and snapshot.pressMotor and snapshot.pressStatus == "production" then
+    if snapshot.presses ~= nil then
+        local activeOwners = {}
+        for id, press in pairs(snapshot.presses) do
+            local owner = "press:" .. tostring(id)
+            if inShop and press.motor and press.status == "production" then
+                self:startLoop("press_running_loop", owner)
+                activeOwners[owner] = true
+            end
+        end
+        for owner, entry in pairs(self.loops) do
+            if entry.name == "press_running_loop"
+                and (owner == "press" or (type(owner) == "string" and owner:sub(1, 6) == "press:"))
+                and not activeOwners[owner]
+            then
+                self:stopLoop(owner)
+            end
+        end
+    elseif inShop and snapshot.pressMotor and snapshot.pressStatus == "production" then
         self:startLoop("press_running_loop", "press")
     else
         self:stopLoop("press")
@@ -236,17 +281,55 @@ function Sound:handleTransitions(before, after)
         if before.pallet == nil and after.pallet ~= nil then self:play("pallet_pickup")
         elseif before.pallet ~= nil and after.pallet == nil then self:play("pallet_place") end
     end
-    if before.wrapper ~= after.wrapper and after.wrapper == "wrapping" then
+    if before.wrappers ~= nil or after.wrappers ~= nil then
+        local ids = {}
+        for id in pairs(before.wrappers or {}) do ids[id] = true end
+        for id in pairs(after.wrappers or {}) do ids[id] = true end
+        for id in pairs(ids) do
+            local old, current = (before.wrappers or {})[id] or {}, (after.wrappers or {})[id] or {}
+            if old.step ~= current.step and current.step == "wrapping" then
+                self:play("wrapper_cycle", { cooldown = 0.5, cooldownKey = id })
+            end
+        end
+    elseif before.wrapper ~= after.wrapper and after.wrapper == "wrapping" then
         self:play("wrapper_cycle", { cooldown = 0.5 })
     end
-    if before.cutterClamp ~= after.cutterClamp and after.cutterClamp then
-        self:play("cutter_clamp", { cooldown = 0.15 })
+    if before.cutters ~= nil or after.cutters ~= nil then
+        local ids = {}
+        for id in pairs(before.cutters or {}) do ids[id] = true end
+        for id in pairs(after.cutters or {}) do ids[id] = true end
+        for id in pairs(ids) do
+            local old, current = (before.cutters or {})[id] or {}, (after.cutters or {})[id] or {}
+            if old.clamp ~= current.clamp and current.clamp then
+                self:play("cutter_clamp", { cooldown = 0.15, cooldownKey = id })
+            end
+            if old.step ~= current.step and current.step == "cutting" then
+                self:play("cutter_cut", { cooldown = 0.25, cooldownKey = id })
+            end
+        end
+    else
+        -- Keep direct transition callers and older sound snapshots working.
+        if before.cutterClamp ~= after.cutterClamp and after.cutterClamp then
+            self:play("cutter_clamp", { cooldown = 0.15 })
+        end
+        if before.cutterStep ~= after.cutterStep and after.cutterStep == "cutting" then
+            self:play("cutter_cut", { cooldown = 0.25 })
+        end
     end
-    if before.cutterStep ~= after.cutterStep and after.cutterStep == "cutting" then
-        self:play("cutter_cut", { cooldown = 0.25 })
-    end
-    if before.pressMotor ~= after.pressMotor and after.pressMotor then
-        self:play("press_start", { cooldown = 0.5 })
+    if before.presses ~= nil or after.presses ~= nil then
+        local ids = {}
+        for id in pairs(before.presses or {}) do ids[id] = true end
+        for id in pairs(after.presses or {}) do ids[id] = true end
+        for id in pairs(ids) do
+            local old, current = (before.presses or {})[id] or {}, (after.presses or {})[id] or {}
+            if old.motor ~= current.motor and current.motor then
+                self:play("press_start", { cooldown = 0.5, cooldownKey = id })
+            end
+        end
+    else
+        if before.pressMotor ~= after.pressMotor and after.pressMotor then
+            self:play("press_start", { cooldown = 0.5 })
+        end
     end
     if before.completedJobs < after.completedJobs then
         self:play("job_complete", { cooldown = 0.5 })

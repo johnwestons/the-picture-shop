@@ -65,7 +65,7 @@ function Component.install(Runtime)
         local urgency = serviceId == "express" and 1.40 or serviceId == "quick" and 1.25 or 1.15
         local relationship = Runtime.completedRelationship(state, job.company)
         local reputation = Runtime.Reputation.ensure(state)
-        local reputationRoom = math.max(0, reputation.score) * 0.0025
+        local reputationRoom = math.max(0, reputation.score) * 0.0035
         local temperamentRoom = job.clientTemperament == "demanding" and 0.10 or 0
         local ceiling = base * (urgency + math.min(0.15, relationship * 0.03)
             + reputationRoom + temperamentRoom)

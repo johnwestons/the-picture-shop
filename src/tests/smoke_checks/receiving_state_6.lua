@@ -70,7 +70,7 @@ function Component.run(Context)
     Context.check("paperwork_offer_created", Context.serviceOffer
         and Context.serviceOffer.id == "JOB-0001"
         and Context.serviceOffer.company == "Blue Ridge Packaging"
-        and Context.serviceOffer.quote.totalPrice == 648
+        and Context.serviceOffer.quote.totalPrice == 660
         and #Context.serviceOffer.pallets == 2
         and Context.serviceOffer.deliveryService.id == "express"
         and Context.serviceOffer.deliveryService.delayHours >= 2

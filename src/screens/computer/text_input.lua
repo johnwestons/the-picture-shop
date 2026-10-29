@@ -25,9 +25,7 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.textinput(state, text)
         if Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused then
-            if #Runtime.ComputerScreen.promoText < 240 then
-                Runtime.ComputerScreen.promoText = (Runtime.ComputerScreen.promoText .. text):sub(1, 240)
-            end
+            Runtime.ComputerScreen.promoText = Runtime.ComputerScreen.promoText .. text
             return true
         elseif Runtime.ComputerScreen.tab == "estimating" and Runtime.ComputerScreen.quoteFocused then
             for character in text:gmatch(".") do

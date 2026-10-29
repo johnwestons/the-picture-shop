@@ -49,6 +49,8 @@ function Component.install(Runtime)
                     or world.x < 0 or world.x > Runtime.Config.baseWidth
                     or world.y < 0 or world.y > Runtime.Config.baseHeight
                     or not Runtime.directions[world.direction]
+                    or (world.sceneId~=nil and world.sceneId~="warehouse"
+                        and world.sceneId~="front_left" and world.sceneId~="front_right")
                     or not Runtime.optionalBoolean(world.moving)
                     or not Runtime.optionalBoolean(world.inMotion)
                     or (item.modelId == "heidelberg_10x15"

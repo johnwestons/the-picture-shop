@@ -18,6 +18,18 @@ function Access.obstacles(state,scene,excludeJack,excludedPalletId,excludedForkl
                 shape="diamond"}
         end
     end
+    local machineConfig={
+        polar_115=Config.cutterPlacement,
+        skid_wrapper=Config.wrapperPlacement,
+        heidelberg_10x15=Config.windmillPlacement,
+    }
+    for _,machine in ipairs(require("src.machine_fleet").installedUnits(state)) do
+        local world=machine.world
+        local config=machineConfig[machine.modelId]
+        if world and not world.moving and config and (world.sceneId or "warehouse")==scene then
+            result[#result+1]=Footprint.at(world.x,world.y,config)
+        end
+    end
     local lift=state.forklift
     if lift and lift~=excludedForklift and lift.owned and (lift.sceneId or "warehouse")==scene then
         result[#result+1]=Footprint.at(lift.x,lift.y,Config.forklift)
@@ -29,7 +41,7 @@ function Access.obstacles(state,scene,excludeJack,excludedPalletId,excludedForkl
     end
     return result
 end
-function Access.landing(assets,scene,vehicle,obstacles)
+function Access.landing(assets,scene,vehicle,obstacles,attachedFootprint)
     local Rooms=require("src.shop_rooms")
     local Navigation=require("src.navigation")
     local width,height=5,5
@@ -37,6 +49,10 @@ function Access.landing(assets,scene,vehicle,obstacles)
         local c=vehicle.owned and Config.forklift or Config.palletJack
         width=vehicle.carriedPalletId and c.loadedCollisionHalfWidth or c.collisionHalfWidth
         height=vehicle.carriedPalletId and c.loadedCollisionHalfHeight or c.collisionHalfHeight
+    end
+    if attachedFootprint then
+        width=math.max(width,tonumber(attachedFootprint.x) or 0)
+        height=math.max(height,tonumber(attachedFootprint.y) or 0)
     end
     local base=scene=="warehouse" and Rooms.roomEntrance or Rooms.exit
     local candidates={}

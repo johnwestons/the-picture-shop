@@ -3,27 +3,21 @@
 ## Current source build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.61` (`versionCode` 61)
-- Multiplayer protocol: 41; host and guests need matching current code.
-- Build command: `./BUILD_ANDROID.ps1`
-- Local installer: `output/android-share/0.1.0-android.61/ThePictureShop-0.1.0-android.61-Install.apk`
-- The view outside the garage is a textured parking-lot sprite, with a compact
-  runtime texture to stay within the existing mobile memory budget.
-- The arcade cabinet has a neon 1980s game selector. Air hockey has a movement
-  wheel to the left of the table, with corrected Android touch mapping and touch ownership.
-- The Regal Moll practice folder is now purchase-only. Updating removes the free
-  floor prop from existing shops without a save reset; purchased units remain saved.
-- Download the development APK from the [Android 61 GitHub release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61).
-- The development APK uses the same gameplay and art source as Windows, including
-  warehouse staging controls, seasonal customer-demand tuning, updated pallet and
-  supplies flow, performance improvements, and current gameplay and multiplayer changes.
-- The package ID and signing certificate are kept compatible with the previous
+- Version: `0.1.0-android.66` (`versionCode` 66)
+- Multiplayer protocol: 47; host and guests need matching current code.
+- Build command: `./BUILD_ANDROID.ps1` (or `PACK_ANDROID.bat` for a share folder)
+- Local installer: `output/android-share/0.1.0-android.66/ThePictureShop-0.1.0-android.66-Install.apk`
+- The development APK uses the shared gameplay and art source as Windows. This
+  update includes room-specific warehouse loading bays, expanded-room pallet
+  staging and output areas, print-press jobs, independent machine audio, and
+  late-game simulation/rendering and save/image-loading improvements.
+- The package ID and signing certificate remain compatible with the previous
   Android build, so installing over it preserves existing saves.
-- Installation readiness and remaining device checks are recorded in
-  [the Android 61 release notes](docs/android_61_release.md).
-- Fresh test saves were requested for this handoff. Download the installer first,
-  uninstall only The Picture Shop without keeping app data, then install it.
-- A connected phone is required to verify installation and physical gameplay.
+- Build verification and package details are recorded in
+  [the Android 66 release notes](docs/android_66_release.md).
+- This is a private development build. No physical phone or tablet installation
+  has been verified for this handoff; use the device checklist below before a
+  public release.
 
 ## Android 43 historical build notes
 

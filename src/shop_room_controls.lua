@@ -88,8 +88,9 @@ function Controls.keypressed(key,Runtime)
     local sceneId=Rooms.scene(Runtime.World.player)
     local storageRoom=sceneId~="warehouse" and Rooms.isComplete(Runtime.state,sceneId)
         and Rooms.definition(Runtime.state,sceneId)=="storage"
-    local warehouseKey=({m=true,v=true,g=true,t=true,r=true,k=true,h=true})[key]
-    if sceneId~="warehouse" and ({f=true,l=true,q=true})[key]
+    local vehicleKey=({f=true,l=true,q=true,m=true})[key]
+    local warehouseKey=({v=true,g=true,t=true,r=true,k=true,h=true})[key]
+    if sceneId~="warehouse" and vehicleKey and not Rooms.machineRoomAllowed(Runtime.state,sceneId)
         or sceneId~="warehouse" and warehouseKey and not storageRoom then
         Runtime.state.message="Return to the warehouse to use its machines and vehicles."
         return true

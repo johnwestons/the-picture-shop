@@ -25,6 +25,9 @@ function Component.install(Runtime)
             love.graphics.print("PALLET STAGING AREA EDITOR",78,195)
             control(Runtime.WAREHOUSE_STAGING_EDITOR_EXIT,"ROOM UPGRADES",true)
 
+            local roomLabel=view.selectedRoom and view.selectedRoom.label or "WAREHOUSE"
+            control(Runtime.WAREHOUSE_STAGING_ROOM,"ROOM  /  "..roomLabel.."  ›",true)
+
             local selected=view.selectedArea or view.stagingAreas[1]
             for index,area in ipairs(view.stagingAreas) do
                 local rect=Runtime.warehouseStagingAreaTabRect(index)
@@ -69,7 +72,8 @@ function Component.install(Runtime)
             }
             for _,machine in ipairs(state.machines and state.machines.items or {}) do
                 local marker=machineMap[machine.modelId]
-                if machine.status=="installed" and marker then
+                if machine.status=="installed" and marker
+                    and ((machine.world and machine.world.sceneId or "warehouse")==view.selectedRoomId) then
                     local placement=machine.world or state[marker.key]
                     local config=Runtime.Config[marker.key.."Placement"]
                     if not placement and config then placement={x=config.spawnX,y=config.spawnY} end
@@ -119,32 +123,37 @@ function Component.install(Runtime)
             Runtime.panel({x=610,y=260,width=274,height=344},{0.045,0.09,0.10,0.98},{0.31,0.52,0.49,1},3,1)
             local area=selected
             love.graphics.setColor(0.95,0.82,0.39,1)
-            love.graphics.print(area and StagingAreas.label(state,area) or "STAGING AREA",624,270)
+            love.graphics.print(area and StagingAreas.label(state,area) or "NO STAGING AREAS",624,270)
             local fixedPurpose=StagingAreas.isFixedPurpose(area)
             local function setting(rect,label,enabled)
                 control(rect,label,enabled and view.enabled and not view.pending)
             end
-            setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
-                ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
-            local swatch=StagingAreas.color(area.color)
-            setting(Runtime.WAREHOUSE_STAGING_COLOR,"COLOR  /  "..swatch.label.."  /  NEXT",true)
-            if area.purpose=="machine_output" then
-                local machineLabel="NO INSTALLED MACHINE"
-                for _,machine in ipairs(view.machineOptions) do
-                    if machine.id==area.machineId then machineLabel=machine.label end
+            if area then
+                setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
+                    ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
+                local swatch=StagingAreas.color(area.color)
+                setting(Runtime.WAREHOUSE_STAGING_COLOR,"COLOR  /  "..swatch.label.."  /  NEXT",true)
+                if area.purpose=="machine_output" then
+                    local machineLabel="NO INSTALLED MACHINE IN THIS ROOM"
+                    for _,machine in ipairs(view.machineOptions) do
+                        if machine.id==area.machineId then machineLabel=machine.label end
+                    end
+                    setting(Runtime.WAREHOUSE_STAGING_MACHINE,"MACHINE  /  "..machineLabel
+                        ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
+                        area.id~="cutter-output" and #view.machineOptions>0)
+                else
+                    love.graphics.setColor(0.59,0.72,0.69,1)
+                    love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO MACHINES IN THIS ROOM.",620,390,264,"center")
                 end
-                setting(Runtime.WAREHOUSE_STAGING_MACHINE,"MACHINE  /  "..machineLabel
-                    ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
-                    area.id~="cutter-output" and #view.machineOptions>0)
+                local shownArea=Runtime.warehouseStagingPreviewArea(area)
+                love.graphics.setColor(0.75,0.86,0.82,1)
+                love.graphics.printf(string.format("POSITION  /  X %d   Y %d",shownArea.x,shownArea.y),620,430,264,"center")
+                love.graphics.setColor(0.65,0.79,0.75,1)
+                love.graphics.printf("DRAG ON THE MAP  /  NUDGE",620,454,264,"center")
             else
                 love.graphics.setColor(0.59,0.72,0.69,1)
-                love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO ANY INSTALLED MACHINE.",620,390,264,"center")
+                love.graphics.printf("Create a pallet area for this room, then choose its purpose and position.",620,330,264,"center")
             end
-            local shownArea=Runtime.warehouseStagingPreviewArea(area)
-            love.graphics.setColor(0.75,0.86,0.82,1)
-            love.graphics.printf(string.format("POSITION  /  X %d   Y %d",shownArea.x,shownArea.y),620,430,264,"center")
-            love.graphics.setColor(0.65,0.79,0.75,1)
-            love.graphics.printf("DRAG ON THE MAP  /  NUDGE",620,454,264,"center")
             setting(Runtime.WAREHOUSE_STAGING_LEFT,"<",true)
             setting(Runtime.WAREHOUSE_STAGING_UP,"^",true)
             setting(Runtime.WAREHOUSE_STAGING_DOWN,"v",true)

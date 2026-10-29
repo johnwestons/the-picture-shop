@@ -13,7 +13,7 @@ local fields = {
     buy_forklift = { requestId = "token" },
     buy_garage_door = { bayId = "bay", requestId = "token" },
     buy_breakroom_fixture = { bayId = "bay", fixtureId = "breakroom_fixture", requestId = "token" },
-    staging_area_add = {},
+    staging_area_add = { sceneId = "staging_scene" },
     staging_area_remove = { areaId = "token" },
     staging_area_change = { areaId = "token", change = "staging_change", x = "staging_x", y = "staging_y" },
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
@@ -65,6 +65,11 @@ function Intent.normalize(value)
             if item ~= nil and not integer(item, 0, Config.baseHeight) then
                 return nil, "Choose a valid staging area position."
             end
+        elseif rule == "staging_scene" then
+            if item==nil then item="warehouse" end
+            if item~="warehouse" and item~="front_left" and item~="front_right" then
+                return nil,"Choose a room for pallet staging."
+            end
         elseif rule == "employee_skill" then
             if item~="cutter" and item~="press" and item~="wrapping" then
                 return nil,"Choose paper-cutter, printing-press, or pallet-wrapping training."
@@ -96,7 +101,7 @@ function Intent.normalize(value)
             if item == nil then item = "online" end
             if item ~= "online" and item ~= "dealer" then return nil, "Choose a listed machine channel." end
         elseif rule == "text" then
-            if type(item) ~= "string" or #item > 600 or item:find("[%z\1-\8\11\12\14-\31]") then return nil, "Invalid message." end
+            if type(item) ~= "string" or item:find("[%z\1-\8\11\12\14-\31]") then return nil, "Invalid message." end
         elseif rule == "cart" then
             if type(item) ~= "table" or #item < 1 or #item > 6 then return nil, "Use a cart of 1–6 different products." end
             local rows, count = {}, 0

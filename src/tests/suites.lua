@@ -17,6 +17,8 @@ local DOMAIN_SUITES = {
     require("src.tests.critter_crisis_controller_test"),
     require("src.tests.performance_regression_test"),
     require("src.tests.scaling_performance_test"),
+    require("src.tests.async_save_test"),
+    require("src.tests.streaming_images_test"),
     require("src.tests.acceptance_host_bootstrap_test"),
     require("src.tests.ip_scope_test"),
     require("src.tests.ipv6_address_test"),

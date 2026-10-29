@@ -59,20 +59,21 @@ function Bays.purchase(state,id,requestId)
     return true,receipt,"purchased"
 end
 function Bays.pickupScene(state,job)
-    local counts={}
-    for _,p in ipairs(job.pallets or {}) do
-        local scene=p.world and p.world.sceneId or "warehouse"
-        counts[scene]=(counts[scene] or 0)+1
-    end
-    local preferred=job.pickup and job.pickup.sceneId
-    if Bays.owns(state,preferred) then return preferred end
-    local selected,best
-    for _,id in ipairs(Bays.IDS) do
-        if Bays.owns(state,id) and (not best or (counts[id] or 0)>best) then
-            selected,best=id,counts[id] or 0
+    local sceneId,total
+    total=0
+    for _,p in ipairs(job and job.pallets or {}) do
+        if p.status~="spoiled_discarded" then
+            total=total+1
+            local palletScene=p.world and p.world.sceneId or "warehouse"
+            if sceneId==nil then sceneId=palletScene
+            elseif sceneId~=palletScene then return "warehouse" end
         end
     end
-    return selected or "warehouse"
+    -- A room dock belongs to pallets physically staged in that room. If the
+    -- job spans rooms, or includes warehouse pallets, employees consolidate
+    -- through the main loading bay instead of mixing truck assignments.
+    if total>0 and sceneId~="warehouse" and Bays.owns(state,sceneId) then return sceneId end
+    return "warehouse"
 end
 -- The room bay is on the back wall, clear of the pedestrian exit and racks.
 Bays.aperture={{x=780,y=104},{x=924,y=126},{x=924,y=280},{x=780,y=258}}

@@ -374,7 +374,6 @@ function AI.update(state,dt,context)
     local now=Calendar.absoluteHours(state)
     local previous=math.min(now,e.lastAtHours)
     local changed=Employees.advance(state,now)
-    if context.pickupTruck and require("src.employee_shipping").requestCompleted(state) then changed=true end
     local schedulesChanged=Schedule.reconcileCompleted(state,now,function(w)
         if not Work.safe(w,state) then return false end
         Work.release(state,w)

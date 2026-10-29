@@ -76,6 +76,11 @@ function Rooms.definition(state,id)
     local bay=state and state.warehouse and state.warehouse.bays[id]
     return bay and (bay.status=="building" or bay.status=="complete") and bay.optionId or nil
 end
+function Rooms.machineRoomAllowed(state,id)
+    if id=="warehouse" then return true end
+    return Rooms.isComplete(state,id)
+        and (Rooms.definition(state,id)=="storage" or Rooms.definition(state,id)=="floor")
+end
 function Rooms.name(state,id)
     if id=="warehouse" then return "Warehouse" end
     local kind=Rooms.definition(state,id)
@@ -96,10 +101,22 @@ function Rooms.assets(assets,sceneId,state)
     if not scenes then scenes=setmetatable({}, {__mode="v"});adapters[assets]=scenes end
     local key=sceneId..":"..kind
     if scenes[key] then return scenes[key] end
+    -- This floor contour is static for a room kind. Compute each mask column
+    -- once instead of walking all contour segments for every route sample.
+    -- Keep the same pixel grid and passage boundaries as Registration.walkable.
+    local floors,passage={},{}
+    for px=0,1535 do
+        local x=px*960/1536
+        floors[px]=Registration.floorHeight(x,kind)
+        passage[px]=kind=="warehouse" and x>=604 and x<=692
+    end
     local mask={}
     function mask:getDimensions() return 1536,1024 end
     function mask:getPixel(px,py)
-        local value=Rooms.walkable(px*960/1536,py*678/1024,sceneId,kind) and 1 or 0
+        local y=py*678/1024
+        local floor=floors[px]
+        local value=floor and y<=670
+            and (y>=floor or passage[px] and y>=186 and y<=236) and 1 or 0
         return value,value,value,1
     end
     local adapted=setmetatable({_shopRoomSource=assets,_shopRoomScene=sceneId,_shopRoomKind=kind,getData=function(name)
@@ -193,6 +210,11 @@ local function moveJackBetweenScenes(state,dx,dy,destination)
             world.spawnProgress=1
         end
     end
+    local kind,pose,unit=require("src.machine_transport").active(state)
+    if kind and pose then
+        pose.x,pose.y=pose.x+dx,pose.y+dy
+        pose.sceneId=destination
+    end
 end
 local function moveForkliftBetweenScenes(state,dx,dy,destination)
     local lift=state.forklift
@@ -238,8 +260,15 @@ function Rooms.transition(player,state,destination,context)
     if ownsForklift and (lift.sceneId or "warehouse")~=current then
         return false,"wrong_scene","The forklift is in another room."
     end
-    if operating(player,state) and not ownsJack and not ownsForklift or movingAttachedMachine(state) then
+    local movingMachine=movingAttachedMachine(state)
+    local machineKind,machinePose,machineUnit
+    if movingMachine then machineKind,machinePose,machineUnit=require("src.machine_transport").active(state) end
+    if operating(player,state) and not ownsJack and not ownsForklift then
         return false,"park_first","Place the moving equipment before entering a room."
+    end
+    if machinePose and (not ownsJack or jack.operatorPlayerId~=playerId
+        or (machinePose.sceneId or "warehouse")~=current) then
+        return false,"park_first","The pallet jack operator must move the attached machine through the doorway."
     end
     if ownsJack and jack.moving then return false,"stop_first","Stop the pallet jack at the doorway first." end
     if ownsForklift then
@@ -250,6 +279,9 @@ function Rooms.transition(player,state,destination,context)
             or Rooms.definition(state,destination)~="storage") then
             return false,"room_locked","The forklift can enter a completed storage room."
         end
+    end
+    if machinePose and destination~="warehouse" and not Rooms.machineRoomAllowed(state,destination) then
+        return false,"room_locked","Machines can be moved into completed storage or utility rooms."
     end
     local doorway=current=="warehouse" and Rooms.roomEntrance or Rooms.exit
     if current=="warehouse" then
@@ -286,7 +318,13 @@ function Rooms.transition(player,state,destination,context)
                 obstacles[#obstacles+1]={x=other.x,y=other.y,radius=18}
             end
         end
-        local landing=require("src.room_vehicle_access").landing(assets,destination,vehicle,obstacles)
+        local machineFootprint
+        if machinePose and machineKind then
+            local definition=machineUnit and require("src.machine_fleet").definition(machineUnit.modelId)
+            local placement=definition and Config[definition.placementKey.."Placement"]
+            if placement then machineFootprint={x=placement.collisionHalfWidth,y=placement.collisionHalfHeight} end
+        end
+        local landing=require("src.room_vehicle_access").landing(assets,destination,vehicle,obstacles,machineFootprint)
         if not landing then return false,"doorway_blocked","Clear the floor on the other side of the doorway." end
         point={x=player.x+landing.x-vehicle.x,y=player.y+landing.y-vehicle.y}
     end

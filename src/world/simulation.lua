@@ -5,7 +5,8 @@ local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
     function Runtime.World.doorForScene(scene)
-        return Runtime.World.roomDoors[scene] or Runtime.World.bayDoor
+        if scene==nil or scene=="warehouse" then return Runtime.World.bayDoor end
+        return Runtime.World.roomDoors[scene]
     end
     function Runtime.World.load(position)
         local character = position and position.character or Runtime.Config.player.character
@@ -88,6 +89,7 @@ function Component.install(Runtime)
         local saveNeeded = Runtime.scheduleTruck(state)
         local truckJobId, truckMode = Runtime.World.truck.jobId, Runtime.World.truck.mode
         local door=Runtime.World.doorForScene(Runtime.World.truck.sceneId)
+        if not door then return saveNeeded end
         local event = Runtime.World.truck:update(dt, door.state, motionDt)
         if not event then return saveNeeded end
         local job = Runtime.activeJobById(state, truckJobId)

@@ -37,7 +37,7 @@ for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
 delivery truck at the loading dock. Employees automatically choose available
 jacks and can transport separate pallets at the same time. Each jack and its
 load survives saving; approach a free jack to operate it yourself. The current
-source uses multiplayer protocol **42**, so all players need the same build.
+source uses multiplayer protocol **47**, so all players need the same build.
 
 ## NPC workers and hiring
 
@@ -145,9 +145,10 @@ warning; public releases should be code-signed.
 
 The latest public Android test installer is [Android 61](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61),
 which uses multiplayer protocol 41. The current source uses protocol 47 and is
-configured for Android 65; build a matching private installer with
+configured for Android 66; build a matching private installer with
 `PACK_ANDROID.bat`. Every multiplayer participant needs the same build and
-protocol. Android 65's handoff and remaining physical phone/tablet checks are in
+protocol. Android 66's handoff and remaining physical phone/tablet checks are in
+[the Android 66 release notes](docs/android_66_release.md). Android 65 remains documented in
 [the Android 65 release notes](docs/android_65_release.md). The older
 [Android 61 release notes](docs/android_61_release.md) remain historical.
 

@@ -48,9 +48,10 @@ function Component.install(Runtime)
     function Runtime.World.beginNetworkMachineMove(player, state, machineIndex, controlOccupied, machineId)
         local playerId, jack, code, message = Runtime.networkJackOwner(player, state)
         if not playerId then return false, code, message end
-        if (jack.sceneId or "warehouse") ~= "warehouse"
-            or require("src.shop_rooms").scene(player) ~= "warehouse" then
-            return false, "wrong_scene", "Return the pallet jack to the warehouse to move machines."
+        local Rooms=require("src.shop_rooms")
+        local sceneId=Rooms.scene(player)
+        if (jack.sceneId or "warehouse")~=sceneId then
+            return false,"wrong_scene","Move to the room containing the pallet jack first."
         end
         if Runtime.palletJackHasAttachedMachine(state) then
             return false, "machine_moving", "Place the moving machine before relocating another one."
@@ -59,6 +60,13 @@ function Component.install(Runtime)
         local unit = record and Runtime.MachineTransport.resolve(state, record.kind, machineId)
         if not unit then
             return false, "machine_unavailable", "That machine is not installed in this shop."
+        end
+        local machinePose=unit.world or state[record.kind]
+        if (machinePose.sceneId or "warehouse")~=sceneId then
+            return false,"wrong_scene","Move to the room containing that machine first."
+        end
+        if sceneId~="warehouse" and not Rooms.machineRoomAllowed(state,sceneId) then
+            return false,"room_locked","Machines can only be moved in completed storage or utility rooms."
         end
         if Runtime.Employees.reservation(state,unit.id) then
             return false,"employee_reserved","Pause the employee's assignment before relocating this machine."
@@ -86,6 +94,16 @@ function Component.install(Runtime)
         end
         local moveState = Runtime.MachineTransport.view(state, record.kind, unit)
         local item = record.placement.ensure(moveState, record.config)
+        if not unit.world then
+            -- The original starter unit stores its pose in the legacy state
+            -- field. Promote it to the unit before moving so room changes,
+            -- rendering, and later machine selection keep the right owner.
+            unit.world={}
+            for key,value in pairs(item) do unit.world[key]=value end
+            unit.world.sceneId=unit.world.sceneId or "warehouse"
+            moveState=Runtime.MachineTransport.view(state,record.kind,unit)
+            item=record.placement.ensure(moveState,record.config)
+        end
         if (jack.x - item.x) ^ 2 + (jack.y - item.y) ^ 2
             > record.config.interactionRadius ^ 2
         then
@@ -133,6 +151,7 @@ function Component.install(Runtime)
         local moveState = Runtime.MachineTransport.view(state, record.kind, unit)
         local item = record.placement.ensure(moveState, record.config)
         item.x, item.y = x, y
+        item.sceneId=require("src.shop_rooms").scene(player)
         if not record.placement.place(moveState, record.config) then return false end
         Runtime.World.placementSelection = nil
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
@@ -152,12 +171,13 @@ function Component.install(Runtime)
         if not x then
             return false, "invalid_cell", "Choose a valid highlighted placement cell."
         end
-        local grid = Runtime.World.placementGridSnapshot(state, assets)
+        local sceneId=require("src.shop_rooms").scene(player)
+        local grid = Runtime.World.placementGridSnapshot(state, assets,sceneId)
         local valid = false
         for _, cell in ipairs(grid and grid.cells or {}) do
             if cell.x == x and cell.y == y and cell.valid then valid = true; break end
         end
-        if not valid or not Runtime.isMachinePlacementClear(state, assets, record.kind, x, y) then
+        if not valid or not Runtime.isMachinePlacementClear(state, assets, record.kind, x, y,sceneId) then
             return false, "placement_blocked", "That placement cell is blocked; choose a green space."
         end
         if not Runtime.finishNetworkMachinePlacement(player, state, record, x, y) then
@@ -173,10 +193,11 @@ function Component.install(Runtime)
         local item = record.placement.ensure(Runtime.MachineTransport.view(state, record.kind, unit), record.config)
         local origin = item._relocationOrigin
         Runtime.World.placementSelection = nil
-        local grid = Runtime.World.placementGridSnapshot(state, assets)
+        local sceneId=(state.palletJack and state.palletJack.sceneId) or "warehouse"
+        local grid = Runtime.World.placementGridSnapshot(state, assets,sceneId)
         local target = grid and grid.selected
         local x, y = target and target.x, target and target.y
-        if not x or not y or not Runtime.isMachinePlacementClear(state, assets, record.kind, x, y) then
+        if not x or not y or not Runtime.isMachinePlacementClear(state, assets, record.kind, x, y,sceneId) then
             x, y = origin and origin.x or item.x, origin and origin.y or item.y
         end
         local recovered = Runtime.finishNetworkMachinePlacement(player, state, record, x, y)
@@ -186,13 +207,14 @@ function Component.install(Runtime)
 
     function Runtime.World.nearbyMachineMove(state)
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
-        if (jack.sceneId or "warehouse") ~= "warehouse" then return nil end
+        local sceneId=jack.sceneId or "warehouse"
         local best, nearest
         for index, record in ipairs(Runtime.NETWORK_MACHINE_KINDS) do
             for _, unit in ipairs(Runtime.MachineFleet.installedUnits(state, record.modelId)) do
                 local pose = unit.world or state[record.kind]
+                local sameScene=(pose.sceneId or "warehouse")==sceneId
                 local distance = (jack.x - pose.x)^2 + (jack.y - pose.y)^2
-                if not pose.moving and distance <= record.config.interactionRadius^2
+                if sameScene and not pose.moving and distance <= record.config.interactionRadius^2
                     and (not nearest or distance < nearest) then
                     nearest = distance
                     best = { kind = ({"cutter", "skidWrapper", "windmill"})[index],

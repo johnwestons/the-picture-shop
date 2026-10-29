@@ -75,6 +75,16 @@ local function positiveInteger(value, fallback)
     return math.max(1, value)
 end
 
+local function orderReviewMessage(item, canChangeItem)
+    if canChangeItem then
+        return string.format(
+            "I have %s for $%d, delivered to the dock. Does that look right? Confirm below or choose another item.",
+            item.name, item.price)
+    end
+    return string.format("%s • $%d • dock delivery.\nDoes that look right? Confirm below to place it.",
+        item.name, item.price)
+end
+
 local function findActiveJob(state, jobId)
     for _, job in ipairs(state.jobs and state.jobs.active or {}) do
         if job.id == jobId then return job end
@@ -319,13 +329,17 @@ function WorkPhone.orderSupply(state, itemIndex)
     if call.orderId then return false, "This phone call already placed an order." end
     local category = Procurement.category(call.categoryIndex)
     itemIndex = math.floor(tonumber(itemIndex) or 0)
-    if not category.items[itemIndex] then return false, "Choose an item from this supplier's catalog." end
-    local purchased, orderOrError = Procurement.buy(state, call.categoryIndex, itemIndex, "salesman")
-    if not purchased then return false, tostring(orderOrError) end
-    call.orderId = orderOrError.id
-    call.response = string.format(
-        "%s placed: %s, $%d. Dock delivery in about 4 game hours.",
-        orderOrError.id, orderOrError.productName, orderOrError.price)
+    local item = category.items[itemIndex]
+    if not item then return false, "Choose an item from this supplier's catalog." end
+    if item.available == false then
+        return false, item.unavailableReason or "That product is not available yet."
+    end
+    if not item.price or not item.quantity then
+        return false, "That product is not offered through this sales channel."
+    end
+    if (state.money or 0) < item.price then return false, "Not enough money for this purchase." end
+    call.pendingItemIndex = itemIndex
+    call.response = orderReviewMessage(item, true)
     state.message = call.response
     return true, call.response
 end
@@ -418,14 +432,32 @@ function WorkPhone.respond(state)
     if not call.answered then return false, "Answer the phone before responding." end
     local response
     if call.direction == "outgoing" then
-        if call.kind ~= "outgoing_power" then
+        if call.kind == "outgoing_supplier" then
+            if call.orderId then return false, "This phone call already placed an order." end
+            if not call.pendingItemIndex then
+                return false, "Choose an item from the supplier catalog to review before placing an order."
+            end
+            local purchased, orderOrError = Procurement.buy(state,
+                call.categoryIndex, call.pendingItemIndex, "salesman")
+            if not purchased then
+                call.response = tostring(orderOrError)
+                state.message = call.response
+                return false, call.response
+            end
+            call.orderId = orderOrError.id
+            response = string.format(
+                "%s placed by phone for $%d. Dock delivery is arranged.",
+                orderOrError.productName, orderOrError.price)
+        elseif call.kind ~= "outgoing_power" then
             return false, "Choose an item from the supplier catalog to place an order."
         end
-        if call.response then return false, "The power company has already checked this account." end
-        response = powerCompanyResponse(state)
-        call.response = response
-        state.message = response
-        return true, response
+        if call.kind == "outgoing_power" then
+            if call.response then return false, "The power company has already checked this account." end
+            response = powerCompanyResponse(state)
+            call.response = response
+            state.message = response
+            return true, response
+        end
     elseif call.kind == "customer_order" then
         local offer, errors = JobService.createNextOffer(state, os.time())
         if not offer then return false, table.concat(errors or { "Could not prepare the order." }, "; ") end
@@ -446,15 +478,41 @@ function WorkPhone.respond(state)
         response = purchaseUpdate(state, call.orderId)
     elseif call.kind == "construction_notice" then
         response = "Construction appointment acknowledged. The scheduled visit remains active; keep the bay approach clear."
-    else
+    elseif call.kind == "service_order" then
+        local categoryIndex = call.categoryIndex or 4
+        local itemIndex = call.itemIndex or 1
+        local category = Procurement.category(categoryIndex)
+        local item = category.items[itemIndex]
+        if not item then return false, "That service order is not in the supplier catalog." end
+        if not call.pendingItemIndex then
+            if item.available == false then
+                return false, item.unavailableReason or "That product is not available yet."
+            end
+            if not item.price or not item.quantity then
+                return false, "That product is not offered through this sales channel."
+            end
+            if (state.money or 0) < item.price then return false, "Not enough money for this purchase." end
+            call.pendingItemIndex = itemIndex
+            response = orderReviewMessage(item, false)
+            call.response = response
+            state.message = response
+            return true, response, "review"
+        end
         local purchased, orderOrError = Procurement.buy(state,
-            call.categoryIndex or 4, call.itemIndex or 1, "salesman")
-        if not purchased then return false, tostring(orderOrError) end
+            categoryIndex, call.pendingItemIndex, "salesman")
+        if not purchased then
+            call.response = tostring(orderOrError)
+            state.message = call.response
+            return false, call.response
+        end
         call.orderId = orderOrError.id
         response = string.format(
             "%s placed by phone for $%d. The salesperson will send confirmation and arrange dock delivery.",
             orderOrError.productName, orderOrError.price)
+    else
+        return false, "This caller has no order to place."
     end
+    if call.direction == "outgoing" then call.response = response end
     archiveCurrent(state, call.kind == "construction_notice" and "acknowledged" or "completed", response)
     state.message = response
     return true, response
@@ -463,7 +521,8 @@ end
 function WorkPhone.dismiss(state)
     local call = WorkPhone.ensure(state).incoming
     if not call then return false, "No call is active." end
-    local response = call.kind == "construction_notice"
+    local response = call.pendingItemIndex and "Order canceled. No purchase was made."
+        or call.kind == "construction_notice"
         and "Construction notice saved. The appointment remains scheduled."
         or (call.answered and "Call ended without taking further action."
             or "Missed call from " .. call.caller .. ".")
@@ -505,13 +564,17 @@ function WorkPhone.actionLabel(state)
         if call.kind == "outgoing_power" then
             return call.response and "ACCOUNT CHECKED" or "ASK WHAT'S UP?!"
         end
-        return call.orderId and "ORDER PLACED" or "CHOOSE A SUPPLY ABOVE"
+        if call.orderId then return "ORDER PLACED" end
+        return call.pendingItemIndex and "CONFIRM ORDER" or "CHOOSE A SUPPLY ABOVE"
     end
     if call.kind == "customer_order" then return "TAKE ORDER" end
     if call.kind == "customer_status" then return "GIVE JOB UPDATE" end
     if call.kind == "supplier_status" then return "HEAR DELIVERY UPDATE" end
     if call.kind == "construction_notice" then return "ACKNOWLEDGE" end
-    return "PLACE SERVICE ORDER"
+    if call.kind == "service_order" then
+        return call.pendingItemIndex and "CONFIRM ORDER" or "REVIEW ORDER"
+    end
+    return "RESPOND"
 end
 
 return WorkPhone

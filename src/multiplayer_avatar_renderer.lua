@@ -89,6 +89,7 @@ local function drawPlayer(characterAssets,player,state)
             or (tonumber(highFive.partnerId) or 0) < (tonumber(player.id) or 0) and -1 or 1
     end
 
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(character,action) end
     local image, _, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
     local frame

@@ -70,13 +70,18 @@ local function drawPose(entry,characterAssets,state)
     local a=entry.actor
     local character=Catalog.character(entry)
     local action,frame,mirror=Renderer.pose(entry,characterAssets)
+    if characterAssets.resolveAction then
+        local resolved=characterAssets.resolveAction(character,action)
+        if resolved~=action then action,frame=resolved,1 end
+    end
     local ax,ay=characterAssets.getAnchor(character,action,frame)
     local scale=.30*characterAssets.getNormalization(character,action)
     if action:match("^chair_") then scale=.30*Config.characterRendering.referenceHeight/192 end
     local x,y=a.x,a.y
     local fleet=require("src.pallet_jack_fleet")
     local jack=state and entry.worker and fleet.owned(state,entry.worker.id)
-    if jack and a.phase=="pushing" then
+    if jack and a.phase=="pushing" and MotionArt.hands[character]
+        and MotionArt.hands[character][action] then
         local pose=Jack.visualPose(fleet.view(state,jack),Config.palletJack)
         local hand=MotionArt.hands[character][action][frame]
         x=pose.x+pose.handleX-(hand.x-ax)*scale*mirror

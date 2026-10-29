@@ -186,6 +186,7 @@ function Component.install(Runtime)
             io.flush()
         end
         print("[PICTURE SHOP] Startup complete")
+        require("src.image_loader").setEnabled(not Runtime.Smoke.requested())
     end
 end
 

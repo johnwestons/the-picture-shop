@@ -66,6 +66,32 @@ function Component.install(Runtime)
             x - 31, y + size + 8, size + 62, "center")
     end
 
+    function Runtime.drawJobQualityPreview(job, rect)
+        local preview = Runtime.Reputation.qualityPreview(job)
+        if not preview then return end
+        local accent = preview.rating <= 2 and { 1, 0.48, 0.40, 1 }
+            or preview.rating == 3 and { 1, 0.79, 0.39, 1 }
+            or { 0.53, 0.98, 0.84, 1 }
+        love.graphics.setColor(0.075, 0.11, 0.12, 1)
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.setColor(accent)
+        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.rectangle("fill", rect.x + 1, rect.y + 5, 2, rect.height - 10)
+        love.graphics.printf(string.format("QUALITY • %d/5", preview.rating),
+            rect.x + 8, rect.y + 3, rect.width - 14, "left")
+        local factor = preview.offSpec and preview.spoiledSheets > 0
+            and string.format("OFF-SPEC %d%%", math.floor(preview.spoilRate * 100 + 0.5))
+            or preview.offSpec and "OFF-SPEC CUT"
+            or preview.spoiledSheets > 0
+                and string.format("SPOIL %d%%", math.floor(preview.spoilRate * 100 + 0.5))
+            or preview.edgeQuality < 0.999
+                and string.format("CUT EDGE %d%%", math.floor(preview.edgeQuality * 100 + 0.5))
+            or "CLEAN RUN"
+        love.graphics.setColor(0.70, 0.80, 0.80, 1)
+        love.graphics.printf(string.upper(preview.label) .. " • " .. factor,
+            rect.x + 8, rect.y + 20, rect.width - 14, "left")
+    end
+
     function Runtime.detailRows(selected)
         local details = selected.details or {}
         local rows = {
@@ -216,6 +242,19 @@ function Component.install(Runtime)
             end
             love.graphics.print(string.format("%d/%d", pallet.completedLifts, pallet.requiredLifts), Runtime.DETAIL.x + 274, y + 7)
             love.graphics.print(Runtime.StatusLabels.get(pallet.status), Runtime.DETAIL.x + 340, y + 7)
+        end
+
+        local qualityReady = Runtime.completionReady(selected)
+            or selected.status == "ready_for_pickup"
+            or selected.status == "pickup_in_progress"
+            or selected.status == "completed"
+        if qualityReady then
+            local rect = Runtime.ComputerScreen.tab == "completed"
+                and { x = Runtime.DETAIL.x + 18, y = Runtime.JOB_PROMO.y,
+                    width = 200, height = Runtime.JOB_PROMO.height }
+                or { x = Runtime.DETAIL.x + 18, y = Runtime.COMPLETE.y,
+                    width = 158, height = Runtime.COMPLETE.height }
+            Runtime.drawJobQualityPreview(selected, rect)
         end
 
         if Runtime.ComputerScreen.tab == "completed" then

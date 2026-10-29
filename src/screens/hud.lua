@@ -64,10 +64,14 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     local samplesX, dateX = paperX + 98, paperX + 198
     shadowedPrint("Paper: " .. state.inventory.paper, paperX, 20, { 0.88, 0.92, 0.94 })
     shadowedPrint("Samples: " .. state.inventory.prints, samplesX, 20, { 0.88, 0.92, 0.94 })
-    shadowedPrint(BusinessCalendar.shortDate(state), dateX, 20, { 0.74, 0.88, 0.89 })
+    local date = BusinessCalendar.ensure(state)
+    local dateText = BusinessCalendar.weekdayName(date.weekday) .. " • "
+        .. BusinessCalendar.shortDate(state)
+    shadowedPrint(dateText, dateX, 20, { 0.74, 0.88, 0.89 })
     shadowedPrint("TIME "..BusinessCalendar.timeText(state,twelveHourTime),dateX,38,{.96,.85,.40})
     if state.bills and state.bills.balance > 0 then
-        shadowedPrint("Bills due: $" .. state.bills.balance, dateX + 190, 20, { 0.96, 0.48, 0.30 })
+        local billsX = dateX + math.max(190, love.graphics.getFont():getWidth(dateText) + 18)
+        shadowedPrint("Bills due: $" .. state.bills.balance, billsX, 20, { 0.96, 0.48, 0.30 })
     end
     BackButton.draw(assets, EXIT, "EXIT TO MENU", pointerX, pointerY, false)
     if state.message then

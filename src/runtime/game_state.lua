@@ -4,13 +4,24 @@ local Component = {}
 
 function Component.install(Runtime)
     local checkpoint = require("src.save_checkpoint").new(5)
-    function Runtime.saveCurrent()
+    function Runtime.saveCurrent(immediate)
         if Runtime.multiplayer:isClient() then return false end
         if not Runtime.state.activeSlot then return false end
-        local saved = Runtime.Save.save(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
+        local saved = Runtime.Save.queue(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
+        if saved and immediate then saved=Runtime.Save.flush() end
         if saved then checkpoint:reset() end
         if saved and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty(true) end
         return saved
+    end
+
+    function Runtime.pollSaves()
+        for _,result in ipairs(Runtime.Save.poll()) do
+            if not result.okay and result.slot==Runtime.state.activeSlot
+                and result.directory==love.filesystem.getSaveDirectory() then
+                checkpoint.pending=true
+                Runtime.state.message="The shop could not be saved. Retrying shortly."
+            end
+        end
     end
 
     function Runtime.updateCheckpoint(dt, dirty)
@@ -22,6 +33,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.startGame(payload, mode)
+        -- Pending coalesced requests still refer to the current live shop.
+        -- Finish them before reusing that state table for another save slot.
+        if Runtime.Save.flush and not Runtime.Save.flush() then
+            return false,"The previous shop could not be saved. Please try again."
+        end
         local applied, windmillSanitized = Runtime.State.applyLocalSave(Runtime.state, payload)
         if not applied then return false, "That shop save could not be opened safely." end
         checkpoint:reset()
@@ -42,7 +58,7 @@ function Component.install(Runtime)
         Runtime.activeWrapperRemote = nil
         Runtime.activeWindmillRemote = nil
         Runtime.machineRemoteSessions = {}
-        if (mode == "new" or windmillSanitized) and not Runtime.saveCurrent() then
+        if (mode == "new" or windmillSanitized) and not Runtime.saveCurrent(true) then
             return false, mode == "new"
                 and "This device could not create the new shop save."
                 or "This device could not save the safely stopped Windmill state."

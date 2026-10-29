@@ -15,5 +15,5 @@ end
 function Staging.find(isClear,state,machineId)
     return StagingAreas.findMachineOutput(state,machineId,isClear,true)
 end
-function Staging.draw(state) StagingAreas.draw(state) end
+function Staging.draw(state,sceneId) StagingAreas.draw(state,sceneId or "warehouse") end
 return Staging

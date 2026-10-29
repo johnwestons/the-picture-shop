@@ -16,6 +16,7 @@ local imageCache = TextureCache.new(16 * 1024 * 1024, 20)
 local playerWalkCache = TextureCache.new(40 * 1024 * 1024, math.huge)
 local useSequence = 0
 local frameSequence, frameDepth = 0, 0
+local ImageLoader=require("src.image_loader")
 
 -- Merge the separately built visitor pack without changing established seat,
 -- use, player, or pallet-jack anchor contracts.
@@ -334,9 +335,18 @@ local function loadAction(character, action)
     local existing = CharacterAssets.images[character][action]
     if existing then return existing, CharacterAssets.frames[character][action], metadata.frameCount end
 
-    local image
+    local image=cacheFor(metadata):take(metadata.path)
+    if not image then
+        local reason
+        image,reason=ImageLoader.load(metadata.path)
+        if not image then
+            if reason=="pending" then return nil end
+            CharacterAssets.failures[#CharacterAssets.failures+1]=metadata.path..": "..tostring(reason)
+            CharacterAssets.loadFailures[character][action]=reason
+            return nil
+        end
+    end
     local ok, frames = pcall(function()
-        image = cacheFor(metadata):take(metadata.path) or love.graphics.newImage(metadata.path)
         if not image then error("image loader returned no texture") end
         image:setFilter("nearest", "nearest")
         local result = {}
@@ -357,6 +367,20 @@ local function loadAction(character, action)
     CharacterAssets.images[character][action] = image
     CharacterAssets.frames[character][action] = frames
     return image, frames, metadata.frameCount
+end
+
+-- Hold a compatible loaded pose while a new direction decodes. Callers resolve
+-- before reading anchors/normalization, so fallback art keeps its own metrics.
+function CharacterAssets.resolveAction(character,action)
+    if not ImageLoader.enabled or loadAction(character,action) then return action end
+    local candidates={"idle_south","idle","walk_south","walk"}
+    for candidate in pairs(CharacterAssets.images[character] or {}) do candidates[#candidates+1]=candidate end
+    for _,candidate in ipairs(candidates) do
+        local metadata=CharacterAssets.metadata[character] and CharacterAssets.metadata[character][candidate]
+        if metadata and (CharacterAssets.images[character][candidate]
+            or cacheFor(metadata).entries[metadata.path]) and loadAction(character,candidate) then return candidate end
+    end
+    return action
 end
 
 function CharacterAssets.get(character, action, frame)

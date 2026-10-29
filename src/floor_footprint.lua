@@ -12,6 +12,45 @@ local function support(shape, x, y, width, height)
     return shape == "diamond" and math.max(horizontal, vertical) or horizontal + vertical
 end
 
+-- Collision planes depend on dimensions, never position or ownership. Every
+-- worker can share this immutable geometry while keeping fresh world contacts.
+-- Bound the cache so unusual imported dimensions cannot grow it indefinitely.
+local planeCache, planeCount = {}, 0
+local function planeBucket(width, height, mx, my)
+    local heights = planeCache[width]
+    if not heights then heights={};planeCache[width]=heights end
+    local moverWidths = heights[height]
+    if not moverWidths then moverWidths={};heights[height]=moverWidths end
+    local moverHeights = moverWidths[mx]
+    if not moverHeights then moverHeights={};moverWidths[mx]=moverHeights end
+    local bucket = moverHeights[my]
+    if not bucket then bucket={};moverHeights[my]=bucket end
+    return bucket
+end
+local function planesFor(width, height, shape, mx, my, moverShape)
+    local key = (shape == "diamond" and 1 or 0) + (moverShape == "diamond" and 2 or 0)
+    local bucket = planeBucket(width,height,mx,my)
+    local planes = bucket[key]
+    if planes then return planes end
+    planes = { {nx=1,ny=0,limit=width+mx}, {nx=0,ny=1,limit=height+my} }
+    local function diamondAxes(w, h)
+        if w <= 0 or h <= 0 then return end
+        local length = math.sqrt(w*w+h*h)
+        local nx, ny = h/length, w/length
+        local limit = support(shape,nx,ny,width,height) + support(moverShape,nx,ny,mx,my)
+        planes[#planes+1] = {nx=nx,ny=ny,limit=limit}
+        planes[#planes+1] = {nx=nx,ny=-ny,limit=limit}
+    end
+    if shape == "diamond" then diamondAxes(width,height) end
+    if moverShape == "diamond" then diamondAxes(mx,my) end
+    if planeCount >= 128 then
+        planeCache, planeCount = {}, 0
+        bucket = planeBucket(width,height,mx,my)
+    end
+    bucket[key], planeCount = planes, planeCount + 1
+    return planes
+end
+
 -- Minkowski expansion: a diamond moving beside a rectangle (or another
 -- diamond) retains its sloped edges instead of acquiring empty blocked corners.
 function Footprint.expand(obstacle, mover)
@@ -23,23 +62,7 @@ function Footprint.expand(obstacle, mover)
         result.radius = obstacle.radius + math.max(mx, my)
         return result
     end
-    local axes = { {1, 0}, {0, 1} }
-    local function diamondAxes(w, h)
-        if w > 0 and h > 0 then
-            axes[#axes + 1] = {h, w}
-            axes[#axes + 1] = {h, -w}
-        end
-    end
-    if obstacle.shape == "diamond" then diamondAxes(width, height) end
-    if mover.shape == "diamond" then diamondAxes(mx, my) end
-    result.planes = {}
-    for _, axis in ipairs(axes) do
-        local length = math.sqrt(axis[1]^2 + axis[2]^2)
-        local nx, ny = axis[1] / length, axis[2] / length
-        result.planes[#result.planes + 1] = { nx = nx, ny = ny,
-            limit = support(obstacle.shape, nx, ny, width, height)
-                + support(mover.shape, nx, ny, mx, my) }
-    end
+    result.planes = planesFor(width,height,obstacle.shape,mx,my,mover.shape)
     result.halfWidth, result.halfHeight = width + mx, height + my
     return result
 end
@@ -75,16 +98,7 @@ function Footprint.segmentPenetrates(obstacle, x, y, nextX, nextY)
         local t=squared>0 and math.max(0,math.min(1,-(dx*vx+dy*vy)/squared)) or 0
         return (dx+t*vx)^2+(dy+t*vy)^2 < math.max(0,obstacle.radius-.001)^2
     end
-    local planes=obstacle.planes
-    if not planes then
-        planes={{nx=1,ny=0,limit=obstacle.halfWidth},{nx=0,ny=1,limit=obstacle.halfHeight}}
-        if obstacle.shape=="diamond" then
-            local w,h=obstacle.halfWidth,obstacle.halfHeight
-            local length=math.sqrt(w*w+h*h)
-            planes[#planes+1]={nx=h/length,ny=w/length,limit=w*h/length}
-            planes[#planes+1]={nx=h/length,ny=-w/length,limit=w*h/length}
-        end
-    end
+    local planes=obstacle.planes or planesFor(obstacle.halfWidth,obstacle.halfHeight,obstacle.shape,0,0)
     local enter,leave=0,1
     for _,plane in ipairs(planes) do
         local p=dx*plane.nx+dy*plane.ny

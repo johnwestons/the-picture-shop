@@ -62,8 +62,13 @@ function Component.install(Runtime)
             return result
         end
         function context.forActor(actor)
+            -- A single move can check its current position, validate the route,
+            -- and plan a replacement path. Reuse the same collision snapshot
+            -- throughout that move; the next actor move gets a fresh snapshot
+            -- after this actor's position has changed.
+            local obstacles=context.obstacles(actor)
             return {assets=require("src.shop_rooms").assets(assets,actor.sceneId or "warehouse",state),
-                motionScale=context.motionScale,obstacles=function() return context.obstacles(actor) end}
+                motionScale=context.motionScale,obstacles=function() return obstacles end}
         end
         function context.move(actor,goal,dt) return Runtime.EmployeeAI.move(actor,goal,dt,context) end
         function context.travelScene(worker,destination,dt)

@@ -104,20 +104,12 @@ function Component.install(Runtime)
         local Rooms=require("src.shop_rooms")
         local sceneId=sceneOverride or Rooms.scene(Runtime.World.player)
         local obstacles
-        if sceneId~="warehouse" and kind=="pallet" then
+        if sceneId~="warehouse" then
             assets=Rooms.assets(assets,sceneId,state)
-            obstacles=Rooms.obstacles(state,sceneId)
-            for _,item in ipairs(Runtime.PalletLogistics.physicalPallets(state)) do
-                local world=item.pallet.world
-                if item.pallet.id~=excludedPalletId and world
-                    and (world.sceneId or "warehouse")==sceneId then
-                    obstacles[#obstacles+1]={x=item.x,y=item.y-8,
-                        halfWidth=Runtime.Config.palletLogistics.collisionHalfWidth,
-                        halfHeight=Runtime.Config.palletLogistics.collisionHalfHeight,shape="diamond"}
-                end
-            end
             local jack=state and state.palletJack
-            if jack and jack.sceneId==sceneId then
+            obstacles=require("src.room_vehicle_access").obstacles(state,sceneId,jack,
+                excludedPalletId)
+            if kind=="pallet" and jack and jack.sceneId==sceneId then
                 local obstacle=Runtime.PalletJack.obstacle(state,Runtime.Config.palletJack)
                 if obstacle then obstacles[#obstacles+1]=obstacle end
             end
@@ -154,8 +146,8 @@ function Component.install(Runtime)
         return Runtime.placementValidator(state,assets,"pallet",excludedPalletId,sceneId)(x,y)
     end
 
-    function Runtime.isMachinePlacementClear(state, assets, kind, x, y)
-        return Runtime.placementValidator(state,assets,kind)(x,y)
+    function Runtime.isMachinePlacementClear(state, assets, kind, x, y, sceneId)
+        return Runtime.placementValidator(state,assets,kind,nil,sceneId)(x,y)
     end
 
     function Runtime.activeMachineKind(state)
@@ -179,23 +171,26 @@ function Component.install(Runtime)
         if directionX ~= 0 or directionY ~= 0 then Runtime.World.placementSelection = nil end
         placement.move(moveState, directionX, directionY, dt, config, function(nextX, nextY)
             local halfWidth, halfHeight = config.collisionHalfWidth, config.collisionHalfHeight
-            local obstacles = Runtime.movementObstacles(state, false, {
+            local Rooms=require("src.shop_rooms")
+            local sceneId=Rooms.scene(player)
+            local moveAssets=sceneId~="warehouse" and Rooms.assets(assets,sceneId,state) or assets
+            local obstacles = Runtime.movementObstacles(state, state.palletJack, {
                 x = halfWidth, y = halfHeight, shape = "diamond",
-            }, kind == "cutter", kind == "wrapper", nil, kind == "windmill")
+            }, kind == "cutter", kind == "wrapper", nil, kind == "windmill",false,sceneId)
             if kind == "windmill"
-                and not Runtime.Navigation.isAreaWalkable(assets, item.x, item.y, 0, 0)
+                and not Runtime.Navigation.isAreaWalkable(moveAssets, item.x, item.y, 0, 0)
             then
                 return nextX > halfWidth and nextX < Runtime.Config.baseWidth - halfWidth
                     and nextY > halfHeight and nextY < Runtime.Config.baseHeight - halfHeight
             end
-            if Runtime.Navigation.canMoveAreaFrom(assets, item.x, item.y, nextX, nextY,
+            if Runtime.Navigation.canMoveAreaFrom(moveAssets, item.x, item.y, nextX, nextY,
                 halfWidth, halfHeight, obstacles)
             then return true end
             if kind == "windmill"
-                and not Runtime.Navigation.isAreaWalkable(assets, item.x, item.y, halfWidth, halfHeight)
+                and not Runtime.Navigation.isAreaWalkable(moveAssets, item.x, item.y, halfWidth, halfHeight)
             then
-                return Runtime.Navigation.canMoveFrom(assets, item.x, item.y, nextX, nextY, obstacles)
-                    and Runtime.Navigation.isAreaWalkable(assets, nextX, nextY, 0, 0)
+                return Runtime.Navigation.canMoveFrom(moveAssets, item.x, item.y, nextX, nextY, obstacles)
+                    and Runtime.Navigation.isAreaWalkable(moveAssets, nextX, nextY, 0, 0)
             end
             return false
         end)
@@ -262,16 +257,39 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.findCutterOutput(state, assets, excludedPalletId, machineId)
-        return Runtime.CutterStaging.find(function(x, y)
-            if not Runtime.World.isPalletPlacementClear(state, assets, x, y, excludedPalletId) then return false end
+        local unit=Runtime.MachineFleet.byId(state,machineId)
+        local sceneId=unit and unit.world and unit.world.sceneId or "warehouse"
+        local function outputClear(x,y,outputScene)
+            if outputScene and outputScene~=sceneId then return false end
+            if not Runtime.World.isPalletPlacementClear(state,assets,x,y,excludedPalletId,sceneId)
+                or not Runtime.StagingAreas.slotClear(state,x,y,excludedPalletId,sceneId) then return false end
             for _,unit in ipairs(Runtime.MachineFleet.installedUnits(state,"polar_115")) do
                 local machine=Runtime.Machine.forId(unit.id)
-                if machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
+                if (unit.world and unit.world.sceneId or "warehouse")==sceneId
+                    and machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
                     and Runtime.Footprint.distanceSquared(Runtime.Footprint.at(x,y,Runtime.Config.palletLogistics),
                         Runtime.Footprint.at(machine.pendingOutput.x,machine.pendingOutput.y,Runtime.Config.palletLogistics))<.01 then return false end
             end
             return true
-        end, state, machineId)
+        end
+        if Runtime.StagingAreas.hasMachineOutput(state,machineId,sceneId) then
+            return Runtime.StagingAreas.findMachineOutput(state,machineId,outputClear,false)
+        end
+        local machineState=state
+        if machineId then machineState=setmetatable({_operatingMachineId=machineId},{__index=state}) end
+        return Runtime.CutterZones.findOutput(machineState,Runtime.Config.cutterPlacement,function(x,y)
+            if not Runtime.World.isPalletPlacementClear(state,assets,x,y,excludedPalletId,sceneId) then return false end
+            for _,owned in ipairs(Runtime.MachineFleet.installedUnits(state,"polar_115")) do
+                if (owned.world and owned.world.sceneId or "warehouse")==sceneId then
+                    local machine=Runtime.Machine.forId(owned.id)
+                    if machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
+                        and Runtime.Footprint.distanceSquared(Runtime.Footprint.at(x,y,Runtime.Config.palletLogistics),
+                            Runtime.Footprint.at(machine.pendingOutput.x,machine.pendingOutput.y,
+                                Runtime.Config.palletLogistics))<.01 then return false end
+                end
+            end
+            return true
+        end)
     end
 end
 

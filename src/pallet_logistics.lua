@@ -176,10 +176,10 @@ function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId, sce
     return result
 end
 
-function Logistics.hovered(state, mouseX, mouseY, sceneId)
+function Logistics.hovered(state, mouseX, mouseY, sceneId, physicalItems)
     if type(mouseX) ~= "number" or type(mouseY) ~= "number" then return nil end
     local best
-    for _, item in ipairs(Logistics.physicalPallets(state)) do
+    for _, item in ipairs(physicalItems or Logistics.physicalPallets(state)) do
         local world=item.pallet.world
         local inside = mouseX >= item.x - 54 and mouseX <= item.x + 54
             and mouseY >= item.y - 82 and mouseY <= item.y + 10

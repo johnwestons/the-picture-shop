@@ -35,8 +35,8 @@ local function pop(heap)
     return result
 end
 
-function Navigator.findPath(actor, candidates, context)
-    local obstacles = ObstacleIndex.new(context.obstacles(actor))
+function Navigator.findPath(actor, candidates, context, obstacleSnapshot)
+    local obstacles = ObstacleIndex.new(obstacleSnapshot or context.obstacles(actor))
     local goals = {}
     for _, goal in ipairs(candidates or {}) do
         if Navigation.isWalkable(context.assets, goal.x, goal.y, obstacles) then
@@ -159,7 +159,7 @@ local function prepare(actor,goal,dt,context,obstacles)
         route.points=nil;route.retry=0;route.stalled=0;route.status="replanning"
     end
     if not route.points and route.retry<=0 then
-        route.points=Navigator.findPath(actor,{goal},context)
+        route.points=Navigator.findPath(actor,{goal},context,obstacles)
         route.index=1;route.retry=RETRY
         if not route.points then
             route.failures=route.failures+1;route.status="unreachable"
@@ -175,7 +175,7 @@ end
 -- the opposite side of a wall, and no movement step skips over a collider.
 function Navigator.travel(actor,goal,budget,dt,context)
     dt=math.max(0,dt or 0);budget=math.max(0,budget or 0)
-    local obstacles=context.obstacles(actor)
+    local obstacles=ObstacleIndex.new(context.obstacles(actor))
     if distance(actor,goal)<.01 and Navigation.isWalkable(context.assets,goal.x,goal.y,obstacles) then
         local route=routes[actor];if route then route.status="arrived" end
         return true,budget,0,false

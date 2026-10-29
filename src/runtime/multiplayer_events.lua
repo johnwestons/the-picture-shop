@@ -6,6 +6,9 @@ function Component.install(Runtime)
     function Runtime.handleMultiplayerEvents()
         for _, event in ipairs(Runtime.multiplayer:drainEvents()) do
             if event.type == "ready" then
+                -- Joining replaces the local state table with a different
+                -- shop. Finish any local writes before applying that snapshot.
+                if Runtime.Save and Runtime.Save.flush then Runtime.Save.flush() end
                 Runtime.warehouseControls:resolve(Runtime.warehousePendingIntent,false,"The warehouse connection was restarted.")
                 Runtime.warehousePendingIntent=nil
                 Runtime.warehouseControls:reset("The warehouse connection was restarted.")

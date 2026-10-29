@@ -32,6 +32,35 @@ function Component.install(Runtime)
                 player,jackState,Runtime.Config.palletJack))
         end
         if Rooms.scene(player)~="warehouse" then
+            local sceneId=Rooms.scene(player)
+            local networkMachineView=Runtime.World._state and Runtime.World._state._networkMachinePoses~=nil
+            jack=Runtime.World._state and Runtime.PalletJack.ensure(Runtime.World._state,Runtime.Config.palletJack)
+            local playerId=tonumber(player.id) or (player==Runtime.World.player and 1 or nil)
+            local jackReady=jack and jack.operating and not jack.carriedPalletId
+                and jack.operatorPlayerId==playerId and jack.sceneId==sceneId
+            local machines={
+                {model="polar_115",kind="cutter",radius=Runtime.Config.cutterPlacement.interactionRadius,
+                    label="use",name="paper cutter"},
+                {model="skid_wrapper",kind="skidWrapper",radius=Runtime.Config.wrapperPlacement.interactionRadius,
+                    label="use",name="skid wrapper"},
+                {model="heidelberg_10x15",kind="windmill",radius=Runtime.Config.windmillPlacement.interactionRadius,
+                    label="operate",name="Windmill"},
+            }
+            for _,entry in ipairs(machines) do
+                for _,machine in ipairs(Runtime.MachineFleet.installedUnits(Runtime.World._state,entry.model)) do
+                    local pose=machine.world
+                    if pose and (pose.sceneId or "warehouse")==sceneId and not pose.moving then
+                        addTarget(entry.kind,{x=pose.x,y=pose.y,radius=entry.radius,
+                            machineId=machine.id,prompt="E: "..entry.label.." "..entry.name
+                                .." ("..machine.id..")"..(jackReady and "  |  M: relocate with pallet jack" or "")},
+                            entry.kind..":"..machine.id)
+                    end
+                end
+            end
+            if jackReady and not (jack and jack.candidatePalletId) then
+                local candidate=Runtime.World.nearbyMachineMove(Runtime.World._state)
+                if candidate then targets.palletJack.prompt="F: park pallet jack  |  M: RELOCATE "..candidate.target.machineId end
+            end
             if require("src.room_loading_bays").owns(Runtime.World._state,Rooms.scene(player)) then
                 addTarget("loadingBayDoor",Runtime.World.doorForScene(Rooms.scene(player)):getInteraction())
                 if Runtime.World.truck.sceneId==Rooms.scene(player) then

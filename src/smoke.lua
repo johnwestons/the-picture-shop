@@ -188,6 +188,13 @@ function Smoke.start(context)
             Suites.runWarehouseRooms(context,check)
         elseif focus=="domain" then
             Suites.runDomain(context,check)
+        elseif focus=="late-game-performance" then
+            for _,name in ipairs({"async_save","streaming_images","performance_regression","scaling_performance","npc_navigation",
+                "machine_fleet","multi_machine","employees","employee_transport",
+                "pallet_jack_navigation","pallet_jack_fleet","pallet_pickup","pallet_state",
+                "shop_rooms","multiplayer_session","network_protocol","save_contract","asset_pack","options","focus_grace"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="performance" then
             runChecks(context)
             for _,name in ipairs({"performance_regression","scaling_performance","npc_navigation","machine_fleet","multi_machine","asset_pack","save_contract",

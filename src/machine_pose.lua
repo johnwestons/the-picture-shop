@@ -51,7 +51,7 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
     for _, kind in ipairs(ORDER) do
         local pose = value[kind]
         local poseLabel = label .. "." .. kind
-        if not exactShape(pose, { "x", "y", "direction", "moving", "inMotion" }, { "machineId" }) then
+        if not exactShape(pose, { "x", "y", "direction", "moving", "inMotion" }, { "machineId", "sceneId" }) then
             return nil, poseLabel .. " has an invalid shape"
         end
         if not finite(pose.x, maxCoordinate) or not finite(pose.y, maxCoordinate) then
@@ -61,6 +61,8 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
             or not pose.machineId:match("^MCH%-%d+$")) then
             return nil, poseLabel .. ".machineId is invalid"
         end
+        if pose.sceneId~=nil and pose.sceneId~="warehouse" and pose.sceneId~="front_left"
+            and pose.sceneId~="front_right" then return nil,poseLabel..".sceneId is invalid" end
         if type(pose.direction) ~= "string" or not DIRECTIONS[kind][pose.direction] then
             return nil, poseLabel .. ".direction is invalid"
         end
@@ -81,6 +83,7 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
             direction = pose.direction,
             moving = pose.moving,
             inMotion = pose.inMotion,
+            sceneId=pose.sceneId or "warehouse",
         }
     end
 
@@ -115,6 +118,10 @@ function MachinePose.snapshot(state)
             local unit, pose = Transport.resolve(state, kind, machineId)
             if unit and unit.world then item = pose else machineId = nil end
         end
+        if not machineId then
+            local unit=Transport.resolve(state,kind)
+            if unit and unit.world then item,machineId=unit.world,unit.id end
+        end
         local activeKind, activePose, activeUnit = Transport.active(state)
         if activeKind == kind then item, machineId = activePose, activeUnit and activeUnit.id or nil end
         if type(item) ~= "table" then return nil end
@@ -125,6 +132,7 @@ function MachinePose.snapshot(state)
             direction = item.direction,
             moving = item.moving == true,
             inMotion = item.inMotion == true,
+            sceneId=item.sceneId or "warehouse",
         }
     end
     return MachinePose.normalize(poses)
@@ -148,8 +156,10 @@ local function targetsFor(state, normalized)
         local source = normalized[kind]
         if source.machineId then
             local unit, pose = Transport.resolve(state, kind, source.machineId)
-            if not unit or not unit.world then return nil, "machine pose references an unavailable unit" end
-            targets[kind] = pose
+            if not unit or (not unit.world and type(state[kind])~="table") then
+                return nil, "machine pose references an unavailable unit"
+            end
+            targets[kind] = { unit=unit, pose=pose }
         end
     end
     return targets
@@ -178,9 +188,20 @@ function MachinePose.apply(state, value)
     end
     state._machinePoseUnits = {}
     for _, kind in ipairs(ORDER) do
-        local target, source = targets[kind] or state[kind], normalized[kind]
+        local target, source = state[kind], normalized[kind]
+        local resolved=targets[kind]
+        if resolved then
+            if not resolved.unit.world then
+                resolved.unit.world={}
+                for key,value in pairs(resolved.pose or state[kind]) do
+                    resolved.unit.world[key]=value
+                end
+            end
+            target=resolved.unit.world
+        end
         target.x, target.y = source.x, source.y
         target.direction = source.direction
+        target.sceneId=source.sceneId or "warehouse"
         target.moving, target.inMotion = source.moving, source.inMotion
         state._machinePoseUnits[kind] = source.machineId
     end

@@ -55,16 +55,21 @@ Map.breakFurniture={
 Map.lobbyForegrounds={
     ["right-chair"]={797,203,819,210,819,225,797,218},
 }
+function Map.floorHeight(x,kind)
+    if x<8 or x>952 then return nil end
+    local edge=Map.floorEdges[kind] or Map.floorEdges.floor
+    for i=2,#edge do
+        local a,b=edge[i-1],edge[i]
+        if x<=b[1] then return a[2]+(b[2]-a[2])*(x-a[1])/(b[1]-a[1]) end
+    end
+end
 function Map.walkable(x,y,kind)
     if x<8 or x>952 or y>670 then return false end
     -- Give the new rack-wall passage enough floor-mask clearance for the
     -- loaded jack footprint to reach its room-transition interaction point.
     if kind=="warehouse" and x>=604 and x<=692 and y>=186 and y<=236 then return true end
-    local edge=Map.floorEdges[kind] or Map.floorEdges.floor
-    for i=2,#edge do
-        local a,b=edge[i-1],edge[i]
-        if x<=b[1] then return y>=a[2]+(b[2]-a[2])*(x-a[1])/(b[1]-a[1]) end
-    end
+    local floor=Map.floorHeight(x,kind)
+    if floor then return y>=floor end
     return false
 end
 function Map.obstacles(kind)

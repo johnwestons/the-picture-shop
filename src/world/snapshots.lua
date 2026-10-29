@@ -70,12 +70,12 @@ function Component.install(Runtime)
             require("src.shop_rooms").scene(Runtime.World.player))
     end
 
-    function Runtime.World.palletTooltipAt(state, x, y)
+    function Runtime.World.palletTooltipAt(state, x, y, physicalItems, pickupView)
         if type(x) ~= "number" or type(y) ~= "number" then return nil end
-        local pickup = Runtime.World.palletPickupSnapshot(state, x, y)
+        local pickup = pickupView or Runtime.World.palletPickupSnapshot(state, x, y)
         local sceneId=require("src.shop_rooms").scene(Runtime.World.player)
         local hovered = pickup.hovered and pickup.selected
-            or Runtime.PalletLogistics.hovered(state, x, y,sceneId)
+            or Runtime.PalletLogistics.hovered(state, x, y,sceneId,physicalItems)
         if not hovered then
             local carried = Runtime.PalletJack.carriedItem(state, Runtime.Config.palletJack)
             if Runtime.PalletJack.ensure(state,Runtime.Config.palletJack).sceneId==sceneId

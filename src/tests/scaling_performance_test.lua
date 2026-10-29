@@ -88,6 +88,61 @@ local function textureChecks(context,check)
     characters.retainCharacters({},false)
 end
 
+local function pickupChecks(context,check)
+    local Jack=require("src.pallet_jack")
+    local Storage=require("src.pallet_storage")
+    local Config=require("src.config")
+    local state=context.State.new()
+    state.palletJack.x,state.palletJack.y=500,500
+    local pallets={}
+    for index=1,100 do
+        pallets[index]={id="SCALE-P"..index,location="warehouse",world={x=850,y=300}}
+    end
+    pallets[1].world={x=510,y=500}
+    pallets[2].world={x=520,y=500}
+    pallets[3].location="stacked"
+    pallets[3].storage={supportPalletId=pallets[2].id,level=2}
+    pallets[4].world={x=510,y=500,sceneId="front_left"}
+    state.jobs.active={{id="SCALE-JOB",pallets=pallets}}
+    local calls,original=0,Storage.isSupporting
+    local ok,result=pcall(function()
+        Storage.isSupporting=function(...)
+            calls=calls+1;return original(...)
+        end
+        return Jack.pickupCandidates(state,Config.palletJack)
+    end)
+    Storage.isSupporting=original
+    if not ok then error(result) end
+    check("scaling_pickup_checks_inventory_only_for_nearby_same_room_pallets",
+        calls==2 and #result==1 and result[1].pallet==pallets[1])
+    pallets[3].location,pallets[3].storage="none",nil
+    result=Jack.pickupCandidates(state,Config.palletJack)
+    check("scaling_pickup_sees_unstacked_support_without_stale_cache",
+        #result==2 and result[2].pallet==pallets[2])
+end
+
+local function roomMaskChecks(context,check)
+    local Rooms=require("src.shop_rooms")
+    local Registration=require("src.warehouse_registration")
+    local state=context.State.new()
+    local assets={getData=function() return nil end}
+    for _,kind in ipairs({"warehouse","storage","breakroom","floor"}) do
+        state.warehouse.bays.front_left={status="complete",optionId=kind}
+        local scene=kind=="warehouse" and "warehouse" or "front_left"
+        local mask=Rooms.assets(assets,scene,state).getData("walkmask")
+        local same=true
+        for px=0,1535 do
+            local x=px*960/1536
+            local edge=math.floor((Registration.floorHeight(x,kind) or 0)*1024/678)
+            for _,py in ipairs({0,edge-1,edge,edge+1,edge+2,280,281,356,357,1011,1012,1023}) do
+                local value=mask:getPixel(px,py)
+                same=same and (value>0.9)==Registration.walkable(x,py*678/1024,kind)
+            end
+        end
+        check("scaling_prepared_room_floor_preserves_every_column_boundary_"..kind,same)
+    end
+end
+
 local function checkpointChecks(check)
     local clock=require("src.save_checkpoint").new(5)
     local saves=0
@@ -107,6 +162,8 @@ end
 function Test.run(context,check)
     fleetChecks(context,check)
     navigationChecks(check)
+    pickupChecks(context,check)
+    roomMaskChecks(context,check)
     textureChecks(context,check)
     checkpointChecks(check)
 end

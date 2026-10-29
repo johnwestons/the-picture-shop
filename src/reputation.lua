@@ -48,6 +48,14 @@ local LEGACY_REVIEW_TEXT = {
     [5] = "Excellent quality and a smooth pickup. Highly recommended!",
 }
 
+local QUALITY_LABELS = {
+    [1] = "Poor",
+    [2] = "Weak",
+    [3] = "Fair",
+    [4] = "Good",
+    [5] = "Excellent",
+}
+
 
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
@@ -170,7 +178,7 @@ local function stableJobHash(job)
     return stableHash(job.id or job.company or "job")
 end
 
-local function customerReview(job)
+local function qualityRating(job)
     local totalSheets = math.max(1, tonumber(job.quote and job.quote.totalSheets) or 1)
     local spoiledSheets = math.max(0, tonumber(job.replacementSheets) or 0,
         tonumber(job.spoiledSheets) or 0)
@@ -183,21 +191,53 @@ local function customerReview(job)
         end
     end
     local spoilRate = spoiledSheets / totalSheets
-    local rating, hash
+    local rating
     if offSpec or spoiledSheets > 0 then
         -- A spoiled or off-spec order always draws a negative review.
-        hash = stableJobHash(job)
         rating = (offSpec or spoilRate >= 0.20) and 1 or 2
     elseif edgeQuality < 0.73 then
-        hash = stableJobHash(job)
         rating = 1
     elseif edgeQuality < 0.80 then
-        hash = stableJobHash(job)
         rating = 2
     else
-        hash = stableJobHash(job)
-        rating = 3 + hash % 3
+        rating = 3 + stableJobHash(job) % 3
     end
+    return rating, {
+        edgeQuality = edgeQuality,
+        offSpec = offSpec,
+        spoiledSheets = spoiledSheets,
+        spoilRate = spoilRate,
+    }
+end
+
+function Reputation.qualityPreview(job)
+    if type(job) ~= "table" then return nil end
+    local rating, details = qualityRating(job)
+    local factor
+    if details.offSpec and details.spoiledSheets > 0 then
+        factor = string.format("Off-spec • %d%% spoilage", math.floor(details.spoilRate * 100 + 0.5))
+    elseif details.offSpec then
+        factor = "Off-spec cut"
+    elseif details.spoiledSheets > 0 then
+        factor = string.format("%d%% spoilage", math.floor(details.spoilRate * 100 + 0.5))
+    elseif details.edgeQuality < 0.999 then
+        factor = string.format("Cut edge %d%%", math.floor(details.edgeQuality * 100 + 0.5))
+    else
+        factor = "Clean cuts • no spoilage"
+    end
+    return {
+        rating = rating,
+        label = QUALITY_LABELS[rating],
+        factor = factor,
+        edgeQuality = details.edgeQuality,
+        offSpec = details.offSpec,
+        spoiledSheets = details.spoiledSheets,
+        spoilRate = details.spoilRate,
+    }
+end
+
+local function customerReview(job)
+    local rating = qualityRating(job)
     local text = reviewTextFor(job.id or job.company or "job", rating)
     return rating, text
 end
@@ -251,7 +291,7 @@ end
 
 function Reputation.priceMultiplier(state)
     local reputation = Reputation.ensure(state)
-    return 1 + reputation.score * (reputation.score >= 0 and 0.004 or 0.002)
+    return 1 + reputation.score * (reputation.score >= 0 and 0.005 or 0.002)
 end
 
 function Reputation.completeJob(state, job)

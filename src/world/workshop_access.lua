@@ -53,14 +53,14 @@ function Component.install(Runtime)
         if resourceId=="truck" and scene~=(Runtime.World.truck.sceneId or "warehouse") then
             return false,"wrong_scene","Use the loading bay assigned to this truck."
         end
-        if scene~="warehouse" and resourceId~="truck" then
-            return false,"wrong_scene","Return to the warehouse to use this console."
-        end
         if type(player) ~= "table" or type(state) ~= "table" then
             return false, "invalid_player", "The host could not verify that worker's position."
         end
         Runtime.World._state = state
         local machineBase, machineId = Runtime.MachineResource.parse(resourceId)
+        if scene~="warehouse" and resourceId~="truck" and resourceId~="pallet_jack" and not machineBase then
+            return false,"wrong_scene","Return to the warehouse to use this console."
+        end
         local function installedMachine(base)
             local units = Runtime.MachineFleet.installedUnits(state, Runtime.MachineResource.model(base))
             local selectedId = machineId or (player.id == 1 and state._localWorkshopMachineId)
@@ -70,6 +70,16 @@ function Component.install(Runtime)
                 and item.status == "installed" then return item end
         end
         local target, unavailableMessage
+        local function requireMachineRoom(selected)
+            local machineScene=selected and selected.world and (selected.world.sceneId or "warehouse") or "warehouse"
+            if machineScene~=scene then
+                return false,"wrong_scene","Move to the room containing this machine."
+            end
+            if scene~="warehouse" and not require("src.shop_rooms").machineRoomAllowed(state,scene) then
+                return false,"room_locked","Machines operate in completed storage or utility rooms."
+            end
+            return true
+        end
         if resourceId == "reception_customer" then
             target = Runtime.World.customer:getInteraction()
             if not target or target.customerState ~= "waiting" then
@@ -109,6 +119,8 @@ function Component.install(Runtime)
             if not selected then
                 return false, "not_installed", "The paper cutter is not installed in this shop."
             end
+            local roomOkay,roomCode,roomMessage=requireMachineRoom(selected)
+            if not roomOkay then return false,roomCode,roomMessage end
             if Runtime.Employees.reservation(state,selected.id) then
                 return false,"employee_reserved","An employee is operating this cutter. Pause their assignment in Hiring first."
             end
@@ -123,6 +135,8 @@ function Component.install(Runtime)
             if not selected then
                 return false, "not_installed", "The skid wrapper is not installed in this shop."
             end
+            local roomOkay,roomCode,roomMessage=requireMachineRoom(selected)
+            if not roomOkay then return false,roomCode,roomMessage end
             if Runtime.Employees.reservation(state,selected.id) then
                 return false,"employee_reserved","An employee is operating this wrapper. Pause their assignment in Hiring first."
             end
@@ -137,6 +151,8 @@ function Component.install(Runtime)
             if not selected then
                 return false, "not_installed", "The Heidelberg Windmill is not installed in this shop."
             end
+            local roomOkay,roomCode,roomMessage=requireMachineRoom(selected)
+            if not roomOkay then return false,roomCode,roomMessage end
             if Runtime.Employees.reservation(state,selected.id) then
                 return false,"employee_reserved","An employee is operating this press. Pause their assignment in Hiring first."
             end

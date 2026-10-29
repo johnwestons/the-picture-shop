@@ -2,6 +2,8 @@ local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local imageCache = require("src.texture_cache").new(32 * 1024 * 1024, 20)
 local incomingTextures
+local ImageLoader=require("src.image_loader")
+local pendingPack,pendingTextures
 
 local Assets = {
     images = {},
@@ -632,15 +634,58 @@ local function loadPressPack()
 end
 
 function Assets.activatePack(packName)
+    if pendingPack~=packName and pendingTextures then
+        local wanted={}
+        for _,name in ipairs(PACK_IMAGES[packName] or {}) do wanted[Config.paths[name]]=true end
+        for _,name in ipairs(PACK_IMAGES[pendingPack] or {}) do
+            if not wanted[Config.paths[name]] then ImageLoader.cancel(Config.paths[name]) end
+        end
+        for path,image in pairs(pendingTextures) do
+            local active=false
+            for name,current in pairs(Assets.images) do
+                if Config.paths[name]==path and current==image then active=true;break end
+            end
+            if not active then imageCache:put(path,image) end
+        end
+        pendingPack,pendingTextures=nil,nil
+    end
     if packName == Assets.activePack then return true end
     if packName ~= nil and not PACK_IMAGES[packName] then return false end
+    if ImageLoader.enabled and packName then
+        pendingPack,pendingTextures=packName,pendingTextures or {}
+        if Assets.activePack then
+            -- The loading panel uses core scenery. Retire the outgoing screen
+            -- before uploading a second large pack, keeping mobile peak memory
+            -- bounded by the existing inactive cache rather than two screens.
+            for _,name in ipairs(PACK_IMAGES[packName]) do
+                local path=Config.paths[name]
+                pendingTextures[path]=pendingTextures[path] or Assets.images[name]
+            end
+            incomingTextures=pendingTextures
+            unloadPack(Assets.activePack)
+            Assets.activePack,incomingTextures=nil,nil
+        end
+        local loading=false
+        for _,name in ipairs(PACK_IMAGES[packName]) do
+            local path=Config.paths[name]
+            if not pendingTextures[path] then
+                local image,reason=Assets.images[name] or imageCache:take(path)
+                if not image then image,reason=ImageLoader.load(path) end
+                if image then pendingTextures[path]=image
+                elseif reason=="pending" then loading=true
+                else recordFailure(path,reason);return false end
+            end
+        end
+        if loading then return nil,"loading" end
+    end
     -- Claim the next screen's textures before parking the outgoing screen.
     -- Otherwise a large outgoing menu can evict precisely the cached machine
     -- art that the caller is about to reuse.
-    incomingTextures = {}
+    incomingTextures = pendingTextures or {}
+    pendingPack,pendingTextures=nil,nil
     for _, name in ipairs(PACK_IMAGES[packName] or {}) do
         local path = Config.paths[name]
-        incomingTextures[path] = Assets.images[name] or imageCache:take(path)
+        incomingTextures[path] = incomingTextures[path] or Assets.images[name] or imageCache:take(path)
     end
     if Assets.activePack then unloadPack(Assets.activePack) end
     Assets.activePack = nil
@@ -666,6 +711,7 @@ function Assets.activatePack(packName)
 end
 
 function Assets.activePackName() return Assets.activePack end
+function Assets.isLoading() return pendingPack~=nil end
 function Assets.pruneCache() imageCache:prune() end
 function Assets.clearCache() imageCache:clear() end
 function Assets.cachedTextureBytes() return imageCache.bytes end

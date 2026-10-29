@@ -81,6 +81,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.update(dt)
+        require("src.image_loader").update()
+        if Runtime.pollSaves then Runtime.pollSaves() end
         Runtime.Assets.pruneCache()
         Runtime.CharacterAssets.pruneCache()
         Runtime.WorldRenderer.pruneCache()

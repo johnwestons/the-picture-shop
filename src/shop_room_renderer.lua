@@ -6,6 +6,7 @@ local Beacon=require("src.interaction_beacon")
 local Games=require("src.breakroom_games")
 local cache=require("src.texture_cache").new(24*1024*1024,3)
 local Renderer={}
+local ImageLoader=require("src.image_loader")
 local activeImage,activePath
 local dockMesh,dockProgress,dockImage
 local gameImages={}
@@ -17,7 +18,8 @@ local function gameImage(id)
     if gameImages[id] then return gameImages[id] end
     local path="assets/generated/breakroom-games-v1/"..GAME_ASSETS[id]
     if not love.filesystem.getInfo(path) then return nil end
-    local image=love.graphics.newImage(path)
+    local image=ImageLoader.load(path)
+    if not image then return nil end
     image:setFilter("linear","linear")
     gameImages[id]=image
     return image
@@ -96,8 +98,10 @@ local function background(state,sceneId,assets)
         or Rooms.paths[kind]
     if not path then return nil end
     if activePath~=path then
+        local image=cache:take(path) or ImageLoader.load(path)
+        if not image then return nil end
         if activeImage then cache:put(activePath,activeImage) end
-        activeImage=cache:take(path) or love.graphics.newImage(path)
+        activeImage=image
         activeImage:setFilter("linear","linear")
         activePath=path
     end
@@ -154,12 +158,13 @@ local function tableForeground(state,sceneId,assets)
     Renderer.drawBackground(state,sceneId,assets)
     love.graphics.setStencilTest()
 end
-function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlayer,drawPallet,drawPalletJack,drawPlacement)
+function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlayer,drawPallet,drawPalletJack,drawPlacement,drawMachine,physicalPallets)
     local sceneId=Rooms.scene(world.player)
     Renderer.drawBackground(state,sceneId,assets)
     require("src.room_loading_bay_renderer").draw(world,assets,state,sceneId)
     if drawPlacement then drawPlacement() end
     Renderer.drawShelves(assets,state,sceneId,drawPallet)
+    require("src.staging_areas").draw(state,sceneId)
     local visible={[world.player.character]=true}
     local jack=state and require("src.pallet_jack").ensure(state,require("src.config").palletJack)
     local jackInScene=jack and jack.sceneId==sceneId
@@ -169,6 +174,13 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
     local localJackOperator=jackInScene and jack.operating and jack.operatorPlayerId==playerId
     local localLiftOperator=liftInScene and lift.operating and lift.operatorPlayerId==playerId
     local actors={}
+    for _,machine in ipairs(require("src.machine_fleet").installedUnits(state)) do
+        if machine.world and (machine.world.sceneId or "warehouse")==sceneId and drawMachine then
+            local current=machine
+            actors[#actors+1]={y=current.world.moving and jack and jack.y or current.world.y,
+                layer=current.world.moving and 2 or 0,draw=function() drawMachine(current) end}
+        end
+    end
     if not localJackOperator and not localLiftOperator then actors[#actors+1]={y=world.player.y,draw=drawPlayer} end
     if liftInScene then
         actors[#actors+1]={y=lift.y,layer=1,draw=function()
@@ -273,7 +285,7 @@ function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlaye
             actors[#actors+1]={y=p.y,draw=function() Avatar.draw(characters,{p},state) end}
         end
     end end
-    for _,item in ipairs(require("src.pallet_logistics").physicalPallets(state)) do
+    for _,item in ipairs(physicalPallets or require("src.pallet_logistics").physicalPallets(state)) do
         if item.pallet.world and (item.pallet.world.sceneId or "warehouse")==sceneId
             and (not jack or item.pallet.id~=jack.carriedPalletId) then
             actors[#actors+1]={y=item.y,draw=function() drawPallet(assets,item) end}

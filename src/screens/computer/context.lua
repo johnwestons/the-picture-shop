@@ -63,6 +63,7 @@ function Component.install(Runtime)
         warehouseGamesPage = false,
         warehouseStagingPage = false,
         warehouseSelectedStagingAreaId = "cutter-output",
+        warehouseSelectedStagingRoomId = "warehouse",
         creditConfirmation = nil,
         creditRequestNumber = 0,
         creditChannel = "online",

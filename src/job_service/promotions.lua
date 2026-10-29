@@ -5,7 +5,7 @@ local CustomerDemand = require("src.customer_demand")
 
 function Component.install(Runtime)
     function Runtime.JobService.promotionTerms(state, customMessage)
-        local messageLength = #tostring(customMessage or ""):sub(1, 240)
+        local messageLength = #tostring(customMessage or "")
         local month = state and state.calendar and state.calendar.month or 1
         local season = CustomerDemand.seasonForMonth(month)
         -- Slow seasons have no follow-up orders. During busier seasons the
@@ -43,7 +43,7 @@ function Component.install(Runtime)
             end
         end
         local promoNumber, emailNumber = emails.nextPromotionId, emails.nextEmailId
-        customMessage = tostring(customMessage or ""):sub(1, 240)
+        customMessage = tostring(customMessage or "")
         local offer = Runtime.repeatOffer(state, sourceJob, emailNumber)
         if not offer then return false, "could not prepare the promotional follow-up" end
         local standardPrice = offer.quote.totalPrice
