@@ -10,7 +10,10 @@
 - The development APK uses the shared gameplay and art source as Windows. This
   update includes room-specific warehouse loading bays, expanded-room pallet
   staging and output areas, print-press jobs, independent machine audio, and
-  late-game simulation/rendering and save/image-loading improvements.
+  late-game simulation/rendering and save/image-loading improvements. The
+  player can also take an employee-operated pallet jack; the employee is
+  released to continue its assigned task. In online play, the host performs
+  the takeover.
 - The package ID and signing certificate remain compatible with the previous
   Android build, so installing over it preserves existing saves.
 - Build verification and package details are recorded in
