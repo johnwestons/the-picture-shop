@@ -103,6 +103,7 @@ function Component.run(Context)
 
     function Context.Machine.reset(state)
         Context.Machine.step, Context.Machine.progress, Context.Machine.loaded = "idle", 0, false
+        Context.Machine.operatorSkill = nil
         Context.Machine.clamp, Context.Machine.clampProgress, Context.Machine.bladeProgress = false, 0, 0
         Context.Machine.leftDown, Context.Machine.rightDown = false, false
         Context.Machine.barrierClear, Context.Machine.emergencyStopped = true, false

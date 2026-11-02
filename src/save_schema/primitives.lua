@@ -19,7 +19,8 @@ function Component.install(Runtime)
     Runtime.Employees = require("src.employees")
     Runtime.Labor = require("src.employee_labor")
 
-    Runtime.Schema = { VERSION = 23, SLOT_COUNT = 3 }
+    Runtime.Home = require("src.home")
+    Runtime.Schema = { VERSION = 39, SLOT_COUNT = 3 }
     Runtime.directions = {
         northwest = true, north = true, northeast = true, east = true,
         southeast = true, south = true, southwest = true, west = true,

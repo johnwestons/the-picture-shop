@@ -132,16 +132,17 @@ function Schedule.minimumSkills(job)
     return {
         cutter=difficulty=="hard" and 80 or difficulty=="medium" and 50 or 0,
         press=job and job.press and pressMinimum or nil,
-        wrapping=difficulty=="hard" and 70 or difficulty=="medium" and 50 or 25,
+        -- Wrapping is a basic finishing step. Skill affects how quickly an
+        -- employee acts at the wrapper, but must never strand finished stock
+        -- before shipping or prevent a qualified production operator from
+        -- completing a job.
+        wrapping=0,
     }
 end
 function Schedule.skillAllows(w,job,stage)
     local minimum=Schedule.minimumSkills(job)
     if stage=="press" and minimum.press and (w.pressSkill or 0)<minimum.press then
         return false,"Press training required"
-    end
-    if stage=="wrapping" and (w.wrappingSkill or 0)<minimum.wrapping then
-        return false,"Pallet-wrapping training required"
     end
     if stage=="cutter" and (w.cutterSkill or 0)<minimum.cutter then
         return false,"Required cutter skill"
@@ -238,8 +239,11 @@ local function wrapperPalletReady(state,machine,pallet,job)
             blocked="Order stretch film before shipping pallets";blockedKind="packaging";return
         end
         local packaging=pallet.packaging or (job and job.packaging)
-        if packaging=="boxed" and Procurement.cartonsAvailable(state)<1 then
-            blocked="Order a shipping carton before wrapping this boxed pallet"
+        local cartons=Procurement.cartonsRequired(job,pallet)
+        if packaging=="boxed" and Procurement.cartonsAvailable(state)<cartons then
+            local cartonLabel = cartons == 1 and "carton" or "cartons"
+            blocked=string.format("Order %d shipping %s before wrapping this boxed pallet",
+                cartons, cartonLabel)
             blockedKind="packaging";return
         end
         local supplies={}
@@ -248,7 +252,7 @@ local function wrapperPalletReady(state,machine,pallet,job)
                 stockKey="plasticWrapRolls",autoShelf=true}
         end
         if packaging=="boxed" then
-            supplies[#supplies+1]={productId="shipping_cartons",quantity=1,autoShelf=true}
+            supplies[#supplies+1]={productId="shipping_cartons",quantity=cartons,autoShelf=true}
         end
         local suppliesReady,supplyReason=Procurement.canConsumeStockProducts(state,supplies)
         if not suppliesReady then blocked=supplyReason;blockedKind="packaging";return end
@@ -380,16 +384,7 @@ function Schedule.resolve(state,w,row,preferredPalletId,canClaim)
 end
 local function nextShiftStart(w,now)
     if Contracts.onShift(w.contract,now) then return now end
-    local contract=w.contract
-    local day=math.max(math.floor(now/24),contract.startDay)
-    for _=0,14 do
-        if Contracts.hasDay(contract.days,Contracts.weekday(day)) then
-            local start=day*24+contract.startHour
-            if start>now then return start end
-        end
-        day=day+1
-    end
-    return math.huge
+    return Contracts.nextStart(w.contract,now) or math.huge
 end
 local function hasQueuedJob(q,jobId)
     for _,row in ipairs(q.items) do if row.jobId==jobId then return true end end

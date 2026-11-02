@@ -135,7 +135,7 @@ function Component.install(Runtime)
             createdAt = now,
             updatedAt = now,
             state = Runtime.Schema.defaultState(),
-            player = { x = Runtime.Config.player.spawnX, y = Runtime.Config.player.spawnY },
+            player = { x = Runtime.Config.player.spawnX, y = Runtime.Config.player.spawnY, sceneId="warehouse" },
         }
     end
 
@@ -149,6 +149,8 @@ function Component.install(Runtime)
             and type(payload.player) == "table"
             and Runtime.number(payload.player.x)
             and Runtime.number(payload.player.y)
+            and (payload.player.sceneId==nil or payload.player.sceneId=="warehouse" or payload.player.sceneId=="home"
+                or payload.player.sceneId=='commute' and payload.state.home and payload.state.home.commute~=nil)
     end
 
     function Runtime.legacyCore(payload)
@@ -185,7 +187,7 @@ function Component.install(Runtime)
             or payload.version == 5 or payload.version == 6 or payload.version == 7
             or payload.version == 8 or payload.version == 9 or payload.version == 10
             or payload.version == 11 or payload.version == 12 or payload.version == 13
-            or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20 or payload.version == 21 or payload.version == 22
+            or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20 or payload.version == 21 or payload.version == 22 or payload.version == 23 or payload.version == 24 or payload.version == 25 or payload.version == 26 or payload.version == 27 or payload.version == 28 or payload.version == 29 or payload.version == 30 or payload.version == 31 or payload.version == 32 or payload.version == 33 or payload.version == 34 or payload.version == 35 or payload.version == 36 or payload.version == 37 or payload.version == 38
         then
             if not Runtime.validV2Core(payload) then return nil end
         else
@@ -199,7 +201,7 @@ function Component.install(Runtime)
             createdAt = createdAt,
             updatedAt = Runtime.number(payload.updatedAt) and payload.updatedAt or createdAt,
             state = Runtime.normalizeState(payload.state, true),
-            player = { x = payload.player.x, y = payload.player.y },
+            player = { x = payload.player.x, y = payload.player.y, sceneId=payload.player.sceneId or "warehouse" },
         }
         Runtime.Schema.reconcile(migrated.state)
         return Runtime.Schema.validPayload(migrated) and migrated or nil

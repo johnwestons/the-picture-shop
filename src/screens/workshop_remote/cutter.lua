@@ -23,8 +23,10 @@ function Component.install(Runtime)
         local step = tostring(view.serviceStep or "idle")
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("CUTTER SERVICE  ·  HOST-AUTHORITATIVE LOCKOUT", 122, 132)
-        love.graphics.printf(string.format("KITS %d  ·  BLADE %s  ·  COURIER %s",
+        love.graphics.printf(string.format("KITS %d  ·  SPARES %d%s  ·  BLADE %s  ·  COURIER %s",
             status.maintenanceKits,
+            status.spareBlades,
+            status.spareBladeInstalled and " (INSTALLED)" or "",
             status.bladeInSleeve and "SLEEVED" or status.bladeRemoved and "REMOVED" or "INSTALLED",
             status.technicianScheduled and "SCHEDULED" or "NOT SCHEDULED"),
             122, 156, 690, "left")
@@ -41,9 +43,12 @@ function Component.install(Runtime)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.weekly,
                 status.weeklyTechnician and "CANCEL WEEKLY EXCHANGE" or "WEEKLY BLADE EXCHANGE",
                 pointerX, pointerY, Runtime.cutterServiceButtonEnabled("set_weekly_technician", state), true)
+            Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.installSpare,
+                status.spareBladeInstalled and "SHARP SPARE INSTALLED" or "INSTALL PURCHASED SHARP SPARE",
+                pointerX, pointerY, Runtime.cutterServiceButtonEnabled("install_spare_blade", state), true)
             love.graphics.setColor(0.32, 0.35, 0.36)
-            love.graphics.printf("Lubrication consumes one delivered maintenance kit only after every point and the gearbox inspection pass. Blade removal becomes durable only when the blade reaches its wooden sleeve.",
-                142, 386, 650, "center")
+            love.graphics.printf("Buy one or two spare blades on CritterNet first. After sleeving the dull blade, install a sharp spare while the courier pickup is pending.",
+                142, 442, 650, "center")
         elseif step == "lockout_disconnect" or step == "lockout_key"
             or step == "lockout_tag" or step == "prep_cartridge" or step == "prep_prime"
         then

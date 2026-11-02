@@ -9,6 +9,11 @@ function Component.install(Runtime)
         -- The estimate and promotion input hit targets below explicitly opt back in.
         Runtime.ComputerScreen.quoteFocused = false
         Runtime.ComputerScreen.promoFocused = false
+        if Runtime.ComputerScreen.promoJobId and Runtime.contains(Runtime.PROMO_INPUT, x, y) then
+            Runtime.ComputerScreen.promoFocused = true
+            Runtime.ComputerScreen.tabDropdownOpen = false
+            return { action = "promo_focus" }
+        end
         if x>=738 and x<=872 and y>=107 and y<=132 then
             Runtime.ComputerScreen.tab="clock";Runtime.ComputerScreen.tabDropdownOpen=false;return {action="clock"}
         end
@@ -45,6 +50,10 @@ function Component.install(Runtime)
                 end
                 return {action="blocked"}
             end
+        end
+        if Runtime.ComputerScreen.tab=="home" then return Runtime.homeMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
+            return Runtime.homeShopMousepressed(state,x,y)
         end
         if Runtime.ComputerScreen.tab=="radio" then
             return require("src.jukebox").mousepressed(state,x,y,button,
@@ -119,11 +128,12 @@ function Component.install(Runtime)
             if site.kind ~= "machines" then
                 local category = Runtime.Procurement.category(site.categoryIndex)
                 for index, item in ipairs(category.items) do
-                    if item.available ~= false and item.retailPrice and Runtime.contains(Runtime.retailBuyRect(index), x, y) then
+                    local price=Runtime.Procurement.retailPrice(state,site.categoryIndex,index)
+                    if item.available ~= false and price and Runtime.contains(Runtime.retailBuyRect(index), x, y) then
                         Runtime.addToCart({
                             key = string.format("supply:%d:%d", site.categoryIndex, index),
                             kind = "supply", categoryIndex = site.categoryIndex, itemIndex = index,
-                            name = item.retailName, price = item.retailPrice,
+                            name = item.retailName, price = price,
                         })
                         state.message = item.retailName .. " added to the Critter Net cart."
                         return { action = "cart_item_added" }
@@ -310,6 +320,40 @@ function Component.install(Runtime)
                 return { action = "email_deleted", email = result }
             end
             local currentEmail = Runtime.selectedEmail(state)
+            if currentEmail and (currentEmail.noticeKind == "customer_case"
+                or currentEmail.noticeKind == "customer_case_resolved") then
+                Runtime.ComputerScreen.quoteFocused = false
+                local caseJob = Runtime.findJob(state.jobs and state.jobs.completed or {}, currentEmail.sourceJobId)
+                local customerCase = caseJob and caseJob.customerCase
+                if customerCase and customerCase.status == "open" then
+                    local response = Runtime.contains(Runtime.EMAIL_ACCEPT, x, y) and "credit"
+                        or Runtime.contains(Runtime.EMAIL_DECLINE, x, y) and "apology"
+                        or Runtime.contains(Runtime.EMAIL_DELETE, x, y) and "decline" or nil
+                    if response then
+                        if Runtime.dependencies.remoteCommand then
+                            return Runtime.remoteAction("customer_case", {
+                                jobId = currentEmail.sourceJobId, response = response,
+                            })
+                        end
+                        local succeeded, result = Runtime.JobService.resolveCustomerCase(
+                            state, currentEmail.sourceJobId, response)
+                        if not succeeded then state.message = tostring(result); return { action = "blocked" } end
+                        state.message = result.responseText or "Customer case resolved."
+                        return { action = "customer_case_resolved", jobId = currentEmail.sourceJobId }
+                    end
+                    return nil
+                end
+                if Runtime.contains(Runtime.EMAIL_DELETE, x, y) then return deleteCurrentEmail(currentEmail) end
+                if Runtime.contains(Runtime.EMAIL_DECLINE, x, y) then
+                    if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("archive", { id = currentEmail.id }) end
+                    Runtime.JobService.dismissInboxNotice(state, currentEmail.id)
+                    Runtime.ComputerScreen.selectedEmailId = nil
+                    Runtime.ComputerScreen.emailSelectionRequired = true
+                    state.message = "Archived the resolved customer case."
+                    return { action = "inbox_notice_dismissed" }
+                end
+                return nil
+            end
             if currentEmail and currentEmail.serviceNotice then
                 Runtime.ComputerScreen.quoteFocused = false
                 if Runtime.contains(Runtime.EMAIL_DELETE, x, y) then return deleteCurrentEmail(currentEmail) end
@@ -411,8 +455,31 @@ function Component.install(Runtime)
         end
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
         if Runtime.ComputerScreen.tab == "active" and Runtime.contains(Runtime.COMPLETE, x, y) then
-            return { action = Runtime.completionReady(selected) and "pickup_ready" or "completion_blocked",
-                job = selected }
+            if not Runtime.completionReady(selected) then
+                return { action = "completion_blocked", job = selected }
+            end
+            local inspection = selected.inspection or {}
+            if inspection.status == "passed" then return { action = "pickup_ready", job = selected } end
+            if Runtime.dependencies.remoteCommand then
+                return Runtime.remoteAction(inspection.status == "held" and "quality_rework" or "quality_inspect",
+                    { jobId = selected.id })
+            end
+            if inspection.status == "held" then
+                local succeeded, result = Runtime.JobService.requestQualityRework(state, selected.id)
+                if not succeeded then
+                    state.message = tostring(result)
+                    return { action = "blocked" }
+                end
+                state.message = string.format("Quality rework started for %s. %d replacement sheets will return through the normal production flow.",
+                    selected.id, result.sheets)
+                return { action = "quality_rework", job = selected, result = result }
+            end
+            local succeeded, result = Runtime.JobService.inspectJob(state, selected.id)
+            if not succeeded then state.message = tostring(result); return { action = "blocked" } end
+            state.message = result.status == "passed"
+                and "Sample inspection passed. Schedule the customer pickup when ready."
+                or ("Quality hold: " .. table.concat(result.findings or {}, " "))
+            return { action = "quality_inspection", job = selected, inspection = result }
         end
         if Runtime.ComputerScreen.tab == "completed" and selected
             and not Runtime.promotionSentForJob(state, selected) and Runtime.contains(Runtime.JOB_PROMO, x, y)
@@ -420,6 +487,7 @@ function Component.install(Runtime)
             Runtime.ComputerScreen.promoJobId = selected.id
             Runtime.ComputerScreen.promoText = ""
             Runtime.ComputerScreen.promoFocused = false
+            Runtime.ComputerScreen.tabDropdownOpen = false
             Runtime.ComputerScreen.tab = "email"
             return { action = "promotion_compose", job = selected }
         end

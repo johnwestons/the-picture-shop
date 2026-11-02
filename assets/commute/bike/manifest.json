@@ -1,0 +1,821 @@
+{
+  "version": 7,
+  "status": "reviewed_static_sprite_pilot_v2_with_mounted_actions_v4_16_direction",
+  "frameSize": 320,
+  "atlasSize": [
+    1280,
+    1280
+  ],
+  "columns": 4,
+  "anchor": [
+    160,
+    260
+  ],
+  "directions": [
+    "north",
+    "north-northeast",
+    "northeast",
+    "east-northeast",
+    "east",
+    "east-southeast",
+    "southeast",
+    "south-southeast",
+    "south",
+    "south-southwest",
+    "southwest",
+    "west-southwest",
+    "west",
+    "west-northwest",
+    "northwest",
+    "north-northwest"
+  ],
+  "runtimeScale": 0.46,
+  "mirror": false,
+  "riderReference": "assets/source/commute-rider-v2/directional-idle-v1.png",
+  "riderReferenceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+  "animations": {
+    "parked": {
+      "path": "assets/commute/bike/parked-16.png",
+      "frames": 16,
+      "cells": [
+        {
+          "direction": "north",
+          "sourceRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            104,
+            111,
+            220,
+            292
+          ]
+        },
+        {
+          "direction": "north-northeast",
+          "sourceRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            87,
+            103,
+            228,
+            287
+          ]
+        },
+        {
+          "direction": "northeast",
+          "sourceRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            69,
+            95,
+            235,
+            282
+          ]
+        },
+        {
+          "direction": "east-northeast",
+          "sourceRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            57,
+            100,
+            255,
+            274
+          ]
+        },
+        {
+          "direction": "east",
+          "sourceRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            44,
+            105,
+            274,
+            266
+          ]
+        },
+        {
+          "direction": "east-southeast",
+          "sourceRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            65,
+            113,
+            254,
+            277
+          ]
+        },
+        {
+          "direction": "southeast",
+          "sourceRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            86,
+            120,
+            234,
+            288
+          ]
+        },
+        {
+          "direction": "south-southeast",
+          "sourceRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            95,
+            124,
+            227,
+            295
+          ]
+        },
+        {
+          "direction": "south",
+          "sourceRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            103,
+            128,
+            220,
+            301
+          ]
+        },
+        {
+          "direction": "south-southwest",
+          "sourceRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            91,
+            126,
+            235,
+            297
+          ]
+        },
+        {
+          "direction": "southwest",
+          "sourceRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            79,
+            123,
+            249,
+            293
+          ]
+        },
+        {
+          "direction": "west-southwest",
+          "sourceRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            62,
+            113,
+            263,
+            279
+          ]
+        },
+        {
+          "direction": "west",
+          "sourceRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            45,
+            103,
+            277,
+            264
+          ]
+        },
+        {
+          "direction": "west-northwest",
+          "sourceRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            67,
+            105,
+            265,
+            275
+          ]
+        },
+        {
+          "direction": "northwest",
+          "sourceRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            88,
+            107,
+            252,
+            285
+          ]
+        },
+        {
+          "direction": "north-northwest",
+          "sourceRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            96,
+            109,
+            236,
+            289
+          ]
+        }
+      ],
+      "sha256": "55C70973A200B4794463D6524B2580E66B924374C84FC7AF7FB96CCCD1251466"
+    },
+    "mounted": {
+      "path": "assets/commute/bike/mounted-16.png",
+      "frames": 16,
+      "cells": [
+        {
+          "direction": "north",
+          "sourceRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            100,
+            73,
+            226,
+            295
+          ]
+        },
+        {
+          "direction": "north-northeast",
+          "sourceRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            85,
+            63,
+            235,
+            283
+          ]
+        },
+        {
+          "direction": "northeast",
+          "sourceRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            70,
+            52,
+            244,
+            271
+          ]
+        },
+        {
+          "direction": "east-northeast",
+          "sourceRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            60,
+            49,
+            260,
+            267
+          ]
+        },
+        {
+          "direction": "east",
+          "sourceRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            50,
+            45,
+            275,
+            262
+          ]
+        },
+        {
+          "direction": "east-southeast",
+          "sourceRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            67,
+            49,
+            260,
+            269
+          ]
+        },
+        {
+          "direction": "southeast",
+          "sourceRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            83,
+            52,
+            245,
+            275
+          ]
+        },
+        {
+          "direction": "south-southeast",
+          "sourceRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            90,
+            62,
+            233,
+            284
+          ]
+        },
+        {
+          "direction": "south",
+          "sourceRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            96,
+            71,
+            221,
+            292
+          ]
+        },
+        {
+          "direction": "south-southwest",
+          "sourceRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            89,
+            62,
+            236,
+            283
+          ]
+        },
+        {
+          "direction": "southwest",
+          "sourceRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            81,
+            52,
+            251,
+            273
+          ]
+        },
+        {
+          "direction": "west-southwest",
+          "sourceRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            65,
+            50,
+            259,
+            267
+          ]
+        },
+        {
+          "direction": "west",
+          "sourceRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            48,
+            47,
+            267,
+            260
+          ]
+        },
+        {
+          "direction": "west-northwest",
+          "sourceRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            67,
+            56,
+            258,
+            272
+          ]
+        },
+        {
+          "direction": "northwest",
+          "sourceRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            85,
+            64,
+            248,
+            283
+          ]
+        },
+        {
+          "direction": "north-northwest",
+          "sourceRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "sourceAnchor": [
+            160,
+            260
+          ],
+          "bbox": [
+            93,
+            69,
+            237,
+            289
+          ]
+        }
+      ],
+      "sha256": "FCD32497BC7AA7E2BF1FD90B30C376E61C04E83B302CEEE9AFC4BF7F1C38B100"
+    }
+  },
+  "sources": [
+    {
+      "path": "assets/source/commute-bike-v1/parked-directions-source.png",
+      "sha256": "e585534ff4b0728c17cc872995feeaf1b7e314bbf0bb8dc40c98b31adcfb37ac",
+      "uniformScale": 0.5
+    },
+    {
+      "path": "assets/source/commute-bike-v2/mounted-directions-source.png",
+      "sha256": "739474e7538de8a9aed07856a9fd9e24263706eee385f81d12766b3eb4943db1",
+      "uniformScale": 0.53
+    }
+  ],
+  "mountedActions": {
+    "aerodynamicTuck": {
+      "path": "assets/commute/bike/mounted-aero-tuck-16.png",
+      "frames": 16,
+      "sha256": "68A8137F07B55ECEDE3FE93D251495E92426D20619385A8165C2AA9E77235D7B",
+      "transitionPath": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
+      "transitionSha256": "3C022209F0C11B962FCB7C33C6B410D236978C77EC788EF828694B191DE0AFC0",
+      "directions": "same order as mounted",
+      "blend": "speed threshold with smooth return to mounted pose",
+      "startSpeed": 13.35,
+      "maximumSpeed": 14.4
+    },
+    "accelerationResponse": {
+      "path": "assets/commute/bike/mounted-acceleration-response-16.png",
+      "frames": 16,
+      "sha256": "E495FAEC0E55EC0AF6873DE6A81076E751D1F9D60AB62068250DFC75923D4ADF",
+      "transitionPath": "assets/commute/bike/mounted-boost-transition-16.png",
+      "transitionSha256": "E3969FAA8BEE88FD39B2031917AAB46DDF7CEBB77AF40337E8D32537B632A559",
+      "trigger": "boost activation",
+      "durationSeconds": 0.78,
+      "transition": "fade back to mounted or tuck pose"
+    },
+    "gearShift": {
+      "path": "assets/commute/bike/mounted-gear-shift-16.png",
+      "frames": 16,
+      "sha256": "9005E84692D153C5DB5F97A916415A9E2AE6BF6CFA6E454A14C5B6F5C887FCC4",
+      "transitionPath": "assets/commute/bike/mounted-gear-shift-transition-16.png",
+      "transitionSha256": "BE47ECBDAB42A634073052EA95C227194ED3481CBBA6D424AB204880EC4CA811",
+      "trigger": "successful manual or automatic gear change",
+      "durationSeconds": 0.16,
+      "foot": "left"
+    },
+    "hardTurnLean": {
+      "leftPath": "assets/commute/bike/mounted-hard-turn-left-16.png",
+      "leftSha256": "8BB840964659A3004D96E498FBBE7FF9C83AC6E428D8E3D100B53095877E36DF",
+      "leftTransitionPath": "assets/commute/bike/mounted-turn-left-transition-16.png",
+      "leftTransitionSha256": "0691B26FFF61190072840DDDD585BED0DA4F330A939B1213C75850F0EAEE8BCB",
+      "rightPath": "assets/commute/bike/mounted-hard-turn-right-16.png",
+      "rightSha256": "C152457A07A0EA8C0F2E3A4168F123BB3DC41F0E8DBF7DC9B5076B6ADD12F3A2",
+      "rightTransitionPath": "assets/commute/bike/mounted-turn-right-transition-16.png",
+      "rightTransitionSha256": "0B1AC50D0681F6E8D62EAF010CEF1523BA49E0C9BB3BAD2BC28C2FE3924173EC",
+      "framesEach": 16,
+      "trigger": "steering lean at speed",
+      "blend": "crossfade from mounted or aerodynamic pose with smoothed bike lean",
+      "startLeanRadians": 0.15,
+      "fullLeanRadians": 0.3,
+      "direction": "positive lean selects left; negative lean selects right"
+    },
+    "impactBrace": {
+      "path": "assets/commute/bike/mounted-impact-brace-16.png",
+      "sha256": "8C603F6C3210241A568884F122511A84623954F91425E7A82F1ED0FF6BAC77CA",
+      "transitionPath": "assets/commute/bike/mounted-impact-transition-16.png",
+      "transitionSha256": "29BBA0FEAD81904193F4253C62AB1EEE1D432A9BEC4673615650A2940E0AFB9B",
+      "frames": 16,
+      "trigger": "blocked bike movement after moving faster than 0.35 metres per second",
+      "durationSeconds": 0.62,
+      "strength": "scales with impact speed",
+      "transition": "crossfade back to mounted, turn, or tuck pose"
+    }
+  },
+  "runtimeMotion": {
+    "boostInput": "Left Shift held with throttle",
+    "boostSpeedMultiplier": 1.2,
+    "steeringLean": "continuous from steering input and speed",
+    "maximumLeanRadians": 0.16,
+    "mirror": false
+  },
+  "transitionModel": {
+    "keyframes": "base pose, authored midpoint, action pose",
+    "return": "play the same keyframes in reverse through smoothstep weights",
+    "directionalCoverage": "sixteen authored directions at 22.5-degree spacing",
+    "directionalStepDegrees": 22.5
+  },
+  "review": "Sixteen-view parked, mounted, action, and transition atlases preserve all original eight frames and add eight aligned in-between views.",
+  "rows": 4,
+  "frameCount": 16,
+  "directionStepDegrees": 22.5,
+  "directionalAtlases": {
+    "parked": {
+      "path": "assets/commute/bike/parked-16.png",
+      "frames": 16,
+      "sha256": "55C70973A200B4794463D6524B2580E66B924374C84FC7AF7FB96CCCD1251466"
+    },
+    "mounted": {
+      "path": "assets/commute/bike/mounted-16.png",
+      "frames": 16,
+      "sha256": "FCD32497BC7AA7E2BF1FD90B30C376E61C04E83B302CEEE9AFC4BF7F1C38B100"
+    },
+    "aerodynamicTuck": {
+      "path": "assets/commute/bike/mounted-aero-tuck-16.png",
+      "frames": 16,
+      "sha256": "68A8137F07B55ECEDE3FE93D251495E92426D20619385A8165C2AA9E77235D7B"
+    },
+    "accelerationResponse": {
+      "path": "assets/commute/bike/mounted-acceleration-response-16.png",
+      "frames": 16,
+      "sha256": "E495FAEC0E55EC0AF6873DE6A81076E751D1F9D60AB62068250DFC75923D4ADF"
+    },
+    "gearShift": {
+      "path": "assets/commute/bike/mounted-gear-shift-16.png",
+      "frames": 16,
+      "sha256": "9005E84692D153C5DB5F97A916415A9E2AE6BF6CFA6E454A14C5B6F5C887FCC4"
+    },
+    "hardTurnLeft": {
+      "path": "assets/commute/bike/mounted-hard-turn-left-16.png",
+      "frames": 16,
+      "sha256": "8BB840964659A3004D96E498FBBE7FF9C83AC6E428D8E3D100B53095877E36DF"
+    },
+    "hardTurnRight": {
+      "path": "assets/commute/bike/mounted-hard-turn-right-16.png",
+      "frames": 16,
+      "sha256": "C152457A07A0EA8C0F2E3A4168F123BB3DC41F0E8DBF7DC9B5076B6ADD12F3A2"
+    },
+    "impactBrace": {
+      "path": "assets/commute/bike/mounted-impact-brace-16.png",
+      "frames": 16,
+      "sha256": "8C603F6C3210241A568884F122511A84623954F91425E7A82F1ED0FF6BAC77CA"
+    },
+    "aerodynamicTuckTransition": {
+      "path": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
+      "frames": 16,
+      "sha256": "3C022209F0C11B962FCB7C33C6B410D236978C77EC788EF828694B191DE0AFC0"
+    },
+    "boostTransition": {
+      "path": "assets/commute/bike/mounted-boost-transition-16.png",
+      "frames": 16,
+      "sha256": "E3969FAA8BEE88FD39B2031917AAB46DDF7CEBB77AF40337E8D32537B632A559"
+    },
+    "gearShiftTransition": {
+      "path": "assets/commute/bike/mounted-gear-shift-transition-16.png",
+      "frames": 16,
+      "sha256": "BE47ECBDAB42A634073052EA95C227194ED3481CBBA6D424AB204880EC4CA811"
+    },
+    "hardTurnLeftTransition": {
+      "path": "assets/commute/bike/mounted-turn-left-transition-16.png",
+      "frames": 16,
+      "sha256": "0691B26FFF61190072840DDDD585BED0DA4F330A939B1213C75850F0EAEE8BCB"
+    },
+    "hardTurnRightTransition": {
+      "path": "assets/commute/bike/mounted-turn-right-transition-16.png",
+      "frames": 16,
+      "sha256": "0B1AC50D0681F6E8D62EAF010CEF1523BA49E0C9BB3BAD2BC28C2FE3924173EC"
+    },
+    "impactTransition": {
+      "path": "assets/commute/bike/mounted-impact-transition-16.png",
+      "frames": 16,
+      "sha256": "29BBA0FEAD81904193F4253C62AB1EEE1D432A9BEC4673615650A2940E0AFB9B"
+    }
+  }
+}

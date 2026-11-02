@@ -92,6 +92,8 @@ function Component.install(Runtime)
 
     function Runtime.updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
         if type(player) ~= "table" then return false end
+        if not require('src.commute.outfit').allowed(state,player,'walk') then directionX,directionY=0,0 end
+        player.needsSpeedMultiplier=require("src.home_residents").speedScale(state,player)
         if player.resting and (math.abs(tonumber(directionX) or 0)>0.001
             or math.abs(tonumber(directionY) or 0)>0.001) then require("src.shop_rooms").stand(player) end
         assets = Runtime.WarehouseGameplay.assets(assets, state)

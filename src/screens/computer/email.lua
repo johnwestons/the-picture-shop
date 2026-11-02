@@ -168,6 +168,36 @@ function Component.install(Runtime)
                 deleteHover and "dangerHover" or "danger")
             return
         end
+        if selected.noticeKind == "customer_case" or selected.noticeKind == "customer_case_resolved" then
+            local job = Runtime.findJob(state.jobs and state.jobs.completed or {}, selected.sourceJobId)
+            local customerCase = job and job.customerCase
+            love.graphics.setColor(0.96, 0.84, 0.30)
+            love.graphics.print(customerCase and customerCase.status == "open"
+                and "CUSTOMER CASE • ACTION NEEDED" or "CUSTOMER CASE • RESOLVED", 434, 392)
+            love.graphics.setColor(0.78, 0.86, 0.84)
+            love.graphics.printf("Job: " .. tostring(selected.sourceJobId or "--"), 434, 420, 392, "left")
+            if customerCase and customerCase.status == "open" then
+                local creditHover = pointerX and Runtime.contains(Runtime.EMAIL_ACCEPT, pointerX, pointerY)
+                Runtime.drawComputerButton(Runtime.EMAIL_ACCEPT, "OFFER 10% ACCOUNT CREDIT",
+                    creditHover and "primaryHover" or "primary")
+                local apologyHover = pointerX and Runtime.contains(Runtime.EMAIL_DECLINE, pointerX, pointerY)
+                Runtime.drawComputerButton(Runtime.EMAIL_DECLINE, "APOLOGIZE + EXPLAIN",
+                    apologyHover and "hover" or "secondary")
+                local declineHover = pointerX and Runtime.contains(Runtime.EMAIL_DELETE, pointerX, pointerY)
+                Runtime.drawComputerButton(Runtime.EMAIL_DELETE, "DECLINE RESPONSIBILITY",
+                    declineHover and "dangerHover" or "danger")
+            else
+                love.graphics.setColor(0.72, 0.82, 0.82)
+                love.graphics.printf(selected.body, 434, 446, 392, "left")
+                local archiveHover = pointerX and Runtime.contains(Runtime.EMAIL_DECLINE, pointerX, pointerY)
+                Runtime.drawComputerButton(Runtime.EMAIL_DECLINE, "ARCHIVE CASE",
+                    archiveHover and "hover" or "secondary")
+                local deleteHover = pointerX and Runtime.contains(Runtime.EMAIL_DELETE, pointerX, pointerY)
+                Runtime.drawComputerButton(Runtime.EMAIL_DELETE, "DELETE EMAIL",
+                    deleteHover and "dangerHover" or "danger")
+            end
+            return
+        end
         if selected.serviceNotice then
             love.graphics.setColor(0.96, 0.84, 0.30)
             love.graphics.print("BLADE EXCHANGE UPDATE", 434, 392)
@@ -247,13 +277,16 @@ function Component.install(Runtime)
         love.graphics.print("PROPOSED JOB  " .. job.id, 434, 320)
         love.graphics.print(string.format("Sheets: %g × %g in → %g × %g in",
             job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 344)
-        love.graphics.printf("Paper: " .. (job.stockSpec and job.stockSpec.description
-            or job.details and job.details.stockDescription or "Customer supplied"), 434, 364,
+        local stockSource = job.press and job.stockSpec and job.stockSpec.suppliedBy == "house"
+            and "HOUSE PAPER" or "CUSTOMER STOCK"
+        local paperText = job.stockSpec and job.stockSpec.description
+            or job.details and job.details.stockDescription or "Customer supplied"
+        love.graphics.printf((job.press and (stockSource .. " — ") or "Paper: ") .. paperText, 434, 364,
             job.press and 292 or 392, "left")
         if job.press then
-            love.graphics.print(string.format("Order: %s good / %s supplied",
+            love.graphics.printf(string.format("Order: %s good / %s supplied",
                 Runtime.commaNumber(job.quote.orderedCopies or job.press.orderedQuantity),
-                Runtime.commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 386)
+                Runtime.commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 386, 192, "left")
             love.graphics.printf("Packaging: "..(job.packaging=="boxed" and "Boxed, pallet-wrapped" or "Flat, pallet-wrapped"),434,406,292,"left")
             love.graphics.printf(string.format("Press: %d color%s • %s", job.press.colors or 1,
                 (job.press.colors or 1) == 1 and "" or "s",

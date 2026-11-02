@@ -343,6 +343,7 @@ local function markDelinquency(state, account, currentDay, label)
             bills.balance = bills.balance + fee
         end
         account.lateFeeCharged = true
+        require("src.household_finances").record(state,"interest",fee*100)
     end
     local level = math.min(4, math.floor(daysLate / 30))
     while (account.delinquencyLevel or account.creditDelinquencyLevel or 0) < level do
@@ -367,6 +368,7 @@ function Credit.onDay(state)
                 local interest = round(loan.balance * loan.aprBasisPoints / 120000)
                 loan.balance = loan.balance + interest
                 loan.accruedInterest = loan.accruedInterest + interest
+                require("src.household_finances").record(state,"interest",interest*100)
                 loan.installmentsDue = loan.installmentsDue + 1
                 loan.scheduledCount = loan.scheduledCount + 1
                 if loan.scheduledCount >= loan.termMonths then

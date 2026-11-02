@@ -93,7 +93,7 @@ function Test.run(context, check)
     pressTitleMouse(newX, newY)
     pressTitleMouse(confirmX, confirmY)
     for i=1,13 do pressTitleKey("right") end
-    pressTitleMouse(595, 572)
+    pressTitleMouse(require("src.screens.shop_setup_screen").buttonCenter("start"))
     check("title_mouse_setup_creates_selected_shop",
         #titleStarts == 1
         and titleStarts[1].mode == "new"

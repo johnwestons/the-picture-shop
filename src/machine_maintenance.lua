@@ -1,5 +1,6 @@
 local MachineFleet = require("src.machine_fleet")
 local BusinessCalendar = require("src.business_calendar")
+local Procurement = require("src.procurement")
 
 local Maintenance = {}
 local CALL_OUT_PERCENT, LATE_PERCENT = 2, 5
@@ -321,6 +322,39 @@ function Maintenance.canFinishCutterLubrication(session)
     return true
 end
 
+function Maintenance.nextCutterLubricationStep(session)
+    if not session then return "Open the lubrication procedure." end
+    if session.stage == "lockout" then
+        if not session.lockout.disconnect then return "Turn off the main disconnect." end
+        if not session.lockout.key then return "Remove the disconnect key." end
+        return "Apply the lock and tag."
+    end
+    if session.stage == "prep" then
+        if not session.prep.cartridge then return "Install the grease cartridge." end
+        return "Prime the grease gun."
+    end
+    local points = session.centralInstalled and { session.central } or session.points
+    for _, point in ipairs(points) do
+        if not point.complete then
+            local view = session.centralInstalled and "CENTRAL" or point.view:upper()
+            local name = session.centralInstalled and "fitting" or point.label
+            if not point.cleaned then return view .. ": clean " .. name .. " with RAG." end
+            if session.coupledPoint ~= (session.centralInstalled and "central" or point.id) then
+                return view .. ": couple GREASE GUN to " .. name .. "."
+            end
+            local target = session.centralInstalled and 4 or 2
+            return view .. ": pump " .. (target - point.strokes) .. " more stroke(s)."
+        end
+    end
+    if not session.gear.inspected then
+        return "GEAR: select INSPECT LIGHT and tap the sight glass."
+    end
+    if session.gear.level < 0.42 or session.gear.level > 0.58 then
+        return "GEAR: select GEAR OIL and tap the sight glass."
+    end
+    return "All checks complete. Tap RETURN TO SERVICE."
+end
+
 function Maintenance.lubricationProgress(session)
     if not session then return 0 end
     if session.stage == "lockout" then
@@ -337,7 +371,7 @@ end
 
 function Maintenance.finishCutterLubrication(state, session)
     if not Maintenance.canFinishCutterLubrication(session) then
-        return false, "Complete the lubrication points and inspect the gearbox sight glass first."
+        return false, Maintenance.nextCutterLubricationStep(session)
     end
     local correct = 0
     if session.centralInstalled then correct = session.central.strokes == 4 and 1 or 0
@@ -361,6 +395,22 @@ function Maintenance.prepareBladeForTechnician(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false, "No cutter is installed." end
     cutter.bladeRemoved, cutter.bladeInSleeve = true, true
+    return true, cutter
+end
+
+function Maintenance.installSpareBlade(state)
+    local item, cutter = Maintenance.cutterStatus(state)
+    if not item then return false, "No cutter is installed." end
+    if not cutter.bladeInSleeve or not cutter.bladeRemoved then
+        return false, "Sleeve the dull blade before installing a spare blade."
+    end
+    if cutter.spareBladeInstalled then return false, "A spare blade is already installed." end
+    local installed, reason = Procurement.consumeStockProduct(state, "cutter_blade", 1, { autoShelf = true })
+    if not installed then return false, reason end
+    cutter.bladeRemoved = false
+    cutter.spareBladeInstalled = true
+    item.variables.bladeSharpness = 100
+    item.condition = MachineFleet.condition(item)
     return true, cutter
 end
 
@@ -414,8 +464,11 @@ local function updateCutterTechnician(state)
         cutter.technicianRescheduled = true
         state.message = "Mara Mouse emailed: this week's blade exchange was cancelled."
     elseif outcome < CALL_OUT_PERCENT + LATE_PERCENT then
+        local delayDescription = cutter.spareBladeInstalled
+            and "Mara Mouse is running behind and will arrive one business day late to collect the dull blade. Your sharp spare stays installed."
+            or "Mara Mouse is running behind and will arrive one business day late to collect the dull blade and fit a fresh replacement."
         MachineFleet.addServiceNotice(state, "Blade exchange courier running late",
-            "Mara Mouse is running behind and will arrive one business day late to collect the dull blade and install a fresh one.",
+            delayDescription,
             "Mara Mouse — Blade Exchange")
         cutter.nextTechnicianDay = appointmentDay + 1
         cutter.technicianRescheduled = true
@@ -444,6 +497,7 @@ function Maintenance.requestWindmillTechnician(state)
     if press.technicianDueDay then return false, "A press technician is already scheduled." end
     if (state.money or 0) < 350 then return false, "The $350 service call is not affordable right now." end
     state.money = state.money - 350
+    require("src.household_finances").record(state,"services",35000)
     press.technicianDueDay = state.calendar.totalDays + 1
     press.technicianStatus = "scheduled"
     return true, press.technicianDueDay
@@ -478,9 +532,11 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
     end
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false end
-    item.variables.bladeSharpness = 100
+    local spareInstalled = cutter.spareBladeInstalled == true
+    if not spareInstalled then item.variables.bladeSharpness = 100 end
     item.condition = MachineFleet.condition(item)
     cutter.bladeRemoved, cutter.bladeInSleeve = false, false
+    cutter.spareBladeInstalled = false
     cutter.technicianStatus = "completed"
     cutter.technicianRescheduled = false
     local appointmentDay = visit and visit.appointmentDay or state.calendar.totalDays
@@ -488,8 +544,10 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
     cutter.nextTechnicianDay = recurring and appointmentDay + 7 or nil
     cutter.appointmentType = recurring and "weekly" or nil
     local courier = visit and visit.name or "Mara Mouse"
-    MachineFleet.addServiceNotice(state, "Fresh cutter blade delivered",
-        courier .. " collected the dull blade in its wooden sleeve and fitted a freshly sharpened replacement. The Polar 115 is ready for production.",
+    MachineFleet.addServiceNotice(state, spareInstalled and "Dull cutter blade collected" or "Fresh cutter blade delivered",
+        spareInstalled
+            and (courier .. " collected the dull blade in its wooden sleeve. Your spare blade remains installed and ready for production.")
+            or (courier .. " collected the dull blade in its wooden sleeve and fitted a freshly sharpened replacement. The Polar 115 is ready for production."),
         "Polar 115 Blade Exchange")
     return true
 end

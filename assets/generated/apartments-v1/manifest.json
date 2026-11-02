@@ -1,0 +1,63 @@
+{
+  "status": "Runtime preview copies of approved layer drafts; scene registration and final alpha/depth cleanup pending",
+  "processing": "Exact file copy; no resampling or pixel edits",
+  "sourceManifest": "assets/source/apartments/layers-v1/manifest.json",
+  "entries": [
+    {
+      "file": "brick-walkup-floor.png",
+      "source": "assets/source/apartments/layers-v1/brick-walkup-floor-fixtures-v2.png",
+      "sha256": "73613e84de3b2ec481263ac0c0a616df3fd7f7bff42739bba1a8d6a769512a42",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "brick-walkup-walls.png",
+      "source": "assets/source/apartments/layers-v1/brick-walkup-walls.png",
+      "sha256": "a36519bd6c78b4f087841321690c6643c966f01da7c65b668e017898c7b27eb1",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "corner-floor.png",
+      "source": "assets/source/apartments/layers-v1/corner-floor-fixtures.png",
+      "sha256": "75a44a5857e09da56967e1c7bc938b14d99fb62048ae7177febd0436f74a5d5c",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "corner-walls.png",
+      "source": "assets/source/apartments/layers-v1/corner-walls-v2.png",
+      "sha256": "c6169051cfdd105ef82c2ccea6083779e9452ac2e283bb6d5f45a17f13f8e1a8",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "courtyard-floor.png",
+      "source": "assets/source/apartments/layers-v1/courtyard-floor-fixtures.png",
+      "sha256": "b36ce3b5f4e6eef01a01c359843d16d27e7a3486a6b5716834ac2c5acc6e151a",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "courtyard-walls.png",
+      "source": "assets/source/apartments/layers-v1/courtyard-walls-v2.png",
+      "sha256": "9664a0a340c7e23a1a5d603689edcbbf204d21663ad63972a533ecf7e99f5b93",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "garden-floor.png",
+      "source": "assets/source/apartments/layers-v1/garden-floor-fixtures.png",
+      "sha256": "8d5439df58dacb69df7e8ea73987ef75f64bdccab6ccbde706b2c81b8786b88a",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "file": "garden-walls.png",
+      "source": "assets/source/apartments/layers-v1/garden-walls.png",
+      "sha256": "2b6ea606feac6c1c01b4c722f658f66135d24c708974c56ddd294d78e469f3cd",
+      "width": 1536,
+      "height": 1024
+    }
+  ]
+}

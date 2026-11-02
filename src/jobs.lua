@@ -305,7 +305,14 @@ function Jobs.validateSpec(spec)
     end
 
     local stockSpec = normalizeStockSpec(spec)
-    if stockSpec.suppliedBy ~= "client" then errors[#errors + 1] = "stock must be supplied by the client" end
+    local printJob = type(spec.press) == "table"
+    if stockSpec.suppliedBy ~= "client"
+        and not (printJob and stockSpec.suppliedBy == "house")
+    then
+        errors[#errors + 1] = printJob
+            and "stock must be supplied by the client or the shop"
+            or "cutting-job stock must be supplied by the client"
+    end
     for _, field in ipairs({ "grade", "finish", "color", "grain", "description" }) do
         if not nonBlank(stockSpec[field]) then errors[#errors + 1] = "stockSpec." .. field .. " is required" end
     end

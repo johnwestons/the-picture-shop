@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "status": "staged",
+  "directions": [
+    "east",
+    "southeast",
+    "south",
+    "southwest",
+    "west",
+    "northwest",
+    "north",
+    "northeast"
+  ],
+  "assets": [
+    {
+      "file": "cloth-eight-directions.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-c138b8ae-3964-4ed8-ba6b-6542a7909c24.png",
+      "prompt": "Transparent isometric game sprite atlas of the pale mint-green crumpled cleaning cloth from reference, ONLY that cloth. Eight genuine physical directions reading order EAST, SOUTHEAST, SOUTH, SOUTHWEST / WEST, NORTHWEST, NORTH, NORTHEAST, 4columns2rows,1536x1024canvas each384x512cell. Same single square thin cleaning rag with asymmetric folded corner, soft cotton wrinkles and dark outlined edges, handpainted cartoon game style. Cloth lies mostly flat on horizontal invisible counter, crumpled enough to be pushed by a palm; fixed elevated game camera with upper-left lighting. Rotate cloth in3D between views, do not mirror or spin a flat bitmap. Center each cloth within local(192,256), silhouette inside localx60..324 y170..340. Central palm contact is same center point. No hands/characters/props/surface/floor/shadow/background/grid/text/labels. True transparent background.",
+      "runtime": true,
+      "sha256": "9f9104fb1cf6cab064b6c15300c808dffc24e09f9f7476f17d0de8074f34b236",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-1-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-253b5279-968d-4c2d-acd7-2a42536c137f.png",
+      "prompt": "Correct ONLY cells6 and7 (bottom row columns2 and3) of this 1536x1024 transparent4x2 sheet. Keep all other six cells unchanged. Cell6 MUST be NORTHWEST: back-left three-quarter view, face/muzzle pointing SCREEN LEFT, back of overalls and tail visible. Right arm reaches forward toward SCREEN LEFT with open palm face down wiping an invisible counter, NOT screen right. It must be a real back-left drawing, not a duplicate of northeast. Cell7 MUST be NORTH full rear: rabbit looks straight AWAY/upscreen, both ears and back of head visible, right arm reaches FORWARD away from viewer, elbow/hand foreshortened near right shoulder/side, not a horizontal arm sticking sideways. Keep feet planted at same cell local locations, rabbit size/style/palette/clothing unchanged. Both cells are same waist-height wiping pose as others. NO cloth, surface, floor or objects. Transparent background. No labels, grids, shadows.",
+      "runtime": true,
+      "reference": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-d2bc96b4-a146-4c05-ad18-61c4e8b42fbb.png",
+      "sha256": "3a7291efde0ab72a257f16e271f598148a1629f15c80ae6b4878e3c85bd67272",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-2-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-8071db21-464e-4cc0-8c1d-e62474033ac5.png",
+      "prompt": "Make the SECOND animation phase of wiping from this transparent1536x1024 four-column two-row eight-direction rabbit sprite atlas. Maintain exact same eight facings E,SE,S,SW / W,NW,N,NE (cell6 points left and shows back; cell7 straight back), character size, design, clothing, lighting and planted feet. Right palm presses down on invisible waist-high surface as before, left paw remains at belly/hip. Now push right wiping hand FORWARD away from torso approx25 sourcepixels along the character's facing direction, elbow opening, torso leaning a little farther forward. Actual arm/shoulder pose change, not a translated whole sprite. Each cell retains original baseline and body scale. Hand EMPTY no rag/props/counter/surface. Whole character complete in each384x512cell, no overlap. Background truly transparent; no floor/shadows/text/grids.",
+      "runtime": true,
+      "sha256": "7c1ff0e5bc864c47bcedc17a1a97d5bba596187385dcf91fa01db766fbb9fcbc",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-3-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-457d8a77-7f4c-4195-81af-805b8b19aca9.png",
+      "prompt": "Third wiping animation phase. Preserve this1536x1024 transparent4x2 eight-direction orange rabbit atlas, exact same directions E,SE,S,SW / W,NW,N,NE, character identity/size/clothing and feet planted at same locations. Rabbit is wiping a waist-high invisible countertop with right open palm facing DOWN. Now SWEEP RIGHT PAW SIDEWAYS across body toward rabbit's left side approx30sourcepixels, elbow still forward extended, subtle upperbody shoulder turn follows arm; left paw stays on belly/hip. This is the far sideways pass of a small oval scrubbing motion. Do not turn head/body into a different facing. No translation of whole sprite. Real changed wrist/elbow/shoulder pose. Keep every cell isolated with clear gutter, whole hand/ears/feet never clipped. No actual cloth/props/surface/counter/background/floor/shadows/text/grid. True transparency.",
+      "runtime": true,
+      "sha256": "00bbefd17f75d6bf9ec2dce1f8f66478f089cd44658bb4221b5c12ab55c2e9fa",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "initial-direction-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-d2bc96b4-a146-4c05-ad18-61c4e8b42fbb.png",
+      "prompt": "Transparent game sprite atlas of the exact orange rabbit worker in reference: orange fur,white muzzle/tail,gray shirt,blue overalls,brown boots,small tool belt.1536x1024canvas FOUR columns TWO rows, eight full-body directions EAST(right side profile),SOUTHEAST(front right threequarter),SOUTH(front),SOUTHWEST(front left threequarter) / WEST(left side),NORTHWEST(back left),NORTH(back),NORTHEAST(back right). Camera fixed slightly elevated isometric. Same pose in all cells: wiping an invisible waist-high countertop with RIGHT paw, elbow bent, upper body leaning slightly forward. Right hand open with palm facing DOWN and fingers pointing forward, pressing a SMALL INVISIBLE cleaning rag at waist height. Left paw rests against belly/hip, NOT another wiping hand. Right wrist approx waist height, sweeping hand about half a forearm ahead of torso. Feet planted, knees gently bent. This is first near-body phase of forward/back scrubbing, ready to push rag away. Hand is EMPTY: no rag/object or counter/surface should be drawn; those are separate sprites. Preserve exact rabbit identity/proportions, readable cartoon painterly game art. Each384x512cell: wholecharacter inside localx50..334 y55..465, boots contact near(192,465), generous transparent margins. No background, floor, shadow, glow, labels, grid or other objects.",
+      "runtime": false,
+      "reason": "Northwest faced northeast; north arm extended sideways.",
+      "sha256": "3252ddc121b0404e192b6df90afb914158b3323fe4da02680678bdcf00f21be7",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "return-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-1cd122a2-dd0b-4fe6-9b9d-dd67ad1a02f0.png",
+      "prompt": "Fourth RETURN wiping animation phase, between reference1 sideways pass and reference2 starting near-body pose. Same1536x1024 transparent4x2 eight directions E,SE,S,SW / W,NW,N,NE. Keep exact rabbit design/scale/clothing, facing and planted feet. Draw right elbow flexed back toward waist, right hand palm down returning toward right side in a small oval rubbing stroke; hand about halfway between the two reference hand positions, slight relaxed shoulder/chest following. Left paw stays on belly/hip. Hand remains pressing invisible waist-high counter. Actual changed arm/wrist pose, not whole-sprite translation. Fullbody percell, complete paws/ears/boots, clear gutters. No cloth/object/counter/floor/shadows/background/text/grids, true transparent background.",
+      "runtime": false,
+      "reason": "Hand retracted against body and left the cleaning surface.",
+      "sha256": "05c088789c64351a19feb3c28352993b2b3098a03a3efcc8a8e1ab1884bcfd29",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "southwest-extra-arm-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5f405058-7198-4bb8-be99-ceac9cd59a29.png",
+      "prompt": "Correct ONLY top-right cell (row1 column4, SOUTHWEST) of this1536x1024 four-column two-row sheet. In that cell keep exact character facing front-left, scale, clothes, head and planted feet, but extend the wiping RIGHT paw toward SCREEN LEFT again. Open right palm faces DOWN, fingers point left, hand center at global(1235,292), approximately80pixels from that cell left edge. Elbow mildly bent. This is a modest sideways return stroke near the forward counter, NOT across belly to screen right. Left paw stays on belly. All other seven cells unchanged. No cloth/props/surface/counter/floor/shadows/text. Transparent background.",
+      "runtime": false,
+      "reason": "Generated corrective edit added a third arm; rejected.",
+      "sha256": "e927cf88b1ceab888212fc9dbace955393d7bf125097d0f6551736f62838b26d",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-3-southwest.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-b870290e-d33d-4130-9be9-19c8445226e1.png",
+      "prompt": "Fix the anatomy of ONLY top-right rabbit (row1column4) in this sheet. It currently has THREE arms/hands. It must have exactly TWO. KEEP the extended arm reaching screen left with open palm down. KEEP the relaxed left hand resting low on belly. DELETE the extra horizontal orange forearm/paw across the chest, rebuilding blue overall bib and gray shirt underneath. Preserve all other pose, feet, facing, scale, style and other seven cells. No new arms or objects. Transparent background.",
+      "runtime": true,
+      "reference": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5f405058-7198-4bb8-be99-ceac9cd59a29.png",
+      "region": "Single whole-canvas southwest pose; registered at scale0.079.",
+      "sha256": "efbeb424b67a6e5fe2b73a1a4b22a4e3033c254835ad30c61f24dd2fe5b0ab8e",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    }
+  ],
+  "registration": "src/home_wipe_registration.lua",
+  "renderer": "src/home_wipe_art.lua",
+  "review": "src/tests/home_wipe_art_review.lua"
+}

@@ -18,6 +18,14 @@ function Component.install(Runtime)
             Runtime.Smoke.drawn()
             return
         end
+        if Runtime.state.screen=='world' and Runtime.World.player.sceneId=='commute' then
+            require('src.commute.runtime').draw(Runtime)
+            if Runtime.controller then Runtime.controller:draw() end
+            local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()
+            Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
+            Runtime.CharacterAssets.endFrame();Runtime.Viewport.endDraw();Runtime.Smoke.drawn()
+            return
+        end
         Runtime.WorldRenderer.beginFrame()
         local desiredPack = (Runtime.state.screen == "title" or Runtime.state.screen == "lan"
             or Runtime.state.screen == "direct") and "menu"
@@ -91,7 +99,7 @@ function Component.install(Runtime)
                     Runtime.mobileControls and Runtime.mobileControls:isEnabled(), Runtime.controller and Runtime.controller:isActive(), viewBounds,
                     Runtime.App.settings and Runtime.App.settings.followPlayerCamera,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime,
-                    Runtime.App.playerFeedback)
+                    Runtime.App.playerFeedback,Runtime.World.player.sceneId,require("src.home_activity_controls").localPlayer(Runtime))
                 Runtime.MultiplayerHud.draw(Runtime.multiplayerHudInfo())
                 Runtime.HighFiveUi.draw(Runtime.multiplayer:highFiveInfo())
             elseif Runtime.state.screen == "computer" then
@@ -99,6 +107,12 @@ function Component.install(Runtime)
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
             elseif Runtime.state.screen == "shop_rooms" then
                 require("src.shop_room_controls").draw(Runtime)
+            elseif Runtime.state.screen == "home_travel" then
+                require("src.home_travel_controls").draw(Runtime)
+            elseif Runtime.state.screen == "home_activity" then
+                require("src.home_activity_controls").draw(Runtime)
+            elseif Runtime.state.screen == "home_furnish" then
+                require("src.home_furniture_controls").draw(Runtime)
             elseif Runtime.state.screen == "air_hockey" then
                 require("src.screens.air_hockey_screen").draw(Runtime)
             elseif Runtime.state.screen == "critter_kombat" then
@@ -110,8 +124,6 @@ function Component.install(Runtime)
                 Runtime.WorkPhoneScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets)
             elseif Runtime.state.screen == "machine" then
                 Runtime.MachineScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
-            elseif Runtime.state.screen == "regal_folder" then
-                Runtime.RegalFolderScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             elseif Runtime.state.screen == "press" then
                 Runtime.PressScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             elseif Runtime.state.screen == "job_offer" then

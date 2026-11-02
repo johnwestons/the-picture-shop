@@ -173,6 +173,12 @@ function Component.install(Runtime)
                 Runtime.Screen.maintenanceView, Runtime.Screen.bladeStage = "blade", "bolts"
                 Runtime.Screen.bladeBolts = { false, false, false, false }
                 return { action = "maintenance_minigame", game = "blade_removal" }
+            elseif Runtime.inside(Runtime.spareBladeButton, x, y) then
+                local installed, result = Runtime.MachineMaintenance.installSpareBlade(state)
+                state.message = installed
+                    and "Sharp spare blade installed. The dull blade remains sleeved for the courier."
+                    or tostring(result)
+                return installed and { action = "spare_blade_installed" } or true
             elseif Runtime.inside(Runtime.technicianButton, x, y) and cutter.bladeInSleeve and not cutter.nextTechnicianDay then
                 local booked, day = Runtime.MachineMaintenance.requestTechnician(state)
                 if booked then state.message = "Mara Mouse booked for a blade exchange on game day " .. tostring(day) .. "." end

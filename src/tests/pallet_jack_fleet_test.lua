@@ -50,7 +50,7 @@ end
 
 local function purchases(context,check)
     local s=State.new();s.money=2000
-    local category,item=4,3
+    local category,item=4,4
     local okay,a=Procurement.buy(s,category,item,"salesman")
     local online,b=Procurement.buyRetail(s,category,item)
     check("jack_fleet_both_catalogs_charge_and_order",okay and online and s.money==1225
@@ -78,10 +78,10 @@ local function purchases(context,check)
         and Jack.mount(loaded,Config.palletJack,1) and #Fleet.all(loaded)==3 and Fleet.validate(loaded))
     local ui=State.new();ui.money=2000;ui.vendorCategory=4
     local vendor=require("src.screens.vendor_screen")
-    local bought=vendor.mousepressed(ui,764,320,1)
+    local bought=vendor.mousepressed(ui,764,378,1)
     local computer=require("src.screens.computer_screen").new()
     computer.tab,computer.wwwSite="www",4
-    local x,y=computer.retailButtonCenter(3)
+    local x,y=computer.retailButtonCenter(4)
     local added=computer.mousepressed(ui,x,y,1)
     x,y=computer.cartButtonCenter();computer.mousepressed(ui,x,y,1)
     x,y=computer.cartCheckoutCenter()

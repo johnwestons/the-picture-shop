@@ -29,6 +29,7 @@ function PlayerController.reset(player, position, definition)
     player.moving, player.blocked = false, false
     player.animationDistance, player.idleClock = 0, 0
     player.gaitSpeedMultiplier, player.gaitAccelerationMultiplier = 1, 1
+    player.needsSpeedMultiplier=1
     player.interactionClock = 0
 end
 
@@ -88,7 +89,7 @@ function PlayerController.update(player, inputX, inputY, dt, canMove, definition
     player.gaitSpeedMultiplier = gaitSpeed
     player.gaitAccelerationMultiplier = gaitAcceleration
 
-    local speed = (tonumber(definition.speed) or tonumber(player.speed) or 0) * gaitSpeed
+    local speed = (tonumber(definition.speed) or tonumber(player.speed) or 0) * gaitSpeed * (player.needsSpeedMultiplier or 1)
     local targetX, targetY = directionX * speed * strength, directionY * speed * strength
     local changingSpeed = inputLength > EPSILON
         and (targetX * (player.velocityX or 0) + targetY * (player.velocityY or 0) >= 0)

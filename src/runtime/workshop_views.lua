@@ -48,6 +48,7 @@ function Component.install(Runtime)
             sourceSize = { width = offer.sourceSize.width, height = offer.sourceSize.height },
             finishedSize = { width = offer.finishedSize.width, height = offer.finishedSize.height },
             stock = tostring(stock),
+            stockSource = offer.stockSpec and offer.stockSpec.suppliedBy == "house" and "house" or "client",
             packaging = offer.packaging == "boxed" and "boxed" or "flat",
             delivery = tostring(Runtime.JobService.deliverySummary(offer)),
             artworkKey = tostring(artwork.key or offer.artworkKey or "flower"),
@@ -65,9 +66,11 @@ function Component.install(Runtime)
     function Runtime.wrapperPalletView()
         local pallets = {}
         for _, item in ipairs(Runtime.Wrapper.nearbyPallets(Runtime.state)) do
+            local cartons = Runtime.Procurement.cartonsRequired(item.job, item.pallet)
             pallets[#pallets + 1] = {
                 palletId = tostring(item.pallet.id),
-                jobLabel = tostring((item.job.company or "Client") .. " · " .. item.job.id),
+                jobLabel = tostring((item.job.company or "Client") .. " · " .. item.job.id
+                    .. (cartons > 0 and string.format(" · %d carton(s)", cartons) or "")),
                 packaging = item.pallet.packaging == "boxed" and "boxed" or "flat",
                 distance = math.sqrt(math.max(0, tonumber(item.distance) or 0)),
             }

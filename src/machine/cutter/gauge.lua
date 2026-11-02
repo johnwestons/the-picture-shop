@@ -168,6 +168,7 @@ function Component.run(Context)
     function Context.Machine.emergencyStop(state)
         local resumeStep = Context.safeResumeStep(Context.Machine.step)
         Context.Machine.emergencyStopped = true
+        Context.Machine.operatorSkill = nil
         Context.enterBlocked(state, "Emergency stop active. Reset the cutter before continuing.", resumeStep)
         Context.bumpRevision()
         return true
@@ -212,6 +213,7 @@ function Component.run(Context)
         Context.Machine._resetResume = Context.Machine.step == "blocked"
             and (Context.Machine._blockedResume or Context.safeResumeStep(Context.Machine.step)) or "idle"
         Context.Machine.emergencyStopped, Context.Machine.barrierClear = false, true
+        Context.Machine.operatorSkill = nil
         Context.Machine.clamp, Context.Machine.leftDown, Context.Machine.rightDown = false, false, false
         Context.Machine.step, Context.Machine.progress = "resetting", 0
         Context.message(state, "Resetting safety controls...")

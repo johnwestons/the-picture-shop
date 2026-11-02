@@ -1,0 +1,3348 @@
+{
+  "sourceProject": "Critter Party",
+  "summary": {
+    "plantSpecies": 22,
+    "lifecycleStates": 12,
+    "alternateForms": 8,
+    "groundMaterials": 16,
+    "atlasPages": 226
+  },
+  "files": [
+    {
+      "source": "src/ground.glsl",
+      "destination": "src/commute/vendor/ground.glsl",
+      "recipe": "byte-identical copy",
+      "bytes": 6487,
+      "sourceSha256": "af9d4dd00134767f5275a7246029ceecb1ab7d18fb2b4e38da8772d506b3cb06",
+      "sha256": "af9d4dd00134767f5275a7246029ceecb1ab7d18fb2b4e38da8772d506b3cb06"
+    },
+    {
+      "source": "src/ground_textures.lua",
+      "destination": "src/commute/ground_textures.lua",
+      "recipe": "byte-identical copy; commute namespace and asset paths",
+      "bytes": 3808,
+      "sourceSha256": "6ef1b5c109790bf0f922c5bde167c05adfdbee5a0bdc5add82d7e17eb85dbe22",
+      "sha256": "ebc1c61d99038aed95a3f40363b6f349cb9faa598d14f3c798f4caea28e83245"
+    },
+    {
+      "source": "assets/terrain/runtime/ground-desktop-v1.png",
+      "destination": "assets/commute/terrain/ground-desktop-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 2694444,
+      "sourceSha256": "d4a7cec0284edb2260f3280a88159c26f486035b46c0670ee6648279314174d5",
+      "sha256": "d4a7cec0284edb2260f3280a88159c26f486035b46c0670ee6648279314174d5"
+    },
+    {
+      "source": "assets/terrain/runtime/ground-mobile-v1.png",
+      "destination": "assets/commute/terrain/ground-mobile-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 697235,
+      "sourceSha256": "f99f09dd8abbbedcbf84ae5157039764cb30495f64f3a6c42fe180cfd9b144c3",
+      "sha256": "f99f09dd8abbbedcbf84ae5157039764cb30495f64f3a6c42fe180cfd9b144c3"
+    },
+    {
+      "source": "assets/terrain/runtime/manifest.json",
+      "destination": "assets/commute/terrain/manifest.json",
+      "recipe": "byte-identical copy",
+      "bytes": 15184,
+      "sourceSha256": "557ad2a9e70c8eb976ac1370804687f8c33e061e2f2e5e2852f5b70402bf388d",
+      "sha256": "557ad2a9e70c8eb976ac1370804687f8c33e061e2f2e5e2852f5b70402bf388d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/bloodroot.png",
+      "destination": "assets/commute/plants/bloodroot.png",
+      "recipe": "byte-identical copy",
+      "bytes": 519863,
+      "sourceSha256": "0d1d8e258a96a4beb68f81482e9d5819651933b0f0e85e5d069f72dc0ab0c5b2",
+      "sha256": "0d1d8e258a96a4beb68f81482e9d5819651933b0f0e85e5d069f72dc0ab0c5b2"
+    },
+    {
+      "source": "assets/sprites/lifecycle/blue-phlox.png",
+      "destination": "assets/commute/plants/blue-phlox.png",
+      "recipe": "byte-identical copy",
+      "bytes": 478592,
+      "sourceSha256": "295edcbc1ad4be5e8eddc4fc7c53f63684d00359e8605bbbdb53a134a389e249",
+      "sha256": "295edcbc1ad4be5e8eddc4fc7c53f63684d00359e8605bbbdb53a134a389e249"
+    },
+    {
+      "source": "assets/sprites/lifecycle/blueberry.png",
+      "destination": "assets/commute/plants/blueberry.png",
+      "recipe": "byte-identical copy",
+      "bytes": 600690,
+      "sourceSha256": "3967b03dba8a32cd891062cd378d20c8f89a62e0db6075b696a08505f72a09ce",
+      "sha256": "3967b03dba8a32cd891062cd378d20c8f89a62e0db6075b696a08505f72a09ce"
+    },
+    {
+      "source": "assets/sprites/lifecycle/bramble.png",
+      "destination": "assets/commute/plants/bramble.png",
+      "recipe": "byte-identical copy",
+      "bytes": 462700,
+      "sourceSha256": "b9de16230af09f9a4db0547caf1d9d36f712586a725e75b42e714384117fe0a1",
+      "sha256": "b9de16230af09f9a4db0547caf1d9d36f712586a725e75b42e714384117fe0a1"
+    },
+    {
+      "source": "assets/sprites/lifecycle/cardinal-flower.png",
+      "destination": "assets/commute/plants/cardinal-flower.png",
+      "recipe": "byte-identical copy",
+      "bytes": 315633,
+      "sourceSha256": "0c2c32d91c46bd3028c863e21ffc0a0f8f023d2acb72735004565e61e3a48fec",
+      "sha256": "0c2c32d91c46bd3028c863e21ffc0a0f8f023d2acb72735004565e61e3a48fec"
+    },
+    {
+      "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+      "destination": "assets/commute/plants/chickasaw-plum.png",
+      "recipe": "byte-identical copy",
+      "bytes": 669673,
+      "sourceSha256": "e7d8845a71c1beb40e450c641c41e7fe4c0f28fd7527c9672a93d5b24e46477d",
+      "sha256": "e7d8845a71c1beb40e450c641c41e7fe4c0f28fd7527c9672a93d5b24e46477d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/common-goldenrod.png",
+      "destination": "assets/commute/plants/common-goldenrod.png",
+      "recipe": "byte-identical copy",
+      "bytes": 565000,
+      "sourceSha256": "72aab4f72d64dc0372bf92cb4fbd6109bfb2b1bd3f8591587dce07b0aba7795d",
+      "sha256": "72aab4f72d64dc0372bf92cb4fbd6109bfb2b1bd3f8591587dce07b0aba7795d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/dogwood.png",
+      "destination": "assets/commute/plants/dogwood.png",
+      "recipe": "byte-identical copy",
+      "bytes": 592628,
+      "sourceSha256": "15ee8d0cd1ddb97b60d441227fa8cc844e981899fd1e1ae9cc8b276e82e8eb8e",
+      "sha256": "15ee8d0cd1ddb97b60d441227fa8cc844e981899fd1e1ae9cc8b276e82e8eb8e"
+    },
+    {
+      "source": "assets/sprites/lifecycle/grass.png",
+      "destination": "assets/commute/plants/grass.png",
+      "recipe": "byte-identical copy",
+      "bytes": 635495,
+      "sourceSha256": "83753ee506bb85595f96dd3a7866c9874edab11e1ae8cbdfe244b751f926df66",
+      "sha256": "83753ee506bb85595f96dd3a7866c9874edab11e1ae8cbdfe244b751f926df66"
+    },
+    {
+      "source": "assets/sprites/lifecycle/little-bluestem.png",
+      "destination": "assets/commute/plants/little-bluestem.png",
+      "recipe": "byte-identical copy",
+      "bytes": 700353,
+      "sourceSha256": "1ef466d3b36869a83be93d90dae1f0076496a7287f0b5687217d058e829c9489",
+      "sha256": "1ef466d3b36869a83be93d90dae1f0076496a7287f0b5687217d058e829c9489"
+    },
+    {
+      "source": "assets/sprites/lifecycle/milkweed.png",
+      "destination": "assets/commute/plants/milkweed.png",
+      "recipe": "byte-identical copy",
+      "bytes": 674233,
+      "sourceSha256": "d58861d1dbed802549c4457147daaeba329824b47d8a4c2cebe84ec5dd752b3e",
+      "sha256": "d58861d1dbed802549c4457147daaeba329824b47d8a4c2cebe84ec5dd752b3e"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bloodroot-senescent.png",
+      "destination": "assets/commute/plants/motion/bloodroot-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 70277,
+      "sourceSha256": "f19304ba112e26f776e212246d7b21082bf69fff0e7cede321978fda60b597da",
+      "sha256": "f19304ba112e26f776e212246d7b21082bf69fff0e7cede321978fda60b597da"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blue-phlox-autumn.png",
+      "destination": "assets/commute/plants/motion/blue-phlox-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61666,
+      "sourceSha256": "d9ce4f2f26f1daf9d5c12c446dc5905cdb40782a3e850e6b747d314d4e496ad7",
+      "sha256": "d9ce4f2f26f1daf9d5c12c446dc5905cdb40782a3e850e6b747d314d4e496ad7"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blue-phlox-senescent.png",
+      "destination": "assets/commute/plants/motion/blue-phlox-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 68271,
+      "sourceSha256": "a27d7ac26c1bb86ede9da5cf1224efb05617049723b191afb405bd8de6d00e3b",
+      "sha256": "a27d7ac26c1bb86ede9da5cf1224efb05617049723b191afb405bd8de6d00e3b"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-autumn.png",
+      "destination": "assets/commute/plants/motion/blueberry-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 56666,
+      "sourceSha256": "9b2b9afe05eead0a8887bfd29109bb0ba25285401aea984f93a72b196e66d4de",
+      "sha256": "9b2b9afe05eead0a8887bfd29109bb0ba25285401aea984f93a72b196e66d4de"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-browse-impact.png",
+      "destination": "assets/commute/plants/motion/blueberry-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 118247,
+      "sourceSha256": "e0a2aa217c3a0eb08db3c8ae0a798c55ed3845f0777725e291e0834f652514d2",
+      "sha256": "e0a2aa217c3a0eb08db3c8ae0a798c55ed3845f0777725e291e0834f652514d2"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/blueberry-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 110140,
+      "sourceSha256": "51e43ba73bf63b5bb2af40670ae1909be0012ed5ce7dcee3ee580af594d6df5e",
+      "sha256": "51e43ba73bf63b5bb2af40670ae1909be0012ed5ce7dcee3ee580af594d6df5e"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-establish-grow.png",
+      "destination": "assets/commute/plants/motion/blueberry-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 75827,
+      "sourceSha256": "9df30dbcbd10496cf26aa88211100dbdef0c2315a1d8d179aa5fe0a75b51d827",
+      "sha256": "9df30dbcbd10496cf26aa88211100dbdef0c2315a1d8d179aa5fe0a75b51d827"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-regrow.png",
+      "destination": "assets/commute/plants/motion/blueberry-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 90351,
+      "sourceSha256": "eb13db34449ecd60954ad1f3959469cbee69a0b0b4235bb9971c48e2c5d424db",
+      "sha256": "eb13db34449ecd60954ad1f3959469cbee69a0b0b4235bb9971c48e2c5d424db"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/blueberry-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 187390,
+      "sourceSha256": "d92b006321deabc33b9791fda73b496ef258ad8d259c6a87cf2a1183f8ea7680",
+      "sha256": "d92b006321deabc33b9791fda73b496ef258ad8d259c6a87cf2a1183f8ea7680"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-senescent.png",
+      "destination": "assets/commute/plants/motion/blueberry-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 51836,
+      "sourceSha256": "e1177b24579dd9abd147eebbb505d0c774441c6475bc5a1e7c485d88d9d46956",
+      "sha256": "e1177b24579dd9abd147eebbb505d0c774441c6475bc5a1e7c485d88d9d46956"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/blueberry-wind-idle.png",
+      "destination": "assets/commute/plants/motion/blueberry-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 111317,
+      "sourceSha256": "70dd1418313b0e34a01356c3902cbef642a70cc516f62c0fe1d0401487c8cee7",
+      "sha256": "70dd1418313b0e34a01356c3902cbef642a70cc516f62c0fe1d0401487c8cee7"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-autumn.png",
+      "destination": "assets/commute/plants/motion/bramble-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 85241,
+      "sourceSha256": "4817ba0dae6359d38c163cb0b07b33c76794c94e8ee3e803fd777bdb8c7adbaa",
+      "sha256": "4817ba0dae6359d38c163cb0b07b33c76794c94e8ee3e803fd777bdb8c7adbaa"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-browse-impact.png",
+      "destination": "assets/commute/plants/motion/bramble-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 251710,
+      "sourceSha256": "9c8e37463edd90cddb09ddcd622c810bfe85e160a23fa5e00844586f9823dd82",
+      "sha256": "9c8e37463edd90cddb09ddcd622c810bfe85e160a23fa5e00844586f9823dd82"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/bramble-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 255067,
+      "sourceSha256": "9aa85404b229c2e8e17dd04f3dbd0585242e5666de7a9299be36903f4a56f473",
+      "sha256": "9aa85404b229c2e8e17dd04f3dbd0585242e5666de7a9299be36903f4a56f473"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-establish-grow.png",
+      "destination": "assets/commute/plants/motion/bramble-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 155670,
+      "sourceSha256": "67113231754873f5aa39fcbfdc2b32c57b041b890064bb6564f57e8b599451e1",
+      "sha256": "67113231754873f5aa39fcbfdc2b32c57b041b890064bb6564f57e8b599451e1"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-regrow.png",
+      "destination": "assets/commute/plants/motion/bramble-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 220686,
+      "sourceSha256": "1d2f334a6bfb941c266d84d34e1c307e74a4fcae0721e20322ee82eb5326a3d6",
+      "sha256": "1d2f334a6bfb941c266d84d34e1c307e74a4fcae0721e20322ee82eb5326a3d6"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/bramble-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 271191,
+      "sourceSha256": "d5220ba18d4b0fd67d16d0230740800f9468336933398f6f05f1257c014aff19",
+      "sha256": "d5220ba18d4b0fd67d16d0230740800f9468336933398f6f05f1257c014aff19"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-senescent.png",
+      "destination": "assets/commute/plants/motion/bramble-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 81980,
+      "sourceSha256": "b51d6e3a462a913de0c81862491c9628cdcbb0af581be49d29ca21e303b5a6a2",
+      "sha256": "b51d6e3a462a913de0c81862491c9628cdcbb0af581be49d29ca21e303b5a6a2"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/bramble-wind-idle.png",
+      "destination": "assets/commute/plants/motion/bramble-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 166833,
+      "sourceSha256": "5f7405506fbdb799b936aeb70a698312655ae83c654298494352c825934e0651",
+      "sha256": "5f7405506fbdb799b936aeb70a698312655ae83c654298494352c825934e0651"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/cardinal-flower-senescent.png",
+      "destination": "assets/commute/plants/motion/cardinal-flower-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 48954,
+      "sourceSha256": "fe831e3de6d8f1f5ef0361b61142a717b9ef429744a7daea4bd8ada649c1bf9c",
+      "sha256": "fe831e3de6d8f1f5ef0361b61142a717b9ef429744a7daea4bd8ada649c1bf9c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/chickasaw-plum-autumn.png",
+      "destination": "assets/commute/plants/motion/chickasaw-plum-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 96137,
+      "sourceSha256": "52b2610f10c7130997c7017ec8f8433ec0449344f7804a6a85248a0f92379bd1",
+      "sha256": "52b2610f10c7130997c7017ec8f8433ec0449344f7804a6a85248a0f92379bd1"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/chickasaw-plum-senescent.png",
+      "destination": "assets/commute/plants/motion/chickasaw-plum-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 94995,
+      "sourceSha256": "e46963c2bce577fcf68a05c1317d80fa5a4cc221ee2e60a84cfa10a2e2199549",
+      "sha256": "e46963c2bce577fcf68a05c1317d80fa5a4cc221ee2e60a84cfa10a2e2199549"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/common-goldenrod-senescent.png",
+      "destination": "assets/commute/plants/motion/common-goldenrod-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88322,
+      "sourceSha256": "a2e1fb3d2336b2954a207d8ed0a6e511704a59b273511f8e10f0646517f0e359",
+      "sha256": "a2e1fb3d2336b2954a207d8ed0a6e511704a59b273511f8e10f0646517f0e359"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/dogwood-autumn.png",
+      "destination": "assets/commute/plants/motion/dogwood-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88488,
+      "sourceSha256": "b6b03c609261056138e8e4b44e8dd93db409886d9288228727edce6c9a08e37c",
+      "sha256": "b6b03c609261056138e8e4b44e8dd93db409886d9288228727edce6c9a08e37c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/dogwood-senescent.png",
+      "destination": "assets/commute/plants/motion/dogwood-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 96149,
+      "sourceSha256": "0ecc2d0f84a0388e08738f5d63d202e08450f04e7c76f24d225f364734efb8df",
+      "sha256": "0ecc2d0f84a0388e08738f5d63d202e08450f04e7c76f24d225f364734efb8df"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-autumn.png",
+      "destination": "assets/commute/plants/motion/grass-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 64517,
+      "sourceSha256": "f01be2d55e45da1cafe2aa90d44d7c1e4729013ef342735b57b58935a409d94a",
+      "sha256": "f01be2d55e45da1cafe2aa90d44d7c1e4729013ef342735b57b58935a409d94a"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-browse-impact.png",
+      "destination": "assets/commute/plants/motion/grass-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 200175,
+      "sourceSha256": "89c854cefdb1d89275b9dd94e7b86ebd194a08d07f6a010b0cd58b3a4e5ef3f3",
+      "sha256": "89c854cefdb1d89275b9dd94e7b86ebd194a08d07f6a010b0cd58b3a4e5ef3f3"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/grass-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 124669,
+      "sourceSha256": "f3f6453cd43dd1beaef09eb9e64144e13d3360f48d1db2abb3170324a30724f6",
+      "sha256": "f3f6453cd43dd1beaef09eb9e64144e13d3360f48d1db2abb3170324a30724f6"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-establish-grow.png",
+      "destination": "assets/commute/plants/motion/grass-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 91826,
+      "sourceSha256": "fab2e02a665c5dd82d8ae90b3292386ecd1ac0d3af41c03bc6a2652057964864",
+      "sha256": "fab2e02a665c5dd82d8ae90b3292386ecd1ac0d3af41c03bc6a2652057964864"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-regrow.png",
+      "destination": "assets/commute/plants/motion/grass-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 198156,
+      "sourceSha256": "baccdaa45d91b6c50f607406db80c32d8815cd1fd9fe30161f11c81c4bb9a0ab",
+      "sha256": "baccdaa45d91b6c50f607406db80c32d8815cd1fd9fe30161f11c81c4bb9a0ab"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/grass-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 205799,
+      "sourceSha256": "0ce1609bf387a3c639992c2f23e74678c4bf296004dc29baa809af0a5c745af7",
+      "sha256": "0ce1609bf387a3c639992c2f23e74678c4bf296004dc29baa809af0a5c745af7"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-senescent.png",
+      "destination": "assets/commute/plants/motion/grass-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 45955,
+      "sourceSha256": "31c48186b8b5bf913cbb829a2f03b394f8bb612aa6d507682e23f7e5f40943ae",
+      "sha256": "31c48186b8b5bf913cbb829a2f03b394f8bb612aa6d507682e23f7e5f40943ae"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/grass-wind-idle.png",
+      "destination": "assets/commute/plants/motion/grass-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 118285,
+      "sourceSha256": "6f0d6a1ad63fd3f447546b9a8f283cae9fdc5d0f7b3c4746539fc44e04c96fd8",
+      "sha256": "6f0d6a1ad63fd3f447546b9a8f283cae9fdc5d0f7b3c4746539fc44e04c96fd8"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/little-bluestem-senescent.png",
+      "destination": "assets/commute/plants/motion/little-bluestem-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 113186,
+      "sourceSha256": "5f92458ddb48a5891a0e2a797e1091f75599cb59bb7569a4f75c9e5c6375c81f",
+      "sha256": "5f92458ddb48a5891a0e2a797e1091f75599cb59bb7569a4f75c9e5c6375c81f"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-autumn.png",
+      "destination": "assets/commute/plants/motion/milkweed-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 47194,
+      "sourceSha256": "0c6d63788a108c693a554055da74b050618bc9de201141db47486997d8025dbb",
+      "sha256": "0c6d63788a108c693a554055da74b050618bc9de201141db47486997d8025dbb"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-browse-impact.png",
+      "destination": "assets/commute/plants/motion/milkweed-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 129529,
+      "sourceSha256": "a1326aa93d9ea5ec6d9b38d27eaf4035f1c41bd6faa981ad188578b3774b6421",
+      "sha256": "a1326aa93d9ea5ec6d9b38d27eaf4035f1c41bd6faa981ad188578b3774b6421"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/milkweed-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 139490,
+      "sourceSha256": "4ce3525e6b3aecf095fddba741acece24c1b0201c26afa3e4a486024d05f42e2",
+      "sha256": "4ce3525e6b3aecf095fddba741acece24c1b0201c26afa3e4a486024d05f42e2"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-establish-grow.png",
+      "destination": "assets/commute/plants/motion/milkweed-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 62450,
+      "sourceSha256": "448c1c2729947fec4905b0c12d3507dfb46f74151e88f8d4d0f7c2276254533b",
+      "sha256": "448c1c2729947fec4905b0c12d3507dfb46f74151e88f8d4d0f7c2276254533b"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-regrow.png",
+      "destination": "assets/commute/plants/motion/milkweed-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 112218,
+      "sourceSha256": "404aadfa9d286bd0e214fb6ffb463d4825d15a12539bce1ea5cc2329a1c40898",
+      "sha256": "404aadfa9d286bd0e214fb6ffb463d4825d15a12539bce1ea5cc2329a1c40898"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/milkweed-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 168739,
+      "sourceSha256": "e7954d7730aeece2dffe63249293b571c9afebac1869ac083735c870b3ae9cbf",
+      "sha256": "e7954d7730aeece2dffe63249293b571c9afebac1869ac083735c870b3ae9cbf"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-senescent.png",
+      "destination": "assets/commute/plants/motion/milkweed-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 48707,
+      "sourceSha256": "acfb6fd5aeb8be02bfd1b6a01d1d3907203b5071a27a3ce66407b3bcb2edbd7c",
+      "sha256": "acfb6fd5aeb8be02bfd1b6a01d1d3907203b5071a27a3ce66407b3bcb2edbd7c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/milkweed-wind-idle.png",
+      "destination": "assets/commute/plants/motion/milkweed-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 104844,
+      "sourceSha256": "e2227a87450177e8180ce0ef55e62c372aca563fec2fe2dfacc14fed40561dd0",
+      "sha256": "e2227a87450177e8180ce0ef55e62c372aca563fec2fe2dfacc14fed40561dd0"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/new-england-aster-senescent.png",
+      "destination": "assets/commute/plants/motion/new-england-aster-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 93750,
+      "sourceSha256": "89a39c796a5be21e1069416ad8335cf6c0fd811048240c4e2a0e56f552feb597",
+      "sha256": "89a39c796a5be21e1069416ad8335cf6c0fd811048240c4e2a0e56f552feb597"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-autumn.png",
+      "destination": "assets/commute/plants/motion/oak-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 102186,
+      "sourceSha256": "b2f172519ba0b32a098567cb07c2de51bdeccb58853d54edb9aedff95c5a52c5",
+      "sha256": "b2f172519ba0b32a098567cb07c2de51bdeccb58853d54edb9aedff95c5a52c5"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-browse-impact.png",
+      "destination": "assets/commute/plants/motion/oak-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 136033,
+      "sourceSha256": "9d52f09f99fba29399d509db3a392316a9ebcd5e955b2d4ec03a9b2540577b42",
+      "sha256": "9d52f09f99fba29399d509db3a392316a9ebcd5e955b2d4ec03a9b2540577b42"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/oak-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 236933,
+      "sourceSha256": "563d6bc9a336002d204b497cae9c858813613971b4738b4c6fd1a62562227d06",
+      "sha256": "563d6bc9a336002d204b497cae9c858813613971b4738b4c6fd1a62562227d06"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-establish-grow.png",
+      "destination": "assets/commute/plants/motion/oak-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 139480,
+      "sourceSha256": "8499e0ad9b0d29155bea022a1375272f9d856ccb2e924b225fdab9090c916aba",
+      "sha256": "8499e0ad9b0d29155bea022a1375272f9d856ccb2e924b225fdab9090c916aba"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-regrow.png",
+      "destination": "assets/commute/plants/motion/oak-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 163537,
+      "sourceSha256": "8620a54daa9fc14b8f6e6d44c32746f6ca334518b4cb7419ce788c6b4e375466",
+      "sha256": "8620a54daa9fc14b8f6e6d44c32746f6ca334518b4cb7419ce788c6b4e375466"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/oak-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 362895,
+      "sourceSha256": "ab5e4a54ce885fb0dd4ea8a8b7682e4bc265b9e470d6634ad7fd659812019784",
+      "sha256": "ab5e4a54ce885fb0dd4ea8a8b7682e4bc265b9e470d6634ad7fd659812019784"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-senescent.png",
+      "destination": "assets/commute/plants/motion/oak-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 98431,
+      "sourceSha256": "67192ac99e01bb3f2f94e9aaf70f02d922eff98b613ed6c22cecf5697c9f658d",
+      "sha256": "67192ac99e01bb3f2f94e9aaf70f02d922eff98b613ed6c22cecf5697c9f658d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/oak-wind-idle.png",
+      "destination": "assets/commute/plants/motion/oak-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 198722,
+      "sourceSha256": "f03647e1b6b9a519a873c21039718619f581584e83f753f82775537e7b5b7b48",
+      "sha256": "f03647e1b6b9a519a873c21039718619f581584e83f753f82775537e7b5b7b48"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/persimmon-senescent.png",
+      "destination": "assets/commute/plants/motion/persimmon-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 99433,
+      "sourceSha256": "5da178c150f384330373806afbb0d5f84873fdc364ec527505afd8918823aa66",
+      "sha256": "5da178c150f384330373806afbb0d5f84873fdc364ec527505afd8918823aa66"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-autumn.png",
+      "destination": "assets/commute/plants/motion/pine-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 68389,
+      "sourceSha256": "5957c2295774c35dd185904483a85c7721bcd8632e5549530b68f61380a9bf4d",
+      "sha256": "5957c2295774c35dd185904483a85c7721bcd8632e5549530b68f61380a9bf4d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-browse-impact.png",
+      "destination": "assets/commute/plants/motion/pine-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 144651,
+      "sourceSha256": "6fb062cc8aa1d6bf1153153bd2ed5b2a31fe54646ebc97dca68ee5d8afb9ba14",
+      "sha256": "6fb062cc8aa1d6bf1153153bd2ed5b2a31fe54646ebc97dca68ee5d8afb9ba14"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/pine-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 174040,
+      "sourceSha256": "cfeb53e8f0c4d5ca329446fae49fefd15e1a965f0da9cc199791d06feeb0afb4",
+      "sha256": "cfeb53e8f0c4d5ca329446fae49fefd15e1a965f0da9cc199791d06feeb0afb4"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-establish-grow.png",
+      "destination": "assets/commute/plants/motion/pine-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 105089,
+      "sourceSha256": "d94a47299790a2931f72fad0882fbaa815df1f584a89df80bd85992544cefade",
+      "sha256": "d94a47299790a2931f72fad0882fbaa815df1f584a89df80bd85992544cefade"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-regrow.png",
+      "destination": "assets/commute/plants/motion/pine-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 174996,
+      "sourceSha256": "649231152ef97247448a6d8bd334c060c41f44d2eff0c3df5ead994b011bbdf6",
+      "sha256": "649231152ef97247448a6d8bd334c060c41f44d2eff0c3df5ead994b011bbdf6"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/pine-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 252148,
+      "sourceSha256": "cf293fc55a6cb5c98da4bdaa825b28ecf5ef498ff76fde6112436a17177b21cb",
+      "sha256": "cf293fc55a6cb5c98da4bdaa825b28ecf5ef498ff76fde6112436a17177b21cb"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-senescent.png",
+      "destination": "assets/commute/plants/motion/pine-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 60329,
+      "sourceSha256": "0ce9915aa933e08b867510de339d22e45e1f9ee628287d8da102bea5687144b5",
+      "sha256": "0ce9915aa933e08b867510de339d22e45e1f9ee628287d8da102bea5687144b5"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/pine-wind-idle.png",
+      "destination": "assets/commute/plants/motion/pine-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 137764,
+      "sourceSha256": "bc680fc7a02d8b9f8d13cdf1f705c8fc7e2a82a474540bc279183da49f0b91e7",
+      "sha256": "bc680fc7a02d8b9f8d13cdf1f705c8fc7e2a82a474540bc279183da49f0b91e7"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/purple-coneflower-senescent.png",
+      "destination": "assets/commute/plants/motion/purple-coneflower-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88026,
+      "sourceSha256": "045005a0addf5a18d7e03f64c82477e8aa66e6e68984623d953834844028751c",
+      "sha256": "045005a0addf5a18d7e03f64c82477e8aa66e6e68984623d953834844028751c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-autumn.png",
+      "destination": "assets/commute/plants/motion/redbud-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 49690,
+      "sourceSha256": "77a865ebd167a13bd5c2f3416b9a05bf442028b6f92c6ae4ec9874f6786c6c3b",
+      "sha256": "77a865ebd167a13bd5c2f3416b9a05bf442028b6f92c6ae4ec9874f6786c6c3b"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-browse-impact.png",
+      "destination": "assets/commute/plants/motion/redbud-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65742,
+      "sourceSha256": "5d19b1b780d1760a2fd856d0f57510313a24f8cb03b2451d31a7e94fef2ec214",
+      "sha256": "5d19b1b780d1760a2fd856d0f57510313a24f8cb03b2451d31a7e94fef2ec214"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/redbud-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 81698,
+      "sourceSha256": "806f5423ca07f6c81ab521d9ff0c846e27f348d2faab98b2f0f422743be9063f",
+      "sha256": "806f5423ca07f6c81ab521d9ff0c846e27f348d2faab98b2f0f422743be9063f"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-establish-grow.png",
+      "destination": "assets/commute/plants/motion/redbud-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 36698,
+      "sourceSha256": "e2c43102085116ae912a21960ce60b512786de12addf7d2054705cb234b20e46",
+      "sha256": "e2c43102085116ae912a21960ce60b512786de12addf7d2054705cb234b20e46"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-regrow.png",
+      "destination": "assets/commute/plants/motion/redbud-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65273,
+      "sourceSha256": "17e87bfaca9ce9574318421448bc9e16963846db7d60c9ecc056d03726e2ec8c",
+      "sha256": "17e87bfaca9ce9574318421448bc9e16963846db7d60c9ecc056d03726e2ec8c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/redbud-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 188988,
+      "sourceSha256": "b6dc460d3f71877cbffb138346605c996c846e458e1830c91b14ba3b84d7de27",
+      "sha256": "b6dc460d3f71877cbffb138346605c996c846e458e1830c91b14ba3b84d7de27"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-senescent.png",
+      "destination": "assets/commute/plants/motion/redbud-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 48860,
+      "sourceSha256": "1e111bd0606faf3f48e99aced7f9c2132a4de07e5036558f70885084ec0906df",
+      "sha256": "1e111bd0606faf3f48e99aced7f9c2132a4de07e5036558f70885084ec0906df"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/redbud-wind-idle.png",
+      "destination": "assets/commute/plants/motion/redbud-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 103812,
+      "sourceSha256": "cc7c777b740f1269bff26f8445445c989a6614e39eba992cda945441b2d9330f",
+      "sha256": "cc7c777b740f1269bff26f8445445c989a6614e39eba992cda945441b2d9330f"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-autumn.png",
+      "destination": "assets/commute/plants/motion/strawberry-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 52845,
+      "sourceSha256": "0a8207e728eaef96c3b36b768c725e8cb1b0603037fc2d4ac65237ecfc7a2a2e",
+      "sha256": "0a8207e728eaef96c3b36b768c725e8cb1b0603037fc2d4ac65237ecfc7a2a2e"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-browse-impact.png",
+      "destination": "assets/commute/plants/motion/strawberry-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 172057,
+      "sourceSha256": "d8c9bc51a6a4261a3fe7d9da0d66961e5d92722777007d06142301a5da59e48d",
+      "sha256": "d8c9bc51a6a4261a3fe7d9da0d66961e5d92722777007d06142301a5da59e48d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/strawberry-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 115514,
+      "sourceSha256": "d8b9833c665b1780d9aa0a4492211b0b68b122ada082c1e4c6fb1e5bc07fd310",
+      "sha256": "d8b9833c665b1780d9aa0a4492211b0b68b122ada082c1e4c6fb1e5bc07fd310"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-establish-grow.png",
+      "destination": "assets/commute/plants/motion/strawberry-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 96650,
+      "sourceSha256": "a049e7c1af4d5128133848ee38b230e6601abf10008fcb610c5218172b701ae6",
+      "sha256": "a049e7c1af4d5128133848ee38b230e6601abf10008fcb610c5218172b701ae6"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-regrow.png",
+      "destination": "assets/commute/plants/motion/strawberry-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 127167,
+      "sourceSha256": "496ea194b2ea8bfd8110e5db170a8024fdd8b893b849bc1fa03f1e31eb26fbb1",
+      "sha256": "496ea194b2ea8bfd8110e5db170a8024fdd8b893b849bc1fa03f1e31eb26fbb1"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/strawberry-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 191169,
+      "sourceSha256": "352790a2e896f606e822897df66ed95c78640aa6744f7c4beaa4f643312d0100",
+      "sha256": "352790a2e896f606e822897df66ed95c78640aa6744f7c4beaa4f643312d0100"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-senescent.png",
+      "destination": "assets/commute/plants/motion/strawberry-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 52089,
+      "sourceSha256": "9d3ba7be303a9d200349e57b44329260db8e70cad8e02f06d927669e055e701d",
+      "sha256": "9d3ba7be303a9d200349e57b44329260db8e70cad8e02f06d927669e055e701d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/strawberry-wind-idle.png",
+      "destination": "assets/commute/plants/motion/strawberry-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 91652,
+      "sourceSha256": "b5a92ce315afb8a2c5d86216fa60c422afedc08b78acafc6672e63e8b5e08384",
+      "sha256": "b5a92ce315afb8a2c5d86216fa60c422afedc08b78acafc6672e63e8b5e08384"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-autumn.png",
+      "destination": "assets/commute/plants/motion/sumac-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 85434,
+      "sourceSha256": "a750ce10cb7c0e8de91aec5daadec1ac6d1f3ac7115d4f46dc7980e0cd5fa907",
+      "sha256": "a750ce10cb7c0e8de91aec5daadec1ac6d1f3ac7115d4f46dc7980e0cd5fa907"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-browse-impact.png",
+      "destination": "assets/commute/plants/motion/sumac-browse-impact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 318427,
+      "sourceSha256": "e3a382a8ed5130be752bdd240edd3468e28da7467ced2ad076b1b646df633aa3",
+      "sha256": "e3a382a8ed5130be752bdd240edd3468e28da7467ced2ad076b1b646df633aa3"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-collapse-decay.png",
+      "destination": "assets/commute/plants/motion/sumac-collapse-decay.png",
+      "recipe": "byte-identical copy",
+      "bytes": 213058,
+      "sourceSha256": "5ff0900c2da179698cd3a5a9f1bbc6c25a413e2a99d73e4033d307a056838b84",
+      "sha256": "5ff0900c2da179698cd3a5a9f1bbc6c25a413e2a99d73e4033d307a056838b84"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-establish-grow.png",
+      "destination": "assets/commute/plants/motion/sumac-establish-grow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 163161,
+      "sourceSha256": "c60f7013fa75c69cf21ccb680ff837b7427a23100ebfe167d8523d00be11664d",
+      "sha256": "c60f7013fa75c69cf21ccb680ff837b7427a23100ebfe167d8523d00be11664d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-regrow.png",
+      "destination": "assets/commute/plants/motion/sumac-regrow.png",
+      "recipe": "byte-identical copy",
+      "bytes": 226106,
+      "sourceSha256": "7dcd4a6dcad2a2e855432eec76f4e1a80cd9ea5108c1805bbb638576c1d73f5d",
+      "sha256": "7dcd4a6dcad2a2e855432eec76f4e1a80cd9ea5108c1805bbb638576c1d73f5d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-senesce-wilt.png",
+      "destination": "assets/commute/plants/motion/sumac-senesce-wilt.png",
+      "recipe": "byte-identical copy",
+      "bytes": 296563,
+      "sourceSha256": "b2135bc69b7be3ec0b26232ff412c82e8f933363291a995422a5d9358295b615",
+      "sha256": "b2135bc69b7be3ec0b26232ff412c82e8f933363291a995422a5d9358295b615"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-senescent.png",
+      "destination": "assets/commute/plants/motion/sumac-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 72971,
+      "sourceSha256": "43c2abea93c03ed22afc911303f93316e3beeedbde969ac27beb4c10e2d9d2eb",
+      "sha256": "43c2abea93c03ed22afc911303f93316e3beeedbde969ac27beb4c10e2d9d2eb"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/sumac-wind-idle.png",
+      "destination": "assets/commute/plants/motion/sumac-wind-idle.png",
+      "recipe": "byte-identical copy",
+      "bytes": 158928,
+      "sourceSha256": "c170945f38160d0b0596de6a900d7676cd26201f86fe96a2ca240c6b9d160a11",
+      "sha256": "c170945f38160d0b0596de6a900d7676cd26201f86fe96a2ca240c6b9d160a11"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/virginia-bluebells-senescent.png",
+      "destination": "assets/commute/plants/motion/virginia-bluebells-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 92188,
+      "sourceSha256": "4b4e055c90ca19c947ed2646b33440ce38e7f79f587251693d14d177450a863d",
+      "sha256": "4b4e055c90ca19c947ed2646b33440ce38e7f79f587251693d14d177450a863d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/wild-bergamot-autumn.png",
+      "destination": "assets/commute/plants/motion/wild-bergamot-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88208,
+      "sourceSha256": "396939b2cb21a96cd9e8b7799d6bbb6f9e391b141060c8cbda513eebe7f3f346",
+      "sha256": "396939b2cb21a96cd9e8b7799d6bbb6f9e391b141060c8cbda513eebe7f3f346"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/wild-bergamot-senescent.png",
+      "destination": "assets/commute/plants/motion/wild-bergamot-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 95407,
+      "sourceSha256": "cff1c9ecce22ab1d0438b19f8e94c5d2b9ff90bc3f6e0232e2cbcfa77c1fadc4",
+      "sha256": "cff1c9ecce22ab1d0438b19f8e94c5d2b9ff90bc3f6e0232e2cbcfa77c1fadc4"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/wild-columbine-autumn.png",
+      "destination": "assets/commute/plants/motion/wild-columbine-autumn.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65674,
+      "sourceSha256": "8ea7fb2f70684ff5d0c72cf14ff705bce9be3d4c7f2946ae9255a63a2d633be8",
+      "sha256": "8ea7fb2f70684ff5d0c72cf14ff705bce9be3d4c7f2946ae9255a63a2d633be8"
+    },
+    {
+      "source": "assets/sprites/lifecycle/motion/wild-columbine-senescent.png",
+      "destination": "assets/commute/plants/motion/wild-columbine-senescent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65137,
+      "sourceSha256": "6a74405be734a955ac140632bfbf4f11cfbeba10c4ce2215c3b7f7c1a5c1e0c0",
+      "sha256": "6a74405be734a955ac140632bfbf4f11cfbeba10c4ce2215c3b7f7c1a5c1e0c0"
+    },
+    {
+      "source": "assets/sprites/lifecycle/new-england-aster.png",
+      "destination": "assets/commute/plants/new-england-aster.png",
+      "recipe": "byte-identical copy",
+      "bytes": 677091,
+      "sourceSha256": "92ed2111750ff9a36b38226e6cbd59aaabb7d7a40f97d13344d54e1660f1fc4d",
+      "sha256": "92ed2111750ff9a36b38226e6cbd59aaabb7d7a40f97d13344d54e1660f1fc4d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/oak.png",
+      "destination": "assets/commute/plants/oak.png",
+      "recipe": "byte-identical copy",
+      "bytes": 737475,
+      "sourceSha256": "cfcbf3d30ff7f047f40986bffd490627d296b4b95afc3ee404620f7fb9519d6a",
+      "sha256": "cfcbf3d30ff7f047f40986bffd490627d296b4b95afc3ee404620f7fb9519d6a"
+    },
+    {
+      "source": "assets/sprites/lifecycle/persimmon.png",
+      "destination": "assets/commute/plants/persimmon.png",
+      "recipe": "byte-identical copy",
+      "bytes": 746353,
+      "sourceSha256": "6933c1374e3c459d2e1b7c902083c3795ab71cf80f59c07caeb73dc4872c8f9a",
+      "sha256": "6933c1374e3c459d2e1b7c902083c3795ab71cf80f59c07caeb73dc4872c8f9a"
+    },
+    {
+      "source": "assets/sprites/lifecycle/pine.png",
+      "destination": "assets/commute/plants/pine.png",
+      "recipe": "byte-identical copy",
+      "bytes": 631947,
+      "sourceSha256": "f1a2c947c028814771861a625c15a770d3e0f8ed8b9b41b01717e567a49801f7",
+      "sha256": "f1a2c947c028814771861a625c15a770d3e0f8ed8b9b41b01717e567a49801f7"
+    },
+    {
+      "source": "assets/sprites/lifecycle/purple-coneflower.png",
+      "destination": "assets/commute/plants/purple-coneflower.png",
+      "recipe": "byte-identical copy",
+      "bytes": 542113,
+      "sourceSha256": "119e49a0f6992b8f4a9745254f205004dabf2a8ec8dc5424a7359991c2802e70",
+      "sha256": "119e49a0f6992b8f4a9745254f205004dabf2a8ec8dc5424a7359991c2802e70"
+    },
+    {
+      "source": "assets/sprites/lifecycle/redbud.png",
+      "destination": "assets/commute/plants/redbud.png",
+      "recipe": "byte-identical copy",
+      "bytes": 535513,
+      "sourceSha256": "1294acfb8229d668f72a5629fff41b89d0d1e3df82b8cab904dba1b6640436c3",
+      "sha256": "1294acfb8229d668f72a5629fff41b89d0d1e3df82b8cab904dba1b6640436c3"
+    },
+    {
+      "source": "assets/sprites/lifecycle/strawberry.png",
+      "destination": "assets/commute/plants/strawberry.png",
+      "recipe": "byte-identical copy",
+      "bytes": 474482,
+      "sourceSha256": "1f0d84b794319085225624248c8a38dfb3f9f7c7dbac1ee8500dac5c90314370",
+      "sha256": "1f0d84b794319085225624248c8a38dfb3f9f7c7dbac1ee8500dac5c90314370"
+    },
+    {
+      "source": "assets/sprites/lifecycle/sumac.png",
+      "destination": "assets/commute/plants/sumac.png",
+      "recipe": "byte-identical copy",
+      "bytes": 529215,
+      "sourceSha256": "b83f3d7e8c2b78f8f887dcf98d4782c2f7524d84322095720fd0882f1862ad5c",
+      "sha256": "b83f3d7e8c2b78f8f887dcf98d4782c2f7524d84322095720fd0882f1862ad5c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+      "destination": "assets/commute/plants/variants/blueberry-open-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 689048,
+      "sourceSha256": "1a1339528ad1432fb9cfb1999640147b3f124d5bd2842339a67880a202ca001d",
+      "sha256": "1a1339528ad1432fb9cfb1999640147b3f124d5bd2842339a67880a202ca001d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+      "destination": "assets/commute/plants/variants/bramble-open-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 379741,
+      "sourceSha256": "105c1c33beb63dbe4f6e2f66e407523b593081ebc1db91fa040bb75a0c12ff3c",
+      "sha256": "105c1c33beb63dbe4f6e2f66e407523b593081ebc1db91fa040bb75a0c12ff3c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+      "destination": "assets/commute/plants/variants/dogwood-understory-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 675327,
+      "sourceSha256": "eb0449ab95026417d7ffb64f8daa93aa8917555cbb2e228165f0b2d45ddfa5ba",
+      "sha256": "eb0449ab95026417d7ffb64f8daa93aa8917555cbb2e228165f0b2d45ddfa5ba"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+      "destination": "assets/commute/plants/variants/grass-sparse-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 521056,
+      "sourceSha256": "c8ad082480bc08bce0074c8af7990f3dfbd359ee09f680733cb4c081488a98b4",
+      "sha256": "c8ad082480bc08bce0074c8af7990f3dfbd359ee09f680733cb4c081488a98b4"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+      "destination": "assets/commute/plants/variants/oak-understory-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 622168,
+      "sourceSha256": "884299f9735512495ca52075d64a3978ad70240b9761498fe0947571edf27c2d",
+      "sha256": "884299f9735512495ca52075d64a3978ad70240b9761498fe0947571edf27c2d"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+      "destination": "assets/commute/plants/variants/pine-open-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 542088,
+      "sourceSha256": "40c6dbceab026fd198294eae3f28ba3cacd5ab7bd472165b7042d248ba69109c",
+      "sha256": "40c6dbceab026fd198294eae3f28ba3cacd5ab7bd472165b7042d248ba69109c"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+      "destination": "assets/commute/plants/variants/redbud-understory-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 580472,
+      "sourceSha256": "5f1185305df088e06c7123147123a07c5f499c7e2e51e542a9588367d11839ff",
+      "sha256": "5f1185305df088e06c7123147123a07c5f499c7e2e51e542a9588367d11839ff"
+    },
+    {
+      "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+      "destination": "assets/commute/plants/variants/sumac-open-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 751915,
+      "sourceSha256": "524a0c3ff8c144cd01e0f43c6f23e69fa27a13edd7005a1211fb9afdd495f548",
+      "sha256": "524a0c3ff8c144cd01e0f43c6f23e69fa27a13edd7005a1211fb9afdd495f548"
+    },
+    {
+      "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+      "destination": "assets/commute/plants/virginia-bluebells.png",
+      "recipe": "byte-identical copy",
+      "bytes": 612551,
+      "sourceSha256": "0fe5e38ed921fc7124059ce6a7ab33852e9cae50591efd2d4879d94bf6782c8a",
+      "sha256": "0fe5e38ed921fc7124059ce6a7ab33852e9cae50591efd2d4879d94bf6782c8a"
+    },
+    {
+      "source": "assets/sprites/lifecycle/wild-bergamot.png",
+      "destination": "assets/commute/plants/wild-bergamot.png",
+      "recipe": "byte-identical copy",
+      "bytes": 635937,
+      "sourceSha256": "957d76e4d12537ac76ed4c0ad01c8983d60d35d5fbd7d8cf9cfe390fdee41ea9",
+      "sha256": "957d76e4d12537ac76ed4c0ad01c8983d60d35d5fbd7d8cf9cfe390fdee41ea9"
+    },
+    {
+      "source": "assets/sprites/lifecycle/wild-columbine.png",
+      "destination": "assets/commute/plants/wild-columbine.png",
+      "recipe": "byte-identical copy",
+      "bytes": 555570,
+      "sourceSha256": "8aeb9f0dd6bf4a33cafdde45b8fd7905d932371c04bd157722f13ea132405896",
+      "sha256": "8aeb9f0dd6bf4a33cafdde45b8fd7905d932371c04bd157722f13ea132405896"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/manifest.json",
+      "destination": "assets/commute/plant-atlas/manifest.json",
+      "recipe": "byte-identical copy",
+      "bytes": 168874,
+      "sourceSha256": "ef77dbb0979319c1cc61b5adaececa670b244081d3f1c924d5f550823a062e75",
+      "sha256": "ef77dbb0979319c1cc61b5adaececa670b244081d3f1c924d5f550823a062e75"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0001.png",
+      "destination": "assets/commute/plant-atlas/page-0001.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1458,
+      "sourceSha256": "b778ce3283c85d870e2b5fa383bd69d9f9bd0dd4304fab2cc9ea9b62ce809139",
+      "sha256": "b778ce3283c85d870e2b5fa383bd69d9f9bd0dd4304fab2cc9ea9b62ce809139"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0002.png",
+      "destination": "assets/commute/plant-atlas/page-0002.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1418,
+      "sourceSha256": "609fd63c26deb8266da623011f5aae631fb17a1f48d00433d78d993dfedfc37a",
+      "sha256": "609fd63c26deb8266da623011f5aae631fb17a1f48d00433d78d993dfedfc37a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0003.png",
+      "destination": "assets/commute/plant-atlas/page-0003.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1523,
+      "sourceSha256": "7a91b1ffa7c1e65ae53c867b3f02124678473480fbe190243d1374411c4669e3",
+      "sha256": "7a91b1ffa7c1e65ae53c867b3f02124678473480fbe190243d1374411c4669e3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0004.png",
+      "destination": "assets/commute/plant-atlas/page-0004.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1660,
+      "sourceSha256": "9fce260cf494274eac1a7daeb9d6031aa61913013c6c329c6750a36a60cfb31c",
+      "sha256": "9fce260cf494274eac1a7daeb9d6031aa61913013c6c329c6750a36a60cfb31c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0005.png",
+      "destination": "assets/commute/plant-atlas/page-0005.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1446,
+      "sourceSha256": "5aae0a64b2408be23d1521c451f47dd91b550a49d65a72fe9358d32e087f5cc0",
+      "sha256": "5aae0a64b2408be23d1521c451f47dd91b550a49d65a72fe9358d32e087f5cc0"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0006.png",
+      "destination": "assets/commute/plant-atlas/page-0006.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1646,
+      "sourceSha256": "e97b251f58993ff14cc2c47591ac51a6f37338f3f510e5e7bc0448139cfe28a3",
+      "sha256": "e97b251f58993ff14cc2c47591ac51a6f37338f3f510e5e7bc0448139cfe28a3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0007.png",
+      "destination": "assets/commute/plant-atlas/page-0007.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1484,
+      "sourceSha256": "fa83a46989379f768bc6a161871f5a8cc7db7f60679a0d3dc17142e9a3089963",
+      "sha256": "fa83a46989379f768bc6a161871f5a8cc7db7f60679a0d3dc17142e9a3089963"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0008.png",
+      "destination": "assets/commute/plant-atlas/page-0008.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1744,
+      "sourceSha256": "3d052e68a7e84566b6cd41af3a2f1a97264cbc539ca7d116c731f80c88e98f3c",
+      "sha256": "3d052e68a7e84566b6cd41af3a2f1a97264cbc539ca7d116c731f80c88e98f3c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0009.png",
+      "destination": "assets/commute/plant-atlas/page-0009.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1626,
+      "sourceSha256": "fc08ff73448fea7eb314c50c3ecbca9a17b44f2e448d8dcff74c1466e4d970be",
+      "sha256": "fc08ff73448fea7eb314c50c3ecbca9a17b44f2e448d8dcff74c1466e4d970be"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0010.png",
+      "destination": "assets/commute/plant-atlas/page-0010.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1559,
+      "sourceSha256": "a92cad57a7cbc981b48dba06da3ab40fdaf8020837c7d9ac22d6a305790a69d9",
+      "sha256": "a92cad57a7cbc981b48dba06da3ab40fdaf8020837c7d9ac22d6a305790a69d9"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0011.png",
+      "destination": "assets/commute/plant-atlas/page-0011.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1314,
+      "sourceSha256": "250a5f029c9239e04fe355943b55acd826fc10d80c31da1fa867fb2c7e5b7b6e",
+      "sha256": "250a5f029c9239e04fe355943b55acd826fc10d80c31da1fa867fb2c7e5b7b6e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0012.png",
+      "destination": "assets/commute/plant-atlas/page-0012.png",
+      "recipe": "byte-identical copy",
+      "bytes": 22607,
+      "sourceSha256": "3fccbc4f17e74af2d1c9214a17272b5c05b53249f2fb2ec216a6af4a6fe1a8d0",
+      "sha256": "3fccbc4f17e74af2d1c9214a17272b5c05b53249f2fb2ec216a6af4a6fe1a8d0"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0013.png",
+      "destination": "assets/commute/plant-atlas/page-0013.png",
+      "recipe": "byte-identical copy",
+      "bytes": 19042,
+      "sourceSha256": "617109872f82a71545d86b9a4955309aa0ba9370a79e185a007b1a1b8fe17b70",
+      "sha256": "617109872f82a71545d86b9a4955309aa0ba9370a79e185a007b1a1b8fe17b70"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0014.png",
+      "destination": "assets/commute/plant-atlas/page-0014.png",
+      "recipe": "byte-identical copy",
+      "bytes": 41423,
+      "sourceSha256": "662679eff6fe53fa0647358a720810cd97cc2bfcbbb796c63a26f3b53b305cbf",
+      "sha256": "662679eff6fe53fa0647358a720810cd97cc2bfcbbb796c63a26f3b53b305cbf"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0015.png",
+      "destination": "assets/commute/plant-atlas/page-0015.png",
+      "recipe": "byte-identical copy",
+      "bytes": 15147,
+      "sourceSha256": "5a3a3f49fd3789a2fcea771f2c7d708f358c7213045cdadca3e7cc6999993dae",
+      "sha256": "5a3a3f49fd3789a2fcea771f2c7d708f358c7213045cdadca3e7cc6999993dae"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0016.png",
+      "destination": "assets/commute/plant-atlas/page-0016.png",
+      "recipe": "byte-identical copy",
+      "bytes": 25669,
+      "sourceSha256": "a4aac1b566bcebe80b3f6ab4bdf380051756007386dfda5044577b0ff58aee79",
+      "sha256": "a4aac1b566bcebe80b3f6ab4bdf380051756007386dfda5044577b0ff58aee79"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0017.png",
+      "destination": "assets/commute/plant-atlas/page-0017.png",
+      "recipe": "byte-identical copy",
+      "bytes": 27577,
+      "sourceSha256": "8bc4b0404b59de12632a5cc6389096b715e550c66296536a900a46337e2e56b5",
+      "sha256": "8bc4b0404b59de12632a5cc6389096b715e550c66296536a900a46337e2e56b5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0018.png",
+      "destination": "assets/commute/plant-atlas/page-0018.png",
+      "recipe": "byte-identical copy",
+      "bytes": 19137,
+      "sourceSha256": "f4eacd0fd2431f7aedaa7d233068cf3bb347e5acc2e8c003186f2d43e2045768",
+      "sha256": "f4eacd0fd2431f7aedaa7d233068cf3bb347e5acc2e8c003186f2d43e2045768"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0019.png",
+      "destination": "assets/commute/plant-atlas/page-0019.png",
+      "recipe": "byte-identical copy",
+      "bytes": 39048,
+      "sourceSha256": "3eb3aeff90ab1fa05a634a610ccf90d9f46e4c30e9e5bd668ff05447ef5ad986",
+      "sha256": "3eb3aeff90ab1fa05a634a610ccf90d9f46e4c30e9e5bd668ff05447ef5ad986"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0020.png",
+      "destination": "assets/commute/plant-atlas/page-0020.png",
+      "recipe": "byte-identical copy",
+      "bytes": 29628,
+      "sourceSha256": "6aaac763560c43365434f54832fd03981d1aafeb890a22d6203c49d687799a5a",
+      "sha256": "6aaac763560c43365434f54832fd03981d1aafeb890a22d6203c49d687799a5a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0021.png",
+      "destination": "assets/commute/plant-atlas/page-0021.png",
+      "recipe": "byte-identical copy",
+      "bytes": 22777,
+      "sourceSha256": "fba266ccb2fdabf763f4088e8ab77c4f1bd009f53054ec0fb342968247b8d33a",
+      "sha256": "fba266ccb2fdabf763f4088e8ab77c4f1bd009f53054ec0fb342968247b8d33a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0022.png",
+      "destination": "assets/commute/plant-atlas/page-0022.png",
+      "recipe": "byte-identical copy",
+      "bytes": 32849,
+      "sourceSha256": "20994f2884171e174630000062b49c8cc683bf5c35f8a1f6960c52199f687c37",
+      "sha256": "20994f2884171e174630000062b49c8cc683bf5c35f8a1f6960c52199f687c37"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0023.png",
+      "destination": "assets/commute/plant-atlas/page-0023.png",
+      "recipe": "byte-identical copy",
+      "bytes": 71656,
+      "sourceSha256": "e95d538f1e2b4717b4e7a1809550c0eebf1fc7c1b4289b02b9af7c68c8f148a3",
+      "sha256": "e95d538f1e2b4717b4e7a1809550c0eebf1fc7c1b4289b02b9af7c68c8f148a3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0024.png",
+      "destination": "assets/commute/plant-atlas/page-0024.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65570,
+      "sourceSha256": "70814e4fa98a3f2363b8a7dd9613e0990609e01a68dd842940a1caa7fe2532c3",
+      "sha256": "70814e4fa98a3f2363b8a7dd9613e0990609e01a68dd842940a1caa7fe2532c3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0025.png",
+      "destination": "assets/commute/plant-atlas/page-0025.png",
+      "recipe": "byte-identical copy",
+      "bytes": 85556,
+      "sourceSha256": "4d0657acbd2a0e8133a6d8b5d1bb9c9354986ec01c17eb87a71930d1d3237521",
+      "sha256": "4d0657acbd2a0e8133a6d8b5d1bb9c9354986ec01c17eb87a71930d1d3237521"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0026.png",
+      "destination": "assets/commute/plant-atlas/page-0026.png",
+      "recipe": "byte-identical copy",
+      "bytes": 67534,
+      "sourceSha256": "db1020b5c31ac265472a0a00987fc848a898a9a51cdaa0985808d59c667d2881",
+      "sha256": "db1020b5c31ac265472a0a00987fc848a898a9a51cdaa0985808d59c667d2881"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0027.png",
+      "destination": "assets/commute/plant-atlas/page-0027.png",
+      "recipe": "byte-identical copy",
+      "bytes": 64830,
+      "sourceSha256": "f62b1d5c0c09a8adcf099e990b1ef0e46c30ca6fd74cab33627273524c8f8570",
+      "sha256": "f62b1d5c0c09a8adcf099e990b1ef0e46c30ca6fd74cab33627273524c8f8570"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0028.png",
+      "destination": "assets/commute/plant-atlas/page-0028.png",
+      "recipe": "byte-identical copy",
+      "bytes": 85887,
+      "sourceSha256": "d8dbaba3856d0bdf623496c2e9f38148ac48b7a6d4221b0e32f0f9ff62058ca2",
+      "sha256": "d8dbaba3856d0bdf623496c2e9f38148ac48b7a6d4221b0e32f0f9ff62058ca2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0029.png",
+      "destination": "assets/commute/plant-atlas/page-0029.png",
+      "recipe": "byte-identical copy",
+      "bytes": 58001,
+      "sourceSha256": "d96a3167c1bfd34e192288e6709426047811d167f5ff6f9ea112a5c324b02684",
+      "sha256": "d96a3167c1bfd34e192288e6709426047811d167f5ff6f9ea112a5c324b02684"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0030.png",
+      "destination": "assets/commute/plant-atlas/page-0030.png",
+      "recipe": "byte-identical copy",
+      "bytes": 74728,
+      "sourceSha256": "015983371bcd975dd6161db6ac0273894eaef998e1e9f47abcc1323e972c9134",
+      "sha256": "015983371bcd975dd6161db6ac0273894eaef998e1e9f47abcc1323e972c9134"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0031.png",
+      "destination": "assets/commute/plant-atlas/page-0031.png",
+      "recipe": "byte-identical copy",
+      "bytes": 70353,
+      "sourceSha256": "9cb98134f4d79ceb54756fd5b9d015718f193bac0c98b38f0aedaa7d78204459",
+      "sha256": "9cb98134f4d79ceb54756fd5b9d015718f193bac0c98b38f0aedaa7d78204459"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0032.png",
+      "destination": "assets/commute/plant-atlas/page-0032.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61106,
+      "sourceSha256": "1d623b6799bd3d3a7f9eda652fa9a0862f9706aaaf5fcb31ec5c7129baeb5d22",
+      "sha256": "1d623b6799bd3d3a7f9eda652fa9a0862f9706aaaf5fcb31ec5c7129baeb5d22"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0033.png",
+      "destination": "assets/commute/plant-atlas/page-0033.png",
+      "recipe": "byte-identical copy",
+      "bytes": 72968,
+      "sourceSha256": "d317f1c8b291ce863bbe370295991ecae753715eaec051c02648e75320a53552",
+      "sha256": "d317f1c8b291ce863bbe370295991ecae753715eaec051c02648e75320a53552"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0034.png",
+      "destination": "assets/commute/plant-atlas/page-0034.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157504,
+      "sourceSha256": "abd8f626ce2b7621644c8e3cece529755291679411fd753efa0ebac1452b83c6",
+      "sha256": "abd8f626ce2b7621644c8e3cece529755291679411fd753efa0ebac1452b83c6"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0035.png",
+      "destination": "assets/commute/plant-atlas/page-0035.png",
+      "recipe": "byte-identical copy",
+      "bytes": 169278,
+      "sourceSha256": "e06a3fb9128fd47a9cd23cb12b3c6225ae57110533948039b1b476f369d84cce",
+      "sha256": "e06a3fb9128fd47a9cd23cb12b3c6225ae57110533948039b1b476f369d84cce"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0036.png",
+      "destination": "assets/commute/plant-atlas/page-0036.png",
+      "recipe": "byte-identical copy",
+      "bytes": 171712,
+      "sourceSha256": "e6f9b3a94eff48e12658f74991ab36b98ee1129bc31ee1cdf46b3c8c15377f23",
+      "sha256": "e6f9b3a94eff48e12658f74991ab36b98ee1129bc31ee1cdf46b3c8c15377f23"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0037.png",
+      "destination": "assets/commute/plant-atlas/page-0037.png",
+      "recipe": "byte-identical copy",
+      "bytes": 179178,
+      "sourceSha256": "1d19e98e572b5b4a34bc7d440b40a77d801ebcd4c446e066f1019de78b65b488",
+      "sha256": "1d19e98e572b5b4a34bc7d440b40a77d801ebcd4c446e066f1019de78b65b488"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0038.png",
+      "destination": "assets/commute/plant-atlas/page-0038.png",
+      "recipe": "byte-identical copy",
+      "bytes": 172702,
+      "sourceSha256": "752de8b84c22665536e8970076667fa5ca92a8398b8f35b7682cf60708d7b137",
+      "sha256": "752de8b84c22665536e8970076667fa5ca92a8398b8f35b7682cf60708d7b137"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0039.png",
+      "destination": "assets/commute/plant-atlas/page-0039.png",
+      "recipe": "byte-identical copy",
+      "bytes": 202364,
+      "sourceSha256": "8d81b877cc09367ef490117876091682d333b91c8b06f0962f2bcf449b453337",
+      "sha256": "8d81b877cc09367ef490117876091682d333b91c8b06f0962f2bcf449b453337"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0040.png",
+      "destination": "assets/commute/plant-atlas/page-0040.png",
+      "recipe": "byte-identical copy",
+      "bytes": 169160,
+      "sourceSha256": "728944d0bc613bb89a66dbd3c49f759bf21e61272da4f71a37a2f57893ec5b1c",
+      "sha256": "728944d0bc613bb89a66dbd3c49f759bf21e61272da4f71a37a2f57893ec5b1c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0041.png",
+      "destination": "assets/commute/plant-atlas/page-0041.png",
+      "recipe": "byte-identical copy",
+      "bytes": 162800,
+      "sourceSha256": "d95e0c9c3fc02f2f4aeb7e7c99d2b1ebbe49aeb63b2681d9ae8984f47966934d",
+      "sha256": "d95e0c9c3fc02f2f4aeb7e7c99d2b1ebbe49aeb63b2681d9ae8984f47966934d"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0042.png",
+      "destination": "assets/commute/plant-atlas/page-0042.png",
+      "recipe": "byte-identical copy",
+      "bytes": 138876,
+      "sourceSha256": "bc544490a4e9315421e62328e6f95e3f9b0f96eccd2998b0e820c55b1130f3e7",
+      "sha256": "bc544490a4e9315421e62328e6f95e3f9b0f96eccd2998b0e820c55b1130f3e7"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0043.png",
+      "destination": "assets/commute/plant-atlas/page-0043.png",
+      "recipe": "byte-identical copy",
+      "bytes": 113861,
+      "sourceSha256": "090a912f063348ea0ba34457ef0f38f91b350ac44e3614890734bc70c4a7c2d4",
+      "sha256": "090a912f063348ea0ba34457ef0f38f91b350ac44e3614890734bc70c4a7c2d4"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0044.png",
+      "destination": "assets/commute/plant-atlas/page-0044.png",
+      "recipe": "byte-identical copy",
+      "bytes": 152179,
+      "sourceSha256": "7e70af93faaca8ccf1e8747e0933193c4c01a46ef12f3d1428399d3cdfc5850d",
+      "sha256": "7e70af93faaca8ccf1e8747e0933193c4c01a46ef12f3d1428399d3cdfc5850d"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0045.png",
+      "destination": "assets/commute/plant-atlas/page-0045.png",
+      "recipe": "byte-identical copy",
+      "bytes": 136477,
+      "sourceSha256": "48effe1a5ea799d0b8d9af72f1ecbe7658255ba810b0780c0e50a1297a890cdd",
+      "sha256": "48effe1a5ea799d0b8d9af72f1ecbe7658255ba810b0780c0e50a1297a890cdd"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0046.png",
+      "destination": "assets/commute/plant-atlas/page-0046.png",
+      "recipe": "byte-identical copy",
+      "bytes": 146141,
+      "sourceSha256": "00099fe32180502f23f7f8bce9b84adc30e55f248a6cd4f5f72b995eeae12797",
+      "sha256": "00099fe32180502f23f7f8bce9b84adc30e55f248a6cd4f5f72b995eeae12797"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0047.png",
+      "destination": "assets/commute/plant-atlas/page-0047.png",
+      "recipe": "byte-identical copy",
+      "bytes": 174467,
+      "sourceSha256": "eb4fa2abbb32f5d9c112fe9cace496f62a99573eb4cbd3625e222b4d16c4c8dd",
+      "sha256": "eb4fa2abbb32f5d9c112fe9cace496f62a99573eb4cbd3625e222b4d16c4c8dd"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0048.png",
+      "destination": "assets/commute/plant-atlas/page-0048.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157587,
+      "sourceSha256": "ff3c533488a94b724cb3f29efdc49377a0e24642659c97b149eec074ccbc314d",
+      "sha256": "ff3c533488a94b724cb3f29efdc49377a0e24642659c97b149eec074ccbc314d"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0049.png",
+      "destination": "assets/commute/plant-atlas/page-0049.png",
+      "recipe": "byte-identical copy",
+      "bytes": 180880,
+      "sourceSha256": "cbb9831b41c3d6ae2e1d2e57353ff63d1651fb27f0e1f96f84eb8f6fc8ad31af",
+      "sha256": "cbb9831b41c3d6ae2e1d2e57353ff63d1651fb27f0e1f96f84eb8f6fc8ad31af"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0050.png",
+      "destination": "assets/commute/plant-atlas/page-0050.png",
+      "recipe": "byte-identical copy",
+      "bytes": 195110,
+      "sourceSha256": "440e8823698f9c552d410f3c8298e37d8732baa9456f48c927439f6fa0303791",
+      "sha256": "440e8823698f9c552d410f3c8298e37d8732baa9456f48c927439f6fa0303791"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0051.png",
+      "destination": "assets/commute/plant-atlas/page-0051.png",
+      "recipe": "byte-identical copy",
+      "bytes": 188820,
+      "sourceSha256": "5dd8afd54e1eb69ff8860e92c8475f1fb2c1ec38242a5650b58cb42239d3c489",
+      "sha256": "5dd8afd54e1eb69ff8860e92c8475f1fb2c1ec38242a5650b58cb42239d3c489"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0052.png",
+      "destination": "assets/commute/plant-atlas/page-0052.png",
+      "recipe": "byte-identical copy",
+      "bytes": 184286,
+      "sourceSha256": "8a95b896f359af154c1ae3c48e2d109188d89cd6dd962aeba6f82189f190fb7f",
+      "sha256": "8a95b896f359af154c1ae3c48e2d109188d89cd6dd962aeba6f82189f190fb7f"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0053.png",
+      "destination": "assets/commute/plant-atlas/page-0053.png",
+      "recipe": "byte-identical copy",
+      "bytes": 191370,
+      "sourceSha256": "7cbf31afb555549b99b2caef0323f49c343eac2acf2a85b151287b813fb4a3ee",
+      "sha256": "7cbf31afb555549b99b2caef0323f49c343eac2acf2a85b151287b813fb4a3ee"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0054.png",
+      "destination": "assets/commute/plant-atlas/page-0054.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157053,
+      "sourceSha256": "864c323a240a04764506b7ad9838c7f9d3c14f2ae01eded1a77137d75e678f86",
+      "sha256": "864c323a240a04764506b7ad9838c7f9d3c14f2ae01eded1a77137d75e678f86"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0055.png",
+      "destination": "assets/commute/plant-atlas/page-0055.png",
+      "recipe": "byte-identical copy",
+      "bytes": 192949,
+      "sourceSha256": "9462a7287d88f607e62ecbced90ec96781261ff10cc9b0b6309576b3f24a3cd1",
+      "sha256": "9462a7287d88f607e62ecbced90ec96781261ff10cc9b0b6309576b3f24a3cd1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0056.png",
+      "destination": "assets/commute/plant-atlas/page-0056.png",
+      "recipe": "byte-identical copy",
+      "bytes": 127319,
+      "sourceSha256": "81eabec9101198235142a3f717b831f3267f2b9f3c8008fcb6b342547c5af5d0",
+      "sha256": "81eabec9101198235142a3f717b831f3267f2b9f3c8008fcb6b342547c5af5d0"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0057.png",
+      "destination": "assets/commute/plant-atlas/page-0057.png",
+      "recipe": "byte-identical copy",
+      "bytes": 151059,
+      "sourceSha256": "cc311124605946b852d2876645cfa82fcff3475580b9bcf67ab5bdb1fdb916b5",
+      "sha256": "cc311124605946b852d2876645cfa82fcff3475580b9bcf67ab5bdb1fdb916b5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0058.png",
+      "destination": "assets/commute/plant-atlas/page-0058.png",
+      "recipe": "byte-identical copy",
+      "bytes": 164248,
+      "sourceSha256": "b8d0385009d8b7a68c80bbe8eb6c7e01bf403d91229db8fc330d5691c7f2f327",
+      "sha256": "b8d0385009d8b7a68c80bbe8eb6c7e01bf403d91229db8fc330d5691c7f2f327"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0059.png",
+      "destination": "assets/commute/plant-atlas/page-0059.png",
+      "recipe": "byte-identical copy",
+      "bytes": 154969,
+      "sourceSha256": "d97b41580064747e142c2ab4615b16a9b0d33ceddebac3496cf3691abc1893bc",
+      "sha256": "d97b41580064747e142c2ab4615b16a9b0d33ceddebac3496cf3691abc1893bc"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0060.png",
+      "destination": "assets/commute/plant-atlas/page-0060.png",
+      "recipe": "byte-identical copy",
+      "bytes": 149202,
+      "sourceSha256": "468a48fa1c00b48a99f8ac12ab9f0b83cbb806dba93f8509db5c6759fc40aa04",
+      "sha256": "468a48fa1c00b48a99f8ac12ab9f0b83cbb806dba93f8509db5c6759fc40aa04"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0061.png",
+      "destination": "assets/commute/plant-atlas/page-0061.png",
+      "recipe": "byte-identical copy",
+      "bytes": 189272,
+      "sourceSha256": "7fcd95a578e73df76a81d8ee439df0ad4cf10612fb12687104f37c1d6fe3cf07",
+      "sha256": "7fcd95a578e73df76a81d8ee439df0ad4cf10612fb12687104f37c1d6fe3cf07"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0062.png",
+      "destination": "assets/commute/plant-atlas/page-0062.png",
+      "recipe": "byte-identical copy",
+      "bytes": 184944,
+      "sourceSha256": "af3ea96a12c5992cc2323b4cd7da45178182bccbe1f35fda16248a859be700d8",
+      "sha256": "af3ea96a12c5992cc2323b4cd7da45178182bccbe1f35fda16248a859be700d8"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0063.png",
+      "destination": "assets/commute/plant-atlas/page-0063.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157678,
+      "sourceSha256": "4e0d3c5f91bc6e47c587c877194650403c1c04afb5576b30fb2f16f8bbef8214",
+      "sha256": "4e0d3c5f91bc6e47c587c877194650403c1c04afb5576b30fb2f16f8bbef8214"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0064.png",
+      "destination": "assets/commute/plant-atlas/page-0064.png",
+      "recipe": "byte-identical copy",
+      "bytes": 155451,
+      "sourceSha256": "644c9669b17b7ea367072d97dca41a78fcc66fd2ada9689b6fb0fcea4e2f0d6e",
+      "sha256": "644c9669b17b7ea367072d97dca41a78fcc66fd2ada9689b6fb0fcea4e2f0d6e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0065.png",
+      "destination": "assets/commute/plant-atlas/page-0065.png",
+      "recipe": "byte-identical copy",
+      "bytes": 116324,
+      "sourceSha256": "2c76055484f55b1a4a3077c6ae7bc692c7b5e91008c781bf50c571124f791ac3",
+      "sha256": "2c76055484f55b1a4a3077c6ae7bc692c7b5e91008c781bf50c571124f791ac3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0066.png",
+      "destination": "assets/commute/plant-atlas/page-0066.png",
+      "recipe": "byte-identical copy",
+      "bytes": 188978,
+      "sourceSha256": "14a4876181b572d81c7509f6985d99be624d5f2652f12570303736fc0f41ce2a",
+      "sha256": "14a4876181b572d81c7509f6985d99be624d5f2652f12570303736fc0f41ce2a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0067.png",
+      "destination": "assets/commute/plant-atlas/page-0067.png",
+      "recipe": "byte-identical copy",
+      "bytes": 107156,
+      "sourceSha256": "ae2aa1c1ef677bc208e9614663e76f24faff1f1f7c024217fa8412b94095fdea",
+      "sha256": "ae2aa1c1ef677bc208e9614663e76f24faff1f1f7c024217fa8412b94095fdea"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0068.png",
+      "destination": "assets/commute/plant-atlas/page-0068.png",
+      "recipe": "byte-identical copy",
+      "bytes": 108232,
+      "sourceSha256": "4ed17b3a952b8d57a2a7208fc729240acd907034a252363ea2bfdb6c5b841903",
+      "sha256": "4ed17b3a952b8d57a2a7208fc729240acd907034a252363ea2bfdb6c5b841903"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0069.png",
+      "destination": "assets/commute/plant-atlas/page-0069.png",
+      "recipe": "byte-identical copy",
+      "bytes": 164972,
+      "sourceSha256": "f02e569b37c290eb74e07363f0f99e82752b76d2695845c60b68e17b1477cd34",
+      "sha256": "f02e569b37c290eb74e07363f0f99e82752b76d2695845c60b68e17b1477cd34"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0070.png",
+      "destination": "assets/commute/plant-atlas/page-0070.png",
+      "recipe": "byte-identical copy",
+      "bytes": 114970,
+      "sourceSha256": "4793738bf7fda5e63985cbb2003e86339b97c94c4616d63ee76dff4d870dee50",
+      "sha256": "4793738bf7fda5e63985cbb2003e86339b97c94c4616d63ee76dff4d870dee50"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0071.png",
+      "destination": "assets/commute/plant-atlas/page-0071.png",
+      "recipe": "byte-identical copy",
+      "bytes": 155142,
+      "sourceSha256": "144f49db0c4fbbcaa3bf1208aed746050958188d9b7c533bfb50d152beaf8054",
+      "sha256": "144f49db0c4fbbcaa3bf1208aed746050958188d9b7c533bfb50d152beaf8054"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0072.png",
+      "destination": "assets/commute/plant-atlas/page-0072.png",
+      "recipe": "byte-identical copy",
+      "bytes": 171533,
+      "sourceSha256": "49517380d3a2586899cf54dc5b4ed1c01c661f225f6823f3b0d855c2cd80a15f",
+      "sha256": "49517380d3a2586899cf54dc5b4ed1c01c661f225f6823f3b0d855c2cd80a15f"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0073.png",
+      "destination": "assets/commute/plant-atlas/page-0073.png",
+      "recipe": "byte-identical copy",
+      "bytes": 99994,
+      "sourceSha256": "83f1585f9aa3d39023a8ed47309afbae8af571cb42b9e274f428a1144ef14824",
+      "sha256": "83f1585f9aa3d39023a8ed47309afbae8af571cb42b9e274f428a1144ef14824"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0074.png",
+      "destination": "assets/commute/plant-atlas/page-0074.png",
+      "recipe": "byte-identical copy",
+      "bytes": 124576,
+      "sourceSha256": "70b5a1ef3ba9f92aded7ee08ea36f08ab5e5b2e598f6993bc93c44b2f55451d6",
+      "sha256": "70b5a1ef3ba9f92aded7ee08ea36f08ab5e5b2e598f6993bc93c44b2f55451d6"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0075.png",
+      "destination": "assets/commute/plant-atlas/page-0075.png",
+      "recipe": "byte-identical copy",
+      "bytes": 91411,
+      "sourceSha256": "7163894994db74a068afb5776d8a74f6f9fbc489a1b801b1fa098b0937b60fa3",
+      "sha256": "7163894994db74a068afb5776d8a74f6f9fbc489a1b801b1fa098b0937b60fa3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0076.png",
+      "destination": "assets/commute/plant-atlas/page-0076.png",
+      "recipe": "byte-identical copy",
+      "bytes": 91629,
+      "sourceSha256": "99c814a21f32029d7c8856c8aa5a79bf4213c48f8889daf99d40d7863d13825e",
+      "sha256": "99c814a21f32029d7c8856c8aa5a79bf4213c48f8889daf99d40d7863d13825e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0077.png",
+      "destination": "assets/commute/plant-atlas/page-0077.png",
+      "recipe": "byte-identical copy",
+      "bytes": 116370,
+      "sourceSha256": "6d6c20bd70032df2b9e72275191b078e577e23a6c2419566cf981e00a610b91a",
+      "sha256": "6d6c20bd70032df2b9e72275191b078e577e23a6c2419566cf981e00a610b91a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0078.png",
+      "destination": "assets/commute/plant-atlas/page-0078.png",
+      "recipe": "byte-identical copy",
+      "bytes": 54409,
+      "sourceSha256": "7880c0fb3b11ffa757fe30bb3f49f7552a69b2adc5d83e2b262e947214e670a1",
+      "sha256": "7880c0fb3b11ffa757fe30bb3f49f7552a69b2adc5d83e2b262e947214e670a1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0079.png",
+      "destination": "assets/commute/plant-atlas/page-0079.png",
+      "recipe": "byte-identical copy",
+      "bytes": 58721,
+      "sourceSha256": "6e64d290c507299e790c5013992f20230a8818ea0da871e91395c3f968cd47c5",
+      "sha256": "6e64d290c507299e790c5013992f20230a8818ea0da871e91395c3f968cd47c5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0080.png",
+      "destination": "assets/commute/plant-atlas/page-0080.png",
+      "recipe": "byte-identical copy",
+      "bytes": 76755,
+      "sourceSha256": "4a59804ead60f8777afbc66f0caa3862054caa3a86df2939b3d22ceb29539616",
+      "sha256": "4a59804ead60f8777afbc66f0caa3862054caa3a86df2939b3d22ceb29539616"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0081.png",
+      "destination": "assets/commute/plant-atlas/page-0081.png",
+      "recipe": "byte-identical copy",
+      "bytes": 45374,
+      "sourceSha256": "1a883a2e0358b72d53c33a7f233d58e5871ead816df1ac1af74b7fa82bdc21de",
+      "sha256": "1a883a2e0358b72d53c33a7f233d58e5871ead816df1ac1af74b7fa82bdc21de"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0082.png",
+      "destination": "assets/commute/plant-atlas/page-0082.png",
+      "recipe": "byte-identical copy",
+      "bytes": 69296,
+      "sourceSha256": "08dcd72e17e69debd3da62b6b3b3d5372fb5e63a001e15b0ce8e2b6a81bc29bb",
+      "sha256": "08dcd72e17e69debd3da62b6b3b3d5372fb5e63a001e15b0ce8e2b6a81bc29bb"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0083.png",
+      "destination": "assets/commute/plant-atlas/page-0083.png",
+      "recipe": "byte-identical copy",
+      "bytes": 59673,
+      "sourceSha256": "da79b95a7f940211e400d924c62f73868a2794774102fba56c66fd28fddef9e3",
+      "sha256": "da79b95a7f940211e400d924c62f73868a2794774102fba56c66fd28fddef9e3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0084.png",
+      "destination": "assets/commute/plant-atlas/page-0084.png",
+      "recipe": "byte-identical copy",
+      "bytes": 57871,
+      "sourceSha256": "64e0c4072cdf00377cb04dc921400e2b35b9ee7a931f1e0c9850ed390faf8c27",
+      "sha256": "64e0c4072cdf00377cb04dc921400e2b35b9ee7a931f1e0c9850ed390faf8c27"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0085.png",
+      "destination": "assets/commute/plant-atlas/page-0085.png",
+      "recipe": "byte-identical copy",
+      "bytes": 72855,
+      "sourceSha256": "293d07dd70183d507deae859d5e1871efcd9faaa0a603e37931a4411c08c0aac",
+      "sha256": "293d07dd70183d507deae859d5e1871efcd9faaa0a603e37931a4411c08c0aac"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0086.png",
+      "destination": "assets/commute/plant-atlas/page-0086.png",
+      "recipe": "byte-identical copy",
+      "bytes": 69548,
+      "sourceSha256": "798c80df6c7cd8cfe4813ad24f145c75fa86c2bc44ab4e4bbc1ce7c34ae67f5c",
+      "sha256": "798c80df6c7cd8cfe4813ad24f145c75fa86c2bc44ab4e4bbc1ce7c34ae67f5c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0087.png",
+      "destination": "assets/commute/plant-atlas/page-0087.png",
+      "recipe": "byte-identical copy",
+      "bytes": 58219,
+      "sourceSha256": "7a3e15c5c5af2c94367412635da3c1a00d5864c476d975fda5b9b374cf43713c",
+      "sha256": "7a3e15c5c5af2c94367412635da3c1a00d5864c476d975fda5b9b374cf43713c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0088.png",
+      "destination": "assets/commute/plant-atlas/page-0088.png",
+      "recipe": "byte-identical copy",
+      "bytes": 79121,
+      "sourceSha256": "e87513f478a3fb06513a241bad066afc6d712a9983afeeb4bb5c47ed43189543",
+      "sha256": "e87513f478a3fb06513a241bad066afc6d712a9983afeeb4bb5c47ed43189543"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0089.png",
+      "destination": "assets/commute/plant-atlas/page-0089.png",
+      "recipe": "byte-identical copy",
+      "bytes": 67242,
+      "sourceSha256": "9c54493653e88bbce71c64438d914b4ea78b7095a0af069a23b5090455c391a3",
+      "sha256": "9c54493653e88bbce71c64438d914b4ea78b7095a0af069a23b5090455c391a3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0090.png",
+      "destination": "assets/commute/plant-atlas/page-0090.png",
+      "recipe": "byte-identical copy",
+      "bytes": 92708,
+      "sourceSha256": "fec27dbc7c9fa295f70fbcf8230e7f3c6d3436211ccd01cb311ba8fe54220ce2",
+      "sha256": "fec27dbc7c9fa295f70fbcf8230e7f3c6d3436211ccd01cb311ba8fe54220ce2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0091.png",
+      "destination": "assets/commute/plant-atlas/page-0091.png",
+      "recipe": "byte-identical copy",
+      "bytes": 118074,
+      "sourceSha256": "3d0183b0743e0b7cccf8f8eb3d3fe1f11a1450a30570b7c8306a5f33c4c35345",
+      "sha256": "3d0183b0743e0b7cccf8f8eb3d3fe1f11a1450a30570b7c8306a5f33c4c35345"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0092.png",
+      "destination": "assets/commute/plant-atlas/page-0092.png",
+      "recipe": "byte-identical copy",
+      "bytes": 59621,
+      "sourceSha256": "9a9469af02ac8bb621cab9f97d541f62e212ebb10d4dde1b48355b39f809ece5",
+      "sha256": "9a9469af02ac8bb621cab9f97d541f62e212ebb10d4dde1b48355b39f809ece5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0093.png",
+      "destination": "assets/commute/plant-atlas/page-0093.png",
+      "recipe": "byte-identical copy",
+      "bytes": 103749,
+      "sourceSha256": "143064894cb772fbd955dbb705b8beac74a853fd3a4410358cdca6a3cc247907",
+      "sha256": "143064894cb772fbd955dbb705b8beac74a853fd3a4410358cdca6a3cc247907"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0094.png",
+      "destination": "assets/commute/plant-atlas/page-0094.png",
+      "recipe": "byte-identical copy",
+      "bytes": 111946,
+      "sourceSha256": "a8a57cca9b12165d7695fb394ade571897e0fec727017023d506b9aafc198202",
+      "sha256": "a8a57cca9b12165d7695fb394ade571897e0fec727017023d506b9aafc198202"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0095.png",
+      "destination": "assets/commute/plant-atlas/page-0095.png",
+      "recipe": "byte-identical copy",
+      "bytes": 79434,
+      "sourceSha256": "f8b1d4c95b28a6d00f1bc48d544371f5b2c17c8c01ba4023e690c933aebbf411",
+      "sha256": "f8b1d4c95b28a6d00f1bc48d544371f5b2c17c8c01ba4023e690c933aebbf411"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0096.png",
+      "destination": "assets/commute/plant-atlas/page-0096.png",
+      "recipe": "byte-identical copy",
+      "bytes": 67866,
+      "sourceSha256": "423021d1553a4e0b47be81213890fa5310c136974bc1b140a3a4136153e25a11",
+      "sha256": "423021d1553a4e0b47be81213890fa5310c136974bc1b140a3a4136153e25a11"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0097.png",
+      "destination": "assets/commute/plant-atlas/page-0097.png",
+      "recipe": "byte-identical copy",
+      "bytes": 70959,
+      "sourceSha256": "1e97a10874d9308d052e1ea136bf8863fd73bbcdd968c9f132756c4233507fcf",
+      "sha256": "1e97a10874d9308d052e1ea136bf8863fd73bbcdd968c9f132756c4233507fcf"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0098.png",
+      "destination": "assets/commute/plant-atlas/page-0098.png",
+      "recipe": "byte-identical copy",
+      "bytes": 71551,
+      "sourceSha256": "fb8e552cfb3194601928b704c47b84177adb0503af55aa9eb79e05ee6a645228",
+      "sha256": "fb8e552cfb3194601928b704c47b84177adb0503af55aa9eb79e05ee6a645228"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0099.png",
+      "destination": "assets/commute/plant-atlas/page-0099.png",
+      "recipe": "byte-identical copy",
+      "bytes": 87823,
+      "sourceSha256": "7f39ab9eb8c2f1a59ba1da08cba5e0d15a6f95e3f816d8c96a5fd401943d5606",
+      "sha256": "7f39ab9eb8c2f1a59ba1da08cba5e0d15a6f95e3f816d8c96a5fd401943d5606"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0100.png",
+      "destination": "assets/commute/plant-atlas/page-0100.png",
+      "recipe": "byte-identical copy",
+      "bytes": 102127,
+      "sourceSha256": "e7960e30a6828a947d05aad016ce723f6c1a73cc037e5bb932af8cccc59ae113",
+      "sha256": "e7960e30a6828a947d05aad016ce723f6c1a73cc037e5bb932af8cccc59ae113"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0101.png",
+      "destination": "assets/commute/plant-atlas/page-0101.png",
+      "recipe": "byte-identical copy",
+      "bytes": 114202,
+      "sourceSha256": "9c86615faad9da27d04b5b4e378c6c73391f0324a8b27b312b6e0cdc8c4c85e3",
+      "sha256": "9c86615faad9da27d04b5b4e378c6c73391f0324a8b27b312b6e0cdc8c4c85e3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0102.png",
+      "destination": "assets/commute/plant-atlas/page-0102.png",
+      "recipe": "byte-identical copy",
+      "bytes": 171900,
+      "sourceSha256": "66c55c9f140ea1625e3a2eb184ca4d37b38148d0957d630fe72622d171293980",
+      "sha256": "66c55c9f140ea1625e3a2eb184ca4d37b38148d0957d630fe72622d171293980"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0103.png",
+      "destination": "assets/commute/plant-atlas/page-0103.png",
+      "recipe": "byte-identical copy",
+      "bytes": 163270,
+      "sourceSha256": "22e0d5aa4cc3e465c16d711ae196e8c2585b2cba2b0e9243d86cf601af836628",
+      "sha256": "22e0d5aa4cc3e465c16d711ae196e8c2585b2cba2b0e9243d86cf601af836628"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0104.png",
+      "destination": "assets/commute/plant-atlas/page-0104.png",
+      "recipe": "byte-identical copy",
+      "bytes": 137037,
+      "sourceSha256": "1ff268c586543198a9f93d6d2d6f5097c3b5bf855bc93739192e9dcdfd823c4c",
+      "sha256": "1ff268c586543198a9f93d6d2d6f5097c3b5bf855bc93739192e9dcdfd823c4c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0105.png",
+      "destination": "assets/commute/plant-atlas/page-0105.png",
+      "recipe": "byte-identical copy",
+      "bytes": 151657,
+      "sourceSha256": "45da0cc8d4e94449dc604a1446f44e7673f27b85d6b270244ba4a52c19a17098",
+      "sha256": "45da0cc8d4e94449dc604a1446f44e7673f27b85d6b270244ba4a52c19a17098"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0106.png",
+      "destination": "assets/commute/plant-atlas/page-0106.png",
+      "recipe": "byte-identical copy",
+      "bytes": 143828,
+      "sourceSha256": "db80d40c11d6ecc512fd13fe7de4841a0c6554af53a902bb082f2741b6c9a620",
+      "sha256": "db80d40c11d6ecc512fd13fe7de4841a0c6554af53a902bb082f2741b6c9a620"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0107.png",
+      "destination": "assets/commute/plant-atlas/page-0107.png",
+      "recipe": "byte-identical copy",
+      "bytes": 62650,
+      "sourceSha256": "92b7f5c501682aedde59822eb0d72ceca76f852dbc744b9b74f0ee2255334d16",
+      "sha256": "92b7f5c501682aedde59822eb0d72ceca76f852dbc744b9b74f0ee2255334d16"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0108.png",
+      "destination": "assets/commute/plant-atlas/page-0108.png",
+      "recipe": "byte-identical copy",
+      "bytes": 100494,
+      "sourceSha256": "1d7214bdbd14c39f50e31de6667cb4ef0e6dfdf31654bf6f6a0803c1c603d297",
+      "sha256": "1d7214bdbd14c39f50e31de6667cb4ef0e6dfdf31654bf6f6a0803c1c603d297"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0109.png",
+      "destination": "assets/commute/plant-atlas/page-0109.png",
+      "recipe": "byte-identical copy",
+      "bytes": 109025,
+      "sourceSha256": "9d741e20eee12b77d38fb5783bd86b0c16715e5c0f392412daddd4627e050217",
+      "sha256": "9d741e20eee12b77d38fb5783bd86b0c16715e5c0f392412daddd4627e050217"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0110.png",
+      "destination": "assets/commute/plant-atlas/page-0110.png",
+      "recipe": "byte-identical copy",
+      "bytes": 130305,
+      "sourceSha256": "84b7e38cdcfd91e4837b07190961cbf475bfa2072661372c5a4afffc1d74f1a4",
+      "sha256": "84b7e38cdcfd91e4837b07190961cbf475bfa2072661372c5a4afffc1d74f1a4"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0111.png",
+      "destination": "assets/commute/plant-atlas/page-0111.png",
+      "recipe": "byte-identical copy",
+      "bytes": 77066,
+      "sourceSha256": "9c67131993fb5872ac54e87f680e2f28896a30b249ef545920908e949afbaad4",
+      "sha256": "9c67131993fb5872ac54e87f680e2f28896a30b249ef545920908e949afbaad4"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0112.png",
+      "destination": "assets/commute/plant-atlas/page-0112.png",
+      "recipe": "byte-identical copy",
+      "bytes": 102651,
+      "sourceSha256": "1b95232869b49951055b7ac87b1bae4e8b72cd4aace545416c062d6d87f82682",
+      "sha256": "1b95232869b49951055b7ac87b1bae4e8b72cd4aace545416c062d6d87f82682"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0113.png",
+      "destination": "assets/commute/plant-atlas/page-0113.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88675,
+      "sourceSha256": "52cb2fc66a5d80469bb2b52d75d1a1ee8cb52f53ef3ea8b4e64501129c5c1422",
+      "sha256": "52cb2fc66a5d80469bb2b52d75d1a1ee8cb52f53ef3ea8b4e64501129c5c1422"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0114.png",
+      "destination": "assets/commute/plant-atlas/page-0114.png",
+      "recipe": "byte-identical copy",
+      "bytes": 89088,
+      "sourceSha256": "9e135058933f82a0f48c73ab02e4ffec1d4c34e443be5c1abb589953f295cfbf",
+      "sha256": "9e135058933f82a0f48c73ab02e4ffec1d4c34e443be5c1abb589953f295cfbf"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0115.png",
+      "destination": "assets/commute/plant-atlas/page-0115.png",
+      "recipe": "byte-identical copy",
+      "bytes": 95618,
+      "sourceSha256": "c7de89c4226e3e150dc46c7e45a32bcf12cd9614c0785000b82261925a4c1c83",
+      "sha256": "c7de89c4226e3e150dc46c7e45a32bcf12cd9614c0785000b82261925a4c1c83"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0116.png",
+      "destination": "assets/commute/plant-atlas/page-0116.png",
+      "recipe": "byte-identical copy",
+      "bytes": 100054,
+      "sourceSha256": "bf77a5f1ffe3359ae1de460336b0d9155bdceab8133f27065bdea152182f33d5",
+      "sha256": "bf77a5f1ffe3359ae1de460336b0d9155bdceab8133f27065bdea152182f33d5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0117.png",
+      "destination": "assets/commute/plant-atlas/page-0117.png",
+      "recipe": "byte-identical copy",
+      "bytes": 108091,
+      "sourceSha256": "6d25cfe9a35ad3ecabfc5ba3847f48279273704e52647f57778a2ccb6ab73150",
+      "sha256": "6d25cfe9a35ad3ecabfc5ba3847f48279273704e52647f57778a2ccb6ab73150"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0118.png",
+      "destination": "assets/commute/plant-atlas/page-0118.png",
+      "recipe": "byte-identical copy",
+      "bytes": 100611,
+      "sourceSha256": "b045b2ecca711f541a47275ded18d76fe8b68ae4c86e9ffab0da1ce451473954",
+      "sha256": "b045b2ecca711f541a47275ded18d76fe8b68ae4c86e9ffab0da1ce451473954"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0119.png",
+      "destination": "assets/commute/plant-atlas/page-0119.png",
+      "recipe": "byte-identical copy",
+      "bytes": 94459,
+      "sourceSha256": "912cd6c1a9d5fa52703063297f4bbf8f8e6d09a5e4c78e7aaced0863b6849087",
+      "sha256": "912cd6c1a9d5fa52703063297f4bbf8f8e6d09a5e4c78e7aaced0863b6849087"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0120.png",
+      "destination": "assets/commute/plant-atlas/page-0120.png",
+      "recipe": "byte-identical copy",
+      "bytes": 83296,
+      "sourceSha256": "4545b705941faa7f4f649325dcb43d1dd05ee438f056f14abc48a3ade6d54a6a",
+      "sha256": "4545b705941faa7f4f649325dcb43d1dd05ee438f056f14abc48a3ade6d54a6a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0121.png",
+      "destination": "assets/commute/plant-atlas/page-0121.png",
+      "recipe": "byte-identical copy",
+      "bytes": 103719,
+      "sourceSha256": "3eab0d800d7f2b3f35c249ebf8c800e00cf12445a22b0cdf3223be9293dc5895",
+      "sha256": "3eab0d800d7f2b3f35c249ebf8c800e00cf12445a22b0cdf3223be9293dc5895"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0122.png",
+      "destination": "assets/commute/plant-atlas/page-0122.png",
+      "recipe": "byte-identical copy",
+      "bytes": 63420,
+      "sourceSha256": "5429708e125411888f72e70a2a9e710a9ab70a88803496fa7d866be0a25274f2",
+      "sha256": "5429708e125411888f72e70a2a9e710a9ab70a88803496fa7d866be0a25274f2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0123.png",
+      "destination": "assets/commute/plant-atlas/page-0123.png",
+      "recipe": "byte-identical copy",
+      "bytes": 59676,
+      "sourceSha256": "37e5d40e41ecba26ec7de1d516c8fd4c46017bd56f2dccf74019f49ef5f167bd",
+      "sha256": "37e5d40e41ecba26ec7de1d516c8fd4c46017bd56f2dccf74019f49ef5f167bd"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0124.png",
+      "destination": "assets/commute/plant-atlas/page-0124.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88934,
+      "sourceSha256": "7be5da8501eb18e65423e424419dc454232c2f58cb04b14ba37e9914cc3779b2",
+      "sha256": "7be5da8501eb18e65423e424419dc454232c2f58cb04b14ba37e9914cc3779b2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0125.png",
+      "destination": "assets/commute/plant-atlas/page-0125.png",
+      "recipe": "byte-identical copy",
+      "bytes": 70113,
+      "sourceSha256": "ab791cdc5f5f21ae03226c25509bbde327927ad38be5697360136a6d250f2b73",
+      "sha256": "ab791cdc5f5f21ae03226c25509bbde327927ad38be5697360136a6d250f2b73"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0126.png",
+      "destination": "assets/commute/plant-atlas/page-0126.png",
+      "recipe": "byte-identical copy",
+      "bytes": 89372,
+      "sourceSha256": "fcce5f33fb923359675f5b90208ad0ee77b6164b1cb7d819985c98a29a899438",
+      "sha256": "fcce5f33fb923359675f5b90208ad0ee77b6164b1cb7d819985c98a29a899438"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0127.png",
+      "destination": "assets/commute/plant-atlas/page-0127.png",
+      "recipe": "byte-identical copy",
+      "bytes": 93054,
+      "sourceSha256": "6ac75e6a22cfab2ad0d8cc78b905e18401398ca02ce23e4d1b538977827c949e",
+      "sha256": "6ac75e6a22cfab2ad0d8cc78b905e18401398ca02ce23e4d1b538977827c949e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0128.png",
+      "destination": "assets/commute/plant-atlas/page-0128.png",
+      "recipe": "byte-identical copy",
+      "bytes": 54832,
+      "sourceSha256": "f6bd82f33933e8219ec841a8b72f1366d5bf7a4837849fea870a2e7525402b8b",
+      "sha256": "f6bd82f33933e8219ec841a8b72f1366d5bf7a4837849fea870a2e7525402b8b"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0129.png",
+      "destination": "assets/commute/plant-atlas/page-0129.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61185,
+      "sourceSha256": "eb8e5e000ce072781014948bcab9e6fa5df13b79991524862b9af61adfe58c50",
+      "sha256": "eb8e5e000ce072781014948bcab9e6fa5df13b79991524862b9af61adfe58c50"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0130.png",
+      "destination": "assets/commute/plant-atlas/page-0130.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61094,
+      "sourceSha256": "680cdb7d132cf62613ec84d87f7d0614a14d75283bcad9a71ad8ec13586d6f42",
+      "sha256": "680cdb7d132cf62613ec84d87f7d0614a14d75283bcad9a71ad8ec13586d6f42"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0131.png",
+      "destination": "assets/commute/plant-atlas/page-0131.png",
+      "recipe": "byte-identical copy",
+      "bytes": 48975,
+      "sourceSha256": "2cc24f345056ecd2e5cf80c1c08b1b726c87e9a0b6b563a929f175fb9c0fbcf4",
+      "sha256": "2cc24f345056ecd2e5cf80c1c08b1b726c87e9a0b6b563a929f175fb9c0fbcf4"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0132.png",
+      "destination": "assets/commute/plant-atlas/page-0132.png",
+      "recipe": "byte-identical copy",
+      "bytes": 63074,
+      "sourceSha256": "e7cd107aabef017b0415406e5abcd2784877cef2f2641490c5c0be9c897420a5",
+      "sha256": "e7cd107aabef017b0415406e5abcd2784877cef2f2641490c5c0be9c897420a5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0133.png",
+      "destination": "assets/commute/plant-atlas/page-0133.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1413,
+      "sourceSha256": "5d318af41fcf69eb140a5dcff7f90f2b1a1a1c4765db116cc143f41273c39792",
+      "sha256": "5d318af41fcf69eb140a5dcff7f90f2b1a1a1c4765db116cc143f41273c39792"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0134.png",
+      "destination": "assets/commute/plant-atlas/page-0134.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1573,
+      "sourceSha256": "eaa024125ae1bbec54501900a67c26e475d531ca3e2d6ffe1af64429a9712896",
+      "sha256": "eaa024125ae1bbec54501900a67c26e475d531ca3e2d6ffe1af64429a9712896"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0135.png",
+      "destination": "assets/commute/plant-atlas/page-0135.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1484,
+      "sourceSha256": "c27c8cd0b839c861bb77ab86c5533e5c4d118db0fc0a5de5e29f7bec0a4bfc57",
+      "sha256": "c27c8cd0b839c861bb77ab86c5533e5c4d118db0fc0a5de5e29f7bec0a4bfc57"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0136.png",
+      "destination": "assets/commute/plant-atlas/page-0136.png",
+      "recipe": "byte-identical copy",
+      "bytes": 1635,
+      "sourceSha256": "98df00765313c1283ce13223503e15b45d304db8a03172caeb68abe9b16a2f04",
+      "sha256": "98df00765313c1283ce13223503e15b45d304db8a03172caeb68abe9b16a2f04"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0137.png",
+      "destination": "assets/commute/plant-atlas/page-0137.png",
+      "recipe": "byte-identical copy",
+      "bytes": 26668,
+      "sourceSha256": "574b53fade64c70f6964bb5f32515a495ded294681e2d78cdbf8f6e5dc07aa26",
+      "sha256": "574b53fade64c70f6964bb5f32515a495ded294681e2d78cdbf8f6e5dc07aa26"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0138.png",
+      "destination": "assets/commute/plant-atlas/page-0138.png",
+      "recipe": "byte-identical copy",
+      "bytes": 24640,
+      "sourceSha256": "9c8f8e45dbc0671d2cd885f661f396d01cf88d096de1a508b7cd38724dcbc98f",
+      "sha256": "9c8f8e45dbc0671d2cd885f661f396d01cf88d096de1a508b7cd38724dcbc98f"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0139.png",
+      "destination": "assets/commute/plant-atlas/page-0139.png",
+      "recipe": "byte-identical copy",
+      "bytes": 27642,
+      "sourceSha256": "e5009cf98fabb15a719f8d36bd992c5287737bed7e9c8a80c82c5a4af89b0375",
+      "sha256": "e5009cf98fabb15a719f8d36bd992c5287737bed7e9c8a80c82c5a4af89b0375"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0140.png",
+      "destination": "assets/commute/plant-atlas/page-0140.png",
+      "recipe": "byte-identical copy",
+      "bytes": 25128,
+      "sourceSha256": "523f0b39f1eab224d882fee061c0082e395c31999c805177c6544ee44f7d14f9",
+      "sha256": "523f0b39f1eab224d882fee061c0082e395c31999c805177c6544ee44f7d14f9"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0141.png",
+      "destination": "assets/commute/plant-atlas/page-0141.png",
+      "recipe": "byte-identical copy",
+      "bytes": 83292,
+      "sourceSha256": "18052655928f2d8b000f464a37852ea57ddf481308707ccc2222537e9595680b",
+      "sha256": "18052655928f2d8b000f464a37852ea57ddf481308707ccc2222537e9595680b"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0142.png",
+      "destination": "assets/commute/plant-atlas/page-0142.png",
+      "recipe": "byte-identical copy",
+      "bytes": 77848,
+      "sourceSha256": "3a2145d76a4dfd58242d2ae4af8ee8bf96798b5de230013acbf08843a78f81a1",
+      "sha256": "3a2145d76a4dfd58242d2ae4af8ee8bf96798b5de230013acbf08843a78f81a1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0143.png",
+      "destination": "assets/commute/plant-atlas/page-0143.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65164,
+      "sourceSha256": "17464d485559caaa1ee264127cb9076ef936186ea5437f116f46df295bee9469",
+      "sha256": "17464d485559caaa1ee264127cb9076ef936186ea5437f116f46df295bee9469"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0144.png",
+      "destination": "assets/commute/plant-atlas/page-0144.png",
+      "recipe": "byte-identical copy",
+      "bytes": 86627,
+      "sourceSha256": "9172c116488156da9296ddeb88eda7f853d8730d678de7b3496f689d252e0f7f",
+      "sha256": "9172c116488156da9296ddeb88eda7f853d8730d678de7b3496f689d252e0f7f"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0145.png",
+      "destination": "assets/commute/plant-atlas/page-0145.png",
+      "recipe": "byte-identical copy",
+      "bytes": 169407,
+      "sourceSha256": "1466c9b15f571567e1015b4233b035d9c0f55d94a2fc79f079a4a5c1112f4e90",
+      "sha256": "1466c9b15f571567e1015b4233b035d9c0f55d94a2fc79f079a4a5c1112f4e90"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0146.png",
+      "destination": "assets/commute/plant-atlas/page-0146.png",
+      "recipe": "byte-identical copy",
+      "bytes": 136115,
+      "sourceSha256": "3367dbb057545ac059a7634512b71b5dc4db0422d94055e91f2811e5cea1fce2",
+      "sha256": "3367dbb057545ac059a7634512b71b5dc4db0422d94055e91f2811e5cea1fce2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0147.png",
+      "destination": "assets/commute/plant-atlas/page-0147.png",
+      "recipe": "byte-identical copy",
+      "bytes": 155721,
+      "sourceSha256": "ff6bf12b4c703cb6a2da54926c223b93d392482fa1e0fda20eb90a2c4f0765f8",
+      "sha256": "ff6bf12b4c703cb6a2da54926c223b93d392482fa1e0fda20eb90a2c4f0765f8"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0148.png",
+      "destination": "assets/commute/plant-atlas/page-0148.png",
+      "recipe": "byte-identical copy",
+      "bytes": 184794,
+      "sourceSha256": "795a4c9903113a32b9f10771eb12307c6ba5a6d04bd864cb3c0d2b01e786f643",
+      "sha256": "795a4c9903113a32b9f10771eb12307c6ba5a6d04bd864cb3c0d2b01e786f643"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0149.png",
+      "destination": "assets/commute/plant-atlas/page-0149.png",
+      "recipe": "byte-identical copy",
+      "bytes": 170008,
+      "sourceSha256": "fc8900a7e382212996e0954975aef567f7d0b526c55217d4cc22eb75a1635858",
+      "sha256": "fc8900a7e382212996e0954975aef567f7d0b526c55217d4cc22eb75a1635858"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0150.png",
+      "destination": "assets/commute/plant-atlas/page-0150.png",
+      "recipe": "byte-identical copy",
+      "bytes": 124434,
+      "sourceSha256": "eef28d0a8e4c76425834dcaf204bcc5ec3700eadd7ee043a9d4cfaa20faa6528",
+      "sha256": "eef28d0a8e4c76425834dcaf204bcc5ec3700eadd7ee043a9d4cfaa20faa6528"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0151.png",
+      "destination": "assets/commute/plant-atlas/page-0151.png",
+      "recipe": "byte-identical copy",
+      "bytes": 144667,
+      "sourceSha256": "d88cfc0e4d664a77aec3a5468ea9ebab1181066d85d2c9d392e0e6890002aeab",
+      "sha256": "d88cfc0e4d664a77aec3a5468ea9ebab1181066d85d2c9d392e0e6890002aeab"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0152.png",
+      "destination": "assets/commute/plant-atlas/page-0152.png",
+      "recipe": "byte-identical copy",
+      "bytes": 196045,
+      "sourceSha256": "f5d20120ec114fce8f153134e6c1f8e03c2f4ff0f31114db4140c3db35e556f2",
+      "sha256": "f5d20120ec114fce8f153134e6c1f8e03c2f4ff0f31114db4140c3db35e556f2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0153.png",
+      "destination": "assets/commute/plant-atlas/page-0153.png",
+      "recipe": "byte-identical copy",
+      "bytes": 164125,
+      "sourceSha256": "6b5e9fe0e3fdd76cd9fba025cd16a9d066ee2b72ca79f9b0db0fd4ab95310399",
+      "sha256": "6b5e9fe0e3fdd76cd9fba025cd16a9d066ee2b72ca79f9b0db0fd4ab95310399"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0154.png",
+      "destination": "assets/commute/plant-atlas/page-0154.png",
+      "recipe": "byte-identical copy",
+      "bytes": 123351,
+      "sourceSha256": "3ae8b6296db05b9a381077c9c3e9999e7cab460b45a6c5efb5307ce5a4caa8ed",
+      "sha256": "3ae8b6296db05b9a381077c9c3e9999e7cab460b45a6c5efb5307ce5a4caa8ed"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0155.png",
+      "destination": "assets/commute/plant-atlas/page-0155.png",
+      "recipe": "byte-identical copy",
+      "bytes": 142137,
+      "sourceSha256": "c1846473cfc184e5b21c557dc46b9105924d581d523628d38e1339af0fd41021",
+      "sha256": "c1846473cfc184e5b21c557dc46b9105924d581d523628d38e1339af0fd41021"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0156.png",
+      "destination": "assets/commute/plant-atlas/page-0156.png",
+      "recipe": "byte-identical copy",
+      "bytes": 177361,
+      "sourceSha256": "0201d4fbf39be349de7e1bbe887812eff15b8a260300b32049231eefd2142e07",
+      "sha256": "0201d4fbf39be349de7e1bbe887812eff15b8a260300b32049231eefd2142e07"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0157.png",
+      "destination": "assets/commute/plant-atlas/page-0157.png",
+      "recipe": "byte-identical copy",
+      "bytes": 127850,
+      "sourceSha256": "1d27934db7b7d5696b0f9479a7af22d00b4ef19aa8bdb131f7c87565748228f1",
+      "sha256": "1d27934db7b7d5696b0f9479a7af22d00b4ef19aa8bdb131f7c87565748228f1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0158.png",
+      "destination": "assets/commute/plant-atlas/page-0158.png",
+      "recipe": "byte-identical copy",
+      "bytes": 104821,
+      "sourceSha256": "d37d49247ee6726bcf635ed17ce5140f648fb5c2bb1cf488e44f8767e990c356",
+      "sha256": "d37d49247ee6726bcf635ed17ce5140f648fb5c2bb1cf488e44f8767e990c356"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0159.png",
+      "destination": "assets/commute/plant-atlas/page-0159.png",
+      "recipe": "byte-identical copy",
+      "bytes": 131331,
+      "sourceSha256": "6b65d6917ec997043a1d3798255ed7b70d284d32203b97f277d377a3c77d9879",
+      "sha256": "6b65d6917ec997043a1d3798255ed7b70d284d32203b97f277d377a3c77d9879"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0160.png",
+      "destination": "assets/commute/plant-atlas/page-0160.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157571,
+      "sourceSha256": "1e63101f7d5539cf37ddc33c385174f54c72fc84e84673753a524dec51705ec9",
+      "sha256": "1e63101f7d5539cf37ddc33c385174f54c72fc84e84673753a524dec51705ec9"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0161.png",
+      "destination": "assets/commute/plant-atlas/page-0161.png",
+      "recipe": "byte-identical copy",
+      "bytes": 72384,
+      "sourceSha256": "4fc83dd1240f0a1a1f4a62839d55223a06d5498b6d8e72ebe373803c36bda15a",
+      "sha256": "4fc83dd1240f0a1a1f4a62839d55223a06d5498b6d8e72ebe373803c36bda15a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0162.png",
+      "destination": "assets/commute/plant-atlas/page-0162.png",
+      "recipe": "byte-identical copy",
+      "bytes": 47685,
+      "sourceSha256": "e58752e092cd571abc6a085fcc795e36ae047dbe6eaf3ea5a040439f556fbe5b",
+      "sha256": "e58752e092cd571abc6a085fcc795e36ae047dbe6eaf3ea5a040439f556fbe5b"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0163.png",
+      "destination": "assets/commute/plant-atlas/page-0163.png",
+      "recipe": "byte-identical copy",
+      "bytes": 52647,
+      "sourceSha256": "488610066c7dd41107a1ad999c747ec634882a4d9d5f3e8f51d08a6a6ae40db4",
+      "sha256": "488610066c7dd41107a1ad999c747ec634882a4d9d5f3e8f51d08a6a6ae40db4"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0164.png",
+      "destination": "assets/commute/plant-atlas/page-0164.png",
+      "recipe": "byte-identical copy",
+      "bytes": 58897,
+      "sourceSha256": "c82a24b2f41c90cf9531400c27549cfc54edf052f8ecee8e70098c57b48fde61",
+      "sha256": "c82a24b2f41c90cf9531400c27549cfc54edf052f8ecee8e70098c57b48fde61"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0165.png",
+      "destination": "assets/commute/plant-atlas/page-0165.png",
+      "recipe": "byte-identical copy",
+      "bytes": 117581,
+      "sourceSha256": "e8190ed4eacd442f9242207eca0e377d4fa7623f8138b556c47e8ce95117a9a6",
+      "sha256": "e8190ed4eacd442f9242207eca0e377d4fa7623f8138b556c47e8ce95117a9a6"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0166.png",
+      "destination": "assets/commute/plant-atlas/page-0166.png",
+      "recipe": "byte-identical copy",
+      "bytes": 81917,
+      "sourceSha256": "a73ffd65fbf2146be31d605b861cbd8dfd71fb3cf4c37cd42ac5bae7eaafd13d",
+      "sha256": "a73ffd65fbf2146be31d605b861cbd8dfd71fb3cf4c37cd42ac5bae7eaafd13d"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0167.png",
+      "destination": "assets/commute/plant-atlas/page-0167.png",
+      "recipe": "byte-identical copy",
+      "bytes": 93167,
+      "sourceSha256": "2fdd21b684692d1887232bc07bb0a4a04aba9c831327fb62947ad3905b280630",
+      "sha256": "2fdd21b684692d1887232bc07bb0a4a04aba9c831327fb62947ad3905b280630"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0168.png",
+      "destination": "assets/commute/plant-atlas/page-0168.png",
+      "recipe": "byte-identical copy",
+      "bytes": 120091,
+      "sourceSha256": "e928e3ef8f560419d2b6d00aaeae004a01ae823405c6735219cea0800f72685e",
+      "sha256": "e928e3ef8f560419d2b6d00aaeae004a01ae823405c6735219cea0800f72685e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0169.png",
+      "destination": "assets/commute/plant-atlas/page-0169.png",
+      "recipe": "byte-identical copy",
+      "bytes": 130736,
+      "sourceSha256": "1b5efd46db1493b170d7e0ff58a9be5960d57961bc430f4896d85e2dd08b36e1",
+      "sha256": "1b5efd46db1493b170d7e0ff58a9be5960d57961bc430f4896d85e2dd08b36e1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0170.png",
+      "destination": "assets/commute/plant-atlas/page-0170.png",
+      "recipe": "byte-identical copy",
+      "bytes": 102657,
+      "sourceSha256": "8e3efb76cd8cedf5963a45116d6ce9f9214b4ec6c7fa9c86670e46b403957ea1",
+      "sha256": "8e3efb76cd8cedf5963a45116d6ce9f9214b4ec6c7fa9c86670e46b403957ea1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0171.png",
+      "destination": "assets/commute/plant-atlas/page-0171.png",
+      "recipe": "byte-identical copy",
+      "bytes": 123989,
+      "sourceSha256": "ee552b7844809a1b4659c47c4e9eeb12e430b2240a83389668b57f782ddba4d3",
+      "sha256": "ee552b7844809a1b4659c47c4e9eeb12e430b2240a83389668b57f782ddba4d3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0172.png",
+      "destination": "assets/commute/plant-atlas/page-0172.png",
+      "recipe": "byte-identical copy",
+      "bytes": 143657,
+      "sourceSha256": "e63df2e0fae39d9a3c0b72bc1a37fc92fb906ab21f8c418260ee87c3230bb385",
+      "sha256": "e63df2e0fae39d9a3c0b72bc1a37fc92fb906ab21f8c418260ee87c3230bb385"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0173.png",
+      "destination": "assets/commute/plant-atlas/page-0173.png",
+      "recipe": "byte-identical copy",
+      "bytes": 113024,
+      "sourceSha256": "bdc606715a8d1dc597457ab6cafdf0e9cdca0524ba5ffa13295d96f1bda68e1a",
+      "sha256": "bdc606715a8d1dc597457ab6cafdf0e9cdca0524ba5ffa13295d96f1bda68e1a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0174.png",
+      "destination": "assets/commute/plant-atlas/page-0174.png",
+      "recipe": "byte-identical copy",
+      "bytes": 74315,
+      "sourceSha256": "5af3e395e2102b8deee2d427593d857086fc9c9fe8a902dfebae6fcc0198ade2",
+      "sha256": "5af3e395e2102b8deee2d427593d857086fc9c9fe8a902dfebae6fcc0198ade2"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0175.png",
+      "destination": "assets/commute/plant-atlas/page-0175.png",
+      "recipe": "byte-identical copy",
+      "bytes": 72303,
+      "sourceSha256": "e6bc7cb06f08e8d5d379e6688d68bfdccd4eeabdf9c19d1bd7e0c0aae73539a1",
+      "sha256": "e6bc7cb06f08e8d5d379e6688d68bfdccd4eeabdf9c19d1bd7e0c0aae73539a1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0176.png",
+      "destination": "assets/commute/plant-atlas/page-0176.png",
+      "recipe": "byte-identical copy",
+      "bytes": 101503,
+      "sourceSha256": "240b1069f5ce5be03e1bf5119ae52373e7a1584f5b17d4dcbd6096ec0644fae3",
+      "sha256": "240b1069f5ce5be03e1bf5119ae52373e7a1584f5b17d4dcbd6096ec0644fae3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0177.png",
+      "destination": "assets/commute/plant-atlas/page-0177.png",
+      "recipe": "byte-identical copy",
+      "bytes": 85572,
+      "sourceSha256": "2d6ef33da8923ca0357eb7e69e231d10610333b16887613e85903f18a8b0a996",
+      "sha256": "2d6ef33da8923ca0357eb7e69e231d10610333b16887613e85903f18a8b0a996"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0178.png",
+      "destination": "assets/commute/plant-atlas/page-0178.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88447,
+      "sourceSha256": "c0598b4a27c2adc4e04188d8c7d0bfb84e3e26fb7a58ba31cda9d6370adff2de",
+      "sha256": "c0598b4a27c2adc4e04188d8c7d0bfb84e3e26fb7a58ba31cda9d6370adff2de"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0179.png",
+      "destination": "assets/commute/plant-atlas/page-0179.png",
+      "recipe": "byte-identical copy",
+      "bytes": 97976,
+      "sourceSha256": "c64c048194adc1063505f51e31796d40c288e1e68ec7889f42d93472b6435aca",
+      "sha256": "c64c048194adc1063505f51e31796d40c288e1e68ec7889f42d93472b6435aca"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0180.png",
+      "destination": "assets/commute/plant-atlas/page-0180.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88894,
+      "sourceSha256": "ff0edbffbdc34318887bb7fb267819dd5bf772cbf21db23b054ced0ac3e894cf",
+      "sha256": "ff0edbffbdc34318887bb7fb267819dd5bf772cbf21db23b054ced0ac3e894cf"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0181.png",
+      "destination": "assets/commute/plant-atlas/page-0181.png",
+      "recipe": "byte-identical copy",
+      "bytes": 136892,
+      "sourceSha256": "0a6bab7bf88adfeefac9bd3b6723f653c956a6ccb25156ca59ecc7180d91d649",
+      "sha256": "0a6bab7bf88adfeefac9bd3b6723f653c956a6ccb25156ca59ecc7180d91d649"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0182.png",
+      "destination": "assets/commute/plant-atlas/page-0182.png",
+      "recipe": "byte-identical copy",
+      "bytes": 149406,
+      "sourceSha256": "397874c58d7c899d06b6ef9cabcbe6dc23b98dea6e39d658d566c69728e8055b",
+      "sha256": "397874c58d7c899d06b6ef9cabcbe6dc23b98dea6e39d658d566c69728e8055b"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0183.png",
+      "destination": "assets/commute/plant-atlas/page-0183.png",
+      "recipe": "byte-identical copy",
+      "bytes": 168726,
+      "sourceSha256": "1f4f0e2f81eb03e8a07bf0ff4727a1ce3b51056b66f1f47ee764a831deb2805e",
+      "sha256": "1f4f0e2f81eb03e8a07bf0ff4727a1ce3b51056b66f1f47ee764a831deb2805e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0184.png",
+      "destination": "assets/commute/plant-atlas/page-0184.png",
+      "recipe": "byte-identical copy",
+      "bytes": 104981,
+      "sourceSha256": "c9518934dc43d97fb2a565768f9b404a69a3747ac2877e5ed1d476b62063fc15",
+      "sha256": "c9518934dc43d97fb2a565768f9b404a69a3747ac2877e5ed1d476b62063fc15"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0185.png",
+      "destination": "assets/commute/plant-atlas/page-0185.png",
+      "recipe": "byte-identical copy",
+      "bytes": 134605,
+      "sourceSha256": "010eee1019d7b8cf9137b8e8d393cda7b8decfc8be206cc427b6f5ebccd111ea",
+      "sha256": "010eee1019d7b8cf9137b8e8d393cda7b8decfc8be206cc427b6f5ebccd111ea"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0186.png",
+      "destination": "assets/commute/plant-atlas/page-0186.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157410,
+      "sourceSha256": "c17cb349b018feafa82e5b85c065a35aea09558dd0224ecc644ad9b9169b1eee",
+      "sha256": "c17cb349b018feafa82e5b85c065a35aea09558dd0224ecc644ad9b9169b1eee"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0187.png",
+      "destination": "assets/commute/plant-atlas/page-0187.png",
+      "recipe": "byte-identical copy",
+      "bytes": 152396,
+      "sourceSha256": "1b6e08a4736ff34e7b1ad6f4c6e7d69a362a452d18457eb36be8317dbb442162",
+      "sha256": "1b6e08a4736ff34e7b1ad6f4c6e7d69a362a452d18457eb36be8317dbb442162"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0188.png",
+      "destination": "assets/commute/plant-atlas/page-0188.png",
+      "recipe": "byte-identical copy",
+      "bytes": 124422,
+      "sourceSha256": "47d243b328455b2ce3e4f3d55570a3fd9705b7511ded08a0c6ea751f3f3c1e95",
+      "sha256": "47d243b328455b2ce3e4f3d55570a3fd9705b7511ded08a0c6ea751f3f3c1e95"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0189.png",
+      "destination": "assets/commute/plant-atlas/page-0189.png",
+      "recipe": "byte-identical copy",
+      "bytes": 127164,
+      "sourceSha256": "301235a33157dc4846b56f32e236c6998de8f589adcfc52191cd15936b3faa8c",
+      "sha256": "301235a33157dc4846b56f32e236c6998de8f589adcfc52191cd15936b3faa8c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0190.png",
+      "destination": "assets/commute/plant-atlas/page-0190.png",
+      "recipe": "byte-identical copy",
+      "bytes": 157707,
+      "sourceSha256": "4c0e82fbd4f6f374f7fcc2e3d2fff350c748495127d4ca81bd2c40a49eae3d0e",
+      "sha256": "4c0e82fbd4f6f374f7fcc2e3d2fff350c748495127d4ca81bd2c40a49eae3d0e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0191.png",
+      "destination": "assets/commute/plant-atlas/page-0191.png",
+      "recipe": "byte-identical copy",
+      "bytes": 99964,
+      "sourceSha256": "0c8cccf35b03de75874f3b8e9a420b5952482f19efc5878dbd8d7ee8f7b4536f",
+      "sha256": "0c8cccf35b03de75874f3b8e9a420b5952482f19efc5878dbd8d7ee8f7b4536f"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0192.png",
+      "destination": "assets/commute/plant-atlas/page-0192.png",
+      "recipe": "byte-identical copy",
+      "bytes": 145084,
+      "sourceSha256": "f9273cdfc543f1052bb900c5f0a821dbbda5bac3f73ff744a9189391866203f1",
+      "sha256": "f9273cdfc543f1052bb900c5f0a821dbbda5bac3f73ff744a9189391866203f1"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0193.png",
+      "destination": "assets/commute/plant-atlas/page-0193.png",
+      "recipe": "byte-identical copy",
+      "bytes": 194418,
+      "sourceSha256": "59610271a73109616058c2ca7612133129d6905a23619849e2dc23b620432fc9",
+      "sha256": "59610271a73109616058c2ca7612133129d6905a23619849e2dc23b620432fc9"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0194.png",
+      "destination": "assets/commute/plant-atlas/page-0194.png",
+      "recipe": "byte-identical copy",
+      "bytes": 182720,
+      "sourceSha256": "0c9cdbe0be5b53258f0e1dbae965cbb56d4168fd5ae27a4ebaca93043b380eb3",
+      "sha256": "0c9cdbe0be5b53258f0e1dbae965cbb56d4168fd5ae27a4ebaca93043b380eb3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0195.png",
+      "destination": "assets/commute/plant-atlas/page-0195.png",
+      "recipe": "byte-identical copy",
+      "bytes": 161026,
+      "sourceSha256": "2b15a8bcb3c3fa79f23c070ebb79a51f4ab600d1bf4fac5ab3866915df349ff4",
+      "sha256": "2b15a8bcb3c3fa79f23c070ebb79a51f4ab600d1bf4fac5ab3866915df349ff4"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0196.png",
+      "destination": "assets/commute/plant-atlas/page-0196.png",
+      "recipe": "byte-identical copy",
+      "bytes": 152059,
+      "sourceSha256": "429c8cd2529438b025894bdd51b5deb905e28c3c6a4887ea3357a5acaa0f7fa6",
+      "sha256": "429c8cd2529438b025894bdd51b5deb905e28c3c6a4887ea3357a5acaa0f7fa6"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0197.png",
+      "destination": "assets/commute/plant-atlas/page-0197.png",
+      "recipe": "byte-identical copy",
+      "bytes": 143223,
+      "sourceSha256": "add79090ced5120051f98fc158270fde4f6753eddb1b5ceeda610c19420922df",
+      "sha256": "add79090ced5120051f98fc158270fde4f6753eddb1b5ceeda610c19420922df"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0198.png",
+      "destination": "assets/commute/plant-atlas/page-0198.png",
+      "recipe": "byte-identical copy",
+      "bytes": 181950,
+      "sourceSha256": "187554c91bd91db78f7f8cf6cda1968fce9139498ca8abcd715a704704baa952",
+      "sha256": "187554c91bd91db78f7f8cf6cda1968fce9139498ca8abcd715a704704baa952"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0199.png",
+      "destination": "assets/commute/plant-atlas/page-0199.png",
+      "recipe": "byte-identical copy",
+      "bytes": 126131,
+      "sourceSha256": "803a9d68aa4db3a6e67e5164e9c72c548bfe5b54ce4676ac8782b8caa52ff338",
+      "sha256": "803a9d68aa4db3a6e67e5164e9c72c548bfe5b54ce4676ac8782b8caa52ff338"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0200.png",
+      "destination": "assets/commute/plant-atlas/page-0200.png",
+      "recipe": "byte-identical copy",
+      "bytes": 143693,
+      "sourceSha256": "e8094ef9c6147a87df196e3e5cc3e932d7af37e942f6fee21a8010dde70fcaec",
+      "sha256": "e8094ef9c6147a87df196e3e5cc3e932d7af37e942f6fee21a8010dde70fcaec"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0201.png",
+      "destination": "assets/commute/plant-atlas/page-0201.png",
+      "recipe": "byte-identical copy",
+      "bytes": 170727,
+      "sourceSha256": "5bf6a8ac8469188662fbae5e61ece8ff127d4216359cc78a98b6709bb8cba100",
+      "sha256": "5bf6a8ac8469188662fbae5e61ece8ff127d4216359cc78a98b6709bb8cba100"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0202.png",
+      "destination": "assets/commute/plant-atlas/page-0202.png",
+      "recipe": "byte-identical copy",
+      "bytes": 105044,
+      "sourceSha256": "1f9d2440df1a127336ca2474f2f085cbaaa36f068cf61f0f6019ce75c546ff06",
+      "sha256": "1f9d2440df1a127336ca2474f2f085cbaaa36f068cf61f0f6019ce75c546ff06"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0203.png",
+      "destination": "assets/commute/plant-atlas/page-0203.png",
+      "recipe": "byte-identical copy",
+      "bytes": 98921,
+      "sourceSha256": "ed7955c2602671cd77cfec513006b20e94fecf24e6fa9573fc91377cb5a3525c",
+      "sha256": "ed7955c2602671cd77cfec513006b20e94fecf24e6fa9573fc91377cb5a3525c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0204.png",
+      "destination": "assets/commute/plant-atlas/page-0204.png",
+      "recipe": "byte-identical copy",
+      "bytes": 136811,
+      "sourceSha256": "2905a67a3a5dcf4b4bcf6e5bae24cd5bde593b2a1747a1675b53abc2bb87ec98",
+      "sha256": "2905a67a3a5dcf4b4bcf6e5bae24cd5bde593b2a1747a1675b53abc2bb87ec98"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0205.png",
+      "destination": "assets/commute/plant-atlas/page-0205.png",
+      "recipe": "byte-identical copy",
+      "bytes": 178663,
+      "sourceSha256": "7109636338c8a57c7f95723843a606c06212f5acf6e24337401f18a1aeb014e8",
+      "sha256": "7109636338c8a57c7f95723843a606c06212f5acf6e24337401f18a1aeb014e8"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0206.png",
+      "destination": "assets/commute/plant-atlas/page-0206.png",
+      "recipe": "byte-identical copy",
+      "bytes": 117434,
+      "sourceSha256": "a95b1435c2a3973a19bf7a8fae7a11c89635ec9983300ba677fdd294d116e173",
+      "sha256": "a95b1435c2a3973a19bf7a8fae7a11c89635ec9983300ba677fdd294d116e173"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0207.png",
+      "destination": "assets/commute/plant-atlas/page-0207.png",
+      "recipe": "byte-identical copy",
+      "bytes": 106540,
+      "sourceSha256": "2948e2457397a5814d5c3dda9fb4d058aafb959887ff02df263bbe933a78cd9e",
+      "sha256": "2948e2457397a5814d5c3dda9fb4d058aafb959887ff02df263bbe933a78cd9e"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0208.png",
+      "destination": "assets/commute/plant-atlas/page-0208.png",
+      "recipe": "byte-identical copy",
+      "bytes": 154416,
+      "sourceSha256": "409d270d8214a6a4b0c4ffb96f03a82242602552959a3fe2a94c3fc7abc53b2f",
+      "sha256": "409d270d8214a6a4b0c4ffb96f03a82242602552959a3fe2a94c3fc7abc53b2f"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0209.png",
+      "destination": "assets/commute/plant-atlas/page-0209.png",
+      "recipe": "byte-identical copy",
+      "bytes": 170321,
+      "sourceSha256": "2748859f07b8a7e3ccc63fc1d87da3b44c63bac2c9f8795519927ab595e9e741",
+      "sha256": "2748859f07b8a7e3ccc63fc1d87da3b44c63bac2c9f8795519927ab595e9e741"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0210.png",
+      "destination": "assets/commute/plant-atlas/page-0210.png",
+      "recipe": "byte-identical copy",
+      "bytes": 204256,
+      "sourceSha256": "b27ce53cbb714a1ba387f661778b41a36186196cb10c5c974d73ea0a4b400f36",
+      "sha256": "b27ce53cbb714a1ba387f661778b41a36186196cb10c5c974d73ea0a4b400f36"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0211.png",
+      "destination": "assets/commute/plant-atlas/page-0211.png",
+      "recipe": "byte-identical copy",
+      "bytes": 155535,
+      "sourceSha256": "196335ed3e58ef2e5dc45aed4271493af7858d09739d340a232e4eeb89e336bd",
+      "sha256": "196335ed3e58ef2e5dc45aed4271493af7858d09739d340a232e4eeb89e336bd"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0212.png",
+      "destination": "assets/commute/plant-atlas/page-0212.png",
+      "recipe": "byte-identical copy",
+      "bytes": 197645,
+      "sourceSha256": "574deb58fdcaf2a9bfed730dc224e27824781ceb340326954c5debcdbfa5ba8d",
+      "sha256": "574deb58fdcaf2a9bfed730dc224e27824781ceb340326954c5debcdbfa5ba8d"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0213.png",
+      "destination": "assets/commute/plant-atlas/page-0213.png",
+      "recipe": "byte-identical copy",
+      "bytes": 151851,
+      "sourceSha256": "22ebc937ba75b5a108609e5baf8f0ce57419cd48ef538a039ff1471b0045a38a",
+      "sha256": "22ebc937ba75b5a108609e5baf8f0ce57419cd48ef538a039ff1471b0045a38a"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0214.png",
+      "destination": "assets/commute/plant-atlas/page-0214.png",
+      "recipe": "byte-identical copy",
+      "bytes": 99027,
+      "sourceSha256": "8fca1ca3e66df270eba0b093fd2379029f3c46b8cc08d152826389a44c7cb032",
+      "sha256": "8fca1ca3e66df270eba0b093fd2379029f3c46b8cc08d152826389a44c7cb032"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0215.png",
+      "destination": "assets/commute/plant-atlas/page-0215.png",
+      "recipe": "byte-identical copy",
+      "bytes": 112137,
+      "sourceSha256": "e8c0b1bb7ebedbf99d43eed814f1a4d48a160cc096f39886412c7f8e02abacf3",
+      "sha256": "e8c0b1bb7ebedbf99d43eed814f1a4d48a160cc096f39886412c7f8e02abacf3"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0216.png",
+      "destination": "assets/commute/plant-atlas/page-0216.png",
+      "recipe": "byte-identical copy",
+      "bytes": 55196,
+      "sourceSha256": "1b96ad34c15f250e492a4dd0397be2c757263fe10522a24633d1a60b7f8d897d",
+      "sha256": "1b96ad34c15f250e492a4dd0397be2c757263fe10522a24633d1a60b7f8d897d"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0217.png",
+      "destination": "assets/commute/plant-atlas/page-0217.png",
+      "recipe": "byte-identical copy",
+      "bytes": 85141,
+      "sourceSha256": "33f6f1bde29ea7c330a7158637c8c23c5e28a9d60066565a0956b3987475eeef",
+      "sha256": "33f6f1bde29ea7c330a7158637c8c23c5e28a9d60066565a0956b3987475eeef"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0218.png",
+      "destination": "assets/commute/plant-atlas/page-0218.png",
+      "recipe": "byte-identical copy",
+      "bytes": 132888,
+      "sourceSha256": "fbe7792fcfb4caf666e40c6b4acfb7038f4d95b872924cc854e9de5b1b7c08c5",
+      "sha256": "fbe7792fcfb4caf666e40c6b4acfb7038f4d95b872924cc854e9de5b1b7c08c5"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0219.png",
+      "destination": "assets/commute/plant-atlas/page-0219.png",
+      "recipe": "byte-identical copy",
+      "bytes": 130433,
+      "sourceSha256": "d5fb8ea14a05e725589bbb2c121552743e76a6812398b9cc913c115c6862c9bc",
+      "sha256": "d5fb8ea14a05e725589bbb2c121552743e76a6812398b9cc913c115c6862c9bc"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0220.png",
+      "destination": "assets/commute/plant-atlas/page-0220.png",
+      "recipe": "byte-identical copy",
+      "bytes": 167947,
+      "sourceSha256": "cddf4adf72a70cda75d4c83c2506d076e629d9b52d864e96c53b66286d88d14b",
+      "sha256": "cddf4adf72a70cda75d4c83c2506d076e629d9b52d864e96c53b66286d88d14b"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0221.png",
+      "destination": "assets/commute/plant-atlas/page-0221.png",
+      "recipe": "byte-identical copy",
+      "bytes": 98567,
+      "sourceSha256": "06d5b2c2323b0213b6f4fa299252c2ea662069d2484ac145562caa9931b2d256",
+      "sha256": "06d5b2c2323b0213b6f4fa299252c2ea662069d2484ac145562caa9931b2d256"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0222.png",
+      "destination": "assets/commute/plant-atlas/page-0222.png",
+      "recipe": "byte-identical copy",
+      "bytes": 188548,
+      "sourceSha256": "c313f15295f2424bac4cfd575b11c64d8e0344fc82cec6eb6347b9d46887a16c",
+      "sha256": "c313f15295f2424bac4cfd575b11c64d8e0344fc82cec6eb6347b9d46887a16c"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0223.png",
+      "destination": "assets/commute/plant-atlas/page-0223.png",
+      "recipe": "byte-identical copy",
+      "bytes": 151597,
+      "sourceSha256": "4883fc0e1156e7c1c2645759fb70fad560420314966915ad23b0e032e2f1cadd",
+      "sha256": "4883fc0e1156e7c1c2645759fb70fad560420314966915ad23b0e032e2f1cadd"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0224.png",
+      "destination": "assets/commute/plant-atlas/page-0224.png",
+      "recipe": "byte-identical copy",
+      "bytes": 135438,
+      "sourceSha256": "bfc6ea8ae9b78114a7bf8d013bc8dbce9fe1518fc013ef18cb2066a1e9bba669",
+      "sha256": "bfc6ea8ae9b78114a7bf8d013bc8dbce9fe1518fc013ef18cb2066a1e9bba669"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0225.png",
+      "destination": "assets/commute/plant-atlas/page-0225.png",
+      "recipe": "byte-identical copy",
+      "bytes": 116418,
+      "sourceSha256": "957f664866b2c879e116c30926dfb764a3df512d8ca193e5f6d1e1d2c7defe66",
+      "sha256": "957f664866b2c879e116c30926dfb764a3df512d8ca193e5f6d1e1d2c7defe66"
+    },
+    {
+      "source": "assets/sprites/runtime-atlas/page-0226.png",
+      "destination": "assets/commute/plant-atlas/page-0226.png",
+      "recipe": "byte-identical copy",
+      "bytes": 169286,
+      "sourceSha256": "a6c67f3c1b93872b6fbe07d31aeabd748fc3be738d00f6a9343651be3586cf37",
+      "sha256": "a6c67f3c1b93872b6fbe07d31aeabd748fc3be738d00f6a9343651be3586cf37"
+    },
+    {
+      "source": "assets/sprites/environmental/cabin-hearth-remains.png",
+      "destination": "assets/commute/scenery/environmental/cabin-hearth-remains.png",
+      "recipe": "byte-identical copy",
+      "bytes": 77914,
+      "sourceSha256": "fed43102d8c810d157edd2c816e5c1486b6909061f6476bae5394f0d5d9cfcc5",
+      "sha256": "fed43102d8c810d157edd2c816e5c1486b6909061f6476bae5394f0d5d9cfcc5"
+    },
+    {
+      "source": "assets/sprites/environmental/cabin-partial-ruin.png",
+      "destination": "assets/commute/scenery/environmental/cabin-partial-ruin.png",
+      "recipe": "byte-identical copy",
+      "bytes": 94673,
+      "sourceSha256": "b1a8992ad21c827dea3cba2b192dfc0beeb95d10348e6245e00bba8b06f5ddf4",
+      "sha256": "b1a8992ad21c827dea3cba2b192dfc0beeb95d10348e6245e00bba8b06f5ddf4"
+    },
+    {
+      "source": "assets/sprites/environmental/cabin-shell-ruin.png",
+      "destination": "assets/commute/scenery/environmental/cabin-shell-ruin.png",
+      "recipe": "byte-identical copy",
+      "bytes": 93535,
+      "sourceSha256": "06d69956a1eef9a35482fd14a42a72849ce84c3eccc1f187c0a27ce003240f95",
+      "sha256": "06d69956a1eef9a35482fd14a42a72849ce84c3eccc1f187c0a27ce003240f95"
+    },
+    {
+      "source": "assets/sprites/environmental/camp-collapsed-tent.png",
+      "destination": "assets/commute/scenery/environmental/camp-collapsed-tent.png",
+      "recipe": "byte-identical copy",
+      "bytes": 84455,
+      "sourceSha256": "042a12355e67d150bd9ebb78627616a8e21fdeb516a27e7697b74d8ac84ffccb",
+      "sha256": "042a12355e67d150bd9ebb78627616a8e21fdeb516a27e7697b74d8ac84ffccb"
+    },
+    {
+      "source": "assets/sprites/environmental/camp-fire-ring.png",
+      "destination": "assets/commute/scenery/environmental/camp-fire-ring.png",
+      "recipe": "byte-identical copy",
+      "bytes": 65449,
+      "sourceSha256": "3c62de4d3ebf896c8e3570bb761c18af97076512ea37d15074cc77e7bdd8642c",
+      "sha256": "3c62de4d3ebf896c8e3570bb761c18af97076512ea37d15074cc77e7bdd8642c"
+    },
+    {
+      "source": "assets/sprites/environmental/camp-lean-to.png",
+      "destination": "assets/commute/scenery/environmental/camp-lean-to.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61076,
+      "sourceSha256": "20f532d922fe2d5562d1cfd2464dd5c7a5b3c94663ae0e41f0e6985295f6dcdb",
+      "sha256": "20f532d922fe2d5562d1cfd2464dd5c7a5b3c94663ae0e41f0e6985295f6dcdb"
+    },
+    {
+      "source": "assets/sprites/environmental/crayfish-trap.png",
+      "destination": "assets/commute/scenery/environmental/crayfish-trap.png",
+      "recipe": "byte-identical copy",
+      "bytes": 94504,
+      "sourceSha256": "8a40441a37c32411cbac8ee54ad3159d0b85761dd73099407b55a65121185612",
+      "sha256": "8a40441a37c32411cbac8ee54ad3159d0b85761dd73099407b55a65121185612"
+    },
+    {
+      "source": "assets/sprites/environmental/eastern-cottontail-nest.png",
+      "destination": "assets/commute/scenery/environmental/eastern-cottontail-nest.png",
+      "recipe": "byte-identical copy",
+      "bytes": 74102,
+      "sourceSha256": "04b710eda1d44c07081eb6aea44df8fe5a3fc1daae86b465352ad7d6f670208d",
+      "sha256": "04b710eda1d44c07081eb6aea44df8fe5a3fc1daae86b465352ad7d6f670208d"
+    },
+    {
+      "source": "assets/sprites/environmental/fishing-net.png",
+      "destination": "assets/commute/scenery/environmental/fishing-net.png",
+      "recipe": "byte-identical copy",
+      "bytes": 73242,
+      "sourceSha256": "51d730b9b42187373d107348ec467bf2428fc721c9968b5a9fe6ef0d8bfe00c9",
+      "sha256": "51d730b9b42187373d107348ec467bf2428fc721c9968b5a9fe6ef0d8bfe00c9"
+    },
+    {
+      "source": "assets/sprites/environmental/fishing-pole.png",
+      "destination": "assets/commute/scenery/environmental/fishing-pole.png",
+      "recipe": "byte-identical copy",
+      "bytes": 21303,
+      "sourceSha256": "a9a3304d003348b919feb197d5ec057bf5cbe9024ed79eec5ababfcd4cc314dc",
+      "sha256": "a9a3304d003348b919feb197d5ec057bf5cbe9024ed79eec5ababfcd4cc314dc"
+    },
+    {
+      "source": "assets/sprites/environmental/gray-fox-den.png",
+      "destination": "assets/commute/scenery/environmental/gray-fox-den.png",
+      "recipe": "byte-identical copy",
+      "bytes": 69032,
+      "sourceSha256": "02cce81674b49784e1a33f3fe7f9fd95f2d0484dc72d7598796965cb5b1a3a56",
+      "sha256": "02cce81674b49784e1a33f3fe7f9fd95f2d0484dc72d7598796965cb5b1a3a56"
+    },
+    {
+      "source": "assets/sprites/environmental/import-manifest-v1.json",
+      "destination": "assets/commute/scenery/environmental/import-manifest-v1.json",
+      "recipe": "byte-identical copy",
+      "bytes": 12015,
+      "sourceSha256": "c67aab4df062d998ba4c210140d8e8d61ee91269b5b87accbb01099b69b9ad26",
+      "sha256": "c67aab4df062d998ba4c210140d8e8d61ee91269b5b87accbb01099b69b9ad26"
+    },
+    {
+      "source": "assets/sprites/environmental/long-tailed-weasel-den.png",
+      "destination": "assets/commute/scenery/environmental/long-tailed-weasel-den.png",
+      "recipe": "byte-identical copy",
+      "bytes": 48216,
+      "sourceSha256": "5ee0230c2372789f551318f63070e203ef3c4da5360e348aedf18abdd2b82ad9",
+      "sha256": "5ee0230c2372789f551318f63070e203ef3c4da5360e348aedf18abdd2b82ad9"
+    },
+    {
+      "source": "assets/sprites/environmental/red-shouldered-hawk-nest.png",
+      "destination": "assets/commute/scenery/environmental/red-shouldered-hawk-nest.png",
+      "recipe": "byte-identical copy",
+      "bytes": 88084,
+      "sourceSha256": "c925fcc4b90a6279c41b9b91bd3ad5069f5fb45b859e1a4d5b03335bf9da5ac4",
+      "sha256": "c925fcc4b90a6279c41b9b91bd3ad5069f5fb45b859e1a4d5b03335bf9da5ac4"
+    },
+    {
+      "source": "assets/sprites/environmental/skiff-collapsed.png",
+      "destination": "assets/commute/scenery/environmental/skiff-collapsed.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61286,
+      "sourceSha256": "9bfb36675a5ec3a2d67460bc7f3d0ac20e2f3ce5a02ad77563b2e883ba57a776",
+      "sha256": "9bfb36675a5ec3a2d67460bc7f3d0ac20e2f3ce5a02ad77563b2e883ba57a776"
+    },
+    {
+      "source": "assets/sprites/environmental/skiff-intact.png",
+      "destination": "assets/commute/scenery/environmental/skiff-intact.png",
+      "recipe": "byte-identical copy",
+      "bytes": 76120,
+      "sourceSha256": "1380d99d2c59e9534a17b6d34647e4df4d7e7917828bd045c2866c939b04e88e",
+      "sha256": "1380d99d2c59e9534a17b6d34647e4df4d7e7917828bd045c2866c939b04e88e"
+    },
+    {
+      "source": "assets/sprites/environmental/skiff-split.png",
+      "destination": "assets/commute/scenery/environmental/skiff-split.png",
+      "recipe": "byte-identical copy",
+      "bytes": 68961,
+      "sourceSha256": "a79b4d7351f7695e2c908bae8315c35333c3285108bf4cfcb9dbd0bb72abc226",
+      "sha256": "a79b4d7351f7695e2c908bae8315c35333c3285108bf4cfcb9dbd0bb72abc226"
+    },
+    {
+      "source": "assets/sprites/environmental/white-tailed-deer-bed.png",
+      "destination": "assets/commute/scenery/environmental/white-tailed-deer-bed.png",
+      "recipe": "byte-identical copy",
+      "bytes": 81218,
+      "sourceSha256": "31d408be77667caec28d9fbcfcbc559ef825a18e5ec672b59e31a22913749493",
+      "sha256": "31d408be77667caec28d9fbcfcbc559ef825a18e5ec672b59e31a22913749493"
+    },
+    {
+      "source": "assets/terrain/autumn-leaves-v1.png",
+      "destination": "assets/commute/terrain/source/autumn-leaves-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 3962757,
+      "sourceSha256": "eb7bb78acb369c80121eb0d53dc13960ad3aefd9dee751dff439dbea1ed9eb08",
+      "sha256": "eb7bb78acb369c80121eb0d53dc13960ad3aefd9dee751dff439dbea1ed9eb08"
+    },
+    {
+      "source": "assets/terrain/bark-fragments-v1.png",
+      "destination": "assets/commute/terrain/source/bark-fragments-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4165637,
+      "sourceSha256": "eb35a3b16d224a418a6ba3852b33dca52ded899583a4e30cb4052f53df316a9a",
+      "sha256": "eb35a3b16d224a418a6ba3852b33dca52ded899583a4e30cb4052f53df316a9a"
+    },
+    {
+      "source": "assets/terrain/biome-prompts-v1.json",
+      "destination": "assets/commute/terrain/source/biome-prompts-v1.json",
+      "recipe": "byte-identical copy",
+      "bytes": 7888,
+      "sourceSha256": "9ebe69e4233032a92fea0f6ec667c4ca0042d91eac1e0db0b3ef54f2aed86ce8",
+      "sha256": "9ebe69e4233032a92fea0f6ec667c4ca0042d91eac1e0db0b3ef54f2aed86ce8"
+    },
+    {
+      "source": "assets/terrain/biome-prompts-v2.json",
+      "destination": "assets/commute/terrain/source/biome-prompts-v2.json",
+      "recipe": "byte-identical copy",
+      "bytes": 5501,
+      "sourceSha256": "bd2d6eca95f4d86a74384ef656f4cca82ed9f5d8b839f20472839493fd2d6a67",
+      "sha256": "bd2d6eca95f4d86a74384ef656f4cca82ed9f5d8b839f20472839493fd2d6a67"
+    },
+    {
+      "source": "assets/terrain/damp-soil-v1.png",
+      "destination": "assets/commute/terrain/source/damp-soil-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 3723240,
+      "sourceSha256": "268cb3f3f2125a7ec7d4b76b5e3749d9f45e814f12fa5284e2ec43c87fe3b053",
+      "sha256": "268cb3f3f2125a7ec7d4b76b5e3749d9f45e814f12fa5284e2ec43c87fe3b053"
+    },
+    {
+      "source": "assets/terrain/dirt-v1.png",
+      "destination": "assets/commute/terrain/source/dirt-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4314341,
+      "sourceSha256": "8ab99bfe109be07040594fdee9c9aab4afc64dacba48f00c0dc76ab6d3287093",
+      "sha256": "8ab99bfe109be07040594fdee9c9aab4afc64dacba48f00c0dc76ab6d3287093"
+    },
+    {
+      "source": "assets/terrain/dry-grass-v1.png",
+      "destination": "assets/commute/terrain/source/dry-grass-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4615772,
+      "sourceSha256": "c4d80bfa1fc516c0b697f1357c78a273932d94ac1123f8f486f9b155d95c14ea",
+      "sha256": "c4d80bfa1fc516c0b697f1357c78a273932d94ac1123f8f486f9b155d95c14ea"
+    },
+    {
+      "source": "assets/terrain/grass-v1.png",
+      "destination": "assets/commute/terrain/source/grass-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 3948748,
+      "sourceSha256": "f992eab5ef08f6d8b68d16e03a1ab8b3637a5ed5c58f5491ad0cd452ccf11182",
+      "sha256": "f992eab5ef08f6d8b68d16e03a1ab8b3637a5ed5c58f5491ad0cd452ccf11182"
+    },
+    {
+      "source": "assets/terrain/gravel-v1.png",
+      "destination": "assets/commute/terrain/source/gravel-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4242922,
+      "sourceSha256": "448342b7aa716ab794725101cc15d65b0c29b349c577c49e0edd634a738ed1e1",
+      "sha256": "448342b7aa716ab794725101cc15d65b0c29b349c577c49e0edd634a738ed1e1"
+    },
+    {
+      "source": "assets/terrain/leaf-mulch-v1.png",
+      "destination": "assets/commute/terrain/source/leaf-mulch-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4120575,
+      "sourceSha256": "f6c0ba63260eb8e6b00296970e847f5920dd93ed342878be37fce233b4577e01",
+      "sha256": "f6c0ba63260eb8e6b00296970e847f5920dd93ed342878be37fce233b4577e01"
+    },
+    {
+      "source": "assets/terrain/leaves-v1.png",
+      "destination": "assets/commute/terrain/source/leaves-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4125213,
+      "sourceSha256": "b7b0b0bc5f1c55ba33b1a7c6d9bc65f9545858c35e33bf5fff409d3d397b21e3",
+      "sha256": "b7b0b0bc5f1c55ba33b1a7c6d9bc65f9545858c35e33bf5fff409d3d397b21e3"
+    },
+    {
+      "source": "assets/terrain/moss-v1.png",
+      "destination": "assets/commute/terrain/source/moss-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4022887,
+      "sourceSha256": "71926a86c1142626e8e1a1fa3317c00cc6adcf448526a1b5bf4234a7e7996144",
+      "sha256": "71926a86c1142626e8e1a1fa3317c00cc6adcf448526a1b5bf4234a7e7996144"
+    },
+    {
+      "source": "assets/terrain/pine-needles-v1.png",
+      "destination": "assets/commute/terrain/source/pine-needles-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4407136,
+      "sourceSha256": "d1b6db8468030e91af9a3f7bfda91ce7912ac6a464a54885dae9978ae06b88c5",
+      "sha256": "d1b6db8468030e91af9a3f7bfda91ce7912ac6a464a54885dae9978ae06b88c5"
+    },
+    {
+      "source": "assets/terrain/prompts.json",
+      "destination": "assets/commute/terrain/source/prompts.json",
+      "recipe": "byte-identical copy",
+      "bytes": 3030,
+      "sourceSha256": "d06116ac561c8ff3b1f05b0fc2ddabf15cbdcf552c508572352a74977901b079",
+      "sha256": "d06116ac561c8ff3b1f05b0fc2ddabf15cbdcf552c508572352a74977901b079"
+    },
+    {
+      "source": "assets/terrain/rock-outcrop-v1.png",
+      "destination": "assets/commute/terrain/source/rock-outcrop-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4156436,
+      "sourceSha256": "19434fc401896ba7f0b1d31adcd12abd4d7ab70767a2b9083c454db633aa0c6c",
+      "sha256": "19434fc401896ba7f0b1d31adcd12abd4d7ab70767a2b9083c454db633aa0c6c"
+    },
+    {
+      "source": "assets/terrain/shale-scree-v1.png",
+      "destination": "assets/commute/terrain/source/shale-scree-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4468427,
+      "sourceSha256": "13a04d98bae85946bf73df74507c204565daf1a6356bd952d3efab37331110ab",
+      "sha256": "13a04d98bae85946bf73df74507c204565daf1a6356bd952d3efab37331110ab"
+    },
+    {
+      "source": "assets/terrain/shore-sand-v1.png",
+      "destination": "assets/commute/terrain/source/shore-sand-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4180510,
+      "sourceSha256": "e6dfaf9790334286ce411ca377d7b3d41463f3e5e2436b9e0a461aca06d7dcff",
+      "sha256": "e6dfaf9790334286ce411ca377d7b3d41463f3e5e2436b9e0a461aca06d7dcff"
+    },
+    {
+      "source": "assets/terrain/twig-litter-v1.png",
+      "destination": "assets/commute/terrain/source/twig-litter-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4212912,
+      "sourceSha256": "0b2600c5cd874983964d4808b2407c4c4092e8bdbc470dbb87257fd375bdda28",
+      "sha256": "0b2600c5cd874983964d4808b2407c4c4092e8bdbc470dbb87257fd375bdda28"
+    },
+    {
+      "source": "assets/terrain/wild-grass-v1.png",
+      "destination": "assets/commute/terrain/source/wild-grass-v1.png",
+      "recipe": "byte-identical copy",
+      "bytes": 4392827,
+      "sourceSha256": "6ea1a6ad65b21fc058452d76e724be8fdd22f935dda639396c4f89d5e0d05c05",
+      "sha256": "6ea1a6ad65b21fc058452d76e724be8fdd22f935dda639396c4f89d5e0d05c05"
+    },
+    {
+      "source": "assets/sprites/leaf-litter-v2.png",
+      "destination": "assets/commute/scenery/leaf-litter-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 37478,
+      "sourceSha256": "ec0b03cb2e3b3a862a3a62010402f3735637345537cc4d9ae3ceb83570965a0e",
+      "sha256": "ec0b03cb2e3b3a862a3a62010402f3735637345537cc4d9ae3ceb83570965a0e"
+    },
+    {
+      "source": "assets/sprites/leaf-litter.png",
+      "destination": "assets/commute/scenery/leaf-litter.png",
+      "recipe": "byte-identical copy",
+      "bytes": 48455,
+      "sourceSha256": "cbfd8f3a9f97ae981167997d8779ce6e9d874967da3f1e4718ec20c7da76ff71",
+      "sha256": "cbfd8f3a9f97ae981167997d8779ce6e9d874967da3f1e4718ec20c7da76ff71"
+    },
+    {
+      "source": "assets/sprites/log-v2.png",
+      "destination": "assets/commute/scenery/log-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 38220,
+      "sourceSha256": "6184b3bfe0158b270bbf47500c96f8caa5d6fb12eebd7edb1213f07b0efbef27",
+      "sha256": "6184b3bfe0158b270bbf47500c96f8caa5d6fb12eebd7edb1213f07b0efbef27"
+    },
+    {
+      "source": "assets/sprites/log-v3.png",
+      "destination": "assets/commute/scenery/log-v3.png",
+      "recipe": "byte-identical copy",
+      "bytes": 61493,
+      "sourceSha256": "f9255ff023ff890cf466496aa5834ad8006abc04509547315d72b009ea45aaad",
+      "sha256": "f9255ff023ff890cf466496aa5834ad8006abc04509547315d72b009ea45aaad"
+    },
+    {
+      "source": "assets/sprites/log-v4.png",
+      "destination": "assets/commute/scenery/log-v4.png",
+      "recipe": "byte-identical copy",
+      "bytes": 68149,
+      "sourceSha256": "84cd9568b9667fd3cbc6c4d8cbd33a241a2398a77437287fa7888de33819649d",
+      "sha256": "84cd9568b9667fd3cbc6c4d8cbd33a241a2398a77437287fa7888de33819649d"
+    },
+    {
+      "source": "assets/sprites/log-v5.png",
+      "destination": "assets/commute/scenery/log-v5.png",
+      "recipe": "byte-identical copy",
+      "bytes": 44492,
+      "sourceSha256": "716a4700b5f421cd821f450bab0eec02437dab3aa62116fad90127bb3cc28418",
+      "sha256": "716a4700b5f421cd821f450bab0eec02437dab3aa62116fad90127bb3cc28418"
+    },
+    {
+      "source": "assets/sprites/log.png",
+      "destination": "assets/commute/scenery/log.png",
+      "recipe": "byte-identical copy",
+      "bytes": 58287,
+      "sourceSha256": "1ed5d2a7d648a152e8fab1db3e894816a46caabf7ea531f8d828042e2aa80c0d",
+      "sha256": "1ed5d2a7d648a152e8fab1db3e894816a46caabf7ea531f8d828042e2aa80c0d"
+    },
+    {
+      "source": "assets/sprites/rock-v10.png",
+      "destination": "assets/commute/scenery/rock-v10.png",
+      "recipe": "byte-identical copy",
+      "bytes": 98428,
+      "sourceSha256": "b573169aa97ccdb37267de28b1f755703c146eb9547fccefc1dd777dee07c158",
+      "sha256": "b573169aa97ccdb37267de28b1f755703c146eb9547fccefc1dd777dee07c158"
+    },
+    {
+      "source": "assets/sprites/rock-v11.png",
+      "destination": "assets/commute/scenery/rock-v11.png",
+      "recipe": "byte-identical copy",
+      "bytes": 91869,
+      "sourceSha256": "7f0f8b4dab8320b8ce42483cc608e2235abde63264ecad107adf9520f5b9fed5",
+      "sha256": "7f0f8b4dab8320b8ce42483cc608e2235abde63264ecad107adf9520f5b9fed5"
+    },
+    {
+      "source": "assets/sprites/rock-v2.png",
+      "destination": "assets/commute/scenery/rock-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 62407,
+      "sourceSha256": "984ad40cc7db4ddc7142d34aaabc6ee0d41c54f1cec79b60fba2745179cb9c6f",
+      "sha256": "984ad40cc7db4ddc7142d34aaabc6ee0d41c54f1cec79b60fba2745179cb9c6f"
+    },
+    {
+      "source": "assets/sprites/rock-v3.png",
+      "destination": "assets/commute/scenery/rock-v3.png",
+      "recipe": "byte-identical copy",
+      "bytes": 101048,
+      "sourceSha256": "9922052c84849c888cd7fda415a54c96ee20ec5740affdcb50fd09147ed7ef7b",
+      "sha256": "9922052c84849c888cd7fda415a54c96ee20ec5740affdcb50fd09147ed7ef7b"
+    },
+    {
+      "source": "assets/sprites/rock-v4.png",
+      "destination": "assets/commute/scenery/rock-v4.png",
+      "recipe": "byte-identical copy",
+      "bytes": 67102,
+      "sourceSha256": "043f140dd20ec5856d0eedc3c449a8bf39939ae234236d21fc73912bc2cc2b64",
+      "sha256": "043f140dd20ec5856d0eedc3c449a8bf39939ae234236d21fc73912bc2cc2b64"
+    },
+    {
+      "source": "assets/sprites/rock-v5.png",
+      "destination": "assets/commute/scenery/rock-v5.png",
+      "recipe": "byte-identical copy",
+      "bytes": 100508,
+      "sourceSha256": "b1cf1ece69749952c7e24abc570fb3ef7a38a349a635f188f483e32c8118929a",
+      "sha256": "b1cf1ece69749952c7e24abc570fb3ef7a38a349a635f188f483e32c8118929a"
+    },
+    {
+      "source": "assets/sprites/rock-v6.png",
+      "destination": "assets/commute/scenery/rock-v6.png",
+      "recipe": "byte-identical copy",
+      "bytes": 101656,
+      "sourceSha256": "259284d67858051d8909d794df12670ac357ddc7382ce9531348932b603f9105",
+      "sha256": "259284d67858051d8909d794df12670ac357ddc7382ce9531348932b603f9105"
+    },
+    {
+      "source": "assets/sprites/rock-v7.png",
+      "destination": "assets/commute/scenery/rock-v7.png",
+      "recipe": "byte-identical copy",
+      "bytes": 83063,
+      "sourceSha256": "bba9c0c06f258d3c92f000b0c1073debd98b376c0f7a9b711df33a415047252e",
+      "sha256": "bba9c0c06f258d3c92f000b0c1073debd98b376c0f7a9b711df33a415047252e"
+    },
+    {
+      "source": "assets/sprites/rock-v8.png",
+      "destination": "assets/commute/scenery/rock-v8.png",
+      "recipe": "byte-identical copy",
+      "bytes": 70414,
+      "sourceSha256": "fccd3fe0a41a3474a4863712681055f1cf043482b3cdaeda4d8ccdd3ac515d60",
+      "sha256": "fccd3fe0a41a3474a4863712681055f1cf043482b3cdaeda4d8ccdd3ac515d60"
+    },
+    {
+      "source": "assets/sprites/rock-v9.png",
+      "destination": "assets/commute/scenery/rock-v9.png",
+      "recipe": "byte-identical copy",
+      "bytes": 98190,
+      "sourceSha256": "12b0edeaa942359ba079cba420a39bf3261166647e4804488ef3b8e19c390467",
+      "sha256": "12b0edeaa942359ba079cba420a39bf3261166647e4804488ef3b8e19c390467"
+    },
+    {
+      "source": "assets/sprites/rock.png",
+      "destination": "assets/commute/scenery/rock.png",
+      "recipe": "byte-identical copy",
+      "bytes": 89717,
+      "sourceSha256": "60b246f68b0a89eabccba046ce0ee3c8842d6293d2e730d6369a6f6f479cc641",
+      "sha256": "60b246f68b0a89eabccba046ce0ee3c8842d6293d2e730d6369a6f6f479cc641"
+    },
+    {
+      "source": "assets/sprites/stone-clutter.png",
+      "destination": "assets/commute/scenery/stone-clutter.png",
+      "recipe": "byte-identical copy",
+      "bytes": 53582,
+      "sourceSha256": "5091976a83305611ae577b39e48ab585541801109fad95c94781c2125c6aa51e",
+      "sha256": "5091976a83305611ae577b39e48ab585541801109fad95c94781c2125c6aa51e"
+    },
+    {
+      "source": "assets/sprites/twig-v2.png",
+      "destination": "assets/commute/scenery/twig-v2.png",
+      "recipe": "byte-identical copy",
+      "bytes": 29049,
+      "sourceSha256": "537a52dab5268ceb5a63bce977277ebce64fa303a1b28cc6fb5cfa083d879dc5",
+      "sha256": "537a52dab5268ceb5a63bce977277ebce64fa303a1b28cc6fb5cfa083d879dc5"
+    },
+    {
+      "source": "assets/sprites/twig.png",
+      "destination": "assets/commute/scenery/twig.png",
+      "recipe": "byte-identical copy",
+      "bytes": 27039,
+      "sourceSha256": "64fbfabf63944bfbfefee3426cf0c11428808cfc7c4ce05500d8443951348f65",
+      "sha256": "64fbfabf63944bfbfefee3426cf0c11428808cfc7c4ce05500d8443951348f65"
+    },
+    {
+      "source": "src/plant_sprites.lua",
+      "destination": "src/commute/vendor/plant_sprites.lua",
+      "recipe": "byte-identical copy; commute namespace and asset paths",
+      "bytes": 27328,
+      "sourceSha256": "95f59624b5e242ef24d4ed3072042cf890df8413ecfd42111416fbc454885bf8",
+      "sha256": "a3f18057966349fb9f3f45009e6794584c516db3387a2cdf15c96ffc42f6cb5f"
+    },
+    {
+      "source": "src/plant_variants.lua",
+      "destination": "src/commute/vendor/plant_variants.lua",
+      "recipe": "byte-identical copy; commute namespace and asset paths",
+      "bytes": 835,
+      "sourceSha256": "c961ada1df1483073b308898b1f5aafedefa5e40a2894597703acb740abc2da1",
+      "sha256": "a04b1059c627e95a0532fcffb4e8818932e197a17f5d8bbd079fc678e8c7483a"
+    },
+    {
+      "source": "src/plant_atlas_layout.lua",
+      "destination": "src/commute/vendor/plant_atlas_layout.lua",
+      "recipe": "byte-identical copy; commute namespace and asset paths",
+      "bytes": 30861,
+      "sourceSha256": "217c644f976cd4aae9023443440fd85de7535cb80e68343a248c3b60e154f5d7",
+      "sha256": "181d9f25d714a3c589a999730b8d82a13073ba91ee7fb69581d0ceb70e143e93"
+    },
+    {
+      "source": "src/plant_motion.lua",
+      "destination": "src/commute/vendor/plant_motion.lua",
+      "recipe": "byte-identical copy; commute namespace and asset paths",
+      "bytes": 4490,
+      "sourceSha256": "38187ae6953ba9ac6a4a6144920509aac75c9c4626e444babf54ab63e2263578",
+      "sha256": "022d5dbd83603936837c2fb52a505033b45eb7e7173e9d279802cb65a9386018"
+    },
+    {
+      "source": "src/lifecycle.lua",
+      "destination": "src/commute/vendor/lifecycle.lua",
+      "recipe": "byte-identical copy; commute namespace and asset paths",
+      "bytes": 4006,
+      "sourceSha256": "278a890e07adba75b6bfbae3a208e2a51bf9bcfcfa22a19559de3e30e8275aa6",
+      "sha256": "82fb9326c9884bdd7c38f19d6d1f6af9fbb0323f56f9bae195b9a98deb2f8a50"
+    },
+    {
+      "source": "src/flora.lua",
+      "destination": "src/commute/vendor/flora.lua",
+      "recipe": "plant catalog, dormancy, appearance and visual functions only; commute namespace and asset paths",
+      "bytes": 9617,
+      "sourceSha256": "84603e324dce345308869028edf7351f5ec22b1f1697d25332b584f0dc9a9e2b",
+      "sha256": "4543c4dfb7fc6d2eee72b03770dc1e1f012e6fb9c92f5b1e5804ee7473b58968"
+    },
+    {
+      "source": "src/streamed_world.lua",
+      "destination": "src/commute/vendor/plant_candidates.lua",
+      "recipe": "five candidate methods, chance tables and blocker radii only; commute namespace and asset paths",
+      "bytes": 8887,
+      "sourceSha256": "c5d6e69df82ceade9d9f59f5501225e1053aba5dcf84b8db48a307e6cfa6b401",
+      "sha256": "eae06c3848671fb928dbc0453e9f54b3ad50242101d73f4386ab6859b26480c5"
+    }
+  ]
+}

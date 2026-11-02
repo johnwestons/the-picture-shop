@@ -6,7 +6,7 @@ function Component.install(Runtime)
     function Runtime.normalizeInput(payload)
         local valid, shapeError = Runtime.shape(payload, "input payload",
             { "sessionId", "sequence", "moveX", "moveY" },
-            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade" })
+            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade", "boost" })
         if not valid then return nil, shapeError end
         local taskAction, taskActionError = Runtime.normalizeTaskAction(
             payload.taskAction, "input.taskAction")
@@ -22,6 +22,8 @@ function Component.install(Runtime)
         local moveY
         moveY, fieldError = Runtime.numberInRange(payload.moveY, -1, 1, "input.moveY")
         if not moveY then return nil, fieldError end
+        local boost=payload.boost
+        if boost~=nil and type(boost)~='boolean' then return nil,'input.boost must be boolean' end
         local gameX,gameY=0,0
         if payload.gameX~=nil then
             gameX,fieldError=Runtime.numberInRange(payload.gameX,-1,1,"input.gameX")
@@ -82,7 +84,7 @@ function Component.install(Runtime)
         end
         return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,
             furColorway = furColorway, overallsColorway = overallsColorway,
-            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade }
+            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade,boost=boost }
     end
 
     function Runtime.normalizeSnapshot(payload)

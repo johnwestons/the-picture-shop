@@ -24,6 +24,7 @@ function Component.install(Runtime)
                         Runtime.lanDiscovery:stop()
                     end
                     Runtime.World.load(event.spawn)
+                    Runtime.World.player.homeResidentId=Runtime.multiplayer.residentId
                     Runtime.App.syncPlayerColorways()
                     Runtime.state.screen = "world"
                     Runtime.state.message = "Joined the host shop. Movement, doors, reception, office, cutter, wrapper, and Windmill controls are live."

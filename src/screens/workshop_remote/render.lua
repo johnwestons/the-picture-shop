@@ -242,6 +242,8 @@ function Component.install(Runtime)
             rect = Runtime.CUTTER_SERVICE_CONTROLS.technician
         elseif action == "set_weekly_technician" then
             rect = Runtime.CUTTER_SERVICE_CONTROLS.weekly
+        elseif action == "install_spare_blade" then
+            rect = Runtime.CUTTER_SERVICE_CONTROLS.installSpare
         elseif action == "service_advance" then
             rect = Runtime.CUTTER_SERVICE_CONTROLS.advance
         elseif action == "service_view" then

@@ -1,0 +1,174 @@
+{
+  "version": 7,
+  "status": "runtime_integrated_with_16_direction_atlases",
+  "sourceCanvas": [
+    1254,
+    1254
+  ],
+  "runtimeCanvas": [
+    1280,
+    1280
+  ],
+  "frameSize": 320,
+  "columns": 4,
+  "rows": 4,
+  "anchor": [
+    160,
+    260
+  ],
+  "directions": [
+    "north",
+    "north-northeast",
+    "northeast",
+    "east-northeast",
+    "east",
+    "east-southeast",
+    "southeast",
+    "south-southeast",
+    "south",
+    "south-southwest",
+    "southwest",
+    "west-southwest",
+    "west",
+    "west-northwest",
+    "northwest",
+    "north-northwest"
+  ],
+  "mirror": false,
+  "sourceAtlases": {
+    "parked": "assets/staging/commute-bike-v3/parked-16-source.png",
+    "mounted": "assets/staging/commute-bike-v3/mounted-16-source.png",
+    "aerodynamicTuck": "assets/staging/commute-bike-v3/mounted-aero-tuck-16-source.png",
+    "accelerationResponse": "assets/staging/commute-bike-v3/mounted-acceleration-response-16-source.png",
+    "gearShift": "assets/staging/commute-bike-v3/mounted-gear-shift-16-source.png",
+    "hardTurnLeft": "assets/staging/commute-bike-v3/mounted-hard-turn-left-16-source.png",
+    "hardTurnRight": "assets/staging/commute-bike-v3/mounted-hard-turn-right-16-source.png",
+    "impactBrace": "assets/staging/commute-bike-v3/mounted-impact-brace-16-source.png",
+    "aerodynamicTuckTransition": "assets/staging/commute-bike-v3/mounted-aero-tuck-transition-16-source.png",
+    "boostTransition": "assets/staging/commute-bike-v3/mounted-boost-transition-16-source.png",
+    "gearShiftTransition": "assets/staging/commute-bike-v3/mounted-gear-shift-transition-16-source.png",
+    "hardTurnLeftTransition": "assets/staging/commute-bike-v3/mounted-turn-left-transition-16-source.png",
+    "hardTurnRightTransition": "assets/staging/commute-bike-v3/mounted-turn-right-transition-16-source.png",
+    "impactTransition": "assets/staging/commute-bike-v3/mounted-impact-transition-16-source.png"
+  },
+  "runtimeAtlases": {
+    "parked": "assets/commute/bike/parked-16.png",
+    "mounted": "assets/commute/bike/mounted-16.png",
+    "aerodynamicTuck": "assets/commute/bike/mounted-aero-tuck-16.png",
+    "accelerationResponse": "assets/commute/bike/mounted-acceleration-response-16.png",
+    "gearShift": "assets/commute/bike/mounted-gear-shift-16.png",
+    "hardTurnLeft": "assets/commute/bike/mounted-hard-turn-left-16.png",
+    "hardTurnRight": "assets/commute/bike/mounted-hard-turn-right-16.png",
+    "impactBrace": "assets/commute/bike/mounted-impact-brace-16.png",
+    "aerodynamicTuckTransition": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
+    "boostTransition": "assets/commute/bike/mounted-boost-transition-16.png",
+    "gearShiftTransition": "assets/commute/bike/mounted-gear-shift-transition-16.png",
+    "hardTurnLeftTransition": "assets/commute/bike/mounted-turn-left-transition-16.png",
+    "hardTurnRightTransition": "assets/commute/bike/mounted-turn-right-transition-16.png",
+    "impactTransition": "assets/commute/bike/mounted-impact-transition-16.png"
+  },
+  "sha256": {
+    "parked-16-source.png": "99DEB2E7DFFF7223117EBE66657BF1EEE6BB4EF93593279260D057BCC6FFC675",
+    "mounted-16-source.png": "2550524F630D15A2EFEC5C7247E7D915FC4F31D4985E4B2C0FC4D718603EB410",
+    "mounted-aero-tuck-16-source.png": "BFDF0EE7372FF8126EBA941ACC75B512E632102B500CD09C458A48E990820B66",
+    "mounted-acceleration-response-16-source.png": "34E129E86359C4A9E2C37EBB3E4FB19D7DE184850430E360F3701D6BD021F0E0",
+    "mounted-gear-shift-16-source.png": "F29CFD00F0EE57F5A9F40D04F7B309C550F5E02CE0BB470E1D06065C4787F4C0",
+    "mounted-hard-turn-left-16-source.png": "990FF38A6C1EEF61E9EBE7B248613C6A933CBD3268EF1812322FF1F61C3D662D",
+    "mounted-hard-turn-right-16-source.png": "B2D2A04C30EF089F54821F15896014BC45EF57A5D2DBD3ECD6C3333AFB522833",
+    "mounted-impact-brace-16-source.png": "505ECAA02904510ADDBCD73A74D01DFB50FDAEBFADF6C49B01F9963DC23B7FEA",
+    "mounted-aero-tuck-transition-16-source.png": "7768F75627DF3BF118AD84F8B658F8162536E0D5D39A65A84E897884DE92033F",
+    "mounted-boost-transition-16-source.png": "A53CE8E5C0CD6902CC03A283E09776C460872961D2D6661610D382D54544A81B",
+    "mounted-gear-shift-transition-16-source.png": "1BB6622B014A0594E84CA48BF555F4276F1450BF7AA61B4DE515C0FB3C4F62C9",
+    "mounted-turn-left-transition-16-source.png": "568D812630DCEAF2FF601F67E2F86A4023EA3D4BFA23DBA5459F11A276F59E88",
+    "mounted-turn-right-transition-16-source.png": "AB21FF0E83FAFC770C7A73789DDE814DA82C4EADC799E2EB7C071B9B0B1A16C9",
+    "mounted-impact-transition-16-source.png": "A98A6AA44D3AEC95817B8E29E4ACFF61C10621A0B2FD8F10039FBCF43380C25E",
+    "parked-16.png": "55C70973A200B4794463D6524B2580E66B924374C84FC7AF7FB96CCCD1251466",
+    "mounted-16.png": "FCD32497BC7AA7E2BF1FD90B30C376E61C04E83B302CEEE9AFC4BF7F1C38B100",
+    "mounted-aero-tuck-16.png": "68A8137F07B55ECEDE3FE93D251495E92426D20619385A8165C2AA9E77235D7B",
+    "mounted-acceleration-response-16.png": "E495FAEC0E55EC0AF6873DE6A81076E751D1F9D60AB62068250DFC75923D4ADF",
+    "mounted-gear-shift-16.png": "9005E84692D153C5DB5F97A916415A9E2AE6BF6CFA6E454A14C5B6F5C887FCC4",
+    "mounted-hard-turn-left-16.png": "8BB840964659A3004D96E498FBBE7FF9C83AC6E428D8E3D100B53095877E36DF",
+    "mounted-hard-turn-right-16.png": "C152457A07A0EA8C0F2E3A4168F123BB3DC41F0E8DBF7DC9B5076B6ADD12F3A2",
+    "mounted-impact-brace-16.png": "8C603F6C3210241A568884F122511A84623954F91425E7A82F1ED0FF6BAC77CA",
+    "mounted-aero-tuck-transition-16.png": "3C022209F0C11B962FCB7C33C6B410D236978C77EC788EF828694B191DE0AFC0",
+    "mounted-boost-transition-16.png": "E3969FAA8BEE88FD39B2031917AAB46DDF7CEBB77AF40337E8D32537B632A559",
+    "mounted-gear-shift-transition-16.png": "BE47ECBDAB42A634073052EA95C227194ED3481CBBA6D424AB204880EC4CA811",
+    "mounted-turn-left-transition-16.png": "0691B26FFF61190072840DDDD585BED0DA4F330A939B1213C75850F0EAEE8BCB",
+    "mounted-turn-right-transition-16.png": "0B1AC50D0681F6E8D62EAF010CEF1523BA49E0C9BB3BAD2BC28C2FE3924173EC",
+    "mounted-impact-transition-16.png": "29BBA0FEAD81904193F4253C62AB1EEE1D432A9BEC4673615650A2940E0AFB9B"
+  },
+  "preparationScript": "tools/commute_lab/prepare_bike_motion_atlases.mjs",
+  "promptSet": [
+    "Create sixteen independent 22.5-degree bike/rider views for the neutral, parked, action, and transition poses.",
+    "Preserve the existing eight runtime views at their original angles and use generated artwork for the eight new in-between angles.",
+    "Keep left and right views separately authored; never mirror side-specific motorcycle details."
+  ],
+  "transparency": "transparent canvas; all source corner alpha values are at or below 8",
+  "notes": "Each generated source is a 4 by 4, sixteen-view sheet. The runtime atlas copies the original eight views into alternating slots and fills the remaining eight slots with generated in-between views.",
+  "sourceCanvases": {
+    "parked": [
+      1295,
+      1214
+    ],
+    "mounted": [
+      1254,
+      1254
+    ],
+    "aerodynamicTuck": [
+      1254,
+      1254
+    ],
+    "accelerationResponse": [
+      1254,
+      1254
+    ],
+    "gearShift": [
+      1254,
+      1254
+    ],
+    "hardTurnLeft": [
+      1254,
+      1254
+    ],
+    "hardTurnRight": [
+      1254,
+      1254
+    ],
+    "impactBrace": [
+      1254,
+      1254
+    ],
+    "aerodynamicTuckTransition": [
+      1254,
+      1254
+    ],
+    "boostTransition": [
+      1254,
+      1254
+    ],
+    "gearShiftTransition": [
+      1254,
+      1254
+    ],
+    "hardTurnLeftTransition": [
+      1254,
+      1254
+    ],
+    "hardTurnRightTransition": [
+      1254,
+      1254
+    ],
+    "impactTransition": [
+      1254,
+      1254
+    ]
+  },
+  "sourceCanvasExceptions": {
+    "parked": [
+      1295,
+      1214
+    ]
+  },
+  "frameCount": 16,
+  "directionStepDegrees": 22.5
+}

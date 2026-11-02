@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "status": "rejected_user_review",
+  "rejectionReason": "User review found the timber rails and brown deck too flimsy and simple for a road bridge. Superseded by the reinforced-concrete bridge candidate; not referenced by the renderer.",
+  "generator": "built-in imagegen",
+  "generationId": "exec-86ec9c2b-ac8b-4858-a434-73b89dcb0f4c",
+  "source": "assets/source/commute-bridge-rails-v1/center-post-variant02-imagegen-source.png",
+  "sourceSha256": "8fab7f791a99819d702b605a16dec55b7e50f5d86fef4daa41c49f3ea131ea95",
+  "promptLog": "assets/source/commute-bridge-rails-v1/imagegen-prompts.json",
+  "promptLogSha256": "8c7c529a3d9426539ee6461f546c3066f9b92b9279885fa652ea7725a21571e6",
+  "referenceSource": "assets/source/commute-bridge-rails-v1/end-posts-variant01-imagegen-source.png",
+  "runtime": "assets/commute/bridge/rail-bay.png",
+  "runtimeSha256": "13a6a8a1d6dadf51962ed921edbd4cf4948a046b0dea9864112e0b3b7ef9a616",
+  "runtimeSize": [
+    2048,
+    496
+  ],
+  "sourceSize": [
+    2172,
+    724
+  ],
+  "sourceCrop": [
+    0,
+    108,
+    2172,
+    634
+  ],
+  "alphaTrimThreshold": 8,
+  "packing": "alpha crop and uniform downsample only; no paint edits",
+  "registration": {
+    "view": "front elevation",
+    "spanMeters": 2.8,
+    "railHeightMeters": 0.9,
+    "postOffsetMeters": 1.4,
+    "baseAnchor": "bottom edge of sprite maps to bridge deck height"
+  },
+  "reviewPreview": "output/commute-bridge-rails/rail-bay-tiling-review.png"
+}

@@ -94,8 +94,8 @@ function Component.install(Runtime)
             local status = session.coupledPoint and (session.coupledPoint == "central" and session.central
                 or Runtime.MachineMaintenance.lubricationPoint(session, session.coupledPoint)) or nil
             love.graphics.setColor(0.72, 0.82, 0.82)
-            love.graphics.printf(status and string.format("COUPLED  /  %d STROKES", status.strokes) or
-                "RAG: clean fitting\nGUN: click fitting to couple\nINSPECT: click sight glass", 650, 372, 234, "center")
+            love.graphics.printf("NEXT: " .. Runtime.MachineMaintenance.nextCutterLubricationStep(session),
+                650, 370, 234, "center")
             if status then
                 local gunFrame = session.pumpPulse and session.pumpPulse > 0
                     and (session.pumpPulse > 0.14 and 3 or 2) or 1

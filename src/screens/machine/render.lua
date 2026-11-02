@@ -164,7 +164,9 @@ function Component.install(Runtime)
             local nearby = Runtime.Wrapper.nearbyPallet(state)
             local inventory = state.inventory or {}
             local packaging = nearby and (nearby.pallet.packaging or nearby.job.packaging or "flat") or nil
-            local hasPackaging = packaging ~= "boxed" or Runtime.Procurement.cartonsAvailable(state) > 0
+            local cartonsRequired = nearby and Runtime.Procurement.cartonsRequired(nearby.job, nearby.pallet) or 0
+            local cartonsAvailable = Runtime.Procurement.cartonsAvailable(state)
+            local hasPackaging = packaging ~= "boxed" or cartonsAvailable >= cartonsRequired
             if nearby then
                 local palletImage, palletQuad
                 if Runtime.Wrapper.step == "wrapping" or Runtime.Wrapper.step == "finished" then
@@ -196,6 +198,9 @@ function Component.install(Runtime)
                     local option = nearbyPallets[index]
                     local y = Runtime.wrapperPalletList.y + (index - 1) * Runtime.wrapperPalletList.rowHeight
                     local selected = nearby and nearby.pallet.id == option.pallet.id
+                    local optionCartons = Runtime.Procurement.cartonsRequired(option.job, option.pallet)
+                    local packageText = tostring(option.pallet.packaging or option.job.packaging or "flat"):upper()
+                    if optionCartons > 0 then packageText = packageText .. string.format(" · %d BOXES", optionCartons) end
                     local hovered = pointerX and Runtime.inside({ x = Runtime.wrapperPalletList.x, y = y,
                         width = Runtime.wrapperPalletList.width, height = Runtime.wrapperPalletList.rowHeight - 6 },
                         pointerX, pointerY)
@@ -210,7 +215,7 @@ function Component.install(Runtime)
                     love.graphics.setColor(0.66, 0.78, 0.78)
                     love.graphics.print(string.format("%s  |  %s  |  %d px away",
                         tostring(option.job.company or option.job.id or "JOB"),
-                        tostring(option.pallet.packaging or option.job.packaging or "flat"):upper(),
+                        packageText,
                         math.floor(math.sqrt(option.distance) + 0.5)),
                         Runtime.wrapperPalletList.x + 30, y + 23)
                 end
@@ -219,7 +224,9 @@ function Component.install(Runtime)
             love.graphics.print("STATUS: " .. Runtime.Wrapper.step:upper(), 50, 410)
             love.graphics.print("NEARBY PALLET: " .. (nearby and nearby.pallet.id or "NONE"), 50, 438)
             love.graphics.print("PACKAGE: " .. (packaging and packaging:upper() or "--"), 50, 466)
-            love.graphics.print(string.format("PLASTIC: %d ROLL(S)  |  %d / 11 WRAPS", inventory.plasticWrapRolls or 0, inventory.plasticWrapUses or 0), 50, 494)
+            love.graphics.print(packaging == "boxed"
+                and string.format("CARTONS: %d REQUIRED  |  %d AVAILABLE", cartonsRequired, cartonsAvailable)
+                or string.format("PLASTIC: %d ROLL(S)  |  %d / 11 WRAPS", inventory.plasticWrapRolls or 0, inventory.plasticWrapUses or 0), 50, 494)
             local serviceHovered = pointerX and Runtime.inside(Runtime.wrapperMaintenanceButton, pointerX, pointerY)
             Runtime.box(Runtime.wrapperMaintenanceButton.x, Runtime.wrapperMaintenanceButton.y,
                 Runtime.wrapperMaintenanceButton.width, Runtime.wrapperMaintenanceButton.height,

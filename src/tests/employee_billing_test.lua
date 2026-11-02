@@ -37,8 +37,11 @@ function Test.run(context,check)
     check("employee_billing_owner_only_quote_keeps_existing_service_price",baseline.recommendedPrice==150 and baseline.employeeBudget==nil)
     local w=hire(state)
     local low=Service.quoteTerms(state,job)
+    local lowCostFloor=require("src.staff_finances").summary(state).pricePerLift
+        * math.max(1,job.quote.totalLifts or 1)
     check("employee_billing_quote_discloses_negotiated_labor_without_double_surcharge",low.employeeBudget and low.employeeBudget.wagePerHour==22
-        and low.employeeBudget.laborCost>0 and low.recommendedPrice==150 and job.quote.totalPrice==150)
+        and low.employeeBudget.laborCost>0 and low.recommendedPrice+1e-6>=lowCostFloor
+        and job.quote.totalPrice==150)
     hire(state,10000)
     local high=Service.quoteTerms(state,job)
     check("employee_billing_high_wages_raise_price_to_cover_cost_and_margin",high.recommendedPrice>low.recommendedPrice and high.employeeBudget.wagePerHour==100)

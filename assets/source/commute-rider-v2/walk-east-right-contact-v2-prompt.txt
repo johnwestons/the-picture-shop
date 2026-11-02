@@ -1,0 +1,7 @@
+East RIGHT CONTACT single-pose experiment. One isolated full-body side-profile sprite facing screen-right.
+
+Use the east idle crop for the approved v2 identity/body proportions. Use the accepted LEFT CONTACT sprite only for matching style, scale, and materials; do not repeat its pose. Use east-eight-phase-guide only to identify anatomy: BLUE is near/anatomical RIGHT, RED is far/anatomical LEFT. No old short/chibi rider references.
+
+Draw the opposite contact from the paired LEFT CONTACT: near/anatomical RIGHT leg reaches forward to screen-right and makes clear heel contact on the ground; far/anatomical LEFT leg extends behind the hip toward screen-left with toe-off. The near/right leg is the forward leg in this image. Show both knee pads and both boots separated. Layer the near RIGHT forward leg/boot in front of the far LEFT trailing leg where they overlap so the forward heel is unambiguous. Opposite arm swing: far/anatomical LEFT arm reaches forward toward screen-right, near RIGHT arm swings back toward screen-left. This must visibly oppose the paired LEFT CONTACT image: different forward leg, different trailing leg, different forward arm.
+
+Stable east profile, same scale/materials/lighting as the left-contact reference, transparent background, no motion blur, text, props, arrows, scenery, or extra figures. Leave empty margin and show full helmet through both boots. Ground contact must read clearly.

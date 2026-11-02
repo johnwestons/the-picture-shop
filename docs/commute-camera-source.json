@@ -1,0 +1,25 @@
+{
+  "artifact": "src/commute/camera.lua",
+  "adaptedFrom": [
+    {
+      "project": "Critter Party",
+      "path": "../Critter Party/src/camera.lua",
+      "sha256": "85f151a7b0b4604fb35fd85be33721003735828eafc8890b123b20168d960f67",
+      "usedFor": "isometric projection, yaw and tilt basis, smooth follow, pan and zoom controls, heading conversion, terrain ray unprojection"
+    },
+    {
+      "project": "Critter Party",
+      "path": "../Critter Party/src/ground.glsl",
+      "sha256": "af9d4dd00134767f5275a7246029ceecb1ab7d18fb2b4e38da8772d506b3cb06",
+      "usedFor": "ground projection scale and camera uniform contract"
+    }
+  ],
+  "shaderUniforms": [
+    "cameraCenter",
+    "cameraFocusHeight",
+    "cameraZoom",
+    "cameraYaw",
+    "cameraGroundScale",
+    "cameraHeightScale"
+  ]
+}

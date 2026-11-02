@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "status": "staged_for_review",
+  "frameSize": 512,
+  "columns": 4,
+  "rows": 2,
+  "scale": 1.48,
+  "mirror": false,
+  "source": "assets\\source\\commute-warehouse-v1\\side-repair.png",
+  "sourceSha256": "4256e4b4d84e1e0e2d4ba81245cc4f78a128cb62cbe59edba25e509b4f4574c8",
+  "atlasSha256": "6007c999728fed7e3d2f28d78cf4430fda276ea0d5ec1c64cf67cd4b8e310bf1",
+  "prompts": [
+    "assets/source/commute-warehouse-v1/prompt.txt",
+    "assets/source/commute-warehouse-v1/side-repair-prompt.txt"
+  ],
+  "generator": "built-in imagegen",
+  "views": [
+    {
+      "direction": "north",
+      "anchor": [
+        256,
+        400
+      ],
+      "registration": "center",
+      "sourceAnchor": [
+        220,
+        302
+      ],
+      "sourceRect": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "bounds": [
+        59,
+        213,
+        456,
+        453
+      ]
+    },
+    {
+      "direction": "northeast",
+      "anchor": [
+        256,
+        380
+      ],
+      "registration": "center",
+      "sourceAnchor": [
+        1553,
+        687
+      ],
+      "sourceRect": [
+        1330,
+        444,
+        1774,
+        887
+      ],
+      "bounds": [
+        41,
+        193,
+        461,
+        500
+      ]
+    },
+    {
+      "direction": "east",
+      "anchor": [
+        256,
+        380
+      ],
+      "registration": "center",
+      "sourceAnchor": [
+        1115,
+        238
+      ],
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        444
+      ],
+      "bounds": [
+        154,
+        227,
+        357,
+        500
+      ]
+    },
+    {
+      "direction": "southeast",
+      "anchor": [
+        400,
+        400
+      ],
+      "registration": "door",
+      "sourceAnchor": [
+        1696,
+        330
+      ],
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        444
+      ],
+      "bounds": [
+        45,
+        151,
+        463,
+        458
+      ]
+    },
+    {
+      "direction": "south",
+      "anchor": [
+        400,
+        400
+      ],
+      "registration": "door",
+      "sourceAnchor": [
+        336,
+        781
+      ],
+      "sourceRect": [
+        0,
+        444,
+        444,
+        887
+      ],
+      "bounds": [
+        88,
+        157,
+        481,
+        403
+      ]
+    },
+    {
+      "direction": "southwest",
+      "anchor": [
+        300,
+        400
+      ],
+      "registration": "door",
+      "sourceAnchor": [
+        694,
+        791
+      ],
+      "sourceRect": [
+        444,
+        444,
+        887,
+        887
+      ],
+      "bounds": [
+        59,
+        116,
+        482,
+        423
+      ]
+    },
+    {
+      "direction": "west",
+      "anchor": [
+        256,
+        380
+      ],
+      "registration": "center",
+      "sourceAnchor": [
+        1115,
+        659
+      ],
+      "sourceRect": [
+        887,
+        444,
+        1330,
+        887
+      ],
+      "bounds": [
+        166,
+        222,
+        347,
+        497
+      ]
+    },
+    {
+      "direction": "northwest",
+      "anchor": [
+        256,
+        380
+      ],
+      "registration": "center",
+      "sourceAnchor": [
+        638,
+        256
+      ],
+      "sourceRect": [
+        444,
+        0,
+        887,
+        444
+      ],
+      "bounds": [
+        78,
+        214,
+        496,
+        500
+      ]
+    }
+  ]
+}

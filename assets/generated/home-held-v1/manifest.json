@@ -1,0 +1,32 @@
+{
+  "mode": "built-in image_gen",
+  "purpose": "directional held food and drink props",
+  "directionOrder": ["southeast", "south", "southwest", "west", "northwest", "north", "northeast", "east"],
+  "noCharacterParts": true,
+  "transparentBackground": true,
+  "registration": "src/home_held_art.lua",
+  "assets": [
+    {
+      "kind": "meal",
+      "path": "assets/generated/home-held-v1/held-meal-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-0d9cf77f-b7b1-40b4-be92-aa7693e278c5.png",
+      "dimensions": [1774, 887],
+      "sha256": "d21dc121fe4d8c5d19768f3fa62870e2dbe9a62421e910655a8a12ded1a0047f"
+    },
+    {
+      "kind": "sandwich",
+      "path": "assets/generated/home-held-v1/held-sandwich-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-18af1230-b485-4543-9d3e-70892a5aab9f.png",
+      "dimensions": [1774, 887],
+      "sha256": "1884561fccd88f7f12ec2c14bb0c347529f0b11962b108aefff7afbdbf40aee4"
+    },
+    {
+      "kind": "bottle",
+      "path": "assets/generated/home-held-v1/held-bottle-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-a6c3d1b6-6c50-4fd5-89a1-3440665fc6f0.png",
+      "dimensions": [1774, 887],
+      "sha256": "10eac6fccf531bcb551cbe22557e0ba3eaca62c752e32382dc1899998e88411f"
+    }
+  ],
+  "promptNotes": "Each atlas is eight views of one prop in a 4x2 grid. The generated sprites contain only the prop; hands, arms, cuffs, character parts, furniture, shadows, labels and text were excluded."
+}

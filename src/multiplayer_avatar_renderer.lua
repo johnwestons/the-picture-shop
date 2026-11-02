@@ -23,6 +23,7 @@ local function drawLabel(player)
 end
 
 local function drawPlayer(characterAssets,player,state)
+    if require('src.commute.presentation').indoor(player,state,characterAssets) then drawLabel(player);return end
     if require("src.basketball_renderer").draw(player,state) then
         drawLabel(player)
         return
@@ -127,6 +128,7 @@ local function drawPlayer(characterAssets,player,state)
     drawLabel(player)
 end
 
+Renderer.drawLabel=drawLabel
 function Renderer.draw(characterAssets,players,state)
     if type(players) ~= "table" then return end
     local ordered = {}

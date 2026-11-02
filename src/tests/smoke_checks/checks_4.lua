@@ -108,8 +108,11 @@ function Component.run(Context)
         and Context.calendarState.money == 1050 and Context.calendarState.bills.balance == 0
         and Context.calendarState.bills.ledger[1].status == "paid")
     Context.calendarEvents = Context.context.businessCalendar.events(Context.calendarState)
-    Context.check("calendar_automatically_lists_bill_due_dates", Context.calendarEvents[1]
-        and Context.calendarEvents[1].title == "Rent and bills due")
+    Context.hasProjectedShopBill=false
+    for _,event in ipairs(Context.calendarEvents) do
+        if event.title=="Rent and bills due" and event.kind=="bill" then Context.hasProjectedShopBill=true end
+    end
+    Context.check("calendar_automatically_lists_bill_due_dates",Context.hasProjectedShopBill)
 
     Context.weekendState = Context.context.State.new()
     Context.context.businessCalendar.update(Context.weekendState,

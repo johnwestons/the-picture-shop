@@ -139,9 +139,52 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=="regal-folder" then
-            require("src.tests.regal_folder_game_test").run(context,check)
-            require("src.tests.lua_limits_test").run(context,check)
+        if focus=='commute' then
+            require('src.commute.tests.runtime_test').run(context,check)
+            require('src.commute.tests.session_test').run(context,check)
+            for _,name in ipairs({'lua_limits','weekend_flow','home_travel_session','network_protocol','save_contract'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
+        elseif focus=='weekend-playthrough' then
+            require('src.tests.weekend_runtime_test').run(context,check)
+        elseif focus=="home-production" then
+            require("src.tests.home_production_budget_test").run(context,check)
+        elseif focus=="home-furniture" then
+            for _,name in ipairs({"lua_limits","home_furniture","home_scene","home_shopping","home_residents","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-privacy" then
+            require("src.tests.home_privacy_art_test").run(context,check)
+        elseif focus=="home-held" then
+            require("src.tests.home_held_art_test").run(context,check)
+        elseif focus=="home-shopping" then
+            for _,name in ipairs({"lua_limits","home_shopping","home_residents","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-residents" then
+            for _,name in ipairs({"lua_limits","home_residents","home_scene","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="household-finances" then
+            for _,name in ipairs({"lua_limits","household_finances","weekend_flow","weekend_runtime","home_travel_session","home","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="weekend-flow" then
+            for _,name in ipairs({"lua_limits","weekend_flow","weekend_runtime","home_travel_session","business_deadlines","home","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="business-deadlines" then
+            for _,name in ipairs({"lua_limits","business_deadlines","gameplay_quality","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-scene" then
+            for _,name in ipairs({"lua_limits","home_scene","home","network_protocol","multiplayer_session","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home" then
+            for _,name in ipairs({"lua_limits","home","shop_workflow","save_contract","network_protocol","multiplayer_session"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="garage-exterior" then
             require("src.tests.outdoor_weather_test").run(context,check)
             require("src.tests.lua_limits_test").run(context,check)

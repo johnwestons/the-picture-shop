@@ -126,7 +126,8 @@ function Grid.draw(snapshot)
             cell.x - halfWidth, cell.y)
     end
     if snapshot.footprint then
-        love.graphics.setColor(0.45, 1, 0.58, 0.95)
+        if snapshot.selected and snapshot.selected.valid==false then love.graphics.setColor(.95,.25,.18,.95)
+        else love.graphics.setColor(0.45, 1, 0.58, 0.95) end
         love.graphics.setLineWidth(2)
         love.graphics.polygon("line", Footprint.vertices(snapshot.footprint))
         love.graphics.setLineWidth(1)

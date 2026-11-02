@@ -49,8 +49,10 @@ function Component.install(Runtime)
         cutter = cutter or {}
         return {
             maintenanceKits = tonumber(stock.maintenance_kit) or 0,
+            spareBlades = tonumber(stock.cutter_blade) or 0,
             bladeRemoved = cutter.bladeRemoved == true,
             bladeInSleeve = cutter.bladeInSleeve == true,
+            spareBladeInstalled = cutter.spareBladeInstalled == true,
             weeklyTechnician = cutter.weeklyTechnician == true,
             technicianScheduled = cutter.nextTechnicianDay ~= nil,
         }
@@ -70,6 +72,10 @@ function Component.install(Runtime)
         elseif action == "book_blade_technician" then
             return step == "idle" and status.bladeInSleeve == true
                 and status.technicianScheduled ~= true
+        elseif action == "install_spare_blade" then
+            return step == "idle" and view.loaded ~= true and view.step == "idle"
+                and status.bladeRemoved == true and status.bladeInSleeve == true
+                and status.spareBladeInstalled ~= true and status.spareBlades > 0
         elseif action == "set_weekly_technician" then
             return step == "idle"
         elseif action == "service_advance" then

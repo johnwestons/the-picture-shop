@@ -1,0 +1,17 @@
+[
+  {
+    "file": "southwest-extra-arm-study.png",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5f405058-7198-4bb8-be99-ceac9cd59a29.png",
+    "prompt": "Correct ONLY top-right cell (row1 column4, SOUTHWEST) of this1536x1024 four-column two-row sheet. In that cell keep exact character facing front-left, scale, clothes, head and planted feet, but extend the wiping RIGHT paw toward SCREEN LEFT again. Open right palm faces DOWN, fingers point left, hand center at global(1235,292), approximately80pixels from that cell left edge. Elbow mildly bent. This is a modest sideways return stroke near the forward counter, NOT across belly to screen right. Left paw stays on belly. All other seven cells unchanged. No cloth/props/surface/counter/floor/shadows/text. Transparent background.",
+    "runtime": false,
+    "reason": "Generated corrective edit added a third arm; rejected."
+  },
+  {
+    "file": "phase-3-southwest.png",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-b870290e-d33d-4130-9be9-19c8445226e1.png",
+    "prompt": "Fix the anatomy of ONLY top-right rabbit (row1column4) in this sheet. It currently has THREE arms/hands. It must have exactly TWO. KEEP the extended arm reaching screen left with open palm down. KEEP the relaxed left hand resting low on belly. DELETE the extra horizontal orange forearm/paw across the chest, rebuilding blue overall bib and gray shirt underneath. Preserve all other pose, feet, facing, scale, style and other seven cells. No new arms or objects. Transparent background.",
+    "runtime": true,
+    "reference": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5f405058-7198-4bb8-be99-ceac9cd59a29.png",
+    "region": "Single whole-canvas southwest pose; registered at scale0.079."
+  }
+]

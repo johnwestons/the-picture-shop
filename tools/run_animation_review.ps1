@@ -1,5 +1,5 @@
 param([int]$TimeoutSeconds = 300,
-    [ValidateSet('all','jack','player-walk','employee-walk','construction','machine-motion')][string]$Focus='all',
+    [ValidateSet('all','jack','player-walk','suited-walk','suited-idle','employee-walk','construction','machine-motion')][string]$Focus='all',
     [ValidatePattern('^[a-zA-Z0-9-]+$')][string]$OutputName='engine',
     [switch]$CatSouthProposal,[switch]$PlayerNorthProposal,
     [string]$PlayerNorthProposalFile='output/animation-overhaul/player-north-passing-preview/src/player_walk_art.lua')

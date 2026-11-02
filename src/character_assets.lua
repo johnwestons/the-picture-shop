@@ -10,10 +10,10 @@ for character,actions in pairs(TechnicianArt.anchors) do Anchors[character]=acti
 for character,actions in pairs(TechnicianArt.metrics) do Metrics[character]=actions end
 local TextureCache = require("src.texture_cache")
 local imageCache = TextureCache.new(16 * 1024 * 1024, 20)
--- The five authored rabbit walk views are 4096x512 textures (8 MiB each).
--- Keep the complete set for the session in its own bounded cache so unrelated
--- worker and task poses cannot evict a direction while the player turns.
+-- Keep the player's full-resolution walk views and the smaller suited-rider
+-- views in separate bounded caches so one outfit cannot evict the other.
 local playerWalkCache = TextureCache.new(40 * 1024 * 1024, math.huge)
+local suitedWalkCache = TextureCache.new(12 * 1024 * 1024, math.huge)
 local useSequence = 0
 local frameSequence, frameDepth = 0, 0
 local ImageLoader=require("src.image_loader")
@@ -90,6 +90,15 @@ for character,actions in pairs(workerWalkArt.anchors) do
     for action,frames in pairs(actions) do Anchors[character][action]=frames end
 end
 for character,actions in pairs(workerWalkArt.metrics) do
+    for action,frames in pairs(actions) do Metrics[character][action]=frames end
+end
+local commuteWalkerArt=require("src.commute.walker_art")
+for character,actions in pairs(commuteWalkerArt.anchors) do
+    Anchors[character]=Anchors[character] or {}
+    for action,frames in pairs(actions) do Anchors[character][action]=frames end
+end
+for character,actions in pairs(commuteWalkerArt.metrics) do
+    Metrics[character]=Metrics[character] or {}
     for action,frames in pairs(actions) do Metrics[character][action]=frames end
 end
 
@@ -243,10 +252,11 @@ local function validateAction(character, action, path)
 end
 
 local function cacheFor(metadata)
-    if metadata and metadata.character == Config.player.character
-        and (metadata.action == "walk" or metadata.action:match("^walk_")) then
+    local walkAction=metadata and (metadata.action == "walk" or metadata.action:match("^walk_"))
+    if walkAction and metadata.character == Config.player.character then
         return playerWalkCache
     end
+    if walkAction and metadata.character == "suited-rider" then return suitedWalkCache end
     return imageCache
 end
 
@@ -461,6 +471,7 @@ function CharacterAssets.retainCharacters(activeCharacters, cacheInactive)
     if not cacheInactive then
         imageCache:clear()
         playerWalkCache:clear()
+        suitedWalkCache:clear()
     end
     local active = {}
     for key, value in pairs(activeCharacters or {}) do
@@ -491,6 +502,7 @@ end
 function CharacterAssets.releaseAll()
     imageCache:clear()
     playerWalkCache:clear()
+    suitedWalkCache:clear()
     for _, actions in pairs(CharacterAssets.images or {}) do
         for _, image in pairs(actions) do release(image) end
     end
@@ -498,13 +510,15 @@ end
 function CharacterAssets.pruneCache()
     imageCache:prune()
     playerWalkCache:prune()
+    suitedWalkCache:prune()
 end
 function CharacterAssets.clearCache()
     imageCache:clear()
     playerWalkCache:clear()
+    suitedWalkCache:clear()
 end
 function CharacterAssets.cachedTextureBytes()
-    return imageCache.bytes + playerWalkCache.bytes
+    return imageCache.bytes + playerWalkCache.bytes + suitedWalkCache.bytes
 end
 
 function CharacterAssets.textureBytes()

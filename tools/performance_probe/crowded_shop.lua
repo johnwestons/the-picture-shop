@@ -60,10 +60,19 @@ return function(runtime, app, measure, draw, rows)
     measure("crowded_world_draw",90,draw)
     local snapshot=assert(Schema.snapshot(state))
     assert(Schema.validState(snapshot),"Crowded fixture must be a valid save")
+    runtime._performanceSaveState=snapshot
     measure("crowded_save",3,function() assert(runtime.Save.save(1,state,runtime.World.snapshot())) end)
     state.activeSlot=1
     measure("crowded_gameplay_with_saves",600,function() app.update(1/60) end)
     state.activeSlot=nil
+    -- Ten workers trying to reach machinery exercises the congested route and
+    -- workstation selection paths that an idle workforce does not cover.
+    for _,w in ipairs(state.employment.staff) do
+        w.cutterSkill=50
+        w.training={skill="cutter",target=75,remainingHours=20}
+    end
+    measure("crowded_workers_seeking_machine_access",120,function() app.update(1/60) end)
+    for _,w in ipairs(state.employment.staff) do w.training=nil;w._trainingMachineId=nil end
     measure("crowded_machine_lookup",1000,function()
         for _,item in ipairs(state.machines.items) do assert(Fleet.byId(state,item.id)==item) end
     end)

@@ -6,6 +6,7 @@ local Fleet=require("src.machine_fleet")
 local Schedule=require("src.employee_schedule")
 local Labor=require("src.employee_labor")
 local WorkerCatalog=require("src.worker_catalog")
+local Speech=require("src.employee_speech")
 local Employees={}
 Employees.MAX_STAFF=10
 local trainingSkills={
@@ -91,8 +92,9 @@ local function validActor(a)
         and (a.sceneId==nil or a.sceneId=="warehouse" or a.sceneId=="front_left" or a.sceneId=="front_right")
         and (a.workFrame==nil or int(a.workFrame,1,4))
         and (a.arrivedAtHours==nil or number(a.arrivedAtHours,0,1e12))
-        and (a.greetingKind==nil or int(a.greetingKind,1,3))
+        and (a.greetingKind==nil or int(a.greetingKind,1,Speech.MAX_CODE))
         and (a.greetingUntilHours==nil or number(a.greetingUntilHours,0,1e12))
+        and (a.lastHighFiveRequestAtHours==nil or number(a.lastHighFiveRequestAtHours,0,1e12))
 end
 function Employees.defaultState(now)
     return {version=6,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
@@ -426,6 +428,7 @@ function Employees.command(state,intent,now)
     elseif intent.kind=="offer_employee" then
         local terms=Contracts.terms(intent.wageCents,intent.days,intent.startHour,intent.endHour,intent.payWeeks)
         if not Contracts.validTerms(terms) then return false,"Choose $10-$100/hr, a 4-12 hour shift and a 1-4 week pay cycle." end
+        if not Contracts.hasOpenHours(terms) then return false,"Choose hours while the shop is open. It closes Friday 20:00 through Monday 09:00." end
         if not a or (a.status~="resume_received" and a.status~="offer_accepted" and a.status~="negotiating") then return false,"Request the resume before making an offer." end
         if a.revision~=intent.expectedRevision then return false,"The applicant replied. Review the latest terms before sending." end
         if not Contracts.preferenceAllows(a.shiftPreference,terms.startHour) then
@@ -441,6 +444,7 @@ function Employees.command(state,intent,now)
         if a and a.status=="hired" then return true,"This agreement is already signed." end
         if not a or a.status~="offer_accepted" or a.revision~=intent.expectedRevision
             or (a.expiresAtHours and now>=a.expiresAtHours) then return false,"Review the current accepted offer before signing." end
+        if not Contracts.hasOpenHours(a.offer) then return false,"This older offer has no hours while the shop is open. Send revised hours before hiring." end
         if Employees.employedCount(state)>=Employees.MAX_STAFF then
             return false,"The payroll is full (10/10 employees). Dismiss an employee before hiring another."
         end
@@ -475,6 +479,7 @@ function Employees.command(state,intent,now)
             intent.startHour,intent.endHour,w.contract.payWeeks)
         if not Contracts.validTerms(terms) then
             return false,"Choose at least one workday and a 4-12 hour shift." end
+        if not Contracts.hasOpenHours(terms) then return false,"Choose some open hours. The shop closes Friday 20:00 through Monday 09:00." end
         if not Contracts.preferenceAllows(w.shiftPreference,terms.startHour) then
             return false,w.name.." prefers "..Contracts.shiftPreferenceDescription(w.shiftPreference).."." end
         if Contracts.same(terms,w.pendingSchedule or w.contract) then

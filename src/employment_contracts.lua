@@ -1,5 +1,6 @@
 -- In-game agreements. Terms are explicit and immutable after signing.
 local Contracts = {}
+local Hours=require("src.business_hours")
 local function finite(n) return type(n)=="number" and n==n and math.abs(n)<1e9 end
 local function integer(n,low,high) return finite(n) and n==math.floor(n) and n>=low and n<=high end
 local shiftPreferences={day=true,night=true,flexible=true}
@@ -55,18 +56,49 @@ end
 function Contracts.terms(wage,days,startHour,endHour,payWeeks)
     return {role="cutter",wageCents=wage,days=days,startHour=startHour,endHour=endHour,payWeeks=payWeeks or 1}
 end
+-- Terms keep their signed start-day identity. Actual attendance is their
+-- intersection with opening hours, including the tail of an overnight shift.
+function Contracts.shiftBounds(t,day)
+    if not Contracts.hasDay(t.days,Contracts.weekday(day)) then return nil end
+    local first=day*24+t.startHour;local last=first+Contracts.duration(t)
+    local startAt,endAt
+    for d=day,day+1 do
+        local a,b=Hours.window(d);a,b=math.max(first,d*24+a),math.min(last,d*24+b)
+        if b>a then startAt=startAt or a;endAt=b end
+    end
+    return startAt,endAt
+end
+function Contracts.shiftMetrics(t,day)
+    local a,b=Contracts.shiftBounds(t,day);local duration=a and b-a or 0
+    local meal=duration>=3.75 and .75 or 0;local rest=duration>=2.25 and .25 or 0
+    return duration,duration-meal,duration-meal-rest
+end
+function Contracts.weeklyHours(t)
+    local duration,paid,productive=0,0,0
+    for day=4,10 do -- A canonical Monday through Sunday; dates do not alter terms.
+        local d,p,w=Contracts.shiftMetrics(t,day);duration,paid,productive=duration+d,paid+p,productive+w
+    end
+    return duration,paid,productive
+end
+function Contracts.hasOpenHours(t) return Contracts.validTerms(t) and Contracts.weeklyHours(t)>0 end
+function Contracts.nextStart(t,now)
+    local firstDay=math.max(0,t.startDay or 0,math.floor(now/24)-1)
+    for day=firstDay,firstDay+14 do
+        local first=Contracts.shiftBounds(t,day)
+        if first and first>now then return first,day end
+    end
+end
 function Contracts.nextDay(t,now)
-    local day=math.floor(now/24)
-    if now-day*24>=t.startHour then day=day+1 end
-    while not Contracts.hasDay(t.days,Contracts.weekday(day)) do day=day+1 end
-    return day
+    local _,day=Contracts.nextStart(t,now)
+    -- Old weekend-only agreements remain valid but have no attendance. New
+    -- offers/changes reject zero open hours before reaching this fallback.
+    return day or math.max(0,t.startDay or 0,math.floor(now/24)+7)
 end
 function Contracts.onShift(t,hours)
     if not t then return false end
     local day=Contracts.shiftDay(t,hours)
-    local startAt=day*24+t.startHour
-    return day>=t.startDay and Contracts.hasDay(t.days,Contracts.weekday(day))
-        and hours>=startAt and hours<startAt+Contracts.duration(t)
+    local first,last=Contracts.shiftBounds(t,day)
+    return day>=(t.startDay or 0) and first~=nil and hours>=first and hours<last
 end
 function Contracts.shiftDay(t,hours) return math.floor((hours-t.startHour)/24) end
 function Contracts.formatHour(hour,twelveHour)
@@ -89,10 +121,7 @@ function Contracts.paydayForWeek(t,week)
     return (anchor+(cycle+1)*7*t.payWeeks)*24+9
 end
 function Contracts.weeklyEstimate(t)
-    local days=0
-    for i=1,7 do if Contracts.hasDay(t.days,i) then days=days+1 end end
-    local duration=Contracts.duration(t)
-    local hours=(duration-.75)*days
+    local _,hours=Contracts.weeklyHours(t)
     return (math.min(40,hours)+math.max(0,hours-40)*1.5)*t.wageCents/100,hours
 end
 return Contracts

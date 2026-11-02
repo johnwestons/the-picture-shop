@@ -10,6 +10,7 @@ local BreakroomGames = require("src.breakroom_games")
 local Credit = require("src.credit")
 local Employees = require("src.employees")
 local StagingAreas = require("src.staging_areas")
+local Home = require("src.home")
 
 local Office = {}
 local function merge(target, source)
@@ -34,6 +35,9 @@ function Office.command(options)
             if not allowed then return false, code, message, {} end
             local intent, errorMessage = Intent.normalize(args and args.officeIntent)
             if not intent then return false, "invalid_office_action", errorMessage, {} end
+            if Home.ownerOnly(intent.kind) and player.id~=1 then
+                return false,"owner_only","Only the host can change household settings or pay rent.",{}
+            end
             if Employees.isIntent(intent.kind) and player.id ~= 1 and intent.kind == "pay_wages" then
                 return false,"owner_only","Only the shop owner can pay employee wages.",{}
             end
@@ -64,7 +68,8 @@ function Office.command(options)
             end
             local staged = Projection.copy(state)
             local ok, result, domainCode
-            if Employees.isIntent(intent.kind) then ok,result=Employees.command(staged,intent)
+            if Home.isIntent(intent.kind) then ok,result,domainCode=Home.command(staged,intent,player)
+            elseif Employees.isIntent(intent.kind) then ok,result=Employees.command(staged,intent)
             elseif intent.kind == "estimate" then ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time())
             elseif intent.kind == "decline" then ok, result = JobService.respondToEmail(staged, intent.id, "declined", os.time())
             elseif intent.kind == "promotion" then
@@ -74,6 +79,10 @@ function Office.command(options)
             elseif intent.kind == "archive" then ok, result = JobService.dismissInboxNotice(staged, intent.id)
             elseif intent.kind == "archive_service" then ok, result = JobService.archiveServiceNotice(staged, intent.id)
             elseif intent.kind == "delete_email" then ok, result = JobService.deleteEmail(staged, intent.id)
+            elseif intent.kind == "quality_inspect" then ok, result = JobService.inspectJob(staged, intent.jobId)
+            elseif intent.kind == "quality_rework" then ok, result = JobService.requestQualityRework(staged, intent.jobId)
+            elseif intent.kind == "customer_case" then
+                ok, result = JobService.resolveCustomerCase(staged, intent.jobId, intent.response)
             elseif intent.kind == "mark_email_read" then ok, result = JobService.markEmailRead(staged, intent.id)
             elseif intent.kind == "sell" then ok, result = MachineFleet.sell(staged, intent.id, "online")
             elseif intent.kind == "pay_bills" then ok, result = Calendar.pay(staged)
@@ -103,7 +112,7 @@ function Office.command(options)
                         local category = Procurement.categories[row.categoryIndex]
                         local product = category and category.items[row.itemIndex]
                         if not product or not product.retailPrice then return false, "product_changed", "The product is no longer listed.", {} end
-                        entry.price, entry.name = product.retailPrice, product.retailName
+                        entry.price, entry.name = Procurement.retailPrice(staged,row.categoryIndex,row.itemIndex), product.retailName
                     else
                         local offer = MachineFleet.offers("online")[row.offerIndex]
                         if not offer then return false, "product_changed", "The machine is no longer listed.", {} end
@@ -122,6 +131,7 @@ function Office.command(options)
             end
             merge(state, staged)
             options.save()
+            if Home.isIntent(intent.kind) then return true,domainCode or "completed",tostring(result),{} end
             return true, "completed", "Office action completed and saved by the host.", {}
         end,
     }

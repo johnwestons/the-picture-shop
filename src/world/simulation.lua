@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local CustomerDemand = require("src.customer_demand")
+local JobFeedback = require("src.job_feedback")
 
 function Component.install(Runtime)
     function Runtime.World.doorForScene(scene)
@@ -35,6 +36,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.scheduleTruck(state)
+        if not require("src.weekend_flow").acceptsNewWork(state) then return false end
         if not state or Runtime.World.truck.state ~= "absent" then return false end
         local pickup = Runtime.JobService.nextPickup(state)
         local pickupScene=pickup and require("src.room_loading_bays").pickupScene(state,pickup)
@@ -184,6 +186,7 @@ function Component.install(Runtime)
     -- Host-owned events have their own clock so an open menu never freezes the
     -- loading bay, visitors, pallet unloading, or technician work for guests.
     function Runtime.World.updateSimulation(dt, assets, state, motionDt)
+        if require("src.weekend_flow").shopClosed(state) then return false end
         motionDt = math.max(0, tonumber(motionDt) or dt)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets, Runtime.World._state = assets, state
@@ -199,7 +202,8 @@ function Component.install(Runtime)
         Runtime.PalletLogistics.update(state, dt, Runtime.Config.palletLogistics.unloadDuration)
         -- Only one reception visitor advances at a time. The other visitor keeps
         -- their full cooldown while the entrance, lounge, or desk is occupied.
-        local receptionClosed = Runtime.BusinessCalendar.isWeekend(state) or Runtime.EmployeeAI.receptionOccupied(state)
+        local receptionClosed = not require("src.weekend_flow").acceptsNewWork(state)
+            or Runtime.BusinessCalendar.isWeekend(state) or Runtime.EmployeeAI.receptionOccupied(state)
         local employeeContext = Runtime.World.employeeContext(state,assets)
         local customerEvent = Runtime.World.customer:update(dt, player,
             receptionClosed or Runtime.World.vendor:isPresent(), motionDt, employeeContext)
@@ -240,6 +244,7 @@ function Component.install(Runtime)
         end
         employeeContext.motionScale = dt > 0 and motionDt / dt or 1
         local employeeChanged=Runtime.EmployeeAI.update(state,dt,employeeContext)
+        local feedbackChanged=JobFeedback.sync(state)
         local truck=Runtime.World.truck
         if truck.mode=="pickup" and Runtime.JobService.remainingPickup(state,truck.jobId)==0
             and employeeContext.canLoadTruck() then
@@ -250,7 +255,7 @@ function Component.install(Runtime)
                 saveNeeded=true
             end
         end
-        return saveNeeded or employeeChanged
+        return saveNeeded or employeeChanged or feedbackChanged
     end
 end
 

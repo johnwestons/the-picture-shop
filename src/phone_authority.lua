@@ -26,8 +26,11 @@ function Phone.resource(options)
                 if action == "phone_answer" and call.answered then
                     return false, "already_answered", "This call is already connected.", {}
                 end
-                local ok, result = operation(state)
+                local ok, result, phase = operation(state)
                 if ok then options.save() end
+                if phase == "checkout" then
+                    result = "Checkout is ready. Review the quantity and total before confirming; no charge has been made."
+                end
                 return ok == true, ok and "completed" or "phone_blocked",
                     type(result) == "string" and result or (ok and "Phone line connected." or "Phone action unavailable."), {}
             end,

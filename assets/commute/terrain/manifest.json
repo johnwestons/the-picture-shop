@@ -1,0 +1,576 @@
+{
+  "platforms": [
+    {
+      "baseRgbaBytes": 4194304,
+      "cell": 256,
+      "filter": "linear/linear",
+      "height": 1024,
+      "materials": [
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.518169214426,
+            0.456876249122,
+            0.307253461532
+          ],
+          "name": "dry-grass",
+          "padding": 16,
+          "source": "assets/terrain/dry-grass-v1.png",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.318825510002,
+            0.343384828679,
+            0.153757719801
+          ],
+          "name": "grass",
+          "padding": 16,
+          "source": "assets/terrain/grass-v1.png",
+          "x": 256,
+          "y": 0
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.383535893696,
+            0.377500495148,
+            0.165039881885
+          ],
+          "name": "wild-grass",
+          "padding": 16,
+          "source": "assets/terrain/wild-grass-v1.png",
+          "x": 512,
+          "y": 0
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.274957237257,
+            0.246228776175,
+            0.130411062497
+          ],
+          "name": "moss",
+          "padding": 16,
+          "source": "assets/terrain/moss-v1.png",
+          "x": 768,
+          "y": 0
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.701389113956,
+            0.610159527539,
+            0.49873332253
+          ],
+          "name": "shore-sand",
+          "padding": 16,
+          "source": "assets/terrain/shore-sand-v1.png",
+          "x": 0,
+          "y": 256
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.524983345037,
+            0.446831055655,
+            0.365985163579
+          ],
+          "name": "gravel",
+          "padding": 16,
+          "source": "assets/terrain/gravel-v1.png",
+          "x": 256,
+          "y": 256
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.471801796935,
+            0.337624912224,
+            0.225162498425
+          ],
+          "name": "dirt",
+          "padding": 16,
+          "source": "assets/terrain/dirt-v1.png",
+          "x": 512,
+          "y": 256
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.288193881777,
+            0.220071481301,
+            0.161137218891
+          ],
+          "name": "damp-soil",
+          "padding": 16,
+          "source": "assets/terrain/damp-soil-v1.png",
+          "x": 768,
+          "y": 256
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.405266569438,
+            0.375594627199,
+            0.343626100578
+          ],
+          "name": "shale-scree",
+          "padding": 16,
+          "source": "assets/terrain/shale-scree-v1.png",
+          "x": 0,
+          "y": 512
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.436073749977,
+            0.401282882299,
+            0.362576747871
+          ],
+          "name": "rock-outcrop",
+          "padding": 16,
+          "source": "assets/terrain/rock-outcrop-v1.png",
+          "x": 256,
+          "y": 512
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.394000612182,
+            0.274354957777,
+            0.196563675975
+          ],
+          "name": "pine-needles",
+          "padding": 16,
+          "source": "assets/terrain/pine-needles-v1.png",
+          "x": 512,
+          "y": 512
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.32510218045,
+            0.226540809161,
+            0.152896163057
+          ],
+          "name": "leaf-mulch",
+          "padding": 16,
+          "source": "assets/terrain/leaf-mulch-v1.png",
+          "x": 768,
+          "y": 512
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.370443292101,
+            0.262769405283,
+            0.161779110175
+          ],
+          "name": "leaves",
+          "padding": 16,
+          "source": "assets/terrain/leaves-v1.png",
+          "x": 0,
+          "y": 768
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.326999045716,
+            0.235961216443,
+            0.173235024037
+          ],
+          "name": "twig-litter",
+          "padding": 16,
+          "source": "assets/terrain/twig-litter-v1.png",
+          "x": 256,
+          "y": 768
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.363423900322,
+            0.259934460469,
+            0.182006337889
+          ],
+          "name": "bark-fragments",
+          "padding": 16,
+          "source": "assets/terrain/bark-fragments-v1.png",
+          "x": 512,
+          "y": 768
+        },
+        {
+          "cell": 256,
+          "inner": 224,
+          "mean": [
+            0.44333711446,
+            0.278369254038,
+            0.168058481427
+          ],
+          "name": "autumn-leaves",
+          "padding": 16,
+          "source": "assets/terrain/autumn-leaves-v1.png",
+          "x": 768,
+          "y": 768
+        }
+      ],
+      "mipmapFilter": "linear",
+      "mipmapRgbaBytesApprox": 5592405,
+      "padding": 16,
+      "path": "assets/terrain/runtime/ground-desktop-v1.png",
+      "platform": "desktop",
+      "sha256": "d4a7cec0284edb2260f3280a88159c26f486035b46c0670ee6648279314174d5",
+      "width": 1024,
+      "wrap": "clamp/clamp"
+    },
+    {
+      "baseRgbaBytes": 1048576,
+      "cell": 128,
+      "filter": "linear/linear",
+      "height": 512,
+      "materials": [
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.518169214426,
+            0.456876249122,
+            0.307253461532
+          ],
+          "name": "dry-grass",
+          "padding": 8,
+          "source": "assets/terrain/dry-grass-v1.png",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.318825510002,
+            0.343384828679,
+            0.153757719801
+          ],
+          "name": "grass",
+          "padding": 8,
+          "source": "assets/terrain/grass-v1.png",
+          "x": 128,
+          "y": 0
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.383535893696,
+            0.377500495148,
+            0.165039881885
+          ],
+          "name": "wild-grass",
+          "padding": 8,
+          "source": "assets/terrain/wild-grass-v1.png",
+          "x": 256,
+          "y": 0
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.274957237257,
+            0.246228776175,
+            0.130411062497
+          ],
+          "name": "moss",
+          "padding": 8,
+          "source": "assets/terrain/moss-v1.png",
+          "x": 384,
+          "y": 0
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.701389113956,
+            0.610159527539,
+            0.49873332253
+          ],
+          "name": "shore-sand",
+          "padding": 8,
+          "source": "assets/terrain/shore-sand-v1.png",
+          "x": 0,
+          "y": 128
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.524983345037,
+            0.446831055655,
+            0.365985163579
+          ],
+          "name": "gravel",
+          "padding": 8,
+          "source": "assets/terrain/gravel-v1.png",
+          "x": 128,
+          "y": 128
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.471801796935,
+            0.337624912224,
+            0.225162498425
+          ],
+          "name": "dirt",
+          "padding": 8,
+          "source": "assets/terrain/dirt-v1.png",
+          "x": 256,
+          "y": 128
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.288193881777,
+            0.220071481301,
+            0.161137218891
+          ],
+          "name": "damp-soil",
+          "padding": 8,
+          "source": "assets/terrain/damp-soil-v1.png",
+          "x": 384,
+          "y": 128
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.405266569438,
+            0.375594627199,
+            0.343626100578
+          ],
+          "name": "shale-scree",
+          "padding": 8,
+          "source": "assets/terrain/shale-scree-v1.png",
+          "x": 0,
+          "y": 256
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.436073749977,
+            0.401282882299,
+            0.362576747871
+          ],
+          "name": "rock-outcrop",
+          "padding": 8,
+          "source": "assets/terrain/rock-outcrop-v1.png",
+          "x": 128,
+          "y": 256
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.394000612182,
+            0.274354957777,
+            0.196563675975
+          ],
+          "name": "pine-needles",
+          "padding": 8,
+          "source": "assets/terrain/pine-needles-v1.png",
+          "x": 256,
+          "y": 256
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.32510218045,
+            0.226540809161,
+            0.152896163057
+          ],
+          "name": "leaf-mulch",
+          "padding": 8,
+          "source": "assets/terrain/leaf-mulch-v1.png",
+          "x": 384,
+          "y": 256
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.370443292101,
+            0.262769405283,
+            0.161779110175
+          ],
+          "name": "leaves",
+          "padding": 8,
+          "source": "assets/terrain/leaves-v1.png",
+          "x": 0,
+          "y": 384
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.326999045716,
+            0.235961216443,
+            0.173235024037
+          ],
+          "name": "twig-litter",
+          "padding": 8,
+          "source": "assets/terrain/twig-litter-v1.png",
+          "x": 128,
+          "y": 384
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.363423900322,
+            0.259934460469,
+            0.182006337889
+          ],
+          "name": "bark-fragments",
+          "padding": 8,
+          "source": "assets/terrain/bark-fragments-v1.png",
+          "x": 256,
+          "y": 384
+        },
+        {
+          "cell": 128,
+          "inner": 112,
+          "mean": [
+            0.44333711446,
+            0.278369254038,
+            0.168058481427
+          ],
+          "name": "autumn-leaves",
+          "padding": 8,
+          "source": "assets/terrain/autumn-leaves-v1.png",
+          "x": 384,
+          "y": 384
+        }
+      ],
+      "mipmapFilter": "linear",
+      "mipmapRgbaBytesApprox": 1398101,
+      "padding": 8,
+      "path": "assets/terrain/runtime/ground-mobile-v1.png",
+      "platform": "mobile",
+      "sha256": "f99f09dd8abbbedcbf84ae5157039764cb30495f64f3a6c42fe180cfd9b144c3",
+      "width": 512,
+      "wrap": "clamp/clamp"
+    }
+  ],
+  "recipe": {
+    "operation": "Match the prior normalization shader and expanded draw quad at each destination pixel: linear/clamp-sample the source at UV ((pixelCenter-pad)/inner), divide by the 64-grid RGB mean floored at 0.05, clamp [0.35,1.85], multiply by 0.5, and quantize to RGBA8.",
+    "resampling": "OpenGL linear filter sample positions at output fragment centers; float interpolation before shader math",
+    "runtime": "newImage(...,{mipmaps=true}); linear min/mag and mipmap filters; clamp wrap",
+    "sourceMeanSampling": "x,y = 0, step, ... where step=max(1,floor(dimension/64))",
+    "tool": "tools/prepare_runtime_atlases.py",
+    "toolSha256": "435113f404f3882a61262d05078c04347072b824b37123438dcca3578a534c9b"
+  },
+  "sourceFiles": [
+    {
+      "path": "assets/terrain/dry-grass-v1.png",
+      "sha256": "c4d80bfa1fc516c0b697f1357c78a273932d94ac1123f8f486f9b155d95c14ea"
+    },
+    {
+      "path": "assets/terrain/grass-v1.png",
+      "sha256": "f992eab5ef08f6d8b68d16e03a1ab8b3637a5ed5c58f5491ad0cd452ccf11182"
+    },
+    {
+      "path": "assets/terrain/wild-grass-v1.png",
+      "sha256": "6ea1a6ad65b21fc058452d76e724be8fdd22f935dda639396c4f89d5e0d05c05"
+    },
+    {
+      "path": "assets/terrain/moss-v1.png",
+      "sha256": "71926a86c1142626e8e1a1fa3317c00cc6adcf448526a1b5bf4234a7e7996144"
+    },
+    {
+      "path": "assets/terrain/shore-sand-v1.png",
+      "sha256": "e6dfaf9790334286ce411ca377d7b3d41463f3e5e2436b9e0a461aca06d7dcff"
+    },
+    {
+      "path": "assets/terrain/gravel-v1.png",
+      "sha256": "448342b7aa716ab794725101cc15d65b0c29b349c577c49e0edd634a738ed1e1"
+    },
+    {
+      "path": "assets/terrain/dirt-v1.png",
+      "sha256": "8ab99bfe109be07040594fdee9c9aab4afc64dacba48f00c0dc76ab6d3287093"
+    },
+    {
+      "path": "assets/terrain/damp-soil-v1.png",
+      "sha256": "268cb3f3f2125a7ec7d4b76b5e3749d9f45e814f12fa5284e2ec43c87fe3b053"
+    },
+    {
+      "path": "assets/terrain/shale-scree-v1.png",
+      "sha256": "13a04d98bae85946bf73df74507c204565daf1a6356bd952d3efab37331110ab"
+    },
+    {
+      "path": "assets/terrain/rock-outcrop-v1.png",
+      "sha256": "19434fc401896ba7f0b1d31adcd12abd4d7ab70767a2b9083c454db633aa0c6c"
+    },
+    {
+      "path": "assets/terrain/pine-needles-v1.png",
+      "sha256": "d1b6db8468030e91af9a3f7bfda91ce7912ac6a464a54885dae9978ae06b88c5"
+    },
+    {
+      "path": "assets/terrain/leaf-mulch-v1.png",
+      "sha256": "f6c0ba63260eb8e6b00296970e847f5920dd93ed342878be37fce233b4577e01"
+    },
+    {
+      "path": "assets/terrain/leaves-v1.png",
+      "sha256": "b7b0b0bc5f1c55ba33b1a7c6d9bc65f9545858c35e33bf5fff409d3d397b21e3"
+    },
+    {
+      "path": "assets/terrain/twig-litter-v1.png",
+      "sha256": "0b2600c5cd874983964d4808b2407c4c4092e8bdbc470dbb87257fd375bdda28"
+    },
+    {
+      "path": "assets/terrain/bark-fragments-v1.png",
+      "sha256": "eb35a3b16d224a418a6ba3852b33dca52ded899583a4e30cb4052f53df316a9a"
+    },
+    {
+      "path": "assets/terrain/autumn-leaves-v1.png",
+      "sha256": "eb7bb78acb369c80121eb0d53dc13960ad3aefd9dee751dff439dbea1ed9eb08"
+    },
+    {
+      "path": "src/ground_materials.lua",
+      "sha256": "2886072fc3e099f33faae4caea577c5d764f21571f0a2d60705aba9571c20b6b"
+    },
+    {
+      "path": "src/ground_textures.lua",
+      "sha256": "6ef1b5c109790bf0f922c5bde167c05adfdbee5a0bdc5add82d7e17eb85dbe22"
+    },
+    {
+      "path": "src/ground.glsl",
+      "sha256": "af9d4dd00134767f5275a7246029ceecb1ab7d18fb2b4e38da8772d506b3cb06"
+    }
+  ],
+  "toolchain": {
+    "numpy": "2.3.5",
+    "pillow": "12.3.0",
+    "python": "3.12.14"
+  },
+  "version": 1
+}

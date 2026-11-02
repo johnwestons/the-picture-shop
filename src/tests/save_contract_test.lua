@@ -95,14 +95,27 @@ function Test.run(context, check)
         context.world.placementSelection = nil
         local began = mounted and context.world[beginName](relocationState)
         if not began then return false, "relocation begin failed" end
+        -- The starter wrapper is promoted into the fleet on first relocation.
+        -- Exercise the live pose and its saved unit, not the old fallback alias.
+        local _, activePose, activeUnit = require("src.machine_transport").active(relocationState)
+        item=activePose or item
+        local function savedPose(snapshot)
+            if activeUnit then
+                for _,unit in ipairs(snapshot.machines.items) do
+                    if unit.id==activeUnit.id then return unit.world end
+                end
+            end
+            return snapshot[kind]
+        end
         item.x, item.y = item.x + 12, item.y + 9
         item.inMotion = true
         local rotated = context.world[rotateName](relocationState)
         local activeSnapshot = SaveSchema.snapshot(relocationState)
-        local activeCommitted = activeSnapshot[kind].x == original.x
-            and activeSnapshot[kind].y == original.y
-            and activeSnapshot[kind].direction == original.direction
-            and not activeSnapshot[kind].moving and not activeSnapshot[kind].inMotion
+        local activeSaved=savedPose(activeSnapshot)
+        local activeCommitted = activeSaved.x == original.x
+            and activeSaved.y == original.y
+            and activeSaved.direction == original.direction
+            and not activeSaved.moving and not activeSaved.inMotion
         local grid = context.world.placementGridSnapshot(relocationState,context.assets)
         for _, cell in ipairs(grid and grid.cells or {}) do
             if cell.valid then
@@ -113,14 +126,15 @@ function Test.run(context, check)
         local placed = context.world[placeName](relocationState, context.assets)
         local finalPose = { x = item.x, y = item.y, direction = item.direction }
         local placedSnapshot = SaveSchema.snapshot(relocationState)
+        local placedSaved=savedPose(placedSnapshot)
         local finalChanged = finalPose.x ~= original.x or finalPose.y ~= original.y
             or finalPose.direction ~= original.direction
         local finalCommitted = finalChanged
-            and placedSnapshot[kind].x == finalPose.x
-            and placedSnapshot[kind].y == finalPose.y
-            and placedSnapshot[kind].direction == finalPose.direction
-            and not placedSnapshot[kind].moving and not placedSnapshot[kind].inMotion
-            and relocationState[kind]._relocationOrigin == nil
+            and placedSaved.x == finalPose.x
+            and placedSaved.y == finalPose.y
+            and placedSaved.direction == finalPose.direction
+            and not placedSaved.moving and not placedSaved.inMotion
+            and item._relocationOrigin == nil
         return rotated and activeCommitted and placed and finalCommitted,
             string.format("active=%s placed=%s", tostring(activeCommitted), tostring(finalCommitted))
     end

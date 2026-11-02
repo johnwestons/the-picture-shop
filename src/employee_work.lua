@@ -24,19 +24,20 @@ local function wrapperWaitActivity(reason)
     return "Waiting for the skid wrapper"
 end
 
-local function improveSkill(w,job,stage)
+local function improveSkill(w,stage,job)
     local field=skillField[stage]
-    if not field or not w.id or not job then return false end
-    job.employeeSkillAwards=job.employeeSkillAwards or {}
-    local awarded=job.employeeSkillAwards[stage]
-    if not awarded then awarded={};job.employeeSkillAwards[stage]=awarded end
-    for _,employeeId in ipairs(awarded) do
-        if employeeId==w.id then return false end
-    end
-    awarded[#awarded+1]=w.id
+    if not field then return false end
     local current=math.max(0,math.min(100,math.floor((tonumber(w[field]) or 0)+.5)))
     if current>=100 then return false end
+    local awards=job and type(job.employeeSkillAwards)=="table" and job.employeeSkillAwards or nil
+    local stageAwards=awards and awards[stage]
+    if stageAwards then for _,id in ipairs(stageAwards) do if id==w.id then return false end end end
     w[field]=current+1
+    if job and type(w.id)=="string" and #w.id>0 and #w.id<=64 then
+        if type(awards)~="table" then awards={};job.employeeSkillAwards=awards end
+        if type(stageAwards)~="table" then stageAwards={};awards[stage]=stageAwards end
+        stageAwards[#stageAwards+1]=w.id
+    end
     return true
 end
 
@@ -99,7 +100,7 @@ local function actionReady(w,dt,skill)
     return true
 end
 
-local function cutterStep(state,w,dt,machine,pallet)
+local function cutterStep(state,w,dt,machine,pallet,job)
     local changed,blocked=false,nil
     Fleet.withUnit(state,machine.id,function()
         local m=Machine.forId(machine.id)
@@ -139,7 +140,10 @@ local function cutterStep(state,w,dt,machine,pallet)
             elseif math.abs(m.gauge-cut.gauge)>.001 then changed=m.setGauge(cut.gauge,state)
             else changed=m.position(state) end
         elseif m.step=="positioned" then changed=m.toggleClamp(state)
-        elseif m.step=="clamped" then changed=m.pressBothControls(state)
+        elseif m.step=="clamped" then
+            m.operatorSkill=math.max(0,math.min(100,tonumber(w.cutterSkill) or 0))
+            changed=m.pressBothControls(state)
+            if changed then improveSkill(w,"cutter",job) else m.operatorSkill=nil end
         elseif m.step=="cut_complete" then
             changed=m.unload(state)
             if not changed then
@@ -220,6 +224,7 @@ local function pressStep(state,w,machine,pallet,job,dt)
             if not process.impression then changed,blocked=Windmill.control(state,"impression");return end
             if not actionReady(w,dt,w.pressSkill) then return end
             changed,blocked=Windmill.startProduction(state)
+            if changed then improveSkill(w,"press",job) end
             return
         end
         if process.status=="idle" then
@@ -248,7 +253,7 @@ local function pressStep(state,w,machine,pallet,job,dt)
     return changed,blocked
 end
 
-local function wrappingStep(state,w,machine,pallet,dt)
+local function wrappingStep(state,w,machine,pallet,dt,job)
     local changed,blocked=false,nil
     w.workFrame=3
     Fleet.withUnit(state,machine.id,function()
@@ -268,7 +273,10 @@ local function wrappingStep(state,w,machine,pallet,dt)
             end
         end
         changed,blocked=runtime.start(state)
-        if changed then operationStarts[w]=true end
+        if changed then
+            operationStarts[w]=true
+            improveSkill(w,"wrapping",job)
+        end
         if not changed then
             blocked=blocked or state.message or "The skid wrapper is not ready"
             w.activity=wrapperWaitActivity(blocked)
@@ -314,7 +322,6 @@ function Work.update(state,w,dt,context)
     local pallet,job=item.pallet,item.job
     if w._parkingJack then return Transport.park(state,w,dt,context) end
     if pallet.status=="wrapped" or pallet.wrapped then
-        if assignment.machineModel==stageModel.wrapping then improveSkill(w,job,"wrapping") end
         if w.carryingPalletId==pallet.id then Work.dropCarried(state,w,context) end
         if Work.safe(w,state) then Work.release(state,w);w.assignment=nil;w.activity="Pallet wrapped and ready for shipping" end
         return true
@@ -322,11 +329,6 @@ function Work.update(state,w,dt,context)
     local stage=Schedule.stage(job,pallet)
     local model=stageModel[stage]
     local experienceChanged=false
-    if assignment.machineModel==stageModel.cutter and stage~="cutter" then
-        experienceChanged=improveSkill(w,job,"cutter") or experienceChanged
-    elseif assignment.machineModel==stageModel.press and stage=="wrapping" then
-        experienceChanged=improveSkill(w,job,"press") or experienceChanged
-    end
     if not model then
         if Work.safe(w,state) then Work.release(state,w);w.assignment=nil end
         return true
@@ -444,16 +446,11 @@ function Work.update(state,w,dt,context)
     -- reason must not remain above the worker after access becomes clear.
     w.activity=stage=="cutter" and "Operating paper cutter"
         or stage=="press" and "Operating printing press" or "Operating skid wrapper"
-    if stage=="cutter" then changed,blocked=cutterStep(state,w,dt,machine,pallet)
+    if stage=="cutter" then changed,blocked=cutterStep(state,w,dt,machine,pallet,job)
     elseif stage=="press" then changed,blocked=pressStep(state,w,machine,pallet,job,dt)
-    else changed,blocked=wrappingStep(state,w,machine,pallet,dt) end
+    else changed,blocked=wrappingStep(state,w,machine,pallet,dt,job) end
     if type(blocked)=="string" and require("src.employee_speech").reason(blocked) then w.activity=blocked end
     state.message=priorMessage
-    if stage=="cutter" and Schedule.stage(job,pallet)~="cutter" then
-        experienceChanged=improveSkill(w,job,"cutter") or experienceChanged
-    elseif stage=="press" and Schedule.stage(job,pallet)~="press" then
-        experienceChanged=improveSkill(w,job,"press") or experienceChanged
-    end
     return changed or experienceChanged,blocked
 end
 

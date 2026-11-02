@@ -4,6 +4,8 @@ local imageCache = require("src.texture_cache").new(32 * 1024 * 1024, 20)
 local incomingTextures
 local ImageLoader=require("src.image_loader")
 local pendingPack,pendingTextures
+local apartmentImages,apartmentId,apartmentUsedAt={},nil,0
+local homeLaptop
 
 local Assets = {
     images = {},
@@ -712,8 +714,11 @@ end
 
 function Assets.activePackName() return Assets.activePack end
 function Assets.isLoading() return pendingPack~=nil end
-function Assets.pruneCache() imageCache:prune() end
-function Assets.clearCache() imageCache:clear() end
+function Assets.pruneCache()
+    imageCache:prune()
+    if apartmentId and love.timer.getTime()-apartmentUsedAt>20 then Assets.releaseApartment() end
+end
+function Assets.clearCache() imageCache:clear();Assets.releaseApartment() end
 function Assets.cachedTextureBytes() return imageCache.bytes end
 
 function Assets.textureBytes()
@@ -726,6 +731,11 @@ function Assets.textureBytes()
 end
 
 function Assets.get(name)
+    -- The platen is a purchased optional station. Load its large world image
+    -- only when that machine is visible, keeping starter-shop textures lean.
+    if name == "chandlerPriceFrontLeft" and not Assets.images[name] then
+        return loadImage(name, Config.paths.chandlerPriceFrontLeft, false)
+    end
     return Assets.images[name]
 end
 
@@ -740,6 +750,44 @@ end
 function Assets.getArtwork(key)
     return Assets.images["artwork:" .. tostring(key or "flower")]
         or Assets.images["artwork:flower"]
+end
+
+function Assets.releaseApartment()
+    require("src.home_renderer").clearCache()
+    ImageLoader.cancel("assets/generated/home-furniture-v1/laptop-eight-directions.png")
+    if homeLaptop then homeLaptop:release();homeLaptop=nil end
+    for _,image in pairs(apartmentImages) do image:release() end
+    local entry=apartmentId and require("src.home_catalog").APARTMENTS[apartmentId]
+    if entry then ImageLoader.cancel(entry.floorPath);ImageLoader.cancel(entry.wallPath) end
+    apartmentImages,apartmentId={},nil
+end
+
+function Assets.getHomeLaptop()
+    if homeLaptop then return homeLaptop end
+    local path="assets/generated/home-furniture-v1/laptop-eight-directions.png"
+    local image,reason=ImageLoader.load(path)
+    if not image then return nil,reason end
+    if not hasExactDimensions(image,path,1536,1024) then image:release();return nil end
+    image:setFilter("nearest","nearest");homeLaptop=image
+    return image
+end
+
+-- Only the selected apartment's pair stays resident, including in setup.
+function Assets.getApartment(id)
+    local entry=require("src.home_catalog").APARTMENTS[id]
+    if not entry then return nil end
+    if apartmentId~=id then Assets.releaseApartment();apartmentId=id end
+    apartmentUsedAt=love.timer.getTime()
+    for _,layer in ipairs({"floor","wall"}) do
+        if not apartmentImages[layer] then
+            local image,reason=ImageLoader.load(entry[layer.."Path"])
+            if image then
+                if not hasExactDimensions(image,entry[layer.."Path"],1536,1024) then image:release();return nil end
+                image:setFilter("nearest","nearest");apartmentImages[layer]=image
+            elseif reason~="pending" then return nil,reason end
+        end
+    end
+    return apartmentImages
 end
 
 function Assets.assertHealthy()

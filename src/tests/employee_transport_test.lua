@@ -12,6 +12,7 @@ local Catalog=require("src.worker_catalog")
 local Renderer=require("src.employee_renderer")
 local Customer=require("src.customer")
 local Config=require("src.config")
+local Wrapper=require("src.wrapper")
 local AI=require("src.employee_ai")
 local Schema=require("src.save_schema")
 local Navigation=require("src.navigation")
@@ -271,6 +272,56 @@ function Test.run(context,check)
         check("employee_delivers_real_jack_to_"..stage,lowered and wrapperDropValid,
             wrapperDropDetail or blockedTransportDetail or worker.activity)
         context.world.player.x,context.world.player.y=oldPX,oldPY
+    end
+    -- Cover the complete in-game wrapper handoff, including schedule-stage
+    -- resolution, pallet-jack pickup/drop, jack parking, operator access, and
+    -- the actual wrapper cycle. The lower-level transport check above only
+    -- verifies that the jack can deliver a skid.
+    do
+        local wrapState=State.new()
+        local wrapWorker=hire(wrapState)
+        wrapWorker.wrappingSkill=0
+        local wrapCutter=Fleet.installedUnits(wrapState,"polar_115")[1]
+        local wrapMachine=Fleet.installedUnits(wrapState,"skid_wrapper")[1]
+        local wrapJob,wrapPallet=job(wrapState,"JOB-EMPLOYEE-WRAPS-START-TO-FINISH",500,520)
+        wrapPallet.location,wrapPallet.status="cutter_output","finished"
+        wrapPallet.finishedSheets,wrapPallet.remainingSheets=500,0
+        wrapPallet.cutterMachineId=wrapCutter.id
+        wrapPallet.world={x=500,y=520,fromX=500,fromY=520,spawnProgress=1,direction="northwest"}
+        wrapState.inventory.plasticWrapUses,wrapState.inventory.plasticWrapRolls=11,1
+        local added,queueReason=Employees.command(wrapState,{kind="queue_employee_job",
+            employeeId=wrapWorker.id,jobId=wrapJob.id,machineId="auto"},9)
+        assert(added,queueReason)
+        local oldPlayerX,oldPlayerY=context.world.player.x,context.world.player.y
+        local oldEmployeeOptions=context.world._employeeOptions
+        context.world.player.x,context.world.player.y=930,640
+        context.world.configureEmployees({players=function() return {} end})
+        local wrapContext=context.world.employeeContext(wrapState,context.assets)
+        wrapContext.canClaim=function() return true end
+        wrapContext.move=function(actor,goal,dt) return AI.move(actor,goal,dt,wrapContext) end
+        Schedule.advance(wrapState,wrapWorker,9.1,wrapContext.canClaim)
+        local wrapped=false
+        local lastActivity,lastStage
+        for _=1,9000 do
+            Work.update(wrapState,wrapWorker,.1,wrapContext)
+            Wrapper.updateAll(.1,wrapState)
+            lastActivity=wrapWorker.activity
+            lastStage=wrapWorker.assignment and wrapWorker.assignment.machineModel
+            if wrapPallet.status=="wrapped" then wrapped=true;break end
+        end
+        if wrapped then
+            Work.update(wrapState,wrapWorker,.1,wrapContext)
+            Schedule.advance(wrapState,wrapWorker,9.2,wrapContext.canClaim)
+        end
+        context.world.player.x,context.world.player.y=oldPlayerX,oldPlayerY
+        context.world.configureEmployees(oldEmployeeOptions)
+        check("employee_runs_finished_skid_through_real_wrapper_cycle",wrapped
+            and wrapPallet.location=="warehouse" and not wrapState.palletJack.carriedPalletId
+            and not wrapState.palletJack.operating and wrapMachine~=nil
+            and wrapWorker.schedule.history[1] and wrapWorker.schedule.history[1].result=="complete",
+            "status="..tostring(wrapPallet.status).." location="..tostring(wrapPallet.location)
+                .." activity="..tostring(lastActivity).." machine="..tostring(lastStage)
+                .." pallet="..tostring(wrapPallet.world and string.format("%.1f,%.1f",wrapPallet.world.x,wrapPallet.world.y)))
     end
     local takeoverState=State.new()
     local takeoverWorker=hire(takeoverState)

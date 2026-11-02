@@ -79,6 +79,9 @@ function Component.install(Runtime)
             return nil, "Invalid saved credit account."
         end
         local result = Runtime.Schema.defaultState()
+        result.home = Runtime.Home.normalize(source.home,
+            type(source.calendar)=="table" and source.calendar.totalDays or 0)
+        if not result.home then return nil,"Invalid household or apartment lease." end
         local warehouse, warehouseError = Runtime.WarehouseUpgrades.normalize(source.warehouse)
         if not warehouse then return nil, warehouseError end
         local stagingAreas, stagingError = Runtime.StagingAreas.normalize(source.stagingAreas)
@@ -200,6 +203,10 @@ function Component.install(Runtime)
             result.palletJack.carriedPalletId = source.palletJack.carriedPalletId
         end
         if repairPhysical then Runtime.repairLegacyPhysicalOwnership(result) end
+        if not source.home or not source.home.finance then
+            result.home.finance=require("src.household_finances").new(require("src.business_calendar").absoluteHours(result))
+        end
+        require("src.home_shopping").ensure(result)
         return result
     end
 end

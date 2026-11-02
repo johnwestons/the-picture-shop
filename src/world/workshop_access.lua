@@ -49,16 +49,27 @@ function Component.install(Runtime)
     -- physical target from its current shop state and checks the authoritative
     -- player position directly before granting an exclusive console lease.
     function Runtime.World.validateNetworkWorkshopAccess(player, state, resourceId)
+        if type(player) ~= "table" or type(state) ~= "table" then
+            return false, "invalid_player", "The host could not verify that worker's position."
+        end
+        local allowed,reason=require('src.commute.outfit').allowed(state,player,'work')
+        if not allowed then return false,'riding_gear',reason end
         local scene=require("src.shop_rooms").scene(player)
         if resourceId=="truck" and scene~=(Runtime.World.truck.sceneId or "warehouse") then
             return false,"wrong_scene","Use the loading bay assigned to this truck."
         end
-        if type(player) ~= "table" or type(state) ~= "table" then
-            return false, "invalid_player", "The host could not verify that worker's position."
-        end
         Runtime.World._state = state
         local machineBase, machineId = Runtime.MachineResource.parse(resourceId)
-        if scene~="warehouse" and resourceId~="truck" and resourceId~="pallet_jack" and not machineBase then
+        if not require("src.weekend_flow").acceptsNewWork(state)
+            and (machineBase or resourceId=="cutter" or resourceId=="skid_wrapper" or resourceId=="windmill"
+                or resourceId=="reception_customer" or resourceId=="vendor") then
+            return false,"shop_closed","The shop is closing or closed for the weekend."
+        end
+        if scene=="home" and resourceId~="office_computer" then
+            return false,"wrong_scene","This equipment is at the shop."
+        end
+        if scene~="warehouse" and not (scene=="home" and resourceId=="office_computer")
+            and resourceId~="truck" and resourceId~="pallet_jack" and not machineBase then
             return false,"wrong_scene","Return to the warehouse to use this console."
         end
         local function installedMachine(base)
@@ -109,7 +120,9 @@ function Component.install(Runtime)
             end
             unavailableMessage = "Move closer to the truck cargo controls."
         elseif resourceId == "office_computer" then
-            target = Runtime.Config.interactables.computer
+            if scene=="home" then target=require("src.home_surfaces").computer(state,player)
+            else target=Runtime.Config.interactables.computer end
+            if not target then return false,"not_installed","Unpack your laptop onto a desk, counter, or clear floor using Furnish [M]." end
             unavailableMessage = "Move closer to the office computer."
         elseif resourceId == "work_phone" then
             target = Runtime.Config.interactables.workPhone

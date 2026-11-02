@@ -6,7 +6,15 @@ local fields = {
     promotion = { id = "token", text = "text" }, archive = { id = "token" },
     archive_service = { id = "token" }, delete_email = { id = "token" },
     mark_email_read = { id = "token" }, sell = { id = "token" },
+    quality_inspect = { jobId = "token" }, quality_rework = { jobId = "token" },
+    customer_case = { jobId = "token", response = "case_response" },
     pay_bills = {}, checkout = { items = "cart" },
+    home_pay_rent = { expectedRevision="home_revision" },
+    home_set_pay = { expectedRevision="home_revision",percent="home_percent" },
+    home_set_reserve = { expectedRevision="home_revision",reserveCents="home_reserve" },
+    home_order_food = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
+    home_order_furniture = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
+    home_set_food_limit = {expectedRevision="home_revision",limitCents="home_food_limit"},
     finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
     pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
@@ -48,6 +56,18 @@ function Intent.normalize(value)
         local item = value[key]
         if rule == "boolean" then
             if type(item) ~= "boolean" then return nil,"Choose whether recruitment is open." end
+        elseif rule == "home_revision" then
+            if not integer(item,0,1000000000000) then return nil,"Review the latest home details." end
+        elseif rule == "home_percent" then
+            if not integer(item,0,100) then return nil,"Personal pay must be 0 to 100 percent." end
+        elseif rule == "home_reserve" then
+            if not integer(item,0,100000000) then return nil,"Choose a cash reserve from $0 to $1,000,000." end
+        elseif rule == "home_product" then
+            if type(item)~="string" or not require("src.home_shop_catalog").PRODUCTS[item] then return nil,"Choose a listed household product." end
+        elseif rule == "home_quantity" then
+            if not integer(item,1,10) then return nil,"Choose a quantity from 1 to 10." end
+        elseif rule == "home_food_limit" then
+            if not integer(item,0,1000000) then return nil,"Choose a valid shared guest food budget." end
         elseif rule == "revision" then
             if not integer(item,1,1000000000) then return nil,"Review the latest record revision." end
         elseif rule == "queue_direction" then
@@ -73,6 +93,10 @@ function Intent.normalize(value)
         elseif rule == "employee_skill" then
             if item~="cutter" and item~="press" and item~="wrapping" then
                 return nil,"Choose paper-cutter, printing-press, or pallet-wrapping training."
+            end
+        elseif rule == "case_response" then
+            if item ~= "credit" and item ~= "apology" and item ~= "decline" then
+                return nil, "Choose a customer credit, apology, or decline response."
             end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end

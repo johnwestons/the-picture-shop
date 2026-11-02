@@ -70,6 +70,10 @@ function Controls.open(Runtime,mode)
         or "Choose an available room. Other players stay in their own rooms."
 end
 function Controls.keypressed(key,Runtime)
+    if require("src.home_furniture_controls").keypressed(key,Runtime) then return true end
+    if require("src.home_delivery_controls").keypressed(key,Runtime) then return true end
+    if require("src.home_activity_controls").keypressed(key,Runtime) then return true end
+    if require("src.home_travel_controls").keypressed(key,Runtime) then return true end
     if Runtime.state.screen=="shop_rooms" then
         if key=="escape" then Runtime.state.screen="world"
         elseif key=="up" or key=="down" then
@@ -143,6 +147,9 @@ function Controls.keyreleased(key,Runtime)
     return false
 end
 function Controls.mousepressed(x,y,button,Runtime)
+    if require("src.home_furniture_controls").mousepressed(x,y,button,Runtime) then return true end
+    if require("src.home_activity_controls").mousepressed(x,y,button,Runtime) then return true end
+    if require("src.home_travel_controls").mousepressed(x,y,button,Runtime) then return true end
     if require("src.basketball_controls").mousepressed(x,y,button,Runtime) then return true end
     if Runtime.state.screen~="shop_rooms" then return false end
     if button~=1 then return true end

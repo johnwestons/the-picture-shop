@@ -8,6 +8,16 @@ local function legacyGeometry(suite)
 end
 
 local DOMAIN_SUITES = {
+    require("src.tests.home_residents_test"),
+    require("src.tests.home_shopping_test"),
+    require("src.tests.home_furniture_test"),
+    require("src.tests.household_finances_test"),
+    require("src.tests.home_test"),
+    require("src.tests.home_scene_test"),
+    require("src.tests.business_deadlines_test"),
+    require("src.tests.weekend_flow_test"),
+    require("src.tests.weekend_runtime_test"),
+    require("src.tests.home_travel_session_test"),
     require("src.tests.lua_limits_test"),
     require("src.tests.basketball_test"),
     require("src.tests.critter_kombat_test"),
@@ -138,7 +148,6 @@ local DOMAIN_SUITES = {
     require("src.tests.service_reliability_test"),
     require("src.tests.room_shipping_test"),
     require("src.tests.employee_speech_test"),
-    require("src.tests.regal_folder_game_test"),
     require("src.tests.multi_machine_test"),
     require("src.tests.placement_precision_test"),
     require("src.tests.credit_finance_test"),
@@ -150,6 +159,7 @@ local DOMAIN_SUITES = {
     require("src.tests.worker_animation_test"),
     require("src.tests.employee_transport_test"),
     require("src.tests.outdoor_weather_test"),
+    require("src.tests.gameplay_quality_test"),
     require("src.tests.shop_workflow_test"),
     require("src.tests.press_economics_test"),
     require("src.tests.windmill_integration_test"),

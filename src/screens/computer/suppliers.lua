@@ -172,24 +172,34 @@ function Component.install(Runtime)
             Runtime.drawCritterNetSprite(assets, siteChangeAge < 0.36 and 16 or 15,
                 773, 244, 58, 39, 1)
         end
+        local featuredSale = Runtime.Procurement.currentSale(state)
+        if featuredSale then
+            love.graphics.setColor(0.50, 0.94, 0.56, 1)
+            love.graphics.printf(string.format("SALE %d%% OFF", featuredSale.percent), 492, 206, 194, "right")
+        end
         if site.kind ~= "machines" then
             local category = Runtime.Procurement.category(site.categoryIndex)
             for index, item in ipairs(category.items) do
                 local row, buy = Runtime.wwwProductRect(index), Runtime.retailBuyRect(index)
                 local available = item.available ~= false and item.retailPrice ~= nil
+                local price, regularPrice, salePercent = Runtime.Procurement.retailPrice(state, site.categoryIndex, index)
                 local total = Runtime.cartTotal()
-                local affordable = available and (state.money or 0) >= total + (item.retailPrice or 0)
+                local affordable = available and (state.money or 0) >= total + (price or 0)
                 love.graphics.setColor(index % 2 == 0 and 0.075 or 0.095, 0.11, 0.17, 0.94)
                 love.graphics.rectangle("fill", row.x, row.y, row.width, row.height, 2, 2)
                 love.graphics.setColor(0.38, 0.78, 0.88, 1)
                 love.graphics.printf(item.retailName or item.name, row.x + 14, row.y + 8, 430, "left")
-                love.graphics.setColor(0.66, 0.72, 0.72, 1)
+                if (salePercent or 0) > 0 then love.graphics.setColor(0.50, 0.94, 0.56, 1)
+                else love.graphics.setColor(0.66,0.72,0.72,1) end
                 love.graphics.print(available
-                    and string.format("Ships to loading dock • salesman bulk $%d", item.price)
-                    or tostring(item.unavailableReason), row.x + 14, row.y + 29)
+                    and ((salePercent or 0) > 0
+                        and string.format("%d%% SALE • regular %s • loading dock", salePercent, Runtime.money(regularPrice))
+                        or string.format("Ships to loading dock • salesman bulk $%d",item.price))
+                    or tostring(item.unavailableReason),row.x+14,row.y+29)
                 local hovered = affordable and pointerX and Runtime.contains(buy, pointerX, pointerY)
                 Runtime.drawComputerButton(buy,
-                    available and ("ADD " .. Runtime.money(item.retailPrice)) or "OFFLINE",
+                    available and ((salePercent or 0) > 0 and ("SALE " .. Runtime.money(price))
+                        or ("ADD "..Runtime.money(price))) or "OFFLINE",
                     not affordable and "disabled" or hovered and "primaryHover" or "primary")
             end
             return
@@ -208,9 +218,9 @@ function Component.install(Runtime)
             local red, green, blue = Runtime.conditionColor(offer.condition)
             love.graphics.setColor(red, green, blue)
             love.graphics.print(string.format("%s • %.0f%% condition", offer.conditionStatus, offer.condition),
-                Runtime.MACHINE_OFFER.x + 12, y + 24)
+                Runtime.MACHINE_OFFER.x + 12, y + 20)
             love.graphics.setColor(0.58, 0.67, 0.69)
-            love.graphics.print("Inspected • flatbed delivery", Runtime.MACHINE_OFFER.x + 12, y + 43)
+            love.graphics.print("Inspected • flatbed delivery", Runtime.MACHINE_OFFER.x + 12, y + 36)
             local total = Runtime.cartTotal()
             local affordable = (state.money or 0) >= total + offer.price
             local canFinance = (state.money or 0) < offer.price

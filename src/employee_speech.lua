@@ -1,5 +1,5 @@
 -- Short host-owned captions. Realtime poses carry one code, never long text.
-local Speech={MAX_CODE=31,GREETING_SECONDS=4}
+local Speech={MAX_CODE=31,GREETING_SECONDS=4,HIGH_FIVE_SECONDS=15}
 local messages={
     "Hello!","Hello!","Goodbye!","Cutting","Wrapping","Printing",
     "On break","Lunch break","To breakroom","To the cutter","To the wrapper",
@@ -18,6 +18,18 @@ for index,reason in ipairs(reasons) do
     messages[code]=reason[2]
 end
 Speech.MAX_CODE=31+#reasons
+local customCode=Speech.MAX_CODE
+local function addMessage(name,message)
+    customCode=customCode+1
+    Speech[name]=customCode
+    messages[customCode]=message
+end
+addMessage("APPLICANT_ASK", "Hey, I'm looking for a job. Are you hiring?")
+addMessage("APPLICANT_RESUME_REPLY", "Sure! I'll email you my resume.")
+addMessage("APPLICANT_DECLINE_REPLY", "No worries. Thanks anyway!")
+addMessage("EMPLOYEE_HIGH_FIVE_REQUEST", "Hey, boss! Can I get a high five?")
+addMessage("EMPLOYEE_HIGH_FIVE_THANKS", "Thanks for the high five!")
+Speech.MAX_CODE=customCode
 function Speech.reason(activity)
     local value=string.lower(tostring(activity or ""))
     for index,reason in ipairs(reasons) do
@@ -27,15 +39,27 @@ function Speech.reason(activity)
     end
 end
 function Speech.code(entry)
-    if not entry or not entry.worker or not entry.actor or entry.actor.visible==false then return 0 end
-    local a,w=entry.actor,entry.worker
+    if not entry or not entry.actor or entry.actor.visible==false then return 0 end
+    local a=entry.actor
+    if entry.application then
+        if type(a.speechCode)=="number" and a.speechCode%1==0
+            and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
+        if entry.application.status=="visiting" and a.phase=="waiting" then return Speech.APPLICANT_ASK end
+        if entry.application.status=="resume_requested" and a.phase=="leaving" then return Speech.APPLICANT_RESUME_REPLY end
+        if entry.application.status=="declined" and a.phase=="leaving" then return Speech.APPLICANT_DECLINE_REPLY end
+        return 0
+    end
+    if not entry.worker then return 0 end
+    local w=entry.worker
     -- A guest uses the current host pose, including its caption, rather than
     -- an older assignment/activity from the reliable shop snapshot.
     if type(a.speechCode)=="number" and a.speechCode%1==0
         and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
+    if a.greetingKind==Speech.EMPLOYEE_HIGH_FIVE_REQUEST
+        or a.greetingKind==Speech.EMPLOYEE_HIGH_FIVE_THANKS then return a.greetingKind end
     local reason=Speech.reason(w.activity)
     if reason then return reason end
-    if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=3 then return a.greetingKind end
+    if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=Speech.MAX_CODE then return a.greetingKind end
     if a.phase=="leaving" then
         if (w.activity or ""):find("Exit path blocked",1,true) then return 17 end
         return 20

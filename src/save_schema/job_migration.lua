@@ -129,6 +129,7 @@ function Component.install(Runtime)
     function Runtime.normalizeJob(savedJob)
         if type(savedJob) ~= "table" then return end
         if savedJob.details == nil then savedJob.details = {} end
+        require("src.business_deadlines").ensure(savedJob)
         if savedJob.difficulty == nil then savedJob.difficulty = "easy" end
         if savedJob.packaging == nil then savedJob.packaging = "flat" end
         if type(savedJob.pallets) == "table" then

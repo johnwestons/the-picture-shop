@@ -1,0 +1,131 @@
+-- Authored vehicle billboards. All left/right views are drawn
+-- independently: the exhaust and chain must never trade sides via mirroring.
+local Art={SCALE=.46,FRAME=320,COLUMNS=4,ROWS=4,FRAME_COUNT=16,ATLAS_WIDTH=1280,ATLAS_HEIGHT=1280,ANCHOR_X=160,ANCHOR_Y=260}
+Art.__index=Art
+Art.directions={'north','north-northeast','northeast','east-northeast',
+    'east','east-southeast','southeast','south-southeast',
+    'south','south-southwest','southwest','west-southwest',
+    'west','west-northwest','northwest','north-northwest'}
+local Bike=require('src.commute.motorcycle')
+local M=require('src.commute.vendor.mathx')
+local RidingAnimation=require('src.commute.riding_animation')
+local indices={};for i,name in ipairs(Art.directions) do indices[name]=i end
+function Art.frame(camera,heading,frameCount)
+    if frameCount==8 then
+        return (assert(indices[camera:headingDirection(heading)],'Unknown motorcycle heading')+1)/2
+    end
+    return assert(indices[camera:headingDirection16(heading)],'Unknown motorcycle heading')
+end
+function Art.new()
+    local self=setmetatable({images={},quads={}},Art)
+    local files={parked='parked',mounted='mounted',aero='mounted-aero-tuck',
+        aeroMid='mounted-aero-tuck-transition',
+        boost='mounted-acceleration-response',shift='mounted-gear-shift',
+        boostMid='mounted-boost-transition',shiftMid='mounted-gear-shift-transition',
+        impact='mounted-impact-brace',impactMid='mounted-impact-transition',
+        turnLeft='mounted-hard-turn-left',turnRight='mounted-hard-turn-right',
+        turnLeftMid='mounted-turn-left-transition',turnRightMid='mounted-turn-right-transition'}
+    -- Only opt into sixteen views when the entire pose set is installed.
+    -- Mixing atlas layouts would blend poses facing different directions.
+    local suffix='-16'
+    for _,file in pairs(files) do
+        if not love.filesystem.getInfo('assets/commute/bike/'..file..'-16.png','file') then
+            suffix='';break
+        end
+    end
+    self.frameCount=suffix=='-16' and Art.FRAME_COUNT or 8
+    self.atlasHeight=self.frameCount/Art.COLUMNS*Art.FRAME
+    for state,file in pairs(files) do
+        local path='assets/commute/bike/'..file..suffix..'.png'
+        local image=love.graphics.newImage(path)
+        assert(image:getWidth()==Art.ATLAS_WIDTH and image:getHeight()==self.atlasHeight,'Invalid motorcycle atlas: '..path)
+        image:setFilter('linear','linear');self.images[state]=image
+    end
+    for i=1,self.frameCount do
+        self.quads[i]=love.graphics.newQuad((i-1)%Art.COLUMNS*Art.FRAME,
+            math.floor((i-1)/Art.COLUMNS)*Art.FRAME,Art.FRAME,Art.FRAME,Art.ATLAS_WIDTH,self.atlasHeight)
+    end
+    return self
+end
+local function pulseWeight(timeLeft,duration)
+    if timeLeft<=0 then return 0 end
+    local progress=1-M.clamp(timeLeft/duration,0,1)
+    return math.sin(progress*math.pi)
+end
+local function transitionWeights(progress)
+    progress=M.clamp(progress,0,1)
+    if progress<.5 then
+        local middle=M.smooth(progress*2)
+        return 1-middle,middle,0
+    end
+    local target=M.smooth((progress-.5)*2)
+    return 0,1-target,target
+end
+function Art.action(actor,presentation,turnBlend)
+    local view=presentation or actor
+    local impact=view.impactPulse or 0
+    if impact>0 then
+        return 'impact',pulseWeight(impact,Bike.IMPACT_DURATION)*M.clamp(view.impactStrength or 0,0,1)
+    end
+    local kind,remaining
+    if presentation and presentation.ridingAction~=nil then
+        kind,remaining=presentation.ridingAction,presentation.ridingActionTime
+    elseif not presentation and actor.ridingAnimation then
+        kind,remaining=RidingAnimation.sample(actor)
+    else
+        -- Compatible with old network snapshots; boost must not be overridden
+        -- by a physical torque-cut timer even without sequenced pose metadata.
+        if (view.boostPulse or 0)>0 then return 'boost',pulseWeight(view.boostPulse,Bike.BOOST_PULSE) end
+        if (view.shiftTime or 0)>0 then return 'shift',pulseWeight(view.shiftTime,Bike.SHIFT_TIME)*(1-(turnBlend or 0)) end
+        return nil,0
+    end
+    if kind=='idle' then return nil,0 end
+    local weight=pulseWeight(remaining or 0,RidingAnimation.durations[kind])
+    if kind=='shift' then weight=weight*(1-(turnBlend or 0)) end
+    return kind,weight
+end
+function Art:draw(actor,camera,world,parked,presentation)
+    local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
+    local frame=Art.frame(camera,actor.heading,self.frameCount)
+    local g=love.graphics
+    local scale=Art.SCALE*camera.zoom
+    local function drawState(state,alpha,rotation)
+        if alpha<=.001 then return end
+        g.setColor(1,1,1,alpha)
+        g.draw(self.images[state],self.quads[frame],x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y)
+    end
+    if parked then
+        drawState('parked',1,0)
+        g.setColor(1,1,1)
+        return
+    end
+
+    local visualPresentation=presentation
+    presentation=presentation or {}
+    local speed=presentation.speed or actor.speed or 0
+    local rawLean=presentation.lean or actor.lean or 0
+    local lean=M.clamp(rawLean,-.16,.16)
+    local turnBlend=M.smooth((math.abs(rawLean)-.15)/.15)
+    local turnState,turnMid=rawLean>=0 and 'turnLeft' or 'turnRight',
+        rawLean>=0 and 'turnLeftMid' or 'turnRightMid'
+    local tuck=M.smooth((speed-Bike.TUCK_START_SPEED)/(Bike.BOOST_MAX_SPEED-Bike.TUCK_START_SPEED))
+    local tuckFrom,tuckMid,tuckTo=transitionWeights(tuck)
+    local turnFrom,turnMiddle,turnTo=transitionWeights(turnBlend)
+    local action,actionWeight=Art.action(actor,visualPresentation,turnBlend)
+    local actionMid=action and action..'Mid'
+    local actionFrom,actionMiddle,actionTo=transitionWeights(actionWeight)
+    drawState('mounted',tuckFrom*turnFrom*actionFrom,lean)
+    drawState('aeroMid',tuckMid*turnFrom*actionFrom,lean)
+    drawState('aero',tuckTo*turnFrom*actionFrom,lean)
+    drawState(turnMid,turnMiddle*actionFrom,lean)
+    drawState(turnState,turnTo*actionFrom,lean)
+    drawState(actionMid,actionMiddle,lean)
+    drawState(action,actionTo,lean)
+    g.setColor(1,1,1)
+end
+function Art:release()
+    for _,image in pairs(self.images) do image:release() end
+    for _,quad in ipairs(self.quads) do quad:release() end
+    self.images={};self.quads={}
+end
+return Art

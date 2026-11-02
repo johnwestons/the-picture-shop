@@ -145,10 +145,11 @@ function Component.install(Runtime)
         local number = emails.nextEmailId
         local offer = Runtime.repeatOffer(state, completedJob, number)
         if not offer then return false end
+        local appliedCoupon,couponPrices=Runtime.applyAvailablePromotionCoupon(state,offer)
         local followupHours = math.floor((1 + number % 3) * 24
             * CustomerDemand.delayMultiplier(state) + 0.5)
         emails.nextEmailId = number + 1
-        emails.pending[#emails.pending + 1] = {
+        local email={
             id = string.format("EMAIL-%04d", number),
             sender = completedJob.company,
             subject = completedJob.press and "Request for another print job" or "Request for another cutting job",
@@ -159,6 +160,14 @@ function Component.install(Runtime)
             readyAtHours = Runtime.BusinessCalendar.absoluteHours(state) + followupHours,
             job = offer,
         }
+        if couponPrices then
+            email.promotionId=appliedCoupon.id
+            email.standardPrice=couponPrices.standardPrice
+            email.discountAmount=couponPrices.discountAmount
+            email.discountedTotal=couponPrices.discountedTotal
+            email.body=email.body.." Your 10% returning-client coupon has been applied to this order."
+        end
+        emails.pending[#emails.pending + 1] = email
         return true
     end
 

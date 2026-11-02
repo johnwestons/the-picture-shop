@@ -77,6 +77,7 @@ function Component.install(Runtime)
                 if event.type == "connect" then
                     local ok, helloError = self:_sendToServer("hello", {
                         clientNonce = self.clientNonce,
+                        residentToken = self.residentToken,
                         name = self.localName,
                         character = self.localCharacter,
                         furColorway = self.localFurColorway or 1,

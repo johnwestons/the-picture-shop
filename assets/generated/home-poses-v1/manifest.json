@@ -1,0 +1,102 @@
+{
+  "mode": "built-in image_gen",
+  "reference": "C:/Users/johnw/OneDrive/Documents/ChatGPT/The Picture Shop/assets/generated/characters/rabbit-worker/sit-room-v1.png",
+  "date": "2026-11-01",
+  "assets": [
+    {
+      "pose": "seated",
+      "path": "assets/generated/home-poses-v1/seated-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-ebceaef5-581e-4cc2-89b0-ff593fd76600.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent character sprite atlas for an isometric life-simulation game. Input image 1 is the exact character identity/style reference, not a background. Preserve this adult cartoon rabbit's ginger fur, cream muzzle/eyebrows/fluffy tail, pink inner ears, brown eyes, off-white rolled-sleeve shirt, blue bib overalls with gold buttons, brown leather tool pouch on his anatomical right hip, and brown work boots. Preserve the soft painted texture, strong fine dark outlines, friendly proportions and large head. Fixed elevated orthographic game camera, approximately 30 degrees above the ground, no perspective distortion. Generate exactly eight distinct views on a 1536x1024 transparent RGBA canvas in an evenly spaced FOUR COLUMN by TWO ROW grid of 384x512 cells. No cell borders, labels, text, shadows on a ground plane, furniture, floor, scenery, checkerboard or opaque backdrop. Keep the entire character inside each cell with generous transparent gutters. The character must be consistently sized across views. Direction order reading left to right top to bottom: southeast (faces lower right), south (faces viewer), southwest (faces lower left), west (faces left profile), northwest (back three-quarter toward upper left), north (back to viewer), northeast (back three-quarter toward upper right), east (faces right profile). Do not duplicate or mirror the hip pouch onto the wrong anatomical side. Primary request: eight views of the rabbit SITTING UPRIGHT on an invisible chair. Bottom supported at chair-seat height, thighs horizontal forward, knees bent 90 degrees, lower legs vertical, boots down, hands resting comfortably on thighs. Neutral open-eyed expression. There is NO chair in the artwork. Ear tips approximately y=65, seat/bottom contact around y=350, boot soles around y=450 within each cell. Anatomically clear side and rear views. Only the rabbit silhouette, genuine transparency everywhere else.",
+      "sha256": "32f99f78d6a5d01814899ca563489aee4f0567d42e4e2aa05271b7155145f996",
+      "copiedWithoutPixelEdits": true,
+      "width": 1536,
+      "height": 1024,
+      "alphaRange": [
+        0,
+        254
+      ],
+      "runtimeAlphaCutoff": 0.18,
+      "directionOrder": [
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "north",
+        "northeast",
+        "east"
+      ],
+      "directionMeaning": "seated facing direction"
+    },
+    {
+      "pose": "eating",
+      "path": "assets/generated/home-poses-v1/eating-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-efca5757-4967-439c-aa42-7bab0073712c.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent character sprite atlas for an isometric life-simulation game. Input image 1 is the exact character identity/style reference, not a background. Preserve this adult cartoon rabbit's ginger fur, cream muzzle/eyebrows/fluffy tail, pink inner ears, brown eyes, off-white rolled-sleeve shirt, blue bib overalls with gold buttons, brown leather tool pouch on his anatomical right hip, and brown work boots. Preserve the soft painted texture, strong fine dark outlines, friendly proportions and large head. Fixed elevated orthographic game camera, approximately 30 degrees above the ground, no perspective distortion. Generate exactly eight distinct views on a 1536x1024 transparent RGBA canvas in an evenly spaced FOUR COLUMN by TWO ROW grid of 384x512 cells. No cell borders, labels, text, shadows on a ground plane, furniture, floor, scenery, checkerboard or opaque backdrop. Keep the entire character inside each cell with generous transparent gutters. The character must be consistently sized across views. Direction order reading left to right top to bottom: southeast (faces lower right), south (faces viewer), southwest (faces lower left), west (faces left profile), northwest (back three-quarter toward upper left), north (back to viewer), northeast (back three-quarter toward upper right), east (faces right profile). Do not duplicate or mirror the hip pouch onto the wrong anatomical side. Primary request: eight views of the rabbit SITTING UPRIGHT EATING on an invisible chair. Bottom supported at chair-seat height, thighs horizontal forward, knees bent 90 degrees, lower legs vertical, boots down. One hand raised close to the mouth as if taking a bite, the other hand forward near lap as if holding food that will be a separate overlay. No food, dishes, utensils or chair in the artwork. Neutral happy open-eyed expression. Ear tips approximately y=65, seat/bottom contact around y=350, boot soles around y=450 within each cell. Only the rabbit silhouette, genuine transparency everywhere else.",
+      "edit": {
+        "key": "eating",
+        "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-0e97dcb3-0e63-45ae-866e-c9d7369fa658.png",
+        "prompt": "Use case: precise-object-edit. Edit this transparent 1536x1024 rabbit seated eating sprite atlas. Fix ONLY the TOP RIGHT sprite (fourth cell of top row): it must face LEFT in true west-facing profile, showing the character's anatomical LEFT side. The leather pouch is on his right hip so should be hidden behind his body in this left-profile view. Keep its seated eating pose, character identity, clothing, size and registration identical. Keep the other seven sprites exactly as they are. Preserve true alpha transparency throughout background. No text, grid, props, or backdrop."
+      },
+      "sha256": "afb833389c56bd6a225cb61093842111810740d29043fe0bd96354e1e15483a4",
+      "copiedWithoutPixelEdits": true,
+      "width": 1536,
+      "height": 1024,
+      "alphaRange": [
+        0,
+        254
+      ],
+      "runtimeAlphaCutoff": 0.18,
+      "directionOrder": [
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "north",
+        "northeast",
+        "east"
+      ],
+      "directionMeaning": "seated facing direction"
+    },
+    {
+      "pose": "sleeping",
+      "path": "assets/generated/home-poses-v1/sleeping-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-03a78d70-c93e-4975-8f1f-fc12f8aeb717.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent character sprite atlas for an isometric life-simulation game. Input image 1 is the exact character identity/style reference, not a background. Preserve this adult cartoon rabbit's ginger fur, cream muzzle/eyebrows/fluffy tail, pink inner ears, brown eyes, off-white rolled-sleeve shirt, blue bib overalls with gold buttons, brown leather tool pouch on his anatomical right hip, and brown work boots. Preserve the soft painted texture, strong fine dark outlines, friendly proportions and large head. Fixed elevated orthographic game camera, approximately 30 degrees above the ground, no perspective distortion. Generate exactly eight distinct views on a 1536x1024 transparent RGBA canvas in an evenly spaced FOUR COLUMN by TWO ROW grid of 384x512 cells. No cell borders, labels, text, shadows on a ground plane, furniture, floor, scenery, checkerboard or opaque backdrop. Keep the entire character inside each cell with generous transparent gutters. The character must be consistently sized across views. Direction order reading left to right top to bottom: southeast (faces lower right), south (faces viewer), southwest (faces lower left), west (faces left profile), northwest (back three-quarter toward upper left), north (back to viewer), northeast (back three-quarter toward upper right), east (faces right profile). Do not duplicate or mirror the hip pouch onto the wrong anatomical side. Primary request: eight views of the fully clothed rabbit SLEEPING FLAT ON HIS BACK, body horizontal on an invisible bed, eyes gently closed, arms relaxed over abdomen, legs extended straight together, boots still on. This is a supine lying pose, absolutely NOT sitting or standing. The direction list denotes the direction FROM HEAD TOWARD FEET on the ground: southeast feet lower right/head upper left; south feet toward viewer/head away; southwest feet lower left/head upper right; west feet left/head right; northwest feet upper left/head lower right; north feet away/head toward viewer; northeast feet upper right/head lower left; east feet right/head left. Keep camera fixed above ground while rotating the horizontal body. Long ears rest along the head. Center every whole horizontal silhouette at the center of its cell; fit within x=30..354 and y=85..427. No bed, blanket, pillow, floor or other props. Only the fully clothed sleeping rabbit on genuine transparency.",
+      "edit": {
+        "key": "sleeping",
+        "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-0618b1f3-98df-4b49-9603-bd2d2b004063.png",
+        "prompt": "Use case: precise-object-edit. Edit this transparent 1536x1024 atlas of eight fully clothed sleeping supine rabbit views. Preserve all eight poses, views, character identity, costume, colors, proportions and painted style exactly. Change only SIZE and SPACING: evenly arrange them in a strict 4-column by 2-row grid of 384x512 cells. Make each sprite about 20 percent smaller so it fits fully within its own cell with at least 24 transparent pixels clearance on every side. Center each silhouette within its cell. No overlap with neighboring cells. No cropping ears or boots. Same camera and direction order as source. Preserve genuine alpha transparency; no labels, borders, props or background."
+      },
+      "sha256": "787255e9b55ef7aac165ccd13a49ceb4662f8f7efd2d38d076011814bfa2a78a",
+      "copiedWithoutPixelEdits": true,
+      "width": 1536,
+      "height": 1024,
+      "alphaRange": [
+        0,
+        254
+      ],
+      "runtimeAlphaCutoff": 0.18,
+      "directionOrder": [
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "north",
+        "northeast",
+        "east"
+      ],
+      "directionMeaning": "head-to-feet direction on horizontal support"
+    }
+  ],
+  "registration": "src/home_activity_pose.lua",
+  "registrationNotes": [
+    "Seat contacts, per-view hips, sleeping regions, scales and furniture foreground polygons are in src/home_activity_pose.lua.",
+    "PNG source bytes are unchanged. Mesh UVs select irregular sleeping regions; runtime alpha cutoff removes low-alpha fringes.",
+    "Furniture contacts, wall reveal and depth ordering are derived from replicated activities. Authoritative walking coordinates are never changed by rendering.",
+    "Couch column partitions updated in src/home_furniture_catalog.lua to exclude neighboring armrest fragments; original couch PNG unchanged."
+  ]
+}

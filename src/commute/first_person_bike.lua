@@ -1,0 +1,97 @@
+-- A complete authored sprite draped along the bike. The small height profile
+-- keeps instruments facing the rider while the frame, saddle and rack extend
+-- underneath and behind the eye. GPU clipping handles looking past the bars.
+local FP=require('src.commute.first_person_camera')
+local Body={};Body.__index=Body
+Body.PATH='assets/commute/cockpit/first-person-bike-v2.png'
+Body.WIDTH,Body.HEIGHT=1024,1536
+Body.INSTRUMENTS={cx=511,cy=235,r=48,gearX=584,gearY=216,gearW=72,gearScale=.7}
+-- Sprite row, distance ahead of the rider, height above the road.
+local profile={{350,.9725,1.16},{440,.88,1.04},{760,.15,.65},{850,0,.82},
+    {970,-.20,.82},{1190,-.57,.74},{1380,-.83,.40},{1536,-1.04,.25}}
+local shader=[[
+#ifdef VERTEX
+vec4 position(mat4 transform_projection,vec4 vertex_position) {
+    return riderProjection(transform_projection,vertex_position.xyz);
+}
+#endif
+#ifdef PIXEL
+vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
+    vec4 surface=Texel(tex,uv)*color;
+    if(surface.a<.02) discard;
+    return surface;
+}
+#endif
+]]
+local function barPoint(x,y)
+    return 1.13-y*.00045,1.58-y*.0012,(x/Body.WIDTH-.5)*1.15
+end
+function Body.point(x,y)
+    if y<=350 then return barPoint(x,y) end
+    local a,b=profile[1],profile[2]
+    for i=2,#profile do
+        a,b=profile[i-1],profile[i]
+        if y<=b[1] then break end
+    end
+    local t=(y-a[1])/(b[1]-a[1])
+    return a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t,(x/Body.WIDTH-.5)*1.15
+end
+local function wheelPoint(x,y)
+    return 1.5-y*.0016,.40+y/165*.30,(x/Body.WIDTH-.5)*1.15
+end
+function Body.new()
+    local g=love.graphics
+    local self=setmetatable({image=g.newImage(Body.PATH),texture=g.newCanvas(Body.WIDTH,Body.HEIGHT),
+        canvas=g.newCanvas(1280,880),shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..shader)},Body)
+    self.image:setFilter('linear','linear');self.texture:setFilter('linear','linear');self.canvas:setFilter('linear','linear')
+    local vertices,overlays={},{}
+    local function vertex(x,y,point)
+        local forward,height,right=point(x,y)
+        return {forward,height,right,x/Body.WIDTH,y/Body.HEIGHT}
+    end
+    local function patch(target,x0,y0,x1,y1,point)
+        local a,b,c,d=vertex(x0,y0,point),vertex(x1,y0,point),vertex(x1,y1,point),vertex(x0,y1,point)
+        for _,v in ipairs({a,b,c,a,c,d}) do target[#target+1]=v end
+    end
+    -- The narrow front wheel belongs below the steering head. The mirrors
+    -- and instruments share one plane, so looking down cannot fold them.
+    patch(vertices,420,0,605,165,wheelPoint)
+    patch(vertices,0,0,420,165,barPoint)
+    patch(vertices,605,0,Body.WIDTH,165,barPoint)
+    patch(vertices,0,165,Body.WIDTH,350,barPoint)
+    for i=2,#profile do
+        local y0,y1=profile[i-1][1],profile[i][1]
+        patch(vertices,0,y0,Body.WIDTH,y1,Body.point)
+    end
+    local format={{'VertexPosition','float',3},{'VertexTexCoord','float',2}}
+    self.mesh=g.newMesh(format,vertices,'triangles','static');self.mesh:setTexture(self.image)
+    patch(overlays,350,130,710,350,barPoint)
+    self.instruments=g.newMesh(format,overlays,'triangles','static');self.instruments:setTexture(self.texture)
+    return self
+end
+function Body.camera(camera)
+    return {centerX=0,centerZ=0,eyeHeight=FP.EYE_HEIGHT,focal=camera.focal,
+        viewHeading=camera.viewHeading-camera.bikeHeading,viewPitch=-.035+(camera.headPitch or 0),
+        roll=(camera.barSteer or 0)*.055-(camera.cockpitLean or 0)*.35}
+end
+function Body:draw(camera,width,height,instruments)
+    local g=love.graphics
+    g.push('all');g.origin();g.setScissor();g.setShader();g.setColor(1,1,1)
+    g.setDepthMode('always',false);g.setBlendMode('alpha')
+    g.setCanvas(self.texture);g.clear(0,0,0,0)
+    instruments(Body.INSTRUMENTS)
+    g.setCanvas({self.canvas,depth=true});g.clear(0,0,0,0,0,1)
+    g.setColor(1,1,1);g.setBlendMode('alpha');g.setDepthMode('lequal',true);g.setMeshCullMode('none')
+    FP.send(Body.camera(camera),self.shader)
+    g.setShader(self.shader);g.draw(self.mesh)
+    g.setBlendMode('alpha','premultiplied');g.setDepthMode('always',false);g.draw(self.instruments)
+    g.pop()
+    g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
+    local scale=math.min(width/1280,height/880)
+    g.draw(self.canvas,(width-1280*scale)*.5,(height-880*scale)*.5,0,scale)
+    g.pop()
+end
+function Body:release()
+    self.image:release();self.texture:release();self.canvas:release();self.shader:release();self.mesh:release();self.instruments:release()
+end
+return Body

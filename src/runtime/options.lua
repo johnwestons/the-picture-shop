@@ -12,6 +12,7 @@ function Component.install(Runtime)
     end
 
     Runtime.openOptions = function()
+        require('src.commute.runtime').cancelCameraDrag(Runtime)
         if Runtime.state.screen == "asset_error" or Runtime.spriteLabActive then return false end
         if Runtime.state.screen == "options" then return Runtime.OptionsScreen.leave() end
         local returnScreen = Runtime.state.screen

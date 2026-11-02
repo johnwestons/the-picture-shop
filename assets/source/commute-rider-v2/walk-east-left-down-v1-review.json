@@ -1,0 +1,34 @@
+{
+  "asset": "walk-east-left-down-v1.png",
+  "status": "candidate_pending_parent_review",
+  "generator": "built-in image_gen",
+  "promptFile": "walk-east-left-down-v1-prompt.txt",
+  "sourceOutput": "C:/Users/johnw/.codex/generated_images/01a19945-e712-7e63-8854-57cd9f1b7064/exec-67aa90e9-4753-44c5-84a1-f68458bdc7ae.png",
+  "references": [
+    "output/commute-rider-pose-guide/east-idle-reference-v2.png",
+    "assets/source/commute-rider-v2/walk-east-left-contact-v1.png",
+    "assets/source/commute-rider-v2/walk-east-right-contact-v3.png",
+    "output/commute-rider-pose-guide/east-phase2-left-down-guide.png"
+  ],
+  "pose": {
+    "direction": "east",
+    "phase": 2,
+    "name": "left_down",
+    "support": "far/left leg at screen-right",
+    "trailing": "near/right leg at screen-left",
+    "armSwing": "near/right arm forward, far/left arm back"
+  },
+  "nativeVisualReview": {
+    "completeSprite": true,
+    "transparentRgba": true,
+    "observations": [
+      "The figure faces screen-right in the accepted east profile and retains the closed helmet and brown suit design.",
+      "The far/left forward boot at screen-right is planted; its knee compresses under the lowered torso.",
+      "The near/right trailing leg remains behind at screen-left and its heel begins to lift.",
+      "The near/right arm swings forward while the far/left arm swings back, opposite their same-side legs.",
+      "The contact-sheet preview aligns both soles to the contact-frame baseline without rescaling the figure to hide the weight-down bob."
+    ],
+    "preview": "output/commute-rider-pose-guide/east-down-pair-preview.png",
+    "scopeLimit": "This is one phase candidate only; full-cycle gait, runtime staging, and overall approval remain pending."
+  }
+}

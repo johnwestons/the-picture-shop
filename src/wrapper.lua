@@ -8,6 +8,8 @@ local Storage = require("src.pallet_storage")
 local PalletState = require("src.pallet_state")
 local StagingAreas = require("src.staging_areas")
 
+local primaryId = "MCH-0002"
+
 local function createWrapper(machineId)
 local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil,
     selectedPalletId = nil }
@@ -86,7 +88,7 @@ function Wrapper.canRelocate(state) return blockInterruption(state, "relocating 
 
 function Wrapper.start(state)
     if Wrapper.step ~= "idle" and Wrapper.step ~= "finished" then return false end
-    local operable, machineOrError = MachineFleet.canOperate(state, "skid_wrapper")
+    local operable, machineOrError = MachineFleet.canOperate(state, "skid_wrapper", machineId)
     if not operable then state.message = machineOrError; return false end
     local nearby = Wrapper.nearbyPallet(state)
     if not nearby then state.message = "Move a finished, unwrapped pallet beside the skid wrapper first."; return false end
@@ -96,19 +98,21 @@ function Wrapper.start(state)
         return false
     end
     local packaging = nearby.pallet.packaging or nearby.job.packaging or "flat"
-    if packaging == "boxed" and Procurement.cartonsAvailable(state) < 1 then
-        state.message = "This boxed pallet needs a shipping carton. Order cartons from the packaging supplier."
+    local cartons = Procurement.cartonsRequired(nearby.job, nearby.pallet)
+    if packaging == "boxed" and Procurement.cartonsAvailable(state) < cartons then
+        state.message = string.format("This boxed pallet needs %d shipping cartons; only %d are available. Order cartons from the packaging supplier.",
+            cartons, Procurement.cartonsAvailable(state))
         return false
     end
     local supplies = {}
     if (inventory.plasticWrapUses or 0) == 1 then
         supplies[#supplies + 1] = {
             productId = "stretch_film", quantity = 1, stockKey = "plasticWrapRolls",
-            autoShelf = true,
+            autoShelf = true,financeQuantity=1/11,
         }
     end
     if packaging == "boxed" then
-        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1, autoShelf = true }
+        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = cartons, autoShelf = true }
     end
     local suppliesReady, supplyReason = Procurement.canConsumeStockProducts(state, supplies)
     if not suppliesReady then
@@ -118,7 +122,9 @@ function Wrapper.start(state)
     Wrapper.pallet, Wrapper.job = nearby.pallet, nearby.job
     Wrapper.selectedPalletId = nearby.pallet.id
     Wrapper.step, Wrapper.progress = "wrapping", 0
-    state.message = "Wrapping " .. nearby.pallet.id .. " as a " .. packaging .. " pallet."
+    state.message = packaging == "boxed"
+        and string.format("Wrapping %s with %d cartons.", nearby.pallet.id, cartons)
+        or ("Wrapping " .. nearby.pallet.id .. " as a " .. packaging .. " pallet.")
     return true
 end
 
@@ -171,6 +177,7 @@ function Wrapper.update(dt, state)
         end
     end
     local packaging = Wrapper.pallet.packaging or (Wrapper.job and Wrapper.job.packaging) or "flat"
+    local cartons = Procurement.cartonsRequired(Wrapper.job, Wrapper.pallet)
     local supplies = {}
     if uses == 1 then
         supplies[#supplies + 1] = {
@@ -179,7 +186,7 @@ function Wrapper.update(dt, state)
         }
     end
     if packaging == "boxed" then
-        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = 1, autoShelf = true }
+        supplies[#supplies + 1] = { productId = "shipping_cartons", quantity = cartons, autoShelf = true }
     end
     local consumed, reason = Procurement.consumeStockProducts(state, supplies)
     if not consumed then
@@ -198,13 +205,17 @@ function Wrapper.update(dt, state)
     if uses == 1 then
         inventory.plasticWrapUses = inventory.plasticWrapRolls > 0 and 11 or 0
     else
+        require("src.household_finances").consume(state,"stretch_film",1/11)
         inventory.plasticWrapUses = uses - 1
     end
     Wrapper.pallet.wrapped, Wrapper.pallet.status = true, "wrapped"
     Wrapper.pallet.packagedAs = packaging
-    MachineFleet.recordUse(state, "skid_wrapper", 1)
+    MachineFleet.recordUse(state, "skid_wrapper", 1, machineId)
     Wrapper.step = "finished"
-    state.message = Wrapper.pallet.id .. " wrapped. " .. inventory.plasticWrapUses .. " pallet wrap(s) remain on the current roll."
+    state.message = packaging == "boxed"
+        and string.format("%s boxed with %d cartons and wrapped. %d pallet wrap(s) remain on the current roll.",
+            Wrapper.pallet.id, cartons, inventory.plasticWrapUses)
+        or (Wrapper.pallet.id .. " wrapped. " .. inventory.plasticWrapUses .. " pallet wrap(s) remain on the current roll.")
     return true
 end
 
@@ -267,10 +278,9 @@ end
 return Wrapper
 end
 
-local primary = createWrapper(nil)
+local primary = createWrapper(primaryId)
 local instances = {}
 local selectedId
-local primaryId = "MCH-0002"
 local exported = {}
 
 local function instance(machineId)

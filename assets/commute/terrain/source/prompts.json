@@ -1,0 +1,18 @@
+{
+  "mode": "built-in image_gen",
+  "use": "Grass, dirt and leaf-litter albedo tiles for procedural terrain",
+  "prompts": [
+    {
+      "kind": "grass",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for a top-down 2.5D woodland survival game. Create ONE square edge-to-edge texture of short meadow grass: many fine overlapping blades, tiny clover and muted dry stems, dense low growth with a little darker soil showing through. Soft naturalistic painted game-art detail, muted olive and moss greens, restrained contrast so small animal sprites remain readable. Orthographic straight overhead, flat even diffuse lighting, no directional shadows or perspective, no vignette. Uniform detail density and scale throughout; opposing edges must tile seamlessly with no border. Entire square filled with ground. No trees, bushes, flowers, rocks, large tufts, objects, text, labels, watermarks or transparency. A detailed reusable material swatch, not a landscape. Square 1024 by 1024 composition."
+    },
+    {
+      "kind": "dirt",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for a top-down 2.5D woodland survival game. Create ONE square edge-to-edge texture of compact woodland dirt and fine sandy earth: warm muted brown soil, fine granular texture, tiny embedded dull pebbles, occasional thin fibrous root threads and a few tiny dry stem fragments. Soft naturalistic painted game-art detail, restrained contrast, subtle local variation without large blotches. Orthographic straight overhead, flat even diffuse lighting, no directional shadows or perspective, no vignette. Uniform detail density and scale throughout; opposing edges must tile seamlessly with no border. Entire square filled with ground. No path shape, grass clumps, foliage, large stones, holes, footprints, objects, text, labels, watermarks or transparency. A detailed reusable material swatch, not a landscape. Square 1024 by 1024 composition."
+    },
+    {
+      "kind": "leaves",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for a top-down 2.5D woodland survival game. Create ONE square edge-to-edge texture of oak woodland leaf litter: many small overlapping curled and decomposing oak and mixed broad leaves, broken leaf fragments and slender twigs on dark earthy ground, a few greenish moss flecks. Muted umber, ochre, olive-brown and tan palette, very little orange; soft naturalistic painted game-art detail, restrained contrast so animal sprites read clearly. Small leaves distributed evenly, no giant central leaf. Orthographic straight overhead, flat even diffuse lighting, no directional shadows or perspective, no vignette. Opposing edges must tile seamlessly with no border. Entire square filled with ground. No trees, bushes, rocks, mushrooms, objects, text, labels, watermarks or transparency. A detailed reusable material swatch, not a landscape. Square 1024 by 1024 composition."
+    }
+  ]
+}

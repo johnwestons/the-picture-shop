@@ -21,17 +21,18 @@ local function shadowedPrintf(text, x, y, width, color)
 end
 
 function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller, bounds,
-        followPlayerCamera,twelveHourTime,feedback)
+        followPlayerCamera,twelveHourTime,feedback,sceneId,player)
     bounds = bounds or { left = 0, right = Config.baseWidth, bottom = Config.baseHeight }
     local left, right, bottom = mobile and bounds.left or 0,
         mobile and bounds.right or Config.baseWidth,
         mobile and bounds.bottom or Config.baseHeight
     EXIT.x, EXIT.y = right - EXIT.width - 18, 14
-    local cashText = Ui.money(state.money)
+    local atHome=sceneId=="home" and state.home
+    local cashText = atHome and ("Home "..Ui.money(state.home.balanceCents/100)) or Ui.money(state.money)
     local cashWidth = math.max(112, math.min(180, love.graphics.getFont():getWidth(cashText) + 22))
     local cashX, cashY, cashHeight = left + 18, 13, 32
     local cashDelta, cashTimer, cashDuration = 0, 0, 1
-    if feedback then cashDelta, cashTimer, cashDuration = feedback:cashEffect() end
+    if feedback and not atHome then cashDelta, cashTimer, cashDuration = feedback:cashEffect() end
     local cashAge = cashDuration - cashTimer
     local pulse = cashTimer > 0 and math.max(0, 1 - cashAge / 0.34) or 0
     local scale = 1 + pulse * 0.075
@@ -62,14 +63,18 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     end
     local paperX = left + math.max(160, cashWidth + 34)
     local samplesX, dateX = paperX + 98, paperX + 198
-    shadowedPrint("Paper: " .. state.inventory.paper, paperX, 20, { 0.88, 0.92, 0.94 })
-    shadowedPrint("Samples: " .. state.inventory.prints, samplesX, 20, { 0.88, 0.92, 0.94 })
+    if atHome then
+        shadowedPrint(require("src.home_catalog").APARTMENTS[state.home.apartmentId].name,paperX,20,{.88,.92,.94})
+    else
+        shadowedPrint("Paper: " .. state.inventory.paper, paperX, 20, { 0.88, 0.92, 0.94 })
+        shadowedPrint("Samples: " .. state.inventory.prints, samplesX, 20, { 0.88, 0.92, 0.94 })
+    end
     local date = BusinessCalendar.ensure(state)
     local dateText = BusinessCalendar.weekdayName(date.weekday) .. " • "
         .. BusinessCalendar.shortDate(state)
     shadowedPrint(dateText, dateX, 20, { 0.74, 0.88, 0.89 })
     shadowedPrint("TIME "..BusinessCalendar.timeText(state,twelveHourTime),dateX,38,{.96,.85,.40})
-    if state.bills and state.bills.balance > 0 then
+    if not atHome and state.bills and state.bills.balance > 0 then
         local billsX = dateX + math.max(190, love.graphics.getFont():getWidth(dateText) + 18)
         shadowedPrint("Bills due: $" .. state.bills.balance, billsX, 20, { 0.96, 0.48, 0.30 })
     end
@@ -77,20 +82,30 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     if state.message then
         shadowedPrintf(state.message, left + 24, 62, right - left - 48, { 0.88, 0.92, 0.94 })
     end
+    local week=state.home and state.home.weekend
+    if week and week.phase~="working" then
+        local status=week.phase=="closing" and "WEEKEND SHUTDOWN: park equipment; the front entrance shows the checklist."
+            or week.phase=="ready" and "SHOP CLOSED: use the exterior front entrance to go home. Time is held."
+            or "AT HOME: return becomes available Monday at 07:30, before the 08:00 employee shift. Shop opens at 09:00."
+        shadowedPrintf(status,left+24,92,right-left-48,{.96,.85,.40})
+    end
     if prompt then
         local shownPrompt = prompt
         if mobile then
             shownPrompt = shownPrompt:gsub("^E%s+or%s+F:%s*", "TAP USE / PARK: ")
+                :gsub("^E:%s*EMAIL RESUME%s*|%s*X:%s*NOT HIRING", "TAP EMAIL RESUME / NOT HIRING button")
                 :gsub("^E:%s*", "TAP USE: ")
                 :gsub("%s+X:%s*dismiss applicant", " / use DISMISS button")
         elseif controller then
             shownPrompt = shownPrompt:gsub("^E%s+or%s+F:%s*", "A or X: ")
+                :gsub("^E:%s*EMAIL RESUME%s*|%s*X:%s*NOT HIRING", "A: EMAIL RESUME  /  B: NOT HIRING")
                 :gsub("^E:%s*", "A: ")
                 :gsub("X:%s*dismiss applicant", "B: dismiss applicant")
         end
         shadowedPrint(shownPrompt, mobile and (left + right) / 2 - 230 or 360,
             bottom - 52, { 0.95, 0.85, 0.35 })
     end
+    if atHome and player then require("src.home_activity_controls").drawHud(state,player,left,right) end
     shadowedPrint(
         controller and "LEFT STICK / D-PAD: MOVE    A: USE    X: PARK    Y: MOVE    START: MENU"
             or mobile and (followPlayerCamera

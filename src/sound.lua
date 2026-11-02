@@ -1,6 +1,7 @@
 local Sound = {}
 Sound.__index = Sound
 local MachineFleet = require("src.machine_fleet")
+local PHONE_RING_MAX_SECONDS = 8
 
 local CATALOG = {
     ui_click = { path = "assets/audio/sfx/ui_click.wav", volume = 0.55 },
@@ -25,6 +26,48 @@ local CATALOG = {
         loop = true, group = "ambient",
     },
 }
+
+local PHONE_CUES = {
+    phone_ring_loop = { volume = 0.58, loop = true },
+    phone_ringback_loop = { volume = 0.38, loop = true },
+}
+
+local function toneEnvelope(time, intervals)
+    for _, interval in ipairs(intervals) do
+        if time >= interval[1] and time < interval[2] then
+            return math.min(1, (time - interval[1]) / 0.015,
+                (interval[2] - time) / 0.015)
+        end
+    end
+    return 0
+end
+
+local function makePhoneTone(self, name, duration, intervals)
+    if not love or not love.sound or type(love.sound.newSoundData) ~= "function" then return end
+    local sampleRate = 22050
+    local sampleCount = math.floor(duration * sampleRate)
+    local ok, data = pcall(love.sound.newSoundData, sampleCount, sampleRate, 16, 1)
+    if not ok or not data then
+        self.phoneCueError = "Could not create " .. name .. ": " .. tostring(data)
+        return
+    end
+    for sample = 0, sampleCount - 1 do
+        local time = sample / sampleRate
+        local envelope = toneEnvelope(time, intervals)
+        local value = 0.22 * envelope * (
+            math.sin(2 * math.pi * 440 * time) + math.sin(2 * math.pi * 480 * time))
+        data:setSample(sample, value)
+    end
+    local sourceOk, source = pcall(love.audio.newSource, data, "static")
+    if not sourceOk or not source then
+        self.phoneCueError = "Could not load " .. name .. ": " .. tostring(source)
+        if data.release then pcall(data.release, data) end
+        return
+    end
+    source:setLooping(true)
+    self.prototypes[name] = source
+    self.generatedAudio[#self.generatedAudio + 1] = data
+end
 
 local ERROR_WORDS = {
     "could not", "not enough", "is blocked", "is missing", "requires",
@@ -79,6 +122,7 @@ function Sound.new(context)
     return setmetatable({
         context = context,
         prototypes = {},
+        generatedAudio = {},
         active = {},
         loops = {},
         errors = {},
@@ -86,6 +130,8 @@ function Sound.new(context)
         previous = nil,
         clock = 0,
         lastPlayed = {},
+        phoneRingOwner = nil,
+        phoneRingElapsed = 0,
         masterVolume = 1.0,
         sfxVolume = 0.85,
         ambientVolume = 0.42,
@@ -112,6 +158,10 @@ function Sound:initialize()
             report(self, "Could not load " .. spec.path .. ": " .. tostring(source))
         end
     end
+    -- Build the telephone tones from short dual-frequency ring patterns so
+    -- calls have audio without adding large binary assets to the game.
+    makePhoneTone(self, "phone_ring_loop", 2.0, { { 0.0, 0.38 }, { 0.52, 0.90 } })
+    makePhoneTone(self, "phone_ringback_loop", 1.0, { { 0.0, 0.38 }, { 0.52, 0.96 } })
     self.previous = self:capture()
     self:syncPersistentLoops(self.previous)
     print(string.format("[SOUND] Loaded %d/%d cues", self:loadedCount(), self:catalogCount()))
@@ -126,12 +176,14 @@ end
 
 function Sound:loadedCount()
     local total = 0
-    for _ in pairs(self.prototypes) do total = total + 1 end
+    for name in pairs(CATALOG) do
+        if self.prototypes[name] then total = total + 1 end
+    end
     return total
 end
 
 function Sound:volumeFor(name, multiplier)
-    local spec = CATALOG[name]
+    local spec = CATALOG[name] or PHONE_CUES[name]
     if not spec or self.muted then return 0 end
     local group = spec.group == "ambient" and self.ambientVolume or self.sfxVolume
     return self.masterVolume * group * spec.volume * (multiplier or 1)
@@ -160,7 +212,7 @@ end
 function Sound:startLoop(name, owner)
     owner = owner or name
     if self.loops[owner] then return self.loops[owner] end
-    local spec, prototype = CATALOG[name], self.prototypes[name]
+    local spec, prototype = CATALOG[name] or PHONE_CUES[name], self.prototypes[name]
     if not spec or not spec.loop or not prototype or self.paused then return nil end
     local source = cloneSource(prototype)
     if not source then report(self, "Could not clone loop " .. tostring(name)); return nil end
@@ -169,6 +221,33 @@ function Sound:startLoop(name, owner)
     source:play()
     self.loops[owner] = { name = name, source = source }
     return source
+end
+
+function Sound:syncPhoneAudio(snapshot, dt)
+    local activeShop = snapshot.screen ~= "title" and snapshot.screen ~= "lan"
+        and snapshot.screen ~= "direct" and snapshot.screen ~= "asset_error"
+    local call = activeShop and snapshot.phoneCall or nil
+    local incomingOwner = call and call.direction == "incoming" and not call.answered
+        and call.id and ("phone:ring:" .. tostring(call.id)) or nil
+    local ringback = call and call.direction == "outgoing" and call.connecting
+        and call.id and ("phone:ringback:" .. tostring(call.id)) or nil
+    if incomingOwner ~= self.phoneRingOwner then
+        self.phoneRingOwner = incomingOwner
+        self.phoneRingElapsed = 0
+    elseif incomingOwner and not self.paused then
+        self.phoneRingElapsed = self.phoneRingElapsed + math.max(0, tonumber(dt) or 0)
+    end
+    local incoming = incomingOwner and self.phoneRingElapsed < PHONE_RING_MAX_SECONDS
+        and incomingOwner or nil
+    for owner, entry in pairs(self.loops) do
+        if (entry.name == "phone_ring_loop" and owner ~= incoming)
+            or (entry.name == "phone_ringback_loop" and owner ~= ringback)
+        then
+            self:stopLoop(owner)
+        end
+    end
+    if incoming then self:startLoop("phone_ring_loop", incoming) end
+    if ringback then self:startLoop("phone_ringback_loop", ringback) end
 end
 
 function Sound:stopLoop(owner)
@@ -194,8 +273,10 @@ function Sound:capture()
     end
     local press = pressPlacement.process or {}
     local jack = state.palletJack or {}
+    local phoneCall = state.workPhone and state.workPhone.incoming
     local effectiveScreen = state.screen == "options" and state.optionsReturnScreen
         or state.screen
+    local resident=state.home and world and world.player and require("src.home_residents").display(state,world.player)
     local cutters, presses, wrappers
     if machine and type(machine.forId) == "function" then
         cutters, presses = {}, {}
@@ -221,6 +302,8 @@ function Sound:capture()
     end
     return {
         screen = effectiveScreen,
+        personalAlarm=resident and resident.alarmAt,
+        lastPersonalAlarm=resident and resident.lastAlarmAt,
         message = state.message,
         money = tonumber(state.money) or 0,
         completedJobs = count(state.jobs and state.jobs.completed),
@@ -235,11 +318,16 @@ function Sound:capture()
         presses = presses,
         pressMotor = press.motor == true,
         pressStatus = press.status,
+        phoneCall = phoneCall and {
+            id = phoneCall.id, direction = phoneCall.direction,
+            answered = phoneCall.answered, connecting = phoneCall.connecting,
+        } or nil,
     }
 end
 
 function Sound:syncPersistentLoops(snapshot)
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
+        and not (self.context.state.home and self.context.state.home.commute)
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end
     if snapshot.presses ~= nil then
@@ -267,6 +355,9 @@ function Sound:syncPersistentLoops(snapshot)
 end
 
 function Sound:handleTransitions(before, after)
+    if before.personalAlarm and after.lastPersonalAlarm==before.personalAlarm and after.lastPersonalAlarm~=before.lastPersonalAlarm then
+        self:play("job_complete",{cooldown=.5,volume=.65})
+    end
     if before.door ~= after.door and (after.door == "opening" or after.door == "closing") then
         self:play("loading_door", { cooldown = 0.25 })
     end
@@ -360,7 +451,28 @@ function Sound:update(dt)
     local current = self:capture()
     if self.previous and not self.paused then self:handleTransitions(self.previous, current) end
     self:syncPersistentLoops(current)
+    self:syncPhoneAudio(current, dt)
+    self:syncCommuteAudio(dt)
     self.previous = current
+end
+
+function Sound:syncCommuteAudio(dt)
+    local state,world=self.context.state,self.context.world
+    local trip=state.home and state.home.commute
+    local screen=state.screen=='options' and state.optionsReturnScreen or state.screen
+    local part=trip and screen=='world' and world and world.player
+        and trip.participants[require('src.home_residents').key(world.player)]
+    if not part then
+        if self.commuteAudio then self.commuteAudio:release();self.commuteAudio=nil end
+        return
+    end
+    if not self.commuteAudio then
+        self.commuteAudio=require('src.commute.audio').new()
+        self.commuteAudio:setPaused(self.paused)
+        self.commuteAudio:setMuted(self.muted)
+    end
+    self.commuteAudio:setLevels(self.masterVolume,self.sfxVolume,self.ambientVolume)
+    self.commuteAudio:update(dt,require('src.commute.audio').partBike(part),part.rider.gear.engine)
 end
 
 function Sound:pointerPressed(button, screen)
@@ -373,6 +485,7 @@ function Sound:setPaused(paused)
     paused = paused == true
     if paused == self.paused then return end
     self.paused = paused
+    if self.commuteAudio then self.commuteAudio:setPaused(paused) end
     if paused then
         for _, entry in pairs(self.loops) do entry.source:pause() end
     else
@@ -384,6 +497,7 @@ end
 
 function Sound:setMuted(muted)
     self.muted = muted == true
+    if self.commuteAudio then self.commuteAudio:setMuted(self.muted) end
     for owner, entry in pairs(self.loops) do
         entry.source:setVolume(self:volumeFor(entry.name))
         if self.muted and entry.source:isPlaying() then entry.source:pause()
@@ -395,6 +509,7 @@ function Sound:setLevels(master, sfx, ambient)
     self.masterVolume = math.max(0, math.min(1, tonumber(master) or self.masterVolume))
     self.sfxVolume = math.max(0, math.min(1, tonumber(sfx) or self.sfxVolume))
     self.ambientVolume = math.max(0, math.min(1, tonumber(ambient) or self.ambientVolume))
+    if self.commuteAudio then self.commuteAudio:setLevels(self.masterVolume,self.sfxVolume,self.ambientVolume) end
     for _, entry in pairs(self.loops) do
         entry.source:setVolume(self:volumeFor(entry.name))
     end
@@ -412,6 +527,7 @@ function Sound:status()
 end
 
 function Sound:shutdown()
+    if self.commuteAudio then self.commuteAudio:release();self.commuteAudio=nil end
     for owner in pairs(self.loops) do self:stopLoop(owner) end
     for _, source in ipairs(self.active) do
         source:stop()
@@ -421,7 +537,11 @@ function Sound:shutdown()
         source:stop()
         if source.release then pcall(source.release, source) end
     end
-    self.active, self.prototypes, self.previous = {}, {}, nil
+    for _, data in ipairs(self.generatedAudio) do
+        if data.release then pcall(data.release, data) end
+    end
+    self.active, self.prototypes, self.generatedAudio, self.previous = {}, {}, {}, nil
+    self.phoneRingOwner, self.phoneRingElapsed = nil, 0
     self.initialized = false
 end
 

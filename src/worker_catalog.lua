@@ -17,6 +17,7 @@ local firstNames={
     "Della","Ellery","Fern","Fennel","Gale","Hazel","Hollis","Ida","Jasper","Juniper",
     "Kestrel","Kit","Lark","Mabel","Marlow","Moss","Nettle","Nori","Olive","Orla",
     "Otis","Pippa","Pip","Quincy","Remy","Rue","Silas","Tansy","Tilda","Wren",
+    "John","Micah","Johnny","EL","Alfredo","Rhett","Monday","Meagan","Lenna","Icarlyn",
 }
 local familyNames={
     "Bellwether","Brasswhisk","Brightpaper","Brushwell","Cardwell","Chatterwick","Coppercoil","Copperspool",
@@ -24,6 +25,9 @@ local familyNames={
     "Foxglove","Gearhart","Goldenleaf","Goodpaper","Granger","Inkblot","Inkwell","Labelle",
     "Lockwood","Millwright","Paperfield","Quickquill","Reamwell","Rivetpaw","Sable","Shears",
     "Spindle","Staple","Swiftpaw","Tapeley","Thimble","Tuckwell","Underleaf","Whetstone",
+    "Ashcombe","Bramblewick","Candleford","Cloudberry","Dappleton","Fablewright","Featherstone","Gingersnap",
+    "Holloway","Juniperidge","Larkspur","Moonwhistle","Northcott","Pennywhistle","Quillford","Rainsford",
+    "Silverbrook","Thistledown","Wrenfield","Yarrowby",
 }
 local legacyNames={ ["radio cat"]=true,["tinker fox"]=true,["ferret engineer"]=true }
 function Catalog.isLegacyName(name)

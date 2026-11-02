@@ -81,9 +81,9 @@ function Component.install(Runtime)
             and (value.orientation == "portrait" or value.orientation == "landscape"))
     end
 
-    function Runtime.stockSpec(value)
+    function Runtime.stockSpec(value, allowHouse)
         return value == nil or (type(value) == "table"
-            and value.suppliedBy == "client"
+            and (value.suppliedBy == "client" or (allowHouse == true and value.suppliedBy == "house"))
             and Runtime.text(value.grade)
             and Runtime.nonnegative(value.weight)
             and Runtime.text(value.finish)
@@ -127,6 +127,7 @@ function Component.install(Runtime)
             and Runtime.text(value.status)
             and Runtime.positiveInteger(value.requiredGoodSheets)
             and Runtime.nonnegativeInteger(value.availableSheets)
+            and Runtime.optionalNonnegativeInteger(value.housePaperSheets)
             and Runtime.nonnegativeInteger(value.completedColors)
             and Runtime.nonnegativeInteger(value.goodSheets)
             and Runtime.nonnegativeInteger(value.spoilage)
@@ -168,7 +169,7 @@ function Component.install(Runtime)
         }) do
             if not Runtime.nonnegative(value[field]) then return false end
         end
-        return true
+        return Runtime.optionalNonnegativeInteger(value.housePaperSheets)
     end
 
     function Runtime.jobPress(value)

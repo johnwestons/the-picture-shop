@@ -1,25 +1,32 @@
 -- Reception offers, acceptance, decline, and delivery readiness.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local Procurement = require("src.procurement")
 
 function Component.install(Runtime)
     local function receptionPrintCount(state)
         local count, seen = 0, {}
-        for _, collectionName in ipairs({ "active", "completed", "declined" }) do
-            for _, job in ipairs((state.jobs and state.jobs[collectionName]) or {}) do
-                local key = type(job) == "table" and (job.id or job) or nil
-                if type(job) == "table" and job.press and job.requestChannel ~= "email"
-                    and key and not seen[key] then
-                    count = count + 1
-                    seen[key] = true
-                end
+        -- Count walk-in print requests while they sit in the estimate inbox too,
+        -- so the next customer's stock request can vary before earlier jobs win.
+        local function include(job)
+            if type(job) ~= "table" or type(job.press) ~= "table"
+                or type(job.id) ~= "string" or job.id:match("^EMAIL%-JOB%-") then return end
+            if not seen[job.id] then
+                count = count + 1
+                seen[job.id] = true
             end
         end
-        local current = state.currentOffer
-        local currentKey = type(current) == "table" and (current.id or current) or nil
-        if type(current) == "table" and current.press and current.requestChannel ~= "email"
-            and currentKey and not seen[currentKey] then
-            count = count + 1
+        for _, collectionName in ipairs({ "active", "completed", "declined" }) do
+            for _, job in ipairs((state.jobs and state.jobs[collectionName]) or {}) do
+                include(job)
+            end
+        end
+        include(state.currentOffer)
+        local emails = state.clientEmails or {}
+        for _, collectionName in ipairs({ "pending", "inbox" }) do
+            for _, email in ipairs(emails[collectionName] or {}) do
+                include(email.job)
+            end
         end
         return count
     end
@@ -76,7 +83,7 @@ function Component.install(Runtime)
         local template
         if pressJob then
             local pressIndex
-            if tier <= 1 then pressIndex = 1
+            if tier <= 1 then pressIndex = printCount % 2 == 0 and 1 or 3
             elseif tier == 2 then pressIndex = printCount % 2 == 0 and 1 or 3
             else
                 local order = { 1, 3, 2 }
@@ -144,8 +151,27 @@ function Component.install(Runtime)
         return true
     end
 
+    function Runtime.JobService.reserveHousePaper(state, job)
+        if not (job and job.press and job.stockSpec
+            and job.stockSpec.suppliedBy == "house") then return true end
+        if job.housePaperReserved then return true end
+        local needed = math.max(0, math.floor(tonumber(job.quote and job.quote.suppliedSheets) or 0))
+        if needed < 1 then return false, "The house-paper quantity is missing from the print quote." end
+        local available = Procurement.housePaperAvailable(state)
+        if available < needed then
+            return false, string.format("This print job needs %d house-paper sheets; only %d are available. Order more paper before sending or accepting the estimate.",
+                needed, available)
+        end
+        local consumed, reason = Procurement.consumeHousePaper(state, needed)
+        if not consumed then return false, reason end
+        job.housePaperReserved = true
+        job.housePaperReservedSheets = needed
+        return true
+    end
+
     function Runtime.JobService.acceptOffer(state, job, timestamp)
         if type(state) ~= "table" or type(job) ~= "table" then return false, "state and job are required" end
+        if job.status ~= "offered" then return false, "This customer offer is no longer available." end
         if job.status=="offered" and not job.quote.playerPrice then
             local terms=Runtime.JobService.quoteTerms(state,job)
             job.quote.totalPrice=terms.amount;job.quote.recommendedPrice=terms.recommendedPrice
@@ -154,6 +180,8 @@ function Component.install(Runtime)
         if not hasFullInitialShipment(job) then
             return false,"This job cannot be accepted until every quoted skid is included in its first delivery."
         end
+        local paperReserved, paperError = Runtime.JobService.reserveHousePaper(state, job)
+        if not paperReserved then return false, paperError end
         local accepted, errorMessage = Runtime.Jobs.accept(job, timestamp)
         if not accepted then return false, errorMessage end
         job.deliveryService = Runtime.deliveryService(job, job.sequence)
@@ -164,6 +192,10 @@ function Component.install(Runtime)
             acceptedGameHours = acceptedGameHours,
             readyAtHours = acceptedGameHours + job.deliveryService.delayHours,
         }
+        job.acceptedGameHours = acceptedGameHours
+        require("src.business_deadlines").ensure(job)
+        require("src.job_feedback").record(job, "accepted", acceptedGameHours,
+            "Customer approved the job and the stock shipment was scheduled")
         Runtime.prepareCollections(state)
         state.jobs.active[#state.jobs.active + 1] = job
         state.accountsReceivable = math.max(0, state.accountsReceivable or 0) + job.quote.totalPrice

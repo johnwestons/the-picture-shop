@@ -6,6 +6,7 @@ local Config=require("src.config")
 local Jack=require("src.pallet_jack")
 local MotionArt=require("src.employee_motion_art")
 local WorkPresentation=require("src.employee_work_presentation")
+local EmployeeHighFive=require("src.employee_high_five")
 local Renderer={}
 local bubbleFont
 local function gaitFrameCount(assets,character,action)
@@ -19,7 +20,12 @@ function Renderer.pose(entry,characterAssets)
     local mirror=1
     local direction=Animation.authoredDirection(a.intentX,a.intentY)
     local workAction,workFrame=WorkPresentation.pose(a)
-    if entry.worker and a.phase=="pushing" then
+    local highFive=entry.worker and EmployeeHighFive.get(entry.worker.id)
+    if highFive then
+        action="idle"
+        frame=1
+        mirror=highFive.partnerX<a.x and -1 or 1
+    elseif entry.worker and a.phase=="pushing" then
         action,mirror=Catalog.pushAction(character,a.intentX,a.intentY)
         frame=Animation.frameForPalletJackPush(gaitFrameCount(characterAssets,character,action),a.moving,a.jackDistance or a.distance,
             Config.palletJack.gaitPixelsPerFrame or 20)
@@ -89,6 +95,61 @@ local function drawPose(entry,characterAssets,state)
     end
     return character,action,frame,mirror,ax,ay,scale,x,y
 end
+
+local function highFiveFur(character)
+    if character=="cat-worker" then return .24,.23,.22 end
+    if character=="tinker-fox-worker" then return .78,.39,.17 end
+    return .57,.50,.40
+end
+
+local function drawHighFiveArm(character,animation,actor,mirror,ax,ay,scale,x,y)
+    local frame=Animation.frameForHighFive(8,animation.elapsed,animation.duration)
+    local poses={
+        [1]={ lift=0, reach=0 },
+        [2]={ lift=.20, reach=.08 },
+        [3]={ lift=.55, reach=.32 },
+        [4]={ lift=.88, reach=.78 },
+        [5]={ lift=1, reach=1 },
+        [6]={ lift=1, reach=1 },
+        [7]={ lift=.68, reach=.48 },
+        [8]={ lift=.24, reach=.15 },
+    }
+    local pose=poses[frame]
+    if not pose or pose.lift<=0 then return end
+
+    -- Draw in the character sprite's local 256px frame so the hand follows
+    -- the employee's facing and world scale without changing their species.
+    local sx,sy=137,145
+    local ex=142+pose.reach*12
+    local ey=137-pose.lift*40
+    local hx=145+pose.reach*49
+    local hy=137-pose.lift*70
+    local red,green,blue=highFiveFur(character)
+    love.graphics.push("all")
+    love.graphics.translate(x,y)
+    love.graphics.scale(scale*mirror,scale)
+    love.graphics.translate(-ax,-ay)
+    love.graphics.setLineWidth(18)
+    love.graphics.setColor(.12,.09,.08,1)
+    love.graphics.line(sx,sy,ex,ey,hx,hy)
+    love.graphics.circle("fill",ex,ey,9)
+    love.graphics.ellipse("fill",hx,hy,13,10)
+    love.graphics.setLineWidth(11)
+    love.graphics.setColor(red,green,blue,1)
+    love.graphics.line(sx,sy,ex,ey,hx,hy)
+    love.graphics.circle("fill",ex,ey,5.5)
+    love.graphics.ellipse("fill",hx,hy,9,7)
+    if frame==5 or frame==6 then
+        love.graphics.setColor(1,.84,.34,.95)
+        love.graphics.setLineWidth(3)
+        for _,ray in ipairs({
+            {hx,hy-19,hx,hy-12},{hx+17,hy-8,hx+11,hy-5},
+            {hx+14,hy+10,hx+9,hy+6},{hx-12,hy-12,hx-8,hy-7},
+        }) do love.graphics.line(ray[1],ray[2],ray[3],ray[4]) end
+    end
+    love.graphics.pop()
+end
+
 function Renderer.draw(entry,characterAssets,state)
     local a=entry.actor
     local character,action,frame,mirror,ax,ay,scale,x,y=drawPose(entry,characterAssets,state)
@@ -96,6 +157,8 @@ function Renderer.draw(entry,characterAssets,state)
     if not image then return end
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay)
+    local highFive=entry.worker and EmployeeHighFive.get(entry.worker.id)
+    if highFive then drawHighFiveArm(character,highFive,a,mirror,ax,ay,scale,x,y) end
     if entry.application and a.phase=="waiting" then
         love.graphics.setColor(.96,.85,.42,1)
         love.graphics.printf("APPLICANT",a.x-44,a.y-94,88,"center")

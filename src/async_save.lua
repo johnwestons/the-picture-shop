@@ -35,7 +35,7 @@ function Writer:queue(slot,state,world)
         self.directory=directory
     end
     local job={directory=directory,slot=slot,state=state,
-        world={x=world and world.x,y=world and world.y}}
+        world={x=world and world.x,y=world and world.y,sceneId=world and world.sceneId}}
     for index,old in ipairs(self.waiting) do
         if old.directory==job.directory and old.slot==slot then
             self.waiting[index]=job

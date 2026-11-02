@@ -130,6 +130,7 @@ function Component.install(Runtime)
         if envelope.type == "welcome" then
             self.sessionId = payload.sessionId
             self.localId = payload.playerId
+            self.residentId = payload.residentId
             self.lastServerTick = payload.serverTick - 1
             self.lastFightTick = -1
             self.fightMatches = {}

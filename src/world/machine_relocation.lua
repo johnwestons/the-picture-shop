@@ -101,6 +101,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.beginWrapperMove(state, wrapperControlOccupied)
+        local installed = Runtime.MachineFleet.installedUnits(state, "skid_wrapper")
+        -- Promote the starter wrapper into the machine fleet on its first move,
+        -- too. Every relocation input must update the same pose used by
+        -- rendering, interaction range, worker routing, and saved state.
+        if installed[1] and Runtime.World.beginMachineMove then
+            return Runtime.World.beginMachineMove(state, installed[1].id, wrapperControlOccupied)
+        end
         if wrapperControlOccupied then
             state.message = "Close the active skid-wrapper console before relocating the machine."
             return false
@@ -110,7 +117,6 @@ function Component.install(Runtime)
             return false
         end
         if not Runtime.MachineFleet.isInstalled(state, "skid_wrapper") then return false end
-        local installed=Runtime.MachineFleet.installedUnits(state,"skid_wrapper")
         if installed[1] and Runtime.Employees.reservation(state,installed[1].id) then
             state.message="Pause the employee's assignment before relocating the skid wrapper."
             return false
@@ -142,10 +148,21 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.wrapperNearby(state)
-        if not Runtime.MachineFleet.isInstalled(state, "skid_wrapper") then return false end
-        local wrapper = Runtime.WrapperPlacement.ensure(state, Runtime.Config.wrapperPlacement)
-        local dx, dy = Runtime.World.player.x - wrapper.x, Runtime.World.player.y - wrapper.y
-        return dx * dx + dy * dy <= Runtime.Config.wrapperPlacement.interactionRadius ^ 2
+        local installed = Runtime.MachineFleet.installedUnits(state, "skid_wrapper")
+        if #installed == 0 then return false end
+        local playerScene = require("src.shop_rooms").scene(Runtime.World.player)
+        local radiusSquared = Runtime.Config.wrapperPlacement.interactionRadius ^ 2
+        for index, machine in ipairs(installed) do
+            local wrapper = machine.world
+            if not wrapper and index == 1 then
+                wrapper = Runtime.WrapperPlacement.ensure(state, Runtime.Config.wrapperPlacement)
+            end
+            if wrapper and (wrapper.sceneId or "warehouse") == playerScene then
+                local dx, dy = Runtime.World.player.x - wrapper.x, Runtime.World.player.y - wrapper.y
+                if dx * dx + dy * dy <= radiusSquared then return true end
+            end
+        end
+        return false
     end
 
     function Runtime.World.cutterNearby(state)
@@ -157,12 +174,15 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.rotateWrapper(state, wrapperControlOccupied)
-        if state.wrapper and state.wrapper.moving
-            and not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, 1) then return false end
         if wrapperControlOccupied then
             state.message = "Close the active skid-wrapper console before rotating the machine."
             return false
         end
+        if Runtime.activeMachineKind(state) == "wrapper" and Runtime.World.rotateMovingMachine then
+            return Runtime.World.rotateMovingMachine(state)
+        end
+        if state.wrapper and state.wrapper.moving
+            and not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, 1) then return false end
         local succeeded, direction = Runtime.WrapperPlacement.rotate(state, Runtime.Config.wrapperPlacement)
         if not succeeded then return false end
         if state.wrapper.moving then
@@ -175,6 +195,9 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.placeWrapper(state, assets)
+        if Runtime.activeMachineKind(state) == "wrapper" and Runtime.World.placeMovingMachine then
+            return Runtime.World.placeMovingMachine(state, assets)
+        end
         if not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, 1) then return false end
         local grid = Runtime.World.placementGridSnapshot(state, assets)
         local target = grid and grid.selected
@@ -195,6 +218,15 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.wrapperSnapshot(state)
+        local installed = Runtime.MachineFleet.installedUnits(state, "skid_wrapper")
+        local selectedId = state._operatingMachineId or state.machineId
+        local selected = selectedId and Runtime.MachineFleet.byId(state, selectedId)
+        local wrapper = selected and selected.modelId == "skid_wrapper" and selected.world
+            or installed[1] and installed[1].world
+        if wrapper then
+            local view = setmetatable({ wrapper = wrapper }, { __index = state })
+            return Runtime.WrapperPlacement.snapshot(view, Runtime.Config.wrapperPlacement)
+        end
         return Runtime.WrapperPlacement.snapshot(state, Runtime.Config.wrapperPlacement)
     end
 

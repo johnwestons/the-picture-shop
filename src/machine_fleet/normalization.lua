@@ -71,6 +71,7 @@ function Component.install(Runtime)
                 or item.source == "online"
             cutter.bladeRemoved = cutter.bladeRemoved == true
             cutter.bladeInSleeve = cutter.bladeInSleeve == true
+            cutter.spareBladeInstalled = cutter.spareBladeInstalled == true
             cutter.weeklyTechnician = cutter.weeklyTechnician == true
             cutter.nextTechnicianDay = tonumber(cutter.nextTechnicianDay)
             cutter.appointmentType = cutter.appointmentType == "weekly" and "weekly"
@@ -123,7 +124,8 @@ function Component.install(Runtime)
         local occupied = {}
         local itemConfig = Runtime.Config[Runtime.definition(item.modelId).placementKey .. "Placement"]
         for _, other in ipairs(fleet.items) do
-            if other ~= item and other.status == "installed" then
+            if other ~= item and other.status == "installed"
+                and Runtime.Fleet.isGameplayEnabled(other.modelId) then
                 local point = other.world or Runtime.placementFor(state, other)
                 if point then
                     local config = Runtime.Config[Runtime.definition(other.modelId).placementKey .. "Placement"]
@@ -246,17 +248,19 @@ function Component.install(Runtime)
         fleet.items = normalized
         local seenOnFloor = {}
         for _, item in ipairs(fleet.items) do
-            -- Older saves kept spare purchases in storage. Bring those units onto
-            -- the floor when the save is opened under the multi-machine rules.
-            if item.status == "stored" then
-                item.status = "installed"
-                item.world = nil
-            end
-            if (not seenOnFloor[item.modelId] and not Runtime.definition(item.modelId).requiresWorldPosition)
-                or Runtime.assignFloorPosition(state, fleet, item) then
-                seenOnFloor[item.modelId] = true
-            else
-                item.status = "stored"
+            if Runtime.Fleet.isGameplayEnabled(item.modelId) then
+                -- Older saves kept spare purchases in storage. Bring those units
+                -- onto the floor when the save is opened under the multi-machine rules.
+                if item.status == "stored" then
+                    item.status = "installed"
+                    item.world = nil
+                end
+                if (not seenOnFloor[item.modelId] and not Runtime.definition(item.modelId).requiresWorldPosition)
+                    or Runtime.assignFloorPosition(state, fleet, item) then
+                    seenOnFloor[item.modelId] = true
+                else
+                    item.status = "stored"
+                end
             end
         end
         fleet.deliveries = type(fleet.deliveries) == "table" and fleet.deliveries or {}

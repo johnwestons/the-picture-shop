@@ -4,6 +4,8 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim)
+        local allowed,reason=require('src.commute.outfit').allowed(state,player,'work')
+        if not allowed then return false,'riding_gear',reason,requestedKind end
         if requestedKind=="roomGame" then
             local game,action
             if type(desiredState)=="string" then game,action=desiredState:match("^(%a+_?%a*):([%a_]+)$") end

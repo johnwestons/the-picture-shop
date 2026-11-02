@@ -102,6 +102,8 @@ function Logistics.unload(state, jobId, palletId, spawnPoints, origin)
                 job.delivery.status = "received"
                 job.delivery.receivedAt = os.time()
                 job.delivery.receivedAtHours = BusinessCalendar.absoluteHours(state)
+                require("src.job_feedback").record(job, "materials_ready",
+                    job.delivery.receivedAtHours, "Every skid has been unloaded into the shop")
             else
                 job.delivery = job.delivery or {}
                 job.delivery.status = "unloading"

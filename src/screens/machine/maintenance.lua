@@ -67,7 +67,8 @@ function Component.install(Runtime)
         love.graphics.print(tostring(stock.maintenance_kit or 0) .. " AVAILABLE", 74, 153)
         love.graphics.setColor(0.76, 0.84, 0.84)
         love.graphics.print("BLADE", 330, 126)
-        love.graphics.print(cutter.bladeInSleeve and "SECURED IN WOODEN SLEEVE"
+        love.graphics.print(cutter.spareBladeInstalled and "SPARE INSTALLED • DULL SLEEVED"
+            or cutter.bladeInSleeve and "SECURED IN WOODEN SLEEVE"
             or cutter.bladeRemoved and "REMOVED" or "INSTALLED", 330, 153)
         love.graphics.print("TECHNICIAN", 620, 126)
         local appointment = cutter.nextTechnicianDay
@@ -82,9 +83,26 @@ function Component.install(Runtime)
                 or "Release the fasteners, remove the knife, and secure it inside the wooden transport sleeve.",
             not cutter.bladeInSleeve, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.technicianButton, "REQUEST BLADE COURIER",
-            cutter.bladeInSleeve and "Book Mara Mouse to collect this blade and fit a sharpened replacement."
+            cutter.bladeInSleeve and cutter.spareBladeInstalled
+                and "Book Mara Mouse to collect the dull blade. Your spare stays installed."
+                or cutter.bladeInSleeve and "Book Mara Mouse to collect this blade and fit a sharpened replacement."
                 or "Prepare the blade in its sleeve before booking.",
             cutter.bladeInSleeve and not cutter.nextTechnicianDay, pointerX, pointerY)
+        local bladeStock = stock.cutter_blade or 0
+        local spareReady = cutter.bladeRemoved and cutter.bladeInSleeve
+            and not cutter.spareBladeInstalled and bladeStock > 0
+        local spareDetail
+        if spareReady then
+            spareDetail = string.format("%d sharp spare blade(s) in stock. Install one now; the dull blade stays sleeved for pickup.", bladeStock)
+        elseif cutter.spareBladeInstalled then
+            spareDetail = "Your sharp spare is installed. The old blade remains in its sleeve."
+        elseif bladeStock <= 0 then
+            spareDetail = "Buy a sharpened spare on CritterNet WrenchWorks before removing the dull blade."
+        else
+            spareDetail = "Sleeve the removed dull blade first, then install a spare while it waits for pickup."
+        end
+        Runtime.drawMaintenanceCard(Runtime.spareBladeButton, "INSTALL SPARE BLADE", spareDetail,
+            spareReady, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.weeklyButton, cutter.weeklyTechnician and "WEEKLY SERVICE: ON" or "WEEKLY SERVICE: OFF",
             cutter.weeklyTechnician and "Click to cancel the recurring blade exchange."
                 or "Schedule a blade exchange every seven game days. Delays arrive by email.",

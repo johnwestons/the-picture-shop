@@ -2,11 +2,17 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 
+local function isShiftReport(email)
+    return type(email) == "table" and email.noticeKind == "shift_report"
+end
+
 function Component.install(Runtime)
     function Runtime.JobService.emailInbox(state)
         local result = {}
         for _, notice in ipairs(Runtime.MachineFleet.serviceInbox(state)) do result[#result + 1] = notice end
-        for _, email in ipairs(Runtime.ensureEmails(state).inbox) do result[#result + 1] = email end
+        for _, email in ipairs(Runtime.ensureEmails(state).inbox) do
+            if not isShiftReport(email) then result[#result + 1] = email end
+        end
         return result
     end
 
@@ -58,20 +64,22 @@ function Component.install(Runtime)
         local archive = Runtime.ensureEmails(state).archive
         for index = #archive, 1, -1 do
             local email = archive[index]
-            result[#result + 1] = {
-                id = email.id,
-                sender = email.sender,
-                subject = email.subject,
-                body = Runtime.archivedEmailBody(email),
-                noticeKind = email.noticeKind,
-                orderId = email.orderId,
-                total = email.total,
-                jobId = email.jobId,
-                quotedPrice = email.quotedPrice,
-                response = email.response,
-                archiveStatus = Runtime.archiveResponseLabel(email),
-                archiveRecord = true,
-            }
+            if not isShiftReport(email) then
+                result[#result + 1] = {
+                    id = email.id,
+                    sender = email.sender,
+                    subject = email.subject,
+                    body = Runtime.archivedEmailBody(email),
+                    noticeKind = email.noticeKind,
+                    orderId = email.orderId,
+                    total = email.total,
+                    jobId = email.jobId,
+                    quotedPrice = email.quotedPrice,
+                    response = email.response,
+                    archiveStatus = Runtime.archiveResponseLabel(email),
+                    archiveRecord = true,
+                }
+            end
         end
         return result
     end
@@ -100,6 +108,7 @@ function Component.install(Runtime)
             if not email.job and not email.estimateRequest
                 and email.noticeKind ~= "client_estimate_accepted"
                 and email.noticeKind ~= "client_estimate_declined"
+                and not isShiftReport(email)
             then
                 result[#result + 1] = email
             end

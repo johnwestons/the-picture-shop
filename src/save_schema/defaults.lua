@@ -19,6 +19,7 @@ function Component.install(Runtime)
         jack.animationClock = 0
         return {
             money = 180,
+            home = Runtime.Home.new(),
             inventory = {
                 paper = 40,
                 prints = 0,

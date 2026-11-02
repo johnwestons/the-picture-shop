@@ -6,6 +6,7 @@ function Component.install(Runtime)
     Runtime.WORK_PHONE_KINDS = {
         customer_order = true,
         customer_status = true,
+        customer_complaint = true,
         supplier_status = true,
         service_order = true,
         construction_notice = true,
@@ -22,6 +23,11 @@ function Component.install(Runtime)
             and Runtime.text(value.subject)
             and Runtime.text(value.message)
             and (value.direction == nil or value.direction == "incoming" or value.direction == "outgoing")
+            and Runtime.optionalBoolean(value.connecting)
+            and Runtime.optionalNonnegative(value.connectionRemaining)
+            and (value.connectionRemaining == nil or value.connectionRemaining <= 1)
+            and (value.connecting ~= true or (value.direction == "outgoing"
+                and Runtime.nonnegative(value.connectionRemaining) and value.connectionRemaining > 0))
             and Runtime.nonnegative(value.receivedAtHours)
             and type(value.answered) == "boolean"
             and (value.direction ~= "outgoing" or value.answered)
@@ -40,6 +46,7 @@ function Component.install(Runtime)
             and (value.kind ~= "outgoing_power" or value.direction == "outgoing")
             and Runtime.optionalPositiveInteger(value.itemIndex)
             and Runtime.optionalPositiveInteger(value.pendingItemIndex)
+            and Runtime.optionalBoolean(value.checkoutReady)
             and Runtime.optionalText(value.outcome)
             and Runtime.optionalText(value.response)
             and Runtime.optionalNonnegative(value.endedAtHours)

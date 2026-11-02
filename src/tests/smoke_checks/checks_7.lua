@@ -10,13 +10,14 @@ function Component.run(Context)
     Context.check("computer_inventory_tab_click",
         Context.selectComputerTab(Context.context.computerScreen, Context.serviceState, "inventory").tab == "inventory")
     Context.officeInventory = Context.context.procurement.inventoryRows(Context.serviceState)
-    Context.check("computer_inventory_exposes_purchasable_stock", #Context.officeInventory >= 10
+    Context.check("computer_inventory_exposes_purchasable_stock", #Context.officeInventory >= 11
         and Context.officeInventory[1].id == "house_sheets"
         and Context.officeInventory[3].id == "shipping_cartons"
         and Context.officeInventory[4].id == "stretch_film"
         and Context.officeInventory[5].id == "maintenance_kit"
-        and Context.officeInventory[6].id == "black_ink"
-        and Context.officeInventory[10].id == "raw_press_plates")
+        and Context.officeInventory[6].id == "cutter_blade"
+        and Context.officeInventory[7].id == "black_ink"
+        and Context.officeInventory[11].id == "raw_press_plates")
     Context.wwwTabResult = Context.selectComputerTab(Context.context.computerScreen, Context.serviceState, "www")
     Context.paperSiteX, Context.paperSiteY = Context.context.computerScreen.wwwSiteCenter(1)
     Context.paperSiteResult = Context.context.computerScreen.mousepressed(Context.serviceState, Context.paperSiteX, Context.paperSiteY, 1)
@@ -32,7 +33,7 @@ function Component.run(Context)
         and Context.wwwTabResult.tab == "www" and Context.paperSiteResult
         and Context.paperSiteResult.site.url == "www.thecritternet.com/paper-depot" and Context.cartAdd
         and Context.cartAdd.action == "cart_item_added"
-        and Context.cartBeforeCheckout.count == 1 and Context.cartBeforeCheckout.total == 30
+        and Context.cartBeforeCheckout.count == 1 and Context.cartBeforeCheckout.total == 26
         and Context.computerCheckout.action == "cart_checked_out"
         and Context.computerOrder.channel == "computer"
         and Context.computerOrder.pallets[1].quantity == 250

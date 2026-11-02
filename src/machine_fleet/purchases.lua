@@ -40,14 +40,15 @@ function Component.install(Runtime)
     function Runtime.Fleet.pendingDeliveries(state)
         local result = {}
         for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
-            if order.delivery.status ~= "received" then result[#result + 1] = order end
+            if Runtime.Fleet.isGameplayEnabled(order.modelId)
+                and order.delivery.status ~= "received" then result[#result + 1] = order end
         end
         return result
     end
 
     function Runtime.Fleet.orderById(state, orderId)
         for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
-            if order.id == orderId then return order end
+            if order.id == orderId and Runtime.Fleet.isGameplayEnabled(order.modelId) then return order end
         end
     end
 
@@ -56,7 +57,8 @@ function Component.install(Runtime)
             -- Truck motion is intentionally transient. Any undelivered unit is
             -- schedulable again after loading a save, even if its last saved
             -- manifest state said scheduled/backing/at_bay.
-            if order.delivery.status ~= "received" and order.item then return order end
+            if Runtime.Fleet.isGameplayEnabled(order.modelId)
+                and order.delivery.status ~= "received" and order.item then return order end
         end
     end
 
@@ -128,6 +130,9 @@ function Component.install(Runtime)
         local order = Runtime.Fleet.orderById(state, orderId)
         if not order or order.delivery.status == "received" or not order.item then
             return false, "That machine is no longer on the flatbed."
+        end
+        if not Runtime.Fleet.isGameplayEnabled(order.modelId) then
+            return false, "This machine is currently unavailable in gameplay."
         end
         if order.item.id ~= machineId then return false, "That machine is not on this delivery manifest." end
         local item = order.item

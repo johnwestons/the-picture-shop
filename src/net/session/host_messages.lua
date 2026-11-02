@@ -38,11 +38,13 @@ function Component.install(Runtime)
         local offsets = { { 28, 0 }, { -28, 0 }, { 0, 28 } }
         local offset = offsets[(index or 2) - 1] or { 0, 0 }
         local spawnX, spawnY = host.x + offset[1], host.y + offset[2]
+        local spawnScene="warehouse"
         if context and type(context.resolveGuestSpawn) == "function" then
-            local resolved, candidateX, candidateY = pcall(context.resolveGuestSpawn,
+            local resolved, candidateX, candidateY, candidateScene = pcall(context.resolveGuestSpawn,
                 host.x, host.y, index, self.players)
             if resolved and Runtime.finite(candidateX) and Runtime.finite(candidateY) then
                 spawnX, spawnY = candidateX, candidateY
+                if candidateScene=="home" then spawnScene="home" end
             end
         end
         local player = Runtime.newPlayer({
@@ -53,10 +55,21 @@ function Component.install(Runtime)
             overallsColorway = hello.payload.overallsColorway,
             x = spawnX,
             y = spawnY,
+            sceneId = spawnScene,
         })
         player.lastInputAt = self.clock()
+        if context and context.bindResident then
+            local residentId,reason=context.bindResident(player,hello.payload.residentToken,self.players)
+            if not residentId then
+                self:_sendError(peer,"resident_identity",reason or "Unable to connect this resident.")
+                self.transport:disconnect(peer,4,false);self:_discardPendingPeer(peer)
+                return false
+            end
+            player.homeResidentId=residentId
+        end
         player.lastInputSequence = -1
         player.inputX, player.inputY = 0, 0
+        player.inputBoost = false
         self.players[id] = player
         self.peerToId[peer] = id
         self.idToPeer[id] = peer
@@ -75,6 +88,7 @@ function Component.install(Runtime)
             playerId = id,
             serverTick = self.serverTick,
             players = welcomePlayers,
+            residentId = player.homeResidentId,
         })
         local shop = context and context.getShopSnapshot and context.getShopSnapshot() or nil
         local shopOk, shopError
@@ -208,6 +222,7 @@ function Component.install(Runtime)
             player.lastInputSequence = payload.sequence
             player.inputSequence = payload.sequence
             player.inputX, player.inputY = payload.moveX, payload.moveY
+            player.inputBoost = payload.boost == true
             player.gameInputX,player.gameInputY=payload.gameX,payload.gameY
             player.combatButtons=payload.combatButtons
             player.arcadeInput=payload.arcade

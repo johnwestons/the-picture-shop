@@ -4,12 +4,14 @@ local WorkshopAuthority = require("src.workshop_authority")
 local Test = {}
 
 local EXPECTED_INTERACTIONS = {
-    shopEntrance=true,roomStock=true,roomRest=true,roomGame=true,
+    commute=true,
+    shopEntrance=true,roomStock=true,roomRest=true,roomGame=true,homeTravel=true,homeActivity=true,homeDelivery=true,homeFurniture=true,
     computer = true,
     shopClock = true,
     workPhone = true,
     customer = true,
     applicant = true,
+    employeeHighFive = true,
     vendor = true,
     loadingBayDoor = true,
     truckCargoDoor = true,
@@ -19,7 +21,6 @@ local EXPECTED_INTERACTIONS = {
     cutter = true,
     skidWrapper = true,
     windmill = true,
-    regalFolder = true,
     palletJack = true,
     forklift = true,
 }

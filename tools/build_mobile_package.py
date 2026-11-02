@@ -26,6 +26,12 @@ ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 # platform packages. Keep the direction versions in sync with the Lua catalog.
 WAREHOUSE_SOURCE_ROOT = "assets/source/warehouse-expansion-v1/"
 VIBES_MUSIC_ROOT = "assets/audio/music/vibes/"
+COMMUTE_AUDIO_FILES = (
+    "engine-1400.wav", "engine-3000.wav", "engine-5000.wav", "engine-7500.wav",
+    "wind.wav", "tires.wav", "intake.wav", "brake.wav", "ignition.wav",
+    "shutdown.wav", "shift.wav", "impact.wav", "forest-ambience.mp3",
+    "manifest.json", "SOURCES.md",
+)
 VIBES_MUSIC_TRACKS = (
     "blood_red.wav",
     "downpour.wav",
@@ -227,6 +233,7 @@ def copy_runtime(stage: Path) -> None:
         if source.name != "picture_shop_sfx_preview.wav"
     )
     audio_files.extend(runtime_music_paths())
+    audio_files.extend(audio_root / "commute" / name for name in COMMUTE_AUDIO_FILES)
     for source in audio_files:
         destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)

@@ -83,6 +83,7 @@ function Component.install(Runtime)
     function Runtime.sameHello(left, right)
         return type(left) == "table" and type(right) == "table"
             and left.clientNonce == right.clientNonce
+            and left.residentToken == right.residentToken
             and left.name == right.name
             and left.character == right.character
             and (left.furColorway or 1) == (right.furColorway or 1)

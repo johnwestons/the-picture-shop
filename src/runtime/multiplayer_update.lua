@@ -95,7 +95,7 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.updateMultiplayer(dt, inputX, inputY, predictedJackOwner)
+    function Runtime.updateMultiplayer(dt, inputX, inputY, predictedJackOwner, inputBoost)
         local now = love and love.timer and love.timer.getTime and love.timer.getTime() or os.clock()
         local localPlayer = Runtime.World.player
         local localTaskAction = PlayerActivity.forState(
@@ -114,6 +114,7 @@ function Component.install(Runtime)
             localPlayer = localPlayer,
             inputX = inputX or 0,
             inputY = inputY or 0,
+            inputBoost = inputBoost == true,
             gameX = Runtime.basketballCharge and Runtime.basketballCharge.aimX/100
                 or (Runtime.airHockeyInputX or 0)+(Runtime.kombatInputX or 0),
             gameY = Runtime.basketballCharge and (Runtime.basketballCharge.arcHeight-105)/85
@@ -122,10 +123,25 @@ function Component.install(Runtime)
             arcade = Runtime.state.screen=='critter_kombat'
                 and require('src.screens.critter_crisis_screen').arcadeInputs(Runtime) or nil,
             moveRemote = function(player, moveDt, moveX, moveY)
+                if require('src.commute.runtime').active(Runtime) then return end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
             end,
+            bindResident = function(player,token,players)
+                local id,reason=require("src.home_residents").bind(Runtime.state,player,token,players)
+                if id then
+                    local okay,commuteReason=require('src.commute.runtime').bind(Runtime,player,players)
+                    if not okay then return nil,commuteReason end
+                end
+                if id then Runtime.multiplayer:markShopDirty();Runtime.saveCurrent() end
+                return id,reason
+            end,
             resolveGuestSpawn = function(hostX, hostY, guestIndex, players)
+                if require("src.home_travel").guestJoined(Runtime.state,guestIndex) then Runtime.multiplayer:markShopDirty() end
+                if require("src.shop_rooms").scene(Runtime.World.player)=="home" then
+                    local x,y=require("src.home_layouts").spawn(Runtime.state,guestIndex)
+                    return x,y,"home"
+                end
                 if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
                     hostX,hostY=Runtime.Config.player.spawnX,Runtime.Config.player.spawnY
                 end
@@ -235,6 +251,11 @@ function Component.install(Runtime)
                 end
             end,
             performInteraction = function(player, targetKind, desiredState, shotAim)
+                if targetKind=='commute' then return require('src.commute.runtime').command(Runtime,player,desiredState) end
+                if targetKind=="homeTravel" then return require("src.weekend_runtime").command(Runtime,player,desiredState) end
+                if targetKind=="homeActivity" then return require("src.home_activity_controls").command(Runtime,player,desiredState) end
+                if targetKind=="homeDelivery" then return require("src.home_delivery_controls").command(Runtime,player) end
+                if targetKind=="homeFurniture" then return require("src.home_furniture_controls").command(Runtime,player,desiredState) end
                 local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim)
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
                 if okay and targetKind=="roomGame" and

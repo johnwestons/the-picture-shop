@@ -4,7 +4,7 @@ local Storage = require("src.pallet_storage")
 local Registration=require("src.warehouse_registration")
 local Layout=require("src.warehouse_layout")
 local Games=require("src.breakroom_games")
-local Rooms = { IDS = { warehouse=true, front_left=true, front_right=true } }
+local Rooms = { IDS = { warehouse=true, front_left=true, front_right=true, home=true } }
 -- Reuse the scene mask: navigation caches are keyed by assets/mask identity.
 -- Weak values let transient preview assets and their adapters be collected.
 local adapters=setmetatable({}, {__mode="k"})
@@ -108,6 +108,7 @@ function Rooms.machineRoomAllowed(state,id)
         and (Rooms.definition(state,id)=="storage" or Rooms.definition(state,id)=="floor")
 end
 function Rooms.name(state,id)
+    if id=="home" then return require("src.home_catalog").APARTMENTS[state.home.apartmentId].name end
     if id=="warehouse" then return "Warehouse" end
     local kind=Rooms.definition(state,id)
     local name=(kind=="storage" and "Storage room" or kind=="breakroom" and "Break room" or "Utility room")
@@ -119,6 +120,20 @@ function Rooms.walkable(x,y,sceneId,kind)
 end
 function Rooms.assets(assets,sceneId,state)
     if not assets then return nil end
+    if sceneId=="home" then
+        local id=state.home.apartmentId
+        local mask=require("src.home_layouts").mask(id)
+        local key="home:"..id
+        local scenes=adapters[assets]
+        if not scenes then scenes=setmetatable({}, {__mode="v"});adapters[assets]=scenes end
+        if not scenes[key] then
+            scenes[key]=setmetatable({_homeScene=id,getData=function(name)
+                if name=="walkmask" then return mask end
+                return assets.getData and assets.getData(name)
+            end},{__index=assets})
+        end
+        return scenes[key]
+    end
     sceneId=sceneId or "warehouse"
     local kind=sceneId=="warehouse" and "warehouse" or Rooms.definition(state,sceneId) or "floor"
     if rawget(assets,"_shopRoomScene")==sceneId and rawget(assets,"_shopRoomKind")==kind then return assets end
@@ -153,6 +168,7 @@ function Rooms.assets(assets,sceneId,state)
     return adapted
 end
 function Rooms.obstacles(state,sceneId)
+    if sceneId=="home" then return require("src.home_furniture").obstacles(state) end
     if Rooms.isComplete(state,sceneId) and Rooms.definition(state,sceneId)=="breakroom" then
         local result=Registration.obstacles("breakroom")
         for _,id in ipairs(Games.ORDER) do
@@ -167,6 +183,7 @@ function Rooms.obstacles(state,sceneId)
     return {}
 end
 function Rooms.targets(player,state)
+    if Rooms.scene(player)=="home" then return require("src.home_layouts").targets(player,state) end
     if Rooms.scene(player)=="warehouse" then
         local jack=state and state.palletJack
         local lift=state and state.forklift
@@ -462,6 +479,11 @@ function Rooms.perform(player,state,kind,command,context)
 end
 function Rooms.stand(player)
     if not player.resting then return end
+    if player.sceneId=="home" then
+        -- Home poses leave the actor at its walkable approach. The break-room
+        -- chair's fallback exit belongs only to shop rest, never to an apartment.
+        player.resting=false;player._restOrigin=nil;return
+    end
     local point=player._restOrigin or Rooms.rest
     player.x,player.y,player.resting,player._restOrigin=point.x,point.y,false,nil
 end

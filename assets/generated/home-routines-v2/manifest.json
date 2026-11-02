@@ -1,0 +1,355 @@
+{
+  "mode": "built-in image_gen",
+  "status": "selected sweep assets integrated; other studies retained as provenance",
+  "assets": [
+    {
+      "path": "broom-directions-study.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-27350e5e-6866-454b-9cd0-1a43d54a7793.png",
+      "prompt": "Use case: stylized-concept. Asset type: eight-direction transparent game prop atlas. Reference image: use ONLY the straw broom in the lower-left cell as the design/style reference; do not reproduce other objects. Generate eight individually authored 3D perspective views of this SAME simple golden straw broom with brown wooden handle, true transparent background, no ground or shadow, no haze. 1536x1024 canvas, FOUR columns TWO rows, 384x512 cells, exactly one entire broom in each cell. Isometric orthographic game camera elevated 30 degrees, fixed light from upper left. Each broom is in working position: bristle head planted on an invisible floor, shaft leaning gently back toward an invisible operator. Object should fit x=80..304 y=70..450 locally, consistent real-world size. Direction means the invisible operator's facing direction, with the broom head farther forward in that direction: row1 east (screen right), southeast (screen lower right), south (toward viewer), southwest (screen lower left); row2 west (screen left), northwest (screen upper left), north (away from viewer), northeast (screen upper right). Rotate the actual 3D broom around the vertical axis: show correctly foreshortened head, shaft, front/back bindings and bristle thickness in each view; NOT eight copies of one diagonal image rotated in the canvas. Broom head bottom touches local y=440 in all cells; handle ends remain fully in cell; leave generous transparent gutters. Clean readable painterly shading and dark edges matching the reference. No characters, hands, labels, letters, numbers, grid, backdrop, checkerboard or extra objects.",
+      "copiedWithoutPixelEdits": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "sha256": "0f9b0311e370e7f4aa3ddd1e952de5880bc03e5d4bf06711bca625314629bd55",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-east-study.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-5e77afde-611b-44ba-a6bd-a264ec97bb77.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent 8-frame character animation sprite sheet for an isometric game. Image 1 is the identity, clothing, colors and exact EAST-facing camera reference for the rabbit. Generate this SAME orange rabbit worker with white muzzle and tail, gray shirt, blue bib overalls, brown work boots and small belt pouch performing a genuine FLOOR SWEEPING action, facing screen RIGHT in ALL eight frames. Image 2 supplies only broom design/proportion context; do NOT draw the broom or any other tool into this character sheet, because the broom is a separate directional sprite attached at the hands. The hands must visibly grip an imaginary thin broom shaft. One hand grips high at chest height; the other grips lower at waist height, both on the same diagonal imaginary shaft that slopes DOWN-RIGHT to a broom head on the floor ahead of the feet. Feet remain planted, knees soften and torso leans naturally during sweep. Camera and character scale match reference 1. True transparent background, no shadow, ground, matte, checkerboard, labels, grid or props. Exactly 8 full-body poses in FOUR columns TWO rows, 1536x1024 total, 384x512 per cell. Every character 380px tall, foot baseline local y=460, center around x=170; all limbs, ears and tail inside cell with generous transparent gutters. Chronological row-major frames: 1 reach forward gripping shaft with head far right; 2 start drawing broom toward feet, elbows slightly bend; 3 pull midway with bent elbows and slightly tucked torso; 4 head nearest feet, hands drawn toward torso; 5 begin pushing away, elbows begin extending; 6 push midway and lean gently forward; 7 arms extend nearly to initial reach; 8 settle just before frame1 to make seamless loop. Eight visibly distinct anatomically coherent action poses, stable identity and clothing, no walking or foot sliding. Do not merely repeat the generic forward-hand working gesture. Broom has to be separately overlayable onto the diagonal line through BOTH hands in each frame.",
+      "copiedWithoutPixelEdits": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "sha256": "ee0c15e1855f5d5d8d03f6242c420f0f5ccbffeacf1401420776d25f0d8062bf",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-east-empty-hands.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-cf57b9e8-f609-4301-b197-6dba4bd2d51c.png",
+      "prompt": "Use case: precise-object-edit. Edit ONLY the short brown wooden shaft fragments between and beside the rabbit's hands in every cell: REMOVE those shaft fragments completely and restore the underlying shirt/overalls or transparent gap as appropriate. Keep every hand, arm, pose, face, ear, body, clothing, boot, tail and belt pouch exactly as is. Do NOT erase the brown leather pouch or boots. All eight poses, each cell's framing, scale, positions, the 4-column 2-row layout and overall canvas must remain unchanged. The hands must be empty, curled to grip a separate broom sprite that the game overlays later. Also keep the background truly transparent; do not add a colored background, glow, shadow, checkerboard or text.",
+      "copiedWithoutPixelEdits": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "sha256": "6878b061c9086c12d2c3b6bd39a2013e7d6c7578ff3def37536435ccda4e614f",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "path": "broom-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-91a243df-6a4f-4711-b861-e1eb66876f94.png",
+      "prompt": "Use case: precise-object-edit. Correct this eight-view BROOM TURNAROUND to true 3D directional game views while preserving the same broom design, texture and fixed upper-left lighting. Transparent 1536x1024, four columns two rows. Exactly one fully contained broom per 384x512 cell. The old headings are wrong: REPLACE the views according to these exact directions. All brooms have their bristles contacting invisible ground at local y=440 and handles tilted back toward the unseen person. Row1 cell1 EAST: bristle head at lower RIGHT, upper shaft at upper LEFT, side-on narrow thickness of flattened straw fan (narrow edge view, not full broad fan). Row1 cell2 SOUTHEAST: head lower RIGHT, shaft upper LEFT, three-quarter broad front face of straw fan. Row1 cell3 SOUTH: shaft upright centered, broad front fan faces viewer, compressed shaft length by perspective. Row1 cell4 SOUTHWEST: head lower LEFT, shaft upper RIGHT, three-quarter broad front fan. Row2 cell1 WEST: head lower LEFT, shaft upper RIGHT, narrow side thickness/edge view. Row2 cell2 NORTHWEST: head slightly upper-left of shaft's floor position, shaft rises upper RIGHT, show three-quarter BACK of fan with reversed binding seam and exposed top. Row2 cell3 NORTH: upright shaft centered, see BACK/top of fan and binding seam. Row2 cell4 NORTHEAST: head lower RIGHT, shaft rises upper LEFT, three-quarter BACK/top view. Maintain consistent broom height and physical dimensions, whole object within local x=45..339 y=55..460. Every view must be actually redrawn in 3D; not a screen-space rotation of one diagonal broom. No person, hands, floor, shadow, haze, colored background, labels, grid, checkerboard or other objects.",
+      "copiedWithoutPixelEdits": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "sha256": "f0b4d103c74142ca21a8a8945704823933bf72e27f3368be201238d9ead13331",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "broom-eight-directions-long-shaft.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-290760ad-ff35-484e-97a4-42494f3314a7.png",
+      "prompt": "Use case: precise-object-edit. Keep the same eight directional views, direction order, transparent background, 4-column 2-row layout, 1536x1024 canvas, brown wood and golden straw design. Correct ONLY the broom proportions to a practical full-length household floor broom: the wooden shaft must make up about 75 percent of each broom's length, and the straw head only about 25 percent. Current heads are much too large and shafts too short for two adult hands to grip the shaft. Keep total height and cell placement roughly unchanged by shrinking each straw head and lengthening the shaft down into that head. Maintain genuine side-on narrow edge views in row1 col1 and row2 col1, three-quarter front/back views in the diagonal cells, broad front view row1 col3 and broad rear view row2 col3. Head at the bottom must remain on the same invisible ground contact as before. No hands, people, text, backgrounds, shadows, grid or other items. Each entire broom stays within its own cell.",
+      "copiedWithoutPixelEdits": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "sha256": "985948a5bc93f77e7f0c26a27c4910b7a9f7f5789f310131be441b254728bb95",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "path": "sweep-southeast-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-6b5b5f1a-27fd-485f-a26b-bccbccb88996.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing diagonally TOWARD viewer and screen RIGHT (SOUTHEAST), showing face, FRONT bib and right side. Project reaching motion down-right.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "3cd635b39b223361d44d11b7ee82b91809829bdc06a43a0d37c20b8bbe37edbb",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-south-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-04412241-4b5f-4a08-912d-cb227dd0ab77.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing straight TOWARD viewer (SOUTH), centered face and full FRONT bib visible symmetrically. Project reaching motion toward viewer/down; hands wrap the imagined shaft in front of chest/waist, with head farther down on floor.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "b9c6188094894e1ef73e0026193d15039359f8d513edabfbab04a0ef77553d34",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "path": "sweep-southwest-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-09d84816-75ca-4a0b-896a-4cc4f9df6d01.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing diagonally TOWARD viewer and screen LEFT (SOUTHWEST), showing face, FRONT bib and left side. Project reaching motion down-left. Author this view; maintain real pouch handedness and fixed upper-left lighting.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "62a8f1877867f3169011686c1de45b14419c82ba65590342138524491b9539f9",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-west-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-12c063ca-e1f0-4153-b6dd-88db472b554c.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing screen LEFT (WEST), true left-facing profile, projected reach to left. Author this view, keep pouch on original anatomical hip and lighting fixed upper-left.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "af94c3904e0f7372d5b56a6c42b26469add931ac0a040a9ce1b5149a0bee193d",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-northwest-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-2058ebf4-29ae-4208-b0e0-f05d869d53c2.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing diagonally AWAY from viewer and screen LEFT (NORTHWEST), show BACK of head, back of overalls and white tail, very little face. Project reach upper-left. Hands may be partially hidden by torso naturally, but do not turn torso to face viewer.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "2bb5bbd398ffdad435e5638847bf66b31278a1902d94066592e6edb6f580771a",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-north-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-01342785-aa03-4f83-964d-990461dc8aab.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing directly AWAY from viewer (NORTH), show BACK of head, ears, BACK overalls and centered white tail, NO face and NO front bib. Arms reach forward on far side of torso; hands may be partly occluded. The head of a separate broom would reach farther UP the ground plane.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "f9572c6fed7958eb8319f601a1d40f374c7adbdd9fa19323b808efa881295dd6",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-northeast-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-66397943-8e81-4485-b9f1-cdf9d102a227.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent character action sprite sheet for The Picture Shop. Use the reference solely for the SAME rabbit worker identity (orange fur, white muzzle/tail, gray shirt, blue overalls, brown boots, small leather tool pouch) and the FIRST FOUR TOP-ROW sweeping poses. Draw FOUR full-body action poses in a 2-column 2-row 1024x1024 sheet, each 512x512 cell. Exactly four characters, same fixed elevated orthographic camera, stable size, ground anchor local (256,460), full ears and boots inside cell with generous margins. Each character about 370 pixels tall. True transparent background; no backdrop, haze, checkerboard, text, shadows, floor or grid. Action is sweeping the floor with a SEPARATE broom sprite added by the game: DO NOT draw any broom, shaft, handle, brush or other object. Both hands curl around one imaginary thin shaft, spaced well apart, one at chest height and one at waist height. Frame1 extends the lower hand forward in the facing direction, reaching with the broom head far away on the ground. Frame2 draws the lower hand slightly inward. Frame3 draws it midway toward torso. Frame4 pulls it nearest torso with elbows bent. Upper hand guides shaft near chest and shifts naturally. These are four distinct coherent pull phases, designed to play 1,2,3,4,3,2 as a smooth sweep loop. Feet stay planted, knees soft, torso responds subtly; do not walk, swap hands, change scale or shift the foot baseline. Preserve consistent camera and perspective through all four frames. DIRECTION REQUIREMENT: Facing diagonally AWAY from viewer and screen RIGHT (NORTHEAST), show BACK of head, back overalls and white tail, very little face. Project reach upper-right. Hands may be partly hidden by torso naturally; do not show FRONT bib or turn to face viewer.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; grip and direction review pending",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "800cfea991921a266c749acb3b1dbd90e5b1ba6d4839977b0f6128012dd55e18",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "path": null,
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-4df2025c-cb79-4470-a3f0-ef8353de9e29.png",
+      "prompt": "Use case: precise-object-edit. This is an eight-frame sweeping animation, 4 columns by 2 rows. Keep the entire TOP ROW unchanged. Keep the background transparent and retain the current rabbit identity, gray shirt, blue overalls, pouch, boots, scale, east-facing view and planted-foot baseline in each bottom cell. Correct ONLY the BOTTOM ROW's upper-body/arm motion to make a gradual return from top-row frame4 (hands drawn close to torso) back to top-row frame1 (lower hand extended far right). Bottom-left frame5: lower gripping hand just slightly farther right than top-row frame4, high gripping hand near chest; frame6 lower hand halfway extended; frame7 lower hand almost at full reach; frame8 lower hand at nearly the same full reach as top-row frame1, ready for seamless loop. High hand stays by chest, elbow gently changes. Do not lean the entire torso far forward in frames6/7. Keep both hands visibly gripping the same imaginary diagonal shaft, high hand at chest and low hand at waist, shaft sloping down-right. No actual shaft, broom or tool drawn. No walking, no changes to feet, legs, floor contact, body size, ears, palette, 4x2 sheet layout or overall canvas. All poses must fit their existing cells.",
+      "status": "rejected: return poses still jump; use first four pull drawings forward/reverse"
+    },
+    {
+      "path": "sweep-north-rear.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-aeab82ea-9af5-437f-a84f-2d50a2de843a.png",
+      "prompt": "Use case: precise-object-edit. Correct this four-frame rabbit sweeping sheet to STRAIGHT NORTH, DIRECT REAR VIEW in EVERY frame. The current top-row characters are turned diagonally right; this is wrong. Redraw all four characters with shoulders level and horizontally symmetrical, spine vertical, center of back and tail exactly centered between legs, ears evenly visible from behind, back of head symmetrical. NO side of face, no visible muzzle, no diagonal head or torso orientation. Keep SAME orange rabbit identity, gray shirt, blue overalls, brown boots, belt pouch on anatomical right hip, white tail, camera elevation and true alpha transparency. Feet planted stable. FOUR frames, 2x2 square sheet, matching scale and foot baseline, generous gutters, full ears and feet. Sweeping arms reach forward on the far side of the torso, partly occluded naturally: frame1 reaches far ahead, frame2 draws slightly inward, frame3 halfway inward, frame4 near chest. Suggest action through shoulders/elbows even if hands are hidden. One hand high near chest, other lower near waist holding imaginary broom shaft, but NO broom, tool, shaft or handle is drawn. Do not turn sideways to reveal the hands. No floor, shadows, backdrop, labels, grids, text or extra props.",
+      "copiedWithoutPixelEdits": true,
+      "status": "staged; corrected rear view, pending assembled grip review",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "27b845ecb84100fcc40b7ca85074e269fef65454f38bff517f26cb02fa7a295c",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "direction": "southeast",
+      "prompt": "Use case: precise-object-edit. Correct ONLY the lower gripping hand and its forearm/elbow in this four-frame rabbit sweeping sprite sheet. Keep all other pixels/character identity, direction, head, ears, upper gripping hand, torso, overalls, pouch, feet, scale and 2x2 layout as close as possible. Keep actual transparent alpha, no background, no labels, no tool or shaft. The lower hand must move INWARD toward the torso while staying near WAIST HEIGHT, so the imaginary shaft through both hands becomes progressively STEEPER from frame1 to frame4. The old lower hand erroneously rises toward the high hand; this does not sweep the floor. Repose the forearm naturally connected to its elbow and remove the old lower hand completely; exactly two hands per character. Source canvas is 1254x1254, each local cell 627x627. Coordinates below are local to each cell, and refer to center of the curled lower gripping hand. Keep the upper hand unchanged at chest height. Keep TOP ROW unchanged. BOTTOM LEFT frame3: move lower gripping hand to approximately x430,y425. BOTTOM RIGHT frame4: lower hand at x389,y432, close to waist, with bent elbow. The character faces down-right. Return loop should now progress from extended down-right arm toward a more vertical shaft near torso.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-dfbfab52-74a1-44db-8be5-1e3a438ee736.png",
+      "path": "sweep-southeast-grip-study.png",
+      "copiedWithoutPixelEdits": true,
+      "status": "selected; registered from actual output, not requested coordinates",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "f55816f6a38588e03eb1461f7792922ca26b95169aa9bbae84a94811b5a4ed0e",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "direction": "southwest",
+      "prompt": "Use case: precise-object-edit. Correct ONLY the lower gripping hand and its forearm/elbow in this four-frame rabbit sweeping sprite sheet. Keep all other pixels/character identity, direction, head, ears, upper gripping hand, torso, overalls, pouch, feet, scale and 2x2 layout as close as possible. Keep actual transparent alpha, no background, no labels, no tool or shaft. The lower hand must move INWARD toward the torso while staying near WAIST HEIGHT, so the imaginary shaft through both hands becomes progressively STEEPER from frame1 to frame4. The old lower hand erroneously rises toward the high hand; this does not sweep the floor. Repose the forearm naturally connected to its elbow and remove the old lower hand completely; exactly two hands per character. Source canvas is 1254x1254, each local cell 627x627. Coordinates below are local to each cell, and refer to center of the curled lower gripping hand. Keep the upper hand unchanged at chest height. Keep TOP ROW unchanged. BOTTOM LEFT frame3: move lower gripping hand to approximately x325,y430. BOTTOM RIGHT frame4: lower hand at x340,y430, below and slightly LEFT of high hand near x390,y320. The character faces down-left. Frame4 lower hand must be BELOW upper hand, not beside it at chest height.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-9724888b-5677-4d17-890c-40e4fb84f4a7.png",
+      "path": "sweep-southwest-grip-study.png",
+      "copiedWithoutPixelEdits": true,
+      "status": "selected; registered from actual output, not requested coordinates",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "bbf6de9f27d4bd847277268dc2c3a428804bf482f084980249e507fd5f84c248",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "direction": "west",
+      "prompt": "Use case: precise-object-edit. Correct ONLY the lower gripping hand and its forearm/elbow in this four-frame rabbit sweeping sprite sheet. Keep all other pixels/character identity, direction, head, ears, upper gripping hand, torso, overalls, pouch, feet, scale and 2x2 layout as close as possible. Keep actual transparent alpha, no background, no labels, no tool or shaft. The lower hand must move INWARD toward the torso while staying near WAIST HEIGHT, so the imaginary shaft through both hands becomes progressively STEEPER from frame1 to frame4. The old lower hand erroneously rises toward the high hand; this does not sweep the floor. Repose the forearm naturally connected to its elbow and remove the old lower hand completely; exactly two hands per character. Source canvas is 1254x1254, each local cell 627x627. Coordinates below are local to each cell, and refer to center of the curled lower gripping hand. Keep the upper hand unchanged at chest height. Keep TOP ROW unchanged. BOTTOM LEFT frame3: move lower gripping hand to approximately x280,y420. BOTTOM RIGHT frame4: lower hand at x300,y425, below and LEFT of high hand near x358,y314. Character faces LEFT. Frame4 forearm draws back toward waist while hand remains well below upper hand.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5350036f-08b7-45b9-bdec-17816b0a9887.png",
+      "path": "sweep-west-grip-study.png",
+      "copiedWithoutPixelEdits": true,
+      "status": "selected; registered from actual output, not requested coordinates",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "1d449307652ee69871442f05e1349d80a993e2825d9ea5ee521fe8dba0f54971",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    },
+    {
+      "direction": "northwest",
+      "prompt": "Use case: precise-object-edit. Correct ONLY the lower gripping hand and its forearm/elbow in this four-frame rabbit sweeping sprite sheet. Keep all other pixels/character identity, direction, head, ears, upper gripping hand, torso, overalls, pouch, feet, scale and 2x2 layout as close as possible. Keep actual transparent alpha, no background, no labels, no tool or shaft. The lower hand must move INWARD toward the torso while staying near WAIST HEIGHT, so the imaginary shaft through both hands becomes progressively STEEPER from frame1 to frame4. The old lower hand erroneously rises toward the high hand; this does not sweep the floor. Repose the forearm naturally connected to its elbow and remove the old lower hand completely; exactly two hands per character. Source canvas is 1254x1254, each local cell 627x627. Coordinates below are local to each cell, and refer to center of the curled lower gripping hand. Keep the upper hand unchanged at chest height. All four lower grips require adjustment. TOP LEFT frame1: lower hand center x220,y415. TOP RIGHT frame2: x220,y395. BOTTOM LEFT frame3: x309,y350. BOTTOM RIGHT frame4: x264,y349. Keep the back-facing diagonal LEFT view and upper hand from each original pose unchanged. Lower hands remain well below upper hands, so the shaft changes from extended diagonal to nearly vertical as the arm pulls inward. Do not rotate the character toward the viewer.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-6577fe3b-12a3-4c16-931f-c5cfe7a7389c.png",
+      "path": "sweep-northwest-grip-study.png",
+      "copiedWithoutPixelEdits": true,
+      "status": "superseded by coupled-reference separation",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "fc1dbb3fced1750788ee668c25a12ed12dacf443763c5571510ca7299a1f7fa3",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-northwest-coupled.png",
+      "prompt": "Use case: stylized-concept. Asset type: physically coherent 4-frame SWEEPING animation reference, transparent game sprite sheet. Image1 is the rabbit identity, NORTHWEST rear-three-quarter camera and clothing reference. Image2 is the exact long-handled straw broom reference; use its NORTHWEST view (bottom row second column). REDRAW the rabbit performing a believable floor sweep WITH THE COMPLETE BROOM VISIBLE in each frame. Both hands must actually wrap around the same straight wooden shaft, one near chest, one near waist; bristles stay touching the invisible FLOOR near the rabbit's boots. NO floating tool, no hands beside shaft, no shaft through face/body. Camera fixed elevated isometric; rabbit faces AWAY and LEFT, back overalls and tail visible. Keep orange fur, gray shirt, blue overalls, boots, leather pouch and original rabbit proportions. 1254x1254 square sheet, 2x2 cells of627x627. Four full-body poses with entire broom fitting inside each cell with clear transparent gutters. Character about400pixels tall, feet planted atlocaly550, centerx380 to leave room for broom to its LEFT. Do not include any floor or ground shadow; true transparent background. Frame1: lower hand extends toward left, broom head rests far left on floor, shaft slants down-left at about45degrees. Frame2: pull broom halfway inward, lower hand draws toward waist and stays below upper hand; shaft steeper around55degrees. Frame3: pull closer to boots, elbows bend; shaft about65degrees down-left. Frame4: broom head beside front boot, shaft near upright about75degrees; lower hand at waist, high hand at chest. Upper hand remains in front of chest on far side of body and may be naturally hidden, never raised behind shoulder. Knees flex slightly, feet do not move. This is actual SWEEPING with a long practical broom, not boxing, not a generic forward-hand work gesture. Keep camera, size, identity and light consistent; no text, labels, grid, scenery or other props. The broom visible here is an alignment reference that will be separated from the character in the next edit.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-413ae420-09e9-4daa-9160-ef20be2e4777.png",
+      "copiedWithoutPixelEdits": true,
+      "status": "reviewed source",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "a3d644ad2a0d87e9c92fe6d311787708e3f549f3fd02c9ee024b1d59accaa999",
+      "sourceBytesMatch": true,
+      "runtimeSelected": false
+    },
+    {
+      "path": "sweep-northwest-separated.png",
+      "prompt": "Use case: precise-object-edit. This image is a four-frame rabbit sweeping animation with a broom. REMOVE ONLY THE BROOM in every frame: all straw bristles, binding rings and wooden handle/shaft, including short segments above/between the hands. Leave the rabbit pixel-aligned in precisely the same pose and position, including all fingers, curled gripping hands, arms, elbows, gray shirt, blue overalls, pouch, boots, ears and tail. Restore transparent pixels wherever broom was outside the rabbit, and matching cloth/fur where broom covered the rabbit. Do NOT move any hand or change any anatomy. Do not erase the brown boots or brown leather pouch. All four original hand placements must be unchanged because the game will overlay the identical broom separately in these exact grip positions. Preserve source dimensions, layout, scale, foot anchors, lighting and true transparent background. No new background, glow, shadow, text or other items.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-e30acf73-b099-4e32-9b62-2d37eb94aa5e.png",
+      "copiedWithoutPixelEdits": true,
+      "status": "reviewed source",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "sha256": "46c45104d726ba37bdcc504dfedc6b68311f1f579cb6523832aed659b39c9e29",
+      "sourceBytesMatch": true,
+      "runtimeSelected": true
+    }
+  ],
+  "runtimeRenderer": "src/home_sweep_art.lua",
+  "registration": "src/home_sweep_registration.lua"
+}

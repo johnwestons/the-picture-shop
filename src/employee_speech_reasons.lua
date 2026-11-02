@@ -1,7 +1,7 @@
 -- Append new entries to keep existing caption codes stable across the wire.
 return {
-    {"cutter_skill","Job needs higher cutter skill",{"more skilled cutter","required cutter skill"}},
-    {"press_skill","Job needs higher press skill",{"press training required"}},
+    {"cutter_skill","I need more cutter skill for this job",{"more skilled cutter","required cutter skill"}},
+    {"press_skill","I need more press skill for this job",{"press training required"}},
     {"wrapping_skill","Job needs higher wrapping skill",{"pallet-wrapping training required"}},
     {"no_jobs","No jobs on the schedule",{"no jobs on the schedule","work schedule complete","waiting for assignment"}},
     {"delivery","Waiting for the job's skid delivery",{"every skid for this job reaches"}},

@@ -4,9 +4,12 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.printQuantities(value)
-        if value.press == nil then return Runtime.artwork(value.artwork) and Runtime.stockSpec(value.stockSpec) end
+        if value.press == nil then
+            return Runtime.artwork(value.artwork) and Runtime.stockSpec(value.stockSpec)
+                and (value.stockSpec == nil or value.stockSpec.suppliedBy == "client")
+        end
         if not Runtime.artwork(value.artwork) or value.artwork == nil
-            or not Runtime.stockSpec(value.stockSpec) or value.stockSpec == nil
+            or not Runtime.stockSpec(value.stockSpec, true) or value.stockSpec == nil
             or not Runtime.jobPress(value.press)
             or #value.press.requestedCopies ~= #value.quote.pallets
         then
@@ -55,6 +58,7 @@ function Component.install(Runtime)
                     or memberRequested <= 0
                     or member.press.requiredGoodSheets ~= memberRequested
                     or member.press.availableSheets > effectiveSheets
+                        + math.max(0, math.floor(tonumber(member.press.housePaperSheets) or 0))
                     or member.press.completedColors > value.press.colors
                 then
                     return false
@@ -119,6 +123,53 @@ function Component.install(Runtime)
         return stages <= 3
     end
 
+    local function jobFeedback(value)
+        if value == nil then return true end
+        if type(value) ~= "table" or not Runtime.array(value.events, function(event)
+            return type(event) == "table" and Runtime.text(event.stage)
+                and #event.stage <= 40 and Runtime.nonnegative(event.atHours)
+                and type(event.detail) == "string" and #event.detail <= 220
+        end) or #value.events > 32 then return false end
+        return Runtime.optionalText(value.stage)
+            and Runtime.optionalText(value.stageDetail)
+            and Runtime.optionalNumber(value.stageAtHours)
+            and Runtime.optionalNumber(value.shippedAtHours)
+            and Runtime.optionalText(value.lastDetail)
+            and Runtime.optionalText(value.blocker)
+            and Runtime.optionalText(value.lastAlert)
+            and Runtime.optionalNonnegativeInteger(value.caughtDefects)
+            and Runtime.optionalNonnegativeInteger(value.reworkSheets)
+            and Runtime.optionalNonnegativeInteger(value.reworkCost)
+            and Runtime.optionalNonnegativeInteger(value.scrapSheets)
+            and Runtime.optionalNonnegativeInteger(value.deliveredSheets)
+    end
+
+    local function jobInspection(value)
+        if value == nil then return true end
+        return type(value) == "table"
+            and (value.status == "passed" or value.status == "held" or value.status == "rework_in_progress")
+            and Runtime.nonnegative(value.inspectedAtHours)
+            and Runtime.array(value.findings, function(item) return Runtime.text(item) and #item <= 180 end)
+            and #value.findings <= 24
+            and Runtime.array(value.palletIds, function(item) return Runtime.text(item) and #item <= 64 end)
+            and #value.palletIds <= 24
+            and Runtime.optionalBoolean(value.firstPass)
+    end
+
+    local function customerCase(value)
+        if value == nil then return true end
+        return type(value) == "table"
+            and (value.status == "open" or value.status == "resolved")
+            and (value.reason == "quality" or value.reason == "late")
+            and Runtime.nonnegative(value.openedAtHours)
+            and Runtime.optionalNonnegative(value.lateHours)
+            and (value.resolution == nil or value.resolution == "credit"
+                or value.resolution == "apology" or value.resolution == "decline")
+            and Runtime.optionalNumber(value.resolvedAtHours)
+            and Runtime.optionalNonnegative(value.creditAmount)
+            and Runtime.optionalText(value.responseText)
+    end
+
     function Runtime.job(value)
         return type(value) == "table"
             and Runtime.text(value.id)
@@ -128,7 +179,7 @@ function Component.install(Runtime)
             and (value.artworkKey == nil or Runtime.text(value.artworkKey))
             and Runtime.artwork(value.artwork)
             and (value.artwork == nil or value.artworkKey == value.artwork.key)
-            and Runtime.stockSpec(value.stockSpec)
+            and Runtime.stockSpec(value.stockSpec, value.press ~= nil)
             and Runtime.deliveryService(value.deliveryService)
             and (value.requestChannel == nil or value.requestChannel == "reception" or value.requestChannel == "email")
             and type(value.details) == "table"
@@ -145,8 +196,15 @@ function Component.install(Runtime)
             and Runtime.optionalBoolean(value.promotionSent)
             and Runtime.optionalNumber(value.pickupRequestedAtHours)
             and Runtime.optionalNumber(value.completedAtHours)
+            and Runtime.optionalNumber(value.acceptedGameHours)
+            and require("src.business_deadlines").valid(value.deadline)
             and Runtime.optionalNonnegativeInteger(value.replacementSkids)
             and Runtime.optionalNonnegativeInteger(value.replacementSheets)
+            and Runtime.optionalBoolean(value.housePaperReserved)
+            and Runtime.optionalNonnegativeInteger(value.housePaperReservedSheets)
+            and jobFeedback(value.feedback)
+            and jobInspection(value.inspection)
+            and customerCase(value.customerCase)
             and Runtime.employeeSkillAwards(value.employeeSkillAwards)
             and Runtime.quote(value.quote)
             and Runtime.array(value.pallets, Runtime.customerPallet)
@@ -202,6 +260,7 @@ function Component.install(Runtime)
                 and item.discountPercent == 10 and type(item.customMessage) == "string"
                 and Runtime.nonnegative(item.sentAtHours)
                 and Runtime.optionalText(item.sourceJobId)
+                and Runtime.optionalNumber(item.couponUsedAtHours)
                 and (item.responseOutcome == nil or item.responseOutcome == "new_job"
                     or item.responseOutcome == "thank_you" or item.responseOutcome == "no_response")
         end)

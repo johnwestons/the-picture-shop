@@ -53,6 +53,9 @@ function Component.install(Runtime)
             if candidate.id == machineId then foundIndex, item = index, candidate; break end
         end
         if not item then return false, "That machine is no longer owned by the shop." end
+        if not Runtime.Fleet.isGameplayEnabled(item.modelId) then
+            return false, "This machine is currently unavailable in gameplay."
+        end
         local pose = item.world or state[Runtime.definition(item.modelId).placementKey]
         if pose and pose.moving then return false, "Place the moving machine before listing it for sale." end
         local hasLien, loan = require("src.credit").hasLien(state, item.id)

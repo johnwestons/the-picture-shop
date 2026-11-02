@@ -11,7 +11,9 @@ function Component.install(Runtime)
         Runtime.panel(Runtime.PANEL, { 0.035, 0.05, 0.065, 0.99 }, { 0.31, 0.56, 0.58, 1 })
         Runtime.drawCritterNetChrome(assets)
         love.graphics.setColor(0.96, 0.94, 0.84, 1)
-        love.graphics.print("PICTURE SHOP JOB DESK", 166, 46)
+        local household=Runtime.ComputerScreen.tab=="home" or Runtime.ComputerScreen.tab=="groceries"
+            or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture"
+        love.graphics.print(household and "MY HOUSEHOLD" or "PICTURE SHOP JOB DESK", 166, 46)
         love.graphics.setColor(0.42, 0.70, 0.68, 0.92)
         love.graphics.rectangle("fill", 428, 42, 1, 23)
         local reputation = Runtime.Reputation.ensure(state)
@@ -23,6 +25,11 @@ function Component.install(Runtime)
             { label = "REP", value = tostring(reputation.score), x = 593, width = 76,
                 valueColor = { 1.00, 0.83, 0.47, 1 } },
         }
+        if household then
+            summary[1].label="HOME";summary[1].value=Runtime.money(state.home.balanceCents/100)
+            summary[2].label="RENT";summary[2].value=Runtime.money(state.home.lease.monthlyCents/100)
+            summary[3].label="PARCELS";summary[3].value=tostring(require("src.home_shopping").waiting(state))
+        end
         for _, item in ipairs(summary) do
             love.graphics.setColor(0.71, 0.83, 0.78, 1)
             love.graphics.printf(item.label, item.x, 39, item.width, "center")
@@ -36,6 +43,10 @@ function Component.install(Runtime)
                 {x=82,y=184,width=792,height=444},true,
                 Runtime.ComputerScreen.gameClockSpeed(),Runtime.ComputerScreen.canChangeGameClockSpeed(),
                 pointerX,pointerY,Runtime.drawComputerButton,twelveHourTime)
+        elseif Runtime.ComputerScreen.tab == "home" then
+            Runtime.drawHome(state,pointerX,pointerY)
+        elseif Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
+            Runtime.drawHomeShop(state,pointerX,pointerY)
         elseif Runtime.ComputerScreen.tab == "inventory" then
             Runtime.drawInventory(state)
         elseif Runtime.ComputerScreen.tab == "hiring" then

@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "generator": "built-in image_gen",
+  "transparent_background": true,
+  "canvas": [
+    1536,
+    1024
+  ],
+  "cells": [
+    4,
+    2
+  ],
+  "processing": "PNG files copied unchanged. Runtime alpha cutoff 0.18, per-frame registration and guest-mat Y foreshortening in src/home_furniture_catalog.lua and src/home_furniture_art.lua.",
+  "assets": [
+    {
+      "id": "desk",
+      "file": "desk-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Production sprite atlas for The Picture Shop, warm, slightly gritty hand-painted isometric game art. ONE 1536x1024 transparent RGBA sheet, FOUR columns by TWO rows of 384x512 cells. Eight real rotations of the SAME household object, consistent scale, elevated orthographic 30-degree camera with visible top surfaces. Each isolated whole object must fit inside its own cell with generous transparent padding, at most 320 pixels wide and 400 pixels tall. Textured worn-but-usable modest furniture, thin readable dark outlines, softly shaded warm materials. Genuine transparent alpha around objects and between cells. No ground, cast floor shadows, haze, background, checkerboard, grid, labels, text, numbers, watermarks, people or extra props. Subject: full-size honey-brown wooden writing desk, 140 cm wide, 65 cm deep, 75 cm high. One pedestal of three closed drawers on the sitter's right; two square legs on the opposite side; wide open knee space. Small dark round drawer pulls, scuffed edges. Entire tabletop empty. Front has drawer faces and open knee space; back has plain wood panels with no drawers or pulls. Row 1: southeast front-right quarter, south straight front, southwest front-left quarter, east right side. Row 2: northwest back-right quarter, north straight back, northeast back-left quarter, west left side. Preserve asymmetric drawer pedestal on the same physical side through all eight actual rotations, never mirror the desk.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-dd74d092-a2ff-4a47-a4df-2b3d66923e11.png",
+      "correctionPrompt": "Use case: precise-object-edit. Edit this desk atlas. Preserve the 1536x1024 canvas, 4 columns by 2 rows, style, scale, positions, warm wood and the same desk construction. Correct ONLY top-row column 3 and bottom-row column 3, which repeat the first column's angle. Top-row column 3 must show the opposite front quarter: the long FRONT face runs from lower LEFT to upper RIGHT, showing knee opening near the left and drawer pedestal at its far right end. The plain LEFT side/legs are visible on the LEFT of that front. Do not swap the physical side of the drawer pedestal; show the same desk rotated. Bottom-row column 3 must show the opposite rear quarter: the long plain BACK face runs from lower LEFT to upper RIGHT, with the drawer pedestal retained on the desk's same physical side. No drawers or knobs on back views. Preserve the other six cells. Background remains genuine transparent alpha; no added text or scenery.",
+      "originalSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-29a482ac-3907-4c13-8c86-f7428614b9ae.png",
+      "secondCorrectionPrompt": "Use case: precise-object-edit. In this full-size desk atlas, edit ONLY top-row column 3. Its LEFT end currently has a solid vertical wood panel. Remove that panel and show TWO square legs with an open space between them and a low stretcher rail, matching the open left end visible in bottom-row column 4. The desk's drawer pedestal stays on the far RIGHT of the front face, exactly as now. Preserve that cell's perspective, top, drawer placement, size and position. All seven other sprites unchanged. Keep exact 1536x1024 canvas and true transparent alpha outside sprites; no background or text.",
+      "intermediateSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-1a3da07f-d7a9-4d24-bda9-78bd38b01fee.png",
+      "sha256": "214b65e51d9711890d1f1a969daf9e695dd44a4fb74d42be924aebc12e65668d",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "scale": 0.21,
+        "columns": [
+          [
+            0,
+            416
+          ],
+          [
+            416,
+            400
+          ],
+          [
+            816,
+            432
+          ],
+          [
+            1248,
+            288
+          ]
+        ],
+        "pivots": [
+          [
+            212,
+            410
+          ],
+          [
+            199,
+            406
+          ],
+          [
+            204,
+            405
+          ],
+          [
+            142,
+            430
+          ],
+          [
+            212,
+            334
+          ],
+          [
+            199,
+            326
+          ],
+          [
+            204,
+            334
+          ],
+          [
+            142,
+            345
+          ]
+        ],
+        "frames": {
+          "southwest": 1,
+          "south": 2,
+          "southeast": 3,
+          "east": 4,
+          "northeast": 5,
+          "north": 6,
+          "northwest": 7,
+          "west": 8
+        },
+        "surface": {
+          "height": 40,
+          "slots": [
+            [
+              0,
+              -20
+            ],
+            [
+              0,
+              20
+            ],
+            [
+              -8,
+              0
+            ]
+          ]
+        },
+        "footprint": {
+          "length": 34,
+          "width": 70,
+          "height": 50
+        }
+      }
+    },
+    {
+      "id": "guest_mat",
+      "file": "guest-mat-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Production sprite atlas for The Picture Shop, warm, slightly gritty hand-painted isometric game art. ONE 1536x1024 transparent RGBA sheet, FOUR columns by TWO rows of 384x512 cells. Eight real rotations of the SAME household object, consistent scale, elevated orthographic 30-degree camera with visible top surfaces. Each isolated whole object must fit inside its own cell with generous transparent padding, at most 320 pixels wide and 400 pixels tall. Textured worn-but-usable modest furniture, thin readable dark outlines, softly shaded warm materials. Genuine transparent alpha around objects and between cells. No ground, cast floor shadows, haze, background, checkerboard, grid, labels, text, numbers, watermarks, people or extra props. Subject: a simple unrolled guest sleeping mat, 190 cm long by 65 cm wide, thin muted teal padded fabric resting flat on the floor, about 5 cm thick, with a small worn cream pillow at the HEAD end. Plain stitched seams and slight fabric creases, no blanket, straps, feet, frame or upright headboard. Keep the same elongated proportions, pillow and thickness in all eight views. Exact view order: top row cell 1 foot at lower right / pillow upper left; cell 2 foot at bottom / pillow top; cell 3 foot lower left / pillow upper right; cell 4 foot right / pillow left. Bottom row cell 1 foot upper left / pillow lower right; cell 2 foot top / pillow bottom; cell 3 foot upper right / pillow lower left; cell 4 foot left / pillow right. These are horizontal rotations on the same ground plane, not flipping the mat over.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-db000b6d-ba24-4a18-b53e-580a094e4d3f.png",
+      "correctionPrompt": "Use case: precise-object-edit. Correct the perspective of all eight thin sleeping mats on this 1536x1024 transparent sprite sheet. Keep the same teal fabric, cream pillow at head end, modest worn style and eight rotation order. These mats lie FLAT on a floor viewed with a fixed elevated orthographic camera whose ground-plane Y projection is compressed to HALF its horizontal scale (30-degree camera). Do NOT tilt upright or use top-down perspective to fill cells. Each 384x512 cell has its mat centered near (192,270) with abundant empty alpha. Geometric guide per cell: east/west SIDE rotations (column4 in both rows) have long axis exactly horizontal and a projected ground diamond only 336px wide by 56px deep; north/south rotations (column2 both rows) are 112px wide by 168px long vertically; diagonal views (columns1 and3) are about 316px wide by 158px tall, long edges sloping at 0.5 (not 1). Add only slight fabric thickness and pillow height above that plane. Row1 head/pillow: upper-left, top, upper-right, left. Row2 head/pillow: lower-right, bottom, lower-left, right. Every mat must have the same physical 3:1 length-to-width ratio and paper-thin 5cm pad thickness. Preserve genuine transparent alpha outside sprites; no shadows, background, text, grid or markers.",
+      "originalSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-dcb69af0-2ce9-4070-b2c5-ccebf411598f.png",
+      "sha256": "eaea4c3da385e25a725f761f4fa31326c4ec74aaa651c4d7c72bd7033f5f6ac8",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "scale": 0.25,
+        "columns": [
+          [
+            0,
+            416
+          ],
+          [
+            416,
+            272
+          ],
+          [
+            688,
+            432
+          ],
+          [
+            1120,
+            416
+          ]
+        ],
+        "pivots": [
+          [
+            225,
+            287
+          ],
+          [
+            144,
+            278
+          ],
+          [
+            230,
+            287
+          ],
+          [
+            200,
+            289
+          ],
+          [
+            225,
+            232
+          ],
+          [
+            144,
+            218
+          ],
+          [
+            230,
+            232
+          ],
+          [
+            200,
+            247
+          ]
+        ],
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "east": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "west": 8
+        },
+        "frameScaleY": [
+          0.8,
+          0.72,
+          0.8,
+          0.85,
+          0.72,
+          0.65,
+          0.74,
+          0.85
+        ],
+        "footprint": {
+          "length": 96,
+          "width": 32,
+          "height": 8
+        }
+      }
+    }
+  ]
+}

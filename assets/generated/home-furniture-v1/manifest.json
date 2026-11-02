@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "created": "2026-11-01",
+  "tool": "image_gen.imagegen",
+  "assets": [
+    {
+      "path": "laptop-eight-directions.png",
+      "sha256": "7cce60c0e3de6ea7d9d51b82ec071f2ae56b4bb947327feab0088c75f212a2f1",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-140ed32e-d8ea-49cb-b006-9848af9867b6.png",
+      "copiedWithoutPixelEdits": true,
+      "width": 1536,
+      "height": 1024,
+      "columns": 4,
+      "rows": 2,
+      "directions": [
+        "northwest",
+        "north",
+        "northeast",
+        "east",
+        "southeast",
+        "south",
+        "southwest",
+        "west"
+      ],
+      "directionMeaning": "Facing direction of the person using the keyboard",
+      "cellWidth": 384,
+      "cellHeight": 512,
+      "anchor": {
+        "x": 195,
+        "y": 390
+      },
+      "status": "Initial generated atlas; runtime uses northwest view on kitchen counter. Other view anchors need registration when furniture rotation is implemented.",
+      "prompt": "Use case: stylized-concept. Asset type: production game sprite atlas for The Picture Shop. Create exactly one modest used grey laptop, open with a dim teal blank screen, rendered in EIGHT different horizontal rotations in a strictly uniform 4-column by 2-row atlas. Canvas exactly 1536x1024, eight equal 384x512 cells. Each cell contains the SAME laptop centered with abundant transparent padding, identical scale, identical orthographic elevated isometric camera looking down about 35 degrees. The views, row-major: facing northwest, north, northeast, east, southeast, south, southwest, west. Facing means the direction the person seated at the keyboard would face; show honest back-of-display surfaces in rear views and visible keyboard/screen in front views, never mirror a false rear. Warm hand-painted semi-realistic cozy indie simulation game style, crisp edges, subtle ink definition and worn plastic details, matching a modest starter apartment. The laptop's whole tabletop contact plane should be visible where camera allows. No table, desk, room, furniture, cables, mouse, packaging, floor, ground plane, painted drop shadow, oval shadow, glow, labels, cell borders, text, logos, or watermark. Real transparent alpha everywhere outside the laptops, NOT a checker pattern. Every laptop fully inside its cell with no neighboring overlap. This is an atlas, not a montage with varying camera angles."
+    }
+  ],
+  "transparentBackground": true
+}

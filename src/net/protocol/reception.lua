@@ -97,7 +97,7 @@ function Component.install(Runtime)
             "jobId", "company", "sourceSize", "finishedSize", "stock", "packaging",
             "delivery", "artworkKey", "artworkName", "printJob", "quoteRows",
             "recommendedTotal",
-        }, { "colorCount", "colorSequence", "difficulty" })
+        }, { "colorCount", "colorSequence", "difficulty", "stockSource" })
         if not valid then return nil, shapeError end
         local jobId, fieldError = Runtime.token(value.jobId, Runtime.MAX_TOKEN_BYTES, label .. ".jobId")
         if not jobId then return nil, fieldError end
@@ -130,6 +130,13 @@ function Component.install(Runtime)
             value.artworkName, 1, Runtime.MAX_WORKSHOP_VIEW_TEXT_BYTES, label .. ".artworkName")
         if not artworkName then return nil, fieldError end
         if type(value.printJob) ~= "boolean" then return nil, label .. ".printJob must be boolean" end
+        local stockSource = value.stockSource or "client"
+        if stockSource ~= "client" and stockSource ~= "house" then
+            return nil, label .. ".stockSource must be client or house"
+        end
+        if stockSource == "house" and not value.printJob then
+            return nil, label .. ".stockSource can be house only for print jobs"
+        end
         if value.difficulty~=nil and value.difficulty~="easy"
             and value.difficulty~="medium" and value.difficulty~="hard" then
             return nil,label .. ".difficulty must be easy, medium, or hard"
@@ -158,6 +165,7 @@ function Component.install(Runtime)
             sourceSize = sourceSize,
             finishedSize = finishedSize,
             stock = stock,
+            stockSource = stockSource,
             packaging = packaging,
             delivery = delivery,
             artworkKey = artworkKey,

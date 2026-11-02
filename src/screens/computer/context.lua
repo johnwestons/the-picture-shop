@@ -14,6 +14,7 @@ function Component.install(Runtime)
     Runtime.Ui = require("src.screens.ui")
     Runtime.utf8 = require("utf8")
     Runtime.Reputation = require("src.reputation")
+    Runtime.JobFeedback = require("src.job_feedback")
     Runtime.Upgrades = require("src.warehouse_upgrades")
     Runtime.BreakroomGames = require("src.breakroom_games")
     Runtime.Credit = require("src.credit")
@@ -99,6 +100,11 @@ function Component.install(Runtime)
         { id = "www", label = "CRITTERNET WWW", group = "office", url = "www.thecritternet.com" },
         { id = "bills", label = "BILLS", group = "office", url = "www.thecritternet.com/job-desk/bills" },
         { id = "credit", label = "CREDIT", group = "office", url = "www.thecritternet.com/job-desk/credit" },
+        { id = "home", label = "MY HOME", group = "office", url = "www.thecritternet.com/my-home" },
+        { id = "groceries", label = "GROCERIES", group = "office", url = "www.thecritternet.com/groceries" },
+        { id = "takeout", label = "TAKEOUT", group = "office", url = "www.thecritternet.com/takeout" },
+        { id = "home_orders", label = "HOME DELIVERIES", group = "office", url = "www.thecritternet.com/home-deliveries" },
+        { id = "furniture", label = "HOME & LIVING", group = "office", url = "www.thecritternet.com/home-and-living" },
     }
     Runtime.TAB_GROUPS = {
         { id = "customers", label = "CUSTOMERS" },
@@ -149,7 +155,7 @@ function Component.install(Runtime)
     Runtime.CAL_EVENT_LIST = { x = 624, y = 240, width = 216, rowHeight = 34, visibleRows = 9 }
     Runtime.CAL_SCROLL_UP = { x = 624, y = 558, width = 102, height = 28 }
     Runtime.CAL_SCROLL_DOWN = { x = 738, y = 558, width = 102, height = 28 }
-    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 62, gap = 6 }
+    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 50, gap = 5 }
     Runtime.OWNED_MACHINE = { x = 486, y = 296, width = 354, height = 64, gap = 8 }
     Runtime.ComputerScreen.machinePageSize = 4
     Runtime.ComputerScreen.machinePreviousRect = { x = 490, y = 588, width = 78, height = 28 }

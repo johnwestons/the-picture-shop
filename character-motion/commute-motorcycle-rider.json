@@ -1,0 +1,211 @@
+{
+  "version": 5,
+  "character": "commute-motorcycle-rider",
+  "specType": "vehicle_pose",
+  "atlas": {
+    "frame_width": 320,
+    "frame_height": 320,
+    "frame_count": 16,
+    "size": [
+      1280,
+      1280
+    ],
+    "columns": 4,
+    "rows": 4,
+    "anchor": [
+      160,
+      260
+    ],
+    "runtime_scale": 0.46,
+    "mirror_x": false,
+    "direction_order": [
+      "north",
+      "north-northeast",
+      "northeast",
+      "east-northeast",
+      "east",
+      "east-southeast",
+      "southeast",
+      "south-southeast",
+      "south",
+      "south-southwest",
+      "southwest",
+      "west-southwest",
+      "west",
+      "west-northwest",
+      "northwest",
+      "north-northwest"
+    ],
+    "direction_step_degrees": 22.5
+  },
+  "animations": {
+    "mounted": {
+      "path": "assets/commute/bike/mounted-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "mounted_base"
+    },
+    "aero_tuck": {
+      "path": "assets/commute/bike/mounted-aero-tuck-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "speed_pose"
+    },
+    "boost_response": {
+      "path": "assets/commute/bike/mounted-acceleration-response-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "boost_event"
+    },
+    "gear_shift": {
+      "path": "assets/commute/bike/mounted-gear-shift-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "gear_event"
+    },
+    "hard_turn_left": {
+      "path": "assets/commute/bike/mounted-hard-turn-left-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "cornering_pose"
+    },
+    "hard_turn_right": {
+      "path": "assets/commute/bike/mounted-hard-turn-right-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "cornering_pose"
+    },
+    "impact_brace": {
+      "path": "assets/commute/bike/mounted-impact-brace-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "collision_event"
+    },
+    "aero_tuck_transition": {
+      "path": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "pose_transition"
+    },
+    "boost_transition": {
+      "path": "assets/commute/bike/mounted-boost-transition-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "pose_transition"
+    },
+    "gear_shift_transition": {
+      "path": "assets/commute/bike/mounted-gear-shift-transition-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "pose_transition"
+    },
+    "hard_turn_left_transition": {
+      "path": "assets/commute/bike/mounted-turn-left-transition-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "pose_transition"
+    },
+    "hard_turn_right_transition": {
+      "path": "assets/commute/bike/mounted-turn-right-transition-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "pose_transition"
+    },
+    "impact_transition": {
+      "path": "assets/commute/bike/mounted-impact-transition-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "pose_transition"
+    },
+    "parked": {
+      "path": "assets/commute/bike/parked-16.png",
+      "frame_width": 320,
+      "frame_height": 320,
+      "frame_count": 16,
+      "loop": false,
+      "role": "parked_base"
+    }
+  },
+  "controls": {
+    "steering": {
+      "input": "left/right movement",
+      "direction": "continuous bike heading",
+      "lean": "smoothed from steering and speed",
+      "maximum_lean_radians": 0.16
+    },
+    "boost": {
+      "input": "Left Shift held with throttle; touch-and-hold BOOST control",
+      "speed_multiplier": 1.2,
+      "response_pose_seconds": 0.78,
+      "response_trigger": "boost activation only",
+      "return_pose": "mounted or aerodynamic tuck according to speed"
+    },
+    "aerodynamic_tuck": {
+      "enter_speed": 13.35,
+      "full_blend_speed": 14.4,
+      "transition": "smoothly blend in and out as speed crosses the threshold"
+    },
+    "gear_shift": {
+      "trigger": "successful manual or automatic gear change",
+      "duration_seconds": 0.16,
+      "foot": "left"
+    },
+    "hard_turn_lean": {
+      "trigger": "smoothed steering lean during a fast, sharp turn",
+      "blend_start_lean_radians": 0.15,
+      "full_blend_lean_radians": 0.3,
+      "direction": "positive lean selects left; negative lean selects right",
+      "transition": "crossfade back to mounted or tuck pose as bike lean eases"
+    },
+    "collision": {
+      "trigger": "bike movement is blocked while moving faster than 0.35 metres per second",
+      "duration_seconds": 0.62,
+      "strength": "scales with impact speed",
+      "pose": "rider braces forward while staying seated and holding the handlebars",
+      "transition": "crossfade back to current riding pose"
+    },
+    "pose_transition": {
+      "keyframes": [
+        "base",
+        "authored_midpoint",
+        "target"
+      ],
+      "interpolation": "smoothstep blend across each adjacent pair",
+      "return": "reverse midpoint keyframes to recover the current base pose",
+      "states": [
+        "aerodynamic_tuck",
+        "boost_response",
+        "gear_shift",
+        "hard_turn_left",
+        "hard_turn_right",
+        "collision"
+      ]
+    }
+  }
+}

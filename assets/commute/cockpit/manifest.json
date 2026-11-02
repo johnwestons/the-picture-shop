@@ -1,0 +1,14 @@
+{
+  "source": "assets\\source\\commute-cockpit-v1\\source.png",
+  "prompt": "assets/source/commute-cockpit-v1/prompt.txt",
+  "generator": "built-in imagegen",
+  "sourceSha256": "9a7e1a79c28cef55370ef5e0bf44cce467654789d6ffde7b5eae521ee788cd7e",
+  "runtimeSha256": "07ae0748d1ec2a4a7d474483044d1dad9a9a12820f9a365b257f37b2fdbe8cba",
+  "scale": 0.5,
+  "review": "Transparent handlebar silhouette and blank instrument faces visually reviewed; live overlays reviewed in LÖVE capture.",
+  "firstPerson": {
+    "sprite": "assets/commute/cockpit/first-person-bike-v2.png",
+    "metadata": "assets/commute/cockpit/first-person-bike-v2.json",
+    "renderer": "src/commute/first_person_bike.lua"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "mode": "built-in image_gen",
+  "prompt": "Use case: stylized-concept. Asset type: transparent game sprite atlas for The Picture Shop household activities. Input image is a reference for the hand-painted isometric game-prop style, subdued natural colors, soft texture and clear dark edges. Generate a 1536x1024 PNG with true transparent background. EXACTLY eight separate household props, evenly spaced FOUR columns by TWO rows, each cell 384x512. One object centered in each cell, fully contained inside x=60..324 and y=100..412 of its own cell with transparent gutters. Same elevated orthographic view looking down about 30 degrees, light from upper left. No labels, text, grid, floor, ground shadows, characters, hands, scenery, colored haze or backdrop. Reading order: 1) small dark blue enamel cooking saucepan with one short brown handle and a little vegetable soup visible inside, no lid, no steam; 2) one simple wooden stirring spoon, diagonal from lower left to upper right; 3) crumpled pale mint-green cleaning cloth, low irregular folded square; 4) one plain off-white ceramic dinner plate tilted enough to see its surface, with a small cluster of white soap suds along its rim; 5) one modest straw broom with brown wooden handle, bristle head at lower left and handle toward upper right, entire broom fully contained, handle and head about 300 pixels long total; 6) small oval wicker laundry basket filled with modest folded cream/blue clothes, no handle; 7) one tied dark charcoal household rubbish bag, rounded slightly lumpy body and a knotted top, no extra trash beside it; 8) one folded cream bath towel with pale blue edging, no rack. These are eight different game props, NOT eight views of one object. Consistent painterly detail readable when each prop is drawn 12\u00e2\u20ac\u201c40 pixels tall in game. No furniture or plumbing fixtures included. Preserve genuinely transparent alpha around each independent prop.",
+  "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-52112f59-a3e7-4c34-ae52-b5e9fb1ed2ea.png",
+  "path": "assets/generated/home-routines-v1/household-props.png",
+  "copiedWithoutPixelEdits": true,
+  "order": [
+    "saucepan",
+    "spoon",
+    "cloth",
+    "soapy_plate",
+    "broom",
+    "laundry_basket",
+    "trash_bag",
+    "towel"
+  ],
+  "registration": "src/home_routine_props.lua",
+  "alphaRange": [
+    0,
+    254
+  ],
+  "sha256": "078215420017993efe8501d113df49d30a8bd0febe34370260d9e3043e40b612",
+  "dimensions": [
+    1536,
+    1024
+  ]
+}

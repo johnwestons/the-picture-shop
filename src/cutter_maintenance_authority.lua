@@ -410,6 +410,23 @@ function CutterMaintenanceAuthority.create(options)
         end,
     }
 
+    commands.install_spare_blade = {
+        normalize = noArguments,
+        perform = function(lease, player)
+            return perform(lease, player, function()
+                if lease.private.lubrication or lease.private.bladeStage then
+                    return false, "service_active", "Finish or cancel the active cutter service first."
+                end
+                local ready, code, message = requireIdleMachine()
+                if not ready then return false, code, message end
+                local accepted, result = MachineMaintenance.installSpareBlade(state)
+                if not accepted then return false, "spare_blade_blocked", result end
+                return true, "spare_blade_installed",
+                    "A sharp purchased spare is installed. The dull blade remains sleeved for courier pickup."
+            end, true)
+        end,
+    }
+
     commands.set_weekly_technician = {
         normalize = enabledArguments,
         perform = function(lease, player, arguments)

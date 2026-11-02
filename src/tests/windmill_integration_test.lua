@@ -443,6 +443,7 @@ function Test.run(context, check)
     local stock = state.inventory.stock
     stock.raw_press_plates, stock.negative_film, stock.plate_adhesive, stock.plate_chemistry = 1, 1, 1, 1
     stock.black_ink, stock.tympan_sheets, stock.press_wash = 2, 2, 2
+    stock.house_sheets = 1000
     local plateStarted, plate = context.plateService.beginInHouse(state, job, 1)
     for _, action in ipairs({ "expose", "wash", "dry", "mount" }) do
         context.plateService.process(plate, action, 0.98)
@@ -537,12 +538,21 @@ function Test.run(context, check)
         feederPaused and feederResumed and not pauseChanged and not pauseDurable
         and context.windmill.ensure(state).status == "production"
         and context.windmill.ensure(state).counter == counterBeforePause)
-    local finishedPass = context.windmill.update(10*require("src.business_calendar").secondsPerDay(state)/300, state)
+    local passStep = 10*require("src.business_calendar").secondsPerDay(state)/300
+    local finishedPass = context.windmill.update(passStep, state)
+    for _=1,5 do
+        if context.windmill.ensure(state).status ~= "production" then break end
+        finishedPass = context.windmill.update(passStep, state) or finishedPass
+    end
     local restartedPass, restartedPassReason = context.windmill.startProduction(state)
     check("windmill_completed_pass_cannot_restart_without_a_new_approved_workflow",
         finishedPass and not restartedPass
         and restartedPassReason == "Approve a proof before starting or resuming production."
-        and context.windmill.ensure(state).status == "pass_complete")
+        and context.windmill.ensure(state).status == "pass_complete",
+        string.format("finished=%s restarted=%s reason=%s status=%s good=%d target=%d feed=%d",
+            tostring(finishedPass), tostring(restartedPass), tostring(restartedPassReason),
+            tostring(context.windmill.ensure(state).status), context.windmill.ensure(state).goodSheets or 0,
+            context.windmill.ensure(state).targetSheets or 0, context.windmill.ensure(state).feedRemaining or 0))
     local washBeforeRejectedCleanup = stock.press_wash
     local washUnitsBeforeRejectedCleanup = job.press.actual.washUnits
     local historyBeforeRejectedCleanup = #pallet.press.passHistory

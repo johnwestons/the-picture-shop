@@ -110,6 +110,7 @@ function Component.install(Runtime)
         blade = { x = 488, y = 210, width = 324, height = 54 },
         technician = { x = 122, y = 292, width = 324, height = 54 },
         weekly = { x = 488, y = 292, width = 324, height = 54 },
+        installSpare = { x = 122, y = 372, width = 690, height = 54 },
         advance = { x = 222, y = 286, width = 516, height = 66 },
         pump = { x = 122, y = 430, width = 210, height = 48 },
         gear = { x = 350, y = 430, width = 210, height = 48 },

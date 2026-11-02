@@ -152,6 +152,7 @@ local function close()
 end
 
 function OptionsScreen.enter(context)
+    OptionsScreen.motorcycleEditor=nil
     OptionsScreen.context = assert(context, "options context is required")
     OptionsScreen.selectedSlot = context.preferredSlot or 1
     OptionsScreen.selectedSlot = math.max(1,
@@ -389,6 +390,7 @@ local function resetControls()
 end
 
 function OptionsScreen.keypressed(key)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:keypressed(key) end
     if OptionsScreen.editField then
         if key == "return" or key == "kpenter" then return commitEdit() end
         if key == "escape" then
@@ -409,6 +411,7 @@ function OptionsScreen.keypressed(key)
         return selectTab(TAB_ORDER[index % #TAB_ORDER + 1])
     end
     if OptionsScreen.tab == "controls" then
+        if key=='m' then return OptionsScreen.openMotorcycleControls() end
         if key == "r" then return resetControls() end
         return false
     end
@@ -479,6 +482,7 @@ function OptionsScreen.textinput(text)
 end
 
 function OptionsScreen.mousepressed(x, y, button)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousepressed(x,y,button) end
     if button ~= 1 then return false end
     if Ui.contains(CLOSE, x, y) then return close() end
     for tab, rect in pairs(TABS) do
@@ -497,6 +501,7 @@ function OptionsScreen.mousepressed(x, y, button)
             if Ui.contains(cheatPageRect(index),x,y) then return selectCheatPage(page.id) end
         end
     elseif OptionsScreen.tab == "controls" then
+        if x>=604 and x<=814 and y>=548 and y<=590 then return OptionsScreen.openMotorcycleControls() end
         if Ui.contains(RESET_CONTROLS, x, y) then return resetControls() end
         local control = controlAt(x, y)
         if control then
@@ -547,7 +552,8 @@ function OptionsScreen.mousepressed(x, y, button)
     return false
 end
 
-function OptionsScreen.mousereleased(_, _, button)
+function OptionsScreen.mousereleased(x, y, button)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousereleased(x,y,button) end
     if button == 1 and OptionsScreen.draggingControl then
         OptionsScreen.draggingControl = nil
         local context = OptionsScreen.context
@@ -559,6 +565,7 @@ function OptionsScreen.mousereleased(_, _, button)
 end
 
 function OptionsScreen.mousemoved(x, y)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousemoved(x,y) end
     OptionsScreen.hover = { x = x, y = y }
     if OptionsScreen.draggingControl then return moveDraggedControl(x, y) end
 end
@@ -723,6 +730,7 @@ local function drawColorways()
 end
 
 function OptionsScreen.draw(mouseX, mouseY)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:draw() end
     if mouseX and mouseY then OptionsScreen.mousemoved(mouseX, mouseY) end
     love.graphics.clear(0.045, 0.055, 0.058)
     Ui.panel({ x = 92, y = 66, width = 776, height = 576 },
@@ -767,6 +775,7 @@ function OptionsScreen.draw(mouseX, mouseY)
         love.graphics.printf("DRAG THE CONTROLS IN THE PREVIEW", 164, 150, 632, "center")
         drawControlPreview()
         drawButton(RESET_CONTROLS, "RESET TO DEFAULT", false, false)
+        drawButton({x=604,y=548,width=210,height=42},'MOTORCYCLE CONTROLS',false,false)
     elseif OptionsScreen.tab == "character" then
         drawColorways()
     else
@@ -820,4 +829,23 @@ function OptionsScreen.draw(mouseX, mouseY)
         116, 654, 728, "center")
 end
 
+function OptionsScreen.openMotorcycleControls()
+    OptionsScreen.draggingControl=nil
+    OptionsScreen.motorcycleEditor=require('src.commute.controls_screen').new(OptionsScreen.context.settings,
+        function() return Settings.save(OptionsScreen.context.settings) end,
+        function() OptionsScreen.motorcycleEditor=nil end)
+    return true
+end
+function OptionsScreen.gamepadpressed(joystick,button)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:gamepadpressed(joystick,button) end
+    return false
+end
+function OptionsScreen.gamepadaxis(joystick,axis,value)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:gamepadaxis(joystick,axis,value) end
+    return false
+end
+function OptionsScreen.wheelmoved(x,y)
+    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:wheelmoved(x,y) end
+    return false
+end
 return OptionsScreen

@@ -90,7 +90,7 @@ function PaperWork.gaugeMatches(paper, gauge)
     return cut ~= nil and math.abs((gauge or 0) - cut.gauge) < 0.011
 end
 
-function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness)
+function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness, operatorSkill)
     local cut = PaperWork.currentCut(paper)
     if not cut then return false, "No remaining programmed cut." end
     gauge = round(tonumber(gauge) or 0)
@@ -100,7 +100,10 @@ function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness)
     local correctGauge = PaperWork.gaugeMatches(paper, gauge)
     local offSpec = not correctProgram or not correctRotation or not correctGauge
     local sharpness = math.max(0, math.min(100, tonumber(bladeSharpness) or 100))
-    local edgeQuality = 0.70 + 0.30 * sharpness / 100
+    local bladeQuality = 0.70 + 0.30 * sharpness / 100
+    local skillQuality = operatorSkill == nil and 1
+        or 0.82 + 0.18 * math.max(0, math.min(100, tonumber(operatorSkill) or 0)) / 100
+    local edgeQuality = math.min(bladeQuality, skillQuality)
     paper.cutQuality = math.min(tonumber(paper.cutQuality) or 1, edgeQuality)
     local horizontal = correctRotation and (cut.edge == "left" or cut.edge == "right")
         or paper.orientation == 90 or paper.orientation == 270

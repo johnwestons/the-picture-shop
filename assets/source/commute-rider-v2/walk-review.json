@@ -1,0 +1,734 @@
+{
+  "status": "staged_unapproved",
+  "runtimeIntegrated": false,
+  "character": "shared-suited-critter-v2",
+  "identityAndShapeReference": "assets/source/commute-rider-v2/directional-idle-v1.png",
+  "layout": {
+    "walkColumns": 4,
+    "walkRows": 2,
+    "directions": [
+      "north",
+      "northeast",
+      "east",
+      "southeast",
+      "south"
+    ],
+    "phaseOrder": [
+      "left_contact",
+      "left_down",
+      "right_passing",
+      "right_up",
+      "right_contact",
+      "right_down",
+      "left_passing",
+      "left_up"
+    ],
+    "frameSize": [
+      256,
+      256
+    ],
+    "targetVisibleHeight": 214,
+    "anchor": [
+      128,
+      238
+    ]
+  },
+  "selectedSources": {
+    "north": {
+      "image": {
+        "path": "assets/source/commute-rider-v2/walk-north-v1.png",
+        "sha256": "8aecf99a265eed0fc1cfbfb454bf99bff3173cd472f345685553af38d9846002"
+      },
+      "prompt": {
+        "path": "assets/source/commute-rider-v2/walk-north-v1-prompt.txt",
+        "sha256": "9888fd3b9e68506aad00c6a1026cae9d25fabe13dbaa066109a5cac8e9e5f50d"
+      },
+      "identityReference": {
+        "path": "output/commute-rider-v2-review/idle-reference-north.png",
+        "sha256": "659d50e4e1a52c13a984752a030643b09f205e0b8e8e1816eae2d4fc43db21b9"
+      },
+      "stagedStrip": "assets/staging/commute-rider-v2/walk_north.png",
+      "sourceScale": 0.452431,
+      "sourceShaMatchesStage": true
+    },
+    "northeast": {
+      "image": {
+        "path": "assets/source/commute-rider-v2/walk-northeast-v1.png",
+        "sha256": "e38f473cfca3b0eaee7f96b7206c62fbfab82a19af654edfb64c2fdb871e7574"
+      },
+      "prompt": {
+        "path": "assets/source/commute-rider-v2/walk-northeast-v1-prompt.txt",
+        "sha256": "7dc8619c8d2237139c63ed599bb145d271403a623e616c82fe88634ee27d5f94"
+      },
+      "identityReference": {
+        "path": "output/commute-rider-v2-review/idle-reference-northeast.png",
+        "sha256": "6a55cfb9d4cfdbfa8d947ff4d4d6b845cb726cafa47fee3cf913a7283dcc8c6f"
+      },
+      "stagedStrip": "assets/staging/commute-rider-v2/walk_northeast.png",
+      "sourceScale": 0.441237,
+      "sourceShaMatchesStage": true
+    },
+    "east": {
+      "image": {
+        "path": "assets/source/commute-rider-v2/walk-east-v1.png",
+        "sha256": "0103095d16b1610682a2c32e610522a18a67addf268120e96cf7e5af083696d8"
+      },
+      "prompt": {
+        "path": "assets/source/commute-rider-v2/walk-east-v1-prompt.txt",
+        "sha256": "bd97f905330d0024927ec10e15886b11881fbbafd5692bc245dda7fc49b2801f"
+      },
+      "identityReference": {
+        "path": "output/commute-rider-v2-review/idle-reference-east.png",
+        "sha256": "7b634a3c4a3bc8aa311a727a718421e58a1d05d93e53cb46f3012edfe2953eb6"
+      },
+      "stagedStrip": "assets/staging/commute-rider-v2/walk_east.png",
+      "sourceScale": 0.495944,
+      "sourceShaMatchesStage": true
+    },
+    "southeast": {
+      "image": {
+        "path": "assets/source/commute-rider-v2/walk-southeast-v2.png",
+        "sha256": "507254665c7292a688a18ebce1fca5e07b97ea9574ac42f08a180d608dbe89bb"
+      },
+      "prompt": {
+        "path": "assets/source/commute-rider-v2/walk-southeast-v2-prompt.txt",
+        "sha256": "bcdd6af0bf7e8cc671872973c5f3f26f9ddcb3cc076aea71db5407b57b3b3bb5"
+      },
+      "identityReference": {
+        "path": "output/commute-rider-v2-review/idle-reference-southeast.png",
+        "sha256": "6e1f87a4ee22446814a624e8d5e70366fcaa5affe84d795fdc6537591ecea8f2"
+      },
+      "stagedStrip": "assets/staging/commute-rider-v2/walk_southeast.png",
+      "sourceScale": 0.451477,
+      "sourceShaMatchesStage": true
+    },
+    "south": {
+      "image": {
+        "path": "assets/source/commute-rider-v2/walk-south-v1.png",
+        "sha256": "9de92e12b4cde8ea82d91a1e0ecb9ab5827b53c06dc42d3f17a674f1dae387dc"
+      },
+      "prompt": {
+        "path": "assets/source/commute-rider-v2/walk-south-v1-prompt.txt",
+        "sha256": "3a2e1a108e8be68a33de84397e0e7bf2514c5b4fdef86c9047aad89103c57fe1"
+      },
+      "identityReference": {
+        "path": "output/commute-rider-v2-review/idle-reference-south.png",
+        "sha256": "cabe8a216d11e36a96ded01ad87f13e05e8043dd38cecd1686ee142465440c5e"
+      },
+      "stagedStrip": "assets/staging/commute-rider-v2/walk_south.png",
+      "sourceScale": 0.441237,
+      "sourceShaMatchesStage": true
+    }
+  },
+  "rejectedCandidate": {
+    "image": {
+      "path": "assets/source/commute-rider-v2/walk-southeast-v1.png",
+      "sha256": "c23d666ecefc9398b44aa946033b9ae74e26bf6561517e232fd9205bec865169"
+    },
+    "reason": "Adjacent SE cells overlapped at their column boundaries, leaving detached fragments in frames 2, 3 and 6. The selected v2 source uses larger transparent gutters and the staged audit reports no detached components.",
+    "replacement": "assets/source/commute-rider-v2/walk-southeast-v2.png"
+  },
+  "compiler": {
+    "path": "tools/commute_lab/compile_rider_v2.py",
+    "manifest": "assets/staging/commute-rider-v2/manifest.json",
+    "motionSpec": "assets/staging/commute-rider-v2/motion.json",
+    "contactSheet": "output/commute-rider-v2-review/walk-contact.png"
+  },
+  "automatedAudit": {
+    "path": "output/commute-rider-v2-review/motion-audit/report.json",
+    "errors": 0,
+    "warnings": 1,
+    "warningCodes": [
+      "center_jitter"
+    ],
+    "nominalPoseMilliseconds": 76,
+    "nominalCycleSeconds": 0.6118,
+    "allTenAnimationsAudited": true
+  },
+  "nativeReview": {
+    "viewer": "tools/commute_lab/rider_v2_review/main.lua",
+    "captureScript": "tools/commute_lab/review_rider_v2_native.ps1",
+    "walkCapture": "output/commute-rider-v2-review/native-walk.png",
+    "idleCapture": "output/commute-rider-v2-review/native-idle.png",
+    "renderedAt": "256x256 cells with alpha checkerboard and shared ground-anchor guide",
+    "processesExited": true,
+    "note": "Static native captures support visual scale/anchor inspection only; they are not gait, planted-foot, moving-loop, collision, or acceptance evidence."
+  },
+  "animatedPreview": {
+    "generator": "tools/commute_lab/review_rider_v2_gifs.py",
+    "path": "output/commute-rider-v2-review/motion-audit/previews-checker",
+    "actualCheckerFrameMs": 80,
+    "halfSpeedCheckerFrameMs": 160,
+    "nominalRuntimePoseMs": 76,
+    "note": "GIF previews are review aids only. Static contact review found unresolved phase-side errors, so they do not establish gait approval."
+  },
+  "visualFindings": [
+    "The selected v2 identity source follows the corrected suit-up body proportions; the older short/chibi commute-rider-v1 shape is superseded.",
+    "All five authored directional strips are staged, but the static native review does not support the prior claim that all eight phases alternate correctly.",
+    "Per-frame support and swing observations for all 40 walk cells are recorded in phaseMappingReview. Screen-side observations are used where camera angle does not make anatomical side certain; support candidates from a static image are not proof of weight-bearing.",
+    "Native LÖVE captures are static contact sheets at 1:1 scale. They do not establish a continuously moving gait, planted-foot timing, collision behavior, or runtime acceptance."
+  ],
+  "knownWarnings": [
+    {
+      "animation": "walk_east",
+      "code": "center_jitter",
+      "reason": "The audit measures the full alpha bounding-box center, which shifts as arms and stride extend. The compiler explicitly aligns helmet centers, and the native contact shows a stable head/root anchor.",
+      "status": "documented; no tolerance change made"
+    }
+  ],
+  "remaining": [
+    "Resolve the per-frame support/swing issues listed in phaseMappingReview before considering this walk source set for runtime integration.",
+    "Review arm counter-swing alongside any frame reorder/replacement; do not swap frames 4/8 without checking arms.",
+    "Run moving-loop, ground-contact, movement-distance, and collision review in-engine before publication."
+  ],
+  "identityShapeStatus": {
+    "selectedReference": "assets/source/commute-rider-v2/directional-idle-v1.png",
+    "finding": "The selected v2 identity source follows the user-selected suit-up body proportions. The older commute-rider-v1 short/chibi body is superseded and is not a shape reference for this walk set."
+  },
+  "phaseMappingReview": {
+    "reviewMethod": "Manual static review of staged 256x256 cells and native-walk.png, with enlarged mechanical crops at output/commute-rider-v2-review/phase-mapping/.",
+    "phaseOrderExpected": [
+      "left_contact",
+      "left_down",
+      "right_passing",
+      "right_up",
+      "right_contact",
+      "right_down",
+      "left_passing",
+      "left_up"
+    ],
+    "screenSideConvention": "Screen-left/right refer to image coordinates. For front-facing SOUTH, screen-left is character-right and screen-right is character-left. Diagonal views are recorded as near/far or screen-side when anatomy is not certain. Apparent support is a visual candidate only.",
+    "directions": {
+      "north": [
+        {
+          "frame": 1,
+          "expectedPose": "left_contact",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "screen-right boot trails with its sole toward the viewer; screen-left boot is the plausible planted foot.",
+          "apparentSupportCandidate": "screen-left candidate; static image cannot prove load",
+          "apparentSwingCandidate": "screen-right trailing/sole-facing",
+          "observedArms": "screen-right arm bent forward; compare frame 5",
+          "reviewFinding": "Same screen-right trailing-foot arrangement recurs at frame 5, so contact halves are not opposite.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 2,
+          "expectedPose": "left_down",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "screen-left boot reads flat at the floor; screen-right foot is raised with sole visible.",
+          "apparentSupportCandidate": "screen-left candidate",
+          "apparentSwingCandidate": "screen-right lifted",
+          "observedArms": "screen-right arm bent forward",
+          "reviewFinding": "The pose reads like a left-side support candidate, but a distinct down/compression beat is not clear.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 3,
+          "expectedPose": "right_passing",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "screen-left boot remains the floor candidate; screen-right leg stays behind with sole turned toward viewer instead of passing beneath the pelvis.",
+          "apparentSupportCandidate": "screen-left candidate",
+          "apparentSwingCandidate": "screen-right trailing, not passing",
+          "observedArms": "screen-right arm bent forward",
+          "reviewFinding": "Expected right passing is not visually distinct.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 4,
+          "expectedPose": "right_up",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "screen-left boot is down; screen-right knee/boot is raised backward with sole showing.",
+          "apparentSupportCandidate": "screen-left candidate",
+          "apparentSwingCandidate": "screen-right raised",
+          "observedArms": "screen-right arm bent forward",
+          "reviewFinding": "The lifted side fits the right-up label, but the previous passing pose does not lead into it cleanly.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 5,
+          "expectedPose": "right_contact",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Repeats frame 1: screen-right boot trails with sole toward viewer while screen-left is the plausible floor foot.",
+          "apparentSupportCandidate": "screen-left candidate",
+          "apparentSwingCandidate": "screen-right trailing/sole-facing",
+          "observedArms": "screen-right arm bent forward",
+          "reviewFinding": "Right-contact does not switch the apparent contact side from frame 1.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 6,
+          "expectedPose": "right_down",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-right boot is the floor candidate; screen-left foot is lifted behind with its sole visible.",
+          "apparentSupportCandidate": "screen-right candidate",
+          "apparentSwingCandidate": "screen-left lifted behind",
+          "observedArms": "screen-left arm changes little; not a clear opposite swing",
+          "reviewFinding": "Candidate side changes, but the pose is not an unambiguous down beat.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 7,
+          "expectedPose": "left_passing",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-right remains the floor candidate; screen-left foot is lifted behind rather than moving through under the body.",
+          "apparentSupportCandidate": "screen-right candidate",
+          "apparentSwingCandidate": "screen-left trailing/lifted",
+          "observedArms": "Arms remain compact; no clear swing transition",
+          "reviewFinding": "Expected left passing reads as a rear lift, not a passing pose.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 8,
+          "expectedPose": "left_up",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-right boot is down; screen-left boot is lifted behind with sole visible, close to frame 7.",
+          "apparentSupportCandidate": "screen-right candidate",
+          "apparentSwingCandidate": "screen-left lifted behind",
+          "observedArms": "No clear arm change from the neighboring pose",
+          "reviewFinding": "Left-up and left-passing are not clearly separated.",
+          "phaseApproved": false
+        }
+      ],
+      "northeast": [
+        {
+          "frame": 1,
+          "expectedPose": "left_contact",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Near/foreground screen-left leg trails toward the viewer with sole exposed; far screen-right foot advances.",
+          "apparentSupportCandidate": "unclear; overlapping perspective soles",
+          "apparentSwingCandidate": "near screen-left leg appears trailing",
+          "observedArms": "screen-right/near-forward arm is held ahead",
+          "reviewFinding": "Matches parent review: the near leg trails and near arm is forward; frame 5 repeats the arrangement.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 2,
+          "expectedPose": "left_down",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Near leg is close to the floor while the far leg is partly occluded; no clear body-compression/down pose.",
+          "apparentSupportCandidate": "near screen-left candidate, low confidence",
+          "apparentSwingCandidate": "far screen-right foot partly hidden",
+          "observedArms": "screen-right arm remains forward",
+          "reviewFinding": "Contact/load cannot be assigned confidently from this diagonal view.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 3,
+          "expectedPose": "right_passing",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Near screen-left foot remains extended toward the viewer instead of crossing under the pelvis; far foot is the only plausible floor candidate.",
+          "apparentSupportCandidate": "far screen-right candidate, low confidence",
+          "apparentSwingCandidate": "near screen-left extended toward viewer",
+          "observedArms": "screen-right arm stays forward",
+          "reviewFinding": "Expected right-passing pose is not distinct.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 4,
+          "expectedPose": "right_up",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Far/screen-right knee is visibly raised; near boot appears down.",
+          "apparentSupportCandidate": "near screen-left candidate",
+          "apparentSwingCandidate": "far screen-right raised",
+          "observedArms": "screen-right arm remains forward",
+          "reviewFinding": "Up pose is visible, but the arm does not clearly counter-swing.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 5,
+          "expectedPose": "right_contact",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Repeats frame 1: near/foreground leg trails toward viewer; same forward near arm.",
+          "apparentSupportCandidate": "unclear; overlapping perspective soles",
+          "apparentSwingCandidate": "near screen-left leg appears trailing",
+          "observedArms": "screen-right/near-forward arm is held ahead",
+          "reviewFinding": "Right-contact does not oppose frame 1.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 6,
+          "expectedPose": "right_down",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Near screen-left foot is lifted behind with sole visible; far foot is at the floor.",
+          "apparentSupportCandidate": "far screen-right candidate",
+          "apparentSwingCandidate": "near screen-left lifted behind",
+          "observedArms": "screen-right arm remains forward",
+          "reviewFinding": "Does not read as a distinct right-down pose.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 7,
+          "expectedPose": "left_passing",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Near screen-left foot again projects toward viewer rather than passing beneath the pelvis.",
+          "apparentSupportCandidate": "far screen-right candidate, low confidence",
+          "apparentSwingCandidate": "near screen-left extended toward viewer",
+          "observedArms": "screen-right arm stays forward",
+          "reviewFinding": "Expected left-passing is not shown.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 8,
+          "expectedPose": "left_up",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Repeats frame 4 with the same far/screen-right raised knee and near foot down.",
+          "apparentSupportCandidate": "near screen-left candidate",
+          "apparentSwingCandidate": "far screen-right raised",
+          "observedArms": "screen-right arm remains forward",
+          "reviewFinding": "Left-up repeats the right-up side instead of alternating.",
+          "phaseApproved": false
+        }
+      ],
+      "east": [
+        {
+          "frame": 1,
+          "expectedPose": "left_contact",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-right/front boot leads while screen-left/rear boot trails; the near thigh is forward.",
+          "apparentSupportCandidate": "screen-right/front candidate",
+          "apparentSwingCandidate": "screen-left/rear leg trails",
+          "observedArms": "Arms are asymmetric, but this alone does not establish counter-swing",
+          "reviewFinding": "Frame 5 also leads with the screen-right/near thigh.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 2,
+          "expectedPose": "left_down",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-right/front boot is at floor; screen-left/rear heel is lifted.",
+          "apparentSupportCandidate": "screen-right/front candidate",
+          "apparentSwingCandidate": "screen-left/rear heel lifted",
+          "observedArms": "Arms draw closer to the torso",
+          "reviewFinding": "The pose does not clearly read as a left-down beat.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 3,
+          "expectedPose": "right_passing",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Feet gather under the body, but no leg clearly crosses through as a passing pose.",
+          "apparentSupportCandidate": "ambiguous; feet overlap",
+          "apparentSwingCandidate": "ambiguous",
+          "observedArms": "Arms are tucked; swing is not obvious",
+          "reviewFinding": "Expected right-passing is not readable.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 4,
+          "expectedPose": "right_up",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-right/front knee and boot are raised; screen-left/rear boot is down.",
+          "apparentSupportCandidate": "screen-left/rear candidate",
+          "apparentSwingCandidate": "screen-right/front raised",
+          "observedArms": "Screen-right fist forward",
+          "reviewFinding": "A visible raised pose, but later frame 8 repeats this same raised side.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 5,
+          "expectedPose": "right_contact",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Again leads with the screen-right/near thigh and forward boot, like frame 1.",
+          "apparentSupportCandidate": "screen-right/front candidate",
+          "apparentSwingCandidate": "screen-left/rear trails",
+          "observedArms": "Arms differ slightly from frame 1",
+          "reviewFinding": "Right-contact does not clearly switch the leg contact side.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 6,
+          "expectedPose": "right_down",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Rear screen-left leg and front screen-right foot remain close to the frame-2 arrangement; no clear opposite down/compression.",
+          "apparentSupportCandidate": "ambiguous; screen-right/front is the clearer floor candidate",
+          "apparentSwingCandidate": "screen-left/rear leg flexed",
+          "observedArms": "Arm position does not prove a phase change",
+          "reviewFinding": "Left/right down poses are not clearly differentiated.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 7,
+          "expectedPose": "left_passing",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Legs are nearly stacked/vertical; no clearly identified foot passes under the pelvis.",
+          "apparentSupportCandidate": "ambiguous",
+          "apparentSwingCandidate": "ambiguous",
+          "observedArms": "One arm extends forward, but timing against the legs is unclear",
+          "reviewFinding": "Expected left-passing is not verified.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 8,
+          "expectedPose": "left_up",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Repeats frame 4 with screen-right/front knee lifted.",
+          "apparentSupportCandidate": "screen-left/rear candidate",
+          "apparentSwingCandidate": "screen-right/front raised",
+          "observedArms": "Forward arm is similar to frame 4",
+          "reviewFinding": "Left-up repeats the same visible raised side as right-up.",
+          "phaseApproved": false
+        }
+      ],
+      "southeast": [
+        {
+          "frame": 1,
+          "expectedPose": "left_contact",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Foreground screen-right leg reaches forward toward viewer while screen-left/rear leg trails; support is obscured by perspective.",
+          "apparentSupportCandidate": "ambiguous; overlapping soles",
+          "apparentSwingCandidate": "screen-right/foreground leg extended",
+          "observedArms": "screen-right fist forward; no clear opposite swing",
+          "reviewFinding": "Frame 5 repeats the foreground-leg arrangement.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 2,
+          "expectedPose": "left_down",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-right/front boot is the clearest floor candidate; screen-left/rear leg bends/lifts behind.",
+          "apparentSupportCandidate": "screen-right/front candidate",
+          "apparentSwingCandidate": "screen-left/rear lifted",
+          "observedArms": "Arms remain compact",
+          "reviewFinding": "Not clearly a left-down compression pose.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 3,
+          "expectedPose": "right_passing",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Foreground screen-right foot again projects forward; it does not pass under the pelvis.",
+          "apparentSupportCandidate": "ambiguous; screen-left/rear floor candidate",
+          "apparentSwingCandidate": "screen-right/foreground extended",
+          "observedArms": "Arm swing is small",
+          "reviewFinding": "Expected right-passing is not shown.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 4,
+          "expectedPose": "right_up",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-right knee is raised; screen-left boot is down.",
+          "apparentSupportCandidate": "screen-left candidate",
+          "apparentSwingCandidate": "screen-right raised",
+          "observedArms": "Screen-right fist forward",
+          "reviewFinding": "Raised pose is visible; anatomical side mapping in this three-quarter view needs a clearer reference.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 5,
+          "expectedPose": "right_contact",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Repeats frame 1 with the screen-right/foreground leg reaching forward.",
+          "apparentSupportCandidate": "ambiguous; same arrangement as frame 1",
+          "apparentSwingCandidate": "screen-right/foreground extended",
+          "observedArms": "Forward screen-right arm recurs",
+          "reviewFinding": "Right-contact does not establish an opposite contact.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 6,
+          "expectedPose": "right_down",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-left/rear foot is lifted behind while screen-right/front boot is the clearer floor candidate.",
+          "apparentSupportCandidate": "screen-right/front candidate",
+          "apparentSwingCandidate": "screen-left/rear lifted",
+          "observedArms": "Arms do not clearly counter-swing",
+          "reviewFinding": "Down pose does not clearly transfer to the expected right-side contact.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 7,
+          "expectedPose": "left_passing",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Foreground screen-right leg again reaches toward viewer rather than crossing through.",
+          "apparentSupportCandidate": "ambiguous; screen-left/rear floor candidate",
+          "apparentSwingCandidate": "screen-right/foreground extended",
+          "observedArms": "Small arm changes do not resolve leg phase",
+          "reviewFinding": "Expected left-passing is not shown.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 8,
+          "expectedPose": "left_up",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Repeats frame 4 with screen-right knee raised and screen-left boot down.",
+          "apparentSupportCandidate": "screen-left candidate",
+          "apparentSwingCandidate": "screen-right raised",
+          "observedArms": "Screen-right arm remains forward",
+          "reviewFinding": "Left-up repeats the same raised side as right-up.",
+          "phaseApproved": false
+        }
+      ],
+      "south": [
+        {
+          "frame": 1,
+          "expectedPose": "left_contact",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-right boot appears slightly advanced; both feet are close to the floor and the contact side is not unambiguous.",
+          "apparentSupportCandidate": "ambiguous",
+          "apparentSwingCandidate": "ambiguous; screen-right is more advanced",
+          "observedArms": "Screen-left fist forward",
+          "reviewFinding": "No reliable left-contact assignment from the image alone.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 2,
+          "expectedPose": "left_down",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Both boots remain near the floor; screen-left leg is the stronger support candidate.",
+          "apparentSupportCandidate": "screen-left/character-right candidate",
+          "apparentSwingCandidate": "screen-right/character-left uncertain",
+          "observedArms": "Screen-left fist remains forward",
+          "reviewFinding": "A distinct left-down beat is not clear.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 3,
+          "expectedPose": "right_passing",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-right knee/foot is slightly advanced, but the legs do not show a clear pass through center.",
+          "apparentSupportCandidate": "screen-left candidate, low confidence",
+          "apparentSwingCandidate": "screen-right slightly advanced",
+          "observedArms": "Screen-right fist forward",
+          "reviewFinding": "Expected right-passing is not verified.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 4,
+          "expectedPose": "right_up",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-right knee is raised: front view maps this to character-left; screen-left/character-right is the floor candidate.",
+          "apparentSupportCandidate": "screen-left/character-right candidate",
+          "apparentSwingCandidate": "screen-right/character-left raised",
+          "observedArms": "Arm pose needs review if frame 4 and 8 are swapped",
+          "reviewFinding": "Wrong limb for right-up; expected screen-left/character-right to rise.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 5,
+          "expectedPose": "right_contact",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Both boots are near the floor; screen-right remains slightly advanced, with no confident opposite contact assignment.",
+          "apparentSupportCandidate": "ambiguous",
+          "apparentSwingCandidate": "ambiguous",
+          "observedArms": "Screen-right fist forward, unlike frame 1",
+          "reviewFinding": "Contact halves are not proven to switch.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 6,
+          "expectedPose": "right_down",
+          "expectedSwingOrContactSide": "right",
+          "observedFeet": "Screen-left boot appears down; screen-right leg is close to the floor with little visible compression.",
+          "apparentSupportCandidate": "screen-left/character-right candidate",
+          "apparentSwingCandidate": "screen-right/character-left uncertain",
+          "observedArms": "Screen-left fist forward",
+          "reviewFinding": "A distinct right-down beat is not clear.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 7,
+          "expectedPose": "left_passing",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Legs are near-parallel and centered; neither foot clearly passes under the pelvis.",
+          "apparentSupportCandidate": "ambiguous",
+          "apparentSwingCandidate": "ambiguous",
+          "observedArms": "Screen-right fist forward",
+          "reviewFinding": "Expected left-passing is not shown clearly.",
+          "phaseApproved": false
+        },
+        {
+          "frame": 8,
+          "expectedPose": "left_up",
+          "expectedSwingOrContactSide": "left",
+          "observedFeet": "Screen-left knee is raised: front view maps this to character-right; screen-right/character-left is the floor candidate.",
+          "apparentSupportCandidate": "screen-right/character-left candidate",
+          "apparentSwingCandidate": "screen-left/character-right raised",
+          "observedArms": "Arm pose needs review if frame 4 and 8 are swapped",
+          "reviewFinding": "Wrong limb for left-up; expected screen-right/character-left to rise.",
+          "phaseApproved": false
+        }
+      ]
+    },
+    "summary": [
+      "NORTH frames 1 and 5 repeat the screen-right trailing/sole-toward-viewer arrangement; frame 5 does not demonstrate the expected opposite contact. Frames 3/7 read as rear/sole-visible lifts instead of distinct passes.",
+      "NORTHEAST frames 1 and 5 repeat the near-leg trailing toward viewer and forward near-arm arrangement. Frames 3/7 project the near foot toward viewer instead of passing; frames 4/8 raise the same far-side knee. Counter-swing remains unclear.",
+      "EAST frames 1 and 5 both lead with the screen-right/near thigh; frames 4 and 8 both raise the screen-right/front knee. Frames 3/7 do not show distinct passing legs; down poses and arm/leg counter-swing need review.",
+      "SOUTHEAST frames 1/5 repeat a foreground leg reaching toward viewer; frames 3/7 do not pass beneath the pelvis; frames 4/8 repeat the screen-right raised knee. Perspective obscures exact support side.",
+      "SOUTH frame 4 raises screen-right/character-left although right-up expects screen-left/character-right; frame 8 raises screen-left/character-right although left-up expects screen-right/character-left. Frames 4/8 are swap candidates, with arm swing still requiring review."
+    ]
+  },
+  "eastCandidateReview": {
+    "status": "contact_pair_pending_full_cycle_review",
+    "runtimeIntegrated": false,
+    "fullStripCandidates": [
+      {
+        "source": "assets/source/commute-rider-v2/walk-east-v2-alt1.png",
+        "prompt": "assets/source/commute-rider-v2/walk-east-v2-alt1-prompt.txt",
+        "stage": "assets/staging/commute-rider-v2-east-alt1/walk_east_candidate.png"
+      },
+      {
+        "source": "assets/source/commute-rider-v2/walk-east-v2-alt2.png",
+        "prompt": "assets/source/commute-rider-v2/walk-east-v2-alt2-prompt.txt",
+        "stage": "assets/staging/commute-rider-v2-east-alt2/walk_east_candidate.png"
+      }
+    ],
+    "contactPairTest": {
+      "leftContact": "assets/source/commute-rider-v2/walk-east-left-contact-v2.png",
+      "rightContactEdit": "assets/source/commute-rider-v2/walk-east-right-contact-edit-v2.png",
+      "stage": "assets/staging/commute-rider-v2-east-contact-test/east-contact-pair.png",
+      "review": "output/commute-rider-v2-review/east-candidates/east-contact-pair-review.json"
+    },
+    "nativeReview": {
+      "capture": "output/commute-rider-v2-review/east-candidates/native-full-strips.png",
+      "contactPairCapture": "output/commute-rider-v2-review/east-candidates/native-contact-pair.png",
+      "viewer": "tools/commute_lab/rider_v2_east_candidate_review/main.lua",
+      "note": "Static 1:1 LÖVE screenshots; not moving-loop or collision acceptance."
+    },
+    "finding": "A new complete full-body left-contact v1 and complete full-body right-contact v3 form a visually opposite contact pair in static review. Both remain candidates only; no full strip is selected or runtime-integrated.",
+    "next": "Complete the remaining full-body east phases, then review the entire eight-phase moving loop, arm counter-swing, planted-foot registration, and ground contact before selecting or integrating any east walk strip.",
+    "history": {
+      "priorFullStripFinding": "Neither full-strip candidate fixes the east gait: frames 1/5 repeat the same apparent screen-right/front boot and forward screen-right arm; frames 4/8 raise the same screen-right/front knee; frames 3/7 do not show opposite compact passes; down poses 2/6 do not clearly transfer load. The isolated edited right-contact pose also repeats the left-contact pose instead of switching both leg and arm. No candidate is selected. The earlier east v1 remains the only full strip in the shared v2 stage, still unapproved.",
+      "priorContactPairTest": {
+        "leftContact": "assets/source/commute-rider-v2/walk-east-left-contact-v2.png",
+        "rightContactEdit": "assets/source/commute-rider-v2/walk-east-right-contact-edit-v2.png",
+        "stage": "assets/staging/commute-rider-v2-east-contact-test/east-contact-pair.png",
+        "review": "output/commute-rider-v2-review/east-candidates/east-contact-pair-review.json"
+      },
+      "note": "Preserved for history. Earlier full-strip and edited-pose candidates remain rejected/unapproved; no old candidate was promoted."
+    },
+    "articulationPolicy": {
+      "status": "prohibited",
+      "reason": "User explicitly rejected articulated sprites. Proposed walk poses must be complete full-body character sprites; the articulated rig experiment is retained only as retired historical source."
+    },
+    "currentFullBodyContactPair": {
+      "status": "pending_full_cycle_review",
+      "leftContact": {
+        "source": "assets/source/commute-rider-v2/walk-east-left-contact-v1.png",
+        "prompt": "assets/source/commute-rider-v2/walk-east-left-contact-v1-prompt.txt",
+        "review": "assets/source/commute-rider-v2/walk-east-left-contact-v1-review.json",
+        "poseGuide": "output/commute-rider-pose-guide/east-left-contact-guide.png",
+        "visibleHeightPx": 1141
+      },
+      "rightContact": {
+        "source": "assets/source/commute-rider-v2/walk-east-right-contact-v3.png",
+        "prompt": "assets/source/commute-rider-v2/walk-east-right-contact-v3-prompt.txt",
+        "review": "assets/source/commute-rider-v2/walk-east-right-contact-v3-review.json",
+        "poseGuide": "output/commute-rider-pose-guide/east-right-contact-guide.png",
+        "visibleHeightPx": 1153
+      },
+      "comparison": "output/commute-rider-v2-review/east-contact-v1-v3-common-scale.png",
+      "comparisonVisibleHeightPx": 900,
+      "visualFinding": "The full-body candidates show the requested opposite near-side limbs: left contact has near/right arm forward and near/right leg trailing; right contact v3 has near/right arm trailing and near/right leg forward. Static art inspection only; planted-foot timing and a complete eight-phase cycle remain unverified.",
+      "comparisonMethod": "Alpha >=16 bounds, common uniform scale for both full-body sources, bottom aligned; wide panels avoid clipping boots. Source body pixels unchanged."
+    },
+    "comparisonWithPriorLeftContactV2": {
+      "source": "assets/source/commute-rider-v2/walk-east-right-contact-v2.png",
+      "visualRole": "prior left-contact-v2, as requested; filename/prompt historically use right-contact wording",
+      "comparison": "output/commute-rider-v2-review/east-contact-v2-v3-height-normalized.png",
+      "priorVisibleHeightPx": 1247,
+      "rightContactVisibleHeightPx": 1247,
+      "normalizedComparisonHeightPx": 920
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "created": "2026-11-01",
+  "tool": "image_gen.imagegen",
+  "transparentBackground": true,
+  "coordinateContract": "Generated 1536x1024 RGBA atlases, 4 columns by 2 rows. Source bytes copied unchanged. Runtime pivots and visual-facing maps are authoritative in src/home_furniture_catalog.lua; elevated floor projection is 0.5.",
+  "runtimeNotes": "Alpha ranges 0..254; generated low-alpha haze is discarded below .18 in the runtime shader. Floor lamps have rotationally symmetric geometry; clock side views remain slightly three-quarter and may benefit from later refinement. Surface objects use derived parent-relative poses and share the supporting object's wall-occlusion record.",
+  "assets": [
+    {
+      "kind": "couch",
+      "path": "couch-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-48c9935f-368c-40fc-843b-a40546c2e9b5.png",
+      "copiedWithoutPixelEdits": true,
+      "prompt": "Production game sprite atlas for The Picture Shop. A warm, slightly worn, hand-painted isometric life-simulation game, subdued natural colors and crisp contours readable at game size. Wide 1536x1024 canvas with EXACTLY 4 columns and 2 rows of equal 384x512 cells. Eight true rotations of ONE identical object. Same elevated orthographic camera looking down 30 degrees in every view, same physical scale, no perspective distortion. Objects must be fully inside their own cell with at least 45px transparent padding on every side, no cell overlap. Ground-contact center aligned consistently. Reading order: front faces southeast/down-right, south/down, southwest/down-left, east/right, northwest/up-left, north/up, northeast/up-right, west/left. Rear views show actual backs, never mirror the front. Genuine transparent alpha around and through the objects. NO floor, ground shadow, oval shadow, glow, backdrop, vignette, scene, text, numbers, logos, labels, border, or grid. Object: one modest old TWO-SEAT COUCH, faded moss-green fabric with subtly worn patches, two seat cushions, two back cushions, low rounded armrests, short dark wooden feet. About 1.6m wide, 0.85m deep. Front means the open seating side. Back views show the broad plain upholstered rear and back legs, not seat cushions pasted onto the back. No pillows or blanket.",
+      "sha256": "3b6e1c5c74a7fa527bbd400a0530a0feb720ebeb492a9ffe8383470e4456576e"
+    },
+    {
+      "kind": "mini_fridge",
+      "path": "mini-fridge-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-1b7bef44-e9ca-4097-8a01-a54a2416972a.png",
+      "copiedWithoutPixelEdits": true,
+      "prompt": "Production game sprite atlas for The Picture Shop. A warm, slightly worn, hand-painted isometric life-simulation game, subdued natural colors and crisp contours readable at game size. Wide 1536x1024 canvas with EXACTLY 4 columns and 2 rows of equal 384x512 cells. Eight true rotations of ONE identical object. Same elevated orthographic camera looking down 30 degrees in every view, same physical scale, no perspective distortion. Objects must be fully inside their own cell with at least 45px transparent padding on every side, no cell overlap. Ground-contact center aligned consistently. Reading order: front faces southeast/down-right, south/down, southwest/down-left, east/right, northwest/up-left, north/up, northeast/up-right, west/left. Rear views show actual backs, never mirror the front. Genuine transparent alpha around and through the objects. NO floor, ground shadow, oval shadow, glow, backdrop, vignette, scene, text, numbers, logos, labels, border, or grid. Object: one old waist-high MINI REFRIGERATOR, cream enamel, lightly yellowed with tiny scuffs, one closed door, a simple narrow vertical handle on the door's right side, small dark feet. About 0.55m wide and 0.6m deep. Front means the door. Rear views show a dark ventilation grille and condenser detail with NO door or handle on the back. No attached cable trailing on the ground. No magnet, text, brand or logo.",
+      "sha256": "7ad030b1035aee6953873ed4d895a4282c66aef59751dc2ee86e1e2abf87325d"
+    },
+    {
+      "kind": "small_desk",
+      "path": "small-desk-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-94ca0f47-9465-4fdd-8f32-313b62431c89.png",
+      "copiedWithoutPixelEdits": true,
+      "prompt": "Production game sprite atlas for The Picture Shop. A warm, slightly worn, hand-painted isometric life-simulation game, subdued natural colors and crisp contours readable at game size. Wide 1536x1024 canvas with EXACTLY 4 columns and 2 rows of equal 384x512 cells. Eight true rotations of ONE identical object. Same elevated orthographic camera looking down 30 degrees in every view, same physical scale, no perspective distortion. Objects must be fully inside their own cell with at least 45px transparent padding on every side, no cell overlap. Ground-contact center aligned consistently. Reading order: front faces southeast/down-right, south/down, southwest/down-left, east/right, northwest/up-left, north/up, northeast/up-right, west/left. Rear views show actual backs, never mirror the front. Genuine transparent alpha around and through the objects. NO floor, ground shadow, oval shadow, glow, backdrop, vignette, scene, text, numbers, logos, labels, border, or grid. Object: one SMALL SIMPLE WOODEN DESK, honey-brown worn wood matching cheap apartment furniture, plain rectangular tabletop, four legs, a single shallow drawer under the tabletop at the front. Width about 1m, depth 0.55m, height 0.75m. Completely EMPTY tabletop, no laptop, lamp, chair, paper or accessories. Front means the side where the user sits and can access the drawer. Rear view has plain drawer back, NO handles on the back. Keep generous open knee space beneath.",
+      "sha256": "577be1a6fae2098b882b03be9ec19e5a79374ae0fa0d7eed7bcd92d719055d43"
+    },
+    {
+      "kind": "floor_lamp",
+      "path": "floor-lamp-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-bed657a1-9f57-4706-bca5-88de1c2d8577.png",
+      "copiedWithoutPixelEdits": true,
+      "prompt": "Production game sprite atlas for The Picture Shop. A warm, slightly worn, hand-painted isometric life-simulation game, subdued natural colors and crisp contours readable at game size. Wide 1536x1024 canvas with EXACTLY 4 columns and 2 rows of equal 384x512 cells. Eight true rotations of ONE identical object. Same elevated orthographic camera looking down 30 degrees in every view, same physical scale, no perspective distortion. Objects must be fully inside their own cell with at least 45px transparent padding on every side, no cell overlap. Ground-contact center aligned consistently. Reading order: front faces southeast/down-right, south/down, southwest/down-left, east/right, northwest/up-left, north/up, northeast/up-right, west/left. Rear views show actual backs, never mirror the front. Genuine transparent alpha around and through the objects. NO floor, ground shadow, oval shadow, glow, backdrop, vignette, scene, text, numbers, logos, labels, border, or grid. Object: one modest FLOOR LAMP with a small round dark metal weighted base, thin upright brass stem, and slightly yellowed cream fabric tapered lampshade. About 1.5m tall. Lamp OFF with no emission glow or painted pool of light. All angles keep exact same shape and tall thin proportions. Truly symmetric views may look similar, but show the consistent circular base and cone-shaped lampshade in all cells. No external power cord on the floor.",
+      "sha256": "6c3ff068af242a3d2144b229b31862bfa3dd5828ae89f999dcff752959414a75"
+    },
+    {
+      "kind": "clock",
+      "path": "clock-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-9a6c18d6-6bf9-47e5-a45f-89a772564b29.png",
+      "copiedWithoutPixelEdits": true,
+      "prompt": "Production game sprite atlas for The Picture Shop. A warm, slightly worn, hand-painted isometric life-simulation game, subdued natural colors and crisp contours readable at game size. Wide 1536x1024 canvas with EXACTLY 4 columns and 2 rows of equal 384x512 cells. Eight true rotations of ONE identical object. Same elevated orthographic camera looking down 30 degrees in every view, same physical scale, no perspective distortion. Objects must be fully inside their own cell with at least 45px transparent padding on every side, no cell overlap. Ground-contact center aligned consistently. Reading order: front faces southeast/down-right, south/down, southwest/down-left, east/right, northwest/up-left, north/up, northeast/up-right, west/left. Rear views show actual backs, never mirror the front. Genuine transparent alpha around and through the objects. NO floor, ground shadow, oval shadow, glow, backdrop, vignette, scene, text, numbers, logos, labels, border, or grid. Object: one small old DIGITAL BEDSIDE ALARM CLOCK, rounded rectangular dark brown plastic case, about 25cm wide, two short feet, small buttons on top, flat dark BLACK DISPLAY WINDOW on its front. The display must be completely blank without digits, words, hands, colored lights or readable text because live game time will be rendered separately. Rear views have only a plain battery compartment, no front display. Eight true rotations. No cable, table or surrounding objects.",
+      "sha256": "82d3065ce329f9adbee440b2532bf5cc2c59b36dd6289b3aaeb31557c9d660ef"
+    },
+    {
+      "kind": "cup",
+      "path": "cup-eight-directions.png",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-6f2d8bce-aed7-4a7a-8125-7f5899f88b84.png",
+      "copiedWithoutPixelEdits": true,
+      "prompt": "Production isometric game sprite atlas: the same small empty cream ceramic MUG in eight actual horizontal rotations, 4 columns x 2 rows on a 1536x1024 canvas, equal 384x512 cells. Hand-painted warm slightly worn game-prop style, elevated orthographic camera looking down 30 degrees, dark readable contours. Each mug under 240px wide and 260px tall, fully centered in its cell with wide transparent padding. Each is an identical cylindrical cream mug with ONE rounded loop handle. No drink, steam, spoon, coaster, table, or shadows. Real transparent alpha around and through handle, absolutely no backdrop or grid or text. The handle distinguishes rotation: row 1 handle points down-right, down, down-left, right; row 2 handle points up-left, up, up-right, left. Show genuine handle occlusion when on the far side, not a flipped duplicate. Keep the same scale, rim thickness, ceramic color and camera in all eight cells.",
+      "sha256": "7ffa1fea755ca4dcbc0e1d0bbcd1c633e4f8158485f48c6bcfaa37ae7796fe5b"
+    }
+  ]
+}

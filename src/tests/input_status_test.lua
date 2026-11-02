@@ -333,12 +333,13 @@ function Test.run(context, check)
         and context.computerScreen.statusLabel(order.delivery.status) == "Awaiting truck schedule"
         and state.clientEmails.inbox[1].noticeKind == "salesman_confirmation"
         and state.clientEmails.inbox[1].body:find("Thanks so much", 1, true))
-    check("domain_office_inventory_projection", #inventory >= 10
+    check("domain_office_inventory_projection", #inventory >= 11
         and inventory[1].id == "house_sheets"
         and inventory[4].id == "stretch_film"
         and inventory[5].id == "maintenance_kit"
-        and inventory[6].id == "black_ink"
-        and inventory[10].id == "raw_press_plates")
+        and inventory[6].id == "cutter_blade"
+        and inventory[7].id == "black_ink"
+        and inventory[11].id == "raw_press_plates")
 
     local pressed, released, pointerEvents = {}, {}, {}
     local controllerScreen, controllerMachine = "world", nil

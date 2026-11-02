@@ -192,6 +192,7 @@ function Component.install(Runtime)
         self.pendingHostWorkshop = {}
         self.lastWorkshopSnapshotRevision = -1
         self.clientNonce = nil
+        self.residentId,self.residentToken=nil,nil
         self.rtt = nil
         self.pendingPing = {}
         self.terminal = false
@@ -301,6 +302,9 @@ function Component.install(Runtime)
         end
         local parsed, addressError = Runtime.Address.parse(address, options.port)
         if not parsed then return false, addressError end
+        local residentToken,identityError=options.residentToken
+        if not residentToken then residentToken,identityError=require("src.resident_credentials").get() end
+        if not require("src.resident_credentials").valid(residentToken) then return false,identityError or "Invalid resident identity." end
         local transportFactory = options.transportFactory or self.transportFactory
         if type(transportFactory) ~= "table"
             or type(transportFactory.createClient) ~= "function" then
@@ -324,6 +328,7 @@ function Component.install(Runtime)
         self.localFurColorway = tonumber(options.furColorway) or 1
         self.localOverallsColorway = tonumber(options.overallsColorway) or 1
         self.clientNonce = Runtime.identifier("n", self.clock)
+        self.residentToken=residentToken
         self.connectedAt = self.clock()
         self.status = self.networkKind == "direct"
             and "Connecting to the Direct Internet host"

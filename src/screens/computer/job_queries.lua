@@ -22,8 +22,8 @@ function Component.install(Runtime)
 
     function Runtime.machineBuyRect(index)
         return { x = Runtime.MACHINE_OFFER.x + Runtime.MACHINE_OFFER.width - 100,
-            y = Runtime.MACHINE_OFFER.y + (index - 1) * (Runtime.MACHINE_OFFER.height + Runtime.MACHINE_OFFER.gap) + 10,
-            width = 88, height = 42 }
+            y = Runtime.MACHINE_OFFER.y + (index - 1) * (Runtime.MACHINE_OFFER.height + Runtime.MACHINE_OFFER.gap) + 5,
+            width = 88, height = 40 }
     end
 
     function Runtime.machineSellRect(index)

@@ -14,6 +14,11 @@ Capabilities.MODES = {
 }
 
 Capabilities.INTERACTIONS = {
+    homeTravel = {label="Weekend household travel",mode="full",supported={"host_request","guest_ready","host_bring_everyone"}},
+    commute = {label='Scenic commute',mode='candidate',supported={'gear','ride','park','door','host_bring_everyone'}},
+    homeActivity = {label="Individual home routines",mode="full",supported={"fixture_use","floor_rest","eat","cancel"}},
+    homeDelivery = {label="Shared home deliveries",mode="full",supported={"collect"}},
+    homeFurniture = {label="Home furnishing",mode="full",supported={"move","rotate","store","sell","permissions"}},
     shopEntrance = {label="Shop room entrance",mode="full",supported={"enter_room","leave_room"}},
     roomStock = {label="Storage room stock",mode="full",supported={"store_stock","retrieve_stock"}},
     roomRest = {label="Break room seating",mode="full",supported={"rest","stand"}},
@@ -47,6 +52,11 @@ Capabilities.INTERACTIONS = {
         label = "Reception job applicant",
         mode = "read_only",
         supported = { "view_applicant", "inspect_resume_in_hiring" },
+    },
+    employeeHighFive = {
+        label = "Employee high five",
+        mode = "read_only",
+        supported = { "view_high_five_request" },
     },
     vendor = {
         label = "Supplier representative",
@@ -94,10 +104,6 @@ Capabilities.INTERACTIONS = {
         label = "Pallet shelving",
         mode = "candidate",
         supported = { "inspect_shelves", "store_pallets", "retrieve_pallets", "stack_pallets", "unstack_pallets" },
-    },
-    regalFolder = {
-        label = "Regal Moll folder practice run", mode = "candidate",
-        supported = { "local_two_station_practice" },
     },
     cutter = {
         label = "Polar cutter",

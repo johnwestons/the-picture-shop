@@ -339,12 +339,18 @@ function Input.keypressed(key, context)
         then
             return true
         end
-        if context.networkInteraction and context.networkInteraction(selected) then return true end
         if selected and selected.kind == "applicant" then
             if networkClient then state.message="The shop owner handles employment applications."
             elseif context.world.requestEmployeeResume(state,selected.target.applicationId) then context.saveCurrent() end
             return true
-        elseif selected and selected.kind == "customer" then
+        elseif selected and selected.kind == "employeeHighFive" then
+            if networkClient then state.message="The shop owner handles employee high fives."
+            elseif context.world.highFiveEmployee
+                and context.world.highFiveEmployee(state,selected.target.employeeId) then context.saveCurrent() end
+            return true
+        end
+        if context.networkInteraction and context.networkInteraction(selected) then return true end
+        if selected and selected.kind == "customer" then
             local offer, errors = context.jobService.createNextOffer(state, os.time())
             if not offer then
                 state.message = "Could not prepare the job: " .. table.concat(errors or {}, "; ")
@@ -412,9 +418,6 @@ function Input.keypressed(key, context)
             state.screen = "press"
             context.windmill.ensure(state)
             context.pressScreen.enter(state)
-        elseif selected and selected.kind == "regalFolder" then
-            state.screen = "regal_folder"
-            context.regalFolderScreen.enter()
         elseif selected and selected.kind == "palletJack" then
             local palletId = not state.palletJack.carriedPalletId and PalletPickup.selectedId(selected) or nil
             if context.world.handlePalletJack(state, context.assets, palletId) then context.saveCurrent() end
@@ -446,8 +449,6 @@ function Input.keypressed(key, context)
             context.machineScreen.syncGauge()
             if state.machineType == "cutter" then context.saveCurrent() end
         end
-    elseif state.screen == "regal_folder" then
-        return context.regalFolderScreen.keypressed(key)
     elseif state.screen == "computer" then
         return context.computerScreen.keypressed(state, key)
     elseif state.screen == "pallet_work_order" then
@@ -587,18 +588,11 @@ function Input.mousepressed(x, y, button, context)
         end
         if type(result) == "table" and (result.action == "maintenance_completed"
             or result.action == "blade_sleeved" or result.action == "technician_booked"
-            or result.action == "technician_schedule")
+            or result.action == "technician_schedule" or result.action == "spare_blade_installed")
         then
             context.saveCurrent()
         elseif result and state.machineType == "cutter" then
             context.saveCurrent()
-        end
-        return result
-    end
-    if state.screen == "regal_folder" then
-        local result = context.regalFolderScreen.mousepressed(x, y, button)
-        if type(result) == "table" and result.action == "exit" then
-            return Input.closeScreen(context)
         end
         return result
     end
@@ -611,6 +605,12 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "workshop_remote" then
         local result = context.workshopRemoteScreen.mousepressed(state, x, y, button,
             context.requestWorkshopCommand)
+        if type(result)=="table" and result.action=="home_activity" and state.home and state.home.weekend.phase=="home"
+            and context.workshopRemoteScreen.canClose() then
+            Input.closeScreen(context)
+            state.screen="home_activity"
+            return true
+        end
         if type(result) == "table" and result.action == "close" then
             return Input.closeScreen(context)
         end
@@ -637,8 +637,12 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "promotion_sent"
             or result.action == "service_notice_dismissed"
             or result.action == "inbox_notice_dismissed"
+            or result.action == "customer_case_resolved"
             or result.action == "cart_checked_out"
+            or result.action == "quality_inspection"
+            or result.action == "quality_rework"
             or result.action == "employment_changed"
+            or result.action == "home_changed"
         then
             context.saveCurrent()
         elseif result.action == "completion_blocked" then

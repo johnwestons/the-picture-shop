@@ -114,10 +114,18 @@ function Component.run(Context)
     Context.wrapperState.palletJack.carriedPalletId = nil
     Context.wrapperState.palletJack.x, Context.wrapperState.palletJack.y = Context.wrapperState.wrapper.x, Context.wrapperState.wrapper.y
     Context.check("skid_wrapper_move_mode", Context.context.world.beginWrapperMove(Context.wrapperState))
+    -- Relocation promotes the starter wrapper to the same fleet pose used by
+    -- purchased machines; choose a real grid cell before committing it.
+    local _,wrapperMovingPose=require("src.machine_transport").active(Context.wrapperState)
+    Context.wrapperMovingPose=wrapperMovingPose
     Context.check("skid_wrapper_rotate", Context.context.world.rotateWrapper(Context.wrapperState)
-        and Context.wrapperState.wrapper.direction ~= Context.wrapperDirection)
-    Context.check("skid_wrapper_place", Context.context.world.placeWrapper(Context.wrapperState)
-        and Context.wrapperState.wrapper.moving == false)
+        and Context.wrapperMovingPose.direction ~= Context.wrapperDirection)
+    Context.wrapperGrid=Context.context.world.placementGridSnapshot(Context.wrapperState,Context.context.assets)
+    for _,cell in ipairs(Context.wrapperGrid and Context.wrapperGrid.cells or {}) do
+        if cell.valid then Context.context.world.selectPlacement(Context.wrapperState,Context.context.assets,cell.x,cell.y);break end
+    end
+    Context.check("skid_wrapper_place", Context.context.world.placeWrapper(Context.wrapperState,Context.context.assets)
+        and Context.wrapperMovingPose.moving == false)
 
     function Context.wrapperLifecycleState(id)
         local testState = Context.context.State.new()

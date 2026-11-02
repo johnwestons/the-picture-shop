@@ -15,6 +15,7 @@ local Procurement=require("src.procurement")
 local Storage=require("src.pallet_storage")
 local WarehouseLayout=require("src.warehouse_layout")
 local Screen=require("src.screens.schedule_screen")
+local Footprint=require("src.floor_footprint")
 local Test={}
 local jackContext=require("src.tests.employee_transport_context")
 local function hours(state,h)
@@ -438,7 +439,7 @@ local function testTransfersAndPackaging(context,check)
     local _,packagingBlock=Work.update(sharedPackagingState,sharedPackagingWorker,.1,
         packagingBlockedContext)
     check("blocked_shared_boxing_yields_team_claim_without_removing_task",
-        initiallyClaimedWrap and packagingBlock=="Order a shipping carton before wrapping this boxed pallet"
+        initiallyClaimedWrap and packagingBlock=="Order 1 shipping carton before wrapping this boxed pallet"
         and sharedPackagingWorker.assignment==nil and #sharedPackagingWorker.schedule.items==0
         and #sharedPackagingState.employment.teamSchedule.items==2
         and sharedPackagingState.employment.teamSchedule.items[1].jobId==sharedWrapJob.id,
@@ -555,6 +556,27 @@ local function testTransfersAndPackaging(context,check)
         {jobId=multiSkidOrder.id,machineId=orderMachine.id},multiSkidOrder.pallets[1].id)
     check("schedule_enters_wrapping_after_all_order_skids_finish_production",
         wrappingStage=="wrapping" and wrappingTarget==multiSkidOrder.pallets[1])
+    orderWorker.wrappingSkill=100
+    local wrapperMachine=Fleet.installedUnits(orderState,"skid_wrapper")[1]
+    local wrapperPose=wrapperMachine.world or orderState.wrapper
+    local sideOffsets={{160,0},{108,108},{0,134},{-108,108},
+        {-160,0},{-108,-108},{0,-134},{108,-108}}
+    local workerCanWrapFromEverySide=true
+    for _,offset in ipairs(sideOffsets) do
+        local pallet=multiSkidOrder.pallets[1]
+        pallet.world.x,pallet.world.y=wrapperPose.x+offset[1],wrapperPose.y+offset[2]
+        local stage,machine,target,blocked,needsTransfer=Schedule.resolve(orderState,orderWorker,
+            {jobId=multiSkidOrder.id,machineId="auto"},pallet.id)
+        workerCanWrapFromEverySide=workerCanWrapFromEverySide
+            and stage=="wrapping" and machine and machine.id==wrapperMachine.id
+            and target==pallet and blocked==nil and needsTransfer==nil
+            and Footprint.distanceSquared(
+                Footprint.at(wrapperPose.x,wrapperPose.y,context.config.wrapperPlacement),
+                Footprint.at(pallet.world.x,pallet.world.y,context.config.palletLogistics))
+                    <=context.config.wrapperPlacement.palletReach^2
+    end
+    check("schedule_workers_can_operate_the_wrapper_with_a_skid_on_any_side",
+        workerCanWrapFromEverySide)
 end
 
 function Test.run(context,check)
@@ -565,7 +587,7 @@ function Test.run(context,check)
     testTransfersAndPackaging(context,check)
     local state=State.new();local w=hire(state);local m=Fleet.installedUnits(state,"polar_115")[1]
     local a=job(state,"JOB-QUEUE-A",{500,500});local b=job(state,"JOB-QUEUE-B",{1000});local c=job(state,"JOB-QUEUE-C")
-    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==23 and Schedule.valid(w.schedule) and #w.schedule.items==0)
+    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==39 and Schedule.valid(w.schedule) and #w.schedule.items==0)
     check("schedule_rejects_job_before_delivery",not add(state,w,a,m) and #w.schedule.items==0)
     local firstSkid,_,skidsRemaining=context.PalletLogistics.unload(state,a.id,a.pallets[1].id,
         context.config.palletLogistics.spawnPoints,context.config.palletLogistics.unloadOrigin)
@@ -687,18 +709,18 @@ function Test.run(context,check)
     c.press={}
     check("schedule_skill_gates_match_cutter_press_and_wrapping_stages",
         not Schedule.skillAllows(w,c,"cutter") and not Schedule.skillAllows(w,c,"press")
-        and not Schedule.skillAllows(w,c,"wrapping"))
+        and Schedule.skillAllows({wrappingSkill=0},c,"wrapping"))
     c.press=nil
     local hardSkills=Schedule.minimumSkills(c)
     check("schedule_minimum_skill_requirements_match_hard_cutting_job",
-        hardSkills.cutter==80 and hardSkills.press==nil and hardSkills.wrapping==70)
+        hardSkills.cutter==80 and hardSkills.press==nil and hardSkills.wrapping==0)
     c.difficulty="medium";c.press={};local mediumSkills=Schedule.minimumSkills(c)
     check("schedule_minimum_skill_requirements_include_printing_stage",
-        mediumSkills.cutter==50 and mediumSkills.press==60 and mediumSkills.wrapping==50)
+        mediumSkills.cutter==50 and mediumSkills.press==60 and mediumSkills.wrapping==0)
     c.press=nil
     c.difficulty="easy"
     check("schedule_easy_cutting_job_has_no_cutter_minimum",
-        Schedule.minimumSkills(c).cutter==0 and Schedule.minimumSkills(c).wrapping==25)
+        Schedule.minimumSkills(c).cutter==0 and Schedule.minimumSkills(c).wrapping==0)
     local lowProofState=State.new()
     local lowProof=Windmill.ensure(lowProofState)
     lowProof.status,lowProof.proofQuality,lowProof.artworkVerified="proof",.78,true

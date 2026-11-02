@@ -46,7 +46,8 @@ local function schedules(context,check)
     assert(Employees.command(s,{kind="queue_employee_job",employeeId=w.id,jobId=j.id,machineId=m.id},9))
     Schedule.advance(s,w,9)
     check("employee_bubble_personal_job_explains_low_cutter_skill",not w.assignment
-        and caption(w)==Speech.REASONS.cutter_skill and Speech.message(caption(w)):find("higher cutter skill",1,true))
+        and caption(w)==Speech.REASONS.cutter_skill
+        and Speech.message(caption(w))=="I need more cutter skill for this job")
     AI.worker(s,w,.1,9.001,idleContext())
     check("employee_bubble_idle_movement_preserves_blocked_personal_job_reason",caption(w)==Speech.REASONS.cutter_skill)
 
@@ -77,10 +78,11 @@ local function blockers(context,check)
     j.difficulty="hard";j.press={};p.status="cut";w.pressSkill=0
     local _,_,_,reason=Schedule.resolve(s,w,{jobId=j.id})
     w.activity=reason
-    check("employee_bubble_press_skill_is_specific",caption(w)==Speech.REASONS.press_skill)
-    j.press=nil;w.wrappingSkill=0
-    _,_,_,reason=Schedule.resolve(s,w,{jobId=j.id});w.activity=reason
-    check("employee_bubble_wrapping_skill_is_specific",caption(w)==Speech.REASONS.wrapping_skill)
+    check("employee_bubble_press_skill_is_specific",caption(w)==Speech.REASONS.press_skill
+        and Speech.message(caption(w))=="I need more press skill for this job")
+    j.press=nil;w.wrappingSkill=0;s.inventory.plasticWrapUses=11
+    check("employee_bubble_low_wrapping_skill_is_not_a_work_blocker",
+        Schedule.skillAllows(w,{difficulty="hard"},"wrapping"))
     w.wrappingSkill=100;s.inventory.plasticWrapUses=0
     _,_,_,reason=Schedule.resolve(s,w,{jobId=j.id});w.activity=reason
     check("employee_bubble_missing_wrap_reports_supply_needed",caption(w)==Speech.REASONS.film)
@@ -140,6 +142,29 @@ local function layout(context,check)
     end
     check("employee_bubble_long_reasons_wrap_inside_resized_bubble",fits and multiline)
     font:release()
+    local visualState,visualWorker=fixture(context,"BUBBLE-SKILL-RENDER")
+    visualWorker.x,visualWorker.y=480,450
+    visualWorker.activity="This job needs a more skilled cutter operator"
+    local canvas=love.graphics.newCanvas(960,678)
+    love.graphics.push("all")
+    love.graphics.setCanvas({canvas,stencil=true})
+    love.graphics.clear(0,0,0,0)
+    Renderer.drawBubble({worker=visualWorker,actor=visualWorker},context.characterAssets,visualState)
+    love.graphics.setCanvas()
+    love.graphics.pop()
+    local pixels=canvas:newImageData()
+    local visible=false
+    for y=80,visualWorker.y-1,3 do
+        for x=visualWorker.x-120,visualWorker.x+120,3 do
+            local _,_,_,alpha=pixels:getPixel(x,y)
+            if alpha>.1 then visible=true;break end
+        end
+        if visible then break end
+    end
+    pixels:release();canvas:release()
+    check("employee_low_skill_message_renders_in_bubble_above_head",
+        visible and Speech.message(Speech.code({worker=visualWorker,actor=visualWorker}))
+            =="I need more cutter skill for this job")
     local directory=os.getenv("PICTURE_SHOP_EMPLOYEE_SPEECH_CAPTURE_DIR")
     if directory then
         local s=State.new()

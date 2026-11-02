@@ -75,6 +75,7 @@ function Component.install(Runtime)
         return type(value) == "table"
             and Runtime.Schema.validPhysicalSource(value)
             and Runtime.nonnegative(value.money)
+            and Runtime.Home.valid(value.home)
             and Runtime.inventory(value.inventory)
             and type(value.shopProgress) == "table"
             and Runtime.nonnegative(value.shopProgress.completedCuts)

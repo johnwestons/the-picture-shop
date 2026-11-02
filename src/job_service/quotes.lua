@@ -52,8 +52,8 @@ function Component.install(Runtime)
             and not (job.estimate and job.estimate.stage=="awaiting_reply") then
             base,budget=Runtime.Labor.price(state,job,servicePrice)
             if budget then
-                -- Keep an employee quote above the shop's modeled direct cost per
-                -- lift, including the negotiated payroll and machine allowance.
+                -- Keep an employee quote above the shop's budget-covering cost
+                -- per lift, including payroll, bills, loans and machine allowance.
                 -- This keeps small jobs from underpricing the staffed workflow.
                 local finances=require("src.staff_finances").summary(state)
                 local lifts=math.max(1,math.floor(tonumber(job.quote.totalLifts) or 1))
@@ -131,6 +131,10 @@ function Component.install(Runtime)
         local job = email.job
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local accepted = Runtime.quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
+        if accepted then
+            local reserved, reserveError = Runtime.JobService.reserveHousePaper(state, job)
+            if not reserved then return false, reserveError end
+        end
         job.quote.recommendedPrice = terms.recommendedPrice
         job.quote.servicePrice=terms.servicePrice;job.quote.employeeBudget=terms.employeeBudget
         job.quote.playerPrice = terms.amount

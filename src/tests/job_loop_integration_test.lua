@@ -84,6 +84,11 @@ function Test.run(context, check, jobs)
     fullLoopInput.state = fullLoopState
     fullLoopInput.saveCurrent = function() fullLoopSaveCalls = fullLoopSaveCalls + 1; return true end
     local pickupX, pickupY = context.computerScreen.completeCenter()
+    local inspectionAction = context.input.mousepressed(pickupX, pickupY, 1, fullLoopInput)
+    check("full_loop_inspection_is_saved_before_pickup",
+        inspectionAction and fullLoopOffer.inspection and fullLoopOffer.inspection.status == "passed"
+            and fullLoopSaveCalls == 1)
+    fullLoopSaveCalls = 0
     check("full_loop_requests_pickup", context.input.mousepressed(
         pickupX, pickupY, 1, fullLoopInput)
         and fullLoopOffer.status == "ready_for_pickup"
@@ -163,9 +168,10 @@ function Test.run(context, check, jobs)
         and fullLoopState.accountsReceivable == 0
         and fullLoopState.money == fullLoopStartingCash + 150)
     local cashAfterPickup = fullLoopState.money
+    check("full_loop_household_books_collected_income",fullLoopState.home.finance.totals.revenue==15000)
     check("full_loop_payment_cannot_repeat", not context.jobService.completePickup(
         fullLoopState, fullLoopOffer.id, 999)
-        and fullLoopState.money == cashAfterPickup)
+        and fullLoopState.money == cashAfterPickup and fullLoopState.home.finance.totals.revenue==15000)
     context.computerScreen.enter(fullLoopState)
     local fullLoopArrowX, fullLoopArrowY = context.computerScreen.dropdownCenter()
     context.computerScreen.mousepressed(fullLoopState, fullLoopArrowX, fullLoopArrowY, 1)

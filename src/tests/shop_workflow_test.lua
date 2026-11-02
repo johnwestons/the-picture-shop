@@ -45,11 +45,13 @@ local function job(s,id,x,y)
 end
 local function paidWeek(s,w,weekStart)
     for day=weekStart,weekStart+6 do
-        if Contracts.hasDay(w.contract.days,Contracts.weekday(day)) then
-            local start=day*24+w.contract.startHour
-            -- Paid rest breaks are included; exclude the half-hour meal.
-            Payroll.accrue(w,start,start+4,false,s)
-            Payroll.accrue(w,start+4.5,start+Contracts.duration(w.contract),false,s)
+        local first,last=Contracts.shiftBounds(w.contract,day)
+        if first then
+            -- Paid rest is included; a sufficiently long shift has a 45-minute meal.
+            if last-first>=3.75 then
+                Payroll.accrue(w,first,first+3,false,s)
+                Payroll.accrue(w,first+3.75,last,false,s)
+            else Payroll.accrue(w,first,last,false,s) end
         end
     end
 end
@@ -85,7 +87,7 @@ function Test.run(context,check)
     check("shop_setup_lower_bound_and_keyboard",options.dayLengthMinutes==5)
     options.dayLengthMinutes=60;Setup.keypressed(options,"up")
     check("shop_setup_upper_bound_and_keyboard",options.dayLengthMinutes==60)
-    Setup.mousepressed(options,480,402)
+    Setup.mousepressed(options,Setup.sliderPoint(.5))
     check("shop_setup_slider_selects_intermediate_minute",options.dayLengthMinutes==33)
     for _,name in ipairs({"fast","standard","slow"}) do
         local x,y=Setup.buttonCenter(name);Setup.mousepressed(options,x,y)
@@ -107,8 +109,8 @@ function Test.run(context,check)
     local bad=Schema.snapshot(old);bad.calendar.secondsPerDay=299
     check("shop_saved_invalid_pace_rejected",not Schema.validState(bad) and not Schema.snapshot(bad))
     local nightly=Contracts.terms(2200,64,20,8,4);nightly.startDay=3
-    check("shop_night_shift_uses_start_day_across_week_boundary",Contracts.validTerms(nightly)
-        and Contracts.onShift(nightly,3*24+21) and Contracts.onShift(nightly,4*24+7.99)
+    check("shop_legacy_sunday_night_is_closed_across_week_boundary",Contracts.validTerms(nightly)
+        and not Contracts.onShift(nightly,3*24+21) and not Contracts.onShift(nightly,4*24+7.99)
         and not Contracts.onShift(nightly,4*24+8) and not Contracts.onShift(nightly,4*24+20))
     for hoursLong=4,12 do
         local t=Contracts.terms(2200,31,20,(20+hoursLong)%24,1)
@@ -116,45 +118,46 @@ function Test.run(context,check)
     end
     check("shop_contract_rejects_excessive_or_empty_shifts",not Contracts.validTerms(Contracts.terms(2200,31,8,21))
         and not Contracts.validTerms(Contracts.terms(2200,31,8,8)))
-    local night=State.new();local nw=hire(night,Contracts.terms(2200,64,20,8,4));nw.contract.startDay=3
-    Payroll.accrue(nw,3*24+20,4*24+8,false,night)
-    check("shop_night_payroll_splits_actual_week_without_double_pay",#nw.weeks==2
-        and near(nw.weeks[1].paidHours,4) and near(nw.weeks[2].paidHours,8)
-        and near(Payroll.balance(nw,0,true),12*2200))
+    local night=State.new();local nw=hire(night,Contracts.terms(2200,8,20,8,4));nw.contract.startDay=0
+    Payroll.accrue(nw,20,32,false,night)
+    check("shop_open_night_payroll_crosses_midnight_without_double_pay",#nw.weeks==1
+        and near(nw.weeks[1].paidHours,12) and near(Payroll.balance(nw,0,true),12*2200))
     local nightContext={idlePoint=function(w) return {x=w.x,y=w.y} end,freeSeat=function() end}
-    nw.shiftDay=3;nw.breaksTaken=7;nw.fatigue=0;nw.focus=100;hours(night,4*24+6)
-    AI.worker(night,nw,.1,4*24+6,nightContext)
-    check("shop_twelve_hour_shift_has_only_one_paid_rest",nw.phase~="break" and nw.breaksTaken==7 and nw.shiftDay==3)
+    nw.shiftDay=0;nw.breaksTaken=7;nw.fatigue=0;nw.focus=100;hours(night,30)
+    AI.worker(night,nw,.1,30,nightContext)
+    check("shop_twelve_hour_shift_has_only_one_paid_rest",nw.phase~="break" and nw.breaksTaken==7 and nw.shiftDay==0)
     for cycle=1,4 do
         local s=State.new();s.money=100000
         local w=hire(s,Contracts.terms(2200,31,8,20,cycle));w.contract.startDay=4
         for week=0,cycle-1 do paidWeek(s,w,4+week*7) end
         local due=(4+cycle*7)*24+9
         check("shop_pay_cycle_accrues_without_instant_cash_charge_"..cycle,s.money==100000
-            and near(Payroll.balance(w,due-1e-5,true),145750*cycle)
+            and near(Payroll.balance(w,due-1e-5,true),138325*cycle)
             and Payroll.balance(w,due-1e-5,false)==0 and not Payroll.pay(s,due-1e-5,false))
         Payroll.pay(s,due,false);local wallet=s.money
         check("shop_pay_cycle_settles_exactly_once_with_weekly_overtime_"..cycle,
-            near(wallet,100000-1457.5*cycle) and not Payroll.pay(s,due,false) and s.money==wallet
-            and #w.weeks==cycle and near(w.weeks[1].paidHours,57.5))
+            near(wallet,100000-1383.25*cycle) and not Payroll.pay(s,due,false) and s.money==wallet
+            and #w.weeks==cycle and near(w.weeks[1].paidHours,55.25))
     end
     for _,minutes in ipairs({5,20,60}) do for _,endHour in ipairs({20,8}) do
         local s=State.new();s.calendar.secondsPerDay=minutes*60;s.money=100000
         local w=hire(s,Contracts.terms(2200,31,endHour==20 and 8 or 20,endHour,4))
         assert(Credit.financeMachine(s,1,"SHOP-BUDGET-"..minutes.."-"..endHour,"online"))
-        local f=Finances.summary(s);local p=Finances.plan(f,20)
+        local f=Finances.summary(s);local planned=math.min(20,f.capacity);local p=Finances.plan(f,planned)
         local quoteJob=assert(Jobs.createOffer({id="JOB-PROFIT-"..minutes.."-"..endHour,
             company="Shop workflow test",sourceSize={width=20,height=16},
             finishedSize={width=10,height=8},sheetCounts={500}}))
         local quote=context.jobService.quoteTerms(s,quoteJob)
         check("shop_regular_twelve_hour_staff_can_profit_at_pace_"..minutes.."_end_"..endHour,
-            near(f.weeklyWages,1416.25) and f.weeklyLoans>0 and p.profit>0 and p.withinCapacity
-            and f.breakEvenLifts<=20 and near(f.cycleReserve,5665) and quote.recommendedPrice>=f.pricePerLift,
+            near(f.weeklyWages,endHour==20 and 1383.25 or 1045) and f.weeklyLoans>0 and p.profit>0 and p.withinCapacity
+            and f.breakEvenLifts<=planned and near(f.cycleReserve,endHour==20 and 5533 or 4180) and quote.recommendedPrice>=f.pricePerLift,
             string.format("wages=%s loans=%s profit=%s capacity=%s breakEven=%s reserve=%s quote=%s lift=%s",
                 tostring(f.weeklyWages),tostring(f.weeklyLoans),tostring(p.profit),tostring(p.withinCapacity),
                 tostring(f.breakEvenLifts),tostring(f.cycleReserve),tostring(quote.recommendedPrice),tostring(f.pricePerLift)))
         check("shop_idle_payroll_does_not_claim_a_profit_"..minutes.."_end_"..endHour,
             Finances.plan(f,0).profit<0 and Finances.plan(f,f.breakEvenLifts).profit>=0)
+        check("shop_plan_above_open_hour_capacity_is_flagged_"..minutes.."_end_"..endHour,
+            not Finances.plan(f,f.capacity+1).withinCapacity)
     end end
     local s=State.new();s.money=5000;local w=hire(s,Contracts.terms(2200,31,8,20,4))
     Payroll.accrue(w,8,10,false,s);s.bills.balance=100

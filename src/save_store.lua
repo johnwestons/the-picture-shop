@@ -235,6 +235,9 @@ function save.newGame(slot,options)
         return nil,"Choose a game day between 5 and 60 minutes."
     end
     local payload=Schema.newPayload(slot)
+    local home,homeError=require("src.home").new(options)
+    if not home then return nil,homeError end
+    payload.state.home=home
     payload.state.calendar.secondsPerDay=minutes*60
     return payload
 end
@@ -270,6 +273,7 @@ function save.save(slot, state, worldSnapshot)
         player = {
             x = worldSnapshot and worldSnapshot.x or Config.player.spawnX,
             y = worldSnapshot and worldSnapshot.y or Config.player.spawnY,
+            sceneId = worldSnapshot and worldSnapshot.sceneId or "warehouse",
         },
     }
     if not Schema.validPayload(payload) then return false, "invalid_payload" end

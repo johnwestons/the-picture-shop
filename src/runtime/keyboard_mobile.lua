@@ -6,7 +6,10 @@ local function mobileActionLabel(Runtime, selected)
     if not selected then return "" end
     local kind = selected.kind
     local target = selected.target or {}
-    if kind == "applicant" then return target.actionLabel or "TALK" end
+    if kind=="homeTravel" then return target.actionLabel or "TRAVEL" end
+    if kind=="homeActivity" then return "USE" end
+    if kind=="homeDelivery" then return "RECEIVE" end
+    if kind == "applicant" or kind == "employeeHighFive" then return target.actionLabel or "TALK" end
     if kind == "workPhone" then
         return target.actionLabel or (Runtime.state.workPhone and Runtime.state.workPhone.incoming
             and "ANSWER" or "PHONE")
@@ -101,6 +104,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.dispatchKeyPressed(key)
+        if require('src.commute.runtime').keypressed(Runtime,key) then return true end
         if Runtime.state.screen=="air_hockey" then
             return require("src.screens.air_hockey_screen").keypressed(Runtime,key)
         end
@@ -143,6 +147,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.primaryMobileAction()
+        if Runtime.World.player.sceneId=='commute' then return 'e','BIKE / DOOR' end
         if Runtime.state.screen=="world" and require("src.basketball").heldBy(
             Runtime.state,tonumber(Runtime.World.player.id) or 1) then
             return "space","SHOOT"
@@ -173,7 +178,7 @@ function Component.install(Runtime)
             and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
             and selected.kind ~= "breakroom"
             and selected.kind ~= "shopEntrance" and selected.kind ~= "roomStock" and selected.kind ~= "roomRest"
-            and selected.kind ~= "roomGame"
+            and selected.kind ~= "roomGame" and selected.kind ~= "homeTravel" and selected.kind ~= "homeActivity" and selected.kind ~= "homeDelivery"
             and not Runtime.World.workshopResourceId(selected.kind)
         then
             return "e", "HOST"
@@ -183,15 +188,25 @@ function Component.install(Runtime)
 
     function Runtime.extraMobileActions()
         local actions = {}
+        if Runtime.World.player.sceneId=='commute' then
+            local part=require('src.commute.runtime').localPart(Runtime)
+            if part and part.rider.gear.mounted then
+                return {{key='z',label='SHIFT DOWN'},{key='x',label='SHIFT UP'}}
+            end
+            return {{key='g',label='GEAR'},{key='f',label='BRING ALL'},{key='c',label='CAMERA'}}
+        end
+        local gear=require('src.commute.outfit').get(Runtime.state,Runtime.World.player)
+        if gear and gear.outfit=='geared' then return {{key='g',label='REMOVE GEAR'}} end
         if require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1) then
             actions[#actions+1]={key="q",label="DROP"}
         end
         local Rooms = require("src.shop_rooms")
         local sceneId = Rooms.scene(Runtime.World.player)
+        if sceneId=="home" then actions[#actions+1]={key="m",label="FURNISH"};return actions end
         if sceneId ~= "warehouse" and not Rooms.machineRoomAllowed(Runtime.state, sceneId) then return actions end
         local selected=Runtime.World.getInteraction()
         if selected and selected.kind=="applicant" and not Runtime.multiplayer:isClient() then
-            actions[#actions+1]={key="x",label="DISMISS"}
+            actions[#actions+1]={key="x",label="NOT HIRING"}
         end
         if Runtime.multiplayer:isClient() then
             local info = Runtime.multiplayer:workshopInfo()

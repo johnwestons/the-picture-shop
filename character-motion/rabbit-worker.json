@@ -189,18 +189,66 @@
       {
         "foot": "screen_left",
         "points": [
-          { "phase": 1, "roi": [180, 395, 265, 900] },
-          { "phase": 2, "roi": [180, 395, 255, 900] },
-          { "phase": 3, "roi": [180, 395, 245, 900] }
+          {
+            "phase": 1,
+            "roi": [
+              180,
+              395,
+              265,
+              900
+            ]
+          },
+          {
+            "phase": 2,
+            "roi": [
+              180,
+              395,
+              255,
+              900
+            ]
+          },
+          {
+            "phase": 3,
+            "roi": [
+              180,
+              395,
+              245,
+              900
+            ]
+          }
         ],
         "toe_off_by_phase": 4
       },
       {
         "foot": "screen_right",
         "points": [
-          { "phase": 5, "roi": [245, 395, 325, 900] },
-          { "phase": 6, "roi": [255, 395, 320, 900] },
-          { "phase": 7, "roi": [255, 395, 330, 900] }
+          {
+            "phase": 5,
+            "roi": [
+              245,
+              395,
+              325,
+              900
+            ]
+          },
+          {
+            "phase": 6,
+            "roi": [
+              255,
+              395,
+              320,
+              900
+            ]
+          },
+          {
+            "phase": 7,
+            "roi": [
+              255,
+              395,
+              330,
+              900
+            ]
+          }
         ],
         "toe_off_by_phase": 8
       }
@@ -280,5 +328,66 @@
       "southwest": "southeast"
     },
     "baseline": 229
+  },
+  "home_action_contract": {
+    "status": "sweep, stove stirring and trash lifting integrated; other household action families pending",
+    "directions": [
+      "east",
+      "southeast",
+      "south",
+      "southwest",
+      "west",
+      "northwest",
+      "north",
+      "northeast"
+    ],
+    "separate_directional_props": true,
+    "grip_registration": "per action, direction and authored frame",
+    "sweep": {
+      "authored_frames": 4,
+      "sequence": [
+        1,
+        2,
+        3,
+        4,
+        3,
+        2
+      ],
+      "fps": 6,
+      "renderer": "src/home_sweep_art.lua",
+      "registration": "src/home_sweep_registration.lua",
+      "review_renderer": "src/tests/home_action_art_review.lua"
+    },
+    "clock": "existing shared resident activity elapsed time",
+    "cooking": {
+      "status": "integrated",
+      "authored_frames": 4,
+      "sequence": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "fps": 4,
+      "registration": "src/home_cooking_registration.lua",
+      "renderer": "src/home_cooking_art.lua"
+    },
+    "trash": {
+      "status": "integrated",
+      "authored_frames": 4,
+      "intro": [
+        1,
+        2
+      ],
+      "hold_sequence": [
+        3,
+        4
+      ],
+      "hold_frame_seconds": 0.45,
+      "intro_frame_seconds": "min(0.3, action_duration_seconds * 0.2)",
+      "registration": "src/home_trash_registration.lua",
+      "renderer": "src/home_trash_art.lua",
+      "authority": "existing replicated activity timer; presentation cannot complete chores"
+    }
   }
 }

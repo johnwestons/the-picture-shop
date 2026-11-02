@@ -238,8 +238,10 @@ local Config = {
         collisionOffsetY = -6,
         operatorDistanceX = 54,
         operatorDistanceY = 34,
-        palletRadius = 108,
-        palletReach = 64,
+        palletRadius = 120,
+        -- Accept and stage skids around the whole turntable; the reach is
+        -- measured between pallet and machine floor footprints, on every side.
+        palletReach = 120,
         drawScale = 0.22,
         frameSize = 512,
         frameCount = 4,
@@ -264,6 +266,9 @@ local Config = {
     regalFolderPlacement = { spawnX = 350, spawnY = 475, interactionRadius = 88,
         collisionHalfWidth = 48, collisionHalfHeight = 17, drawScale = 0.29,
         operatorDistanceX = 65, operatorDistanceY = 35 },
+    chandlerPricePlacement = { spawnX = 540, spawnY = 540, interactionRadius = 72,
+        collisionHalfWidth = 25, collisionHalfHeight = 14, drawScale = 0.095,
+        operatorDistanceX = 40, operatorDistanceY = 29 },
     machineReceiving = {
         polar_115 = { x = 385, y = 350, direction = "northwest" },
         skid_wrapper = { x = 326, y = 338, direction = "northwest" },
@@ -431,6 +436,7 @@ local Config = {
         polarBackButton = "assets/generated/polar-back-button-states-strip.png",
         windmillDirections = "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
         regalFolderDirections = "assets/generated/regal-moll-folder-v2/regal-moll-eight-angles.png",
+        chandlerPriceFrontLeft = "assets/generated/chandler-price-angles-v1/01-front-left.png",
         pressProcessStages = "assets/generated/press-process-stages-atlas-v3.png",
         pressOperatorHandbook = "assets/generated/heidelberg-operator-handbook-atlas-v2.png",
         pressSetupInteractions = "assets/generated/heidelberg-setup-interactions-atlas-v2.png",
@@ -702,4 +708,7 @@ Config.characterActionFrameLayouts = Config.characterActionFrameLayouts or {}
 for character,actions in pairs(require("src.worker_walk_art").paths) do
     for action,path in pairs(actions) do Config.characters[character][action]=path end
 end
+local commuteWalkerArt=require("src.commute.walker_art")
+Config.characters["suited-rider"]=commuteWalkerArt.paths["suited-rider"]
+Config.workerFrameSizes["suited-rider"]=256
 return Config

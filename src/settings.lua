@@ -1,5 +1,6 @@
 local Settings = {}
 local RabbitColorways = require("src.rabbit_colorways")
+local MotorcycleBindings = require('src.commute.bindings')
 
 local PATH = "settings.lua"
 local DEFAULTS = {
@@ -72,6 +73,7 @@ function Settings.normalize(value)
         sfxVolume = clampPercent(value.sfxVolume, DEFAULTS.sfxVolume),
         ambientVolume = clampPercent(value.ambientVolume, DEFAULTS.ambientVolume),
         controlLayout = normalizeLayout(value.controlLayout),
+        motorcycleControls = MotorcycleBindings.normalize(value.motorcycleControls),
     }
 end
 
@@ -87,7 +89,7 @@ end
 
 local function encode(value)
     value = Settings.normalize(value)
-    return string.format(
+    local encoded = string.format(
         "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
         tostring(value.fullscreen), tostring(value.vsync), tostring(value.followPlayerCamera),
         tostring(value.twelveHourTime),
@@ -98,6 +100,7 @@ local function encode(value)
         value.controlLayout.primary.x, value.controlLayout.primary.y,
         value.controlLayout.extra1.x, value.controlLayout.extra1.y,
         value.controlLayout.extra2.x, value.controlLayout.extra2.y)
+    return encoded:sub(1,-2)..', motorcycleControls = '..MotorcycleBindings.encode(value.motorcycleControls)..' }'
 end
 
 function Settings.load()
@@ -123,6 +126,20 @@ function Settings.applyAudio(value, sound)
             value.ambientVolume / 100)
         sound:setMuted(value.muted)
     end
+end
+
+-- Preview shares preferences with the game, but never reads a shop save.
+function Settings.sharedMotorcycle(profile)
+    local identity=love.filesystem.getIdentity()
+    love.filesystem.setIdentity('the-picture-shop')
+    local okay,result=pcall(function()
+        local settings=Settings.load()
+        if profile then settings.motorcycleControls=profile;return Settings.save(settings) end
+        return settings.motorcycleControls
+    end)
+    love.filesystem.setIdentity(identity)
+    if not okay then return profile and false or MotorcycleBindings.defaults() end
+    return result
 end
 
 function Settings.applyDisplay(value)

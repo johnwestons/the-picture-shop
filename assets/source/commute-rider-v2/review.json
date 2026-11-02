@@ -1,0 +1,349 @@
+{
+  "status": "source_visual_review_candidate",
+  "generator": "built-in imagegen",
+  "runtimeIntegrated": false,
+  "sourceSheet": "assets/source/commute-rider-v2/directional-idle-v1.png",
+  "sourceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+  "prompt": "assets/source/commute-rider-v2/directional-idle-v1-prompt.txt",
+  "promptSha256": "202e6a1d73bebb735ad3f0e0009cb4231ccd788bb5403980c2a609eb598d16ed",
+  "references": [
+    {
+      "path": "output/commute-rider-v2-review/suitup-proportion-reference.png",
+      "sha256": "d257fe6d895df3583ea662fbdd7f604dd85966c67dbe6e33fe040073975eedf4"
+    },
+    {
+      "path": "output/commute-rider-v2-review/helmet-final-reference.png",
+      "sha256": "aeb96ee441ff857328e22069b5ae098dbe4ec484ea3cb1b0cf82e3530f5e3c06"
+    }
+  ],
+  "layout": {
+    "columns": [
+      "north",
+      "northeast",
+      "east",
+      "southeast",
+      "south"
+    ],
+    "rows": [
+      "neutral",
+      "settle"
+    ],
+    "sheetSize": [
+      1983,
+      793
+    ],
+    "alphaThreshold": 16,
+    "cropping": "mechanical equal-cell crop using rounded fifths/two halves; no painting, retouching or per-cell resizing",
+    "contactSheet": "output/commute-rider-v2-review/directional-idle-contact.png"
+  },
+  "checks": {
+    "allTenCellsNonEmpty": true,
+    "allCellsWithinMarginsAtThreshold16": true,
+    "neutralGroundContactYByDirection": [
+      392,
+      392,
+      393,
+      394,
+      393
+    ],
+    "settleGroundContactYByDirection": [
+      384,
+      384,
+      385,
+      385,
+      385
+    ],
+    "neutralMinusSettleGroundY": [
+      8,
+      8,
+      8,
+      9,
+      8
+    ],
+    "neutralSettleBaselineMatchesWithoutRegistration": false
+  },
+  "visualReview": {
+    "observations": [
+      "The five columns read as distinct back, back-right three-quarter, right profile, front-right three-quarter and front facings.",
+      "All ten poses use a closed opaque visor, enclosed helmet, brown one-piece leathers, gloves and broad boots; no species features are exposed.",
+      "The body silhouette retains the suit-up reference long torso and legs; helmet size is proportionate to the body rather than a large mascot head.",
+      "Each second-row pose makes a small settle adjustment while preserving its column facing."
+    ],
+    "remaining": [
+      "Settle row soles sit [8, 8, 8, 9, 8] source pixels above neutral row soles. The downstream compiler must register planted soles; do not play the raw rows without anchor alignment.",
+      "Native L\u00d6VE scale/contact comparison and runtime integration remain pending parent coordination."
+    ]
+  },
+  "frames": [
+    {
+      "direction": "north",
+      "pose": "neutral",
+      "sourceRect": [
+        0,
+        0,
+        397,
+        396
+      ],
+      "cellSize": [
+        397,
+        396
+      ],
+      "alphaBoundsThreshold16": [
+        105,
+        7,
+        342,
+        393
+      ],
+      "visibleSize": [
+        237,
+        386
+      ],
+      "groundContactY": 392,
+      "groundBandCenterX": 221.0,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "northeast",
+      "pose": "neutral",
+      "sourceRect": [
+        397,
+        0,
+        793,
+        396
+      ],
+      "cellSize": [
+        396,
+        396
+      ],
+      "alphaBoundsThreshold16": [
+        116,
+        8,
+        335,
+        393
+      ],
+      "visibleSize": [
+        219,
+        385
+      ],
+      "groundContactY": 392,
+      "groundBandCenterX": 223.5,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "east",
+      "pose": "neutral",
+      "sourceRect": [
+        793,
+        0,
+        1190,
+        396
+      ],
+      "cellSize": [
+        397,
+        396
+      ],
+      "alphaBoundsThreshold16": [
+        124,
+        8,
+        266,
+        394
+      ],
+      "visibleSize": [
+        142,
+        386
+      ],
+      "groundContactY": 393,
+      "groundBandCenterX": 190.75,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "southeast",
+      "pose": "neutral",
+      "sourceRect": [
+        1190,
+        0,
+        1586,
+        396
+      ],
+      "cellSize": [
+        396,
+        396
+      ],
+      "alphaBoundsThreshold16": [
+        58,
+        7,
+        291,
+        395
+      ],
+      "visibleSize": [
+        233,
+        388
+      ],
+      "groundContactY": 394,
+      "groundBandCenterX": 180.75,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "south",
+      "pose": "neutral",
+      "sourceRect": [
+        1586,
+        0,
+        1983,
+        396
+      ],
+      "cellSize": [
+        397,
+        396
+      ],
+      "alphaBoundsThreshold16": [
+        40,
+        7,
+        289,
+        394
+      ],
+      "visibleSize": [
+        249,
+        387
+      ],
+      "groundContactY": 393,
+      "groundBandCenterX": 163.0,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "north",
+      "pose": "settle",
+      "sourceRect": [
+        0,
+        396,
+        397,
+        793
+      ],
+      "cellSize": [
+        397,
+        397
+      ],
+      "alphaBoundsThreshold16": [
+        104,
+        7,
+        343,
+        385
+      ],
+      "visibleSize": [
+        239,
+        378
+      ],
+      "groundContactY": 384,
+      "groundBandCenterX": 223.5,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "northeast",
+      "pose": "settle",
+      "sourceRect": [
+        397,
+        396,
+        793,
+        793
+      ],
+      "cellSize": [
+        396,
+        397
+      ],
+      "alphaBoundsThreshold16": [
+        111,
+        8,
+        336,
+        385
+      ],
+      "visibleSize": [
+        225,
+        377
+      ],
+      "groundContactY": 384,
+      "groundBandCenterX": 221.5,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "east",
+      "pose": "settle",
+      "sourceRect": [
+        793,
+        396,
+        1190,
+        793
+      ],
+      "cellSize": [
+        397,
+        397
+      ],
+      "alphaBoundsThreshold16": [
+        124,
+        8,
+        265,
+        386
+      ],
+      "visibleSize": [
+        141,
+        378
+      ],
+      "groundContactY": 385,
+      "groundBandCenterX": 192.5,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "southeast",
+      "pose": "settle",
+      "sourceRect": [
+        1190,
+        396,
+        1586,
+        793
+      ],
+      "cellSize": [
+        396,
+        397
+      ],
+      "alphaBoundsThreshold16": [
+        60,
+        8,
+        292,
+        386
+      ],
+      "visibleSize": [
+        232,
+        378
+      ],
+      "groundContactY": 385,
+      "groundBandCenterX": 175.5,
+      "edgeClippedAtThreshold16": false
+    },
+    {
+      "direction": "south",
+      "pose": "settle",
+      "sourceRect": [
+        1586,
+        396,
+        1983,
+        793
+      ],
+      "cellSize": [
+        397,
+        397
+      ],
+      "alphaBoundsThreshold16": [
+        47,
+        8,
+        296,
+        386
+      ],
+      "visibleSize": [
+        249,
+        378
+      ],
+      "groundContactY": 385,
+      "groundBandCenterX": 164.5,
+      "edgeClippedAtThreshold16": false
+    }
+  ]
+}

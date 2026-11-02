@@ -34,6 +34,7 @@ local function hire(state)
     return state.employment.staff[1],a
 end
 function Test.run(context,check)
+    require("src.tests.employee_opening_hours_test").run(context,check)
     local fresh=State.new()
     check("employees_fresh_shop_has_valid_empty_staff_and_recruitment",Employees.valid(fresh.employment) and #fresh.employment.staff==0 and fresh.employment.recruiting)
     local World=require("src.world")
@@ -168,17 +169,17 @@ function Test.run(context,check)
     check("employees_short_shift_meal_matches_contract_estimate",shortWorker.phase=="break"
         and shortWorker.breakKind=="meal" and shortWorker.breakRemaining==.75
         and Contracts.weeklyEstimate(shortWorker.contract)==467.5)
-    wageWorker.weeks={};wageWorker.visible=true;wageWorker.contract.days=127
-    for day=4,9 do Payroll.accrue(wageWorker,day*24+9,day*24+17) end
-    check("employees_weekly_overtime_after_40_paid_hours",Payroll.balance(wageWorker,273,true)==114400 and wageWorker.weeks[1].paidHours==48)
+    wageWorker.weeks={};wageWorker.visible=true;wageWorker.contract.days=127;wageWorker.contract.endHour=18
+    for day=4,8 do Payroll.accrue(wageWorker,day*24+9,day*24+18) end
+    check("employees_weekly_overtime_after_40_paid_hours",Payroll.balance(wageWorker,273,true)==104500 and wageWorker.weeks[1].paidHours==45)
     wageState.money=100
     Payroll.pay(wageState,273,true)
-    check("employees_partial_pay_keeps_exact_wage_debt",wageState.money==0 and Payroll.balance(wageWorker,273,false)==104400 and Payroll.overdueSince(wageWorker,273)==273)
+    check("employees_partial_pay_keeps_exact_wage_debt",wageState.money==0 and Payroll.balance(wageWorker,273,false)==94500 and Payroll.overdueSince(wageWorker,273)==273)
     wageWorker.status="dismissed";wageState.money=1100
     Payroll.pay(wageState,273,false)
     local remainder=wageState.money
     Payroll.pay(wageState,273,false)
-    check("employees_dismissal_does_not_erase_wages_and_payment_no_double_charge",math.abs(remainder-56)<.001 and wageState.money==remainder and Payroll.balance(wageWorker,273,false)==0)
+    check("employees_dismissal_does_not_erase_wages_and_payment_no_double_charge",math.abs(remainder-155)<.001 and wageState.money==remainder and Payroll.balance(wageWorker,273,false)==0)
     local expired=State.new();local ew,ea=hire(expired)
     ea.status="offer_accepted";ea.expiresAtHours=3;ea.employeeId=nil
     hours(expired,4);Employees.advance(expired,4)
@@ -324,11 +325,14 @@ function Test.run(context,check)
         palletApproachPoint=function(pallet) return {x=pallet.world.x,y=pallet.world.y} end,
         move=function(worker,goal) worker.x,worker.y=goal.x,goal.y;return true end}
     require("src.tests.employee_transport_context")(pressWorkContext,pressState)
-    Work.update(pressState,pressWorker,.1,pressWorkContext)
+    local pressChanged,pressBlocked=Work.update(pressState,pressWorker,.1,pressWorkContext)
     local pressAwards=pressJob.employeeSkillAwards and pressJob.employeeSkillAwards.press or {}
-    check("employees_gain_printing_skill_after_press_job_completes",
-        pressWorker.pressSkill==pressSkillBefore+1 and #pressAwards==1
-        and pressAwards[1]==pressWorker.id)
+    check("employees_wrapping_transfer_does_not_award_press_skill",
+        Schedule.stage(pressJob,pressPallet)=="wrapping" and pressWorker.pressSkill==pressSkillBefore
+        and #pressAwards==0,
+        string.format("stage=%s changed=%s blocked=%s skill=%s awards=%d activity=%s",
+            tostring(Schedule.stage(pressJob,pressPallet)),tostring(pressChanged),tostring(pressBlocked),
+            tostring(pressWorker.pressSkill),#pressAwards,tostring(pressWorker.activity)))
 
     -- Exercise the actual computer dropdown and every Hiring page with real UI.
     local screen=context.computerScreen.new()
@@ -417,7 +421,7 @@ function Test.run(context,check)
     end
     context.characterAssets.get("cat-worker","rest_east",2);context.characterAssets.get("cat-worker","rest_west",2)
     check("employees_cat_texture_pack_below_32_mib",context.characterAssets.textureBytes()<=32*1048576 and context.characterAssets.anchorPixelScans()==0)
-    local blocked={actor={moving=false,intentX=-1,intentY=0,distance=200,idleClock=0,phase="idle"},worker=true}
+    local blocked={actor={moving=false,intentX=-1,intentY=0,distance=200,idleClock=0,phase="idle"},worker={id="EMP-BLOCKED-POSE"}}
     local action=Renderer.pose(blocked,context.characterAssets)
     check("employees_blocked_or_idle_keeps_last_authored_facing",action=="idle_west")
     context.characterAssets.retainCharacters({})

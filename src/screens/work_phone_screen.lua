@@ -37,7 +37,7 @@ end
 local function lightColor(call)
     if not call then return COLORS.idle end
     if call.kind == "customer_order" then return COLORS.customer end
-    if call.kind == "customer_status" then return COLORS.urgent end
+    if call.kind == "customer_status" or call.kind == "customer_complaint" then return COLORS.urgent end
     return COLORS.service
 end
 
@@ -57,9 +57,18 @@ local function drawLegend(x, y, color, label)
     love.graphics.print(label, x + 18, y)
 end
 
-local function directoryRow(index)
-    return { x = DIRECTORY.x, y = DIRECTORY.y + (index - 1) * (DIRECTORY.height + DIRECTORY.gap),
-        width = DIRECTORY.width, height = DIRECTORY.height }
+local function lastJobResponse(phone)
+    local last = phone and phone.history and phone.history[#phone.history]
+    if last and last.kind == "customer_status" and last.outcome == "completed" and last.response then
+        return last
+    end
+end
+
+local function directoryRow(index, compact)
+    local height, gap, startY = DIRECTORY.height, DIRECTORY.gap, DIRECTORY.y
+    if compact then height, gap, startY = 33, 2, 185 end
+    return { x = DIRECTORY.x, y = startY + (index - 1) * (height + gap),
+        width = DIRECTORY.width, height = height }
 end
 
 local function supplyRow(index)
@@ -75,6 +84,7 @@ end
 
 local function canAct(call)
     if not call then return false end
+    if call.connecting then return false end
     if call.direction ~= "outgoing" then return true end
     if call.kind == "outgoing_power" then return not call.response end
     return call.kind == "outgoing_supplier" and call.pendingItemIndex ~= nil and not call.orderId
@@ -82,7 +92,7 @@ end
 
 local function canOrderSupply(state, call, itemIndex, waiting)
     if waiting or not call or call.orderId or call.direction ~= "outgoing"
-        or call.kind ~= "outgoing_supplier" then return false end
+        or call.kind ~= "outgoing_supplier" or call.connecting or call.checkoutReady then return false end
     local item = Procurement.category(call.categoryIndex).items[itemIndex]
     return item ~= nil and item.available ~= false and (state.money or 0) >= (item.price or 0)
 end
@@ -109,11 +119,11 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     love.graphics.setColor(lamp)
     love.graphics.circle("fill", 98, 478, 8)
     love.graphics.setColor(0.82, 0.90, 0.90, 1)
-    love.graphics.printf(call and (call.direction == "outgoing" and "LINE CONNECTED"
+    love.graphics.printf(call and (call.direction == "outgoing" and (call.connecting and "DIALING..." or "LINE CONNECTED")
         or call.answered and "LINE CONNECTED" or "INCOMING CALL")
         or "DIAL TONE • LINE CLEAR", 116, 472, 262, "left")
     drawLegend(88, 516, COLORS.customer, "CUSTOMER / NEW ORDER")
-    drawLegend(88, 540, COLORS.service, "SUPPLIER OR SERVICE")
+    drawLegend(88, 540, COLORS.service, "SUPPLIER DELIVERY UPDATE")
     drawLegend(88, 564, COLORS.urgent, "URGENT JOB QUESTION")
 
     panel({ x = 432, y = 120, width = 426, height = 342 },
@@ -123,8 +133,12 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     if call then
         love.graphics.setColor(lamp)
         local reviewingOrder = call.pendingItemIndex ~= nil and not call.orderId
-        love.graphics.print(reviewingOrder and "ORDER REVIEW"
-            or (outgoing and "OUTGOING CALL" or (answered and call.role or "INCOMING CALL")), 458, 145)
+        local heading = call.connecting and (call.kind == "outgoing_power"
+            and "CALLING POWER COMPANY" or "CALLING SUPPLIER")
+            or call.checkoutReady and "CHECKOUT REVIEW"
+            or reviewingOrder and "SUPPLY SELECTED"
+            or (outgoing and "OUTGOING CALL" or (answered and call.role or "INCOMING CALL"))
+        love.graphics.print(heading, 458, 145)
         love.graphics.setColor(0.96, 0.83, 0.30, 1)
         love.graphics.printf(call.caller, 458, 178, 372, "left")
         love.graphics.setColor(0.72, 0.84, 0.86, 1)
@@ -132,15 +146,19 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
         love.graphics.setColor(0.90, 0.94, 0.92, 1)
         local callMessage = call.response or (answered and call.message
             or "Answer the call to hear what they have to say.")
+        if call.connecting then
+            callMessage = "Calling " .. tostring(call.caller) .. "...\nPlease wait for them to pick up."
+        end
         if reviewingOrder and outgoing and call.kind == "outgoing_supplier" then
             local item = Procurement.category(call.categoryIndex).items[call.pendingItemIndex]
             if item then
-                callMessage = string.format("Order: %s — $%d\nDock delivery. Does that look right?",
-                    shortProductName(item.name), item.price)
+                callMessage = call.checkoutReady and WorkPhone.checkoutMessage(state, call)
+                    or string.format("Selected: %s — $%d\nNo charge yet. Review checkout before placing the order.",
+                        shortProductName(item.name), item.price)
             end
         end
         love.graphics.printf(callMessage, 458, 246, 372, "left")
-        if outgoing and call.kind == "outgoing_supplier" then
+        if outgoing and call.kind == "outgoing_supplier" and not call.connecting and not call.checkoutReady then
             local category = Procurement.category(call.categoryIndex)
             for index, item in ipairs(category.items) do
                 local row = supplyRow(index)
@@ -166,27 +184,37 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
             love.graphics.printf("Answer to hear the caller's message.", 458, 405, 372, "left")
         end
     else
+        local lastUpdate = lastJobResponse(phone)
         love.graphics.setColor(0.72, 0.84, 0.86, 1)
         love.graphics.print("CONTACT DIRECTORY", 458, 145)
         love.graphics.setColor(0.90, 0.94, 0.92, 1)
         love.graphics.printf("Pick up the receiver and dial a contact.", 458, 170, 372, "left")
         for index, contact in ipairs(WorkPhone.contacts()) do
-            local row = directoryRow(index)
+            local row = directoryRow(index, lastUpdate ~= nil)
             local hovered = pointerX and pointerY and Ui.contains(row, pointerX, pointerY)
             panel(row, hovered and { 0.13, 0.34, 0.32, 1 } or { 0.07, 0.15, 0.18, 1 },
                 hovered and { 0.25, 0.78, 0.70, 1 } or { 0.20, 0.46, 0.52, 1 })
             love.graphics.setColor(0.96, 0.83, 0.30, 1)
-            love.graphics.print(contact.name, row.x + 10, row.y + 5)
+            love.graphics.print(contact.name, row.x + 10, row.y + (lastUpdate and 2 or 5))
             love.graphics.setColor(0.69, 0.79, 0.81, 1)
-            love.graphics.printf(contact.description, row.x + 10, row.y + 24, row.width - 20, "left")
+            love.graphics.printf(contact.description, row.x + 10, row.y + (lastUpdate and 17 or 24),
+                row.width - 20, "left")
+        end
+        if lastUpdate then
+            love.graphics.setColor(0.96, 0.83, 0.30, 1)
+            love.graphics.printf("OUR RESPONSE TO " .. tostring(lastUpdate.caller), 458, 362, 372, "left")
+            love.graphics.setColor(0.90, 0.94, 0.92, 1)
+            love.graphics.printf(lastUpdate.response, 458, 381, 372, "left")
         end
     end
 
     local actionEnabled = canAct(call) and not waiting
     local actionLabel = call and (answered and WorkPhone.actionLabel(state) or "ANSWER") or "NO CALL"
     button(ACTION, actionLabel, actionEnabled, pointerX, pointerY)
-    button(HANG_UP, call and (call.pendingItemIndex and "CANCEL ORDER"
-        or (answered and "HANG UP" or "DECLINE CALL")) or "NO CALL",
+    local hangUpLabel = call and (call.kind == "outgoing_supplier" and call.checkoutReady
+        and "BACK TO ITEMS" or call.pendingItemIndex and "CANCEL ORDER"
+        or (answered and "HANG UP" or "DECLINE CALL")) or "NO CALL"
+    button(HANG_UP, hangUpLabel,
         call ~= nil and not waiting, pointerX, pointerY,
         { 0.38, 0.13, 0.19, 1 }, { 0.88, 0.30, 0.42, 1 })
 end
@@ -195,14 +223,16 @@ function Screen.remoteIntent(state, x, y)
     if Ui.contains(CLOSE, x, y) then return "close" end
     local call = state.workPhone and state.workPhone.incoming
     if not call then
+        local compact = lastJobResponse(WorkPhone.ensure(state)) ~= nil
         for index, contact in ipairs(WorkPhone.contacts()) do
-            if Ui.contains(directoryRow(index), x, y) then
+            if Ui.contains(directoryRow(index, compact), x, y) then
                 return "phone_call", { contactId = contact.id }
             end
         end
         return nil
     end
-    if call.direction == "outgoing" and call.kind == "outgoing_supplier" and not call.orderId then
+    if call.direction == "outgoing" and call.kind == "outgoing_supplier"
+        and not call.orderId and not call.connecting and not call.checkoutReady then
         local category = Procurement.category(call.categoryIndex)
         for index, _ in ipairs(category.items) do
             if canOrderSupply(state, call, index) and Ui.contains(supplyRow(index), x, y) then
@@ -220,8 +250,9 @@ function Screen.mousepressed(state, x, y, button)
     if Ui.contains(CLOSE, x, y) then return { action = "close" } end
     local call = WorkPhone.ensure(state).incoming
     if not call then
+        local compact = lastJobResponse(state.workPhone) ~= nil
         for index, contact in ipairs(WorkPhone.contacts()) do
-            if Ui.contains(directoryRow(index), x, y) then
+            if Ui.contains(directoryRow(index, compact), x, y) then
                 local connected, result = WorkPhone.placeCall(state, contact.id)
                 if connected then return { action = "call_started", call = result } end
                 state.message = tostring(result)
@@ -230,7 +261,8 @@ function Screen.mousepressed(state, x, y, button)
         end
         return nil
     end
-    if call.direction == "outgoing" and call.kind == "outgoing_supplier" and not call.orderId then
+    if call.direction == "outgoing" and call.kind == "outgoing_supplier"
+        and not call.orderId and not call.connecting and not call.checkoutReady then
         local category = Procurement.category(call.categoryIndex)
         for index, _ in ipairs(category.items) do
             if Ui.contains(supplyRow(index), x, y) and canOrderSupply(state, call, index) then
@@ -257,9 +289,10 @@ function Screen.mousepressed(state, x, y, button)
         return { action = "blocked" }
     end
     if Ui.contains(HANG_UP, x, y) then
+        local returningToItems = call.kind == "outgoing_supplier" and call.checkoutReady
         local ended, response = WorkPhone.dismiss(state)
         if ended then
-            return { action = "call_ended", response = response }
+            return { action = returningToItems and "checkout_closed" or "call_ended", response = response }
         end
         return { action = "blocked" }
     end

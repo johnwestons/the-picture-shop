@@ -12,6 +12,7 @@ function Component.install(Runtime)
             if Runtime.inside(Runtime.maintenanceBack, x, y) then Runtime.Screen.maintenanceView = nil; return true end
             if Runtime.inside(Runtime.oilServiceButton, x, y) then return action("begin_lubrication") end
             if Runtime.inside(Runtime.bladeServiceButton, x, y) then return action("begin_blade") end
+            if Runtime.inside(Runtime.spareBladeButton, x, y) then return action("install_spare_blade") end
             if Runtime.inside(Runtime.technicianButton, x, y) then return action("book_blade_technician") end
             if Runtime.inside(Runtime.weeklyButton, x, y) then
                 local _, cutter = Runtime.MachineMaintenance.cutterStatus(state)

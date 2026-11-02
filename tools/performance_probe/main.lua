@@ -1,6 +1,7 @@
 -- Real-engine measurements using fresh, private test saves only.
 local output = assert(os.getenv("PICTURE_SHOP_PERFORMANCE_OUTPUT"))
 local rows, counters = {}, {}
+local profiler = os.getenv("PICTURE_SHOP_PERFORMANCE_PROFILE") == "1" and require("jit.profile")
 local function count(target, key, name)
     local original = target[key]
     target[key] = function(...)
@@ -8,15 +9,22 @@ local function count(target, key, name)
         return original(...)
     end
 end
-local function measure(name, repetitions, run)
+local function measure(name, repetitions, run, afterSample)
     collectgarbage("collect")
     local samples, before = {}, {}
     for key, value in pairs(counters) do before[key] = value end
+    local stacks = {}
+    if profiler then profiler.start("i1", function(thread, count)
+        local stack = profiler.dumpstack(thread, "pl\n", 10)
+        stacks[stack] = (stacks[stack] or 0) + count
+    end) end
     for index = 1, repetitions do
         local started = love.timer.getTime()
         run(index)
         samples[index] = (love.timer.getTime() - started) * 1000
+        if afterSample then afterSample(index) end
     end
+    if profiler then profiler.stop() end
     local first=samples[1]
     table.sort(samples)
     local total = 0
@@ -25,6 +33,11 @@ local function measure(name, repetitions, run)
         max_ms=samples[#samples], repetitions=repetitions,first_ms=first,
         warm_mean_ms=repetitions>1 and (total-first)/(repetitions-1) or total}
     for key, value in pairs(counters) do row[key] = value - (before[key] or 0) end
+    if profiler then
+        row.profile = {}
+        for stack, count in pairs(stacks) do row.profile[#row.profile+1] = {stack=stack,samples=count} end
+        table.sort(row.profile,function(a,b) return a.samples>b.samples end)
+    end
     rows[#rows+1] = row
     print(string.format("%s mean=%.3fms p95=%.3fms max=%.3fms decodes=%d reads=%d saves=%d",
         name,row.mean_ms,row.p95_ms,row.max_ms,row.image_decodes or 0,row.file_reads or 0,row.saves or 0))
@@ -66,6 +79,9 @@ function love.load()
     measure("module_startup",1,function() app=require("src.app") end)
     local runtime=runtimeOf(app.load)
     measure("asset_and_app_startup",1,function() app.load() end)
+    -- Keep the older synchronous comparison rows reproducible. The stall
+    -- scenarios below explicitly exercise the real asynchronous pipeline.
+    require("src.image_loader").setEnabled(false)
     assert(#runtime.state.assetErrors==0,table.concat(runtime.state.assetErrors,"\n"))
     local mobile=os.getenv("PICTURE_SHOP_MOBILE")=="1"
     local width,height=mobile and 1600 or 960,mobile and 720 or 678
@@ -90,6 +106,12 @@ function love.load()
     local function draw()
         love.graphics.setCanvas({canvas,stencil=true});app.draw();love.graphics.setCanvas()
         love.graphics.flushBatch()
+    end
+    local function capture(name)
+        local data=canvas:newImageData()
+        local encoded=data:encode("png")
+        local file=assert(io.open(output.."/"..name..".png","wb"))
+        file:write(encoded:getString());file:close();data:release();encoded:release()
     end
     measure("world_draw",180,draw)
     runtime.state.screen="machine"
@@ -147,6 +169,7 @@ function love.load()
     end)
     rows[#rows].additional_gpu_texture_bytes=love.graphics.getStats().texturememory-gpuBefore
     require("tools.performance_probe.crowded_shop")(runtime,app,measure,draw,rows)
+    require("tools.performance_probe.stalls")(runtime,app,measure,draw,rows,capture)
     local result=require("tools.performance_probe.json")({rows=rows,
         active_texture_bytes=assets.textureBytes()+characters.textureBytes(),
         cached_texture_bytes=assets.cachedTextureBytes()+characters.cachedTextureBytes(),
@@ -155,5 +178,6 @@ function love.load()
         gpu_texture_bytes=love.graphics.getStats().texturememory})
     local file=assert(io.open(output.."/measurements.json","wb"));file:write(result);file:close()
     if app.sound then app.sound:shutdown() end
+    runtime.Save.shutdown()
     love.event.quit(0)
 end

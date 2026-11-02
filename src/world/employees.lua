@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local JackFleet = require("src.pallet_jack_fleet")
+local EmployeeHighFive = require("src.employee_high_five")
 
 function Component.install(Runtime)
     local jackFloors=setmetatable({}, {__mode="k"})
@@ -18,7 +19,7 @@ function Component.install(Runtime)
 
     function Runtime.World.requestEmployeeResume(state,applicationId)
         local ok,message=Runtime.Employees.requestResume(state,applicationId,Runtime.BusinessCalendar.absoluteHours(state))
-        state.message=message
+        state.message=ok and "You: Yeah, we are. Can you email me your resume?" or message
         return ok
     end
 
@@ -32,8 +33,33 @@ function Component.install(Runtime)
         local ok,message=Runtime.Employees.command(state,
             {kind="decline_application",applicationId=applicationId},
             Runtime.BusinessCalendar.absoluteHours(state))
-        state.message=message
+        state.message=ok and "You: No, we aren't hiring right now, sorry." or message
         return ok
+    end
+
+    function Runtime.World.highFiveEmployee(state,employeeId)
+        local worker=Runtime.Employees.worker(state,employeeId)
+        local speech=require("src.employee_speech")
+        if not worker or worker.status~="employed" or not worker.visible
+            or worker.greetingKind~=speech.EMPLOYEE_HIGH_FIVE_REQUEST then
+            state.message="That employee isn't asking for a high five anymore."
+            return false
+        end
+        local player=Runtime.World.player
+        local scene=require("src.shop_rooms").scene(player)
+        if (worker.sceneId or "warehouse")~=scene
+            or (player.x-worker.x)^2+(player.y-worker.y)^2>82^2 then
+            state.message="Move closer to the employee to high five them."
+            return false
+        end
+        worker.greetingKind=speech.EMPLOYEE_HIGH_FIVE_THANKS
+        worker.greetingUntilHours=Runtime.BusinessCalendar.absoluteHours(state)
+            +speech.GREETING_SECONDS*24/Runtime.BusinessCalendar.secondsPerDay(state)
+        player.employeeHighFiveAnimation={elapsed=0,duration=.95,partnerX=worker.x,partnerId=0}
+        player.facing=worker.x<player.x and -1 or 1
+        EmployeeHighFive.start(worker.id,player.x,player.y)
+        state.message="You and "..worker.name.." high-fived!"
+        return true
     end
 
     function Runtime.World.employeeContext(state,assets)

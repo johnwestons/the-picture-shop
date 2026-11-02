@@ -70,6 +70,7 @@ function Plates.order(state, job, colorIndex)
     local cost = math.max(1, math.ceil(((budget and budget.plateCost) or 38.5) / colors * 100) / 100)
     if (state.money or 0) < cost then return false, "Not enough cash to outsource this plate." end
     state.money = state.money - cost
+    require("src.household_finances").record(state,"services",cost*100)
     plate.status, plate.source = "ordered", "outsourced"
     plate.orderedAtHours = BusinessCalendar.absoluteHours(state)
     plate.readyAtHours = plate.orderedAtHours + 24

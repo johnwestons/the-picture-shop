@@ -1,0 +1,206 @@
+{
+  "check": "Read-only PNG alpha, canvas, exterior-corner and representative floor/wall probes; not an in-engine registration test",
+  "allPassed": false,
+  "files": [
+    {
+      "file": "brick-walkup-floor-fixtures-v2.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 819123,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        253,
+        253
+      ],
+      "sha256": "73613e84de3b2ec481263ac0c0a616df3fd7f7bff42739bba1a8d6a769512a42",
+      "passed": true
+    },
+    {
+      "file": "brick-walkup-walls.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 679015,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        0,
+        0
+      ],
+      "sha256": "a36519bd6c78b4f087841321690c6643c966f01da7c65b668e017898c7b27eb1",
+      "passed": true
+    },
+    {
+      "file": "garden-floor-fixtures.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 826943,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        253,
+        253
+      ],
+      "sha256": "8d5439df58dacb69df7e8ea73987ef75f64bdccab6ccbde706b2c81b8786b88a",
+      "passed": true
+    },
+    {
+      "file": "garden-walls.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 720117,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        0,
+        0
+      ],
+      "sha256": "2b6ea606feac6c1c01b4c722f658f66135d24c708974c56ddd294d78e469f3cd",
+      "passed": true
+    },
+    {
+      "file": "courtyard-floor-fixtures.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 751131,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        253,
+        253
+      ],
+      "sha256": "b36ce3b5f4e6eef01a01c359843d16d27e7a3486a6b5716834ac2c5acc6e151a",
+      "passed": true
+    },
+    {
+      "file": "courtyard-walls-v2.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 669846,
+      "cornerAlpha": [
+        0,
+        0,
+        1,
+        0
+      ],
+      "roomProbeAlpha": [
+        0,
+        0
+      ],
+      "sha256": "9664a0a340c7e23a1a5d603689edcbbf204d21663ad63972a533ecf7e99f5b93",
+      "passed": false
+    },
+    {
+      "file": "corner-floor-fixtures.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 807166,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        253,
+        253
+      ],
+      "sha256": "75a44a5857e09da56967e1c7bc938b14d99fb62048ae7177febd0436f74a5d5c",
+      "passed": true
+    },
+    {
+      "file": "corner-walls-v2.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "fullyTransparentPixels": 697032,
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "roomProbeAlpha": [
+        0,
+        0
+      ],
+      "sha256": "c6169051cfdd105ef82c2ccea6083779e9452ac2e283bb6d5f45a17f13f8e1a8",
+      "passed": true
+    }
+  ]
+}

@@ -24,6 +24,7 @@ local Employees = require("src.employees")
 
 local SHARED_FIELDS = {
     "money",
+    "home",
     "inventory",
     "shopProgress",
     "cutterMemory",
@@ -67,6 +68,9 @@ end
 function State.applySave(state, payload)
     local saved = type(payload) == "table" and payload.state
     if type(state) ~= "table" or not SaveSchema.validPhysicalSource(saved) then return false end
+    local home=require("src.home").normalize(saved.home,
+        type(saved.calendar)=="table" and saved.calendar.totalDays or 0)
+    if not home then return false end
     local employment=Employees.normalize(saved.employment,BusinessCalendar.absoluteHours(saved))
     if not employment then return false end
     local warehouse = WarehouseUpgrades.normalize(saved.warehouse)
@@ -94,6 +98,7 @@ function State.applySave(state, payload)
     saved = SaveSchema.copy(saved)
 
     state.activeSlot = payload.slot
+    state.home = home
     state.money = type(saved.money) == "number" and saved.money or 0
     state.inventory = type(saved.inventory) == "table" and saved.inventory or {}
     state.inventory.paper = type(state.inventory.paper) == "number" and state.inventory.paper or 0

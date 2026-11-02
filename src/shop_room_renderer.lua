@@ -127,6 +127,7 @@ function Renderer.drawShelves(assets,state,sceneId,drawPallet)
             -- Restore the authored front lip over the load; its shelf contact
             -- stays visible and the skid reads behind, rather than on a beam.
             local image=background(state,sceneId,assets)
+            if not image then return end
             local halfWidth=sceneId=="warehouse" and 31 or 52
             love.graphics.stencil(function()
                 love.graphics.polygon("fill",point.x-halfWidth,point.y+2,

@@ -69,6 +69,20 @@ for _, viewport in ipairs({{name="desktop",width=960,height=678}, {name="mobile"
         role=role,action="walk-north-"..role}
      end
     end
+    for _,role in ipairs({"host","guest"}) do
+        for directionIndex,direction in ipairs(directions) do
+            local view=require("src.character_animation").authoredDirection(direction[1],direction[2])
+            local phaseCount=role=="host" and 8 or 1
+            for frame=1,phaseCount do
+                queue[#queue+1]={viewport=viewport,kind="suited-walk",character="suited-rider",
+                    frame=frame,role=role,direction=direction,directionIndex=directionIndex,
+                    action="suited-walk-"..role.."-"..view.."-"..frame}
+            end
+            queue[#queue+1]={viewport=viewport,kind="suited-idle",character="suited-rider",
+                frame=1,role=role,direction=direction,directionIndex=directionIndex,
+                action="suited-idle-"..role.."-"..view}
+        end
+    end
     for _, profile in ipairs(Catalog.profiles) do
         for frame=1,8 do
             queue[#queue+1] = {viewport=viewport, kind="directions", character=profile.character, frame=frame}
@@ -143,7 +157,8 @@ for _, viewport in ipairs({{name="desktop",width=960,height=678}, {name="mobile"
     end
 end
 local focus=os.getenv("PICTURE_SHOP_ANIMATION_REVIEW_FOCUS") or "all"
-if focus=="jack" or focus=="player-walk" or focus=="employee-walk" or focus=="construction"
+if focus=="jack" or focus=="player-walk" or focus=="suited-walk" or focus=="suited-idle"
+    or focus=="employee-walk" or focus=="construction"
     or focus=="machine-motion" then
     local selected={};for _,scene in ipairs(queue) do if scene.kind==focus then selected[#selected+1]=scene end end
     queue=selected
@@ -191,6 +206,8 @@ local function prepare()
         local description=focus=="construction" and "Construction visitor eight-view gait and planted neutral/brief alternate poses."
             or focus=="employee-walk" and "Cat south-walk canonical phases through host and guest employee renderers."
             or focus=="player-walk" and "Player north-walk canonical phases through local and remote renderers."
+            or focus=="suited-walk" and "Suited rider directional walk through local and remote production renderers."
+            or focus=="suited-idle" and "Suited rider directional idle through local and remote production renderers."
             or focus=="jack" and "Mid-drawing pallet-jack gait samples through host and guest pose packets in east and northwest views."
             or focus=="machine-motion" and "Cutter cut, safety-stop, reset-return, and home states through production scene rendering; host and decoded guest views."
             or "High-five, employee gait/work/break, technician idle/walk, and pallet-jack host/guest samples."
@@ -418,6 +435,29 @@ local function prepare()
         World.player.highFiveAnimation = {elapsed=scene.time*.95,duration=.95,partnerX=530,partnerId=2}
         remotes = {{id=2,name="Partner",character="rabbit-worker",x=530,y=555,facing=-1,
             intentX=-1,intentY=0,moving=false,highFiveAnimation={elapsed=scene.time*.95,duration=.95,partnerX=470,partnerId=1}}}
+    elseif scene.kind=="suited-walk" or scene.kind=="suited-idle" then
+        local Gear=require("src.commute.gear")
+        local suitedGear=Gear.new();suitedGear.outfit="geared"
+        state.home.residents={owner={ridingGear=nil}}
+        remotes={}
+        World.player.id,World.player.character=1,"rabbit-worker"
+        World.player.highFiveAnimation=nil;World.player.taskAction=nil;World.player.resting=false
+        World.player.moving=scene.kind=="suited-walk" and scene.role=="host"
+        World.player.intentX,World.player.intentY=scene.direction[1],scene.direction[2]
+        World.player.velocityX,World.player.velocityY=scene.direction[1],scene.direction[2]
+        World.player.animationDistance=(scene.frame-1)*Config.player.walkPixelsPerFrame+.01
+        World.player.idleClock=scene.frame*.3
+        World.player.x,World.player.y=scene.role=="host" and 470 or 70,555
+        if scene.role=="host" then
+            state.home.residents.owner.ridingGear=suitedGear
+        else
+            state.home.residents["guest-1"]={activePlayerId=2,ridingGear=suitedGear}
+            remotes={{id=2,homeResidentId="guest-1",name="Guest",character="rabbit-worker",sceneId="warehouse",
+                x=470,y=555,facing=1,moving=scene.kind=="suited-walk",
+                intentX=scene.direction[1],intentY=scene.direction[2],
+                velocityX=scene.direction[1],velocityY=scene.direction[2],
+                animationDistance=World.player.animationDistance,idleClock=World.player.idleClock}}
+        end
     elseif scene.kind:match("^technician%-") then
         World.player.x,World.player.y=420,555
         World.player.highFiveAnimation=nil
@@ -517,7 +557,7 @@ function love.draw()
     Characters.beginFrame()
     if scene.kind=="machine-motion" then
         MachineScreen.drawCutterScene(Assets,scene.machineModel,{x=60,y=59,width=840,height=560})
-    elseif scene.kind == "high-five" or scene.kind=="work-contact" or scene.kind=="jack" or scene.kind=="player-walk" or scene.kind=="employee-walk" or scene.kind=="construction" or scene.kind:match("^technician%-") then Renderer.draw(World,Assets,Characters,state,nil,nil,remotes)
+    elseif scene.kind == "high-five" or scene.kind=="work-contact" or scene.kind=="jack" or scene.kind=="player-walk" or scene.kind=="suited-walk" or scene.kind=="suited-idle" or scene.kind=="employee-walk" or scene.kind=="construction" or scene.kind:match("^technician%-") then Renderer.draw(World,Assets,Characters,state,nil,nil,remotes)
     else Lab.draw(Characters) end
     peak = math.max(peak,Characters.textureBytes())
     sourcePeak=math.max(sourcePeak,require("src.warehouse_renderer").sourceTextureBytes())

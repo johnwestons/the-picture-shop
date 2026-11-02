@@ -45,6 +45,28 @@ function Component.install(Runtime)
         Runtime.App.gameClockSyncClock = 0
         Runtime.App.gameClockSaveClock = 0
         Runtime.World.load(payload.player)
+        require('src.commute.runtime').release(Runtime)
+        Runtime._weekendScene,Runtime._weekendPromptToken=nil,nil
+        local week=require("src.weekend_flow").ensure(Runtime.state)
+        require("src.home_residents").recover(Runtime.state)
+        Runtime.World.player.homeResidentId="owner";Runtime.World.player.homeJoinedAtHours=nil
+        require("src.home_travel").clearRequest(week)
+        if Runtime.state.home.commute then
+            require('src.commute.runtime').restore(Runtime)
+        elseif week.phase=="home" then
+            Runtime.World.player.sceneId="home"
+            if not payload.player or payload.player.sceneId~="home" then
+                Runtime.World.player.x,Runtime.World.player.y=require("src.home_layouts").spawn(Runtime.state,1)
+            end
+        end
+        if Runtime.World.player.sceneId=="home" then
+            local rooms=require("src.shop_rooms")
+            local assets=rooms.assets(Runtime.Assets,"home",Runtime.state)
+            local p=Runtime.World.player
+            if not require("src.navigation").isWalkable(assets,p.x,p.y,{}) then
+                p.x,p.y=require("src.home_layouts").spawn(Runtime.state,1)
+            end
+        end
         require("src.air_hockey").clear()
         require("src.basketball").clear()
         require("src.basketball_controls").clear(Runtime)

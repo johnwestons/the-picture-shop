@@ -13,6 +13,7 @@ local Speech=require("src.employee_speech")
 local Transport=require("src.employee_pallet_jack")
 local BreakroomGames=require("src.breakroom_games")
 local AI={}
+local EmployeeHighFive=require("src.employee_high_five")
 local Navigator=require("src.npc_navigation")
 local GaitMotion=require("src.gait_motion")
 local entrance=Config.customer.route[1]
@@ -104,8 +105,10 @@ local function applications(state,dt,now,context)
     return changed
 end
 local function breakChoice(w,now)
-    local elapsed=now-Contracts.shiftDay(w.contract,now)*24-w.contract.startHour
-    local duration=Contracts.duration(w.contract)
+    local first,last=Contracts.shiftBounds(w.contract,Contracts.shiftDay(w.contract,now))
+    if not first then return nil end
+    local elapsed=now-first
+    local duration=last-first
     for _,b in ipairs({{at=2,bit=1,kind="rest",duration=.25},
         {at=3,bit=2,kind="meal",duration=.75}}) do
         if b.at+b.duration<=duration and elapsed>=b.at
@@ -185,6 +188,10 @@ local function trainingStep(state,w,dt,hours,context)
     return true
 end
 function AI.worker(state,w,dt,now,context)
+    if EmployeeHighFive.get(w.id) then
+        w.moving=false
+        return false
+    end
     if w.pendingSchedule and not Contracts.onShift(w.contract,now) then
         local terms=w.pendingSchedule
         terms.revision=w.contract.revision
@@ -198,12 +205,21 @@ function AI.worker(state,w,dt,now,context)
     local day=Contracts.shiftDay(w.contract,now)
     local onShift=w.status=="employed" and not w.terminationRequested
         and w.sentHomeShiftDay~=day and Contracts.onShift(w.contract,now)
+        and require("src.weekend_flow").acceptsNewWork(state)
     local overdue=Payroll.overdueSince(w,now)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
     if onShift and not w.visible then
         w.visible=true;w.phase="entering";w.x,w.y=entrance.x,entrance.y;w.clockedIn=true
-        w.greetingKind=now%24<12 and 1 or 2
-        w.greetingUntilHours=now+Speech.GREETING_SECONDS*24/Calendar.secondsPerDay(state)
+        local highFiveCooldownHours=7*24
+        if not w.lastHighFiveRequestAtHours
+            or now-w.lastHighFiveRequestAtHours>=highFiveCooldownHours then
+            w.greetingKind=Speech.EMPLOYEE_HIGH_FIVE_REQUEST
+            w.lastHighFiveRequestAtHours=now
+            w.greetingUntilHours=now+Speech.HIGH_FIVE_SECONDS*24/Calendar.secondsPerDay(state)
+        else
+            w.greetingKind=now%24<12 and 1 or 2
+            w.greetingUntilHours=now+Speech.GREETING_SECONDS*24/Calendar.secondsPerDay(state)
+        end
         w.activity=w.assignment and "Resuming unfinished job" or "Arriving for shift"
         if w.shiftDay~=day then w.shiftDay=day;w.breaksTaken=0;w.fatigue=math.max(0,w.fatigue-60);w.focus=math.min(100,w.focus+50) end
     end
@@ -235,7 +251,7 @@ function AI.worker(state,w,dt,now,context)
                 end
                 w.clockedIn=false
                 if w.phase~="break" or not (w.activity or ""):match("^Playing .+ after shift$") then
-                    local game=afterShiftGame(state,w,day)
+                    local game=require("src.weekend_flow").acceptsNewWork(state) and afterShiftGame(state,w,day)
                     if game then
                         local info=BreakroomGames.CATALOG[game.gameId]
                         w.phase="break";w.seatBay=game.bayId;w.breakKind="rest"

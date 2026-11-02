@@ -19,7 +19,13 @@ function Bootstrap.install()
         end
     end
 
-    if os.getenv("PICTURE_SHOP_CRISIS_PREVIEW") == "1" then
+    if os.getenv("PICTURE_SHOP_COMMUTE_RESET") == "1" then
+        require("tools.commute_lab.reset_saves")
+    elseif os.getenv("PICTURE_SHOP_COMMUTE_LAB") == "1" then
+        love.filesystem.setIdentity(os.getenv("PICTURE_SHOP_RIDE_PREVIEW")=="1"
+            and "the-picture-shop-motorcycle-preview" or "the-picture-shop-commute-lab")
+        require("tools.commute_lab.main")
+    elseif os.getenv("PICTURE_SHOP_CRISIS_PREVIEW") == "1" then
         love.filesystem.setIdentity("the-picture-shop-crisis-preview")
         require("tools.critter_crisis_preview.main")
     elseif os.getenv("PICTURE_SHOP_PERFORMANCE_PROBE") == "1" then

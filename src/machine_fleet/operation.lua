@@ -3,11 +3,19 @@
 local Component = {}
 
 function Component.install(Runtime)
+    function Runtime.Fleet.isGameplayEnabled(modelId)
+        for _, enabledModelId in ipairs(Runtime.Fleet.order) do
+            if enabledModelId == modelId then return true end
+        end
+        return false
+    end
+
     function Runtime.Fleet.byId(state, machineId)
         return Runtime.indexedMachine(state, machineId)
     end
 
     function Runtime.Fleet.installed(state, modelId, machineId)
+        if not Runtime.Fleet.isGameplayEnabled(modelId) then return nil end
         local first
         local activeId = machineId or state._operatingMachineId
             or ((state.screen == "machine" or state.screen == "press") and state.machineId)
@@ -31,8 +39,10 @@ function Component.install(Runtime)
 
     function Runtime.Fleet.installedUnits(state, modelId)
         local units = {}
+        if modelId ~= nil and not Runtime.Fleet.isGameplayEnabled(modelId) then return units end
         for _, item in ipairs(Runtime.Fleet.current(state).items) do
-            if item.status == "installed" and (modelId == nil or item.modelId == modelId) then
+            if item.status == "installed" and Runtime.Fleet.isGameplayEnabled(item.modelId)
+                and (modelId == nil or item.modelId == modelId) then
                 units[#units + 1] = item
             end
         end
@@ -108,7 +118,8 @@ function Component.install(Runtime)
         if not item or not model then return false, "Machine not found." end
         local stock = state.inventory and state.inventory.stock or {}
         if (stock.maintenance_kit or 0) < 1 then return false, "A machine maintenance kit is required." end
-        local consumed, consumptionError = Runtime.Procurement.consumePhysicalProduct(state, "maintenance_kit", 1, {allowAbstract=true})
+        local consumed, consumptionError = Runtime.Procurement.consumePhysicalProduct(state, "maintenance_kit", 1,
+            { allowAbstract = true, autoShelf = true })
         if not consumed then return false, consumptionError end
         local total, count = 0, 0
         for componentId in pairs(model.components) do

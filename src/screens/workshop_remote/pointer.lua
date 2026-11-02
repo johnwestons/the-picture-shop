@@ -42,6 +42,7 @@ function Component.install(Runtime)
             local result = Runtime.Screen.sharedComputer.mousepressed(Runtime.Screen.guiState, x, y, button)
             if not Runtime.Screen.waiting and Runtime.Screen.guiState.message~=oldMessage then Runtime.Screen.status=Runtime.Screen.guiState.message end
             if result and result.action == "close" then return Runtime.Screen.canClose() and { action = "close" } or true end
+            if result and result.action == "home_activity" then return Runtime.Screen.canClose() and result or true end
             if result and result.action == "pickup_ready" then return Runtime.request(sendCommand, "request_pickup", { jobId = result.job.id }) end
             return result
         end
@@ -208,6 +209,9 @@ function Component.install(Runtime)
                         return Runtime.cutterServiceButtonEnabled("set_weekly_technician", state)
                             and Runtime.request(sendCommand, "set_weekly_technician",
                                 { enabled = Runtime.cutterMaintenanceStatus(state).weeklyTechnician ~= true }) or true
+                    elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.installSpare, x, y) then
+                        return Runtime.cutterServiceButtonEnabled("install_spare_blade", state)
+                            and Runtime.request(sendCommand, "install_spare_blade", {}) or true
                     end
                 elseif serviceStep == "lockout_disconnect" or serviceStep == "lockout_key"
                     or serviceStep == "lockout_tag" or serviceStep == "prep_cartridge"

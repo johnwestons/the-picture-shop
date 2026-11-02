@@ -35,6 +35,7 @@ end
 function Renderer.clearCache()
     WarehouseRenderer.clearCache()
     require("src.shop_room_renderer").clearCache()
+    require("src.home_renderer").clearCache()
 end
 
 function Renderer.machineUnitsInScene(state, sceneId)
@@ -387,6 +388,15 @@ local function drawRegalFolder(assets, placement)
         station.drawScale, station.drawScale, sprite.width / 2, sprite.height * 0.96)
 end
 
+local function drawChandlerPrice(assets, placement)
+    local image = assets.get("chandlerPriceFrontLeft")
+    if not image then return end
+    local scale = Config.chandlerPricePlacement.drawScale
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, placement.x, placement.y, 0,
+        scale, scale, image:getWidth() / 2, image:getHeight() * 0.96)
+end
+
 local function drawWrapper(assets, state, placement)
     local wrapper = placement or WrapperPlacement.ensure(state, Config.wrapperPlacement)
     local image = assets.get("skidWrapperDirections")
@@ -450,9 +460,10 @@ local pushFacing = {
 
 local function drawPlayer(characterAssets,state)
     local player = World.player
+    if require('src.commute.presentation').indoor(player,state,characterAssets) then return end
     if require("src.basketball_renderer").draw(player,state) then return end
     local character = player.character or Config.player.character
-    local highFive = player.highFiveAnimation
+    local highFive = player.employeeHighFiveAnimation or player.highFiveAnimation
     local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
     local resting=player.resting and characterAssets.hasAction(character,"sit")
     local jack=state and state.palletJack
@@ -562,6 +573,12 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local sameRoomPlayers={}
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,World.player) then sameRoomPlayers[#sameRoomPlayers+1]=p end end
     remotePlayers=sameRoomPlayers
+    if Rooms.scene(World.player)=="home" then
+        require("src.home_renderer").draw(World,assets,characterAssets,state,remotePlayers,
+            function() drawPlayer(characterAssets,state) end)
+        WarehouseRenderer.endFrame()
+        return
+    end
     if Rooms.scene(World.player)~="warehouse" then
         require("src.shop_room_renderer").drawRoom(World,assets,characterAssets,state,remotePlayers,
             function() drawPlayer(characterAssets,state) end,drawPallet,drawPalletJack,
@@ -569,8 +586,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             function(machine)
                 if machine.modelId=="polar_115" then drawCutter(assets,state,machine.world)
                 elseif machine.modelId=="skid_wrapper" then drawWrapper(assets,state,machine.world)
-                elseif machine.modelId=="heidelberg_10x15" then drawWindmill(assets,state,machine.world)
-                elseif machine.modelId=="regal_moll" then drawRegalFolder(assets,machine.world) end
+                elseif machine.modelId=="heidelberg_10x15" then drawWindmill(assets,state,machine.world) end
             end,physicalPallets)
         WarehouseRenderer.endFrame()
         return
@@ -627,10 +643,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     for _, machine in ipairs(Renderer.machineUnitsInScene(state, "warehouse")) do
         if machine.world then
             local storedMachine = machine
-            if storedMachine.modelId == "regal_moll" then
-                actors[#actors + 1] = { y = storedMachine.world.y, layer = 0,
-                    draw = function() drawRegalFolder(assets, storedMachine.world) end }
-            elseif storedMachine.modelId == "polar_115" then
+            if storedMachine.modelId == "polar_115" then
                 actors[#actors + 1] = { y = storedMachine.world.moving and jack.y or storedMachine.world.y,
                     layer = storedMachine.world.moving and 2 or 0,
                     draw = function() drawCutter(assets, state, storedMachine.world) end }

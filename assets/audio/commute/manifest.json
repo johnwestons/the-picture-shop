@@ -1,0 +1,128 @@
+{
+  "author": "The Picture Shop original procedural sound design",
+  "generator": "tools/generate_motorcycle_audio.py",
+  "sample_rate": 44100,
+  "seed": 20261101,
+  "files": [
+    {
+      "file": "engine-1400.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": 1400,
+      "peak": 0.5374084448450497,
+      "rms": 0.18999999999999997,
+      "seam_delta": 0.0016100524632228774,
+      "sha256": "c807caae037e295768420be59d13542fa09aa257f12e40ecb366436c3d8761b2"
+    },
+    {
+      "file": "engine-3000.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": 3000,
+      "peak": 0.47644087224769005,
+      "rms": 0.19000000000000003,
+      "seam_delta": 0.05913318505414039,
+      "sha256": "140d43f844b0482ef859e4030e7581241bc4c265dbee9d56fb684f6863ba90e0"
+    },
+    {
+      "file": "engine-5000.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": 5000,
+      "peak": 0.44096911522348653,
+      "rms": 0.18999999999999997,
+      "seam_delta": 0.00016298562133720829,
+      "sha256": "ded75a480666584d49e6faaeb0e565de2a7064eb07dc5e7121bdb19d8881fea1"
+    },
+    {
+      "file": "engine-7500.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": 7500,
+      "peak": 0.42916523093728304,
+      "rms": 0.19000000000000003,
+      "seam_delta": 0.0009985555824234549,
+      "sha256": "f0a062049231d3cf3040c9d71e2ee76d6b46f663063bf9a91d0d42341b96774c"
+    },
+    {
+      "file": "wind.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": null,
+      "peak": 0.72,
+      "rms": 0.13847024713351805,
+      "seam_delta": 0.007666891395698983,
+      "sha256": "ca2a998223af6c249423ec40541fafdc75942ff9ecfffc329b60e99d9bbf48d8"
+    },
+    {
+      "file": "tires.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": null,
+      "peak": 0.72,
+      "rms": 0.15761814414098832,
+      "seam_delta": 0.019500764519772555,
+      "sha256": "7c15e9e0772c004a4a12d3d201f188f3a8e9c49bb0893d50c11cd4cfe41d38f9"
+    },
+    {
+      "file": "intake.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": null,
+      "peak": 0.72,
+      "rms": 0.16499119702322995,
+      "seam_delta": 0.011435911918022887,
+      "sha256": "45ad60fa1401b89af4e81d9c2793e62bdb5a4c2eb973a7f34be116b4be9a4a04"
+    },
+    {
+      "file": "brake.wav",
+      "seconds": 6.0,
+      "loop": true,
+      "rpm": null,
+      "peak": 0.7199999999999999,
+      "rms": 0.16788117508333383,
+      "seam_delta": 0.02509187936227139,
+      "sha256": "ef1a4f942ef91920fa24465f1326e772629e5797753c8932b3c72355fb2922c5"
+    },
+    {
+      "file": "ignition.wav",
+      "seconds": 0.85,
+      "loop": false,
+      "rpm": null,
+      "peak": 0.7199999999999999,
+      "rms": 0.0667682454036546,
+      "seam_delta": 0.0,
+      "sha256": "a104e4bc34e27263474079acb2e61b80728d0ab7e484275dd509b7f35c560eab"
+    },
+    {
+      "file": "shutdown.wav",
+      "seconds": 0.48,
+      "loop": false,
+      "rpm": null,
+      "peak": 0.5189316800637455,
+      "rms": 0.08304472453393667,
+      "seam_delta": 0.0,
+      "sha256": "ab75c56261094761a2de708c5cb291a9a51caf748e682810d608e378fbce9396"
+    },
+    {
+      "file": "shift.wav",
+      "seconds": 0.13,
+      "loop": false,
+      "rpm": null,
+      "peak": 0.37080358931272644,
+      "rms": 0.055411605975779474,
+      "seam_delta": 0.0,
+      "sha256": "f6dbb69fa920d0dfff183adf5d38e4c9f851cb342d532e3d95ee1f3c9c45f834"
+    },
+    {
+      "file": "impact.wav",
+      "seconds": 0.3,
+      "loop": false,
+      "rpm": null,
+      "peak": 0.46011302382897323,
+      "rms": 0.060160638998574094,
+      "seam_delta": 0.0,
+      "sha256": "6176415703f03e1f28eac2eaf1477adea0e6c717c2f5df1ee01623bcca6fa169"
+    }
+  ]
+}

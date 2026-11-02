@@ -8,6 +8,9 @@ function Component.install(Runtime)
     function Runtime.App.officeFitsScreen()
         return Runtime.state.screen == "computer"
             or Runtime.state.screen == "shop_rooms"
+            or Runtime.state.screen == "home_travel"
+            or Runtime.state.screen == "home_activity"
+            or Runtime.state.screen == "home_furnish"
             or Runtime.state.screen == "air_hockey"
             or Runtime.state.screen == "critter_kombat"
             or Runtime.state.screen == "workshop_remote" and Runtime.WorkshopRemoteScreen.resourceId == "office_computer"
@@ -27,11 +30,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.cameraTransformsWorld()
+        if Runtime.World.player.sceneId=='commute' then return false end
         return Runtime.state.screen == "world" and Runtime.App.mobileCamera
             and (Runtime.App.mobileCamera:isEnabled() or Runtime.App.settings and Runtime.App.settings.followPlayerCamera)
     end
 
     function Runtime.cameraViewKey()
+        if Runtime.state.screen=="world" and Runtime.World.player.sceneId=="home" then return "world:home" end
         if Runtime.state.screen == "machine" then return "machine:" .. tostring(Runtime.state.machineType or "unknown") end
         return tostring(Runtime.state.screen)
     end

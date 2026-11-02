@@ -40,15 +40,13 @@ function Finances.summary(state,proposed,skill)
     local standard={pallets={{requiredLifts=1,paper={cuts={1,2,3,4}}}}}
     local function budget(w)
         local weekly=Contracts.weeklyEstimate(w.contract)
+        if weekly<=0 then return end
         local allowance=Labor.estimate(state,standard,w)
         result.weeklyWages=result.weeklyWages+weekly
         result.cycleReserve=result.cycleReserve+weekly*w.contract.payWeeks
         result.pricePerLift=math.max(result.pricePerLift,allowance.minimumCuttingCharge)
         result.machinePerLift=math.max(result.machinePerLift,allowance.machineCost)
-        local days=0
-        for day=1,7 do if Contracts.hasDay(w.contract.days,day) then days=days+1 end end
-        operators[#operators+1]={terms=w.contract,
-            perHour=Contracts.productiveHours(w.contract)/Contracts.duration(w.contract)/allowance.productiveHours}
+        operators[#operators+1]={terms=w.contract,perHour=1/allowance.productiveHours}
     end
     for _,w in ipairs(state.employment and state.employment.staff or {}) do
         if w.status=="employed" and not w.terminationRequested then budget(w) end
@@ -63,10 +61,11 @@ function Finances.summary(state,proposed,skill)
         local available={}
         for _,operator in ipairs(operators) do
             local t=operator.terms
-            local shiftDay=math.floor((at-t.startHour)/24)
-            local elapsed=at-(shiftDay*24+t.startHour)
-            if Contracts.hasDay(t.days,shiftDay%7+1) and elapsed<Contracts.duration(t) then
-                available[#available+1]=operator.perHour
+            local actual=at+4*24;local shiftDay=Contracts.shiftDay(t,actual)
+            local first,last=Contracts.shiftBounds(t,shiftDay)
+            if first and actual>=first and actual<last then
+                local duration,_,productive=Contracts.shiftMetrics(t,shiftDay)
+                available[#available+1]=operator.perHour*productive/duration
             end
         end
         table.sort(available,function(a,b) return a>b end)
@@ -85,12 +84,22 @@ function Finances.summary(state,proposed,skill)
     end
     result.weeklyLoans=cents(payments*7/days)
     result.weeklyFixed=cents(result.weeklyWages+result.weeklyOperating+result.weeklyLoans)
+    -- Quotes need to recover the whole weekly shop budget at estimated cutter
+    -- capacity, not just the direct labor and machine cost of one lift. The
+    -- base $150/lift rate remains in effect whenever it already covers this.
+    local estimatedCapacity=result.capacity
+    if estimatedCapacity>0 and result.weeklyFixed>0 then
+        local margin=require("src.press_economics").assumptions.targetGrossMargin
+        local costPerLift=result.weeklyFixed/estimatedCapacity+result.machinePerLift
+        local budgetCharge=math.ceil(costPerLift/math.max(.01,1-margin)/5)*5
+        result.pricePerLift=math.max(result.pricePerLift,budgetCharge)
+    end
     result.earnedUnpaid=state.employment and Payroll.total(state,Calendar.absoluteHours(state),true)/100 or 0
     result.billsDue=(state.bills and state.bills.balance or 0)+loanDue
     result.freeCash=cents((state.money or 0)-result.earnedUnpaid-result.billsDue)
     result.contributionPerLift=result.pricePerLift-result.machinePerLift
     result.breakEvenLifts=math.ceil(result.weeklyFixed/math.max(.01,result.contributionPerLift))
-    result.capacity=math.floor(result.capacity)
+    result.capacity=math.floor(estimatedCapacity)
     inHouseForecast(state,result)
     return result
 end

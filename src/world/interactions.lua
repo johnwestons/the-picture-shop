@@ -5,8 +5,14 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.interactables(player)
         player = player or Runtime.World.player
+        if Runtime.World._state and not require('src.commute.outfit').allowed(Runtime.World._state,player,'work') then
+            return {homeTravel=require('src.home_travel').target(player,Runtime.World._state)}
+        end
         local Rooms=require("src.shop_rooms")
         local targets = Rooms.targets(player, Runtime.World._state)
+        targets.homeTravel=require("src.home_travel").target(player,Runtime.World._state)
+        targets.homeDelivery=require("src.home_shopping").target(player,Runtime.World._state)
+        if Rooms.scene(player)=="home" then return targets end
         local function addTarget(kind, target, key)
             Runtime.MultiplayerCapabilities.requireInteraction(kind)
             if target then
@@ -31,6 +37,21 @@ function Component.install(Runtime)
             local target=Runtime.PalletJack.interaction(player,jackState,Runtime.Config.palletJack)
             target.jackId=jack.id
             addTarget("palletJack",target)
+        end
+        if Runtime.World._state then
+            local employeeOptions=Runtime.World._employeeOptions
+            local networkClient=employeeOptions and employeeOptions.isNetworkClient
+                and employeeOptions.isNetworkClient()
+            for _,worker in ipairs(Runtime.Employees.ensure(Runtime.World._state).staff) do
+                if worker.status=="employed" and worker.visible
+                    and worker.greetingKind==require("src.employee_speech").EMPLOYEE_HIGH_FIVE_REQUEST
+                    and (worker.sceneId or "warehouse")==Rooms.scene(player) then
+                    addTarget("employeeHighFive",{x=worker.x,y=worker.y,radius=82,
+                        employeeId=worker.id,actionLabel="HIGH FIVE",
+                        prompt=networkClient and "The shop owner handles employee high fives"
+                            or "E: high five "..worker.name})
+                end
+            end
         end
         if Runtime.World._state then
             local fleet=require("src.pallet_jack_fleet")
@@ -121,10 +142,10 @@ function Component.install(Runtime)
                     local networkClient=employeeOptions and employeeOptions.isNetworkClient
                         and employeeOptions.isNetworkClient()
                     addTarget("applicant",{x=a.actor.x,y=a.actor.y,radius=68,applicationId=a.id,
-                        actionLabel="TALK",
+                        actionLabel="EMAIL RESUME",
                         prompt=networkClient
                             and "The shop owner handles employment applications"
-                            or "E: talk to applicant   X: dismiss applicant"})
+                            or "E: EMAIL RESUME | X: NOT HIRING"})
                 end
             end
         end
@@ -219,14 +240,6 @@ function Component.install(Runtime)
                     machineId = item.id,
                 }, "windmill:" .. item.id) end
             end
-            for _, folder in ipairs(Runtime.MachineFleet.installedUnits(Runtime.World._state, "regal_moll")) do
-                if folder.world then
-                    addTarget("regalFolder", { x = folder.world.x, y = folder.world.y,
-                        radius = Runtime.Config.regalFolderPlacement.interactionRadius,
-                        machineId = folder.id,
-                        prompt = "E: run Regal Moll folder practice batch" }, "regalFolder:" .. folder.id)
-                end
-            end
             local lift = Runtime.Forklift.ensure(Runtime.World._state, Runtime.Config.forklift)
             if lift.owned and (lift.sceneId or "warehouse")=="warehouse" then
                 addTarget("forklift", {x=lift.x,y=lift.y,radius=(Runtime.Config.forklift and Runtime.Config.forklift.interactionRadius) or 76,
@@ -282,6 +295,7 @@ function Component.install(Runtime)
             stickiness = Runtime.Config.player.interactionStickiness,
             facingWeight = Runtime.Config.player.interactionFacingWeight,
         })
+        if require("src.shop_rooms").scene(player)=="home" then return ordinary end
         local pickup = Runtime.World.palletPickupSnapshot(Runtime.World._state, cursorX, cursorY, player)
         return require("src.pallet_pickup").interaction(pickup, player, ordinary)
     end

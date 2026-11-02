@@ -68,6 +68,8 @@ function Component.install(Runtime)
                     or (cutter.centralLubricationInstalled ~= nil
                         and type(cutter.centralLubricationInstalled) ~= "boolean")
                     or type(cutter.bladeRemoved) ~= "boolean" or type(cutter.bladeInSleeve) ~= "boolean"
+                    or (cutter.spareBladeInstalled ~= nil and type(cutter.spareBladeInstalled) ~= "boolean")
+                    or (cutter.spareBladeInstalled == true and (cutter.bladeRemoved or not cutter.bladeInSleeve))
                     or type(cutter.weeklyTechnician) ~= "boolean"
                     or (cutter.nextTechnicianDay ~= nil and type(cutter.nextTechnicianDay) ~= "number")
                     or (cutter.appointmentType ~= nil and cutter.appointmentType ~= "weekly"

@@ -1,0 +1,17 @@
+EAST WALK REPAIR CANDIDATE V2 — 4 columns x 2 rows, eight separate animation frames.
+
+Use the transparent east idle crop as the sole identity and body-proportion reference: the same tall, longer-torso, longer-leg suited animal rider; full-face bronze helmet enclosing ears; brown one-piece leather suit, gloves, broad boots. Preserve its silhouette and helmet-to-body ratio. Do not use any old commute-rider-v1/chibi imagery. Use east-eight-phase-guide.png only as the limb-order diagram: its BLUE line is the near, anatomical RIGHT side, and its RED line is the far, anatomical LEFT side. Do not copy the diagram's gray figure, colors, or style.
+
+One exact east-facing side profile, facing screen-right, in every cell. Camera and ground plane fixed. Show both anatomical legs and both arms clearly; keep the far leg offset enough from the near leg to read. Stable torso, same scale, same materials, same light, same head angle. Ground line is common. Make the movement legible from the silhouette, not just hand motion. Transparent background. No captions, arrows, labels, shadows that obscure soles, extra figures, props, scenery, or sheet dividers. Use generous empty gutters between cells so no limb crosses a cell boundary. Read left-to-right across row 1, then row 2.
+
+Exact phases and limb placement:
+1 LEFT CONTACT: far anatomical LEFT leg (RED) reaches forward to screen-right with a clear heel strike; near anatomical RIGHT leg (BLUE) extends behind to screen-left. Opposite arms: near RIGHT arm reaches forward; far LEFT arm swings back.
+2 LEFT DOWN: far LEFT foot stays planted ahead and accepts weight; left knee softens and the torso is subtly at its lowest point. Near RIGHT foot trails behind and begins toe-off. Arms continue opposing the legs.
+3 RIGHT PASSING: far LEFT support leg is nearly vertical under the hip; near RIGHT leg passes forward directly beneath the pelvis, with knee bent and foot close to the ground. This is a compact crossed-through pose, not a long forward reach or a rear kick. Arms pass through a compact neutral exchange.
+4 RIGHT UP: near RIGHT leg swings forward with a clearly bent, lifted knee and toe off the ground; far LEFT leg supports under/behind the hip. Far LEFT arm swings forward while near RIGHT arm swings back.
+5 RIGHT CONTACT: near anatomical RIGHT leg (BLUE) reaches forward to screen-right with a distinct heel strike; far LEFT leg trails behind. This must visibly oppose frame 1's planted leg. Far LEFT arm forward, near RIGHT arm back.
+6 RIGHT DOWN: near RIGHT foot stays planted in front, knee softens and body is subtly lowest; far LEFT foot trails behind and begins toe-off. Arms continue counter-swing.
+7 LEFT PASSING: near RIGHT support leg is nearly vertical under the hip; far LEFT leg passes forward under the pelvis with a bent knee and foot close to the ground. Compact center-crossing pose, not a long forward reach or rear kick. Arms exchange through neutral.
+8 LEFT UP: far LEFT leg swings forward with a clearly bent lifted knee and toe off the ground; near RIGHT leg supports under/behind the hip. Near RIGHT arm swings forward while far LEFT arm swings back.
+
+Critical opposite-pair checks: frames 1 and 5 must plant opposite feet and show opposite arm placement; frames 4 and 8 must lift opposite knees; frames 3 and 7 must pass opposite legs directly under the hip, with feet compact and low. Keep the silhouette anatomically coherent, grounded, and clearly phase-separated. No two key poses may repeat the same leading leg.

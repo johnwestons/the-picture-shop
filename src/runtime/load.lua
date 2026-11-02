@@ -39,7 +39,7 @@ function Component.install(Runtime)
             end})
         Runtime.ComputerScreen.configureGameClock({
             getSpeed=function() return Runtime.App.gameClockSpeed or 1 end,
-            canChange=function() return not Runtime.multiplayer:isClient() end,
+            canChange=function() return not Runtime.multiplayer:isClient() and not (Runtime.state.home and Runtime.state.home.weekend.phase=="home") end,
             setSpeed=function(speed) return Runtime.App.setGameClockSpeed(speed) end,
         })
         Runtime.ComputerScreen.configureRadio({
@@ -71,8 +71,9 @@ function Component.install(Runtime)
             pressPointer = Runtime.dispatchMousePressed,
             movePointer = Runtime.dispatchMouseMoved,
             releasePointer = Runtime.dispatchMouseReleased,
-            gameplayActive = function() return Runtime.state.screen == "world" end,
+            gameplayActive = function() return Runtime.state.screen == "world" and not require('src.commute.runtime').active(Runtime) end,
             gestureActive = function()
+                if require('src.commute.runtime').active(Runtime) then return false end
                 return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and not Runtime.spriteLabActive
                     and not Runtime.App.officeFitsScreen()
                     and not (Runtime.state.screen == "options" and Runtime.OptionsScreen.isControlsTab())

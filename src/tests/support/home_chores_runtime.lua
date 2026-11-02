@@ -1,0 +1,65 @@
+local Test={}
+function Test.run(R,check)
+    local state,p=R.state,R.World.player;local Layout=require("src.home_layouts")
+    local Calendar=require("src.business_calendar");local Activity=require("src.home_activity_controls")
+    local c=state.home.chores
+    local function advance(minutes) R.App.update(Calendar.secondsPerDay(state)/1440*minutes) end
+    local function open(id)
+        state.screen="world";p.x,p.y=Layout.toWorld(unpack(Layout.get(state).fixtures[id].approach))
+        local target=Layout.targets(p,state)["home_"..id]
+        R.World.updateNetworkPlayer(0,0,0,R.Assets,state,target.hoverX,target.hoverY);R.App.keypressed("e")
+        assert(state.screen=="home_activity","Expected home fixture menu: "..id)
+    end
+    local function capture(name,menu)
+        local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR");if not folder then return end
+        local canvas=love.graphics.newCanvas(960,678);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear()
+        R.World.draw(R.Assets,R.CharacterAssets,state,nil,nil,{})
+        if menu then Activity.draw(R) end
+        love.graphics.pop();local data=canvas:newImageData();local bytes=data:encode("png")
+        local file=assert(io.open(folder.."/"..name..".png","wb"));file:write(bytes:getString());file:close()
+        bytes:release();data:release();canvas:release()
+    end
+    state.screen="world";R.App.keypressed("h");R.App.keypressed("2");advance(15)
+    check("home_chores_runtime_eating_leaves_dishes_and_trash",c.dishes==1 and c.trash==1)
+    open("sink");capture("home-dishes-menu",true);Activity.mousepressed(400,425,1,R)
+    check("home_chores_runtime_dishes_pose",require("src.home_routine_pose").get(state,p).routine=="dishes")
+    capture("home-dishes-working");advance(5)
+    check("home_chores_runtime_touch_washes_dishes",c.dishes==0 and c.soil.kitchen==0)
+    open("laundry");R.App.keypressed("return")
+    check("home_chores_runtime_loading_pose",require("src.home_routine_pose").get(state,p).routine=="loadwash")
+    capture("home-laundry-loading");advance(5)
+    check("home_chores_runtime_loading_starts_washer",c.laundry.phase=="washing" and c.laundry.dirty==0 and not state.home.residents.owner.activity)
+    capture("home-laundry-running-menu",true);R.App.keypressed("escape");capture("home-laundry-running")
+    assert(R.saveCurrent(true));local saved=assert(R.Save.load(3))
+    check("home_chores_runtime_saves_running_washer",saved.state.home.chores.laundry.phase=="washing" and saved.state.home.chores.laundry.cycle==c.laundry.cycle)
+    R.App.keypressed("h");R.App.keypressed("1");advance(45)
+    check("home_chores_runtime_can_rest_during_cycle",c.laundry.phase=="ready" and state.home.residents.owner.activity.kind=="rest" and c.laundry.clean==0)
+    R.App.keypressed("backspace");R.App.keypressed("escape");capture("home-laundry-ready")
+    open("laundry");capture("home-laundry-ready-menu",true);R.App.keypressed("return");advance(5)
+    check("home_chores_runtime_unload_produces_clean_clothes",c.laundry.phase=="idle" and c.laundry.clean==1)
+    state.home.residents.owner.hygiene=10;R.App.keypressed("return");advance(2)
+    check("home_chores_runtime_changing_uses_clean_clothes",c.laundry.clean==0 and state.home.residents.owner.hygiene>44)
+    open("toilet");R.App.keypressed("return");advance(5)
+    open("bath");capture("home-bathroom-cleaning-menu",true);Activity.mousepressed(400,375,1,R)
+    local scrubPose=assert(require("src.home_routine_pose").get(state,p))
+    check("home_chores_runtime_scrub_uses_directional_cloth",scrubPose.action=="home_wipe_"..scrubPose.direction and scrubPose.frame==1)
+    capture("home-bathroom-scrubbing");advance(8)
+    check("home_chores_runtime_touch_cleans_bathroom",c.soil.bathroom==0)
+    state.screen="world";p.x,p.y=Layout.spawn(state,1);R.App.keypressed("h");R.App.keypressed("right");R.App.keypressed("1")
+    local trashPose=assert(require("src.home_routine_pose").get(state,p))
+    check("home_chores_runtime_trash_uses_authored_pickup",trashPose.action=="home_trash_"..trashPose.direction and trashPose.frame==1)
+    capture("home-trash-pickup");advance(1)
+    check("home_chores_runtime_trash_lifts_bag",require("src.home_routine_pose").get(state,p).frame>=3)
+    capture("home-trash-holding");advance(4)
+    check("home_chores_runtime_takes_trash_out_at_door",c.trash==0)
+    -- A heavily used floor makes the persistent dirt overlay easy to inspect.
+    c.soil.living=65;capture("home-dirty-floor")
+    state.screen="world";R.App.keypressed("h");R.App.keypressed("3")
+    check("home_chores_runtime_sweeping_pose",require("src.home_routine_pose").get(state,p).routine=="sweep")
+    capture("home-floor-sweeping");advance(8)
+    check("home_chores_runtime_sweeping_reduces_visible_dirt",c.soil.living>25 and c.soil.living<26)
+    assert(R.saveCurrent(true));saved=assert(R.Save.load(3))
+    check("home_chores_runtime_saves_cleaning_results",saved.state.home.chores.trash==0 and saved.state.home.chores.soil.bathroom==0
+        and math.abs(saved.state.home.chores.soil.living-c.soil.living)<1e-8)
+end
+return Test

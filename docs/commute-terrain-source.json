@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "upstreamProject": "Critter Party",
+  "upstreamRoot": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\Critter Party",
+  "terrainPreset": {
+    "name": "inland-town-v1",
+    "seed": 4261,
+    "size": 512,
+    "playableBounds": [56, 458],
+    "bridgeCrossing": { "x0": 290, "x1": 380, "z": 270 },
+    "river": { "id": "town-river", "waterLevel": 0, "flow": "north-to-south" }
+  },
+  "copiedFiles": [
+    {
+      "source": "src/mathx.lua",
+      "destination": "src/commute/vendor/mathx.lua",
+      "sourceSha256": "A67E3BD443911F196B4FF1D8B0EDD73C9318A5F34A4D956A25176C09CB96887B",
+      "localSha256": "A67E3BD443911F196B4FF1D8B0EDD73C9318A5F34A4D956A25176C09CB96887B",
+      "adaptation": "Pinned byte-for-byte copy."
+    },
+    {
+      "source": "src/world_config.lua",
+      "destination": "src/commute/vendor/world_config.lua",
+      "sourceSha256": "3FC5119043F92E511E8B528DFEEE7E239D66F7CCCBD8D4D42A8B82AE14474CCE",
+      "localSha256": "4B2316763A44CE7BF973130C684936CF99FAD6CDA8AD1101574CAE4C14161624",
+      "adaptation": "Only the mathx require path was changed to the commute vendor namespace."
+    },
+    {
+      "source": "src/island_plan.lua",
+      "destination": "src/commute/vendor/island_plan.lua",
+      "sourceSha256": "935E7A2504E8E94BC5DA05003E7FB9A467AAE0DA79DDD02CDB7F2BEF2B0C3CA0",
+      "localSha256": "ACDCDE3DF96255C4682806C500158995A715D43270FD60AE2EAAB10AA313E711",
+      "adaptation": "Vendor requires use the commute namespace. Added fixed Plan.newTown(), inland terrain relief, a deterministic north-south river, bridge metadata, and no-coast behavior while reusing the source grid, channel, habitat, and relief routines."
+    },
+    {
+      "source": "src/terrain.lua",
+      "destination": "src/commute/vendor/terrain.lua",
+      "sourceSha256": "AED590909BAAA03EF3540CF2F28AAF4B243DA1A8996215F895537C0D7DB67153",
+      "localSha256": "F5BDC560299A2CBB01625CA4CFD7FD9EB76146FBB11C8BE10E1E31B31DA562F1",
+      "adaptation": "Only the mathx, ground_materials, and world_config require paths were changed to the commute vendor namespace."
+    },
+    {
+      "source": "src/ground_materials.lua",
+      "destination": "src/commute/vendor/ground_materials.lua",
+      "sourceSha256": "2886072FC3E099F33FAAE4CAEA577C5D764F21571F0A2D60705ABA9571C20B6B",
+      "localSha256": "BE1894FB75D2F89B47BF4A0DCA2B17CD3EE00D673B53E5AB709EA0A66A573F8E",
+      "adaptation": "Only the mathx require path was changed to the commute vendor namespace."
+    }
+  ],
+  "localAdaptations": [
+    {
+      "path": "src/commute/terrain.lua",
+      "sha256": "EE9960E07E721DD11F550A4A525CE4CC541FCFA8741012EA3A6E61CE95E0903D",
+      "description": "Fixed-seed town world adapter; intentionally leaves world.height ungraded for the road grading layer."
+    },
+    {
+      "path": "src/commute/tests/terrain_test.lua",
+      "sha256": "1D3BC3C3D180BC5B33CD2D27B08B19BD66675226B0E22F1CEEF8E2A440EC6288",
+      "description": "CPU-only Test.run(check) coverage for determinism, terrain bounds, hills, river, bridge metadata, inland edges, and habitat axes."
+    }
+  ],
+  "adaptedSources": [
+    {
+      "source": "src/streamed_world.lua",
+      "sourceSha256": "C5D6E69DF82CEADE9D9F59F5501225E1053ABA5DCF84B8DB48A307E6CFA6B401",
+      "adaptedFiles": [
+        {
+          "path": "src/commute/vegetation.lua",
+          "sha256": "3C25966C29E527A82C19F4980E845E3E38426B716E24CB1C81475A115388F165"
+        },
+        {
+          "path": "src/commute/tests/vegetation_test.lua",
+          "sha256": "F1E69027C03C2FF0BE8A0876E7DD35499DE0E9A827503FA6E876FDCFA9D677AC"
+        }
+      ],
+      "adaptation": "Adapted deterministic 4m-cell candidate IDs, jitter, habitat weighting, and rare redbud/dogwood slots into a 16m LRU patch cache. Town palette is limited to oak, pine, redbud, dogwood, grass, and bramble; no lifecycle, ecology simulation, or Critter Party files were imported."
+    }
+  ]
+}

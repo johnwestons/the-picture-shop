@@ -109,6 +109,8 @@ function Component.install(Runtime)
         "Paper Lantern Theater Group",
     }
 
+    -- Stock source is the customer's written choice: these requests mix client
+    -- supplied stock with jobs that ask the shop to use house paper.
     Runtime.pressTemplates = {
         {
             difficulty = "easy",
@@ -154,12 +156,12 @@ function Component.install(Runtime)
             artworkKey = "ad-photos",
             artwork = { key = "ad-photos", displayName = "Maple Street Reading Series Poster",
                 fileName = "maple-street-reading-series.png", suppliedBy = "client", orientation = "portrait" },
-            stockSpec = { suppliedBy = "client", grade = "cover", weight = 90, finish = "uncoated",
-                color = "cream", grain = "long", description = "90 lb cream uncoated cover" },
+            stockSpec = { suppliedBy = "house", grade = "text", weight = 20, finish = "uncoated",
+                color = "white", grain = "long", description = "20 lb house paper" },
             press = { colors = 2, coverage = 0.42, artworkSize = { width = 5.4, height = 8.25 },
                 colorSequence = { "Forest Green", "Black" }, requestedCopies = { 2000 } },
-            details = { stockDescription = "90 lb cream uncoated cover", dueDate = "Six business days",
-                grainDirection = "Grain long", notes = "Client supplied poster art and 100 extra sheets for proofing and spoilage." },
+            details = { stockDescription = "20 lb house paper", dueDate = "Six business days",
+                grainDirection = "Grain long", notes = "Please print the supplied poster artwork on shop-supplied house paper." },
         },
     }
 

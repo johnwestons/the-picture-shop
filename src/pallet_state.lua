@@ -433,7 +433,7 @@ function PalletState.transition(state, pallet, target, options)
     return true, pallet
 end
 
--- Packaging supplies can be consumed directly from an accessible rack. This is a
+-- Purchased supplies can be consumed directly from an accessible rack. This is a
 -- narrow inventory operation: ordinary job pallets still need a real storage
 -- transfer, and a shelf slot is released only when its vendor pallet is empty.
 function PalletState.consumeVendorProduct(state, pallet)

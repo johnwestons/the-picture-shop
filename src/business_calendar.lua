@@ -170,6 +170,7 @@ end
 
 function Calendar.update(state, dt)
     local date = Calendar.ensure(state)
+    require("src.household_finances").ensure(state)
     local secondsPerDay = Calendar.secondsPerDay(state)
     date.elapsed = date.elapsed + math.max(0, tonumber(dt) or 0)
     local daysAdvanced, newestInvoice = 0, nil
@@ -178,10 +179,17 @@ function Calendar.update(state, dt)
         newestInvoice = advanceDay(state) or newestInvoice
         daysAdvanced = daysAdvanced + 1
     end
+    require("src.household_finances").accrue(state)
+    local homeRentPosted=require("src.home").advance(state)
+    local homeDeliveryPosted=require("src.home_shopping").advance(state)
     if newestInvoice then
         state.message = string.format("Monthly bills posted: $%d due. Pay them on the office computer.", state.bills.balance)
+    elseif homeRentPosted then
+        state.message="Apartment rent is due. Check My Home on CritterNet."
+    elseif homeDeliveryPosted then
+        state.message="A home delivery is waiting at your apartment entrance."
     end
-    return daysAdvanced > 0, newestInvoice
+    return daysAdvanced > 0 or homeRentPosted or homeDeliveryPosted, newestInvoice
 end
 
 function Calendar.amountDue(state)
@@ -210,24 +218,26 @@ function Calendar.pay(state)
     return true, amount
 end
 
-function Calendar.addCharge(state, label, amount, reference)
+function Calendar.addCharge(state, label, amount, reference, kind)
     local date, bills = Calendar.ensure(state)
     amount = math.max(1, math.floor(tonumber(amount) or 1))
     local invoice = {
         id = string.format("CLAIM-%04d", bills.nextInvoiceId),
         year = date.year,
         month = date.month,
-        charges = { { id = "customer_stock", label = tostring(label or "Customer stock replacement"), amount = amount } },
+        charges = { { id = (kind == "customer_refund" or kind == "shop_rework") and kind or "customer_stock",
+            label = tostring(label or "Customer stock replacement"), amount = amount } },
         total = amount,
         status = "unpaid",
         issuedOnDay = date.totalDays,
         dueOnDay = date.totalDays,
         reference = reference,
-        kind = "spoil_claim",
+        kind = (kind == "customer_refund" or kind == "shop_rework") and kind or "spoil_claim",
     }
     bills.nextInvoiceId = bills.nextInvoiceId + 1
     bills.balance = bills.balance + amount
     bills.ledger[#bills.ledger + 1] = invoice
+    require("src.household_finances").record(state,"refunds",amount*100)
     return invoice
 end
 
@@ -389,12 +399,16 @@ function Calendar.events(state,twelveHour)
     -- discover estimate details, reminders, and decisions only after they
     -- actually arrive, not by reading their hidden delivery time here.
     for _, email in ipairs(emails.inbox or {}) do
-        addHours(email.receivedAtHours, "Email received: " .. email.sender, "email", email.subject,
-            email.id .. ":received")
+        if email.noticeKind ~= "shift_report" then
+            addHours(email.receivedAtHours, "Email received: " .. email.sender, "email", email.subject,
+                email.id .. ":received")
+        end
     end
     for _, email in ipairs(emails.archive or {}) do
-        addHours(email.respondedAtHours, "Email answered: " .. email.sender, "email",
-            email.subject, email.id .. ":answered")
+        if email.noticeKind ~= "shift_report" then
+            addHours(email.respondedAtHours, "Email answered: " .. email.sender, "email",
+                email.subject, email.id .. ":answered")
+        end
     end
     for _, promotion in ipairs(emails.sentPromotions or {}) do
         addHours(promotion.sentAtHours, "10% offer sent: " .. promotion.recipient, "email",
@@ -402,7 +416,10 @@ function Calendar.events(state,twelveHour)
     end
     for _, invoice in ipairs((state.bills and state.bills.ledger) or {}) do
         add(invoice.dueOnDay or invoice.issuedOnDay,
-            invoice.kind == "spoil_claim" and "Customer stock claim due" or "Rent and bills due", "bill",
+            invoice.kind == "spoil_claim" and "Customer stock claim due"
+                or invoice.kind == "customer_refund" and "Customer account credit due"
+                or invoice.kind == "shop_rework" and "Shop rework cost due"
+                or "Rent and bills due", "bill",
             string.format("%s • $%d • %s", invoice.id, invoice.total, invoice.status), invoice.id)
     end
     local Contracts=require("src.employment_contracts")
@@ -441,6 +458,15 @@ function Calendar.events(state,twelveHour)
                     or string.format("%s • $%d • %.2f%% APR", loan.id, loan.monthlyPayment,
                         (loan.aprBasisPoints or 0) / 100),
                 loan.id .. ":payment")
+        end
+    end
+    if state.home and state.home.lease then
+        local lease=state.home.lease
+        add(lease.nextDueDay,"Apartment rent due","home_rent",
+            string.format("$%.2f from household funds",lease.monthlyCents/100),"home:rent")
+        if lease.chargedCents>lease.paidCents then
+            add(state.calendar.totalDays,"Apartment rent unpaid","home_rent",
+                string.format("$%.2f due; pay in My Home",(lease.chargedCents-lease.paidCents)/100),"home:arrears")
         end
     end
     local nextYear, nextMonth = Calendar.shiftMonth(state.calendar.year, state.calendar.month, 1)

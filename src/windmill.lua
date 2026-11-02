@@ -310,8 +310,9 @@ function Windmill.proofReadiness(state)
     if not p.motor then return false, "Start the motor before proofing." end
     if not p.feeder then return false, "Turn the feeder on before proofing." end
     if not p.impression then return false, "Turn impression on before proofing." end
-    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
-        return false, "No proof allowance remains; preserve the remaining client sheets."
+    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets)
+        and Procurement.housePaperAvailable(state) < 1 then
+        return false, "No proof allowance remains. Order house paper to replace a spoiled proof."
     end
     return true, "Ready to pull one proof sheet."
 end
@@ -368,6 +369,15 @@ function Windmill.takeProof(state)
     local p, job, pallet = Windmill.current(state)
     local ready, reason = Windmill.proofReadiness(state)
     if not ready then return false, reason end
+    local housePaperUsed = 0
+    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
+        local supplied, supplyError = Procurement.consumeHousePaper(state, 1)
+        if not supplied then return false, supplyError end
+        housePaperUsed = 1
+        p.feedRemaining, p.feedStart = p.feedRemaining + 1, p.feedStart + 1
+        pallet.press.availableSheets = (pallet.press.availableSheets or 0) + 1
+        pallet.press.housePaperSheets = (pallet.press.housePaperSheets or 0) + 1
+    end
     local plate = Plates.ensureJob(job)[p.colorIndex]
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
     local condition = machine and MachineFleet.condition(machine) / 100 or 0
@@ -381,6 +391,11 @@ function Windmill.takeProof(state)
     totals.proofs = (totals.proofs or 0) + 1
     totals.impressions = (totals.impressions or 0) + 1
     totals.spoilage = (totals.spoilage or 0) + 1
+    if housePaperUsed > 0 then
+        totals.housePaperSheets = (totals.housePaperSheets or 0) + housePaperUsed
+        p.warning = "HOUSE PAPER REPLACED THE SPOILED PROOF"
+        state.message = "Proof spoiled; one house-paper sheet replaced it."
+    end
     Windmill.bumpNetworkRevision()
     return true, quality
 end
@@ -461,9 +476,25 @@ function Windmill.update(dt, state)
         + math.max(0, p.speed - 3000) / 25000, 0.01, 0.35)
     local needed = math.max(0, p.targetSheets - p.goodSheets)
     local waste = math.floor(attempted * wasteRate + 0.5)
-    -- Spoilage may use the customer's explicit overage, but never the sheets
-    -- reserved to satisfy the promised good-copy count.
-    waste = math.min(waste, math.max(0, p.feedRemaining - needed))
+    -- First use the client's declared overage, then consume house paper to
+    -- replace spoiled impressions without reducing the promised good count.
+    local spoilageAllowance = math.max(0, p.feedRemaining - needed)
+    local housePaperNeeded = math.max(0, waste - spoilageAllowance)
+    local housePaperUsed = 0
+    if housePaperNeeded > 0 then
+        local supplied = Procurement.consumeHousePaper(state, housePaperNeeded)
+        if supplied then
+            housePaperUsed = housePaperNeeded
+            p.feedRemaining = p.feedRemaining + housePaperNeeded
+            p.feedStart = p.feedStart + housePaperNeeded
+            pallet.press.availableSheets = (pallet.press.availableSheets or 0) + housePaperNeeded
+            pallet.press.housePaperSheets = (pallet.press.housePaperSheets or 0) + housePaperNeeded
+            spoilageAllowance = spoilageAllowance + housePaperNeeded
+            local totals = actual(job)
+            totals.housePaperSheets = (totals.housePaperSheets or 0) + housePaperNeeded
+        end
+    end
+    waste = math.min(waste, spoilageAllowance)
     local good = math.max(0, attempted - waste)
     if good > needed then
         good = needed
@@ -473,7 +504,10 @@ function Windmill.update(dt, state)
     p.feedRemaining = math.max(0, p.feedRemaining - attempted)
     pallet.press.goodSheets = p.goodSheets
     pallet.press.spoilage = (pallet.press.spoilage or 0) + waste
-    p.warning = warning
+    p.warning = housePaperUsed > 0
+        and ((warning and (warning .. " · ") or "")
+            .. string.format("HOUSE PAPER REPLACED %d SPOILED SHEET(S)", housePaperUsed))
+        or warning
     local totals = actual(job)
     totals.impressions = (totals.impressions or 0) + attempted
     totals.spoilage = (totals.spoilage or 0) + waste

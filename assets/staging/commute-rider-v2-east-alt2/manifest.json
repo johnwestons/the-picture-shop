@@ -1,0 +1,245 @@
+{
+  "status": "isolated_candidate_review_only",
+  "runtimeIntegrated": false,
+  "candidate": "alt2",
+  "direction": "east",
+  "frameSize": [
+    256,
+    256
+  ],
+  "frameCount": 8,
+  "targetVisibleHeight": 214,
+  "anchor": [
+    128,
+    238
+  ],
+  "anchorMethod": "provisional helmet-center x + lowest-alpha-row y",
+  "source": "assets/source/commute-rider-v2/walk-east-v2-alt2.png",
+  "sourceSha256": "14ac9394460d94cfa82faa64c2fa69a6543e614dd7722095da29b9462373c868",
+  "stagedStrip": "assets/staging/commute-rider-v2-east-alt2/walk_east_candidate.png",
+  "stagedSha256": "986ca0e633dcb4b94c13dcb5fc4c73bbe588f4cbddfff49faad8c3fdd689c0d6",
+  "uniformScale": 0.537014,
+  "frames": [
+    {
+      "frame": 1,
+      "sourceRect": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "sourceBounds": [
+        92,
+        25,
+        395,
+        423
+      ],
+      "stageBounds": [
+        47,
+        24,
+        210,
+        238
+      ],
+      "helmetCenterX": 243.0,
+      "lowestSourceY": 422,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 2,
+      "sourceRect": [
+        444,
+        0,
+        887,
+        444
+      ],
+      "sourceBounds": [
+        96,
+        25,
+        349,
+        423
+      ],
+      "stageBounds": [
+        47,
+        24,
+        184,
+        238
+      ],
+      "helmetCenterX": 245.5,
+      "lowestSourceY": 422,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        444
+      ],
+      "sourceBounds": [
+        150,
+        24,
+        301,
+        425
+      ],
+      "stageBounds": [
+        82,
+        23,
+        164,
+        238
+      ],
+      "helmetCenterX": 234.0,
+      "lowestSourceY": 424,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        444
+      ],
+      "sourceBounds": [
+        125,
+        24,
+        366,
+        424
+      ],
+      "stageBounds": [
+        69,
+        23,
+        198,
+        238
+      ],
+      "helmetCenterX": 235.5,
+      "lowestSourceY": 423,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 5,
+      "sourceRect": [
+        0,
+        444,
+        444,
+        887
+      ],
+      "sourceBounds": [
+        82,
+        17,
+        398,
+        414
+      ],
+      "stageBounds": [
+        52,
+        25,
+        222,
+        239
+      ],
+      "helmetCenterX": 224.0,
+      "lowestSourceY": 413,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 6,
+      "sourceRect": [
+        444,
+        444,
+        887,
+        887
+      ],
+      "sourceBounds": [
+        74,
+        17,
+        354,
+        414
+      ],
+      "stageBounds": [
+        51,
+        25,
+        201,
+        239
+      ],
+      "helmetCenterX": 217.0,
+      "lowestSourceY": 413,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 7,
+      "sourceRect": [
+        887,
+        444,
+        1330,
+        887
+      ],
+      "sourceBounds": [
+        157,
+        15,
+        294,
+        416
+      ],
+      "stageBounds": [
+        91,
+        23,
+        165,
+        239
+      ],
+      "helmetCenterX": 225.0,
+      "lowestSourceY": 415,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    },
+    {
+      "frame": 8,
+      "sourceRect": [
+        1330,
+        444,
+        1774,
+        887
+      ],
+      "sourceBounds": [
+        107,
+        17,
+        365,
+        416
+      ],
+      "stageBounds": [
+        68,
+        24,
+        207,
+        239
+      ],
+      "helmetCenterX": 217.0,
+      "lowestSourceY": 415,
+      "stageAnchor": [
+        128,
+        238
+      ]
+    }
+  ],
+  "pending": [
+    "Manual near/right and far/left support/swing review for every pose",
+    "Opposite contact, passing and up-pose comparison",
+    "Native L\u00d6VE review; no runtime acceptance"
+  ]
+}

@@ -62,7 +62,7 @@ function Pose.actors(rows)
             workFrame=r[9]%5>0 and r[9]%5 or nil,seatBay=r[10]==1 and "front_left" or r[10]==2 and "front_right" or nil,
             sceneId=phases[r[8]]~="break" and (r[10]==1 and "front_left" or r[10]==2 and "front_right" or "warehouse") or nil,
             breakRemaining=r[11]/1000,speechCode=r[12],workPose=math.floor(r[9]/5),
-            greetingKind=r[12]>=1 and r[12]<=3 and r[12] or nil}
+            greetingKind=r[12]>=1 and r[12]<=Speech.MAX_CODE and r[12] or nil}
     end
     return result
 end

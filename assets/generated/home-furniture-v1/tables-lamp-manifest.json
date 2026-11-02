@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "generator": "built-in image_gen",
+  "transparent_background": true,
+  "canvas": [
+    1536,
+    1024
+  ],
+  "cells": [
+    4,
+    2
+  ],
+  "processing": "Original PNG bytes copied unchanged. Existing runtime shader discards alpha below 0.18. Catalog frame rectangles register views extending across nominal cell borders.",
+  "assets": [
+    {
+      "id": "bedside_table",
+      "file": "bedside-table-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Production furniture sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. Eight views of the SAME object, consistent scale, elevated orthographic 30-degree camera with visible tops. Keep each whole object within its own cell, at most 300px wide and 390px tall, centered with generous transparent padding. Row 1: southeast (front is on RIGHT visible face, plain side on LEFT), south (straight front), southwest (front on LEFT visible face, plain side on RIGHT), east (right side). Row 2: northwest (back on RIGHT visible face), north (straight back), northeast (back on LEFT visible face), west (left side). Render true rotated geometry, no repeated front views for the back. Worn but usable modest starter furniture, warm textured materials, thin readable dark outlines, softly shaded surfaces. TRUE TRANSPARENT background alpha zero around objects and between cells. No brown haze, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermarks, people or extra props. Subject: compact square honey-brown wooden bedside table, 45 cm wide, 45 cm deep, 50 cm high. A single closed shallow drawer with one small round dark brass pull on the FRONT only, an open shelf beneath it, and four short square feet. Plain side panels and a plain back panel. Empty square tabletop, empty shelf, scuffed edges. Maintain the same drawer, shelf and proportions in all eight rotations.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-b8aace56-564d-48a0-8750-ada339c2af47.png",
+      "correctionPrompt": "Use case: precise-object-edit. Edit ONLY bottom-row column 1 and bottom-row column 3 in this eight-view bedside table sprite sheet. They must be honest BACK quarter views of the same table: both visible vertical faces should be SOLID plain wood panels, one back panel and one side panel. No drawer, drawer pull, open shelf, recess, hole or opening can be visible in these two back-quarter views. Keep the square tabletop, four short feet, grain, wear, scale and exact sprite positions. Preserve all other six views exactly, and the full 1536x1024 canvas with 4 columns and 2 rows. Preserve transparent alpha outside each object. Do not add a background, ground, shadow or text.",
+      "originalSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-403810f2-6a0e-442d-b0e5-8a764e9330cc.png",
+      "sha256": "61bfa4edfebcc94108ec1c123299ec35c70fb6331468a8ae21f2366688309541",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "runtimeCatalog": "src/home_furniture_catalog.lua",
+        "scale": 0.12,
+        "columns": [
+          [
+            0,
+            384
+          ],
+          [
+            384,
+            384
+          ],
+          [
+            768,
+            384
+          ],
+          [
+            1152,
+            384
+          ]
+        ],
+        "rowHeight": 512,
+        "pivots": [
+          [
+            208,
+            400
+          ],
+          [
+            202,
+            400
+          ],
+          [
+            180,
+            400
+          ],
+          [
+            184,
+            400
+          ],
+          [
+            208,
+            362
+          ],
+          [
+            202,
+            362
+          ],
+          [
+            180,
+            362
+          ],
+          [
+            184,
+            370
+          ]
+        ],
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "east": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "west": 8
+        },
+        "surface": {
+          "height": 31,
+          "slots": [
+            [
+              0,
+              -8
+            ],
+            [
+              0,
+              8
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "coffee_table",
+      "file": "coffee-table-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Production furniture sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. Eight views of the SAME object, consistent scale, elevated orthographic 30-degree camera with visible tops. Keep each whole object within its own cell, at most 300px wide and 390px tall, centered with generous transparent padding. Row 1: southeast (front is on RIGHT visible face, plain side on LEFT), south (straight front), southwest (front on LEFT visible face, plain side on RIGHT), east (right side). Row 2: northwest (back on RIGHT visible face), north (straight back), northeast (back on LEFT visible face), west (left side). Render true rotated geometry, no repeated front views for the back. Worn but usable modest starter furniture, warm textured materials, thin readable dark outlines, softly shaded surfaces. TRUE TRANSPARENT background alpha zero around objects and between cells. No brown haze, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermarks, people or extra props. Subject: low rectangular worn honey-brown wooden coffee table, 110 cm long, 55 cm deep and 40 cm high. Flat plank top with softly worn square corners, four short square legs, and a simple low open shelf between the legs. No drawers or handles. Keep the long-to-short 2:1 proportions and low height consistent in all eight directions. Tabletop and lower shelf are completely empty, no cups or books.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5e46cc97-5057-4fc6-8bbe-ddd757e18bd0.png",
+      "sha256": "f7c7e276be9d7f969cc6c634ae7cce503533f28fbfa9ec9f4a1efd11d6216316",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "runtimeCatalog": "src/home_furniture_catalog.lua",
+        "scale": 0.18,
+        "columns": [
+          [
+            0,
+            416
+          ],
+          [
+            416,
+            408
+          ],
+          [
+            824,
+            408
+          ],
+          [
+            1232,
+            304
+          ]
+        ],
+        "rowHeight": 512,
+        "pivots": [
+          [
+            212,
+            350
+          ],
+          [
+            204,
+            333
+          ],
+          [
+            204,
+            350
+          ],
+          [
+            152,
+            357
+          ],
+          [
+            212,
+            300
+          ],
+          [
+            204,
+            283
+          ],
+          [
+            204,
+            300
+          ],
+          [
+            152,
+            307
+          ]
+        ],
+        "frames": {
+          "southwest": 1,
+          "south": 2,
+          "southeast": 3,
+          "east": 4,
+          "northeast": 5,
+          "north": 6,
+          "northwest": 7,
+          "west": 8
+        },
+        "surface": {
+          "height": 24,
+          "slots": [
+            [
+              0,
+              -16
+            ],
+            [
+              0,
+              16
+            ],
+            [
+              -6,
+              0
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "desk_lamp",
+      "file": "desk-lamp-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Production furniture sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. Eight views of the SAME object, consistent scale, elevated orthographic 30-degree camera with visible tops. Keep each whole object within its own cell, at most 300px wide and 390px tall, centered with generous transparent padding. Row 1: southeast (front is on RIGHT visible face, plain side on LEFT), south (straight front), southwest (front on LEFT visible face, plain side on RIGHT), east (right side). Row 2: northwest (back on RIGHT visible face), north (straight back), northeast (back on LEFT visible face), west (left side). Render true rotated geometry, no repeated front views for the back. Worn but usable modest starter furniture, warm textured materials, thin readable dark outlines, softly shaded surfaces. TRUE TRANSPARENT background alpha zero around objects and between cells. No brown haze, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermarks, people or extra props. Subject: small inexpensive dark olive-green metal desk lamp, 35 cm tall, with a weighted circular base, a short bent adjustable arm, and a broad conical shade angled downward toward the FRONT. The bulb is switched OFF. Paint has small chips revealing dull metal. A short thin power cord curls tightly on the base, never extending out of the cell. Keep the asymmetrical arm and shade orientation physically consistent through all eight rotations. Show the shade opening on front views and the closed rounded outer shade on back views. No glow or light halo.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-0664cd42-ee77-44b0-a249-0c150fd17b3d.png",
+      "sha256": "efc1a2510e3d085097e686cc7d5d0134d7338b3b9f126fbbf4a79b6ee7595791",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "runtimeCatalog": "src/home_furniture_catalog.lua",
+        "scale": 0.065,
+        "columns": [
+          [
+            0,
+            416
+          ],
+          [
+            416,
+            352
+          ],
+          [
+            768,
+            384
+          ],
+          [
+            1152,
+            384
+          ]
+        ],
+        "rowHeight": 512,
+        "pivots": [
+          [
+            184,
+            450
+          ],
+          [
+            160,
+            450
+          ],
+          [
+            247,
+            450
+          ],
+          [
+            150,
+            450
+          ],
+          [
+            225,
+            438
+          ],
+          [
+            160,
+            438
+          ],
+          [
+            152,
+            438
+          ],
+          [
+            247,
+            438
+          ]
+        ],
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "east": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "west": 8
+        },
+        "surface": null
+      }
+    }
+  ]
+}

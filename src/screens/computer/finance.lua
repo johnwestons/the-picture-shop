@@ -68,7 +68,6 @@ function Component.install(Runtime)
                 polar_115={key="cutter",label="CUTTER",color={0.72,0.81,0.84,1}},
                 skid_wrapper={key="wrapper",label="WRAPPER",color={0.48,0.77,0.85,1}},
                 heidelberg_10x15={key="windmill",label="PRESS",color={0.84,0.70,0.46,1}},
-                regal_moll={key="regalFolder",label="FOLDER",color={0.84,0.40,0.36,1}},
             }
             for _,machine in ipairs(state.machines and state.machines.items or {}) do
                 local marker=machineMap[machine.modelId]

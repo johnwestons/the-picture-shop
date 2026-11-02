@@ -1,0 +1,6138 @@
+{
+  "pageCount": 226,
+  "pages": [
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/seed",
+          "page": 1,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/seed",
+          "page": 1,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0001.png",
+      "rgbaBytes": 540800,
+      "sha256": "b778ce3283c85d870e2b5fa383bd69d9f9bd0dd4304fab2cc9ea9b62ce809139",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/seed",
+          "page": 2,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/seed",
+          "page": 2,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0002.png",
+      "rgbaBytes": 540800,
+      "sha256": "609fd63c26deb8266da623011f5aae631fb17a1f48d00433d78d993dfedfc37a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/seed",
+          "page": 3,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/seed",
+          "page": 3,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0003.png",
+      "rgbaBytes": 540800,
+      "sha256": "7a91b1ffa7c1e65ae53c867b3f02124678473480fbe190243d1374411c4669e3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/seed",
+          "page": 4,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/seed",
+          "page": 4,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0004.png",
+      "rgbaBytes": 540800,
+      "sha256": "9fce260cf494274eac1a7daeb9d6031aa61913013c6c329c6750a36a60cfb31c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/seed",
+          "page": 5,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/seed",
+          "page": 5,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0005.png",
+      "rgbaBytes": 540800,
+      "sha256": "5aae0a64b2408be23d1521c451f47dd91b550a49d65a72fe9358d32e087f5cc0",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/seed",
+          "page": 6,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/seed",
+          "page": 6,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0006.png",
+      "rgbaBytes": 540800,
+      "sha256": "e97b251f58993ff14cc2c47591ac51a6f37338f3f510e5e7bc0448139cfe28a3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/seed",
+          "page": 7,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/seed",
+          "page": 7,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0007.png",
+      "rgbaBytes": 540800,
+      "sha256": "fa83a46989379f768bc6a161871f5a8cc7db7f60679a0d3dc17142e9a3089963",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/seed",
+          "page": 8,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/seed",
+          "page": 8,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0008.png",
+      "rgbaBytes": 540800,
+      "sha256": "3d052e68a7e84566b6cd41af3a2f1a97264cbc539ca7d116c731f80c88e98f3c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/seed",
+          "page": 9,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/seed",
+          "page": 9,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0009.png",
+      "rgbaBytes": 540800,
+      "sha256": "fc08ff73448fea7eb314c50c3ecbca9a17b44f2e448d8dcff74c1466e4d970be",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/seed",
+          "page": 10,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/seed",
+          "page": 10,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0010.png",
+      "rgbaBytes": 540800,
+      "sha256": "a92cad57a7cbc981b48dba06da3ab40fdaf8020837c7d9ac22d6a305790a69d9",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/seed",
+          "page": 11,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/seed",
+          "page": 11,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0011.png",
+      "rgbaBytes": 540800,
+      "sha256": "250a5f029c9239e04fe355943b55acd826fc10d80c31da1fa867fb2c7e5b7b6e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/sprout",
+          "page": 12,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/sprout",
+          "page": 12,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0012.png",
+      "rgbaBytes": 540800,
+      "sha256": "3fccbc4f17e74af2d1c9214a17272b5c05b53249f2fb2ec216a6af4a6fe1a8d0",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/sprout",
+          "page": 13,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/sprout",
+          "page": 13,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0013.png",
+      "rgbaBytes": 540800,
+      "sha256": "617109872f82a71545d86b9a4955309aa0ba9370a79e185a007b1a1b8fe17b70",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/sprout",
+          "page": 14,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/sprout",
+          "page": 14,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0014.png",
+      "rgbaBytes": 540800,
+      "sha256": "662679eff6fe53fa0647358a720810cd97cc2bfcbbb796c63a26f3b53b305cbf",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/sprout",
+          "page": 15,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/sprout",
+          "page": 15,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0015.png",
+      "rgbaBytes": 540800,
+      "sha256": "5a3a3f49fd3789a2fcea771f2c7d708f358c7213045cdadca3e7cc6999993dae",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/sprout",
+          "page": 16,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/sprout",
+          "page": 16,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0016.png",
+      "rgbaBytes": 540800,
+      "sha256": "a4aac1b566bcebe80b3f6ab4bdf380051756007386dfda5044577b0ff58aee79",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/sprout",
+          "page": 17,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/sprout",
+          "page": 17,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0017.png",
+      "rgbaBytes": 540800,
+      "sha256": "8bc4b0404b59de12632a5cc6389096b715e550c66296536a900a46337e2e56b5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/sprout",
+          "page": 18,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/sprout",
+          "page": 18,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0018.png",
+      "rgbaBytes": 540800,
+      "sha256": "f4eacd0fd2431f7aedaa7d233068cf3bb347e5acc2e8c003186f2d43e2045768",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/sprout",
+          "page": 19,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/sprout",
+          "page": 19,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0019.png",
+      "rgbaBytes": 540800,
+      "sha256": "3eb3aeff90ab1fa05a634a610ccf90d9f46e4c30e9e5bd668ff05447ef5ad986",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/sprout",
+          "page": 20,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/sprout",
+          "page": 20,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0020.png",
+      "rgbaBytes": 540800,
+      "sha256": "6aaac763560c43365434f54832fd03981d1aafeb890a22d6203c49d687799a5a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/sprout",
+          "page": 21,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/sprout",
+          "page": 21,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0021.png",
+      "rgbaBytes": 540800,
+      "sha256": "fba266ccb2fdabf763f4088e8ab77c4f1bd009f53054ec0fb342968247b8d33a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/sprout",
+          "page": 22,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/sprout",
+          "page": 22,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0022.png",
+      "rgbaBytes": 540800,
+      "sha256": "20994f2884171e174630000062b49c8cc683bf5c35f8a1f6960c52199f687c37",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/young",
+          "page": 23,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/young",
+          "page": 23,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0023.png",
+      "rgbaBytes": 540800,
+      "sha256": "e95d538f1e2b4717b4e7a1809550c0eebf1fc7c1b4289b02b9af7c68c8f148a3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/young",
+          "page": 24,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/young",
+          "page": 24,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0024.png",
+      "rgbaBytes": 540800,
+      "sha256": "70814e4fa98a3f2363b8a7dd9613e0990609e01a68dd842940a1caa7fe2532c3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/young",
+          "page": 25,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/young",
+          "page": 25,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0025.png",
+      "rgbaBytes": 540800,
+      "sha256": "4d0657acbd2a0e8133a6d8b5d1bb9c9354986ec01c17eb87a71930d1d3237521",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/young",
+          "page": 26,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/young",
+          "page": 26,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0026.png",
+      "rgbaBytes": 540800,
+      "sha256": "db1020b5c31ac265472a0a00987fc848a898a9a51cdaa0985808d59c667d2881",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/young",
+          "page": 27,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/young",
+          "page": 27,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0027.png",
+      "rgbaBytes": 540800,
+      "sha256": "f62b1d5c0c09a8adcf099e990b1ef0e46c30ca6fd74cab33627273524c8f8570",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/young",
+          "page": 28,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/young",
+          "page": 28,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0028.png",
+      "rgbaBytes": 540800,
+      "sha256": "d8dbaba3856d0bdf623496c2e9f38148ac48b7a6d4221b0e32f0f9ff62058ca2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/young",
+          "page": 29,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/young",
+          "page": 29,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0029.png",
+      "rgbaBytes": 540800,
+      "sha256": "d96a3167c1bfd34e192288e6709426047811d167f5ff6f9ea112a5c324b02684",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/young",
+          "page": 30,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/young",
+          "page": 30,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0030.png",
+      "rgbaBytes": 540800,
+      "sha256": "015983371bcd975dd6161db6ac0273894eaef998e1e9f47abcc1323e972c9134",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/young",
+          "page": 31,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/young",
+          "page": 31,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0031.png",
+      "rgbaBytes": 540800,
+      "sha256": "9cb98134f4d79ceb54756fd5b9d015718f193bac0c98b38f0aedaa7d78204459",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/young",
+          "page": 32,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/young",
+          "page": 32,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0032.png",
+      "rgbaBytes": 540800,
+      "sha256": "1d623b6799bd3d3a7f9eda652fa9a0862f9706aaaf5fcb31ec5c7129baeb5d22",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/young",
+          "page": 33,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/young",
+          "page": 33,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0033.png",
+      "rgbaBytes": 540800,
+      "sha256": "d317f1c8b291ce863bbe370295991ecae753715eaec051c02648e75320a53552",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/mature",
+          "page": 34,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/mature",
+          "page": 34,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0034.png",
+      "rgbaBytes": 540800,
+      "sha256": "abd8f626ce2b7621644c8e3cece529755291679411fd753efa0ebac1452b83c6",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/mature",
+          "page": 35,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/mature",
+          "page": 35,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0035.png",
+      "rgbaBytes": 540800,
+      "sha256": "e06a3fb9128fd47a9cd23cb12b3c6225ae57110533948039b1b476f369d84cce",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/mature",
+          "page": 36,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/mature",
+          "page": 36,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0036.png",
+      "rgbaBytes": 540800,
+      "sha256": "e6f9b3a94eff48e12658f74991ab36b98ee1129bc31ee1cdf46b3c8c15377f23",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/mature",
+          "page": 37,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/mature",
+          "page": 37,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0037.png",
+      "rgbaBytes": 540800,
+      "sha256": "1d19e98e572b5b4a34bc7d440b40a77d801ebcd4c446e066f1019de78b65b488",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/mature",
+          "page": 38,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/mature",
+          "page": 38,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0038.png",
+      "rgbaBytes": 540800,
+      "sha256": "752de8b84c22665536e8970076667fa5ca92a8398b8f35b7682cf60708d7b137",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/mature",
+          "page": 39,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/mature",
+          "page": 39,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0039.png",
+      "rgbaBytes": 540800,
+      "sha256": "8d81b877cc09367ef490117876091682d333b91c8b06f0962f2bcf449b453337",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/mature",
+          "page": 40,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/mature",
+          "page": 40,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0040.png",
+      "rgbaBytes": 540800,
+      "sha256": "728944d0bc613bb89a66dbd3c49f759bf21e61272da4f71a37a2f57893ec5b1c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/mature",
+          "page": 41,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/mature",
+          "page": 41,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0041.png",
+      "rgbaBytes": 540800,
+      "sha256": "d95e0c9c3fc02f2f4aeb7e7c99d2b1ebbe49aeb63b2681d9ae8984f47966934d",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/mature",
+          "page": 42,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/mature",
+          "page": 42,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0042.png",
+      "rgbaBytes": 540800,
+      "sha256": "bc544490a4e9315421e62328e6f95e3f9b0f96eccd2998b0e820c55b1130f3e7",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/mature",
+          "page": 43,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/mature",
+          "page": 43,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0043.png",
+      "rgbaBytes": 540800,
+      "sha256": "090a912f063348ea0ba34457ef0f38f91b350ac44e3614890734bc70c4a7c2d4",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/mature",
+          "page": 44,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/mature",
+          "page": 44,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0044.png",
+      "rgbaBytes": 540800,
+      "sha256": "7e70af93faaca8ccf1e8747e0933193c4c01a46ef12f3d1428399d3cdfc5850d",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/flower",
+          "page": 45,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/flower",
+          "page": 45,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0045.png",
+      "rgbaBytes": 540800,
+      "sha256": "48effe1a5ea799d0b8d9af72f1ecbe7658255ba810b0780c0e50a1297a890cdd",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/flower",
+          "page": 46,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/flower",
+          "page": 46,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0046.png",
+      "rgbaBytes": 540800,
+      "sha256": "00099fe32180502f23f7f8bce9b84adc30e55f248a6cd4f5f72b995eeae12797",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/flower",
+          "page": 47,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/flower",
+          "page": 47,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0047.png",
+      "rgbaBytes": 540800,
+      "sha256": "eb4fa2abbb32f5d9c112fe9cace496f62a99573eb4cbd3625e222b4d16c4c8dd",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/flower",
+          "page": 48,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/flower",
+          "page": 48,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0048.png",
+      "rgbaBytes": 540800,
+      "sha256": "ff3c533488a94b724cb3f29efdc49377a0e24642659c97b149eec074ccbc314d",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/flower",
+          "page": 49,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/flower",
+          "page": 49,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0049.png",
+      "rgbaBytes": 540800,
+      "sha256": "cbb9831b41c3d6ae2e1d2e57353ff63d1651fb27f0e1f96f84eb8f6fc8ad31af",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/flower",
+          "page": 50,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/flower",
+          "page": 50,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0050.png",
+      "rgbaBytes": 540800,
+      "sha256": "440e8823698f9c552d410f3c8298e37d8732baa9456f48c927439f6fa0303791",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/flower",
+          "page": 51,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/flower",
+          "page": 51,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0051.png",
+      "rgbaBytes": 540800,
+      "sha256": "5dd8afd54e1eb69ff8860e92c8475f1fb2c1ec38242a5650b58cb42239d3c489",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/flower",
+          "page": 52,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/flower",
+          "page": 52,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0052.png",
+      "rgbaBytes": 540800,
+      "sha256": "8a95b896f359af154c1ae3c48e2d109188d89cd6dd962aeba6f82189f190fb7f",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/flower",
+          "page": 53,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/flower",
+          "page": 53,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0053.png",
+      "rgbaBytes": 540800,
+      "sha256": "7cbf31afb555549b99b2caef0323f49c343eac2acf2a85b151287b813fb4a3ee",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/flower",
+          "page": 54,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/flower",
+          "page": 54,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0054.png",
+      "rgbaBytes": 540800,
+      "sha256": "864c323a240a04764506b7ad9838c7f9d3c14f2ae01eded1a77137d75e678f86",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/flower",
+          "page": 55,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/flower",
+          "page": 55,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0055.png",
+      "rgbaBytes": 540800,
+      "sha256": "9462a7287d88f607e62ecbced90ec96781261ff10cc9b0b6309576b3f24a3cd1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/fruit",
+          "page": 56,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/fruit",
+          "page": 56,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0056.png",
+      "rgbaBytes": 540800,
+      "sha256": "81eabec9101198235142a3f717b831f3267f2b9f3c8008fcb6b342547c5af5d0",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/fruit",
+          "page": 57,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/fruit",
+          "page": 57,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0057.png",
+      "rgbaBytes": 540800,
+      "sha256": "cc311124605946b852d2876645cfa82fcff3475580b9bcf67ab5bdb1fdb916b5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/fruit",
+          "page": 58,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/fruit",
+          "page": 58,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0058.png",
+      "rgbaBytes": 540800,
+      "sha256": "b8d0385009d8b7a68c80bbe8eb6c7e01bf403d91229db8fc330d5691c7f2f327",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/fruit",
+          "page": 59,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/fruit",
+          "page": 59,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0059.png",
+      "rgbaBytes": 540800,
+      "sha256": "d97b41580064747e142c2ab4615b16a9b0d33ceddebac3496cf3691abc1893bc",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/fruit",
+          "page": 60,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/fruit",
+          "page": 60,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0060.png",
+      "rgbaBytes": 540800,
+      "sha256": "468a48fa1c00b48a99f8ac12ab9f0b83cbb806dba93f8509db5c6759fc40aa04",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/fruit",
+          "page": 61,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/fruit",
+          "page": 61,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0061.png",
+      "rgbaBytes": 540800,
+      "sha256": "7fcd95a578e73df76a81d8ee439df0ad4cf10612fb12687104f37c1d6fe3cf07",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/fruit",
+          "page": 62,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/fruit",
+          "page": 62,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0062.png",
+      "rgbaBytes": 540800,
+      "sha256": "af3ea96a12c5992cc2323b4cd7da45178182bccbe1f35fda16248a859be700d8",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/fruit",
+          "page": 63,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/fruit",
+          "page": 63,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0063.png",
+      "rgbaBytes": 540800,
+      "sha256": "4e0d3c5f91bc6e47c587c877194650403c1c04afb5576b30fb2f16f8bbef8214",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/fruit",
+          "page": 64,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/fruit",
+          "page": 64,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0064.png",
+      "rgbaBytes": 540800,
+      "sha256": "644c9669b17b7ea367072d97dca41a78fcc66fd2ada9689b6fb0fcea4e2f0d6e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/fruit",
+          "page": 65,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/fruit",
+          "page": 65,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0065.png",
+      "rgbaBytes": 540800,
+      "sha256": "2c76055484f55b1a4a3077c6ae7bc692c7b5e91008c781bf50c571124f791ac3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/fruit",
+          "page": 66,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/fruit",
+          "page": 66,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0066.png",
+      "rgbaBytes": 540800,
+      "sha256": "14a4876181b572d81c7509f6985d99be624d5f2652f12570303736fc0f41ce2a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/browsed",
+          "page": 67,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/browsed",
+          "page": 67,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0067.png",
+      "rgbaBytes": 540800,
+      "sha256": "ae2aa1c1ef677bc208e9614663e76f24faff1f1f7c024217fa8412b94095fdea",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/browsed",
+          "page": 68,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/browsed",
+          "page": 68,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0068.png",
+      "rgbaBytes": 540800,
+      "sha256": "4ed17b3a952b8d57a2a7208fc729240acd907034a252363ea2bfdb6c5b841903",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/browsed",
+          "page": 69,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/browsed",
+          "page": 69,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0069.png",
+      "rgbaBytes": 540800,
+      "sha256": "f02e569b37c290eb74e07363f0f99e82752b76d2695845c60b68e17b1477cd34",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/browsed",
+          "page": 70,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/browsed",
+          "page": 70,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0070.png",
+      "rgbaBytes": 540800,
+      "sha256": "4793738bf7fda5e63985cbb2003e86339b97c94c4616d63ee76dff4d870dee50",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/browsed",
+          "page": 71,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/browsed",
+          "page": 71,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0071.png",
+      "rgbaBytes": 540800,
+      "sha256": "144f49db0c4fbbcaa3bf1208aed746050958188d9b7c533bfb50d152beaf8054",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/browsed",
+          "page": 72,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/browsed",
+          "page": 72,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0072.png",
+      "rgbaBytes": 540800,
+      "sha256": "49517380d3a2586899cf54dc5b4ed1c01c661f225f6823f3b0d855c2cd80a15f",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/browsed",
+          "page": 73,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/browsed",
+          "page": 73,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0073.png",
+      "rgbaBytes": 540800,
+      "sha256": "83f1585f9aa3d39023a8ed47309afbae8af571cb42b9e274f428a1144ef14824",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/browsed",
+          "page": 74,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/browsed",
+          "page": 74,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0074.png",
+      "rgbaBytes": 540800,
+      "sha256": "70b5a1ef3ba9f92aded7ee08ea36f08ab5e5b2e598f6993bc93c44b2f55451d6",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/browsed",
+          "page": 75,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/browsed",
+          "page": 75,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0075.png",
+      "rgbaBytes": 540800,
+      "sha256": "7163894994db74a068afb5776d8a74f6f9fbc489a1b801b1fa098b0937b60fa3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/browsed",
+          "page": 76,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/browsed",
+          "page": 76,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0076.png",
+      "rgbaBytes": 540800,
+      "sha256": "99c814a21f32029d7c8856c8aa5a79bf4213c48f8889daf99d40d7863d13825e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/browsed",
+          "page": 77,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/browsed",
+          "page": 77,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0077.png",
+      "rgbaBytes": 540800,
+      "sha256": "6d6c20bd70032df2b9e72275191b078e577e23a6c2419566cf981e00a610b91a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/depleted",
+          "page": 78,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/depleted",
+          "page": 78,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0078.png",
+      "rgbaBytes": 540800,
+      "sha256": "7880c0fb3b11ffa757fe30bb3f49f7552a69b2adc5d83e2b262e947214e670a1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/depleted",
+          "page": 79,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/depleted",
+          "page": 79,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0079.png",
+      "rgbaBytes": 540800,
+      "sha256": "6e64d290c507299e790c5013992f20230a8818ea0da871e91395c3f968cd47c5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/depleted",
+          "page": 80,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/depleted",
+          "page": 80,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0080.png",
+      "rgbaBytes": 540800,
+      "sha256": "4a59804ead60f8777afbc66f0caa3862054caa3a86df2939b3d22ceb29539616",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/depleted",
+          "page": 81,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/depleted",
+          "page": 81,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0081.png",
+      "rgbaBytes": 540800,
+      "sha256": "1a883a2e0358b72d53c33a7f233d58e5871ead816df1ac1af74b7fa82bdc21de",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/depleted",
+          "page": 82,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/depleted",
+          "page": 82,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0082.png",
+      "rgbaBytes": 540800,
+      "sha256": "08dcd72e17e69debd3da62b6b3b3d5372fb5e63a001e15b0ce8e2b6a81bc29bb",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/depleted",
+          "page": 83,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/depleted",
+          "page": 83,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0083.png",
+      "rgbaBytes": 540800,
+      "sha256": "da79b95a7f940211e400d924c62f73868a2794774102fba56c66fd28fddef9e3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/depleted",
+          "page": 84,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/depleted",
+          "page": 84,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0084.png",
+      "rgbaBytes": 540800,
+      "sha256": "64e0c4072cdf00377cb04dc921400e2b35b9ee7a931f1e0c9850ed390faf8c27",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/depleted",
+          "page": 85,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/depleted",
+          "page": 85,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0085.png",
+      "rgbaBytes": 540800,
+      "sha256": "293d07dd70183d507deae859d5e1871efcd9faaa0a603e37931a4411c08c0aac",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/depleted",
+          "page": 86,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/depleted",
+          "page": 86,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0086.png",
+      "rgbaBytes": 540800,
+      "sha256": "798c80df6c7cd8cfe4813ad24f145c75fa86c2bc44ab4e4bbc1ce7c34ae67f5c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/depleted",
+          "page": 87,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/depleted",
+          "page": 87,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0087.png",
+      "rgbaBytes": 540800,
+      "sha256": "7a3e15c5c5af2c94367412635da3c1a00d5864c476d975fda5b9b374cf43713c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/depleted",
+          "page": 88,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/depleted",
+          "page": 88,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0088.png",
+      "rgbaBytes": 540800,
+      "sha256": "e87513f478a3fb06513a241bad066afc6d712a9983afeeb4bb5c47ed43189543",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/regrowth",
+          "page": 89,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/regrowth",
+          "page": 89,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0089.png",
+      "rgbaBytes": 540800,
+      "sha256": "9c54493653e88bbce71c64438d914b4ea78b7095a0af069a23b5090455c391a3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/regrowth",
+          "page": 90,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/regrowth",
+          "page": 90,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0090.png",
+      "rgbaBytes": 540800,
+      "sha256": "fec27dbc7c9fa295f70fbcf8230e7f3c6d3436211ccd01cb311ba8fe54220ce2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/regrowth",
+          "page": 91,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/regrowth",
+          "page": 91,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0091.png",
+      "rgbaBytes": 540800,
+      "sha256": "3d0183b0743e0b7cccf8f8eb3d3fe1f11a1450a30570b7c8306a5f33c4c35345",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/regrowth",
+          "page": 92,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/regrowth",
+          "page": 92,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0092.png",
+      "rgbaBytes": 540800,
+      "sha256": "9a9469af02ac8bb621cab9f97d541f62e212ebb10d4dde1b48355b39f809ece5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/regrowth",
+          "page": 93,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/regrowth",
+          "page": 93,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0093.png",
+      "rgbaBytes": 540800,
+      "sha256": "143064894cb772fbd955dbb705b8beac74a853fd3a4410358cdca6a3cc247907",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/regrowth",
+          "page": 94,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/regrowth",
+          "page": 94,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0094.png",
+      "rgbaBytes": 540800,
+      "sha256": "a8a57cca9b12165d7695fb394ade571897e0fec727017023d506b9aafc198202",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/regrowth",
+          "page": 95,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/regrowth",
+          "page": 95,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0095.png",
+      "rgbaBytes": 540800,
+      "sha256": "f8b1d4c95b28a6d00f1bc48d544371f5b2c17c8c01ba4023e690c933aebbf411",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/regrowth",
+          "page": 96,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/regrowth",
+          "page": 96,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0096.png",
+      "rgbaBytes": 540800,
+      "sha256": "423021d1553a4e0b47be81213890fa5310c136974bc1b140a3a4136153e25a11",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/regrowth",
+          "page": 97,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/regrowth",
+          "page": 97,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0097.png",
+      "rgbaBytes": 540800,
+      "sha256": "1e97a10874d9308d052e1ea136bf8863fd73bbcdd968c9f132756c4233507fcf",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/regrowth",
+          "page": 98,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/regrowth",
+          "page": 98,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0098.png",
+      "rgbaBytes": 540800,
+      "sha256": "fb8e552cfb3194601928b704c47b84177adb0503af55aa9eb79e05ee6a645228",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/regrowth",
+          "page": 99,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/regrowth",
+          "page": 99,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0099.png",
+      "rgbaBytes": 540800,
+      "sha256": "7f39ab9eb8c2f1a59ba1da08cba5e0d15a6f95e3f816d8c96a5fd401943d5606",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/dormant",
+          "page": 100,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/dormant",
+          "page": 100,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0100.png",
+      "rgbaBytes": 540800,
+      "sha256": "e7960e30a6828a947d05aad016ce723f6c1a73cc037e5bb932af8cccc59ae113",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/dormant",
+          "page": 101,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/dormant",
+          "page": 101,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0101.png",
+      "rgbaBytes": 540800,
+      "sha256": "9c86615faad9da27d04b5b4e378c6c73391f0324a8b27b312b6e0cdc8c4c85e3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/dormant",
+          "page": 102,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/dormant",
+          "page": 102,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0102.png",
+      "rgbaBytes": 540800,
+      "sha256": "66c55c9f140ea1625e3a2eb184ca4d37b38148d0957d630fe72622d171293980",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/dormant",
+          "page": 103,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/dormant",
+          "page": 103,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0103.png",
+      "rgbaBytes": 540800,
+      "sha256": "22e0d5aa4cc3e465c16d711ae196e8c2585b2cba2b0e9243d86cf601af836628",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/dormant",
+          "page": 104,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/dormant",
+          "page": 104,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0104.png",
+      "rgbaBytes": 540800,
+      "sha256": "1ff268c586543198a9f93d6d2d6f5097c3b5bf855bc93739192e9dcdfd823c4c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/dormant",
+          "page": 105,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/dormant",
+          "page": 105,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0105.png",
+      "rgbaBytes": 540800,
+      "sha256": "45da0cc8d4e94449dc604a1446f44e7673f27b85d6b270244ba4a52c19a17098",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/dormant",
+          "page": 106,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/dormant",
+          "page": 106,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0106.png",
+      "rgbaBytes": 540800,
+      "sha256": "db80d40c11d6ecc512fd13fe7de4841a0c6554af53a902bb082f2741b6c9a620",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/dormant",
+          "page": 107,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/dormant",
+          "page": 107,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0107.png",
+      "rgbaBytes": 540800,
+      "sha256": "92b7f5c501682aedde59822eb0d72ceca76f852dbc744b9b74f0ee2255334d16",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/dormant",
+          "page": 108,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/dormant",
+          "page": 108,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0108.png",
+      "rgbaBytes": 540800,
+      "sha256": "1d7214bdbd14c39f50e31de6667cb4ef0e6dfdf31654bf6f6a0803c1c603d297",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/dormant",
+          "page": 109,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/dormant",
+          "page": 109,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0109.png",
+      "rgbaBytes": 540800,
+      "sha256": "9d741e20eee12b77d38fb5783bd86b0c16715e5c0f392412daddd4627e050217",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/dormant",
+          "page": 110,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/dormant",
+          "page": 110,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0110.png",
+      "rgbaBytes": 540800,
+      "sha256": "84b7e38cdcfd91e4837b07190961cbf475bfa2072661372c5a4afffc1d74f1a4",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/dead",
+          "page": 111,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/dead",
+          "page": 111,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0111.png",
+      "rgbaBytes": 540800,
+      "sha256": "9c67131993fb5872ac54e87f680e2f28896a30b249ef545920908e949afbaad4",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/dead",
+          "page": 112,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/dead",
+          "page": 112,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0112.png",
+      "rgbaBytes": 540800,
+      "sha256": "1b95232869b49951055b7ac87b1bae4e8b72cd4aace545416c062d6d87f82682",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/dead",
+          "page": 113,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/dead",
+          "page": 113,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0113.png",
+      "rgbaBytes": 540800,
+      "sha256": "52cb2fc66a5d80469bb2b52d75d1a1ee8cb52f53ef3ea8b4e64501129c5c1422",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/dead",
+          "page": 114,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/dead",
+          "page": 114,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0114.png",
+      "rgbaBytes": 540800,
+      "sha256": "9e135058933f82a0f48c73ab02e4ffec1d4c34e443be5c1abb589953f295cfbf",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/dead",
+          "page": 115,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/dead",
+          "page": 115,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0115.png",
+      "rgbaBytes": 540800,
+      "sha256": "c7de89c4226e3e150dc46c7e45a32bcf12cd9614c0785000b82261925a4c1c83",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/dead",
+          "page": 116,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/dead",
+          "page": 116,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0116.png",
+      "rgbaBytes": 540800,
+      "sha256": "bf77a5f1ffe3359ae1de460336b0d9155bdceab8133f27065bdea152182f33d5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/dead",
+          "page": 117,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/dead",
+          "page": 117,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0117.png",
+      "rgbaBytes": 540800,
+      "sha256": "6d25cfe9a35ad3ecabfc5ba3847f48279273704e52647f57778a2ccb6ab73150",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/dead",
+          "page": 118,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/dead",
+          "page": 118,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0118.png",
+      "rgbaBytes": 540800,
+      "sha256": "b045b2ecca711f541a47275ded18d76fe8b68ae4c86e9ffab0da1ce451473954",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/dead",
+          "page": 119,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/dead",
+          "page": 119,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0119.png",
+      "rgbaBytes": 540800,
+      "sha256": "912cd6c1a9d5fa52703063297f4bbf8f8e6d09a5e4c78e7aaced0863b6849087",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/dead",
+          "page": 120,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/dead",
+          "page": 120,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0120.png",
+      "rgbaBytes": 540800,
+      "sha256": "4545b705941faa7f4f649325dcb43d1dd05ee438f056f14abc48a3ade6d54a6a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/dead",
+          "page": 121,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/dead",
+          "page": 121,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0121.png",
+      "rgbaBytes": 540800,
+      "sha256": "3eab0d800d7f2b3f35c249ebf8c800e00cf12445a22b0cdf3223be9293dc5895",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/decay",
+          "page": 122,
+          "source": "assets/sprites/lifecycle/strawberry.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/decay",
+          "page": 122,
+          "source": "assets/sprites/lifecycle/sumac.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0122.png",
+      "rgbaBytes": 540800,
+      "sha256": "5429708e125411888f72e70a2a9e710a9ab70a88803496fa7d866be0a25274f2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/decay",
+          "page": 123,
+          "source": "assets/sprites/lifecycle/grass.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/decay",
+          "page": 123,
+          "source": "assets/sprites/lifecycle/bramble.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0123.png",
+      "rgbaBytes": 540800,
+      "sha256": "37e5d40e41ecba26ec7de1d516c8fd4c46017bd56f2dccf74019f49ef5f167bd",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/decay",
+          "page": 124,
+          "source": "assets/sprites/lifecycle/oak.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/decay",
+          "page": 124,
+          "source": "assets/sprites/lifecycle/pine.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0124.png",
+      "rgbaBytes": 540800,
+      "sha256": "7be5da8501eb18e65423e424419dc454232c2f58cb04b14ba37e9914cc3779b2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/decay",
+          "page": 125,
+          "source": "assets/sprites/lifecycle/redbud.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/decay",
+          "page": 125,
+          "source": "assets/sprites/lifecycle/blueberry.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0125.png",
+      "rgbaBytes": 540800,
+      "sha256": "ab791cdc5f5f21ae03226c25509bbde327927ad38be5697360136a6d250f2b73",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/decay",
+          "page": 126,
+          "source": "assets/sprites/lifecycle/milkweed.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/decay",
+          "page": 126,
+          "source": "assets/sprites/lifecycle/dogwood.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0126.png",
+      "rgbaBytes": 540800,
+      "sha256": "fcce5f33fb923359675f5b90208ad0ee77b6164b1cb7d819985c98a29a899438",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/decay",
+          "page": 127,
+          "source": "assets/sprites/lifecycle/persimmon.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/decay",
+          "page": 127,
+          "source": "assets/sprites/lifecycle/chickasaw-plum.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0127.png",
+      "rgbaBytes": 540800,
+      "sha256": "6ac75e6a22cfab2ad0d8cc78b905e18401398ca02ce23e4d1b538977827c949e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/decay",
+          "page": 128,
+          "source": "assets/sprites/lifecycle/little-bluestem.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/decay",
+          "page": 128,
+          "source": "assets/sprites/lifecycle/blue-phlox.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0128.png",
+      "rgbaBytes": 540800,
+      "sha256": "f6bd82f33933e8219ec841a8b72f1366d5bf7a4837849fea870a2e7525402b8b",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/decay",
+          "page": 129,
+          "source": "assets/sprites/lifecycle/bloodroot.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/decay",
+          "page": 129,
+          "source": "assets/sprites/lifecycle/virginia-bluebells.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0129.png",
+      "rgbaBytes": 540800,
+      "sha256": "eb8e5e000ce072781014948bcab9e6fa5df13b79991524862b9af61adfe58c50",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/decay",
+          "page": 130,
+          "source": "assets/sprites/lifecycle/wild-columbine.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/decay",
+          "page": 130,
+          "source": "assets/sprites/lifecycle/purple-coneflower.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0130.png",
+      "rgbaBytes": 540800,
+      "sha256": "680cdb7d132cf62613ec84d87f7d0614a14d75283bcad9a71ad8ec13586d6f42",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/decay",
+          "page": 131,
+          "source": "assets/sprites/lifecycle/wild-bergamot.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/decay",
+          "page": 131,
+          "source": "assets/sprites/lifecycle/cardinal-flower.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0131.png",
+      "rgbaBytes": 540800,
+      "sha256": "2cc24f345056ecd2e5cf80c1c08b1b726c87e9a0b6b563a929f175fb9c0fbcf4",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/decay",
+          "page": 132,
+          "source": "assets/sprites/lifecycle/new-england-aster.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/decay",
+          "page": 132,
+          "source": "assets/sprites/lifecycle/common-goldenrod.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0132.png",
+      "rgbaBytes": 540800,
+      "sha256": "e7cd107aabef017b0415406e5abcd2784877cef2f2641490c5c0be9c897420a5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/seed",
+          "page": 133,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/seed",
+          "page": 133,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0133.png",
+      "rgbaBytes": 540800,
+      "sha256": "5d318af41fcf69eb140a5dcff7f90f2b1a1a1c4765db116cc143f41273c39792",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/seed",
+          "page": 134,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/seed",
+          "page": 134,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0134.png",
+      "rgbaBytes": 540800,
+      "sha256": "eaa024125ae1bbec54501900a67c26e475d531ca3e2d6ffe1af64429a9712896",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/seed",
+          "page": 135,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/seed",
+          "page": 135,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0135.png",
+      "rgbaBytes": 540800,
+      "sha256": "c27c8cd0b839c861bb77ab86c5533e5c4d118db0fc0a5de5e29f7bec0a4bfc57",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/seed",
+          "page": 136,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/seed",
+          "page": 136,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0136.png",
+      "rgbaBytes": 540800,
+      "sha256": "98df00765313c1283ce13223503e15b45d304db8a03172caeb68abe9b16a2f04",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/sprout",
+          "page": 137,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/sprout",
+          "page": 137,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0137.png",
+      "rgbaBytes": 540800,
+      "sha256": "574b53fade64c70f6964bb5f32515a495ded294681e2d78cdbf8f6e5dc07aa26",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/sprout",
+          "page": 138,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/sprout",
+          "page": 138,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0138.png",
+      "rgbaBytes": 540800,
+      "sha256": "9c8f8e45dbc0671d2cd885f661f396d01cf88d096de1a508b7cd38724dcbc98f",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/sprout",
+          "page": 139,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/sprout",
+          "page": 139,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0139.png",
+      "rgbaBytes": 540800,
+      "sha256": "e5009cf98fabb15a719f8d36bd992c5287737bed7e9c8a80c82c5a4af89b0375",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/sprout",
+          "page": 140,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/sprout",
+          "page": 140,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0140.png",
+      "rgbaBytes": 540800,
+      "sha256": "523f0b39f1eab224d882fee061c0082e395c31999c805177c6544ee44f7d14f9",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/young",
+          "page": 141,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/young",
+          "page": 141,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0141.png",
+      "rgbaBytes": 540800,
+      "sha256": "18052655928f2d8b000f464a37852ea57ddf481308707ccc2222537e9595680b",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/young",
+          "page": 142,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/young",
+          "page": 142,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0142.png",
+      "rgbaBytes": 540800,
+      "sha256": "3a2145d76a4dfd58242d2ae4af8ee8bf96798b5de230013acbf08843a78f81a1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/young",
+          "page": 143,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/young",
+          "page": 143,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0143.png",
+      "rgbaBytes": 540800,
+      "sha256": "17464d485559caaa1ee264127cb9076ef936186ea5437f116f46df295bee9469",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/young",
+          "page": 144,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 512,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/young",
+          "page": 144,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 512,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0144.png",
+      "rgbaBytes": 540800,
+      "sha256": "9172c116488156da9296ddeb88eda7f853d8730d678de7b3496f689d252e0f7f",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/mature",
+          "page": 145,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/mature",
+          "page": 145,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0145.png",
+      "rgbaBytes": 540800,
+      "sha256": "1466c9b15f571567e1015b4233b035d9c0f55d94a2fc79f079a4a5c1112f4e90",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/mature",
+          "page": 146,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/mature",
+          "page": 146,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0146.png",
+      "rgbaBytes": 540800,
+      "sha256": "3367dbb057545ac059a7634512b71b5dc4db0422d94055e91f2811e5cea1fce2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/mature",
+          "page": 147,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/mature",
+          "page": 147,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0147.png",
+      "rgbaBytes": 540800,
+      "sha256": "ff6bf12b4c703cb6a2da54926c223b93d392482fa1e0fda20eb90a2c4f0765f8",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/mature",
+          "page": 148,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 768,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/mature",
+          "page": 148,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 768,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0148.png",
+      "rgbaBytes": 540800,
+      "sha256": "795a4c9903113a32b9f10771eb12307c6ba5a6d04bd864cb3c0d2b01e786f643",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/flower",
+          "page": 149,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/flower",
+          "page": 149,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0149.png",
+      "rgbaBytes": 540800,
+      "sha256": "fc8900a7e382212996e0954975aef567f7d0b526c55217d4cc22eb75a1635858",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/flower",
+          "page": 150,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/flower",
+          "page": 150,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0150.png",
+      "rgbaBytes": 540800,
+      "sha256": "eef28d0a8e4c76425834dcaf204bcc5ec3700eadd7ee043a9d4cfaa20faa6528",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/flower",
+          "page": 151,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/flower",
+          "page": 151,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0151.png",
+      "rgbaBytes": 540800,
+      "sha256": "d88cfc0e4d664a77aec3a5468ea9ebab1181066d85d2c9d392e0e6890002aeab",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/flower",
+          "page": 152,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 1024,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/flower",
+          "page": 152,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 1024,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0152.png",
+      "rgbaBytes": 540800,
+      "sha256": "f5d20120ec114fce8f153134e6c1f8e03c2f4ff0f31114db4140c3db35e556f2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/fruit",
+          "page": 153,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/fruit",
+          "page": 153,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0153.png",
+      "rgbaBytes": 540800,
+      "sha256": "6b5e9fe0e3fdd76cd9fba025cd16a9d066ee2b72ca79f9b0db0fd4ab95310399",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/fruit",
+          "page": 154,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/fruit",
+          "page": 154,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0154.png",
+      "rgbaBytes": 540800,
+      "sha256": "3ae8b6296db05b9a381077c9c3e9999e7cab460b45a6c5efb5307ce5a4caa8ed",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/fruit",
+          "page": 155,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/fruit",
+          "page": 155,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0155.png",
+      "rgbaBytes": 540800,
+      "sha256": "c1846473cfc184e5b21c557dc46b9105924d581d523628d38e1339af0fd41021",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/fruit",
+          "page": 156,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 1280,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/fruit",
+          "page": 156,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 1280,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0156.png",
+      "rgbaBytes": 540800,
+      "sha256": "0201d4fbf39be349de7e1bbe887812eff15b8a260300b32049231eefd2142e07",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/browsed",
+          "page": 157,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/browsed",
+          "page": 157,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0157.png",
+      "rgbaBytes": 540800,
+      "sha256": "1d27934db7b7d5696b0f9479a7af22d00b4ef19aa8bdb131f7c87565748228f1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/browsed",
+          "page": 158,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/browsed",
+          "page": 158,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0158.png",
+      "rgbaBytes": 540800,
+      "sha256": "d37d49247ee6726bcf635ed17ce5140f648fb5c2bb1cf488e44f8767e990c356",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/browsed",
+          "page": 159,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/browsed",
+          "page": 159,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0159.png",
+      "rgbaBytes": 540800,
+      "sha256": "6b65d6917ec997043a1d3798255ed7b70d284d32203b97f277d377a3c77d9879",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/browsed",
+          "page": 160,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 1536,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/browsed",
+          "page": 160,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 1536,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0160.png",
+      "rgbaBytes": 540800,
+      "sha256": "1e63101f7d5539cf37ddc33c385174f54c72fc84e84673753a524dec51705ec9",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/depleted",
+          "page": 161,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/depleted",
+          "page": 161,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0161.png",
+      "rgbaBytes": 540800,
+      "sha256": "4fc83dd1240f0a1a1f4a62839d55223a06d5498b6d8e72ebe373803c36bda15a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/depleted",
+          "page": 162,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/depleted",
+          "page": 162,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0162.png",
+      "rgbaBytes": 540800,
+      "sha256": "e58752e092cd571abc6a085fcc795e36ae047dbe6eaf3ea5a040439f556fbe5b",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/depleted",
+          "page": 163,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/depleted",
+          "page": 163,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0163.png",
+      "rgbaBytes": 540800,
+      "sha256": "488610066c7dd41107a1ad999c747ec634882a4d9d5f3e8f51d08a6a6ae40db4",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/depleted",
+          "page": 164,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 1792,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/depleted",
+          "page": 164,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 1792,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0164.png",
+      "rgbaBytes": 540800,
+      "sha256": "c82a24b2f41c90cf9531400c27549cfc54edf052f8ecee8e70098c57b48fde61",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/regrowth",
+          "page": 165,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/regrowth",
+          "page": 165,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0165.png",
+      "rgbaBytes": 540800,
+      "sha256": "e8190ed4eacd442f9242207eca0e377d4fa7623f8138b556c47e8ce95117a9a6",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/regrowth",
+          "page": 166,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/regrowth",
+          "page": 166,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0166.png",
+      "rgbaBytes": 540800,
+      "sha256": "a73ffd65fbf2146be31d605b861cbd8dfd71fb3cf4c37cd42ac5bae7eaafd13d",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/regrowth",
+          "page": 167,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/regrowth",
+          "page": 167,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0167.png",
+      "rgbaBytes": 540800,
+      "sha256": "2fdd21b684692d1887232bc07bb0a4a04aba9c831327fb62947ad3905b280630",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/regrowth",
+          "page": 168,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 2048,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/regrowth",
+          "page": 168,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 2048,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0168.png",
+      "rgbaBytes": 540800,
+      "sha256": "e928e3ef8f560419d2b6d00aaeae004a01ae823405c6735219cea0800f72685e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/dormant",
+          "page": 169,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/dormant",
+          "page": 169,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0169.png",
+      "rgbaBytes": 540800,
+      "sha256": "1b5efd46db1493b170d7e0ff58a9be5960d57961bc430f4896d85e2dd08b36e1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/dormant",
+          "page": 170,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/dormant",
+          "page": 170,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0170.png",
+      "rgbaBytes": 540800,
+      "sha256": "8e3efb76cd8cedf5963a45116d6ce9f9214b4ec6c7fa9c86670e46b403957ea1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/dormant",
+          "page": 171,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/dormant",
+          "page": 171,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0171.png",
+      "rgbaBytes": 540800,
+      "sha256": "ee552b7844809a1b4659c47c4e9eeb12e430b2240a83389668b57f782ddba4d3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/dormant",
+          "page": 172,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 2304,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/dormant",
+          "page": 172,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 2304,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0172.png",
+      "rgbaBytes": 540800,
+      "sha256": "e63df2e0fae39d9a3c0b72bc1a37fc92fb906ab21f8c418260ee87c3230bb385",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/dead",
+          "page": 173,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/dead",
+          "page": 173,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0173.png",
+      "rgbaBytes": 540800,
+      "sha256": "bdc606715a8d1dc597457ab6cafdf0e9cdca0524ba5ffa13295d96f1bda68e1a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/dead",
+          "page": 174,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/dead",
+          "page": 174,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0174.png",
+      "rgbaBytes": 540800,
+      "sha256": "5af3e395e2102b8deee2d427593d857086fc9c9fe8a902dfebae6fcc0198ade2",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/dead",
+          "page": 175,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/dead",
+          "page": 175,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0175.png",
+      "rgbaBytes": 540800,
+      "sha256": "e6bc7cb06f08e8d5d379e6688d68bfdccd4eeabdf9c19d1bd7e0c0aae73539a1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/dead",
+          "page": 176,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 2560,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/dead",
+          "page": 176,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 2560,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0176.png",
+      "rgbaBytes": 540800,
+      "sha256": "240b1069f5ce5be03e1bf5119ae52373e7a1584f5b17d4dcbd6096ec0644fae3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/open/decay",
+          "page": 177,
+          "source": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/sparse/decay",
+          "page": 177,
+          "source": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0177.png",
+      "rgbaBytes": 540800,
+      "sha256": "2d6ef33da8923ca0357eb7e69e231d10610333b16887613e85903f18a8b0a996",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/open/decay",
+          "page": 178,
+          "source": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/understory/decay",
+          "page": 178,
+          "source": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0178.png",
+      "rgbaBytes": 540800,
+      "sha256": "c0598b4a27c2adc4e04188d8c7d0bfb84e3e26fb7a58ba31cda9d6370adff2de",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/open/decay",
+          "page": 179,
+          "source": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/understory/decay",
+          "page": 179,
+          "source": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0179.png",
+      "rgbaBytes": 540800,
+      "sha256": "c64c048194adc1063505f51e31796d40c288e1e68ec7889f42d93472b6435aca",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/open/decay",
+          "page": 180,
+          "source": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+          "sx": 2816,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/understory/decay",
+          "page": 180,
+          "source": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+          "sx": 2816,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0180.png",
+      "rgbaBytes": 540800,
+      "sha256": "ff0edbffbdc34318887bb7fb267819dd5bf772cbf21db23b054ced0ac3e894cf",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/autumn",
+          "page": 181,
+          "source": "assets/sprites/lifecycle/motion/strawberry-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/autumn",
+          "page": 181,
+          "source": "assets/sprites/lifecycle/motion/sumac-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0181.png",
+      "rgbaBytes": 540800,
+      "sha256": "0a6bab7bf88adfeefac9bd3b6723f653c956a6ccb25156ca59ecc7180d91d649",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/autumn",
+          "page": 182,
+          "source": "assets/sprites/lifecycle/motion/grass-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/autumn",
+          "page": 182,
+          "source": "assets/sprites/lifecycle/motion/bramble-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0182.png",
+      "rgbaBytes": 540800,
+      "sha256": "397874c58d7c899d06b6ef9cabcbe6dc23b98dea6e39d658d566c69728e8055b",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/autumn",
+          "page": 183,
+          "source": "assets/sprites/lifecycle/motion/oak-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/autumn",
+          "page": 183,
+          "source": "assets/sprites/lifecycle/motion/pine-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0183.png",
+      "rgbaBytes": 540800,
+      "sha256": "1f4f0e2f81eb03e8a07bf0ff4727a1ce3b51056b66f1f47ee764a831deb2805e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/autumn",
+          "page": 184,
+          "source": "assets/sprites/lifecycle/motion/redbud-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/autumn",
+          "page": 184,
+          "source": "assets/sprites/lifecycle/motion/blueberry-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0184.png",
+      "rgbaBytes": 540800,
+      "sha256": "c9518934dc43d97fb2a565768f9b404a69a3747ac2877e5ed1d476b62063fc15",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/autumn",
+          "page": 185,
+          "source": "assets/sprites/lifecycle/motion/milkweed-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/autumn",
+          "page": 185,
+          "source": "assets/sprites/lifecycle/motion/dogwood-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0185.png",
+      "rgbaBytes": 540800,
+      "sha256": "010eee1019d7b8cf9137b8e8d393cda7b8decfc8be206cc427b6f5ebccd111ea",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "chickasaw-plum/autumn",
+          "page": 186,
+          "source": "assets/sprites/lifecycle/motion/chickasaw-plum-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/autumn",
+          "page": 186,
+          "source": "assets/sprites/lifecycle/motion/blue-phlox-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0186.png",
+      "rgbaBytes": 540800,
+      "sha256": "c17cb349b018feafa82e5b85c065a35aea09558dd0224ecc644ad9b9169b1eee",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/autumn",
+          "page": 187,
+          "source": "assets/sprites/lifecycle/motion/wild-columbine-autumn.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "wild-bergamot/autumn",
+          "page": 187,
+          "source": "assets/sprites/lifecycle/motion/wild-bergamot-autumn.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0187.png",
+      "rgbaBytes": 540800,
+      "sha256": "1b6e08a4736ff34e7b1ad6f4c6e7d69a362a452d18457eb36be8317dbb442162",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/senescent",
+          "page": 188,
+          "source": "assets/sprites/lifecycle/motion/strawberry-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/senescent",
+          "page": 188,
+          "source": "assets/sprites/lifecycle/motion/sumac-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0188.png",
+      "rgbaBytes": 540800,
+      "sha256": "47d243b328455b2ce3e4f3d55570a3fd9705b7511ded08a0c6ea751f3f3c1e95",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/senescent",
+          "page": 189,
+          "source": "assets/sprites/lifecycle/motion/grass-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/senescent",
+          "page": 189,
+          "source": "assets/sprites/lifecycle/motion/bramble-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0189.png",
+      "rgbaBytes": 540800,
+      "sha256": "301235a33157dc4846b56f32e236c6998de8f589adcfc52191cd15936b3faa8c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/senescent",
+          "page": 190,
+          "source": "assets/sprites/lifecycle/motion/oak-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/senescent",
+          "page": 190,
+          "source": "assets/sprites/lifecycle/motion/pine-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0190.png",
+      "rgbaBytes": 540800,
+      "sha256": "4c0e82fbd4f6f374f7fcc2e3d2fff350c748495127d4ca81bd2c40a49eae3d0e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/senescent",
+          "page": 191,
+          "source": "assets/sprites/lifecycle/motion/redbud-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/senescent",
+          "page": 191,
+          "source": "assets/sprites/lifecycle/motion/blueberry-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0191.png",
+      "rgbaBytes": 540800,
+      "sha256": "0c8cccf35b03de75874f3b8e9a420b5952482f19efc5878dbd8d7ee8f7b4536f",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/senescent",
+          "page": 192,
+          "source": "assets/sprites/lifecycle/motion/milkweed-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "dogwood/senescent",
+          "page": 192,
+          "source": "assets/sprites/lifecycle/motion/dogwood-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0192.png",
+      "rgbaBytes": 540800,
+      "sha256": "f9273cdfc543f1052bb900c5f0a821dbbda5bac3f73ff744a9189391866203f1",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "persimmon/senescent",
+          "page": 193,
+          "source": "assets/sprites/lifecycle/motion/persimmon-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "chickasaw-plum/senescent",
+          "page": 193,
+          "source": "assets/sprites/lifecycle/motion/chickasaw-plum-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0193.png",
+      "rgbaBytes": 540800,
+      "sha256": "59610271a73109616058c2ca7612133129d6905a23619849e2dc23b620432fc9",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "little-bluestem/senescent",
+          "page": 194,
+          "source": "assets/sprites/lifecycle/motion/little-bluestem-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blue-phlox/senescent",
+          "page": 194,
+          "source": "assets/sprites/lifecycle/motion/blue-phlox-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0194.png",
+      "rgbaBytes": 540800,
+      "sha256": "0c9cdbe0be5b53258f0e1dbae965cbb56d4168fd5ae27a4ebaca93043b380eb3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bloodroot/senescent",
+          "page": 195,
+          "source": "assets/sprites/lifecycle/motion/bloodroot-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "virginia-bluebells/senescent",
+          "page": 195,
+          "source": "assets/sprites/lifecycle/motion/virginia-bluebells-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0195.png",
+      "rgbaBytes": 540800,
+      "sha256": "2b15a8bcb3c3fa79f23c070ebb79a51f4ab600d1bf4fac5ab3866915df349ff4",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-columbine/senescent",
+          "page": 196,
+          "source": "assets/sprites/lifecycle/motion/wild-columbine-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "purple-coneflower/senescent",
+          "page": 196,
+          "source": "assets/sprites/lifecycle/motion/purple-coneflower-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0196.png",
+      "rgbaBytes": 540800,
+      "sha256": "429c8cd2529438b025894bdd51b5deb905e28c3c6a4887ea3357a5acaa0f7fa6",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "wild-bergamot/senescent",
+          "page": 197,
+          "source": "assets/sprites/lifecycle/motion/wild-bergamot-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cardinal-flower/senescent",
+          "page": 197,
+          "source": "assets/sprites/lifecycle/motion/cardinal-flower-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0197.png",
+      "rgbaBytes": 540800,
+      "sha256": "add79090ced5120051f98fc158270fde4f6753eddb1b5ceeda610c19420922df",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "new-england-aster/senescent",
+          "page": 198,
+          "source": "assets/sprites/lifecycle/motion/new-england-aster-senescent.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "common-goldenrod/senescent",
+          "page": 198,
+          "source": "assets/sprites/lifecycle/motion/common-goldenrod-senescent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0198.png",
+      "rgbaBytes": 540800,
+      "sha256": "187554c91bd91db78f7f8cf6cda1968fce9139498ca8abcd715a704704baa952",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "strawberry/wind1",
+          "page": 199,
+          "source": "assets/sprites/lifecycle/motion/strawberry-wind-idle.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "sumac/wind1",
+          "page": 199,
+          "source": "assets/sprites/lifecycle/motion/sumac-wind-idle.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0199.png",
+      "rgbaBytes": 540800,
+      "sha256": "803a9d68aa4db3a6e67e5164e9c72c548bfe5b54ce4676ac8782b8caa52ff338",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "grass/wind1",
+          "page": 200,
+          "source": "assets/sprites/lifecycle/motion/grass-wind-idle.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "bramble/wind1",
+          "page": 200,
+          "source": "assets/sprites/lifecycle/motion/bramble-wind-idle.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0200.png",
+      "rgbaBytes": 540800,
+      "sha256": "e8094ef9c6147a87df196e3e5cc3e932d7af37e942f6fee21a8010dde70fcaec",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "oak/wind1",
+          "page": 201,
+          "source": "assets/sprites/lifecycle/motion/oak-wind-idle.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "pine/wind1",
+          "page": 201,
+          "source": "assets/sprites/lifecycle/motion/pine-wind-idle.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0201.png",
+      "rgbaBytes": 540800,
+      "sha256": "5bf6a8ac8469188662fbae5e61ece8ff127d4216359cc78a98b6709bb8cba100",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "redbud/wind1",
+          "page": 202,
+          "source": "assets/sprites/lifecycle/motion/redbud-wind-idle.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "blueberry/wind1",
+          "page": 202,
+          "source": "assets/sprites/lifecycle/motion/blueberry-wind-idle.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0202.png",
+      "rgbaBytes": 540800,
+      "sha256": "1f9d2440df1a127336ca2474f2f085cbaaa36f068cf61f0f6019ce75c546ff06",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "milkweed/wind1",
+          "page": 203,
+          "source": "assets/sprites/lifecycle/motion/milkweed-wind-idle.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "strawberry/wind2",
+          "page": 203,
+          "source": "assets/sprites/lifecycle/motion/strawberry-wind-idle.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0203.png",
+      "rgbaBytes": 540800,
+      "sha256": "ed7955c2602671cd77cfec513006b20e94fecf24e6fa9573fc91377cb5a3525c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "sumac/wind2",
+          "page": 204,
+          "source": "assets/sprites/lifecycle/motion/sumac-wind-idle.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "grass/wind2",
+          "page": 204,
+          "source": "assets/sprites/lifecycle/motion/grass-wind-idle.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0204.png",
+      "rgbaBytes": 540800,
+      "sha256": "2905a67a3a5dcf4b4bcf6e5bae24cd5bde593b2a1747a1675b53abc2bb87ec98",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "bramble/wind2",
+          "page": 205,
+          "source": "assets/sprites/lifecycle/motion/bramble-wind-idle.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "oak/wind2",
+          "page": 205,
+          "source": "assets/sprites/lifecycle/motion/oak-wind-idle.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0205.png",
+      "rgbaBytes": 540800,
+      "sha256": "7109636338c8a57c7f95723843a606c06212f5acf6e24337401f18a1aeb014e8",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "pine/wind2",
+          "page": 206,
+          "source": "assets/sprites/lifecycle/motion/pine-wind-idle.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "redbud/wind2",
+          "page": 206,
+          "source": "assets/sprites/lifecycle/motion/redbud-wind-idle.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0206.png",
+      "rgbaBytes": 540800,
+      "sha256": "a95b1435c2a3973a19bf7a8fae7a11c89635ec9983300ba677fdd294d116e173",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "blueberry/wind2",
+          "page": 207,
+          "source": "assets/sprites/lifecycle/motion/blueberry-wind-idle.png",
+          "sx": 256,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "milkweed/wind2",
+          "page": 207,
+          "source": "assets/sprites/lifecycle/motion/milkweed-wind-idle.png",
+          "sx": 256,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0207.png",
+      "rgbaBytes": 540800,
+      "sha256": "2948e2457397a5814d5c3dda9fb4d058aafb959887ff02df263bbe933a78cd9e",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "rock",
+          "page": 208,
+          "source": "assets/sprites/rock.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "rock-v2",
+          "page": 208,
+          "source": "assets/sprites/rock-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0208.png",
+      "rgbaBytes": 540800,
+      "sha256": "409d270d8214a6a4b0c4ffb96f03a82242602552959a3fe2a94c3fc7abc53b2f",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "rock-v3",
+          "page": 209,
+          "source": "assets/sprites/rock-v3.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "rock-v4",
+          "page": 209,
+          "source": "assets/sprites/rock-v4.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0209.png",
+      "rgbaBytes": 540800,
+      "sha256": "2748859f07b8a7e3ccc63fc1d87da3b44c63bac2c9f8795519927ab595e9e741",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "rock-v5",
+          "page": 210,
+          "source": "assets/sprites/rock-v5.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "rock-v6",
+          "page": 210,
+          "source": "assets/sprites/rock-v6.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0210.png",
+      "rgbaBytes": 540800,
+      "sha256": "b27ce53cbb714a1ba387f661778b41a36186196cb10c5c974d73ea0a4b400f36",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "rock-v7",
+          "page": 211,
+          "source": "assets/sprites/rock-v7.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "rock-v8",
+          "page": 211,
+          "source": "assets/sprites/rock-v8.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0211.png",
+      "rgbaBytes": 540800,
+      "sha256": "196335ed3e58ef2e5dc45aed4271493af7858d09739d340a232e4eeb89e336bd",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "rock-v9",
+          "page": 212,
+          "source": "assets/sprites/rock-v9.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "rock-v10",
+          "page": 212,
+          "source": "assets/sprites/rock-v10.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0212.png",
+      "rgbaBytes": 540800,
+      "sha256": "574deb58fdcaf2a9bfed730dc224e27824781ceb340326954c5debcdbfa5ba8d",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "rock-v11",
+          "page": 213,
+          "source": "assets/sprites/rock-v11.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "log",
+          "page": 213,
+          "source": "assets/sprites/log.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0213.png",
+      "rgbaBytes": 540800,
+      "sha256": "22ebc937ba75b5a108609e5baf8f0ce57419cd48ef538a039ff1471b0045a38a",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "log-v2",
+          "page": 214,
+          "source": "assets/sprites/log-v2.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "log-v3",
+          "page": 214,
+          "source": "assets/sprites/log-v3.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0214.png",
+      "rgbaBytes": 540800,
+      "sha256": "8fca1ca3e66df270eba0b093fd2379029f3c46b8cc08d152826389a44c7cb032",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "log-v4",
+          "page": 215,
+          "source": "assets/sprites/log-v4.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "log-v5",
+          "page": 215,
+          "source": "assets/sprites/log-v5.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0215.png",
+      "rgbaBytes": 540800,
+      "sha256": "e8c0b1bb7ebedbf99d43eed814f1a4d48a160cc096f39886412c7f8e02abacf3",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "twig",
+          "page": 216,
+          "source": "assets/sprites/twig.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "twig-v2",
+          "page": 216,
+          "source": "assets/sprites/twig-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0216.png",
+      "rgbaBytes": 540800,
+      "sha256": "1b96ad34c15f250e492a4dd0397be2c757263fe10522a24633d1a60b7f8d897d",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "leaf-litter",
+          "page": 217,
+          "source": "assets/sprites/leaf-litter.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "leaf-litter-v2",
+          "page": 217,
+          "source": "assets/sprites/leaf-litter-v2.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0217.png",
+      "rgbaBytes": 540800,
+      "sha256": "33f6f1bde29ea7c330a7158637c8c23c5e28a9d60066565a0956b3987475eeef",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "stone",
+          "page": 218,
+          "source": "assets/sprites/stone-clutter.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "skiff-intact",
+          "page": 218,
+          "source": "assets/sprites/environmental/skiff-intact.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0218.png",
+      "rgbaBytes": 540800,
+      "sha256": "fbe7792fcfb4caf666e40c6b4acfb7038f4d95b872924cc854e9de5b1b7c08c5",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "skiff-split",
+          "page": 219,
+          "source": "assets/sprites/environmental/skiff-split.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "skiff-collapsed",
+          "page": 219,
+          "source": "assets/sprites/environmental/skiff-collapsed.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0219.png",
+      "rgbaBytes": 540800,
+      "sha256": "d5fb8ea14a05e725589bbb2c121552743e76a6812398b9cc913c115c6862c9bc",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "fishing-net",
+          "page": 220,
+          "source": "assets/sprites/environmental/fishing-net.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "crayfish-trap",
+          "page": 220,
+          "source": "assets/sprites/environmental/crayfish-trap.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0220.png",
+      "rgbaBytes": 540800,
+      "sha256": "cddf4adf72a70cda75d4c83c2506d076e629d9b52d864e96c53b66286d88d14b",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "fishing-pole",
+          "page": 221,
+          "source": "assets/sprites/environmental/fishing-pole.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cabin-hearth-remains",
+          "page": 221,
+          "source": "assets/sprites/environmental/cabin-hearth-remains.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0221.png",
+      "rgbaBytes": 540800,
+      "sha256": "06d5b2c2323b0213b6f4fa299252c2ea662069d2484ac145562caa9931b2d256",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "cabin-partial-ruin",
+          "page": 222,
+          "source": "assets/sprites/environmental/cabin-partial-ruin.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "cabin-shell-ruin",
+          "page": 222,
+          "source": "assets/sprites/environmental/cabin-shell-ruin.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0222.png",
+      "rgbaBytes": 540800,
+      "sha256": "c313f15295f2424bac4cfd575b11c64d8e0344fc82cec6eb6347b9d46887a16c",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "camp-fire-ring",
+          "page": 223,
+          "source": "assets/sprites/environmental/camp-fire-ring.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "camp-collapsed-tent",
+          "page": 223,
+          "source": "assets/sprites/environmental/camp-collapsed-tent.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0223.png",
+      "rgbaBytes": 540800,
+      "sha256": "4883fc0e1156e7c1c2645759fb70fad560420314966915ad23b0e032e2f1cadd",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "camp-lean-to",
+          "page": 224,
+          "source": "assets/sprites/environmental/camp-lean-to.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "eastern-cottontail-nest",
+          "page": 224,
+          "source": "assets/sprites/environmental/eastern-cottontail-nest.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0224.png",
+      "rgbaBytes": 540800,
+      "sha256": "bfc6ea8ae9b78114a7bf8d013bc8dbce9fe1518fc013ef18cb2066a1e9bba669",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "gray-fox-den",
+          "page": 225,
+          "source": "assets/sprites/environmental/gray-fox-den.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "long-tailed-weasel-den",
+          "page": 225,
+          "source": "assets/sprites/environmental/long-tailed-weasel-den.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0225.png",
+      "rgbaBytes": 540800,
+      "sha256": "957f664866b2c879e116c30926dfb764a3df512d8ca193e5f6d1e1d2c7defe66",
+      "width": 520
+    },
+    {
+      "height": 260,
+      "items": [
+        {
+          "key": "red-shouldered-hawk-nest",
+          "page": 226,
+          "source": "assets/sprites/environmental/red-shouldered-hawk-nest.png",
+          "sx": 0,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "key": "white-tailed-deer-bed",
+          "page": 226,
+          "source": "assets/sprites/environmental/white-tailed-deer-bed.png",
+          "sx": 0,
+          "x": 262,
+          "y": 2
+        }
+      ],
+      "path": "assets/sprites/runtime-atlas/page-0226.png",
+      "rgbaBytes": 540800,
+      "sha256": "a6c67f3c1b93872b6fbe07d31aeabd748fc3be738d00f6a9343651be3586cf37",
+      "width": 520
+    }
+  ],
+  "recipe": {
+    "cellSize": 260,
+    "filter": "linear/linear",
+    "gutter": 2,
+    "operation": "Crop each 256x256 authored cell and paste RGBA bytes without scaling or recoloring into a transparent 2-column page.",
+    "pageColumns": 2,
+    "runtimeOrigin": "LOVE ImageData paste at (column*260+2, 2)",
+    "tool": "tools/prepare_runtime_atlases.py",
+    "toolSha256": "435113f404f3882a61262d05078c04347072b824b37123438dcca3578a534c9b"
+  },
+  "runtimeEntryCount": 452,
+  "sourceFiles": [
+    {
+      "path": "assets/sprites/environmental/cabin-hearth-remains.png",
+      "sha256": "fed43102d8c810d157edd2c816e5c1486b6909061f6476bae5394f0d5d9cfcc5"
+    },
+    {
+      "path": "assets/sprites/environmental/cabin-partial-ruin.png",
+      "sha256": "b1a8992ad21c827dea3cba2b192dfc0beeb95d10348e6245e00bba8b06f5ddf4"
+    },
+    {
+      "path": "assets/sprites/environmental/cabin-shell-ruin.png",
+      "sha256": "06d69956a1eef9a35482fd14a42a72849ce84c3eccc1f187c0a27ce003240f95"
+    },
+    {
+      "path": "assets/sprites/environmental/camp-collapsed-tent.png",
+      "sha256": "042a12355e67d150bd9ebb78627616a8e21fdeb516a27e7697b74d8ac84ffccb"
+    },
+    {
+      "path": "assets/sprites/environmental/camp-fire-ring.png",
+      "sha256": "3c62de4d3ebf896c8e3570bb761c18af97076512ea37d15074cc77e7bdd8642c"
+    },
+    {
+      "path": "assets/sprites/environmental/camp-lean-to.png",
+      "sha256": "20f532d922fe2d5562d1cfd2464dd5c7a5b3c94663ae0e41f0e6985295f6dcdb"
+    },
+    {
+      "path": "assets/sprites/environmental/crayfish-trap.png",
+      "sha256": "8a40441a37c32411cbac8ee54ad3159d0b85761dd73099407b55a65121185612"
+    },
+    {
+      "path": "assets/sprites/environmental/eastern-cottontail-nest.png",
+      "sha256": "04b710eda1d44c07081eb6aea44df8fe5a3fc1daae86b465352ad7d6f670208d"
+    },
+    {
+      "path": "assets/sprites/environmental/fishing-net.png",
+      "sha256": "51d730b9b42187373d107348ec467bf2428fc721c9968b5a9fe6ef0d8bfe00c9"
+    },
+    {
+      "path": "assets/sprites/environmental/fishing-pole.png",
+      "sha256": "a9a3304d003348b919feb197d5ec057bf5cbe9024ed79eec5ababfcd4cc314dc"
+    },
+    {
+      "path": "assets/sprites/environmental/gray-fox-den.png",
+      "sha256": "02cce81674b49784e1a33f3fe7f9fd95f2d0484dc72d7598796965cb5b1a3a56"
+    },
+    {
+      "path": "assets/sprites/environmental/long-tailed-weasel-den.png",
+      "sha256": "5ee0230c2372789f551318f63070e203ef3c4da5360e348aedf18abdd2b82ad9"
+    },
+    {
+      "path": "assets/sprites/environmental/red-shouldered-hawk-nest.png",
+      "sha256": "c925fcc4b90a6279c41b9b91bd3ad5069f5fb45b859e1a4d5b03335bf9da5ac4"
+    },
+    {
+      "path": "assets/sprites/environmental/skiff-collapsed.png",
+      "sha256": "9bfb36675a5ec3a2d67460bc7f3d0ac20e2f3ce5a02ad77563b2e883ba57a776"
+    },
+    {
+      "path": "assets/sprites/environmental/skiff-intact.png",
+      "sha256": "1380d99d2c59e9534a17b6d34647e4df4d7e7917828bd045c2866c939b04e88e"
+    },
+    {
+      "path": "assets/sprites/environmental/skiff-split.png",
+      "sha256": "a79b4d7351f7695e2c908bae8315c35333c3285108bf4cfcb9dbd0bb72abc226"
+    },
+    {
+      "path": "assets/sprites/environmental/white-tailed-deer-bed.png",
+      "sha256": "31d408be77667caec28d9fbcfcbc559ef825a18e5ec672b59e31a22913749493"
+    },
+    {
+      "path": "assets/sprites/leaf-litter-v2.png",
+      "sha256": "ec0b03cb2e3b3a862a3a62010402f3735637345537cc4d9ae3ceb83570965a0e"
+    },
+    {
+      "path": "assets/sprites/leaf-litter.png",
+      "sha256": "cbfd8f3a9f97ae981167997d8779ce6e9d874967da3f1e4718ec20c7da76ff71"
+    },
+    {
+      "path": "assets/sprites/lifecycle/bloodroot.png",
+      "sha256": "0d1d8e258a96a4beb68f81482e9d5819651933b0f0e85e5d069f72dc0ab0c5b2"
+    },
+    {
+      "path": "assets/sprites/lifecycle/blue-phlox.png",
+      "sha256": "295edcbc1ad4be5e8eddc4fc7c53f63684d00359e8605bbbdb53a134a389e249"
+    },
+    {
+      "path": "assets/sprites/lifecycle/blueberry.png",
+      "sha256": "3967b03dba8a32cd891062cd378d20c8f89a62e0db6075b696a08505f72a09ce"
+    },
+    {
+      "path": "assets/sprites/lifecycle/bramble.png",
+      "sha256": "b9de16230af09f9a4db0547caf1d9d36f712586a725e75b42e714384117fe0a1"
+    },
+    {
+      "path": "assets/sprites/lifecycle/cardinal-flower.png",
+      "sha256": "0c2c32d91c46bd3028c863e21ffc0a0f8f023d2acb72735004565e61e3a48fec"
+    },
+    {
+      "path": "assets/sprites/lifecycle/chickasaw-plum.png",
+      "sha256": "e7d8845a71c1beb40e450c641c41e7fe4c0f28fd7527c9672a93d5b24e46477d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/common-goldenrod.png",
+      "sha256": "72aab4f72d64dc0372bf92cb4fbd6109bfb2b1bd3f8591587dce07b0aba7795d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/dogwood.png",
+      "sha256": "15ee8d0cd1ddb97b60d441227fa8cc844e981899fd1e1ae9cc8b276e82e8eb8e"
+    },
+    {
+      "path": "assets/sprites/lifecycle/grass.png",
+      "sha256": "83753ee506bb85595f96dd3a7866c9874edab11e1ae8cbdfe244b751f926df66"
+    },
+    {
+      "path": "assets/sprites/lifecycle/little-bluestem.png",
+      "sha256": "1ef466d3b36869a83be93d90dae1f0076496a7287f0b5687217d058e829c9489"
+    },
+    {
+      "path": "assets/sprites/lifecycle/milkweed.png",
+      "sha256": "d58861d1dbed802549c4457147daaeba329824b47d8a4c2cebe84ec5dd752b3e"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/bloodroot-senescent.png",
+      "sha256": "f19304ba112e26f776e212246d7b21082bf69fff0e7cede321978fda60b597da"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/blue-phlox-autumn.png",
+      "sha256": "d9ce4f2f26f1daf9d5c12c446dc5905cdb40782a3e850e6b747d314d4e496ad7"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/blue-phlox-senescent.png",
+      "sha256": "a27d7ac26c1bb86ede9da5cf1224efb05617049723b191afb405bd8de6d00e3b"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/blueberry-autumn.png",
+      "sha256": "9b2b9afe05eead0a8887bfd29109bb0ba25285401aea984f93a72b196e66d4de"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/blueberry-senescent.png",
+      "sha256": "e1177b24579dd9abd147eebbb505d0c774441c6475bc5a1e7c485d88d9d46956"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/blueberry-wind-idle.png",
+      "sha256": "70dd1418313b0e34a01356c3902cbef642a70cc516f62c0fe1d0401487c8cee7"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/bramble-autumn.png",
+      "sha256": "4817ba0dae6359d38c163cb0b07b33c76794c94e8ee3e803fd777bdb8c7adbaa"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/bramble-senescent.png",
+      "sha256": "b51d6e3a462a913de0c81862491c9628cdcbb0af581be49d29ca21e303b5a6a2"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/bramble-wind-idle.png",
+      "sha256": "5f7405506fbdb799b936aeb70a698312655ae83c654298494352c825934e0651"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/cardinal-flower-senescent.png",
+      "sha256": "fe831e3de6d8f1f5ef0361b61142a717b9ef429744a7daea4bd8ada649c1bf9c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/chickasaw-plum-autumn.png",
+      "sha256": "52b2610f10c7130997c7017ec8f8433ec0449344f7804a6a85248a0f92379bd1"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/chickasaw-plum-senescent.png",
+      "sha256": "e46963c2bce577fcf68a05c1317d80fa5a4cc221ee2e60a84cfa10a2e2199549"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/common-goldenrod-senescent.png",
+      "sha256": "a2e1fb3d2336b2954a207d8ed0a6e511704a59b273511f8e10f0646517f0e359"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/dogwood-autumn.png",
+      "sha256": "b6b03c609261056138e8e4b44e8dd93db409886d9288228727edce6c9a08e37c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/dogwood-senescent.png",
+      "sha256": "0ecc2d0f84a0388e08738f5d63d202e08450f04e7c76f24d225f364734efb8df"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/grass-autumn.png",
+      "sha256": "f01be2d55e45da1cafe2aa90d44d7c1e4729013ef342735b57b58935a409d94a"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/grass-senescent.png",
+      "sha256": "31c48186b8b5bf913cbb829a2f03b394f8bb612aa6d507682e23f7e5f40943ae"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/grass-wind-idle.png",
+      "sha256": "6f0d6a1ad63fd3f447546b9a8f283cae9fdc5d0f7b3c4746539fc44e04c96fd8"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/little-bluestem-senescent.png",
+      "sha256": "5f92458ddb48a5891a0e2a797e1091f75599cb59bb7569a4f75c9e5c6375c81f"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/milkweed-autumn.png",
+      "sha256": "0c6d63788a108c693a554055da74b050618bc9de201141db47486997d8025dbb"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/milkweed-senescent.png",
+      "sha256": "acfb6fd5aeb8be02bfd1b6a01d1d3907203b5071a27a3ce66407b3bcb2edbd7c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/milkweed-wind-idle.png",
+      "sha256": "e2227a87450177e8180ce0ef55e62c372aca563fec2fe2dfacc14fed40561dd0"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/new-england-aster-senescent.png",
+      "sha256": "89a39c796a5be21e1069416ad8335cf6c0fd811048240c4e2a0e56f552feb597"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/oak-autumn.png",
+      "sha256": "b2f172519ba0b32a098567cb07c2de51bdeccb58853d54edb9aedff95c5a52c5"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/oak-senescent.png",
+      "sha256": "67192ac99e01bb3f2f94e9aaf70f02d922eff98b613ed6c22cecf5697c9f658d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/oak-wind-idle.png",
+      "sha256": "f03647e1b6b9a519a873c21039718619f581584e83f753f82775537e7b5b7b48"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/persimmon-senescent.png",
+      "sha256": "5da178c150f384330373806afbb0d5f84873fdc364ec527505afd8918823aa66"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/pine-autumn.png",
+      "sha256": "5957c2295774c35dd185904483a85c7721bcd8632e5549530b68f61380a9bf4d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/pine-senescent.png",
+      "sha256": "0ce9915aa933e08b867510de339d22e45e1f9ee628287d8da102bea5687144b5"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/pine-wind-idle.png",
+      "sha256": "bc680fc7a02d8b9f8d13cdf1f705c8fc7e2a82a474540bc279183da49f0b91e7"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/purple-coneflower-senescent.png",
+      "sha256": "045005a0addf5a18d7e03f64c82477e8aa66e6e68984623d953834844028751c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/redbud-autumn.png",
+      "sha256": "77a865ebd167a13bd5c2f3416b9a05bf442028b6f92c6ae4ec9874f6786c6c3b"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/redbud-senescent.png",
+      "sha256": "1e111bd0606faf3f48e99aced7f9c2132a4de07e5036558f70885084ec0906df"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/redbud-wind-idle.png",
+      "sha256": "cc7c777b740f1269bff26f8445445c989a6614e39eba992cda945441b2d9330f"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/strawberry-autumn.png",
+      "sha256": "0a8207e728eaef96c3b36b768c725e8cb1b0603037fc2d4ac65237ecfc7a2a2e"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/strawberry-senescent.png",
+      "sha256": "9d3ba7be303a9d200349e57b44329260db8e70cad8e02f06d927669e055e701d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/strawberry-wind-idle.png",
+      "sha256": "b5a92ce315afb8a2c5d86216fa60c422afedc08b78acafc6672e63e8b5e08384"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/sumac-autumn.png",
+      "sha256": "a750ce10cb7c0e8de91aec5daadec1ac6d1f3ac7115d4f46dc7980e0cd5fa907"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/sumac-senescent.png",
+      "sha256": "43c2abea93c03ed22afc911303f93316e3beeedbde969ac27beb4c10e2d9d2eb"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/sumac-wind-idle.png",
+      "sha256": "c170945f38160d0b0596de6a900d7676cd26201f86fe96a2ca240c6b9d160a11"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/virginia-bluebells-senescent.png",
+      "sha256": "4b4e055c90ca19c947ed2646b33440ce38e7f79f587251693d14d177450a863d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/wild-bergamot-autumn.png",
+      "sha256": "396939b2cb21a96cd9e8b7799d6bbb6f9e391b141060c8cbda513eebe7f3f346"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/wild-bergamot-senescent.png",
+      "sha256": "cff1c9ecce22ab1d0438b19f8e94c5d2b9ff90bc3f6e0232e2cbcfa77c1fadc4"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/wild-columbine-autumn.png",
+      "sha256": "8ea7fb2f70684ff5d0c72cf14ff705bce9be3d4c7f2946ae9255a63a2d633be8"
+    },
+    {
+      "path": "assets/sprites/lifecycle/motion/wild-columbine-senescent.png",
+      "sha256": "6a74405be734a955ac140632bfbf4f11cfbeba10c4ce2215c3b7f7c1a5c1e0c0"
+    },
+    {
+      "path": "assets/sprites/lifecycle/new-england-aster.png",
+      "sha256": "92ed2111750ff9a36b38226e6cbd59aaabb7d7a40f97d13344d54e1660f1fc4d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/oak.png",
+      "sha256": "cfcbf3d30ff7f047f40986bffd490627d296b4b95afc3ee404620f7fb9519d6a"
+    },
+    {
+      "path": "assets/sprites/lifecycle/persimmon.png",
+      "sha256": "6933c1374e3c459d2e1b7c902083c3795ab71cf80f59c07caeb73dc4872c8f9a"
+    },
+    {
+      "path": "assets/sprites/lifecycle/pine.png",
+      "sha256": "f1a2c947c028814771861a625c15a770d3e0f8ed8b9b41b01717e567a49801f7"
+    },
+    {
+      "path": "assets/sprites/lifecycle/purple-coneflower.png",
+      "sha256": "119e49a0f6992b8f4a9745254f205004dabf2a8ec8dc5424a7359991c2802e70"
+    },
+    {
+      "path": "assets/sprites/lifecycle/redbud.png",
+      "sha256": "1294acfb8229d668f72a5629fff41b89d0d1e3df82b8cab904dba1b6640436c3"
+    },
+    {
+      "path": "assets/sprites/lifecycle/strawberry.png",
+      "sha256": "1f0d84b794319085225624248c8a38dfb3f9f7c7dbac1ee8500dac5c90314370"
+    },
+    {
+      "path": "assets/sprites/lifecycle/sumac.png",
+      "sha256": "b83f3d7e8c2b78f8f887dcf98d4782c2f7524d84322095720fd0882f1862ad5c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/blueberry-open-v2.png",
+      "sha256": "1a1339528ad1432fb9cfb1999640147b3f124d5bd2842339a67880a202ca001d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/bramble-open-v2.png",
+      "sha256": "105c1c33beb63dbe4f6e2f66e407523b593081ebc1db91fa040bb75a0c12ff3c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/dogwood-understory-v2.png",
+      "sha256": "eb0449ab95026417d7ffb64f8daa93aa8917555cbb2e228165f0b2d45ddfa5ba"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/grass-sparse-v2.png",
+      "sha256": "c8ad082480bc08bce0074c8af7990f3dfbd359ee09f680733cb4c081488a98b4"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/oak-understory-v2.png",
+      "sha256": "884299f9735512495ca52075d64a3978ad70240b9761498fe0947571edf27c2d"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/pine-open-v2.png",
+      "sha256": "40c6dbceab026fd198294eae3f28ba3cacd5ab7bd472165b7042d248ba69109c"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/redbud-understory-v2.png",
+      "sha256": "5f1185305df088e06c7123147123a07c5f499c7e2e51e542a9588367d11839ff"
+    },
+    {
+      "path": "assets/sprites/lifecycle/variants/sumac-open-v2.png",
+      "sha256": "524a0c3ff8c144cd01e0f43c6f23e69fa27a13edd7005a1211fb9afdd495f548"
+    },
+    {
+      "path": "assets/sprites/lifecycle/virginia-bluebells.png",
+      "sha256": "0fe5e38ed921fc7124059ce6a7ab33852e9cae50591efd2d4879d94bf6782c8a"
+    },
+    {
+      "path": "assets/sprites/lifecycle/wild-bergamot.png",
+      "sha256": "957d76e4d12537ac76ed4c0ad01c8983d60d35d5fbd7d8cf9cfe390fdee41ea9"
+    },
+    {
+      "path": "assets/sprites/lifecycle/wild-columbine.png",
+      "sha256": "8aeb9f0dd6bf4a33cafdde45b8fd7905d932371c04bd157722f13ea132405896"
+    },
+    {
+      "path": "assets/sprites/log-v2.png",
+      "sha256": "6184b3bfe0158b270bbf47500c96f8caa5d6fb12eebd7edb1213f07b0efbef27"
+    },
+    {
+      "path": "assets/sprites/log-v3.png",
+      "sha256": "f9255ff023ff890cf466496aa5834ad8006abc04509547315d72b009ea45aaad"
+    },
+    {
+      "path": "assets/sprites/log-v4.png",
+      "sha256": "84cd9568b9667fd3cbc6c4d8cbd33a241a2398a77437287fa7888de33819649d"
+    },
+    {
+      "path": "assets/sprites/log-v5.png",
+      "sha256": "716a4700b5f421cd821f450bab0eec02437dab3aa62116fad90127bb3cc28418"
+    },
+    {
+      "path": "assets/sprites/log.png",
+      "sha256": "1ed5d2a7d648a152e8fab1db3e894816a46caabf7ea531f8d828042e2aa80c0d"
+    },
+    {
+      "path": "assets/sprites/rock-v10.png",
+      "sha256": "b573169aa97ccdb37267de28b1f755703c146eb9547fccefc1dd777dee07c158"
+    },
+    {
+      "path": "assets/sprites/rock-v11.png",
+      "sha256": "7f0f8b4dab8320b8ce42483cc608e2235abde63264ecad107adf9520f5b9fed5"
+    },
+    {
+      "path": "assets/sprites/rock-v2.png",
+      "sha256": "984ad40cc7db4ddc7142d34aaabc6ee0d41c54f1cec79b60fba2745179cb9c6f"
+    },
+    {
+      "path": "assets/sprites/rock-v3.png",
+      "sha256": "9922052c84849c888cd7fda415a54c96ee20ec5740affdcb50fd09147ed7ef7b"
+    },
+    {
+      "path": "assets/sprites/rock-v4.png",
+      "sha256": "043f140dd20ec5856d0eedc3c449a8bf39939ae234236d21fc73912bc2cc2b64"
+    },
+    {
+      "path": "assets/sprites/rock-v5.png",
+      "sha256": "b1cf1ece69749952c7e24abc570fb3ef7a38a349a635f188f483e32c8118929a"
+    },
+    {
+      "path": "assets/sprites/rock-v6.png",
+      "sha256": "259284d67858051d8909d794df12670ac357ddc7382ce9531348932b603f9105"
+    },
+    {
+      "path": "assets/sprites/rock-v7.png",
+      "sha256": "bba9c0c06f258d3c92f000b0c1073debd98b376c0f7a9b711df33a415047252e"
+    },
+    {
+      "path": "assets/sprites/rock-v8.png",
+      "sha256": "fccd3fe0a41a3474a4863712681055f1cf043482b3cdaeda4d8ccdd3ac515d60"
+    },
+    {
+      "path": "assets/sprites/rock-v9.png",
+      "sha256": "12b0edeaa942359ba079cba420a39bf3261166647e4804488ef3b8e19c390467"
+    },
+    {
+      "path": "assets/sprites/rock.png",
+      "sha256": "60b246f68b0a89eabccba046ce0ee3c8842d6293d2e730d6369a6f6f479cc641"
+    },
+    {
+      "path": "assets/sprites/stone-clutter.png",
+      "sha256": "5091976a83305611ae577b39e48ab585541801109fad95c94781c2125c6aa51e"
+    },
+    {
+      "path": "assets/sprites/twig-v2.png",
+      "sha256": "537a52dab5268ceb5a63bce977277ebce64fa303a1b28cc6fb5cfa083d879dc5"
+    },
+    {
+      "path": "assets/sprites/twig.png",
+      "sha256": "64fbfabf63944bfbfefee3426cf0c11428808cfc7c4ce05500d8443951348f65"
+    },
+    {
+      "path": "src/flora.lua",
+      "sha256": "84603e324dce345308869028edf7351f5ec22b1f1697d25332b584f0dc9a9e2b"
+    },
+    {
+      "path": "src/plant_sprites.lua",
+      "sha256": "95f59624b5e242ef24d4ed3072042cf890df8413ecfd42111416fbc454885bf8"
+    },
+    {
+      "path": "src/plant_variants.lua",
+      "sha256": "c961ada1df1483073b308898b1f5aafedefa5e40a2894597703acb740abc2da1"
+    }
+  ],
+  "toolchain": {
+    "numpy": "2.3.5",
+    "pillow": "12.3.0",
+    "python": "3.12.14"
+  },
+  "version": 1
+}

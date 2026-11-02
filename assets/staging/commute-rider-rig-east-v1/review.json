@@ -1,0 +1,17 @@
+{
+  "assetId": "commute-rider-rig-east-v1",
+  "status": "retired_user_rejected_articulated_sprites",
+  "runtimeIntegrated": false,
+  "gaitApproved": false,
+  "historicalSourceRetained": true,
+  "reason": "User explicitly rejected articulated sprites; future rider animation must use complete character sprites for actual poses/frames.",
+  "sourceAtlas": "assets/source/commute-rider-rig-east-v1/parts-atlas-v1.png",
+  "extraction": "Mechanical alpha-connected-component crops retained only for historical review; no art pixels repainted.",
+  "knownProblems": [
+    "Upper-arm parts extend well beyond their visible elbow pads.",
+    "Forearm/glove pieces have no separate wrist socket.",
+    "Thigh pieces continue below knee pads and shin/boot pieces repeat knee disks.",
+    "Near/far pairing was inferred from cell position rather than visibly labeled art."
+  ],
+  "futureWork": "Do not integrate or generate further articulated rig parts."
+}

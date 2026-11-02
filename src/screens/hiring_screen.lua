@@ -146,6 +146,7 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         elseif ui.view=="offer" and hit("payMinus") then t.payWeeks=math.max(1,t.payWeeks-1)
         elseif ui.view=="offer" and hit("payPlus") then t.payWeeks=math.min(4,t.payWeeks+1)
         elseif hit("send") then
+            if not Contracts.hasOpenHours(t) then state.message="Choose some hours while the shop is open; closed Fri 20:00 - Mon 09:00.";return {action="blocked"} end
             local result
             if ui.view=="renegotiate" then
                 result=send({kind="change_employee_hours",employeeId=current.id,
@@ -185,6 +186,10 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         if current.status=="visiting" and hit("resume") then return send({kind="request_resume",applicationId=current.id}) end
         if current.status~="hired" and current.status~="offer_accepted" and hit("decline") then return send({kind="decline_application",applicationId=current.id}) end
         if current.status=="offer_accepted" and hit("sign") then
+            if not Contracts.hasOpenHours(current.offer) then
+                state.message="This older offer has no open hours. Renegotiate before signing."
+                return {action="blocked"}
+            end
             if Employees.employedCount(state)>=Employees.MAX_STAFF then
                 state.message="Payroll is full. Dismiss an employee before hiring another."
                 return {action="blocked"}
@@ -294,6 +299,12 @@ local function workDays(contract)
     return table.concat(days," ")
 end
 function Hiring.staffScheduleStatus(state,w)
+    if not Contracts.hasOpenHours(w.contract) then return "No open shift","Change days/hours: this agreement falls during shop closure." end
+    local now=Calendar.absoluteHours(state)
+    if require("src.business_hours").nextOpen(now)>now or require("src.weekend_flow").shopClosed(state) then
+        local nextAt=Contracts.onShift(w.contract,now) and now or Contracts.nextStart(w.contract,now)
+        return "Shop closed / work waiting",nextAt and "Next open shift: "..Calendar.dateTimeTextAtHours(nextAt).."; shop must reopen." or "No shift falls during open hours."
+    end
     local team=Schedule.team(state)
     if w.assignment then return w.activity,nil end
     local count=#team.items
@@ -346,7 +357,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             line(string.format("Cash after earned wages / bills: $%.2f",f.freeCash),100,410,370,
                 f.freeCash<0 and {1,.55,.40} or {.65,.9,.72})
             line(string.format("Break-even: %d cutting lifts / week",f.breakEvenLifts),490,284,350,{1,.85,.45})
-            line(string.format("Standard charge: $%.2f / lift",f.pricePerLift),490,310,350)
+            line(string.format("Budget-covering charge: $%.2f / lift",f.pricePerLift),490,310,350)
             line(string.format("Estimated staff capacity: %d lifts / week",f.capacity),490,336,350)
             line("IN-HOUSE ORDER FORECAST",490,394,350)
             line(string.format("%d delivered jobs | %d work units left",f.inHouseJobs,f.inHouseWorkUnits),490,424,350)
@@ -460,7 +471,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         button("nightShift","NIGHT "..Contracts.formatHour(20,twelveHourTime).."-"
             ..Contracts.formatHour(8,twelveHourTime),pointerX,pointerY,
             not Contracts.preferenceAllows(current.shiftPreference,20))
-        line("Days when the shift starts",412,430,420)
+        line("Shift starts / closed Fri 20:00 - Mon 09:00",412,430,420)
         for i,name in ipairs({"MON","TUE","WED","THU","FRI","SAT","SUN"}) do
             local r=dayRect(i)
             love.graphics.setColor(.16,Contracts.hasDay(t.days,i) and .43 or .22,.28,1)
@@ -472,12 +483,12 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             button("payMinus","-",pointerX,pointerY);button("payPlus","+",pointerX,pointerY)
         end
         line(string.format("Pay every %d week%s",t.payWeeks,t.payWeeks==1 and "" or "s"),478,500,292)
-        line(string.format("Weekly $%.2f | Cycle estimate $%.2f",estimate,estimate*t.payWeeks),412,534,426)
-        line(shiftAllowed and "One 15m paid break, one 45m unpaid lunch per shift."
-            or "Offer hours do not match this applicant's shift preference.",412,552,426,
+        line(string.format("Weekly $%.2f | %.2f paid hours while open",estimate,hours),412,530,426)
+        line(shiftAllowed and (Contracts.hasOpenHours(t) and "Breaks apply when the effective shift is long enough." or "These hours fall entirely during shop closure.")
+            or "Offer hours do not match this applicant's shift preference.",412,546,426,
             shiftAllowed and {.61,.78,.67} or {1,.56,.48})
         button("send",renegotiating and "AGREE NEW SCHEDULE" or "EMAIL OFFER",pointerX,pointerY,
-            readOnly or not Contracts.validTerms(t) or not shiftAllowed)
+            readOnly or not Contracts.hasOpenHours(t) or not shiftAllowed)
         return
     elseif ui.view=="assignment" then
         local job,pallet,machine=choices(state,ui)
@@ -549,7 +560,8 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         elseif current.status=="resume_received" then button("offer","NEGOTIATE OFFER",pointerX,pointerY,readOnly)
         elseif current.status=="offer_accepted" then
             line(Contracts.summary(current.offer,twelveHourTime),410,488,426)
-            button("sign",payrollFull and "PAYROLL FULL" or "SIGN & HIRE",pointerX,pointerY,readOnly or payrollFull)
+            local openHours=Contracts.hasOpenHours(current.offer)
+            button("sign",payrollFull and "PAYROLL FULL" or not openHours and "REVISE HOURS" or "SIGN & HIRE",pointerX,pointerY,readOnly or payrollFull or not openHours)
             button("edit","RENEGOTIATE",pointerX,pointerY,readOnly)
         end
         if current.status~="hired" and current.status~="offer_accepted" then button("decline","DECLINE APPLICATION",pointerX,pointerY,readOnly) end
@@ -558,7 +570,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         local w=current
         oneLine(string.format("$%.2f/hr  |  Pay every %d week%s",w.contract.wageCents/100,
             w.contract.payWeeks,w.contract.payWeeks==1 and "" or "s"),410,280,426)
-        oneLine("Work days: "..workDays(w.contract),410,302,426,{.61,.78,.67})
+        oneLine("Work days: "..workDays(w.contract).." / open hours only",410,302,426,{.61,.78,.67})
         oneLine(shiftDescription(w.contract,twelveHourTime),410,324,426,{1,.85,.45})
         if w.pendingSchedule then
             oneLine("New schedule begins after current shift",410,332,426,{.61,.78,.67})

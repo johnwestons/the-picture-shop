@@ -38,6 +38,39 @@ function Test.run(context, check)
         and dealer[1].price < online[1].price
         and dealer[2].condition < online[2].condition)
 
+    local offeredModels = {}
+    for _, offer in ipairs(online) do offeredModels[offer.modelId] = true end
+    local legacyState = context.State.new()
+    local folder = {
+        id = "MCH-0090", modelId = "regal_moll", status = "installed", source = "online",
+        purchasePrice = 18000, acquiredAt = 1, cycles = 0, operatingMinutes = 0,
+        variables = { feedRollers = 96, foldGuides = 96 }, maintenance = { serviceCount = 0 },
+        world = { x = 620, y = 430, direction = "northwest" },
+    }
+    local platen = {
+        id = "MCH-0091", modelId = "chandler_price_platen", status = "installed", source = "online",
+        purchasePrice = 5400, acquiredAt = 1, cycles = 0, operatingMinutes = 0,
+        variables = { platenAlignment = 96, grippers = 96, drive = 96 },
+        maintenance = { serviceCount = 0 },
+        world = { x = 660, y = 450, direction = "northwest" },
+    }
+    legacyState.machines.items[#legacyState.machines.items + 1] = folder
+    legacyState.machines.items[#legacyState.machines.items + 1] = platen
+    local retainedFleet = fleet.current(legacyState)
+    local soldDisabledMachine = fleet.sell(legacyState, folder.id, "online")
+    check("rollback_hides_folder_and_platen_but_preserves_legacy_records",
+        #fleet.order == 3 and #online == 3 and offeredModels.polar_115
+        and offeredModels.skid_wrapper and offeredModels.heidelberg_10x15
+        and not offeredModels.regal_moll and not offeredModels.chandler_price_platen
+        and fleet.byId(legacyState, folder.id) == folder
+        and fleet.byId(legacyState, platen.id) == platen
+        and #fleet.installedUnits(legacyState) == 2
+        and fleet.installed(legacyState, "regal_moll") == nil
+        and fleet.installed(legacyState, "chandler_price_platen") == nil
+        and #fleet.owned(legacyState) == 2
+        and not soldDisabledMachine and #retainedFleet.items == 4
+        and fleet.validState(retainedFleet))
+
     state.money = 10000
     local bought, usedCutter = fleet.buy(state, "dealer", 1)
     check("dealer_purchase_installs_unique_floor_machine", bought
@@ -111,12 +144,15 @@ function Test.run(context, check)
         end
     end
     local gearX, gearY = context.machineScreen.lubricationViewCenter("gear")
+    local finishX, finishY = context.machineScreen.lubricationFinishCenter()
+    context.machineScreen.mousepressed(cutterServiceState, finishX, finishY, 1)
+    check("cutter_lubrication_identifies_missing_gear_inspection_near_finish",
+        cutterServiceState.message:find("GEAR: select INSPECT LIGHT", 1, true) ~= nil)
     context.machineScreen.mousepressed(cutterServiceState, gearX, gearY, 1)
     local inspectX, inspectY = context.machineScreen.lubricationToolCenter("inspect")
     context.machineScreen.mousepressed(cutterServiceState, inspectX, inspectY, 1)
     local sightX, sightY = context.machineScreen.lubricationGearSightCenter()
     context.machineScreen.mousepressed(cutterServiceState, sightX, sightY, 1)
-    local finishX, finishY = context.machineScreen.lubricationFinishCenter()
     context.machineScreen.mousepressed(cutterServiceState, finishX, finishY, 1)
     check("cutter_maintenance_hub_launches_detailed_lubrication_minigame",
         maintenanceHub and maintenanceHub.action == "maintenance_hub"

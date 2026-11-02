@@ -47,6 +47,7 @@ function Component.install(Runtime)
     Runtime.bladeServiceButton = { x = 526, y = 244, width = 342, height = 122 }
     Runtime.technicianButton = { x = 526, y = 390, width = 342, height = 72 }
     Runtime.weeklyButton = { x = 526, y = 478, width = 342, height = 82 }
+    Runtime.spareBladeButton = { x = 92, y = 390, width = 342, height = 170 }
     Runtime.lockoutButtons = {
         disconnect = { x = 105, y = 235, width = 210, height = 150 },
         key = { x = 375, y = 235, width = 210, height = 150 },
