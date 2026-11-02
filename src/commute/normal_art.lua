@@ -25,7 +25,7 @@ function Art.selection(actor,camera,visual)
     if authored~='east' then action=action..'_'..authored end
     return action,mirror and -1 or 1,visual and visual.distance or actor.distance or 0
 end
-function Art.draw(assets,actor,camera,world,appearance,visual,clock)
+function Art.draw(assets,actor,camera,world,appearance,visual,clock,opacity)
     local a=Art.appearance(appearance)
     local action,mirror,distance=Art.selection(actor,camera,visual)
     if not assets.hasAction(a.character,action) then action='idle' end
@@ -38,9 +38,9 @@ function Art.draw(assets,actor,camera,world,appearance,visual,clock)
     local ax,ay=assets.getAnchor(a.character,action,frame)
     local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
     local scale=Config.player.drawScale*.7*camera.zoom*assets.getNormalization(a.character,action)
-    love.graphics.setColor(1,1,1)
+    love.graphics.setColor(1,1,1,opacity or 1)
     if a.character=='rabbit-worker' then
-        Colorways.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay,0,0,a.furColorway,a.overallsColorway)
+        Colorways.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay,0,0,a.furColorway,a.overallsColorway,opacity)
     else love.graphics.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay) end
     return true
 end

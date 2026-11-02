@@ -88,12 +88,12 @@ function Art.draw(state,activity,actor,pose)
     local y=fromY+(mouthY-fromY)*lift
     local sprite=kind=="cupdrink" and 15 or kind=="drink" and 14 or 16
     local tilt=(u>.31 and u<.65) and math.sin(math.pi*(u-.31)/.34)*.22 or 0
-    -- Tap water is an interaction with the sink rather than a bottled item;
-    -- keep its existing catalog presentation. Bottled drinks route through
+    -- Tap water is an interaction with the sink rather than a handheld prop.
+    -- Cup drinking uses the directional mug; bottled drinks route through
     -- drawFood above and use the directional bottle atlas.
-    local family=nil
+    local family=kind=="cupdrink" and "mug" or nil
     local size=(kind=="cupdrink" and 16 or 17)*(1-t*.12)
-    if not (family and Held.draw(family,dir,x,y,31,tilt)) then
+    if not (family and Held.draw(family,dir,x,y,24,tilt)) then
         require("src.home_food_art").draw(sprite,x,y,size,tilt)
     end
     return true

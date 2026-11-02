@@ -48,3 +48,11 @@ Employee cutter, press, and wrapping skill gains now record one award per employ
 ## Measurement limits
 
 The current Windows LÖVE environment has no attached Android device. This audit verifies bounded work, state consistency, route behavior, and render completion; it does not claim new Android FPS, GPU frame-time, thermal, or memory measurements. The available Windows crowded-shop and save/image measurements, including their limits, are documented in [the late-game performance report](late_game_performance_2026-10-28.md) and [the save/image report](save_image_stalls_2026-10-29.md).
+
+## Commute and apartment visual backlog update
+
+- Commute road actors now draw the selected normal character or the authored suited-rider strips. Five authored camera views cover eight headings through three intentional mirrors. Equip/removal crossfades are presentation-only; individual suit/zipper/boots/gloves/helmet beats still need production art. Non-rabbit riders remain in their selected normal outfit until matching suit assets exist.
+- Apartment cup drinking, changing, and food preparation now use directional mug, towel, and ingredient art. Rest/sleep use clock-driven settling and breathing, and watching a powered TV adds a small screen reflection. These effects read existing replicated clock/activity/furniture state only; save schema and network protocol do not change.
+- The static commute sprite audit reported 10 animations, zero errors, and one center-jitter warning on east walk. That warning is retained because frame anchors are fixed and shifting them risks foot slide. No audit thresholds were relaxed.
+- This visual pass received static code/art review only. No test suite, game launch, Android device run, or device performance measurement was performed for this pass; earlier audit verification above refers to the previously completed runtime/state audit.
+- Remaining review: per-step riding-gear art; suited art for other playable character types; a dedicated animated seated TV/sleep set; final warehouse and apartment visual review; Android frame-time, memory, and thermal measurements on device.

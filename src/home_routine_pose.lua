@@ -100,18 +100,12 @@ local function tools(p,hx,hy)
     local kind=p.routine;local wave=math.sin(p.seconds*5)
     if kind=="cook" then Props.draw(2,hx,hy,.065,p.mirror,wave*.13,270,190)
     elseif kind=="prepare" then
-        local Food=require("src.home_food_art")
-        local t=p.progress or 0;local reach=math.sin(p.seconds*3)*1.5
-        if t<.32 then
-            Food.draw(11,hx-5,hy+3+reach,17)
-            Food.draw(13,hx+6,hy+3-reach,16)
-        elseif t<.76 then
-            local mix=(t-.32)/.44
-            Food.draw(11,hx-5+mix*3,hy+3,16)
-            Food.draw(13,hx+6-mix*4,hy+2,15)
+        local t=p.progress or 0;local reach=math.sin(p.seconds*3)*.8
+        if t<.76 then
+            require("src.home_held_art").draw("ingredients",p.direction,hx,hy+3+reach,28)
         else
             local settle=math.min(1,(t-.76)/.14)
-            Food.draw(10,hx+reach,hy+2+settle*2,18)
+            require("src.home_held_art").draw("sandwich",p.direction,hx+reach,hy+2+settle*2,18)
         end
     elseif kind=="dishes" then Props.draw(4,hx,hy+4,.065,p.mirror)
     elseif kind=="wipe" or kind=="scrub" then Props.draw(3,hx+wave*2,hy+4,.055,p.mirror)
@@ -119,7 +113,7 @@ local function tools(p,hx,hy)
     elseif kind=="change" then
         if p.progress<.24 or p.progress>.78 then
             local lift=math.sin(p.seconds*4)*1.8
-            Props.draw(8,hx,hy+3-lift,.065,p.mirror,math.sin(p.seconds*2)*.04)
+            require("src.home_held_art").draw("towel",p.direction,hx,hy+3-lift,26)
         end
     elseif kind=="trash" then Props.draw(7,hx,hy,.09,p.mirror,0,190,110)
     elseif kind=="cupwash" or kind=="cupfill" then

@@ -218,10 +218,10 @@ function Renderer:draw(camera,actor,actors)
         if p.actor then
             if p.gear and not p.gear.mounted then
                 local a=p.actor;local x,y=camera:screen(a.x,a.z,a.h or self.world:supportHeight(a.x,a.z))
-                local pose=p.presentation and p.presentation.pose or require('src.commute.gear').pose(p.gear)
-                if pose=='normal_idle' and self.characterAssets then
-                    require('src.commute.normal_art').draw(self.characterAssets,a,camera,self.world,p.appearance,p.presentation,self.clock)
-                else require('src.commute.presentation').foot(x,y,camera.zoom*.7,p.gear,a.distance,a.speed,p.presentation) end
+                if not require('src.commute.presentation').world(self.characterAssets,a,camera,self.world,
+                    p.gear,p.appearance,p.presentation,self.clock) then
+                    require('src.commute.presentation').foot(x,y,camera.zoom*.7,p.gear,a.distance,a.speed,p.presentation)
+                end
             else self.bikeArt:draw(p.actor,camera,self.world,p.bikeOnly,p.presentation) end
         elseif p.warehouse then self.warehouseArt:draw(camera,actor,self.world)
         elseif p.bridgeSide then

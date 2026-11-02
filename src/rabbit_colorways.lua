@@ -116,10 +116,20 @@ local function getShader()
 end
 
 function Colorways.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY,
-        shearX, shearY, furIndex, overallsIndex)
+        shearX, shearY, furIndex, overallsIndex, opacity)
     local fur, overalls = Colorways.normalize(furIndex, overallsIndex)
-    if fur == 1 and overalls == 1 then
+    local alpha = tonumber(opacity) or 1
+    if alpha ~= alpha then alpha = 1 end
+    alpha = math.max(0, math.min(1, alpha))
+    if fur == 1 and overalls == 1 and alpha == 1 then
         love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
+        return
+    end
+    if fur == 1 and overalls == 1 then
+        love.graphics.push("all")
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
+        love.graphics.pop()
         return
     end
     local activeShader = getShader()
@@ -132,7 +142,7 @@ function Colorways.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, or
     activeShader:send("furEnabled", fur == 1 and 0 or 1)
     activeShader:send("overallsEnabled", overalls == 1 and 0 or 1)
     love.graphics.push("all")
-    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setColor(1, 1, 1, alpha)
     love.graphics.setShader(activeShader)
     love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
     love.graphics.pop()

@@ -11,16 +11,24 @@ local Art = {
         meal = "assets/generated/home-held-v1/held-meal-eight-directions.png",
         sandwich = "assets/generated/home-held-v1/held-sandwich-eight-directions.png",
         bottle = "assets/generated/home-held-v1/held-bottle-eight-directions.png",
+        mug = "assets/generated/home-washing-v2/mug-eight-directions.png",
+        towel = "assets/generated/home-laundry-v2/bundle-eight-directions.png",
+        ingredients = "assets/generated/home-prep-v1/prep-board-eight-directions.png",
+    },
+    CELL_ORDERS = {
+        mug = {"east","southeast","south","southwest","west","northwest","north","northeast"},
+        towel = {"east","southeast","south","southwest","west","northwest","north","northeast"},
     },
 }
 
 local assets, shader
 
-local function directionIndex(direction)
-    for i, name in ipairs(Art.DIRECTIONS) do
+local function directionIndex(direction,kind)
+    local order=Art.CELL_ORDERS[kind] or Art.DIRECTIONS
+    for i, name in ipairs(order) do
         if name == direction then return i end
     end
-    return #Art.DIRECTIONS
+    return #order
 end
 
 local function load(kind)
@@ -33,7 +41,7 @@ local function load(kind)
     local width, height = image:getDimensions()
     local cellWidth, cellHeight = width / 4, height / 2
     local entry = { image = image, quads = {}, width = cellWidth, height = cellHeight }
-    for i = 1, 8 do
+    for i = 1, #(Art.CELL_ORDERS[kind] or Art.DIRECTIONS) do
         local x = ((i - 1) % 4) * cellWidth
         local y = math.floor((i - 1) / 4) * cellHeight
         entry.quads[i] = love.graphics.newQuad(x, y, cellWidth, cellHeight, width, height)
@@ -55,17 +63,19 @@ function Art.available(kind)
     return Art.PATHS[kind] ~= nil
 end
 
-function Art.index(direction)
-    return directionIndex(direction)
+function Art.index(direction,kind)
+    return directionIndex(direction,kind)
 end
 
 function Art.contact(kind, direction, size)
     local entry = load(kind)
     if not entry then return nil end
+    local order=Art.CELL_ORDERS[kind] or Art.DIRECTIONS
+    local index=directionIndex(direction,kind)
     local scale = (size or 32) / math.max(entry.width, entry.height)
     return {
-        direction = direction or Art.DIRECTIONS[directionIndex(direction)],
-        frame = directionIndex(direction),
+        direction = direction or order[index],
+        frame = index,
         width = entry.width * scale,
         height = entry.height * scale,
         scale = scale,
@@ -78,7 +88,7 @@ end
 function Art.draw(kind, direction, x, y, size, rotation)
     local entry = load(kind)
     if not entry then return false end
-    local frame = directionIndex(direction)
+    local frame = directionIndex(direction,kind)
     local scale = (size or 32) / math.max(entry.width, entry.height)
     love.graphics.push("all")
     love.graphics.setShader(ensureShader())

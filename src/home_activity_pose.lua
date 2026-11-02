@@ -4,6 +4,7 @@ local Residents=require("src.home_residents")
 local Furniture=require("src.home_furniture")
 local Catalog=require("src.home_furniture_catalog")
 local Colorways=require("src.rabbit_colorways")
+local Calendar=require("src.business_calendar")
 local Pose={}
 local cache,shader={},nil
 local frameFor={southeast=1,south=2,southwest=3,west=4,northwest=5,north=6,northeast=7,east=8}
@@ -105,8 +106,12 @@ function Pose.get(state,player)
         if item and item.kind=="couch" then sx,sy=sx*.8,sy*.8 end
         if item and item.kind=="guest_mat" then sy=sy*.70 end
     end
+    local seconds=math.max(0,Calendar.absoluteHours(state)-(tonumber(a.startedAt) or Calendar.absoluteHours(state)))
+        *Calendar.secondsPerDay(state)/24
+    local television=a.kind=="watch" and a.tvId and Furniture.find(state,a.tvId)
     return {kind=kind,frame=frame,direction=direction,x=x,y=y,sx=sx,sy=sy,ox=ox,oy=oy,
         depth=depth,groundX=groundX,groundY=groundY,item=item,
+        activity=a.kind,seconds=seconds,watching=television and television.powered==true or false,
         bounds={x+(x1-ox)*sx,y+(y1-oy)*sy,x+(x2-ox)*sx,y+(y2-oy)*sy}}
 end
 local function resource(kind)
@@ -132,9 +137,20 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 screen) {
     vec4 pixel=Texel(texture,uv);if(pixel.a<0.18) discard;
     return applyRabbitColorways(pixel)*color;
 }]])
+    local settle=math.max(0,1-math.max(0,pose.seconds or 0)/.36)
+    settle=settle*settle*(3-2*settle)
+    local breathing=pose.kind=="sleeping" and math.sin((pose.seconds or 0)*math.pi*2/2.8)*.012 or 0
     love.graphics.push("all");love.graphics.setColor(1,1,1,1);love.graphics.setShader(shader)
     Colorways.configureShader(shader,player.furColorway,player.overallsColorway)
-    love.graphics.draw(asset.frames[pose.frame],pose.x,pose.y,0,pose.sx,pose.sy,pose.ox,pose.oy)
+    love.graphics.draw(asset.frames[pose.frame],pose.x,pose.y-2*settle,0,
+        pose.sx*(1-.025*settle),pose.sy*(1-.025*settle+breathing),pose.ox,pose.oy)
+    if pose.watching then
+        love.graphics.setShader()
+        local offsetX=({7,0,-7,-8,-6,0,6,8})[pose.frame] or 0
+        local glow=.10+.025*(.5+.5*math.sin((pose.seconds or 0)*6.4))
+        love.graphics.setColor(.42,.72,1,glow)
+        love.graphics.ellipse("fill",pose.x+offsetX,pose.y-30,3.2,2.2)
+    end
     love.graphics.pop()
 end
 function Pose.drawForeground(pose)

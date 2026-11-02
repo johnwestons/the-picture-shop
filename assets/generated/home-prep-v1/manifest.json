@@ -1,0 +1,94 @@
+{
+  "generator": "built-in image_gen",
+  "asset": "prep-board-eight-directions.png",
+  "source": "C:/Users/johnw/.codex/generated_images/01a19ad7-3d3d-7310-a38d-23dca701d9b5/exec-7a2cfde4-545f-417a-9fa9-4f875d26a9ab.png",
+  "dimensions": [
+    1536,
+    1024
+  ],
+  "grid": {
+    "columns": 4,
+    "rows": 2,
+    "cell": [
+      384,
+      512
+    ],
+    "order": [
+      "southeast",
+      "south",
+      "southwest",
+      "west",
+      "northwest",
+      "north",
+      "northeast",
+      "east"
+    ]
+  },
+  "alpha": {
+    "format": "RGBA",
+    "range": [
+      0,
+      254
+    ],
+    "cornerPixels": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "threshold": 16,
+    "cellBounds": [
+      [
+        49,
+        144,
+        367,
+        420
+      ],
+      [
+        55,
+        132,
+        331,
+        405
+      ],
+      [
+        17,
+        145,
+        330,
+        413
+      ],
+      [
+        14,
+        175,
+        364,
+        352
+      ],
+      [
+        43,
+        144,
+        356,
+        384
+      ],
+      [
+        57,
+        142,
+        328,
+        412
+      ],
+      [
+        31,
+        144,
+        336,
+        388
+      ],
+      [
+        11,
+        159,
+        359,
+        331
+      ]
+    ],
+    "maxAlphaWithin8pxCellGutter": 1
+  },
+  "sha256": "31250161b94db15fcb81ee092f88b2f4b7cd7beace3bd3249a591555de0aef83",
+  "prompt": "Use case: stylized-concept\nAsset type: transparent 2D game prop spritesheet used above a small character's hands during kitchen food preparation\nPrimary request: draw one complete small kitchen-prep board prop in eight camera directions. The board holds a few fresh sliced vegetables and a small piece of bread. This is a prop-only atlas, with no character parts.\nScene/backdrop: fully transparent outside the prop.\nSubject: a compact light wood cutting board with a tomato slice, cucumber pieces, leafy greens, and one small bread slice. The prop must read clearly when drawn around 28 game pixels high.\nStyle/medium: polished hand-painted 2D game sprite with a clean dark outline, soft texture shading and the warm detailed food-art style used by a cozy life-sim.\nComposition/framing: one 4-column by 2-row atlas, 1536 by 1024 overall with eight 384 by 512 transparent cells. Row 1 is southeast, south, southwest, west. Row 2 is northwest, north, northeast, east. Draw the same compact prop independently in each correct perspective, centered with generous transparent gutters.\nLighting/mood: consistent soft studio game lighting and one shared light direction.\nColor palette: natural tomato red, cucumber green, leafy green and warm pale bread on a light wood board.\nMaterials/textures: subtle wood grain, fresh vegetable surfaces, soft bread texture.\nConstraints: genuinely transparent alpha outside every item; each of the eight perspectives must be distinct and correctly oriented; identical object size, visual center and scale in every cell; keep all pixels inside the cell.\nAvoid: background, floor shadow, gradient, checkerboard, text, label, watermark, person, hands, arms, gloves, utensils, plates, bowl, extra boards, duplicate poses, cropped objects, cell borders."
+}
