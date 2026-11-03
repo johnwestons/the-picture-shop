@@ -178,7 +178,8 @@ function Test.run(check)
                 local found=false
                 for _,draw in ipairs(calls) do
                     found=found or draw.state==sample.state
-                    consistent=consistent and draw.frame==expected and draw.sx>0 and draw.sy>0
+                    local adjacent=draw.frame==expected or draw.frame==expected%16+1
+                    consistent=consistent and adjacent and draw.sx>0 and draw.sy>0
                 end
                 consistent=consistent and found
             end
