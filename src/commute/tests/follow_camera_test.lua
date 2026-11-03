@@ -12,6 +12,12 @@ local function advance(camera,r,seconds,hz)
     for _=1,math.floor(seconds*hz+.5) do camera:updateRide(r,1/hz) end
 end
 function Test.run(check)
+    local defaultFollow=Camera.new({x=240,z=240,heading=0},world)
+    defaultFollow:setOutsideMode('follow',defaultFollow.lastActor)
+    local followTilt=defaultFollow.tilt
+    defaultFollow:orbit(0,3)
+    check('camera_follow_starts_at_a_steeper_over_the_shoulder_angle_and_remains_adjustable',
+        followTilt==Camera.FOLLOW_TILT_DEFAULT and defaultFollow.tilt==followTilt+3)
     local r=rider();local camera=Camera.new(r.bike,world)
     camera:orbit(37,7);camera:zoomBy(-2);camera:pan(20,10)
     local zoom,targetZoom,tilt,panX,panY=camera.zoom,camera.targetZoom,camera.tilt,camera.offsetX,camera.offsetY

@@ -31,6 +31,19 @@ if os.getenv('PICTURE_SHOP_COMMUTE_CAMERA_TEST')=='1' then
     end
     return
 end
+if os.getenv('PICTURE_SHOP_COMMUTE_HANDLING_TEST')=='1' then
+    function love.load()
+        local count=0
+        local function check(name,okay) assert(okay,name);count=count+1;print('PASS '..name) end
+        for _,name in ipairs({'camera_controls','camera','follow_camera','camera_preferences','first_person',
+            'bindings','motorcycle','controls','rider','trip','bike_art'}) do
+            require('src.commute.tests.'..name..'_test').run(check)
+        end
+        print('COMMUTE_HANDLING_OK '..count..' checks; no saves accessed')
+        love.event.quit(0)
+    end
+    return
+end
 local CameraControls=require('src.commute.camera_controls')
 local Bindings=require('src.commute.bindings')
 local Settings=require('src.settings')
@@ -167,11 +180,15 @@ function love.load()
         print('COMMUTE SESSION TESTS PASSED');love.event.quit(0);return
     end
     if os.getenv('PICTURE_SHOP_COMMUTE_TEST')=='1' then
+        assert(love.filesystem.getIdentity()=='the-picture-shop-commute-lab',
+            'Commute tests may only reset their isolated lab save slot')
+        local save=require('src.save')
+        -- Start with a clean disposable fixture so stale lab state cannot
+        -- affect tests that exercise the save schema or apartment handoff.
+        save.delete(3)
         for _,name in ipairs({'terrain','camera','first_person','roads','motorcycle','controls','vegetation','flora','routes','bridge_art','bridge_geometry','structure_geometry','gear','rider','gear_home','trip','bike_art','bike_upgrades','normal_art','sites','town'}) do require('src.commute.tests.'..name..'_test').run(check) end
         -- These existing domain regressions exercise the apartment handoff and
         -- actual save schema. Their disposable slot lives only in the lab.
-        assert(love.filesystem.getIdentity()=='the-picture-shop-commute-lab')
-        local save=require('src.save');save.delete(3)
         require('src.tests.home_residents_test').run({save=save},check)
         require('src.tests.weekend_flow_test').run({},check)
         print('COMMUTE TESTS PASSED')

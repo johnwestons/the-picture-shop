@@ -1,7 +1,8 @@
 local Bike=require('src.commute.motorcycle')
 local Camera=require('src.commute.camera')
 local FP=require('src.commute.first_person_camera')
-local HUD=require('src.commute.cockpit')
+local Bindings=require('src.commute.bindings')
+local Touch=require('src.commute.touch_controls')
 local Test={}
 local world={height=function()return 0 end,supportHeight=function()return 0 end,
     roads={nearest=function()return 0,{width=8} end,blocked=function()return false end}}
@@ -50,9 +51,13 @@ function Test.run(check)
     check('ride_center_snaps_to_true_forward_and_keeps_fov',math.abs(x)<.001 and math.abs(y)<.001
         and c.headYawVelocity==0 and c.fov==fov and math.abs(c.viewHeading-p.heading)<.001)
     for _,size in ipairs({{1280,880},{960,678},{640,480}}) do
-        local ox,oy,s=HUD.layout(size[1],size[2])
-        check('ride_fixed_center_button_while_moving_'..size[1],HUD.keyAt(ox+650*s,oy+224*s,
-            size[1],size[2],p,{speed=12},c)=='c')
+        local center
+        for _,button in ipairs(Touch.actionButtons(size[1],size[2],Bindings.defaults(),{mounted=true},{mobile=true})) do
+            if button.action=='recenter' then center=button end
+        end
+        local hit=center and Touch.actionAt(center.x,center.y,size[1],size[2],Bindings.defaults(),
+            {mounted=true},{mobile=true})
+        check('ride_shared_center_button_while_moving_'..size[1],hit and hit.action=='recenter')
     end
 end
 return Test

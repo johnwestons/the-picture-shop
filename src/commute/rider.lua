@@ -38,6 +38,21 @@ function Rider.footing(r,world)
 end
 function Rider.command(r,action,world)
     if r.ped.crash then return false,'Get back on your feet before using the motorcycle.' end
+    if action=='rescue' then
+        if r.gear.transition then return false,'Finish the current riding action first.' end
+        local okay,message=Bike.rescue(r.bike,world)
+        if not okay then return false,message end
+        r.gear.engine=false
+        r.ped.speed,r.ped.vx,r.ped.vz=0,0,0
+        r.ped.heading=r.bike.heading
+        if r.gear.mounted then
+            r.ped.x,r.ped.z=r.bike.x,r.bike.z
+        elseif M.length(r.ped.x-r.bike.x,r.ped.z-r.bike.z)>2 then
+            local x,z=Rider.footing(r,world)
+            if x then r.ped.x,r.ped.z=x,z end
+        end
+        return true,'Motorcycle recovered at the last safe spot. The engine is off.'
+    end
     if not M.finite(r.bike.h) then Bike.resetContact(r.bike,world) end
     if (action=='dismount' or action=='ignition') and (not r.bike.grounded or math.abs(r.bike.vy or 0)>.1) then
         return false,'Wait until the motorcycle has landed and settled before getting off or switching the engine.'

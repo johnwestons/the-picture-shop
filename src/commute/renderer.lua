@@ -279,7 +279,7 @@ function Renderer:draw(camera,actor,actors)
                     presentation.foot(x,y,camera.zoom,p.gear,a.distance,a.speed,p.presentation,p.appearance)
                 end
                 if falling then g.pop() end
-            else self.bikeArt:draw(p.actor,camera,self.world,p.bikeOnly,p.presentation) end
+            else self.bikeArt:draw(p.actor,camera,self.world,p.bikeOnly,p.presentation,p.localPlayer==true) end
         elseif p.structure then self.structures:drawOutside(p,camera,actor,self.effectiveRadius)
         end
     end

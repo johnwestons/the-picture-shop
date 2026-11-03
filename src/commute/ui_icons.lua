@@ -14,6 +14,7 @@ local ACTIONS={
     boost='boost', view='camera', followCamera='follow', recenter='center',
     headlight='headlight', transmission='transmission', reverse='reverse',
     more='more', back='reverse', ignition='ignition',
+    rescue='center',
     shiftDown='shift', shiftUp='shift', gear='helmet',
 }
 

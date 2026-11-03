@@ -18,6 +18,17 @@ function Test.run(check)
     check('mapping_corrupt_preferences_recover',malformed.keyboard.accelerate=='w' and malformed.controller.brake=='axis:triggerleft+' and malformed.layout.stick.x==.10 and malformed.layout.stick.y==.90)
     local normalized=B.normalize(p)
     check('mapping_normalize_preserves_swaps',normalized.keyboard.ignition=='h' and normalized.keyboard.headlight=='i')
+    local freeCamera={firstPerson=false,screenVectorToWorld=function(_,x,z)return x,z end}
+    local directionalBike={heading=0,reverse=false}
+    local steer,drive=B.drive(B.defaults(),{x=0,y=1},freeCamera,directionalBike)
+    check('free_camera_directional_input_turns_before_applying_full_throttle',steer>.7 and drive<0 and drive>-.05)
+    steer,drive=B.drive(B.defaults(),{x=-1,y=0},freeCamera,directionalBike)
+    check('free_camera_opposite_direction_brakes_instead_of_powering_through_turn',steer<-.7 and drive==1)
+    local rescueButton=false
+    for _,button in ipairs(Touch.actionButtons(1280,880,B.defaults(),{mounted=true},{mobile=true})) do
+        if button.action=='rescue' then rescueButton=button.label=='RESCUE' and button.enabled end
+    end
+    check('motorcycle_controls_expose_a_recovery_button_and_keyboard_binding',rescueButton and B.defaults().keyboard.rescue=='u')
     local oldInfo,oldRead,oldWrite=love.filesystem.getInfo,love.filesystem.read,love.filesystem.write
     local oldIdentity,oldSetIdentity=love.filesystem.getIdentity,love.filesystem.setIdentity
     local identity='the-picture-shop-motorcycle-preview'
@@ -86,9 +97,12 @@ function Test.run(check)
             C.deviceInput(R,'controller','back');check('mapping_controller_routes_semantic_command',calls[2]=='ignition:12')
             assert(B.assign(p,'mouse','ignition','mouse4'));C.deviceInput(R,'mouse','mouse4')
             check('mapping_mouse_routes_semantic_command',calls[3]=='ignition:12')
-            local hx,hy,hs=require('src.commute.cockpit').layout(960,678)
-            C.pointer(R,hx+200*hs,hy+200*hs,'mouse')
-            check('mapping_hud_still_works_after_rebind',calls[4]=='ignition:12')
+            local ignition
+            for _,button in ipairs(Touch.actionButtons(960,678,p,C.controlContext(R),{mobile=false})) do
+                if button.action=='ignition' then ignition=button end
+            end
+            C.pointer(R,ignition.x,ignition.y,'mouse')
+            check('mapping_shared_action_button_still_works_after_rebind',calls[4]=='ignition:12')
             assert(B.assign(p,'controller','ignition','axis:lefty+'))
             C.gamepadaxis(R,joy,'lefty',.8);C.gamepadaxis(R,joy,'lefty',.9)
             check('mapping_axis_oneshot_fires_once_per_crossing',#calls==5)

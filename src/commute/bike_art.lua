@@ -17,6 +17,16 @@ function Art.frame(camera,heading,frameCount)
     end
     return assert(indices[camera:headingDirection16(heading)],'Unknown motorcycle heading')
 end
+function Art.frameBlend(camera,heading,frameCount)
+    frameCount=frameCount or Art.FRAME_COUNT
+    local relative
+    if camera.firstPerson then relative=heading-(camera.viewHeading or 0)
+    else relative=heading+math.rad(camera.yaw or 0) end
+    local step=math.pi*2/frameCount
+    local position=((relative+math.pi*.5)/step)%frameCount
+    local base=math.floor(position)
+    return base+1,(base+1)%frameCount+1,position-base
+end
 Art.DIRECTION_COUNT=16
 function Art.bank(actor,camera,rawLean)
     local relative=camera.firstPerson and (actor.heading-(camera.viewHeading or 0)-math.pi*.5)
@@ -114,24 +124,29 @@ function Art.action(actor,presentation,turnBlend)
     if kind=='shift' then weight=weight*(1-(turnBlend or 0)) end
     return kind,weight
 end
-function Art:draw(actor,camera,world,parked,presentation)
+function Art:draw(actor,camera,world,parked,presentation,blendDirections)
     local height=presentation and presentation.h or actor.h or world:supportHeight(actor.x,actor.z)
     local x,y=camera:screen(actor.x,actor.z,height)
     local chassisPitch=presentation and presentation.pitch or actor.pitch
     if chassisPitch==nil then chassisPitch=math.atan(presentation and presentation.grade or actor.grade or 0) end
     local pitch=Art.pitchRotation(actor,camera,height,chassisPitch)
-    local frame=Art.frame(camera,actor.heading,self.frameCount)
+    local frame,nextFrame,directionBlend=Art.frameBlend(camera,actor.heading,self.frameCount)
+    if blendDirections==false then frame=Art.frame(camera,actor.heading,self.frameCount);nextFrame=frame;directionBlend=0 end
     local g=love.graphics
     local scale=Art.SCALE*camera.zoom
-    local function drawState(state,alpha,rotation)
+    local function drawFrame(state,alpha,rotation,frameIndex)
         if alpha<=.001 then return end
         g.setColor(1,1,1,alpha)
         if actor.paintId and actor.paintId~='bronze' then
-            PaintArt.draw(self.images[state],self.quads[frame],actor.paintId,x,y,rotation,scale,scale,
-                Art.ANCHOR_X,Art.ANCHOR_Y,self.frameCount==8 and frame*2-1 or frame,state)
+            PaintArt.draw(self.images[state],self.quads[frameIndex],actor.paintId,x,y,rotation,scale,scale,
+                Art.ANCHOR_X,Art.ANCHOR_Y,self.frameCount==8 and frameIndex*2-1 or frameIndex,state)
         else
-            g.draw(self.images[state],self.quads[frame],x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y)
+            g.draw(self.images[state],self.quads[frameIndex],x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y)
         end
+    end
+    local function drawState(state,alpha,rotation)
+        drawFrame(state,alpha*(1-directionBlend),rotation,frame)
+        if directionBlend>.001 then drawFrame(state,alpha*directionBlend,rotation,nextFrame) end
     end
     if parked then
         drawState('parked',1,pitch)

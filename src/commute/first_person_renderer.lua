@@ -53,6 +53,9 @@ end
 local function point(p,offsetX,offsetZ,height,u,v)
     return {p.x+offsetX,p.z+offsetZ,p.h+height,u,v}
 end
+function View.shouldDrawActor(entry,localActor)
+    return entry.localPlayer~=true and entry.actor~=localActor
+end
 function View.new(renderer)
     local g=love.graphics
     local width,height=renderer.viewportWidth or 1280,renderer.viewportHeight or 880
@@ -124,7 +127,7 @@ function View:draw(renderer,camera,actor,actors)
     -- visible and depth-tested against the road, hills, and vegetation.
     for _,entry in ipairs(actors or {}) do
         local p=entry.actor
-        if p~=actor then
+        if View.shouldDrawActor(entry,actor) then
             local height=not entry.gear and entry.presentation and entry.presentation.h
                 or p.h or renderer.world:supportHeight(p.x,p.z)
             self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
@@ -136,7 +139,7 @@ function View:draw(renderer,camera,actor,actors)
                     local falling=presentation.beginFallPose(p,entry.presentation,proxy,0,0)
                     presentation.foot(0,0,scale,entry.gear,p.distance,p.speed,entry.presentation,entry.appearance)
                     if falling then g.pop() end
-                else renderer.bikeArt:draw(p,proxy,renderer.world,entry.bikeOnly,entry.presentation) end
+                else renderer.bikeArt:draw(p,proxy,renderer.world,entry.bikeOnly,entry.presentation,false) end
             end)
         end
     end

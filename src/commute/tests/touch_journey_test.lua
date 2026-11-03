@@ -3,6 +3,7 @@ local Trip=require('src.commute.trip')
 local Gear=require('src.commute.gear')
 local Town=require('src.commute.town')
 local Bindings=require('src.commute.bindings')
+local Touch=require('src.commute.touch_controls')
 local Test={}
 function Test.run(check)
     local state=require('src.state').new();state.screen='world'
@@ -31,6 +32,14 @@ function Test.run(check)
     local function useTap()
         local p=C.bindings(R).layout.touch4
         return tap(p.x*R.Config.baseWidth,p.y*R.Config.baseHeight)
+    end
+    local function actionTap(action)
+        local target
+        for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
+            C.controlContext(R,C.localPart(R)),{mobile=true})) do
+            if button.action==action then target=button end
+        end
+        return target and tap(target.x,target.y)
     end
     step(.1)
     check('touch_commute_blank_pointer_owns_warehouse_fallback',require('src.input').mousepressed(400,200,1,
@@ -68,11 +77,10 @@ function Test.run(check)
     useTap();step(Gear.duration('mount')+.1)
     check('touch_gear_use_mounts_and_starts_engine',Gear.allowed(rider.gear,'ride'))
     check('touch_gear_button_hidden_while_mounted',C.gearTouchButton(R)==nil)
-    local x,y,scale=require('src.commute.cockpit').layout(R.Config.baseWidth,R.Config.baseHeight)
-    tap(x+200*scale,y+200*scale)
-    check('touch_gear_cockpit_ignition_switches_off',rider.gear.mounted and not rider.gear.engine)
-    tap(x+200*scale,y+200*scale)
-    check('touch_gear_cockpit_ignition_restarts',rider.gear.engine)
+    actionTap('ignition')
+    check('touch_gear_shared_ignition_button_switches_off',rider.gear.mounted and not rider.gear.engine)
+    actionTap('ignition')
+    check('touch_gear_shared_ignition_button_restarts',rider.gear.engine)
     useTap();step(Gear.duration('dismount')+.2)
     check('touch_gear_use_dismounts_without_removing_outfit',not rider.gear.mounted and not rider.gear.engine
         and rider.gear.outfit=='geared' and C.gearTouchButton(R).label=='REMOVE GEAR')

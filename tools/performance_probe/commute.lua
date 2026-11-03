@@ -130,7 +130,7 @@ function P.install()
         local captureOnly=os.getenv('PICTURE_SHOP_PERFORMANCE_CAPTURE_ONLY')=='1'
         local function capture(name)
             if not captures then return end
-            love.graphics.origin();renderer:draw(camera,actor,{{actor=actor,bikeOnly=false}})
+            love.graphics.origin();renderer:draw(camera,actor,{{actor=actor,bikeOnly=false,localPlayer=true}})
             cockpit:draw(actor,rider.gear.engine,1280,880,nil,camera)
             love.graphics.captureScreenshot(function(data)
                 local encoded=data:encode('png');local file=assert(io.open(output..'/'..name..'.png','wb'))
@@ -158,7 +158,7 @@ function P.install()
                 frame.update_ms=(timer()-t)*1000
                 t=timer();renderer:prepare(camera,1/60);frame.prepare_ms=(timer()-t)*1000
                 t=timer();love.graphics.origin();love.graphics.clear(.03,.04,.04,1)
-                renderer:draw(camera,actor,{{actor=actor,bikeOnly=false}})
+                renderer:draw(camera,actor,{{actor=actor,bikeOnly=false,localPlayer=true}})
                 cockpit:draw(actor,rider.gear.engine,1280,880,nil,camera)
                 love.graphics.flushBatch();frame.draw_ms=(timer()-t)*1000
                 local graphics=love.graphics.getStats()

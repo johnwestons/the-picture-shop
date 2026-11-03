@@ -2,6 +2,7 @@
 local C=require('src.commute.runtime')
 local Bike=require('src.commute.motorcycle')
 local Bindings=require('src.commute.bindings')
+local Touch=require('src.commute.touch_controls')
 local Settings=require('src.settings')
 local Test={}
 local function capture(R,name)
@@ -85,12 +86,18 @@ function Test.run(context,check)
         R.App.keypressed('o');R.App.keypressed('p')
         check('camera_runtime_exiting_first_person_returns_to_follow',not camera.firstPerson and camera.outsideMode=='follow')
         for _,size in ipairs({{960,678},{1280,880},{640,480}}) do
-            local HUD=require('src.commute.cockpit');local x,y,s=HUD.layout(size[1],size[2])
-            check('camera_runtime_follow_button_is_clickable_'..size[1],HUD.keyAt(x+80*s,y+224*s,
-                size[1],size[2],bike,nil,camera)=='o')
+            local context=C.controlContext(R,C.localPart(R));local target
+            for _,button in ipairs(Touch.actionButtons(size[1],size[2],Bindings.defaults(),context,{mobile=true})) do
+                if button.action=='followCamera' then target=button end
+            end
+            local pressed=target and Touch.actionAt(target.x,target.y,size[1],size[2],Bindings.defaults(),
+                context,{mobile=true})
+            check('camera_runtime_follow_button_is_clickable_'..size[1],pressed and pressed.action=='followCamera')
         end
-        local x,y,s=require('src.commute.cockpit').layout(R.Config.baseWidth,R.Config.baseHeight)
-        C.pointer(R,x+80*s,y+224*s,'mouse')
+        local context=C.controlContext(R,C.localPart(R));local target
+        for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),context,
+            {mobile=C.mobileInputEnabled(R)})) do if button.action=='followCamera' then target=button end end
+        assert(target and C.pointer(R,target.x,target.y,'mouse'))
         check('camera_runtime_hud_button_toggles_fixed_follow',camera.outsideMode=='fixed')
         R.App.keypressed('f10');assert(R.OptionsScreen.motorcycleEditor)
         capture(R,'camera-options-fixed')

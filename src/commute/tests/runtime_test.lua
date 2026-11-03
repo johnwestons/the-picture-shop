@@ -6,6 +6,7 @@ local Weekend=require('src.weekend_runtime')
 local Calendar=require('src.business_calendar')
 local Routes=require('src.commute.routes')
 local Bindings=require('src.commute.bindings')
+local Touch=require('src.commute.touch_controls')
 local Test={}
 local function at(state,hours)
     state.calendar=Calendar.dateFromHours(hours);state.calendar.elapsed=hours%24/24*Calendar.secondsPerDay(state)
@@ -20,6 +21,8 @@ local function capture(R,name)
 end
 function Test.run(context,check)
     local R=assert(context.appRuntime);assert(C.enabled(),'Commute runtime test requires PICTURE_SHOP_COMMUTE=1')
+    local rescueAction,rescueToken=C.decode('rescue:123')
+    check('commute_runtime_accepts_recovery_action_for_host_validation',rescueAction=='rescue' and rescueToken==123)
     R.Save.delete(3)
     assert(R.startGame(assert(R.Save.newGame(3,{apartmentId='garden'})),'smoke'))
     R.state.screen='world'
@@ -62,13 +65,18 @@ function Test.run(context,check)
     ticks(100);capture(R,'runtime-first-person')
     R.App.gamepadpressed(nil,Bindings.byId.view.pad);ticks(2)
     check('commute_runtime_controller_returns_outside',not R._commute.camera.firstPerson)
-    local vx,vy,vs=require('src.commute.cockpit').layout(R.Config.baseWidth,R.Config.baseHeight)
-    assert(C.pointer(R,vx+625*vs,vy+278*vs));ticks(2)
+    local viewButton=C.cameraButton(R)
+    assert(viewButton and C.touchPressed(R,'view-button',viewButton.x+viewButton.width*.5,viewButton.y+viewButton.height*.5));ticks(2)
     check('commute_runtime_touch_enters_first_person',R._commute.camera.firstPerson)
     assert(C.cameraPointerPressed(R,3,false));assert(C.cameraPointerMoved(R,-70,30));C.cameraPointerReleased(R,3);ticks(12)
     local lookX=require('src.commute.first_person_camera').cockpitPose(R._commute.camera)
     check('commute_runtime_middle_look_keeps_cockpit_on_bike',lookX< -100)
-    assert(C.pointer(R,vx+650*vs,vy+224*vs));ticks(1)
+    local centerButton
+    for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,Bindings.defaults(),
+        C.controlContext(R,C.localPart(R)),{mobile=C.mobileInputEnabled(R)})) do
+        if button.action=='recenter' then centerButton=button end
+    end
+    assert(centerButton and C.pointer(R,centerButton.x,centerButton.y));ticks(1)
     check('commute_runtime_center_button_faces_bike_forward',R._commute.camera.headYaw==0 and R._commute.camera.lookYaw==0)
     R.App.keypressed('p');ticks(2)
     R.App.keypressed('v');R.App.keypressed('x');ticks(5)
@@ -86,9 +94,13 @@ function Test.run(context,check)
         and Gear.allowed(C.localPart(R).rider.gear,'ride'))
     check('commute_runtime_save_retains_manual_transmission',C.localPart(R).rider.bike.transmission=='manual' and C.localPart(R).rider.bike.gear==2)
     check('commute_runtime_transmission_preference_saved_on_resident',R.state.home.residents.owner.ridingTransmission=='manual')
-    local hx,hy,hs=require('src.commute.cockpit').layout(R.Config.baseWidth,R.Config.baseHeight)
-    assert(C.pointer(R,hx+250*hs,hy+280*hs));ticks(20)
-    check('commute_runtime_cockpit_button_selects_auto',C.localPart(R).rider.bike.transmission=='automatic' and C.localPart(R).rider.bike.gear==1)
+    local transmissionButton
+    for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
+        C.controlContext(R,C.localPart(R)),{mobile=C.mobileInputEnabled(R)})) do
+        if button.action=='transmission' then transmissionButton=button end
+    end
+    assert(transmissionButton and C.pointer(R,transmissionButton.x,transmissionButton.y));ticks(20)
+    check('commute_runtime_shared_transmission_button_selects_auto',C.localPart(R).rider.bike.transmission=='automatic' and C.localPart(R).rider.bike.gear==1)
     local function rideRoute(label)
         local t=R.state.home.commute;local world=C.world(R)
         local route=assert(Routes.new(world.roads):find(t.origin,t.destination))

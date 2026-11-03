@@ -20,6 +20,7 @@ Camera.FOLLOW_LOOKAHEAD_DISTANCE = 2.4
 Camera.FOLLOW_LOOKAHEAD_FULL_SPEED = 8
 Camera.FOLLOW_YAW_SMOOTH_TIME = 0.18
 Camera.FOLLOW_ORBIT_HOLD = 0.8
+Camera.FOLLOW_TILT_DEFAULT = 62
 
 local rad = math.pi / 180
 local defaultGroundSin = math.sin(Camera.TILT_DEFAULT * rad)
@@ -237,6 +238,9 @@ function Camera:setOutsideMode(mode,actor,mounted)
     if mode=='follow' then
         self.fixedYaw=self.yaw
         if not self.firstPerson and self.followMounted~=false then self.yaw=behindYaw(self.lastActor) end
+        -- A slightly steeper default gives the rider a closer over-the-shoulder
+        -- view while leaving an existing manual tilt untouched.
+        if self.tilt==Camera.TILT_DEFAULT then self.tilt=Camera.FOLLOW_TILT_DEFAULT end
     else self.yaw=self.fixedYaw or self.yaw end
     self.outsideMode=mode
     self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0

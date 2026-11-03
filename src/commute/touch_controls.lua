@@ -67,6 +67,8 @@ function Touch.actionButtons(width,height,p,context,options)
         'follow',cameraX,cameraY,cameraRadius,context.outsideMode=='follow',true)
     addButton(buttons,'recenter','CENTER','center',cameraX,cameraY+cameraRadius*2.8,
         cameraRadius,false,true)
+    addButton(buttons,'rescue','RESCUE','center',cameraX,cameraY+cameraRadius*5.6,
+        cameraRadius,false,not context.gearTransition and not context.pedCrash and not context.arrived)
 
     local utilities={}
     if mounted then

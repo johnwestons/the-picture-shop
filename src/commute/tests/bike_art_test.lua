@@ -11,6 +11,10 @@ function Test.run(check)
     local sixteen=true
     for i=1,16 do sixteen=sixteen and Art.frame(camera,-math.pi/2+(i-1)*math.pi/8,16)==i end
     check('commute_bike_art_sixteen_independent_views_resolve',sixteen)
+    local first,second,blend=Art.frameBlend(camera,-math.pi/2+math.pi/16,16)
+    local wrapFirst,wrapSecond,wrapBlend=Art.frameBlend(camera,-math.pi/2-math.pi/16,16)
+    check('commute_bike_art_blends_adjacent_heading_views_without_sector_pop',first==1 and second==2
+        and math.abs(blend-.5)<1e-8 and wrapFirst==16 and wrapSecond==1 and math.abs(wrapBlend-.5)<1e-8)
     camera:orbit(90,0)
     check('commute_bike_art_view_follows_camera_orbit',Art.frame(camera,0,8)==5 and Art.frame(camera,0,16)==9)
     local art=Art.new()

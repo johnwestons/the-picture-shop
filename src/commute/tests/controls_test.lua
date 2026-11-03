@@ -1,6 +1,7 @@
 local Bike=require('src.commute.motorcycle')
 local Rider=require('src.commute.rider')
-local HUD=require('src.commute.cockpit')
+local Bindings=require('src.commute.bindings')
+local Touch=require('src.commute.touch_controls')
 local Test={}
 function Test.run(check)
     local world={supportHeight=function()return 0 end,roads={nearest=function()return 0,{width=8} end,blocked=function()return false end}}
@@ -41,14 +42,19 @@ function Test.run(check)
     check('reverse_respects_collision_radius',barrier.bike.x>=99+Bike.RADIUS-.02)
     world.roads.blocked=old
     for _,size in ipairs({{1280,880},{960,678},{640,480}}) do
-        local ox,oy,s=HUD.layout(size[1],size[2]);local bike=Bike.new(0,0,0)
-        for _,button in ipairs({{'i',200},{'b',310},{'h',425},{'e',530}}) do
-            check('parked_hit_'..button[1]..'_'..size[1],HUD.keyAt(ox+button[2]*s,oy+200*s,size[1],size[2],bike)==button[1])
-            check('moving_hit_disabled_'..button[1]..'_'..size[1],HUD.keyAt(ox+button[2]*s,oy+200*s,size[1],size[2],bike,{speed=2})==nil)
+        local profile=Bindings.defaults();local context={mounted=true,transmission='manual'};local working=true
+        for _,action in ipairs({'ignition','reverse','headlight','interact','shiftDown','shiftUp'}) do
+            local target
+            for _,button in ipairs(Touch.actionButtons(size[1],size[2],profile,context,{mobile=true})) do
+                if button.action==action then target=button end
+            end
+            local pressed=target and Touch.actionAt(target.x,target.y,size[1],size[2],profile,context,{mobile=true})
+            working=working and pressed~=nil and pressed.action==action
         end
+        check('motorcycle_action_targets_scale_to_viewport_'..size[1],working)
     end
     local runtime=require('src.commute.runtime')
-    for _,action in ipairs({'ignition','headlight','reverse'}) do
+    for _,action in ipairs({'ignition','headlight','reverse','rescue'}) do
         local name,token=runtime.decode(action..':123')
         check('network_command_'..action,name==action and token==123)
     end

@@ -2,10 +2,16 @@ local Camera=require('src.commute.camera')
 local FP=require('src.commute.first_person_camera')
 local Rider=require('src.commute.rider')
 local Bike=require('src.commute.motorcycle')
-local HUD=require('src.commute.cockpit')
+local Runtime=require('src.commute.runtime')
+local Bindings=require('src.commute.bindings')
 local Test={}
 local function near(a,b)return math.abs(a-b)<.001 end
 function Test.run(check)
+    local View=require('src.commute.first_person_renderer')
+    local localEntry={actor={x=1},localPlayer=true}
+    local remoteEntry={actor={x=2}}
+    check('first_person_renderer_excludes_local_rider_even_when_interpolated_copy_is_used',
+        not View.shouldDrawActor(localEntry,{x=1}) and View.shouldDrawActor(remoteEntry,{x=1}))
     require('src.commute.tests.ride_smoothing_test').run(check)
     require('src.commute.tests.first_person_bike_test').run(check)
     local world={height=function()return 0 end,supportHeight=function()return 4 end,
@@ -42,14 +48,22 @@ function Test.run(check)
     camera:toggleView(r)
     check('first_person_restores_outside_settings',not camera.firstPerson and camera.yaw==35 and camera.tilt==65 and camera.zoom==.8)
     check('first_person_toggle_never_changes_physics',r.bike.x==bx and r.bike.z==bz and r.bike.heading==heading and r.bike.speed==speed)
+    local player={id=1}
+    local part={slot=1,rider=r}
+    local inputRuntime={state={screen='world',home={commute={participants={owner=part}}}},
+        World={player=player},Config={},App={settings={motorcycleControls=Bindings.defaults()}},
+        _commute={renderer={},camera=camera}}
+    for _,size in ipairs({{1280,880},{960,678},{640,480}}) do
+        inputRuntime.Config.baseWidth,inputRuntime.Config.baseHeight=size[1],size[2]
+        local button=Runtime.cameraButton(inputRuntime)
+        local okay=button and Runtime.cameraPointer(inputRuntime,button.x+button.width*.5,button.y+button.height*.5)
+        check('first_person_camera_toggle_button_while_moving_'..size[1],okay and camera.firstPerson)
+        camera:toggleView(r)
+    end
     camera:toggleView(r);r.gear.transition={action='dismount'};camera:updateRide(r,.016)
     check('first_person_dismount_returns_outside',not camera.firstPerson and not camera:toggleView(r))
     r.gear.transition=nil;r.gear.mounted=false
     check('first_person_on_foot_toggle_rejected',not camera:toggleView(r))
     require('src.commute.tests.terrain_renderer_test').run(check)
-    for _,size in ipairs({{1280,880},{960,678},{640,480}}) do
-        local ox,oy,s=HUD.layout(size[1],size[2])
-        check('first_person_touch_toggle_while_moving_'..size[1],HUD.keyAt(ox+625*s,oy+278*s,size[1],size[2],r.bike,{speed=12})=='p')
-    end
 end
 return Test

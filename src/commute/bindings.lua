@@ -16,6 +16,7 @@ B.actions={
  {id='shiftDown',label='Shift down',key='z',pad='dpleft',main='z',preview='z'},
  {id='shiftUp',label='Shift up',key='x',pad='dpright',main='x',preview='x'},
  {id='gear',label='Put on / remove riding gear',key='g',pad='x',main='g',preview='g'},
+ {id='rescue',label='Recover the motorcycle to the last safe spot',key='u',main='u'},
  {id='recenter',label='Center camera',key='c',pad='dpdown',main='c',preview='c'},
  {id='orbitLeft',label='Rotate / look left',held=true,key='q',pad='axis:rightx-'},
  {id='orbitRight',label='Rotate / look right',held=true,key='t',pad='axis:rightx+'},
@@ -169,8 +170,15 @@ function B.drive(p,touch,camera,bike)
             local reverse=bike.reverse==true
             local desiredHeading=heading+(reverse and math.pi or 0)
             local error=wrapRadians(desiredHeading-(bike.heading or 0))*(reverse and -1 or 1)
+            -- The outside-view stick points toward a destination. Ease off
+            -- the throttle while the bike is still aimed elsewhere, and brake
+            -- when the requested direction is behind the bike. This gives the
+            -- steering physics room to turn without carrying full speed into
+            -- a wall or shoreline.
             x=math.max(-1,math.min(1,error/(math.pi*.5)))*magnitude*.78
-            throttle=math.max(throttle,magnitude)
+            local alignment=math.cos(error)
+            throttle=math.max(throttle,magnitude*math.max(0,alignment)^2)
+            brake=math.max(brake,magnitude*math.max(0,-alignment))
         else
             if camera and camera.firstPerson then touchX=touchX*.78 end
             if math.abs(touchX)>math.abs(x) then x=touchX end

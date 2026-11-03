@@ -187,6 +187,7 @@ function Trip.command(state,player,token,action,world)
     if part.arrived then return false,'Already waiting at the destination door.' end
     if action~='arrive' then
         local okay,message=Rider.command(part.rider,action,world)
+        if okay and action=='rescue' then state.home.revision=state.home.revision+1 end
         if okay and (action=='automatic' or action=='manual') then
             local resident=Residents.get(state,player)
             resident.ridingTransmission=action;resident.revision=resident.revision+1

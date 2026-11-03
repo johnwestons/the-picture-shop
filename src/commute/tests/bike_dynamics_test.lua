@@ -20,6 +20,16 @@ local function crest(x)
     return 3.5
 end
 function Test.run(check)
+    local waterEdge={supportHeight=function()return 0 end,
+        roads={nearest=function()return 20,{width=8,surface='dirt'}end,
+            blocked=function(_,_,x)return x>=12 end}}
+    local recoverable=Bike.new(0,0,0)
+    run(recoverable,waterEdge,5,60,{throttle=1})
+    local stuckX=recoverable.x
+    local rescued=Bike.rescue(recoverable,waterEdge)
+    check('motorcycle_rescue_returns_to_prior_dry_checkpoint_and_clears_stuck_momentum',rescued
+        and recoverable.x<stuckX-4 and recoverable.speed==0 and recoverable.vx==0 and recoverable.vz==0
+        and not recoverable.reverse)
     local road=run(Bike.new(0,0,0),world(),25,60)
     local trail=run(Bike.new(0,0,0),world(nil,true),25,60)
     check('commute_trail_bike_retains_82_percent_offroad_speed',trail.speed/road.speed>.80

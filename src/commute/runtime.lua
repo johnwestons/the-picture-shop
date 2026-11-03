@@ -84,6 +84,7 @@ function C.controlContext(R,part)
         transmission=bike.transmission,reverse=bike.reverse==true,
         headlight=bike.headlight==true,outsideMode=view.camera and view.camera.outsideMode
             or C.bindings(R).outsideCamera or 'fixed',
+        pedCrash=rider and rider.ped.crash~=nil or false,
     }
 end
 function C.cameraButton(R)
@@ -190,7 +191,7 @@ function C.bind(R,player,connected)
     return okay,part
 end
 local actions={equip=true,remove=true,mount=true,dismount=true,arrive=true,finish=true,force=true,cancel=true,
-    automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,reverse=true}
+    automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,reverse=true,rescue=true}
 function C.decode(command)
     if type(command)~='string' or #command>80 then return nil end
     local repairToken,repairRevision,damage=command:match('^bikerepair:(%d+):(%d+):(%d+)$')
@@ -391,7 +392,8 @@ function C.draw(R)
     for id,p in pairs(R.state.home.commute.participants) do
         local player=p.slot==localId and R.World.player or playersById[p.slot]
         local r=C.visualRider(p,player)
-        actors[#actors+1]={actor=r.bike,bikeOnly=not r.gear.mounted,presentation=p.presentation}
+        actors[#actors+1]={actor=r.bike,bikeOnly=not r.gear.mounted,presentation=p.presentation,
+            localPlayer=p.slot==localId}
         if not r.gear.mounted then actors[#actors+1]={actor=r.ped,gear=r.gear,presentation=p.presentation,appearance=p.appearance} end
     end
     view.renderer:draw(view.camera,Rider.actor(C.visualRider(part,R.World.player)),actors)
@@ -487,6 +489,7 @@ function C.keypressed(R,key,semantic)
     elseif key=='v' then C.request(R,(r.bike.transmission=='manual' and 'automatic:' or 'manual:')..t.token)
     elseif key=='z' then C.request(R,'shiftdown:'..t.token)
     elseif key=='x' then C.request(R,'shiftup:'..t.token)
+    elseif key=='u' then C.request(R,'rescue:'..t.token)
     elseif key=='f' then C.request(R,'force:'..t.token)
     elseif key=='e' or key=='return' then
         if part.arrived then C.request(R,'finish:'..t.token)

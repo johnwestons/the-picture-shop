@@ -11,6 +11,12 @@ function Test.run(check)
     assert(Rider.command(r,'mount',world))
     for _=1,20 do Rider.update(r,{},.1,world) end
     check('commute_rider_starts_engine_after_complete_sequence',Gear.allowed(r.gear,'ride'))
+    local safeX,safeZ=r.bike.safeX,r.bike.safeZ
+    r.bike.x,r.bike.z=safeX+8,safeZ;r.bike.speed=4;r.bike.vx=4;r.bike.vz=0
+    assert(Rider.command(r,'rescue',world))
+    check('commute_rider_rescue_command_stops_engine_and_returns_bike_to_checkpoint',
+        r.bike.x==safeX and r.bike.z==safeZ and r.bike.speed==0 and not r.gear.engine
+        and r.ped.x==r.bike.x and r.ped.z==r.bike.z)
     assert(Rider.command(r,'dismount',world))
     local saved=Rider.snapshot(r);local recovered=assert(Rider.restore(saved,world,world.roads.destinations.warehouse))
     check('commute_rider_interrupted_dismount_recovers_beside_bike',not recovered.gear.mounted

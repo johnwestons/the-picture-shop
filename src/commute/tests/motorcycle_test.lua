@@ -1,6 +1,8 @@
 local Bike=require('src.commute.motorcycle')
 local Rider=require('src.commute.rider')
 local HUD=require('src.commute.cockpit')
+local Bindings=require('src.commute.bindings')
+local Touch=require('src.commute.touch_controls')
 local Test={}
 local function world(grade)
     return {supportHeight=function(_,x)return x*(grade or 0) end,
@@ -51,14 +53,18 @@ function Test.run(check)
     local telemetry=HUD.telemetry(p,true,{speed=5,grade=.06,throttle=.7,shiftTime=.1})
     check('commute_cockpit_uses_authoritative_client_telemetry',math.abs(telemetry.mph-11.18468)<.001 and telemetry.grade==6
         and telemetry.shifting and telemetry.gear==3 and telemetry.throttle==.7)
-    local hit=true
+    local hit=true;local profile=Bindings.defaults()
     for _,size in ipairs({{960,678},{1280,880},{640,480}}) do
-        local x,y,s=HUD.layout(size[1],size[2])
-        hit=hit and HUD.keyAt(x+250*s,y+280*s,size[1],size[2])=='v'
-            and HUD.keyAt(x+380*s,y+280*s,size[1],size[2])=='z'
-            and HUD.keyAt(x+480*s,y+280*s,size[1],size[2])=='x'
-            and HUD.keyAt(0,0,size[1],size[2])==nil
+        local context={mounted=true,transmission='manual'}
+        for _,action in ipairs({'transmission','shiftDown','shiftUp'}) do
+            local target
+            for _,button in ipairs(Touch.actionButtons(size[1],size[2],profile,context,{mobile=true})) do
+                if button.action==action then target=button end
+            end
+            local pressed=target and Touch.actionAt(target.x,target.y,size[1],size[2],profile,context,{mobile=true})
+            hit=hit and pressed~=nil and pressed.action==action
+        end
     end
-    check('commute_cockpit_pointer_targets_scale_with_viewport',hit)
+    check('commute_touch_action_targets_scale_with_viewport',hit)
 end
 return Test

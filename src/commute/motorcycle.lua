@@ -19,6 +19,7 @@ function Bike.new(x,z,heading)
         lateralSpeed=0,slipAngle=0,slip=0,tireSlip=0,surface='road',
         rpm=Bike.IDLE_RPM,shiftTime=0,shiftDirection=0,shiftCooldown=0,throttle=0,grade=0,
         reverse=false,headlight=false,boosting=false,boostPulse=0,steering=0,acceleration=0,impactPulse=0,impactStrength=0,collisionContact=false,
+        safeX=x,safeZ=z,safeHeading=heading or 0,
         ridingAnimation={kind='idle',remaining=0,queue={}}}
 end
 function Bike.valid(p)
@@ -58,6 +59,39 @@ function Bike.resetHorizontal(p)
     p.vz=math.sin(p.heading)*(p.speed or 0)*direction
     p._velocitySpeed=p.speed or 0
     p.lateralSpeed=0;p.slipAngle=0;p.slip=0;p.tireSlip=0
+end
+Bike.RESCUE_CHECKPOINT_DISTANCE=6
+local function safeRecoveryPoint(world,x,z)
+    if not M.finite(x) or not M.finite(z) then return false end
+    if world.roads and world.roads.blocked and world.roads:blocked(world,x,z) then return false end
+    if world.sweepObstacles then
+        local height=world:supportHeight(x,z)
+        if world:sweepObstacles(x,z,x,z,Bike.RADIUS,height,height+Bike.COLLISION_HEIGHT) then return false end
+    end
+    return true
+end
+function Bike.rescue(p,world)
+    local x,z=p.safeX,p.safeZ
+    if not safeRecoveryPoint(world,x,z) then return false,'No nearby safe recovery spot is available.' end
+    p.x,p.z=x,z;p.heading=p.safeHeading or p.heading
+    p.speed,p.vx,p.vz,p._velocitySpeed=0,0,0,0
+    p.reverse=false;p.boosting=false;p.boostPulse=0
+    p.throttle,p.brake,p.steering,p.steeringVelocity=0,0,0,0
+    p.lean,p.leanVelocity,p.pitchVelocity=0,0,0
+    p.shiftTime,p.shiftCooldown=0,0
+    p.crashPending=nil;p.collisionContact=false;p.collisionKind=nil;p.collisionId=nil
+    p.impactPulse,p.impactStrength,p.landingPulse=0,0,0
+    Bike.resetContact(p,world)
+    RidingAnimation.reset(p)
+    return true
+end
+local function rememberRecoveryPoint(p,world)
+    if not p.grounded or math.abs(p.vy or 0)>.3 then return end
+    local dx,dz=p.x-(p.safeX or p.x),p.z-(p.safeZ or p.z)
+    if dx*dx+dz*dz<Bike.RESCUE_CHECKPOINT_DISTANCE^2 then return end
+    if safeRecoveryPoint(world,p.x,p.z) then
+        p.safeX,p.safeZ,p.safeHeading=p.x,p.z,p.heading
+    end
 end
 local function wheelForce(compression,closingSpeed)
     if compression < -Bike.SUSPENSION_REACH then return 0 end
@@ -365,6 +399,7 @@ function Bike.update(p,input,dt,world)
         if p.crashPending then break end
         moved=moved+step(p,input,dt/count,world)
     end
+    rememberRecoveryPoint(p,world)
     return moved
 end
 return Bike
