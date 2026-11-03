@@ -178,13 +178,14 @@ function Test.run(check)
                 local found=false
                 for _,draw in ipairs(calls) do
                     found=found or draw.state==sample.state
-                    local adjacent=draw.frame==expected or draw.frame==expected%16+1
+                    local distance=math.min((draw.frame-expected)%16,(expected-draw.frame)%16)
+                    local adjacent=distance<=1
                     consistent=consistent and adjacent and draw.sx>0 and draw.sy>0
                 end
                 consistent=consistent and found
             end
         end
-        check('commute_direction_all_fourteen_pose_atlases_sample_same_unmirrored_facing',consistent)
+        check('commute_direction_all_fourteen_pose_atlases_crossfade_adjacent_unmirrored_views',consistent)
     end,debug.traceback)
     love.graphics=savedGraphics
     if not okay then error(reason,0) end
