@@ -23,6 +23,7 @@ function Component.install(Runtime)
             if Runtime.controller then Runtime.controller:draw() end
             local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()
             Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
+            Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
             Runtime.CharacterAssets.endFrame();Runtime.Viewport.endDraw();Runtime.Smoke.drawn()
             return
         end
@@ -96,7 +97,7 @@ function Component.install(Runtime)
             end
             if Runtime.state.screen == "world" then
                 Runtime.RuntimeDependencies.Hud.draw(Runtime.state, Runtime.World.prompt(), Runtime.Assets, mouseX, mouseY,
-                    Runtime.mobileControls and Runtime.mobileControls:isEnabled(), Runtime.controller and Runtime.controller:isActive(), viewBounds,
+                    Runtime.mobileControls and Runtime.mobileControls:isEnabled(), Runtime.controller and Runtime.controller:isActive(), mobileWorld and viewBounds or nil,
                     Runtime.App.settings and Runtime.App.settings.followPlayerCamera,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime,
                     Runtime.App.playerFeedback,Runtime.World.player.sceneId,require("src.home_activity_controls").localPlayer(Runtime))

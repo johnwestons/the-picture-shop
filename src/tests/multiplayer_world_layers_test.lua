@@ -40,7 +40,10 @@ function Test.run(context, check)
             .." message="..tostring(state.message).." transitions="..table.concat(transitions,";"))
     check("host_menu_only_pauses_host_player_controls",
         state.screen == "computer" and world.player.x == playerX
-        and world.player.y == playerY and world.getInteraction() == nil)
+        and world.player.y == playerY and world.getInteraction() == nil,
+        "screen="..tostring(state.screen).." position="..world.player.x..","..world.player.y.." expected="..playerX..","..playerY
+            .." interaction="..tostring(world.getInteraction() and world.getInteraction().kind)
+            .." lastScene="..tostring(context.appRuntime and context.appRuntime._weekendScene))
 
     world.load(previousPlayer)
     for key in pairs(state) do state[key]=nil end

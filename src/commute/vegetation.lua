@@ -3,6 +3,7 @@
 local M=require('src.commute.vendor.mathx')
 local Candidates=require('src.commute.vendor.plant_candidates')
 local Flora=require('src.commute.flora')
+local Obstacles=require('src.commute.obstacles')
 local Vegetation={};Vegetation.__index=Vegetation
 
 local PATCH_SIZE=16
@@ -91,7 +92,7 @@ function Vegetation:_getPatch(px,pz)
     return patch
 end
 
-function Vegetation:visible(cx,cz,radius,calendar,visible)
+function Vegetation:visible(cx,cz,radius,calendar,visible,budget)
     local result={}
     if not M.finite(cx) or not M.finite(cz) or not M.finite(radius) then return result end
     radius=math.max(0,radius)
@@ -100,6 +101,7 @@ function Vegetation:visible(cx,cz,radius,calendar,visible)
     local maxX=math.min(self.patchCount-1,math.floor((cx+radius)/PATCH_SIZE))
     local minZ=math.max(0,math.floor((cz-radius)/PATCH_SIZE))
     local maxZ=math.min(self.patchCount-1,math.floor((cz+radius)/PATCH_SIZE))
+    local needed={}
     for pz=minZ,maxZ do
         for px=minX,maxX do
             local x0,z0=px*PATCH_SIZE,pz*PATCH_SIZE
@@ -108,22 +110,85 @@ function Vegetation:visible(cx,cz,radius,calendar,visible)
             local nearestZ=M.clamp(cz,z0,z1)
             if (nearestX-cx)^2+(nearestZ-cz)^2<=radius2
                 and (not visible or visible((x0+x1)*.5,(z0+z1)*.5,24)) then
-                local patch=self:_getPatch(px,pz)
-                for _,p in ipairs(patch.props) do
-                    local dx,dz=p.x-cx,p.z-cz
-                    if dx*dx+dz*dz<=radius2 and (not visible or visible(p.x,p.z,12)) then
-                        result[#result+1]=Flora.present({id=p.id,kind=p.kind,x=p.x,z=p.z,h=p.h,scale=p.scale},self.seed,calendar)
-                    end
-                end
+                needed[#needed+1]={px=px,pz=pz,distance=((x0+x1)*.5-cx)^2+((z0+z1)*.5-cz)^2}
             end
         end
     end
+    -- A new view can request over a hundred patches. Generate nearby scenery
+    -- first and carry the remaining work to later frames instead of blocking
+    -- input while every candidate in the entire radius is sampled at once.
+    table.sort(needed,function(a,b)
+        if a.distance~=b.distance then return a.distance<b.distance end
+        if a.pz~=b.pz then return a.pz<b.pz end
+        return a.px<b.px
+    end)
+    local clock=budget and budget.clock
+    local started=clock and clock() or 0
+    local built,pending=0,0
+    for _,entry in ipairs(needed) do
+        local key=entry.px..':'..entry.pz
+        local patch=self._patches[key]
+        local canBuild=not budget or (built<(budget.maxPatches or math.huge)
+            and (not clock or clock()-started<(budget.seconds or math.huge)))
+        if patch or canBuild then
+            if not patch then built=built+1 end
+            patch=self:_getPatch(entry.px,entry.pz)
+            for _,p in ipairs(patch.props) do
+                local dx,dz=p.x-cx,p.z-cz
+                if dx*dx+dz*dz<=radius2 and (not visible or visible(p.x,p.z,12)) then
+                    result[#result+1]=Flora.present({id=p.id,kind=p.kind,x=p.x,z=p.z,h=p.h,scale=p.scale},self.seed,calendar)
+                end
+            end
+        else
+            pending=pending+1
+        end
+    end
+    self.pending,self.lastBuilt=pending,built
     table.sort(result,function(a,b) return a.id<b.id end)
     return result
 end
 
 function Vegetation:stats()
-    return {patches=countKeys(self._patches),generated=self._generated}
+    return {patches=countKeys(self._patches),generated=self._generated,
+        pending=self.pending or 0,built=self.lastBuilt or 0}
+end
+
+function Vegetation:_solids(patch,calendar)
+    local day=calendar and calendar.totalDays or 0
+    if patch.solidDay==day then return patch.solids end
+    local solids={}
+    for _,p in ipairs(patch.props) do
+        if Obstacles.solidKind(p.kind) then
+            local radius,height=Obstacles.shape(p,self.seed,calendar)
+            p.collisionRadius,p.collisionHeight=radius,height
+            if radius then solids[#solids+1]=p end
+        end
+    end
+    patch.solids,patch.solidDay=solids,day
+    return solids
+end
+
+function Vegetation:sweepObstacles(x,z,nx,nz,radius,bottom,top,calendar)
+    if not M.finite(x) or not M.finite(z) or not M.finite(nx) or not M.finite(nz)
+        or not M.finite(radius) or radius<0 then return nil end
+    -- Include neighbouring candidate patches whose solid footprint crosses
+    -- the bike's path. This is independent of render frustum/upload budgets.
+    local margin=radius+Obstacles.MAX_RADIUS
+    local minX=math.max(0,math.floor((math.min(x,nx)-margin)/PATCH_SIZE))
+    local maxX=math.min(self.patchCount-1,math.floor((math.max(x,nx)+margin)/PATCH_SIZE))
+    local minZ=math.max(0,math.floor((math.min(z,nz)-margin)/PATCH_SIZE))
+    local maxZ=math.min(self.patchCount-1,math.floor((math.max(z,nz)+margin)/PATCH_SIZE))
+    local best,normalX,normalZ,kind,id
+    for pz=minZ,maxZ do for px=minX,maxX do
+        local solids=self:_solids(self:_getPatch(px,pz),calendar)
+        for _,p in ipairs(solids) do
+            local t,hx,hz=Obstacles.sweep(x,z,nx,nz,radius,p,bottom,top)
+            if t and (not best or t<best-1e-10 or math.abs(t-best)<=1e-10 and p.id<id) then
+                best,normalX,normalZ,kind,id=t,hx,hz,p.kind,p.id
+            end
+        end
+    end end
+    return best,normalX,normalZ,kind,id
 end
 
 return Vegetation

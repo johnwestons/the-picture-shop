@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 -- Body, hand and directional spoon share contacts; the stove owns the pan.
 local R=require("src.home_cooking_registration")
 local Colorways=require("src.rabbit_colorways")
@@ -23,7 +25,7 @@ local function resource(direction)
  local count,oldest,age=0,nil,math.huge
  for d,a in pairs(cache) do count=count+1;if a.used<age then oldest,age=d,a.used end end
  if count>=4 then dispose(cache[oldest]);cache[oldest]=nil end
- local v=R.views[direction];local image=love.graphics.newImage(root..v.file);image:setFilter("linear","linear")
+ local v=R.views[direction];local image=Images.load("cooking",root..v.file);if not image then return nil end;image:setFilter("linear","linear")
  local iw,ih=image:getDimensions();assert(iw==1254 and ih==1254,"Unregistered cooking source dimensions")
  local a={image=image,frames={},hands={},used=use}
  for f=1,4 do
@@ -41,14 +43,18 @@ local function resource(direction)
  cache[direction]=a;return a
 end
 local function propResources()
- if props then return props end
- props={}
+ props=props or {};local ready=true
  for _,entry in ipairs({{"pan","saucepan-eight-directions.png",R.pans},{"spoon","spoon-eight-directions.png",R.spoons}}) do
-  local image=love.graphics.newImage(root..entry[2]);image:setFilter("linear","linear");local frames={}
-  for i,r in ipairs(entry[3]) do frames[i]=love.graphics.newQuad(r[1],r[2],r[3],r[4],image:getDimensions()) end
-  props[entry[1]]={image=image,frames=frames}
+  if not props[entry[1]] then
+   local image=Images.load("cooking",root..entry[2])
+   if image then
+    image:setFilter("linear","linear");local frames={}
+    for i,r in ipairs(entry[3]) do frames[i]=love.graphics.newQuad(r[1],r[2],r[3],r[4],image:getDimensions()) end
+    props[entry[1]]={image=image,frames=frames}
+   else ready=false end
+  end
  end
- return props
+ return ready and props or nil
 end
 local function shaders()
  propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;}]])
@@ -77,12 +83,19 @@ function Art.standingPose(state,direction,item)
   end
  end
 end
+function Art.prewarm(direction)
+ local body=resource(direction);local p=propResources()
+ if not body or not p then return false end
+ shaders();return true
+end
 function Art.drawPan(direction,x,y)
+ if not Preload.want("cooking",function() local p=propResources();if p then shaders() end;return p~=nil end) then return false end
  local p=propResources().pan;local i=R.views[direction].index;local r=R.pans[i];shaders()
  love.graphics.push("all");love.graphics.setShader(propShader);love.graphics.setColor(1,1,1,1)
  love.graphics.draw(p.image,p.frames[i],x,y,0,.075,.075,r[5],r[6]);love.graphics.pop()
 end
 function Art.draw(direction,frame,x,y,player,skipPan,bowlX,bowlY)
+ if not Preload.want("cooking",function() return Art.prewarm(direction) end) then return false end
  local v=R.views[direction];local r=v.grips[frame];local a=resource(direction);local p=propResources();local c=Art.contact(direction,frame,bowlX,bowlY)
  shaders()
  love.graphics.push("all");love.graphics.setColor(1,1,1,1)
@@ -103,6 +116,7 @@ function Art.draw(direction,frame,x,y,player,skipPan,bowlX,bowlY)
 end
 function Art.cachedDirections()local n=0;for _ in pairs(cache) do n=n+1 end;return n end
 function Art.release()
+    Images.release("cooking")
  for _,a in pairs(cache) do dispose(a) end;cache={}
  if props then for _,p in pairs(props) do p.image:release();for _,q in ipairs(p.frames) do q:release() end end;props=nil end
  if bodyShader then bodyShader:release();bodyShader=nil end

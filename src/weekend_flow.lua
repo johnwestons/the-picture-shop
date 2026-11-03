@@ -20,11 +20,16 @@ function Flow.valid(week)
         or type(week.warningSent)~="boolean" or type(week.returnReminderSent)~="boolean"
         or not finite(week.transition) or week.transition~=math.floor(week.transition) then return false end
     if week.travelToken~=nil then
-        if (week.phase~="ready" and week.phase~="home") or type(week.travelToken)~="number"
+        local outing=week.travelPurpose=="outing"
+        if (not outing and week.phase~="ready" and week.phase~="home")
+            or week.travelPurpose~=nil and week.travelPurpose~="weekend" and not outing
+            or outing and week.travelOrigin~="warehouse" and week.travelOrigin~="home"
+            or not outing and week.travelOrigin~=nil
+            or type(week.travelToken)~="number"
             or week.travelToken<1 or week.travelToken>1e12 or week.travelToken~=math.floor(week.travelToken)
             or type(week.readyMask)~="number" or week.readyMask<1 or week.readyMask>15
             or week.readyMask~=math.floor(week.readyMask) then return false end
-    elseif week.readyMask~=nil then return false end
+    elseif week.readyMask~=nil or week.travelPurpose~=nil or week.travelOrigin~=nil then return false end
     if week.phase=="ready" or week.phase=="home" then
         return finite(week.closedAtHours) and week.closedAtHours>=week.closesAtHours
     end
@@ -39,6 +44,16 @@ function Flow.ensure(state)
     if not state.home.weekend then state.home.weekend=Flow.new(Calendar.absoluteHours(state)) end
     return state.home.weekend
 end
+function Flow.atHome(state)
+    local home=state and state.home
+    if home and home.visit and home.visit.kind=="outing" then return home.visit.scene~="warehouse" end
+    return home~=nil and home.weekend~=nil and home.weekend.phase=="home"
+end
+function Flow.isOuting(state)
+    local home=state and state.home
+    if home and home.commute then return home.commute.purpose=="outing" end
+    return home~=nil and home.visit~=nil and home.visit.kind=="outing"
+end
 local function changed(state,message)
     state.home.revision=state.home.revision+1
     state.message=message
@@ -47,8 +62,8 @@ end
 function Flow.limitCalendarStep(state,dt)
     local week=Flow.ensure(state)
     dt=math.max(0,dt)
-    if state.home.commute then return 0 end
-    if week.phase=="ready" then return 0 end
+    if state.home.commute and state.home.commute.purpose~="outing" then return 0 end
+    if week.phase=="ready" and not Flow.isOuting(state) then return 0 end
     if week.phase=="working" then
         local remaining=math.max(0,week.closesAtHours-Calendar.absoluteHours(state))
         return math.min(dt,remaining*Calendar.secondsPerDay(state)/24)
@@ -73,6 +88,15 @@ function Flow.update(state,shutdownSafe)
         week.phase="ready";week.closedAtHours=math.max(now,week.closesAtHours)
         didChange=changed(state,"The shop is safely shut down. Go to the front entrance to head home for the weekend.")
     end
+    -- Ordinary outings do not require the owner to be indoors for Monday's
+    -- opening. The existing weekend commute keeps its explicit return gate.
+    if (week.phase=="ready" or week.phase=="home") and Flow.isOuting(state)
+        and now>=Flow.returnAtHours(week) then
+        local nextWeek=Flow.new(now);nextWeek.transition=week.transition+1
+        state.home.weekend=nextWeek;week=nextWeek
+        if state.home.visit and state.home.visit.scene=="warehouse" then state.home.visit=nil end
+        didChange=changed(state,"The new shop week is ready. Your town visit can continue.")
+    end
     if week.phase=="home" and now>=week.opensAtHours-2 and not week.returnReminderSent then
         week.returnReminderSent=true
         didChange=changed(state,"Monday morning: get ready. Return to the shop starting at 07:30, before the 08:00 employee shift. The shop opens at 09:00.")
@@ -91,7 +115,7 @@ function Flow.depart(state,expectedRevision)
     local week=Flow.ensure(state)
     if expectedRevision~=state.home.revision then return false,"The household changed. Review departure again." end
     if week.phase~="ready" then return false,"Finish the shop shutdown checklist first." end
-    week.phase="home";week.transition=week.transition+1
+    week.phase="home";week.transition=week.transition+1;state.home.visit=nil
     return changed(state,"Welcome home. The shop stays closed for the weekend.")
 end
 function Flow.returnToWork(state,expectedRevision)
@@ -104,6 +128,15 @@ function Flow.returnToWork(state,expectedRevision)
     end
     local nextWeek=Flow.new(now);nextWeek.transition=week.transition+1
     state.home.weekend=nextWeek
+    state.home.visit=nil
     return changed(state,"Back at the shop. Your unfinished work is ready to resume.")
+end
+function Flow.outingArrival(state,atHome)
+    -- Called while the outing still exists, so a due Monday rollover is not
+    -- lost when the traveler returns to the warehouse.
+    Flow.update(state,false)
+    state.home.visit=(atHome or Flow.shopClosed(state)) and {kind="outing",scene=atHome and "home" or "warehouse"} or nil
+    return changed(state,atHome and "Welcome to your apartment. The shop keeps its normal schedule."
+        or "Back at the shop. Your town outing is complete.")
 end
 return Flow

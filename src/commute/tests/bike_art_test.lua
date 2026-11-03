@@ -20,7 +20,7 @@ function Test.run(check)
         atlases=atlases and image:getWidth()==1280 and image:getHeight()==art.atlasHeight
     end
     check('commute_bike_art_all_pose_atlases_match_selected_layout',atlases and count==14
-        and #art.quads==art.frameCount and art.atlasHeight<=1280)
+        and #art.quads==16 and art.frameCount==16 and art.atlasHeight==1280)
     local cells=true
     for i,quad in ipairs(art.quads) do
         local x,y,w,h=quad:getViewport()
@@ -31,30 +31,32 @@ function Test.run(check)
     check('commute_bike_art_quads_match_installed_atlas_rows',cells)
     art:release()
 
-    -- Exercise absent, partly installed and complete optional sets without
-    -- changing any shipped assets. Quad allocation still uses the real API.
+    -- Missing sixteen-view art is an explicit packaging error. Legacy eight
+    -- atlases must never silently reduce the number of displayed directions.
     local getInfo,newImage=love.filesystem.getInfo,love.graphics.newImage
     local okay,err=xpcall(function()
         for _,scenario in ipairs({'absent','partial','complete'}) do
-            local expected=scenario=='complete' and 16 or 8
             love.filesystem.getInfo=function(path)
                 if scenario=='absent' or (scenario=='partial' and path:find('mounted%-aero%-tuck%-16')) then return nil end
                 return {type='file'}
             end
             local loaded=0
             love.graphics.newImage=function(path)
-                local isSixteen=path:match('%-16%.png$')~=nil
-                assert(isSixteen==(expected==16),'Mixed or missing motorcycle atlas requested: '..path)
+                assert(path:match('%-16%.png$'),'Eight-view fallback must not load: '..path)
                 loaded=loaded+1
-                return {getWidth=function() return 1280 end,getHeight=function() return expected*80 end,
-                    setFilter=function() end,release=function() end}
+                return {getWidth=function()return 1280 end,getHeight=function()return 1280 end,
+                    setFilter=function()end,release=function()end}
             end
-            local fixture=Art.new()
-            local lastX,lastY=fixture.quads[expected]:getViewport()
-            check('commute_bike_art_'..scenario..'_sixteen_view_install_loads_consistent_set',
-                loaded==14 and fixture.frameCount==expected and #fixture.quads==expected
-                and lastX==960 and lastY==(expected/4-1)*320)
-            fixture:release()
+            local created,fixture=pcall(Art.new)
+            if scenario=='complete' then
+                local lastX,lastY=fixture.quads[16]:getViewport()
+                check('commute_bike_art_complete_sixteen_view_install_loads_all_poses',created and loaded==14
+                    and fixture.frameCount==16 and #fixture.quads==16 and lastX==960 and lastY==960)
+                fixture:release()
+            else
+                check('commute_bike_art_'..scenario..'_sixteen_view_install_fails_before_image_load',not created and loaded==0
+                    and tostring(fixture):find('Missing sixteen-view motorcycle atlas',1,true)~=nil)
+            end
         end
     end,debug.traceback)
     love.filesystem.getInfo,love.graphics.newImage=getInfo,newImage

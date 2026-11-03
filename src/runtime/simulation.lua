@@ -1,6 +1,7 @@
 -- Background sessions and game simulation updates.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local Background = require("src.background_warehouse")
 
 function Component.install(Runtime)
     Runtime.serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmillService)
@@ -127,6 +128,7 @@ function Component.install(Runtime)
             and simulationScreen ~= "lan" and simulationScreen ~= "direct"
             and simulationScreen ~= "asset_error"
         local gameDt = dt
+        local shopMotionDt = dt
         if not Runtime.multiplayer:isClient() and simulationActive then
             gameDt = dt * (Runtime.App.gameClockSpeed or 1)
         end
@@ -149,10 +151,21 @@ function Component.install(Runtime)
             Runtime.App.gameClockSaveClock = 0
         end
         if not Runtime.multiplayer:isClient() and simulationActive then
-            if Runtime.state.home.weekend.phase=="home" then
+            local wasClosed=require("src.weekend_flow").shopClosed(Runtime.state)
+            if require("src.weekend_flow").atHome(Runtime.state)
+                and require("src.weekend_flow").shopClosed(Runtime.state)
+                and not (Runtime.World.hasBackgroundClockDebt and Runtime.World.hasBackgroundClockDebt()) then
                 -- Home acceleration is a unanimous sleep choice, independent
                 -- of the host's ordinary shop clock-speed control.
                 gameDt=require("src.home_sleep").calendarStep(Runtime.state,require("src.weekend_runtime").players(Runtime),dt)
+            end
+            if Runtime.World.beginSimulationFrame then
+                local unattended=Background.unattended(Runtime.World.player,
+                    Runtime.multiplayer.remotePlayers and Runtime.multiplayer:remotePlayers() or {})
+                local backgroundChanged
+                gameDt,shopMotionDt,backgroundChanged=Runtime.World.beginSimulationFrame(
+                    Runtime.state,gameDt,dt,unattended,Runtime.Assets)
+                if backgroundChanged then saveNeeded=true end
             end
             gameDt=require("src.weekend_flow").limitCalendarStep(Runtime.state,gameDt)
             local homeBefore=Runtime.BusinessCalendar.absoluteHours(Runtime.state)
@@ -168,14 +181,17 @@ function Component.install(Runtime)
             if require("src.weekend_flow").update(Runtime.state,false) then saveNeeded=true end
             if Runtime.state.home.weekend.phase=="closing" then require("src.shop_shutdown").prepare(Runtime.state) end
             local closed=require("src.weekend_flow").shopClosed(Runtime.state)
+            -- The elapsed interval still belongs to the closed shop when its
+            -- endpoint reopens Monday. Queued later time runs next frame.
+            if wasClosed and not closed then gameDt,shopMotionDt=0,0 end
             local emailArrived = Runtime.JobService.updateClientEmails(Runtime.state)
-            local technicianChanged = not closed and Runtime.MachineMaintenance.updateTechnician(Runtime.state)
-            if closed and require("src.shop_shutdown").closedCalendar(Runtime.state) then saveNeeded=true end
+            local technicianChanged = not closed and not wasClosed and Runtime.MachineMaintenance.updateTechnician(Runtime.state)
+            if (closed or wasClosed) and require("src.shop_shutdown").closedCalendar(Runtime.state) then saveNeeded=true end
             if Runtime.state.screen~="world" and Runtime.state.forklift and Runtime.state.forklift.operating
                 and Runtime.state.forklift.operatorPlayerId==1 then
                 Runtime.World.updateNetworkForklift(Runtime.World.player,0,0,0,Runtime.Assets,Runtime.state)
             end
-            local warehouseChanged=not closed and Runtime.World.updateWarehouse(gameDt,Runtime.state,Runtime.Assets)
+            local warehouseChanged=not closed and not wasClosed and Runtime.World.updateWarehouse(gameDt,Runtime.state,Runtime.Assets)
             local phoneChanged = Runtime.WorkPhone.update(Runtime.state, dt)
             if calendarChanged or emailArrived or technicianChanged or phoneChanged then saveNeeded = true end
             Runtime.warehouseSaveClock=Runtime.warehouseSaveClock+dt
@@ -193,7 +209,7 @@ function Component.install(Runtime)
         elseif Runtime.state.screen == "direct" then
             Runtime.DirectScreen.update(dt)
         elseif Runtime.state.screen == "world" then
-            if require('src.commute.runtime').active(Runtime) then
+            if require('src.commute.runtime').localPart(Runtime) then
                 commuteInputX,commuteInputY,commuteInputBoost=require('src.commute.runtime').localInput(Runtime)
                 networkInputX,networkInputY,networkInputBoost=commuteInputX,commuteInputY,commuteInputBoost
             else
@@ -253,8 +269,9 @@ function Component.install(Runtime)
         end
         -- World events belong to the host simulation, not to its current screen.
         -- Guests may keep walking and working while the host reads any shop menu.
-        if not Runtime.multiplayer:isClient() and simulationActive and Runtime.state.screen ~= "world" then
-            if Runtime.World.updateSimulation(gameDt, Runtime.Assets, Runtime.state, dt) then saveNeeded = true end
+        if not Runtime.multiplayer:isClient() and simulationActive
+            and (Runtime.state.screen ~= "world" or require("src.commute.runtime").localPart(Runtime)) then
+            if Runtime.World.updateSimulation(gameDt, Runtime.Assets, Runtime.state, shopMotionDt) then saveNeeded = true end
         end
         if not Runtime.multiplayer:isClient() and simulationActive then
             local inputs={}

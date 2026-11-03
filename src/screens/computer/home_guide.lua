@@ -90,7 +90,7 @@ function Guide.draw(Runtime,state,page,px,py)
     end
     button(controls.back,"MY HOME",true)
     for _,key in ipairs({"action","secondary"}) do
-        if content[key] then button(controls[key],content[key][1],content[key][2]~="sleep" or state.home.weekend.phase=="home") end
+        if content[key] then button(controls[key],content[key][1],content[key][2]~="sleep" or require("src.weekend_flow").atHome(state)) end
     end
     return y -- Allows layout checks against the shared footer.
 end

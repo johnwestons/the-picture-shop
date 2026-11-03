@@ -1,6 +1,12 @@
 {
   "version": 1,
   "character": "suited-rider-v3",
+  "road_rendering": {
+    "scale_module": "src/commute/rider_scale.lua",
+    "body_height_at_zoom_one": 80,
+    "normalization_reference_height": 256,
+    "notes": "Shared road stature for normal clothes, suit, dressing and fallback. Preserve existing foot anchors and all sixteen mounted motorcycle views; indoor character scale is independent."
+  },
   "animations": {
     "walk_north": {
       "path": "assets/generated/commute-rider-v3/walk_north.png",

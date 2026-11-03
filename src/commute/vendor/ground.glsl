@@ -18,11 +18,13 @@ attribute float WorldHeight;
 attribute vec2 GroundTextureCoord;
 attribute vec2 GroundTexturePhase;
 extern vec2 cameraCenter;
+extern vec2 cameraScreenCenter;
 extern float cameraFocusHeight;
 extern float cameraZoom;
 extern float cameraYaw;
 extern float cameraGroundScale;
 extern float cameraHeightScale;
+extern float groundDepthSpan;
 vec4 position(mat4 transform_projection, vec4 vertex_position)
 {
     materialWeights=GroundWeights;materialVariants=GroundVariants;
@@ -45,9 +47,12 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
     if (firstPerson) return riderProjection(transform_projection,vec3(vertex_position.x,WorldHeight,vertex_position.y));
     float right=dx*c-dz*s;
     float depth=dx*s+dz*c;
-    vec2 screen=vec2(640.0+right*48.0*cameraZoom,
-        440.0+(depth*29.0*cameraGroundScale-(WorldHeight-cameraFocusHeight)*22.0*cameraHeightScale)*cameraZoom);
-    return transform_projection*vec4(screen,vertex_position.z,vertex_position.w);
+    vec2 screen=cameraScreenCenter+vec2(right*48.0*cameraZoom,
+        (depth*29.0*cameraGroundScale-(WorldHeight-cameraFocusHeight)*22.0*cameraHeightScale)*cameraZoom);
+    vec4 clip=transform_projection*vec4(screen,vertex_position.z,vertex_position.w);
+    float order=depth*22.0*cameraHeightScale+(WorldHeight-cameraFocusHeight)*29.0*cameraGroundScale;
+    clip.z=-order/groundDepthSpan*clip.w;
+    return clip;
 }
 #endif
 #ifdef PIXEL

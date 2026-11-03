@@ -3,6 +3,17 @@
 local Component = {}
 
 function Component.install(Runtime)
+    -- Scene panels and town loading can consume all pointer input. Keep the
+    -- global menu controls reachable before those scene controls consume taps.
+    function Runtime.menuAccessPointer(x,y,button)
+        if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error'
+            or Runtime.state.screen=='critter_kombat' then return false end
+        local screen,bounds=Runtime.optionsAccessLayout()
+        if Runtime.OptionsScreen.accessHit(x,y,screen,bounds) then Runtime.openOptions();return true end
+        if Runtime.state.screen=='world' and Runtime.World.player.sceneId=='commute'
+            and Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds) then Runtime.returnToTitle();return true end
+        return false
+    end
     function Runtime.pointerPosition()
         if Runtime.controller and Runtime.controller:isActive() and Runtime.state.screen ~= "world" then
             return Runtime.controller:pointer()
@@ -65,6 +76,7 @@ function Component.install(Runtime)
 
     function Runtime.dispatchGameMousePressed(gameX, gameY, button)
         if Runtime.state.screen == "asset_error" then return end
+        if Runtime.menuAccessPointer(gameX,gameY,button) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
         end
@@ -106,6 +118,7 @@ function Component.install(Runtime)
     function Runtime.dispatchMousePressed(x, y, button)
         if Runtime.state.screen == "asset_error" then return end
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
+        if Runtime.menuAccessPointer(gameX,gameY,button) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
         end

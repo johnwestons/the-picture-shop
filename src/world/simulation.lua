@@ -3,13 +3,17 @@
 local Component = {}
 local CustomerDemand = require("src.customer_demand")
 local JobFeedback = require("src.job_feedback")
+local Background = require("src.background_warehouse")
 
 function Component.install(Runtime)
+    local background=Background.new()
+    local frameMotionDt,frameWasClosed
     function Runtime.World.doorForScene(scene)
         if scene==nil or scene=="warehouse" then return Runtime.World.bayDoor end
         return Runtime.World.roomDoors[scene]
     end
     function Runtime.World.load(position)
+        background:reset();frameMotionDt,frameWasClosed=nil,nil
         local character = position and position.character or Runtime.Config.player.character
         local playerId = position and tonumber(position.id) or nil
         Runtime.World.player.id = playerId and playerId >= 1 and playerId <= 4
@@ -185,7 +189,7 @@ function Component.install(Runtime)
 
     -- Host-owned events have their own clock so an open menu never freezes the
     -- loading bay, visitors, pallet unloading, or technician work for guests.
-    function Runtime.World.updateSimulation(dt, assets, state, motionDt)
+    local function simulate(dt, assets, state, motionDt)
         if require("src.weekend_flow").shopClosed(state) then return false end
         motionDt = math.max(0, tonumber(motionDt) or dt)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
@@ -243,6 +247,7 @@ function Component.install(Runtime)
             saveNeeded = true
         end
         employeeContext.motionScale = dt > 0 and motionDt / dt or 1
+        employeeContext.background = background.background
         local employeeChanged=Runtime.EmployeeAI.update(state,dt,employeeContext)
         local feedbackChanged=JobFeedback.sync(state)
         local truck=Runtime.World.truck
@@ -257,6 +262,51 @@ function Component.install(Runtime)
         end
         return saveNeeded or employeeChanged or feedbackChanged
     end
+
+    -- Called before advancing the authoritative calendar. Flush old-minute
+    -- logistics/payroll before a cutoff, and before a human observes the shop.
+    function Runtime.World.beginSimulationFrame(state,gameDt,motionDt,unattended,assets)
+        local Flow=require("src.weekend_flow")
+        local closed=Flow.shopClosed(state)
+        frameWasClosed=closed
+        local nextBackground=unattended and not closed and state.home.weekend.phase~="closing"
+        local gameLimit
+        if closed and Flow.isOuting(state) then
+            -- Reopen at the real boundary before spending any later clock
+            -- credit on an open shop; retain that credit for subsequent ticks.
+            gameLimit=math.max(0,Flow.returnAtHours(state.home.weekend)
+                -Runtime.BusinessCalendar.absoluteHours(state))*Runtime.BusinessCalendar.secondsPerDay(state)/24
+        end
+        gameDt,frameMotionDt=background:clock(state,gameDt,motionDt,nextBackground,gameLimit)
+        local changed=false
+        if closed then background.pendingGame,background.pendingMotion=0,0
+        elseif background.background and (not nextBackground or Background.crossesMinute(
+            Runtime.BusinessCalendar.absoluteHours(state),gameDt,Runtime.BusinessCalendar.secondsPerDay(state))) then
+            changed=background:flush(function(game,motion)return simulate(game,assets,state,motion) end)
+        end
+        if background.background~=nextBackground then
+            for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+                require("src.employee_work_presentation").reset(worker)
+            end
+        end
+        background.background=nextBackground
+        return gameDt,frameMotionDt,changed
+    end
+    function Runtime.World.updateSimulation(dt,assets,state,motionDt)
+        if background.state~=state then frameMotionDt,frameWasClosed=nil,nil end
+        background:ensure(state)
+        local acceptedMotion=frameMotionDt or motionDt or dt
+        local wasClosed=frameWasClosed
+        frameMotionDt,frameWasClosed=nil,nil
+        if wasClosed or require("src.weekend_flow").shopClosed(state) then
+            background.pendingGame,background.pendingMotion=0,0;return false
+        end
+        return background:advance(state,dt,acceptedMotion,function(game,motion)
+            return simulate(game,assets,state,motion)
+        end,state.home.weekend.phase=="closing")
+    end
+    function Runtime.World.hasBackgroundClockDebt() return background:hasDebt() end
+    function Runtime.World.backgroundSimulationStats() return background:stats() end
 end
 
 return Component

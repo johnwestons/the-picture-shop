@@ -24,6 +24,8 @@ local ACCESS_FOOTER = { x = 828, y = 630, width = 116, height = 42 }
 local ACCESS_RACK = { x = 696, y = 28, width = 116, height = 42 }
 local ACCESS_MACHINE = { x = 662, y = 28, width = 116, height = 42 }
 local CLOSE = { x = 812, y = 20, width = 112, height = 42 }
+local MAIN_MENU = { x = 550, y = 20, width = 250, height = 42 }
+local MOTORCYCLE_MENU = { x = 710, y = 590, width = 180, height = 40 }
 local TABS = {
     game = { x = 105, y = 90, width = 140, height = 48, label = "GAME" },
     audio = { x = 255, y = 90, width = 140, height = 48, label = "AUDIO" },
@@ -168,6 +170,32 @@ end
 
 function OptionsScreen.leave()
     return close()
+end
+
+function OptionsScreen.menuRect()
+    local context=OptionsScreen.context
+    if not context or not context.canReturnToMenu or type(context.onReturnToMenu)~='function'
+        or OptionsScreen.motorcycleEditor and OptionsScreen.motorcycleEditor.capture then return nil end
+    return OptionsScreen.motorcycleEditor and MOTORCYCLE_MENU or MAIN_MENU
+end
+
+function OptionsScreen.menuLabel()
+    local context=OptionsScreen.context
+    return context and context.isNetworkClient and context.isNetworkClient()
+        and 'LEAVE SESSION' or 'SAVE & MAIN MENU'
+end
+
+function OptionsScreen.returnToMenu()
+    if not OptionsScreen.menuRect() then return false end
+    local okay,reason=OptionsScreen.context.onReturnToMenu()
+    if okay then
+        OptionsScreen.motorcycleEditor=nil
+        OptionsScreen.editField,OptionsScreen.editBuffer,OptionsScreen.draggingControl=nil,'',nil
+    else
+        OptionsScreen.message=reason or 'Could not return to the menu. Please try again.'
+        if OptionsScreen.motorcycleEditor then OptionsScreen.motorcycleEditor.message=OptionsScreen.message end
+    end
+    return true
 end
 
 function OptionsScreen.wantsTextInput()
@@ -390,6 +418,7 @@ local function resetControls()
 end
 
 function OptionsScreen.keypressed(key)
+    if key=='f9' and OptionsScreen.menuRect() then return OptionsScreen.returnToMenu() end
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:keypressed(key) end
     if OptionsScreen.editField then
         if key == "return" or key == "kpenter" then return commitEdit() end
@@ -482,6 +511,8 @@ function OptionsScreen.textinput(text)
 end
 
 function OptionsScreen.mousepressed(x, y, button)
+    local menu=OptionsScreen.menuRect()
+    if button==1 and menu and Ui.contains(menu,x,y) then return OptionsScreen.returnToMenu() end
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousepressed(x,y,button) end
     if button ~= 1 then return false end
     if Ui.contains(CLOSE, x, y) then return close() end
@@ -730,7 +761,12 @@ local function drawColorways()
 end
 
 function OptionsScreen.draw(mouseX, mouseY)
-    if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:draw() end
+    if OptionsScreen.motorcycleEditor then
+        OptionsScreen.motorcycleEditor:draw()
+        local menu=OptionsScreen.menuRect()
+        if menu then drawButton(menu,OptionsScreen.menuLabel(),false,false) end
+        return
+    end
     if mouseX and mouseY then OptionsScreen.mousemoved(mouseX, mouseY) end
     love.graphics.clear(0.045, 0.055, 0.058)
     Ui.panel({ x = 92, y = 66, width = 776, height = 576 },
@@ -739,7 +775,9 @@ function OptionsScreen.draw(mouseX, mouseY)
     love.graphics.print("SHOP CONTROL", 116, 28, 0, 1.15, 1.15)
     love.graphics.setColor(0.66, 0.72, 0.69)
     love.graphics.print("OPTIONS // O KEY OR CONTROLLER START", 116, 49)
-    drawButton(CLOSE, "CLOSE", false, false)
+    drawButton(CLOSE, OptionsScreen.menuRect() and "RESUME" or "BACK", false, false)
+    local menu=OptionsScreen.menuRect()
+    if menu then drawButton(menu,OptionsScreen.menuLabel(),false,false) end
     for _, tab in ipairs(TAB_ORDER) do
         local rect = TABS[tab]
         drawButton(rect, rect.label, OptionsScreen.tab == tab, false)
@@ -825,7 +863,8 @@ function OptionsScreen.draw(mouseX, mouseY)
     love.graphics.setColor(0.47, 0.53, 0.50)
     love.graphics.printf(OptionsScreen.tab=="cheats"
         and "Tab: section  |  Q/E: cheat category  |  1-3: slot  |  Enter: edit/grant"
-        or "Tab changes section  |  Arrows adjust  |  Enter edits  |  Esc closes",
+        or (OptionsScreen.menuRect() and "Esc: resume  |  F9 / controller Y: main menu  |  Tab: section"
+            or "Tab changes section  |  Arrows adjust  |  Enter edits  |  Esc closes"),
         116, 654, 728, "center")
 end
 
@@ -837,6 +876,7 @@ function OptionsScreen.openMotorcycleControls()
     return true
 end
 function OptionsScreen.gamepadpressed(joystick,button)
+    if button=='y' and OptionsScreen.menuRect() then return OptionsScreen.returnToMenu() end
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:gamepadpressed(joystick,button) end
     return false
 end

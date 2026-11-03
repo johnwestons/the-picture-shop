@@ -2,6 +2,7 @@
 -- positions. Movement never equips gear and no scene transition removes it.
 local Gear=require('src.commute.gear')
 local Bike=require('src.commute.motorcycle')
+local Fall=require('src.commute.rider_fall')
 local M=require('src.commute.vendor.mathx')
 local Rider={WALK_SPEED=1.7,RADIUS=.32,FRAME_DISTANCE=.13}
 local speedCurve={.96,.94,1.04,1.06,.96,.94,1.04,1.06}
@@ -15,6 +16,10 @@ function Rider.new(x,z,heading,savedGear)
         bike=Bike.new(x,z,heading),gear=assert(Gear.restore(savedGear))}
 end
 function Rider.actor(r) return r.gear.mounted and r.bike or r.ped end
+function Rider.pose(r)
+    if r.ped.crash then return 'crash',r.ped.crash.elapsed/Fall.DURATION end
+    return Gear.pose(r.gear)
+end
 function Rider.clear(world,x,z,radius)
     for i=0,7 do local a=i*math.pi/4
         if world.roads:blocked(world,x+math.cos(a)*radius,z+math.sin(a)*radius) then return false end
@@ -22,6 +27,7 @@ function Rider.clear(world,x,z,radius)
     return true
 end
 function Rider.footing(r,world)
+    if r.bike.grounded==false or math.abs(r.bike.vy or 0)>.1 then return nil end
     for _,side in ipairs({1,-1}) do
         local x=r.bike.x-math.sin(r.bike.heading)*1.2*side
         local z=r.bike.z+math.cos(r.bike.heading)*1.2*side
@@ -31,11 +37,17 @@ function Rider.footing(r,world)
     end
 end
 function Rider.command(r,action,world)
+    if r.ped.crash then return false,'Get back on your feet before using the motorcycle.' end
+    if not M.finite(r.bike.h) then Bike.resetContact(r.bike,world) end
+    if (action=='dismount' or action=='ignition') and (not r.bike.grounded or math.abs(r.bike.vy or 0)>.1) then
+        return false,'Wait until the motorcycle has landed and settled before getting off or switching the engine.'
+    end
     if action=='ignition' or action=='headlight' or action=='reverse' then
         if r.gear.transition or not r.gear.mounted then return false,'Mount the motorcycle and finish the current action first.' end
         if action=='ignition' then
             if r.bike.speed>.05 then return false,'Stop completely before switching the engine on or off.' end
-            r.bike.speed=0;r.gear.engine=not r.gear.engine;r.gear.revision=r.gear.revision+1
+            r.bike.speed=0;Bike.resetHorizontal(r.bike)
+            r.gear.engine=not r.gear.engine;r.gear.revision=r.gear.revision+1
             r.bike.throttle=0;r.bike.boosting=false
             return true,r.gear.engine and 'Engine started.' or 'Engine off. E: dismount.'
         end
@@ -72,6 +84,14 @@ function Rider.update(r,input,dt,world)
     if Gear.allowed(r.gear,'ride') then
         Bike.update(r.bike,input,dt,world)
         r.ped.x,r.ped.z=r.bike.x,r.bike.z;r.ped.heading=r.bike.heading
+        if r.bike.crashPending then
+            Fall.begin(r,r.bike.crashPending,world,Rider.RADIUS,Rider.clear)
+            r.bike.crashPending=nil
+            r.dismountPoint=nil
+            finished=true
+        end
+    elseif r.ped.crash then
+        finished=Fall.update(r.ped,dt)
     elseif Gear.allowed(r.gear,'walk') then
         local p=r.ped;local dx,dz=input.walkX or 0,input.walkZ or 0
         local magnitude=M.length(dx,dz)
@@ -94,8 +114,8 @@ function Rider.update(r,input,dt,world)
         p.distance=p.distance+moved;p.speed=dt>0 and moved/dt or 0
         if moved>1e-7 then p.heading=math.atan2(p.z-z0,p.x-x0) end
     end
+    if not Gear.allowed(r.gear,'ride') then Bike.settle(r.bike,dt,world) end
     r.ped.h=world:supportHeight(r.ped.x,r.ped.z)
-    r.bike.h=world:supportHeight(r.bike.x,r.bike.z)
     return finished
 end
 function Rider.snapshot(r)
@@ -106,27 +126,40 @@ function Rider.snapshot(r)
     end
     return {gear=gear,ped=ped,bike={x=r.bike.x,z=r.bike.z,heading=r.bike.heading,
         gear=r.bike.gear or 1,transmission=r.bike.transmission or 'automatic',
+        upgradeLevel=r.bike.upgradeLevel or 0,paintId=r.bike.paintId or require('src.commute.bike_paint').DEFAULT,
+        damage=r.bike.damage or 0,
         reverse=r.bike.reverse==true,headlight=r.bike.headlight==true}}
 end
 function Rider.restore(saved,world,anchor)
     if type(saved)~='table' then return nil,'Invalid saved rider.' end
     local gear,reason=Gear.restore(saved.gear);if not gear then return nil,reason end
     if not Bike.valid(saved.bike) then return nil,'Invalid saved transmission.' end
-    local function validPosition(p)
-        return type(p)=='table' and M.finite(p.x) and M.finite(p.z) and M.finite(p.heading)
-            and p.x>=56 and p.x<=458 and p.z>=56 and p.z<=458
-            and Rider.clear(world,p.x,p.z,Bike.RADIUS)
+    local function validPosition(p,radius,solidBike)
+        if not (type(p)=='table' and M.finite(p.x) and M.finite(p.z) and M.finite(p.heading)
+            and Rider.clear(world,p.x,p.z,radius)) then return false end
+        if solidBike and world.sweepObstacles then
+            local h=world:supportHeight(p.x,p.z)
+            return world:sweepObstacles(p.x,p.z,p.x,p.z,radius,h,h+Bike.COLLISION_HEIGHT)==nil
+        end
+        return true
     end
-    if not validPosition(saved.ped) or not validPosition(saved.bike) then
+    if not validPosition(saved.ped,Rider.RADIUS) or not validPosition(saved.bike,Bike.RADIUS,true) then
         -- Save compatibility recovery is always parked, still wearing the
         -- stable outfit. The caller supplies the last safe origin/destination.
         gear.mounted=false;gear.engine=false
-        local r=Rider.new(anchor.x,anchor.z,0,gear)
+        local r=Rider.new(anchor.x,anchor.z,anchor.heading or 0,gear)
+        if anchor.pedX then r.ped.x,r.ped.z=anchor.pedX,anchor.pedZ end
         r.bike.transmission=saved.bike.transmission or 'automatic'
+        r.bike.upgradeLevel=saved.bike.upgradeLevel or 0
+        r.bike.damage=saved.bike.damage or 0
+        r.bike.paintId=saved.bike.paintId or require('src.commute.bike_paint').DEFAULT
         Rider.update(r,{},0,world);return r,'Recovered at parking area.'
     end
     local r=Rider.new(saved.bike.x,saved.bike.z,saved.bike.heading,gear)
     r.bike.transmission=saved.bike.transmission or 'automatic'
+    r.bike.upgradeLevel=saved.bike.upgradeLevel or 0
+    r.bike.damage=saved.bike.damage or 0
+    r.bike.paintId=saved.bike.paintId or require('src.commute.bike_paint').DEFAULT
     r.bike.reverse=saved.bike.reverse==true;r.bike.headlight=saved.bike.headlight==true
     r.bike.gear=r.bike.transmission=='manual' and (saved.bike.gear or 1) or 1
     r.ped.x,r.ped.z,r.ped.heading=saved.ped.x,saved.ped.z,saved.ped.heading

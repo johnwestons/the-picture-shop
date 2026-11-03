@@ -39,7 +39,7 @@ function Component.install(Runtime)
             end})
         Runtime.ComputerScreen.configureGameClock({
             getSpeed=function() return Runtime.App.gameClockSpeed or 1 end,
-            canChange=function() return not Runtime.multiplayer:isClient() and not (Runtime.state.home and Runtime.state.home.weekend.phase=="home") end,
+            canChange=function() return not Runtime.multiplayer:isClient() and not (require("src.weekend_flow").atHome(Runtime.state)) end,
             setSpeed=function(speed) return Runtime.App.setGameClockSpeed(speed) end,
         })
         Runtime.ComputerScreen.configureRadio({

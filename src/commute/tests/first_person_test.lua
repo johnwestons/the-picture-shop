@@ -46,18 +46,7 @@ function Test.run(check)
     check('first_person_dismount_returns_outside',not camera.firstPerson and not camera:toggleView(r))
     r.gear.transition=nil;r.gear.mounted=false
     check('first_person_on_foot_toggle_rejected',not camera:toggleView(r))
-    local roads=require('src.commute.roads').new()
-    local terrain=roads:attach(require('src.commute.terrain').new())
-    local builder={world=terrain,chunks={},serial=0}
-    local mesh=require('src.commute.renderer').build(builder,59,45).mesh
-    local inspected,clear=0,true
-    for i=1,mesh:getVertexCount() do
-        local x,z,h=mesh:getVertex(i)
-        local support,kind=terrain:supportHeight(x,z)
-        if kind=='bridge' then inspected=inspected+1;clear=clear and h<support end
-    end
-    mesh:release()
-    check('first_person_bridge_mesh_keeps_riverbank_below_deck',inspected>0 and clear)
+    require('src.commute.tests.terrain_renderer_test').run(check)
     for _,size in ipairs({{1280,880},{960,678},{640,480}}) do
         local ox,oy,s=HUD.layout(size[1],size[2])
         check('first_person_touch_toggle_while_moving_'..size[1],HUD.keyAt(ox+625*s,oy+278*s,size[1],size[2],r.bike,{speed=12})=='p')

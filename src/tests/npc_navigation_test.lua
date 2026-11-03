@@ -33,7 +33,29 @@ local function drive(actor,goal,context,steps)
     return arrived
 end
 
+local function candidateScalingChecks(check)
+    local obstacles={{x=450,y=330,halfWidth=24,halfHeight=240}}
+    local context={assets={getData=function() return nil end},
+        obstacles=function() return obstacles end}
+    local actor,goal={x=100,y=300},{x=800,y=300}
+    local goals={}
+    -- Machine contacts can repeat a location at different unloading headings.
+    -- The nearest-goal heuristic must preserve route and candidate ordering.
+    for index=1,640 do goals[index]={x=goal.x,y=goal.y,contact=index} end
+    local single=assert(Navigator.findPath(actor,{goal},context))
+    local many,selected=Navigator.findPath(actor,goals,context)
+    local safe=many and #single==#many and selected==goals[1]
+    local previous=actor
+    for index,point in ipairs(many or {}) do
+        safe=safe and point.x==single[index].x and point.y==single[index].y
+            and Navigation.canTraverse(context.assets,previous.x,previous.y,point.x,point.y,obstacles)
+        previous=point
+    end
+    check("npc_many_machine_contacts_preserve_route_and_candidate_order",safe)
+end
+
 function Test.run(context,check)
+    candidateScalingChecks(check)
     local u={{x=420,y=270,halfWidth=100,halfHeight=8},
         {x=420,y=430,halfWidth=100,halfHeight=8},
         {x=520,y=350,halfWidth=8,halfHeight=88}}

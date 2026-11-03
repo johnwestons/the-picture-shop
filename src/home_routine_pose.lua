@@ -1,3 +1,4 @@
+local Preload=require("src.home_art_preload")
 -- Tools are contextual presentation, never owned inventory or extra portions.
 local Residents=require("src.home_residents")
 local Layout=require("src.home_layouts")
@@ -15,7 +16,7 @@ local hands={
     work_task_south={{129,134},{131,137}},
 }
 function Routine.get(state,player)
-    if not state.home or state.home.weekend.phase~="home" or player.sceneId~="home" then return nil end
+    if not state.home or not require("src.weekend_flow").atHome(state) or player.sceneId~="home" then return nil end
     local r=Residents.display(state,player);local a=r and r.activity
     if not a or not actions[a.kind] or (player.x-a.x)^2+(player.y-a.y)^2>4 then return nil end
     local privacyActivity=a.kind=="bathe" or a.kind=="toilet"
@@ -142,22 +143,30 @@ local function changeGlow(p)
     love.graphics.setColor(1,1,1,1)
 end
 function Routine.draw(p,player,characters)
+    if p.routine=="prepare" or p.routine=="change" then
+        if not Preload.want("held",function()
+            local Held=require("src.home_held_art")
+            if p.routine=="change" then return Held.prewarm("towel") end
+            local a,b=Held.prewarm("ingredients"),Held.prewarm("sandwich")
+            return a and b
+        end) then return false end
+    end
     if p.privacy then return require("src.home_privacy_art").draw(p,player,characters) end
     if p.routine=="cook" and p.bowlX then
-        require("src.home_cooking_art").draw(p.direction,p.frame,p.x,p.y,player,true,p.bowlX,p.bowlY);return true
+        return require("src.home_cooking_art").draw(p.direction,p.frame,p.x,p.y,player,true,p.bowlX,p.bowlY)~=false
     end
-    if p.routine=="sweep" then require("src.home_sweep_art").draw(p.direction,p.frame,p.x,p.y,player);return true end
-    if p.routine=="trash" then require("src.home_trash_art").draw(p.direction,p.frame,p.x,p.y,player);return true end
+    if p.routine=="sweep" then return require("src.home_sweep_art").draw(p.direction,p.frame,p.x,p.y,player)~=false end
+    if p.routine=="trash" then return require("src.home_trash_art").draw(p.direction,p.frame,p.x,p.y,player)~=false end
     if p.routine=="loadwash" or p.routine=="unload" then
-        require("src.home_laundry_art").draw(p.direction,p.frame,p.x,p.y,player,p.routine,p.progress);return true
+        return require("src.home_laundry_art").draw(p.direction,p.frame,p.x,p.y,player,p.routine,p.progress)~=false
     end
     if p.sinkAction then
-        require("src.home_washing_art").draw(p.sinkAction,p.direction,p.frame,p.x,p.y,player,p.seconds);return true
+        return require("src.home_washing_art").draw(p.sinkAction,p.direction,p.frame,p.x,p.y,player,p.seconds)~=false
     end
-    if p.routine=="wipe" or p.routine=="scrub" then require("src.home_wipe_art").draw(p.direction,p.frame,p.x,p.y,player);return true end
+    if p.routine=="wipe" or p.routine=="scrub" then return require("src.home_wipe_art").draw(p.direction,p.frame,p.x,p.y,player)~=false end
     local action=characters.resolveAction("rabbit-worker",p.action)
-    if action~=p.action then return false end
-    local image,quad=characters.get("rabbit-worker",action,p.frame);if not image then return false end
+    if action~=p.action then Preload.wait();return false end
+    local image,quad=characters.get("rabbit-worker",action,p.frame);if not image then Preload.wait();return false end
     local ax,ay=characters.getAnchor("rabbit-worker",action,p.frame)
     local scale=require("src.config").player.drawScale*characters.getNormalization("rabbit-worker",action)
     local hand=(hands[p.action] or hands.work_task)[p.frame-1]

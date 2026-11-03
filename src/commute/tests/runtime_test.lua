@@ -29,13 +29,16 @@ function Test.run(context,check)
     -- driver into both, leaving semantic button dispatch under test below.
     Bindings.drive=function()return ix,iy,false end
     local function ticks(n) for _=1,n do R.App.update(.05) end end
+    local tripNumber=0
     local function beginTrip()
         local target=require('src.home_travel').target(R.World.player,R.state)
         R.World.player.x,R.World.player.y=target.x,target.y
         assert(Weekend.command(R,R.World.player,'request'))
         local token=R.state.home.weekend.travelToken
         assert(Weekend.command(R,R.World.player,'depart:'..token))
-        ticks(2);return token
+        tripNumber=tripNumber+1
+        require('src.commute.tests.loading_test_support').wait(R,check,'commute_runtime_departure_'..tripNumber)
+        return token
     end
     at(R.state,44);R.state.home.weekend.phase='ready';R.state.home.weekend.closedAtHours=44
     R.World.truck.state='absent'
@@ -77,7 +80,8 @@ function Test.run(context,check)
     capture(R,'runtime-cockpit-manual')
     assert(R.saveCurrent(true));local saved=assert(R.Save.load(3))
     check('commute_runtime_saved_scene_is_commute',saved.player.sceneId=='commute' and saved.state.home.commute~=nil)
-    assert(R.startGame(saved,'smoke'));R.state.screen='world';ticks(2)
+    assert(R.startGame(saved,'smoke'));R.state.screen='world'
+    require('src.commute.tests.loading_test_support').wait(R,check,'commute_runtime_reload')
     check('commute_runtime_midride_reload_retains_trip_and_gear',R.World.player.sceneId=='commute'
         and Gear.allowed(C.localPart(R).rider.gear,'ride'))
     check('commute_runtime_save_retains_manual_transmission',C.localPart(R).rider.bike.transmission=='manual' and C.localPart(R).rider.bike.gear==2)

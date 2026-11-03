@@ -69,10 +69,11 @@ end
 
 local function drawAction()
     local pose, progress = activePose()
-    if art:has(pose) then
-        local frame = currentFrame or GearActionArt.frameForProgress(pose, progress or 0) or 1
-        local scale = DISPLAY_SCALE * GearActionArt.normalization(pose)
-        local okay = art:draw(pose, frame, 250, BASELINE, scale, appearance)
+    local action, mappedFrame = GearActionArt.actionFrameForPose(pose, progress or 0, art.registration)
+    if action then
+        local frame = currentFrame or mappedFrame or 1
+        local scale = DISPLAY_SCALE * GearActionArt.normalization(action, art.registration)
+        local okay = art:draw(action, frame, 250, BASELINE, scale, appearance)
         if okay then
             printAt(('ACTION / %s / frame %d of 4'):format(pose, frame), 86, 637, {.97, .77, .41})
         else
@@ -93,7 +94,7 @@ local function drawAction()
         setColor(.24, .08, .07, .94)
         g.rectangle('fill', 72, 388, 360, 185, 8, 8)
         printAt(('MISSING ACTION ART / %s'):format(tostring(pose)), 92, 414, {1, .45, .35})
-        printAt('No reverse playback or proxy is used.', 92, 450, {.94, .85, .78})
+        printAt('No authored strip or safe transition proxy is available.', 92, 450, {.94, .85, .78})
         printAt('The visible suit is held in the previous state.', 92, 474, {.94, .85, .78})
         g.pop()
         printAt(('REMOVAL GAP / %s'):format(tostring(pose)), 86, 637, {1, .32, .28})
@@ -270,7 +271,8 @@ function Review.install()
             gridCapture and GRID_HEIGHT or 880, {resizable=false, vsync=0})
         love.window.setTitle('The Picture Shop - Motorcycle gear action art review')
         g = love.graphics
-        art = GearActionArt.new({review=true})
+        art = GearActionArt.new({review=true,
+            registration=require('assets.staging.commute-gear-actions-v1.registration')})
         normalImage = g.newImage(Config.characters['rabbit-worker'].idle_southeast)
         normalImage:setFilter('linear', 'linear')
         normalQuad = g.newQuad(0, 0, 512, 512, normalImage:getWidth(), normalImage:getHeight())
@@ -369,7 +371,7 @@ function Review.install()
 
         g.push('all');g.setShader()
         setColor(.12, .16, .15, .97);g.rectangle('fill', 32, 800, 1216, 47, 8, 8)
-        printAt('Southeast only · rabbit-specific exposed poses · suit remains shared after helmet closes · no gameplay integration',
+        printAt('Southeast rabbit poses · removal reverses matching strips · other species keep their own appearance',
             55, 815, {.71, .79, .74})
         g.pop()
         captureScreenshot()

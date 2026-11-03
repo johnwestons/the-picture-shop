@@ -65,6 +65,19 @@ local function populate(runtime)
             body="An archived message for the loading benchmark.",receivedAtHours=index,read=true})
     end
 end
+local function finish(runtime,app)
+    local assets,characters=runtime.Assets,runtime.CharacterAssets
+    local result=require("tools.performance_probe.json")({rows=rows,
+        active_texture_bytes=assets.textureBytes()+characters.textureBytes(),
+        cached_texture_bytes=assets.cachedTextureBytes()+characters.cachedTextureBytes(),
+        warehouse_source_texture_bytes=require("src.warehouse_renderer").sourceTextureBytes(),
+        warehouse_cached_texture_bytes=require("src.warehouse_renderer").cachedTextureBytes(),
+        gpu_texture_bytes=love.graphics.getStats().texturememory})
+    local file=assert(io.open(output.."/measurements.json","wb"));file:write(result);file:close()
+    if app.sound then app.sound:shutdown() end
+    runtime.Save.shutdown()
+    love.event.quit(0)
+end
 function love.load()
     local identity=assert(os.getenv("PICTURE_SHOP_TEST_IDENTITY"))
     assert(identity:match("^the%-picture%-shop%-test%-[%w%-]+$"))
@@ -81,11 +94,19 @@ function love.load()
     measure("asset_and_app_startup",1,function() app.load() end)
     -- Keep the older synchronous comparison rows reproducible. The stall
     -- scenarios below explicitly exercise the real asynchronous pipeline.
-    require("src.image_loader").setEnabled(false)
+    require("src.image_loader").setEnabled(os.getenv("PICTURE_SHOP_PERFORMANCE_HOME_PREWARM")=="1")
     assert(#runtime.state.assetErrors==0,table.concat(runtime.state.assetErrors,"\n"))
     local mobile=os.getenv("PICTURE_SHOP_MOBILE")=="1"
     local width,height=mobile and 1600 or 960,mobile and 720 or 678
     love.window.setMode(width,height,{vsync=0,resizable=false})
+    if os.getenv("PICTURE_SHOP_PERFORMANCE_BACKGROUND_WAREHOUSE")=="1" then
+        require("tools.performance_probe.background_warehouse")(runtime,app,rows,output)
+        finish(runtime,app);return
+    end
+    if os.getenv("PICTURE_SHOP_PERFORMANCE_HOME_ACTIONS")=="1" then
+        require("tools.performance_probe.home_actions")(runtime,app,rows,output)
+        finish(runtime,app);return
+    end
     local assets,characters=runtime.Assets,runtime.CharacterAssets
     measure("cutter_menu_pack_roundtrip",10,function()
         assert(assets.activatePack("cutter"));assert(assets.activatePack("menu"))
@@ -170,14 +191,6 @@ function love.load()
     rows[#rows].additional_gpu_texture_bytes=love.graphics.getStats().texturememory-gpuBefore
     require("tools.performance_probe.crowded_shop")(runtime,app,measure,draw,rows)
     require("tools.performance_probe.stalls")(runtime,app,measure,draw,rows,capture)
-    local result=require("tools.performance_probe.json")({rows=rows,
-        active_texture_bytes=assets.textureBytes()+characters.textureBytes(),
-        cached_texture_bytes=assets.cachedTextureBytes()+characters.cachedTextureBytes(),
-        warehouse_source_texture_bytes=require("src.warehouse_renderer").sourceTextureBytes(),
-        warehouse_cached_texture_bytes=require("src.warehouse_renderer").cachedTextureBytes(),
-        gpu_texture_bytes=love.graphics.getStats().texturememory})
-    local file=assert(io.open(output.."/measurements.json","wb"));file:write(result);file:close()
-    if app.sound then app.sound:shutdown() end
-    runtime.Save.shutdown()
-    love.event.quit(0)
+    require("tools.performance_probe.scenes")(runtime,app,rows,output)
+    finish(runtime,app)
 end

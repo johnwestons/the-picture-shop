@@ -1,4 +1,4 @@
-param([string]$Label = 'review', [int]$TimeoutSeconds = 60)
+param([string]$Label = 'review', [int]$TimeoutSeconds = 60, [switch]$HomeActions, [switch]$HomePrewarm, [switch]$BackgroundWarehouse)
 $ErrorActionPreference = 'Stop'
 if ($Label -notmatch '^[a-zA-Z0-9_-]+$') { throw 'Use a simple label for the report directory.' }
 $perfRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -11,6 +11,9 @@ $perfEnvironment = @{
     PICTURE_SHOP_PERFORMANCE_PROBE = '1'
     PICTURE_SHOP_PERFORMANCE_OUTPUT = $perfOutput
 }
+if ($BackgroundWarehouse) { $perfEnvironment.PICTURE_SHOP_PERFORMANCE_BACKGROUND_WAREHOUSE = '1' }
+if ($HomeActions -or $HomePrewarm) { $perfEnvironment.PICTURE_SHOP_PERFORMANCE_HOME_ACTIONS = '1' }
+if ($HomePrewarm) { $perfEnvironment.PICTURE_SHOP_PERFORMANCE_HOME_PREWARM = '1' }
 $perfPrevious = @{}
 $perfProcess = $null
 try {

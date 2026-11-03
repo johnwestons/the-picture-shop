@@ -1,3 +1,6 @@
+if os.getenv('PICTURE_SHOP_RIDER_SCALE_REVIEW') == '1' then
+    require('tools.commute_lab.rider_scale_review').install();return
+end
 if os.getenv('PICTURE_SHOP_BIKE_REVIEW') == 'actions' then
     require('tools.commute_lab.bike_action_review').install()
     return
@@ -23,7 +26,7 @@ if os.getenv('PICTURE_SHOP_COMMUTE_CAMERA_TEST')=='1' then
     function love.load()
         local count=0
         local function check(name,okay) assert(okay,name);count=count+1;print('PASS '..name) end
-        for _,name in ipairs({'camera_controls','camera','first_person'}) do require('src.commute.tests.'..name..'_test').run(check) end
+        for _,name in ipairs({'camera_controls','camera','follow_camera','camera_preferences','first_person'}) do require('src.commute.tests.'..name..'_test').run(check) end
         print('COMMUTE_CAMERA_OK '..count..' checks; no saves accessed');love.event.quit(0)
     end
     return
@@ -48,16 +51,38 @@ local Rider=require('src.commute.rider')
 local Camera=require('src.commute.camera')
 local Renderer=require('src.commute.renderer')
 local Routes=require('src.commute.routes')
-local world,roads,actor,camera,renderer,cockpit
+local RouteMap=require('src.commute.route_map')
+local world,roads,actor,camera,renderer,cockpit,routeMap
+local viewportWidth,viewportHeight=1280,880
+local function viewportLayout()
+    local sw,sh=love.graphics.getDimensions();local scale=math.min(sw/1280,sh/880)
+    local width,height=math.max(1280,math.ceil(sw/scale)),math.max(880,math.ceil(sh/scale))
+    viewportWidth,viewportHeight=width,height
+    if camera then camera:setViewport(width,height) end
+    if renderer then renderer:resizeViewport(width,height) end
+    return scale,width,height,(width-1280)*.5,(height-880)*.5
+end
 local rider,controlMessage,pointerBoost
 local rideAudio,audioMuted,audioVolume=nil,false,.8
 local routes,route
+local townSeedText=os.getenv('PICTURE_SHOP_TOWN_SEED')
+local townSeed=townSeedText and townSeedText~='' and assert(tonumber(townSeedText),'Town seed must be numeric') or nil
+local startX,startZ,startHeading=100,380,-.7
 local playablePreview=os.getenv('PICTURE_SHOP_RIDE_PREVIEW')=='1'
 local previewCheck=playablePreview and os.getenv('PICTURE_SHOP_RIDE_PREVIEW_CHECK')=='1'
 local firstPersonCheck=playablePreview and os.getenv('PICTURE_SHOP_FIRST_PERSON_CHECK')=='1'
 local apartmentIds={'garden','brick-walkup','courtyard','corner'}
 local apartmentIndex=playablePreview and 2 or 1
 local elapsed,frames,showMap=0,0,playablePreview
+local mapButton={x=960,y=18,width=148,height=42}
+local mapRect={x=24,y=132,width=1232,height=722}
+local function contains(rect,x,y)
+    return x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height
+end
+local function toggleMap()
+    showMap=not showMap
+    CameraControls.cancel(cameraDrag);touchControls:cancel();pointerBoost=false
+end
 local captureDir=os.getenv('PICTURE_SHOP_COMMUTE_CAPTURE')
 local warehouseReview=os.getenv('PICTURE_SHOP_WAREHOUSE_REVIEW')=='1'
 local bridgeReview=os.getenv('PICTURE_SHOP_BRIDGE_REVIEW')=='1'
@@ -101,12 +126,13 @@ if bridgeReview then
 end
 local function place(x,z,yaw,tilt,zoom)
     CameraControls.cancel(cameraDrag)
-    rider=Rider.new(x,z,-.7,{version=1,outfit='geared',mounted=true,engine=true,revision=0})
+    rider=Rider.new(x,z,startHeading,{version=1,outfit='geared',mounted=true,engine=true,revision=0})
     actor=rider.bike;Rider.update(rider,{},0,world);controlMessage=nil;pointerBoost=false
-    camera=Camera.new(actor,world);camera.zoom=zoom or .8;camera.targetZoom=zoom or .8
+    camera=Camera.new(actor,world);camera:setViewport(viewportWidth,viewportHeight)
+    camera.zoom=zoom or .8;camera.targetZoom=zoom or .8
     camera.yaw=yaw or 0;camera.tilt=tilt or Camera.TILT_DEFAULT
     if warehouseReview then
-        local site=require('src.commute.sites').warehouse;local a=math.rad(camera.yaw)
+        local site=roads.sites.byId.warehouse;local a=math.rad(camera.yaw)
         local dx,dz=site.x-actor.x,site.z-actor.z
         camera.offsetX=(dx*math.cos(a)-dz*math.sin(a))*48
         camera.offsetY=(dx*math.sin(a)+dz*math.cos(a))*29
@@ -120,8 +146,14 @@ local function check(name,okay,reason)
 end
 local function reviewCase(p)
     place(p.x,p.z,p.yaw or 20,p.tilt,p.zoom)
-    if firstPersonCheck then
-        actor.heading=p.heading;actor.lean=p.lean or 0;actor.steering=p.steering or 0
+    if p.siteId then
+        local site=roads.sites.byId[p.siteId];local a=math.rad(camera.yaw)
+        local dx,dz=site.x-actor.x,site.z-actor.z
+        camera.offsetX=(dx*math.cos(a)-dz*math.sin(a))*48
+        camera.offsetY=(dx*math.sin(a)+dz*math.cos(a))*29
+    end
+    if firstPersonCheck or p.firstPerson~=nil then
+        actor.heading=p.heading or startHeading;actor.lean=p.lean or 0;actor.steering=p.steering or 0
         camera:setFirstPerson(p.firstPerson,actor);showMap=false
         if p.lookYaw then camera:orbit(p.lookYaw,p.lookPitch or 0) end
     end
@@ -135,7 +167,7 @@ function love.load()
         print('COMMUTE SESSION TESTS PASSED');love.event.quit(0);return
     end
     if os.getenv('PICTURE_SHOP_COMMUTE_TEST')=='1' then
-        for _,name in ipairs({'terrain','camera','first_person','roads','motorcycle','controls','vegetation','flora','routes','bridge_art','gear','rider','gear_home','trip','bike_art','normal_art','sites'}) do require('src.commute.tests.'..name..'_test').run(check) end
+        for _,name in ipairs({'terrain','camera','first_person','roads','motorcycle','controls','vegetation','flora','routes','bridge_art','bridge_geometry','structure_geometry','gear','rider','gear_home','trip','bike_art','bike_upgrades','normal_art','sites','town'}) do require('src.commute.tests.'..name..'_test').run(check) end
         -- These existing domain regressions exercise the apartment handoff and
         -- actual save schema. Their disposable slot lives only in the lab.
         assert(love.filesystem.getIdentity()=='the-picture-shop-commute-lab')
@@ -145,7 +177,17 @@ function love.load()
         print('COMMUTE TESTS PASSED')
         if not captureDir then love.event.quit(0);return end
     end
-    roads=Roads.new();world=roads:attach(Terrain.new());renderer=Renderer.new(world)
+    local loading=love.graphics
+    loading.clear(.035,.06,.05,1);loading.setColor(.94,.91,.78)
+    loading.printf('Preparing your ride...',0,420,1280,'center');loading.present()
+    if townSeed then
+        local Town=require('src.commute.town')
+        world=Town.world(assert(Town.generate(townSeed)));roads=world.roads
+        startX,startZ=roads.destinations.warehouse.x,roads.destinations.warehouse.z
+        print('TOWN PREVIEW '..world.townId..' buildings='..#roads.sites.all)
+    else roads=Roads.new();world=roads:attach(Terrain.new()) end
+    if routeMap then routeMap:release();routeMap=nil end
+    renderer=Renderer.new(world)
     if bridgeReview then
         for _,pier in ipairs(renderer.bridgeArt.piers) do
             print(('BRIDGE SUPPORT x=%.2f z=%.2f terrain=%.2f deck=%.2f'):format(
@@ -153,23 +195,52 @@ function love.load()
         end
     end
     cockpit=require('src.commute.cockpit').new()
+    renderer:prewarmViews();cockpit:prewarmFirstPerson()
     controlsSettings.motorcycleControls=(previewCheck or firstPersonCheck) and Bindings.defaults() or Settings.sharedMotorcycle()
     touchControls.visible=love.system.getOS()=='Android' or os.getenv('PICTURE_SHOP_MOBILE')=='1'
     rideAudio=require('src.commute.audio').new()
     rideAudio:setLevels(audioVolume,.85,.42)
     routes=Routes.new(roads);route=assert(routes:find('warehouse',apartmentIds[apartmentIndex]))
+    if townSeed then
+        local a,b=route.points[1],route.points[2];startHeading=math.atan2(b.z-a.z,b.x-a.x)
+        if captureDir and not (bridgeReview or warehouseReview or previewCheck or firstPersonCheck) then
+            cases={}
+            local selectedText=os.getenv('PICTURE_SHOP_TOWN_REVIEW_SITES')
+            local selected=selectedText and selectedText~='' and {} or nil
+            if selected then for id in selectedText:gmatch('[%w%-]+') do selected[id]=true end end
+            for _,site in ipairs(roads.sites.all) do
+                if not selected or selected[site.id] then
+                cases[#cases+1]={name='town-'..site.id,x=site.parking.x,z=site.parking.z,
+                    yaw=20-site.yaw*180/math.pi,zoom=.68,siteId=site.id,firstPerson=false}
+                end
+            end
+            for _,id in ipairs({'warehouse','mechanic','grocery','fire-station','corner'}) do
+                local site=roads.sites.byId[id]
+                if site and (not selected or selected[id]) then cases[#cases+1]={name='town-first-person-'..id,x=site.parking.x,z=site.parking.z,
+                    heading=math.atan2(site.z-site.parking.z,site.x-site.parking.x),firstPerson=true} end
+            end
+            assert(#cases>0,'Town review site filter selected no buildings')
+        elseif previewCheck then
+            for _,p in ipairs(cases) do p.x,p.z=startX,startZ end
+        elseif firstPersonCheck then
+            cases[1].x,cases[1].z=startX,startZ
+            cases[#cases].x,cases[#cases].z=startX,startZ
+        end
+    end
     if bridgeReview then place(331,270,0,55,.8)
-    else place(100,380,warehouseReview and 0 or 20) end
+    elseif townSeed and captureDir and not (warehouseReview or previewCheck or firstPersonCheck) then reviewCase(cases[1])
+    else place(startX,startZ,warehouseReview and 0 or 20) end
     if previewCheck then
         assert(love.filesystem.getIdentity()=='the-picture-shop-motorcycle-preview')
         assert(route.from=='warehouse' and route.to=='brick-walkup' and showMap)
+        love.keypressed('m');assert(not showMap)
         for _=1,60 do Bike.update(actor,{throttle=1,steer=0,brake=0,boost=true},1/60,world) end
         assert(actor.distance>0 and actor.boosting,'Preview motorcycle must be drivable')
         love.keypressed('tab');local selected=apartmentIds[apartmentIndex]
         assert(route.to==selected and selected~='brick-walkup')
         local destination=roads.destinations[selected];actor.x,actor.z,actor.speed=destination.x,destination.z,0
         love.keypressed('return');assert(route.from==selected and route.to=='warehouse')
-        love.keypressed('backspace');assert(route.from=='warehouse' and route.to==selected and actor.speed==0 and actor.x==100 and actor.z==380)
+        love.keypressed('backspace');assert(route.from=='warehouse' and route.to==selected and actor.speed==0 and actor.x==startX and actor.z==startZ)
         apartmentIndex=2;love.keypressed('backspace')
         love.keypressed('b');assert(rider.bike.reverse)
         love.keypressed('b');assert(not rider.bike.reverse)
@@ -201,6 +272,12 @@ function love.load()
         love.mousepressed(ox+200*s,oy+200*s,1);assert(rider.gear.engine)
         controlsSettings.motorcycleControls=Bindings.defaults()
         print('MOTORCYCLE_MAPPING_PREVIEW_OK: F10 panel, native key callback, rebind, old-key removal, HUD independence')
+        love.mousepressed(mapButton.x+20,mapButton.y+20,1);assert(showMap)
+        love.touchpressed('map-toggle',mapButton.x+20,mapButton.y+20);assert(not showMap)
+        love.touchpressed('map-toggle',mapButton.x+20,mapButton.y+20);assert(showMap)
+        love.keypressed('escape');assert(not showMap)
+        love.keypressed('m');assert(showMap)
+        print('MOTORCYCLE_MAP_PREVIEW_OK: mouse/touch map button, mapped M toggle, Escape closes map before preview')
     end
     if firstPersonCheck then
         require('src.commute.tests.first_person_test').run(check)
@@ -233,6 +310,8 @@ function love.update(dt)
     if firstPersonCheck then
         local p=cases[caseIndex];actor.lean=p.lean or 0;actor.steering=p.steering or 0
     end
+    local outsideMode=profile().outsideCamera=='follow' and 'follow' or 'fixed'
+    if camera.outsideMode~=outsideMode then camera:setOutsideMode(outsideMode,actor,rider.gear.mounted and not rider.gear.transition) end
     camera:updateRide(rider,dt);renderer:prepare(camera,dt)
     Bindings.camera(profile(),camera,dt,touchControls)
     rideAudio:update(dt,rider.bike,rider.gear.engine)
@@ -240,19 +319,10 @@ function love.update(dt)
         and renderer.plantSprites:readyFor(renderer.visibleProps,renderer.calendar,renderer.clock) and not waiting then waiting=true end
 end
 local function map()
-    local g=love.graphics;local ox,oy,s=835,165,.78
-    g.setColor(.06,.1,.09,.94);g.rectangle('fill',ox-15,oy-30,425,425,8)
-    g.setColor(.55,.76,.76);local pts={}
-    for z=40,472,5 do pts[#pts+1]=ox+(world:riverCenterX(z)-40)*s;pts[#pts+1]=oy+(z-40)*s end
-    g.setLineWidth(7);g.line(pts)
-    g.setLineWidth(2);g.setColor(.77,.75,.61)
-    for _,path in ipairs(roads.paths) do local p={};for _,v in ipairs(path.points) do p[#p+1]=ox+(v.x-40)*s;p[#p+1]=oy+(v.z-40)*s end;g.line(p) end
-    g.setColor(.95,.64,.24);g.setLineWidth(3)
-    local line={};for _,v in ipairs(route.points) do line[#line+1]=ox+(v.x-40)*s;line[#line+1]=oy+(v.z-40)*s end
-    g.line(line);g.setLineWidth(1);g.setColor(.77,.75,.61)
-    for _,p in pairs(roads.destinations) do local x,y=ox+(p.x-40)*s,oy+(p.z-40)*s;g.circle('fill',x,y,4);g.print(p.label,x+6,y-14) end
-    g.setColor(1,.66,.24);g.circle('fill',ox+(actor.x-40)*s,oy+(actor.z-40)*s,6)
-    g.setColor(1,1,1);g.print('SCENIC COMMUTE / fixed town',ox,oy-23);g.setLineWidth(1)
+    if not routeMap then routeMap=RouteMap.new(world) end
+    routeMap:draw(mapRect,Rider.actor(rider),{origin=route.from,destination=route.to,route=route,
+        home=apartmentIds[apartmentIndex],bike=not rider.gear.mounted and rider.bike or nil,
+        closeHint=Bindings.hint(profile(),'map')..' / Esc: close'})
 end
 function love.draw()
     if controlsPanel then
@@ -261,27 +331,28 @@ function love.draw()
         controlsPanel:draw();love.graphics.pop();return
     end
     if not renderer then return end
-    local g=love.graphics;local sw,sh=g.getDimensions();local scale=math.min(sw/1280,sh/880)
-    g.push();g.translate((sw-1280*scale)*.5,(sh-880*scale)*.5);g.scale(scale)
+    local g=love.graphics;local scale,worldWidth,worldHeight,uiX,uiY=viewportLayout()
+    g.push();g.scale(scale)
     local actors={{actor=rider.bike,bikeOnly=not rider.gear.mounted}}
     if not rider.gear.mounted then actors[#actors+1]={actor=rider.ped,gear=rider.gear} end
     renderer:draw(camera,actor,actors)
-    if not warehouseReview and not bridgeReview then
+    if not warehouseReview and not bridgeReview and not (townSeed and captureDir and not previewCheck and not firstPersonCheck) then
+    g.push();g.translate(uiX,uiY)
     if camera.firstPerson then
         local destination=roads.destinations[route.to]
         local distance=math.sqrt((actor.x-destination.x)^2+(actor.z-destination.z)^2)
         g.setColor(.035,.06,.05,.88);g.rectangle('fill',18,18,790,76,8)
         g.setColor(.94,.91,.78)
-        g.print(('RIDER VIEW  /  %s  ·  %.0f m to destination'):format(destination.label,distance),34,29)
+        g.print(('RIDER VIEW  /  %s  ·  %.0f m to destination'):format(destination.label,distance)..cockpit.conditionLabel(rider.bike),34,29)
         g.setColor(.80,.85,.79)
         g.print(Bindings.hint(profile(),'accelerate')..': accelerate · '..Bindings.hint(profile(),'brake')..': brake · '..Bindings.hint(profile(),'view')..': view · F10: controls',34,51)
-        g.print(controlMessage or (distance<5 and actor.speed<.1 and 'Arrived · Enter: practice the return ride'
+        g.print(cockpit.riderHint(rider) or controlMessage or (distance<5 and actor.speed<.1 and 'Arrived · Enter: practice the return ride'
             or 'Middle-drag: look · Wheel: field of view · C: center · Tab: destination · Esc: close'),34,73)
     else
     g.setColor(.035,.06,.05,.88);g.rectangle('fill',18,18,790,96,8)
-    g.setColor(.94,.91,.78);g.print(playablePreview and 'THE WAY HOME  /  Playable motorcycle preview' or 'THE WAY HOME  /  Scenic terrain development ride',34,29)
+    g.setColor(.94,.91,.78);g.print((playablePreview and 'THE WAY HOME  /  Playable motorcycle preview' or 'THE WAY HOME  /  Scenic terrain development ride')..cockpit.conditionLabel(rider.bike),34,29)
     g.setColor(.80,.85,.79);g.print(Bindings.label(profile().mouse.orbit)..': rotate/tilt · '..Bindings.label(profile().mouse.pan)..': pan · '..Bindings.hint(profile(),'recenter')..': center · F10: controls',34,53)
-    g.print(controlMessage or (rider.gear.mounted and (Bindings.hint(profile(),'ignition')..': engine · '..Bindings.hint(profile(),'reverse')..': reverse · '..Bindings.hint(profile(),'headlight')..': light · '..Bindings.hint(profile(),'interact')..': dismount')
+    g.print(cockpit.riderHint(rider) or controlMessage or (rider.gear.mounted and (Bindings.hint(profile(),'ignition')..': engine · '..Bindings.hint(profile(),'reverse')..': reverse · '..Bindings.hint(profile(),'headlight')..': light · '..Bindings.hint(profile(),'interact')..': dismount')
         or ('WASD: walk · '..Bindings.hint(profile(),'interact')..': remount beside bike · F10: controls · Esc: close')),34,78)
     local destination=roads.destinations[route.to]
     local distance=math.sqrt((actor.x-destination.x)^2+(actor.z-destination.z)^2)
@@ -290,24 +361,29 @@ function love.draw()
     g.print(('Ride to %s · road route %.0f m · %.0f m direct to destination'):format(destination.label,route.length,distance),34,130)
     g.setColor(.80,.85,.79)
     g.print(distance<5 and actor.speed<.1 and 'Arrived · Enter: practice the return ride'
-        or 'Tab: choose apartment · M: route map · Stop within the destination ring to turn back',34,150)
+        or 'Tab: choose apartment · '..Bindings.hint(profile(),'map')..': route map · Stop within the destination ring to turn back',34,150)
     if playablePreview then
         g.setColor(.035,.06,.05,.88);g.rectangle('fill',18,181,790,49,8)
         g.setColor(.94,.91,.78);g.print('Backspace: restart · '..Bindings.hint(profile(),'boost')..': boost · '..Bindings.hint(profile(),'transmission')..': gearbox · F10: controls',34,190)
         g.setColor(.80,.85,.79);g.print(('F9: sound %s · [ / ]: volume %d%% · Ride-only sandbox'):format(audioMuted and 'off' or 'on',math.floor(audioVolume*100+.5)),34,209)
     end
     end
-    if showMap then map() end
     if rider.gear.mounted then cockpit:draw(rider.bike,rider.gear.engine,1280,880,nil,camera,profile()) end
     touchControls:draw(1280,880,profile())
+    if showMap then map() end
+    g.setColor(.08,.13,.10,.95);g.rectangle('fill',mapButton.x,mapButton.y,mapButton.width,mapButton.height,5)
+    g.setColor(.94,.92,.76);g.printf(Bindings.hint(profile(),'map')..(showMap and '  CLOSE MAP' or '  MAP'),mapButton.x,mapButton.y+14,mapButton.width,'center')
     g.setColor(.08,.13,.10,.95);g.rectangle('fill',1120,18,142,42,5)
     g.setColor(.94,.92,.76);g.printf('F10  CONTROLS',1124,32,134,'center')
     if renderer.pending>0 then g.setColor(1,1,1);g.print('Preparing nearby scenery… '..renderer.pending,24,838) end
+    g.pop()
     elseif warehouseReview then
-        local site=require('src.commute.sites').warehouse
+        local site=roads.sites.byId.warehouse
         local x,y=camera:screen(site.door.x,site.door.z,site.h)
         g.setColor(1,.8,.3);g.circle('line',x,y,12);g.print('Door approach',x+16,y)
-        g.setColor(1,1,1);g.print('Warehouse sprite / camera yaw '..camera.yaw,18,18)
+        g.setColor(1,1,1);g.print('Warehouse geometry / camera yaw '..camera.yaw,18,18)
+    elseif townSeed and not bridgeReview then
+        g.setColor(1,1,1);g.print(('Town seed %d / %s / yaw %.0f'):format(townSeed,cases[caseIndex].name,camera.yaw),18,18)
     else
         g.setColor(1,1,1);g.print(('Concrete bridge / yaw %03d / tilt %02d'):format(camera.yaw,camera.tilt),18,18)
     end
@@ -354,14 +430,21 @@ function love.keypressed(key,semantic)
         if id then
             if Bindings.byId[id].held or Bindings.byId[id].modifier then return end
             key=Bindings.byId[id].preview;if not key or key=='' then return end
-        elseif ({p=true,q=true,t=true,e=true,i=true,h=true,b=true,r=true,f=true,c=true,v=true,z=true,x=true,g=true,['=']=true,['-']=true})[key] then return end
+        elseif ({p=true,o=true,m=true,q=true,t=true,e=true,i=true,h=true,b=true,r=true,f=true,c=true,v=true,z=true,x=true,g=true,['=']=true,['-']=true})[key] then return end
     end
-    if key=='escape' then love.event.quit()
+    if key=='escape' then if showMap then toggleMap() else love.event.quit() end
     elseif key=='p' then
         if camera:toggleView(rider) then
             if camera.firstPerson then showMap=false end
             controlMessage=camera.firstPerson and 'First-person view · Middle-drag: look around · C: center · P: outside view' or 'Outside view'
         end
+    elseif key=='o' then
+        profile().outsideCamera=profile().outsideCamera=='follow' and 'fixed' or 'follow'
+        CameraControls.cancel(cameraDrag)
+        camera:setOutsideMode(profile().outsideCamera,actor,rider.gear.mounted and not rider.gear.transition)
+        local saved=Settings.sharedMotorcycle(profile())
+        controlMessage=(profile().outsideCamera=='follow' and 'Follow rider camera' or 'Fixed-angle camera')
+            ..(saved and '' or ' (session only; settings could not be saved)')
     elseif key=='q' then camera:orbit(-15,0)
     elseif key=='t' then camera:orbit(15,0)
     elseif key=='e' then
@@ -374,7 +457,7 @@ function love.keypressed(key,semantic)
     elseif key=='r' then camera:orbit(0,5)
     elseif key=='f' then camera:orbit(0,-5)
     elseif key=='c' then camera:recenter()
-    elseif key=='m' then showMap=not showMap
+    elseif key=='m' then toggleMap()
     elseif key=='v' then local _,message=Rider.command(rider,rider.bike.transmission=='manual' and 'automatic' or 'manual',world);controlMessage=message
     elseif key=='z' then local _,message=Rider.command(rider,'shiftdown',world);controlMessage=message
     elseif key=='x' then local _,message=Rider.command(rider,'shiftup',world);controlMessage=message
@@ -383,7 +466,7 @@ function love.keypressed(key,semantic)
         route=assert(routes:find('warehouse',apartmentIds[apartmentIndex]))
     elseif key=='backspace' then
         route=assert(routes:find('warehouse',apartmentIds[apartmentIndex]))
-        place(100,380,20)
+        place(startX,startZ,20)
     elseif key=='return' then
         local p=roads.destinations[route.to]
         if (actor.x-p.x)^2+(actor.z-p.z)^2<25 and actor.speed<.1 then
@@ -397,7 +480,7 @@ function love.keypressed(key,semantic)
     elseif key=='f7' then
         local months={[5]=8,[8]=11,[11]=1,[1]=5}
         renderer.calendar={month=months[renderer.calendar.month] or 5,totalDays=0}
-    elseif key=='1' then place(100,380,20)
+    elseif key=='1' then place(startX,startZ,20)
     elseif key=='2' then place(331,270,335)
     elseif key=='3' then place(140,160,28)
     elseif key=='=' then camera:zoomBy(1)
@@ -405,23 +488,27 @@ function love.keypressed(key,semantic)
 end
 function love.wheelmoved(x,y)
     if controlsPanel then return controlsPanel:wheelmoved(x,y) end
+    if showMap then return end
     local id=Bindings.action(profile(),'mouse',y>0 and 'wheelup' or 'wheeldown')
     if y~=0 then perform(id) end
+end
+local function ridePoint(x,y)
+    local scale,worldWidth,worldHeight,uiX,uiY=viewportLayout()
+    return x/scale-uiX,y/scale-uiY,scale
 end
 function love.mousepressed(x,y,button,isTouch)
     if isTouch then return end
     if controlsPanel then local px,py=panelPoint(x,y);return controlsPanel:mousepressed(px,py,button) end
-    local sw0,sh0=love.graphics.getDimensions();local sc0=math.min(sw0/1280,sh0/880)
-    local ux,uy=(x-(sw0-1280*sc0)*.5)/sc0,(y-(sh0-880*sc0)*.5)/sc0
+    local ux,uy=ridePoint(x,y)
     if button==1 and ux>=1120 and ux<=1262 and uy>=18 and uy<=60 then openControls();return end
+    if button==1 and contains(mapButton,ux,uy) then toggleMap();return end
+    if showMap then return end
     if button==1 and profile().showTouch and touchControls:press('mouse',ux,uy,1280,880,profile(),perform) then return end
     local modifier=profile().keyboard.panModifier
     if camera and CameraControls.press(cameraDrag,button,modifier~='' and love.keyboard.isDown(modifier),profile()) then return end
     if button~=1 then perform(Bindings.action(profile(),'mouse','mouse'..button));return end
     if button~=1 or not cockpit or not rider.gear.mounted then return end
-    local sw,sh=love.graphics.getDimensions();local scale=math.min(sw/1280,sh/880)
-    local key=require('src.commute.cockpit').keyAt((x-(sw-1280*scale)*.5)/scale,
-        (y-(sh-880*scale)*.5)/scale,1280,880,rider.bike,nil,camera)
+    local key=require('src.commute.cockpit').keyAt(ux,uy,1280,880,rider.bike,nil,camera)
     if key=='boost' then pointerBoost=true
     elseif key then love.keypressed(key,true) end
 end
@@ -435,11 +522,10 @@ end
 function love.mousemoved(x,y,dx,dy,isTouch)
     if isTouch then return end
     if controlsPanel then local px,py=panelPoint(x,y);return controlsPanel:mousemoved(px,py) end
-    if not camera then return end
-    local sw,sh=love.graphics.getDimensions()
-    local sc=math.min(sw/1280,sh/880)
-    touchControls:move('mouse',(x-(sw-1280*sc)*.5)/sc,(y-(sh-880*sc)*.5)/sc,1280,880,profile())
-    CameraControls.move(cameraDrag,camera,dx,dy,math.min(sw/1280,sh/880))
+    if not camera or showMap then return end
+    local ux,uy,scale=ridePoint(x,y)
+    touchControls:move('mouse',ux,uy,1280,880,profile())
+    CameraControls.move(cameraDrag,camera,dx,dy,scale)
 end
 function love.focus(focused)
     if not focused then pointerBoost=false;CameraControls.cancel(cameraDrag);touchControls:cancel() end
@@ -459,14 +545,12 @@ function love.gamepadaxis(joy,axis,value)
     end
     if math.abs(value)<.3 or sign then padEdges[edge]=sign end
 end
-local function ridePoint(x,y)
-    local w,h=love.graphics.getDimensions();local s=math.min(w/1280,h/880)
-    return (x-(w-1280*s)*.5)/s,(y-(h-880*s)*.5)/s
-end
 function love.touchpressed(id,x,y)
     if controlsPanel then local px,py=panelPoint(x,y);return controlsPanel:mousepressed(px,py,1) end
     local px,py=ridePoint(x,y)
     if px>=1120 and py<70 then openControls();return end
+    if contains(mapButton,px,py) then toggleMap();return end
+    if showMap then return end
     if touchControls:press(id,px,py,1280,880,profile(),perform) then return end
     if rider.gear.mounted then
         local key=require('src.commute.cockpit').keyAt(px,py,1280,880,rider.bike,nil,camera)
@@ -476,10 +560,11 @@ function love.touchpressed(id,x,y)
 end
 function love.touchmoved(id,x,y)
     if controlsPanel then local px,py=panelPoint(x,y);return controlsPanel:mousemoved(px,py) end
+    if showMap then return end
     local px,py=ridePoint(x,y);return touchControls:move(id,px,py,1280,880,profile())
 end
 function love.touchreleased(id,x,y)
     if controlsPanel then return controlsPanel:mousereleased() end
     touchControls:release(id)
 end
-function love.quit() if rideAudio then rideAudio:release() end;if renderer then renderer:release() end;if cockpit then cockpit:release() end end
+function love.quit() if routeMap then routeMap:release() end;if rideAudio then rideAudio:release() end;if renderer then renderer:release() end;if cockpit then cockpit:release() end end

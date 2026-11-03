@@ -32,6 +32,24 @@ COMMUTE_AUDIO_FILES = (
     "shutdown.wav", "shift.wav", "impact.wav", "forest-ambience.mp3",
     "manifest.json", "SOURCES.md",
 )
+# Runtime-ready commute atlases only. Offline terrain sources, prompts and
+# staged review artwork are deliberately outside this closed set of patterns.
+COMMUTE_RUNTIME_GLOBS = (
+    "assets/commute/bike/*-16.png",
+    "assets/commute/bridge/*.png",
+    "assets/commute/buildings/warehouse.png",
+    "assets/commute/cockpit/handlebars.png",
+    "assets/commute/cockpit/first-person-bike-v2.png",
+    "assets/generated/commute-ui-icons-v1/action-icons-atlas.png",
+    "assets/commute/terrain/ground-desktop-v1.png",
+    "assets/commute/terrain/ground-mobile-v1.png",
+    "assets/commute/plant-atlas/page-*.png",
+    "assets/commute/plants/*.png",
+    "assets/commute/plants/variants/*.png",
+    "assets/commute/plants/motion/*.png",
+    "assets/commute/scenery/*.png",
+    "assets/commute/scenery/environmental/*.png",
+)
 VIBES_MUSIC_TRACKS = (
     "blood_red.wav",
     "downpour.wav",
@@ -142,6 +160,26 @@ def runtime_source_paths(root: Path = ROOT) -> list[Path]:
     return result
 
 
+def runtime_commute_paths(root: Path = ROOT) -> list[Path]:
+    """Resolve shipped ride artwork without admitting offline source directories."""
+    paths: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in COMMUTE_RUNTIME_GLOBS:
+        matches = sorted(root.glob(pattern))
+        if not matches:
+            raise RuntimeError(f"Missing required commute artwork: {pattern}")
+        for path in matches:
+            resolved = path.resolve()
+            if (not path.is_file() or root.resolve() not in resolved.parents
+                    or path.suffix.lower() != ".png" or "source" in path.relative_to(root).parts):
+                raise RuntimeError(f"Invalid commute runtime artwork: {path}")
+            if resolved in seen:
+                raise RuntimeError(f"Duplicate commute artwork: {path}")
+            paths.append(path)
+            seen.add(resolved)
+    return paths
+
+
 def runtime_music_paths(root: Path = ROOT) -> list[Path]:
     """Return the Vibes radio playlist only, excluding other project music."""
     if len(VIBES_MUSIC_TRACKS) != len(set(VIBES_MUSIC_TRACKS)):
@@ -210,9 +248,25 @@ def safe_clean(path: Path, output: Path) -> None:
     path.mkdir(parents=True)
 
 
+def validate_runtime_asset_modules(stage: Path) -> None:
+    """Reject runtime Lua imports whose asset metadata was excluded from the package."""
+    for source in sorted((stage / "src").rglob("*.lua")):
+        if "tests" in source.relative_to(stage).parts:
+            continue
+        text = source.read_text(encoding="utf-8")
+        for module in re.findall(r'''\brequire\s*(?:\(\s*)?["'](assets\.[^"']+)["']''', text):
+            relative = module.replace(".", "/") + ".lua"
+            target = stage / relative
+            if stage.resolve() not in target.resolve().parents or not target.is_file():
+                raise RuntimeError(
+                    f"Runtime asset module is missing from package: {module} (required by {source.relative_to(stage)})"
+                )
+
+
 def copy_runtime(stage: Path) -> None:
     # Validate before the larger shared runtime copy, then copy this closed set.
     runtime_source_paths()
+    commute_paths = runtime_commute_paths(ROOT)
     for source in (ROOT / "main.lua", ROOT / "conf.lua"):
         shutil.copy2(source, stage / source.name)
     for source_root in (ROOT / "src", ROOT / "assets" / "generated", ROOT / "assets" / "fonts"):
@@ -238,7 +292,12 @@ def copy_runtime(stage: Path) -> None:
         destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
+    for source in commute_paths:
+        destination = stage / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
     copy_runtime_source_assets(stage)
+    validate_runtime_asset_modules(stage)
 
 
 def write_runtime_version(stage: Path, version_name: str) -> Path:

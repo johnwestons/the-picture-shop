@@ -3,7 +3,7 @@ local Gear = require('src.commute.gear')
 
 local Test = {}
 function Test.run(check)
-    local registration = Art.registration
+    local registration = require('assets.staging.commute-gear-actions-v1.registration')
     local actions = {'suit_on', 'zip_up', 'boots_gloves', 'helmet_on'}
     local expectedDurations = {suit_on=1.2, zip_up=.8, boots_gloves=.7, helmet_on=1}
     local okay = registration.status == 'staged_unapproved'

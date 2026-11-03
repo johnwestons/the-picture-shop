@@ -11,11 +11,11 @@ function Travel.target(player,state)
     elseif scene=="warehouse" then
         local p=require("src.warehouse_registration").entrance
         return {kind="homeTravel",x=p.x,y=p.y,radius=38,hoverX=p.hoverX,hoverY=p.hoverY,hoverRadius=20,
-            prompt="E: front entrance / go home for the weekend",actionLabel="GO HOME"}
+            prompt="E: front entrance / explore town",actionLabel="TOWN"}
     end
 end
 function Travel.clearRequest(week)
-    week.travelToken,week.readyMask=nil,nil
+    week.travelToken,week.readyMask,week.travelPurpose,week.travelOrigin=nil,nil,nil,nil
 end
 function Travel.ready(week,id)
     return week.readyMask and math.floor(week.readyMask/2^(id-1))%2==1 or false
@@ -34,14 +34,19 @@ function Travel.allReady(week,players)
 end
 function Travel.command(state,player,command,context)
     local week=Flow.ensure(state);local id=tonumber(player.id) or 1
-    local action,token=command:match("^(%a+):(%d+)$")
     local function denied(message) return false,"not_allowed",message end
+    if id%1~=0 or id<1 or id>4 or type(command)~="string" then return denied("Invalid traveler.") end
+    local action,token=command:match("^(%a+):(%d+)$")
     if action=="ready" then
         if not week.travelToken or tonumber(token)~=week.travelToken then return denied("That travel request has ended.") end
+        local connected=false
+        for _,p in ipairs(context.players()) do if (tonumber(p.id) or 1)==id then connected=true;break end end
+        if not connected then return denied("Join this household before marking yourself ready.") end
         if not Travel.ready(week,id) then week.readyMask=week.readyMask+2^(id-1);state.home.revision=state.home.revision+1 end
         return true,"accepted","Ready to travel with the host."
     end
     if id~=1 then return denied("The host chooses when the household travels.") end
+    if state.home.commute then return denied("Finish the current town outing before requesting another.") end
     if command=="cancel" then
         Travel.clearRequest(week);state.home.revision=state.home.revision+1
         return true,"accepted","Travel request canceled."
@@ -50,27 +55,40 @@ function Travel.command(state,player,command,context)
     if not target or (player.x-target.x)^2+(player.y-target.y)^2>(target.radius+10)^2 then
         return denied("Go to the exterior front entrance or your apartment exit first.")
     end
-    if week.phase~="ready" and week.phase~="home" then return denied("The shop must finish its Friday shutdown first.") end
-    if week.phase=="home" then
-        local copy=require("src.save_schema").copy(state)
-        local okay,message=Flow.returnToWork(copy,copy.home.revision)
-        if not okay then return denied(message) end
+    local scene=player.sceneId or "warehouse"
+    if scene=="home" and not Flow.atHome(state) then return denied("Enter your apartment through its town door first.") end
+    local requesting=command=="request" or command=="outing"
+    local purpose=requesting and (command=="outing" and "outing" or "weekend") or week.travelPurpose or "weekend"
+    if purpose=="weekend" then
+        if week.phase~="ready" and week.phase~="home" then return denied("The shop must finish its Friday shutdown first.") end
+        if scene~=(week.phase=="home" and "home" or "warehouse") then return denied("Use the departure entrance first.") end
+        if week.phase=="home" then
+            local copy=require("src.save_schema").copy(state)
+            local okay,message=Flow.returnToWork(copy,copy.home.revision)
+            if not okay then return denied(message) end
+        end
     end
-    if command=="request" then
+    if requesting then
+        if week.travelToken and ((week.travelPurpose or "weekend")~=purpose
+            or purpose=="outing" and week.travelOrigin~=scene) then
+            return denied("Cancel the existing travel request before choosing another outing.")
+        end
         if not week.travelToken then
             state.home.revision=state.home.revision+1;week.travelToken=state.home.revision;week.readyMask=1
+            week.travelPurpose=purpose;week.travelOrigin=purpose=="outing" and scene or nil
         end
         return true,"accepted","Travel requested. Guests can mark themselves ready; the host can also bring everyone."
     end
     if (action~="depart" and action~="force") or tonumber(token)~=week.travelToken or not week.travelToken then
         return denied("That travel request has ended.")
     end
+    if purpose=="outing" and scene~=week.travelOrigin then return denied("Return to the entrance where this outing was requested.") end
     local players=context.players()
     if action=="depart" and not Travel.allReady(week,players) then return denied("Waiting for the other players to be ready.") end
-    if week.phase=="ready" and #require("src.shop_shutdown").checklist(state,context.world)>0 then
+    if purpose=="weekend" and week.phase=="ready" and #require("src.shop_shutdown").checklist(state,context.world)>0 then
         return denied("The shop is no longer safe to leave. Park equipment and check shutdown again.")
     end
-    local goingHome=week.phase=="ready"
+    local goingHome=purpose=="outing" and scene=="warehouse" or purpose=="weekend" and week.phase=="ready"
     if context.commuteWorld then
         local okay,trip=require('src.commute.trip').start(state,players,week.travelToken,context.commuteWorld)
         if not okay then return denied(trip) end
@@ -87,7 +105,8 @@ function Travel.command(state,player,command,context)
         return true,'accepted','Walk to your motorcycle and put on your riding gear.'
     end
     local okay,message
-    if goingHome then okay,message=Flow.depart(state,state.home.revision)
+    if purpose=="outing" then okay=Flow.outingArrival(state,goingHome);message=state.message
+    elseif goingHome then okay,message=Flow.depart(state,state.home.revision)
     else okay,message=Flow.returnToWork(state,state.home.revision) end
     if not okay then return denied(message) end
     require("src.home_residents").recover(state)

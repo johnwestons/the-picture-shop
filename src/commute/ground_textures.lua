@@ -32,6 +32,7 @@ function Ground.new()
     local inner=cell-pad*2
     self.shader:send('materialAtlas',self.atlas)
     self.shader:send('atlasInset',(pad+.5)/size);self.shader:send('atlasInner',(inner-1)/size)
+    self.shader:send('groundDepthSpan',65536)
     self.shader:send('detailStrength',0);self.shader:send('seasonTint',{1,1,1})
     self.shader:send('litterSeasonShift',0);self.shader:send('snowCoverage',0)
     self.shader:send('sunDirection',{0,1,0});self.shader:send('sunColor',{1,1,1})

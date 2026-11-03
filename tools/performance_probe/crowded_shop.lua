@@ -57,6 +57,10 @@ return function(runtime, app, measure, draw, rows)
     end
     assert(Employees.valid(state.employment),"Invalid crowd workforce")
     measure("crowded_world_update_14_machines_80_pallets_10_staff",180,function() app.update(1/60) end)
+    local previousClockSpeed=runtime.App.gameClockSpeed
+    runtime.App.gameClockSpeed=10
+    measure("crowded_world_update_at_10x_clock",180,function() app.update(1/60) end)
+    runtime.App.gameClockSpeed=previousClockSpeed
     measure("crowded_world_draw",90,draw)
     local snapshot=assert(Schema.snapshot(state))
     assert(Schema.validState(snapshot),"Crowded fixture must be a valid save")
@@ -87,6 +91,19 @@ return function(runtime, app, measure, draw, rows)
     local pathContext={assets=assets,obstacles=function() return obstacles end}
     measure("crowded_route_detour",20,function()
         assert(Navigator.findPath({x=100,y=200},{{x=850,y=500}},pathContext))
+    end)
+    -- Pallet unloading tests many wheel contacts around each machine. Keep
+    -- the ordinary one-goal searches above before this case: mixed candidate
+    -- counts exercise the same LuaJIT traces as a live warehouse session.
+    local contacts={}
+    for index=1,640 do
+        contacts[index]={x=720+(index%16)*6,y=200+math.floor((index-1)/16)*6}
+    end
+    local contactContext={assets=assets,obstacles=function()
+        return {{x=450,y=330,halfWidth=24,halfHeight=240}}
+    end}
+    measure("machine_contact_route_640_candidates",20,function()
+        assert(Navigator.findPath({x=100,y=300},contacts,contactContext))
     end)
     local characters=runtime.CharacterAssets
     measure("character_action_working_set",1,function()

@@ -21,6 +21,8 @@ function Bootstrap.install()
 
     if os.getenv("PICTURE_SHOP_COMMUTE_RESET") == "1" then
         require("tools.commute_lab.reset_saves")
+    elseif os.getenv("PICTURE_SHOP_COMMUTE_PERFORMANCE_PROBE") == "1" then
+        require("tools.performance_probe.commute").install()
     elseif os.getenv("PICTURE_SHOP_COMMUTE_LAB") == "1" then
         love.filesystem.setIdentity(os.getenv("PICTURE_SHOP_RIDE_PREVIEW")=="1"
             and "the-picture-shop-motorcycle-preview" or "the-picture-shop-commute-lab")

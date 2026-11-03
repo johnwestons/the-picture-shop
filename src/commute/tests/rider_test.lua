@@ -33,5 +33,16 @@ function Test.run(check)
     local fallback=assert(Rider.restore(saved,world,world.roads.destinations.warehouse))
     check('commute_rider_invalid_position_recovers_suited_at_safe_lot',fallback.bike.x==100
         and fallback.gear.outfit=='geared' and not fallback.gear.mounted)
+    local obstacleWorld={supportHeight=function()return 1 end,roads={blocked=function()return false end},
+        sweepObstacles=function(_,x,z)if x==110 and z==380 then return 0,1,0,'rock',1 end end}
+    saved=Rider.snapshot(recovered);saved.bike.x,saved.bike.z=110,380
+    local solidRecovery=assert(Rider.restore(saved,obstacleWorld,{x=100,z=380}))
+    check('commute_rider_save_inside_solid_prop_recovers_parked',solidRecovery.bike.x==100
+        and solidRecovery.bike.speed==0 and solidRecovery.bike.vx==0 and solidRecovery.bike.vz==0)
+    local seated=Rider.new(100,380,0,{version=1,outfit='geared',mounted=true,engine=true,revision=0})
+    seated.bike.vx,seated.bike.vz=.02,.02;seated.bike.speed=.03
+    assert(Rider.command(seated,'ignition',obstacleWorld))
+    check('commute_ignition_stop_clears_horizontal_momentum',seated.bike.speed==0
+        and seated.bike.vx==0 and seated.bike.vz==0)
 end
 return Test

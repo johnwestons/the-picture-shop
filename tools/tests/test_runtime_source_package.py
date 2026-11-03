@@ -16,6 +16,45 @@ import build_mobile_package as package
 
 
 class RuntimeSourcePackageTests(unittest.TestCase):
+    def test_runtime_asset_module_guard_rejects_excluded_registration(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="picture-shop-asset-modules-") as temporary:
+            stage = Path(temporary)
+            source = stage / "src" / "commute" / "gear_action_art.lua"
+            source.parent.mkdir(parents=True)
+            source.write_text("return require('assets.staging.commute-gear-actions-v1.registration')", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "Runtime asset module is missing"):
+                package.validate_runtime_asset_modules(stage)
+            source.write_text("return require('assets.generated.commute-gear-actions-v1.registration')", encoding="utf-8")
+            registration = stage / "assets/generated/commute-gear-actions-v1/registration.lua"
+            registration.parent.mkdir(parents=True)
+            registration.write_text("return {}", encoding="utf-8")
+            package.validate_runtime_asset_modules(stage)
+
+    def test_approved_gear_registration_and_all_strips_are_shipped_assets(self) -> None:
+        source = (package.ROOT / "src/commute/gear_action_art.lua").read_text(encoding="utf-8")
+        self.assertNotIn("assets.staging", source)
+        registration = package.ROOT / "assets/generated/commute-gear-actions-v1/registration.lua"
+        text = registration.read_text(encoding="utf-8")
+        self.assertIn('status = "runtime_approved"', text)
+        images = re.findall(r'"(assets/generated/commute-gear-actions-v1/[^"\n]+\.png)"', text)
+        self.assertEqual(len(images), 8)
+        self.assertTrue(all((package.ROOT / name).is_file() for name in images))
+
+    def test_commute_runtime_contains_current_atlases_without_offline_sources(self) -> None:
+        paths = package.runtime_commute_paths()
+        names = {p.relative_to(package.ROOT).as_posix() for p in paths}
+        self.assertIn("assets/commute/terrain/ground-desktop-v1.png", names)
+        self.assertIn("assets/commute/terrain/ground-mobile-v1.png", names)
+        self.assertIn("assets/commute/cockpit/first-person-bike-v2.png", names)
+        self.assertEqual(len([n for n in names if n.startswith("assets/commute/bike/")]), 14)
+        layout = (package.ROOT / "src/commute/vendor/plant_atlas_layout.lua").read_text(encoding="utf-8")
+        for atlas in re.findall(r'"(assets/commute/plant-atlas/[^"\n]+\.png)"', layout):
+            self.assertIn(atlas, names)
+        self.assertFalse(any("/source/" in n or "prompt" in n or n.endswith(".json") for n in names))
+        with patch.object(package, "COMMUTE_RUNTIME_GLOBS", ("assets/commute/missing.png",)):
+            with self.assertRaisesRegex(RuntimeError, "Missing required commute artwork"):
+                package.runtime_commute_paths()
+
     def test_vibes_radio_playlist_is_explicit_and_complete(self) -> None:
         tracks = package.runtime_music_paths()
         self.assertEqual(len(tracks), 9)

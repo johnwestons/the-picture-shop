@@ -139,7 +139,43 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='commute' then
+        if focus=='town-outing' then
+            require('src.commute.tests.outing_runtime_test').run(context,check)
+        elseif focus=='background-warehouse' then
+            require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='mechanic-paint' then
+            require('src.commute.tests.mechanic_paint_runtime_test').run(context,check)
+        elseif focus=='bike-damage' then
+            for _,name in ipairs({'bike_damage','rider_crash','bike_pitch','bike_pitch_visual','mechanic_shop'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.bike_damage_runtime_test').run(context,check)
+        elseif focus=='motorcycle-camera' then
+            for _,name in ipairs({'camera','follow_camera','camera_controls','bindings','first_person','direction'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.camera_runtime_test').run(context,check)
+        elseif focus=='scene-exits' then
+            require('src.tests.menu_exit_test').run(context,check)
+            require('src.tests.scene_exit_runtime_test').run(context,check)
+        elseif focus=='route-map' then
+            require('src.commute.tests.route_map_test').run(check)
+            require('src.commute.tests.route_map_runtime_test').run(context,check)
+        elseif focus=='town-infrastructure' then
+            for _,name in ipairs({'town_center','town_trails','infrastructure','road_markings'})do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.infrastructure_runtime_test').run(context,check)
+        elseif focus=='mechanic-shop' then
+            require('src.commute.tests.mechanic_shop_test').run(check)
+            require('src.commute.tests.mechanic_interior_test').run(check)
+            require('src.commute.tests.mechanic_runtime_test').run(context,check)
+        elseif focus=='apartment-journey' then
+            require('src.commute.tests.apartment_journey_test').run(context,check)
+        elseif focus=='town' then
+            require('src.tests.town_setup_test').run(context,check)
+            require('src.tests.lua_limits_test').run(context,check)
+        elseif focus=='commute' then
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)
             for _,name in ipairs({'lua_limits','weekend_flow','home_travel_session','network_protocol','save_contract'}) do

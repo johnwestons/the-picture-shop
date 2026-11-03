@@ -224,7 +224,7 @@ function Furniture.stageDeliveries(state,firstId,players)
 end
 function Furniture.recover(state,players)
     local present={}
-    for _,p in ipairs(players or {}) do local id=Residents.key(p);if id and p.sceneId=="home" and state.home.weekend.phase=="home" then present[id]=true end end
+    for _,p in ipairs(players or {}) do local id=Residents.key(p);if id and p.sceneId=="home" and require("src.weekend_flow").atHome(state) then present[id]=true end end
     local released=false
     for _,item in ipairs(Furniture.ensure(state).items) do
         if item.location=="carried" and not present[item.holderId] then
@@ -263,7 +263,7 @@ function Furniture.command(state,player,command,players)
     local c=Furniture.decode(command);if not c then return false,"Choose a valid furniture action." end
     local allowed,reason=require('src.commute.outfit').allowed(state,player,'household')
     if not allowed and c.action~='cancel' then return false,reason end
-    if player.sceneId~="home" or state.home.weekend.phase~="home" then return false,"Furnish your apartment while at home." end
+    if player.sceneId~="home" or not require("src.weekend_flow").atHome(state) then return false,"Furnish your apartment while at home." end
     if not Residents.get(state,player) then return false,"Join this household before furnishing." end
     local data=Furniture.ensure(state);local resident=Residents.key(player)
     if c.action=="permission" then

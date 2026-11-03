@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 -- Directional sink-action presentation. Gameplay rewards stay in home_residents
 -- and home_chores; this module only draws the existing shared activity.
 local R=require("src.home_washing_registration")
@@ -11,7 +13,7 @@ local stanceShifts={{0,0},{-3,0},{3,0},{0,-3},{0,3},{-6,0},{6,0},{0,-6},{0,6},
 
 local function loadBody(file)
     if bodies[file] then return bodies[file] end
-    local image=love.graphics.newImage(root..file);image:setFilter("linear","linear")
+    local image=Images.load("washing",root..file);if not image then return nil end;image:setFilter("linear","linear")
     local width,height=image:getDimensions()
     assert(width==1536 and height==1024,"Unregistered sink-action source dimensions: "..file)
     local asset={image=image,quads={},handMeshes={}}
@@ -26,7 +28,7 @@ end
 local function loadProp(kind)
     if props[kind] then return props[kind] end
     local file=kind=="plate" and "plate-eight-directions.png" or "mug-eight-directions.png"
-    local image=love.graphics.newImage(root..file);image:setFilter("linear","linear")
+    local image=Images.load("washing",root..file);if not image then return nil end;image:setFilter("linear","linear")
     local width,height=image:getDimensions()
     assert(width==1536 and height==1024,"Unregistered sink-action prop dimensions: "..file)
     local asset={image=image,quads={}}
@@ -129,7 +131,26 @@ local function drawWater(kind,x,y,seconds)
     end
 end
 
+local function shaders()
+    bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
+        vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}
+    ]])
+    propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;} ]])
+end
+function Art.prewarm(kind,direction)
+    local ready=true
+    for _,file in ipairs(R.bodyFiles[kind]) do
+        local body=loadBody(file)
+        if not body then ready=false
+        elseif kind~="wash" then handMesh(body,kind,direction) end
+    end
+    local propKind=kind=="dishes" and "plate" or (kind=="cupwash" or kind=="cupfill") and "mug"
+    if propKind and not loadProp(propKind) then ready=false end
+    if ready then shaders() end
+    return ready
+end
 function Art.draw(kind,direction,phase,x,y,player,seconds)
+    if not Preload.want("washing",function()return Art.prewarm(kind,direction) end) then return false end
     local view=assert(R.views[direction]);phase=phase or 1
     local body=loadBody(bodyFile(kind,phase))
     local hx1,hy1,hx2,hy2=worldHands(x,y,direction,kind)
@@ -137,10 +158,7 @@ function Art.draw(kind,direction,phase,x,y,player,seconds)
     local prop=propKind and loadProp(propKind)
     -- Prop centers sit just below the registered hands so fingers remain visible.
     local px,py=(hx1+hx2)/2,(hy1+hy2)/2+(propKind=="plate" and 3 or 0)
-    bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
-        vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}
-    ]])
-    propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;} ]])
+    shaders()
     love.graphics.push("all");love.graphics.setColor(1,1,1,1)
     local function drawBody()
         love.graphics.setShader(bodyShader)
@@ -164,10 +182,11 @@ function Art.draw(kind,direction,phase,x,y,player,seconds)
     end
     local hx,hy=(hx1+hx2)/2,(hy1+hy2)/2
     drawWater(kind,hx,hy,seconds)
-    love.graphics.pop()
+    love.graphics.pop();return true
 end
 
 function Art.release()
+    Images.release("washing")
     for _,asset in pairs(bodies) do
         asset.image:release()
         for _,quad in ipairs(asset.quads) do quad:release() end

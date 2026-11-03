@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 -- Directional handheld props for home actions.
 --
 -- The source sheets are deliberately kept as simple 4x2 atlases so the
@@ -36,7 +38,8 @@ local function load(kind)
     if assets[kind] then return assets[kind] end
     local path = Art.PATHS[kind]
     if not path then return nil end
-    local image = love.graphics.newImage(path)
+    local image = Images.load("held",path)
+    if not image then return nil end
     image:setFilter("linear", "linear")
     local width, height = image:getDimensions()
     local cellWidth, cellHeight = width / 4, height / 2
@@ -85,7 +88,12 @@ function Art.contact(kind, direction, size)
     }
 end
 
+function Art.prewarm(kind)
+    if not load(kind) then return false end
+    ensureShader();return true
+end
 function Art.draw(kind, direction, x, y, size, rotation)
+    if not Preload.want("held",function()return Art.prewarm(kind) end) then return false end
     local entry = load(kind)
     if not entry then return false end
     local frame = directionIndex(direction,kind)
@@ -100,6 +108,7 @@ function Art.draw(kind, direction, x, y, size, rotation)
 end
 
 function Art.release()
+    Images.release("held")
     if assets then
         for _, entry in pairs(assets) do
             entry.image:release()

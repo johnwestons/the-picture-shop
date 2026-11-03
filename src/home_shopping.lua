@@ -120,7 +120,7 @@ function Shopping.waiting(state)
     return count
 end
 function Shopping.target(player,state)
-    if not state or not state.home or state.home.weekend.phase~="home" or player.sceneId~="home" or Shopping.waiting(state)==0 then return nil end
+    if not state or not state.home or not require("src.weekend_flow").atHome(state) or player.sceneId~="home" or Shopping.waiting(state)==0 then return nil end
     local x,y=require("src.home_layouts").spawn(state,1);x=x+28;y=y+4
     return {kind="homeDelivery",x=x,y=y,radius=42,hoverX=x,hoverY=y-12,hoverRadius=22,
         prompt="E: receive "..Shopping.waiting(state).." home delivery parcel(s)",actionLabel="RECEIVE"}

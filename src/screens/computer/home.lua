@@ -34,7 +34,7 @@ function Component.install(Runtime)
         end
         if view=="overview" and Runtime.contains(controls.guide,x,y) then view="guide";return {action="home_view"} end
         if guideAction=="sleep" or view=="overview" and Runtime.contains(controls.sleep,x,y) then
-            if state.home.weekend.phase~="home" then state.message="Sleep and alarms are available at your apartment.";return {action="blocked"} end
+            if not require("src.weekend_flow").atHome(state) then state.message="Sleep and alarms are available at your apartment.";return {action="blocked"} end
             local pane=require("src.home_activity_controls");pane.mode="sleep";pane.page=1;pane.target="floor"
             if Runtime.dependencies.remoteCommand then return {action="home_activity"} end
             state.screen="home_activity";return {action="home_view"}
@@ -145,7 +145,7 @@ function Component.install(Runtime)
         love.graphics.setColor(.19,.31,.32,1);love.graphics.rectangle("fill",slider.x,slider.y+14,slider.width,8,3,3)
         love.graphics.setColor(.95,.79,.35,1);love.graphics.rectangle("fill",slider.x+slider.width*home.payPercent/100-5,slider.y+4,10,28,3,3)
         button(controls.earnings,"EARNINGS, RESERVES & HISTORY",true)
-        button(controls.sleep,"HOME SLEEP & ALARMS",home.weekend.phase=="home")
+        button(controls.sleep,"HOME SLEEP & ALARMS",require("src.weekend_flow").atHome(state))
         button(controls.guide,"HOME GUIDE & FIRST WEEKEND",true)
     end
 end

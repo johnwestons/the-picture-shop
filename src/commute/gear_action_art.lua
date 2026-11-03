@@ -1,14 +1,12 @@
--- Review-only loader for the southeast motorcycle dressing strips.
--- These drawings are rabbit-specific and remain staged until removal and
--- directional coverage exist. No commute renderer calls this module yet.
-local Registration = require('assets.staging.commute-gear-actions-v1.registration')
+-- Loads reviewed southeast motorcycle dressing strips for the runtime or lab.
+-- Runtime defaults only reference shipped assets. The lab passes its staged
+-- registration explicitly when reviewing new artwork.
+local Registration = require('assets.generated.commute-gear-actions-v1.registration')
 local Colorways = require('src.rabbit_colorways')
 
-local Art = {
-    registration = Registration,
-    REFERENCE_HEIGHT = Registration.referenceHeight or 256,
-}
+local Art = {registration = Registration, REFERENCE_HEIGHT = Registration.referenceHeight or 256}
 Art.__index = Art
+local reverseActionForPose={helmet_off='helmet_on',unzip='zip_up',suit_off='suit_on'}
 
 local SHADER = [[
 extern vec3 furTint;
@@ -54,41 +52,61 @@ local function finite(value)
     return type(value) == 'number' and value == value and value > -math.huge and value < math.huge
 end
 
-function Art.supportsAppearance(appearance)
-    return type(appearance) == 'table' and appearance.character == Registration.character
+function Art.supportsAppearance(appearance, registration)
+    registration = registration or Registration
+    return type(appearance) == 'table' and appearance.character == registration.character
 end
 
-function Art.frameForProgress(action, progress)
-    local entry = Registration.actions[action]
+function Art.frameForProgress(action, progress, registration)
+    registration = registration or Registration
+    local entry = registration.actions[action]
     if not entry or not finite(progress) then return nil end
     local p = math.max(0, math.min(.999999, progress))
     return math.floor(p * entry.frameCount) + 1
 end
 
-function Art.normalization(action)
-    local entry = Registration.actions[action]
+function Art.actionFrameForPose(pose, progress, registration)
+    registration=registration or Registration
+    local action=reverseActionForPose[pose] or pose
+    local entry=registration.actions[action]
+    if not entry then return nil,nil end
+    local frame=Art.frameForProgress(action,progress,registration)
+    if reverseActionForPose[pose] then frame=entry.frameCount+1-frame end
+    return action,frame
+end
+
+function Art.normalization(action, registration)
+    registration = registration or Registration
+    local entry = registration.actions[action]
     if not entry or not finite(entry.normalizationHeight) or entry.normalizationHeight <= 0 then return nil end
-    return Art.REFERENCE_HEIGHT / entry.normalizationHeight
+    return (registration.referenceHeight or Art.REFERENCE_HEIGHT) / entry.normalizationHeight
 end
 
 function Art.new(options)
-    assert(type(options) == 'table' and options.review == true,
-        'staged motorcycle action art can only be loaded by an explicit review')
-    assert(Registration.status == 'staged_unapproved', 'motorcycle action art is not approved for runtime use')
-    local self = setmetatable({images = {}, masks = {}, quads = {}, actions = Registration.actions}, Art)
-    for name, entry in pairs(Registration.actions) do
+    assert(type(options) == 'table', 'gear action art requires an explicit runtime or review mode')
+    local registration = options.registration or Registration
+    if options.review == true then
+        assert(registration.status == 'staged_unapproved', 'review loader requires staged gear action art')
+    elseif options.runtime == true then
+        assert(registration.status == 'runtime_approved', 'runtime loader requires approved gear action art')
+    else
+        error('gear action art requires an explicit runtime or review mode')
+    end
+    local self = setmetatable({images = {}, masks = {}, quads = {}, actions = registration.actions,
+        registration = registration}, Art)
+    for name, entry in pairs(registration.actions) do
         local image = love.graphics.newImage(entry.path)
         local mask = love.graphics.newImage(entry.maskPath)
-        assert(image:getWidth() == Registration.frameSize * entry.frameCount
-            and image:getHeight() == Registration.frameSize, 'invalid staged gear action strip: ' .. name)
+        assert(image:getWidth() == registration.frameSize * entry.frameCount
+            and image:getHeight() == registration.frameSize, 'invalid gear action strip: ' .. name)
         assert(mask:getWidth() == image:getWidth() and mask:getHeight() == image:getHeight(),
             'gear color mask dimensions differ: ' .. name)
         image:setFilter('linear', 'linear')
         mask:setFilter('linear', 'linear')
         self.images[name], self.masks[name], self.quads[name] = image, mask, {}
         for frame = 1, entry.frameCount do
-            self.quads[name][frame] = love.graphics.newQuad((frame - 1) * Registration.frameSize, 0,
-                Registration.frameSize, Registration.frameSize, image:getWidth(), image:getHeight())
+            self.quads[name][frame] = love.graphics.newQuad((frame - 1) * registration.frameSize, 0,
+                registration.frameSize, registration.frameSize, image:getWidth(), image:getHeight())
         end
     end
     local ok, shader = pcall(love.graphics.newShader, SHADER)
@@ -102,7 +120,7 @@ function Art:has(action)
 end
 
 function Art:draw(action, frame, x, baseline, scale, appearance)
-    if not Art.supportsAppearance(appearance) then return false, 'unsupported_character' end
+    if not Art.supportsAppearance(appearance, self.registration) then return false, 'unsupported_character' end
     local entry = self.actions[action]
     if not entry then return false, 'missing_staged_action' end
     if not finite(x) or not finite(baseline) or not finite(scale) or scale <= 0 then
@@ -126,7 +144,7 @@ function Art:draw(action, frame, x, baseline, scale, appearance)
         love.graphics.setShader()
     end
     love.graphics.draw(self.images[action], self.quads[action][frame], x, baseline, 0,
-        scale, scale, Registration.anchor[1], Registration.anchor[2])
+        scale, scale, self.registration.anchor[1], self.registration.anchor[2])
     love.graphics.pop()
     return true
 end

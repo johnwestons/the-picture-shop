@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 param(
     [Parameter(Mandatory=$true)][string]$PackagePath,
     [switch]$Install,
@@ -1144,11 +1145,15 @@ foreach ($library in $arm64Libraries) {
 }
 
 $adb = Join-Path $androidRoot 'platform-tools\adb.exe'
-$devices = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
-$authorizedDeviceSerials = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
+# Preparing an APK must not start ADB or contact attached devices. Device
+# discovery belongs to the explicitly requested installation path only.
+$devices = @()
+$authorizedDeviceSerials = @()
 $deviceLaunchVerified = $false
 $installedDeviceSerial = $null
 if ($Install) {
+    $devices = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
+    $authorizedDeviceSerials = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
     if ($DeviceSerial) {
         if ($authorizedDeviceSerials -notcontains $DeviceSerial) {
             throw "Requested Android device '$DeviceSerial' is not authorized or connected."
@@ -1243,7 +1248,8 @@ $report = [ordered]@{
         buildReportSha256 = Get-LowerSha256 -Path $androidGatewayReportPath
         packagedArtifacts = $packagedAndroidGateway
     }
-    connectedAndroidDevices = $devices.Count
+    deviceDiscoveryPerformed = [bool]$Install
+    connectedAndroidDevices = if ($Install) { $devices.Count } else { $null }
     installedDeviceSerial = $installedDeviceSerial
     deviceLaunchVerified = $deviceLaunchVerified
 }
@@ -1257,6 +1263,7 @@ Write-Output "NATIVE_CRYPTO_PRODUCTION_READY=$($nativeCryptoReport.productionRea
 Write-Output 'ANDROID_GATEWAY_BRIDGE_PACKAGED=True'
 Write-Output 'ANDROID_GATEWAY_NETWORK_TRAFFIC_SENT=False'
 Write-Output "ANDROID_GATEWAY_PRODUCTION_READY=$($androidGatewayReport.productionReady)"
-Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)"
+if ($Install) { Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)" }
+else { Write-Output 'CONNECTED_ANDROID_DEVICES=NotQueried' }
 if ($installedDeviceSerial) { Write-Output "INSTALLED_DEVICE_SERIAL=$installedDeviceSerial" }
 Write-Output "DEVICE_LAUNCH_VERIFIED=$deviceLaunchVerified"

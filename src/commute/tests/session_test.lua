@@ -17,7 +17,8 @@ local function player(id)
         moving=false,facing=1,animationDistance=0,character='rabbit-worker'}
 end
 function Test.run(context,check)
-    local state=context.State.new();state.home.weekend.phase='ready';state.home.weekend.closedAtHours=44
+    local state=context.State.new();state.home.town=assert(require('src.commute.town').generate(712345))
+    state.home.weekend.phase='ready';state.home.weekend.closedAtHours=44
     local now=0
     local network=Harness.new({maxClients=3,classify=function(bytes)local v=Protocol.decode(bytes);return v and v.type or 'invalid' end})
     local host=Session.new({transportFactory=network.factory,clock=function()return now end})
@@ -87,6 +88,8 @@ function Test.run(context,check)
     assert(departure(hp,'force:'..token));pump()
     check('commute_session_departure_scene_and_trip_replicate',locals[1].sceneId=='commute'
         and received[1].shop_state.state.home.commute.participants[residentId].slot==2)
+    check('commute_session_host_saved_town_reaches_all_guests',require('src.commute.town').fingerprint(received[1].shop_state.state.home.town)
+        ==require('src.commute.town').fingerprint(state.home.town) and received[2].shop_state.state.home.town.id==state.home.town.id)
     network:duplicateNext('client_to_host',1,1,true)
     assert(g:requestInteraction('commute','equip:'..token));pump(3)
     local part=state.home.commute.participants[residentId]
@@ -115,6 +118,40 @@ function Test.run(context,check)
         and math.abs(locals[1].x-part.rider.bike.x)<.5 and part.rider.bike.speed<.05,
         ('travel=%.3f clientDelta=%.3f speed=%.3f gear=%d mode=%s'):format(math.abs(part.rider.bike.x-beforeX)+math.abs(part.rider.bike.z-beforeZ),
             math.abs(locals[1].x-part.rider.bike.x),part.rider.bike.speed,part.rider.bike.gear,part.rider.bike.transmission))
+    local oldRider=Rider.snapshot(part.rider);local mechanic=world.sites.byId.mechanic
+    part.rider=Rider.new(mechanic.parking.x,mechanic.parking.z,0,{version=1,outfit='geared',mounted=false,engine=false,revision=1})
+    part.rider.ped.x,part.rider.ped.z=mechanic.door.x,mechanic.door.z
+    require('src.commute.motorcycle').resetContact(part.rider.bike,world);C.syncPlayer(host.players[part.slot],part)
+    state.home.balanceCents=100000
+    local upgrade=('upgrade:%d:%d:1'):format(token,state.home.revision)
+    network:duplicateNext('client_to_host',1,1,true)
+    assert(g:requestInteraction('commute',upgrade));pump()
+    local price=require('src.commute.bike_upgrades').CATALOG[1].costCents
+    check('commute_session_garage_purchase_is_host_authoritative_and_debits_once',received[1].interaction_result.accepted
+        and state.home.balanceCents==100000-price and state.home.residents[residentId].ridingUpgradeLevel==1
+        and received[2].shop_state.state.home.commute.participants[residentId].rider.bike.upgradeLevel==1)
+    assert(g:requestInteraction('commute',upgrade));pump()
+    check('commute_session_stale_garage_purchase_rejected',not received[1].interaction_result.accepted
+        and state.home.balanceCents==100000-price)
+    local paintMoney=state.home.balanceCents
+    local paintCommand=('bikepaint:%d:0:red'):format(token)
+    network:duplicateNext('client_to_host',1,1,true)
+    assert(C.request({state={},multiplayer=g},paintCommand))
+    check('commute_session_paint_request_waits_for_authoritative_host',state.home.balanceCents==paintMoney
+        and state.home.residents[residentId].ridingPaintId=='bronze')
+    pump()
+    local paintSnapshot=received[2].shop_state.state.home
+    check('commute_session_guest_paint_debits_once_and_replicates',received[1].interaction_result.accepted
+        and state.home.balanceCents==paintMoney-12500 and state.home.residents[residentId].ridingPaintRevision==1
+        and part.rider.bike.paintId=='red' and paintSnapshot.residents[residentId].ridingPaintId=='red'
+        and paintSnapshot.commute.participants[residentId].rider.bike.paintId=='red'
+        and paintSnapshot.residents.owner.ridingPaintId=='bronze')
+    assert(g:requestInteraction('commute',paintCommand));pump()
+    check('commute_session_replayed_paint_order_is_rejected_without_charge',not received[1].interaction_result.accepted
+        and state.home.balanceCents==paintMoney-12500 and part.rider.bike.paintId=='red')
+    oldRider.bike.upgradeLevel=1;oldRider.bike.paintId='red'
+    part.rider=assert(Rider.restore(oldRider,world,world.roads.destinations.warehouse))
+    C.syncPlayer(host.players[part.slot],part)
     assert(g:requestInteraction('commute','force:'..token));pump()
     check('commute_session_guest_cannot_finish_household',not received[1].interaction_result.accepted and state.home.commute~=nil)
     local parkedX=part.rider.bike.x
@@ -125,11 +162,15 @@ function Test.run(context,check)
     g=join(1);part=state.home.commute.participants[residentId]
     check('commute_session_reconnect_rebinds_resident_and_vehicle',g.residentId==residentId and part.slot==3
         and part.rider.gear.engine and part.rider.bike.x==parkedX and Trip.valid(state.home.commute,state.home))
+    check('commute_session_paid_finish_survives_live_reconnect',part.rider.bike.paintId=='red'
+        and received[1].shop_state.state.home.residents[residentId].ridingPaintRevision==1
+        and received[1].shop_state.state.home.commute.participants[residentId].rider.bike.paintId=='red')
     -- Arrivals use the same host-side position checks as the real route test.
     local anchor=world.roads.destinations[state.home.commute.destination]
     local owner=state.home.commute.participants.owner
     owner.rider=Rider.new(anchor.x,anchor.z,0,{version=1,outfit='geared',mounted=false,engine=false,revision=1})
-    owner.rider.ped.x,owner.rider.ped.z=anchor.x,anchor.z-3;Rider.update(owner.rider,{},0,world)
+    local entrance=world.sites.byId[state.home.commute.destination].door
+    owner.rider.ped.x,owner.rider.ped.z=entrance.x,entrance.z;Rider.update(owner.rider,{},0,world)
     local okay=C.command(R,hp,'arrive:'..token)
     check('commute_session_host_arrival_acknowledged_while_waiting',okay and state.home.commute~=nil and owner.arrived)
     assert(C.command(R,hp,'force:'..token));pump(12)

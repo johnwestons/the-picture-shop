@@ -93,9 +93,9 @@ function Setup.draw(options,slot,assets,mouseX,mouseY)
     text("8-hour shift: "..string.format("%.1f",options.dayLengthMinutes/3).." real minutes",500,353,390,17,nil,"center")
     text("HOUSEHOLD START",500,402,390,20,{1,.86,.36,1})
     text("Living allowance: $"..(Catalog.ALLOWANCE_CENTS/100).."\nBusiness balance: $180 (separate)\nFirst apartment rent: February 1\nNo furniture surcharge or deposit.",500,435,390,18)
-    text("A / D apartment   R random   F furnishings\nArrow keys adjust day length. Enter creates shop.",60,590,420,14)
+    text("A / D apartment   R random   F furnishings\nArrow keys adjust day length. Enter chooses town.",60,590,420,14)
     local labels={previous="<",next=">",random="RANDOM APARTMENT",empty="EMPTY",modest="MODESTLY FURNISHED",
-        minus="-",plus="+",fast="5 MIN",standard="20 MIN",slow="60 MIN",cancel="CANCEL",start="CREATE SHOP"}
+        minus="-",plus="+",fast="5 MIN",standard="20 MIN",slow="60 MIN",cancel="CANCEL",start="CHOOSE TOWN"}
     for name,b in pairs(buttons) do
         local selected=name==options.furnishingPreset or (name=="fast" and options.dayLengthMinutes==5)
             or (name=="standard" and options.dayLengthMinutes==20) or (name=="slow" and options.dayLengthMinutes==60)

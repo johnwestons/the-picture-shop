@@ -1,8 +1,8 @@
 -- Local preferences only: the network still receives semantic riding commands.
 local B={}
 B.actions={
- {id='accelerate',label='Accelerate',held=true,key='w',pad='axis:triggerright+',touch='touch1'},
- {id='brake',label='Brake',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
+ {id='accelerate',label='Accelerate / lift the nose in air',held=true,key='w',pad='axis:triggerright+',touch='touch1'},
+ {id='brake',label='Brake / level the bike in air',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
  {id='left',label='Steer left',held=true,key='a',pad='axis:leftx-'},
  {id='right',label='Steer right',held=true,key='d',pad='axis:leftx+'},
  {id='handbrake',label='Additional brake',held=true,key='space',pad='b'},
@@ -27,6 +27,8 @@ B.actions={
  {id='zoomIn',label='Camera zoom in',key='=',mouse='wheelup',main='=',preview='='},
  {id='zoomOut',label='Camera zoom out',key='-',mouse='wheeldown',main='-',preview='-'},
  {id='panModifier',label='Pan modifier (with rotate drag)',key='lalt',modifier=true},
+ {id='followCamera',label='Fixed / follow camera',key='o',pad='leftshoulder',main='o',preview='o'},
+ {id='map',label='Town map',key='m',main='m',preview='m'},
 }
 B.byId={};for _,a in ipairs(B.actions) do B.byId[a.id]=a end
 B.devices={'keyboard','mouse','controller','touch'}
@@ -62,12 +64,13 @@ function B.valid(device,id,token)
     return false
 end
 function B.defaults()
-    local p={keyboard={},mouse={},controller={},touch={},layout={stick={x=.10,y=.80}},showTouch=false}
+    local p={keyboard={},mouse={},controller={},touch={},layout={stick={x=.10,y=.80},cameraStick={x=.90,y=.34}},
+        layoutVersion=2,showTouch=false,outsideCamera='fixed'}
     for _,a in ipairs(B.actions) do
         p.keyboard[a.id]=a.key or '';p.mouse[a.id]=a.mouse or ''
         p.controller[a.id]=a.pad or '';p.touch[a.id]=a.touch or ''
     end
-    for i=1,6 do p.layout['touch'..i]={x=i%2==1 and .84 or .94,y=.56+math.floor((i-1)/2)*.16} end
+    for i=1,6 do p.layout['touch'..i]={x=i%2==1 and .84 or .94,y=.62+math.floor((i-1)/2)*.14} end
     return p
 end
 function B.normalize(value)
@@ -82,13 +85,25 @@ function B.normalize(value)
         end
     end
     p.showTouch=value.showTouch==true
+    p.outsideCamera=value.outsideCamera=='follow' and 'follow' or 'fixed'
+    local oldLayout=tonumber(value.layoutVersion) or 1
     for id,point in pairs(p.layout) do
-        local v=type(value.layout)=='table' and value.layout[id]
+        local sourceId=id=='cameraStick' and 'cameraStick' or id
+        local v=type(value.layout)=='table' and value.layout[sourceId]
+        if oldLayout<2 and type(v)=='table' then
+            local index=tonumber(sourceId:match('^touch(%d)$'))
+            if index then
+                local oldX=index%2==1 and .84 or .94
+                local oldY=.56+math.floor((index-1)/2)*.16
+                if tonumber(v.x)==oldX and tonumber(v.y)==oldY then v=nil end
+            end
+        end
         if type(v)=='table' then
-            local margin=id=='stick' and .10 or .06
+            local margin=(id=='stick' or id=='cameraStick') and .10 or .06
             for _,axis in ipairs({'x','y'}) do local n=tonumber(v[axis]);if n and n==n then point[axis]=math.max(margin,math.min(1-margin,n)) end end
         end
     end
+    p.layoutVersion=2
     return p
 end
 function B.assign(p,device,id,token)
@@ -137,18 +152,48 @@ function B.value(p,id,touch)
     if touch and touch.held and touch.held[id] then result=1 end
     return result
 end
-function B.drive(p,touch)
+local function wrapRadians(angle) return (angle+math.pi)%(math.pi*2)-math.pi end
+function B.drive(p,touch,camera,bike)
     local x=B.value(p,'right',touch)-B.value(p,'left',touch)
     local throttle=B.value(p,'accelerate',touch)
     local brake=math.max(B.value(p,'brake',touch),B.value(p,'handbrake',touch))
-    if touch and math.abs(touch.x or 0)>math.abs(x) then x=touch.x end
+    local touchX,touchY=touch and touch.x or 0,touch and touch.y or 0
+    local magnitude=math.sqrt(touchX*touchX+touchY*touchY)
+    if magnitude>.001 then
+        if camera and not camera.firstPerson and bike and camera.screenVectorToWorld then
+            -- In the outside view, the riding pad points toward a screen-space
+            -- destination. The rider still turns through the bike's normal
+            -- steering physics instead of teleporting its velocity.
+            local worldX,worldZ=camera:screenVectorToWorld(touchX,touchY)
+            local heading=math.atan2(worldZ,worldX)
+            local reverse=bike.reverse==true
+            local desiredHeading=heading+(reverse and math.pi or 0)
+            local error=wrapRadians(desiredHeading-(bike.heading or 0))*(reverse and -1 or 1)
+            x=math.max(-1,math.min(1,error/(math.pi*.5)))*magnitude*.78
+            throttle=math.max(throttle,magnitude)
+        else
+            if camera and camera.firstPerson then touchX=touchX*.78 end
+            if math.abs(touchX)>math.abs(x) then x=touchX end
+            throttle=math.max(throttle,math.max(0,-touchY))
+            brake=math.max(brake,math.max(0,touchY))
+        end
+    end
     return x,brake>0 and brake or -throttle,B.value(p,'boost',touch)>.1
 end
 function B.camera(p,camera,dt,touch)
     if not camera then return end
     local x=B.value(p,'orbitRight',touch)-B.value(p,'orbitLeft',touch)
-    local y=B.value(p,'tiltUp',touch)-B.value(p,'tiltDown',touch)
-    if x~=0 or y~=0 then camera:orbit(x*90*dt,y*60*dt) end
+    local up=B.value(p,'tiltUp',touch)-B.value(p,'tiltDown',touch)
+    local y
+    if camera.firstPerson then
+        -- The rider-eye camera uses positive pitch to look up.
+        y=up-(touch and touch.cameraY or 0)
+    else
+        -- Outside tilt grows downward, so invert the conventional up input.
+        y=-up+(touch and touch.cameraY or 0)
+    end
+    if touch then x=x+(touch.cameraX or 0) end
+    if x~=0 or y~=0 then camera:orbit(x*72*dt,y*48*dt) end
 end
 function B.encode(p)
     p=B.normalize(p)

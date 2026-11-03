@@ -1,6 +1,73 @@
 {
-  "version": 7,
-  "status": "reviewed_static_sprite_pilot_v2_with_mounted_actions_v4_16_direction",
+  "version": 8,
+  "status": "reviewed_sixteen_directions_reordered_and_repaired",
+  "runtimeDirectionReview": {
+    "date": "2026-11-02",
+    "effectiveDirections": 16,
+    "selectedAtlasCells": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "excludedAtlasCells": [],
+    "scope": "All fourteen poses use sixteen unique unmirrored views.",
+    "finding": "Original eight cardinal/diagonal frames preserved byte-for-byte; intermediate views reordered from reviewed sources, with six missing views repaired.",
+    "anglePrecision": "Hand-drawn views assigned to sixteen logical sectors; projected angles are visually reviewed, not geometrically measured at exact 22.5-degree increments.",
+    "sourcePreserved": true,
+    "summary": {
+      "atlases": 14,
+      "frames": 224,
+      "nonemptyFrames": 224,
+      "uniqueRgbaFrames": 224,
+      "uniqueVisibleRgbaFrames": 224,
+      "preservedOriginalFrames": 112,
+      "originalPixelMismatches": 0,
+      "verifiedOriginalAtlasHashes": 14,
+      "verifiedStagedSourceHashes": 14,
+      "recordedRuntimeAtlasHashes": 14,
+      "repairedSourceViews": 6,
+      "sourceMirroring": false,
+      "runtimeDirections": 16,
+      "alphaBboxThreshold": 16
+    },
+    "mapping": {
+      "path": "assets/staging/commute-bike-v4-directions/reviewed-directions.json",
+      "sha256": "3209c68cc5f58f0e41e15acd0ae33c99f8a3509f779fc189db75058ce57f0840"
+    },
+    "repairProvenance": {
+      "path": "assets/source/commute-bike-v4-directions/provenance.json",
+      "sha256": "89f2f70487c385dc708726ff34ba4734f697acb9b708a9c80108e4195241a2f5"
+    },
+    "importContract": "tools/commute_lab/BIKE_ATLAS_IMPORT.md",
+    "visualEvidence": "output/bike-direction-reorder/review-notes.md",
+    "inventory": "output/bike-direction-reorder/auditor/inventory.json",
+    "motionSpec": "output/bike-direction-reorder/auditor/vehicle-motion.json",
+    "motionAudit": {
+      "path": "output/bike-direction-reorder/auditor/report.json",
+      "schemaApplicability": "vehicle poses, not walking gait",
+      "expectedNonApplicableErrors": [
+        "missing_directions",
+        "missing_gait"
+      ],
+      "rawSummary": {
+        "errors": 2,
+        "warnings": 28
+      }
+    }
+  },
   "frameSize": 320,
   "atlasSize": [
     1280,
@@ -55,7 +122,8 @@
             111,
             220,
             292
-          ]
+          ],
+          "rgbaSha256": "389c48e61b9a180a72ee6ac26b17e21d76f7ac15561c1b10ff8931d9a0c388f9"
         },
         {
           "direction": "north-northeast",
@@ -70,11 +138,12 @@
             260
           ],
           "bbox": [
-            87,
+            90,
             103,
-            228,
+            225,
             287
-          ]
+          ],
+          "rgbaSha256": "ae465f74bb6a6231aa868090a82a4c50904325a693dd60dcd61bd5560671160a"
         },
         {
           "direction": "northeast",
@@ -93,7 +162,8 @@
             95,
             235,
             282
-          ]
+          ],
+          "rgbaSha256": "214083bcebf57eccef43558fd959fbd2525cfcf0241fd0c879a11aa2522a179c"
         },
         {
           "direction": "east-northeast",
@@ -108,11 +178,12 @@
             260
           ],
           "bbox": [
-            57,
+            70,
             100,
-            255,
+            243,
             274
-          ]
+          ],
+          "rgbaSha256": "2b87e3025fc661a928a579fe29780f444b65fcbfb3b54ae052a04c65ee53d3b5"
         },
         {
           "direction": "east",
@@ -131,7 +202,8 @@
             105,
             274,
             266
-          ]
+          ],
+          "rgbaSha256": "eac8e981fc884a459264ec938c947fd4f0d1d3fd49482608709141fcae47f06d"
         },
         {
           "direction": "east-southeast",
@@ -146,11 +218,12 @@
             260
           ],
           "bbox": [
-            65,
+            74,
             113,
-            254,
-            277
-          ]
+            246,
+            278
+          ],
+          "rgbaSha256": "d775fe4f509613619929964374c0543596557acfe33084e40ea233fc71e7e347"
         },
         {
           "direction": "southeast",
@@ -169,7 +242,8 @@
             120,
             234,
             288
-          ]
+          ],
+          "rgbaSha256": "be8074a1eb839b34494863d070e5a18c049f2722652a1911f06f0f1afafee327"
         },
         {
           "direction": "south-southeast",
@@ -186,9 +260,10 @@
           "bbox": [
             95,
             124,
-            227,
+            229,
             295
-          ]
+          ],
+          "rgbaSha256": "b7e1065c0310459883fe6122baca3c653376f6d8131cc81e91c40401cce0b511"
         },
         {
           "direction": "south",
@@ -207,7 +282,8 @@
             128,
             220,
             301
-          ]
+          ],
+          "rgbaSha256": "b4fd49c46a6516dc592dfdeff218df9357e963f6158bca40d8382bfca6eb3899"
         },
         {
           "direction": "south-southwest",
@@ -222,11 +298,12 @@
             260
           ],
           "bbox": [
-            91,
+            77,
             126,
-            235,
-            297
-          ]
+            249,
+            298
+          ],
+          "rgbaSha256": "1204857a8a3b5bc5d2b1536e1079c4fc61add2cdbfb6fda525231a0cb171b3be"
         },
         {
           "direction": "southwest",
@@ -245,7 +322,8 @@
             123,
             249,
             293
-          ]
+          ],
+          "rgbaSha256": "cbdca201eee0e4d2ee465855e36625475da6034321b866c8440895fa322f22c1"
         },
         {
           "direction": "west-southwest",
@@ -260,11 +338,12 @@
             260
           ],
           "bbox": [
-            62,
+            73,
             113,
-            263,
+            253,
             279
-          ]
+          ],
+          "rgbaSha256": "d5294b9f06f7d4646732276f7ba7b468fe080381ef53827523f10a2c620301eb"
         },
         {
           "direction": "west",
@@ -283,7 +362,8 @@
             103,
             277,
             264
-          ]
+          ],
+          "rgbaSha256": "a12d9f84f583cb1bd33da06c81b8185b8cf309941ea5f0ff27ba0ccde756819c"
         },
         {
           "direction": "west-northwest",
@@ -298,11 +378,12 @@
             260
           ],
           "bbox": [
-            67,
+            82,
             105,
-            265,
+            250,
             275
-          ]
+          ],
+          "rgbaSha256": "c5a465d015920f78b4d76cc10b6dbd94532d962a0104a4f609859b18f6cb2225"
         },
         {
           "direction": "northwest",
@@ -321,7 +402,8 @@
             107,
             252,
             285
-          ]
+          ],
+          "rgbaSha256": "f465c8169043a4af2914022162783e747d5fbcd094d263ca35bf87bb99e47b40"
         },
         {
           "direction": "north-northwest",
@@ -336,14 +418,15 @@
             260
           ],
           "bbox": [
-            96,
+            92,
             109,
-            236,
+            241,
             289
-          ]
+          ],
+          "rgbaSha256": "62b6affd6daf903890991ce7a5c483b6b51d9fd2dd9d0dea2147e3d6f53f855f"
         }
       ],
-      "sha256": "55C70973A200B4794463D6524B2580E66B924374C84FC7AF7FB96CCCD1251466"
+      "sha256": "aa31eb5003f49b1c2bae4465c626cf7526d0f42e5c5c5427a91446a2083d8c88"
     },
     "mounted": {
       "path": "assets/commute/bike/mounted-16.png",
@@ -366,7 +449,8 @@
             73,
             226,
             295
-          ]
+          ],
+          "rgbaSha256": "f01870bd9a9745a308b520562a18c78eaf2b830c01ce169d90957b65ec142699"
         },
         {
           "direction": "north-northeast",
@@ -381,11 +465,12 @@
             260
           ],
           "bbox": [
-            85,
+            84,
             63,
-            235,
-            283
-          ]
+            236,
+            284
+          ],
+          "rgbaSha256": "285388ccd0d3dc18b8c58f795679ad4b107ae5e5cdf5576f20dc1e86ee0af0b4"
         },
         {
           "direction": "northeast",
@@ -404,7 +489,8 @@
             52,
             244,
             271
-          ]
+          ],
+          "rgbaSha256": "9017db5a0dab3cb567e7697d4bfb82da684715047e84fb49f3df6409815590a4"
         },
         {
           "direction": "east-northeast",
@@ -419,11 +505,12 @@
             260
           ],
           "bbox": [
-            60,
+            66,
             49,
-            260,
+            255,
             267
-          ]
+          ],
+          "rgbaSha256": "dce8d7042ca25a657b3c68cb56021ef8e3dae2d3645fe92839942ba9eef19592"
         },
         {
           "direction": "east",
@@ -442,7 +529,8 @@
             45,
             275,
             262
-          ]
+          ],
+          "rgbaSha256": "c7c8c38b771eaa23fbcc30d84b1cf4f9715ef4fdac35bc4b3a4a98867028f36c"
         },
         {
           "direction": "east-southeast",
@@ -457,11 +545,12 @@
             260
           ],
           "bbox": [
-            67,
+            65,
             49,
-            260,
+            264,
             269
-          ]
+          ],
+          "rgbaSha256": "ee222553a960c84cbb561c9b377afecf524fb880063160bb6c03a32f570adc1e"
         },
         {
           "direction": "southeast",
@@ -480,7 +569,8 @@
             52,
             245,
             275
-          ]
+          ],
+          "rgbaSha256": "f9493ab620ceb9ee7a80c51b3e8c45855e5a9ded19958c5f7486470630c2249e"
         },
         {
           "direction": "south-southeast",
@@ -495,11 +585,12 @@
             260
           ],
           "bbox": [
-            90,
+            68,
             62,
-            233,
+            257,
             284
-          ]
+          ],
+          "rgbaSha256": "13406a8765b649a2226c672cb0e8c4aca511b248f375c0bd45dc627bee0c8f8f"
         },
         {
           "direction": "south",
@@ -518,7 +609,8 @@
             71,
             221,
             292
-          ]
+          ],
+          "rgbaSha256": "4af873fb6f78f4df0d71fb79369971688a130362afa1b9a1a578263bf0c16130"
         },
         {
           "direction": "south-southwest",
@@ -533,11 +625,12 @@
             260
           ],
           "bbox": [
-            89,
+            99,
             62,
-            236,
+            227,
             283
-          ]
+          ],
+          "rgbaSha256": "c445d8523396c4e0c3e769c8b48427a9638f466b0d251970c735752860d3b796"
         },
         {
           "direction": "southwest",
@@ -556,7 +649,8 @@
             52,
             251,
             273
-          ]
+          ],
+          "rgbaSha256": "60637c01a8e281a77dd9b5f81791fbe1338bb8ef7b8ed1a04e3a7beb4868927d"
         },
         {
           "direction": "west-southwest",
@@ -571,11 +665,12 @@
             260
           ],
           "bbox": [
-            65,
             50,
-            259,
+            50,
+            276,
             267
-          ]
+          ],
+          "rgbaSha256": "b4ce58373fc9662beaac3bfe8d4f4f65ba2aed2ae9a23409b4a8f762af04c937"
         },
         {
           "direction": "west",
@@ -591,10 +686,11 @@
           ],
           "bbox": [
             48,
-            47,
+            48,
             267,
             260
-          ]
+          ],
+          "rgbaSha256": "ac6ef21a07c3b82a4c506226420c62eb37fd5a33d9b4da32feb679014cc1bfbc"
         },
         {
           "direction": "west-northwest",
@@ -609,11 +705,12 @@
             260
           ],
           "bbox": [
-            67,
+            63,
             56,
-            258,
+            262,
             272
-          ]
+          ],
+          "rgbaSha256": "46cce351758b41feca35bf06f7da1ea41680f8a11daba3dacd037792cb208442"
         },
         {
           "direction": "northwest",
@@ -632,7 +729,8 @@
             64,
             248,
             283
-          ]
+          ],
+          "rgbaSha256": "61d35b714142bbe56d936352a39020ae87dbcb23f9e25ccc94b1d4f94f3dd444"
         },
         {
           "direction": "north-northwest",
@@ -647,14 +745,15 @@
             260
           ],
           "bbox": [
-            93,
+            79,
             69,
-            237,
-            289
-          ]
+            252,
+            290
+          ],
+          "rgbaSha256": "ca66a1712a6c43e160129a066c4b87328faa9ff40e3131e3af590641c8cb9877"
         }
       ],
-      "sha256": "FCD32497BC7AA7E2BF1FD90B30C376E61C04E83B302CEEE9AFC4BF7F1C38B100"
+      "sha256": "0b2abdc5e9e017ff1186b7a499a6ae574aac2f56b52597fd8e6ff009a8ed40c2"
     }
   },
   "sources": [
@@ -673,9 +772,9 @@
     "aerodynamicTuck": {
       "path": "assets/commute/bike/mounted-aero-tuck-16.png",
       "frames": 16,
-      "sha256": "68A8137F07B55ECEDE3FE93D251495E92426D20619385A8165C2AA9E77235D7B",
+      "sha256": "e3580a7bc90086a73dd1ff7f7a96f67427859f8fe41db461956e06777f81ea6f",
       "transitionPath": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
-      "transitionSha256": "3C022209F0C11B962FCB7C33C6B410D236978C77EC788EF828694B191DE0AFC0",
+      "transitionSha256": "1ba485ec950bbef39cea010dd852aaf358dd0f2e968a553f6aa90ec34164c273",
       "directions": "same order as mounted",
       "blend": "speed threshold with smooth return to mounted pose",
       "startSpeed": 13.35,
@@ -684,9 +783,9 @@
     "accelerationResponse": {
       "path": "assets/commute/bike/mounted-acceleration-response-16.png",
       "frames": 16,
-      "sha256": "E495FAEC0E55EC0AF6873DE6A81076E751D1F9D60AB62068250DFC75923D4ADF",
+      "sha256": "1479b7ed9c323a8fc86526ef077bc3720067d67c32559b401aa000dc33c4e900",
       "transitionPath": "assets/commute/bike/mounted-boost-transition-16.png",
-      "transitionSha256": "E3969FAA8BEE88FD39B2031917AAB46DDF7CEBB77AF40337E8D32537B632A559",
+      "transitionSha256": "ad29a73bed070e4e48d705d76107391fb9d9e98254eadd69a71e048d8473cf9c",
       "trigger": "boost activation",
       "durationSeconds": 0.78,
       "transition": "fade back to mounted or tuck pose"
@@ -694,22 +793,22 @@
     "gearShift": {
       "path": "assets/commute/bike/mounted-gear-shift-16.png",
       "frames": 16,
-      "sha256": "9005E84692D153C5DB5F97A916415A9E2AE6BF6CFA6E454A14C5B6F5C887FCC4",
+      "sha256": "72c1ed745b59d4610606cadaf553d7b648312110775da606c2f2bf0bb90f1ff5",
       "transitionPath": "assets/commute/bike/mounted-gear-shift-transition-16.png",
-      "transitionSha256": "BE47ECBDAB42A634073052EA95C227194ED3481CBBA6D424AB204880EC4CA811",
+      "transitionSha256": "f8852ac8ac56abd2c9d8f64d1c3fe73b8e285b57f34a4db465cbb2bd9e71f0d9",
       "trigger": "successful manual or automatic gear change",
       "durationSeconds": 0.16,
       "foot": "left"
     },
     "hardTurnLean": {
       "leftPath": "assets/commute/bike/mounted-hard-turn-left-16.png",
-      "leftSha256": "8BB840964659A3004D96E498FBBE7FF9C83AC6E428D8E3D100B53095877E36DF",
+      "leftSha256": "e550010fdb964be1e60772a2372ae404aa21d6ce79b4a491677cc7bba6854ada",
       "leftTransitionPath": "assets/commute/bike/mounted-turn-left-transition-16.png",
-      "leftTransitionSha256": "0691B26FFF61190072840DDDD585BED0DA4F330A939B1213C75850F0EAEE8BCB",
+      "leftTransitionSha256": "ff9f2ddff27a7dafabcd38fb5ee98e37d4b8fe9aa1fbd23016609dbb3db70a04",
       "rightPath": "assets/commute/bike/mounted-hard-turn-right-16.png",
-      "rightSha256": "C152457A07A0EA8C0F2E3A4168F123BB3DC41F0E8DBF7DC9B5076B6ADD12F3A2",
+      "rightSha256": "9987a426a1d77de036988514915530a14f43b37685cb907cd42ce38065908d1c",
       "rightTransitionPath": "assets/commute/bike/mounted-turn-right-transition-16.png",
-      "rightTransitionSha256": "0B1AC50D0681F6E8D62EAF010CEF1523BA49E0C9BB3BAD2BC28C2FE3924173EC",
+      "rightTransitionSha256": "d08335df791d2c55e07f314abf0ed3c3e5c7022f0833c0d274b3674fd7085978",
       "framesEach": 16,
       "trigger": "steering lean at speed",
       "blend": "crossfade from mounted or aerodynamic pose with smoothed bike lean",
@@ -719,9 +818,9 @@
     },
     "impactBrace": {
       "path": "assets/commute/bike/mounted-impact-brace-16.png",
-      "sha256": "8C603F6C3210241A568884F122511A84623954F91425E7A82F1ED0FF6BAC77CA",
+      "sha256": "72ad22233faeb452384c87b81873b0e2a0cbba06b0f82ac9dabc4fe16362d805",
       "transitionPath": "assets/commute/bike/mounted-impact-transition-16.png",
-      "transitionSha256": "29BBA0FEAD81904193F4253C62AB1EEE1D432A9BEC4673615650A2940E0AFB9B",
+      "transitionSha256": "3ed139b96f7da89b623046b42b8fbdeb6ec57c07be895c1e946e8a69ba889397",
       "frames": 16,
       "trigger": "blocked bike movement after moving faster than 0.35 metres per second",
       "durationSeconds": 0.62,
@@ -742,7 +841,7 @@
     "directionalCoverage": "sixteen authored directions at 22.5-degree spacing",
     "directionalStepDegrees": 22.5
   },
-  "review": "Sixteen-view parked, mounted, action, and transition atlases preserve all original eight frames and add eight aligned in-between views.",
+  "review": "Sixteen reviewed views for all fourteen poses; 112 original cardinal/diagonal frames preserved, 106 intermediate views recovered by reordering, and six missing intermediate views repaired.",
   "rows": 4,
   "frameCount": 16,
   "directionStepDegrees": 22.5,
@@ -750,72 +849,5281 @@
     "parked": {
       "path": "assets/commute/bike/parked-16.png",
       "frames": 16,
-      "sha256": "55C70973A200B4794463D6524B2580E66B924374C84FC7AF7FB96CCCD1251466"
+      "sha256": "aa31eb5003f49b1c2bae4465c626cf7526d0f42e5c5c5427a91446a2083d8c88",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/parked.png",
+          "sha256": "dd3db4a8e16d6f2bb261e4b3606278a000ad1c99ddebcea73dbb0545484b597d"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/parked-16-source.png",
+          "sha256": "99deb2e7dfff7223117ebe66657bf1eee6bb4ef93593279260d057bcc6ffc675"
+        }
+      },
+      "intermediateSourceCells": [
+        2,
+        4,
+        6,
+        8,
+        10,
+        11,
+        14,
+        16
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            104,
+            111,
+            220,
+            292
+          ],
+          "rgbaSha256": "389c48e61b9a180a72ee6ac26b17e21d76f7ac15561c1b10ff8931d9a0c388f9",
+          "visibleRgbaSha256": "389c48e61b9a180a72ee6ac26b17e21d76f7ac15561c1b10ff8931d9a0c388f9",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            90,
+            103,
+            225,
+            287
+          ],
+          "rgbaSha256": "ae465f74bb6a6231aa868090a82a4c50904325a693dd60dcd61bd5560671160a",
+          "visibleRgbaSha256": "d814ab1227e7c57c099aead47589966613bad3912853f5a918bae39548fe7b84",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            69,
+            95,
+            235,
+            282
+          ],
+          "rgbaSha256": "214083bcebf57eccef43558fd959fbd2525cfcf0241fd0c879a11aa2522a179c",
+          "visibleRgbaSha256": "214083bcebf57eccef43558fd959fbd2525cfcf0241fd0c879a11aa2522a179c",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            70,
+            100,
+            243,
+            274
+          ],
+          "rgbaSha256": "2b87e3025fc661a928a579fe29780f444b65fcbfb3b54ae052a04c65ee53d3b5",
+          "visibleRgbaSha256": "139af3d6198399b73d560a8773db15a5d0ad53ec17c07ce72add0eaa234065f2",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            44,
+            105,
+            274,
+            266
+          ],
+          "rgbaSha256": "eac8e981fc884a459264ec938c947fd4f0d1d3fd49482608709141fcae47f06d",
+          "visibleRgbaSha256": "eac8e981fc884a459264ec938c947fd4f0d1d3fd49482608709141fcae47f06d",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            74,
+            113,
+            246,
+            278
+          ],
+          "rgbaSha256": "d775fe4f509613619929964374c0543596557acfe33084e40ea233fc71e7e347",
+          "visibleRgbaSha256": "36e8d183a4d9ecb8aa30bb9b858aae1c985bc93f640afe51a6035eeb7bc133d4",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            86,
+            120,
+            234,
+            288
+          ],
+          "rgbaSha256": "be8074a1eb839b34494863d070e5a18c049f2722652a1911f06f0f1afafee327",
+          "visibleRgbaSha256": "be8074a1eb839b34494863d070e5a18c049f2722652a1911f06f0f1afafee327",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            95,
+            124,
+            229,
+            295
+          ],
+          "rgbaSha256": "b7e1065c0310459883fe6122baca3c653376f6d8131cc81e91c40401cce0b511",
+          "visibleRgbaSha256": "e71c2abf2ff448450ac60cfbf729a9d6e0db48d8f89592cd6f5efb1cea38864f",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            103,
+            128,
+            220,
+            301
+          ],
+          "rgbaSha256": "b4fd49c46a6516dc592dfdeff218df9357e963f6158bca40d8382bfca6eb3899",
+          "visibleRgbaSha256": "b4fd49c46a6516dc592dfdeff218df9357e963f6158bca40d8382bfca6eb3899",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            77,
+            126,
+            249,
+            298
+          ],
+          "rgbaSha256": "1204857a8a3b5bc5d2b1536e1079c4fc61add2cdbfb6fda525231a0cb171b3be",
+          "visibleRgbaSha256": "97c8ff22aec600c56c917488a036922a79614bdadd8cfd4c7c6eac54978e86c8",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            79,
+            123,
+            249,
+            293
+          ],
+          "rgbaSha256": "cbdca201eee0e4d2ee465855e36625475da6034321b866c8440895fa322f22c1",
+          "visibleRgbaSha256": "cbdca201eee0e4d2ee465855e36625475da6034321b866c8440895fa322f22c1",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            73,
+            113,
+            253,
+            279
+          ],
+          "rgbaSha256": "d5294b9f06f7d4646732276f7ba7b468fe080381ef53827523f10a2c620301eb",
+          "visibleRgbaSha256": "9dc656fa2c4c850de9b855f1118b78db7ba92048a0b2cc46e0b96790e02b3d3d",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 11
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            45,
+            103,
+            277,
+            264
+          ],
+          "rgbaSha256": "a12d9f84f583cb1bd33da06c81b8185b8cf309941ea5f0ff27ba0ccde756819c",
+          "visibleRgbaSha256": "a12d9f84f583cb1bd33da06c81b8185b8cf309941ea5f0ff27ba0ccde756819c",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            82,
+            105,
+            250,
+            275
+          ],
+          "rgbaSha256": "c5a465d015920f78b4d76cc10b6dbd94532d962a0104a4f609859b18f6cb2225",
+          "visibleRgbaSha256": "3d99477882d612fa750cd580a821cf2e6358c5230b53ac0789a67c015c7825cf",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            88,
+            107,
+            252,
+            285
+          ],
+          "rgbaSha256": "f465c8169043a4af2914022162783e747d5fbcd094d263ca35bf87bb99e47b40",
+          "visibleRgbaSha256": "f465c8169043a4af2914022162783e747d5fbcd094d263ca35bf87bb99e47b40",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            92,
+            109,
+            241,
+            289
+          ],
+          "rgbaSha256": "62b6affd6daf903890991ce7a5c483b6b51d9fd2dd9d0dea2147e3d6f53f855f",
+          "visibleRgbaSha256": "044223981ba7d92502bc36df5a83c238ce46c538da34dcfec187fb7118232d5d",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        }
+      ]
     },
     "mounted": {
       "path": "assets/commute/bike/mounted-16.png",
       "frames": 16,
-      "sha256": "FCD32497BC7AA7E2BF1FD90B30C376E61C04E83B302CEEE9AFC4BF7F1C38B100"
+      "sha256": "0b2abdc5e9e017ff1186b7a499a6ae574aac2f56b52597fd8e6ff009a8ed40c2",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted.png",
+          "sha256": "c543dfef103a77d0e59530d080a357b24543229d30cf8e98962c77dec1c0f708"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-16-source.png",
+          "sha256": "2550524f630d15a2efec5c7247e7d915fc4f31d4985e4b2c0fc4d718603eb410"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            73,
+            226,
+            295
+          ],
+          "rgbaSha256": "f01870bd9a9745a308b520562a18c78eaf2b830c01ce169d90957b65ec142699",
+          "visibleRgbaSha256": "f01870bd9a9745a308b520562a18c78eaf2b830c01ce169d90957b65ec142699",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            84,
+            63,
+            236,
+            284
+          ],
+          "rgbaSha256": "285388ccd0d3dc18b8c58f795679ad4b107ae5e5cdf5576f20dc1e86ee0af0b4",
+          "visibleRgbaSha256": "0b0633df1d5bedb844f3fbea0ed9a9c73063c9cdd137137e3df9be6d074acef3",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            52,
+            244,
+            271
+          ],
+          "rgbaSha256": "9017db5a0dab3cb567e7697d4bfb82da684715047e84fb49f3df6409815590a4",
+          "visibleRgbaSha256": "9017db5a0dab3cb567e7697d4bfb82da684715047e84fb49f3df6409815590a4",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            66,
+            49,
+            255,
+            267
+          ],
+          "rgbaSha256": "dce8d7042ca25a657b3c68cb56021ef8e3dae2d3645fe92839942ba9eef19592",
+          "visibleRgbaSha256": "9014f9cc782de79a4816be4713b43563aab93f7b033586c8485eb7f166fe1d80",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            45,
+            275,
+            262
+          ],
+          "rgbaSha256": "c7c8c38b771eaa23fbcc30d84b1cf4f9715ef4fdac35bc4b3a4a98867028f36c",
+          "visibleRgbaSha256": "c7c8c38b771eaa23fbcc30d84b1cf4f9715ef4fdac35bc4b3a4a98867028f36c",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            65,
+            49,
+            264,
+            269
+          ],
+          "rgbaSha256": "ee222553a960c84cbb561c9b377afecf524fb880063160bb6c03a32f570adc1e",
+          "visibleRgbaSha256": "a0a3167ca3a628512a54942e459d4fec2d452ae77689a835718b01f09469ff52",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            52,
+            245,
+            275
+          ],
+          "rgbaSha256": "f9493ab620ceb9ee7a80c51b3e8c45855e5a9ded19958c5f7486470630c2249e",
+          "visibleRgbaSha256": "f9493ab620ceb9ee7a80c51b3e8c45855e5a9ded19958c5f7486470630c2249e",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            68,
+            62,
+            257,
+            284
+          ],
+          "rgbaSha256": "13406a8765b649a2226c672cb0e8c4aca511b248f375c0bd45dc627bee0c8f8f",
+          "visibleRgbaSha256": "985a728771b92c09dbba80bb0fc86fc064eddaf23bd6f8e50609ef78fcffb286",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            71,
+            221,
+            292
+          ],
+          "rgbaSha256": "4af873fb6f78f4df0d71fb79369971688a130362afa1b9a1a578263bf0c16130",
+          "visibleRgbaSha256": "4af873fb6f78f4df0d71fb79369971688a130362afa1b9a1a578263bf0c16130",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            99,
+            62,
+            227,
+            283
+          ],
+          "rgbaSha256": "c445d8523396c4e0c3e769c8b48427a9638f466b0d251970c735752860d3b796",
+          "visibleRgbaSha256": "4a5829994a0378d0486c902b75a4a344227897eb06c78644ce57f66e832f6a05",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            52,
+            251,
+            273
+          ],
+          "rgbaSha256": "60637c01a8e281a77dd9b5f81791fbe1338bb8ef7b8ed1a04e3a7beb4868927d",
+          "visibleRgbaSha256": "60637c01a8e281a77dd9b5f81791fbe1338bb8ef7b8ed1a04e3a7beb4868927d",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            50,
+            50,
+            276,
+            267
+          ],
+          "rgbaSha256": "b4ce58373fc9662beaac3bfe8d4f4f65ba2aed2ae9a23409b4a8f762af04c937",
+          "visibleRgbaSha256": "f1747ef2b7dbeba89d074b6aa2ac6132766f57b495c9264cdba98c166d4077c4",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            48,
+            267,
+            260
+          ],
+          "rgbaSha256": "ac6ef21a07c3b82a4c506226420c62eb37fd5a33d9b4da32feb679014cc1bfbc",
+          "visibleRgbaSha256": "ac6ef21a07c3b82a4c506226420c62eb37fd5a33d9b4da32feb679014cc1bfbc",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            63,
+            56,
+            262,
+            272
+          ],
+          "rgbaSha256": "46cce351758b41feca35bf06f7da1ea41680f8a11daba3dacd037792cb208442",
+          "visibleRgbaSha256": "fa5ee5f0a509fd4585493eaa317ac8be616e6304a6fb396932c7ce095a176bb3",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            64,
+            248,
+            283
+          ],
+          "rgbaSha256": "61d35b714142bbe56d936352a39020ae87dbcb23f9e25ccc94b1d4f94f3dd444",
+          "visibleRgbaSha256": "61d35b714142bbe56d936352a39020ae87dbcb23f9e25ccc94b1d4f94f3dd444",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            79,
+            69,
+            252,
+            290
+          ],
+          "rgbaSha256": "ca66a1712a6c43e160129a066c4b87328faa9ff40e3131e3af590641c8cb9877",
+          "visibleRgbaSha256": "2b74e5e91e465ff8946c850d3c677082961b6e1c96f85742010450449ff1ab7b",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "aerodynamicTuck": {
       "path": "assets/commute/bike/mounted-aero-tuck-16.png",
       "frames": 16,
-      "sha256": "68A8137F07B55ECEDE3FE93D251495E92426D20619385A8165C2AA9E77235D7B"
+      "sha256": "e3580a7bc90086a73dd1ff7f7a96f67427859f8fe41db461956e06777f81ea6f",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-aero-tuck.png",
+          "sha256": "62d935fd454c49b9dd776a1abbccab7550143690b731e94a33247b7bea2e4038"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-aero-tuck-16-source.png",
+          "sha256": "bfdf0ee7372ff8126eba941acc75b512e632102b500cd09c458a48e990820b66"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            108,
+            226,
+            295
+          ],
+          "rgbaSha256": "dc074b0bcfa715bc7299552d1c8e4d57e896d37a862a93ae0c16c20bf45b1f50",
+          "visibleRgbaSha256": "dc074b0bcfa715bc7299552d1c8e4d57e896d37a862a93ae0c16c20bf45b1f50",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            53,
+            108,
+            268,
+            283
+          ],
+          "rgbaSha256": "6b335cebf7ce3e13134cf12f0ad634693f8ff54dfd7d5f9c0d5c566f97ef442b",
+          "visibleRgbaSha256": "a373135a6ec3788f9a85e2a1ed509e94e54a7a0fadf80c94be514f8aa46f3ded",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            108,
+            244,
+            271
+          ],
+          "rgbaSha256": "c54d2b99742f86dbe1d2f9c625a3d7a7797db32156a3f51f2e54635a8117fbd6",
+          "visibleRgbaSha256": "c54d2b99742f86dbe1d2f9c625a3d7a7797db32156a3f51f2e54635a8117fbd6",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            63,
+            108,
+            258,
+            267
+          ],
+          "rgbaSha256": "5c022aafc496f782ca914ffab78bd95fc1f99d34e7e82a3d83df0b75bdf072af",
+          "visibleRgbaSha256": "b277c396f4a5a78a2cf76432aeb96f6be46ad6dbd516268a141188e4d9885119",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            108,
+            275,
+            262
+          ],
+          "rgbaSha256": "59a6769cb479b7c0135e0a66528eb333d6a690ae9c2b403be5926f0efb1d2d86",
+          "visibleRgbaSha256": "59a6769cb479b7c0135e0a66528eb333d6a690ae9c2b403be5926f0efb1d2d86",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            69,
+            108,
+            260,
+            269
+          ],
+          "rgbaSha256": "8e9d2db57c3181841df2d2c5c5029bff05fa7d5782a84f43f86e34f1c19b89f7",
+          "visibleRgbaSha256": "8805a797d1e88529baa30743197ce7678e9cd1fbf8fda63f33943fed470e4912",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            108,
+            245,
+            275
+          ],
+          "rgbaSha256": "5ad16a6209d323de3a85d758c59a41090162fbf2143bf72e237aba9eb5284c47",
+          "visibleRgbaSha256": "5ad16a6209d323de3a85d758c59a41090162fbf2143bf72e237aba9eb5284c47",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            60,
+            110,
+            264,
+            284
+          ],
+          "rgbaSha256": "980efb1d6e9d6204caecca312f22c12c5dc8389329007f7eca52596911684f5c",
+          "visibleRgbaSha256": "d3e01cbecf6611fc3e119b5b48023d070e3c1e08de390b7c6b6c4970d09b4a9c",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            112,
+            221,
+            292
+          ],
+          "rgbaSha256": "a4818a617ad9757a70be2d1ac7e1a3f077c311989ec7977bef3b2602bacf35f2",
+          "visibleRgbaSha256": "a4818a617ad9757a70be2d1ac7e1a3f077c311989ec7977bef3b2602bacf35f2",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            67,
+            113,
+            259,
+            283
+          ],
+          "rgbaSha256": "83b379c42dfdc91c80fed815edfb1e633f7379cb2c0a200d44302e91a6599f61",
+          "visibleRgbaSha256": "29c063d7225a650edf189990d22c6e11012bd856ea7cdcee02cf34ef37281e60",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            113,
+            251,
+            273
+          ],
+          "rgbaSha256": "d269e52befe944ea75028a08fd0f88fe841d199d0ede3fc4bd53004f596375a0",
+          "visibleRgbaSha256": "d269e52befe944ea75028a08fd0f88fe841d199d0ede3fc4bd53004f596375a0",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            62,
+            112,
+            264,
+            267
+          ],
+          "rgbaSha256": "85bb2e1a68ae9899f83a5123a3142844ebdcf16b86167d2bfdf830a04f0eaeb3",
+          "visibleRgbaSha256": "a999d0b63ac7f1715fefe3ea27ddb59485381467950aabc03cc77efb8887d86b",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            111,
+            267,
+            260
+          ],
+          "rgbaSha256": "9212485f285383e4667b878084fe46e2aab6e7efadb3f7c09e5c29bbcdb084bb",
+          "visibleRgbaSha256": "9212485f285383e4667b878084fe46e2aab6e7efadb3f7c09e5c29bbcdb084bb",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            70,
+            116,
+            255,
+            272
+          ],
+          "rgbaSha256": "6e4b2f13a8285c5b11d5a2ab810469be84c9b4a8c2aa30a58dab9d7b575b82a4",
+          "visibleRgbaSha256": "624bd6ba9fecd3a0a9b5e73ca7ed95b09b0a6a710f822c6e0c638b7b9759abc2",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            120,
+            248,
+            283
+          ],
+          "rgbaSha256": "a649cdd58fd32679351999d3406ef5c37a339f4acc3194c09e06dfa18f11b9f8",
+          "visibleRgbaSha256": "a649cdd58fd32679351999d3406ef5c37a339f4acc3194c09e06dfa18f11b9f8",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            61,
+            114,
+            271,
+            289
+          ],
+          "rgbaSha256": "66c3365201767679c75690007c1ce2d9b4c53d6890929da5eb71ec598721b8a9",
+          "visibleRgbaSha256": "26b08b1e114bd71035ae0b3053c37de290f714af4075555cab82a8b300856232",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "accelerationResponse": {
       "path": "assets/commute/bike/mounted-acceleration-response-16.png",
       "frames": 16,
-      "sha256": "E495FAEC0E55EC0AF6873DE6A81076E751D1F9D60AB62068250DFC75923D4ADF"
+      "sha256": "1479b7ed9c323a8fc86526ef077bc3720067d67c32559b401aa000dc33c4e900",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-acceleration-response.png",
+          "sha256": "25f945b675be8e576c8ca32400b6bdf3f621c1d29f2eb5de7633d96cbfbc2a65"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-acceleration-response-16-source.png",
+          "sha256": "34e129e86359c4a9e2c37ebb3e4fb19d7de184850430e360f3701d6bd021f0e0"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            92,
+            226,
+            295
+          ],
+          "rgbaSha256": "d191d257a79c5b8a35490e03c4b0ff3b39a1dbd3fdf8067ead6a4b876ec9709f",
+          "visibleRgbaSha256": "d191d257a79c5b8a35490e03c4b0ff3b39a1dbd3fdf8067ead6a4b876ec9709f",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            75,
+            77,
+            246,
+            284
+          ],
+          "rgbaSha256": "dd89f34cfd028f79571e7ff441dcce2d51c41314b89e31ed1483accd49df4a11",
+          "visibleRgbaSha256": "09ea8d75301b7da2f832df089e3211a2b0b8d1a1b33ef0a187c5f36ab53b5045",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            61,
+            244,
+            271
+          ],
+          "rgbaSha256": "14f18b6d1504fa4b538ec6570f2006fe07569095ffd723bcfd28e621179168a7",
+          "visibleRgbaSha256": "14f18b6d1504fa4b538ec6570f2006fe07569095ffd723bcfd28e621179168a7",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            54,
+            58,
+            266,
+            267
+          ],
+          "rgbaSha256": "09051387960d7d65e6073730ca27005efd11e04d6466dc5e9d9f707aa3727f10",
+          "visibleRgbaSha256": "a0ae4a15074b877df573185614d2df243cbb3b864f3e907ff1eaa58b1de44fa6",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            55,
+            275,
+            262
+          ],
+          "rgbaSha256": "12ef242f05b8746a7169228eb71ee52a660675ac962d934daf6dbc552d51f332",
+          "visibleRgbaSha256": "12ef242f05b8746a7169228eb71ee52a660675ac962d934daf6dbc552d51f332",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            67,
+            61,
+            262,
+            269
+          ],
+          "rgbaSha256": "bee4b963d033096ee4795aa873ba828c6cc58eeb22b5a46ea52b1fb82600e801",
+          "visibleRgbaSha256": "b780e7a0c1d321fe47704a4dd9957afd64db567793834907450d60d184c91010",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            66,
+            245,
+            275
+          ],
+          "rgbaSha256": "73fc38aebd5a38d678c41287785a74c128f3d0fbc805b6423b9a74c205c16c75",
+          "visibleRgbaSha256": "73fc38aebd5a38d678c41287785a74c128f3d0fbc805b6423b9a74c205c16c75",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            69,
+            79,
+            255,
+            284
+          ],
+          "rgbaSha256": "c64d0862acd458378db9f5d7abfd0e243dd6db492f735defb91c12162f4c5963",
+          "visibleRgbaSha256": "2ae5c33c992307d7cb7f22bfb237acc69d9d0b396904608cf4225c8f32b46da0",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            91,
+            221,
+            292
+          ],
+          "rgbaSha256": "b20df7d89b56fba3edc12529656c9fce4ec391b809c15f38a9175f8efed52089",
+          "visibleRgbaSha256": "b20df7d89b56fba3edc12529656c9fce4ec391b809c15f38a9175f8efed52089",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            99,
+            77,
+            228,
+            283
+          ],
+          "rgbaSha256": "6ace112c035458c02eb142ce8d68655259d1ad1baf26c3619d2afbc64478351d",
+          "visibleRgbaSha256": "9e07d0f9ff5ea4834540d4fb6002efce3a58ce3fed344a3007a9647106708751",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            62,
+            251,
+            273
+          ],
+          "rgbaSha256": "0e5330eddf691c79df821f6d108091d0316d6b074ae57c97305fc2e4b9261b04",
+          "visibleRgbaSha256": "0e5330eddf691c79df821f6d108091d0316d6b074ae57c97305fc2e4b9261b04",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            59,
+            59,
+            266,
+            267
+          ],
+          "rgbaSha256": "ce969002dba012e31a180f73f8af966825386d236ddfd7122d4eb9c23fbd791f",
+          "visibleRgbaSha256": "006e5679cabe52ee77dbb5d59593ea454dd2b99deb381f0eb3ce6eea5b731c77",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            55,
+            267,
+            260
+          ],
+          "rgbaSha256": "43457db6c8b75ae52758dbde335ef8deda0e863de03bb1eb296c6eb2cd45c016",
+          "visibleRgbaSha256": "43457db6c8b75ae52758dbde335ef8deda0e863de03bb1eb296c6eb2cd45c016",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            64,
+            62,
+            262,
+            272
+          ],
+          "rgbaSha256": "d818cbd4b9a8444a0b42b1f080bdcf032a46360b7fb70c58b1b507aa043d6e88",
+          "visibleRgbaSha256": "c8b3b38bdf59540a66c7093ee14073dec5533655cd57f35232ebc0676ca12b6f",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            69,
+            248,
+            283
+          ],
+          "rgbaSha256": "035fb9b4be7fa73700f6aeb08e6bfa407c5de5291a7f068eb1ce9b20f0bb0a9e",
+          "visibleRgbaSha256": "035fb9b4be7fa73700f6aeb08e6bfa407c5de5291a7f068eb1ce9b20f0bb0a9e",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            73,
+            81,
+            258,
+            290
+          ],
+          "rgbaSha256": "4c56a83472f011434842d9ba1de3e629ee349d4b686afa51c7c79a857c56244e",
+          "visibleRgbaSha256": "d46c627089455158a991550cbe849a910d4745775b36fa867a209b52b2f5ae61",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "gearShift": {
       "path": "assets/commute/bike/mounted-gear-shift-16.png",
       "frames": 16,
-      "sha256": "9005E84692D153C5DB5F97A916415A9E2AE6BF6CFA6E454A14C5B6F5C887FCC4"
+      "sha256": "72c1ed745b59d4610606cadaf553d7b648312110775da606c2f2bf0bb90f1ff5",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-gear-shift.png",
+          "sha256": "f9f9100da5865198849ccf513d6f938611ec6324fec01ca35821894043bf5890"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-gear-shift-16-source.png",
+          "sha256": "f29cfd00f0ee57f5a9f40d04f7b309c550f5e02ce0bb470e1d06065c4787f4c0"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            82,
+            226,
+            295
+          ],
+          "rgbaSha256": "dd654bcec1d03bbc6860397d99b7337d0e2e1dc3a3fc75a5b1e4c0f9bb9605c9",
+          "visibleRgbaSha256": "dd654bcec1d03bbc6860397d99b7337d0e2e1dc3a3fc75a5b1e4c0f9bb9605c9",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            75,
+            68,
+            245,
+            283
+          ],
+          "rgbaSha256": "ec775fc4c34e25d431ca3ab8091ac5d8296272bfc5ac5bf576f2b04bf8fb89ad",
+          "visibleRgbaSha256": "a96c782dc76927be0418ae162be7d9587543c0cc320c0c8a1d49fac07839684d",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            54,
+            244,
+            271
+          ],
+          "rgbaSha256": "aea2a35a117850b1e71270adc85f6057f04a276b44da945e78182b2c8bfd5b5e",
+          "visibleRgbaSha256": "aea2a35a117850b1e71270adc85f6057f04a276b44da945e78182b2c8bfd5b5e",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            62,
+            50,
+            259,
+            267
+          ],
+          "rgbaSha256": "bffd09711958e507b5d29373047ca35ea2fe4db6bafdb4c03080a08c4e977bef",
+          "visibleRgbaSha256": "3521d33d1295dd942bfeb014770523473ba74dd7c9848825f620885d6be772fe",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            51,
+            45,
+            274,
+            262
+          ],
+          "rgbaSha256": "fda86a0ddd088b3ef5ac6294b4d99caf9546bea6f0c349b125ad35f3a438b1a1",
+          "visibleRgbaSha256": "fda86a0ddd088b3ef5ac6294b4d99caf9546bea6f0c349b125ad35f3a438b1a1",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            62,
+            49,
+            266,
+            269
+          ],
+          "rgbaSha256": "c437985ead46366d2990666935f801e82239707f2c992fb21334a3f560f1ea05",
+          "visibleRgbaSha256": "7147cd5e6e2d84194d8f8d5e17c98e2967734105bd809c8d110e51bcb651faa5",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            84,
+            52,
+            244,
+            275
+          ],
+          "rgbaSha256": "34acbb21faba1d19baa06d13e71cfb9b2fb9cd02978841243a8609707bbc8ad3",
+          "visibleRgbaSha256": "34acbb21faba1d19baa06d13e71cfb9b2fb9cd02978841243a8609707bbc8ad3",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            67,
+            67,
+            256,
+            284
+          ],
+          "rgbaSha256": "3b15896681a5de56e22b6e43ff4d54361c136879face9e99ec5c30337bc7c251",
+          "visibleRgbaSha256": "639c42e5cf664627a5a1cf0aeeea69f2fd80ceb714228f3cd662c017738e58ab",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            81,
+            221,
+            292
+          ],
+          "rgbaSha256": "0037e868e2eb2f70431533b063720c1a31cfb887b5b3fcc560b94d3ae2e69e7a",
+          "visibleRgbaSha256": "0037e868e2eb2f70431533b063720c1a31cfb887b5b3fcc560b94d3ae2e69e7a",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            98,
+            67,
+            228,
+            283
+          ],
+          "rgbaSha256": "98a41773339785a32dbb9ff8f88c5d73259890f482d11ddcdf349d5e36e6e960",
+          "visibleRgbaSha256": "dc1ce17fc8e90174501c4ef5e4f4cfa392cf02aa93a9c2dd5a338e8b8c85458b",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            82,
+            52,
+            251,
+            273
+          ],
+          "rgbaSha256": "5f7f29eab88e339b3fa8dbf7ad55271331258b44d30d0d23b93eb8473c6cfaf1",
+          "visibleRgbaSha256": "5f7f29eab88e339b3fa8dbf7ad55271331258b44d30d0d23b93eb8473c6cfaf1",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            50,
+            50,
+            274,
+            267
+          ],
+          "rgbaSha256": "eacebc94603d808e7b74a4927042f55e7fab106c5c2e36ea63fcb00cc0706a6c",
+          "visibleRgbaSha256": "90038044557ad2dd3fc9b5800e6b5effe4604b7f7c39c2883db0a818df4ece3e",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            48,
+            267,
+            260
+          ],
+          "rgbaSha256": "7f664e5839d95cc95d2dedd1be3890413e29b94d704648824748aa4054913610",
+          "visibleRgbaSha256": "7f664e5839d95cc95d2dedd1be3890413e29b94d704648824748aa4054913610",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            63,
+            56,
+            261,
+            272
+          ],
+          "rgbaSha256": "511da197cc289c4d22fceb845d6056f8f6565ae50c99af96c971f56f13ef095d",
+          "visibleRgbaSha256": "771600d5c0aea0b3c51ba073e08c366a120bacb1d6b4d5b9dfb69474b6f3498a",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            86,
+            64,
+            247,
+            283
+          ],
+          "rgbaSha256": "18983b0aaab37977382c4933bf84b2202ea8e18ccfbf07df7b9b2ec820618391",
+          "visibleRgbaSha256": "18983b0aaab37977382c4933bf84b2202ea8e18ccfbf07df7b9b2ec820618391",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            77,
+            73,
+            254,
+            289
+          ],
+          "rgbaSha256": "02d4b0e7ba14d77d29dce1ca62d8b762a63ce1fc3e370feeda03cb45a4bf50b8",
+          "visibleRgbaSha256": "fb39f91274af0b26bb9b9b78c44d3e5aaad19487ccfbc1267f5ddcffdf0e8065",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "hardTurnLeft": {
       "path": "assets/commute/bike/mounted-hard-turn-left-16.png",
       "frames": 16,
-      "sha256": "8BB840964659A3004D96E498FBBE7FF9C83AC6E428D8E3D100B53095877E36DF"
+      "sha256": "e550010fdb964be1e60772a2372ae404aa21d6ce79b4a491677cc7bba6854ada",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-hard-turn-left.png",
+          "sha256": "de5e3b11680fe76451078d6ec6fa06259bc63195864738a49b82b03742642ef9"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-hard-turn-left-16-source.png",
+          "sha256": "186d7d3d1597af622da70fae5c1b8938b8dcffc6c302f1944fad3fe5a6a14cf5"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        14,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            118,
+            226,
+            295
+          ],
+          "rgbaSha256": "369e0e467b4596a62da87a59ed38ceab9e9d85ac209d1c768b97dc937a52338b",
+          "visibleRgbaSha256": "369e0e467b4596a62da87a59ed38ceab9e9d85ac209d1c768b97dc937a52338b",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            89,
+            92,
+            232,
+            283
+          ],
+          "rgbaSha256": "1a401ded0464b742c842eeb595f3be4f9400d252fda64cae07933e6ffd42c1ac",
+          "visibleRgbaSha256": "bab5f38a79904cb9298598f8acbb7c1fb0ae8aec23ebb480af209388ea65624a",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            66,
+            244,
+            271
+          ],
+          "rgbaSha256": "70d90fd9157c2fcc9b6c7e8d3be8fe61a5b9ed45a1c2e619e7ef53c26f776414",
+          "visibleRgbaSha256": "70d90fd9157c2fcc9b6c7e8d3be8fe61a5b9ed45a1c2e619e7ef53c26f776414",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            60,
+            68,
+            260,
+            267
+          ],
+          "rgbaSha256": "67b60931f0c584c754e746ae75df64a8b967c644c4353217716cf602fdf709ab",
+          "visibleRgbaSha256": "c3386347ab9b669afb20d3a13262da5213bc61e6069bf861ece63aaa86c1a06d",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            69,
+            275,
+            262
+          ],
+          "rgbaSha256": "302b38a4dae7d32c899360f8a437b13b912e1a0c4b99a5a6fbe275e4f89f67c6",
+          "visibleRgbaSha256": "302b38a4dae7d32c899360f8a437b13b912e1a0c4b99a5a6fbe275e4f89f67c6",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            69,
+            71,
+            260,
+            269
+          ],
+          "rgbaSha256": "5509e5091b7918ab02a58d5c90f083f2e4e79bd9c8716233007b9995e59c3094",
+          "visibleRgbaSha256": "3b1a39ef19b64764cd8135980c67e9a421ec4640b03302e0524bf3aceabe1c9c",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            72,
+            245,
+            275
+          ],
+          "rgbaSha256": "c3cce7292d238be41953d1a4196577ce5c6878f46b125d32abb38d1f013f87aa",
+          "visibleRgbaSha256": "c3cce7292d238be41953d1a4196577ce5c6878f46b125d32abb38d1f013f87aa",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            74,
+            85,
+            250,
+            284
+          ],
+          "rgbaSha256": "00a8ccea6c6d891f525b394100c04bacbbd8eb9d9028f6cf34a3b30f904f8df1",
+          "visibleRgbaSha256": "f13e297ccd21940216a526afb31ecf38107274515edc359235d7e3f9c3754a5b",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            97,
+            221,
+            292
+          ],
+          "rgbaSha256": "5c31072c1d7fe6f58caa2be25796fed6253fd3aa5fc4621331d432f709797b4e",
+          "visibleRgbaSha256": "5c31072c1d7fe6f58caa2be25796fed6253fd3aa5fc4621331d432f709797b4e",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            87,
+            81,
+            240,
+            283
+          ],
+          "rgbaSha256": "04b3a3b8f043a8dc4b62e109fe332076f84eb5c856f1343ed6a06be20331f22c",
+          "visibleRgbaSha256": "4d8ee967140694026b96e96e43a7ac1cdbe75ae841997383b22cffc71b7151c5",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            64,
+            251,
+            273
+          ],
+          "rgbaSha256": "cce0076bc50b5fab3f626c216b2ba48c1be4847e6b24f61ad2d2533bd7a6d5ae",
+          "visibleRgbaSha256": "cce0076bc50b5fab3f626c216b2ba48c1be4847e6b24f61ad2d2533bd7a6d5ae",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            50,
+            66,
+            275,
+            267
+          ],
+          "rgbaSha256": "c534cc19d0e33819e4f4fad7f55d914b8f6530af5d90e8dc9351042ffe92183f",
+          "visibleRgbaSha256": "c1d17501677c2c50afa1a4c3c07a7828e33b666f546dfc63f9c84c3a4e3bedce",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            68,
+            267,
+            260
+          ],
+          "rgbaSha256": "efb3039ff79776c6a44b915a8e5a0a7362085a71b9aea2500a68bcdbba83c275",
+          "visibleRgbaSha256": "efb3039ff79776c6a44b915a8e5a0a7362085a71b9aea2500a68bcdbba83c275",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            75,
+            80,
+            251,
+            272
+          ],
+          "rgbaSha256": "e1d47229b2f705488a1a264349e4e12b8730170f314871c563f8649325e2fe6b",
+          "visibleRgbaSha256": "870f0ae37716c9a71c4fa6794e91b016abfc5ccb7db268f2ce20321891dd765d",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            91,
+            248,
+            283
+          ],
+          "rgbaSha256": "db0cdcbc8081ebd1cb331fd070381c333bbd307f7139f4ac7756bd80a217e358",
+          "visibleRgbaSha256": "db0cdcbc8081ebd1cb331fd070381c333bbd307f7139f4ac7756bd80a217e358",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            91,
+            105,
+            241,
+            290
+          ],
+          "rgbaSha256": "c348bfbcd46d7c0c56c8d9feebcec97222736bf08126a7c6e96ac6cd15ddfb21",
+          "visibleRgbaSha256": "faa894b4d934eee6c8dbb2f73f7141153f4ab51e72e411fb35aaaa4f1c192ed0",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "hardTurnRight": {
       "path": "assets/commute/bike/mounted-hard-turn-right-16.png",
       "frames": 16,
-      "sha256": "C152457A07A0EA8C0F2E3A4168F123BB3DC41F0E8DBF7DC9B5076B6ADD12F3A2"
+      "sha256": "9987a426a1d77de036988514915530a14f43b37685cb907cd42ce38065908d1c",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-hard-turn-right.png",
+          "sha256": "097673bfc7a3066862a19781b1e3a2bdc92b20e71a8d4170183cd3a05ba3c6ba"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-hard-turn-right-16-source.png",
+          "sha256": "77b11fec18430bf68241bbc3f1de255d24b16ec126f0a5b06a38a6d6ce0bbbc8"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            96,
+            226,
+            295
+          ],
+          "rgbaSha256": "279092d84fbaba286c4d666d504010116e292a537d2397cf87bea64272fd17dc",
+          "visibleRgbaSha256": "279092d84fbaba286c4d666d504010116e292a537d2397cf87bea64272fd17dc",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            88,
+            89,
+            233,
+            283
+          ],
+          "rgbaSha256": "9b7eae8bce8525adb0fb8c8cd9d953e5cb00788590d0a8cc9384aa2e557ca576",
+          "visibleRgbaSha256": "84f1431f5cd0eb1aae39c11c0842bfe8f2262126a069957ba4975bffc347cbe4",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            82,
+            244,
+            271
+          ],
+          "rgbaSha256": "1b1b1412e8707f8e2e700ac360d61790084843c25531be826917612307a8d7ac",
+          "visibleRgbaSha256": "1b1b1412e8707f8e2e700ac360d61790084843c25531be826917612307a8d7ac",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            67,
+            81,
+            254,
+            267
+          ],
+          "rgbaSha256": "1b278726964982f3acc78b8c7b7b10f6b7b0ae57ac4c17c0410e4f4259f3b38e",
+          "visibleRgbaSha256": "8453f49673caea0de62560f2cb4ae79a85eca541b4f13dccb2ee1628bbc9cbf5",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            80,
+            275,
+            262
+          ],
+          "rgbaSha256": "dadd17d7d32ccb141bd65c049a85af9609b3d3f8ff5912460fea4b655878fe16",
+          "visibleRgbaSha256": "dadd17d7d32ccb141bd65c049a85af9609b3d3f8ff5912460fea4b655878fe16",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            62,
+            77,
+            267,
+            269
+          ],
+          "rgbaSha256": "1ed5b3e879184a4b869672a62ed7678ec0fe6161e43fb6a6f23fd6dc11c71e26",
+          "visibleRgbaSha256": "a06e36a80a7a86908c1fe23570ec3a7177580d668d24024a0f8470fe7f91941f",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            74,
+            245,
+            275
+          ],
+          "rgbaSha256": "a877acf3b4781384ce586e723b3caef57d01b5bbaece2d0fed9fa810e3e46e92",
+          "visibleRgbaSha256": "a877acf3b4781384ce586e723b3caef57d01b5bbaece2d0fed9fa810e3e46e92",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            70,
+            87,
+            254,
+            284
+          ],
+          "rgbaSha256": "af09dc9e8a74daf82dc11f9281cf5a9874ab2093fcbfce98eba04027791e08d6",
+          "visibleRgbaSha256": "851bafcd9e3df33531d0a38f63dd1ef25dd93dac4b3fe889232b98b7ba54e6f7",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            99,
+            221,
+            292
+          ],
+          "rgbaSha256": "25daf1048a73307ebdb729ddef34186ff62a4077ddd4258f308ef5990e164a03",
+          "visibleRgbaSha256": "25daf1048a73307ebdb729ddef34186ff62a4077ddd4258f308ef5990e164a03",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            87,
+            87,
+            239,
+            283
+          ],
+          "rgbaSha256": "a1962a43fb4f0a5a124cec40fcd38edb740a4fb78c3229dae950e8746d798eb8",
+          "visibleRgbaSha256": "f6cac5dcee13b66ea950cd278a13f4eda363280168c49d48eadd02d31e261e86",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            74,
+            251,
+            273
+          ],
+          "rgbaSha256": "f5da636e6087bb2672117d88958210c614bf20f37051a3597ac6c69b1828833c",
+          "visibleRgbaSha256": "f5da636e6087bb2672117d88958210c614bf20f37051a3597ac6c69b1828833c",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            47,
+            76,
+            278,
+            267
+          ],
+          "rgbaSha256": "8f7f5ca19ce6ac0ea521628b18d9bbeff42578b3829a7f25aa46a687db4f1551",
+          "visibleRgbaSha256": "c9e55d0d7c588ad8620151d2a211fb6c937ac6ae44b6be186b86da3b0486e435",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            78,
+            267,
+            260
+          ],
+          "rgbaSha256": "39d9be6e4f76749e23852f233e30622df7b840ee272408b40885b3e2ec041fd6",
+          "visibleRgbaSha256": "39d9be6e4f76749e23852f233e30622df7b840ee272408b40885b3e2ec041fd6",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            60,
+            75,
+            266,
+            272
+          ],
+          "rgbaSha256": "824874f2ad1f2c32defb5acd646098e51c16fe2282e92a94cacec81fd084d78a",
+          "visibleRgbaSha256": "566a36666ad09f8d9c4652f4ce2f36f16c427a3f9958ea2e8f8f2358494e5b28",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            71,
+            248,
+            283
+          ],
+          "rgbaSha256": "b42f90e47e7ec1ce89e2d169b42e83d30f7eefa8794886367106184a0f8b21f8",
+          "visibleRgbaSha256": "b42f90e47e7ec1ce89e2d169b42e83d30f7eefa8794886367106184a0f8b21f8",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            70,
+            84,
+            261,
+            290
+          ],
+          "rgbaSha256": "28af2f9502ec6f1ebc44eaefccdeef05aeb793499b88152cd8f1f09b6fe681a9",
+          "visibleRgbaSha256": "4f2fb0ae8f521e9899e04b953b0bcc32d89601cb2b2466656dff64efaf435228",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "impactBrace": {
       "path": "assets/commute/bike/mounted-impact-brace-16.png",
       "frames": 16,
-      "sha256": "8C603F6C3210241A568884F122511A84623954F91425E7A82F1ED0FF6BAC77CA"
+      "sha256": "72ad22233faeb452384c87b81873b0e2a0cbba06b0f82ac9dabc4fe16362d805",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-impact-brace.png",
+          "sha256": "0df364f48ecbfdcc368995581f73d84c3d24d9778a029c9a4a5544930713d492"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-impact-brace-16-source.png",
+          "sha256": "2e15fed1d8edb8b4f59f13e8ddd529dddbbd9e2c94977518ee36c865d16c9f24"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        14,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            97,
+            226,
+            295
+          ],
+          "rgbaSha256": "bfcd3f011220381a2b7c66a05ed4583715960c8b2de93c5de2a8f3be32b9dd15",
+          "visibleRgbaSha256": "bfcd3f011220381a2b7c66a05ed4583715960c8b2de93c5de2a8f3be32b9dd15",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            61,
+            97,
+            259,
+            284
+          ],
+          "rgbaSha256": "bc9d2857ad8a24972468bd97c7d43234d0c240d6539d3bd0782a7edf0e7d93a6",
+          "visibleRgbaSha256": "8ec1192f508443adec41e04eb19f82bc888c2c6b6d04791fe8689729b2bb6d05",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            96,
+            244,
+            271
+          ],
+          "rgbaSha256": "eda348d090289663b8beca396fe3e0037acd09ed840402cee69e75bbdf7c66b8",
+          "visibleRgbaSha256": "eda348d090289663b8beca396fe3e0037acd09ed840402cee69e75bbdf7c66b8",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            58,
+            90,
+            263,
+            267
+          ],
+          "rgbaSha256": "00e2f4ae5b1a5b5875e0191c23bd10f0c35fb39ff4add4b701be68b116fe65a5",
+          "visibleRgbaSha256": "29ee9e1c66aa3c9ba32c5c3bc37b6fdadae262f16bdc900c19b55cfaec2b1d7a",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            83,
+            275,
+            262
+          ],
+          "rgbaSha256": "e918ffdcb02c70940a4e235fb92ab0f245cfa98f774f76a29f0f46706c94ceed",
+          "visibleRgbaSha256": "e918ffdcb02c70940a4e235fb92ab0f245cfa98f774f76a29f0f46706c94ceed",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            67,
+            88,
+            261,
+            269
+          ],
+          "rgbaSha256": "e4ef6c54e694279a843ab45ba59bfe6bfcee6d963249a612f7d958ac91fd913c",
+          "visibleRgbaSha256": "c33c539552ff79a28561528b8292ca9c95d6dbb3d9d9a6c6c1f2fe45361b9f32",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            92,
+            245,
+            275
+          ],
+          "rgbaSha256": "4e12b754454c4d2bb519dbb836666d4353a1116e41ca536f19c280bbf6c3634d",
+          "visibleRgbaSha256": "4e12b754454c4d2bb519dbb836666d4353a1116e41ca536f19c280bbf6c3634d",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            74,
+            99,
+            251,
+            284
+          ],
+          "rgbaSha256": "10d100ca5e644c13890089b3e9e6d6b91e4e5840b50f36aac47a03c93eadf970",
+          "visibleRgbaSha256": "164dda5c9af44fb67d0e42fdf776262bc054d22c13bc336c19e9edd9498fe2e8",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            105,
+            221,
+            292
+          ],
+          "rgbaSha256": "a1b3dc1024ed3ec26259cee13e71f5af30c055ecbb22e268a46c7cec88100d69",
+          "visibleRgbaSha256": "a1b3dc1024ed3ec26259cee13e71f5af30c055ecbb22e268a46c7cec88100d69",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            98,
+            97,
+            228,
+            283
+          ],
+          "rgbaSha256": "180b794ad92a56f09508505eaead02a119d6f407ba6582e70a643b7a791909ee",
+          "visibleRgbaSha256": "45be9209fd7fecb044ac8b981260348a9ee67d83097215d7952dc9016baac084",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            89,
+            251,
+            273
+          ],
+          "rgbaSha256": "a402af9ba3469dd6483bd03593582167dab3d2eafb9b1e30678d3efad96cb4d6",
+          "visibleRgbaSha256": "a402af9ba3469dd6483bd03593582167dab3d2eafb9b1e30678d3efad96cb4d6",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            60,
+            87,
+            265,
+            267
+          ],
+          "rgbaSha256": "7887315fae23c037e822c7f67bbe55658d4c4ceee70201ce4dc1e8a12ad9a705",
+          "visibleRgbaSha256": "f8a085c2b69da235ba4f151cdd9add0da09e6b482c5685c5a1d6c640d06411a5",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            85,
+            267,
+            260
+          ],
+          "rgbaSha256": "b029799f184e9a4e2930cea78b7571fa38ccab8aab7b3d92b8b67e4cdc951fa3",
+          "visibleRgbaSha256": "b029799f184e9a4e2930cea78b7571fa38ccab8aab7b3d92b8b67e4cdc951fa3",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            66,
+            97,
+            259,
+            272
+          ],
+          "rgbaSha256": "d7f4ea077fce91b70f07cff7d04c3a359b671d505c60ee998ac520dcce267fd3",
+          "visibleRgbaSha256": "485df6f8c1339265779d915b54104792c96033b7abb702a84e10ddc1d5f381f8",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            109,
+            248,
+            283
+          ],
+          "rgbaSha256": "2af01217351e68b6f0a6a4ae2e912bed01b0c0a8d28ad497f605de5b9a442a08",
+          "visibleRgbaSha256": "2af01217351e68b6f0a6a4ae2e912bed01b0c0a8d28ad497f605de5b9a442a08",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            74,
+            103,
+            257,
+            289
+          ],
+          "rgbaSha256": "969cbe797944840dc13ae9252de2cf3722ff2b6f0cd6f1d422232b88b3e03a84",
+          "visibleRgbaSha256": "ca833b84682ca9948bcce2e0ea6d3c1f4263605b822427d931a6e9ab4e7503c5",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "aerodynamicTuckTransition": {
       "path": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
       "frames": 16,
-      "sha256": "3C022209F0C11B962FCB7C33C6B410D236978C77EC788EF828694B191DE0AFC0"
+      "sha256": "1ba485ec950bbef39cea010dd852aaf358dd0f2e968a553f6aa90ec34164c273",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-aero-tuck-transition.png",
+          "sha256": "de189c429dcd18f102838b7a2d425bd8d5bc8a5cd002a154dccd135c8151d5d8"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-aero-tuck-transition-16-source.png",
+          "sha256": "7768f75627df3bf118ad84f8b658f8162536e0d5d39a65a84e897884de92033f"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            93,
+            226,
+            295
+          ],
+          "rgbaSha256": "d6c33f92db3d9be2df48d1dff0926e6246b082c644637ce0df860587fa64a0e2",
+          "visibleRgbaSha256": "d6c33f92db3d9be2df48d1dff0926e6246b082c644637ce0df860587fa64a0e2",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            73,
+            99,
+            247,
+            284
+          ],
+          "rgbaSha256": "0ab58ffc890c79acde37919c570c43c56c2ae6cff2eca3536e8660296eb826d7",
+          "visibleRgbaSha256": "9f5b0639e1a7021fe5a101538489c0629485355af9222f7f7d1eb86d11a71f95",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            104,
+            244,
+            271
+          ],
+          "rgbaSha256": "8f9b7ad85761a4c075fb8c4c22d31452159b7a216f994a00f39462d2606603c3",
+          "visibleRgbaSha256": "8f9b7ad85761a4c075fb8c4c22d31452159b7a216f994a00f39462d2606603c3",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            68,
+            96,
+            252,
+            267
+          ],
+          "rgbaSha256": "7b4dd22abb009b8ae04963acb147a1005e82012e1d817c4f65571d631818c2c8",
+          "visibleRgbaSha256": "f9bb11dc1de96c618ead2281fdf0fe1e14635b6b33a5d87ff505dca207f1a971",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            87,
+            275,
+            262
+          ],
+          "rgbaSha256": "dd53c0bb8a078d6a79c7140785a338754e60e786c8283f807419a41ecc6d0c72",
+          "visibleRgbaSha256": "dd53c0bb8a078d6a79c7140785a338754e60e786c8283f807419a41ecc6d0c72",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            66,
+            90,
+            263,
+            269
+          ],
+          "rgbaSha256": "ae987d07d4acf13a8a88af15f7e7a80f3b874774ab9d303dd93359ee5725fa6a",
+          "visibleRgbaSha256": "3e847555b4b63aeae7ba7967f813869b221dbb27afbdecd7f17600cf7f493d5c",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            93,
+            245,
+            275
+          ],
+          "rgbaSha256": "c3c1a560452b308a3d97ec335b0fbe9a9ccf0a5915a12bd8cfa8418cdb78888b",
+          "visibleRgbaSha256": "c3c1a560452b308a3d97ec335b0fbe9a9ccf0a5915a12bd8cfa8418cdb78888b",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            71,
+            103,
+            254,
+            284
+          ],
+          "rgbaSha256": "6f613b7ca7ee11fda96348a054d4270d2577555f433aab41c421adf3ba810a2c",
+          "visibleRgbaSha256": "cea2d51413510ec0d46dfe752d76471783bf3204d344b5249c89c620000edb42",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            112,
+            221,
+            292
+          ],
+          "rgbaSha256": "e9e1e35d3b1d7df1b0ef93e13aed5e3de66c7cbd17cd25027be83fe180184132",
+          "visibleRgbaSha256": "e9e1e35d3b1d7df1b0ef93e13aed5e3de66c7cbd17cd25027be83fe180184132",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            85,
+            110,
+            241,
+            283
+          ],
+          "rgbaSha256": "e1047de4829face1369f57c46ff063dce7a7e0aee8bfeb1d51d765901fc266ae",
+          "visibleRgbaSha256": "a1f8ab10e68dd59750194c13716d5f557784ffbd90466a449f7066aefc08f6f7",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            107,
+            251,
+            273
+          ],
+          "rgbaSha256": "bb8be59a1eff736052959c33f4ce350f1b4a65f21b7164d383eb6ec626479feb",
+          "visibleRgbaSha256": "bb8be59a1eff736052959c33f4ce350f1b4a65f21b7164d383eb6ec626479feb",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            60,
+            101,
+            266,
+            267
+          ],
+          "rgbaSha256": "7655b906f2592c9649bc9df1c893624ad217381bc4fe7978e4965bfead639acb",
+          "visibleRgbaSha256": "7849a91969680b135f9c086004f9b0c0a30256775166c39925ed94ed049e6370",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            94,
+            267,
+            260
+          ],
+          "rgbaSha256": "1c0b851c2486e6dca17e60f27ab4546e64545fd60af627054ce78f37666c9847",
+          "visibleRgbaSha256": "1c0b851c2486e6dca17e60f27ab4546e64545fd60af627054ce78f37666c9847",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            67,
+            106,
+            258,
+            272
+          ],
+          "rgbaSha256": "3c67e0d3e8e027c882471d9f7b823731b61047835ef3d929b2d99c14a5040f22",
+          "visibleRgbaSha256": "4eb05cf1ac53e09bb5b538d257bfa79096cbbc67ef36dc48f476f41d158a5ad2",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            117,
+            248,
+            283
+          ],
+          "rgbaSha256": "8e7840a1f9e6c1313d26de9d08db366e84e3306d0ac0fa0a26fc8ea5794d3ce4",
+          "visibleRgbaSha256": "8e7840a1f9e6c1313d26de9d08db366e84e3306d0ac0fa0a26fc8ea5794d3ce4",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            70,
+            105,
+            261,
+            289
+          ],
+          "rgbaSha256": "d34a629c1154828ad5fe1e90f62c0889bffdc1a7072000b4d80eaeca08541d6c",
+          "visibleRgbaSha256": "7b147156cbb21e6e8fcd26feafc92b9113f2f4d96f03f20a45ea893a03309b34",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "boostTransition": {
       "path": "assets/commute/bike/mounted-boost-transition-16.png",
       "frames": 16,
-      "sha256": "E3969FAA8BEE88FD39B2031917AAB46DDF7CEBB77AF40337E8D32537B632A559"
+      "sha256": "ad29a73bed070e4e48d705d76107391fb9d9e98254eadd69a71e048d8473cf9c",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-boost-transition.png",
+          "sha256": "720d736f9c7035f6360e3deebcfa3d52878e7bdb1c82a1414d5851626bdfdc42"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-boost-transition-16-source.png",
+          "sha256": "a53ce8e5c0cd6902cc03a283e09776c460872961d2d6661610d382d54544a81b"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        14,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            77,
+            226,
+            295
+          ],
+          "rgbaSha256": "79f8d3550724ca75e619d537a6f069ce209428192ea3dcde24866b1c8ee1bbdc",
+          "visibleRgbaSha256": "79f8d3550724ca75e619d537a6f069ce209428192ea3dcde24866b1c8ee1bbdc",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            76,
+            67,
+            245,
+            284
+          ],
+          "rgbaSha256": "9849eb93f07d220bccc3663ea21b5a0589ed90c8be835c80fbd36e9d9e39395a",
+          "visibleRgbaSha256": "9898c34fcf819c857e85cecac253845f6d4c92855deea421fbe12100af9316fa",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            56,
+            244,
+            271
+          ],
+          "rgbaSha256": "4096debbddb9c8807f53b75b7bad23786d02c2245c9c1129ceaa902ad719c6ae",
+          "visibleRgbaSha256": "4096debbddb9c8807f53b75b7bad23786d02c2245c9c1129ceaa902ad719c6ae",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            61,
+            53,
+            259,
+            267
+          ],
+          "rgbaSha256": "c03c5568918fedc746c00c1ce7dec5ed2a6111f8bb0dbd0c31c27c6a3fc235a7",
+          "visibleRgbaSha256": "c121d834a206d5a339e48d2518d2ded5fe0597b293e6b967de529457815126d1",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            49,
+            275,
+            262
+          ],
+          "rgbaSha256": "e2fc899fb5d88d58c3a5803d0d74994d2afe7669faacbd637f67dbd42ed9456b",
+          "visibleRgbaSha256": "e2fc899fb5d88d58c3a5803d0d74994d2afe7669faacbd637f67dbd42ed9456b",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            56,
+            56,
+            272,
+            269
+          ],
+          "rgbaSha256": "80e84feb4e84570330f76a9509583a990fcacd811621ccded1ed03798d55908c",
+          "visibleRgbaSha256": "e1c9e14d04fb8e49b433f8078c4442b887ef45c8cf23ccdb765916439f534b16",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            63,
+            245,
+            275
+          ],
+          "rgbaSha256": "c72d213e7643ef046a7068c1cb62efa955d5b46121897d15055baf28ee965c0f",
+          "visibleRgbaSha256": "c72d213e7643ef046a7068c1cb62efa955d5b46121897d15055baf28ee965c0f",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            61,
+            69,
+            263,
+            284
+          ],
+          "rgbaSha256": "305a08d018dbbc4bc2f199882d2846bbe883c78e89a052924b951a890eef2372",
+          "visibleRgbaSha256": "0648c1856ea264ac8f0d31c12f427d8f0ecf5b3bcadcd2aff2e48d17173d2acb",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            74,
+            221,
+            292
+          ],
+          "rgbaSha256": "676bb990e487673c273954f05be0574209197dfec78cfd17af51ab5fbb33c5fd",
+          "visibleRgbaSha256": "676bb990e487673c273954f05be0574209197dfec78cfd17af51ab5fbb33c5fd",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            92,
+            67,
+            235,
+            283
+          ],
+          "rgbaSha256": "257a90d9d9a7fb89c0287ee77d905dc21baa76e3c4973c424c2cbedbb0456739",
+          "visibleRgbaSha256": "db91b4c45b4dc3bac42d58f94166df3c6e696c45f6058a290520c55c1a7c5233",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            59,
+            251,
+            273
+          ],
+          "rgbaSha256": "0e994b1afc039da2d5bed245b4a99aec7942af1a4cd28f896a393b2693a47079",
+          "visibleRgbaSha256": "0e994b1afc039da2d5bed245b4a99aec7942af1a4cd28f896a393b2693a47079",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            58,
+            57,
+            268,
+            267
+          ],
+          "rgbaSha256": "093414cac461aaecc1a854793b59f4a19bb3608edc661dd6c25a2abe47cae3a4",
+          "visibleRgbaSha256": "e799395368debf26f149b302d25a57480502da1725e9f4b59da58de34129d3d2",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            54,
+            267,
+            260
+          ],
+          "rgbaSha256": "3e77716670b380364492fcd5ae99b7c5bd6320294ad1bfc13514d4cbf71e225d",
+          "visibleRgbaSha256": "3e77716670b380364492fcd5ae99b7c5bd6320294ad1bfc13514d4cbf71e225d",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            64,
+            62,
+            261,
+            272
+          ],
+          "rgbaSha256": "5d5d29ab500899022814a364be8de57fa0c31038f2c28ba34d02be04ab1d78bc",
+          "visibleRgbaSha256": "5381a2e986a330047793892c86c6ec94abce0481bfe262a46aab73d419b655ff",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            70,
+            248,
+            283
+          ],
+          "rgbaSha256": "81e3b10fe7c11996e8d16fcf3c9d3fbfb675a90e93385d2c0cc863237c93ebd4",
+          "visibleRgbaSha256": "81e3b10fe7c11996e8d16fcf3c9d3fbfb675a90e93385d2c0cc863237c93ebd4",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            74,
+            74,
+            257,
+            290
+          ],
+          "rgbaSha256": "b850a463df23a85fb69bd12152eac42cdb77cc16521f26cdb2f1433c462123fd",
+          "visibleRgbaSha256": "ba1944ff731af20357e6dca009607ba79199b22e0a083df2e03abd7148912d9e",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "gearShiftTransition": {
       "path": "assets/commute/bike/mounted-gear-shift-transition-16.png",
       "frames": 16,
-      "sha256": "BE47ECBDAB42A634073052EA95C227194ED3481CBBA6D424AB204880EC4CA811"
+      "sha256": "f8852ac8ac56abd2c9d8f64d1c3fe73b8e285b57f34a4db465cbb2bd9e71f0d9",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-gear-shift-transition.png",
+          "sha256": "c420b0dcfa9e810282e2f79b3ecbf0f86e6e17c3e2626f3abdcf66bd2edc3663"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-gear-shift-transition-16-source.png",
+          "sha256": "1bb6622b014a0594e84ca48bf555f4276f1450bf7aa61b4de515c0fb3c4f62c9"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        13,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            80,
+            226,
+            295
+          ],
+          "rgbaSha256": "b69376d8c16ca7ef382dc56f49a09c0c7e2aecc8330986155d5356bbe8e6253e",
+          "visibleRgbaSha256": "b69376d8c16ca7ef382dc56f49a09c0c7e2aecc8330986155d5356bbe8e6253e",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            82,
+            72,
+            239,
+            283
+          ],
+          "rgbaSha256": "48b41629dc5282b7ff80c66f1ab11b1289c959c109adac493268c04e0c6b50bd",
+          "visibleRgbaSha256": "37d7d3d6863bd3d9ccbff0222d7ef4bd9b76e1213d9ade539a334e9f0f035899",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            64,
+            244,
+            271
+          ],
+          "rgbaSha256": "a03c443a6fbac248306bedecddab7b780fa8d993075349c85a32822bc070f8b9",
+          "visibleRgbaSha256": "a03c443a6fbac248306bedecddab7b780fa8d993075349c85a32822bc070f8b9",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            67,
+            57,
+            253,
+            267
+          ],
+          "rgbaSha256": "49f0389c5c2a6fbc6bbc5b22df6daaba5e957b2f81b8a48ff29c920ef5fb8781",
+          "visibleRgbaSha256": "731e56b1651b1c1d4bee1d11865b4cd2ea63fcf07f6dc172c3a1aaab54feded1",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            50,
+            275,
+            262
+          ],
+          "rgbaSha256": "dcec8787bcf58542d4a5e837672635560aa19ee76498c649300cb911ddf4c77e",
+          "visibleRgbaSha256": "dcec8787bcf58542d4a5e837672635560aa19ee76498c649300cb911ddf4c77e",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            68,
+            55,
+            261,
+            269
+          ],
+          "rgbaSha256": "09ff00cd0602cb407316245b8bd8361cf3869a2fdb229286c3fd9d981aa7eaf7",
+          "visibleRgbaSha256": "7e533e9c25a066ea4c3e699c4054bea0dac0567aa9b630a3e243029af61c6a60",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            60,
+            245,
+            275
+          ],
+          "rgbaSha256": "d3f114d62fea576abf5a9de7b7fdc742ed2b6372a4f94c248088b7b0d4688ef1",
+          "visibleRgbaSha256": "d3f114d62fea576abf5a9de7b7fdc742ed2b6372a4f94c248088b7b0d4688ef1",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            70,
+            72,
+            255,
+            284
+          ],
+          "rgbaSha256": "f012480f6ac4d4fa74d567a8f3c686c2445406ed6b1164a935d7238db2ab07e2",
+          "visibleRgbaSha256": "83e80315d915cd981257e1481c607fa2253ad0f4ad59b7553099bc120ce28ece",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            83,
+            221,
+            292
+          ],
+          "rgbaSha256": "ad3f238670cf07982e13475f10b24f34d042281dd7a227a1c577e80809f44c15",
+          "visibleRgbaSha256": "ad3f238670cf07982e13475f10b24f34d042281dd7a227a1c577e80809f44c15",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            99,
+            70,
+            227,
+            283
+          ],
+          "rgbaSha256": "8f7a32aaf88b506ff2f5c83c90f522cf53f21275e3c734177fdc1b4ac883c01a",
+          "visibleRgbaSha256": "6d2047b6e44c8454b67200044c2723d2594f706bb9a0176b75e4155c638a6364",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            57,
+            251,
+            273
+          ],
+          "rgbaSha256": "7be063a330b52ecab279da560165ea63d2a569e16e4a1fac310a9418064574e2",
+          "visibleRgbaSha256": "7be063a330b52ecab279da560165ea63d2a569e16e4a1fac310a9418064574e2",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            55,
+            56,
+            270,
+            267
+          ],
+          "rgbaSha256": "df96554487d95487ddf6de0674f47f4dc3008497f5d85c7317860e75ca900662",
+          "visibleRgbaSha256": "7962ed91a7845b6f134de660d6be955c44064bf3f54096d5ce0a2fdd19c81fc7",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 13
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            55,
+            267,
+            260
+          ],
+          "rgbaSha256": "f37de260ef992a12aef5b4b631b30a872895dbbb426851404ae11dd54462634c",
+          "visibleRgbaSha256": "f37de260ef992a12aef5b4b631b30a872895dbbb426851404ae11dd54462634c",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            66,
+            64,
+            260,
+            272
+          ],
+          "rgbaSha256": "eda637390e56709275930f9408175705a3d5c61590692601097f0a82754e0c44",
+          "visibleRgbaSha256": "2e33f26fd29e2e77af59bf02dd372a4d692c7c28fa0ed7a697906dceb2092cfc",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            72,
+            248,
+            283
+          ],
+          "rgbaSha256": "815d47eed8fcd0ddfd071351eda21e97623e4a8ecca587f322faa8578fe0e77d",
+          "visibleRgbaSha256": "815d47eed8fcd0ddfd071351eda21e97623e4a8ecca587f322faa8578fe0e77d",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            76,
+            76,
+            255,
+            289
+          ],
+          "rgbaSha256": "c7dbba634366b9b077f766fdefea40d1c8fc12fdf7bb083f734d1911b7fc719b",
+          "visibleRgbaSha256": "8daa085bdd34930d7f2b6ad6ead4987fed76f957dd50f44a536c8f08c1c68632",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "hardTurnLeftTransition": {
       "path": "assets/commute/bike/mounted-turn-left-transition-16.png",
       "frames": 16,
-      "sha256": "0691B26FFF61190072840DDDD585BED0DA4F330A939B1213C75850F0EAEE8BCB"
+      "sha256": "ff9f2ddff27a7dafabcd38fb5ee98e37d4b8fe9aa1fbd23016609dbb3db70a04",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-turn-left-transition.png",
+          "sha256": "5ed62364fcec5885dcc78bf316b43d865775a51e82e3dc896190efaa8c2438f9"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-turn-left-transition-16-source.png",
+          "sha256": "9b58e302f3095b7aeafb46ba0ca250e52957ec1c8e27a7904696026ab68dfe04"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        14,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            93,
+            226,
+            295
+          ],
+          "rgbaSha256": "ade6b16385443f927a73e119f69a36d79bb4b7f9ad4ceb4a4a6428d381c5d753",
+          "visibleRgbaSha256": "ade6b16385443f927a73e119f69a36d79bb4b7f9ad4ceb4a4a6428d381c5d753",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            103,
+            81,
+            217,
+            284
+          ],
+          "rgbaSha256": "172433c39de7775410d7ded1760934477c4d05247adea021ac819a1350a82984",
+          "visibleRgbaSha256": "0f19a181b200c4c4f43a0bb5d629a816705c8844e1d4e5e5ce532fd468ac1409",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            68,
+            244,
+            271
+          ],
+          "rgbaSha256": "c3df83744232f85e1a346eaf6b02e95b48e7a7ace0be11a107761f6e63c22d96",
+          "visibleRgbaSha256": "c3df83744232f85e1a346eaf6b02e95b48e7a7ace0be11a107761f6e63c22d96",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            73,
+            67,
+            247,
+            267
+          ],
+          "rgbaSha256": "e01f4393aeae6e6a4ba1044f2b4809a62fa5e13874d01dbd2c18fd65e5f43cd9",
+          "visibleRgbaSha256": "7bebcd49504219608bdac355a31b32c7ddf14e5ea12eae744ba53bdcb151626b",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            66,
+            275,
+            262
+          ],
+          "rgbaSha256": "38a6b1e6cb7991d2dcb922b8d5dc9a9d2cc4ab9f90d261b9b849152fe8643543",
+          "visibleRgbaSha256": "38a6b1e6cb7991d2dcb922b8d5dc9a9d2cc4ab9f90d261b9b849152fe8643543",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            78,
+            70,
+            251,
+            269
+          ],
+          "rgbaSha256": "9f1d345b4b4c007654da44f910e2223cef8ffe0f0438b0d0edd89d2564172772",
+          "visibleRgbaSha256": "7eaef8615b13f0f87cf77ecdf86687bda42989d3eb571b06d961f0f802177005",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            73,
+            245,
+            275
+          ],
+          "rgbaSha256": "1e6dcec73b745325e2b77d96f82de25e905a272b02454995b26ec0bea3869fe7",
+          "visibleRgbaSha256": "1e6dcec73b745325e2b77d96f82de25e905a272b02454995b26ec0bea3869fe7",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            94,
+            81,
+            231,
+            284
+          ],
+          "rgbaSha256": "50d5e6467078ff9a33ecd5a34368940464a97f8c2762c2ac61a64f7d874b8466",
+          "visibleRgbaSha256": "40039e77b8a3fbe3ff8036991182e73c29fd6c48fc638011b97c916e00b519c2",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            88,
+            221,
+            292
+          ],
+          "rgbaSha256": "a8e5f9194d937c04253028c1997a1420c6af0c85aef5cb76352078f4b5a30491",
+          "visibleRgbaSha256": "a8e5f9194d937c04253028c1997a1420c6af0c85aef5cb76352078f4b5a30491",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            90,
+            79,
+            236,
+            283
+          ],
+          "rgbaSha256": "4860261a87a30f8e77148d427264d6d9ab8a706c708fe027eabb35701672a9d1",
+          "visibleRgbaSha256": "6547daf2503239805e438ee1d010283acb7e4c51281b862e87cd70ed0577eed8",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            69,
+            251,
+            273
+          ],
+          "rgbaSha256": "4a0a6b992120d3eb88f7de39a8a785c6dc5a24471beab88fca09583f415d42be",
+          "visibleRgbaSha256": "4a0a6b992120d3eb88f7de39a8a785c6dc5a24471beab88fca09583f415d42be",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            67,
+            71,
+            258,
+            267
+          ],
+          "rgbaSha256": "99b12939803024fa1d949c071b6ed7a8a8c7556ed4151880746899f15868065d",
+          "visibleRgbaSha256": "644dda766d50cf7ceaca6abd1279a0ddf4a1e2fa2acc5bee7b65c833cfbd467b",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            72,
+            267,
+            260
+          ],
+          "rgbaSha256": "6287226b3ad00dc92101eb7ccbc6a038a8ce57fcd70ddec966168671b6d63e73",
+          "visibleRgbaSha256": "6287226b3ad00dc92101eb7ccbc6a038a8ce57fcd70ddec966168671b6d63e73",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            70,
+            85,
+            255,
+            272
+          ],
+          "rgbaSha256": "db768f8bf9b479331f3da3040ec560e7984cda2a86efd4ae050aad17b7e7e042",
+          "visibleRgbaSha256": "f476fd84d8aef5657381aae19f4caef40f9721af6c810141e11cb72a4be620ef",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            97,
+            248,
+            283
+          ],
+          "rgbaSha256": "0bca646476b36db2d27f767adff2d1bcdd0e823379c60668c8a2b594b412301f",
+          "visibleRgbaSha256": "0bca646476b36db2d27f767adff2d1bcdd0e823379c60668c8a2b594b412301f",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            83,
+            95,
+            248,
+            289
+          ],
+          "rgbaSha256": "dbdd4faad8e42a8d24b9138481042dbe4bc7bdd4e3c3759c9ed87701f7cf5784",
+          "visibleRgbaSha256": "d24b710a7e324c1eda7cb9d9318c1396ffdc2a07828f2b194445a9982b7ff160",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "hardTurnRightTransition": {
       "path": "assets/commute/bike/mounted-turn-right-transition-16.png",
       "frames": 16,
-      "sha256": "0B1AC50D0681F6E8D62EAF010CEF1523BA49E0C9BB3BAD2BC28C2FE3924173EC"
+      "sha256": "d08335df791d2c55e07f314abf0ed3c3e5c7022f0833c0d274b3674fd7085978",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-turn-right-transition.png",
+          "sha256": "71bdd0cb6f54991f8917adb5754500c432a2b9ae2b2e3a41e313d2be19d8390c"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-turn-right-transition-16-source.png",
+          "sha256": "ab21ff0e83fafc770c7a73789dde814da82c4eadc799e2eb7c071b9b0b1a16c9"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        14,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            96,
+            226,
+            295
+          ],
+          "rgbaSha256": "3dfec3068c38289d0798722feeb0d31725c6b9f896deb6859381daabb09bbe7f",
+          "visibleRgbaSha256": "3dfec3068c38289d0798722feeb0d31725c6b9f896deb6859381daabb09bbe7f",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            71,
+            88,
+            249,
+            284
+          ],
+          "rgbaSha256": "139f10d44697b99b61bd8da2a282303e3a622a42abb7846ce6e9bf3e93e9b919",
+          "visibleRgbaSha256": "7aa80fe9ad836c854491570b7fbcbaaaf14137a1d292dc7bfa80881ab90acee2",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            79,
+            244,
+            271
+          ],
+          "rgbaSha256": "f3b0a9711542fc542e5a2ace0f0dd85e2283bb09571ca84fabf14b2535bf03d7",
+          "visibleRgbaSha256": "f3b0a9711542fc542e5a2ace0f0dd85e2283bb09571ca84fabf14b2535bf03d7",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            71,
+            80,
+            250,
+            267
+          ],
+          "rgbaSha256": "2a09c2fa576ec36aec2c37ea9e34af80c48488996685f68bd4d07c73b79cbb56",
+          "visibleRgbaSha256": "0b111ed2eecc6c4a417552124b30f23b5a9ba9c0c66dec2c5a0fedddddd15f6e",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            80,
+            275,
+            262
+          ],
+          "rgbaSha256": "c6540dccd5bc66a063afb3a2a907339633952064d73b9f21cddd5bbc26f79dd3",
+          "visibleRgbaSha256": "c6540dccd5bc66a063afb3a2a907339633952064d73b9f21cddd5bbc26f79dd3",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            80,
+            80,
+            249,
+            269
+          ],
+          "rgbaSha256": "85a6adfec5069930420c6ac8941448984675380e73ab84bdc132529cdd346abb",
+          "visibleRgbaSha256": "5cce9c0ca5d7da042e7715acc1ce5d45812f65fef0d4745817ed322103668164",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            79,
+            245,
+            275
+          ],
+          "rgbaSha256": "4b8281ff60b993f040b68e11b1e42b77178d1fb74f2d6b22d75d9720b7a89991",
+          "visibleRgbaSha256": "4b8281ff60b993f040b68e11b1e42b77178d1fb74f2d6b22d75d9720b7a89991",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            75,
+            86,
+            250,
+            284
+          ],
+          "rgbaSha256": "1b212406fce9bc9388bcca8ab80fe2714e4fdf1c72e0054d2ebe442ad9a10e7b",
+          "visibleRgbaSha256": "bbb85f08e4dd2e4708d2617dbee91fa2a59facf8c9d8e5852097e8e9a360997e",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            93,
+            221,
+            292
+          ],
+          "rgbaSha256": "360a35bc7a90fcd214e48fb97f8ffd7fa5674bc83387ea5700c596a2af428cda",
+          "visibleRgbaSha256": "360a35bc7a90fcd214e48fb97f8ffd7fa5674bc83387ea5700c596a2af428cda",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            79,
+            86,
+            248,
+            283
+          ],
+          "rgbaSha256": "9a910611629c41f256b4b61d0996a68da843d648e97b9b6b166f019bfb93ec0a",
+          "visibleRgbaSha256": "b3e4690829dd01d8c4f648f03efc0ee200180692778997c21f62e2cc56725ff6",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            79,
+            251,
+            273
+          ],
+          "rgbaSha256": "56f015100a9380220951ebfe18b8f01d44d7adf9ee47a281e146d5d6702d5269",
+          "visibleRgbaSha256": "56f015100a9380220951ebfe18b8f01d44d7adf9ee47a281e146d5d6702d5269",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            62,
+            77,
+            264,
+            267
+          ],
+          "rgbaSha256": "57c3f7d65deba57e8942f42500b358a62fab984ba2f1f86325fc96553b4e03ba",
+          "visibleRgbaSha256": "cb50764814fac55a406b351117a63866e72930131ff379c6ad154a25dfa2e86f",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            74,
+            267,
+            260
+          ],
+          "rgbaSha256": "bfcd3a79f22b5f5e54eb9b2b84399c20452ee7fd633b388ae9c16dacb6d08209",
+          "visibleRgbaSha256": "bfcd3a79f22b5f5e54eb9b2b84399c20452ee7fd633b388ae9c16dacb6d08209",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            75,
+            82,
+            250,
+            272
+          ],
+          "rgbaSha256": "73ac92830e4d7f1ecc8ad542ddf9b4a4346ba4d314a355636848d40ba3aee433",
+          "visibleRgbaSha256": "ab2ee0929cfe04952bb788cb718b9cd135f7c13afcb5b76511a250b212942292",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            90,
+            248,
+            283
+          ],
+          "rgbaSha256": "0b3f7cf3c29167d8a9012e054c3ff47eec5081c59ff943d089b5c465e6becfda",
+          "visibleRgbaSha256": "0b3f7cf3c29167d8a9012e054c3ff47eec5081c59ff943d089b5c465e6becfda",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            81,
+            93,
+            251,
+            289
+          ],
+          "rgbaSha256": "778c48c0bd65504f6c8d1e9c618af8fc8b0e25530e1908ff6fc20eccaef8b103",
+          "visibleRgbaSha256": "a37f1797dd1702f0a603719ef9861f74f499f334294c7c4b474d37df3d1e8ff4",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     },
     "impactTransition": {
       "path": "assets/commute/bike/mounted-impact-transition-16.png",
       "frames": 16,
-      "sha256": "29BBA0FEAD81904193F4253C62AB1EEE1D432A9BEC4673615650A2940E0AFB9B"
+      "sha256": "3ed139b96f7da89b623046b42b8fbdeb6ec57c07be895c1e946e8a69ba889397",
+      "source": {
+        "preservedEight": {
+          "path": "assets/commute/bike/mounted-impact-transition.png",
+          "sha256": "67e4d01cb982a80104d88260b42556018e184f48074944e31dc303dc96cd0d42"
+        },
+        "intermediateViews": {
+          "path": "assets/staging/commute-bike-v4-directions/mounted-impact-transition-16-source.png",
+          "sha256": "a98a6aa44d3aec95817b8e29e4acff61c10621a0b2fd8f10039fbcf43380c25e"
+        }
+      },
+      "intermediateSourceCells": [
+        8,
+        6,
+        4,
+        2,
+        16,
+        14,
+        12,
+        10
+      ],
+      "cells": [
+        {
+          "frame": 1,
+          "direction": "north",
+          "atlasRect": [
+            0,
+            0,
+            320,
+            320
+          ],
+          "bbox": [
+            100,
+            94,
+            226,
+            295
+          ],
+          "rgbaSha256": "0e36ebe32cb1e77cd0bcdb9bb8e86b9e63fe5ac6a8d0fba8580b4be107455aa8",
+          "visibleRgbaSha256": "0e36ebe32cb1e77cd0bcdb9bb8e86b9e63fe5ac6a8d0fba8580b4be107455aa8",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 1,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 2,
+          "direction": "north-northeast",
+          "atlasRect": [
+            320,
+            0,
+            640,
+            320
+          ],
+          "bbox": [
+            74,
+            98,
+            247,
+            284
+          ],
+          "rgbaSha256": "16852423c147e4246a655c68eacfb992ec69a72684821b94347a2cc01ff8e5bc",
+          "visibleRgbaSha256": "255a72f323aa44f31dcc3945474f6f0d714a8ea2de5396ea0cb10e16eb4b14ff",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 8
+        },
+        {
+          "frame": 3,
+          "direction": "northeast",
+          "atlasRect": [
+            640,
+            0,
+            960,
+            320
+          ],
+          "bbox": [
+            70,
+            101,
+            244,
+            271
+          ],
+          "rgbaSha256": "c2a30e0d841a5a3180d8da4054e7da240e6e33a6d43f663e92b53843b3406feb",
+          "visibleRgbaSha256": "c2a30e0d841a5a3180d8da4054e7da240e6e33a6d43f663e92b53843b3406feb",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 2,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 4,
+          "direction": "east-northeast",
+          "atlasRect": [
+            960,
+            0,
+            1280,
+            320
+          ],
+          "bbox": [
+            72,
+            90,
+            249,
+            267
+          ],
+          "rgbaSha256": "0beb3c1171a4719dbad18b1eb96b118a9e8a9441736f350f07bdbb330ddd117c",
+          "visibleRgbaSha256": "5c63e88d8be750a2eb719e82737368c6740cfc2ff60b01220687fb9111617701",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 6
+        },
+        {
+          "frame": 5,
+          "direction": "east",
+          "atlasRect": [
+            0,
+            320,
+            320,
+            640
+          ],
+          "bbox": [
+            50,
+            78,
+            275,
+            262
+          ],
+          "rgbaSha256": "cd42e165ef6360b229d7e2f67ad440e00a2c79837d1c6c05bda30468dff145ec",
+          "visibleRgbaSha256": "cd42e165ef6360b229d7e2f67ad440e00a2c79837d1c6c05bda30468dff145ec",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 3,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 6,
+          "direction": "east-southeast",
+          "atlasRect": [
+            320,
+            320,
+            640,
+            640
+          ],
+          "bbox": [
+            74,
+            89,
+            255,
+            269
+          ],
+          "rgbaSha256": "c2dc91343f30083ed694ce80659b919596f8d7c8b00b05f2ba51e21a32223bf8",
+          "visibleRgbaSha256": "ff1ec56c86e6da7a4cba56b521c7cdfbe28056ae3d7661c41584348637985ffa",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 4
+        },
+        {
+          "frame": 7,
+          "direction": "southeast",
+          "atlasRect": [
+            640,
+            320,
+            960,
+            640
+          ],
+          "bbox": [
+            83,
+            99,
+            245,
+            275
+          ],
+          "rgbaSha256": "4ac79dcc06db3eb46590b48ebd39c2aaccbdf005b7e107eae0aa8e40a0a83c40",
+          "visibleRgbaSha256": "4ac79dcc06db3eb46590b48ebd39c2aaccbdf005b7e107eae0aa8e40a0a83c40",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 4,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 8,
+          "direction": "south-southeast",
+          "atlasRect": [
+            960,
+            320,
+            1280,
+            640
+          ],
+          "bbox": [
+            75,
+            103,
+            249,
+            284
+          ],
+          "rgbaSha256": "b82cf05568b13c6297ffa931d20c95c5fe137d1799eb7c2f99c754e7123d0a38",
+          "visibleRgbaSha256": "544e4a1e3c7037b2adc4bdd5fefa1b9d546f2084a19b9c41d5a742d0980899ae",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 2
+        },
+        {
+          "frame": 9,
+          "direction": "south",
+          "atlasRect": [
+            0,
+            640,
+            320,
+            960
+          ],
+          "bbox": [
+            96,
+            106,
+            221,
+            292
+          ],
+          "rgbaSha256": "7665bf3dfcbe37c59706c7fea3b1086bac71bd8f8dd882e7e234d2a92a94267c",
+          "visibleRgbaSha256": "7665bf3dfcbe37c59706c7fea3b1086bac71bd8f8dd882e7e234d2a92a94267c",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 5,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 10,
+          "direction": "south-southwest",
+          "atlasRect": [
+            320,
+            640,
+            640,
+            960
+          ],
+          "bbox": [
+            105,
+            99,
+            222,
+            283
+          ],
+          "rgbaSha256": "dbc35bba97a3e983f2f0592a67217f0147797e669678dd3cfa1f3d60619f2418",
+          "visibleRgbaSha256": "9c0f1d414a1da6972a301a88e6435274899a8936f5937307804888c00988df34",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 16
+        },
+        {
+          "frame": 11,
+          "direction": "southwest",
+          "atlasRect": [
+            640,
+            640,
+            960,
+            960
+          ],
+          "bbox": [
+            81,
+            92,
+            251,
+            273
+          ],
+          "rgbaSha256": "35f71ef46003f369ef8cc9241c491aa4bbb8df89f54bfd4da9f6e0800722a9e1",
+          "visibleRgbaSha256": "35f71ef46003f369ef8cc9241c491aa4bbb8df89f54bfd4da9f6e0800722a9e1",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 6,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 12,
+          "direction": "west-southwest",
+          "atlasRect": [
+            960,
+            640,
+            1280,
+            960
+          ],
+          "bbox": [
+            64,
+            91,
+            261,
+            267
+          ],
+          "rgbaSha256": "0465b39eb037843bd38284b2abce9e87700c960f9d191dff77c552191ce4348d",
+          "visibleRgbaSha256": "dfc34a1765b5e7df2e383f22acbd5b1fa0a214b7359174b239064ae2297ce5b7",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 14
+        },
+        {
+          "frame": 13,
+          "direction": "west",
+          "atlasRect": [
+            0,
+            960,
+            320,
+            1280
+          ],
+          "bbox": [
+            48,
+            90,
+            267,
+            260
+          ],
+          "rgbaSha256": "4c0a89e2c598c3d2b2f9d3d57b1abb788a5d3c340fc381a0eb51a2b0cf531283",
+          "visibleRgbaSha256": "4c0a89e2c598c3d2b2f9d3d57b1abb788a5d3c340fc381a0eb51a2b0cf531283",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 7,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 14,
+          "direction": "west-northwest",
+          "atlasRect": [
+            320,
+            960,
+            640,
+            1280
+          ],
+          "bbox": [
+            71,
+            96,
+            254,
+            272
+          ],
+          "rgbaSha256": "4508829a211181d1149aa236f1c536b369904adc2d5b8962ff6bbf2b0238efd4",
+          "visibleRgbaSha256": "621015a1ba564eac8451d0b1cea5cd7b1c2e41bac7ca0b20993f1957e97286d3",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 12
+        },
+        {
+          "frame": 15,
+          "direction": "northwest",
+          "atlasRect": [
+            640,
+            960,
+            960,
+            1280
+          ],
+          "bbox": [
+            85,
+            101,
+            248,
+            283
+          ],
+          "rgbaSha256": "1ecaa910dc538968932fb85854690aa5eefbdf39cf178832800badbee2d387d8",
+          "visibleRgbaSha256": "1ecaa910dc538968932fb85854690aa5eefbdf39cf178832800badbee2d387d8",
+          "reviewed": true,
+          "source": "original",
+          "sourceCell": 8,
+          "matchesOriginalEight": true
+        },
+        {
+          "frame": 16,
+          "direction": "north-northwest",
+          "atlasRect": [
+            960,
+            960,
+            1280,
+            1280
+          ],
+          "bbox": [
+            73,
+            98,
+            258,
+            290
+          ],
+          "rgbaSha256": "8ec9c37ac9a41573bee18291891f5545ee67bd2e4443d3cbda735bee2fb77072",
+          "visibleRgbaSha256": "c2674b631bd333beb533261465908a2e24518041840c5abe4c00a1e04215ad50",
+          "reviewed": true,
+          "source": "generated",
+          "sourceCell": 10
+        }
+      ]
     }
-  }
+  },
+  "directionReviewHistory": [
+    {
+      "status": "superseded_by_sixteen_view_reorder_and_six_repairs",
+      "version": 7,
+      "review": {
+        "date": "2026-11-02",
+        "effectiveDirections": 8,
+        "selectedAtlasCells": [
+          1,
+          3,
+          5,
+          7,
+          9,
+          11,
+          13,
+          15
+        ],
+        "excludedAtlasCells": [
+          2,
+          4,
+          6,
+          8,
+          10,
+          12,
+          14,
+          16
+        ],
+        "scope": "All fourteen poses share the original eight independent, unmirrored views.",
+        "finding": "Intermediate cells have conflicting actual facings and scales. Existing per-cell direction labels below describe intended positions, not visual approval.",
+        "sourcePreserved": true,
+        "importContract": "tools/commute_lab/BIKE_ATLAS_IMPORT.md",
+        "visualEvidence": "output/bike-direction-audit/visual-direction-review.json"
+      }
+    }
+  ],
+  "directionRepairSources": [
+    {
+      "pose": "mounted-impact-brace",
+      "sourceCell": 6,
+      "repair": "impact-ene",
+      "originalSourceSha256": "505ecaa02904510addbcd73a74d01dfb50fdaebfadf6c49b01f9963dc23b7fea",
+      "path": "assets/source/commute-bike-v4-directions/impact-ene.png",
+      "sha256": "41b601d1ffc6ab8b8cbfc1ac8858df534da8ec1f573cf6a774a13a10af308c5e"
+    },
+    {
+      "pose": "mounted-impact-brace",
+      "sourceCell": 16,
+      "repair": "impact-ssw",
+      "originalSourceSha256": "505ecaa02904510addbcd73a74d01dfb50fdaebfadf6c49b01f9963dc23b7fea",
+      "path": "assets/source/commute-bike-v4-directions/impact-ssw.png",
+      "sha256": "8d63990e1a24b9c2c94264c3ab0ef301328e3443fdf045cfab9fd5ce9b9ca8ef"
+    },
+    {
+      "pose": "mounted-hard-turn-left",
+      "sourceCell": 8,
+      "repair": "left-nne",
+      "originalSourceSha256": "990ff38a6c1eef61e9ebe7b248613c6a933cbd3268ef1812322ff1f61c3d662d",
+      "path": "assets/source/commute-bike-v4-directions/left-nne.png",
+      "sha256": "25a7b9192bfc2e1b4822141f082f7652d75f37fc507776c5d9a189291853c3ba"
+    },
+    {
+      "pose": "mounted-hard-turn-left",
+      "sourceCell": 6,
+      "repair": "left-ene",
+      "originalSourceSha256": "990ff38a6c1eef61e9ebe7b248613c6a933cbd3268ef1812322ff1f61c3d662d",
+      "path": "assets/source/commute-bike-v4-directions/left-ene.png",
+      "sha256": "b85025cb8de710bb4ab2005d173d4a1b72a8eeb458d00257b20b990154c3820d"
+    },
+    {
+      "pose": "mounted-hard-turn-right",
+      "sourceCell": 8,
+      "repair": "right-nne",
+      "originalSourceSha256": "b2d2a04c30ef089f54821f15896014bc45ef57a5d2dbd3ecd6c3333afb522833",
+      "path": "assets/source/commute-bike-v4-directions/right-nne.png",
+      "sha256": "a952f0798c3b729e1774aeac84982ecd79a7b725996e0aa4061c08b261f40f96"
+    },
+    {
+      "pose": "mounted-turn-left-transition",
+      "sourceCell": 8,
+      "repair": "left-mid-nne",
+      "originalSourceSha256": "568d812630dceaf2ff601f67e2f86a4023ea3d4bfa23dba5459f11a276f59e88",
+      "path": "assets/source/commute-bike-v4-directions/left-mid-nne.png",
+      "sha256": "95a86495c14624ebfc978446074df3e5002125854c6d963b28fac9bda2a51d98"
+    }
+  ]
 }

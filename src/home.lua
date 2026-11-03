@@ -1,6 +1,7 @@
 -- Durable household ownership, rent and host-controlled pay preferences.
 local Catalog=require("src.home_catalog")
 local Calendar=require("src.business_calendar")
+local Town=require("src.commute.town")
 local Home={}
 local function integer(n,minimum,maximum)
     return type(n)=="number" and n==n and n==math.floor(n) and n>=minimum and n<=maximum
@@ -21,9 +22,16 @@ function Home.new(options,day)
     local preset=options.furnishingPreset or "empty"
     if not Catalog.APARTMENTS[id] then return nil,"Choose one of the four apartments." end
     if not Catalog.PRESETS[preset] then return nil,"Choose Empty or Modestly furnished." end
+    local town,townError=options.town
+    if town==nil then
+        if options.townSeed~=nil then town,townError=Town.generate(options.townSeed)
+        else town=Town.legacy() end
+    end
+    if townError then return nil,townError end
+    if not Town.valid(town) then return nil,"Invalid town layout. Generate a town again." end
     local due=nextMonth(day)
     if due-day<7 then due=nextMonth(due) end
-    local result={version=1,revision=0,apartmentId=id,furnishingPreset=preset,
+    local result={version=1,revision=0,apartmentId=id,furnishingPreset=preset,town=Town.copy(town),
         balanceCents=Catalog.ALLOWANCE_CENTS,allowanceGranted=true,payPercent=25,
         weekend=require("src.weekend_flow").new(day*24),
         finance=require("src.household_finances").new(day*24),
@@ -41,6 +49,7 @@ function Home.new(options,day)
 end
 function Home.valid(home)
     if type(home)~="table" or home.version~=1 or not Catalog.APARTMENTS[home.apartmentId]
+        or (home.town~=nil and not Town.valid(home.town))
         or not Catalog.PRESETS[home.furnishingPreset] or home.allowanceGranted~=true
         or not integer(home.revision,0,1e12) or not integer(home.balanceCents,0,1e12)
         or not integer(home.payPercent,0,100) or type(home.inventory)~="table"
@@ -51,6 +60,11 @@ function Home.valid(home)
         or not require("src.home_shopping").valid(home.shopping)
         or not require("src.home_chores").valid(home.chores)
         or not require("src.home_furniture").valid(home.furniture) then return false end
+    if home.visit~=nil then
+        if type(home.visit)~="table" or home.visit.kind~="outing"
+            or home.visit.scene~=nil and home.visit.scene~="home" and home.visit.scene~="warehouse" then return false end
+        for key in pairs(home.visit) do if key~="kind" and key~="scene" then return false end end
+    end
     local kinds={};for _,preset in pairs(Catalog.PRESETS) do for kind in pairs(preset.contents) do kinds[kind]=true end end
     for kind in pairs(require("src.home_food_catalog").ITEMS) do kinds[kind]=true end
     for kind in pairs(require("src.home_furniture_catalog").ITEMS) do kinds[kind]=true end
@@ -84,6 +98,10 @@ function Home.normalize(home,day)
     if home==nil then return Home.new(nil,day) end
     if not Home.valid(home) then return nil,"Invalid household or apartment lease." end
     local result=copy(home);require("src.home_furniture").ensure({home=result})
+    require('src.home_residents').ensure({home=result})
+    -- Existing shops keep their original geography. Saved layouts are copied,
+    -- never regenerated from a seed when generator code changes.
+    result.town=Town.copy(home.town or Town.legacy())
     if result.commute then result.commute=require('src.commute.trip').snapshot(result.commute) end
     result.chores=result.chores or require("src.home_chores").new((day or 0)*24)
     result.dining=result.dining or require("src.home_dining").new()

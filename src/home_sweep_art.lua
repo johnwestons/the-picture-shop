@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 -- Character and prop share a directional frame and registered grip contacts.
 local Registration=require("src.home_sweep_registration")
 local Colorways=require("src.rabbit_colorways")
@@ -27,7 +29,7 @@ local function resource(direction)
     local count,oldest,oldestUse=0,nil,math.huge
     for d,a in pairs(cache) do count=count+1;if a.used<oldestUse then oldest,oldestUse=d,a.used end end
     if count>=4 then dispose(cache[oldest]);cache[oldest]=nil end
-    local v=Registration.views[direction];local image=love.graphics.newImage(root..v.file);image:setFilter("linear","linear")
+    local v=Registration.views[direction];local image=Images.load("sweep",root..v.file);if not image then return nil end;image:setFilter("linear","linear")
     local frames,handMeshes={},{}
     for i=1,4 do
         local region=v.regions and v.regions[i] or {(i-1)%v.cols*v.w,math.floor((i-1)/v.cols)*v.h,v.w,v.h}
@@ -48,17 +50,27 @@ local function resource(direction)
     end
     local asset={image=image,frames=frames,handMeshes=handMeshes,used=use};cache[direction]=asset;return asset
 end
-function Art.draw(direction,frame,x,y,player)
-    local v=Registration.views[direction];local r=v.grips[frame];local contact=Art.contact(direction,frame)
-    local asset=resource(direction)
+local function extraResources()
     if not broom then
-        broom=love.graphics.newImage(root.."broom-eight-directions-long-shaft.png");propQuads={}
+        broom=Images.load("sweep",root.."broom-eight-directions-long-shaft.png");if not broom then return false end;propQuads={}
         for i=1,8 do propQuads[i]=love.graphics.newQuad((i-1)%4*384,math.floor((i-1)/4)*512,384,512,broom:getDimensions()) end
     end
     propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;}]])
     bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
 vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}]])
-    love.graphics.push("all");love.graphics.setColor(1,1,1,1)
+ return true
+end
+function Art.prewarm(direction)
+ local ready=resource(direction)~=nil
+ if not extraResources() then ready=false end
+ return ready
+end
+function Art.draw(direction,frame,x,y,player)
+ if not Preload.want("sweep",function()return Art.prewarm(direction) end) then return false end
+ extraResources()
+    local v=Registration.views[direction];local r=v.grips[frame];local contact=Art.contact(direction,frame)
+    local asset=resource(direction)
+love.graphics.push("all");love.graphics.setColor(1,1,1,1)
     local rear=direction=="north" or direction=="northeast" or direction=="northwest"
     local function drawBody()
         love.graphics.setShader(bodyShader);Colorways.configureShader(bodyShader,player and player.furColorway,player and player.overallsColorway)
@@ -75,6 +87,7 @@ vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard
     return contact
 end
 function Art.release()
+    Images.release("sweep")
     for _,a in pairs(cache) do dispose(a) end
     cache={};if broom then broom:release();broom=nil;for _,q in ipairs(propQuads) do q:release() end;propQuads=nil end
     if propShader then propShader:release();propShader=nil end

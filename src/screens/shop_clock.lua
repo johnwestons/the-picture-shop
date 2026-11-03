@@ -93,7 +93,7 @@ function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointer
             end
         end
         love.graphics.setColor(canChangeSpeed and {.48,.70,.66,1} or {.78,.66,.40,1})
-        love.graphics.printf(state.home and state.home.weekend.phase=="home" and "At home, use Sleep & Alarms. Everyone must choose sleep to fast-forward." or canChangeSpeed and "Fast-forward while the shop is quiet."
+        love.graphics.printf(state.home and require("src.weekend_flow").atHome(state) and "At home, use Sleep & Alarms. Everyone must choose sleep to fast-forward." or canChangeSpeed and "Fast-forward while the shop is quiet."
             or "Only the host can change game speed.",x+24,y+228,w-48,"center")
     else
         love.graphics.setColor(1,.90,.52,1)

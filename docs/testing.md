@@ -1,5 +1,88 @@
 # Test layout
 
+## Android workshop, ride and apartment smoke
+
+Use `tools/android_town_journey.py` with the installed tester APK in landscape.
+Select a disposable slot and an output folder. Run `new --seed 52` from the
+title, then `departure`, `mount`, `ride` and `arrive`. Repeat those four
+commands from the apartment exit. Run `verify --require-return` against the
+same output folder and inspect the screenshots. The short seed provides a
+roughly 41 m connected route. The runner uses actual touch controls and reads
+save checkpoints for position and scene. It taps during cold terrain loading
+to exercise the workshop exit regression. Checkpoints also inspect game logs,
+the foreground activity and the screen for a LÖVE error.
+
+For a human-driven test, `monitor --until home --apk-report <apk-report.json>`
+observes the screen, scene and APK identity without sending input. Pass
+`--serial`, `--port`, `--slot` and `--output` before the command when needed.
+
+Android 80 was tested on a Galaxy S25 Ultra running Android 17. The final
+signed APK completed both legs, an apartment reload, and separate physical
+mechanic and collision checks. Evidence is in
+`output/mobile/android80-workshop-journey/physical/`.
+
+## Procedural town infrastructure and trails
+
+The `town-infrastructure` focus checks version-3 town formation, road metadata,
+bidirectional destination access, frozen save compatibility, trail shortcuts,
+recreation clearings, fixture placement, collision and road paint. Native App
+captures cover the main street, campsite, picnic table, stop sign, curve warning,
+guardrail and town map in both riding cameras. The fixture mesh checks observe
+actual draw calls rather than testing a separate preview implementation.
+
+November 2 validation: desktop and simulated-mobile PC focuses each pass 66
+checks, and the full desktop suite passes 9,981 checks. Fresh isolated profiles,
+reports and captures are under `output/bike-paint/infrastructure-final-92902f86a3/`,
+`infrastructure-mobile-input-f4d6b2ad54/` and `infrastructure-full-2ecb4013a7/`.
+The compiler guard passes 890 files and 11,422 functions. A separate 100-seed
+sweep produced 49 strips, 51 crossroads, 295 trails and 261 recreation areas;
+all generated towns passed validation. Existing v2 seed 712345 retains its exact
+fingerprint. New towns require regeneration in new-game setup to adopt v3.
+
+The seed-712345 PC benchmark at 1280×880 on an RTX 3050 measured riding p95
+6.98 ms, zoomed-out p95 6.28 ms and first-person riding p95 3.68 ms. Every steady
+stage remained below 9 ms and ended with zero pending terrain or vegetation.
+Cold preparation peaked at 41.86 ms; the first first-person stage peaked at
+59.08 ms in this standalone probe, which does not use the runtime's camera
+prewarm. These are PC measurements with vsync disabled and a GPU readback after
+each stage, not physical-phone acceptance or a guarantee for every seed/device.
+Raw measurements and a compact acceptance report are under
+`output/town-infrastructure/`.
+
+## Travel map navigation
+
+The `route-map` focus checks a generated 16-building town through real App input
+and draw callbacks. It verifies live mounted and on-foot coordinates, cardinal
+headings, independence from camera rotation, every building's name, static cache
+reuse, keyboard/mouse/touch toggles, Options access and release on menu exit.
+Both desktop and simulated mobile runs pass 29 checks using fresh profiles;
+native captures are under `output/bike-paint/travel-map-*`. The separate preview
+run in `output/travel-map/preview-049ee536c1/` checks its map button, remappable M
+toggle, Escape and mounted/on-foot rendering with the same generated town.
+
+The map samples terrain once and reuses its canvas while navigation markers move.
+The measured first complete map draw was 14.124 ms on this PC, including the test
+capture canvas allocation. This is a draw timing, not a device frame-rate claim.
+
+## Scene exits and outdoor rider scale
+
+The `scene-exits` focus runs the real PC mouse/keyboard/touch callbacks through
+terrain loading, riding, dismounting, apartment activities, and both scenes'
+header exits. It checks immediate disk saves, failed-save retry, guest authority,
+stationary ride restoration, unchanged apartment needs/time, and title-screen
+simulation/audio/renderer cleanup. A held-joystick regression covers entering
+Motorcycle Controls and resuming when a submenu consumes the original release.
+Both desktop and forced-mobile PC runs pass 47 checks using fresh isolated saves.
+Reports and native UI captures are under `output/bike-paint/scene-exits-*-final-*`.
+
+`src/commute/tests/rider_scale_test.lua` checks outdoor size across directions,
+outfits, walking, zoom, dressing and fallback rendering, while retaining indoor
+scale, anchors and all 16 bike views. Run `output/rider-scale/run-review.ps1` for
+the native production-art comparison. The reviewed comparison and seven passing
+scale checks are in `output/rider-scale/native-1070822015/`; the unchanged strip
+audit and contact sheets are in `output/rider-scale/motion-audit/`. No phone or
+installed build was used for this validation.
+
 ## Employee speech reasons
 
 The `employee-speech` focus exercises low skill on personal and shared schedules,

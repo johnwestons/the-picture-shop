@@ -19,7 +19,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.enter(state)
-        Runtime.ComputerScreen.tab = state.home and state.home.weekend.phase=="home" and "home" or "active"
+        Runtime.ComputerScreen.tab = state.home and require("src.weekend_flow").atHome(state) and "home" or "active"
         if Runtime.resetHomeView then Runtime.resetHomeView() end
         Runtime.ComputerScreen.emailFolder = "inbox"
         Runtime.ComputerScreen.pages = { active = 1, completed = 1, deliveries = 1 }

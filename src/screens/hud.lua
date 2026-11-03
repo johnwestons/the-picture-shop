@@ -6,6 +6,22 @@ local Ui = require("src.screens.ui")
 local Hud = {}
 local EXIT = { x = 816, y = 14, width = 126, height = 40 }
 
+function Hud.exitRect(bounds)
+    return {x=(bounds and bounds.right or Config.baseWidth)-EXIT.width-18,y=14,
+        width=EXIT.width,height=EXIT.height}
+end
+function Hud.exitHit(x,y,bounds)
+    return BackButton.contains(Hud.exitRect(bounds),x,y)
+end
+function Hud.drawExit(assets,pointerX,pointerY,bounds)
+    local rect=Hud.exitRect(bounds)
+    local hovered=pointerX and pointerY and BackButton.contains(rect,pointerX,pointerY)
+    Ui.panel(rect,hovered and {.20,.27,.27,1} or {.12,.17,.18,1},{.43,.53,.51,1},4,1)
+    love.graphics.setColor(.94,.95,.89)
+    love.graphics.printf('EXIT TO MENU',rect.x,rect.y+(rect.height-love.graphics.getFont():getHeight())/2,
+        rect.width,'center')
+end
+
 local function shadowedPrint(text, x, y, color)
     love.graphics.setColor(0.04, 0.05, 0.06, 0.9)
     love.graphics.print(text, x + 2, y + 2)
@@ -78,13 +94,14 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
         local billsX = dateX + math.max(190, love.graphics.getFont():getWidth(dateText) + 18)
         shadowedPrint("Bills due: $" .. state.bills.balance, billsX, 20, { 0.96, 0.48, 0.30 })
     end
-    BackButton.draw(assets, EXIT, "EXIT TO MENU", pointerX, pointerY, false)
+    Hud.drawExit(assets,pointerX,pointerY,{right=right})
     if state.message then
         shadowedPrintf(state.message, left + 24, 62, right - left - 48, { 0.88, 0.92, 0.94 })
     end
     local week=state.home and state.home.weekend
     if week and week.phase~="working" then
-        local status=week.phase=="closing" and "WEEKEND SHUTDOWN: park equipment; the front entrance shows the checklist."
+        local status=require("src.weekend_flow").isOuting(state) and "TOWN OUTING: use either entrance to return. The shop keeps its normal schedule."
+            or week.phase=="closing" and "WEEKEND SHUTDOWN: park equipment; the front entrance shows the checklist."
             or week.phase=="ready" and "SHOP CLOSED: use the exterior front entrance to go home. Time is held."
             or "AT HOME: return becomes available Monday at 07:30, before the 08:00 employee shift. Shop opens at 09:00."
         shadowedPrintf(status,left+24,92,right-left-48,{.96,.85,.40})

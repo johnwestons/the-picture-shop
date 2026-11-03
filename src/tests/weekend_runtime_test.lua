@@ -3,7 +3,7 @@ local Calendar=require("src.business_calendar")
 local Weekend=require("src.weekend_runtime")
 local Travel=require("src.home_travel")
 local Test={}
-function Test.run(context,check)
+local function run(context,check)
     local R=context.appRuntime
     if not R then return end
     local previous={};for k,v in pairs(R.state) do previous[k]=v end
@@ -57,7 +57,7 @@ function Test.run(context,check)
     check("weekend_runtime_opens_exit_controls",require("src.home_travel_controls").keypressed("e",R)
         and state.screen=="home_travel")
     check("weekend_runtime_travel_panel_fits_mobile",R.App.officeFitsScreen() and not R.App.cameraTransformsUi())
-    require("src.home_travel_controls").mousepressed(200,440,1,R)
+    require("src.home_travel_controls").mousepressed(200,490,1,R)
     local token=state.home.weekend.travelToken
     local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR")
     if folder then
@@ -143,7 +143,7 @@ function Test.run(context,check)
         and R.World.getInteraction().kind=='homeTravel')
     local travelControls=require('src.home_travel_controls')
     assert(travelControls.keypressed('e',R) and state.screen=='home_travel')
-    travelControls.keypressed('return',R);local returnToken=state.home.weekend.travelToken
+    travelControls.keypressed('w',R);local returnToken=state.home.weekend.travelToken
     check('weekend_playthrough_monday_return_requested',returnToken~=nil)
     travelControls.keypressed('return',R)
     check("weekend_runtime_monday_return",host.sceneId=="warehouse" and state.home.weekend.phase=="working"
@@ -154,5 +154,15 @@ function Test.run(context,check)
     for k in pairs(state) do state[k]=nil end;for k,v in pairs(previous) do state[k]=v end
     R.World.load(previousPlayer);R.World._state=state;R.Machine.reset();R.Wrapper.clearInstances()
     R.App.gameClockSpeed=oldSpeed;R._weekendScene,R._weekendPromptToken=nil,nil
+end
+-- This fixture isolates the weekly business/home lifecycle using the retained
+-- direct-transition compatibility path. Physical exterior journeys, seeded
+-- save/load and all four apartment entrances have their own acceptance suite.
+function Test.run(context,check)
+    local Commute=require('src.commute.runtime');local enabled=Commute.enabled
+    Commute.enabled=function()return false end
+    local okay,reason=xpcall(function()run(context,check) end,debug.traceback)
+    Commute.enabled=enabled
+    if not okay then error(reason,0) end
 end
 return Test

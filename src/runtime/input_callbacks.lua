@@ -20,7 +20,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.textinput(text)
-        if Runtime.state.screen == "options" then
+        if Runtime.state.screen == "title" then
+            local result = Runtime.TitleScreen.textinput(text)
+            Runtime.syncMobileKeyboard()
+            return result
+        elseif Runtime.state.screen == "options" then
             local result = Runtime.OptionsScreen.textinput(text)
             Runtime.syncMobileKeyboard()
             return result
@@ -46,6 +50,7 @@ function Component.install(Runtime)
         if not isTouch and require('src.commute.runtime').cameraPointerPressed(Runtime,button) then return true end
         if not isTouch and button~=1 and require('src.commute.runtime').deviceInput(Runtime,'mouse','mouse'..button) then return true end
         local px,py=Runtime.toPointerCoordinates(x,y)
+        if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,button) then return true end
         if button==1 and require('src.commute.runtime').pointer(Runtime,px,py,'mouse') then return true end
         return Runtime.dispatchMousePressed(x, y, button)
     end
@@ -84,6 +89,7 @@ function Component.install(Runtime)
     function Runtime.App.touchpressed(id, x, y)
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading() then return end
         local px,py=Runtime.toPointerCoordinates(x,y)
+        if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,1) then return true end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousepressed(px,py,1) end
         if require('src.commute.runtime').touchPressed(Runtime,id,px,py) then return true end
         if require("src.basketball_controls").touchpressed(id,px,py,Runtime) then return true end

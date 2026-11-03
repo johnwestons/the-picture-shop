@@ -6,6 +6,7 @@ Art.directions={'north','north-northeast','northeast','east-northeast',
     'east','east-southeast','southeast','south-southeast',
     'south','south-southwest','southwest','west-southwest',
     'west','west-northwest','northwest','north-northwest'}
+local PaintArt=require('src.commute.bike_paint_art')
 local Bike=require('src.commute.motorcycle')
 local M=require('src.commute.vendor.mathx')
 local RidingAnimation=require('src.commute.riding_animation')
@@ -16,6 +17,37 @@ function Art.frame(camera,heading,frameCount)
     end
     return assert(indices[camera:headingDirection16(heading)],'Unknown motorcycle heading')
 end
+Art.DIRECTION_COUNT=16
+function Art.bank(actor,camera,rawLean)
+    local relative=camera.firstPerson and (actor.heading-(camera.viewHeading or 0)-math.pi*.5)
+        or actor.heading+math.rad(camera.yaw or 0)
+    return M.clamp(rawLean,-.16,.16)*math.sin(relative)
+end
+-- The atlas already shows a level wheelbase in each direction. Rotate only
+-- the difference introduced by pitch, measured in this camera's projection.
+function Art.pitchRotation(actor,camera,height,pitch)
+    if not pitch or math.abs(pitch)<1e-6 then return 0 end
+    local side=camera.firstPerson and math.sin(actor.heading-(camera.viewHeading or 0))
+        or math.cos(actor.heading+math.rad(camera.yaw or 0))
+    -- The two wheels overlap in the end-on views. A nose-up bike seen from
+    -- behind must not tip sideways when its screen-space wheelbase vanishes.
+    local weight=M.smooth((math.abs(side)-math.sin(math.pi/16))/.25)
+    if weight==0 then return 0 end
+    local projection=camera.projectionCamera or camera
+    local dx=math.cos(actor.heading)*Bike.WHEELBASE*.5
+    local dz=math.sin(actor.heading)*Bike.WHEELBASE*.5
+    local rise=math.tan(pitch)*Bike.WHEELBASE*.5
+    local x,y=projection:screen(actor.x,actor.z,height)
+    local flatX,flatY,flatDepth=projection:screen(actor.x+dx,actor.z+dz,height)
+    local raisedX,raisedY,raisedDepth=projection:screen(actor.x+dx,actor.z+dz,height+rise)
+    if flatDepth and (flatDepth<.15 or raisedDepth<.15) then return 0 end
+    flatX,flatY=flatX-x,flatY-y
+    raisedX,raisedY=raisedX-x,raisedY-y
+    local length2=flatX*flatX+flatY*flatY
+    local cross=flatX*raisedY-flatY*raisedX
+    local dot=flatX*raisedX+flatY*raisedY
+    return weight*math.atan2(cross,math.max(dot,.25*length2))
+end
 function Art.new()
     local self=setmetatable({images={},quads={}},Art)
     local files={parked='parked',mounted='mounted',aero='mounted-aero-tuck',
@@ -25,16 +57,14 @@ function Art.new()
         impact='mounted-impact-brace',impactMid='mounted-impact-transition',
         turnLeft='mounted-hard-turn-left',turnRight='mounted-hard-turn-right',
         turnLeftMid='mounted-turn-left-transition',turnRightMid='mounted-turn-right-transition'}
-    -- Only opt into sixteen views when the entire pose set is installed.
-    -- Mixing atlas layouts would blend poses facing different directions.
+    -- A missing pose is a packaging error, never permission to drop directions.
     local suffix='-16'
     for _,file in pairs(files) do
-        if not love.filesystem.getInfo('assets/commute/bike/'..file..'-16.png','file') then
-            suffix='';break
-        end
+        local path='assets/commute/bike/'..file..suffix..'.png'
+        assert(love.filesystem.getInfo(path,'file'),'Missing sixteen-view motorcycle atlas: '..path)
     end
-    self.frameCount=suffix=='-16' and Art.FRAME_COUNT or 8
-    self.atlasHeight=self.frameCount/Art.COLUMNS*Art.FRAME
+    self.frameCount=Art.FRAME_COUNT;self.atlasHeight=Art.ATLAS_HEIGHT
+    PaintArt.prewarm()
     for state,file in pairs(files) do
         local path='assets/commute/bike/'..file..suffix..'.png'
         local image=love.graphics.newImage(path)
@@ -85,17 +115,26 @@ function Art.action(actor,presentation,turnBlend)
     return kind,weight
 end
 function Art:draw(actor,camera,world,parked,presentation)
-    local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
+    local height=presentation and presentation.h or actor.h or world:supportHeight(actor.x,actor.z)
+    local x,y=camera:screen(actor.x,actor.z,height)
+    local chassisPitch=presentation and presentation.pitch or actor.pitch
+    if chassisPitch==nil then chassisPitch=math.atan(presentation and presentation.grade or actor.grade or 0) end
+    local pitch=Art.pitchRotation(actor,camera,height,chassisPitch)
     local frame=Art.frame(camera,actor.heading,self.frameCount)
     local g=love.graphics
     local scale=Art.SCALE*camera.zoom
     local function drawState(state,alpha,rotation)
         if alpha<=.001 then return end
         g.setColor(1,1,1,alpha)
-        g.draw(self.images[state],self.quads[frame],x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y)
+        if actor.paintId and actor.paintId~='bronze' then
+            PaintArt.draw(self.images[state],self.quads[frame],actor.paintId,x,y,rotation,scale,scale,
+                Art.ANCHOR_X,Art.ANCHOR_Y,self.frameCount==8 and frame*2-1 or frame,state)
+        else
+            g.draw(self.images[state],self.quads[frame],x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y)
+        end
     end
     if parked then
-        drawState('parked',1,0)
+        drawState('parked',1,pitch)
         g.setColor(1,1,1)
         return
     end
@@ -104,7 +143,7 @@ function Art:draw(actor,camera,world,parked,presentation)
     presentation=presentation or {}
     local speed=presentation.speed or actor.speed or 0
     local rawLean=presentation.lean or actor.lean or 0
-    local lean=M.clamp(rawLean,-.16,.16)
+    local lean=Art.bank(actor,camera,rawLean)+pitch
     local turnBlend=M.smooth((math.abs(rawLean)-.15)/.15)
     local turnState,turnMid=rawLean>=0 and 'turnLeft' or 'turnRight',
         rawLean>=0 and 'turnLeftMid' or 'turnRightMid'

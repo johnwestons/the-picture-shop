@@ -53,7 +53,7 @@ function Component.install(Runtime)
         require("src.home_travel").clearRequest(week)
         if Runtime.state.home.commute then
             require('src.commute.runtime').restore(Runtime)
-        elseif week.phase=="home" then
+        elseif require("src.weekend_flow").atHome(Runtime.state) then
             Runtime.World.player.sceneId="home"
             if not payload.player or payload.player.sceneId~="home" then
                 Runtime.World.player.x,Runtime.World.player.y=require("src.home_layouts").spawn(Runtime.state,1)

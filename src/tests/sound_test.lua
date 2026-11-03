@@ -65,6 +65,24 @@ function Test.run(context, check)
     instance:syncPersistentLoops(active)
     check("sound_loops_stop_outside_their_owners", stopped.warehouse and stopped.press)
 
+    active.screen,active.pressStatus,active.pressMotor="world","production",true
+    for _,scene in ipairs({"home","commute"}) do
+        active.sceneId=scene;started,stopped={},{}
+        instance:syncPersistentLoops(active)
+        check("sound_shop_loops_do_not_leak_into_"..scene,stopped.warehouse and stopped.press
+            and not started.warehouse and not started.press)
+    end
+    active.sceneId="front_left";started,stopped={},{}
+    instance:syncPersistentLoops(active)
+    check("sound_shop_loops_resume_in_shop_rooms",started.warehouse=="warehouse_ambience_loop"
+        and started.press=="press_running_loop")
+    instance.context.world={player={sceneId="home"}}
+    state.screen,state.optionsReturnScreen="options","world"
+    local homeSnapshot=instance:capture();started,stopped={},{}
+    instance:syncPersistentLoops(homeSnapshot)
+    check("sound_options_keeps_apartment_scene_silent",homeSnapshot.screen=="world" and homeSnapshot.sceneId=="home"
+        and stopped.warehouse and not started.warehouse)
+
     local loopVolume
     instance.loops = { warehouse = {
         name = "warehouse_ambience_loop",

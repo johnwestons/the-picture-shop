@@ -101,6 +101,8 @@ local function menuTests(context,state,test)
         performNetworkInteraction=function(player,shop,kind,command) return Rooms.perform(player,shop,kind,command,{obstacles=function() return {} end}) end},
         multiplayer={isClient=function() return false end},saveCurrent=function() saves=saves+1 end}
     runtime.toPointerCoordinates=function(x,y) return x,y end
+    runtime.OptionsScreen=require('src.screens.options_screen')
+    runtime.optionsAccessLayout=function()return state.screen end
     require("src.runtime.pointer_dispatch").install(runtime)
     state.screen="world"
     Controls.keypressed("e",runtime)

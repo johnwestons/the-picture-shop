@@ -319,6 +319,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.interactionAt(x, y, networkClient)
+        if not Runtime.World._state then
+            Runtime.World.selectedInteraction=nil
+            return nil
+        end
         local selector = networkClient and Runtime.selectNetworkInteractionFor
             or Runtime.selectInteractionFor
         Runtime.World.selectedInteraction = selector(

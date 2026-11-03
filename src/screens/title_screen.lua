@@ -2,6 +2,7 @@ local Config = require("src.config")
 local Save = require("src.save")
 local Ui = require("src.screens.ui")
 local ShopSetup = require("src.screens.shop_setup_screen")
+local TownSetup = require("src.screens.town_setup_screen")
 local Skin = require("src.screens.title_skin")
 local TitleControl = require("src.screens.title_control")
 local Props = require("src.screens.title_props")
@@ -74,6 +75,7 @@ function TitleScreen.enter(onStart, onLocal, onDirect)
     TitleScreen.cycleTime, TitleScreen.feedbackRemaining, TitleScreen.observedMessage = 0, 0, ""
     TitleScreen.pendingAction, TitleScreen.keyboardFocus = nil, nil
     TitleScreen.pointerX, TitleScreen.pointerY = nil, nil
+    TitleScreen.setup, TitleScreen.townSetup = nil, nil
     Motion.reset()
 end
 -- Pass nil to return to live menu feedback. The sprite's LCD stays unlettered,
@@ -132,14 +134,32 @@ function TitleScreen.buttonCenter(name)
 end
 
 local function startNew()
-    local payload = Save.newGame(TitleScreen.selected,TitleScreen.setup)
+    local payload,err = Save.newGame(TitleScreen.selected,TitleScreen.setup)
+    if not payload then
+        TitleScreen.message=err or "Could not create this shop."
+        if TitleScreen.townSetup then TitleScreen.townSetup.message=TitleScreen.message end
+        return false
+    end
     TitleScreen.mode="normal"
     TitleScreen.message = "New shop created in slot " .. TitleScreen.selected
     if TitleScreen.onStart then TitleScreen.onStart(payload, "new") end
 end
 local function beginSetup()
-    TitleScreen.setup=ShopSetup.new();TitleScreen.mode="shop-setup"
+    TitleScreen.setup=ShopSetup.new();TitleScreen.townSetup=nil;TitleScreen.mode="shop-setup"
     TitleScreen.message="Choose the clock pace before creating this shop."
+end
+local function beginTownSetup()
+    TitleScreen.townSetup=TitleScreen.townSetup or TownSetup.new(TitleScreen.setup)
+    TitleScreen.mode="town-setup"
+end
+local function handleTownAction(result)
+    if result=="start" then startNew()
+    elseif result=="back" then TitleScreen.mode="shop-setup"
+    elseif result=="cancel" then
+        TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled."
+        TitleScreen.townSetup=nil;TitleScreen.setup=nil
+    end
+    return result~=nil
 end
 local function continueGame()
     local payload, status = Save.load(TitleScreen.selected)
@@ -267,9 +287,12 @@ end
 
 function TitleScreen.keypressed(key)
     if TitleScreen.pendingAction then return true end
+    if TitleScreen.mode=="town-setup" then
+        return handleTownAction(TownSetup.keypressed(TitleScreen.townSetup,key,TitleScreen.setup))
+    end
     if TitleScreen.mode=="shop-setup" then
         local result=ShopSetup.keypressed(TitleScreen.setup,key)
-        if result=="start" then startNew()
+        if result=="start" then beginTownSetup()
         elseif result=="cancel" then TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled." end
         return result~=nil
     end
@@ -294,13 +317,23 @@ function TitleScreen.keypressed(key)
     return false
 end
 
+function TitleScreen.textinput(text)
+    return TitleScreen.mode=="town-setup" and TownSetup.textinput(TitleScreen.townSetup,text) or false
+end
+function TitleScreen.wantsTextInput()
+    return TitleScreen.mode=="town-setup" and TownSetup.wantsTextInput(TitleScreen.townSetup) or false
+end
+
 function TitleScreen.mousepressed(x, y, button)
     if button ~= 1 then return false end
     if TitleScreen.pendingAction then return true end
     TitleScreen.keyboardFocus = nil
+    if TitleScreen.mode=="town-setup" then
+        return handleTownAction(TownSetup.mousepressed(TitleScreen.townSetup,x,y,TitleScreen.setup))
+    end
     if TitleScreen.mode=="shop-setup" then
         local result=ShopSetup.mousepressed(TitleScreen.setup,x,y)
-        if result=="start" then startNew()
+        if result=="start" then beginTownSetup()
         elseif result=="cancel" then TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled." end
         return result~=nil
     end
@@ -415,7 +448,9 @@ function TitleScreen.draw(assets, mouseX, mouseY)
                 left.width - 166, "right")
         end
     end
-    if TitleScreen.mode == "shop-setup" then
+    if TitleScreen.mode == "town-setup" then
+        TownSetup.draw(TitleScreen.townSetup,TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)
+    elseif TitleScreen.mode == "shop-setup" then
         ShopSetup.draw(TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)
     elseif TitleScreen.mode ~= "normal" then
         local overwriting = TitleScreen.mode == "overwrite-confirm"

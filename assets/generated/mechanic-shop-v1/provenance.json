@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "status": "approved-reference-reuse",
+  "referenceProject": "C:/Users/johnw/OneDrive/Documents/ChatGPT/Majic Blue Mechanics/",
+  "authorization": "User explicitly requested the Majic Blue Mechanics reference for the customer mechanic interior.",
+  "sourceModified": false,
+  "artworkModified": false,
+  "files": [
+    {
+      "file": "workshop.png",
+      "sourceProject": "Majic Blue Mechanics",
+      "sourcePath": "assets/workshop/workshop-layout-v2.png",
+      "sha256": "f5fd830d6b2a1d4c7cd5e78aa191428959a7594c70cb911d21ea1bc52ee9b3be",
+      "bytes": 2340473
+    },
+    {
+      "file": "walkmask.png",
+      "sourceProject": "Majic Blue Mechanics",
+      "sourcePath": "assets/workshop/workshop-walkmask.png",
+      "sha256": "52d87bc71ee0eb2d774652b6ad3a0f8066edf77deb0b0dc5731dcfde3bfc306e",
+      "bytes": 7438
+    },
+    {
+      "file": "mechanic-idle.png",
+      "sourceProject": "Majic Blue Mechanics",
+      "sourcePath": "assets/characters/mechanic-raccoon/idle.png",
+      "sha256": "8204de3420f5a1a7d57f226a28d430c47e2a9c834a024a1691f19b4c9311dc96",
+      "bytes": 264260
+    },
+    {
+      "file": "mechanic-use.png",
+      "sourceProject": "Majic Blue Mechanics",
+      "sourcePath": "assets/characters/mechanic-raccoon/use.png",
+      "sha256": "95fcbcb2696a0308d62cdc2ab23ce1755ca85825ec92732637b44054e473599a",
+      "bytes": 413988
+    }
+  ],
+  "notes": [
+    "Workshop v2 uses the Picture Shop approved warehouse composition with mechanic equipment.",
+    "Walkmask is the approved common warehouse floor mask. navigation.lua samples its white pixels and adds visible-furniture obstacles.",
+    "Mechanic idle and use anchors/bounds are copied from the source character_catalog.lua.",
+    "Parked motorcycle uses the existing Picture Shop atlas; no vehicle artwork is duplicated."
+  ]
+}

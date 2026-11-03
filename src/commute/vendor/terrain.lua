@@ -85,11 +85,16 @@ function Terrain.habitat(world,x,z)
     local a,b,c,d=world.groundHabitat[ix][iz],world.groundHabitat[ix+1][iz],world.groundHabitat[ix][iz+1],world.groundHabitat[ix+1][iz+1]
     return M.lerp(M.lerp(a[1],b[1],u),M.lerp(c[1],d[1],u),v),M.lerp(M.lerp(a[2],b[2],u),M.lerp(c[2],d[2],u),v)
 end
-function Terrain.surface(world,x,z)
-    local h=world:height(x,z)
+-- Mesh preparation may supply a previously sampled height and slope. All other
+-- callers retain the original sampling path and material output.
+function Terrain.surface(world,x,z,sampled)
+    local h=sampled and sampled.height or world:height(x,z)
     local wetland=world.streamed and world.plan and world.plan.marshAt and world.plan:marshAt(x,z) or 0
-    local hx,hz=world:height(x+.3,z)-world:height(x-.3,z),world:height(x,z+.3)-world:height(x,z-.3)
-    local slope=M.length(hx,hz)/.6
+    local slope=sampled and sampled.slope
+    if slope==nil then
+        local hx,hz=world:height(x+.3,z)-world:height(x-.3,z),world:height(x,z+.3)-world:height(x,z-.3)
+        slope=M.length(hx,hz)/.6
+    end
     local moisture=M.noise(world.seed+137,x*.105,z*.105)
     local grain=M.noise(world.seed+193,x*.62,z*.62)
     local patch=M.noise(world.seed+227,x*.24,z*.24)

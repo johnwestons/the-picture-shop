@@ -33,7 +33,8 @@ class CommuteAudioPackageTests(unittest.TestCase):
             for name in ('SOURCES.md', 'source_manifest.json'):
                 (root/'assets/audio'/name).write_text('fixture')
             with patch.object(package, 'ROOT', root), patch.object(package, 'runtime_source_paths', return_value=[]), \
-                 patch.object(package, 'runtime_music_paths', return_value=[]), patch.object(package, 'copy_runtime_source_assets'):
+                 patch.object(package, 'runtime_music_paths', return_value=[]), patch.object(package, 'runtime_commute_paths', return_value=[]), \
+                 patch.object(package, 'copy_runtime_source_assets'):
                 package.copy_runtime(stage)
             for name in expected:
                 self.assertEqual((stage/'assets/audio/commute'/name).read_bytes(), (source/name).read_bytes())

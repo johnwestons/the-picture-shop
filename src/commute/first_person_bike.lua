@@ -2,6 +2,7 @@
 -- keeps instruments facing the rider while the frame, saddle and rack extend
 -- underneath and behind the eye. GPU clipping handles looking past the bars.
 local FP=require('src.commute.first_person_camera')
+local PaintArt=require('src.commute.bike_paint_art')
 local Body={};Body.__index=Body
 Body.PATH='assets/commute/cockpit/first-person-bike-v2.png'
 Body.WIDTH,Body.HEIGHT=1024,1536
@@ -17,7 +18,7 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 #endif
 #ifdef PIXEL
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
-    vec4 surface=Texel(tex,uv)*color;
+    vec4 surface=bikePaintSurface(Texel(tex,uv),uv)*color;
     if(surface.a<.02) discard;
     return surface;
 }
@@ -42,7 +43,7 @@ end
 function Body.new()
     local g=love.graphics
     local self=setmetatable({image=g.newImage(Body.PATH),texture=g.newCanvas(Body.WIDTH,Body.HEIGHT),
-        canvas=g.newCanvas(1280,880),shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..shader)},Body)
+        canvas=g.newCanvas(1280,880),shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..PaintArt.source()..shader)},Body)
     self.image:setFilter('linear','linear');self.texture:setFilter('linear','linear');self.canvas:setFilter('linear','linear')
     local vertices,overlays={},{}
     local function vertex(x,y,point)
@@ -70,11 +71,18 @@ function Body.new()
     return self
 end
 function Body.camera(camera)
-    return {centerX=0,centerZ=0,eyeHeight=FP.EYE_HEIGHT,focal=camera.focal,
-        viewHeading=camera.viewHeading-camera.bikeHeading,viewPitch=-.035+(camera.headPitch or 0),
-        roll=(camera.barSteer or 0)*.055-(camera.cockpitLean or 0)*.35}
+    -- The body mesh lives in chassis coordinates. Transform the actual eye
+    -- and gaze into that frame once, so the bars stay attached during a jump.
+    local pitch=camera.bikePitch or 0
+    local heading,look,roll=FP.tiltView(camera.viewHeading-camera.bikeHeading,
+        camera.viewPitch or FP.NEUTRAL_PITCH+(camera.headPitch or 0),camera.roll or 0,-pitch)
+    local eyeForward=camera.eyeForward or 0
+    local eyeUp=camera.eyeHeight and camera.eyeHeight-(camera.focusHeight or 0) or FP.EYE_HEIGHT
+    local c,s=math.cos(pitch),math.sin(pitch)
+    return {centerX=c*eyeForward+s*eyeUp,centerZ=0,eyeHeight=c*eyeUp-s*eyeForward,focal=camera.focal,
+        viewHeading=heading,viewPitch=look,roll=roll+(camera.barSteer or 0)*.055}
 end
-function Body:draw(camera,width,height,instruments)
+function Body:draw(camera,width,height,instruments,paintId)
     local g=love.graphics
     g.push('all');g.origin();g.setScissor();g.setShader();g.setColor(1,1,1)
     g.setDepthMode('always',false);g.setBlendMode('alpha')
@@ -83,7 +91,9 @@ function Body:draw(camera,width,height,instruments)
     g.setCanvas({self.canvas,depth=true});g.clear(0,0,0,0,0,1)
     g.setColor(1,1,1);g.setBlendMode('alpha');g.setDepthMode('lequal',true);g.setMeshCullMode('none')
     FP.send(Body.camera(camera),self.shader)
+    PaintArt.configure(self.shader,paintId,self.image,nil,1,'parked','firstPerson')
     g.setShader(self.shader);g.draw(self.mesh)
+    self.shader:send('bikePaintEnabled',false)
     g.setBlendMode('alpha','premultiplied');g.setDepthMode('always',false);g.draw(self.instruments)
     g.pop()
     g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')

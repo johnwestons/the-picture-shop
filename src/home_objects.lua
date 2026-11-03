@@ -55,7 +55,7 @@ function Objects.command(state,player,command)
     local c=Objects.decode(command);local Residents=require("src.home_residents")
     if not c then return false,"invalid_action","Choose a household object action." end
     local resident=Residents.get(state,player)
-    if not resident or player.sceneId~="home" or state.home.weekend.phase~="home" then return false,"wrong_scene","Use household objects while at home." end
+    if not resident or player.sceneId~="home" or not require("src.weekend_flow").atHome(state) then return false,"wrong_scene","Use household objects while at home." end
     if resident.activity and not (c.action=="off" and resident.activity.kind=="watch" and resident.activity.tvId==c.id) then
         return false,"busy","Finish or stop your current activity first."
     end

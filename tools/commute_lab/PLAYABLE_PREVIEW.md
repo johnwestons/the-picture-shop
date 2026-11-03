@@ -80,7 +80,8 @@ loses focus. These are original synthesized motorcycle sounds for audition;
 see `assets/audio/commute/SOURCES.md` for provenance and current scope.
 
 Motorcycle mapping covers keyboard keys, mouse buttons/wheel, controller
-buttons and signed axes, and six touch buttons plus a draggable steering pad.
+buttons and signed axes, and configurable touch action slots plus a draggable
+steering pad.
 Choose a binding and press the desired input. Conflicts swap assignments;
 Clear removes a binding and Reset All restores defaults. Esc/F10, controller
 Start, and left-click stay reserved for menus and HUD interaction.
@@ -94,7 +95,8 @@ player and do not alter another multiplayer participant's controls.
 Controller defaults use the left stick to steer, right/left triggers to
 accelerate/brake, the right stick to look, A to mount/dismount, Back for ignition,
 left-stick click for reverse, Y for lights, and right-stick click for camera
-view. Touch defaults provide Go, Brake, Boost, Use, Light, and View buttons;
-other actions can be assigned to any of the six buttons or used through the HUD.
-The Touch tab includes position editing and an optional desktop touch overlay.
+view. The ride HUD keeps Go, Brake, Boost, and Use beside the handlebars; Map,
+View, Follow, and Center stay on the right; engine, lights, transmission, reverse,
+and manual shifts sit in a compact lower strip. These buttons are clickable on PC
+and touch. The Touch tab includes position editing and a steering-pad preview.
 Keyboard riding uses the selected bindings; on-foot WASD/arrows are unchanged.

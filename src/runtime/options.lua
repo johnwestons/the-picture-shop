@@ -15,10 +15,15 @@ function Component.install(Runtime)
         require('src.commute.runtime').cancelCameraDrag(Runtime)
         if Runtime.state.screen == "asset_error" or Runtime.spriteLabActive then return false end
         if Runtime.state.screen == "options" then return Runtime.OptionsScreen.leave() end
+        -- A submenu may consume touch releases. Clear gameplay touches now so
+        -- returning from the controls editor cannot resume a held movement axis.
+        if Runtime.mobileControls then Runtime.mobileControls:cancelAll() end
         local returnScreen = Runtime.state.screen
         local liveShop = Runtime.state.activeSlot ~= nil
             and (returnScreen ~= "title" and returnScreen ~= "lan" and returnScreen ~= "direct"
                 or Runtime.multiplayer:isHost())
+        local inGame=returnScreen~='title' and returnScreen~='lan' and returnScreen~='direct'
+            and (Runtime.state.activeSlot~=nil or Runtime.multiplayer:isClient())
         Runtime.state.optionsReturnScreen = returnScreen
         Runtime.OptionsScreen.enter({
             settings = Runtime.App.settings or Runtime.Settings.normalize(),
@@ -28,6 +33,8 @@ function Component.install(Runtime)
             saveCurrent = Runtime.saveCurrent,
             isNetworkClient = function() return Runtime.multiplayer:isClient() end,
             useActiveState = liveShop,
+            canReturnToMenu = inGame or Runtime.multiplayer:isHost() or Runtime.multiplayer:isClient(),
+            onReturnToMenu = Runtime.returnToTitle,
             preferredSlot = returnScreen == "title" and (Runtime.TitleScreen.selected or 1)
                 or Runtime.state.activeSlot or Runtime.TitleScreen.selected or 1,
             getControlLayout = function()

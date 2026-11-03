@@ -62,7 +62,9 @@ function Residents.available(state,kind,target)
     return Residents.furnitureAvailable(state,a,item) and (not a.chore or Chores.available(state,kind,item))
 end
 local function person(name)
-    return {name=name,hunger=100,thirst=100,hygiene=100,energy=100,revision=0}
+    return {name=name,hunger=100,thirst=100,hygiene=100,energy=100,revision=0,
+        ridingPaintId=require('src.commute.bike_paint').DEFAULT,ridingPaintRevision=0,
+        ridingDamage=0,ridingRepairRevision=0}
 end
 function Residents.new() return {owner=person("Host")} end
 function Residents.validId(id)
@@ -86,6 +88,12 @@ function Residents.valid(records)
         if not Sleep.validResident(p) then return false end
         if p.ridingGear~=nil and not require('src.commute.gear').valid(p.ridingGear) then return false end
         if p.ridingTransmission~=nil and p.ridingTransmission~='automatic' and p.ridingTransmission~='manual' then return false end
+        if not require('src.commute.bike_upgrades').validLevel(p.ridingUpgradeLevel) then return false end
+        local Paint=require('src.commute.bike_paint')
+        if p.ridingPaintId~=nil and not Paint.valid(p.ridingPaintId)
+            or p.ridingPaintRevision~=nil and not Paint.validRevision(p.ridingPaintRevision) then return false end
+        if not require('src.commute.bike_damage').valid(p.ridingDamage)
+            or p.ridingRepairRevision~=nil and not require('src.commute.bike_repairs').validRevision(p.ridingRepairRevision) then return false end
         if p.activePlayerId~=nil and (type(p.activePlayerId)~="number" or p.activePlayerId<1
             or p.activePlayerId>4 or p.activePlayerId~=math.floor(p.activePlayerId)) then return false end
         for _,need in ipairs(Residents.NEEDS) do
@@ -115,6 +123,12 @@ function Residents.valid(records)
 end
 function Residents.ensure(state)
     state.home.residents=state.home.residents or Residents.new()
+    for _,resident in pairs(state.home.residents)do
+        if resident.ridingPaintId==nil then resident.ridingPaintId=require('src.commute.bike_paint').DEFAULT end
+        if resident.ridingPaintRevision==nil then resident.ridingPaintRevision=0 end
+        if resident.ridingDamage==nil then resident.ridingDamage=0 end
+        if resident.ridingRepairRevision==nil then resident.ridingRepairRevision=0 end
+    end
     return state.home.residents
 end
 function Residents.key(player)
@@ -173,7 +187,7 @@ function Residents.prepareActivity(state,player,kind,target,served)
     if not outfitOkay then return false,"riding_gear",outfitMessage end
     local p=Residents.get(state,player)
     if not p then return false,"resident_required","Your resident has not joined this household." end
-    if player.sceneId~="home" or state.home.weekend.phase~="home" then return false,"wrong_scene","Home activities are available at your apartment." end
+    if player.sceneId~="home" or not require("src.weekend_flow").atHome(state) then return false,"wrong_scene","Home activities are available at your apartment." end
     if p.activity then return false,"busy","Finish or stop your current activity first." end
     if type(kind)~="string" or type(target)~="string" or not Residents.validCommand(kind..":"..target) then
         return false,"invalid_action","Choose an available home activity."
@@ -284,7 +298,7 @@ function Residents.advance(state,players,first,last)
     for _,player in ipairs(players) do local id=Residents.key(player);if id then present[id]=player end end
     local choreChanged,choreRewards=Chores.timeline(state,players,records,present,first,last)
     changed=choreChanged or changed
-    local home=state.home.weekend.phase=="home"
+    local home=require("src.weekend_flow").atHome(state)
     for id,p in pairs(records) do
         local player=present[id];local a=p.activity
         local cup=a and Residents.ACTIONS[a.kind].objectAction and require("src.home_surfaces").find(state,a.furnitureId)

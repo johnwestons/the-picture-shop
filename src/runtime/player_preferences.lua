@@ -19,7 +19,7 @@ function Component.install(Runtime)
     Runtime.App.gameClockSyncClock = 0
     Runtime.App.gameClockSaveClock = 0
     Runtime.App.setGameClockSpeed = function(speed)
-        if Runtime.state.home and Runtime.state.home.weekend.phase=="home" then
+        if require("src.weekend_flow").atHome(Runtime.state) then
             Runtime.state.message="At home, use Sleep & Alarms. Time speeds up only when everyone chooses sleep."
             return false
         end

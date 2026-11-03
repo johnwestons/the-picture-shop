@@ -43,7 +43,7 @@ local function changed(state)
 end
 function Chores.advance(state,players,first,last)
     local c=Chores.ensure(state);local dirty=false;local present={};local count,wearHours=0,0
-    if state.home.weekend.phase=="home" then
+    if require("src.weekend_flow").atHome(state) then
         local Residents=require("src.home_residents")
         for _,p in ipairs(players or {}) do
             local id=Residents.key(p)
@@ -150,7 +150,7 @@ function Chores.finished(state,a)
 end
 function Chores.timeline(state,players,records,present,first,last)
     local events={};local rewards={};local any=false
-    if state.home.weekend.phase=="home" then
+    if require("src.weekend_flow").atHome(state) then
         for id,r in pairs(records) do
             local a=r.activity;local p=present[id]
             if a and Chores.ACTIONS[a.kind] and p and p.sceneId=="home" and (p.x-a.x)^2+(p.y-a.y)^2<=12^2 and a.endsAt<=last+1e-7 and Chores.accessible(state,a) then

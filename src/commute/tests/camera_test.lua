@@ -13,6 +13,17 @@ function Test.run(check)
     }
     local actor = { x = 32, z = 32, heading = 0, speed = 0 }
     local camera = Camera.new(actor, world)
+    local samples = 0
+    local counted = Camera.new(actor, {height=function() samples=samples+1;return 3 end})
+    samples = 0
+    local suppliedX,suppliedY = counted:screen(40,45,3)
+    local suppliedDepth = counted:depth(40,45,3)
+    check("commute_camera_cached_heights_skip_terrain_sampling",samples==0)
+    local fallbackX,fallbackY = counted:screen(40,45)
+    local fallbackDepth = counted:depth(40,45,0/0)
+    check("commute_camera_missing_invalid_heights_sample_once",samples==2
+        and near(suppliedX,fallbackX) and near(suppliedY,fallbackY)
+        and near(suppliedDepth,fallbackDepth))
     local x, z = 41.5, 47.25
     local sx, sy = camera:screen(x, z, world:height(x, z))
     local worldX, worldZ = camera:screenToWorld(sx, sy)

@@ -1,21 +1,23 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 
-const stageRoot = process.argv[2] || 'assets/staging/commute-bike-v3';
-const runtimeRoot = process.argv[3] || 'assets/commute/bike';
+let stageRoot;
+let runtimeRoot;
 const frameSize = 320;
 const columns = 4;
 const rows = 4;
 const frameCount = columns * rows;
-const directions = [
+export const directions = [
   'north', 'north-northeast', 'northeast', 'east-northeast',
   'east', 'east-southeast', 'southeast', 'south-southeast',
   'south', 'south-southwest', 'southwest', 'west-southwest',
   'west', 'west-northwest', 'northwest', 'north-northwest',
 ];
 
-const allVariants = [
+export const allVariants = [
   { source: 'mounted-16-source.png', output: 'mounted-16.png', original: 'mounted.png' },
   { source: 'parked-16-source.png', output: 'parked-16.png', original: 'parked.png' },
   { source: 'mounted-aero-tuck-16-source.png', output: 'mounted-aero-tuck-16.png', original: 'mounted-aero-tuck.png' },
@@ -31,11 +33,53 @@ const allVariants = [
   { source: 'mounted-turn-right-transition-16-source.png', output: 'mounted-turn-right-transition-16.png', original: 'mounted-turn-right-transition.png' },
   { source: 'mounted-impact-transition-16-source.png', output: 'mounted-impact-transition-16.png', original: 'mounted-impact-transition.png' },
 ];
-const selectedOutputs = new Set(process.argv.slice(4));
-for (const output of selectedOutputs) {
-  if (!allVariants.some((variant) => variant.output === output)) throw new Error(`Unknown selected output: ${output}`);
+// Review records describe observed physical facing, not inferred row order.
+// There is intentionally no default manifest for the rejected generated sheets.
+export function validateReviewManifest(manifest, variants = allVariants) {
+  if (manifest?.version !== 1 || manifest.status !== 'approved_direction_review'
+      || typeof manifest.review?.reviewer !== 'string' || !manifest.review.reviewer.trim()
+      || typeof manifest.review?.evidence !== 'string' || !manifest.review.evidence.trim()) {
+    throw new Error('A named visual reviewer and evidence file are required before importing bike directions.');
+  }
+  const plans = new Map();
+  const digest = /^[a-f0-9]{64}$/i;
+  for (const variant of variants) {
+    const atlas = manifest.atlases?.[variant.output];
+    if (!atlas || !digest.test(atlas.sourceSha256) || !digest.test(atlas.originalSha256)
+        || !Array.isArray(atlas.frames) || atlas.frames.length !== frameCount) {
+      throw new Error('Missing reviewed frame map or source hashes for ' + variant.output);
+    }
+    const ordered = new Array(frameCount);
+    const used = new Set();
+    for (const frame of atlas.frames) {
+      const index = directions.indexOf(frame?.direction);
+      if (index < 0 || ordered[index] || frame.reviewed !== true
+          || frame.observedDirection !== frame.direction) {
+        throw new Error('Every direction must have one visually confirmed facing in ' + variant.output);
+      }
+      const expectedSource = index % 2 === 0 ? 'original' : 'generated';
+      const maxCell = expectedSource === 'original' ? 8 : frameCount;
+      if (frame.source !== expectedSource || !Number.isInteger(frame.cell)
+          || frame.cell < 1 || frame.cell > maxCell
+          || expectedSource === 'original' && frame.cell !== index / 2 + 1) {
+        throw new Error('Invalid reviewed cell or changed original eight-view frame in ' + variant.output);
+      }
+      const key = frame.source + ':' + frame.cell;
+      if (used.has(key)) throw new Error('A source frame cannot stand in for two directions in ' + variant.output);
+      used.add(key);ordered[index] = frame;
+    }
+    plans.set(variant.output, { ...atlas, frames: ordered });
+  }
+  return plans;
 }
-const variants = selectedOutputs.size ? allVariants.filter((variant) => selectedOutputs.has(variant.output)) : allVariants;
+
+async function checkedBytes(file, digest) {
+  const bytes = await fs.readFile(file);
+  if (createHash('sha256').update(bytes).digest('hex') !== digest.toLowerCase()) {
+    throw new Error('Reviewed source has changed; repeat the direction review: ' + file);
+  }
+  return bytes;
+}
 
 const crcTable = new Uint32Array(256);
 for (let n = 0; n < 256; n += 1) {
@@ -60,8 +104,8 @@ function pngChunk(type, data = Buffer.alloc(0)) {
   return chunk;
 }
 
-async function readRgbaPng(file) {
-  const png = await fs.readFile(file);
+async function readRgbaPng(file, checked) {
+  const png = checked || await fs.readFile(file);
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   if (!png.subarray(0, 8).equals(signature)) throw new Error(`Not a PNG: ${file}`);
   let width; let height; let bitDepth; let colorType; let interlace;
@@ -203,17 +247,9 @@ function componentsForCell(source, labeled, index) {
   const right = Math.floor(source.width * ((index % columns) + 1) / columns);
   const top = Math.floor(source.height * Math.floor(index / columns) / rows);
   const bottom = Math.floor(source.height * (Math.floor(index / columns) + 1) / rows);
-  let group = labeled.components.filter((component) => component.area >= 24
+  const group = labeled.components.filter((component) => component.area >= 24
     && component.centerX >= left && component.centerX < right
     && component.centerY >= top && component.centerY < bottom);
-  if (group.length === 0) {
-    const centerX = (left + right) / 2;
-    const centerY = (top + bottom) / 2;
-    const available = labeled.components.filter((component) => component.area >= 24);
-    available.sort((a, b) => ((a.centerX - centerX) ** 2 + (a.centerY - centerY) ** 2)
-      - ((b.centerX - centerX) ** 2 + (b.centerY - centerY) ** 2));
-    if (available[0]) group = [available[0]];
-  }
   if (group.length === 0) return null;
   const bounds = group.reduce((result, component) => ({
     x: Math.min(result.x, component.x),
@@ -282,10 +318,15 @@ function interpolatePixel(source, labels, allowedIds, x0, y0, x1, y1, tx, ty, ou
 function drawScaledBounds(source, labels, allowedIds, sourceBounds, output, targetBounds, index) {
   const column = index % columns;
   const row = Math.floor(index / columns);
-  const scale = Math.min(targetBounds.width / sourceBounds.width, targetBounds.height / sourceBounds.height);
+  // Height follows the adjacent originals. Angular silhouette width is allowed
+  // to change naturally; only the atlas cell's safe margin may reduce scale.
+  const centerX = targetBounds.x + targetBounds.width / 2;
+  const margin = 8;
+  const safeWidth = Math.max(1, 2 * Math.min(centerX - margin, frameSize - margin - centerX));
+  const scale = Math.min(targetBounds.height / sourceBounds.height, safeWidth / sourceBounds.width);
   const destWidth = Math.max(1, Math.round(sourceBounds.width * scale));
   const destHeight = Math.max(1, Math.round(sourceBounds.height * scale));
-  const destX = Math.round(column * frameSize + targetBounds.x + (targetBounds.width - destWidth) / 2);
+  const destX = Math.round(column * frameSize + centerX - destWidth / 2);
   const destY = Math.round(row * frameSize + targetBounds.y + targetBounds.height - destHeight);
   const stride = columns * frameSize * 4;
   for (let dy = 0; dy < destHeight; dy += 1) {
@@ -306,11 +347,10 @@ function drawScaledBounds(source, labels, allowedIds, sourceBounds, output, targ
   }
 }
 
-async function prepareAtlas(variant, targetBounds) {
+async function prepareAtlas(variant, review) {
   const sourcePath = path.join(stageRoot, variant.source);
-  const outputPath = path.join(runtimeRoot, variant.output);
-  const source = await readRgbaPng(sourcePath);
-  const original = await readRgbaPng(path.join(runtimeRoot, variant.original));
+  const source = await readRgbaPng(sourcePath, review.sourceBytes);
+  const original = await readRgbaPng(path.join(runtimeRoot, variant.original), review.originalBytes);
   const sourceAspect = source.width / source.height;
   if (source.width < 1000 || source.height < 1000 || sourceAspect < 0.88 || sourceAspect > 1.12) {
     throw new Error(`Expected a near-square 4 by 4 atlas at ${sourcePath}, got ${source.width}x${source.height}.`);
@@ -321,11 +361,15 @@ async function prepareAtlas(variant, targetBounds) {
   if (original.width !== 1280 || original.height !== 640) {
     throw new Error(`Expected an original 1280x640 atlas at ${variant.original}.`);
   }
+  // Fit new angles to this pose's neighbors, not the mounted silhouette.
+  // Tuck, impact and turn crops have their own scale and planted baseline.
+  const targetBounds = expandEightBounds(atlasBounds(original, 8));
   const components = labelComponents(source);
   const output = Buffer.alloc(columns * rows * frameSize * frameSize * 4);
   for (let index = 0; index < frameCount; index += 1) {
-    if (index % 2 === 0) {
-      const oldIndex = index / 2;
+    const frame = review.frames[index];
+    if (frame.source === 'original') {
+      const oldIndex = frame.cell - 1;
       const oldX = (oldIndex % columns) * frameSize;
       const oldY = Math.floor(oldIndex / columns) * frameSize;
       const newX = (index % columns) * frameSize;
@@ -337,41 +381,56 @@ async function prepareAtlas(variant, targetBounds) {
       }
       continue;
     }
-    const selected = componentsForCell(source, components, index);
+    const selected = componentsForCell(source, components, frame.cell - 1);
     if (!selected) throw new Error(`No separate subject found for ${directions[index]} in ${sourcePath}.`);
     drawScaledBounds(source, components.labels, selected.ids, selected.bounds,
       output, targetBounds[index], index);
   }
-  await fs.writeFile(outputPath, makePng(columns * frameSize, rows * frameSize, output));
-  console.log(`Wrote ${outputPath} (${directions.length} directions).`);
   return { width: columns * frameSize, height: rows * frameSize, pixels: output };
 }
 
-await fs.mkdir(runtimeRoot, { recursive: true });
-const mountedOld = await readRgbaPng(path.join(runtimeRoot, 'mounted.png'));
-const parkedOld = await readRgbaPng(path.join(runtimeRoot, 'parked.png'));
-if (mountedOld.width !== 1280 || mountedOld.height !== 640 || parkedOld.width !== 1280 || parkedOld.height !== 640) {
-  throw new Error('The existing eight-view bike atlases must remain 1280x640.');
-}
-const mountedTargets = expandEightBounds(atlasBounds(mountedOld, 8));
-const parkedTargets = expandEightBounds(atlasBounds(parkedOld, 8));
-let mounted16;
-let mounted16Bounds;
-const needsMountedReference = variants.some((variant) => !['mounted-16.png', 'parked-16.png'].includes(variant.output));
-const preparesMountedReference = variants.some((variant) => variant.output === 'mounted-16.png');
-if (needsMountedReference && !preparesMountedReference) {
-  mounted16 = await readRgbaPng(path.join(runtimeRoot, 'mounted-16.png'));
-  mounted16Bounds = atlasBounds(mounted16, 16);
-}
-for (const variant of variants) {
-  let targetBounds;
-  if (variant.output === 'mounted-16.png') targetBounds = mountedTargets;
-  else if (variant.output === 'parked-16.png') targetBounds = parkedTargets;
-  else {
-    if (!mounted16) throw new Error('Mounted reference atlas must be prepared first.');
-    if (!mounted16Bounds) mounted16Bounds = atlasBounds(mounted16, 16);
-    targetBounds = mounted16Bounds;
+export async function main(args = process.argv.slice(2)) {
+  stageRoot = args[0] || 'assets/staging/commute-bike-v3';
+  runtimeRoot = args[1] || 'assets/commute/bike';
+  const options = args.slice(2);
+  const flag = options.indexOf('--review-manifest');
+  if (flag < 0 || !options[flag + 1] || options[flag + 1].startsWith('--')) {
+    throw new Error('Import blocked: pass --review-manifest <reviewed-directions.json>. Generated cell order is not evidence of facing.');
   }
-  const prepared = await prepareAtlas(variant, targetBounds);
-  if (variant.output === 'mounted-16.png') mounted16 = prepared;
+  const reviewPath = options.splice(flag, 2)[1];
+  const selectedOutputs = new Set(options);
+  for (const output of selectedOutputs) {
+    if (!allVariants.some((variant) => variant.output === output)) throw new Error('Unknown selected output: ' + output);
+  }
+  const variants = selectedOutputs.size ? allVariants.filter((variant) => selectedOutputs.has(variant.output)) : allVariants;
+  const reviewBytes = await fs.readFile(reviewPath);
+  if (reviewBytes.length > 256 * 1024) throw new Error('Direction review manifest is too large.');
+  const manifest = JSON.parse(reviewBytes.toString('utf8'));
+  const plans = validateReviewManifest(manifest, variants);
+  const evidence = path.resolve(path.dirname(reviewPath), manifest.review.evidence);
+  if (!(await fs.stat(evidence)).isFile()) throw new Error('Direction review evidence must be a file.');
+  // Validate every requested source before decoding or preparing any output.
+  // Changed artwork cannot inherit approval from an older contact sheet.
+  for (const variant of variants) {
+    const plan = plans.get(variant.output);
+    plan.sourceBytes = await checkedBytes(path.join(stageRoot, variant.source), plan.sourceSha256);
+    plan.originalBytes = await checkedBytes(path.join(runtimeRoot, variant.original), plan.originalSha256);
+  }
+  const pending = [];
+  for (const variant of variants) {
+    const prepared = await prepareAtlas(variant, plans.get(variant.output));
+    pending.push({ file: path.join(runtimeRoot, variant.output),
+      bytes: makePng(prepared.width, prepared.height, prepared.pixels) });
+  }
+
+  // Complete preparation also precedes writes: an empty/malformed later atlas
+  // cannot leave a partly replaced set behind.
+  for (const output of pending) {
+    await fs.writeFile(output.file, output.bytes);
+    console.log('Wrote ' + output.file + ' (' + directions.length + ' reviewed directions).');
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((error) => { console.error(error.message); process.exitCode = 1; });
 }

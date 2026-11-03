@@ -482,6 +482,10 @@ end
 
 function Input.mousepressed(x, y, button, context)
     local state = context.state
+    -- Outdoor ride input belongs to its own controls. Global options/HUD have
+    -- already handled their hits before this warehouse pointer fallback.
+    if state.screen == "world" and context.world and context.world.player
+        and context.world.player.sceneId == "commute" then return true end
     if state.screen=="air_hockey" then
         return require("src.screens.air_hockey_screen").mousepressed(context.airHockeyRuntime,x,y,button)
     end
@@ -605,7 +609,7 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "workshop_remote" then
         local result = context.workshopRemoteScreen.mousepressed(state, x, y, button,
             context.requestWorkshopCommand)
-        if type(result)=="table" and result.action=="home_activity" and state.home and state.home.weekend.phase=="home"
+        if type(result)=="table" and result.action=="home_activity" and state.home and require("src.weekend_flow").atHome(state)
             and context.workshopRemoteScreen.canClose() then
             Input.closeScreen(context)
             state.screen="home_activity"

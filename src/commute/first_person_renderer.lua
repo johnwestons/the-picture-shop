@@ -1,9 +1,8 @@
--- Perspective terrain plus depth-tested scenery billboards. All geometry is
--- derived from the same roads and support heights used by motorcycle physics.
+-- Perspective terrain, solid structures and depth-tested scenery billboards.
+-- Geometry uses the road network and support heights from motorcycle physics.
 local FP=require('src.commute.first_person_camera')
 local M=require('src.commute.vendor.mathx')
-local Bridge=require('src.commute.bridge_art')
-local Sites=require('src.commute.sites')
+local PaintArt=require('src.commute.bike_paint_art')
 local View={};View.__index=View
 local format={{'VertexPosition','float',2},{'WorldHeight','float',1},{'VertexTexCoord','float',2}}
 local meshShader=[[
@@ -30,9 +29,8 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
 #endif
 ]]
 local spriteShader=[[
-extern float spriteDepth;
-extern float spriteFog;
 #ifdef VERTEX
+extern float spriteDepth;
 vec4 position(mat4 transform_projection,vec4 vertex_position) {
     vec4 clip=transform_projection*vertex_position;
     clip.z=spriteDepth*clip.w;
@@ -40,8 +38,9 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 }
 #endif
 #ifdef PIXEL
+extern float spriteFog;
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
-    vec4 surface=Texel(tex,uv)*color;
+    vec4 surface=bikePaintSurface(Texel(tex,uv),uv)*color;
     if(surface.a<.08) discard;
     surface.rgb=mix(surface.rgb,vec3(.57,.68,.70),spriteFog);
     return surface;
@@ -56,67 +55,30 @@ local function point(p,offsetX,offsetZ,height,u,v)
 end
 function View.new(renderer)
     local g=love.graphics
-    local self=setmetatable({meshes={},canvas=g.newCanvas(1280,880),
+    local width,height=renderer.viewportWidth or 1280,renderer.viewportHeight or 880
+    local self=setmetatable({meshes={},viewportWidth=width,viewportHeight=height,canvas=g.newCanvas(width,height),
         shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..'\n'..meshShader),
-        spriteShader=g.newShader(spriteShader)},View)
+        spriteShader=g.newShader(PaintArt.source()..spriteShader)},View)
     self.canvas:setFilter('linear','linear')
-    local function mesh(vertices,image,color)
-        if #vertices==0 then return end
-        local m=g.newMesh(format,vertices,'triangles','static')
-        if image then m:setTexture(image) end
-        self.meshes[#self.meshes+1]={mesh=m,color=color or {1,1,1}}
-    end
-    local deck,marks,sides,caps,ends={},{},{},{},{}
-    for _,s in ipairs(renderer.world.roads.segments) do
-        local a,b,w=s.a,s.b,s.width*.5
-        if s.bridge then
-            local u0,u1=s.distance/3.2,(s.distance+s.len)/3.2
-            quad(deck,point(a,a.nx*w,a.nz*w,.045,u0,0),point(b,b.nx*w,b.nz*w,.045,u1,0),
-                point(b,-b.nx*w,-b.nz*w,.045,u1,s.width/3.2),point(a,-a.nx*w,-a.nz*w,.045,u0,s.width/3.2))
-        end
-        if s.width>5.5 and math.floor(s.distance/4)%2==0 then
-            quad(marks,point(a,a.nx*.055,a.nz*.055,.065,0,0),point(b,b.nx*.055,b.nz*.055,.065,1,0),
-                point(b,-b.nx*.055,-b.nz*.055,.065,1,1),point(a,-a.nx*.055,-a.nz*.055,.065,0,1))
-        end
-    end
-    local above=Bridge.PROFILE_METERS*Bridge.DECK_LINE_FROM_TOP
-    local below=above-Bridge.PROFILE_METERS
-    for _,p in ipairs(renderer.bridgeArt.sides) do
-        quad(sides,point(p.a,0,0,above,0,0),point(p.a,0,0,below,0,1),
-            point(p.b,0,0,below,1,1),point(p.b,0,0,above,1,0))
-    end
-    for _,p in ipairs(renderer.bridgeArt.caps) do
-        local inner=-p.side*Bridge.CAP_WIDTH_METERS*(1-Bridge.CAP_OUTER_FRACTION)
-        local outer=p.side*Bridge.CAP_WIDTH_METERS*Bridge.CAP_OUTER_FRACTION
-        local a,b=p.a,p.b
-        local u0,u1=p.distance/3.2,(p.distance+p.len)/3.2
-        quad(caps,point(a,p.nx*inner,p.nz*inner,above+.02,u0,0),point(b,p.nx*inner,p.nz*inner,above+.02,u1,0),
-            point(b,p.nx*outer,p.nz*outer,above+.02,u1,1),point(a,p.nx*outer,p.nz*outer,above+.02,u0,1))
-        -- The inner parapet face is a real plane, so passing it never flips
-        -- an isometric screen-space quad through the camera.
-        quad(sides,point(a,p.nx*inner,p.nz*inner,above,0,0),point(a,p.nx*inner,p.nz*inner,below,0,1),
-            point(b,p.nx*inner,p.nz*inner,below,1,1),point(b,p.nx*inner,p.nz*inner,above,1,0))
-    end
-    for _,p in ipairs(renderer.bridgeArt.endPosts) do
-        local w=p.width*.5
-        for _,edge in ipairs({{-w,-w,w,-w},{w,-w,w,w},{w,w,-w,w},{-w,w,-w,-w}}) do
-            quad(ends,point(p,edge[1],edge[2],p.height,0,0),point(p,edge[1],edge[2],0,0,1),
-                point(p,edge[3],edge[4],0,1,1),point(p,edge[3],edge[4],p.height,1,0))
-        end
-    end
-    mesh(deck,renderer.bridgeArt.asphaltImage)
-    mesh(marks,nil,{.78,.72,.44})
-    mesh(sides,renderer.bridgeArt.sideImage)
-    mesh(caps,renderer.bridgeArt.capImage)
-    mesh(ends,renderer.bridgeArt.endBlockImage)
+    -- Road paint is part of renderer.roadMeshes, so both camera modes use the
+    -- same static lane markings, arrows and stop bars.
     return self
+end
+function View:resizeViewport(width,height)
+    width,height=math.max(1,math.floor(width+.5)),math.max(1,math.floor(height+.5))
+    if width==self.viewportWidth and height==self.viewportHeight then return false end
+    self.canvas:release();self.canvas=love.graphics.newCanvas(width,height)
+    self.canvas:setFilter('linear','linear')
+    self.viewportWidth,self.viewportHeight=width,height
+    return true
 end
 function View:billboard(camera,x,z,h,radius,draw)
     local sx,sy,depth=camera:screen(x,z,h)
     local distance=M.length(x-camera.centerX,z-camera.centerZ)
     if depth<FP.NEAR or depth>FP.FAR or distance>=radius then return end
     local scale=camera.focal/depth/48
-    if sx < -640*scale or sx > 1280+640*scale then return end
+    local width=camera.viewportWidth or 1280
+    if sx < -width*.5*scale or sx > width+width*.5*scale then return end
     local g=love.graphics
     self.spriteShader:send('spriteDepth',FP.depthValue(depth))
     self.spriteShader:send('spriteFog',M.smooth((distance-radius*.74)/(radius*.26)))
@@ -132,10 +94,10 @@ function View:draw(renderer,camera,actor,actors)
     g.push('all');g.origin();g.setScissor();g.setShader();g.setBlendMode('alpha')
     g.setCanvas({self.canvas,depth=true});g.setDepthMode('always',false)
     g.clear(.57,.68,.70,1,0,1)
-    for y=0,420,14 do
+    for y=0,math.min(self.viewportHeight,420),14 do
         local t=y/440
         g.setColor(M.lerp(.28,.57,t),M.lerp(.49,.68,t),M.lerp(.65,.70,t))
-        g.rectangle('fill',0,y,1280,14)
+        g.rectangle('fill',0,y,self.viewportWidth,14)
     end
     g.setDepthMode('lequal',true);g.setMeshCullMode('none');g.setColor(1,1,1)
     local groundShader=renderer:shader(camera)
@@ -143,7 +105,7 @@ function View:draw(renderer,camera,actor,actors)
     groundShader:send('rideForward',{math.cos(actor.heading),math.sin(actor.heading)})
     g.setShader(groundShader)
     for _,chunk in ipairs(renderer.visible or {}) do
-        if FP.inView(camera,chunk.cx*6+3,chunk.cz*6+3,12) then g.draw(chunk.mesh) end
+        g.draw(chunk.mesh) -- Complete resident ground; GPU clipping handles every camera pitch.
     end
     for _,mesh in ipairs(renderer.roadMeshes) do g.draw(mesh) end
     FP.send(camera,self.shader);self.shader:send('sceneryRadius',renderer.effectiveRadius)
@@ -151,30 +113,29 @@ function View:draw(renderer,camera,actor,actors)
     self.shader:send('rideForward',{math.cos(actor.heading),math.sin(actor.heading)})
     g.setShader(self.shader)
     for _,entry in ipairs(self.meshes) do g.setColor(entry.color);g.draw(entry.mesh) end
+    renderer.structures:drawFirstPerson(camera,actor,renderer.effectiveRadius)
     for _,p in ipairs(renderer.visibleProps or {}) do
         self:billboard(camera,p.x,p.z,p.h,renderer.effectiveRadius,function(scale)
             g.setColor(.91,.94,.87)
             renderer.plantSprites:drawPlant(p,renderer.calendar,renderer.clock,0,0,p.scale*scale,renderer.plantMotion:sway(p))
         end)
     end
-    local site=Sites.warehouse
-    local art=renderer.warehouseArt
-    local registration=require('src.commute.warehouse_art').view(camera)
-    local anchor=registration.door and site.threshold or site
-    self:billboard(camera,anchor.x,anchor.z,site.h,renderer.effectiveRadius,function(scale)
-        g.setColor(1,1,1)
-        g.draw(art.image,art.quads[registration.index],0,0,0,art.SCALE*scale,art.SCALE*scale,registration.x,registration.y)
-    end)
     -- The local rider and their motorcycle are omitted; other riders remain
     -- visible and depth-tested against the road, hills, and vegetation.
     for _,entry in ipairs(actors or {}) do
         local p=entry.actor
         if p~=actor then
-            self:billboard(camera,p.x,p.z,p.h or renderer.world:supportHeight(p.x,p.z),renderer.effectiveRadius,function(scale)
-                local proxy={zoom=scale,screen=function()return 0,0 end,
-                    headingDirection=function(_,heading)return camera:headingDirection(heading) end}
+            local height=not entry.gear and entry.presentation and entry.presentation.h
+                or p.h or renderer.world:supportHeight(p.x,p.z)
+            self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
+                local proxy={zoom=scale,firstPerson=true,viewHeading=camera.viewHeading,projectionCamera=camera,screen=function()return 0,0 end,
+                    headingDirection=function(_,heading)return camera:headingDirection(heading) end,
+                    headingDirection16=function(_,heading)return camera:headingDirection16(heading) end}
                 if entry.gear then
-                    require('src.commute.presentation').foot(0,0,scale*.7,entry.gear,p.distance,p.speed,entry.presentation)
+                    local presentation=require('src.commute.presentation')
+                    local falling=presentation.beginFallPose(p,entry.presentation,proxy,0,0)
+                    presentation.foot(0,0,scale,entry.gear,p.distance,p.speed,entry.presentation,entry.appearance)
+                    if falling then g.pop() end
                 else renderer.bikeArt:draw(p,proxy,renderer.world,entry.bikeOnly,entry.presentation) end
             end)
         end

@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 -- Pure contextual presentation: only home_chores changes clothes/cycle state.
 local R=require("src.home_laundry_registration")
 local Colorways=require("src.rabbit_colorways")
@@ -48,7 +50,7 @@ function Art.standingPose(state,direction)
 end
 local function resource(phase)
  if phases[phase] then return phases[phase] end
- local im=love.graphics.newImage(root.."phase-"..phase.."-body.png");im:setFilter("linear","linear")
+ local im=Images.load("laundry",root.."phase-"..phase.."-body.png");if not im then return nil end;im:setFilter("linear","linear")
  local iw,ih=im:getDimensions();assert(iw==1536 and ih==1024,"Unregistered laundry source size")
  local a={image=im,quads={},hands={}}
  for i,d in ipairs(R.order) do
@@ -68,23 +70,35 @@ local function resource(phase)
  phases[phase]=a;return a
 end
 local function propResources()
- if props then return props end
- props={}
+ props=props or {};local ready=true
  for _,name in ipairs({"basket","bundle"}) do
-  local im=love.graphics.newImage(root..name.."-eight-directions.png");im:setFilter("linear","linear")
-  local iw,ih=im:getDimensions();assert(iw==1536 and ih==1024,"Unregistered laundry prop size")
-  local p={image=im,quads={}}
-  for i=1,8 do local r=R[name].rects[i];p.quads[i]=love.graphics.newQuad(r[1],r[2],r[3],r[4],iw,ih) end
-  props[name]=p
+  if not props[name] then
+   local im=Images.load("laundry",root..name.."-eight-directions.png")
+   if im then
+    im:setFilter("linear","linear")
+    local iw,ih=im:getDimensions();assert(iw==1536 and ih==1024,"Unregistered laundry prop size")
+    local p={image=im,quads={}}
+    for i=1,8 do local r=R[name].rects[i];p.quads[i]=love.graphics.newQuad(r[1],r[2],r[3],r[4],iw,ih) end
+    props[name]=p
+   else ready=false end
+  end
  end
- return props
+ return ready and props or nil
 end
 local function shaders()
  propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;}]])
  bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
  vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}]])
 end
+function Art.prewarm()
+ local ready=true
+ for phase=1,4 do if not resource(phase) then ready=false end end
+ if not propResources() then ready=false end
+ if ready then shaders() end
+ return ready
+end
 function Art.draw(direction,frame,x,y,player,kind,progress)
+ if not Preload.want("laundry",Art.prewarm) then return false end
  local v=assert(R.views[direction]);local f=assert(v.frames[frame]);local a=resource(frame);local p=propResources()
  local c=Art.contact(direction,frame);local mode=Art.bundleMode(kind or "loadwash",frame,progress);shaders()
  love.graphics.push("all");love.graphics.setColor(1,1,1,1)
@@ -111,6 +125,7 @@ function Art.draw(direction,frame,x,y,player,kind,progress)
 end
 function Art.cachedPhases()local n=0;for _ in pairs(phases) do n=n+1 end;return n end
 function Art.release()
+    Images.release("laundry")
  for _,a in pairs(phases) do
   a.image:release();for _,q in ipairs(a.quads) do q:release() end;for _,m in ipairs(a.hands) do m:release() end
  end

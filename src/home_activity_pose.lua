@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 -- Presentation only: furniture contacts never replace the walkable activity origin.
 -- The same replicated activity selects the host and guest pose. No saved pose state.
 local Residents=require("src.home_residents")
@@ -76,7 +78,7 @@ local function metrics(kind,frame)
     return (frame-1)%4*384+p[1],math.floor((frame-1)/4)*512+p[2],x1,y1,x2,y2
 end
 function Pose.get(state,player)
-    if not state.home or player.sceneId~="home" or state.home.weekend.phase~="home"
+    if not state.home or player.sceneId~="home" or not require("src.weekend_flow").atHome(state)
         or (player.character or require("src.config").player.character)~="rabbit-worker" then return nil end
     local resident=Residents.display(state,player);local a=resident and resident.activity
     if not a or (player.x-a.x)^2+(player.y-a.y)^2>4 then return nil end
@@ -116,7 +118,8 @@ function Pose.get(state,player)
 end
 local function resource(kind)
     if cache[kind] then return cache[kind] end
-    local image=love.graphics.newImage("assets/generated/home-poses-v1/"..kind.."-eight-directions.png")
+    local image=Images.load("pose","assets/generated/home-poses-v1/"..kind.."-eight-directions.png")
+    if not image then return nil end
     image:setFilter("linear","linear");local frames={}
     for i=1,8 do
         local x1,y1,x2,y2=region(kind,i)
@@ -130,13 +133,21 @@ local function resource(kind)
     end
     cache[kind]={image=image,frames=frames};return cache[kind]
 end
-function Pose.draw(pose,player)
-    local asset=resource(pose.kind)
+local function ensureShader()
     shader=shader or love.graphics.newShader(Colorways.blendShaderSource()..[[
 vec4 effect(vec4 color,Image texture,vec2 uv,vec2 screen) {
     vec4 pixel=Texel(texture,uv);if(pixel.a<0.18) discard;
     return applyRabbitColorways(pixel)*color;
 }]])
+end
+function Pose.prewarm(kind)
+    if not resource(kind) then return false end
+    ensureShader();return true
+end
+function Pose.draw(pose,player)
+    if not Preload.want("pose",function()return Pose.prewarm(pose.kind) end) then return false end
+    local asset=resource(pose.kind)
+    ensureShader()
     local settle=math.max(0,1-math.max(0,pose.seconds or 0)/.36)
     settle=settle*settle*(3-2*settle)
     local breathing=pose.kind=="sleeping" and math.sin((pose.seconds or 0)*math.pi*2/2.8)*.012 or 0
@@ -151,13 +162,14 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 screen) {
         love.graphics.setColor(.42,.72,1,glow)
         love.graphics.ellipse("fill",pose.x+offsetX,pose.y-30,3.2,2.2)
     end
-    love.graphics.pop()
+    love.graphics.pop();return true
 end
 function Pose.drawForeground(pose)
     local item=pose.item;local regions=item and foreground[item.kind]
     if regions then require("src.home_furniture_art").drawRegion(item,regions[Catalog.ITEMS[item.kind].frames[item.direction]]) end
 end
 function Pose.release()
+    Images.release("pose")
     for _,a in pairs(cache) do for _,mesh in ipairs(a.frames) do mesh:release() end;a.image:release() end
     cache={};if shader then shader:release();shader=nil end
 end

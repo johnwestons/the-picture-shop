@@ -43,7 +43,10 @@ end
 
 local function appendEncoded(lines, value, indent)
     local kind = type(value)
-    if kind == "number" or kind == "boolean" then lines[#lines+1]=tostring(value);return end
+    -- Keep the exact generated terrain/placement numbers through disk saves.
+    -- tostring uses fewer significant digits and can change a town fingerprint.
+    if kind == "number" then lines[#lines+1]=string.format("%.17g",value);return end
+    if kind == "boolean" then lines[#lines+1]=tostring(value);return end
     if kind == "string" then lines[#lines+1]=string.format("%q", value);return end
     if kind ~= "table" then lines[#lines+1]="nil";return end
     lines[#lines+1]="{\n"

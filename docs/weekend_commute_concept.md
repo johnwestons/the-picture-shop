@@ -1,6 +1,17 @@
 # Weekend commute — concept proposal
 
-Status: implementation started, 2026-11-01. The scenic commute goal is active. Both an isolated terrain lab and the main warehouse/apartment travel integration run behind development switches. Normal travel remains unchanged by default until production acceptance. Gear state transitions, normal-character sprites, eight-direction static bike and warehouse sprites, the handlebar HUD and automatic/manual transmission run. The suited rabbit rider now uses authored five-view walk and idle strips across all eight directions, with mirrored west sectors and normal/suited full-body crossfades during equip/removal. Dedicated visual beats for each equipment step, vehicle animation, and final scenery/device acceptance remain outstanding. Existing apartment animation work is kept separate.
+**Superseding direction, November 2, 2026:** exterior buildings and structural
+objects now use detailed procedural geometry; textures are deferred. Designs
+must be independent of position, orientation and dimensions. New-game setup
+will offer seeded towns and named reusable presets, with the generated town
+frozen into the playthrough and shared by its host. Towns include all four
+apartments, additional residences, mechanic, grocery, post office, police/fire
+stations, diner, coffee shop and general store. Use southeastern North American
+small-town architectural forms. See [the active completion goal](ride_home_completion_goal.md).
+Earlier sprite-only building restrictions below are historical and superseded;
+the actor, motorcycle and vegetation sprite requirements remain unchanged.
+
+Status: implementation started, 2026-11-01. The scenic commute goal is active. Both an isolated terrain lab and the main warehouse/apartment travel integration run behind development switches. Normal travel remains unchanged by default until production acceptance. Gear state transitions, normal-character sprites, eight-direction static bike and warehouse sprites, the handlebar HUD and automatic/manual transmission run. The suited rabbit rider uses authored five-view walk and idle strips across all eight directions, with mirrored west sectors and normal/suited full-body crossfades during equip/removal. Reviewed southeast suit, zipper, glove, and helmet steps now play from the shared gear clock; matching strips reverse for removal. Dedicated boot fastening, other transition headings/species, vehicle animation, and final scenery/device acceptance remain open. Existing apartment animation work is kept separate.
 
 Current direction: reuse Critter Party's procedural environment foundation, including terrain/topography, water/habitat planning, ground materials, vegetation and camera capabilities, then add a fixed small town and roads. The earlier flat rectangular road loop and fixed-heading camera proposal are superseded. The old interactive route schematic is historical only; no further sequence-preview work is requested. The user authorized implementation and an active goal on 2026-11-01.
 
@@ -262,11 +273,11 @@ Validation: **238 lab checks** and **1,015 main runtime checks / SMOKE_OK**. New
 
 ## Dressing action sprites — staged review milestone
 
-Built-in imagegen produced sixteen southeast action poses: four putting on the one-piece suit, four progressively zipping it, four fastening gloves and four donning/fastening the full-face helmet. The final helmet encloses the ears; the suit keeps broad enclosed animal feet. Immutable sources, exact generation/edit prompts and detailed findings are retained in `assets/source/commute-gear-actions-v1`. These are candidates, not runtime replacements.
+Built-in imagegen produced sixteen southeast action poses: four putting on the one-piece suit, four progressively zipping it, four fastening gloves and four donning/fastening the full-face helmet. The final helmet encloses the ears; the suit keeps broad enclosed animal feet. Immutable sources, exact generation/edit prompts and detailed findings are retained in `assets/source/commute-gear-actions-v1`. The original strips remain staged for review; a separate approved runtime copy now lives in `assets/generated/commute-gear-actions-v1`.
 
 `tools/commute_lab/compile_gear_actions.py` packs four transparent 256px review strips under `assets/staging/commute-gear-actions-v1`, with source/atlas hashes and recorded source cells/contact baselines. It preserves original RGBA pixels with uniform resampling, checks source-edge clipping and destination margins, and uses explicit asymmetric crop boundaries around the held/lifted helmet. All sixteen frames pass these mechanical checks. `output/commute-gear-actions-review/equip-contact.png` is the reviewed contact sheet; `equip-preview.gif` follows the existing equip-stage durations as a review aid.
 
-Publication remains pending: planted-foot registration/body drift, comparison to normal and geared idles, selected-character fur/overalls masks, direction handling, boot fastening and removal continuity, and native animated acceptance. Current gloves artwork does not depict boot fastening. No gameplay code or saves changed in this art pass; existing gameplay check counts above refer to the preceding runtime milestone, not a new run.
+The runtime copy uses the reviewed planted-foot anchor and selected-character fur/overalls masks. Removal plays the matching authored strip backward on the same shared gear clock; it adds no save or protocol fields. Remaining art gaps are a distinct boot-fastening beat, other facing views or species-specific transition sets, and final in-game acceptance. The gloves strip depicts glove fastening; boots are already visible with the one-piece suit. The November 2 integration received static code/art review only, not a game launch or test run.
 
 ## Rider body correction — superseding the first sprite pilot
 

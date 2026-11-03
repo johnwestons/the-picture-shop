@@ -90,15 +90,26 @@ function Test.run(context, check)
     pressTitleKey("escape")
     check("title_cancel_shop_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    pressTitleMouse(newX,newY);pressTitleMouse(confirmX,confirmY);pressTitleKey("return")
+    pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("cancel"))
+    check("title_cancel_town_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
+        and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
     pressTitleMouse(newX, newY)
     pressTitleMouse(confirmX, confirmY)
     for i=1,13 do pressTitleKey("right") end
     pressTitleMouse(require("src.screens.shop_setup_screen").buttonCenter("start"))
+    check("title_shop_setup_opens_town_preview_without_overwriting",
+        context.title.mode=="town-setup" and #titleStarts==0
+        and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    local previewTown=context.title.townSetup.town
+    pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("start"))
     check("title_mouse_setup_creates_selected_shop",
         #titleStarts == 1
         and titleStarts[1].mode == "new"
         and titleStarts[1].saved
-        and context.save.load(3).state.money == 180 and context.save.load(3).state.calendar.secondsPerDay==1980)
+        and context.save.load(3).state.money == 180 and context.save.load(3).state.calendar.secondsPerDay==1980
+        and require("src.commute.town").fingerprint(context.save.load(3).state.home.town)
+            ==require("src.commute.town").fingerprint(previewTown))
     context.input.mousereleased(confirmX, confirmY, 1, context.inputContext)
 
     occupiedState.money = 888
@@ -107,6 +118,7 @@ function Test.run(context, check)
     pressTitleKey("up")
     pressTitleKey("n")
     pressTitleKey("y")
+    pressTitleKey("return")
     pressTitleKey("return")
     check("title_keyboard_overwrite_confirmation_starts",
         #titleStarts == 2
@@ -119,6 +131,7 @@ function Test.run(context, check)
     pressTitleKey("up")
     pressTitleKey("n")
     check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
+    pressTitleKey("return")
     pressTitleKey("return")
     check("title_empty_slot_setup_creates_shop",
         #titleStarts == 3

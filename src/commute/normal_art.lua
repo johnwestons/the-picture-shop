@@ -3,6 +3,7 @@ local Config=require('src.config')
 local Colorways=require('src.rabbit_colorways')
 local Animation=require('src.character_animation')
 local Rider=require('src.commute.rider')
+local RoadScale=require('src.commute.rider_scale')
 local Art={}
 function Art.appearance(player)
     player=player or {}
@@ -37,7 +38,7 @@ function Art.draw(assets,actor,camera,world,appearance,visual,clock,opacity)
     if not image or not quad then return false end
     local ax,ay=assets.getAnchor(a.character,action,frame)
     local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
-    local scale=Config.player.drawScale*.7*camera.zoom*assets.getNormalization(a.character,action)
+    local scale=RoadScale.sprite(camera.zoom,assets.getNormalization(a.character,action))
     love.graphics.setColor(1,1,1,opacity or 1)
     if a.character=='rabbit-worker' then
         Colorways.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay,0,0,a.furColorway,a.overallsColorway,opacity)

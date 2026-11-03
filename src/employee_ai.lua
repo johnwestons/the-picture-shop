@@ -412,7 +412,7 @@ function AI.update(state,dt,context)
             local oldClocked=w.clockedIn
             Payroll.accrue(w,at,nextAt,not Work.safe(w,state),state)
             if AI.worker(state,w,realDt,nextAt,context) or oldClocked~=w.clockedIn then changed=true end
-            WorkPresentation.update(state,w,realDt*(context.motionScale or 1))
+            if not context.background then WorkPresentation.update(state,w,realDt*(context.motionScale or 1)) end
         end
         at=nextAt
     end

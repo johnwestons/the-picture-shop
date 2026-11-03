@@ -1,4 +1,4 @@
--- Match Critter Party's src/app.lua drag bindings and logical-pixel sensitivity.
+-- Outside drags match Critter Party's logical-pixel orbit/pan sensitivity.
 -- Choose the mode on press, so releasing Alt mid-drag cannot change the gesture.
 local Controls={}
 function Controls.press(state,button,leftAlt,bindings)
@@ -22,7 +22,10 @@ end
 function Controls.move(state,camera,dx,dy,scale)
     if not state.mode or not camera then return false end
     scale=math.max(.001,scale or 1);dx,dy=dx/scale,dy/scale
-    if state.mode=='orbit' then camera:orbit(-dx*.45,dy*.25)
+    -- Outside drags manipulate the world; rider-eye drags turn the head.
+    -- Screen Y grows downward, while positive head pitch looks upward.
+    if camera.firstPerson then camera:orbit(dx*.45,-dy*.25)
+    elseif state.mode=='orbit' then camera:orbit(-dx*.45,dy*.25)
     else camera:pan(dx,dy) end
     return true
 end

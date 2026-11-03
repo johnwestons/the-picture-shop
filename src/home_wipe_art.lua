@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 local R=require("src.home_wipe_registration")
 local Colorways=require("src.rabbit_colorways")
 local Art={};local phases={};local cloth,clothQuads,bodyShader,propShader
@@ -45,7 +47,7 @@ local function resource(frame,direction)
  local v=R.views[direction];local override=v.override and v.override[frame]
  local key=override or frame
  if phases[key] then return phases[key] end
- local image=love.graphics.newImage(root..(override or "phase-"..frame.."-body.png"));image:setFilter("linear","linear")
+ local image=Images.load("wipe",root..(override or "phase-"..frame.."-body.png"));if not image then return nil end;image:setFilter("linear","linear")
  local iw,ih=image:getDimensions();assert(iw==1536 and ih==1024,"Unregistered wiping atlas dimensions")
  local a={image=image,quads={},hands={},offsets={}}
  for _,i in ipairs(override and {v.index} or {1,2,3,4,5,6,7,8}) do
@@ -68,17 +70,27 @@ local function resource(frame,direction)
  end
  phases[key]=a;return a
 end
-function Art.draw(direction,frame,x,y,player)
- local v=R.views[direction];local r=v.frames[frame];local a=resource(frame,direction);local c=Art.contact(direction,frame)
- local scale=r[5] or v.scale
+local function extraResources()
  if not cloth then
-  cloth=love.graphics.newImage(root.."cloth-eight-directions.png");cloth:setFilter("linear","linear");clothQuads={}
+  cloth=Images.load("wipe",root.."cloth-eight-directions.png");if not cloth then return false end;cloth:setFilter("linear","linear");clothQuads={}
   for i=1,8 do clothQuads[i]=love.graphics.newQuad((i-1)%4*384,math.floor((i-1)/4)*512,384,512,cloth:getDimensions()) end
  end
  propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;}]])
  bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
  vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}]])
- love.graphics.push("all");love.graphics.setColor(1,1,1,1)
+ return true
+end
+function Art.prewarm(direction)
+ local ready=true;for phase=1,3 do if not resource(phase,direction) then ready=false end end
+ if not extraResources() then ready=false end
+ return ready
+end
+function Art.draw(direction,frame,x,y,player)
+ if not Preload.want("wipe",function()return Art.prewarm(direction) end) then return false end
+ extraResources()
+ local v=R.views[direction];local r=v.frames[frame];local a=resource(frame,direction);local c=Art.contact(direction,frame)
+ local scale=r[5] or v.scale
+love.graphics.push("all");love.graphics.setColor(1,1,1,1)
  local function body()
   love.graphics.setShader(bodyShader);Colorways.configureShader(bodyShader,player and player.furColorway,player and player.overallsColorway)
   local offset=a.offsets[v.index]
@@ -91,6 +103,7 @@ function Art.draw(direction,frame,x,y,player)
 end
 function Art.cachedPhases()local n=0;for _ in pairs(phases) do n=n+1 end;return n end
 function Art.release()
+    Images.release("wipe")
  for _,a in pairs(phases) do a.image:release();for _,q in pairs(a.quads) do q:release() end;for _,m in pairs(a.hands) do m:release() end end
  phases={}
  if cloth then cloth:release();cloth=nil;for _,q in ipairs(clothQuads) do q:release() end;clothQuads=nil end

@@ -10,8 +10,10 @@ function Audio.partBike(part)
     local model=require('src.commute.motorcycle')
     local speed=part.rider.gear.mounted and (visual.speed or 0) or 0
     local gear=bike.gear or 1
-    return {speed=speed,gear=gear,rpm=bike.reverse and model.IDLE_RPM+speed*500 or clamp(model.REDLINE*speed/model.GEARS[gear].speed,model.IDLE_RPM,model.REDLINE),
-        throttle=visual.throttle,shiftTime=visual.shiftTime,impactPulse=visual.impactPulse,impactStrength=visual.impactStrength}
+    local grounded=visual.grounded;if grounded==nil then grounded=bike.grounded end
+    return {speed=speed,gear=gear,rpm=model.rpmForSpeed(bike,speed),grounded=grounded~=false,
+        throttle=visual.throttle,brake=visual.brake,slip=visual.slip,tireSlip=visual.tireSlip,
+        shiftTime=visual.shiftTime,impactPulse=visual.impactPulse,impactStrength=visual.impactStrength}
 end
 function Audio.new()
     return setmetatable({sources={},errors={},master=1,sfx=.85,ambient=.42,
@@ -84,9 +86,12 @@ function Audio:update(dt,bike,engine,options)
     end
     self:loop('intake',self.fade*self.load*.12*(.4+speed),.85+self.rpm/12000)
     self:loop('wind',speed^1.7*.27, .8+speed*.35,true)
-    self:loop('tires',speed*.14, .65+speed*.65)
-    local brake=options.brake or bike.brake or 0
-    self:loop('brake',clamp(brake,0,1)*speed*.12, .85+speed*.25)
+    local contact=bike.grounded~=false and 1 or 0
+    local slip=clamp(math.max(bike.slip or 0,bike.tireSlip or 0),0,1)
+    self:loop('tires',speed*(.14+.08*slip)*contact, .65+speed*.65)
+    local brake=bike.brake
+    if brake==nil then brake=options.brake or 0 end
+    self:loop('brake',math.max(clamp(brake,0,1),slip*.8)*speed*.12*contact, .85+speed*.25)
     self:loop('nature',(.22-.13*speed)*(options.outdoors==false and 0 or 1),1,true)
 end
 function Audio:release()

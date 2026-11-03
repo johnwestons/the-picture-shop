@@ -8,7 +8,7 @@ local sequences={
     dismount={{'engine_off',.3},{'dismount',.8}},
 }
 local function finite(value) return type(value)=='number' and value==value and value>=0 and value<1e12 end
-Gear.poseNames={normal_idle=true,geared_idle=true,riding=true,seated=true}
+Gear.poseNames={normal_idle=true,geared_idle=true,riding=true,seated=true,crash=true}
 for _,steps in pairs(sequences) do for _,step in ipairs(steps) do Gear.poseNames[step[1]]=true end end
 function Gear.new() return {version=1,outfit='normal',mounted=false,engine=false,revision=0} end
 function Gear.valid(g)

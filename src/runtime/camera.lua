@@ -89,7 +89,10 @@ function Component.install(Runtime)
             screen = "machine_service"
         end
         local bounds
-        if screen == "world" and Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
+        -- Only scenes drawn with the wide world camera extend into the side
+        -- margins. Ride Home and the mechanic use the clipped base canvas.
+        if screen == "world" and Runtime.App.cameraTransformsWorld()
+            and Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
             bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight)
         end
         return screen, bounds

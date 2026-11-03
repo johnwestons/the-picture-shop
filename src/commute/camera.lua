@@ -1,5 +1,6 @@
 local M = require("src.commute.vendor.mathx")
 local FirstPerson = require('src.commute.first_person_camera')
+local Damping = require('src.commute.damping')
 
 local Camera = {}
 Camera.__index = Camera
@@ -17,6 +18,8 @@ Camera.ZOOM_MAX = 3.5
 Camera.FOLLOW_SMOOTH_TIME = 0.18
 Camera.FOLLOW_LOOKAHEAD_DISTANCE = 2.4
 Camera.FOLLOW_LOOKAHEAD_FULL_SPEED = 8
+Camera.FOLLOW_YAW_SMOOTH_TIME = 0.18
+Camera.FOLLOW_ORBIT_HOLD = 0.8
 
 local rad = math.pi / 180
 local defaultGroundSin = math.sin(Camera.TILT_DEFAULT * rad)
@@ -58,6 +61,12 @@ local function surfaceHeight(world, x, z)
     end
     local height = world:height(x, z)
     return finiteNumber(height, 0)
+end
+
+local function actorHeight(world,actor,x,z)
+    local height=finiteNumber(actor and actor.h,nil)
+    if height~=nil then return height end
+    return surfaceHeight(world,x,z)
 end
 
 local function smoothDamp(current, target, velocity, smoothTime, dt)
@@ -143,6 +152,18 @@ local function clampToWorld(world, x, z)
     return M.clamp(x, minX, maxX), M.clamp(z, minZ, maxZ)
 end
 
+local function screenCenter(self)
+    return (self.viewportWidth or Camera.SCREEN_WIDTH) * .5,
+        (self.viewportHeight or Camera.SCREEN_HEIGHT) * .5
+end
+
+function Camera:setViewport(width,height)
+    width=math.max(1,math.floor(finiteNumber(width,Camera.SCREEN_WIDTH)+.5))
+    height=math.max(1,math.floor(finiteNumber(height,Camera.SCREEN_HEIGHT)+.5))
+    self.viewportWidth,self.viewportHeight=width,height
+    return width,height
+end
+
 function Camera.project(x, z, height)
     return x * 48, z * 29 - height * 22
 end
@@ -152,7 +173,7 @@ function Camera.new(actor, world)
     actor = actor or { x = 0, z = 0 }
     local centerX = finiteNumber(actor.x, 0)
     local centerZ = finiteNumber(actor.z, 0)
-    local focusHeight = surfaceHeight(world, centerX, centerZ)
+    local focusHeight = actorHeight(world,actor,centerX,centerZ)
     local x, y = Camera.project(centerX, centerZ, focusHeight)
     return setmetatable({
         world = world,
@@ -170,6 +191,11 @@ function Camera.new(actor, world)
         centerVelocityZ = 0,
         yaw = 0,
         tilt = Camera.TILT_DEFAULT,
+        outsideMode = 'fixed',
+        fixedYaw = 0,
+        followYawOffset = 0,
+        followOrbitHold = 0,
+        followYawVelocity = 0,
     }, Camera)
 end
 
@@ -199,6 +225,24 @@ function Camera:heightScale()
     return scale
 end
 
+local function behindYaw(actor)
+    return (-finiteNumber(actor and actor.heading,0)/rad-90)%360
+end
+
+function Camera:setOutsideMode(mode,actor,mounted)
+    if mode~='fixed' and mode~='follow' then return false end
+    self.lastActor=actor or self.lastActor
+    if type(mounted)=='boolean' then self.followMounted=mounted end
+    if self.outsideMode==mode then return true end
+    if mode=='follow' then
+        self.fixedYaw=self.yaw
+        if not self.firstPerson and self.followMounted~=false then self.yaw=behindYaw(self.lastActor) end
+    else self.yaw=self.fixedYaw or self.yaw end
+    self.outsideMode=mode
+    self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
+    return true
+end
+
 function Camera:setFirstPerson(enabled, actor)
     self.firstPerson = enabled == true
     self.lastActor = actor or self.lastActor
@@ -209,7 +253,12 @@ function Camera:setFirstPerson(enabled, actor)
         FirstPerson.update(self, self.lastActor, 0)
     else
         self.centerX, self.centerZ = self.lastActor.x, self.lastActor.z
-        self.focusHeight = surfaceHeight(self.world, self.centerX, self.centerZ)
+        self.focusHeight = actorHeight(self.world,self.lastActor,self.centerX,self.centerZ)
+        self.heightVelocity=0
+        if self.outsideMode=='follow' and self.followMounted~=false then
+            self.yaw=behindYaw(self.lastActor)
+            self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
+        end
     end
 end
 
@@ -221,6 +270,13 @@ end
 
 function Camera:updateRide(rider, dt, visual)
     local actor = rider.gear.mounted and rider.bike or rider.ped
+    local mounted=rider.gear.mounted and not rider.gear.transition
+    if not mounted and self.followMounted then
+        -- Leaving the bike keeps the current outside angle, but a later mount
+        -- should not resume an old head-look offset or angular momentum.
+        self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
+    end
+    self.followMounted=mounted
     if self.firstPerson and (not rider.gear.mounted or rider.gear.transition) then
         self:setFirstPerson(false, actor)
     end
@@ -234,6 +290,21 @@ function Camera:update(actor, dt, visual)
     dt = math.max(0, finiteNumber(dt, 0))
     if self.firstPerson then FirstPerson.update(self, actor, dt, visual);return end
     local followDt = math.min(dt, 0.1)
+    if self.outsideMode=='follow' and self.followMounted~=false then
+        -- Orbit is a temporary look around in follow mode. Once released, the
+        -- camera eases back behind the bike, including when the bike is sliding.
+        local count=math.max(1,math.ceil(followDt*120-1e-9))
+        local yawDt=followDt/count
+        for _=1,count do
+            local returnDt=math.max(0,yawDt-(self.followOrbitHold or 0))
+            self.followOrbitHold=math.max(0,(self.followOrbitHold or 0)-yawDt)
+            self.followYawOffset=(self.followYawOffset or 0)*math.exp(-returnDt*7)
+            local angle,velocity=Damping.angle(self.yaw*rad,
+                (behindYaw(actor)+self.followYawOffset)*rad,self.followYawVelocity,
+                Camera.FOLLOW_YAW_SMOOTH_TIME,yawDt)
+            self.yaw=(angle/rad)%360;self.followYawVelocity=velocity
+        end
+    end
     local c, s, groundScale = self:_orientationBasis()
     local localX = self.offsetX / 48
     local localZ = self.offsetY / (29 * groundScale)
@@ -242,7 +313,7 @@ function Camera:update(actor, dt, visual)
     local targetX = finiteNumber(actor.x, self.centerX) + panX
     local targetZ = finiteNumber(actor.z, self.centerZ) + panZ
 
-    local speed = math.max(0, finiteNumber(actor.speed, 0))
+    local speed = math.max(0, finiteNumber(visual and visual.speed or actor.speed, 0))
     local heading = finiteNumber(actor.heading, 0)
     if speed > 0 then
         local lead = Camera.FOLLOW_LOOKAHEAD_DISTANCE * M.clamp(
@@ -256,26 +327,34 @@ function Camera:update(actor, dt, visual)
         self.centerVelocityX or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
     self.centerZ, self.centerVelocityZ = smoothDamp(self.centerZ, targetZ,
         self.centerVelocityZ or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
-    self.focusHeight = surfaceHeight(self.world, self.centerX, self.centerZ)
+    local height=actorHeight(self.world,actor,self.centerX,self.centerZ)
+    if finiteNumber(actor.h,nil)~=nil then
+        self.focusHeight,self.heightVelocity=smoothDamp(self.focusHeight,height,self.heightVelocity or 0,.18,followDt)
+    else self.focusHeight=height;self.heightVelocity=0 end
     self.x, self.y = Camera.project(self.centerX, self.centerZ, self.focusHeight)
     self.zoom = M.lerp(self.zoom, self.targetZoom, 1 - math.exp(-dt * 12))
 end
 
 function Camera:screen(x, z, height)
-    if self.firstPerson then return FirstPerson.screen(self,x,z,height or surfaceHeight(self.world,x,z)) end
+    -- Lua evaluates function arguments eagerly. Do not sample the terrain as
+    -- a fallback argument when scenery already supplies its cached elevation.
+    height = finiteNumber(height, nil)
+    if height == nil then height = surfaceHeight(self.world, x, z) end
+    if self.firstPerson then return FirstPerson.screen(self,x,z,height) end
+    local centerX,centerY=screenCenter(self)
     local c, s, groundScale, heightScale = self:_orientationBasis()
-    height = finiteNumber(height, surfaceHeight(self.world, x, z))
     local dx, dz = x - self.centerX, z - self.centerZ
     local right = dx * c - dz * s
     local depth = dx * s + dz * c
-    return Camera.CENTER_X + right * 48 * self.zoom,
-        Camera.CENTER_Y + (depth * 29 * groundScale
+    return centerX + right * 48 * self.zoom,
+        centerY + (depth * 29 * groundScale
             - (height - self.focusHeight) * 22 * heightScale) * self.zoom
 end
 
 function Camera:screenToWorld(sx, sy)
+    local centerX,centerY=screenCenter(self)
     local c, s, groundScale, heightScale = self:_orientationBasis()
-    local right = (sx - Camera.CENTER_X) / (48 * self.zoom)
+    local right = (sx - centerX) / (48 * self.zoom)
     local originX = self.centerX + right * c
     local originZ = self.centerZ - right * s
     local dirX, dirZ = s, c
@@ -302,18 +381,18 @@ function Camera:screenToWorld(sx, sy)
     local boundLo, boundHi = -math.huge, math.huge
     boundLo, boundHi = clipAxis(originX, dirX, safeMinX, safeMaxX, boundLo, boundHi)
     if not boundLo then
-        local flatDepth = (sy - Camera.CENTER_Y) / (self.zoom * 29 * groundScale)
+        local flatDepth = (sy - centerY) / (self.zoom * 29 * groundScale)
         return clampToWorld(self.world, originX + flatDepth * dirX, originZ + flatDepth * dirZ)
     end
     boundLo, boundHi = clipAxis(originZ, dirZ, safeMinZ, safeMaxZ, boundLo, boundHi)
     if not boundLo or boundLo > boundHi then
-        local flatDepth = (sy - Camera.CENTER_Y) / (self.zoom * 29 * groundScale)
+        local flatDepth = (sy - centerY) / (self.zoom * 29 * groundScale)
         return clampToWorld(self.world, originX + flatDepth * dirX, originZ + flatDepth * dirZ)
     end
 
     local maxHeight = finiteNumber(self.world.maxSupportHeight,
         finiteNumber(self.world.maxHeight, 84))
-    local screenOffset = (sy - Camera.CENTER_Y) / self.zoom
+    local screenOffset = (sy - centerY) / self.zoom
     local heightDepth0 = (screenOffset - self.focusHeight * 22 * heightScale) / (29 * groundScale)
     local heightDepthMax = (screenOffset + (maxHeight - self.focusHeight) * 22 * heightScale)
         / (29 * groundScale)
@@ -328,7 +407,7 @@ function Camera:screenToWorld(sx, sy)
         local x, z = originX + depth * dirX, originZ + depth * dirZ
         local rawHeight = surfaceHeight(self.world, x, z)
         local height = math.max(0, rawHeight)
-        return Camera.CENTER_Y + (depth * 29 * groundScale
+        return centerY + (depth * 29 * groundScale
             - (height - self.focusHeight) * 22 * heightScale) * self.zoom - sy,
             rawHeight
     end
@@ -404,12 +483,13 @@ function Camera:screenToWorld(sx, sy)
 end
 
 function Camera:depth(x, z, height)
+    height = finiteNumber(height, nil)
+    if height == nil then height = surfaceHeight(self.world, x, z) end
     if self.firstPerson then
-        local _,_,depth=FirstPerson.coordinates(self,x,z,height or surfaceHeight(self.world,x,z))
+        local _,_,depth=FirstPerson.coordinates(self,x,z,height)
         return -depth
     end
     local _, _, groundScale, heightScale = self:_orientationBasis()
-    height = finiteNumber(height, surfaceHeight(self.world, x, z))
     local groundDepth = (x - self.centerX) * self._yawSin + (z - self.centerZ) * self._yawCos
     return groundDepth * 22 * heightScale + (height - self.focusHeight) * 29 * groundScale
 end
@@ -434,6 +514,10 @@ end
 
 function Camera:headingDirection16(radians)
     radians = finiteNumber(radians, 0)
+    if self.firstPerson then
+        local angle=radians-self.viewHeading
+        return headingSector16(math.sin(angle),-math.cos(angle))
+    end
     local worldX, worldZ = math.cos(radians), math.sin(radians)
     local c, s = self:_orientationBasis()
     return headingSector16(worldX * c - worldZ * s, worldX * s + worldZ * c)
@@ -452,6 +536,11 @@ function Camera:orbit(yawDeltaDegrees, tiltDeltaDegrees)
         return
     end
     self.yaw = (self.yaw + finiteNumber(yawDeltaDegrees, 0)) % 360
+    if self.outsideMode=='follow' and self.followMounted~=false and finiteNumber(yawDeltaDegrees,0)~=0 then
+        self.followYawOffset=M.clamp((self.followYawOffset or 0)+yawDeltaDegrees,-180,180)
+        self.followOrbitHold=Camera.FOLLOW_ORBIT_HOLD
+        self.followYawVelocity=0
+    elseif self.outsideMode~='follow' then self.fixedYaw=self.yaw end
     self.tilt = M.clamp(self.tilt + finiteNumber(tiltDeltaDegrees, 0), Camera.TILT_MIN, Camera.TILT_MAX)
 end
 
@@ -479,17 +568,25 @@ function Camera:recenter()
     self.offsetX, self.offsetY = 0, 0
     self.targetZoom = Camera.ZOOM_DEFAULT
     self.zoom = Camera.ZOOM_DEFAULT
-    self.yaw, self.tilt = 0, Camera.TILT_DEFAULT
+    self.yaw = self.outsideMode=='follow' and self.followMounted~=false and behindYaw(self.lastActor) or 0
+    self.tilt = Camera.TILT_DEFAULT
+    self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
+    if self.outsideMode~='follow' then self.fixedYaw=self.yaw end
     self.centerVelocityX, self.centerVelocityZ = 0, 0
     if self.lastActor then
         self.centerX, self.centerZ = clampToWorld(self.world,
             finiteNumber(self.lastActor.x, self.centerX), finiteNumber(self.lastActor.z, self.centerZ))
-        self.focusHeight = surfaceHeight(self.world, self.centerX, self.centerZ)
+        self.focusHeight = actorHeight(self.world,self.lastActor,self.centerX,self.centerZ)
+        self.heightVelocity=0
         self.x, self.y = Camera.project(self.centerX, self.centerZ, self.focusHeight)
     end
 end
 
 function Camera:send(shader)
+    if shader:hasUniform('cameraScreenCenter') then
+        local centerX,centerY=screenCenter(self)
+        shader:send('cameraScreenCenter',{centerX,centerY})
+    end
     if shader:hasUniform('firstPerson') then
         shader:send('firstPerson',self.firstPerson==true)
         if self.firstPerson then FirstPerson.send(self,shader) end

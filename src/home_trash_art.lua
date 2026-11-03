@@ -1,3 +1,5 @@
+local Images=require("src.home_art_resources")
+local Preload=require("src.home_art_preload")
 local R=require("src.home_trash_registration")
 local Colorways=require("src.rabbit_colorways")
 local Art={};local phases={};local bag,bagQuads,bodyShader,propShader
@@ -16,7 +18,7 @@ function Art.contact(direction,frame)
 end
 local function resource(frame)
  if phases[frame] then return phases[frame] end
- local image=love.graphics.newImage(root.."phase-"..frame.."-body.png");image:setFilter("linear","linear")
+ local image=Images.load("trash",root.."phase-"..frame.."-body.png");if not image then return nil end;image:setFilter("linear","linear")
  local a={image=image,quads={},hands={}};local iw,ih=image:getDimensions()
  for i,d in ipairs(R.order) do
   local x,y=(i-1)%4*384,math.floor((i-1)/4)*512
@@ -35,16 +37,26 @@ local function resource(frame)
  end
  phases[frame]=a;return a
 end
-function Art.draw(direction,frame,x,y,player)
- local v=R.views[direction];local r=v.frames[frame];local a=resource(frame);local c=Art.contact(direction,frame)
+local function extraResources()
  if not bag then
-  bag=love.graphics.newImage(root.."bag-eight-directions.png");bag:setFilter("linear","linear");bagQuads={}
+  bag=Images.load("trash",root.."bag-eight-directions.png");if not bag then return false end;bag:setFilter("linear","linear");bagQuads={}
   for i=1,8 do bagQuads[i]=love.graphics.newQuad((i-1)%4*384,math.floor((i-1)/4)*512,384,512,bag:getDimensions()) end
  end
  propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;}]])
  bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
  vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}]])
- love.graphics.push("all");love.graphics.setColor(1,1,1,1)
+ return true
+end
+function Art.prewarm(direction)
+ local ready=true;for phase=1,4 do if not resource(phase) then ready=false end end
+ if not extraResources() then ready=false end
+ return ready
+end
+function Art.draw(direction,frame,x,y,player)
+ if not Preload.want("trash",function()return Art.prewarm(direction) end) then return false end
+ extraResources()
+ local v=R.views[direction];local r=v.frames[frame];local a=resource(frame);local c=Art.contact(direction,frame)
+love.graphics.push("all");love.graphics.setColor(1,1,1,1)
  local function body()
   love.graphics.setShader(bodyShader);Colorways.configureShader(bodyShader,player and player.furColorway,player and player.overallsColorway)
   love.graphics.draw(a.image,a.quads[v.index],x,y,0,r[5],r[5],r[1]-8,r[2])
@@ -56,6 +68,7 @@ function Art.draw(direction,frame,x,y,player)
 end
 function Art.cachedPhases()local n=0;for _ in pairs(phases) do n=n+1 end;return n end
 function Art.release()
+    Images.release("trash")
  for _,a in pairs(phases) do a.image:release();for _,q in ipairs(a.quads) do q:release() end;for _,m in ipairs(a.hands) do m:release() end end
  phases={}
  if bag then bag:release();bag=nil;for _,q in ipairs(bagQuads) do q:release() end;bagQuads=nil end

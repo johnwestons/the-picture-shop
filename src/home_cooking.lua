@@ -60,7 +60,7 @@ function Cooking.command(state,player,command)
     local revision=Cooking.decode(command);local r=require("src.home_residents").get(state,player)
     local a=r and r.activity
     if not revision or not a or not Cooking.RECIPES[a.kind] or r.revision~=revision then return false,"changed","That cooking step is no longer available." end
-    if player.sceneId~="home" or state.home.weekend.phase~="home" or (player.x-a.x)^2+(player.y-a.y)^2>12^2 then return false,"out_of_range","Stay at your cooking station to finish preparing this batch." end
+    if player.sceneId~="home" or not require("src.weekend_flow").atHome(state) or (player.x-a.x)^2+(player.y-a.y)^2>12^2 then return false,"out_of_range","Stay at your cooking station to finish preparing this batch." end
     local now=Calendar.absoluteHours(state)
     if a.cookTended or now<a.startedAt or now>=a.endsAt then return false,"unavailable","This batch has already been tended, or its preparation time has ended." end
     local fraction=(now-a.startedAt)/(a.endsAt-a.startedAt)

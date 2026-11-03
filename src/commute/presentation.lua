@@ -1,15 +1,68 @@
 -- Procedural fallback used while the rider changes gear. Stable suited walking
 -- uses the production directional character strips registered in walker_art.
 local Gear=require('src.commute.gear')
+local GearActionArt=require('src.commute.gear_action_art')
+local RoadScale=require('src.commute.rider_scale')
+local Fall=require('src.commute.rider_fall')
+local M=require('src.commute.vendor.mathx')
 local P={}
 local roadMirrorFor={west='east',northwest='northeast',southwest='southeast'}
-function P.foot(x,y,scale,gear,distance,speed,presentation)
+local gearActionArt,gearActionArtFailed
+local function getGearActionArt()
+    if gearActionArt or gearActionArtFailed then return gearActionArt end
+    local ok,art=pcall(function()
+        return GearActionArt.new({runtime=true,
+            registration=require('assets.generated.commute-gear-actions-v1.registration')})
+    end)
+    if ok then gearActionArt=art else gearActionArtFailed=true end
+    return gearActionArt
+end
+local function drawGearAction(pose,progress,x,y,baseScale,appearance)
+    if type(appearance)~='table' or appearance.character~='rabbit-worker' then return false end
+    local art=getGearActionArt()
+    if not art then return false end
+    local action,frame=GearActionArt.actionFrameForPose(pose,progress,art.registration)
+    if not action then return false end
+    local scale=baseScale*GearActionArt.normalization(action,art.registration)
+    return art:draw(action,frame,x,y,scale,appearance)
+end
+local function visualPose(gear,presentation)
+    local pose,progress=Gear.pose(gear)
+    if type(presentation)=='table' and type(presentation.pose)=='string' then
+        pose,progress=presentation.pose,presentation.progress or 0
+    end
+    return pose,progress
+end
+-- Transform the selected character's usual sprite around its boots. The host
+-- supplies the same progress to other views through the existing pose packet.
+function P.beginFallPose(actor,visual,camera,x,y)
+    local progress
+    if actor.crash then progress=actor.crash.elapsed/Fall.DURATION
+    elseif visual and visual.pose=='crash' then progress=visual.progress end
+    if progress==nil then return false end
+    local flight=math.min(1,progress*Fall.DURATION/Fall.FLIGHT)
+    local lift=(math.sin(math.pi*flight)*27+(1-flight)*14)*camera.zoom
+    local bank=M.smooth(flight)*(1-M.smooth((progress-.64)/.36))
+    local facing=camera:headingDirection(actor.heading)
+    local sign=facing and facing:find('west',1,true) and -1 or 1
+    local g=love.graphics
+    g.push()
+    g.translate(x,y-lift)
+    g.rotate(sign*bank*1.32)
+    g.translate(-x,-y)
+    return true
+end
+function P.foot(x,y,zoom,gear,distance,speed,presentation,appearance)
     local g=love.graphics;local pose,progress=Gear.pose(gear)
     if presentation then pose,progress=presentation.pose,presentation.progress;distance,speed=presentation.distance,presentation.speed end
+    local Config=require('src.config')
+    appearance=appearance or {character=Config.player.character}
+    if drawGearAction(pose,progress,x,y,RoadScale.base(zoom,GearActionArt.REFERENCE_HEIGHT),appearance) then return end
     local suited=gear.outfit=='geared' or pose=='zip_up' or pose=='boots_gloves' or pose=='helmet_on'
     local helmet=gear.outfit=='geared' and pose~='unzip' and pose~='suit_off'
     if pose=='helmet_on' then helmet=true end
     if pose=='helmet_off' then helmet=progress<.8 end
+    local scale=RoadScale.fallback(zoom,helmet)
     local step=(speed or 0)>.01 and math.sin((distance or 0)/.13*math.pi/4)*4 or 0
     g.push();g.translate(x,y);g.scale(scale)
     g.setColor(.03,.04,.03,.25);g.ellipse('fill',0,-1,14,4)
@@ -117,7 +170,7 @@ local function drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,cl
     if not image or not quad then return false end
     local anchorX,anchorY=characterAssets.getAnchor(character,action,frame)
     local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
-    local scale=Config.player.drawScale*.7*camera.zoom*(characterAssets.getNormalization(character,action) or 1)
+    local scale=RoadScale.sprite(camera.zoom,characterAssets.getNormalization(character,action))
     love.graphics.push('all');love.graphics.setShader();love.graphics.setColor(1,1,1,opacity or 1)
     love.graphics.draw(image,quad,x,y,0,scale*(mirrored and -1 or 1),scale,anchorX,anchorY)
     love.graphics.pop()
@@ -128,6 +181,11 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
     if not characterAssets or type(gear)~='table' then return false end
     local Normal=require('src.commute.normal_art')
     local selected=Normal.appearance(appearance)
+    local pose,progress=visualPose(gear,visual)
+    if selected.character=='rabbit-worker' then
+        local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
+        if drawGearAction(pose,progress,x,y,RoadScale.base(camera.zoom,GearActionArt.REFERENCE_HEIGHT),selected) then return true end
+    end
     -- The production suit art is rabbit-specific. Keep other selected species
     -- intact until matching suit sheets are authored for them.
     if selected.character~='rabbit-worker' then
@@ -151,12 +209,19 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
     return drew
 end
 
-function P.indoor(player,state,characterAssets)
+function P.indoor(player,state,characterAssets,gearOverride)
     local resident=require('src.home_residents').display(state,player)
-    local gear=resident and resident.ridingGear
+    local gear=gearOverride or resident and resident.ridingGear
     if not gear or gear.outfit=='normal' and not gear.transition then return false end
     local selected=player.character or require("src.config").player.character
     local transition=gear.transition
+    if transition and selected=='rabbit-worker' then
+        local pose,progress=Gear.pose(gear)
+        local Config=require('src.config')
+        local appearance={character=selected,furColorway=player.furColorway,
+            overallsColorway=player.overallsColorway}
+        if drawGearAction(pose,progress,player.x,player.y,Config.player.drawScale,appearance) then return true end
+    end
     if transition and (transition.kind=='equip' or transition.kind=='remove') then
         if selected~='rabbit-worker' then return false end
         local progress=smooth((transition.elapsed or 0)/math.max(.001,Gear.duration(transition.kind)))

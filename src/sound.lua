@@ -302,6 +302,7 @@ function Sound:capture()
     end
     return {
         screen = effectiveScreen,
+        sceneId = world and world.player and world.player.sceneId or "warehouse",
         personalAlarm=resident and resident.alarmAt,
         lastPersonalAlarm=resident and resident.lastAlarmAt,
         message = state.message,
@@ -326,7 +327,10 @@ function Sound:capture()
 end
 
 function Sound:syncPersistentLoops(snapshot)
+    local scene=snapshot.sceneId or "warehouse"
+    local shopScene=scene=="warehouse" or scene=="front_left" or scene=="front_right"
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
+        and shopScene
         and not (self.context.state.home and self.context.state.home.commute)
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end

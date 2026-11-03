@@ -1,4 +1,5 @@
 local Travel=require("src.home_travel")
+local Flow=require("src.weekend_flow")
 local Controls={}
 local font,small
 local function send(R,command)
@@ -13,12 +14,17 @@ local function buttons(R)
     if week.travelToken then
         local token=tostring(week.travelToken)
         if host then return {{key="return",label="TRAVEL WHEN ALL READY",command="depart:"..token},
-            {key="b",label=week.phase=="home" and "BRING EVERYONE TO WORK" or "BRING EVERYONE HOME",command="force:"..token},
+            {key="b",label="BRING EVERYONE",command="force:"..token},
             {key="c",label="CANCEL REQUEST",command="cancel"}} end
         return {{key="r",label="I'M READY",command="ready:"..token}}
     end
-    if host and (week.phase=="ready" or week.phase=="home") then
-        return {{key="return",label=week.phase=="home" and "REQUEST RETURN TO SHOP" or "GO HOME FOR THE WEEKEND",command="request"}}
+    if host then
+        local result={{key="return",label="EXPLORE TOWN",command="outing"}}
+        local scene=R.World.player.sceneId or "warehouse"
+        if week.phase=="ready" and scene=="warehouse" or week.phase=="home" and scene=="home" then
+            result[#result+1]={key="w",label=week.phase=="home" and "RETURN FOR THE WORK WEEK" or "GO HOME FOR THE WEEKEND",command="request"}
+        end
+        return result
     end
     return {}
 end
@@ -47,20 +53,18 @@ function Controls.draw(R)
     font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
     love.graphics.push("all");love.graphics.setColor(.025,.045,.06,.97);love.graphics.rectangle("fill",110,82,740,530,8)
     love.graphics.setFont(font);love.graphics.setColor(.96,.92,.79,1)
-    love.graphics.print("WEEKEND / HOUSEHOLD TRAVEL",140,110)
+    love.graphics.print("TOWN / HOUSEHOLD TRAVEL",140,110)
     love.graphics.setFont(small);love.graphics.printf("BACK [Esc]",752,112,88,"center")
     local week=R.state.home.weekend;local lines={}
-    if not week or week.phase=="working" then
-        lines={"The shop closes Friday at 20:00.","Finish the shutdown checklist, then return to this exterior entrance."}
-    elseif week.phase=="closing" then
-        lines=require("src.shop_shutdown").checklist(R.state,R.World)
-        if #lines==0 then lines={"Checking that the shop is safe to leave..."} end
-    elseif week.phase=="ready" then
-        lines={"The shop is shut down. Time is held while you prepare to leave.","Parked cargo and unfinished jobs stay at the shop."}
-    else
-        lines={"Return becomes available Monday at 07:30, before the 08:00 employee shift. The shop opens at 09:00.",
-            "Current time: "..require("src.business_calendar").dateTimeTextAtHours(require("src.business_calendar").absoluteHours(R.state))}
+    lines={"You can leave for town and return through the same entrance at any time.",
+        "The shop keeps its normal schedule while you are away.",
+        "Park, dismount, and walk to the warehouse or your apartment door to enter."}
+    if week and week.phase=="closing" then
+        lines[#lines+1]="Friday shutdown is in progress; the household can still go into town."
+    elseif week and (week.phase=="ready" or week.phase=="home") then
+        lines[#lines+1]="The shop is closed for the weekend. Town outings remain available."
     end
+    lines[#lines+1]="Current time: "..require("src.business_calendar").dateTimeTextAtHours(require("src.business_calendar").absoluteHours(R.state))
     if week and week.travelToken then
         lines={"Everyone travels together, including guests in other shop rooms.",
             "The host may wait for readiness or choose Bring everyone."}

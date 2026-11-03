@@ -13,7 +13,7 @@ function Routes.new(roads)
     for _,s in ipairs(roads.segments) do
         local a,an=node(s.a);local b,bn=node(s.b)
         an.edges[#an.edges+1]={to=b,length=s.len,bridge=s.bridge}
-        bn.edges[#bn.edges+1]={to=a,length=s.len,bridge=s.bridge}
+        if not s.oneWay then bn.edges[#bn.edges+1]={to=a,length=s.len,bridge=s.bridge} end
     end
     for id,p in pairs(roads.destinations) do
         local k=key(p);assert(self.nodes[k],'Unconnected destination: '..id)

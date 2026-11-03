@@ -54,11 +54,18 @@ function Navigator.findPath(actor, candidates, context, obstacleSnapshot)
     local columns = math.floor(Config.baseWidth / STEP) + 1
     local function key(x, y) return y * columns + x + 1 end
     local function heuristic(x, y)
+        if #goals == 1 then
+            local goal = goals[1]
+            return math.sqrt((x-goal.x)^2+(y-goal.y)^2)
+        end
         local best = math.huge
         for _, goal in ipairs(goals) do
-            best = math.min(best, math.sqrt((x-goal.x)^2+(y-goal.y)^2))
+            best = math.min(best, (x-goal.x)^2+(y-goal.y)^2)
         end
-        return best
+        -- Drop/parking searches may have hundreds of candidate contacts.
+        -- Comparing squared lengths preserves the nearest-goal heuristic
+        -- without taking a square root for every candidate at every node.
+        return math.sqrt(best)
     end
     local heap, scores, closed, walkable = {}, {}, {}, {}
     local function walk(x, y)

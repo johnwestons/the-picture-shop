@@ -135,7 +135,7 @@ end
 function Dining.command(state,player,command)
     local c=Dining.decode(command);local Residents=require("src.home_residents");local r=Residents.get(state,player)
     if not c then return false,"invalid_action","Choose a meal action." end
-    if not r or player.sceneId~="home" or state.home.weekend.phase~="home" then return false,"wrong_scene","Serve and eat meals at home." end
+    if not r or player.sceneId~="home" or not require("src.weekend_flow").atHome(state) then return false,"wrong_scene","Serve and eat meals at home." end
     if r.activity then return false,"busy","Finish or stop your current activity first." end
     local d=Dining.ensure(state);if d.revision~=c.revision then return false,"changed","The served meals changed. Review them and try again." end
     if c.action=="serve" then

@@ -51,7 +51,11 @@ function Privacy.draw(pose, player, characters)
     local character = Config.characters[player.character] and player.character or Config.player.character
     local dx, dy = directionVector(pose.direction)
     local action, mirror = Animation.directionalIdleAction(dx, dy)
-    if characters.resolveAction then action = characters.resolveAction(character, action) end
+    if characters.resolveAction then
+        local resolved=characters.resolveAction(character,action)
+        if resolved~=action then require("src.home_art_preload").wait() end
+        action=resolved
+    end
     local image, quad, frameCount = characters.get(character, action, 1)
     if not image or not quad then
         -- Keep the privacy contract even if an optional character asset is

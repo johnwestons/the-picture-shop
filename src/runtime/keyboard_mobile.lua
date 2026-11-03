@@ -63,7 +63,9 @@ function Component.install(Runtime)
     local mobileTextInputState
 
     function Runtime.wantsTextInput()
-        if Runtime.state.screen == "options" then
+        if Runtime.state.screen == "title" then
+            return Runtime.TitleScreen.wantsTextInput()
+        elseif Runtime.state.screen == "options" then
             return Runtime.OptionsScreen.wantsTextInput()
         elseif Runtime.state.screen == "job_offer" and Runtime.JobOfferScreen.wantsTextInput then
             return Runtime.JobOfferScreen.wantsTextInput()
@@ -105,6 +107,11 @@ function Component.install(Runtime)
 
     function Runtime.dispatchKeyPressed(key)
         if require('src.commute.runtime').keypressed(Runtime,key) then return true end
+        if Runtime.state.screen=="title" then
+            local result=Runtime.TitleScreen.keypressed(key)
+            Runtime.syncMobileKeyboard()
+            return result
+        end
         if Runtime.state.screen=="air_hockey" then
             return require("src.screens.air_hockey_screen").keypressed(Runtime,key)
         end

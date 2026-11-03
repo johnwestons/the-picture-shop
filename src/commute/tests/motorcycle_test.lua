@@ -11,6 +11,9 @@ local function ride(p,input,seconds,w,hz)
 end
 function Test.run(check)
     require('src.commute.tests.riding_animation_test').run(check)
+    require('src.commute.tests.bike_dynamics_test').run(check)
+    require('src.commute.tests.bike_traction_test').run(check)
+    require('src.commute.tests.bike_feedback_test').run(check)
     local p=Bike.new(100,100,0);local seen={[1]=true}
     for _=1,1200 do Bike.update(p,{throttle=1},1/60,world());seen[p.gear]=true end
     check('commute_automatic_uses_all_four_gears',seen[1] and seen[2] and seen[3] and seen[4] and p.speed>11 and p.speed<=12)

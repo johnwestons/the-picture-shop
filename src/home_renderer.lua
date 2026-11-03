@@ -1,7 +1,9 @@
+local Preload=require("src.home_art_preload")
 local Layout=require("src.home_layouts")
 local Avatar=require("src.multiplayer_avatar_renderer")
 local Renderer={REVEAL_RADIUS=88}
 local cleanShader,wallShader
+local openingFrame=false
 local fixtureMeshes,meshFloor,meshId={},nil,nil
 local Surface=require("src.home_surfaces")
 local FurnitureArt=require("src.home_furniture_art")
@@ -79,6 +81,7 @@ local function meshes(id,entry,image)
     end
 end
 function Renderer.clearCache()
+    Preload.reset();openingFrame=false
     Pose.release()
     Routine.release()
     require("src.home_furniture_art").release()
@@ -88,14 +91,22 @@ function Renderer.clearCache()
     fixtureMeshes={};meshId,meshFloor=nil,nil
 end
 function Renderer.draw(world,assets,characters,state,remotePlayers,drawLocal)
+    Preload.beginFrame()
     local art,reason=assets.getApartment(state.home.apartmentId)
     love.graphics.push("all")
     love.graphics.setColor(.025,.035,.045,1);love.graphics.rectangle("fill",0,0,960,678)
-    if not art or not art.floor or not art.wall then
+    local Food=require("src.home_food_art")
+    local prepareFoodShader=require("src.image_loader").enabled and not Food.shaderReady()
+    if not art or not art.floor or not art.wall or prepareFoodShader then
         love.graphics.setColor(1,1,1,1)
         love.graphics.printf(reason and "Apartment art could not load: "..reason or "Opening apartment...",80,300,800,"center")
-        love.graphics.pop();return
+        -- The preceding frame has already shown the ordinary opening panel.
+        -- Compile this cached program here, before the first household action.
+        if prepareFoodShader and openingFrame then Food.prewarmShader() end
+        openingFrame=true
+        Preload.wait();love.graphics.pop();return
     end
+    openingFrame=false
     shaders()
     local entry=Layout.get(state)
     meshes(state.home.apartmentId,entry,art.floor)
@@ -150,7 +161,8 @@ function Renderer.draw(world,assets,characters,state,remotePlayers,drawLocal)
                     if not Routine.draw(pose,actor,characters) then
                         if localPlayer then drawLocal() else Avatar.draw(characters,{actor},state) end
                     end
-                else Pose.draw(pose,actor);Pose.drawForeground(pose) end
+                elseif Pose.draw(pose,actor) then Pose.drawForeground(pose)
+                elseif localPlayer then drawLocal() else Avatar.draw(characters,{actor},state) end
                 if not localPlayer then
                     Avatar.drawLabel({id=actor.id,name=actor.name,x=pose.x,y=pose.bounds[2]+79})
                 end
@@ -200,5 +212,6 @@ function Renderer.draw(world,assets,characters,state,remotePlayers,drawLocal)
     love.graphics.setColor(1,1,1,1);love.graphics.setShader(wallShader);wallShader:send("overlayPass",true)
     love.graphics.draw(art.wall,Layout.X,Layout.Y,0,Layout.SCALE,Layout.SCALE)
     love.graphics.pop()
+    Preload.endFrame()
 end
 return Renderer

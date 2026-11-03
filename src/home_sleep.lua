@@ -19,7 +19,7 @@ function Sleep.decode(command)
 end
 function Sleep.command(state,player,command)
     local choice=Sleep.decode(command);local r=require("src.home_residents").get(state,player)
-    if choice==nil or not r or player.sceneId~="home" or state.home.weekend.phase~="home" then return false,"unavailable","Set your alarm while at home." end
+    if choice==nil or not r or player.sceneId~="home" or not require("src.weekend_flow").atHome(state) then return false,"unavailable","Set your alarm while at home." end
     local now=Calendar.absoluteHours(state);local at
     if choice=="work" then
         at=state.home.weekend.opensAtHours-2
@@ -66,7 +66,7 @@ function Sleep.status(state,players,display)
             end
         end
     end
-    return total>0 and sleeping==total and state.home.weekend.phase=="home" and not state.home.weekend.travelToken and now+1e-7<boundary,sleeping,total,boundary
+    return total>0 and sleeping==total and require("src.weekend_flow").atHome(state) and require("src.weekend_flow").shopClosed(state) and not state.home.weekend.travelToken and now+1e-7<boundary,sleeping,total,boundary
 end
 function Sleep.calendarStep(state,players,dt)
     local all,_,_,boundary=Sleep.status(state,players)

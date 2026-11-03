@@ -15,6 +15,64 @@ local function readyAtDoor(part,anchor,world)
     part.rider=Rider.new(anchor.x,anchor.z,0,{version=1,outfit='geared',mounted=false,engine=false,revision=1})
     part.rider.ped.x,part.rider.ped.z=anchor.x,anchor.z-3;Rider.update(part.rider,{},0,world)
 end
+local function rotatedTownTravel(check)
+    local Town=require('src.commute.town');local Home=require('src.home');local Bike=require('src.commute.motorcycle')
+    local town=assert(Town.generate(712345));local world=Town.world(town)
+    local function clear(part)
+        local r=part.rider
+        return Rider.clear(world,r.bike.x,r.bike.z,Bike.RADIUS) and Rider.clear(world,r.ped.x,r.ped.z,Rider.RADIUS)
+    end
+    local function atParking(part,id)
+        local a=assert(Trip.parking(world,id,part.slot));local r=part.rider
+        return clear(part) and math.abs(r.bike.x-a.x)+math.abs(r.bike.z-a.z)<1e-6
+            and math.abs(r.ped.x-a.pedX)+math.abs(r.ped.z-a.pedZ)<1e-6
+            and math.abs(r.bike.heading-a.heading)<1e-6
+    end
+    local function allParked(trip,id)
+        local result=true
+        for _,part in pairs(trip.participants) do result=result and atParking(part,id) end
+        return result
+    end
+    local function arrive(state,players)
+        local trip=state.home.commute;local site=world.sites.byId[trip.destination]
+        for _,player in ipairs(players) do
+            local part=trip.participants[Residents.key(player)];local r=part.rider
+            local a=assert(Trip.parking(world,trip.destination,part.slot))
+            r.bike.x,r.bike.z,r.bike.heading=a.x,a.z,a.heading
+            r.ped.x,r.ped.z=site.door.x,site.door.z
+            Rider.update(r,{},0,world);assert(Trip.command(state,player,trip.token,'arrive',world))
+        end
+        assert(Trip.finish(state,players[1],trip.token,false))
+    end
+    for _,id in ipairs({'brick-walkup','garden','courtyard','corner'}) do
+        local state=State.new();state.home=assert(Home.new({apartmentId=id,town=town},0))
+        local players={{id=1,homeResidentId='owner'}}
+        for slot=2,4 do
+            local player={id=slot,name='Rider '..slot};assert(Residents.bind(state,player,string.rep(tostring(slot),64),players))
+            players[#players+1]=player
+        end
+        at(state,44);state.home.weekend.phase='ready';state.home.weekend.closedAtHours=44;request(state,101)
+        assert(Trip.start(state,{players[1],players[2],players[3]},101,world))
+        check('commute_seeded_party_starts_clear_'..id,allParked(state.home.commute,'warehouse'))
+        assert(Trip.rebind(state,players[4],players,world))
+        check('commute_seeded_late_join_uses_rotated_parking_'..id,allParked(state.home.commute,'warehouse'))
+        arrive(state,players)
+        at(state,105);request(state,102);assert(Trip.start(state,players,102,world))
+        check('commute_seeded_four_rider_return_starts_clear_'..id,allParked(state.home.commute,id))
+        local saved=Trip.snapshot(state.home.commute);saved.mapVersion=99
+        state.home.commute=assert(Trip.restore(saved,world))
+        check('commute_seeded_return_recovery_preserves_party_parking_'..id,allParked(state.home.commute,id)
+            and Trip.valid(state.home.commute,state.home))
+        local fourth=state.home.commute.participants[Residents.key(players[4])]
+        local building=world.sites.byId[id];local solid=building.footprints[1]
+        fourth.rider.bike.x,fourth.rider.bike.z=(solid.minX+solid.maxX)*.5,(solid.minZ+solid.maxZ)*.5
+        assert(Trip.rebind(state,players[4],players,world))
+        check('commute_seeded_reconnect_recovers_invalid_position_'..id,atParking(fourth,id))
+        arrive(state,players)
+        check('commute_seeded_four_rider_roundtrip_commits_once_'..id,state.home.commute==nil
+            and state.home.weekend.phase=='working' and state.home.weekend.transition==2)
+    end
+end
 function Test.run(check)
     local world=Roads.new():attach(Terrain.new())
     local state=State.new();local host={id=1,homeResidentId='owner'};local guest={id=2,name='Rider'}
@@ -36,11 +94,19 @@ function Test.run(check)
     check('stale_controls_cannot_toggle_bike',not Trip.command(state,guest,11,'ignition',world) and not guestRider.gear.engine)
     local Animation=require('src.commute.riding_animation')
     local ownerBike=state.home.commute.participants.owner.rider.bike
+    ownerBike.brake=.7;ownerBike.slip=.4;ownerBike.tireSlip=.6;ownerBike.lateralSpeed=-2.5
     Animation.request(ownerBike,'boost');Animation.update(ownerBike,.2);Animation.request(ownerBike,'shift')
     local snapshot=assert(Schema.snapshot(state))
     local visual=snapshot.home.commute.participants.owner.presentation
     check('commute_trip_snapshot_replicates_sequenced_riding_pose',visual.ridingAction=='boost'
         and math.abs(visual.ridingActionTime-.58)<1e-7)
+    check('commute_trip_snapshot_preserves_braking_and_sliding_feedback',visual.brake==.7
+        and visual.slip==.4 and visual.tireSlip==.6 and visual.lateralSpeed==-2.5)
+    local feedback=Schema.copy(snapshot.home.commute)
+    feedback.participants.owner.presentation.slip=2
+    check('commute_trip_rejects_invalid_slip_feedback',not Trip.valid(feedback))
+    feedback.participants.owner.presentation.slip=.4;feedback.participants.owner.presentation.lateralSpeed=0/0
+    check('commute_trip_rejects_invalid_lateral_feedback',not Trip.valid(feedback))
     local invalid=Schema.copy(snapshot.home.commute)
     invalid.participants.owner.presentation.ridingActionTime=999
     check('commute_trip_rejects_unbounded_riding_animation_time',not Trip.valid(invalid))
@@ -82,5 +148,6 @@ function Test.run(check)
         and not restored.participants.owner.rider.gear.mounted and restored.participants.owner.rider.gear.outfit=='geared')
     old.participants.owner.slot=2
     check('commute_trip_rejects_invalid_host_assignment',not Trip.valid(old))
+    rotatedTownTravel(check)
 end
 return Test

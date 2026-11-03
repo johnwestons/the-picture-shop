@@ -52,5 +52,6 @@ function Test.run(check)
         local name,token=runtime.decode(action..':123')
         check('network_command_'..action,name==action and token==123)
     end
+    require('src.commute.tests.touch_journey_test').run(check)
 end
 return Test

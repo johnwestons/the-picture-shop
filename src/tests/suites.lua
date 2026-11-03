@@ -8,6 +8,20 @@ local function legacyGeometry(suite)
 end
 
 local DOMAIN_SUITES = {
+    require('src.tests.menu_exit_test'),
+    require("src.tests.town_setup_test"),
+    {run=function(_,check)require("src.tests.home_art_preload_test").run(check)end},
+    {run=function(_,check)
+        for _,name in ipairs({'camera','follow_camera','camera_controls','camera_preferences','route_map','town_center','town_trails','infrastructure','road_markings'}) do
+            require('src.commute.tests.'..name..'_test').run(check)
+        end
+        for _,name in ipairs({'bike_damage','rider_crash','bike_pitch','bike_pitch_visual'}) do
+            require('src.commute.tests.'..name..'_test').run(check)
+        end
+        for _,name in ipairs({'town','bike_dynamics','bike_traction','bike_feedback','rider','rider_scale','vegetation','vegetation_collision','bike_upgrades','bike_paint','direction','mechanic_shop','mechanic_paint_shop','mechanic_preview','mechanic_interior','structure_geometry','bridge_geometry','terrain_mesh','terrain_renderer','touch_journey','outing'}) do
+            require('src.commute.tests.'..name..'_test').run(check)
+        end
+    end},
     require("src.tests.home_residents_test"),
     require("src.tests.home_shopping_test"),
     require("src.tests.home_furniture_test"),
@@ -17,6 +31,7 @@ local DOMAIN_SUITES = {
     require("src.tests.business_deadlines_test"),
     require("src.tests.weekend_flow_test"),
     require("src.tests.weekend_runtime_test"),
+    require("src.tests.background_warehouse_test"),
     require("src.tests.home_travel_session_test"),
     require("src.tests.lua_limits_test"),
     require("src.tests.basketball_test"),
