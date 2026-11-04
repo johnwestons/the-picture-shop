@@ -1,7 +1,8 @@
 -- Transient full-body pose sequencing, independent of transmission physics.
+local M=require('src.commute.vendor.mathx')
 local A={durations={boost=.78,shift=.32}}
 function A.reset(bike)
-    bike.ridingAnimation={kind='idle',remaining=0,queue={}}
+    bike.ridingAnimation={kind='idle',remaining=0,queue={},accelerationWeight=0,brakingWeight=0}
 end
 function A.request(bike,kind)
     assert(A.durations[kind],'Unknown riding animation')
@@ -11,6 +12,21 @@ function A.request(bike,kind)
     if state.kind==kind then return end
     for _,queued in ipairs(state.queue) do if queued==kind then return end end
     state.queue[#state.queue+1]=kind
+end
+local function feedback(state,bike,dt)
+    local grounded=bike.grounded~=false
+    local acceleration=grounded and not bike.reverse
+        and M.smooth(((bike.acceleration or 0)-.6)/2.4)*M.smooth(((bike.throttle or 0)-.2)/.6) or 0
+    local braking=grounded and M.smooth(((bike.brake or 0)-.35)/.5)*M.smooth(((bike.speed or 0)-.7)/2.5) or 0
+    local function ease(current,target,rise,fall)
+        current=current or 0
+        return M.lerp(current,target,1-math.exp(-math.max(0,dt)/(target>current and rise or fall)))
+    end
+    state.accelerationWeight=ease(state.accelerationWeight,acceleration,.07,.10)
+    state.brakingWeight=ease(state.brakingWeight,braking,.05,.09)
+    if not grounded or bike.reverse and (bike.brake or 0)==0 then
+        state.accelerationWeight,state.brakingWeight=0,0
+    end
 end
 function A.update(bike,dt)
     if not bike.ridingAnimation then A.reset(bike) end
@@ -24,6 +40,7 @@ function A.update(bike,dt)
         return
     end
     local state=bike.ridingAnimation
+    feedback(state,bike,dt)
     local left=math.max(0,dt)
     if state.kind~='idle' then
         local used=math.min(left,state.remaining)

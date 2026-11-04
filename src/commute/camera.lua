@@ -1,6 +1,7 @@
 local M = require("src.commute.vendor.mathx")
 local FirstPerson = require('src.commute.first_person_camera')
 local Damping = require('src.commute.damping')
+local Landing = require('src.commute.landing_camera')
 
 local Camera = {}
 Camera.__index = Camera
@@ -11,10 +12,12 @@ Camera.CENTER_X = 640
 Camera.CENTER_Y = 440
 Camera.TILT_DEFAULT = 55
 Camera.TILT_MIN = 20
-Camera.TILT_MAX = 85
+-- Third-person orbit can get close to a straight-down view without reaching
+-- the singular 90-degree projection limit.
+Camera.TILT_MAX = 89
 Camera.ZOOM_DEFAULT = 1.35
 Camera.ZOOM_MIN = 0.55
-Camera.ZOOM_MAX = 3.5
+Camera.ZOOM_MAX = 6.5
 Camera.FOLLOW_SMOOTH_TIME = 0.18
 Camera.FOLLOW_LOOKAHEAD_DISTANCE = 2.4
 Camera.FOLLOW_LOOKAHEAD_FULL_SPEED = 8
@@ -332,6 +335,11 @@ function Camera:update(actor, dt, visual)
     self.centerZ, self.centerVelocityZ = smoothDamp(self.centerZ, targetZ,
         self.centerVelocityZ or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
     local height=actorHeight(self.world,actor,self.centerX,self.centerZ)
+    self.landingTarget=Landing.target(self.world,actor,visual)
+    if self.landingTarget then
+        -- Keep both the jumping rider and the lower landing surface in view.
+        height=height-M.clamp(height-self.landingTarget.h,0,4)*.6
+    end
     if finiteNumber(actor.h,nil)~=nil then
         self.focusHeight,self.heightVelocity=smoothDamp(self.focusHeight,height,self.heightVelocity or 0,.18,followDt)
     else self.focusHeight=height;self.heightVelocity=0 end

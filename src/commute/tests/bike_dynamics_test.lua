@@ -25,10 +25,10 @@ function Test.run(check)
             blocked=function(_,_,x)return x>=12 end}}
     local recoverable=Bike.new(0,0,0)
     run(recoverable,waterEdge,5,60,{throttle=1})
-    local stuckX=recoverable.x
+    local stuckX,stuckZ=recoverable.x,recoverable.z
     local rescued=Bike.rescue(recoverable,waterEdge)
-    check('motorcycle_rescue_returns_to_prior_dry_checkpoint_and_clears_stuck_momentum',rescued
-        and recoverable.x<stuckX-4 and recoverable.speed==0 and recoverable.vx==0 and recoverable.vz==0
+    check('motorcycle_rescue_moves_away_from_water_and_clears_stuck_momentum',rescued
+        and recoverable.x<10 and (recoverable.x-stuckX)^2+(recoverable.z-stuckZ)^2>=25 and recoverable.speed==0 and recoverable.vx==0 and recoverable.vz==0
         and not recoverable.reverse)
     local road=run(Bike.new(0,0,0),world(),25,60)
     local trail=run(Bike.new(0,0,0),world(nil,true),25,60)
@@ -78,7 +78,8 @@ function Test.run(check)
     check('commute_rejects_invalid_saved_upgrade',not Rider.restore(snapshot,world(),{x=100,z=100}))
     local upgraded=Bike.new(0,0,0);upgraded.upgradeLevel=3
     run(upgraded,world(),45,60,{throttle=1,boost=true})
-    check('commute_top_upgrade_boost_reaches_about_60mph',upgraded.speed>=26.4 and upgraded.speed<=26.8)
+    check('commute_top_upgrade_boost_reaches_about_75mph',upgraded.speed>=Bike.BOOST_MAX_SPEED-.4
+        and upgraded.speed<=Bike.BOOST_MAX_SPEED)
     local Camera=require('src.commute.camera')
     local actor={x=100,z=100,h=5,heading=0,speed=6,pitch=.2,grade=0}
     local camera=Camera.new(actor,world());camera:setFirstPerson(true,actor)

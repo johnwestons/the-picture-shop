@@ -1,14 +1,43 @@
 -- Sprite artwork with live instrument graphics. All measurements use a 720px cockpit.
 local Bike=require('src.commute.motorcycle')
 local M=require('src.commute.vendor.mathx')
-local HUD={MAX_MPH=60};HUD.__index=HUD
+local HUD={MAX_MPH=80,CONDITION_BIKE_FRAME=5};HUD.__index=HUD
 function HUD.conditionLabel(bike)
     local damage=bike.damage or 0
     if damage==0 then return '' end
     if damage==100 then return '  ·  Bike condition 0% (5 mph)' end
     return ('  ·  Bike condition %d%%'):format(100-damage)
 end
+function HUD.drawCondition(bike,x,y,bikeArt)
+    local g=love.graphics;local damage=M.clamp((bike and bike.damage or 0)/100,0,1)
+    local condition=math.floor((1-damage)*100+.5)
+    g.push('all')
+    g.setColor(.025,.04,.035,.9);g.rectangle('fill',x,y,170,36,6)
+    g.setColor(.34,.40,.34,.9);g.setLineWidth(1);g.rectangle('line',x,y,170,36,6)
+    if bikeArt then
+        local image,quad=bikeArt:resolve('parked',HUD.CONDITION_BIKE_FRAME)
+        g.setColor(1,1,1,1)
+        g.draw(image,quad,x-2,y-4,0,42/320,42/320)
+    end
+    g.setColor(.94,.93,.82);g.print('CONDITION',x+39,y+5)
+    g.printf(condition..'%',x+119,y+5,43,'right')
+    g.setColor(.19,.22,.19,1);g.rectangle('fill',x+39,y+23,119,7,3)
+    if damage>0 then
+        g.setColor(.88,.16,.11,.96);g.rectangle('fill',x+39,y+23,119*damage,7,3)
+    end
+    if bike and bike.service then
+        local s=bike.service
+        g.setColor(.025,.04,.035,.92);g.rectangle('fill',x,y+37,170,24,4)
+        g.setColor(1,s.fuel<.5 and .45 or .9,.65)
+        g.print(('Fuel %.1f L  |  %.1f mi'):format(s.fuel,s.miles),x+6,y+40)
+    end
+    g.pop()
+end
 function HUD.riderHint(rider,visual)
+    if rider.gear.mounted and not rider.gear.engine then
+        if rider.bike.service and rider.bike.service.fuel<=0 then return 'Out of fuel. Walk to Gas & Tire for a refill.' end
+        if require('src.commute.bike_service').rough(rider.bike)>.1 then return 'Engine stopped. Use the ignition to restart and visit Gas & Tire for service.' end
+    end
     if rider.ped.crash or visual and visual.pose=='crash' then
         return 'Thrown from the bike. Get back on your feet, then walk over and remount.'
     end
@@ -17,7 +46,7 @@ function HUD.riderHint(rider,visual)
     end
 end
 function HUD.new()
-    local self=setmetatable({image=love.graphics.newImage('assets/commute/cockpit/handlebars.png'),fonts={}},HUD)
+    local self=setmetatable({image=love.graphics.newImage('assets/commute/cockpit/handlebars-controls-v1.png'),fonts={}},HUD)
     self.image:setFilter('linear','linear')
     for _,size in ipairs({10,14,16,24}) do
         self.fonts[size]=love.graphics.newFont(size);self.fonts[size]:setFilter('linear','linear')
@@ -33,6 +62,23 @@ end
 function HUD.layout(width,height)
     local scale=math.min(1.25,width*.64/720,height*.32/230)
     return (width-720*scale)*.5,height-230*scale,scale
+end
+HUD.handlebarControlSpecs={
+    {action='horn',outsideX=150,outsideY=144,firstPersonX=247,firstPersonY=264},
+    {action='beam',outsideX=171,outsideY=132,firstPersonX=252,firstPersonY=298},
+    {action='ignition',outsideX=556,outsideY=132,firstPersonX=770,firstPersonY=265},
+    {action='headlight',outsideX=578,outsideY=148,firstPersonX=770,firstPersonY=300},
+}
+function HUD.handlebarControls(width,height,camera)
+    if camera and camera.firstPerson then
+        return require('src.commute.first_person_bike').projectControls(camera,width,height,HUD.handlebarControlSpecs)
+    end
+    local ox,oy,scale=HUD.layout(width,height);local result={}
+    for _,spec in ipairs(HUD.handlebarControlSpecs) do
+        result[#result+1]={action=spec.action,x=ox+spec.outsideX*scale,y=oy+spec.outsideY*scale,
+            visualRadius=8*scale}
+    end
+    return result
 end
 function HUD.keyAt(x,y,width,height,bike,visual,camera)
     -- Retained for compatibility; actions now use the shared visible button layout.

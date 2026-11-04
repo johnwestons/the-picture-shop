@@ -46,7 +46,16 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         self.assertIn("assets/commute/terrain/ground-desktop-v1.png", names)
         self.assertIn("assets/commute/terrain/ground-mobile-v1.png", names)
         self.assertIn("assets/commute/cockpit/first-person-bike-v2.png", names)
-        self.assertEqual(len([n for n in names if n.startswith("assets/commute/bike/")]), 14)
+        self.assertIn("assets/commute/bike/mounted-upright-64-v2.png", names)
+        self.assertIn("assets/commute/bike/wheel_regions.lua", names)
+        self.assertIn("assets/commute/bike/actions-64/paint_regions.lua", names)
+        poses = ("aero", "boost", "brake", "shift", "impact", "turnLeft", "turnRight")
+        for pose in poses:
+            for phase in ("", "Mid"):
+                for page in range(1, 5):
+                    self.assertIn(f"assets/commute/bike/actions-64/{pose}{phase}-{page}.png", names)
+        self.assertIn("assets/commute/cockpit/first-person-bike-controls-v1.png", names)
+        self.assertIn("assets/commute/cockpit/handlebars-controls-v1.png", names)
         layout = (package.ROOT / "src/commute/vendor/plant_atlas_layout.lua").read_text(encoding="utf-8")
         for atlas in re.findall(r'"(assets/commute/plant-atlas/[^"\n]+\.png)"', layout):
             self.assertIn(atlas, names)

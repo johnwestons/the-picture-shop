@@ -9,10 +9,14 @@ local PlantMotion=require('src.commute.vendor.plant_motion')
 local BikeArt=require('src.commute.bike_art')
 local Structures=require('src.commute.structures')
 local FP=require('src.commute.first_person_camera')
+local TireTracks=require('src.commute.tire_tracks')
+local BikeParticles=require('src.commute.bike_particles')
+local GrassFields=require('src.commute.grass_fields')
 local Renderer={BUILD_BUDGET_SECONDS=.004,LOAD_BUDGET_SECONDS=.012};Renderer.__index=Renderer
 function Renderer.new(world)
     local self=setmetatable({world=world,ground=Ground.new(),chunks={},radius=64,clock=0,serial=0,
         calendar=world.calendar or {month=5,totalDays=0},viewportWidth=1280,viewportHeight=880,
+        tireTracks=TireTracks.new(),bikeParticles=BikeParticles.new(),
         outsideSpriteShader=love.graphics.newShader([[
 #ifdef VERTEX
 extern float spriteDepth;
@@ -33,6 +37,7 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     self.ground:prepare()
     self.vegetation=world.vegetation or Vegetation.new(world)
     world.vegetation=self.vegetation
+    self.grassFields=GrassFields.new(world)
     self.plantSprites=PlantSprites.new();self.plantMotion=PlantMotion.new(world)
     self.bikeArt=BikeArt.new()
     self.structures=Structures.new(world)
@@ -126,6 +131,15 @@ end
 function Renderer:depthSpan()
     return math.max(1,(self.world.size or 512)*100+(self.world.maxHeight or 84)*100)
 end
+function Renderer:updateTireTracks(id,bike,world,dt,visual)
+    return self.tireTracks:update(id,bike,world or self.world,dt,visual)
+end
+function Renderer:updateBikeParticles(entries,dt)
+    self.bikeParticles:advance(dt)
+    for _,entry in ipairs(entries) do
+        self.bikeParticles:emit(entry.id,entry.bike,self.world,dt,entry.visual,entry.engine,entry.mounted)
+    end
+end
 function Renderer:resizeViewport(width,height)
     width,height=math.max(1,math.floor(width+.5)),math.max(1,math.floor(height+.5))
     if width==self.viewportWidth and height==self.viewportHeight then return false end
@@ -167,6 +181,11 @@ function Renderer:prepare(camera,dt)
     local radius=math.max(self.radius,camera.firstPerson and 96 or 35/camera.zoom)
     self.effectiveRadius=math.min(radius,96)
     self:prepareTerrain()
+    if self.grassFields then
+        local r=math.min(self.effectiveRadius,GrassFields.FAR_VIEW_RADIUS)
+        self.visibleGrass=self.grassFields:collect(camera.centerX-r,camera.centerZ-r,
+            camera.centerX+r,camera.centerZ+r,camera,r)
+    end
     if not self:terrainReady() then self.visibleProps={};return end
     -- Coarse painter ordering is retained for tool compatibility; ground itself
     -- uses a depth buffer, including occlusion within each larger static tile.
@@ -177,6 +196,16 @@ function Renderer:prepare(camera,dt)
     self.plantMotion:update(dt)
     self.visibleProps=self:props(camera)
     self.plantSprites:prepare(self.visibleProps,self.calendar,self.clock)
+end
+
+function Renderer:drawGrass(camera,actor)
+    if not self.grassFields then return end
+    local g=love.graphics
+    local season=Flora.season(self.calendar)
+    self.grassFields:prepareDraw(camera,self.clock,season,
+        math.min(self.effectiveRadius,GrassFields.FAR_VIEW_RADIUS),self:depthSpan(),actor)
+    g.setDepthMode('lequal',true);g.setShader(self.grassFields.shader);g.setColor(.91,.94,.87,1)
+    for _,patch in ipairs(self.visibleGrass or {}) do self.grassFields:drawPatch(patch) end
 end
 function Renderer:drawLoading()
     local g=love.graphics;local stats=self:terrainStats()
@@ -211,11 +240,6 @@ function Renderer:drawRoads(camera,skipMeshes)
     for id,p in pairs(self.world.roads.destinations) do
         if M.length(p.x-camera.centerX,p.z-camera.centerZ)<self.effectiveRadius then
             g.setColor(.76,.72,.56,.8);g.setLineWidth(math.max(1,2*camera.zoom))
-            for offset=-2,2,2 do
-                local ax,ay=camera:screen(p.x-3.7,p.z+offset,p.h+.07)
-                local bx,by=camera:screen(p.x-1.6,p.z+offset,p.h+.07)
-                g.line(ax,ay,bx,by)
-            end
             local x,y=camera:screen(p.x,p.z,p.h+.1);g.setColor(.85,.8,.53);g.circle('line',x,y,12*camera.zoom)
             g.setColor(.94,.91,.76);g.print(p.label,x+14,y-18)
         end
@@ -237,26 +261,35 @@ end
 function Renderer:headlight(camera,bike)
     if not bike.headlight then return end
     local g=love.graphics
-    local function point(forward,side)
-        local x=bike.x+math.cos(bike.heading)*forward-math.sin(bike.heading)*side
-        local z=bike.z+math.sin(bike.heading)*forward+math.cos(bike.heading)*side
-        return camera:screen(x,z,self.world:supportHeight(x,z)+.08)
+    local Headlight=require('src.commute.headlight')
+    local sourceX,sourceZ,sourceHeight=Headlight.position(bike)
+    local length,spread=Headlight.parameters(bike)
+    local heading=bike.heading or 0
+    local function point(forward,side,raised)
+        local x=sourceX+math.cos(heading)*forward-math.sin(heading)*side
+        local z=sourceZ+math.sin(heading)*forward+math.cos(heading)*side
+        local height=raised and sourceHeight or self.world:supportHeight(x,z)+.05
+        return camera:screen(x,z,height)
     end
-    local length=9
-    for d=1,9 do
-        local x=bike.x+math.cos(bike.heading)*d;local z=bike.z+math.sin(bike.heading)*d
+    for d=1,length do
+        local x=sourceX+math.cos(heading)*d;local z=sourceZ+math.sin(heading)*d
         if self.world.roads:blocked(self.world,x,z) then length=d;break end
     end
-    for layer=4,1,-1 do
-        local reach=length*(.5+layer*.125);local spread=.25+layer*.36
-        local ax,ay=point(.65,0);local bx,by=point(reach,-spread);local cx,cy=point(reach,spread)
-        g.setColor(1,.94,.62,.035);g.polygon('fill',ax,ay,bx,by,cx,cy)
+    local ax,ay=point(0,0,true)
+    for layer=5,1,-1 do
+        local reach=length*(.42+layer*.116);local width=.15+reach*spread
+        local bx,by=point(reach,-width,false);local cx,cy=point(reach,width,false)
+        local alpha=(bike.headlightHighBeam and .046 or .038)*(1-layer*.075)
+        if bike.headlightHighBeam then g.setColor(.94,.91,.75,alpha)
+        else g.setColor(1,.88,.61,alpha) end
+        g.polygon('fill',ax,ay,bx,by,cx,cy)
     end
     g.setColor(1,1,1)
 end
 -- Call during an already-presented loading screen. Interactive view switching
 -- then reuses its shader, canvas and road-marking mesh without cold allocations.
 function Renderer:prewarmViews()
+    if self.bikeParticles then self.bikeParticles:prewarm() end
     if not self.firstPersonView then self.firstPersonView=require('src.commute.first_person_renderer').new(self) end
     return self.firstPersonView
 end
@@ -276,6 +309,8 @@ function Renderer:draw(camera,actor,actors)
     g.setColor(1,1,1);g.setShader(self:shader(camera))
     for _,tile in ipairs(self.visible) do g.draw(tile.mesh) end
     for _,mesh in ipairs(self.roadMeshes) do g.draw(mesh) end
+    self:drawGrass(camera,actor)
+    self.tireTracks:draw(camera)
     self.structures:drawOutsideDepth(camera,actor,self.effectiveRadius)
     local depthSpan=self:depthSpan()
     local actorX,actorY=camera:screen(actor.x,actor.z,actor.h or self.world:supportHeight(actor.x,actor.z))
@@ -292,6 +327,7 @@ function Renderer:draw(camera,actor,actors)
         g.setColor(.91,.94,.87,fade)
         self.plantSprites:drawPlant(p,self.calendar,self.clock,x,y,p.scale*camera.zoom,self.plantMotion:sway(p))
     end
+    if self.bikeParticles then self.bikeParticles:draw(camera,self.effectiveRadius,depthSpan) end
     g.pop()
     g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
     g.draw(canvas,0,0);g.pop()
@@ -319,7 +355,7 @@ function Renderer:draw(camera,actor,actors)
                     presentation.foot(x,y,camera.zoom,p.gear,a.distance,a.speed,p.presentation,p.appearance)
                 end
                 if falling then g.pop() end
-            else self.bikeArt:draw(p.actor,camera,self.world,p.bikeOnly,p.presentation,p.localPlayer==true) end
+            else self.bikeArt:draw(p.actor,camera,self.world,p.bikeOnly,p.presentation) end
         elseif p.structure then self.structures:drawOutside(p,camera,actor,self.effectiveRadius)
         end
     end
@@ -333,6 +369,8 @@ function Renderer:release()
     self.chunks={};self.visible={}
     self.plantSprites:release()
     self.bikeArt:release()
+    if self.bikeParticles then self.bikeParticles:release() end
+    if self.grassFields then self.grassFields:release() end
     self.structures:release()
     if self.outsideSpriteShader then self.outsideSpriteShader:release() end
     for _,mesh in ipairs(self.roadMeshes) do mesh:release() end

@@ -70,7 +70,45 @@ function Test.run(context,check)
     check("home_resident_penalty_is_capped",Residents.speedScale(one,a)==.75)
     one.home.weekend.phase="working";one.home.weekend.closedAtHours=nil
     Residents.advance(one,{a},46,47)
-    check("home_resident_weekday_routine_restores_basics",owner.energy==100 and owner.hunger==100 and owner.thirst==100)
+    check("home_resident_workweek_does_not_reset_needs",owner.energy==0 and owner.hunger==0 and owner.thirst==0)
+    local weekday=State.new();local working={id=1,sceneId="warehouse"};local wear=weekday.home.residents.owner
+    Residents.advance(weekday,{working},0,20)
+    check("home_resident_workweek_wear_is_persistent",wear.hunger<100 and wear.thirst<100
+        and wear.hygiene<100 and wear.energy<100 and not wear.dirtyClothes)
+    Residents.advance(weekday,{working},20,44)
+    local longWeek=State.new();local longWorker={id=1,sceneId="warehouse"}
+    Residents.advance(longWeek,{longWorker},0,90)
+    check("home_resident_long_workweek_soils_clothes",longWeek.home.residents.owner.dirtyClothes
+        and longWeek.home.residents.owner.hunger<50 and longWeek.home.residents.owner.energy<30)
+    local firstWeek={wear.hunger,wear.thirst,wear.hygiene,wear.energy}
+    Residents.advance(weekday,{working},44,44)
+    check("home_resident_zero_step_keeps_workweek_needs",wear.hunger==firstWeek[1]
+        and wear.thirst==firstWeek[2] and wear.hygiene==firstWeek[3] and wear.energy==firstWeek[4])
+    weekday.calendar=Calendar.dateFromHours(44);weekday.calendar.elapsed=20/24*weekday.calendar.secondsPerDay
+    local Flow=require("src.weekend_flow")
+    assert(Flow.update(weekday,false));assert(Flow.update(weekday,true))
+    assert(Flow.depart(weekday,weekday.home.revision));working.sceneId="home"
+    check("home_resident_friday_arrival_is_exhausted",wear.hunger<=30 and wear.thirst<=25
+        and wear.hygiene<=18 and wear.energy<=12 and wear.dirtyClothes)
+    fixture(weekday,working,"bath")
+    assert(Residents.command(weekday,working,"bathe:bath"))
+    Residents.advance(weekday,{working},44,44+20/60)
+    check("home_resident_shower_does_not_clean_worn_clothes",wear.hygiene>90 and wear.dirtyClothes)
+    local friday=Schema.snapshot(weekday)
+    check("home_resident_friday_needs_and_clothes_are_shareable",Schema.validState(friday)
+        and friday.home.residents.owner.dirtyClothes and friday.home.residents.owner.energy==wear.energy)
+    local replay=State.new();assert(State.applySharedSnapshot(replay,friday))
+    check("home_resident_friday_condition_survives_snapshot",replay.home.residents.owner.dirtyClothes
+        and replay.home.residents.owner.hunger==wear.hunger and replay.home.residents.owner.energy==wear.energy)
+    weekday.calendar=Calendar.dateFromHours(107);weekday.calendar.elapsed=11/24*weekday.calendar.secondsPerDay
+    assert(Flow.returnToWork(weekday,weekday.home.revision));working.sceneId="warehouse"
+    local mondayEnergy=wear.energy
+    Residents.advance(weekday,{working},107,108)
+    check("home_resident_monday_shop_retains_weekend_condition",wear.energy<mondayEnergy
+        and wear.energy<20 and wear.dirtyClothes)
+    local oldResident=Schema.copy(friday);oldResident.home.residents.owner.dirtyClothes=nil
+    local normalized=State.new();assert(State.applySharedSnapshot(normalized,oldResident))
+    check("home_resident_prior_save_gets_clean_clothing_default",normalized.home.residents.owner.dirtyClothes==false)
     local saving,sp=home();saving.home.residents.owner.energy=12;assert(Residents.command(saving,sp,"rest:floor"))
     assert(context.save.save(3,saving,{x=sp.x,y=sp.y,sceneId="home"}))
     local loaded=assert(context.save.load(3));local restored=State.new();assert(State.applyLocalSave(restored,loaded))

@@ -1,4 +1,5 @@
 local MachineMaintenance = require("src.machine_maintenance")
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 local CutterMaintenanceAuthority = {}
 
@@ -39,6 +40,14 @@ local function enabledArguments(arguments)
         return nil, "invalid_enabled", "The technician schedule must be enabled or disabled."
     end
     return { enabled = enabled }
+end
+
+local function bladeGradeArguments(arguments)
+    local grade = type(arguments) == "table" and arguments.bladeGrade
+    if not exactArguments(arguments, { "bladeGrade" }) or not BladeProfiles.isOrderable(grade) then
+        return nil, "invalid_blade_grade", "Choose a listed specialty cutter blade."
+    end
+    return { bladeGrade = grade }
 end
 
 local function clampInteger(value, minimum, maximum)
@@ -115,6 +124,10 @@ function CutterMaintenanceAuthority.create(options)
 
     function authority.view(session, includeCandidates)
         local view = baseView(includeCandidates == true)
+        local _, cutter = MachineMaintenance.cutterStatus(state)
+        view.bladeGrade = cutter and cutter.bladeGrade or "standard"
+        view.orderedBladeGrade = cutter and cutter.orderedBladeGrade or "none"
+        view.moneyCents = math.max(0, math.floor((tonumber(state.money) or 0) * 100 + 0.5))
         local lubrication = session and session.lubrication
         if lubrication then
             view.candidates, view.genericSheets = nil, nil
@@ -423,6 +436,24 @@ function CutterMaintenanceAuthority.create(options)
                 if not accepted then return false, "spare_blade_blocked", result end
                 return true, "spare_blade_installed",
                     "A sharp purchased spare is installed. The dull blade remains sleeved for courier pickup."
+            end, true)
+        end,
+    }
+
+    commands.order_blade_upgrade = {
+        normalize = bladeGradeArguments,
+        perform = function(lease, player, arguments)
+            return perform(lease, player, function()
+                if lease.private.lubrication or lease.private.bladeStage then
+                    return false, "service_active", "Finish or cancel the active cutter service first."
+                end
+                local ready, code, message = requireIdleMachine()
+                if not ready then return false, code, message end
+                local accepted, result = MachineMaintenance.buyBladeUpgrade(state, arguments.bladeGrade)
+                if not accepted then return false, "blade_upgrade_blocked", result end
+                return true, "blade_upgrade_ordered",
+                    BladeProfiles.get(arguments.bladeGrade).name
+                        .. " ordered. Sleeve the current blade and book Mara; she will fit it at the exchange."
             end, true)
         end,
     }

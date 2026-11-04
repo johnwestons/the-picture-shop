@@ -108,6 +108,7 @@ Authority.ACTIONS = {
         sleeve_blade = true,
         book_blade_technician = true,
         install_spare_blade = true,
+        order_blade_upgrade = true,
         set_weekly_technician = true,
     },
     windmill = {

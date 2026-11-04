@@ -4,6 +4,7 @@ local Bindings=require('src.commute.bindings')
 local Touch=require('src.commute.touch_controls')
 local Test={}
 function Test.run(check)
+    require('src.commute.tests.auto_reverse_test').run(check)
     local world={supportHeight=function()return 0 end,roads={nearest=function()return 0,{width=8} end,blocked=function()return false end}}
     local function new() return Rider.new(100,100,0,{version=1,outfit='geared',mounted=true,engine=true,revision=0}) end
     local function step(r,input,seconds,hz)

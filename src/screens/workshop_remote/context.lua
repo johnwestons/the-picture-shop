@@ -111,6 +111,8 @@ function Component.install(Runtime)
         technician = { x = 122, y = 292, width = 324, height = 54 },
         weekly = { x = 488, y = 292, width = 324, height = 54 },
         installSpare = { x = 122, y = 372, width = 690, height = 54 },
+        premiumBlade = { x = 122, y = 460, width = 690, height = 36 },
+        carbideBlade = { x = 122, y = 504, width = 690, height = 36 },
         advance = { x = 222, y = 286, width = 516, height = 66 },
         pump = { x = 122, y = 430, width = 210, height = 48 },
         gear = { x = 350, y = 430, width = 210, height = 48 },

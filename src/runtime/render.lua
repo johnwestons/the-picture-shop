@@ -1,12 +1,14 @@
 -- World, screen, and overlay rendering.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local HudVisibility=require('src.screens.hud_visibility')
 
 function Component.install(Runtime)
     function Runtime.App.draw()
         Runtime.CharacterAssets.beginFrame()
         love.graphics.clear(0.04, 0.05, 0.07)
         local viewBounds = Runtime.syncCamera()
+        local showHud=HudVisibility.isVisible(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
@@ -20,10 +22,15 @@ function Component.install(Runtime)
         end
         if Runtime.state.screen=='world' and Runtime.World.player.sceneId=='commute' then
             require('src.commute.runtime').draw(Runtime)
-            if Runtime.controller then Runtime.controller:draw() end
+            if Runtime.controller and showHud then Runtime.controller:draw() end
             local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()
+            if showHud then
+            require('src.screens.player_status').draw(Runtime.state,
+                Runtime.App.settings and Runtime.App.settings.twelveHourTime,bounds)
             Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
             Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
+            end
+            HudVisibility.draw(Runtime)
             Runtime.CharacterAssets.endFrame();Runtime.Viewport.endDraw();Runtime.Smoke.drawn()
             return
         end
@@ -96,6 +103,7 @@ function Component.install(Runtime)
                     Runtime.multiplayer:remotePlayers())
             end
             if Runtime.state.screen == "world" then
+                if showHud then
                 Runtime.RuntimeDependencies.Hud.draw(Runtime.state, Runtime.World.prompt(), Runtime.Assets, mouseX, mouseY,
                     Runtime.mobileControls and Runtime.mobileControls:isEnabled(), Runtime.controller and Runtime.controller:isActive(), mobileWorld and viewBounds or nil,
                     Runtime.App.settings and Runtime.App.settings.followPlayerCamera,
@@ -103,6 +111,8 @@ function Component.install(Runtime)
                     Runtime.App.playerFeedback,Runtime.World.player.sceneId,require("src.home_activity_controls").localPlayer(Runtime))
                 Runtime.MultiplayerHud.draw(Runtime.multiplayerHudInfo())
                 Runtime.HighFiveUi.draw(Runtime.multiplayer:highFiveInfo())
+                end
+                HudVisibility.draw(Runtime)
             elseif Runtime.state.screen == "computer" then
                 Runtime.ComputerScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
@@ -138,24 +148,24 @@ function Component.install(Runtime)
             elseif Runtime.state.screen == "pallet_work_order" then
                 Runtime.RuntimeDependencies.PalletWorkOrderScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             end
-            Runtime.warehouseControls:draw(Runtime.Assets)
+            if Runtime.state.screen~='world' or showHud then Runtime.warehouseControls:draw(Runtime.Assets) end
         end
         if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
-            and Runtime.state.screen ~= "critter_kombat" then
+            and Runtime.state.screen ~= "critter_kombat" and (Runtime.state.screen~='world' or showHud) then
             local optionsX, optionsY = Runtime.pointerPosition()
             local accessScreen, accessBounds = Runtime.optionsAccessLayout()
             Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, accessScreen, accessBounds, Runtime.Assets)
         end
-        if Runtime.App.playerFeedback and Runtime.state.screen ~= "title"
+        if Runtime.App.playerFeedback and (Runtime.state.screen~='world' or showHud) and Runtime.state.screen ~= "title"
             and Runtime.state.screen ~= "lan" and Runtime.state.screen ~= "direct"
             and Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
         then
             Runtime.App.playerFeedback:drawToast(viewBounds, Runtime.state.screen)
         end
         Runtime.Ui.drawPressFeedback()
-        if Runtime.controller then Runtime.controller:draw() end
+        if Runtime.controller and (Runtime.state.screen~='world' or showHud) then Runtime.controller:draw() end
         if mobileUi then Runtime.App.mobileCamera:endDraw() end
-        if Runtime.mobileControls then Runtime.mobileControls:draw() end
+        if Runtime.mobileControls and (Runtime.state.screen~='world' or showHud) then Runtime.mobileControls:draw() end
         Runtime.WorldRenderer.endFrame()
         Runtime.CharacterAssets.endFrame()
         Runtime.Viewport.endDraw()

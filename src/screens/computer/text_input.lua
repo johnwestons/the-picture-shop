@@ -25,7 +25,12 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.textinput(state, text)
         if Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused then
-            Runtime.ComputerScreen.promoText = Runtime.ComputerScreen.promoText .. text
+            local current=Runtime.ComputerScreen.promoText
+            local addition=tostring(text or ""):sub(1,math.max(0,600-#current))
+            while #addition>0 and not Runtime.utf8.len(addition) do
+                addition=addition:sub(1,-2)
+            end
+            Runtime.ComputerScreen.promoText = current .. addition
             return true
         elseif Runtime.ComputerScreen.tab == "estimating" and Runtime.ComputerScreen.quoteFocused then
             for character in text:gmatch(".") do

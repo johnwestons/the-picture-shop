@@ -40,7 +40,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.scheduleTruck(state)
-        if not require("src.weekend_flow").acceptsNewWork(state) then return false end
+        if require("src.weekend_flow").shopClosed(state) then return false end
         if not state or Runtime.World.truck.state ~= "absent" then return false end
         local pickup = Runtime.JobService.nextPickup(state)
         local pickupScene=pickup and require("src.room_loading_bays").pickupScene(state,pickup)

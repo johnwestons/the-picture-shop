@@ -60,9 +60,11 @@ function Component.install(Runtime)
         end
         Runtime.World._state = state
         local machineBase, machineId = Runtime.MachineResource.parse(resourceId)
-        if not require("src.weekend_flow").acceptsNewWork(state)
-            and (machineBase or resourceId=="cutter" or resourceId=="skid_wrapper" or resourceId=="windmill"
-                or resourceId=="reception_customer" or resourceId=="vendor") then
+        local Flow=require("src.weekend_flow")
+        if (Flow.shopClosed(state) and (machineBase or resourceId=="cutter"
+                or resourceId=="skid_wrapper" or resourceId=="windmill")
+            or not Flow.acceptsNewWork(state)
+                and (resourceId=="reception_customer" or resourceId=="vendor")) then
             return false,"shop_closed","The shop is closing or closed for the weekend."
         end
         if scene=="home" and resourceId~="office_computer" then

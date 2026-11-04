@@ -5,6 +5,8 @@ local Town=require('src.commute.town')
 local Upgrades=require('src.commute.bike_upgrades')
 local Paint=require('src.commute.bike_paint')
 local Repairs=require('src.commute.bike_repairs')
+local Service=require('src.commute.bike_service')
+local Station=require('src.commute.gas_station')
 local Residents=require('src.home_residents')
 local M=require('src.commute.vendor.mathx')
 local CameraControls=require('src.commute.camera_controls')
@@ -67,7 +69,17 @@ function C.mapButton(R)
     local _,bounds
     if R.optionsAccessLayout then _,bounds=R.optionsAccessLayout() end
     local right=bounds and bounds.right or R.Config.baseWidth
-    return {x=right-140,y=58,width=122,height=32}
+    return {x=right-140,y=94,width=122,height=32}
+end
+function C.miniMapButton(R)
+    local camera=C.cameraButton(R)
+    return camera and {x=camera.x-80,y=camera.y,width=72,height=camera.height} or nil
+end
+function C.miniMapRect(R)
+    local width=math.min(320,math.max(220,R.Config.baseWidth*.24))
+    local height=math.min(220,math.max(150,width*.68))
+    height=math.min(height,math.max(90,R.Config.baseHeight*.55-138))
+    return {x=R.Config.baseWidth-width-18,y=138,width=width,height=height}
 end
 function C.mobileInputEnabled(R)
     return R.mobileControls and R.mobileControls.isEnabled and R.mobileControls:isEnabled() or false
@@ -82,7 +94,9 @@ function C.controlContext(R,part)
         mounted=gear.mounted==true,engine=gear.engine==true,gearOutfit=gear.outfit,
         gearTransition=gear.transition~=nil,arrived=part and part.arrived==true,
         transmission=bike.transmission,reverse=bike.reverse==true,
-        headlight=bike.headlight==true,outsideMode=view.camera and view.camera.outsideMode
+        headlight=bike.headlight==true,headlightHighBeam=bike.headlightHighBeam==true,
+        horn=Bindings.value(C.bindings(R),'horn',C.touch(R))>0,
+        outsideMode=view.camera and view.camera.outsideMode
             or C.bindings(R).outsideCamera or 'fixed',
         pedCrash=rider and rider.ped.crash~=nil or false,
     }
@@ -93,33 +107,103 @@ function C.cameraButton(R)
 end
 function C.toggleMap(R)
     if not C.mapButton(R) then return false end
+    local visibility=require('src.screens.hud_visibility')
+    if not visibility.isVisible(R) then visibility.setVisible(R,true) end
     C.cancelCameraDrag(R)
     local view=R._commute
     view.mapOpen=not view.mapOpen
     if view.mapOpen and not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
     return true
 end
+function C.toggleMiniMap(R)
+    if not C.miniMapButton(R) then return false end
+    C.cancelCameraDrag(R)
+    local view=R._commute
+    view.miniMapVisible=not (view.miniMapVisible~=false)
+    return true
+end
+function C.activeWaypoint(R)
+    local view=R._commute or {};local trip=R.state.home and R.state.home.commute
+    local target=view.waypointId or trip and trip.destination
+    local destinations=C.world(R).roads.destinations
+    return destinations[target] and target or trip and trip.destination
+end
+function C.refreshNavigation(R,part,dt,force)
+    if not part or not R._commute then return end
+    local view=R._commute;local target=C.activeWaypoint(R)
+    local actor=Rider.actor(part.rider)
+    view.navigationClock=(view.navigationClock or 0)+(dt or 0)
+    local moved=not view.navigationX or (actor.x-view.navigationX)^2+(actor.z-view.navigationZ)^2>=16
+    if force or target~=view.navigationTarget or moved and view.navigationClock>=.35 then
+        local Routes=require('src.commute.routes')
+        if not view.routePlanner then view.routePlanner=Routes.new(C.world(R).roads) end
+        view.navigationRoute=view.routePlanner:findFromPoint(actor.x,actor.z,target)
+        view.navigationTarget=target;view.navigationX,view.navigationZ=actor.x,actor.z
+        view.navigationClock=0
+    end
+end
+function C.setWaypoint(R,id)
+    local trip=R.state.home and R.state.home.commute
+    if not trip or not C.world(R).roads.destinations[id] then return false end
+    local view=R._commute;view.waypointId=id~=trip.destination and id or nil
+    C.refreshNavigation(R,C.localPart(R),0,true)
+    local destination=C.world(R).roads.destinations[id]
+    R.state.message='Navigation set to '..(destination.label or id)..'.'
+    return true
+end
 function C.mapPointer(R,x,y)
+    if not require('src.screens.hud_visibility').isVisible(R) then return false end
     local button=C.mapButton(R)
     if not button then return false end
+    local navButton=C.miniMapButton(R)
+    if navButton and x>=navButton.x and x<=navButton.x+navButton.width
+        and y>=navButton.y and y<=navButton.y+navButton.height then
+        return C.toggleMiniMap(R)
+    end
     if x>=button.x and x<=button.x+button.width and y>=button.y and y<=button.y+button.height then
         return C.toggleMap(R)
     end
-    -- A tap on the map must never activate the covered bike controls.
-    return R._commute.mapOpen==true
+    local view=R._commute;local part=C.localPart(R)
+    if view.mapOpen then
+        if part and view.routeMap then
+            local id=view.routeMap:hit(C.mapRect(R),x,y,Rider.actor(C.visualRider(part,R.World.player)),
+                {destination=C.activeWaypoint(R),home=R.state.home.apartmentId})
+            if id then C.setWaypoint(R,id) end
+        end
+        -- The open town map covers the ride controls; consume taps on its background too.
+        return true
+    end
+    if view.miniMapVisible~=false and part then
+        local rect=C.miniMapRect(R)
+        if x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height then
+            if view.routeMap then
+                local id=view.routeMap:hitMini(rect,x,y,Rider.actor(C.visualRider(part,R.World.player)),
+                    {destination=C.activeWaypoint(R)})
+                if id then C.setWaypoint(R,id) end
+            end
+            return true
+        end
+    end
+    return false
 end
 function C.drawMap(R,part)
     local button=C.mapButton(R)
     if not button then return end
     local g=love.graphics;g.push('all')
     local view=R._commute
+    C.refreshNavigation(R,part,0,false)
     if view.mapOpen then
         if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
         local trip=R.state.home.commute
         view.routeMap:draw(C.mapRect(R),Rider.actor(C.visualRider(part,R.World.player)),{
-            origin=trip.origin,destination=trip.destination,home=R.state.home.apartmentId,
+            origin=trip.origin,destination=C.activeWaypoint(R),home=R.state.home.apartmentId,
             bike=not part.rider.gear.mounted and part.rider.bike or nil,
-            closeHint=Bindings.hint(C.bindings(R),'map')..' / Esc: close map'})
+            route=view.navigationRoute,
+            closeHint='Tap a numbered building for a route · Esc: close'})
+    elseif view.miniMapVisible~=false then
+        if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
+        view.routeMap:drawMini(C.miniMapRect(R),Rider.actor(C.visualRider(part,R.World.player)),{
+            destination=C.activeWaypoint(R),route=view.navigationRoute})
     end
     require('src.screens.ui').panel(button,{.10,.15,.15,1},{.43,.53,.51,1},6,1)
     g.setColor(.94,.95,.89)
@@ -128,6 +212,15 @@ function C.drawMap(R,part)
     if not C.mobileInputEnabled(R) then label=label..'  ['..Bindings.hint(C.bindings(R),'map')..']' end
     g.printf(label,
         button.x+28,button.y+(button.height-g.getFont():getHeight())/2,button.width-30,'center')
+    local nav=C.miniMapButton(R)
+    if nav then
+        local visible=view.miniMapVisible~=false
+        require('src.screens.ui').panel(nav,{.10,.15,.15,1},visible and {.64,.79,.57,1} or {.43,.53,.51,1},6,1)
+        g.setColor(.94,.95,.89)
+        local navLabel=visible and 'HIDE' or 'NAV'
+        if not C.mobileInputEnabled(R) then navLabel=navLabel..' TAB' end
+        g.printf(navLabel,nav.x+4,nav.y+(nav.height-g.getFont():getHeight())/2,nav.width-8,'center')
+    end
     g.pop()
 end
 function C.drawCameraButton(R)
@@ -145,6 +238,7 @@ function C.drawCameraButton(R)
     return true
 end
 function C.cameraPointer(R,x,y)
+    if not require('src.screens.hud_visibility').isVisible(R) then return false end
     local button=C.cameraButton(R)
     if not button or x<button.x or x>button.x+button.width
         or y<button.y or y>button.y+button.height then return false end
@@ -191,9 +285,17 @@ function C.bind(R,player,connected)
     return okay,part
 end
 local actions={equip=true,remove=true,mount=true,dismount=true,arrive=true,finish=true,force=true,cancel=true,
-    automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,reverse=true,rescue=true}
+    automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,beam=true,reverse=true,rescue=true}
 function C.decode(command)
     if type(command)~='string' or #command>80 then return nil end
+    local stationToken,revision,item=command:match('^station:(%d+):(%d+):([a-z]+)$')
+    if stationToken then
+        local token,rev=tonumber(stationToken),tonumber(revision)
+        if token>=1 and token<=1e12 and rev<=1e12 and (Service.tires[item] or item=='fuel' or item=='oil' or item=='chain') then
+            return 'station',token,{item=item,revision=rev}
+        end
+        return nil
+    end
     local repairToken,repairRevision,damage=command:match('^bikerepair:(%d+):(%d+):(%d+)$')
     if repairToken then
         repairToken,repairRevision,damage=tonumber(repairToken),tonumber(repairRevision),tonumber(damage)
@@ -235,7 +337,17 @@ function C.command(R,player,command)
     local action,token,intent=C.decode(command)
     if not action then return false,'invalid_action','Choose an available riding action.','commute' end
     local okay,message,event
-    if action=='bikerepair' then
+    if action=='station' then
+        local part,reason=Trip.participant(R.state,player,token)
+        if part and not part.arrived and player.sceneId=='commute' then
+            okay,message=Station.buy(part.rider,C.world(R),R.state.home,intent.item,intent.revision)
+            if okay then
+                local resident=Residents.get(R.state,player)
+                resident.ridingService=Service.copy(part.rider.bike.service)
+                resident.revision=resident.revision+1;R.state.home.revision=R.state.home.revision+1
+            end
+        else okay,message=false,reason or 'This ride is over.' end
+    elseif action=='bikerepair' then
         okay,message=Repairs.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
     elseif action=='bikepaint' then
         okay,message=Paint.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
@@ -297,7 +409,7 @@ end
 local function input(rider,x,y,boost)
     local magnitude=M.length(x,y)
     local steer=magnitude>1 and x/magnitude or x
-    return rider.gear.mounted and {steer=steer,throttle=math.max(0,-y),brake=math.max(0,y),boost=boost==true}
+    return rider.gear.mounted and {steer=steer,drive=y,boost=boost==true}
         or {walkX=x,walkZ=y}
 end
 function C.update(R,dt,x,y,boost)
@@ -337,12 +449,18 @@ function C.update(R,dt,x,y,boost)
     local part=C.localPart(R)
     if part then
         local world=C.world(R);local rider=C.visualRider(part,R.World.player)
+        local horn=rider.gear.mounted and Bindings.value(C.bindings(R),'horn',C.touch(R))>0 or false
+        rider.bike.horn=horn;part.rider.bike.horn=horn
         local actor=Rider.actor(rider);local view=R._commute
         if not view.camera then view.camera=require('src.commute.camera').new(actor,world);view.camera.zoom=1;view.camera.targetZoom=1 end
         C.applyCameraPreference(R,view.camera,rider)
         if not rider.gear.mounted or not M.finite(actor.h) then actor.h=world:supportHeight(actor.x,actor.z) end
         view.camera:updateRide(rider,dt,part.presentation)
-        if R.state.screen=='world' and not view.mechanicOffer and not view.loading and not view.mapOpen then Bindings.camera(C.bindings(R),view.camera,dt,view.touchControls) end
+        C.refreshNavigation(R,part,dt,false)
+        if R.state.screen=='world' and not view.mechanicOffer and not view.loading and not view.mapOpen
+            and not require('src.screens.hud_visibility').cameraLocked(R) then
+            Bindings.camera(C.bindings(R),view.camera,dt,view.touchControls)
+        end
         if view.mechanicOffer then return dirty end
         if not view.renderer then
             -- Present a loading frame before decoding/uploading shared ride art.
@@ -356,6 +474,16 @@ function C.update(R,dt,x,y,boost)
         view.renderer.characterAssets=R.CharacterAssets
         view.renderer.calendar=R.state.calendar
         view.renderer:prepare(view.camera,dt)
+        view.renderer:updateTireTracks('local',rider.gear.mounted and rider.bike or nil,world,dt,part.presentation)
+        local particleRiders={};local playersBySlot={}
+        for _,player in ipairs(R.multiplayer:remotePlayers()) do playersBySlot[player.id]=player end
+        for id,p in pairs(R.state.home.commute.participants) do
+            local player=p==part and R.World.player or playersBySlot[p.slot]
+            local r=p==part and rider or C.visualRider(p,player)
+            particleRiders[#particleRiders+1]={id=id,bike=r.bike,visual=p.presentation,
+                engine=r.gear.engine==true,mounted=r.gear.mounted==true}
+        end
+        view.renderer:updateBikeParticles(particleRiders,dt)
         if view.loading and view.renderer:terrainReady()
             and view.renderer.vegetation:stats().pending==0
             and view.renderer.plantSprites:readyFor(view.renderer.visibleProps,view.renderer.calendar,view.renderer.clock) then
@@ -367,6 +495,8 @@ end
 function C.draw(R)
     local part=C.localPart(R);local view=R._commute
     if not part or not view then return end
+    local showHud=require('src.screens.hud_visibility').isVisible(R)
+    if not showHud then view.mapOpen=false end
     if view.mechanicOffer and C.drawMechanic(R) then return end
     if not view.renderer or view.loading then
         local g=love.graphics
@@ -394,35 +524,54 @@ function C.draw(R)
         local r=C.visualRider(p,player)
         actors[#actors+1]={actor=r.bike,bikeOnly=not r.gear.mounted,presentation=p.presentation,
             localPlayer=p.slot==localId}
-        if not r.gear.mounted then actors[#actors+1]={actor=r.ped,gear=r.gear,presentation=p.presentation,appearance=p.appearance} end
+        if not r.gear.mounted then actors[#actors+1]={actor=r.ped,gear=r.gear,presentation=p.presentation,
+            appearance=p.appearance,localPlayer=p.slot==localId} end
     end
     view.renderer:draw(view.camera,Rider.actor(C.visualRider(part,R.World.player)),actors)
-    for _,id in ipairs({R.state.home.commute.origin,R.state.home.commute.destination}) do
-        local p=view.world.sites.byId[id].door;local sx,sy=view.camera:screen(p.x,p.z,p.h+.1)
-        g.setColor(.9,.8,.45);g.circle('line',sx,sy,18);g.print('DOOR',sx-18,sy-30)
+    if showHud then
+        for _,id in ipairs({R.state.home.commute.origin,R.state.home.commute.destination}) do
+            local p=view.world.sites.byId[id].door;local sx,sy=view.camera:screen(p.x,p.z,p.h+.1)
+            g.setColor(.9,.8,.45);g.circle('line',sx,sy,18);g.print('DOOR',sx-18,sy-30)
+        end
     end
     g.pop()
+    end
+    if not showHud then
+        if part.rider.gear.mounted and view.camera.firstPerson then
+            if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
+            view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,part.presentation,view.camera,C.bindings(R))
+        end
+        g.setColor(1,1,1);return
     end
     local target=view.world.roads.destinations[R.state.home.commute.destination]
     local hint=Cockpit.riderHint(part.rider,part.presentation)
     local routeLabel=(R.state.home.commute.purpose=='outing' and 'TOWN OUTING' or 'RIDE HOME')
         ..'  ·  '..target.label..Cockpit.conditionLabel(part.rider.bike)
-    local routeWidth=math.min(610,g.getFont():getWidth(routeLabel)+20)
-    g.setColor(.025,.04,.035,.84);g.rectangle('fill',16,14,routeWidth,34,7)
-    g.setColor(.95,.89,.70);g.print(routeLabel,25,23)
-    local note=hint or R.state.message
+    local navButton=C.miniMapButton(R)
+    local toolbar=require('src.screens.hud_visibility').buttons(R)[1]
+    local routeWidth=math.max(1,math.min(610,g.getFont():getWidth(routeLabel)+20,
+        toolbar and toolbar.x-28 or R.Config.baseWidth-32))
+    g.setColor(.025,.04,.035,.84);g.rectangle('fill',16,62,routeWidth,28,7)
+    g.setColor(.95,.89,.70);require('src.screens.player_status').printLine(routeLabel,25,67,routeWidth-18)
+    local note=Station.atCounter(part.rider,view.world) and (Bindings.hint(bindings,'interact')..' / USE: Gas & Tire counter') or hint or R.state.message
     local mobile=C.mobileInputEnabled(R)
+    local infoRight=view.miniMapVisible~=false and C.miniMapRect(R).x-12 or R.Config.baseWidth-16
     if not mobile then
         g.setColor(.76,.83,.76)
-        g.print(Bindings.hint(bindings,'accelerate')..' GO  ·  '..Bindings.hint(bindings,'brake')
-            ..' BRAKE  ·  '..Bindings.hint(bindings,'left')..' / '..Bindings.hint(bindings,'right')
-            ..' STEER  ·  drag to look',16,64)
+        require('src.screens.player_status').printLine(Bindings.hint(bindings,'accelerate')..' GO  ·  '..Bindings.hint(bindings,'brake')
+            ..' BRAKE/REV  ·  '..Bindings.hint(bindings,'left')..' / '..Bindings.hint(bindings,'right')
+            ..' STEER  ·  '..Bindings.hint(bindings,'horn')..' HORN  ·  '..Bindings.hint(bindings,'beam')
+            ..' HI/LO  ·  drag to look',16,114,math.min(infoRight,navButton and navButton.x-12 or infoRight)-16)
     end
     if note and tostring(note)~='' then
-        local noteY=mobile and 53 or 91
-        local noteWidth=math.min(630,g.getFont():getWidth(tostring(note))+18)
+        local noteY=mobile and 103 or 141
+        local noteRight=mobile and math.min(infoRight,navButton and navButton.x-12 or infoRight) or infoRight
+        local noteWidth=math.min(630,g.getFont():getWidth(tostring(note))+18,noteRight-16)
         g.setColor(.025,.04,.035,.72);g.rectangle('fill',16,noteY,noteWidth,27,6)
-        g.setColor(.83,.88,.80);g.printf(tostring(note),24,noteY+7,620,'left')
+        g.setColor(.83,.88,.80);require('src.screens.player_status').printLine(tostring(note),24,noteY+7,noteWidth-16)
+    end
+    if not view.mapOpen then
+        Cockpit.drawCondition(part.rider.bike,16,mobile and 138 or 176,view.renderer.bikeArt)
     end
     if part.rider.gear.mounted and not view.mapOpen then
         if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
@@ -430,7 +579,7 @@ function C.draw(R)
     end
     if not view.mapOpen then
         C.touch(R):draw(R.Config.baseWidth,R.Config.baseHeight,bindings,C.controlContext(R,part),
-            {mobile=mobile,showActions=true})
+            {mobile=mobile,showActions=true,camera=view.camera})
     end
     C.drawCameraButton(R)
     C.drawMap(R,part)
@@ -462,6 +611,7 @@ function C.keypressed(R,key,semantic)
         return C.toggleMap(R)
     end
     if not semantic then
+        if key=='tab' then C.toggleMiniMap(R);return true end
         if key=='escape' or key=='back' then C.cancelCameraDrag(R);return false end
         if key=='f10' then
             C.cancelCameraDrag(R)
@@ -475,6 +625,8 @@ function C.keypressed(R,key,semantic)
         if not key or key=='' then return true end
     end
     local t=R.state.home.commute;local r=part.rider;local camera=R._commute and R._commute.camera
+    if require('src.screens.hud_visibility').cameraLocked(R)
+        and (key=='q' or key=='r' or key=='t' or key=='y' or key=='c' or key=='=' or key=='-') then return true end
     if key=='m' then C.toggleMap(R)
     elseif key=='p' and camera then
         if camera:toggleView(r) then
@@ -485,6 +637,7 @@ function C.keypressed(R,key,semantic)
     elseif key=='g' then C.request(R,(r.gear.outfit=='normal' and 'equip:' or 'remove:')..t.token)
     elseif key=='i' then C.request(R,'ignition:'..t.token)
     elseif key=='h' then C.request(R,'headlight:'..t.token)
+    elseif key=='n' then C.request(R,'beam:'..t.token)
     elseif key=='b' then C.request(R,'reverse:'..t.token)
     elseif key=='v' then C.request(R,(r.bike.transmission=='manual' and 'automatic:' or 'manual:')..t.token)
     elseif key=='z' then C.request(R,'shiftdown:'..t.token)
@@ -497,7 +650,9 @@ function C.keypressed(R,key,semantic)
         else
             local sites=C.world(R).sites.byId
             local function near(p)return p and M.length(r.ped.x-p.door.x,r.ped.z-p.door.z)<=1.8 end
-            if near(sites.mechanic) then C.openMechanic(R)
+            if Station.atCounter(r,C.world(R)) then
+                C.cancelCameraDrag(R);R._commute.mechanicOffer=Station.open()
+            elseif near(sites.mechanic) then C.openMechanic(R)
             else C.request(R,(near(sites[t.destination]) and 'arrive:' or near(sites[t.origin]) and 'cancel:' or 'mount:')..t.token) end
         end
     elseif key=='q' and camera then camera:orbit(-15,0)
@@ -573,7 +728,9 @@ function C.touchPressed(R,id,x,y)
     local touch=C.touch(R)
     local part=C.localPart(R)
     if touch:press(id,x,y,R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
-        function(action) C.perform(R,action) end,C.controlContext(R,part),{mobile=true}) then return true end
+        function(action) C.perform(R,action) end,C.controlContext(R,part),
+        {mobile=true,camera=R._commute and R._commute.camera,
+            hiddenHud=not require('src.screens.hud_visibility').isVisible(R)}) then return true end
     return C.cameraTouchPressed(R,id,x,y)
 end
 function C.touchMoved(R,id,x,y)
@@ -598,7 +755,8 @@ function C.pointer(R,x,y,source)
     if not part then return false end
     local mobile=C.mobileInputEnabled(R)
     local action=Touch.actionAt(x,y,R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
-        C.controlContext(R,part),{mobile=mobile})
+        C.controlContext(R,part),{mobile=mobile,camera=R._commute and R._commute.camera,
+            hiddenHud=not require('src.screens.hud_visibility').isVisible(R)})
     if action then
         if not action.enabled then return true end
         local spec=Bindings.byId[action.action]
@@ -637,16 +795,24 @@ end
 function C.cameraPointerPressed(R,button,leftAlt)
     local view=R._commute
     if R.state.screen~='world' or not C.active(R) or not view or not view.camera or not view.renderer or view.loading or view.mechanicOffer or view.mapOpen then return false end
+    if require('src.screens.hud_visibility').cameraLocked(R) then
+        local action=Bindings.action(C.bindings(R),'mouse','mouse'..button)
+        return action=='orbit' or action=='pan'
+    end
     view.cameraDrag=view.cameraDrag or {}
     local profile=C.bindings(R)
     if leftAlt==nil then local key=profile.keyboard.panModifier;leftAlt=key~='' and love.keyboard.isDown(key) end
     return CameraControls.press(view.cameraDrag,button,leftAlt,profile)
 end
-function C.cancelCameraDrag(R)
+function C.cancelCameraLook(R)
     local view=R._commute
     if view and view.cameraDrag then CameraControls.cancel(view.cameraDrag) end
-    if view and view.touchControls then view.touchControls:cancel() end
     if view then view.cameraTouches=nil;view.cameraPinch=nil end
+end
+function C.cancelCameraDrag(R)
+    C.cancelCameraLook(R)
+    local view=R._commute
+    if view and view.touchControls then view.touchControls:cancel() end
     if view then
         view.touchBoost=false;view.pointerAction=nil;view.pointerActionSource=nil
     end
@@ -656,6 +822,7 @@ function C.cameraPointerReleased(R,button)
     return view and view.cameraDrag and CameraControls.release(view.cameraDrag,button) or false
 end
 function C.cameraPointerMoved(R,dx,dy)
+    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
     local view=R._commute
     if R.state.screen~='world' or not C.active(R) then C.cancelCameraDrag(R);return false end
     if not view or not view.cameraDrag then return false end
@@ -666,6 +833,7 @@ function C.cameraTouchPressed(R,id,x,y)
     local view=R._commute
     if R.state.screen~='world' or not C.active(R) or not view or not view.camera or not view.renderer
         or view.loading or view.mechanicOffer or view.mapOpen then return false end
+    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
     view.cameraTouches=view.cameraTouches or {}
     view.cameraTouches[id]={x=x,y=y}
     local firstId,first
@@ -683,6 +851,7 @@ function C.cameraTouchPressed(R,id,x,y)
     return true
 end
 function C.cameraTouchMoved(R,id,x,y)
+    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
     local view=R._commute;local touch=view and view.cameraTouches and view.cameraTouches[id]
     if not touch then return false end
     local dx,dy=x-touch.x,y-touch.y
@@ -701,6 +870,7 @@ function C.cameraTouchMoved(R,id,x,y)
     return C.cameraPointerMoved(R,dx,dy)
 end
 function C.cameraTouchReleased(R,id)
+    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
     local view=R._commute
     if not view or not view.cameraTouches or not view.cameraTouches[id] then return false end
     view.cameraTouches[id]=nil

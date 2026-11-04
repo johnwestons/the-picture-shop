@@ -8,7 +8,7 @@ local Frontage = require('src.commute.town_generator_v2').frontage
 local Alignment = require('src.commute.street_alignment')
 local Planner = {VERSION=3}
 
-local services = {'fire-station', 'grocery', 'police', 'mechanic', 'general-store', 'post-office', 'diner', 'coffee-shop'}
+local services = {'fire-station', 'grocery', 'police', 'mechanic', 'general-store', 'post-office', 'diner', 'coffee-shop', 'gas-station'}
 local sideStreetLots = {'courtyard', 'garden', 'brick-walkup', 'corner', 'warehouse', 'residential-1', 'residential-2', 'residential-3'}
 local function gridIndex(row, column) return (row-1)*4+column end
 

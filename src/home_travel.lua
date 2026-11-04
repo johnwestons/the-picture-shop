@@ -59,7 +59,18 @@ function Travel.command(state,player,command,context)
     if scene=="home" and not Flow.atHome(state) then return denied("Enter your apartment through its town door first.") end
     local requesting=command=="request" or command=="outing"
     local purpose=requesting and (command=="outing" and "outing" or "weekend") or week.travelPurpose or "weekend"
+    if requesting and week.travelToken and ((week.travelPurpose or "weekend")~=purpose
+        or purpose=="outing" and week.travelOrigin~=scene) then
+        return denied("Cancel the existing travel request before choosing another outing.")
+    end
     if purpose=="weekend" then
+        if week.phase=="closing" and scene=="warehouse" and command=="request" then
+            local Shutdown=require("src.shop_shutdown")
+            local pending=Shutdown.checklist(state,context.world)
+            if #pending>0 then return denied("Finish shutdown before leaving: "..pending[1]) end
+            Shutdown.pauseConstruction(state)
+            Flow.update(state,true)
+        end
         if week.phase~="ready" and week.phase~="home" then return denied("The shop must finish its Friday shutdown first.") end
         if scene~=(week.phase=="home" and "home" or "warehouse") then return denied("Use the departure entrance first.") end
         if week.phase=="home" then
@@ -69,10 +80,6 @@ function Travel.command(state,player,command,context)
         end
     end
     if requesting then
-        if week.travelToken and ((week.travelPurpose or "weekend")~=purpose
-            or purpose=="outing" and week.travelOrigin~=scene) then
-            return denied("Cancel the existing travel request before choosing another outing.")
-        end
         if not week.travelToken then
             state.home.revision=state.home.revision+1;week.travelToken=state.home.revision;week.readyMask=1
             week.travelPurpose=purpose;week.travelOrigin=purpose=="outing" and scene or nil

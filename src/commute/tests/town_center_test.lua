@@ -46,7 +46,7 @@ function Test.run(check)
             else proper=proper and frontage.role=='local' end
         end
         check('town_center_core_frontages_join_main_and_residences_join_side_streets_'..seed,
-            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==8)
+            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==9)
         check('town_center_has_promised_junction_and_one_way_alternative_'..seed,
             arms==(main.pattern=='crossroads' and 4 or 2) and oneWay>=1)
         local world=Town.world(town)

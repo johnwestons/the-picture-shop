@@ -106,6 +106,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.toggleBayDoor(state,scene)
+        if state and require("src.weekend_flow").shopClosed(state) then
+            state.message="The loading dock is closed for the weekend."
+            return false
+        end
         scene=scene or require("src.shop_rooms").scene(Runtime.World.player)
         local door=Runtime.World.doorForScene(scene)
         if door.state == "open" and (Runtime.World.truck.sceneId or "warehouse")==scene

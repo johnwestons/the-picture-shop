@@ -4,6 +4,7 @@ local BridgeGeometry=require('src.commute.bridge_geometry')
 local BridgeArt=require('src.commute.bridge_art')
 local Sites=require('src.commute.sites')
 local FP=require('src.commute.first_person_camera')
+local Headlight=require('src.commute.headlight')
 local Structures={FORMAT={{'VertexPosition','float',2},{'WorldHeight','float',1},
     {'StructureNormal','float',3},{'VertexTexCoord','float',2},{'VertexColor','float',4}}}
 Structures.__index=Structures
@@ -66,8 +67,16 @@ function Structures:send(camera,range,actor)
     camera:send(self.shader)
     self.shader:send('structureRadius',range)
     self.shader:send('groundDepthSpan',math.max(1,(self.world.size or 512)*100+(self.world.maxHeight or 84)*100))
-    self.shader:send('rideHeadlight',actor and actor.headlight==true or false)
-    self.shader:send('rideForward',{math.cos(actor and actor.heading or 0),math.sin(actor and actor.heading or 0)})
+    if actor then Headlight.send(self.shader,camera,actor)
+    else
+        self.shader:send('rideHeadlight',false)
+        self.shader:send('rideForward',{1,0})
+        self.shader:send('rideLightOffset',{0,0})
+        self.shader:send('rideLightHeight',0)
+        self.shader:send('rideBeamRange',11)
+        self.shader:send('rideBeamSpread',.16)
+        self.shader:send('rideBeamDrop',.075)
+    end
 end
 function Structures:resizeViewport(width,height)
     width,height=math.max(1,math.floor(width+.5)),math.max(1,math.floor(height+.5))

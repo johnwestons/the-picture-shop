@@ -9,7 +9,7 @@ local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- is applied to the runtime destinations without mutating a town or preset.
 local names={warehouse='The Picture Shop',['brick-walkup']='Brick walk-up',garden='Garden apartment',
     courtyard='Courtyard apartments',corner='Corner apartment',mechanic='WrenchWorks Garage',
-    grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
+    ['gas-station']='Gas & Tire',grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
     ['fire-station']='Fire Station',diner='Town Diner',['coffee-shop']='Coffee Shop',
     ['general-store']='General Store'}
 local function plain(value)
@@ -188,9 +188,54 @@ function Town.legacy()
         bounds=copy(Default.bounds),terrain={mode='inland-town-v1',seed=4261,size=512},
         roads=copy(Default.roads),destinations=copy(Default.destinations),placements=copy(Sites.defaultPlacements),designs=copy(Sites.designs)}
 end
+-- Add a roadside station to pre-station towns on a runtime copy. Keep the
+-- saved fingerprint and every existing address intact.
+local function stationLayout(t,world)
+    if t.destinations['gas-station'] then return t end
+    local frontage=require('src.commute.town_generator_v2').frontage
+    local placed=Sites.create({placements=t.placements,designs=t.designs}).all
+    local pads={}
+    for _,site in ipairs(placed) do pads[#pads+1]=site.parking end
+    for index,road in ipairs(t.roads) do
+        if road.role~='drive' and road.role~='trail' and road.id~='east-bank' then
+            for edge=1,#road.points-1 do
+                local a,b=road.points[edge],road.points[edge+1]
+                local length=M.length(b[1]-a[1],b[2]-a[2])
+                if length>12 and not (road.bridgeEdges and road.bridgeEdges[edge]) then
+                    for _,fraction in ipairs({.5,.25,.75}) do
+                        local anchor=frontage.mix(a,b,fraction)
+                        for _,side in ipairs({1,-1}) do
+                            local nx,nz=(a[2]-b[2])/length*side,(b[1]-a[1])/length*side
+                            local pad={x=anchor[1]+nx*12,z=anchor[2]+nz*12,h=anchor[3]}
+                            local lot=frontage.placement('gas-station','gas-station',pad,nx,nz,1)
+                            local site=Sites.create({placements={lot}}).all[1]
+                            if frontage.clear(site,pad,placed,pads,t.roads,world.plan,anchor) then
+                                local out=copy(t)
+                                out.designs[lot.id]=copy(Sites.designs[lot.id])
+                                out.placements[#out.placements+1]=lot
+                                out.destinations[lot.id]={x=pad.x,z=pad.z,h=pad.h,label='Gas & Tire'}
+                                local r=out.roads[index]
+                                table.insert(r.points,edge+1,anchor)
+                                if r.bridgeEdges then
+                                    for i=#r.points-1,edge+1,-1 do r.bridgeEdges[i]=r.bridgeEdges[i-1] end
+                                    r.bridgeEdges[edge]=false
+                                end
+                                out.roads[#out.roads+1]={id='station-drive',role='drive',lanes=1,surface='paved',
+                                    width=3.5,interpolation='linear',points={anchor,{pad.x,pad.z,pad.h}}}
+                                return out
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return t
+end
 function Town.world(t)
     t=t or Town.legacy();assert(Town.valid(t),'Invalid saved town definition')
     local world=require('src.commute.terrain').new(t.terrain)
+    t=stationLayout(t,world)
     local sites=Sites.create({placements=t.placements,designs=t.designs})
     local destinations=copy(t.destinations)
     if destinations.mechanic then destinations.mechanic.label=Sites.MECHANIC_NAME end

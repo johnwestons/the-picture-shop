@@ -1,6 +1,7 @@
 -- Remote wrapper production and maintenance presentation.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local WrapperScene = require("src.screens.wrapper_scene")
 
 function Component.install(Runtime)
     function Runtime.drawWrapperTabs(pointerX, pointerY)
@@ -11,16 +12,28 @@ function Component.install(Runtime)
             pointerX, pointerY, not Runtime.Screen.waiting, Runtime.Screen.wrapperTab == "service")
     end
 
-    function Runtime.drawWrapperProduction(state, pointerX, pointerY)
-        local runtime = Runtime.Wrapper.snapshot()
+    function Runtime.drawWrapperProduction(state, pointerX, pointerY, assets)
+        local runtime = Runtime.Screen.view or Runtime.Wrapper.snapshot()
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("HOST CYCLE", 142, 174)
         love.graphics.print(string.upper(runtime.step), 270, 174)
-        local ratio = math.min(1, runtime.progress / math.max(0.001, runtime.cycleTime))
+        local ratio = math.min(1, (runtime.progress or 0) / math.max(0.001, runtime.cycleTime or 18))
         love.graphics.setColor(0.18, 0.21, 0.22)
         love.graphics.rectangle("fill", 420, 174, 380, 18, 3, 3)
         love.graphics.setColor(0.92, 0.72, 0.20)
         love.graphics.rectangle("fill", 420, 174, 380 * ratio, 18, 3, 3)
+        if runtime.step == "wrapping" or (runtime.step=="finished" and #Runtime.wrapperRows(state)==0) then
+            local boxed=false
+            for _,job in ipairs(state.jobs and state.jobs.active or {}) do
+                for _,p in ipairs(job.pallets or {}) do
+                    if p.id==runtime.palletId then boxed=(p.packagedAs or p.packaging or job.packaging)=="boxed" end
+                end
+            end
+            WrapperScene.draw(assets,runtime,runtime.palletId~=nil,boxed,310,198,0.64)
+            Runtime.button(Runtime.CONFIRM, runtime.step=="wrapping" and "WRAPPING..." or "WRAPPED",
+                pointerX,pointerY,false,true)
+            return
+        end
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("NEARBY FINISHED PALLETS", 142, 198)
         local rows = Runtime.wrapperRows(state)
@@ -117,12 +130,12 @@ function Component.install(Runtime)
             not Runtime.Screen.waiting, false)
     end
 
-    function Runtime.drawWrapper(state, pointerX, pointerY)
+    function Runtime.drawWrapper(state, pointerX, pointerY, assets)
         Runtime.drawWrapperTabs(pointerX, pointerY)
         if Runtime.Screen.wrapperTab == "service" then
             Runtime.drawWrapperService(state, pointerX, pointerY)
         else
-            Runtime.drawWrapperProduction(state, pointerX, pointerY)
+            Runtime.drawWrapperProduction(state, pointerX, pointerY, assets)
         end
     end
 end

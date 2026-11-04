@@ -8,13 +8,33 @@ extern vec2 bikePaintTextureSize;
 extern vec4 bikePaintFrame;
 extern float bikePaintLower;
 extern float bikePaintMode;
+extern bool bikeTireEnabled;
+extern vec4 bikeTireWheel1;
+extern vec4 bikeTireWheel2;
+// Distance phase, speed strength, projected forward-side and depth components.
+extern vec4 bikeTireMotion;
 float bikePaintRect(vec2 p,vec4 r) {
     return step(r.x,p.x)*step(r.y,p.y)*step(p.x,r.z)*step(p.y,r.w);
 }
+float bikeTireRoll(vec2 p,vec4 wheel) {
+    if(wheel.z<1.0 || wheel.w<1.0) return 0.0;
+    vec2 q=(p-wheel.xy)/wheel.zw;
+    float radius=length(q);
+    if(q.y<-.35 || radius<.62 || radius>1.04) return 0.0;
+    // Only the lower rubber annulus: hubs, brakes, fenders, boots and chassis
+    // keep their authored detail. The source material test below narrows this.
+    float ring=smoothstep(.62,.76,radius)*(1.0-smoothstep(.96,1.04,radius));
+    ring*=smoothstep(-.35,-.10,q.y);
+    float side=bikeTireMotion.z;
+    float phase=bikeTireMotion.x*3.0;
+    float circumferential=sin(atan(q.y,q.x)*8.0-phase*(side<0.0?-1.0:1.0));
+    float endOn=sin(q.y*9.0+phase*bikeTireMotion.w);
+    return ring*mix(endOn,circumferential,smoothstep(.18,.55,abs(side)));
+}
 vec4 bikePaintSurface(vec4 source,vec2 uv) {
-    if(!bikePaintEnabled || source.a<0.01) return source;
+    if((!bikePaintEnabled && !bikeTireEnabled) || source.a<0.01) return source;
     vec2 p=uv*bikePaintTextureSize-bikePaintFrame.xy;
-    float region;
+    float region=0.0;
     if(bikePaintMode>0.5) {
         // Painted front mudguard, central pressed frame, rear mudguard and plate.
         // Gauge, handlebar metal, mirrors, saddle, exhaust and tires are outside.
@@ -37,6 +57,14 @@ vec4 bikePaintSurface(vec4 source,vec2 uv) {
         *(1.0-smoothstep(0.68,0.84,min(c.r,c.g)));
     float luminance=dot(c,vec3(0.2126,0.7152,0.0722));
     vec3 finish=clamp(bikePaintColor*(luminance/0.46),0.0,1.0);
-    return vec4(mix(c,finish,region*material),source.a);
+    vec3 result=bikePaintEnabled?mix(c,finish,region*material):c;
+    if(bikeTireEnabled) {
+        float rubber=(1.0-smoothstep(.32,.48,hi))*(1.0-smoothstep(.24,.42,saturation));
+        if(rubber>.001) {
+            float roll=bikeTireRoll(p,bikeTireWheel1)+bikeTireRoll(p,bikeTireWheel2);
+            result*=1.0+clamp(roll,-1.0,1.0)*rubber*bikeTireMotion.y*.24;
+        }
+    }
+    return vec4(result,source.a);
 }
 #endif

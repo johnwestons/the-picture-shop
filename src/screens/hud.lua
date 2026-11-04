@@ -44,6 +44,10 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
         mobile and bounds.bottom or Config.baseHeight
     EXIT.x, EXIT.y = right - EXIT.width - 18, 14
     local atHome=sceneId=="home" and state.home
+    if atHome then
+        require('src.screens.player_status').draw(state,twelveHourTime,{left=left,right=right},
+            require('src.home_catalog').APARTMENTS[state.home.apartmentId].name)
+    else
     local cashText = atHome and ("Home "..Ui.money(state.home.balanceCents/100)) or Ui.money(state.money)
     local cashWidth = math.max(112, math.min(180, love.graphics.getFont():getWidth(cashText) + 22))
     local cashX, cashY, cashHeight = left + 18, 13, 32
@@ -94,14 +98,15 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
         local billsX = dateX + math.max(190, love.graphics.getFont():getWidth(dateText) + 18)
         shadowedPrint("Bills due: $" .. state.bills.balance, billsX, 20, { 0.96, 0.48, 0.30 })
     end
+    end
     Hud.drawExit(assets,pointerX,pointerY,{right=right})
     if state.message then
-        shadowedPrintf(state.message, left + 24, 62, right - left - 48, { 0.88, 0.92, 0.94 })
+        shadowedPrintf(state.message, left + 24, 62, right - left - 320, { 0.88, 0.92, 0.94 })
     end
     local week=state.home and state.home.weekend
     if week and week.phase~="working" then
         local status=require("src.weekend_flow").isOuting(state) and "TOWN OUTING: use either entrance to return. The shop keeps its normal schedule."
-            or week.phase=="closing" and "WEEKEND SHUTDOWN: park equipment; the front entrance shows the checklist."
+            or week.phase=="closing" and "FRIDAY CLOSING: finish work and pickups, then go home from the front entrance."
             or week.phase=="ready" and "SHOP CLOSED: use the exterior front entrance to go home. Time is held."
             or "AT HOME: return becomes available Monday at 07:30, before the 08:00 employee shift. Shop opens at 09:00."
         shadowedPrintf(status,left+24,92,right-left-48,{.96,.85,.40})

@@ -1,5 +1,6 @@
 local B=require('src.commute.bindings')
 local Icons=require('src.commute.ui_icons')
+local Cockpit=require('src.commute.cockpit')
 local Touch={};Touch.__index=Touch
 local DEADZONE=.16
 local RESPONSE_POWER=1.65
@@ -55,26 +56,37 @@ function Touch.actionButtons(width,height,p,context,options)
         x,y=touchPoint(p,'interact',width,height)
         addButton(buttons,'interact',context.arrived and 'FINISH' or 'GET OFF','dismount',
             x,y,actionRadius,false,not context.gearTransition)
+        local states={
+            horn={label='HORN',icon='horn',active=context.horn==true},
+            beam={label=context.headlightHighBeam and 'HI' or 'LO',icon='headlight',active=context.headlightHighBeam==true},
+            ignition={label=context.engine and 'RUN' or 'OFF',icon='ignition',active=context.engine==true},
+            headlight={label=context.headlight and 'ON' or 'OFF',icon='headlight',active=context.headlight==true},
+        }
+        for _,control in ipairs(Cockpit.handlebarControls(width,height,options.camera)) do
+            local state=states[control.action]
+            buttons[#buttons+1]={action=control.action,label=state.label,icon=state.icon,
+                x=control.x,y=control.y,radius=control.visualRadius,hitRadius=mobile and 25 or 15,
+                active=state.active,enabled=not context.gearTransition,physical=true}
+        end
     else
         local x,y=touchPoint(p,'interact',width,height)
         addButton(buttons,'interact',context.arrived and 'FINISH' or 'USE','dismount',
             x,y,actionRadius,false,not context.gearTransition)
     end
 
-    local cameraY=math.max(58+32+cameraRadius+8,height*.23)
-    local cameraX=width-cameraRadius*1.55
+    -- Keep these clear of the top-right menus, minimap and throttle controls.
+    local cameraY=(mobile and 208 or 246)+cameraRadius
+    local cameraX=16+cameraRadius
     addButton(buttons,'followCamera',context.outsideMode=='follow' and 'FIXED' or 'FOLLOW',
         'follow',cameraX,cameraY,cameraRadius,context.outsideMode=='follow',true)
-    addButton(buttons,'recenter','CENTER','center',cameraX,cameraY+cameraRadius*2.8,
+    addButton(buttons,'recenter','CENTER','center',cameraX+cameraRadius*2.8,cameraY,
         cameraRadius,false,true)
-    addButton(buttons,'rescue','RESCUE','center',cameraX,cameraY+cameraRadius*5.6,
+    addButton(buttons,'rescue','RESCUE','center',cameraX+cameraRadius*5.6,cameraY,
         cameraRadius,false,not context.gearTransition and not context.pedCrash and not context.arrived)
 
     local utilities={}
     if mounted then
         utilities={
-            {'ignition',context.engine and 'STOP' or 'START','ignition',context.engine},
-            {'headlight','LIGHTS','headlight',context.headlight},
             {'transmission',context.transmission=='manual' and 'MANUAL' or 'AUTO',
                 'transmission',context.transmission=='manual'},
             {'reverse',context.reverse and 'FWD' or 'REV','reverse',context.reverse},
@@ -98,15 +110,31 @@ function Touch.actionButtons(width,height,p,context,options)
                 item[4],item[5])
         end
     end
+    if options.hiddenHud then
+        local filtered={}
+        for _,button in ipairs(buttons) do
+            if button.action~='view' and button.action~='followCamera' and button.action~='recenter' then
+                filtered[#filtered+1]=button
+            end
+        end
+        return filtered
+    end
     return buttons
 end
 
 function Touch.actionAt(x,y,width,height,p,context,options)
     local buttons=Touch.actionButtons(width,height,p,context,options)
+    local nearestPhysical,nearestDistance
     for i=#buttons,1,-1 do
         local button=buttons[i];local dx,dy=x-button.x,y-button.y
-        if dx*dx+dy*dy<=button.hitRadius*button.hitRadius then return button end
+        local distance=dx*dx+dy*dy
+        if distance<=button.hitRadius*button.hitRadius then
+            if button.physical then
+                if not nearestDistance or distance<nearestDistance then nearestPhysical,nearestDistance=button,distance end
+            else return button end
+        end
     end
+    return nearestPhysical
 end
 
 function Touch:move(id,x,y,width,height,p)
@@ -185,21 +213,45 @@ function Touch:draw(width,height,p,context,options)
         for _,button in ipairs(Touch.actionButtons(width,height,p,context,options)) do
             local cx,cy,r=button.x,button.y,button.radius
             local active=button.active or self.held[button.action]
-            if not button.enabled then g.setColor(.055,.075,.068,.72)
-            else g.setColor(active and .15 or .035,active and .20 or .075,active and .13 or .06,.94) end
-            g.circle('fill',cx,cy,r)
-            if not button.enabled then g.setColor(.43,.49,.44,.64)
-            elseif active then g.setColor(.96,.79,.42,1)
-            else g.setColor(.74,.84,.64,.96) end
-            g.setLineWidth(active and 2.4 or 1.6);g.circle('line',cx,cy,r)
-            local iconSize=r*(r>30 and .88 or .78)
-            local iconY=cy-r*.20
-            if button.enabled then Icons.draw(button.icon,cx,iconY,iconSize)
-            else Icons.draw(button.icon,cx,iconY,iconSize,{.55,.61,.54,.72}) end
-            g.setColor(button.enabled and .96 or .61,button.enabled and .96 or .66,
-                button.enabled and .87 or .60,button.enabled and 1 or .82)
-            g.setFont(fontFor(self,clamp(r*.31,8,12)))
-            g.printf(button.label,cx-r*1.15,cy+r*.25,r*2.3,'center')
+            if button.physical then
+                if button.action=='horn' then
+                    local cap=math.max(3,r*.46);local cyPressed=cy+(active and r*.10 or 0)
+                    g.setColor(.02,.025,.02,.56);g.circle('fill',cx,cyPressed+cap*.15,cap*1.13)
+                    g.setColor(active and .98 or .68,active and .45 or .20,active and .10 or .09,.88)
+                    g.circle('fill',cx,cyPressed,cap)
+                    g.setColor(1,.80,.48,active and .92 or .53);g.setLineWidth(math.max(.7,r*.08))
+                    g.circle('line',cx,cyPressed,cap*.87)
+                else
+                    local width=math.max(4,r*.66);local height=math.max(6,r*1.22)
+                    local travel=button.action=='beam' and (active and -.17 or .17)
+                        or (active and .17 or -.17)
+                    local knobY=cy+height*travel+(active and r*.06 or 0)
+                    local knobColor=button.action=='ignition' and (active and {.35,.79,.40} or {.48,.19,.13})
+                        or button.action=='headlight' and (active and {.96,.82,.42} or {.30,.34,.29})
+                        or (active and {.98,.79,.30} or {.50,.59,.45})
+                    g.setColor(.025,.03,.025,.58);g.rectangle('fill',cx-width*.42,knobY-height*.34+1,width*.84,height*.68,math.max(1,r*.12))
+                    g.setColor(knobColor[1],knobColor[2],knobColor[3],.88)
+                    g.rectangle('fill',cx-width*.34,knobY-height*.34,width*.68,height*.68,math.max(1,r*.10))
+                    g.setColor(1,.88,.59,active and .9 or .48)
+                    g.rectangle('line',cx-width*.30,knobY-height*.29,width*.60,height*.58,math.max(1,r*.09))
+                end
+            else
+                if not button.enabled then g.setColor(.055,.075,.068,.72)
+                else g.setColor(active and .15 or .035,active and .20 or .075,active and .13 or .06,.94) end
+                g.circle('fill',cx,cy,r)
+                if not button.enabled then g.setColor(.43,.49,.44,.64)
+                elseif active then g.setColor(.96,.79,.42,1)
+                else g.setColor(.74,.84,.64,.96) end
+                g.setLineWidth(active and 2.4 or 1.6);g.circle('line',cx,cy,r)
+                local iconSize=r*(r>30 and .88 or .78)
+                local iconY=cy-r*.20
+                if button.enabled then Icons.draw(button.icon,cx,iconY,iconSize)
+                else Icons.draw(button.icon,cx,iconY,iconSize,{.55,.61,.54,.72}) end
+                g.setColor(button.enabled and .96 or .61,button.enabled and .96 or .66,
+                    button.enabled and .87 or .60,button.enabled and 1 or .82)
+                g.setFont(fontFor(self,clamp(r*.31,8,12)))
+                g.printf(button.label,cx-r*1.15,cy+r*.25,r*2.3,'center')
+            end
         end
     end
     g.pop()

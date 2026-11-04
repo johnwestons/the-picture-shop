@@ -63,6 +63,9 @@ function Test.run(context,check)
     R.App.keypressed('p');ticks(2)
     check('commute_runtime_keyboard_enters_first_person',R._commute.camera.firstPerson)
     ticks(100);capture(R,'runtime-first-person')
+    R._commute.camera.lookYaw=math.pi;R._commute.camera.lookPitch=-.35
+    ticks(16);capture(R,'runtime-first-person-parking')
+    R._commute.camera:recenter()
     R.App.gamepadpressed(nil,Bindings.byId.view.pad);ticks(2)
     check('commute_runtime_controller_returns_outside',not R._commute.camera.firstPerson)
     local viewButton=C.cameraButton(R)
@@ -70,7 +73,9 @@ function Test.run(context,check)
     check('commute_runtime_touch_enters_first_person',R._commute.camera.firstPerson)
     assert(C.cameraPointerPressed(R,3,false));assert(C.cameraPointerMoved(R,-70,30));C.cameraPointerReleased(R,3);ticks(12)
     local lookX=require('src.commute.first_person_camera').cockpitPose(R._commute.camera)
-    check('commute_runtime_middle_look_keeps_cockpit_on_bike',lookX< -100)
+    -- Looking left moves the straight-ahead handlebars to the right of view.
+    check('commute_runtime_middle_left_look_keeps_cockpit_on_bike',lookX>100
+        and R._commute.camera.lookYaw<0 and R._commute.camera.headYaw<0)
     local centerButton
     for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,Bindings.defaults(),
         C.controlContext(R,C.localPart(R)),{mobile=C.mobileInputEnabled(R)})) do
@@ -105,12 +110,18 @@ function Test.run(context,check)
         local t=R.state.home.commute;local world=C.world(R)
         local route=assert(Routes.new(world.roads):find(t.origin,t.destination))
         local destination=world.roads.destinations[t.destination];local index=1;local arrived=false;local bridgeCapture=false
+        local parking=false
         R.App.keypressed('p');ticks(2)
         check('commute_runtime_route_rider_view_'..label,R._commute.camera.firstPerson)
         for frame=1,9000 do
             local bike=C.localPart(R).rider.bike
             local distance=math.sqrt((bike.x-destination.x)^2+(bike.z-destination.z)^2)
-            if distance<3 then ix,iy=0,1 else
+            if distance<3 then parking=true end
+            -- Back now brakes, then reverses at rest. Release it before the
+            -- final stop so the six physics substeps cannot start backing up
+            -- before this route driver observes zero speed. Latch the approach
+            -- to avoid switching back to throttle at the arrival-radius edge.
+            if parking then ix,iy=0,bike.speed>.3 and 1 or 0 else
                 while index<#route.points and (bike.x-route.points[index].x)^2+(bike.z-route.points[index].z)^2<25 do index=index+1 end
                 local target=route.points[index]
                 local angle=math.atan2(target.z-bike.z,target.x-bike.x)

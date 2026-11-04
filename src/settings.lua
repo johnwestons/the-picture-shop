@@ -8,6 +8,7 @@ local DEFAULTS = {
     vsync = true,
     followPlayerCamera = false,
     twelveHourTime = true,
+    hudVisible = true,
     furColorway = 1,
     overallsColorway = 1,
     muted = false,
@@ -64,6 +65,7 @@ function Settings.normalize(value)
         vsync = value.vsync ~= false,
         followPlayerCamera = value.followPlayerCamera == true,
         twelveHourTime = value.twelveHourTime ~= false,
+        hudVisible = value.hudVisible ~= false,
         furColorway = furColorway,
         overallsColorway = overallsColorway,
         muted = value.muted == true,
@@ -90,9 +92,9 @@ end
 local function encode(value)
     value = Settings.normalize(value)
     local encoded = string.format(
-        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
+        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, hudVisible = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
         tostring(value.fullscreen), tostring(value.vsync), tostring(value.followPlayerCamera),
-        tostring(value.twelveHourTime),
+        tostring(value.twelveHourTime), tostring(value.hudVisible),
         value.furColorway, value.overallsColorway, tostring(value.muted),
         value.lanConnectionMode, tostring(value.lanAutoJoin),
         value.masterVolume, value.sfxVolume, value.ambientVolume,

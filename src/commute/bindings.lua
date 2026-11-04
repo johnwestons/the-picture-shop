@@ -2,21 +2,23 @@
 local B={}
 B.actions={
  {id='accelerate',label='Accelerate / lift the nose in air',held=true,key='w',pad='axis:triggerright+',touch='touch1'},
- {id='brake',label='Brake / level the bike in air',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
+ {id='brake',label='Brake / reverse; level in air',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
  {id='left',label='Steer left',held=true,key='a',pad='axis:leftx-'},
  {id='right',label='Steer right',held=true,key='d',pad='axis:leftx+'},
  {id='handbrake',label='Additional brake',held=true,key='space',pad='b'},
  {id='boost',label='Boost',held=true,key='lshift',pad='rightshoulder',touch='touch3'},
  {id='interact',label='Mount / dismount / door',key='e',pad='a',touch='touch4',main='e',preview='e'},
  {id='ignition',label='Engine on / off',key='i',pad='back',main='i',preview='i'},
+ {id='horn',label='Horn (hold)',held=true,key='k',main='k',preview='k'},
  {id='reverse',label='Forward / reverse',key='b',pad='leftstick',main='b',preview='b'},
  {id='headlight',label='Headlight',key='h',pad='y',touch='touch5',main='h',preview='h'},
+ {id='beam',label='High / low beam',key='n',main='n',preview='n'},
  {id='view',label='Camera view',key='p',pad='rightstick',touch='touch6',main='p',preview='p'},
  {id='transmission',label='Auto / manual gearbox',key='v',pad='dpup',main='v',preview='v'},
  {id='shiftDown',label='Shift down',key='z',pad='dpleft',main='z',preview='z'},
  {id='shiftUp',label='Shift up',key='x',pad='dpright',main='x',preview='x'},
  {id='gear',label='Put on / remove riding gear',key='g',pad='x',main='g',preview='g'},
- {id='rescue',label='Recover the motorcycle to the last safe spot',key='u',main='u'},
+ {id='rescue',label='Move the motorcycle to open ground',key='u',main='u',preview='u'},
  {id='recenter',label='Center camera',key='c',pad='dpdown',main='c',preview='c'},
  {id='orbitLeft',label='Rotate / look left',held=true,key='q',pad='axis:rightx-'},
  {id='orbitRight',label='Rotate / look right',held=true,key='t',pad='axis:rightx+'},
@@ -37,7 +39,7 @@ local pads={a=true,b=true,x=true,y=true,back=true,leftstick=true,rightstick=true
  dpup=true,dpdown=true,dpleft=true,dpright=true}
 local axes={leftx=true,lefty=true,rightx=true,righty=true,triggerleft=true,triggerright=true}
 local modifiers={lalt=true,ralt=true,lctrl=true,rctrl=true,lshift=true,rshift=true}
-local reserved={escape=true,f10=true,delete=true,unknown=true}
+local reserved={escape=true,f8=true,f9=true,f10=true,delete=true,unknown=true}
 local namedKeys={space=true,tab=true,['return']=true,backspace=true,up=true,down=true,left=true,right=true,
  home=true,['end']=true,pageup=true,pagedown=true,insert=true,lshift=true,rshift=true,lctrl=true,rctrl=true,
  lalt=true,ralt=true,lgui=true,rgui=true,capslock=true,numlock=true,scrolllock=true,pause=true,
@@ -167,18 +169,18 @@ function B.drive(p,touch,camera,bike)
             -- steering physics instead of teleporting its velocity.
             local worldX,worldZ=camera:screenVectorToWorld(touchX,touchY)
             local heading=math.atan2(worldZ,worldX)
-            local reverse=bike.reverse==true
+            local alignment=math.cos(wrapRadians(heading-(bike.heading or 0)))
+            local reverse=alignment<-.001
             local desiredHeading=heading+(reverse and math.pi or 0)
-            local error=wrapRadians(desiredHeading-(bike.heading or 0))*(reverse and -1 or 1)
+            local error=wrapRadians(desiredHeading-(bike.heading or 0))*(bike.reverse and -1 or 1)
             -- The outside-view stick points toward a destination. Ease off
             -- the throttle while the bike is still aimed elsewhere, and brake
-            -- when the requested direction is behind the bike. This gives the
-            -- steering physics room to turn without carrying full speed into
-            -- a wall or shoreline.
+            -- when the requested direction opposes travel, then back toward
+            -- that destination once stopped. The signed drive intent stays
+            -- stable after selecting reverse, rather than flipping each frame.
             x=math.max(-1,math.min(1,error/(math.pi*.5)))*magnitude*.78
-            local alignment=math.cos(error)
-            throttle=math.max(throttle,magnitude*math.max(0,alignment)^2)
-            brake=math.max(brake,magnitude*math.max(0,-alignment))
+            if reverse then brake=math.max(brake,magnitude*alignment*alignment)
+            else throttle=math.max(throttle,magnitude*math.max(0,alignment)^2) end
         else
             if camera and camera.firstPerson then touchX=touchX*.78 end
             if math.abs(touchX)>math.abs(x) then x=touchX end

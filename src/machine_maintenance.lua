@@ -4,6 +4,7 @@ local Procurement = require("src.procurement")
 
 local Maintenance = {}
 local CALL_OUT_PERCENT, LATE_PERCENT = 2, 5
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 local function clamp(value)
     return math.max(0, math.min(1, tonumber(value) or 0))
@@ -401,6 +402,7 @@ end
 function Maintenance.installSpareBlade(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false, "No cutter is installed." end
+    if cutter.orderedBladeGrade then return false, "Let Mara fit the ordered specialty blade at the next exchange." end
     if not cutter.bladeInSleeve or not cutter.bladeRemoved then
         return false, "Sleeve the dull blade before installing a spare blade."
     end
@@ -409,8 +411,29 @@ function Maintenance.installSpareBlade(state)
     if not installed then return false, reason end
     cutter.bladeRemoved = false
     cutter.spareBladeInstalled = true
+    cutter.bladeGrade = "standard"
     item.variables.bladeSharpness = 100
     item.condition = MachineFleet.condition(item)
+    return true, cutter
+end
+
+function Maintenance.buyBladeUpgrade(state, grade)
+    local item, cutter = Maintenance.cutterStatus(state)
+    if not item then return false, "No cutter is installed." end
+    local profile = BladeProfiles.get(grade)
+    if not profile then return false, "Choose a listed specialty blade." end
+    if grade == cutter.bladeGrade then return false, "That blade grade is already installed." end
+    if not BladeProfiles.isUpgrade(cutter.bladeGrade, grade) then
+        return false, "The installed blade is already a higher grade."
+    end
+    if cutter.orderedBladeGrade then return false, "A specialty blade order is already waiting for installation." end
+    if cutter.spareBladeInstalled then
+        return false, "Wait for the installed spare blade to finish its exchange before ordering another blade."
+    end
+    if (state.money or 0) < profile.price then return false, "The shop cannot afford that specialty blade right now." end
+    state.money = state.money - profile.price
+    cutter.orderedBladeGrade = grade
+    if state.home then require("src.household_finances").record(state, "services", profile.price * 100) end
     return true, cutter
 end
 
@@ -533,7 +556,14 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false end
     local spareInstalled = cutter.spareBladeInstalled == true
-    if not spareInstalled then item.variables.bladeSharpness = 100 end
+    local orderedGrade = cutter.orderedBladeGrade
+    if orderedGrade then
+        cutter.bladeGrade = orderedGrade
+        cutter.orderedBladeGrade = nil
+        item.variables.bladeSharpness = 100
+    elseif not spareInstalled then
+        item.variables.bladeSharpness = 100
+    end
     item.condition = MachineFleet.condition(item)
     cutter.bladeRemoved, cutter.bladeInSleeve = false, false
     cutter.spareBladeInstalled = false
@@ -545,7 +575,10 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
     cutter.appointmentType = recurring and "weekly" or nil
     local courier = visit and visit.name or "Mara Mouse"
     MachineFleet.addServiceNotice(state, spareInstalled and "Dull cutter blade collected" or "Fresh cutter blade delivered",
-        spareInstalled
+        orderedGrade
+            and (courier .. " collected the dull blade and installed your "
+                .. BladeProfiles.get(orderedGrade).name .. ". The Polar 115 is ready for production.")
+            or spareInstalled
             and (courier .. " collected the dull blade in its wooden sleeve. Your spare blade remains installed and ready for production.")
             or (courier .. " collected the dull blade in its wooden sleeve and fitted a freshly sharpened replacement. The Polar 115 is ready for production."),
         "Polar 115 Blade Exchange")

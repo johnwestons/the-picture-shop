@@ -179,7 +179,6 @@ function Component.install(Runtime)
                 end
             end
             if require("src.weekend_flow").update(Runtime.state,false) then saveNeeded=true end
-            if Runtime.state.home.weekend.phase=="closing" then require("src.shop_shutdown").prepare(Runtime.state) end
             local closed=require("src.weekend_flow").shopClosed(Runtime.state)
             -- The elapsed interval still belongs to the closed shop when its
             -- endpoint reopens Monday. Queued later time runs next frame.
@@ -350,7 +349,6 @@ function Component.install(Runtime)
                 if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             end
         end
-        if not Runtime.multiplayer:isClient() and simulationActive and require("src.weekend_runtime").finishFrame(Runtime) then saveNeeded=true end
         if simulationActive then require("src.weekend_runtime").syncUi(Runtime) end
         if Runtime.App.playerFeedback then Runtime.App.playerFeedback:update(dt) end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end

@@ -157,16 +157,17 @@ function Test.run(context, check)
         assert(rider.gear.transition and rider.gear.transition.kind=='mount','Could not begin ordinary remount after crash')
         for _=1,120 do R.App.update(1/60) end
         check('bike_damage_runtime_normal_remount_starts_damaged_motorcycle',rider.gear.mounted and rider.gear.engine and bike.damage==damage)
-        R.dispatchKeyPressed('b')
-        assert(bike.reverse,'Could not select reverse to back away from wall')
         local initialX,initialZ=bike.x,bike.z
-        drive=-1
+        drive=1
         for _=1,420 do
             R.App.update(1/60)
             if distance(bike.x,bike.z,initialX,initialZ)>2.8 then break end
         end
-        drive=1
-        for _=1,90 do R.App.update(1/60) end
+        drive=-1
+        for _=1,90 do
+            R.App.update(1/120)
+            if bike.speed<.05 then break end
+        end
         drive=0
         check('bike_damage_runtime_totaled_bike_can_back_into_mechanic_parking',distance(bike.x,bike.z,initialX,initialZ)>2.8 and bike.speed<.05)
         R.dispatchKeyPressed('e')

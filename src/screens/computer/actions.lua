@@ -288,6 +288,16 @@ function Component.install(Runtime)
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
+    function Runtime.ComputerScreen.promotionButtonCenter()
+        return Runtime.JOB_PROMO.x + Runtime.JOB_PROMO.width / 2,
+            Runtime.JOB_PROMO.y + Runtime.JOB_PROMO.height / 2
+    end
+
+    function Runtime.ComputerScreen.sendPromotionCenter()
+        return Runtime.PROMO.x + Runtime.PROMO.width / 2,
+            Runtime.PROMO.y + Runtime.PROMO.height / 2
+    end
+
     function Runtime.ComputerScreen.rowCenter(row)
         return Runtime.LIST.x + Runtime.LIST.width / 2, Runtime.LIST.y + 14 + (row - 1) * Runtime.ROW_HEIGHT + 18
     end

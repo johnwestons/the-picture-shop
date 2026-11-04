@@ -14,6 +14,79 @@ local function capture(R,name)
     bytes:release();data:release();canvas:release()
 end
 local function angle(a,b)return (a-b+math.pi)%(2*math.pi)-math.pi end
+local function auditDrawnViews(R,check,rider)
+    local view=R._commute;local originalCamera=view.camera
+    local part=C.localPart(R);local originalPresentation=part.presentation
+    local bike=rider.bike;local saved={}
+    local fields={'heading','lean','pitch','speed','paintId','impactPulse','boostPulse','shiftTime','ridingAnimation','h','grounded','vy','vx','vz',
+        'brake','throttle','acceleration'}
+    for _,key in ipairs(fields) do saved[key]=bike[key] end
+    local camera=require('src.commute.camera').new(bike,C.world(R));view.camera=camera
+    local art=view.renderer.bikeArt;local g=love.graphics
+    local originalDraw=g.draw;local calls={}
+    g.draw=function(image,quad,...)
+        local info=art:describe(image,quad)
+        if info then local _,_,_,alpha=g.getColor();info.alpha=alpha;calls[#calls+1]=info end
+        return originalDraw(image,quad,...)
+    end
+    local okay,reason=xpcall(function()
+        part.presentation=nil
+        bike.paintId='bronze';bike.speed=0;bike.lean=0;bike.pitch=0
+        bike.impactPulse,bike.boostPulse,bike.shiftTime=0,0,0
+        bike.ridingAnimation={kind='idle',remaining=0,queue={}}
+        local canvas=g.newCanvas(R.Config.baseWidth,R.Config.baseHeight)
+        local records={};local duration=require('src.commute.riding_animation').durations
+        local samples={
+            {state='upright'},
+            {state='aeroMid',speed=(Bike.TUCK_START_SPEED+Bike.BOOST_MAX_SPEED)/2},{state='aero',speed=Bike.BOOST_MAX_SPEED},
+            {state='turnLeftMid',lean=.225},{state='turnLeft',lean=.3},
+            {state='turnRightMid',lean=-.225},{state='turnRight',lean=-.3},
+            {state='brakeMid',speed=8,brakingPose=.5},{state='brake',speed=8,brakingPose=1},
+            {state='boostMid',ridingAction='boost',ridingActionTime=duration.boost*5/6},
+            {state='boost',ridingAction='boost',ridingActionTime=duration.boost/2},
+            {state='shiftMid',ridingAction='shift',ridingActionTime=duration.shift*5/6},
+            {state='shift',ridingAction='shift',ridingActionTime=duration.shift/2},
+            {state='impactMid',impactPulse=Bike.IMPACT_DURATION*5/6,impactStrength=1},
+            {state='impact',impactPulse=Bike.IMPACT_DURATION/2,impactStrength=1},
+        }
+        for _,mode in ipairs({'fixed','follow'}) do for _,sample in ipairs(samples) do
+            camera.outsideMode=mode
+            camera.yaw=37
+            part.presentation=sample
+            local all=true;local count=64
+            for i=1,64 do
+                bike.heading=-math.pi/2+(i-1)*math.pi*2/64-math.rad(camera.yaw)
+                calls={}
+                g.push('all');g.setCanvas({canvas,stencil=true});R.App.draw();g.pop()
+                local c=calls[1]
+                records[#records+1]=('{"mode":"%s","expectedState":"%s","expectedFrame":%d,"drawCount":%d,"state":"%s","drawnFrame":%d,"alpha":%.3f}')
+                    :format(mode,sample.state,i,#calls,c and c.state or 'missing',c and c.frame or 0,c and c.alpha or 0)
+                all=all and #calls==1 and c.frame==i and c.alpha==1
+                    and c.state==sample.state
+            end
+            check('camera_runtime_actual_app_'..mode..'_'..sample.state..'_draws_all_64_views_opaque',all)
+        end end
+        local directory=os.getenv('PICTURE_SHOP_COMMUTE_CAPTURE')
+        if directory then
+            local file=assert(io.open(directory..'/actual-draw-coverage.json','wb'))
+            file:write('{"cameraYaw":37,"draws":['..table.concat(records,',')..']}\n');file:close()
+        end
+        canvas:release();part.presentation=nil
+        camera.outsideMode='fixed';camera.yaw=25
+        bike.heading=-math.pi/4;bike.lean=-.1
+        capture(R,'fixed-dense-upright-turn')
+        bike.h=bike.h+4;bike.grounded=false;bike.pitch=.6;bike.vy=2
+        bike.vx,bike.vz=10*math.cos(bike.heading),10*math.sin(bike.heading)
+        camera:setFirstPerson(true,bike)
+        for _=1,45 do camera:updateRide(rider,1/60) end
+        capture(R,'first-person-landing-look')
+        check('camera_runtime_airborne_view_aims_below_horizon_with_pitched_bars',camera.viewPitch<-.1 and camera.bikePitch==.6)
+    end,debug.traceback)
+    g.draw=originalDraw
+    for _,key in ipairs(fields) do bike[key]=saved[key] end
+    view.camera=originalCamera;part.presentation=originalPresentation
+    assert(okay,reason)
+end
 function Test.run(context,check)
     local R=assert(context.appRuntime)
     R.Save.delete(3);assert(R.startGame(assert(R.Save.newGame(3,{apartmentId='garden'})),'smoke'))
@@ -107,6 +180,8 @@ function Test.run(context,check)
         R.App.keypressed('escape');R.App.keypressed('escape');R.App.update(0)
         check('camera_runtime_options_choice_applies_to_active_camera',R.state.screen=='world'
             and R._commute.camera.outsideMode=='follow')
+        require('src.commute.tests.auto_reverse_runtime_test').run(R,check,originalDrive,capture)
+        auditDrawnViews(R,check,rider)
     end,debug.traceback)
     R.Input.movement,Bindings.drive=originalMovement,originalDrive
     R.App.settings.motorcycleControls=originalProfile;Settings.save(R.App.settings)

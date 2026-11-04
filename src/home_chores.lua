@@ -164,6 +164,7 @@ function Chores.timeline(state,players,records,present,first,last)
         local at=math.max(cursor,event.activity.endsAt)
         any=Chores.advance(state,players,cursor,at) or any
         rewards[event.id]=Chores.finished(state,event.activity);any=true;cursor=at
+        if event.activity.kind=="change" and rewards[event.id] then records[event.id].dirtyClothes=false end
     end
     any=Chores.advance(state,players,cursor,last) or any
     return any,rewards

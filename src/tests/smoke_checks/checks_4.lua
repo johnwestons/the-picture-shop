@@ -248,7 +248,7 @@ function Component.run(Context)
     Context.check("promotion_new_job_chance_uses_season_not_message_length",
         longPromotion.messageLength == 200
         and longPromotion.responseChance == shortPromotion.responseChance
-        and shortPromotion.responseChance == 0
+        and shortPromotion.responseChance >= 0.28
         and busySeasonPromotion.responseChance > shortPromotion.responseChance)
     priorClientJob.status = "completed"
     local promotionMessage = string.rep("x", 240)
@@ -260,8 +260,7 @@ function Component.run(Context)
         and promotion.messageLength == 240 and #emailState.clientEmails.sentPromotions == 1)
     Context.check("promotion_records_the_season_used_for_its_random_reply",
         promotion.seasonName == busySeasonPromotion.seasonName
-        and (promotion.responseOutcome == "new_job" or promotion.responseOutcome == "thank_you"
-            or promotion.responseOutcome == "no_response"))
+        and (promotion.responseOutcome == "new_job" or promotion.responseOutcome == "thank_you"))
     local duplicatePromotion = Context.context.jobService.sendPromotion(
         emailState, priorClientJob, "A duplicate offer should not send.")
     Context.check("completed_job_ten_percent_promotion_is_single_use",

@@ -1,6 +1,7 @@
 -- Machine selection, installation, use, and maintenance.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 function Component.install(Runtime)
     function Runtime.Fleet.isGameplayEnabled(modelId)
@@ -77,7 +78,12 @@ function Component.install(Runtime)
         if not item or not model then return false, "No installed machine can receive wear." end
         cycles = math.max(0, tonumber(cycles) or 1)
         for componentId, component in pairs(model.components) do
-            item.variables[componentId] = Runtime.clamp(item.variables[componentId] - component.wear * cycles, 0, 100)
+            local wear = component.wear
+            if modelId == "polar_115" and componentId == "bladeSharpness" then
+                local profile = BladeProfiles.get(item.maintenance.cutter and item.maintenance.cutter.bladeGrade)
+                wear = wear * (profile and profile.wearMultiplier or 1)
+            end
+            item.variables[componentId] = Runtime.clamp(item.variables[componentId] - wear * cycles, 0, 100)
         end
         item.cycles = item.cycles + cycles
         item.operatingMinutes = item.operatingMinutes + cycles * (modelId == "heidelberg_10x15" and 20 or 0.25)

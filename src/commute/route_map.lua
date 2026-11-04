@@ -90,6 +90,64 @@ function Map:snapshot(rect,actor,options)
     end
     return result
 end
+function Map:label(id)
+    for _,entry in ipairs(self.entries) do if entry.id==id then return entry.label end end
+end
+function Map:miniSnapshot(rect,actor,options)
+    options=options or {};actor=actor or {}
+    local mapRect={x=rect.x+7,y=rect.y+25,width=math.max(1,rect.width-14),height=math.max(1,rect.height-32)}
+    local _,_,viewport=Map.project(self.world,mapRect,0,0)
+    local result={viewport=viewport,buildings={},destination=options.destination}
+    local placed={}
+    local function free(x,y)
+        if x<viewport.x+7 or x>viewport.x+viewport.width-7 or y<viewport.y+7 or y>viewport.y+viewport.height-7 then return false end
+        for _,p in ipairs(placed) do if math.abs(p.x-x)<15 and math.abs(p.y-y)<15 then return false end end
+        return true
+    end
+    for i,entry in ipairs(self.entries) do
+        local site=entry.site;local ax,ay=Map.project(self.world,mapRect,site.x or site.origin.x,site.z or site.origin.z)
+        local x,y=ax,ay
+        if not free(x,y) then
+            local found=false
+            for radius=15,45,10 do
+                for step=0,15 do
+                    local angle=step*math.pi/8;local nx,ny=ax+math.cos(angle)*radius,ay+math.sin(angle)*radius
+                    if free(nx,ny) then x,y=nx,ny;found=true;break end
+                end
+                if found then break end
+            end
+            x=math.max(viewport.x+7,math.min(viewport.x+viewport.width-7,x))
+            y=math.max(viewport.y+7,math.min(viewport.y+viewport.height-7,y))
+        end
+        placed[#placed+1]={x=x,y=y}
+        result.buildings[#result.buildings+1]={id=entry.id,index=entry.index,label=entry.label,
+            x=x,y=y,anchorX=ax,anchorY=ay,destination=entry.id==options.destination}
+    end
+    local x,y=Map.project(self.world,mapRect,finite(actor.x,0),finite(actor.z,0))
+    local heading=finite(actor.heading,0)
+    result.marker={x=x,y=y,heading=heading,dx=math.cos(heading),dz=math.sin(heading)}
+    return result
+end
+function Map:hit(rect,x,y,actor,options)
+    local s=self:snapshot(rect,actor,options)
+    local nearest,best
+    for _,entry in ipairs(s.buildings) do
+        local k=entry.keyRect
+        if x>=k.x and x<=k.x+k.width and y>=k.y and y<=k.y+k.height then return entry.id end
+        local distance=(x-entry.x)^2+(y-entry.y)^2
+        if distance<=15*15 and (not best or distance<best) then nearest,best=entry.id,distance end
+    end
+    return nearest
+end
+function Map:hitMini(rect,x,y,actor,options)
+    local s=self:miniSnapshot(rect,actor,options)
+    local nearest,best
+    for _,entry in ipairs(s.buildings) do
+        local distance=(x-entry.x)^2+(y-entry.y)^2
+        if distance<=12*12 and (not best or distance<best) then nearest,best=entry.id,distance end
+    end
+    return nearest
+end
 function Map:prepare()
     if self.background or self.released then return end
     local g=love.graphics;local n=Map.RESOLUTION;local b=bounds(self.world)
@@ -197,6 +255,52 @@ function Map:draw(rect,actor,options)
     g.setColor(1,.73,.24,1);g.print('Gold: destination',rect.x+218,s.layout.footerY)
     g.setColor(.55,.91,.61,1);g.print('Green: your home',rect.x+370,s.layout.footerY)
     g.setColor(.79,.86,.81,1);g.printf(#s.recreation>0 and 'Brown: trails · P/C: park / camp' or 'Numbers identify buildings',rect.x+540,s.layout.footerY,rect.width-556,'right')
+    g.pop()
+    return s
+end
+function Map:drawMini(rect,actor,options)
+    if self.released then return end
+    options=options or {};self:prepare()
+    local s=self:miniSnapshot(rect,actor,options);local g=love.graphics;local v=s.viewport
+    g.push('all');g.setShader();g.setColor(.025,.05,.047,.96)
+    g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,7)
+    g.setColor(.43,.57,.51,.96);g.setLineWidth(1);g.rectangle('line',rect.x,rect.y,rect.width,rect.height,7)
+    g.setFont(self:font(11));g.setColor(.98,.87,.52,1)
+    local title='NAV  ·  '..(self:label(options.destination) or 'Choose a building')
+    if options.route and options.route.length then title=title..('  ·  %dm'):format(math.floor(options.route.length+.5)) end
+    local titleScale=math.min(1,(rect.width-16)/math.max(1,g.getFont():getWidth(title)))
+    g.print(title,rect.x+8,rect.y+7,0,titleScale,titleScale)
+    g.setColor(1,1,1);g.draw(self.background,v.x,v.y,0,v.width/512,v.height/512)
+    g.setColor(.44,.56,.51,1);g.rectangle('line',v.x,v.y,v.width,v.height)
+    if options.route and options.route.points then
+        local points={}
+        for _,p in ipairs(options.route.points) do
+            points[#points+1]=v.x+(p.x-v.bounds.x0)*v.scale
+            points[#points+1]=v.y+(p.z-v.bounds.z0)*v.scale
+        end
+        if #points>=4 then
+            g.setColor(.02,.05,.04,.95);g.setLineWidth(4);g.line(points)
+            g.setColor(1,.66,.18,1);g.setLineWidth(2.4);g.line(points)
+        end
+    end
+    local numberFont=self:font(9)
+    for _,entry in ipairs(s.buildings) do
+        if math.abs(entry.x-entry.anchorX)+math.abs(entry.y-entry.anchorY)>2 then
+            g.setColor(.87,.91,.78,.85);g.setLineWidth(1);g.line(entry.anchorX,entry.anchorY,entry.x,entry.y)
+        end
+        local color=entry.destination and {1,.70,.18,1} or {.90,.94,.84,1}
+        g.setColor(.025,.05,.05,.98);g.circle('fill',entry.x,entry.y,7)
+        g.setColor(color);g.setLineWidth(entry.destination and 1.8 or 1);g.circle('line',entry.x,entry.y,7)
+        g.setFont(numberFont);g.printf(tostring(entry.index),entry.x-7,entry.y-5.5,14,'center')
+    end
+    local m=s.marker;local dx,dz=m.dx,m.dz
+    g.setColor(.02,.06,.06,1);g.circle('fill',m.x,m.y,7)
+    g.setColor(.24,1,.94,1);g.circle('line',m.x,m.y,7)
+    g.polygon('fill',m.x+dx*7,m.y+dz*7,
+        m.x-dx*5-dz*5,m.y-dz*5+dx*5,
+        m.x-dx*5+dz*5,m.y-dz*5-dx*5)
+    g.setColor(.79,.86,.81,.96);g.setFont(self:font(9))
+    g.printf('Tap a building number to navigate',rect.x+8,rect.y+rect.height-16,rect.width-16,'center')
     g.pop()
     return s
 end

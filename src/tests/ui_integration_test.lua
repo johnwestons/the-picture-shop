@@ -595,22 +595,29 @@ function Test.run(context, check)
         context.state.money = 12000
         context.computerScreen.enter(context.state)
         selectComputerTab(context, context.state, "www")
-    elseif os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" then
+    elseif os.getenv("PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW") == "1"
+        or os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" then
         local emailJob = context.jobs.createOffer({
             id = "EMAIL-PREVIEW", company = "Blue Ridge Packaging",
-            sourceSize = { width = 25, height = 19 }, finishedSize = { width = 12.5, height = 9.5 },
-            sheetCounts = { 1000, 750 }, packaging = "boxed", requestChannel = "email",
+            sourceSize = { width = 19, height = 25 }, finishedSize = { width = 9.5, height = 12.5 },
+            sheetCounts = { 1000 }, packaging = "boxed", requestChannel = "email",
             deliveryService = context.jobService.deliveryServiceFor({ id = "EMAIL-PREVIEW" }, 1),
         })
+        emailJob.quote.totalPrice=292
+        emailJob.quote.recommendedPrice=292
+        emailJob.promotionDiscount=.10
         context.state.clientEmails.inbox = { {
             id = "EMAIL-PREVIEW", sender = emailJob.company,
             subject = "Request for another cutting job",
-            body = "Please review this work order and send us your quote.",
-            sourceJobId = "JOB-0001", readyAtHours = 0, receivedAtHours = 0, job = emailJob,
+            body = "Please quote another paper-cutting job for us. Your 10% coupon is applied.",
+            sourceJobId = "JOB-0001", readyAtHours = 0, receivedAtHours = 0,
+            estimateRequest = true, standardPrice = 324, discountAmount = 32,
+            discountedTotal = 292, job = emailJob,
         } }
         context.state.screen = "computer"
         context.computerScreen.enter(context.state)
-        selectComputerTab(context, context.state, "estimating")
+        selectComputerTab(context, context.state,
+            os.getenv("PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW") == "1" and "estimating" or "email")
     elseif os.getenv("PICTURE_SHOP_TITLE_PREVIEW") == "1" then
         context.state.screen = "title"
     elseif os.getenv("PICTURE_SHOP_CUTTER_PREVIEW") == "1" then

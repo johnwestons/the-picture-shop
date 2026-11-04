@@ -153,6 +153,26 @@ function Vegetation:stats()
         pending=self.pending or 0,built=self.lastBuilt or 0}
 end
 
+-- Derive the same tree/log anchors even before their sprite patches stream in.
+-- Do not load extra collision/foliage patches merely to decorate a grass tile.
+function Vegetation:grassAnchors(x0,z0,x1,z1,step)
+    local anchors={}
+    local function add(p)
+        if p and (Flora.canopy[p.kind] or p.kind=='log') and allowed(self,p.x,p.z) then
+            anchors[#anchors+1]=p
+        end
+    end
+    for iz=math.max(0,math.floor((z0-7)/CELL_SIZE)),math.min(self.cellCount-1,math.floor((z1+7)/CELL_SIZE)) do
+        for ix=math.max(0,math.floor((x0-7)/CELL_SIZE)),math.min(self.cellCount-1,math.floor((x1+7)/CELL_SIZE)) do
+            for slot=1,2 do add(Candidates.candidate(self,ix,iz,slot)) end
+            add(Candidates.extraCandidate(self,ix,iz,1))
+            for slot=1,2 do add(Candidates.extraCandidate2(self,ix,iz,slot)) end
+            if step then step() end
+        end
+    end
+    return anchors
+end
+
 function Vegetation:_solids(patch,calendar)
     local day=calendar and calendar.totalDays or 0
     if patch.solidDay==day then return patch.solids end

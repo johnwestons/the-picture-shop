@@ -13,7 +13,8 @@ function Audio.partBike(part)
     local grounded=visual.grounded;if grounded==nil then grounded=bike.grounded end
     return {speed=speed,gear=gear,rpm=model.rpmForSpeed(bike,speed),grounded=grounded~=false,
         throttle=visual.throttle,brake=visual.brake,slip=visual.slip,tireSlip=visual.tireSlip,
-        shiftTime=visual.shiftTime,impactPulse=visual.impactPulse,impactStrength=visual.impactStrength}
+        shiftTime=visual.shiftTime,impactPulse=visual.impactPulse,impactStrength=visual.impactStrength,
+        horn=bike.horn==true,damage=bike.damage,service=bike.service}
 end
 function Audio.new()
     return setmetatable({sources={},errors={},master=1,sfx=.85,ambient=.42,
@@ -31,6 +32,20 @@ function Audio:loadSources()
     end
     for _,name in ipairs(loops) do load(name,true) end
     for _,name in ipairs({'ignition','shutdown','shift','impact'}) do load(name,false) end
+    local ok,source=pcall(function()
+        local rate=22050;local count=rate/2
+        local data=love.sound.newSoundData(count,rate,16,1)
+        for i=0,count-1 do
+            local t=i/rate
+            local sample=(math.sin(t*math.pi*2*392)+.72*math.sin(t*math.pi*2*494))*.28
+            local fade=math.min(1,t/.012)
+            data:setSample(i,sample*fade)
+        end
+        local horn=love.audio.newSource(data,'static');horn:setLooping(true);horn:setVolume(0)
+        return horn
+    end)
+    if ok then self.sources.horn=source
+    else self.errors[#self.errors+1]='generated horn: '..tostring(source);print('[COMMUTE AUDIO] '..self.errors[#self.errors]) end
 end
 function Audio:setLevels(master,sfx,ambient)
     self.master=clamp(master or self.master,0,1);self.sfx=clamp(sfx or self.sfx,0,1)
@@ -77,12 +92,15 @@ function Audio:update(dt,bike,engine,options)
     self.load=self.load+((bike.throttle or 0)-self.load)*blend
     self.fade=self.fade+((engine and 1 or 0)-self.fade)*(1-math.exp(-dt*5))
     local speed=clamp(self.speed/14.4,0,1)
+    self.motorTime=(self.motorTime or 0)+dt
+    local rough=require('src.commute.bike_service').rough(bike)
+    local miss=rough*math.max(0,math.sin(self.motorTime*4.3)*math.cos(self.motorTime*1.7))^3
     local gearDip=(bike.shiftTime or 0)>0 and .60 or 1
     for i,base in ipairs(bands) do
         local weight
         if self.rpm<=base then weight=i==1 and 1 or clamp((self.rpm-bands[i-1])/(base-bands[i-1]),0,1)
         else weight=i==#bands and 1 or clamp((bands[i+1]-self.rpm)/(bands[i+1]-base),0,1) end
-        self:loop('engine-'..base,math.sqrt(weight)*self.fade*(.28+.26*self.load)*gearDip,self.rpm/base)
+        self:loop('engine-'..base,math.sqrt(weight)*self.fade*(.28+.26*self.load)*gearDip*(1-.76*miss),self.rpm/base*(1-.21*miss))
     end
     self:loop('intake',self.fade*self.load*.12*(.4+speed),.85+self.rpm/12000)
     self:loop('wind',speed^1.7*.27, .8+speed*.35,true)
@@ -92,6 +110,7 @@ function Audio:update(dt,bike,engine,options)
     local brake=bike.brake
     if brake==nil then brake=options.brake or 0 end
     self:loop('brake',math.max(clamp(brake,0,1),slip*.8)*speed*.12*contact, .85+speed*.25)
+    self:loop('horn',(options.horn or bike.horn) and .24 or 0,1,false)
     self:loop('nature',(.22-.13*speed)*(options.outdoors==false and 0 or 1),1,true)
 end
 function Audio:release()

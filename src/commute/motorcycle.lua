@@ -4,31 +4,39 @@ local Damping=require('src.commute.damping')
 local Upgrades=require('src.commute.bike_upgrades')
 local Paint=require('src.commute.bike_paint')
 local Damage=require('src.commute.bike_damage')
-local Bike={MAX_SPEED=12,REVERSE_MAX_SPEED=1.2,BOOST_MAX_SPEED=14.4,BOOST_ACCELERATION=1.6,BOOST_PULSE=.78,
+local metersPerMph=1/2.236936
+local baseMaxSpeed=45*metersPerMph
+local gearReferenceMaxSpeed=12
+local function scaleGearSpeed(speed) return speed*baseMaxSpeed/gearReferenceMaxSpeed end
+local Service=require('src.commute.bike_service')
+local Bike={MAX_SPEED=baseMaxSpeed,REVERSE_MAX_SPEED=1.2,BOOST_MAX_SPEED=75*metersPerMph,BOOST_ACCELERATION=1.6,BOOST_PULSE=.78,
     TUCK_START_SPEED=13.35,IMPACT_DURATION=.62,IMPACT_MIN_SPEED=.35,
     ACCELERATION=3.4,BRAKE=9,COAST=1.0,WHEELBASE=1.25,RADIUS=.42,
     IDLE_RPM=1400,REDLINE=8000,SHIFT_TIME=.16,STEER_SMOOTH_TIME=.20,LEAN_SMOOTH_TIME=.30,
     OFFROAD_SCALE=.82,GRAVITY=9.81,SUSPENSION_SPRING=110,SUSPENSION_DAMPING=21,
-    SUSPENSION_REACH=.22,MAX_COMPRESSION=.16,PITCH_INERTIA=.8,MAX_PITCH=.82,MAX_PRESENTATION_SPEED=32,
+    SUSPENSION_REACH=.22,MAX_COMPRESSION=.16,PITCH_INERTIA=.8,MAX_PITCH=.82,MAX_PRESENTATION_SPEED=40,
     ROAD_GRIP=13,DIRT_GRIP=5.6,ROAD_RESPONSE=14,DIRT_RESPONSE=8,COLLISION_HEIGHT=1.2,
-    GEARS={{speed=4.4,force=4.4,up=3.6,down=0},{speed=7.1,force=3.4,up=6,down=2.3},
-        {speed=10,force=2.6,up=8.6,down=4.2},{speed=15,force=2,up=math.huge,down=6.4}}}
+    GEARS={{speed=scaleGearSpeed(4.4),force=4.4,up=scaleGearSpeed(3.6),down=0},
+        {speed=scaleGearSpeed(7.1),force=3.4,up=scaleGearSpeed(6),down=scaleGearSpeed(2.3)},
+        {speed=scaleGearSpeed(10),force=2.6,up=scaleGearSpeed(8.6),down=scaleGearSpeed(4.2)},
+        {speed=scaleGearSpeed(15),force=2,up=math.huge,down=scaleGearSpeed(6.4)}}}
 function Bike.new(x,z,heading)
-    return {x=x,z=z,heading=heading or 0,speed=0,distance=0,lean=0,gear=1,transmission='automatic',upgradeLevel=0,paintId=Paint.DEFAULT,damage=0,
+    return {service=Service.copy(),x=x,z=z,heading=heading or 0,speed=0,distance=0,lean=0,gear=1,transmission='automatic',upgradeLevel=0,paintId=Paint.DEFAULT,damage=0,
         vx=0,vz=0,_velocitySpeed=0,vy=0,pitch=0,pitchVelocity=0,suspension=0,landingPulse=0,
         lateralSpeed=0,slipAngle=0,slip=0,tireSlip=0,surface='road',
         rpm=Bike.IDLE_RPM,shiftTime=0,shiftDirection=0,shiftCooldown=0,throttle=0,grade=0,
-        reverse=false,headlight=false,boosting=false,boostPulse=0,steering=0,acceleration=0,impactPulse=0,impactStrength=0,collisionContact=false,
+        reverse=false,headlight=false,headlightHighBeam=false,boosting=false,boostPulse=0,steering=0,acceleration=0,impactPulse=0,impactStrength=0,collisionContact=false,
         safeX=x,safeZ=z,safeHeading=heading or 0,
         ridingAnimation={kind='idle',remaining=0,queue={}}}
 end
 function Bike.valid(p)
     return type(p)=='table' and (p.gear==nil or M.finite(p.gear) and p.gear%1==0 and p.gear>=1 and p.gear<=#Bike.GEARS)
         and Upgrades.validLevel(p.upgradeLevel)
-        and Damage.valid(p.damage)
+        and Damage.valid(p.damage) and Service.valid(p.service)
         and (p.paintId==nil or Paint.valid(p.paintId))
         and (p.transmission==nil or p.transmission=='automatic' or p.transmission=='manual')
         and (p.reverse==nil or type(p.reverse)=='boolean') and (p.headlight==nil or type(p.headlight)=='boolean')
+        and (p.headlightHighBeam==nil or type(p.headlightHighBeam)=='boolean')
 end
 function Bike.rpmForSpeed(p,speed)
     speed=speed or p.speed or 0
@@ -71,8 +79,39 @@ local function safeRecoveryPoint(world,x,z)
     return true
 end
 function Bike.rescue(p,world)
-    local x,z=p.safeX,p.safeZ
-    if not safeRecoveryPoint(world,x,z) then return false,'No nearby safe recovery spot is available.' end
+    local x,z,heading
+    local history=p.rescueHistory or {}
+    local function open(cx,cz)
+        for _,last in ipairs(history) do
+            if M.length(cx-last.x,cz-last.z)<4 then return false end
+        end
+        if not safeRecoveryPoint(world,cx,cz) then return false end
+        local h=world:supportHeight(cx,cz)
+        if world.sweepObstacles and world:sweepObstacles(cx,cz,cx,cz,1.9,h,h+Bike.COLLISION_HEIGHT) then return false end
+        for i=0,7 do
+            local a=i*math.pi/4
+            local nx,nz=cx+2*math.cos(a),cz+2*math.sin(a)
+            if not safeRecoveryPoint(world,nx,nz) or math.abs(world:supportHeight(nx,nz)-h)>.65 then return false end
+        end
+        return true
+    end
+    for _,radius in ipairs({6,10,16,24,36,54,80}) do
+        local best=math.huge
+        for i=0,31 do
+            local a=p.heading+(i+(p.rescueCount or 0)*7)*math.pi/16
+            local cx,cz=p.x+radius*math.cos(a),p.z+radius*math.sin(a)
+            if open(cx,cz) then
+                local d=world.roads.nearest and world.roads:nearest(cx,cz,true) or 0
+                if not x or d<best then x,z,heading,best=cx,cz,a,d end
+            end
+        end
+        if x then break end
+    end
+    if not x then return false,'No clear recovery area found nearby.' end
+    history[#history+1]={x=p.x,z=p.z}
+    if #history>6 then table.remove(history,1) end
+    p.rescueHistory=history;p.rescueCount=(p.rescueCount or 0)+1
+    p.safeX,p.safeZ,p.safeHeading=x,z,heading
     p.x,p.z=x,z;p.heading=p.safeHeading or p.heading
     p.speed,p.vx,p.vz,p._velocitySpeed=0,0,0,0
     p.reverse=false;p.boosting=false;p.boostPulse=0
@@ -162,10 +201,14 @@ function Bike.shift(p,delta)
 end
 function Bike.command(p,action)
     if action=='headlight' then p.headlight=not p.headlight;return true,p.headlight and 'Headlight on.' or 'Headlight off.' end
+    if action=='beam' then
+        p.headlightHighBeam=not p.headlightHighBeam
+        return true,p.headlightHighBeam and 'High beam selected.' or 'Low beam selected.'
+    end
     if action=='reverse' then
         if math.abs(p.speed or 0)>.05 or p.shiftTime>0 then return false,'Stop completely before selecting forward or reverse.' end
         p.speed=0;p.reverse=not p.reverse;p.gear=1;p.boosting=false;Bike.resetHorizontal(p)
-        return true,p.reverse and 'Reverse selected. Accelerate gently to back up; brake to stop.' or 'Forward selected.'
+        return true,p.reverse and 'Reverse selected. Hold brake/back to back up; forward to drive ahead.' or 'Forward selected.'
     end
     if p.reverse then return false,'Select forward before changing transmission or gears.' end
     if action=='automatic' or action=='manual' then
@@ -244,6 +287,24 @@ local function step(p,input,dt,world)
     local speedScale=profile.maxSpeed/Bike.MAX_SPEED
     local frontBefore,rearBefore=wheelSupports(p,world)
     local throttle=M.clamp(input.throttle or 0,0,1);local brake=M.clamp(input.brake or 0,0,1)
+    if input.drive~=nil then
+        -- Shared keyboard/touch/network axis: back brakes, then reverses only
+        -- at rest. Forward does the same when returning from reverse.
+        local axis=M.clamp(input.drive,-1,1)
+        throttle,brake=0,0
+        if math.abs(axis)>.001 then
+            local reverse=axis>0
+            if p.grounded then
+                if dt>0 and p.speed==0 and math.abs(p.vy or 0)<.1 and p.reverse~=reverse then
+                    Bike.command(p,'reverse')
+                end
+                if p.reverse==reverse then throttle=math.abs(axis) else brake=math.abs(axis) end
+            else
+                -- In the air these remain throttle/nose-lift and brake/level.
+                throttle,brake=math.max(0,-axis),math.max(0,axis)
+            end
+        end
+    end
     local requestedSteering=M.clamp(input.steer or 0,-1,1)
     p.steering,p.steeringVelocity=Damping.spring(p.steering or 0,requestedSteering,
         p.steeringVelocity,Bike.STEER_SMOOTH_TIME,dt)
@@ -254,7 +315,7 @@ local function step(p,input,dt,world)
     local d,s=world.roads:nearest(p.x,p.z,true)
     local roadAmount=s and s.surface~='dirt' and 1-M.smooth(d-s.width*.5) or 0
     local roadScale=M.lerp(Bike.OFFROAD_SCALE,1,roadAmount)
-    local grip=M.lerp(Bike.DIRT_GRIP,Bike.ROAD_GRIP,roadAmount)
+    local grip=M.lerp(Bike.DIRT_GRIP,Bike.ROAD_GRIP,roadAmount)*Service.grip(p.service,roadAmount)
     local response=M.lerp(Bike.DIRT_RESPONSE,Bike.ROAD_RESPONSE,roadAmount)
     p.surface=roadAmount>=.5 and 'road' or 'dirt'
     local limit=p.reverse and Bike.REVERSE_MAX_SPEED or
@@ -285,6 +346,7 @@ local function step(p,input,dt,world)
         *M.clamp((gearSpeed*1.08-p.speed)/(gearSpeed*.08),0,1) or 0
     local drive=p.shiftTime==0 and gearDrive+boostDrive or 0
     if p.reverse then drive=throttle*1.8*M.clamp((limit-p.speed)/.25,0,1) end
+    if p.service then drive=drive*(1-.35*math.min(1,p.service.chain/Service.chainLife)) end
     if p.speed>limit then drive=0 end
     local drag=.22+.005*p.speed*p.speed+(throttle==0 and .6*4.4/gearSpeed or 0)
     local before=p.speed

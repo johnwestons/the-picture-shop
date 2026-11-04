@@ -4,7 +4,7 @@
 local FP=require('src.commute.first_person_camera')
 local PaintArt=require('src.commute.bike_paint_art')
 local Body={};Body.__index=Body
-Body.PATH='assets/commute/cockpit/first-person-bike-v2.png'
+Body.PATH='assets/commute/cockpit/first-person-bike-controls-v1.png'
 Body.WIDTH,Body.HEIGHT=1024,1536
 Body.INSTRUMENTS={cx=511,cy=235,r=48,gearX=584,gearY=216,gearW=72,gearScale=.7}
 -- Sprite row, distance ahead of the rider, height above the road.
@@ -37,6 +37,25 @@ function Body.point(x,y)
     local t=(y-a[1])/(b[1]-a[1])
     return a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t,(x/Body.WIDTH-.5)*1.15
 end
+function Body.projectControls(camera,width,height,specs)
+    local view=Body.camera(camera);local scale=math.min(width/1280,height/880)
+    local ox,oy=(width-1280*scale)*.5,(height-880*scale)*.5
+    local result={}
+    for _,spec in ipairs(specs) do
+        local forward,elevation,right=Body.point(spec.firstPersonX,spec.firstPersonY)
+        local x,y,depth=FP.screen(view,forward,right,elevation)
+        if depth>=FP.NEAR then
+            local edgeForward,edgeElevation,edgeRight=Body.point(spec.firstPersonX+16,spec.firstPersonY)
+            local edgeX,edgeY=FP.screen(view,edgeForward,edgeRight,edgeElevation)
+            local radius=math.sqrt((edgeX-x)^2+(edgeY-y)^2)*scale*.62
+            local sx,sy=ox+x*scale,oy+y*scale
+            if sx>=-40 and sy>=-40 and sx<=width+40 and sy<=height+40 then
+                result[#result+1]={action=spec.action,x=sx,y=sy,visualRadius=math.max(5,radius)}
+            end
+        end
+    end
+    return result
+end
 local function wheelPoint(x,y)
     return 1.5-y*.0016,.40+y/165*.30,(x/Body.WIDTH-.5)*1.15
 end
@@ -67,6 +86,8 @@ function Body.new()
     local format={{'VertexPosition','float',3},{'VertexTexCoord','float',2}}
     self.mesh=g.newMesh(format,vertices,'triangles','static');self.mesh:setTexture(self.image)
     patch(overlays,350,130,710,350,barPoint)
+    patch(overlays,210,195,380,320,barPoint)
+    patch(overlays,645,195,820,320,barPoint)
     self.instruments=g.newMesh(format,overlays,'triangles','static');self.instruments:setTexture(self.texture)
     return self
 end

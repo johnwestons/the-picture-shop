@@ -1,6 +1,7 @@
 -- Machine scene, touchscreen, and console rendering.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local WrapperScene = require("src.screens.wrapper_scene")
 local CutterMotion = require("src.screens.cutter_motion")
 
 function Component.install(Runtime)
@@ -9,11 +10,37 @@ function Component.install(Runtime)
     end
 
     function Runtime.drawMotion(assets, name, imageName, progress)
-        local frame,offsetY=CutterMotion.sample(name,progress)
+        local detailName = name == "cutterBlade" and "cutterBladeDetail"
+            or name == "cutterClamp" and "cutterClampDetail"
+        local detail = detailName and assets.get(detailName)
+        if detail then
+            local pose = name == "cutterBlade"
+                and CutterMotion.bladeDepthPose(progress)
+                or CutterMotion.clampPose(progress)
+            -- Keep both parts inside the rear throat at rest. Their full stroke
+            -- ends at the table's red cut line instead of hanging over the bed.
+            local baseX, baseY = 660, name == "cutterBlade" and 191 or 192
+            local scale = name == "cutterBlade" and 0.111 or 0.122
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.draw(detail, baseX + pose.x, baseY + pose.y, pose.angle,
+                scale, scale * (pose.scaleY or 1), detail:getWidth() / 2, detail:getHeight() / 2)
+            return
+        end
+        local frame, offsetY = CutterMotion.sample(name, name == "cutterBlade" and progress / 2 or progress)
         local image, sprite = assets.get(imageName), assets.getQuad(name .. frame)
         if not image or not sprite then return end
         love.graphics.setColor(1, 1, 1)
-        love.graphics.draw(image, sprite.quad, 400, 78+offsetY*347/512, 0, 520 / 768, 347 / 512)
+        love.graphics.draw(image, sprite.quad, 400, 78 + offsetY * 347 / 512, 0, 520 / 768, 347 / 512)
+    end
+
+    -- All pieces register in the original texture's coordinates, including in
+    -- the scaled guest console. A quad's source offset is not its draw offset.
+    local function piece(assets, image, name, x, y, height)
+        local part = image and assets.getQuad(name)
+        if not part then return end
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(image, part.quad, 400 + x * 520 / 768, 78 + y * 347 / 512,
+            0, 520 / 768, 347 / 512 * (height or part.height) / part.height)
     end
 
     function Runtime.drawMachine(assets, machine)
@@ -23,16 +50,46 @@ function Component.install(Runtime)
             love.graphics.setColor(1, 1, 1)
             love.graphics.draw(image, 400, 78, 0, 520 / image:getWidth(), 347 / image:getHeight())
         end
-        Runtime.drawPaper(assets, machine)
-        Runtime.drawMotion(assets, "cutterClamp", "cutterClamp", machine.clampProgress)
-        if machine.step == "cutting" then
-            Runtime.drawMotion(assets, "cutterBlade", "cutterBlade", machine.progress / machine.cycleTime)
-        elseif (machine.step=="blocked" or machine.step=="resetting") and (machine.bladeProgress or 0)>0 then
-            -- The overlay's first half travels from home to full depth. A
-            -- safety interruption retains physical depth even though the
-            -- production-cycle clock resets; draw that held/recovering blade.
-            Runtime.drawMotion(assets,"cutterBlade","cutterBlade",machine.bladeProgress*.5)
+        local paper = machine.paper
+        local visualOrientation = machine.paperVisualOrientation
+            or (paper and paper.visualOrientation)
+        local turnProgress = machine.paperTurnProgress or (paper and paper.turnProgress)
+        if paper and Runtime.Screen.paperTurn and Runtime.Screen.paperTurn.paperKey == paper.id then
+            visualOrientation = visualOrientation or Runtime.Screen.paperVisualOrientation
+            turnProgress = turnProgress or Runtime.Screen.paperTurnProgress
         end
+        -- Continue the steel bed through the opening, covering the old painted
+        -- laser. The stick and rear bed are now behind the front of the head.
+        piece(assets, image, "cutterRearBed", 236, 188, 51)
+        local left, right = 400 + 236 * 520 / 768, 400 + 532 * 520 / 768
+        love.graphics.push("all")
+        local paperX, paperY = love.graphics.transformPoint(392, 78 + 202 * 347 / 512)
+        local farX, farY = love.graphics.transformPoint(922, 550)
+        love.graphics.intersectScissor(paperX, paperY, farX - paperX, farY - paperY)
+        Runtime.drawPaper(assets, machine, visualOrientation, turnProgress)
+        love.graphics.pop()
+        -- Shadow cast by the underside of the head across the rear deck and stock.
+        for row = 0, 9 do
+            love.graphics.setColor(0.045, 0.055, 0.06, (10 - row) * 0.042)
+            love.graphics.rectangle("fill", left, CutterMotion.cutLineY - 10 + row, right - left, 1)
+        end
+        love.graphics.setColor(0.87, 0.14, 0.09, 0.74)
+        love.graphics.line(left, CutterMotion.cutLineY, right, CutterMotion.cutLineY)
+        love.graphics.push("all")
+        -- The lower edge of the sloped knife progressively enters the stick.
+        -- Crop at the stick in screen coordinates, also on the scaled remote view.
+        local x1, y1 = love.graphics.transformPoint(left, 78)
+        local x2, y2 = love.graphics.transformPoint(right, CutterMotion.cutLineY)
+        love.graphics.intersectScissor(x1, y1, x2 - x1, y2 - y1)
+        Runtime.drawMotion(assets, "cutterClamp", "cutterClamp", machine.clampProgress)
+        if (machine.bladeProgress or 0) > 0 then
+            Runtime.drawMotion(assets, "cutterBlade", "cutterBlade", machine.bladeProgress)
+        end
+        love.graphics.pop()
+        piece(assets, image, "cutterHead", 0, 0)
+        piece(assets, image, "cutterFace", 212, 171, 31)
+        piece(assets, image, "cutterLeftPost", 0, 188)
+        piece(assets, image, "cutterRightPost", 532, 188)
     end
 
     -- Shared, read-only scene: remote callers supply a presentation model, never
@@ -154,12 +211,6 @@ function Component.install(Runtime)
             love.graphics.print("SKID WRAPPER / PALLET PACKAGING CONSOLE", 38, 30)
             Runtime.drawCondition(state, "skid_wrapper", 366, 28, 280)
             Runtime.BackButton.draw(assets, Runtime.exitButton, "EXIT", pointerX, pointerY, false)
-            local image = assets.get("skidWrapperDirections")
-            local sprite = assets.getQuad("skidWrapperDirection1")
-            if image and sprite then
-                love.graphics.setColor(1, 1, 1)
-                love.graphics.draw(image, sprite.quad, 520, 360, 0, 0.72, 0.72, sprite.width / 2, sprite.height * 0.92)
-            end
             local nearbyPallets = Runtime.Wrapper.nearbyPallets(state)
             local nearby = Runtime.Wrapper.nearbyPallet(state)
             local inventory = state.inventory or {}
@@ -167,23 +218,10 @@ function Component.install(Runtime)
             local cartonsRequired = nearby and Runtime.Procurement.cartonsRequired(nearby.job, nearby.pallet) or 0
             local cartonsAvailable = Runtime.Procurement.cartonsAvailable(state)
             local hasPackaging = packaging ~= "boxed" or cartonsAvailable >= cartonsRequired
-            if nearby then
-                local palletImage, palletQuad
-                if Runtime.Wrapper.step == "wrapping" or Runtime.Wrapper.step == "finished" then
-                    local stage = Runtime.Wrapper.step == "finished" and 3
-                        or math.max(1, math.min(3, math.ceil(Runtime.Wrapper.progress / Runtime.Wrapper.cycleTime * 3)))
-                    palletImage = assets.get("wrappedPalletStages")
-                    palletQuad = assets.getQuad("wrappedPalletStage" .. stage)
-                else
-                    palletImage = assets.get("loadedPaperPallet")
-                end
-                love.graphics.setColor(1, 1, 1)
-                if palletImage and palletQuad then
-                    love.graphics.draw(palletImage, palletQuad.quad, 450, 390, 0, 0.42, 0.42, palletQuad.width / 2, palletQuad.height * 0.94)
-                elseif palletImage then
-                    love.graphics.draw(palletImage, 450, 390, 0, 0.72, 0.72, palletImage:getWidth() / 2, palletImage:getHeight() * 0.94)
-                end
-            end
+            local cycle = Runtime.Wrapper
+            local load = cycle.step == "idle" and nearby and nearby.pallet or cycle.pallet
+            local wrapType = load and (load.packagedAs or load.packaging or (cycle.job and cycle.job.packaging)) or packaging
+            WrapperScene.draw(assets, cycle, load ~= nil, wrapType == "boxed", 392, 48, 0.72)
             love.graphics.setColor(0.96, 0.82, 0.26)
             love.graphics.print("CLICK A NEARBY PALLET", Runtime.wrapperPalletList.x, Runtime.wrapperPalletList.y - 22)
             if #nearbyPallets == 0 then
@@ -222,8 +260,8 @@ function Component.install(Runtime)
             end
             love.graphics.setColor(0.82, 0.88, 0.89)
             love.graphics.print("STATUS: " .. Runtime.Wrapper.step:upper(), 50, 410)
-            love.graphics.print("NEARBY PALLET: " .. (nearby and nearby.pallet.id or "NONE"), 50, 438)
-            love.graphics.print("PACKAGE: " .. (packaging and packaging:upper() or "--"), 50, 466)
+            love.graphics.print("TURNTABLE PALLET: " .. (load and load.id or "NONE"), 50, 438)
+            love.graphics.print("PACKAGE: " .. (wrapType and wrapType:upper() or "--"), 50, 466)
             love.graphics.print(packaging == "boxed"
                 and string.format("CARTONS: %d REQUIRED  |  %d AVAILABLE", cartonsRequired, cartonsAvailable)
                 or string.format("PLASTIC: %d ROLL(S)  |  %d / 11 WRAPS", inventory.plasticWrapRolls or 0, inventory.plasticWrapUses or 0), 50, 494)

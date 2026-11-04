@@ -21,7 +21,8 @@ local function buttons(R)
     if host then
         local result={{key="return",label="EXPLORE TOWN",command="outing"}}
         local scene=R.World.player.sceneId or "warehouse"
-        if week.phase=="ready" and scene=="warehouse" or week.phase=="home" and scene=="home" then
+        if (week.phase=="closing" or week.phase=="ready") and scene=="warehouse"
+            or week.phase=="home" and scene=="home" then
             result[#result+1]={key="w",label=week.phase=="home" and "RETURN FOR THE WORK WEEK" or "GO HOME FOR THE WEEKEND",command="request"}
         end
         return result
@@ -60,7 +61,10 @@ function Controls.draw(R)
         "The shop keeps its normal schedule while you are away.",
         "Park, dismount, and walk to the warehouse or your apartment door to enter."}
     if week and week.phase=="closing" then
-        lines[#lines+1]="Friday shutdown is in progress; the household can still go into town."
+        lines[#lines+1]="Friday closing: finish jobs, call pickups, and clear the dock before leaving."
+        local pending=require("src.shop_shutdown").checklist(R.state,R.World)
+        if #pending==0 then lines[#lines+1]="The shop is clear. Choose Go Home when you are ready."
+        else for i=1,math.min(2,#pending) do lines[#lines+1]=pending[i] end end
     elseif week and (week.phase=="ready" or week.phase=="home") then
         lines[#lines+1]="The shop is closed for the weekend. Town outings remain available."
     end

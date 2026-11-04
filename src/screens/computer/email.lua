@@ -70,6 +70,10 @@ function Component.install(Runtime)
             else
                 love.graphics.setScissor()
             end
+            love.graphics.setColor(0.58, 0.67, 0.68)
+            love.graphics.print("Your note is included in the offer.",434,468)
+            love.graphics.printf(string.format("%d/600",#Runtime.ComputerScreen.promoText),
+                766,468,60,"right")
             local function promoButton(rect, label, green)
                 local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
                 Runtime.drawComputerButton(rect, label, green
@@ -142,13 +146,23 @@ function Component.install(Runtime)
         love.graphics.print("FROM: " .. selected.sender, 434, 212)
         love.graphics.setColor(0.72, 0.79, 0.80)
         love.graphics.print("SUBJECT: " .. selected.subject, 434, 238)
-        love.graphics.printf(selected.body, 434, 270, 392, "left")
+        if selected.estimateRequest and selected.job then
+            local font=love.graphics.getFont()
+            local _,lines=font:getWrap(selected.body,392)
+            local lineHeight=font:getHeight()*font:getLineHeight()
+            for index=1,math.min(3,#lines) do
+                love.graphics.print(lines[index],434,270+(index-1)*lineHeight)
+            end
+            if #lines>3 then love.graphics.print("…",810,270+2*lineHeight) end
+        else
+            love.graphics.printf(selected.body, 434, 270, 392, "left")
+        end
         if selected.estimateRequest and selected.job then
             love.graphics.setColor(0.48, 0.78, 0.68)
-            love.graphics.print("ARRIVAL IF ACCEPTED:", 434, 296)
+            love.graphics.print("ARRIVAL IF ACCEPTED:", 434, 328)
             love.graphics.setColor(0.91, 0.93, 0.87)
             love.graphics.printf(Runtime.JobService.expectedStockArrivalText(state, selected.job),
-                588, 296, 238, "right")
+                588, 328, 238, "right")
         end
         if selected.awaitingReply then
             local remaining = math.max(0, math.ceil((tonumber(selected.expiresAtHours) or 0)
@@ -274,34 +288,32 @@ function Component.install(Runtime)
         end
         local job = selected.job
         love.graphics.setColor(0.86, 0.89, 0.88)
-        love.graphics.print("PROPOSED JOB  " .. job.id, 434, 320)
+        love.graphics.print("PROPOSED JOB  " .. job.id, 434, 350)
         love.graphics.print(string.format("Sheets: %g × %g in → %g × %g in",
-            job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 344)
+            job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 372)
         local stockSource = job.press and job.stockSpec and job.stockSpec.suppliedBy == "house"
             and "HOUSE PAPER" or "CUSTOMER STOCK"
         local paperText = job.stockSpec and job.stockSpec.description
             or job.details and job.details.stockDescription or "Customer supplied"
-        love.graphics.printf((job.press and (stockSource .. " — ") or "Paper: ") .. paperText, 434, 364,
+        love.graphics.printf((job.press and (stockSource .. " — ") or "Paper: ") .. paperText, 434, 394,
             job.press and 292 or 392, "left")
         if job.press then
             love.graphics.printf(string.format("Order: %s good / %s supplied",
                 Runtime.commaNumber(job.quote.orderedCopies or job.press.orderedQuantity),
-                Runtime.commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 386, 192, "left")
-            love.graphics.printf("Packaging: "..(job.packaging=="boxed" and "Boxed, pallet-wrapped" or "Flat, pallet-wrapped"),434,406,292,"left")
+                Runtime.commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 414, 392, "left")
             love.graphics.printf(string.format("Press: %d color%s • %s", job.press.colors or 1,
                 (job.press.colors or 1) == 1 and "" or "s",
-                table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 420, 292, "left")
-            Runtime.drawArtworkPreview(assets, job, 766, 330, 48)
+                table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 434, 292, "left")
+            Runtime.drawArtworkPreview(assets, job, 766, 354, 48)
         else
-            love.graphics.print(string.format("%d pallet%s   %s sheets",
+            love.graphics.print(string.format("%d pallet%s · %s sheets · %s, wrapped",
                 job.quote.palletCount, job.quote.palletCount == 1 and "" or "s",
-                Runtime.commaNumber(job.quote.totalSheets)), 434, 386)
-            love.graphics.printf("Packaging: "..(job.packaging=="boxed" and "Boxed, pallet-wrapped" or "Flat, pallet-wrapped"),434,406,392,"left")
+                Runtime.commaNumber(job.quote.totalSheets),job.packaging=="boxed" and "Boxed" or "Flat"), 434, 414)
         end
         local terms = Runtime.JobService.quoteTerms(state, job, tonumber(Runtime.ComputerScreen.quoteText))
-        if terms and terms.employeeBudget then
+        if terms and terms.employeeBudget and not job.press then
             love.graphics.setColor(.67,.78,.69,1)
-            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,436,392,"left")
+            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,434,392,"left")
         end
         love.graphics.setColor(selected.discountedTotal and 0.54 or 0.58,
             selected.discountedTotal and 0.84 or 0.67, selected.discountedTotal and 0.65 or 0.68)

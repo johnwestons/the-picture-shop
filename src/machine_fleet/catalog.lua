@@ -184,6 +184,15 @@ function Component.install(Runtime)
                 serviceCount = 0, lastDailyOilHours = nil, lastRollerStripe = 0.8,
                 technicianDueDay = nil,
             }
+        elseif modelId == "polar_115" then
+            item.maintenance.cutter = {
+                oilServices = 0, lubricationServices = 0, lastLubricationScore = 0,
+                backgaugeLubrication = 100, guideLubrication = 100,
+                crankLubrication = 100, gearOilLevel = 0.48,
+                bladeRemoved = false, bladeInSleeve = false, spareBladeInstalled = false,
+                bladeGrade = "standard", weeklyTechnician = false,
+                technicianSequence = 0, technicianRescheduled = false,
+            }
         end
         item.condition = Runtime.calculateCondition(item)
         return item

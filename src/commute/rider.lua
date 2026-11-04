@@ -4,6 +4,7 @@ local Gear=require('src.commute.gear')
 local Bike=require('src.commute.motorcycle')
 local Fall=require('src.commute.rider_fall')
 local M=require('src.commute.vendor.mathx')
+local Service=require('src.commute.bike_service')
 local Rider={WALK_SPEED=1.7,RADIUS=.32,FRAME_DISTANCE=.13}
 local speedCurve={.96,.94,1.04,1.06,.96,.94,1.04,1.06}
 local accelerationCurve={.92,.90,1.08,1.10,.92,.90,1.08,1.10}
@@ -51,15 +52,16 @@ function Rider.command(r,action,world)
             local x,z=Rider.footing(r,world)
             if x then r.ped.x,r.ped.z=x,z end
         end
-        return true,'Motorcycle recovered at the last safe spot. The engine is off.'
+        return true,'Motorcycle moved to open ground. The engine is off.'
     end
     if not M.finite(r.bike.h) then Bike.resetContact(r.bike,world) end
     if (action=='dismount' or action=='ignition') and (not r.bike.grounded or math.abs(r.bike.vy or 0)>.1) then
         return false,'Wait until the motorcycle has landed and settled before getting off or switching the engine.'
     end
-    if action=='ignition' or action=='headlight' or action=='reverse' then
+    if action=='ignition' or action=='headlight' or action=='beam' or action=='reverse' then
         if r.gear.transition or not r.gear.mounted then return false,'Mount the motorcycle and finish the current action first.' end
         if action=='ignition' then
+            if not r.gear.engine and r.bike.service.fuel<=0 then return false,'Out of fuel. Visit the gas station for fuel.' end
             if r.bike.speed>.05 then return false,'Stop completely before switching the engine on or off.' end
             r.bike.speed=0;Bike.resetHorizontal(r.bike)
             r.gear.engine=not r.gear.engine;r.gear.revision=r.gear.revision+1
@@ -96,8 +98,20 @@ function Rider.update(r,input,dt,world)
         if x then r.ped.x,r.ped.z=x,z end
         r.ped.heading=r.bike.heading;r.dismountPoint=nil
     end
-    if Gear.allowed(r.gear,'ride') then
-        Bike.update(r.bike,input,dt,world)
+    if r.gear.engine and r.bike.service.fuel<=0 then
+        r.gear.engine=false;r.gear.revision=r.gear.revision+1;finished=true
+    end
+    local powered=Gear.allowed(r.gear,'ride')
+    local coasting=not powered and r.gear.mounted and not r.gear.transition
+        and (r.bike.speed>.025 or r.bike.grounded==false)
+    if powered or coasting then
+        local controls=powered and input or {steer=input.steer,brake=math.max(input.brake or 0,input.drive or 0)}
+        local meters=Bike.update(r.bike,controls,dt,world)
+        if Service.run(r.bike,meters,dt,powered) then
+            r.gear.engine=false;r.gear.revision=r.gear.revision+1
+            r.bike.stallClock=0;r.bike.throttle=0;r.bike.boosting=false
+            finished=true
+        end
         r.ped.x,r.ped.z=r.bike.x,r.bike.z;r.ped.heading=r.bike.heading
         if r.bike.crashPending then
             Fall.begin(r,r.bike.crashPending,world,Rider.RADIUS,Rider.clear)
@@ -129,7 +143,7 @@ function Rider.update(r,input,dt,world)
         p.distance=p.distance+moved;p.speed=dt>0 and moved/dt or 0
         if moved>1e-7 then p.heading=math.atan2(p.z-z0,p.x-x0) end
     end
-    if not Gear.allowed(r.gear,'ride') then Bike.settle(r.bike,dt,world) end
+    if not powered and not coasting then Bike.settle(r.bike,dt,world) end
     r.ped.h=world:supportHeight(r.ped.x,r.ped.z)
     return finished
 end
@@ -142,8 +156,9 @@ function Rider.snapshot(r)
     return {gear=gear,ped=ped,bike={x=r.bike.x,z=r.bike.z,heading=r.bike.heading,
         gear=r.bike.gear or 1,transmission=r.bike.transmission or 'automatic',
         upgradeLevel=r.bike.upgradeLevel or 0,paintId=r.bike.paintId or require('src.commute.bike_paint').DEFAULT,
-        damage=r.bike.damage or 0,
-        reverse=r.bike.reverse==true,headlight=r.bike.headlight==true}}
+        damage=r.bike.damage or 0,service=Service.copy(r.bike.service),
+        reverse=r.bike.reverse==true,headlight=r.bike.headlight==true,
+        headlightHighBeam=r.bike.headlightHighBeam==true}}
 end
 function Rider.restore(saved,world,anchor)
     if type(saved)~='table' then return nil,'Invalid saved rider.' end
@@ -166,6 +181,7 @@ function Rider.restore(saved,world,anchor)
         if anchor.pedX then r.ped.x,r.ped.z=anchor.pedX,anchor.pedZ end
         r.bike.transmission=saved.bike.transmission or 'automatic'
         r.bike.upgradeLevel=saved.bike.upgradeLevel or 0
+        r.bike.service=Service.copy(saved.bike.service)
         r.bike.damage=saved.bike.damage or 0
         r.bike.paintId=saved.bike.paintId or require('src.commute.bike_paint').DEFAULT
         Rider.update(r,{},0,world);return r,'Recovered at parking area.'
@@ -173,9 +189,11 @@ function Rider.restore(saved,world,anchor)
     local r=Rider.new(saved.bike.x,saved.bike.z,saved.bike.heading,gear)
     r.bike.transmission=saved.bike.transmission or 'automatic'
     r.bike.upgradeLevel=saved.bike.upgradeLevel or 0
+    r.bike.service=Service.copy(saved.bike.service)
     r.bike.damage=saved.bike.damage or 0
     r.bike.paintId=saved.bike.paintId or require('src.commute.bike_paint').DEFAULT
     r.bike.reverse=saved.bike.reverse==true;r.bike.headlight=saved.bike.headlight==true
+    r.bike.headlightHighBeam=saved.bike.headlightHighBeam==true
     r.bike.gear=r.bike.transmission=='manual' and (saved.bike.gear or 1) or 1
     r.ped.x,r.ped.z,r.ped.heading=saved.ped.x,saved.ped.z,saved.ped.heading
     if gear.mounted then r.ped.x,r.ped.z=r.bike.x,r.bike.z end

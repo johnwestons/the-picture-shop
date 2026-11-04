@@ -7,6 +7,7 @@ function Component.install(Runtime)
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading()
             and key~="escape" and key~="back" then return end
         if Runtime.spriteLabActive then Runtime.SpriteMotionLab.keypressed(key, Runtime.CharacterAssets); return end
+        if require('src.screens.hud_visibility').keypressed(Runtime,key) then return true end
         if Runtime.state.screen == "asset_error" then
             if key == "escape" or key == "q" then love.event.quit() end
             return
@@ -47,10 +48,10 @@ function Component.install(Runtime)
             local px,py=Runtime.toPointerCoordinates(x,y)
             return Runtime.OptionsScreen.mousepressed(px,py,button)
         end
-        if not isTouch and require('src.commute.runtime').cameraPointerPressed(Runtime,button) then return true end
-        if not isTouch and button~=1 and require('src.commute.runtime').deviceInput(Runtime,'mouse','mouse'..button) then return true end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,button) then return true end
+        if not isTouch and require('src.commute.runtime').cameraPointerPressed(Runtime,button) then return true end
+        if not isTouch and button~=1 and require('src.commute.runtime').deviceInput(Runtime,'mouse','mouse'..button) then return true end
         if button==1 and require('src.commute.runtime').pointer(Runtime,px,py,'mouse') then return true end
         return Runtime.dispatchMousePressed(x, y, button)
     end

@@ -4,10 +4,18 @@ local Paint=require('src.commute.bike_paint')
 local Repairs=require('src.commute.bike_repairs')
 local Residents=require('src.home_residents')
 local Fonts=require('src.screens.title_fonts')
+local Station=require('src.commute.gas_station')
 local Shop={}
 local shopName=require('src.commute.sites').MECHANIC_NAME:upper()
 local function interior() return require('src.commute.mechanic_interior') end
 local function view(R) return R._commute and R._commute.mechanicOffer end
+local function stationArgs(R)
+    local C=require('src.commute.runtime')
+    return C.localPart(R).rider.bike.service,function(id,rev)
+        local okay=C.request(R,('station:%d:%d:%s'):format(R.state.home.commute.token,rev,id))
+        return R.state.message or (okay and 'Order submitted.' or 'Order declined.')
+    end,function() Shop.close(R) end
+end
 local function current(R) return Residents.get(R.state,R.World.player) end
 local function money(cents) return ('$%.2f'):format(cents/100) end
 local function mph(speed) return ('%d mph'):format(math.floor(speed*2.236936+.5)) end
@@ -100,6 +108,7 @@ function Shop.confirm(R)
 end
 function Shop.update(R,dt)
     local v=view(R);if not v then return false end
+    if v.page=='station' then return true end
     local trip=R.state.home.commute
     if not trip or trip.token~=v.token then Shop.close(R);return false end
     dt=math.max(0,math.min(.1,dt or 0));v.elapsed=v.elapsed+dt
@@ -133,6 +142,7 @@ local function paintIndex(id)
 end
 function Shop.keypressed(R,key)
     local v=view(R);if not v then return false end
+    if v.page=='station' then return Station.key(v,key,stationArgs(R)) end
     if key=='escape' or key=='back' then
         if v.page=='lobby' then Shop.close(R)
         elseif not v.pending and v.page~='install' then v.page='lobby';v.notice=nil end
@@ -183,6 +193,7 @@ function Shop.layout()
 end
 function Shop.pointer(R,x,y)
     local v=view(R);if not v then return false end
+    if v.page=='station' then return Station.pointer(v,x*960/R.Config.baseWidth,y*678/R.Config.baseHeight,stationArgs(R)) end
     if v.page=='lobby' then
         local action=interior().pointer(v.interior,R,x,y)
         if action=='catalog' then browse(R) elseif action=='exit' then Shop.close(R) end
@@ -328,6 +339,7 @@ local function drawReceipt(R,v)
 end
 function Shop.draw(R)
     local v=view(R);if not v then return false end
+    if v.page=='station' then return Station.draw(v,require('src.commute.runtime').localPart(R).rider.bike.service,R.state.home.balanceCents,R.Config.baseWidth,R.Config.baseHeight) end
     interior().draw(v.interior,R)
     if v.page=='lobby' then return true end
     local g=love.graphics;g.push('all');g.scale(R.Config.baseWidth/960,R.Config.baseHeight/678)

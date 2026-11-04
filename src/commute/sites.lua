@@ -30,6 +30,8 @@ local function service(id,label,width,depth,height,floors,entryX)
         threshold={x=entryX,z=depth*.5},door={x=entryX,z=depth*.5+1},parking={x=entryX,z=depth*.5+4}}
 end
 service('mechanic','Mechanic',16,9,4.7,1,-6.1)
+service('gas-station','Gas & Tire',9,6,3.5,1)
+Sites.designs['gas-station'].obstacles={rect(-3.4,-2.6,4.5,5.1),rect(2.6,3.4,4.5,5.1)}
 service('grocery','Town grocery',18,11,5,1)
 service('post-office','Post office',13,9,5.5,1)
 service('police','Police station',16,12,7.2,2)

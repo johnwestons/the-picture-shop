@@ -112,17 +112,29 @@ local function scenario(R,input,id,check,town,outing)
         local destination=assert(world.roads.destinations[destinationId])
         local sites=assert(world.sites or world.roads.sites,'The exterior world must own its site registry')
         local site=assert(sites.byId[destinationId],'Missing exterior structure for '..destinationId)
+        local Bays=require('src.commute.parking_bays')
+        local parkX,parkZ=Bays.center(site,1)
         local door=assert(site.door,'Missing registered pedestrian door for '..destinationId)
         verify(label..'_registered_door_has_clear_footing',Rider.clear(world,door.x,door.z,Rider.RADIUS))
         local route=assert(Routes.new(world.roads):find(trip.origin,destinationId))
         local clock=Calendar.absoluteHours(R.state)
         local phase=R.state.home.weekend.phase
-        local index,reloaded,stopped=1,false,false
+        local index,reloaded,stopped,parkingApproach,parkingBrake=1,false,false,false,false
         verify(label..'_mounted_door_entry_rejected',not Commute.command(R,R.World.player,'arrive:'..token))
         for frame=1,9000 do
             local bike=part().rider.bike
-            local distance=math.sqrt((bike.x-destination.x)^2+(bike.z-destination.z)^2)
-            if distance<3 then input.steer,input.drive=0,1
+            local padDistance=math.sqrt((bike.x-destination.x)^2+(bike.z-destination.z)^2)
+            local distance=math.sqrt((bike.x-parkX)^2+(bike.z-parkZ)^2)
+            if padDistance<12 then parkingApproach=true end
+            if parkingApproach then
+                local heading=math.atan2(parkZ-bike.z,parkX-bike.x)
+                local error=(heading-bike.heading+math.pi)%(2*math.pi)-math.pi
+                input.steer=math.max(-1,math.min(1,error*2))
+                if distance<1.8 then parkingBrake=true end
+                if parkingBrake then
+                    input.steer=0
+                    input.drive=bike.speed>.45 and 1 or 0
+                else input.drive=bike.speed>2.5 and .5 or -.45 end
             else
                 while index<#route.points and (bike.x-route.points[index].x)^2+(bike.z-route.points[index].z)^2<25 do
                     index=index+1
@@ -144,11 +156,16 @@ local function scenario(R,input,id,check,town,outing)
                 world=Commute.world(R)
                 reloaded=true
             end
-            if distance<3 and part().rider.bike.speed==0 then stopped=true;break end
+            if distance<2.2 and part().rider.bike.speed==0
+                and Bays.slotAt(site,bike.x,bike.z) then stopped=true;break end
         end
         input.clear()
+        local finalBike=part().rider.bike
+        local finalX,finalZ=site:toLocal(finalBike.x,finalBike.z)
         verify(label..'_physically_rides_route_and_parks',stopped and reloaded,
-            string.format('remaining=%.2f',math.sqrt((part().rider.bike.x-destination.x)^2+(part().rider.bike.z-destination.z)^2)))
+            string.format('remaining=%.2f speed=%.2f slot=%s local=(%.2f,%.2f)',
+                math.sqrt((finalBike.x-parkX)^2+(finalBike.z-parkZ)^2),finalBike.speed,
+                tostring(Bays.slotAt(site,finalBike.x,finalBike.z)),finalX,finalZ))
         assert(stopped,id..': '..label..' did not reach its parking area')
         waitFor(function()local b=part().rider.bike;return b.grounded and math.abs(b.vy or 0)<.08 end,
             120,'parked motorcycle did not settle')
@@ -175,6 +192,9 @@ local function scenario(R,input,id,check,town,outing)
             (outing and Calendar.absoluteHours(R.state)>clock or not outing and math.abs(Calendar.absoluteHours(R.state)-clock)<.000001)
                 and R.state.home.weekend.phase==phase)
         capture(R,id..'-'..label..'-door')
+        local localX,localZ=site:toLocal(parkedX,parkedZ)
+        verify(label..'_bike_inside_marked_stall',Bays.slotAt(site,parkedX,parkedZ)~=nil,
+            string.format('local=(%.2f,%.2f) pad=(%.2f,%.2f)',localX,localZ,site.design.parking.x,site.design.parking.z))
         assert(Commute.command(R,R.World.player,'arrive:'..token))
         verify(label..'_door_commits_correct_interior_once',R.state.home.commute==nil
             and R.World.player.sceneId==(destinationId=='warehouse' and 'warehouse' or 'home')
