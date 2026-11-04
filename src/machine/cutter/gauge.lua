@@ -121,18 +121,28 @@ function Component.run(Context)
         if Context.Machine.step ~= "loaded" and Context.Machine.step ~= "positioned" then return false end
         if not Context.PaperWork.rotate(Context.Machine.paper) then return false end
         Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
-        Context.message(state, string.format("Paper rotated counter-clockwise into the %s cutting position. Reposition it.",
-            Context.PaperWork.currentCut(Context.Machine.paper).edge))
+        Context.message(state, string.format("Paper rotated to %d°. Rotate again if needed, then push it back in.",
+            Context.Machine.paper.orientation))
         Context.bumpRevision()
         return true
     end
 
     function Context.Machine.position(state)
+        if Context.Machine.step == "positioned" then
+            if Context.Machine.clamp then
+                Context.message(state, "Raise the clamp before pulling the paper back.")
+                return false
+            end
+            Context.Machine.step, Context.Machine.progress = "retracting", 0
+            Context.message(state, "Pulling the stack forward. You can change its rotation or gauge when it settles.")
+            Context.bumpRevision()
+            return true
+        end
         if Context.Machine.step ~= "loaded" then return false end
         local cut = Context.PaperWork.currentCut(Context.Machine.paper)
         if not cut then return false end
         Context.Machine.step, Context.Machine.progress = "positioning", 0
-        Context.message(state, "Pushing the paper stack against the selected backgauge. Verify the ticket before cutting.")
+        Context.message(state, "Pushing paper toward the backgauge, leaving the cut guide visible. Tap again to pull it back.")
         Context.bumpRevision()
         return true
     end

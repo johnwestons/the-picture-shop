@@ -1,6 +1,16 @@
 local Test = {}
 
 function Test.run(context, check, jobs)
+    local function rotateForCurrentCut(machine, state, paper)
+        local cut = context.PaperWork.currentCut(paper)
+        if not cut then return false end
+        for _ = 1, 4 do
+            if paper.orientation == cut.orientation then return true end
+            if not machine.rotate(state) then return false end
+        end
+        return paper.orientation == cut.orientation
+    end
+
     local function verifySixLiftRepeatRun()
         local repeatState = context.State.new()
         local repeatJob = jobs.createOffer({
@@ -36,7 +46,7 @@ function Test.run(context, check, jobs)
                 context.machine.step == "loaded" and pallet.paper.status == "uncut")
             for cutNumber = 1, #pallet.paper.cuts do
                 context.machine.selectProgram(cutNumber, repeatState)
-                context.machine.rotate(repeatState)
+                rotateForCurrentCut(context.machine, repeatState, pallet.paper)
                 context.machine.setGauge(pallet.paper.cuts[cutNumber].gauge, repeatState)
                 context.machine.position(repeatState)
                 context.machine.update(context.machine.transferTime + 0.01, repeatState)
@@ -102,7 +112,7 @@ function Test.run(context, check, jobs)
         context.machine.update(context.machine.transferTime + 0.01, spoilState)
         local cut = pallet.paper.cuts[1]
         context.machine.selectProgram(1, spoilState)
-        context.machine.rotate(spoilState)
+        rotateForCurrentCut(context.machine, spoilState, pallet.paper)
         context.machine.setGauge(cut.gauge - 0.5, spoilState)
         check("cutter_positions_off_size_stock", context.machine.position(spoilState))
         context.machine.update(context.machine.transferTime + 0.01, spoilState)
@@ -184,7 +194,7 @@ function Test.run(context, check, jobs)
         context.machine.update(context.machine.transferTime + 0.01, partialState)
         local partialCut = partial.paper.cuts[1]
         context.machine.selectProgram(1, partialState)
-        context.machine.rotate(partialState)
+        rotateForCurrentCut(context.machine, partialState, partial.paper)
         context.machine.setGauge(partialCut.gauge - 0.5, partialState)
         context.machine.position(partialState)
         context.machine.update(context.machine.transferTime + 0.01, partialState)
@@ -352,7 +362,7 @@ function Test.run(context, check, jobs)
             and context.machine.step == "loaded")
         local firstCut = networkPaper.cuts[1]
         context.machine.selectProgram(1, networkState)
-        context.machine.rotate(networkState)
+        rotateForCurrentCut(context.machine, networkState, networkPaper)
         context.machine.setGauge(firstCut.gauge, networkState)
         context.machine.position(networkState)
         context.machine.update(context.machine.transferTime + 0.01, networkState)
@@ -434,7 +444,7 @@ function Test.run(context, check, jobs)
             for cutNumber = firstNumber, #networkPaper.cuts do
                 local cut = networkPaper.cuts[cutNumber]
                 context.machine.selectProgram(cutNumber, networkState)
-                context.machine.rotate(networkState)
+                rotateForCurrentCut(context.machine, networkState, networkPaper)
                 context.machine.setGauge(cut.gauge, networkState)
                 context.machine.position(networkState)
                 check("cutter_network_position_update_not_durable_" .. liftNumber .. "_" .. cutNumber,
@@ -584,6 +594,27 @@ function Test.run(context, check, jobs)
     end
     check("cutter_enter_commits_typed_gauge", context.machineScreen.keypressed(cutterState, "return")
         and math.abs(context.machine.gauge - trackedPaper.cuts[1].gauge) < 0.001)
+    local rotationSequence = {}
+    for _, expected in ipairs({ 90, 180, 270, 0 }) do
+        local rotated = context.machine.keypressed("q", cutterState)
+        rotationSequence[#rotationSequence + 1] = rotated and trackedPaper.orientation == expected
+    end
+    check("cutter_rotate_advances_through_all_four_angles",
+        rotationSequence[1] and rotationSequence[2] and rotationSequence[3] and rotationSequence[4])
+    check("cutter_rotate_returns_to_the_programmed_angle",
+        rotateForCurrentCut(context.machine, cutterState, trackedPaper)
+        and trackedPaper.orientation == trackedPaper.cuts[1].orientation)
+    local pushedIn = context.machine.position(cutterState)
+    context.machine.update(context.machine.transferTime + 0.01, cutterState)
+    local settledAtVisibleGuide = context.machine.step == "positioned"
+    local pulledBack = context.machine.position(cutterState)
+    local retracting = context.machine.step == "retracting"
+    context.machine.update(context.machine.transferTime + 0.01, cutterState)
+    check("cutter_position_keeps_the_guide_visible_and_can_be_retracted",
+        pushedIn and settledAtVisibleGuide and pulledBack and retracting
+        and context.machine.step == "loaded"
+        and trackedPaper.orientation == trackedPaper.cuts[1].orientation
+        and context.PaperWork.gaugeMatches(trackedPaper, context.machine.gauge))
     local firstGauge = trackedPaper.cuts[1].gauge
     check("cutter_autoset_rejects_unsaved_cut_memory",
         context.machine.selectProgram(2, cutterState)
@@ -613,13 +644,23 @@ function Test.run(context, check, jobs)
         check("cutter_select_program_" .. cutNumber, context.machine.selectProgram(cutNumber, cutterState))
         check("cutter_front_edge_orientation_" .. cutNumber,
             trackedPaper.cuts[cutNumber].orientation == expectedBedOrientations[cutNumber])
+        local rotatedForProgram = false
+        for _ = 1, 4 do
+            if trackedPaper.orientation == trackedPaper.cuts[cutNumber].orientation then
+                rotatedForProgram = true
+                break
+            end
+            if not context.machine.keypressed("q", cutterState) then break end
+        end
         if cutNumber == 1 then
-            check("cutter_keyboard_rotate_" .. cutNumber, context.machine.keypressed("q", cutterState))
+            check("cutter_keyboard_rotate_" .. cutNumber,
+                rotatedForProgram and trackedPaper.orientation == trackedPaper.cuts[cutNumber].orientation)
             local autoX, autoY = context.machineScreen.buttonCenter("auto")
             check("cutter_mouse_auto_gauge", context.machineScreen.mousepressed(cutterState, autoX, autoY, 1))
             context.machineScreen.mousereleased(cutterState, autoX, autoY, 1)
         else
-            check("cutter_keyboard_rotate_" .. cutNumber, context.machine.keypressed("q", cutterState))
+            check("cutter_keyboard_rotate_" .. cutNumber,
+                rotatedForProgram and trackedPaper.orientation == trackedPaper.cuts[cutNumber].orientation)
             check("cutter_manual_save_for_program_" .. cutNumber,
                 context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
                 and context.machine.saveGauge(cutterState))
@@ -671,7 +712,7 @@ function Test.run(context, check, jobs)
         and trackedPaper.status == "uncut" and trackedPaper.activeCut == 1)
     for cutNumber = 1, 4 do
         context.machine.selectProgram(cutNumber, cutterState)
-        context.machine.rotate(cutterState)
+        rotateForCurrentCut(context.machine, cutterState, trackedPaper)
         context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
         context.machine.position(cutterState)
         context.machine.update(context.machine.transferTime + 0.01, cutterState)

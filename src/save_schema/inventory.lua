@@ -57,6 +57,7 @@ function Component.install(Runtime)
             and Runtime.positiveInteger(value.nextCallId)
             and Runtime.nonnegative(value.nextCallAtHours)
             and (value.incoming == nil or Runtime.phoneCall(value.incoming))
+            and Runtime.array(value.deferredCalls, Runtime.phoneCall)
             and Runtime.array(value.history, Runtime.phoneCall)
     end
 

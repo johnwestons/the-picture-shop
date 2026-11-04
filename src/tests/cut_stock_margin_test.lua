@@ -22,6 +22,16 @@ local function hasTrim(job)
     return true
 end
 
+local function rotateToCurrentCut(paper)
+    local cut = PaperWork.currentCut(paper)
+    if not cut then return false end
+    for _ = 1, 4 do
+        if paper.orientation == cut.orientation then return true end
+        if not PaperWork.rotate(paper) then return false end
+    end
+    return paper.orientation == cut.orientation
+end
+
 local function validation(check)
     for index, size in ipairs({ { 24, 25 }, { 25, 24 }, { 24.99, 25 }, { 25, 24.99 },
         { 24.01, 24.01 }, { 26, 25 }, { 25, 26 }, { 0 / 0, 25 }, { 25, math.huge } }) do
@@ -38,7 +48,7 @@ local function validation(check)
             for number = 1, 4 do
                 local cut = PaperWork.currentCut(paper)
                 local width, height = paper.currentSize.width, paper.currentSize.height
-                PaperWork.rotate(paper)
+                rotateToCurrentCut(paper)
                 local ok, result = PaperWork.applyCut(paper, cut.gauge, number)
                 trimmed = trimmed and ok and not result.offSpec
                     and (paper.currentSize.width < width or paper.currentSize.height < height)
@@ -134,7 +144,7 @@ local function renderedMargins(check)
                 check("cut_stock_rendered_cut_edges_are_flush_" .. completed .. "_" .. turns, flush)
             end
             if completed < 4 then
-                PaperWork.rotate(paper)
+                assert(rotateToCurrentCut(paper))
                 assert(PaperWork.applyCut(paper, PaperWork.currentCut(paper).gauge, completed + 1))
             end
         end

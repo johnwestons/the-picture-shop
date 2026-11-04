@@ -248,9 +248,10 @@ function Component.install(Runtime)
         Runtime.button(Runtime.CUTTER_CONTROLS.recall_gauge, "RECALL [V]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("recall_gauge"), true)
 
-        Runtime.button(Runtime.CUTTER_CONTROLS.rotate_paper, "ROTATE PAPER [Q]", pointerX, pointerY,
+        Runtime.button(Runtime.CUTTER_CONTROLS.rotate_paper, "ROTATE 90° [Q]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("rotate_paper"), true)
-        Runtime.button(Runtime.CUTTER_CONTROLS.position_paper, "POSITION PAPER [P]", pointerX, pointerY,
+        Runtime.button(Runtime.CUTTER_CONTROLS.position_paper,
+            view.step == "positioned" and "PULL PAPER BACK [P]" or "PUSH PAPER IN [P]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("position_paper"), true)
         Runtime.button(Runtime.CUTTER_CONTROLS.set_clamp, view.clamp == true and "RAISE CLAMP [SPACE]" or "LOWER CLAMP [SPACE]",
             pointerX, pointerY, Runtime.cutterButtonEnabled("set_clamp"), true)

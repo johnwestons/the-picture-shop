@@ -45,7 +45,8 @@ function Component.run(Context)
         if Context.Machine.clampProgress < target then Context.Machine.clampProgress = math.min(target, Context.Machine.clampProgress + speed)
         elseif Context.Machine.clampProgress > target then Context.Machine.clampProgress = math.max(target, Context.Machine.clampProgress - speed) end
 
-        if Context.Machine.step == "loading" or Context.Machine.step == "positioning" or Context.Machine.step == "unloading"
+        if Context.Machine.step == "loading" or Context.Machine.step == "positioning"
+            or Context.Machine.step == "retracting" or Context.Machine.step == "unloading"
             or Context.Machine.step == "lift_returning"
         then
             Context.Machine.progress = Context.Machine.progress + dt
@@ -56,7 +57,10 @@ function Component.run(Context)
                     Context.message(state, "Paper is on the bed. Program the first backgauge position.")
                 elseif Context.Machine.step == "positioning" then
                     Context.Machine.step, Context.Machine.paperTravel = "positioned", 1
-                    Context.message(state, "Paper is against the backgauge. Engage the clamp.")
+                    Context.message(state, "Paper is set with the yellow cut guide visible. Engage the clamp or pull it back to adjust.")
+                elseif Context.Machine.step == "retracting" then
+                    Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
+                    Context.message(state, "Paper pulled forward. Rotate it or adjust the gauge, then push it back when ready.")
                 elseif Context.Machine.step == "lift_returning" then
                     if Context.Machine.pallet then Context.Machine.pallet.awaitingPalletReturn = false end
                     Context.Machine.loaded, Context.Machine.step, Context.Machine.paperTravel = false, "repeat_ready", 0
@@ -171,6 +175,7 @@ function Component.run(Context)
     function Context.phasePermille()
         local duration = 1
         if Context.Machine.step == "loading" or Context.Machine.step == "positioning"
+            or Context.Machine.step == "retracting"
             or Context.Machine.step == "unloading" or Context.Machine.step == "lift_returning"
         then
             duration = Context.Machine.transferTime

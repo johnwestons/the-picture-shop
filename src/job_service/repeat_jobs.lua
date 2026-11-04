@@ -173,6 +173,10 @@ function Component.install(Runtime)
 
     function Runtime.JobService.updateClientEmails(state)
         local emails = Runtime.ensureEmails(state)
+        -- Client communication is held during the Saturday/Sunday shutdown.
+        -- Leave due mail and estimate decisions queued so Monday's first update
+        -- delivers each response through the normal inbox flow.
+        if Runtime.BusinessCalendar.isWeekend(state) then return false end
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local delivered = false
 

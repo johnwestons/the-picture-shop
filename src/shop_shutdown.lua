@@ -1,6 +1,6 @@
 local Fleet=require("src.machine_fleet")
 local Shutdown={}
-local busy={armed=true,cutting=true,loading=true,positioning=true,unloading=true,lift_returning=true,resetting=true}
+local busy={armed=true,cutting=true,loading=true,positioning=true,retracting=true,unloading=true,lift_returning=true,resetting=true}
 function Shutdown.checklist(state,world)
     local rows={}
     local function wait(text) rows[#rows+1]=text end

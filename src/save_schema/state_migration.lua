@@ -176,6 +176,8 @@ function Component.install(Runtime)
             tonumber(result.workPhone.nextCallAtHours) or 6)
         result.workPhone.incoming = type(result.workPhone.incoming) == "table"
             and result.workPhone.incoming or nil
+        result.workPhone.deferredCalls = type(result.workPhone.deferredCalls) == "table"
+            and result.workPhone.deferredCalls or {}
         result.workPhone.history = type(result.workPhone.history) == "table"
             and result.workPhone.history or {}
         result.machines = type(source.machines) == "table"

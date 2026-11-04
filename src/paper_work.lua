@@ -69,12 +69,7 @@ end
 
 function PaperWork.rotate(paper)
     if not paper or paper.status == "complete" then return false end
-    local cut = PaperWork.currentCut(paper)
-    if not cut or paper.orientation == cut.orientation then return false end
-    -- Move directly to the next programmed quarter-turn. This is one
-    -- counter-clockwise handling turn for the operator, even though the
-    -- stored screen orientation alternates across the four bed quadrants.
-    paper.orientation = cut.orientation
+    paper.orientation = ((tonumber(paper.orientation) or 0) + 90) % 360
     return true
 end
 

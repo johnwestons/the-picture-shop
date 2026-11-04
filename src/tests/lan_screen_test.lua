@@ -534,8 +534,10 @@ function Test.run(context, check)
     })
     sent = {}
     local positionX, positionY = WorkshopRemoteScreen.cutterButtonCenter("position_paper")
-    WorkshopRemoteScreen.mousepressed(
+    local pullbackHandled = WorkshopRemoteScreen.mousepressed(
         cutterState, positionX, positionY, 1, sendWrapperCommand)
+    local pullbackSent = pullbackHandled and #sent == 1 and sent[1].action == "position_paper"
+    local commandsAfterPullback = #sent
     WorkshopRemoteScreen.applyCutterSnapshot({
         resourceRevision = 6,
         view = { runtimeRevision = 5, gaugeCentiInch = 625, step = "loading", loaded = true },
@@ -543,18 +545,22 @@ function Test.run(context, check)
     local rotateX, rotateY = WorkshopRemoteScreen.cutterButtonCenter("rotate_paper")
     WorkshopRemoteScreen.mousepressed(cutterState, rotateX, rotateY, 1, sendWrapperCommand)
     WorkshopRemoteScreen.mousepressed(cutterState, positionX, positionY, 1, sendWrapperCommand)
-    local transitionControlsStayedDisabled = #sent == 0
+    local transitionControlsStayedDisabled = #sent == commandsAfterPullback
     WorkshopRemoteScreen.applyCutterSnapshot({
         resourceRevision = 6,
         view = { runtimeRevision = 6, gaugeCentiInch = 625, step = "positioned", loaded = true },
     })
     check("remote_cutter_rejects_stale_result_and_resource_snapshot_views",
-        loadedMergeClearedIdleChoices and not staleResource and freshSnapshot
+        loadedMergeClearedIdleChoices and not staleResource and freshSnapshot and pullbackSent
         and interleavedCutterSnapshot and transitionControlsStayedDisabled
         and WorkshopRemoteScreen.workshopTick == 9000
         and WorkshopRemoteScreen.revision == 6
         and WorkshopRemoteScreen.view.runtimeRevision == 6
         and WorkshopRemoteScreen.view.gaugeCentiInch == 625)
+    WorkshopRemoteScreen.applyResult({
+        resourceId = "cutter", action = "position_paper", accepted = true, revision = 6,
+        view = { runtimeRevision = 6, gaugeCentiInch = 625, step = "retracting", loaded = true },
+    })
 
     WorkshopRemoteScreen.applyCutterSnapshot({
         resourceRevision = 6,

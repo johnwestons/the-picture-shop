@@ -167,6 +167,7 @@ function Component.install(Runtime)
         loading = true,
         loaded = true,
         positioning = true,
+        retracting = true,
         positioned = true,
         clamped = true,
         armed = true,

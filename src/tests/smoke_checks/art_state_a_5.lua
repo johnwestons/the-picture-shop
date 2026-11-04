@@ -139,7 +139,13 @@ function Component.run(Context)
     Context.context.machine.update(Context.context.machine.transferTime + 0.01, paperSupplyState)
     for cutNumber = 1, 4 do
         Context.context.machine.selectProgram(cutNumber, paperSupplyState)
-        Context.context.machine.keypressed("q", paperSupplyState)
+        local targetOrientation = Context.context.machine.paper.cuts[cutNumber].orientation
+        for _ = 1, 4 do
+            if Context.context.machine.paper.orientation == targetOrientation then break end
+            Context.context.machine.keypressed("q", paperSupplyState)
+        end
+        Context.check("vendor_paper_sample_rotation_matches_cut_" .. cutNumber,
+            Context.context.machine.paper.orientation == targetOrientation)
         Context.context.machine.setGauge(Context.context.machine.paper.cuts[cutNumber].gauge, paperSupplyState)
         Context.context.machine.saveGauge(paperSupplyState)
         Context.context.machine.autoGauge(paperSupplyState)

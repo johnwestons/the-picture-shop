@@ -115,9 +115,15 @@ function Test.run(context, check)
         shortcutsOk = shortcutsOk and sent[#sent].action == action
     end
     enter(state, view({ step = "positioned" }))
+    local beforePullback = #sent
+    Remote.keypressed("p", state, send)
+    local pullbackAccepted = #sent == beforePullback + 1
+        and sent[#sent].action == "position_paper"
+    enter(state, view({ step = "positioned" }))
     Remote.keypressed("space", state, send)
     check("remote_cutter_keyboard_controls_match_host_bindings",
-        shortcutsOk and sent[#sent].action == "set_clamp" and sent[#sent].args.clamp == true)
+        shortcutsOk and pullbackAccepted
+        and sent[#sent].action == "set_clamp" and sent[#sent].args.clamp == true)
     enter(state, view())
     Remote.keypressed("p", state, send)
     local count = #sent
@@ -195,7 +201,7 @@ function Test.run(context, check)
     check("remote_cutter_all_blade_frames_pixel_match_host_and_animate",
         framesMatch and firstFrame ~= lastFrame)
     local transferMatch, transferMoves = true, true
-    for _, step in ipairs({ "loading", "positioning", "unloading", "lift_returning" }) do
+    for _, step in ipairs({ "loading", "positioning", "retracting", "unloading", "lift_returning" }) do
         local hashes = {}
         for _, phase in ipairs({ 0, 500, 1000 }) do
             local frameView = view({ step = step, phasePermille = phase })
@@ -215,7 +221,7 @@ function Test.run(context, check)
         end
         transferMoves = transferMoves and hashes[1] ~= hashes[3]
     end
-    check("remote_cutter_load_position_unload_and_lift_return_pixel_match_host",
+    check("remote_cutter_load_position_retract_unload_and_lift_return_pixel_match_host",
         transferMatch and transferMoves)
     -- Compare against the empty table itself, so both renderers sharing the
     -- same incorrect feed offset or housing mask cannot silently pass parity.
@@ -235,9 +241,9 @@ function Test.run(context, check)
         return ar==br and ag==bg and ab==bb
     end
     check("cutter_half_inch_trim_protrudes_just_past_stick",
-        not matches(trim,empty,660,226) and matches(trim,empty,660,236))
+        not matches(trim,empty,660,234) and matches(trim,empty,660,244))
     check("cutter_actual_gauge_moves_stock_relative_to_fixed_stick",
-        not matches(short,empty,660,236) and matches(over,empty,660,226))
+        not matches(short,empty,660,244) and matches(over,empty,660,234))
     check("cutter_rear_stock_hidden_behind_registered_machine_head",matches(trim,empty,660,195))
     trim:encode("png","cutter-seated-trim.png")
     for _, data in ipairs({empty,trim,short,over}) do data:release() end

@@ -33,6 +33,14 @@ local function scenario(context,check,options)
  end
  local function waitUntil(hours)advance(math.max(0,hours-Calendar.absoluteHours(s))*Calendar.secondsPerDay(s)/24) end
  local function decide()advance(1);decisionSeconds=decisionSeconds+1 end
+ local function rotateToCut(pallet,cutNumber)
+  local target=pallet.paper.cuts[cutNumber].orientation
+  for _=1,4 do
+   if pallet.paper.orientation==target then break end
+   assert(Machine.keypressed("q",s),"Unable to rotate paper for programmed cut")
+  end
+  assert(pallet.paper.orientation==target,"Paper rotation did not reach programmed cut")
+ end
  local function transfer(pallet,x,y)
   assert(Pallets.transition(s,pallet,"on_pallet_jack"))
   advance(10);transportSeconds=transportSeconds+10
@@ -77,7 +85,7 @@ local function scenario(context,check,options)
    repeat
     lifts=lifts+1
     for cut=1,4 do
-     decide();Machine.selectProgram(cut,s);Machine.keypressed("q",s)
+     decide();Machine.selectProgram(cut,s);rotateToCut(pallet,cut)
      Machine.setGauge(pallet.paper.cuts[cut].gauge,s);Machine.saveGauge(s);Machine.autoGauge(s)
      assert(Machine.position(s),s.message);advance(Machine.transferTime+.01);Machine.update(Machine.transferTime+.01,s)
      decide();Machine.toggleClamp(s);Machine.keypressed("j",s);Machine.keypressed("k",s)

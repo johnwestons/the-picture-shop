@@ -1,6 +1,8 @@
 local SaveSchema = require("src.save_schema")
 local State = require("src.state")
 local WorkPhone = require("src.work_phone")
+local BusinessCalendar = require("src.business_calendar")
+local Inbox = require("src.inbox")
 
 local Test = {}
 
@@ -90,8 +92,54 @@ function Test.run(context, check)
         screenAnswer and screenAnswer.action == "answered"
         and screenUpdate and screenUpdate.action == "call_completed")
 
+    local weekendState = State.new()
+    local weekendDate = BusinessCalendar.ensure(weekendState)
+    weekendDate.year, weekendDate.month, weekendDate.day = 2026, 1, 2
+    weekendDate.weekday, weekendDate.totalDays, weekendDate.elapsed = 5, 1, 0
+    local fridayCall = call(weekendState, {
+        kind = "customer_order", caller = "Friday Client", role = "CUSTOMER",
+        subject = "NEW JOB ORDER", message = "Please quote a job.",
+    })
+    weekendDate.day, weekendDate.weekday, weekendDate.totalDays = 3, 6, 2
+    local hiddenOnWeekend = WorkPhone.ensure(weekendState)
+    local queuedWeekendCall = WorkPhone.queueCall(weekendState, {
+        kind = "customer_order", caller = "Saturday Client", role = "CUSTOMER",
+        subject = "NEW JOB ORDER", message = "Please quote a job.",
+    })
+    check("work_phone_client_calls_wait_until_monday",
+        hiddenOnWeekend.incoming == nil and #hiddenOnWeekend.deferredCalls == 2
+        and hiddenOnWeekend.deferredCalls[1].id == fridayCall.id and queuedWeekendCall)
+    local weekendEmailState = State.new()
+    local weekendEmailDate = BusinessCalendar.ensure(weekendEmailState)
+    weekendEmailDate.day, weekendEmailDate.weekday, weekendEmailDate.totalDays = 3, 6, 2
+    weekendEmailState.clientEmails.pending[1] = {
+        id = "EMAIL-WEEKEND", sender = "Weekend Client", subject = "New job details",
+        body = "Please review the attached job.", readyAtHours = 0, sourceJobId = "JOB-WEEKEND",
+    }
+    Inbox.addNotice(weekendEmailState, {
+        id = "CASE-WEEKEND", sender = "Weekend Client", subject = "Customer follow-up",
+        body = "Please review our follow-up.", noticeKind = "customer_case",
+        sourceJobId = "JOB-WEEKEND",
+    })
+    local weekendEmailDelivered = context.jobService.updateClientEmails(weekendEmailState)
+    check("client_emails_and_followups_are_held_over_weekend",
+        not weekendEmailDelivered and #weekendEmailState.clientEmails.inbox == 0
+        and #weekendEmailState.clientEmails.pending == 2)
+    weekendDate.day, weekendDate.weekday, weekendDate.totalDays = 5, 1, 4
+    local mondayCallDelivered = WorkPhone.update(weekendState, 0)
+    check("deferred_client_call_arrives_on_monday",
+        mondayCallDelivered and weekendState.workPhone.incoming
+        and weekendState.workPhone.incoming.id == fridayCall.id
+        and weekendState.workPhone.incoming.receivedAtHours == BusinessCalendar.absoluteHours(weekendState))
+    weekendEmailDate.day, weekendEmailDate.weekday, weekendEmailDate.totalDays = 5, 1, 4
+    local mondayEmailDelivered = context.jobService.updateClientEmails(weekendEmailState)
+    check("deferred_client_emails_arrive_on_monday",
+        mondayEmailDelivered and #weekendEmailState.clientEmails.pending == 0
+        and #weekendEmailState.clientEmails.inbox == 2)
+
     check("work_phone_state_saves_call_history",
-        SaveSchema.validState(SaveSchema.snapshot(serviceState)))
+        SaveSchema.validState(SaveSchema.snapshot(serviceState))
+        and SaveSchema.validState(SaveSchema.snapshot(weekendState)))
 end
 
 return Test

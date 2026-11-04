@@ -22,7 +22,8 @@ function Component.install(Runtime)
         elseif action == "set_clamp" then
             return view.loaded == true and (view.step == "positioned" or view.step == "clamped")
         elseif action == "position_paper" then
-            return view.loaded == true and view.clamp ~= true and view.step == "loaded"
+            return view.loaded == true and view.clamp ~= true
+                and (view.step == "loaded" or view.step == "positioned")
         elseif action == "rotate_paper" then
             return view.loaded == true and view.clamp ~= true
                 and (view.step == "loaded" or view.step == "positioned")

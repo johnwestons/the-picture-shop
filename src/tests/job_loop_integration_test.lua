@@ -34,7 +34,17 @@ function Test.run(context, check, jobs)
     context.machine.update(context.machine.transferTime + 0.01, fullLoopState)
     for cutNumber = 1, 4 do
         context.machine.selectProgram(cutNumber, fullLoopState)
-        context.machine.keypressed("q", fullLoopState)
+        local targetOrientation = fullLoopPallet.paper.cuts[cutNumber].orientation
+        local rotateOk = true
+        for _ = 1, 4 do
+            if fullLoopPallet.paper.orientation == targetOrientation then break end
+            if not context.machine.keypressed("q", fullLoopState) then
+                rotateOk = false
+                break
+            end
+        end
+        check("full_loop_rotation_matches_cut_" .. cutNumber,
+            rotateOk and fullLoopPallet.paper.orientation == targetOrientation)
         context.machine.setGauge(fullLoopPallet.paper.cuts[cutNumber].gauge, fullLoopState)
         context.machine.saveGauge(fullLoopState)
         context.machine.autoGauge(fullLoopState)

@@ -2,6 +2,11 @@ local BusinessCalendar = require("src.business_calendar")
 
 local Inbox = {}
 
+local function isClientNotice(kind)
+    kind = tostring(kind or "")
+    return kind:match("^client_") ~= nil or kind:match("^customer_") ~= nil
+end
+
 function Inbox.ensure(state)
     state.clientEmails = type(state.clientEmails) == "table" and state.clientEmails or {}
     local emails = state.clientEmails
@@ -17,13 +22,14 @@ end
 function Inbox.addNotice(state, notice, delayHours)
     local emails = Inbox.ensure(state)
     local now = BusinessCalendar.absoluteHours(state)
+    local noticeKind = tostring(notice.noticeKind or "notice")
     notice = {
         id = tostring(notice.id),
         sender = tostring(notice.sender),
         subject = tostring(notice.subject),
         body = tostring(notice.body),
         unread = true,
-        noticeKind = tostring(notice.noticeKind or "notice"),
+        noticeKind = noticeKind,
         sourceJobId = notice.sourceJobId,
         orderId = notice.orderId,
         applicationId = notice.applicationId,
@@ -35,7 +41,9 @@ function Inbox.addNotice(state, notice, delayHours)
         readyAtHours = now + math.max(0, tonumber(delayHours) or 0),
     }
     if notice.readyAtHours then notice.readyAtHours = math.max(now, tonumber(notice.readyAtHours) or now) end
-    if notice.readyAtHours <= now then
+    if notice.readyAtHours <= now
+        and not (BusinessCalendar.isWeekend(state) and isClientNotice(noticeKind))
+    then
         notice.receivedAtHours = now
         emails.inbox[#emails.inbox + 1] = notice
     else

@@ -8,8 +8,10 @@ local function drawBladeUpgradeCard(rect, label, enabled, pointerX, pointerY)
     local hovered = enabled and pointerX and pointerX >= rect.x and pointerX <= rect.x + rect.width
         and pointerY >= rect.y and pointerY <= rect.y + rect.height
     love.graphics.push("all")
-    love.graphics.setColor(enabled and (hovered and 0.13 or 0.08), enabled and 0.20 or 0.10,
-        enabled and 0.20 or 0.11, 1)
+    local fillRed = enabled and (hovered and 0.13 or 0.08) or 0.08
+    local fillGreen = enabled and 0.20 or 0.10
+    local fillBlue = enabled and 0.20 or 0.11
+    love.graphics.setColor(fillRed, fillGreen, fillBlue, 1)
     love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4)
     love.graphics.setColor(enabled and 0.34 or 0.25, enabled and 0.65 or 0.29, enabled and 0.57 or 0.30, 1)
     love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 4)

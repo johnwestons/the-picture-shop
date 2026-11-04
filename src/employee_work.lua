@@ -10,7 +10,7 @@ local Wrapper=require("src.wrapper")
 local Transport=require("src.employee_pallet_jack")
 local Work={}
 local operationStarts=setmetatable({},{__mode="k"})
-local cutterBusy={armed=true,cutting=true,loading=true,positioning=true,unloading=true,lift_returning=true,resetting=true}
+local cutterBusy={armed=true,cutting=true,loading=true,positioning=true,retracting=true,unloading=true,lift_returning=true,resetting=true}
 local stageModel={cutter="polar_115",press="heidelberg_10x15",wrapping="skid_wrapper"}
 local skillField={cutter="cutterSkill",press="pressSkill",wrapping="wrappingSkill"}
 
@@ -113,7 +113,7 @@ local function cutterStep(state,w,dt,machine,pallet,job)
             w.activity="Another pallet is on the cutter";blocked="Another pallet is on the cutter";return
         end
         if m.step=="armed" or m.step=="cutting" then w.workFrame=4;return end
-        if m.step=="loading" or m.step=="positioning" or m.step=="unloading" or m.step=="lift_returning" then
+        if m.step=="loading" or m.step=="positioning" or m.step=="retracting" or m.step=="unloading" or m.step=="lift_returning" then
             w.workFrame=3;return
         end
         if m.step=="clamped" then w.workFrame=4
@@ -472,7 +472,7 @@ function Work.presentation(state,w)
         local m=Machine.forId(machine.id)
         if m.emergencyStopped or not m.barrierClear or m.step=="blocked" then input.mode="release"
         elseif m.step=="armed" or m.step=="cutting" then input.mode="operate"
-        else input.contactFrame=({loading=3,positioning=4,unloading=3,lift_returning=5,resetting=5,clamped=5})[m.step] or 4 end
+        else input.contactFrame=({loading=3,positioning=4,retracting=3,unloading=3,lift_returning=5,resetting=5,clamped=5})[m.step] or 4 end
     elseif machine.modelId=="heidelberg_10x15" then
         Fleet.withUnit(state,machine.id,function()
             local process=Windmill.ensure(state)

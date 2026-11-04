@@ -118,7 +118,7 @@ function Component.install(Runtime)
         Runtime.addButton("repeat", "RUN NEXT LIFT", 201, 334, 142, 28, "t")
         Runtime.addButton("load", "LOAD JOB", 54, 478, 96, 34, "l")
         Runtime.addButton("position", "PUSH / POS", 158, 478, 100, 34, "p")
-        Runtime.addButton("rotate", "ROTATE CCW", 266, 478, 100, 34, "q")
+        Runtime.addButton("rotate", "ROTATE 90°", 266, 478, 100, 34, "q")
         Runtime.addButton("clamp", "CLAMP", 374, 478, 84, 34, "space")
         Runtime.addButton("unload", "TO PALLET", 466, 478, 96, 34, "u")
         Runtime.addButton("barrier", "BARRIER", 570, 478, 86, 34, "b")
@@ -159,7 +159,7 @@ function Component.install(Runtime)
         { "2 — LOAD THE CORRECT PALLET", "Move a received paper pallet to the cutter staging area. Press L or click LOAD, then choose the pallet ID that matches the job. Its unique paper record follows every size and rotation change. Wait for the stack animation to settle on the bed before setting the gauge." },
         { "3 — READ THE CUT PROGRAM", "The active cut number identifies the margin currently nearest the operator/screen. Compare the required measurement to the job's cut list. Easy work often repeats one margin; harder work has four different values. Never guess: the displayed target and pallet ID are the source of truth." },
         { "4 — SET OR PROGRAM THE BACK GAUGE", "Click the gauge number field, type inches with decimals, then press ENTER or SET. SAVE stores the measurement in the selected P1–P4 program. RECALL restores saved values. AUTOSET recalls the next saved cut, moves to its cut number automatically and prepares the next repeat measurement." },
-        { "5 — POSITION AND ROTATE", "Press P or POSITION to push the stack against the back gauge. The red active margin must face the operator/screen. Press Q or ROTATE for a 90-degree counter-clockwise turn between sides. Reposition against the gauge after every rotation or measurement change." },
+        { "5 — POSITION AND ROTATE", "Press P or PUSH / POS to feed the stack toward the back gauge while keeping the yellow cut guide visible. Tap PULL BACK to withdraw it again. Press Q or ROTATE 90° repeatedly until the correct edge faces the operator/screen; set the gauge, then push the stack in again." },
         { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Offline, trigger both CUT buttons (J and K) within 0.30 seconds. The safety controls prevent injury, but they do not check your measurement. A wrong gauge, program, or rotation ruins the whole lift. A dull blade also lowers edge quality, so watch its sharpness meter and request a fresh blade when needed." },
         { "7 — FINISH ALL LIFTS", "The cutter holds a maximum 500 sheets per lift. Repeat the programmed sides for each lift until the pallet's full sheet count is processed. Verify the size after every side. When all required margins are removed, press U or UNLOAD; the animated stack returns to its pallet at cutter output." },
         { "8 — TROUBLESHOOTING", "If the blade will not cycle, check: pallet loaded, transfer animation finished, paper positioned, barrier clear, clamp down, the required offline or multiplayer cut control pressed, and E-STOP reset. The cutter intentionally permits off-size work—compare the selected program, rotation, and gauge to the ticket yourself." },

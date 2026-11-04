@@ -2,6 +2,7 @@
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
 local CutterMotion = require("src.screens.cutter_motion")
+local PAPER_STOP_CLEARANCE = 8
 
 function Component.install(Runtime)
     function Runtime.openLoadMenu(state)
@@ -64,7 +65,9 @@ function Component.install(Runtime)
             or (hovered and "hover" or "normal")
         Runtime.CutterSkin.button(assets, button.x, button.y + (active and 2 or 0), button.width, button.height, visual)
         love.graphics.setColor(0.97, 0.97, 0.92)
-        love.graphics.printf(button.label, button.x, button.y + 9 + (active and 2 or 0), button.width, "center")
+        local label = button.label
+        if button.action == "position" and Runtime.Machine.step == "positioned" then label = "PULL BACK" end
+        love.graphics.printf(label, button.x, button.y + 9 + (active and 2 or 0), button.width, "center")
     end
 
     function Runtime.drawSpriteButton(assets, button, red, pressed)
@@ -139,7 +142,11 @@ function Component.install(Runtime)
         elseif step == "positioning" then
             -- Most of the push happens immediately, followed by a short settle against the stop.
             local phase = 1 - (1 - math.min(1, t / 0.82)) ^ 2
-            topY = bedY + (workingY - bedY) * phase
+            topY = bedY + (workingY + PAPER_STOP_CLEARANCE - bedY) * phase
+        elseif step == "retracting" then
+            local phase = 1 - (1 - math.min(1, t / 0.82)) ^ 2
+            topY = workingY + PAPER_STOP_CLEARANCE
+                + (bedY - workingY - PAPER_STOP_CLEARANCE) * phase
         elseif step == "unloading" or step == "lift_returning" then
             if t < 0.54 then
                 local phase = ease(t / 0.54)
@@ -150,6 +157,8 @@ function Component.install(Runtime)
                 centerX = 668 + (690 - 668) * phase
                 topY = 296 + (startY - 296) * phase
             end
+        elseif step == "positioned" then
+            topY = workingY + PAPER_STOP_CLEARANCE
         else
             topY = workingY
         end

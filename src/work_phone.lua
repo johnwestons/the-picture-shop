@@ -123,8 +123,14 @@ function WorkPhone.defaultState(now)
         nextCallId = 1,
         nextCallAtHours = math.max(0, tonumber(now) or 0) + 6,
         incoming = nil,
+        deferredCalls = {},
         history = {},
     }
+end
+
+local function deferIncoming(phone, call)
+    if not call then return end
+    phone.deferredCalls[#phone.deferredCalls + 1] = call
 end
 
 function WorkPhone.ensure(state)
@@ -134,6 +140,7 @@ function WorkPhone.ensure(state)
     phone.nextCallId = positiveInteger(phone.nextCallId, 1)
     phone.nextCallAtHours = math.max(0, tonumber(phone.nextCallAtHours)
         or BusinessCalendar.absoluteHours(state) + 6)
+    phone.deferredCalls = type(phone.deferredCalls) == "table" and phone.deferredCalls or {}
     phone.history = type(phone.history) == "table" and phone.history or {}
     if type(phone.incoming) ~= "table" or not VALID_KINDS[phone.incoming.kind] then
         phone.incoming = nil
@@ -146,6 +153,16 @@ function WorkPhone.ensure(state)
     end
     if phone.incoming and phone.incoming.direction == nil then
         phone.incoming.direction = "incoming"
+    end
+    if phone.incoming and phone.incoming.direction ~= "outgoing"
+        and not phone.incoming.answered and BusinessCalendar.isWeekend(state)
+    then
+        local caller = phone.incoming.caller
+        deferIncoming(phone, phone.incoming)
+        phone.incoming = nil
+        if state.message == caller .. " is calling the work phone." then
+            state.message = "The work phone is quiet for the weekend."
+        end
     end
     return phone
 end
@@ -248,7 +265,7 @@ function WorkPhone.queueCall(state, spec, nowHours)
     if nowHours ~= nil and not validHours(nowHours) then return false, "Invalid call time." end
     local number = phone.nextCallId
     phone.nextCallId = number + 1
-    phone.incoming = {
+    local call = {
         id = string.format("CALL-%04d", number),
         kind = spec.kind,
         caller = tostring(spec.caller or "Unknown caller"),
@@ -266,6 +283,11 @@ function WorkPhone.queueCall(state, spec, nowHours)
         receivedAtHours = nowHours or BusinessCalendar.absoluteHours(state),
         answered = false,
     }
+    if BusinessCalendar.isWeekend(state) then
+        deferIncoming(phone, call)
+        return true, call
+    end
+    phone.incoming = call
     state.message = phone.incoming.caller .. " is calling the work phone."
     return true, phone.incoming
 end
@@ -315,6 +337,14 @@ function WorkPhone.update(state, dt)
     end
     if phone.incoming or BusinessCalendar.isWeekend(state) then return connectedNow end
     local now = BusinessCalendar.absoluteHours(state)
+    if #phone.deferredCalls > 0 then
+        local deferred = table.remove(phone.deferredCalls, 1)
+        deferred.receivedAtHours = now
+        deferred.answered = false
+        phone.incoming = deferred
+        state.message = deferred.caller .. " is calling the work phone."
+        return true
+    end
     if now + 0.000001 < phone.nextCallAtHours then return false end
     local spec = callSpec(state, phone.nextCallId)
     return WorkPhone.queueCall(state, spec)

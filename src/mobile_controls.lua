@@ -1,7 +1,7 @@
 local MobileControls = {}
 MobileControls.__index = MobileControls
 
-local TAP_SLOP_PIXELS = 18
+local TAP_SLOP_GAME_UNITS = 18
 local DEFAULT_LAYOUT = {
     joystick = { x = 0.105, y = 0.846 },
     primary = { x = 0.906, y = 0.846 },
@@ -199,6 +199,7 @@ function MobileControls:touchpressed(id, screenX, screenY)
             kind = "pending", order = self.touchOrder,
             screenX = screenX, screenY = screenY, x = x, y = y,
             startScreenX = screenX, startScreenY = screenY,
+            tapSlop = TAP_SLOP_GAME_UNITS * (tonumber(self.bounds and self.bounds.scale) or 1),
             startX = x, startY = y, moved = false,
         }
         self:_startGestureIfReady()
@@ -216,7 +217,7 @@ function MobileControls:touchmoved(id, screenX, screenY, dx, dy)
     local touch = self.touches[id]
     if not touch then return false end
     if touch.kind == "pending" and distance(screenX, screenY,
-        touch.startScreenX or screenX, touch.startScreenY or screenY) > TAP_SLOP_PIXELS
+        touch.startScreenX or screenX, touch.startScreenY or screenY) > (touch.tapSlop or TAP_SLOP_GAME_UNITS)
     then
         touch.moved = true
     end
@@ -248,7 +249,7 @@ function MobileControls:touchreleased(id, screenX, screenY)
         self.afterInput(x, y)
     elseif touch.kind == "pending" then
         local moved = touch.moved or distance(screenX, screenY,
-            touch.startScreenX or screenX, touch.startScreenY or screenY) > TAP_SLOP_PIXELS
+            touch.startScreenX or screenX, touch.startScreenY or screenY) > (touch.tapSlop or TAP_SLOP_GAME_UNITS)
         if not moved then
             -- A phone tap belongs to the object where the finger went down.
             -- Never turn the release point into a second or different click.
