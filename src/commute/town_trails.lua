@@ -29,12 +29,21 @@ local function buildNetwork(town)
         a.neighbors[b.index]=length;b.neighbors[a.index]=length
     end
     for _,road in ipairs(town.roads) do
+        local sinceAnchor=0
         for i=1,#road.points-1 do
             local a,b=road.points[i],road.points[i+1]
             local start,finish=node(a),node(b)
             edges[#edges+1]=edge(a,b,road.width)
             if road.role~='drive' and not road.id:match('%-drive$') and not (road.bridgeEdges and road.bridgeEdges[i]) then
-                start.anchor=true;finish.anchor=true
+                -- Short control edges describe the curve, not extra trailheads.
+                -- Keep enough separated entrances without scoring every pair of
+                -- five-metre samples against the entire street graph.
+                if i==1 or town.generatorVersion<5 then start.anchor=true end
+                sinceAnchor=sinceAnchor+distance(a,b)
+                if i==#road.points-1 or sinceAnchor>=23 or town.generatorVersion<5 then
+                    finish.anchor=true
+                    sinceAnchor=0
+                end
                 -- A trail may meet a street between its existing intersections.
                 if distance(a,b)>30 then
                     local p={q((a[1]+b[1])/2),q((a[2]+b[2])/2),q((a[3]+b[3])/2)}
@@ -78,6 +87,9 @@ local function clearLot(ctx,x,z,radius)
     return true
 end
 local function clearEdges(ctx,x,z,radius)
+    for _,j in ipairs(ctx.junctions) do
+        if (x-j.x)^2+(z-j.z)^2<(j.outerRadius+radius)^2 then return false end
+    end
     for _,e in ipairs(ctx.edges) do
         if roadDistance(e,x,z)<(radius+e.width*.5)^2 then return false end
     end
@@ -85,16 +97,26 @@ local function clearEdges(ctx,x,z,radius)
 end
 local function pairsByUsefulness(ctx,nodes,anchors)
     local pairs={}
+    local center=ctx.plan.config.center or ctx.town.size*.5
     for i,a in ipairs(anchors) do
         local detours=pavedDistances(nodes,a.index)
         for j=i+1,#anchors do
             local b=anchors[j]
             local direct=distance(a.p,b.p)
             local detour=detours[b.index]
-            if direct>25 and direct<162 and detour and detour>direct*1.25 and detour-direct>10 then
+            if direct>25 and direct<246 and detour and detour>direct*1.25 and detour-direct>10 then
                 local x,z=(a.p[1]+b.p[1])*.5,(a.p[2]+b.p[2])*.5
                 local canopy=ctx.plan:habitat(x,z)
-                local score=math.min(detour/direct,3)*20+canopy*42+ctx.random(0,8)
+                local score=math.min(detour/direct,3)*20+canopy*30+direct*.12+ctx.random(0,8)
+                if ctx.plan.island then
+                    local ar=M.length(a.p[1]-center,a.p[2]-center)
+                    local br=M.length(b.p[1]-center,b.p[2]-center)
+                    local aa=math.atan2(a.p[2]-center,a.p[1]-center)
+                    local ba=math.atan2(b.p[2]-center,b.p[1]-center)
+                    local angle=math.abs(aa-ba)%(math.pi*2)
+                    angle=math.min(angle,math.pi*2-angle)
+                    score=score+math.min(ar,br)*.10+angle*12
+                end
                 pairs[#pairs+1]={a=a,b=b,direct=direct,detour=detour,score=score,order=#pairs+1}
             end
         end
@@ -106,7 +128,7 @@ local function path(ctx,pair,bend)
     local a,b=pair.a.p,pair.b.p
     local dx,dz=b[1]-a[1],b[2]-a[2]
     local nx,nz=-dz/pair.direct,dx/pair.direct
-    local steps=math.ceil(pair.direct/3.8)
+    local steps=math.ceil(pair.direct/4.2)
     local points={a}
     local length=0
     for i=1,steps do
@@ -129,6 +151,23 @@ local function path(ctx,pair,bend)
     end
     if length>pair.detour*.88 then return end
     return points
+end
+local function bendValues(ctx,pair)
+    if not ctx.plan.island then return {8,-8,18,-18,0,32,-32} end
+    local a,b=pair.a.p,pair.b.p
+    local nx,nz=-(b[2]-a[2])/pair.direct,(b[1]-a[1])/pair.direct
+    local center=ctx.plan.config.center or ctx.town.size*.5
+    local mx,mz=(a[1]+b[1])*.5-center,(a[2]+b[2])*.5-center
+    local facing=nx*mx+nz*mz
+    local outward=facing<0 and -1 or 1
+    if math.abs(facing)<1e-5 then outward=(pair.a.index+pair.b.index)%2==0 and 1 or -1 end
+    local values={}
+    for _,magnitude in ipairs({72,44,20}) do
+        values[#values+1]=outward*magnitude
+        values[#values+1]=-outward*magnitude
+    end
+    values[#values+1]=0
+    return values
 end
 local kinds={'picnic','camp','park'}
 local labels={picnic='Shaded Picnic Grove',camp='Pine Campground',park='Woodland Park'}
@@ -173,17 +212,22 @@ local function commitJunctions(inserts)
     end
 end
 function Trails.generate(town,plan)
-    plan=plan or Terrain.new(town.terrain,{size=town.size,center=town.size/2,radius=201})
+    if not plan then
+        local model=town.terrain and town.terrain.mode=='island-town-v3'
+            and require('src.commute.town_terrain_v3') or Terrain
+        plan=model.new(town.terrain,{size=town.size,center=town.size/2,radius=model.ISLAND_RADIUS or 201})
+    end
     local ctx={town=town,plan=plan,random=Terrain.random(town.seed,77),pads={},
         sites=Sites.create({placements=town.placements,designs=town.designs}).all}
     for _,site in ipairs(ctx.sites) do ctx.pads[#ctx.pads+1]=town.destinations[site.id] end
     local nodes,edges,anchors=buildNetwork(town);ctx.edges=edges
+    ctx.junctions=town.generatorVersion>=5 and require('src.commute.roads').junctionsFor(town.roads) or {}
     town.recreation={}
     local count,inserts,used=0,{},{}
-    local target=town.seed%3+2
+    local target=town.seed%2+3
     for _,pair in ipairs(pairsByUsefulness(ctx,nodes,anchors)) do
         if not used[pair.a] and not used[pair.b] then
-            for _,bend in ipairs({8,-8,18,-18,0,32,-32}) do
+            for _,bend in ipairs(bendValues(ctx,pair)) do
                 local points=path(ctx,pair,bend)
                 if points then
                     local id='woodland-trail-'..(count+1)

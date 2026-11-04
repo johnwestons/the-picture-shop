@@ -43,15 +43,32 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     return self
 end
 function Renderer:buildRoadMeshes()
-    local layers={shoulder={},asphalt={},dirt={}}
+    local layers={shoulder={},asphalt={},dirt={},approach={}}
+    local function vertex(layer,x,z,h,height,color,coverage)
+        layer[#layer+1]={x,z,h+height,0,1,0,x/4,z/4,x/4,z/4,0,0,
+            color[1],color[2],color[3],1,0,1,0,coverage,0,1,0,0}
+    end
     local function quad(s,width,height,layer,color,coverage)
         local a,b=s.a,s.b;local w=width*.5
         local points={{a.x+a.nx*w,a.z+a.nz*w,a.h},{b.x+b.nx*w,b.z+b.nz*w,b.h},
             {b.x-b.nx*w,b.z-b.nz*w,b.h},{a.x-a.nx*w,a.z-a.nz*w,a.h}}
         for _,index in ipairs({1,2,3,1,3,4}) do
             local p=points[index];local x,z=p[1],p[2]
-            layer[#layer+1]={x,z,p[3]+height,0,1,0,x/4,z/4,x/4,z/4,0,0,
-                color[1],color[2],color[3],1,0,1,0,coverage,0,1,0,0}
+            vertex(layer,x,z,p[3],height,color,coverage)
+        end
+    end
+    local function disk(junction,radius,height,layer,color,coverage)
+        local x,z,h=junction.x,junction.z,junction.h
+        local function rim(angle)
+            local dx,dz=math.cos(angle)*radius,math.sin(angle)*radius
+            vertex(layer,x+dx,z+dz,h+dx*junction.gx+dz*junction.gz,height,color,coverage)
+        end
+        local steps=24
+        for i=0,steps-1 do
+            local a=i*math.pi*2/steps;local b=(i+1)*math.pi*2/steps
+            vertex(layer,x,z,h,height,color,coverage)
+            rim(a)
+            rim(b)
         end
     end
     for _,s in ipairs(self.world.roads.segments) do
@@ -65,13 +82,36 @@ function Renderer:buildRoadMeshes()
             end
         end
     end
-    for _,p in pairs(self.world.roads.destinations) do
-        local segment={a={x=p.x,z=p.z-4,h=p.h,nx=1,nz=0},b={x=p.x,z=p.z+4,h=p.h,nx=1,nz=0}}
+    for _,junction in ipairs(self.world.roads.junctions or {}) do
+        disk(junction,junction.outerRadius,.02,layers.shoulder,{.41,.39,.30},1)
+        disk(junction,junction.radius,.04,layers.asphalt,{.23,.25,.24},1)
+    end
+    for id,p in pairs(self.world.roads.destinations) do
+        local site=self.world.roads.sites and self.world.roads.sites.byId and self.world.roads.sites.byId[id]
+        local center=site and site.parking or p
+        local yaw=site and site.yaw or 0
+        local nx,nz=math.cos(yaw),math.sin(yaw)
+        local zx,zz=-math.sin(yaw),math.cos(yaw)
+        local segment={a={x=center.x-zx*4,z=center.z-zz*4,h=center.h or p.h,nx=nx,nz=nz},
+            b={x=center.x+zx*4,z=center.z+zz*4,h=center.h or p.h,nx=nx,nz=nz}}
         quad(segment,8.4,.02,layers.shoulder,{.41,.39,.30},1)
         quad(segment,8,.04,layers.asphalt,{.23,.25,.24},1)
     end
+    local sites=self.world.roads.sites and self.world.roads.sites.byId or {}
+    for id,site in pairs(sites) do
+        if self.world.roads.destinations[id] then
+            local a,b=site.threshold,site.parking
+            local dx,dz=b.x-a.x,b.z-a.z;local length=M.length(dx,dz)
+            if length>.1 then
+                local nx,nz=-dz/length,dx/length
+                local segment={a={x=a.x,z=a.z,h=a.h,nx=nx,nz=nz},
+                    b={x=b.x,z=b.z,h=b.h,nx=nx,nz=nz}}
+                quad(segment,3.4,.025,layers.approach,{.48,.46,.39},1)
+            end
+        end
+    end
     self.roadMeshes={}
-    for _,name in ipairs({'shoulder','asphalt','dirt'}) do
+    for _,name in ipairs({'shoulder','asphalt','dirt','approach'}) do
         if #layers[name]>0 then self.roadMeshes[#self.roadMeshes+1]=love.graphics.newMesh(Ground.FORMAT,layers[name],'triangles','static') end
     end
     local markings,stats=require('src.commute.road_markings').build(self.world)

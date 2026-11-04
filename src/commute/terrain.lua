@@ -11,10 +11,13 @@ function Terrain.new(options)
     local size=options.size or Terrain.SIZE
     local config={size=size,center=size/2,radius=201}
     local v2=options.mode=='inland-town-v2'
-    local plan=v2 and require('src.commute.town_terrain_v2').new(options,config) or Plan.newTown(seed,config)
+    local v3=options.mode=='island-town-v3'
+    local plan=v3 and require('src.commute.town_terrain_v3').new(options,config)
+        or v2 and require('src.commute.town_terrain_v2').new(options,config)
+        or Plan.newTown(seed,config)
     -- Saved towns pin the sampled relief instead of re-rolling it on load.
     -- The immutable inland-town-v1 analytical river/detail code is retained.
-    if options.heights and not v2 then
+    if options.heights and not v2 and not v3 then
         local cells=size/Config.COARSE;local index=0
         assert(#options.heights==(cells+1)^2,'Invalid saved town terrain')
         for x=0,cells do for z=0,cells do

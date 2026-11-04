@@ -23,7 +23,7 @@ function Test.run(check)
     check('commute_warehouse_fast_vehicle_cannot_tunnel_into_wall',bike.z>site.maxZ and bike.speed==0)
     local isolated=Sites.create({placements={{id='terrace',design='warehouse',origin={x=0,z=0,h=6}}}})
     local last=isolated:grade(0,6,0);local maxSlope=0;local monotonic=true
-    for step=1,40 do
+    for step=1,Sites.GRADE_APRON*4 do
         local h=isolated:grade(0,6+step*.25,0)
         monotonic=monotonic and h<=last+1e-9;maxSlope=math.max(maxSlope,math.abs(h-last)/.25);last=h
     end
@@ -34,11 +34,6 @@ function Test.run(check)
         if not segment.bridge then
             local x,z=(segment.a.x+segment.b.x)*.5,(segment.a.z+segment.b.z)*.5
             local _,_,expected=townWorld.roads:sample(x,z)
-            local pad,d=townWorld.roads:padAt(x,z)
-            if pad then
-                local b=math.max(0,math.min(1,(d-5)/4));b=b*b*(3-2*b)
-                expected=pad.h+(expected-pad.h)*b
-            end
             roadHeights=roadHeights and math.abs(townWorld:height(x,z)-expected)<1e-6
         end
     end
