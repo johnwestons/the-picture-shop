@@ -2,21 +2,23 @@
 local B={}
 B.actions={
  {id='accelerate',label='Accelerate / lift the nose in air',held=true,key='w',pad='axis:triggerright+',touch='touch1'},
- {id='brake',label='Brake / level the bike in air',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
+ {id='brake',label='Brake / reverse; level in air',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
  {id='left',label='Steer left',held=true,key='a',pad='axis:leftx-'},
  {id='right',label='Steer right',held=true,key='d',pad='axis:leftx+'},
  {id='handbrake',label='Additional brake',held=true,key='space',pad='b'},
  {id='boost',label='Boost',held=true,key='lshift',pad='rightshoulder',touch='touch3'},
  {id='interact',label='Mount / dismount / door',key='e',pad='a',touch='touch4',main='e',preview='e'},
  {id='ignition',label='Engine on / off',key='i',pad='back',main='i',preview='i'},
+ {id='horn',label='Horn (hold)',held=true,key='k',main='k',preview='k'},
  {id='reverse',label='Forward / reverse',key='b',pad='leftstick',main='b',preview='b'},
  {id='headlight',label='Headlight',key='h',pad='y',touch='touch5',main='h',preview='h'},
+ {id='beam',label='High / low beam',key='n',main='n',preview='n'},
  {id='view',label='Camera view',key='p',pad='rightstick',touch='touch6',main='p',preview='p'},
  {id='transmission',label='Auto / manual gearbox',key='v',pad='dpup',main='v',preview='v'},
  {id='shiftDown',label='Shift down',key='z',pad='dpleft',main='z',preview='z'},
  {id='shiftUp',label='Shift up',key='x',pad='dpright',main='x',preview='x'},
  {id='gear',label='Put on / remove riding gear',key='g',pad='x',main='g',preview='g'},
- {id='rescue',label='Recover the motorcycle to the last safe spot',key='u',main='u'},
+ {id='rescue',label='Move the motorcycle to open ground',key='u',main='u',preview='u'},
  {id='recenter',label='Center camera',key='c',pad='dpdown',main='c',preview='c'},
  {id='orbitLeft',label='Rotate / look left',held=true,key='q',pad='axis:rightx-'},
  {id='orbitRight',label='Rotate / look right',held=true,key='t',pad='axis:rightx+'},
@@ -37,7 +39,7 @@ local pads={a=true,b=true,x=true,y=true,back=true,leftstick=true,rightstick=true
  dpup=true,dpdown=true,dpleft=true,dpright=true}
 local axes={leftx=true,lefty=true,rightx=true,righty=true,triggerleft=true,triggerright=true}
 local modifiers={lalt=true,ralt=true,lctrl=true,rctrl=true,lshift=true,rshift=true}
-local reserved={escape=true,f10=true,delete=true,unknown=true}
+local reserved={escape=true,f8=true,f9=true,f10=true,delete=true,unknown=true}
 local namedKeys={space=true,tab=true,['return']=true,backspace=true,up=true,down=true,left=true,right=true,
  home=true,['end']=true,pageup=true,pagedown=true,insert=true,lshift=true,rshift=true,lctrl=true,rctrl=true,
  lalt=true,ralt=true,lgui=true,rgui=true,capslock=true,numlock=true,scrolllock=true,pause=true,
@@ -64,14 +66,18 @@ function B.valid(device,id,token)
     elseif device=='touch' then return token:match('^touch[1-6]$')~=nil end
     return false
 end
+B.TOUCH_LEFT,B.TOUCH_RIGHT=.87,.96
+local actionRows={.76,.62,.62,.76,.90,.90}
 function B.defaults()
     local p={keyboard={},mouse={},controller={},touch={},layout={stick={x=.10,y=.80},cameraStick={x=.90,y=.34}},
-        layoutVersion=2,showTouch=false,outsideCamera='fixed'}
+        layoutVersion=4,showTouch=false,outsideCamera='fixed'}
     for _,a in ipairs(B.actions) do
         p.keyboard[a.id]=a.key or '';p.mouse[a.id]=a.mouse or ''
         p.controller[a.id]=a.pad or '';p.touch[a.id]=a.touch or ''
     end
-    for i=1,6 do p.layout['touch'..i]={x=i%2==1 and .84 or .94,y=.62+math.floor((i-1)/2)*.14} end
+    for i,y in ipairs(actionRows) do
+        p.layout['touch'..i]={x=i%2==1 and B.TOUCH_LEFT or B.TOUCH_RIGHT,y=y}
+    end
     return p
 end
 function B.normalize(value)
@@ -86,25 +92,31 @@ function B.normalize(value)
         end
     end
     p.showTouch=value.showTouch==true
-    p.outsideCamera=value.outsideCamera=='follow' and 'follow' or 'fixed'
+    if value.outsideCamera=='follow' or value.outsideCamera=='shoulder' then p.outsideCamera=value.outsideCamera end
     local oldLayout=tonumber(value.layoutVersion) or 1
     for id,point in pairs(p.layout) do
         local sourceId=id=='cameraStick' and 'cameraStick' or id
         local v=type(value.layout)=='table' and value.layout[sourceId]
-        if oldLayout<2 and type(v)=='table' then
+        if oldLayout<4 and type(v)=='table' then
             local index=tonumber(sourceId:match('^touch(%d)$'))
             if index then
                 local oldX=index%2==1 and .84 or .94
-                local oldY=.56+math.floor((index-1)/2)*.16
-                if tonumber(v.x)==oldX and tonumber(v.y)==oldY then v=nil end
+                local row=math.floor((index-1)/2)
+                -- Some saved v3 layouts contain a mix of v1 and v2 stock positions.
+                local y=tonumber(v.y) or 0
+                local legacyRow=oldLayout~=2 and math.abs(y-(.56+row*.16))<1e-7
+                local previousRow=oldLayout>=2 and math.abs(y-(.62+row*.14))<1e-7
+                if math.abs((tonumber(v.x) or 0)-oldX)<1e-7 and (legacyRow or previousRow) then v=nil end
             end
         end
         if type(v)=='table' then
-            local margin=(id=='stick' or id=='cameraStick') and .10 or .06
-            for _,axis in ipairs({'x','y'}) do local n=tonumber(v[axis]);if n and n==n then point[axis]=math.max(margin,math.min(1-margin,n)) end end
+            for _,axis in ipairs({'x','y'}) do
+                local margin=(id=='stick' or id=='cameraStick') and .10 or (axis=='x' and .04 or .06)
+                local n=tonumber(v[axis]);if n and n==n then point[axis]=math.max(margin,math.min(1-margin,n)) end
+            end
         end
     end
-    p.layoutVersion=2
+    p.layoutVersion=4
     return p
 end
 function B.assign(p,device,id,token)
@@ -154,10 +166,37 @@ function B.value(p,id,touch)
     return result
 end
 local function wrapRadians(angle) return (angle+math.pi)%(math.pi*2)-math.pi end
-function B.drive(p,touch,camera,bike)
+function B.freeCameraTouch(mobile,camera)
+    return mobile and camera and not camera.firstPerson and (camera.outsideMode=='fixed' or camera.outsideMode=='shoulder')
+end
+
+local function steerToTouch(touch,camera,bike)
+    local x,y=touch.aimX,touch.aimY
+    local wx,wz=camera:screenGroundDirection(x,y,bike)
+    -- The stick points along the desired direction of travel in either gear.
+    -- Only the pedals or gear button can request a change of direction.
+    local backing=bike.reverse
+    local travelHeading=bike.heading+(backing and math.pi or 0)
+    local error=wrapRadians(math.atan2(wz,wx)-travelHeading)
+    local sign=backing and -1 or 1
+    if math.abs(error)>math.pi-.10 then
+        -- Keep a U-turn on one side when a thumb jitters across the antipode.
+        local turning=(bike.steering or 0)*sign
+        error=turning<-.05 and -math.abs(error) or math.abs(error)
+    end
+    return sign*math.max(-1,math.min(1,error/.62))
+end
+
+function B.drive(p,touch,camera,bike,mobile)
     local x=B.value(p,'right',touch)-B.value(p,'left',touch)
     local throttle=B.value(p,'accelerate',touch)
     local brake=math.max(B.value(p,'brake',touch),B.value(p,'handbrake',touch))
+    if mobile and touch then throttle=math.max(throttle,touch.gripGas or 0) end
+    local pedalDrive=brake>0 and brake or -throttle
+    if bike and touch and B.freeCameraTouch(mobile,camera) then
+        if (touch.aimX or 0)~=0 or (touch.aimY or 0)~=0 then x=steerToTouch(touch,camera,bike) end
+        return x,pedalDrive,B.value(p,'boost',touch)>.1
+    end
     local touchX,touchY=touch and touch.x or 0,touch and touch.y or 0
     local magnitude=math.sqrt(touchX*touchX+touchY*touchY)
     if magnitude>.001 then
@@ -167,18 +206,18 @@ function B.drive(p,touch,camera,bike)
             -- steering physics instead of teleporting its velocity.
             local worldX,worldZ=camera:screenVectorToWorld(touchX,touchY)
             local heading=math.atan2(worldZ,worldX)
-            local reverse=bike.reverse==true
+            local alignment=math.cos(wrapRadians(heading-(bike.heading or 0)))
+            local reverse=alignment<-.001
             local desiredHeading=heading+(reverse and math.pi or 0)
-            local error=wrapRadians(desiredHeading-(bike.heading or 0))*(reverse and -1 or 1)
+            local error=wrapRadians(desiredHeading-(bike.heading or 0))*(bike.reverse and -1 or 1)
             -- The outside-view stick points toward a destination. Ease off
             -- the throttle while the bike is still aimed elsewhere, and brake
-            -- when the requested direction is behind the bike. This gives the
-            -- steering physics room to turn without carrying full speed into
-            -- a wall or shoreline.
+            -- when the requested direction opposes travel, then back toward
+            -- that destination once stopped. The signed drive intent stays
+            -- stable after selecting reverse, rather than flipping each frame.
             x=math.max(-1,math.min(1,error/(math.pi*.5)))*magnitude*.78
-            local alignment=math.cos(error)
-            throttle=math.max(throttle,magnitude*math.max(0,alignment)^2)
-            brake=math.max(brake,magnitude*math.max(0,-alignment))
+            if reverse then brake=math.max(brake,magnitude*alignment*alignment)
+            else throttle=math.max(throttle,magnitude*math.max(0,alignment)^2) end
         else
             if camera and camera.firstPerson then touchX=touchX*.78 end
             if math.abs(touchX)>math.abs(x) then x=touchX end
@@ -186,7 +225,7 @@ function B.drive(p,touch,camera,bike)
             brake=math.max(brake,math.max(0,touchY))
         end
     end
-    return x,brake>0 and brake or -throttle,B.value(p,'boost',touch)>.1
+    return x,mobile and pedalDrive or (brake>0 and brake or -throttle),B.value(p,'boost',touch)>.1
 end
 function B.camera(p,camera,dt,touch)
     if not camera then return end

@@ -6,6 +6,7 @@ local C=require('src.commute.runtime')
 local Test={}
 function Test.run(check)
     require('src.commute.tests.camera_preferences_test').run(check)
+    require('src.commute.tests.free_touch_test').run(check)
     local p=B.defaults()
     check('mapping_has_four_device_profiles',p.keyboard.accelerate=='w' and p.controller.accelerate=='axis:triggerright+' and p.mouse.orbit=='mouse3' and p.touch.accelerate=='touch1')
     local okay,message=B.assign(p,'keyboard','ignition','h')
@@ -23,7 +24,10 @@ function Test.run(check)
     local steer,drive=B.drive(B.defaults(),{x=0,y=1},freeCamera,directionalBike)
     check('free_camera_directional_input_turns_before_applying_full_throttle',steer>.7 and drive<0 and drive>-.05)
     steer,drive=B.drive(B.defaults(),{x=-1,y=0},freeCamera,directionalBike)
-    check('free_camera_opposite_direction_brakes_instead_of_powering_through_turn',steer<-.7 and drive==1)
+    check('free_camera_opposite_direction_requests_back_without_a_u_turn',steer==0 and drive==1)
+    directionalBike.reverse=true
+    steer,drive=B.drive(B.defaults(),{x=-1,y=0},freeCamera,directionalBike)
+    check('free_camera_back_input_stays_back_after_reverse_engages',steer==0 and drive==1)
     local rescueButton=false
     for _,button in ipairs(Touch.actionButtons(1280,880,B.defaults(),{mounted=true},{mobile=true})) do
         if button.action=='rescue' then rescueButton=button.label=='RESCUE' and button.enabled end

@@ -6,10 +6,11 @@ function Component.run(Context)
     function Context.finishCut(state)
         local cutter = Context.MachineFleet.installed(state, "polar_115", Context.machineId)
         local sharpness = cutter and cutter.variables.bladeSharpness or 100
+        local bladeGrade = cutter and cutter.maintenance.cutter.bladeGrade or "standard"
         local operatorSkill = Context.Machine.operatorSkill
         Context.Machine.operatorSkill = nil
         local succeeded, result = Context.PaperWork.applyCut(Context.Machine.paper,
-            Context.Machine.gauge, Context.Machine.programIndex, sharpness, operatorSkill)
+            Context.Machine.gauge, Context.Machine.programIndex, sharpness, operatorSkill, bladeGrade)
         if not succeeded then Context.enterBlocked(state, result, "loaded"); return false end
         Context.MachineFleet.recordUse(state, "polar_115", 1)
         if state and state.shopProgress then

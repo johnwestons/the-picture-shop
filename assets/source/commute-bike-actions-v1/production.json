@@ -1,0 +1,2804 @@
+{
+  "version": 1,
+  "approvedUpright": "assets/commute/bike/mounted-upright-64-v2.png",
+  "approvedUprightSha256": "e20a817500682b7124af1f904a3d5590df1eeaa8c36e65167ccad6c69890ab7b",
+  "frameCount": 64,
+  "frameSize": 320,
+  "anchor": [
+    160,
+    260
+  ],
+  "sourceLayout": "4 columns by4 rows; upper8 cells midpoint, lower8 cells full; same8 consecutive directions repeated",
+  "actions": {
+    "boost": {
+      "title": "acceleration response",
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "pose": "The rider responds to strong acceleration: hips stay on the SAME saddle, knees grip the tank, elbows bend and the upper torso inclines slightly FORWARD to brace against the pull. Mild stage has a small 5-degree torso inclination; full stage has a clear 12-degree forward torso inclination with helmet a little lower and forward. Both hands hold the SAME handlebars and both boots stay on their SAME pegs. No wheelie or moving wheels."
+    },
+    "brake": {
+      "title": "hard-braking brace",
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "pose": "The rider braces against HARD BRAKING: hips shift subtly BACK on the SAME saddle, knees grip the tank, arms straighten slightly but remain bent and hands stay on the SAME grips. Mild stage begins this brace; full stage has a clear rearward weight shift, torso more upright/back and shoulders behind their neutral position. Both boots remain on their SAME pegs. Do not confuse this with a forward acceleration tuck; no stoppie or lifted wheel."
+    },
+    "turnLeft": {
+      "title": "left cornering body lean",
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "pose": "The rider shifts weight and leans toward the PHYSICAL LEFT side of the bike, the rider own left, not viewer left. Mild stage: torso and helmet shift gently left with slight elbow asymmetry; full stage: torso and head clearly shift LEFT over the left side of the saddle and the left knee opens slightly for cornering. Hips stay seated, both hands stay on the same grips and both boots remain on pegs. Keep both wheel contact points and the chassis level in the image; runtime banks the entire rig continuously. No turning handlebars or changing yaw. Left lean is independent authored anatomy, never mirrored right lean."
+    },
+    "turnRight": {
+      "title": "right cornering body lean",
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "pose": "The rider shifts weight and leans toward the PHYSICAL RIGHT side of the bike, the rider own right, not viewer right. Mild stage: torso and helmet shift gently right with slight elbow asymmetry; full stage: torso and head clearly shift RIGHT over the right side of the saddle and the right knee opens slightly for cornering. Hips stay seated, both hands stay on the same grips and both boots remain on pegs. Keep both wheel contact points and the chassis level in the image; runtime banks the entire rig continuously. No turning handlebars or changing yaw. Right lean is independent authored anatomy, never mirrored left lean."
+    },
+    "aero": {
+      "title": "aerodynamic tuck",
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "pose": "The rider folds into an aerodynamic TUCK over the tank, while hips stay on the SAME saddle, knees grip the tank, hands hold their SAME handlebar grips and boots stay on their SAME pegs. Mild stage: torso inclines 15 degrees forward and helmet lowers; full stage: torso inclines 30 degrees forward and helmet is lower/forward, with elbows tucked in. This is a moderate plausible touring-bike tuck, not a racing crouch with head touching the tank. Motorcycle and wheel contact points remain unchanged."
+    },
+    "shift": {
+      "title": "left-foot gear-shift gesture",
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "pose": "The rider makes a subtle physical LEFT-FOOT gear-shift gesture. Upper body stays almost exactly in the approved upright seated riding posture, same hands on grips and right foot on its peg. Mild stage: left ankle prepares and the toe rises slightly toward the gear lever. Full stage: LEFT boot toe clearly lifts a small amount at the lever, left ankle flexes and left knee bends subtly while heel remains near the peg. The action is visible on the LEFT side views, naturally occluded on right-side views; do not swap the gesture to the right foot to make it visible. No whole-body leaning or changing bike geometry."
+    },
+    "impact": {
+      "title": "collision impact brace",
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "pose": "The rider briefly compresses FORWARD into an IMPACT BRACE: hips stay seated on the SAME saddle, knees grip the tank, shoulders hunch, elbows fold more sharply and helmet lowers toward the handlebar area. Mild stage: gentle start of compression. Full stage: clear compact protective crouch, forward and down a little more than the acceleration pose, while both hands stay on their same grips and both boots stay on the same pegs. No ejection, crash damage, extra limbs, wheel motion or deformation of the motorcycle."
+    }
+  },
+  "jobs": [
+    {
+      "id": "boost-00",
+      "action": "boost",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-00-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-00.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "1e57d8d6eeba406a1bc4acd43dcf44f7a2c327e487e25550051deb0aa4e17c03",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-01",
+      "action": "boost",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-01-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-01.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "bd2b1ccd988ccb5e269d950fc4b9ecc136d22d93e0558614c94b0b55be6abfb9",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-02",
+      "action": "boost",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-02-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-02.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "bef1f3cf494bfc32b5885e1cace1a12c5bf052cf66b662d3a27a5ff74ad5d574",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-03",
+      "action": "boost",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-03-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-03.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "b16ff3e1bce7f85165a8e44c7648b6a54ac035f6eb934c1a828ec4a4150bc454",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-04",
+      "action": "boost",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-04-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-04.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "b4481ebfa4f7467d92eb69056d657a6c45b23deed8c91a9bf51c7f17de915a48",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-05",
+      "action": "boost",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-05-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-05.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "ae2d7269422999b32aeb08a5a96224fd2a0bbdf3d3890e72cd94d700c0c27642",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-06",
+      "action": "boost",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-06-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-06.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "e7793d10fb9921b3e595a2844e25ce27aa4a7d360bbc825b0bc0a42faddee6d1",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "boost-07",
+      "action": "boost",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/boost-07-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "boostMid",
+        "boost"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/boost-07.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/boost-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "b98f6ce54472df4ea123f0ed273824f1e7477ab7d9fba198cfd8c0f3fc9ef7c7",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-00",
+      "action": "brake",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-00-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-00.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "fc4e874f191710a782d433a7d20d1fa346fb7cc3808a6beecbe78ef19723e181",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-01",
+      "action": "brake",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-01-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-01.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "0c4540b25bd5fc114a26ea1ef2ffdc1b1a47f83cfbb940950ed05f068139f87a",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-02",
+      "action": "brake",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-02-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-02.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c8ad85f083dd30381140c8fa4ad385a0baf946a4709b4db71f7f916c6c053726",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-03",
+      "action": "brake",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-03-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-03.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "fd9d740e22d7bbf1c9331308505b84d3deee396130f3ecc6f3c77478e6f1949e",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-04",
+      "action": "brake",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-04-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-04.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "bc40eb7aae23423ca9fdcf5db40bff68994e425f798873ad9760b93b739be2d7",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-05",
+      "action": "brake",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-05-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-05.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "669a93271604d158bdeed89bb2f22f5a420cf67a5f980add17cb5d94727bc57f",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-06",
+      "action": "brake",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-06-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-06.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "574e53ae4a3a28e9a41b657f2804e56bee71b86e36c586d4872747f12857f846",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "brake-07",
+      "action": "brake",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/brake-07-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "brakeMid",
+        "brake"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/brake-07.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/brake-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "f0beaceb42ee8a5ab6e40fccffc84d87c91abcfbf4eb84ab46e9bacfea8aad6a",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-00",
+      "action": "turnLeft",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-00-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-00-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-00-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c595da4b78f5110fcb9ec900859bcfbe1df19d9c8ab02b38437a7a5051450d51",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-01",
+      "action": "turnLeft",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-01-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-01-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-01-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "f3f9cce36e40e884c13587cfd7a39367edd221b84e1239e278e7fa34485a1af2",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-02",
+      "action": "turnLeft",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-02-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-02-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-02-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "305b6c0c7bf8b3c5dbfad90edcd1107472364fd59baad118d1453690559d7cad",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-03",
+      "action": "turnLeft",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-03-lateral-v3-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-03-lateral-v3.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-03-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "1391ef49cb3dfccd1a36801f93fa82a246640925e08b560e4153c80e795ad731",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-04",
+      "action": "turnLeft",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-04-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-04-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-04-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "46b4485e106ff0ad5d29e903a287c4ac1100b5058529eba05d5d0fe1e686b0ab",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-05",
+      "action": "turnLeft",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-05-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-05-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-05-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "b5a0c1bd7594f623de15cfc3d3f9c723b0116f98ec7c4c3fef878622580df763",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-06",
+      "action": "turnLeft",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-06-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-06-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-06-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "66cb0c6f4d7e89b67b91f163c5056b523b255f01578e3d69411a305023266b59",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnLeft-07",
+      "action": "turnLeft",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnLeft-07-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnLeftMid",
+        "turnLeft"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnLeft-07-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnLeft-07-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "13fb736c632990de1f38402d1f4f2c313efc3490900d7f59cd433d4830e690b8",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-00",
+      "action": "turnRight",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-00-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-00-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-00-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "69ea549f1f652f4fd3fcb52764c77736f370a0aef53ac23dcf68cb541695eda1",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-01",
+      "action": "turnRight",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-01-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-01-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-01-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "146ff074d70ee5898464040b9d37be293888ff1a33e1b8f4ffe1feb710664f1f",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-02",
+      "action": "turnRight",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-02-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-02-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-02-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "6f09b866470ebd4ed290d58d5092154c8a96902fdf18624c47113f5c12e2a8b0",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-03",
+      "action": "turnRight",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-03-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-03-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-03-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "aa63f722c7beffdf6ba9f428631cd083f403c1297018e369a1c2049369a1d2e3",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-04",
+      "action": "turnRight",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-04-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-04-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-04-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "fd9fe642884fe5b5317fd9fbe4f18dbf333e601268e42e364823b3798d53439f",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-05",
+      "action": "turnRight",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-05-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-05-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-05-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "38d9ff77a498d057ac4003253db36180edb23b623e39c4122733c8c625c30e66",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-06",
+      "action": "turnRight",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-06-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-06-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-06-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "91f1b17b2f6dbf85b6a632a8a549af2b51a24e921aca95b4f557bb0b45bfd4db",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "turnRight-07",
+      "action": "turnRight",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/turnRight-07-lateral-v2-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "turnRightMid",
+        "turnRight"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/turnRight-07-lateral-v2.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "previousSource": "assets/source/commute-bike-actions-v1/turnRight-07-source.png",
+      "refinement": "Explicit camera projection of physical lateral lean, with invariant fore/aft rider position.",
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "93f66d4eb6382082bffdbc5cd6a463b6f76dcc0fae17b22ffd61623418e2731e",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-00",
+      "action": "aero",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-00-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-00.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "5cecd43cbc2689ab1a65815d3639f074103dea1628836437f7c897f728b9283e",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-01",
+      "action": "aero",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-01-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-01.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "a6dea5b0c8aad12ad9d6cbf44c7719e71e75595e4bbf8a8008a6de06e12bc880",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-02",
+      "action": "aero",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-02-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-02.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "a5cbcbe4bb0ef77d8f4fc7e74fc96610a5a6a9f3f6a3d858589868ba17b52747",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-03",
+      "action": "aero",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-03-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-03.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "75509720463c344296b3a0ab4ee25482af28f5bac16529d156e4f346780aa0d6",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-04",
+      "action": "aero",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-04-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-04.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "f76c042504c22739c417035f378f7622b0947a1d8b9ca85ca7c4544891b9b68c",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-05",
+      "action": "aero",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-05-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-05.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "2b5d145b5cbfec5a54f18395b2913cd8a6e42c5fcefeadbfd6a033c94fe451fa",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-06",
+      "action": "aero",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-06-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-06.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c8b2d03b90f48b2a9bbb8a75991eac2a316bd8c6f78b69cdad4d358a8696b5d8",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "aero-07",
+      "action": "aero",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/aero-07-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "aeroMid",
+        "aero"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/aero-07.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/aero-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "1480d58cb2710bafc39336fdf3f8eddb1bb0821e1e3bb040cda4659aa3b31db7",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-00",
+      "action": "shift",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-00-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-00.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c055f7b7ee85e43984755ad046246b72fa504ae6018cd13b7f4a3801cd13b2ea",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-01",
+      "action": "shift",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-01-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-01.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "cc55986d61389f952bfc90292a10ee9a75c16cfd77ced8dc841c545f25f34e9e",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-02",
+      "action": "shift",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-02-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-02.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "a4d604d5448e0038c6be665751c7dca41af7152aeab65d9900af41428a8c0c28",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-03",
+      "action": "shift",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-03-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-03.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "f39d6650d9994708ec45be072b66fe716060b178eadeeda9f751792156e0e604",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-04",
+      "action": "shift",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-04-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-04.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c820b3b5d062f0a6e3177a2343ba8804aa2ef668dffe3ea9c9f2b6ce7c077c5c",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-05",
+      "action": "shift",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-05-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-05.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "735550d4bf4546f577a87992357c9272e5769bf0a9564bfad6f9a6e65be82d16",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-06",
+      "action": "shift",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-06-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-06.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "098ed40226ab700bc8e8b4569fb0f45152f8a3aa9d42da4c258123f178758d4a",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "shift-07",
+      "action": "shift",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/shift-07-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "shiftMid",
+        "shift"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/shift-07.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/shift-06-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "648a7d1f161506695bf4b942f133e51e275fd07c4341183359bd331ad27ff389",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-00",
+      "action": "impact",
+      "block": 0,
+      "template": "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-00-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-00.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-00-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "2039878ab6b46958c6acabd4730f08cf2966bc136d4dc279c77954a1dd270171",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-01",
+      "action": "impact",
+      "block": 1,
+      "template": "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-01-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-01.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-01-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "e8ab7e980770dea3bd697a6e601c040a4f468add7eb310504ecb34b844ef96f3",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-02",
+      "action": "impact",
+      "block": 2,
+      "template": "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-02-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "status": "runtime_verified",
+      "pilot": true,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-02.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-02-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c8b220cb4eab396688034b6900c279f8e0c77d38decc125fa71af349a57ea1c1",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-03",
+      "action": "impact",
+      "block": 3,
+      "template": "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-03-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-03.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-03-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "c624d96bd49333a1fdf41f10732c3c6a92224ffa4854df34c78014a468ed15d1",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-04",
+      "action": "impact",
+      "block": 4,
+      "template": "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-04-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-04.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-04-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "3d186eb0de3ac86442c2a3fe6e6010c92176f21172902d0341f2479d4de592b7",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-05",
+      "action": "impact",
+      "block": 5,
+      "template": "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-05-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-05.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-05-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "6ef172b2b429e981aee6117263b7439ff9bf15d0a0b73780db927d41de820760",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-06",
+      "action": "impact",
+      "block": 6,
+      "template": "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-06-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-06.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-06-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "9214c5eb68bb749c8a7800684daa9086c75114c61cb8a2fbe7a07ccd9d447396",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    },
+    {
+      "id": "impact-07",
+      "action": "impact",
+      "block": 7,
+      "template": "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+      "source": "assets/source/commute-bike-actions-v1/impact-07-source.png",
+      "columns": 4,
+      "rows": 4,
+      "states": [
+        "impactMid",
+        "impact"
+      ],
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ],
+      "status": "runtime_verified",
+      "pilot": false,
+      "promptPath": "assets/source/commute-bike-actions-v1/impact-07.prompt.txt",
+      "references": [
+        "assets/source/commute-bike-actions-v1/views-07-paired-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-actions-v1/impact-02-source.png"
+      ],
+      "generationStatus": "generated",
+      "validation": {
+        "sourceSha256": "4fc1b94615812acb3a0956377c0a391f4155db6eb908eb00bc61a050f3697891",
+        "authoredCells": 16,
+        "verifiedViewsOneBased": [
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64
+        ],
+        "sourceSelection": "assets/source/commute-bike-actions-v1/selected-sources.json",
+        "nativeCoverage": "output/bike-actions-64-review/native-draw-coverage.json"
+      }
+    }
+  ],
+  "validation": {
+    "date": "2026-11-03",
+    "status": "runtime_verified",
+    "assetAcceptance": "output/bike-actions-64-review/asset-acceptance.json",
+    "approvedUprightUnchanged": true,
+    "nativeChecksPassed": 460,
+    "desktopChecksPassed": 99,
+    "simulatedMobileChecksPassed": 99,
+    "actualDrawSamplesPerApplicationRun": 1920,
+    "peakActionPages": 12,
+    "residentArtBytes": 111411200,
+    "fullSuite": {
+      "status": "failed",
+      "check": "performance_machine_screen_reuses_textures_after_options",
+      "report": "output/bike-actions-64-review/full-smoke.rpt",
+      "independentlyReproducedWithoutMotorcycleCode": true,
+      "cutterInactiveBytes": 40367488,
+      "inactiveCacheBudgetBytes": 33554432
+    },
+    "artReview": "All fourteen matched contact sheets visually reviewed; runtime verification does not imply user approval.",
+    "nativeFxChecksPassed": 49,
+    "broaderCommuteChecksPassed": 1195,
+    "previousActionOnlyApplicationChecks": {
+      "desktop": 332,
+      "simulatedMobile": 332,
+      "actualDrawSamplesPerRun": 1920
+    },
+    "finalApplicationStatus": "passed_motorcycle_effects_focus_after_stronger_effects; native trail scene and density tests passed separately",
+    "luaGuardStatus": "passed_921_files_11757_functions",
+    "previousLuaCompiledFiles": 911,
+    "previousLuaCompiledFunctions": 11671,
+    "proceduralMotionReview": "output/bike-motion-fx-review/tire-motion-acceptance.json"
+  }
+}

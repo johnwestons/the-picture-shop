@@ -1,5 +1,197 @@
 # Test layout
 
+## Small-tree motorcycle collisions
+
+Tree collision now uses species, visual variant, growth stage and rendered
+scale. Young stems are thinner than adult trunks; understory/open variants
+also use narrower profiles. Trunks with a world-space radius below 0.14 m
+are passable scenery. Small scaled mature trees therefore do not leave solid
+walls, while visibly large variants and thick mature trunks still block.
+Rock collision shapes are unchanged.
+
+The `vegetation-collision` smoke focus passes 75 checks, including actual
+motorcycle traversal through small trees and slender variants without speed
+loss, damage or ejection, and a collision with a thick oak on the same route.
+It also checks all five young tree species, growth across cached days, large
+variants, rocks, airborne clearance, overlap recovery and collision damage.
+Source-art comparisons and reports are under `output/tree-collision-review/`.
+
+## Motorcycle direction rendering and jump-camera landing look
+
+Brake/back input now brakes to a complete stop and then backs up automatically;
+forward input brakes reversing motion and then drives ahead. This uses the same
+authoritative driving axis for remapped keyboard/controller inputs and Android
+buttons/sticks. Grounded direction changes require zero horizontal speed;
+airborne back input still levels the bike. The condition gauge sits below the
+left-side ride messages, clear of Options, Exit, camera and map buttons.
+`auto_reverse_test.lua` covers stop/reversal, analog strength, frame rates and
+all three camera modes; `auto_reverse_runtime_test.lua` exercises actual app
+updates with keyboard state and touch press/move/release events. Native HUD
+captures show the gauge at 63% condition on desktop and simulated mobile.
+
+Earlier November 3, 2026 upright-only checkpoint: fixed third person used an upright 64-view turntable during
+steady riding at every speed and during banked turns. It selects exact nominal
+5.625-degree camera-relative sectors. All 64 sprites have now been regenerated
+at higher source resolution, using the accepted views as exact cell templates.
+One uniform scale/anchor contract replaces the previous interleaved generations.
+The generated artwork's physical angles
+are visually approximate; this is not a claim of measured 3D angular accuracy.
+At that checkpoint, follow retained its 16-view rear/lean/tuck art, and brief
+boost, shift and impact events retained 16-view midpoint/target poses. The
+mounted-action rollout below supersedes those limits. Every bike draw
+selects one opaque pose and one direction; heading and pose alpha crossfades
+have both been removed.
+
+The original renderer could reach all 16 cells. Uneven intermediate artwork and
+overlaid transparent directions made heading changes harder to read. The old
+native review also used a 45-degree step with a 16-entry direction list, repeating
+eight physical headings, and its 660-pixel canvas clipped the lower two rows.
+`tools/commute_lab/bike_review.lua` now uses 22.5-degree steps and shows all rows.
+
+The upright-only checkpoint used `tools/commute_lab/review_bike_turning.ps1`
+for 320 native checks, a 64-view production draw sheet and 128 sequential native
+turn frames. Its `-Runtime` and `-Runtime -Mobile` runs exercised the real
+application's input, camera, preference persistence and draw paths, passing
+241 checks each. Each wrote
+`actual-draw-coverage.json`, proving every original 16-view and new 64-view cell
+was drawn once with alpha 1, through `App.draw`. Its full isolated run with
+`-Runtime -Full` passed 10,056 checks. The LuaJIT compiler guard passed 906 files
+and 11,611 functions. Evidence is under `output/bike-turning-quality-review/`.
+The native comparison shows previous and regenerated 64-view sets over the same
+revolution. `size-and-transition-audit.json` records adjacent helmet-width
+changes averaging 0.9375 px instead of 1.875 px, with the worst step reduced
+from 5 px to 3 px, including the wrap transition. Mean silhouette change falls
+from 0.10388 to 0.08609 and its 95th percentile from 0.18884 to 0.15438.
+These are image comparison metrics, not input-latency or device-frame-rate
+measurements. Packaged-pixel regression checks guard all 64 distinct newly
+authored cells, helmet height, scale and adjacent size changes. The 3-degree
+steering-angle test still selects the finer sector between old 32-view angles.
+
+The jump camera predicts touchdown along actual horizontal and vertical travel,
+sampling support surfaces including bridge decks. First person eases its gaze
+toward that ground while retaining physical bike pitch and cockpit attachment.
+Automatic head movement is limited to 45 degrees; manual look fades the assist.
+It settles after touchdown. Outside cameras lower their focus slightly to keep
+the landing ground visible. Tests cover a real gravity-driven jump, ascent/apex,
+support surfaces, frame rates, manual look, network telemetry and recovery.
+
+The generated sources, exact built-in ImageGen prompts, immutable references
+and generation history are in `assets/source/commute-bike-turning-v3/`; the
+runtime asset is `assets/commute/bike/mounted-upright-64-v2.png`. The preceding
+64-view asset remains the before/after baseline. Rebuild staging and review
+strips with `tools/commute_lab/compile_bike_turning_quality.py`, then native
+comparisons with `tools/commute_lab/compare_bike_turning_quality.py`. The bundled walking auditor
+finds no image issues or warnings; its two remaining schema messages concern
+missing walking direction/gait declarations, which do not apply to vehicle yaw
+views. These checks used native desktop LÖVE and simulated mobile controls;
+no phone installation was performed.
+
+Current November 3, 2026 mounted-action rollout: acceleration, hard braking,
+physical left/right lean, aerodynamic tuck, left-foot shift and impact brace
+each have 64 newly authored midpoint and full-pose views. The 56 selected
+source sheets contain 896 action cells; the accepted upright 64-view asset and
+its SHA-256 are unchanged. Fixed, follow and perspective other-rider billboards
+now use 64 directions for every mounted pose. The parked bike remains 16-view.
+All camera modes select exact nominal 5.625-degree sectors, one opaque pose
+and one unmirrored direction; generated physical yaw angles remain approximate.
+Ordinary acceleration and hard braking use smoothed physical riding feedback
+and share that feedback in trip snapshots. Follow keeps its smaller continuous
+bank limit.
+
+The current native review, `tools/commute_lab/review_bike_actions.ps1`, passes
+460 checks and captures all 960 mounted pose/direction combinations through the
+production renderer. This includes brake-priority release and four-rider cache
+reuse, plus the tire and particle unit checks. Final desktop and simulated
+mobile effects checks each pass 99 checks with `-Runtime -Focus motorcycle-effects`
+(add `-Mobile` for touch mode). Reports are `runtime-motorcycle-effects-smoke.rpt`
+and `runtime-motorcycle-effects-mobile-smoke.rpt`. Native scenes verify trail
+dust separately because the legacy application test town has no dirt paths. The earlier
+action-only runs passed 332 checks each and recorded 1,920 successful
+`App.draw` samples per run: 15 mounted poses, 64 directions, fixed and follow,
+with one bike draw at alpha 1. The broader `-Runtime -Focus commute` run now
+passes 1,195 checks, including real home/work routes, bridges and destination
+entry. Its test driver releases back/brake in the arrival zone so the new
+automatic reverse does not drive it away from the destination. These are
+native desktop and simulated mobile checks, not an installed phone build.
+
+The current full isolated run (`-Runtime -Full`) stops at
+`performance_machine_screen_reuses_textures_after_options` in the separate
+cutter-screen texture-cache check. An isolated probe reproduces the cause
+without loading motorcycle code: the current cutter pack parks 40,367,488
+bytes (38.5 MiB) in its 32 MiB inactive cache and evicts the original clamp
+texture. It is not a passing full-suite result. The failure report is
+`output/bike-actions-64-review/full-smoke.rpt`.
+
+Vehicle-specific asset acceptance verifies all 896 selected authored cells,
+64 unique cells in every action state, current source hashes, clipping margins,
+and adjacent upper-rig-envelope movement of at most 3 pixels, including wrap.
+All 14 action contact sheets were visually reviewed for scale, articulation,
+physical turn side and tire placement. The walking auditor reports two
+inapplicable schema errors (`missing_directions`, `missing_gait`) and 20
+whole-strip range warnings (14 baseline, four centre, two top-bound). Those
+warnings compare a full yaw revolution as though it were a fixed-direction
+walking cycle; its report contains no alpha, clipping or detached-component
+findings. In a deep tuck the upper envelope can be shoulder/back, so envelope
+width is a review diagnostic, not a helmet-diameter measurement.
+
+Multiplayer observer-facing review: first-person rider billboards select their
+view from each rider's physical heading relative to the actual eye-to-rider
+bearing, including interpolated positions and off-center riders. Head look
+changes framing, not the physical side visible from an unchanged eye position.
+Fixed/follow cameras retain their parallel projection direction. Camera choices
+stay local; changing either participant's view does not change replicated rider
+heading, pose, paint or tire distance. Explicit local-player tags hide copied
+local actor objects in first person, including the on-foot entry.
+
+Run `tools/commute_lab/review_bike_multiplayer.ps1` (optionally `-Mobile`) for
+two simulated observers, real network-codec snapshot round trips, all 64 views,
+all nine independent camera-mode pairs and all 15 mounted poses. It renders
+through the production perspective view and writes `observer-views.png` and
+`draw-coverage.json` under `output/bike-multiplayer-review/`. This is a bounded
+native rendering/snapshot review; it does not claim a live LAN-device test.
+
+Runtime pages are in `assets/commute/bike/actions-64/`: four 1280-square pages
+per state with unchanged 320-pixel cells and protected paint-region bounds.
+The maximum of 12 resident action pages plus upright and parked textures uses
+111,411,200 bytes (106.25 MiB), below the previous 117,964,800-byte (112.5 MiB)
+art budget. This is a texture-memory bound, not a frame-rate claim.
+
+Exact prompts, selected source hashes and immutable generation records are in
+`assets/source/commute-bike-actions-v1/`. Rebuild in order with
+`tools/commute_lab/compile_bike_actions.py`,
+`tools/commute_lab/register_bike_action_profiles.py`, visual review of the
+matched contact sheets, then `tools/commute_lab/publish_bike_actions.py --publish`.
+The selected lean revisions explicitly project physical left/right for each
+view; the rejected translucent left-lean study remains outside selection.
+Review evidence is under `output/bike-actions-64-review/`, including
+`asset-acceptance.json`, `native-draw-coverage.json`, and
+`native-actions-64.gif`, assembled from native draw captures by
+`tools/commute_lab/preview_bike_actions.py`.
+
+Procedural tire motion uses resolved travel distance and speed, confined to
+dark rubber in each mounted cell's lower wheel regions. It stops with the bike;
+parked sprites and stopped pixels stay unchanged. Rebuild the region metadata
+with `tools/commute_lab/compile_bike_wheel_regions.py` after publishing art;
+the builder fits geometry without editing sprite pixels. The shared material
+path preserves bike paint, sprite alpha and perspective depth/fog.
+
+Local particles add stronger trail dust every 0.32 m, with lower emission on
+paved roads, and exhaust from the physical right rear pipe. Dust requires
+ground contact and actual movement; idling emits exhaust only, and engine-off
+idling emits neither. Trail dust strength is 0.62 with a 1.25–1.75 s lifetime;
+exhaust emits 6–14 puffs/s with strength 0.40–0.50 according to throttle. The
+pipe sits 0.83 m above the bike support height; outside projection matches the
+sprite's 48/22 vertical scale. The system caps 192 particles and eight emitters,
+keeps no save fields and does not consume the global random generator.
+
+`tools/commute_lab/review_bike_motion_fx.ps1` passes 49 checks. Its 120 native
+tire samples cover all 15 poses and eight angle blocks, checking exact stopped
+pixels, distance-driven changes confined to lower wheel regions, and unchanged
+alpha. Particle captures compare the same motion on trail and paved surfaces,
+engine-off stopping and idling. Evidence is in `output/bike-motion-fx-review/`,
+including `particles-preview.png`, `bike-motion-fx.gif`,
+`tire-motion-closeup.gif` and `tire-motion-acceptance.json`.
+
 ## Android workshop, ride and apartment smoke
 
 Use `tools/android_town_journey.py` with the installed tester APK in landscape.
@@ -584,6 +776,8 @@ failure/retry checks alongside employee, machine, save, and multiplayer suites.
 
 Run `RUN_SMOKE_TEST.bat` for domain, integration, audit-coverage, screen-pack transitions, and three-frame render checks. `tools/check_weekend_playthrough.bat` runs a focused Friday-to-Monday apartment smoke test in a separate disposable save identity. It uses the travel and home controls to eat, drink, bathe and sleep across Saturday and Sunday, then returns through the Monday travel panel. Its report and apartment captures are written to `output/weekend-playthrough/`; pass `weekend-flow` to the batch file to run related suites with results in `output/weekend-flow/`. The full smoke suite also runs this playthrough. Set `PICTURE_SHOP_SMOKE_FOCUS=employee-shifts` to run the employee, schedule, and payroll suites, or `employee-schedule` to run only the schedule suite while diagnosing worker queues and shifts. Run `python tools/asset_doctor.py --report output/asset-audit.json` for full raster decoding, alpha, dimension, 2x2 press-atlas grid, and nonempty-cell checks.
 
+`PICTURE_SHOP_SMOKE_FOCUS=friday-closing` runs the Friday shutdown, inbound unloading, late customer pickup, employee exit, room shipping, truck authority, multiplayer session, travel, and save checks. Friday remains playable until the host chooses Go Home at the front entrance. The shutdown checklist requires employees to leave and every active truck and loading bay door to clear before travel begins.
+
 Before regenerating or releasing audio, run
 `python tools/generate_sfx.py --verify-only`. It validates all nine licensed
 source recordings against `assets/audio/source_manifest.json`; generation fails
@@ -677,3 +871,43 @@ filesystem adapter and fresh LÖVE identities, leaving real saves untouched.
 
 The broader run passed 3,521 checks before the existing stored-carton wrapping
 test failure described above (`output/critter-kombat-controls/domain4.rpt`).
+
+## Returning-client promotion email
+
+Set `PICTURE_SHOP_SMOKE_FOCUS=promotion-email` with a fresh disposable
+`PICTURE_SHOP_TEST_IDENTITY` to check the 10% offer composer, text input and
+send limit, delayed client replies, old silent offers, estimates, and save
+contracts. Add `PICTURE_SHOP_MOBILE=1` for simulated mobile input. A sent offer
+gets a reply after 12 shop hours; slower seasons reduce the chance that the
+reply includes a new job. `PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW=1` with
+`PICTURE_SHOP_SMOKE_SCREENSHOT=1` captures the discounted estimate layout.
+
+## Apartment and bike HUD, visibility and camera lock
+
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/review_scene_hud.ps1`
+and repeat with `-Mobile`. Each uses a fresh disposable LÖVE identity and writes
+native captures and its report to `output/scene-hud-review/desktop` or `mobile`.
+The November 4, 2026 desktop and simulated-mobile runs each pass 96 checks.
+Coverage includes live weekday/date/time, the 12/24-hour preference, Home and
+Shop balances, and layout at 640×480, 960×678 and 1280×880.
+
+The world HUD has Hide/Show HUD (F9) and riding has Lock Cam/Unlock (F8) in
+first person and fixed third person. HUD visibility persists in local settings;
+the camera lock is local session state. Tests use actual App callbacks to check
+touch restoration, hidden menu hit targets, active drag cancellation, one- and
+two-finger gestures, mouse orbit/pan, wheel zoom, keyboard recenter/zoom, polled
+look input, held throttle, steering, releases and remapped mouse bike actions.
+Follow mode remains automatic and excludes the lock button. Captures also check
+the physical first-person cockpit remains visible with the HUD hidden. Mobile
+input is simulated in desktop LÖVE; this does not constitute a physical-phone run.
+
+## Procedural commute grass
+
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools/commute_lab/review_grass.ps1`
+for placement, geometry, incremental streaming, resource limits, native wind/color
+pixels and generated-town camera captures. Use `-UnitOnly` to omit the town review.
+The November 4, 2026 review passes 64 checks; captures and timing evidence are in
+`output/grass-review`. The existing desktop and simulated-mobile App HUD/camera
+reviews also pass 96 checks each with grass integrated. See
+[commute_grass.md](commute_grass.md) for source provenance, placement rules,
+performance budgets and verification scope.

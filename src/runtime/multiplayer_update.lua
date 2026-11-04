@@ -63,6 +63,7 @@ function Component.install(Runtime)
             if payload.clamp ~= nil then arguments.clamp = payload.clamp end
             if payload.barrierClear ~= nil then arguments.barrierClear = payload.barrierClear end
             if payload.enabled ~= nil then arguments.enabled = payload.enabled end
+            if payload.bladeGrade ~= nil then arguments.bladeGrade = payload.bladeGrade end
             local result = Runtime.workshopAuthority:command(player, {
                 requestId = payload.commandId,
                 resourceId = payload.resourceId,

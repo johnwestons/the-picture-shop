@@ -18,7 +18,7 @@ local DOMAIN_SUITES = {
         for _,name in ipairs({'bike_damage','rider_crash','bike_pitch','bike_pitch_visual'}) do
             require('src.commute.tests.'..name..'_test').run(check)
         end
-        for _,name in ipairs({'town','bike_dynamics','bike_traction','bike_feedback','rider','rider_scale','vegetation','vegetation_collision','bike_upgrades','bike_paint','direction','mechanic_shop','mechanic_paint_shop','mechanic_preview','mechanic_interior','structure_geometry','bridge_geometry','terrain_mesh','terrain_renderer','touch_journey','outing'}) do
+        for _,name in ipairs({'town','bike_dynamics','bike_traction','bike_feedback','rider','rider_scale','vegetation','vegetation_collision','bike_upgrades','bike_paint','direction','mechanic_shop','mechanic_paint_shop','mechanic_preview','mechanic_interior','structure_geometry','bridge_geometry','terrain_mesh','terrain_renderer','grass_placement','grass_fields','touch_journey','outing'}) do
             require('src.commute.tests.'..name..'_test').run(check)
         end
     end},

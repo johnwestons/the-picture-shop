@@ -10,22 +10,32 @@ local NormalArt=require('src.commute.normal_art')
 local Residents=require('src.home_residents')
 local Flow=require('src.weekend_flow')
 local M=require('src.commute.vendor.mathx')
+local Bays=require('src.commute.parking_bays')
+local Service=require('src.commute.bike_service')
 local Trip={VERSION=1}
 local function destinations(world) return world and world.roads and world.roads.destinations or Roads.destinations end
 local function door(world,id)
     local sites=world and world.sites or require('src.commute.sites')
     return sites.byId[id].door
 end
+local function parkedInBay(world,id,bike)
+    local site=world and world.sites and world.sites.byId[id]
+    if site then return Bays.slotAt(site,bike.x,bike.z)~=nil end
+    local pad=destinations(world)[id]
+    return M.length(bike.x-pad.x,bike.z-pad.z)<=5
+end
 function Trip.parking(world,id,slot)
     local pad=destinations(world)[id]
     local site=world and world.sites and world.sites.byId[id]
     if not site then return pad end
-    local lateral=({0,-1.1,1.1,2.2})[slot or 1] or 0
+    slot=slot or 1
+    if slot<1 or slot>Bays.COUNT then return nil end
     local front=site.front
-    for _,forward in ipairs({0,1.2,-.6}) do
-        local x=pad.x+site.cos*lateral+front.x*forward
-        local z=pad.z+site.sin*lateral+front.z*forward
-        local px,pz=x+front.x*1.2,z+front.z*1.2
+    for _,forward in ipairs({Bays.BIKE_FORWARD,.25,-.65}) do
+        local x,z=Bays.center(site,slot,forward)
+        -- Leave the pedestrian on the building-side walkway, clear of the
+        -- parked motorcycle and the drive aisle.
+        local px,pz=x-front.x*1.45,z-front.z*1.45
         if Rider.clear(world,x,z,Bike.RADIUS) and Rider.clear(world,px,pz,Rider.RADIUS)
             and math.abs(world:supportHeight(x,z)-world:supportHeight(px,pz))<.45 then
             return {x=x,z=z,h=pad.h,heading=math.atan2(front.z,front.x),pedX=px,pedZ=pz}
@@ -68,8 +78,8 @@ function Trip.valid(t,home)
         if v then
             if v.pose=='crash' and (p.rider.gear.mounted or p.rider.gear.engine or p.rider.gear.outfit~='geared') then return false end
             if not RidingAnimation.valid(v.ridingAction,v.ridingActionTime) then return false end
-            for key,range in pairs({throttle={0,1},brake={0,1},slip={0,1},tireSlip={0,1},
-                lateralSpeed={-32,32},grade={-10,10},shiftTime={0,Bike.SHIFT_TIME}}) do
+            for key,range in pairs({throttle={0,1},brake={0,1},slip={0,1},tireSlip={0,1},accelerationPose={0,1},brakingPose={0,1},
+                lateralSpeed={-40,40},grade={-10,10},shiftTime={0,Bike.SHIFT_TIME}}) do
                 if v[key]~=nil and (not M.finite(v[key]) or v[key]<range[1] or v[key]>range[2]) then return false end
             end
             for key,range in pairs({steer={-1,1},lean={-1,1},boostPulse={0,Bike.BOOST_PULSE},
@@ -120,6 +130,7 @@ function Trip.start(state,players,token,world)
         rider.bike.transmission=resident.ridingTransmission or 'automatic'
         rider.bike.upgradeLevel=resident.ridingUpgradeLevel or 0
         rider.bike.paintId=resident.ridingPaintId or Paint.DEFAULT
+        rider.bike.service=Service.copy(resident.ridingService)
         rider.bike.damage=resident.ridingDamage or 0
         Rider.update(rider,{},0,world)
         t.participants[id]={slot=slot,arrived=false,rider=rider,appearance=NormalArt.appearance(player)}
@@ -135,6 +146,7 @@ function Trip.snapshot(t)
     for id,p in pairs(t.participants) do
         local pose,progress=Rider.pose(p.rider);local actor=Rider.actor(p.rider)
         local bike=p.rider.bike
+        local feedback=bike.ridingAnimation or {}
         local ridingAction,ridingActionTime=RidingAnimation.sample(bike)
         local visual=p.presentation or {pose=pose,progress=progress,speed=actor.speed or 0,distance=actor.distance or 0,
             throttle=bike.throttle,brake=bike.brake,slip=bike.slip,tireSlip=bike.tireSlip,lateralSpeed=bike.lateralSpeed,
@@ -142,7 +154,8 @@ function Trip.snapshot(t)
             boost=bike.boosting==true,boostPulse=bike.boostPulse,steer=bike.steering,
             impactPulse=bike.impactPulse,impactStrength=bike.impactStrength,
             h=bike.h,vy=bike.vy,pitch=bike.pitch,grounded=bike.grounded,suspension=bike.suspension,landingPulse=bike.landingPulse,
-            ridingAction=ridingAction,ridingActionTime=ridingActionTime}
+            ridingAction=ridingAction,ridingActionTime=ridingActionTime,
+            accelerationPose=feedback.accelerationWeight,brakingPose=feedback.brakingWeight}
         result.participants[id]={slot=p.slot,arrived=p.arrived,rider=Rider.snapshot(p.rider),
             appearance=NormalArt.appearance(p.appearance),
             presentation={pose=visual.pose,progress=visual.progress,speed=visual.speed,distance=visual.distance,
@@ -151,7 +164,8 @@ function Trip.snapshot(t)
                 lean=visual.lean,boost=visual.boost,boostPulse=visual.boostPulse,steer=visual.steer,
                 impactPulse=visual.impactPulse,impactStrength=visual.impactStrength,
                 h=visual.h,vy=visual.vy,pitch=visual.pitch,grounded=visual.grounded,suspension=visual.suspension,landingPulse=visual.landingPulse,
-                ridingAction=visual.ridingAction,ridingActionTime=visual.ridingActionTime}}
+                ridingAction=visual.ridingAction,ridingActionTime=visual.ridingActionTime,
+                accelerationPose=visual.accelerationPose,brakingPose=visual.brakingPose}}
     end
     return result
 end
@@ -195,10 +209,10 @@ function Trip.command(state,player,token,action,world)
         end
         return okay,message
     end
-    local r=part.rider;local anchor=destinations(world)[t.destination];local entrance=door(world,t.destination)
+    local r=part.rider;local entrance=door(world,t.destination)
     if r.ped.crash or not Gear.allowed(r.gear,'door') or r.ped.speed>.05 then return false,'Stop on foot at the destination door.' end
-    if M.length(r.bike.x-anchor.x,r.bike.z-anchor.z)>5 or r.bike.speed>.05 then
-        return false,'Park your motorcycle in the destination parking area first.'
+    if not parkedInBay(world,t.destination,r.bike) or r.bike.speed>.05 then
+        return false,'Park your motorcycle inside a marked space first.'
     end
     if M.length(r.ped.x-entrance.x,r.ped.z-entrance.z)>1.8 then return false,'Walk to the destination door.' end
     part.arrived=true;state.home.revision=state.home.revision+1;return true
@@ -209,6 +223,7 @@ function Trip.update(state,player,input,dt,world)
     if not part or part.arrived then return false end
     local changed=Rider.update(part.rider,input,dt,world)
     local resident=state.home.residents[Residents.key(player)]
+    resident.ridingService=part.rider.bike.service
     local damage=part.rider.bike.damage or 0
     if damage~=(resident.ridingDamage or 0) then
         resident.ridingDamage=damage
@@ -278,6 +293,7 @@ function Trip.rebind(state,player,connected,world)
         part.rider.bike.transmission=resident.ridingTransmission or 'automatic'
         part.rider.bike.upgradeLevel=resident.ridingUpgradeLevel or 0
         part.rider.bike.paintId=resident.ridingPaintId or Paint.DEFAULT
+        part.rider.bike.service=Service.copy(resident.ridingService)
         part.rider.bike.damage=resident.ridingDamage or 0
         Rider.update(part.rider,{},0,world);t.participants[id]=part
     else
@@ -289,12 +305,12 @@ end
 function Trip.cancel(state,host,token,world)
     if (tonumber(host.id) or 1)~=1 then return false,'The host chooses when to return inside.' end
     local owner,t=Trip.participant(state,host,token);if not owner then return false,t end
-    local anchor=destinations(world)[t.origin];local entrance=door(world,t.origin);local r=owner.rider
+    local entrance=door(world,t.origin);local r=owner.rider
     if not Gear.allowed(r.gear,'door') or r.ped.speed>.05
         or M.length(r.ped.x-entrance.x,r.ped.z-entrance.z)>1.8 then return false,'Walk to the origin door first.' end
     for _,part in pairs(t.participants) do
         if part.rider.ped.crash or part.rider.gear.mounted or part.rider.gear.transition
-            or M.length(part.rider.bike.x-anchor.x,part.rider.bike.z-anchor.z)>5 then
+            or not parkedInBay(world,t.origin,part.rider.bike) then
             return false,'Other riders need to return and dismount before going back inside.'
         end
     end

@@ -7,10 +7,10 @@ function Review.install()
     local world={height=function() return 0 end,supportHeight=function() return 0 end}
     local output=assert(os.getenv('PICTURE_SHOP_BIKE_REVIEW_OUTPUT'))
     function love.load()
-        love.window.setMode(1280,660,{vsync=0,highdpi=false})
+        love.window.setMode(1280,1280,{vsync=0,highdpi=false})
         art=BikeArt.new()
         camera=Camera.new({x=0,z=0},world)
-        camera.yaw=0;camera.zoom=Camera.ZOOM_DEFAULT
+        camera.yaw=0;camera.zoom=Camera.ZOOM_DEFAULT;camera.outsideMode='follow'
     end
     function love.draw()
         local g=love.graphics
@@ -26,7 +26,7 @@ function Review.install()
                 -- Only screen placement is overridden; heading selection, quad,
                 -- runtime scale and ground-contact draw origin remain real.
                 camera.screen=function() return sx,y+260 end
-                art:draw({x=0,z=0,h=0,heading=-math.pi/2+(i-1)*math.pi/4},camera,world,parked)
+                art:draw({x=0,z=0,h=0,heading=-math.pi/2+(i-1)*math.pi/8},camera,world,parked)
                 g.setColor(.83,.88,.81);g.print(parked and 'parked' or 'mounted',sx-27,y+274)
             end
         end

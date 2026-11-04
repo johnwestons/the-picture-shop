@@ -115,6 +115,7 @@ function Flow.depart(state,expectedRevision)
     local week=Flow.ensure(state)
     if expectedRevision~=state.home.revision then return false,"The household changed. Review departure again." end
     if week.phase~="ready" then return false,"Finish the shop shutdown checklist first." end
+    require("src.home_residents").fridayArrival(state)
     week.phase="home";week.transition=week.transition+1;state.home.visit=nil
     return changed(state,"Welcome home. The shop stays closed for the weekend.")
 end

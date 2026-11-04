@@ -112,6 +112,24 @@ function Component.install(Runtime)
             and Runtime.SHOP_CODEC_LIMITS or Runtime.REALTIME_CODEC_LIMITS
     end
 
+    local function wireEnvelope(normalized)
+        if normalized.type~="workshop_snapshot" then return normalized end
+        local resources={}
+        for index,record in ipairs(normalized.payload.resources) do
+            local tuple={record.resourceId,record.revision,record.occupied}
+            if record.ownerPlayerId~=nil then tuple[4]=record.ownerPlayerId end
+            resources[index]=Runtime.Codec.array(tuple)
+        end
+        return {version=normalized.version,type=normalized.type,payload={
+            sessionId=normalized.payload.sessionId,revision=normalized.payload.revision,
+            resources=Runtime.Codec.array(resources),wrapper=normalized.payload.wrapper,
+        }}
+    end
+
+    local function encodeCanonical(normalized)
+        return Runtime.Codec.encode(wireEnvelope(normalized),Runtime.limitsFor(normalized.type))
+    end
+
     function Runtime.Protocol.packetLimitFor(kindOrEnvelope)
         local kind = type(kindOrEnvelope) == "table" and kindOrEnvelope.type or kindOrEnvelope
         if type(kind) ~= "string" or not Runtime.PAYLOAD_NORMALIZERS[kind] then
@@ -132,7 +150,7 @@ function Component.install(Runtime)
     function Runtime.Protocol.validate(envelope)
         local normalized, validationError = Runtime.normalizeEnvelope(envelope)
         if not normalized then return Runtime.protocolError(validationError) end
-        local _, codecError = Runtime.Codec.encode(normalized, Runtime.limitsFor(normalized.type))
+        local _, codecError = encodeCanonical(normalized)
         if codecError then return Runtime.protocolError("codec validation failed: " .. tostring(codecError)) end
         return normalized
     end
@@ -152,7 +170,7 @@ function Component.install(Runtime)
         end
         local normalized, validationError = Runtime.normalizeEnvelope(envelope)
         if not normalized then return Runtime.protocolError(validationError) end
-        local encoded, codecError = Runtime.Codec.encode(normalized, Runtime.limitsFor(normalized.type))
+        local encoded, codecError = encodeCanonical(normalized)
         if not encoded then return Runtime.protocolError("codec encode failed: " .. tostring(codecError)) end
         return encoded
     end
@@ -169,7 +187,7 @@ function Component.install(Runtime)
         local limit = (normalized.type == "shop_snapshot" or normalized.type == "shop_state")
             and Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES or Runtime.Protocol.MAX_PACKET_BYTES
         if #packet > limit then return Runtime.protocolError("packet exceeds limit for " .. normalized.type) end
-        local canonical, canonicalError = Runtime.Codec.encode(normalized, Runtime.limitsFor(normalized.type))
+        local canonical, canonicalError = encodeCanonical(normalized)
         if not canonical then return Runtime.protocolError("codec encode failed: " .. tostring(canonicalError)) end
         if canonical ~= packet then return Runtime.protocolError("packet is not canonical") end
         return normalized

@@ -139,7 +139,9 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='town-outing' then
+        if focus=='scene-hud' then
+            require('src.tests.scene_hud_runtime_test').run(context,check)
+        elseif focus=='town-outing' then
             require('src.commute.tests.outing_runtime_test').run(context,check)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
@@ -150,8 +152,21 @@ function Smoke.start(context)
                 require('src.commute.tests.'..name..'_test').run(check)
             end
             require('src.commute.tests.bike_damage_runtime_test').run(context,check)
+        elseif focus=='vegetation-collision' then
+            for _,name in ipairs({'vegetation_collision','bike_damage','rider_crash','bike_traction','bike_pitch'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+        elseif focus=='motorcycle-effects' then
+            for _,name in ipairs({'bike_particles','bike_tire_motion','bike_action_pose'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.camera_runtime_test').run(context,check)
+        elseif focus=='bike-condition-icon' then
+            require('src.commute.tests.bike_feedback_test').run(check)
+            require('src.commute.tests.bike_art_test').run(check)
         elseif focus=='motorcycle-camera' then
-            for _,name in ipairs({'camera','follow_camera','camera_controls','bindings','first_person','direction'}) do
+            for _,name in ipairs({'camera','follow_camera','camera_controls','bindings','first_person','direction',
+                'bike_action_pages','bike_action_pose','bike_particles','bike_tire_motion','riding_animation','bike_art'}) do
                 require('src.commute.tests.'..name..'_test').run(check)
             end
             require('src.commute.tests.camera_runtime_test').run(context,check)
@@ -175,6 +190,12 @@ function Smoke.start(context)
         elseif focus=='town' then
             require('src.tests.town_setup_test').run(context,check)
             require('src.tests.lua_limits_test').run(context,check)
+        elseif focus=='parking' then
+            for _,name in ipairs({'road_markings','trip','town_generation','first_person'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.runtime_test').run(context,check)
+            require('src.tests.save_contract_test').run(context,check)
         elseif focus=='commute' then
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)
@@ -201,12 +222,27 @@ function Smoke.start(context)
             for _,name in ipairs({"lua_limits","home_residents","home_scene","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
+        elseif focus=="home-needs" then
+            for _,name in ipairs({"lua_limits","home_residents","home_chores","weekend_flow","weekend_runtime",
+                "home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="household-finances" then
             for _,name in ipairs({"lua_limits","household_finances","weekend_flow","weekend_runtime","home_travel_session","home","save_contract","network_protocol"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="weekend-flow" then
             for _,name in ipairs({"lua_limits","weekend_flow","weekend_runtime","home_travel_session","business_deadlines","home","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="friday-closing" then
+            for _,name in ipairs({"weekend_flow","weekend_runtime","employee_schedule","home_travel_session",
+                "room_shipping","truck_authority","multiplayer_session","network_protocol","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="promotion-email" then
+            for _,name in ipairs({"input_status","press_economics","ui_integration",
+                "office_phone_session","save_contract"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="business-deadlines" then
@@ -250,7 +286,7 @@ function Smoke.start(context)
         elseif focus=="cut-stock-margin" then
             JobLoopIntegration.run(context,check,context.jobs)
             CutterIntegration.run(context,check,context.jobs)
-            for _,name in ipairs({"lua_limits","cut_stock_margin","cutter_presentation","cutter_production_session",
+            for _,name in ipairs({"lua_limits","cut_stock_margin","machine_motion","cutter_presentation","cutter_production_session",
                 "progression_balance","shop_workflow","press_economics","save_contract",
                 "guest_job_journey"}) do
                 require("src.tests."..name.."_test").run(context,check)
@@ -401,6 +437,7 @@ function Smoke.start(context)
             or (os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" and "inventory")
             or (os.getenv("PICTURE_SHOP_COMPUTER_WWW_PREVIEW") == "1" and "www")
             or (os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" and "email")
+            or (os.getenv("PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW") == "1" and "estimating")
         local pressPreview = os.getenv("PICTURE_SHOP_PRESS_PREVIEW")
         local workPhonePreview = os.getenv("PICTURE_SHOP_WORK_PHONE_PREVIEW")
         if os.getenv("PICTURE_SHOP_WORK_ORDER_PREVIEW") == "1" then

@@ -130,6 +130,14 @@ function Terrain.surface(world,x,z,sampled)
         soilVariant=M.clamp(1.5+M.smooth((moisture-.40)/.35)*1.5+rock*3.3,1,5)
         kind=rock>.45 and 'stone' or dirtWeight>.6 and 'dirt' or moisture>.62 and 'moss' or meadow>.55 and 'meadow' or 'litter'
     end
+    local settings=world.plan and world.plan.settings
+    if settings and h>=.38 then
+        if settings.biome==3 then
+            grassWeight,dirtWeight,leafWeight,soilVariant=0,1,0,.35+grain*.4
+        elseif settings.biome==1 then
+            grassWeight,dirtWeight,leafWeight=1-dirtWeight,dirtWeight,0
+        end
+    end
     if h>=.04 then r,g,b=Materials.tint(grassVariant,soilVariant,litterVariant,grassWeight,dirtWeight,leafWeight) end
     if h>=.04 and wetland>.05 then
         local marshTint=wetland*.30

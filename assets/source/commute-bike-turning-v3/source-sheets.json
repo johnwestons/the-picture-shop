@@ -1,0 +1,125 @@
+{
+  "version": 3,
+  "sheets": [
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ]
+    },
+    {
+      "path": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "columns": 4,
+      "rows": 2,
+      "views": [
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63
+      ]
+    }
+  ]
+}

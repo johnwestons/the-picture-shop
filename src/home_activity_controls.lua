@@ -161,12 +161,18 @@ local function needs(p,x,y,width)
         love.graphics.rectangle("fill",left,y+20,(cell-12)*p[need]/100,8,3)
     end
 end
+function Controls.hideHud() hudRect=nil end
 function Controls.drawHud(state,player,left,right)
     small=small or love.graphics.newFont(15)
-    hudRect={x=left+18,y=120,width=math.min(720,right-left-36),height=46}
+    hudRect={x=left+18,y=120,width=math.min(720,right-left-36),height=63}
     love.graphics.push("all");love.graphics.setFont(small)
     love.graphics.setColor(.025,.05,.065,.94);love.graphics.rectangle("fill",hudRect.x,hudRect.y,hudRect.width,hudRect.height,6)
-    needs(Residents.get(state,player),hudRect.x+10,126,hudRect.width-110)
+    local resident=Residents.get(state,player)
+    needs(resident,hudRect.x+10,126,hudRect.width-110)
+    if resident and resident.dirtyClothes then
+        love.graphics.setColor(.98,.67,.37,1)
+        love.graphics.print("STINKY CLOTHES / WASH & CHANGE",hudRect.x+10,159)
+    end
     love.graphics.setColor(.96,.86,.45,1);love.graphics.printf("HOME [H]\nFurnish [M]",hudRect.x+hudRect.width-105,126,100,"center")
     love.graphics.pop()
 end
@@ -187,6 +193,9 @@ function Controls.draw(R)
         local a=p.activity
         local endsAt=Residents.activityEndAt(R.state,p,a)
         description=Residents.ACTIONS[a.kind].label.." — "..math.ceil(math.max(0,endsAt-Calendar.absoluteHours(R.state))*60).." game min remaining."
+    end
+    if p and p.dirtyClothes and Controls.mode=="routines" and not p.activity then
+        description="Your clothes are dirty. Wash a bundle and put on fresh clothes."
     end
     if Controls.mode=="sleep" then
         local all,asleep,total=Sleep.status(R.state,require("src.weekend_runtime").players(R),true)

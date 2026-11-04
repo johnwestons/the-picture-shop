@@ -237,6 +237,11 @@ function Assets.load()
             for frame = 1, Config.wrapperPlacement.frameCount do
                 makeQuad("skidWrapperDirection" .. frame, skidWrapperDirections, (frame - 1) * size, 0, size, size)
             end
+            makeQuad("wrapUpper", skidWrapperDirections,0,0,512,246)
+            makeQuad("wrapBase", skidWrapperDirections,0,337,512,175)
+            makeQuad("wrapMast", skidWrapperDirections,0,246,203,91)
+            makeQuad("wrapRoll", skidWrapperDirections,203,246,33,91)
+            makeQuad("wrapOuter", skidWrapperDirections,236,246,276,91)
         end
     end
     if windmillDirections then
@@ -428,6 +433,8 @@ function Assets.load()
     validateExactPath(Config.paths.cutterBlade,
         Config.cutterGui.motionFrameWidth * Config.cutterGui.motionFrameCount,
         Config.cutterGui.motionFrameHeight)
+    validateExactPath(Config.paths.cutterClampDetail, 2172, 724)
+    validateExactPath(Config.paths.cutterBladeDetail, 2172, 724)
     validateExactPath(Config.paths.cutterMaintenanceOil, 512, 512)
     validateExactPath(Config.paths.cutterMaintenanceTools, 768, 512)
     validateExactPath(Config.paths.cutterMaintenanceScenes, 1024, 768)
@@ -450,8 +457,11 @@ local PACK_IMAGES = {
         "titleMenuInk", "titleMenuToolboxes", "titleMenuShelf", "titleMenuPalletAnimation",
         "titleMenuInkAnimation", "titleMenuToolboxAnimation", "titleMenuPalletFocus",
         "titleMenuInkFocus", "titleMenuToolboxFocus" },
-    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
-        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes", "cutterGuiSteel" },
+    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterBlade",
+        "cutterClampDetail", "cutterBladeDetail",
+        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes", "cutterGuiSteel",
+        -- Keep the frequently reused motion strip newest in the bounded cache.
+        "cutterClamp" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
     press = { "pressProcessStages", "pressOperatorHandbook", "pressSetupInteractions" },
 }
@@ -466,6 +476,9 @@ end
 
 local function clearPackQuads(packName)
     if packName == "menu" or packName == "cutter" then
+        for _, name in ipairs({"cutterHead", "cutterFace", "cutterRearBed", "cutterLeftPost", "cutterRightPost"}) do
+            Assets.quads[name] = nil
+        end
         for frame = 1, Config.cutterGui.buttonFrameCount do
             Assets.quads["cutterControlButton" .. frame] = nil
         end
@@ -500,6 +513,11 @@ local function loadCutterConsole()
     local console = loadImage("polarOperatorConsole", Config.paths.polarOperatorConsole, false)
     local buttons = loadImage("cutterControlButtons", Config.paths.cutterControlButtons, false)
     if not console or not buttons then return false end
+    makeQuad("cutterHead", console, 0, 0, 768, 188)
+    makeQuad("cutterFace", console, 212, 171, 344, 17)
+    makeQuad("cutterRearBed", console, 236, 241, 296, 24)
+    makeQuad("cutterLeftPost", console, 0, 188, 236, 48)
+    makeQuad("cutterRightPost", console, 532, 188, 236, 48)
     local buttonSize = Config.cutterGui.buttonFrameSize
     for frame = 1, Config.cutterGui.buttonFrameCount do
         makeQuad("cutterControlButton" .. frame, buttons, (frame - 1) * buttonSize, 0,
@@ -526,10 +544,21 @@ local function loadCutterPack()
     skin:setFilter("linear", "linear")
     local clamp = loadImage("cutterClamp", Config.paths.cutterClamp, false)
     local blade = loadImage("cutterBlade", Config.paths.cutterBlade, false)
+    local clampDetail = loadImage("cutterClampDetail", Config.paths.cutterClampDetail, false)
+    local bladeDetail = loadImage("cutterBladeDetail", Config.paths.cutterBladeDetail, false)
     local oil = loadImage("cutterMaintenanceOil", Config.paths.cutterMaintenanceOil, false)
     local tools = loadImage("cutterMaintenanceTools", Config.paths.cutterMaintenanceTools, false)
     local scenes = loadImage("cutterMaintenanceScenes", Config.paths.cutterMaintenanceScenes, false)
-    if not clamp or not blade or not oil or not tools or not scenes then return false end
+    if not clamp or not blade or not clampDetail or not bladeDetail or not oil or not tools or not scenes then
+        return false
+    end
+    if not hasExactDimensions(clampDetail, Config.paths.cutterClampDetail, 2172, 724)
+        or not hasExactDimensions(bladeDetail, Config.paths.cutterBladeDetail, 2172, 724)
+    then
+        return false
+    end
+    clampDetail:setFilter("linear", "linear")
+    bladeDetail:setFilter("linear", "linear")
     for frame = 1, Config.cutterGui.motionFrameCount do
         local x = (frame - 1) * Config.cutterGui.motionFrameWidth
         makeQuad("cutterClamp" .. frame, clamp, x, 0,
@@ -702,12 +731,23 @@ function Assets.activatePack(packName)
     else
         loaded = loadPressPack()
     end
-    for path, image in pairs(incomingTextures) do imageCache:put(path, image) end
-    incomingTextures = nil
     if not loaded then
+        -- Keep prefetched assets that were not consumed by a failed loader;
+        -- loaded assets are released by unloadPack below.
+        for path,image in pairs(incomingTextures) do
+            local active=false
+            for name,current in pairs(Assets.images) do
+                if Config.paths[name]==path and current==image then active=true;break end
+            end
+            if not active then imageCache:put(path,image) end
+        end
+        incomingTextures=nil
         unloadPack(packName)
         return false
     end
+    -- These references are now owned by the active pack; caching them as well
+    -- would let eviction release a texture that the screen is still drawing.
+    incomingTextures=nil
     Assets.activePack = packName
     return true
 end

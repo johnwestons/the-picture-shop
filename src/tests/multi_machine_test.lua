@@ -166,7 +166,7 @@ function Test.run(context, check)
         context.wrapper.select(unit.id, wrapperState)
         check("duplicate_wrapper_starts_own_job_" .. index, context.wrapper.start(wrapperState))
     end
-    context.wrapper.updateAll(3.1, wrapperState)
+    context.wrapper.updateAll(context.wrapper.forId(wrappers[1].id).cycleTime + 0.1, wrapperState)
     check("two_wrappers_finish_together_and_wear_separately",
         boughtWrapper and secondWrapper.world
         and context.wrapper.forId(wrappers[1].id).pallet.wrapped

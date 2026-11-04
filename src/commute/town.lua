@@ -3,12 +3,14 @@
 local Sites=require('src.commute.sites')
 local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
-local Town={VERSION=1,GENERATOR_VERSION=3,MIN_SEED=1,MAX_SEED=2147483646}
+local Options=require('src.commute.island_options')
+local Town={VERSION=1,GENERATOR_VERSION=6,MIN_SEED=1,MAX_SEED=2147483646}
+local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- Generated labels are part of the saved seed fingerprint. Current signage
 -- is applied to the runtime destinations without mutating a town or preset.
 local names={warehouse='The Picture Shop',['brick-walkup']='Brick walk-up',garden='Garden apartment',
     courtyard='Courtyard apartments',corner='Corner apartment',mechanic='WrenchWorks Garage',
-    grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
+    ['gas-station']='Gas & Tire',grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
     ['fire-station']='Fire Station',diner='Town Diner',['coffee-shop']='Coffee Shop',
     ['general-store']='General Store'}
 local function plain(value)
@@ -41,20 +43,34 @@ local function point(p,lo,hi)
     return type(p)=='table' and M.finite(p.x) and M.finite(p.z) and M.finite(p.h)
         and p.x>=lo and p.x<=hi and p.z>=lo and p.z<=hi and p.h>=-2 and p.h<=84
 end
+local function withinBounds(x,z,h,bounds)
+    return M.finite(x) and M.finite(z) and M.finite(h)
+        and x>=bounds.x0 and x<=bounds.x1 and z>=bounds.z0 and z<=bounds.z1 and h>=-2 and h<=84
+end
 local function array(t,maximum)
     if type(t)~='table' or #t>maximum then return false end
     local count=0;for k in pairs(t) do if not integer(k,1,#t) then return false end;count=count+1 end
     return count==#t
 end
 function Town.valid(t)
-    if not plain(t) or type(t)~='table' or t.version~=1 or not integer(t.generatorVersion,0,Town.GENERATOR_VERSION)
-        or not integer(t.seed,1,Town.MAX_SEED) or t.size~=512
+    if not plain(t) or type(t)~='table' or t.version~=1
+        or not integer(t.generatorVersion,0,Town.GENERATOR_VERSION) then return false end
+    if t.generatorVersion>=6 and (type(t.terrain)~='table' or not Options.valid(t.terrain.settings)) then return false end
+    local expectedBounds=t.generatorVersion>=4 and islandBounds or Default.bounds
+    local function townPoint(p,lo,hi)
+        if t.generatorVersion>=4 then
+            return type(p)=='table' and withinBounds(p.x,p.z,p.h,expectedBounds)
+        end
+        return point(p,lo,hi)
+    end
+    local validTerrain=t.generatorVersion>=4 and require('src.commute.town_terrain_v3').valid(t.terrain)
+        or t.generatorVersion>=2 and t.generatorVersion<4 and require('src.commute.town_terrain_v2').valid(t.terrain)
+        or t.generatorVersion<2 and type(t.terrain)=='table' and t.terrain.mode=='inland-town-v1'
+    if not integer(t.seed,1,Town.MAX_SEED) or t.size~=512
         or type(t.id)~='string' or #t.id>80 or not t.id:match('^[%w%-]+$')
-        or type(t.bounds)~='table' or t.bounds.x0~=56 or t.bounds.z0~=56
-        or t.bounds.x1~=458 or t.bounds.z1~=458
-        or type(t.terrain)~='table' or (t.generatorVersion<2 and t.terrain.mode~='inland-town-v1')
-        or (t.generatorVersion>=2 and not require('src.commute.town_terrain_v2').valid(t.terrain))
-        or t.terrain.seed~=t.seed or t.terrain.size~=t.size
+        or type(t.bounds)~='table' or t.bounds.x0~=expectedBounds.x0 or t.bounds.z0~=expectedBounds.z0
+        or t.bounds.x1~=expectedBounds.x1 or t.bounds.z1~=expectedBounds.z1
+        or not validTerrain or t.terrain.seed~=t.seed or t.terrain.size~=t.size
         or not array(t.roads,96) or #t.roads<1 or not array(t.placements,64)
         or #t.placements<5 or type(t.destinations)~='table' or type(t.designs)~='table' then return false end
     local designCount=0
@@ -86,12 +102,12 @@ function Town.valid(t)
             'residential-1','residential-2','residential-3'}) do required[#required+1]=id end
     end
     for _,id in ipairs(required) do
-        if not ids[id] or not point(t.destinations[id],56,458) then return false end
+        if not ids[id] or not townPoint(t.destinations[id],56,458) then return false end
     end
     local destinations=0
     for id,p in pairs(t.destinations) do
         destinations=destinations+1
-        if destinations>64 or not ids[id] or not point(p,56,458)
+        if destinations>64 or not ids[id] or not townPoint(p,56,458)
             or type(p.label)~='string' or #p.label>80 then return false end
     end
     local roadIds={}
@@ -101,7 +117,7 @@ function Town.valid(t)
             or not M.finite(r.width) or r.width<2 or r.width>12
             or not array(r.points,64) or #r.points<2 then return false end
         roadIds[r.id]=r
-        if t.generatorVersion==3 then
+        if t.generatorVersion>=3 then
             local role=r.role
             if (role~='local' and role~='main' and role~='drive' and role~='trail')
                 or r.surface~=(role=='trail' and 'dirt' or 'paved') or not integer(r.lanes,1,3)
@@ -111,7 +127,9 @@ function Town.valid(t)
         end
         for _,p in ipairs(r.points) do
             if type(p)~='table' or not M.finite(p[1]) or not M.finite(p[2]) or not M.finite(p[3])
-                or p[1]<56 or p[1]>458 or p[2]<56 or p[2]>458 or p[3]<.3 or p[3]>84 then return false end
+                or p[3]<.3 or p[3]>84
+                or t.generatorVersion>=4 and not withinBounds(p[1],p[2],p[3],expectedBounds)
+                or t.generatorVersion<4 and (p[1]<56 or p[1]>458 or p[2]<56 or p[2]>458) then return false end
         end
         if r.bridgeEdges then
             if type(r.bridgeEdges)~='table' then return false end
@@ -120,10 +138,13 @@ function Town.valid(t)
             end
         end
     end
-    if t.generatorVersion==3 then
+    if t.generatorVersion>=3 then
         local main=type(t.topology)=='table' and t.topology.mainStreet
         if type(main)~='table' or (main.pattern~='strip' and main.pattern~='crossroads')
-            or not M.finite(main.x) or not M.finite(main.z) or not array(main.roadIds,12) or #main.roadIds<2 then return false end
+            or not M.finite(main.x) or not M.finite(main.z)
+            or main.x<expectedBounds.x0 or main.x>expectedBounds.x1
+            or main.z<expectedBounds.z0 or main.z>expectedBounds.z1
+            or not array(main.roadIds,12) or #main.roadIds<2 then return false end
         local listed={}
         for _,id in ipairs(main.roadIds) do
             if listed[id] or not roadIds[id] or roadIds[id].role~='main' then return false end
@@ -134,14 +155,17 @@ function Town.valid(t)
             local residential=p.design=='residential' or p.id=='garden' or p.id=='corner'
                 or p.id=='brick-walkup' or p.id=='courtyard'
             local district=p.id=='warehouse' and 'industrial' or residential and 'residential' or 'center'
-            if p.district~=district or not frontage or frontage.role~=(district=='center' and 'main' or 'local') then return false end
+            local country=t.terrain.settings and t.terrain.settings.roads==1
+            if p.district~=district or not frontage or frontage.role~=((country or district=='center') and 'main' or 'local') then return false end
         end
-        if not array(t.recreation,12) or #t.recreation==0 then return false end
+        -- Safe recreation clearings are optional when a valid layout has no
+        -- terrain corridor that can hold them.
+        if not array(t.recreation,12) then return false end
         local seen={}
         for _,site in ipairs(t.recreation) do
             if type(site)~='table' or type(site.id)~='string' or #site.id>48 or seen[site.id]
                 or (site.kind~='park' and site.kind~='picnic' and site.kind~='camp')
-                or not point(site,56,458) or not M.finite(site.radius) or site.radius<=0 or site.radius>32
+                or not townPoint(site,56,458) or not M.finite(site.radius) or site.radius<=0 or site.radius>32
                 or not M.finite(site.heading) or type(site.label)~='string' or #site.label>80
                 or not roadIds[site.trailId] or roadIds[site.trailId].role~='trail' then return false end
             seen[site.id]=true
@@ -167,16 +191,62 @@ function Town.legacy()
         bounds=copy(Default.bounds),terrain={mode='inland-town-v1',seed=4261,size=512},
         roads=copy(Default.roads),destinations=copy(Default.destinations),placements=copy(Sites.defaultPlacements),designs=copy(Sites.designs)}
 end
+-- Add a roadside station to pre-station towns on a runtime copy. Keep the
+-- saved fingerprint and every existing address intact.
+local function stationLayout(t,world)
+    if t.destinations['gas-station'] then return t end
+    local frontage=require('src.commute.town_generator_v2').frontage
+    local placed=Sites.create({placements=t.placements,designs=t.designs}).all
+    local pads={}
+    for _,site in ipairs(placed) do pads[#pads+1]=site.parking end
+    for index,road in ipairs(t.roads) do
+        if road.role~='drive' and road.role~='trail' and road.id~='east-bank' then
+            for edge=1,#road.points-1 do
+                local a,b=road.points[edge],road.points[edge+1]
+                local length=M.length(b[1]-a[1],b[2]-a[2])
+                if length>12 and not (road.bridgeEdges and road.bridgeEdges[edge]) then
+                    for _,fraction in ipairs({.5,.25,.75}) do
+                        local anchor=frontage.mix(a,b,fraction)
+                        for _,side in ipairs({1,-1}) do
+                            local nx,nz=(a[2]-b[2])/length*side,(b[1]-a[1])/length*side
+                            local pad={x=anchor[1]+nx*12,z=anchor[2]+nz*12,h=anchor[3]}
+                            local lot=frontage.placement('gas-station','gas-station',pad,nx,nz,1)
+                            local site=Sites.create({placements={lot}}).all[1]
+                            if frontage.clear(site,pad,placed,pads,t.roads,world.plan,anchor) then
+                                local out=copy(t)
+                                out.designs[lot.id]=copy(Sites.designs[lot.id])
+                                out.placements[#out.placements+1]=lot
+                                out.destinations[lot.id]={x=pad.x,z=pad.z,h=pad.h,label='Gas & Tire'}
+                                local r=out.roads[index]
+                                table.insert(r.points,edge+1,anchor)
+                                if r.bridgeEdges then
+                                    for i=#r.points-1,edge+1,-1 do r.bridgeEdges[i]=r.bridgeEdges[i-1] end
+                                    r.bridgeEdges[edge]=false
+                                end
+                                out.roads[#out.roads+1]={id='station-drive',role='drive',lanes=1,surface='paved',
+                                    width=3.5,interpolation='linear',points={anchor,{pad.x,pad.z,pad.h}}}
+                                return out
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return t
+end
 function Town.world(t)
     t=t or Town.legacy();assert(Town.valid(t),'Invalid saved town definition')
     local world=require('src.commute.terrain').new(t.terrain)
+    t=stationLayout(t,world)
     local sites=Sites.create({placements=t.placements,designs=t.designs})
     local destinations=copy(t.destinations)
     if destinations.mechanic then destinations.mechanic.label=Sites.MECHANIC_NAME end
+    local roadVersion=require('src.commute.roads').VERSION
     local roads=require('src.commute.roads').new({definitions=t.roads,destinations=destinations,
-        bounds=t.bounds,sites=sites,layoutId=t.id,version=3,recreation=t.recreation})
+        bounds=t.bounds,sites=sites,layoutId=t.id,version=roadVersion,recreation=t.recreation})
     roads:attach(world);world.townId=t.id;world.town=t
-    if t.generatorVersion==3 then require('src.commute.infrastructure').ensure(world) end
+    if t.generatorVersion>=3 then require('src.commute.infrastructure').ensure(world) end
     return world
 end
 local function random(seed)
@@ -328,8 +398,13 @@ function Town.generate(seed,options)
         local version=options and options.generatorVersion or Town.GENERATOR_VERSION
         if version==0 then return Town.legacy() end
         if version==1 then return generate(seed) end
-        assert(version==2 or version==3,'Unknown town generator version')
-        local result=require('src.commute.town_generator_v'..version).generate(seed,{bounds=Default.bounds,names=names})
+        assert(version>=2 and version<=Town.GENERATOR_VERSION,'Unknown town generator version')
+        local bounds=version>=4 and islandBounds or Default.bounds
+        -- V4 and V5 share the island terrain. Only V5 surveys curved streets.
+        local settings=version>=6 and Options.copy(options and options.island) or nil
+        local plannerVersion=version>=4 and 4 or version
+        local result=require('src.commute.town_generator_v'..plannerVersion).generate(seed,
+            {bounds=bounds,names=names,generatorVersion=version,settings=settings})
         result.id='town-v'..version..'-'..seed..'-'..Town.fingerprint(result)
         assert(Town.valid(result),'Generated town failed its data contract')
         return result

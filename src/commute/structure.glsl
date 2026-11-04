@@ -2,6 +2,7 @@
 varying vec3 structureNormal;
 varying vec2 structureDelta;
 varying float structureDistance;
+varying float structureHeight;
 #ifdef VERTEX
 attribute float WorldHeight;
 attribute vec3 StructureNormal;
@@ -17,6 +18,7 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
     vec3 world=vec3(vertex_position.x,WorldHeight,vertex_position.y);
     structureNormal=StructureNormal;
     structureDelta=world.xz-cameraCenter;
+    structureHeight=WorldHeight;
     structureDistance=length(structureDelta);
     if(firstPerson) return riderProjection(transform_projection,world);
     float c=cos(cameraYaw),s=sin(cameraYaw);
@@ -39,7 +41,7 @@ vec4 effect(vec4 color,Image image,vec2 uv,vec2 pixel) {
     float sun=max(dot(normal,normalize(vec3(-.4,.8,-.3))),0.0);
     float sky=.5+.5*normal.y;
     vec3 surface=color.rgb*(vec3(.43+.13*sky)+vec3(1.0,.91,.78)*(.48*sun));
-    if(firstPerson && rideHeadlight) surface=riderLight(surface,structureDelta);
+    if(firstPerson && rideHeadlight) surface=riderLight(surface,structureDelta,structureHeight);
     vec3 fog=firstPerson?vec3(.57,.68,.70):vec3(.22,.27,.26);
     surface=mix(surface,fog,smoothstep(structureRadius*.78,structureRadius,structureDistance));
     return vec4(surface,color.a);

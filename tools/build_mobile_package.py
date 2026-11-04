@@ -36,10 +36,18 @@ COMMUTE_AUDIO_FILES = (
 # staged review artwork are deliberately outside this closed set of patterns.
 COMMUTE_RUNTIME_GLOBS = (
     "assets/commute/bike/*-16.png",
+    "assets/commute/bike/mounted-upright-32.png",
+    "assets/commute/bike/mounted-upright-64.png",
+    "assets/commute/bike/mounted-upright-64-v2.png",
+    "assets/commute/bike/actions-64/*.png",
+    "assets/commute/bike/actions-64/paint_regions.lua",
+    "assets/commute/bike/wheel_regions.lua",
     "assets/commute/bridge/*.png",
     "assets/commute/buildings/warehouse.png",
     "assets/commute/cockpit/handlebars.png",
     "assets/commute/cockpit/first-person-bike-v2.png",
+    "assets/commute/cockpit/handlebars-fuel-v2.png",
+    "assets/commute/cockpit/first-person-bike-fuel-v2.png",
     "assets/generated/commute-ui-icons-v1/action-icons-atlas.png",
     "assets/commute/terrain/ground-desktop-v1.png",
     "assets/commute/terrain/ground-mobile-v1.png",
@@ -171,7 +179,7 @@ def runtime_commute_paths(root: Path = ROOT) -> list[Path]:
         for path in matches:
             resolved = path.resolve()
             if (not path.is_file() or root.resolve() not in resolved.parents
-                    or path.suffix.lower() != ".png" or "source" in path.relative_to(root).parts):
+                    or path.suffix.lower() not in {".png", ".lua"} or "source" in path.relative_to(root).parts):
                 raise RuntimeError(f"Invalid commute runtime artwork: {path}")
             if resolved in seen:
                 raise RuntimeError(f"Duplicate commute artwork: {path}")

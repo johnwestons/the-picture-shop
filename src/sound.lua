@@ -476,7 +476,8 @@ function Sound:syncCommuteAudio(dt)
         self.commuteAudio:setMuted(self.muted)
     end
     self.commuteAudio:setLevels(self.masterVolume,self.sfxVolume,self.ambientVolume)
-    self.commuteAudio:update(dt,require('src.commute.audio').partBike(part),part.rider.gear.engine)
+    self.commuteAudio:update(dt,require('src.commute.audio').partBike(part),part.rider.gear.engine,
+        {horn=part.rider.bike.horn==true})
 end
 
 function Sound:pointerPressed(button, screen)

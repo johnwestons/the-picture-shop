@@ -3,10 +3,12 @@
 local M = require('src.commute.vendor.mathx')
 local Sites = require('src.commute.sites')
 local Terrain = require('src.commute.town_terrain_v2')
+local IslandTerrain = require('src.commute.town_terrain_v3')
 local Frontage = require('src.commute.town_generator_v2').frontage
+local Alignment = require('src.commute.street_alignment')
 local Planner = {VERSION=3}
 
-local services = {'fire-station', 'grocery', 'police', 'mechanic', 'general-store', 'post-office', 'diner', 'coffee-shop'}
+local services = {'fire-station', 'grocery', 'police', 'mechanic', 'general-store', 'post-office', 'diner', 'coffee-shop', 'gas-station'}
 local sideStreetLots = {'courtyard', 'garden', 'brick-walkup', 'corner', 'warehouse', 'residential-1', 'residential-2', 'residential-3'}
 local function gridIndex(row, column) return (row-1)*4+column end
 
@@ -23,7 +25,13 @@ local function createNodes(rng, frame, plan)
     return nodes
 end
 
-local function graph(rng, pattern)
+local function graph(rng, pattern, density)
+    if density==1 then
+        local order={1,2,3,4,8,7,6,5,9,10,11,12}
+        local edges={}
+        for i=2,#order do edges[#edges+1]={a=order[i-1],b=order[i],main=true} end
+        return edges,7,0
+    end
     local row, column = math.floor(rng(2,4)), math.floor(rng(2,4))
     local horizontal = rng()<.5
     local hub = gridIndex(row,column)
@@ -58,7 +66,7 @@ local function graph(rng, pattern)
         end
     end
     Frontage.shuffle(redundant,rng)
-    local loops = math.min(#redundant,math.floor(rng(1,8)))
+    local loops = math.min(#redundant,density==3 and 10 or math.floor(rng(1,8)))
     for i=1,loops do
         local e=redundant[i]
         -- Every lot stays reachable in both directions through the two-way
@@ -73,12 +81,18 @@ local function graph(rng, pattern)
 end
 
 local function planStreets(result, rng, nodes, plan, pattern, yaw)
-    local edges, hub, loops = graph(rng,pattern)
+    local settings=result.terrain.settings
+    local edges, hub, loops = graph(rng,pattern,settings and settings.roads)
+    local scenic=result.generatorVersion>=5
+    local curveRandom=Terrain.random(result.seed,91)
+    if scenic then Alignment.prepare(nodes,edges,plan,hub) end
     local main = {pattern=pattern,roadIds={},x=nodes[hub][1],z=nodes[hub][2]}
     local bridges=0
     for index,e in ipairs(edges) do
-        local points,flags=Frontage.splitWater(nodes[e.a],nodes[e.b],plan)
-        for _,flag in ipairs(flags) do if flag then bridges=bridges+1 end end
+        local points,flags
+        if scenic then points,flags=Alignment.street(e,nodes,plan,curveRandom)
+        else points,flags=Frontage.splitWater(nodes[e.a],nodes[e.b],plan) end
+        for i,flag in ipairs(flags) do if flag and not flags[i-1] then bridges=bridges+1 end end
         local turnLane = e.main and (e.a==hub or e.b==hub)
         local lanes = turnLane and 3 or e.oneWay and 1 or 2
         local road = {id=(e.main and 'main-' or 'street-')..index,
@@ -89,20 +103,35 @@ local function planStreets(result, rng, nodes, plan, pattern, yaw)
         result.roads[#result.roads+1]=road
         if e.main then main.roadIds[#main.roadIds+1]=road.id end
     end
+    if scenic then assert(Alignment.connectedOnlyAtNodes(result.roads),'Street curves cross outside a junction') end
     result.topology={nodes=#nodes,edges=#edges,cycles=loops,bridges=bridges,
         orientation=Frontage.round(yaw),mainStreet=main}
 end
 
-local function frontageCandidates(roads,rng)
+local function frontageCandidates(roads,rng,scenic)
     local candidates={main={},localStreet={}}
     for _,road in ipairs(roads) do
         local group = road.role=='main' and candidates.main or candidates.localStreet
+        local chain={0}
+        for i=1,#road.points-1 do
+            local a,b=road.points[i],road.points[i+1]
+            chain[i+1]=chain[i]+M.length(b[1]-a[1],b[2]-a[2])
+        end
+        local dryStart,dryEnd=0,0
         for edge=1,#road.points-1 do
             local a,b=road.points[edge],road.points[edge+1]
             local length=M.length(b[1]-a[1],b[2]-a[2])
-            if not road.bridgeEdges[edge] then
-                for _,t in ipairs({.18,.30,.42,.54,.66,.78,.88}) do
-                    if math.min(t,1-t)*length>12 then
+            if road.bridgeEdges[edge] then
+                dryStart=chain[edge+1]
+            else
+                if edge>=dryEnd then
+                    dryEnd=edge
+                    while dryEnd<#road.points and not road.bridgeEdges[dryEnd] do dryEnd=dryEnd+1 end
+                end
+                for _,t in ipairs(scenic and {.5} or {.18,.30,.42,.54,.66,.78,.88}) do
+                    local station=chain[edge]+t*length
+                    local clearance=scenic and math.min(station-dryStart,chain[dryEnd]-station) or math.min(t,1-t)*length
+                    if clearance>12 then
                         for _,side in ipairs({-1,1}) do
                             group[#group+1]={road=road,edge=edge,t=t,side=side,a=a,b=b,length=length}
                         end
@@ -129,7 +158,8 @@ local function placeLot(result, id, candidates, rng, plan, placed, pads, names)
             local site=Sites.create({placements={lot}}).all[1]
             if Frontage.clear(site,pad,placed,pads,result.roads,plan,anchor) then
                 lot.frontageRoadId=c.road.id
-                lot.district=c.road.role=='main' and 'center' or id=='warehouse' and 'industrial' or 'residential'
+                local side=id=='warehouse' or design=='residential' or id=='courtyard' or id=='garden' or id=='brick-walkup' or id=='corner'
+                lot.district=id=='warehouse' and 'industrial' or side and 'residential' or 'center'
                 result.placements[#result.placements+1]=lot
                 result.destinations[id]={x=pad.x,z=pad.z,h=pad.h,label=names[id] or ('Town residences '..id:match('%d+$'))}
                 c.used=true
@@ -151,23 +181,29 @@ local function attempt(seed,options,attemptIndex,pattern)
     local rng=Terrain.random(seed,72+attemptIndex)
     local yaw=math.floor(rng(0,4))*math.pi/2+rng(-.12,.12)
     local frame={x=rng(250,262),z=rng(250,262),c=math.cos(yaw),s=math.sin(yaw)}
-    local terrain=Terrain.generate(seed,frame)
-    local plan=Terrain.new(terrain,{size=512,center=256,radius=201})
-    local result={version=1,generatorVersion=3,seed=seed,size=512,bounds=Frontage.copy(options.bounds),
+    local terrainModel=(options.generatorVersion or 3)>=4 and IslandTerrain or Terrain
+    local terrain=terrainModel.generate(seed,frame,options.shoreline,options.settings)
+    local plan=terrainModel.new(terrain,{size=512,center=256,radius=terrainModel.ISLAND_RADIUS or 201})
+    local result={version=1,generatorVersion=options.generatorVersion or 3,seed=seed,size=512,bounds=Frontage.copy(options.bounds),
         terrain=terrain,roads={},placements={},destinations={},designs=Frontage.copy(Sites.designs)}
     local nodes=createNodes(rng,frame,plan)
     planStreets(result,rng,nodes,plan,pattern,yaw)
-    local candidates=frontageCandidates(result.roads,rng)
+    local candidates=frontageCandidates(result.roads,rng,result.generatorVersion>=5)
+    if options.settings and options.settings.roads==1 then candidates.localStreet=candidates.main end
     local placed,pads={},{}
     for _,id in ipairs(services) do placeLot(result,id,candidates.main,rng,plan,placed,pads,options.names) end
     for _,id in ipairs(sideStreetLots) do placeLot(result,id,candidates.localStreet,rng,plan,placed,pads,options.names) end
     Frontage.finishDriveways(result.roads)
-    assert(require('src.commute.town_trails').generate(result,plan)>=2,'Two safe off-road shortcuts are required')
+    -- Trails and recreation are optional town dressing. Keep every route that
+    -- passes the safety checks, but don't reject an otherwise valid town when
+    -- this terrain and street layout cannot fit two safe shortcuts.
+    require('src.commute.town_trails').generate(result,plan)
     return result
 end
 
 function Planner.generate(seed,options)
     local pattern=Terrain.random(seed,71)()<.5 and 'strip' or 'crossroads'
+    if options.settings and options.settings.roads==1 then pattern='strip' end
     local reason
     for attemptIndex=0,23 do
         local ok,result=pcall(attempt,seed,options,attemptIndex,pattern)

@@ -94,7 +94,7 @@ function Test.run(check)
                 and Art.frame(camera,heading,16)==expected16
         end
     end
-    check('commute_direction_sixteen_view_rendering_preserves_full_projected_precision',precision and Art.DIRECTION_COUNT==16)
+    check('commute_direction_legacy_api_preserves_projection_with_64_view_runtime',precision and Art.DIRECTION_COUNT==64)
 
     camera.firstPerson=false;camera.yaw=0
     local rear=Art.bank({heading=-math.pi/2},camera,-.3)
@@ -134,26 +134,29 @@ function Test.run(check)
     end
     check('commute_direction_onfoot_walk_and_idle_share_camera_relative_mirror_contract',walkIdle)
 
-    -- Interleaved pose atlases must sample exactly the same facing quad during
-    -- every crossfade. No pose may mirror or shift to an adjacent direction.
+    -- Follow's authored poses must sample exactly one opaque facing quad.
     local savedGraphics=love.graphics
+    local material=require('src.commute.bike_paint_art');local savedMaterialDraw=material.draw
     local calls={};local graphics={}
     for k,v in pairs(savedGraphics) do graphics[k]=v end
-    graphics.setColor=function()end
+    local alpha=1
+    graphics.setColor=function(_,_,_,a)alpha=a or 1 end
     graphics.draw=function(image,quad,x,y,rotation,sx,sy)
-        calls[#calls+1]={state=image,frame=quad,sx=sx,sy=sy,rotation=rotation}
+        calls[#calls+1]={state=image,frame=quad,sx=sx,sy=sy,rotation=rotation,alpha=alpha}
     end
     love.graphics=graphics
+    -- This fixture uses state/frame tokens, not textures. Native material
+    -- pixel tests cover tire/paint shading separately from direction routing.
+    material.draw=function(image,quad,_,x,y,rotation,sx,sy,ax,ay)
+        graphics.draw(image,quad,x,y,rotation,sx,sy,ax,ay)
+    end
     local okay,reason=xpcall(function()
-        local art=setmetatable({frameCount=16,images={},quads={}},Art)
-        local states={'parked','mounted','aeroMid','aero','turnLeftMid','turnLeft','turnRightMid','turnRight',
-            'boostMid','boost','shiftMid','shift','impactMid','impact'}
-        for _,name in ipairs(states) do art.images[name]=name end
-        for i=1,16 do art.quads[i]=i end
+        local art=setmetatable({resolve=function(_,state,frame)return state,frame end},Art)
         local durations=require('src.commute.riding_animation').durations
         local samples={
             {state='parked',parked=true},
-            {state='mounted'},
+            {state='upright'},
+            {state='brakeMid',speed=8,brakingPose=.5},{state='brake',speed=8,brakingPose=1},
             {state='aeroMid',speed=(Bike.TUCK_START_SPEED+Bike.BOOST_MAX_SPEED)/2},
             {state='aero',speed=Bike.BOOST_MAX_SPEED},
             {state='turnLeftMid',lean=.225},{state='turnLeft',lean=.3},
@@ -164,30 +167,29 @@ function Test.run(check)
             {state='shift',ridingAction='shift',ridingActionTime=durations.shift/2},
             {state='impactMid',impactPulse=Bike.IMPACT_DURATION*5/6,impactStrength=1},
             {state='impact',impactPulse=Bike.IMPACT_DURATION/2,impactStrength=1},
-            {state='turnRightMid',speed=(Bike.TUCK_START_SPEED+Bike.BOOST_MAX_SPEED)/2,lean=-.21,
+            {state='boostMid',speed=(Bike.TUCK_START_SPEED+Bike.BOOST_MAX_SPEED)/2,lean=-.21,
                 ridingAction='boost',ridingActionTime=durations.boost*.9},
         }
-        camera.firstPerson=false;camera.yaw=37
+        camera.firstPerson=false;camera.yaw=37;camera.outsideMode='follow'
         local consistent=true
         for _,sample in ipairs(samples) do
             for sampleAngle=0,63 do
                 calls={}
                 local actor={x=100,z=100,h=0,heading=-math.pi/2+sampleAngle*tau/64+.001-math.rad(camera.yaw)}
-                local expected=frameFromVector(math.sin(sampleAngle*tau/64+.001),math.cos(sampleAngle*tau/64+.001),16)
+                local expected=frameFromVector(math.sin(sampleAngle*tau/64+.001),math.cos(sampleAngle*tau/64+.001),sample.parked and 16 or 64)
                 art:draw(actor,camera,world,sample.parked,sample)
                 local found=false
                 for _,draw in ipairs(calls) do
                     found=found or draw.state==sample.state
-                    local distance=math.min((draw.frame-expected)%16,(expected-draw.frame)%16)
-                    local adjacent=distance<=1
-                    consistent=consistent and adjacent and draw.sx>0 and draw.sy>0
+                    consistent=consistent and draw.frame==expected and draw.sx>0 and draw.sy>0 and draw.alpha==1
                 end
-                consistent=consistent and found
+                consistent=consistent and found and #calls==1
             end
         end
-        check('commute_direction_all_fourteen_pose_atlases_crossfade_adjacent_unmirrored_views',consistent)
+        check('commute_direction_every_64_view_pose_and_parked_draw_one_opaque_unmirrored_view',consistent)
     end,debug.traceback)
     love.graphics=savedGraphics
+    material.draw=savedMaterialDraw
     if not okay then error(reason,0) end
 
     local right,left=Bike.new(100,100,0),Bike.new(100,100,0)

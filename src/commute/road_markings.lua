@@ -1,6 +1,7 @@
 -- Static pavement paint, shared by both cameras. Coordinates remain in metres;
 -- dirt trails have no traffic paint and junction throats remain clear.
 local Paint={}
+local Bays=require('src.commute.parking_bays')
 local white={.89,.87,.73};local yellow={.88,.70,.25}
 local function vertex(out,x,z,h,color)
     out[#out+1]={x,z,h,0,1,0,x/4,z/4,x/4,z/4,0,0,
@@ -29,7 +30,7 @@ local function arrow(out,world,x,z,dx,dz,bend)
     end
 end
 function Paint.build(world)
-    local out={};local stats={arrows=0,turnArrows=0,stopBars=0,segments=0}
+    local out={};local stats={arrows=0,turnArrows=0,stopBars=0,segments=0,parkingStalls=0}
     local roads=world.roads;local modern=world.town and world.town.generatorVersion>=3
     local junctions={};local seen={}
     -- Only shared coordinates create a junction. Decorative paint must not
@@ -94,6 +95,32 @@ function Paint.build(world)
             end
             quad(out,at(a,-.13),at(b,-.13),at(b,.13),at(a,.13),white)
             stats.stopBars=stats.stopBars+1
+        end
+    end
+
+    -- Paint the actual parking pad geometry, at ground height. The same mesh
+    -- is depth tested in the overhead and first person cameras.
+    local sites=roads.sites and roads.sites.byId or {}
+    for id in pairs(roads.destinations) do
+        local site=sites[id]
+        if site then
+            local function at(side,forward)
+                local x,z=Bays.point(site,side,forward)
+                return {x,z,world:supportHeight(x,z)+.09}
+            end
+            local function stroke(ax,az,bx,bz,width)
+                local dx,dz=bx-ax,bz-az
+                local length=math.sqrt(dx*dx+dz*dz)
+                local nx,nz=-dz/length*width*.5,dx/length*width*.5
+                quad(out,at(ax+nx,az+nz),at(bx+nx,bz+nz),
+                    at(bx-nx,bz-nz),at(ax-nx,az-nz),white)
+            end
+            stroke(-Bays.HALF_WIDTH,Bays.REAR,Bays.HALF_WIDTH,Bays.REAR,.10)
+            for boundary=0,Bays.COUNT do
+                local side=-Bays.HALF_WIDTH+boundary*Bays.WIDTH
+                stroke(side,Bays.REAR,side,Bays.OPEN,.10)
+            end
+            stats.parkingStalls=stats.parkingStalls+Bays.COUNT
         end
     end
     return out,stats

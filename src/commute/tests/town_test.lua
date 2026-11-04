@@ -65,11 +65,14 @@ function Test.run(check)
         and assert(Codec.encode(town.placements,limits))~=assert(Codec.encode(different.placements,limits))
         and town.terrain.heights[120]~=different.terrain.heights[120])
     local world=Town.world(town)
-    local coverage=#world.sites.all==16
+    -- Town.world attaches a generated fuel station to legacy and current
+    -- saved towns without mutating their frozen placement records.
+    local coverage=#world.sites.all==17
     for _,id in ipairs({'warehouse','brick-walkup','garden','courtyard','corner','mechanic','grocery',
         'post-office','police','fire-station','diner','coffee-shop','general-store',
         'residential-1','residential-2','residential-3'}) do
-        local site=world.sites.byId[id];local pad=town.destinations[id]
+        local site=world.sites.byId[id]
+        local pad=id=='gas-station' and world.town.destinations[id] or town.destinations[id]
         coverage=coverage and site and pad and math.abs(pad.x-site.parking.x)<1e-6
             and math.abs(pad.z-site.parking.z)<1e-6 and not site:blocked(site.door.x,site.door.z)
     end

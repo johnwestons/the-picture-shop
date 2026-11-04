@@ -1,6 +1,5 @@
 local Flow=require("src.weekend_flow")
 local Travel=require("src.home_travel")
-local Shutdown=require("src.shop_shutdown")
 local Weekend={}
 function Weekend.players(R)
     local result={R.World.player}
@@ -40,7 +39,7 @@ function Weekend.syncUi(R)
         if R.WorkshopRemoteScreen then R.WorkshopRemoteScreen.clear() end
     end
     R._weekendScene=scene
-    if week.phase~="working" and (R.state.screen=="machine" or R.state.screen=="press"
+    if Flow.shopClosed(R.state) and (R.state.screen=="machine" or R.state.screen=="press"
         or R.state.screen=="workshop_remote" and scene~="home") then
         if R.releaseLocalWorkshop then R.releaseLocalWorkshop("closed") end
         if R.multiplayer:isClient() then R.multiplayer:releaseWorkshop("closed") end
@@ -50,15 +49,5 @@ function Weekend.syncUi(R)
         R._weekendPromptToken=week.travelToken
         R.state.screen="home_travel"
     end
-end
-function Weekend.finishFrame(R)
-    local week=Flow.ensure(R.state)
-    if week.phase=="closing" then
-        Shutdown.prepare(R.state)
-        local safe=#Shutdown.checklist(R.state,R.World)==0
-        if safe then Shutdown.pauseConstruction(R.state) end
-        return Flow.update(R.state,safe)
-    end
-    return false
 end
 return Weekend

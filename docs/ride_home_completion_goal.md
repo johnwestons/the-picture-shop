@@ -13,9 +13,9 @@ on procedural building geometry in the commute concept document.
    Old saves retain their original town; multiplayer uses the host's saved town.
 3. Complete and enable the apartment/travel playthrough, including all apartment
    destinations, explicit gear changes and dismounting, save/load and multiplayer.
-4. Motorcycle suspension/airborne motion, gravity and landings; keep the starting
-   road speed, reduce the excessive off-road penalty, and support mechanic-shop
-   upgrades reaching approximately 55–60 mph at the top tier.
+4. Motorcycle suspension/airborne motion, gravity and landings; raise the stock
+   road cap to 45 mph, reduce the off-road penalty, and support mechanic upgrades
+   reaching 75 mph with boost at the top tier.
 5. Required missing apartment art, performance/regression checks and end-to-end
    acceptance; prepare/run physical-device checks when available.
 
@@ -55,9 +55,9 @@ one rotated/scaled site definition. The bridge has a solid deck, parapets and pi
 Travel is enabled by default (PICTURE_SHOP_COMMUTE=0 retains the explicit legacy
 test path). Routes, doors, parking and recovery follow the saved town. Motorcycle
 suspension supports airborne motion and gravity, with safe stopped/grounded
-dismounts. Dirt retains 82% of the road speed limit. Starting speed is unchanged;
-three sequential garage upgrades increase the boosted maximum to approximately
-40, 50 and 60mph. Purchases use household funds and host-side rider/door/revision
+dismounts. Dirt retains 82% of the road speed limit. The stock road cap is 45 mph;
+three sequential garage upgrades raise the boosted maximum to 60, 70 and 75 mph.
+Purchases use household funds and host-side rider/door/revision
 checks, and persist per resident.
 
 ## Initial validation and remaining acceptance

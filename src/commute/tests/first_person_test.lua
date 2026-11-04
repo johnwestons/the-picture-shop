@@ -7,6 +7,7 @@ local Bindings=require('src.commute.bindings')
 local Test={}
 local function near(a,b)return math.abs(a-b)<.001 end
 function Test.run(check)
+    require('src.commute.tests.landing_camera_test').run(check)
     local View=require('src.commute.first_person_renderer')
     local localEntry={actor={x=1},localPlayer=true}
     local remoteEntry={actor={x=2}}
@@ -57,6 +58,8 @@ function Test.run(check)
         inputRuntime.Config.baseWidth,inputRuntime.Config.baseHeight=size[1],size[2]
         local button=Runtime.cameraButton(inputRuntime)
         local okay=button and Runtime.cameraPointer(inputRuntime,button.x+button.width*.5,button.y+button.height*.5)
+        local row=require('src.commute.camera_menu').row(button,4)
+        okay=okay and inputRuntime._commute.cameraMenu and Runtime.cameraPointer(inputRuntime,row.x+30,row.y+15)
         check('first_person_camera_toggle_button_while_moving_'..size[1],okay and camera.firstPerson)
         camera:toggleView(r)
     end
@@ -65,5 +68,6 @@ function Test.run(check)
     r.gear.transition=nil;r.gear.mounted=false
     check('first_person_on_foot_toggle_rejected',not camera:toggleView(r))
     require('src.commute.tests.terrain_renderer_test').run(check)
+    require('src.commute.tests.bike_multiplayer_view_test').run(check)
 end
 return Test

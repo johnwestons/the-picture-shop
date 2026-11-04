@@ -164,6 +164,7 @@ function Component.install(Runtime)
                 end
                 return true
             end
+            if Runtime.Screen.view and Runtime.Screen.view.step == "wrapping" then return true end
             local rows = Runtime.wrapperRows(state)
             for index, item in ipairs(rows) do
                 if Runtime.contains(Runtime.wrapperRowRect(index), x, y) then
@@ -212,6 +213,12 @@ function Component.install(Runtime)
                     elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.installSpare, x, y) then
                         return Runtime.cutterServiceButtonEnabled("install_spare_blade", state)
                             and Runtime.request(sendCommand, "install_spare_blade", {}) or true
+                    elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.premiumBlade, x, y) then
+                        return Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "premium_hss")
+                            and Runtime.request(sendCommand, "order_blade_upgrade", { bladeGrade = "premium_hss" }) or true
+                    elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.carbideBlade, x, y) then
+                        return Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "carbide_edge")
+                            and Runtime.request(sendCommand, "order_blade_upgrade", { bladeGrade = "carbide_edge" }) or true
                     end
                 elseif serviceStep == "lockout_disconnect" or serviceStep == "lockout_key"
                     or serviceStep == "lockout_tag" or serviceStep == "prep_cartridge"

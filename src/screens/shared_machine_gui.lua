@@ -3,7 +3,7 @@ local PaperWork = require("src.paper_work")
 local Projection = require("src.screens.gui_projection")
 
 local Gui = {}
-function Gui.new(resource, getView, presentation, send)
+function Gui.new(resource, getView, presentation, send, machineId)
     local gui, machine, wrapper = {}, {}, {}
     local currentState, view
     local function find(id)
@@ -65,6 +65,8 @@ function Gui.new(resource, getView, presentation, send)
     gui.screen=MachineScreen.new({Machine=machine,Wrapper=wrapper,remoteCommand=send})
     function gui.sync(state)
         currentState=Projection.copy(state)
+        currentState.machineId = machineId or currentState.machineId
+        currentState._operatingMachineId = machineId
         currentState.machineType=resource=="skid_wrapper" and "skid_wrapper" or "paper_cutter"
         view=getView() or {}
         if resource=="cutter" then
@@ -79,10 +81,19 @@ function Gui.new(resource, getView, presentation, send)
             machine.emergencyStopped=view.emergencyStopped==true
             machine.multiplayerSingleControl=true
             machine.leftDown,machine.rightDown=view.step=="cutting",view.step=="cutting"
+            local _, cutter = require("src.machine_maintenance").cutterStatus(currentState)
+            if cutter and view.bladeGrade then
+                cutter.bladeGrade = view.bladeGrade
+                cutter.orderedBladeGrade = view.orderedBladeGrade ~= "none" and view.orderedBladeGrade or nil
+            end
+            if view.moneyCents then currentState.money = view.moneyCents / 100 end
             if not gui.screen.gaugeFocused then gui.screen.syncGauge() end
         else
             wrapper.step,wrapper.progress,wrapper.cycleTime=view.step or "idle",view.progress or 0,view.cycleTime or 3
             wrapper.selectedPalletId=view.selectedPalletId
+            local active=view.palletId and find(view.palletId)
+            wrapper.pallet=active and active.pallet
+            wrapper.job=active and active.job
         end
         -- An already-granted service remains visible if another worker uses the
         -- last kit. Only the host decides whether final completion can consume it.

@@ -1,7 +1,7 @@
 -- Reusable local building designs and independent world placements, in metres.
 local M=require('src.commute.vendor.mathx')
 local Codec=require('src.net.codec')
-local Sites={DESIGN_VERSION=1,GRADE_APRON=10,MECHANIC_NAME='Majic Blue'}
+local Sites={DESIGN_VERSION=1,GRADE_APRON=16,MECHANIC_NAME='Majic Blue'}
 local Site={};Site.__index=Site
 local Registry={};Registry.__index=Registry
 local function rect(x0,x1,z0,z1)return {minX=x0,maxX=x1,minZ=z0,maxZ=z1} end
@@ -30,6 +30,8 @@ local function service(id,label,width,depth,height,floors,entryX)
         threshold={x=entryX,z=depth*.5},door={x=entryX,z=depth*.5+1},parking={x=entryX,z=depth*.5+4}}
 end
 service('mechanic','Mechanic',16,9,4.7,1,-6.1)
+service('gas-station','Gas & Tire',9,6,3.5,1)
+Sites.designs['gas-station'].obstacles={rect(-3.4,-2.6,4.5,5.1),rect(2.6,3.4,4.5,5.1)}
 service('grocery','Town grocery',18,11,5,1)
 service('post-office','Post office',13,9,5.5,1)
 service('police','Police station',16,12,7.2,2)
@@ -161,6 +163,20 @@ function Site:distance(x,z,foundation)
     end
     return result
 end
+local function rectDistance(site,r,x,z)
+    x,z=site:toLocal(x,z)
+    return M.length(math.max(r.minX-x,0,x-r.maxX)*site.scale.x,
+        math.max(r.minZ-z,0,z-r.maxZ)*site.scale.z)
+end
+function Site:parkingDistance(x,z)
+    return rectDistance(self,self.localParking,x,z)
+end
+function Site:approachDistance(x,z)
+    return rectDistance(self,self.localApproach,x,z)
+end
+function Site:hardscapeDistance(x,z)
+    return math.min(self:parkingDistance(x,z),self:approachDistance(x,z))
+end
 local function worldRect(site,r)
     local out={minX=math.huge,maxX=-math.huge,minZ=math.huge,maxZ=-math.huge,corners={}}
     for _,p in ipairs({{r.minX,r.minZ},{r.maxX,r.minZ},{r.maxX,r.maxZ},{r.minX,r.maxZ}}) do
@@ -189,6 +205,10 @@ local function placement(designs,p)
     self.localFoundation=design.foundation or rect(-design.width*.5,design.width*.5,-design.depth*.5,design.depth*.5)
     self.localFootprints=design.footprints or {self.localFoundation}
     self.localObstacles=design.obstacles or {}
+    local parking=design.parking
+    self.localParking=rect(parking.x-4,parking.x+4,parking.z-3.75,parking.z+3.75)
+    self.localApproach=rect(math.min(design.threshold.x,parking.x)-2,
+        math.max(design.threshold.x,parking.x)+2,design.threshold.z-.75,parking.z+2)
     self.foundation=worldRect(self,self.localFoundation)
     self.minX,self.maxX,self.minZ,self.maxZ=self.foundation.minX,self.foundation.maxX,self.foundation.minZ,self.foundation.maxZ
     self.footprints={};for _,r in ipairs(self.localFootprints) do self.footprints[#self.footprints+1]=worldRect(self,r) end
@@ -220,8 +240,11 @@ function Registry:grade(height,x,z)
     for _,site in ipairs(self:nearby(x,z)) do
         local d=site:distance(x,z,true)
         if d<1e-8 then return site.h end
-        if d<Sites.GRADE_APRON then
-            local blend=1-M.smooth(d/Sites.GRADE_APRON)
+        local hardscape=site:hardscapeDistance(x,z)
+        if hardscape<1e-8 then return site.h end
+        if d<Sites.GRADE_APRON or hardscape<5 then
+            local blend=d<Sites.GRADE_APRON and 1-M.smooth(d/Sites.GRADE_APRON) or 0
+            if hardscape<5 then blend=math.max(blend,1-M.smooth(hardscape/5)) end
             -- Inverse distance lets adjacent terraces meet smoothly without
             -- depending on placement order, while preserving every flat base.
             local weight=blend/(d*d)
@@ -232,7 +255,9 @@ function Registry:grade(height,x,z)
     return total>0 and M.lerp(height,weighted/total,influence) or height
 end
 function Registry:vegetationAllowed(x,z)
-    for _,site in ipairs(self:nearby(x,z)) do if site:distance(x,z,true)<3 then return false end end
+    for _,site in ipairs(self:nearby(x,z)) do
+        if site:distance(x,z,true)<3 or site:hardscapeDistance(x,z)<1.2 then return false end
+    end
     return true
 end
 function Sites.create(options)

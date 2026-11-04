@@ -5,6 +5,7 @@ local Component = {}
 function Component.install(Runtime)
     Runtime.dependencies = Runtime.dependencies or {}
     Runtime.Config = require("src.config")
+    Runtime.CutterMotion = require("src.screens.cutter_motion")
     Runtime.Machine = Runtime.dependencies.Machine or require("src.machine")
     Runtime.MachineFleet = require("src.machine_fleet")
     Runtime.MachineMaintenance = require("src.machine_maintenance")
@@ -30,6 +31,9 @@ function Component.install(Runtime)
         wrapperSession = nil,
         helpOpen = false,
         helpStep = 1,
+        paperTurn = Runtime.CutterMotion.newPaperTurn(),
+        paperVisualOrientation = 0,
+        paperTurnProgress = 1,
     }
     Runtime.buttons = {}
     Runtime.gaugeInput = { x = 55, y = 263, width = 182, height = 28 }
@@ -47,7 +51,11 @@ function Component.install(Runtime)
     Runtime.bladeServiceButton = { x = 526, y = 244, width = 342, height = 122 }
     Runtime.technicianButton = { x = 526, y = 390, width = 342, height = 72 }
     Runtime.weeklyButton = { x = 526, y = 478, width = 342, height = 82 }
-    Runtime.spareBladeButton = { x = 92, y = 390, width = 342, height = 170 }
+    Runtime.spareBladeButton = { x = 92, y = 390, width = 342, height = 70 }
+    Runtime.bladeUpgradeButtons = {
+        premium_hss = { x = 92, y = 468, width = 342, height = 38 },
+        carbide_edge = { x = 92, y = 512, width = 342, height = 38 },
+    }
     Runtime.lockoutButtons = {
         disconnect = { x = 105, y = 235, width = 210, height = 150 },
         key = { x = 375, y = 235, width = 210, height = 150 },
@@ -141,6 +149,8 @@ function Component.install(Runtime)
         Runtime.Screen.bladeBolts = nil
         Runtime.Screen.wrapperSession = nil
         Runtime.Screen.helpOpen, Runtime.Screen.helpStep = false, 1
+        Runtime.Screen.paperTurn = Runtime.CutterMotion.newPaperTurn()
+        Runtime.Screen.paperVisualOrientation, Runtime.Screen.paperTurnProgress = 0, 1
         Runtime.formatGauge()
     end
 

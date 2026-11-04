@@ -11,7 +11,7 @@ local StagingAreas = require("src.staging_areas")
 local primaryId = "MCH-0002"
 
 local function createWrapper(machineId)
-local Wrapper = { step = "idle", progress = 0, cycleTime = 3.0, pallet = nil, job = nil,
+local Wrapper = { step = "idle", progress = 0, cycleTime = 18, pallet = nil, job = nil,
     selectedPalletId = nil }
 
 local function blockInterruption(state, action)

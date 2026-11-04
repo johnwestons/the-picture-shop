@@ -154,8 +154,8 @@ function Component.install(Runtime)
             sender = completedJob.company,
             subject = completedJob.press and "Request for another print job" or "Request for another cutting job",
             body = completedJob.press
-                and "We were happy with the last order and would like an estimate for another cut-and-print job."
-                or "We were happy with the last order and would like an estimate for another paper-cutting job.",
+                and "Please quote another cut-and-print job for us."
+                or "Please quote another paper-cutting job for us.",
             sourceJobId = completedJob.id,
             readyAtHours = Runtime.BusinessCalendar.absoluteHours(state) + followupHours,
             job = offer,
@@ -165,7 +165,7 @@ function Component.install(Runtime)
             email.standardPrice=couponPrices.standardPrice
             email.discountAmount=couponPrices.discountAmount
             email.discountedTotal=couponPrices.discountedTotal
-            email.body=email.body.." Your 10% returning-client coupon has been applied to this order."
+            email.body=email.body.." Your 10% coupon is applied."
         end
         emails.pending[#emails.pending + 1] = email
         return true
@@ -175,6 +175,25 @@ function Component.install(Runtime)
         local emails = Runtime.ensureEmails(state)
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local delivered = false
+
+        -- Promotions sent by older saves could be marked silent forever. Give
+        -- each of those clients one durable reply under the current email flow.
+        for _,promotion in ipairs(emails.sentPromotions) do
+            if promotion.responseOutcome=="no_response" then
+                promotion.responseOutcome="thank_you"
+                local number=Runtime.nextEmailNumber(emails)
+                Runtime.Inbox.addNotice(state,{
+                    id=string.format("EMAIL-%04d",number),
+                    sender=promotion.recipient,
+                    subject="Thank you for the 10% offer",
+                    body="Thanks for the coupon. We do not have a new job right now, but we will use it on our next order.",
+                    noticeKind="client_thanks",
+                    sourceJobId=promotion.sourceJobId,
+                },0)
+                Runtime.applyCouponToNextPendingOrder(state,promotion.recipient)
+                delivered=true
+            end
+        end
 
         -- A client follows up once or twice if their written request is sitting
         -- unanswered. The reminders stop after that limit; the request remains

@@ -10,7 +10,8 @@ function Preview.sample(town,resolution)
             heights[z*resolution+x+1]=h;high=math.max(high,h)
         end
     end
-    return {resolution=resolution,size=town.size,heights=heights,high=high,bounds=town.bounds}
+    return {resolution=resolution,size=town.size,heights=heights,high=high,bounds=town.bounds,
+        biome=town.terrain.settings and town.terrain.settings.biome}
 end
 function Preview.color(samples,x,z)
     local n=samples.resolution;local cell=samples.size/n
@@ -22,6 +23,8 @@ function Preview.color(samples,x,z)
     else
         local t=math.min(1,h/math.max(1,samples.high))
         r,g,b=.22+t*.38,.40+t*.16,.28+t*.12
+        if samples.biome==3 then r,g,b=.64+t*.17,.51+t*.15,.29+t*.14 end
+        if samples.biome==1 then r,g,b=.40+t*.24,.48+t*.18,.23+t*.12 end
         if h<1 then r,g,b=.38,.46,.34 end
         local dx,dz=(height(x+1,z)-height(x-1,z))/(cell*2),(height(x,z+1)-height(x,z-1))/(cell*2)
         local light=.74+.26*(1-dx*.55-dz*.45)/math.sqrt(1+dx*dx+dz*dz)

@@ -24,11 +24,10 @@ function Component.install(Runtime)
         local messageLength = #tostring(customMessage or "")
         local month = state and state.calendar and state.calendar.month or 1
         local season = CustomerDemand.seasonForMonth(month)
-        -- Slow seasons have no follow-up orders. During busier seasons the
-        -- chance rises with the same seasonal demand already shown in the
-        -- calendar. A personal note and shop reputation do not change it.
-        local chance = math.max(0, math.min(0.80,
-            (season.demand - 0.84) / (1.30 - 0.84) * 0.80))
+        -- A quiet season still gives a returning client a reason to reply.
+        -- Seasonal demand changes whether that reply contains a new order.
+        local chance = math.max(0.28, math.min(0.76,
+            0.28 + (season.demand - 0.72) / (1.30 - 0.72) * 0.48))
         return {
             messageLength = messageLength,
             responseChance = chance,
@@ -115,8 +114,7 @@ function Component.install(Runtime)
         local promoId = string.format("PROMO-%04d", promoNumber)
         local terms = Runtime.JobService.promotionTerms(state, customMessage)
         local roll = Runtime.promotionRoll(sourceJob, promoNumber)
-        local outcome = roll < terms.responseChance and "new_job"
-            or roll < math.min(1, terms.responseChance + 0.18) and "thank_you" or "no_response"
+        local outcome = roll < terms.responseChance and "new_job" or "thank_you"
         local promotion = {
             id = promoId, recipient = sourceJob.company, discountPercent = 10,
             customMessage = customMessage, sentAtHours = Runtime.BusinessCalendar.absoluteHours(state),
@@ -132,7 +130,7 @@ function Component.install(Runtime)
                 sender = sourceJob.company,
                 subject = "Reply to your 10% returning-client offer",
                 body = string.format(
-                    "Thank you for the 10%% offer. Please estimate this new %s job. The coupon and discounted total are shown below.",
+                    "Thanks for the 10%% offer. Please quote another %s job. The discounted total is below.",
                     sourceJob.press and "cut-and-print" or "paper-cutting"),
                 sourceJobId = sourceJob.id,
                 promotionId = promoId,

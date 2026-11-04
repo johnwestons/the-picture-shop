@@ -92,6 +92,32 @@ function Test.run(context, check)
     check("promotion_composer_releases_keyboard_after_outside_tap",
         not context.computerScreen.wantsTextInput())
 
+    local promoState=context.State.new()
+    local completed=assert(context.jobs.createOffer({id="PROMO-TYPE-001",company="Typing Client",
+        sourceSize={width=20,height=16},finishedSize={width=10,height=8},sheetCounts={500},packaging="flat"}))
+    completed.status="completed"
+    promoState.jobs.completed[#promoState.jobs.completed+1]=completed
+    local composer=require("src.screens.computer_screen").new()
+    promoState.screen="computer"
+    composer.enter(promoState);composer.tab="completed";composer.selectedJobId=completed.id
+    local composeX,composeY=composer.promotionButtonCenter()
+    local opened=composer.mousepressed(promoState,composeX,composeY,1)
+    check("completed_job_promotion_opens_focused_composer",opened
+        and opened.action=="promotion_compose" and composer.tab=="email" and composer.wantsTextInput())
+    check("promotion_comment_accepts_typed_text",context.input.textinput("Thanks for your business!",
+        {state=promoState,computerScreen=composer})
+        and composer.promoText=="Thanks for your business!")
+    composer.keypressed(promoState,"backspace")
+    check("promotion_comment_backspace_edits_text",composer.promoText=="Thanks for your business")
+    composer.textinput(promoState,string.rep("x",700))
+    check("promotion_comment_respects_send_limit",#composer.promoText==600)
+    composer.promoText="Thanks for your business"
+    local sendX,sendY=composer.sendPromotionCenter()
+    local sent=composer.mousepressed(promoState,sendX,sendY,1)
+    check("promotion_comment_is_in_sent_offer",sent and sent.action=="promotion_sent"
+        and promoState.clientEmails.sentPromotions[1]
+        and promoState.clientEmails.sentPromotions[1].customMessage=="Thanks for your business")
+
     for _, screen in ipairs({ "job_offer", "vendor", "truck_inventory", "machine", "computer" }) do
         local keyboard = closeRoute(context, screen, "keyboard")
         local mouse = closeRoute(context, screen, "mouse")

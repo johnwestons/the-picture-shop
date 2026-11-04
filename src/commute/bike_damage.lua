@@ -1,7 +1,7 @@
 -- Damage is stored in whole percentage points. Impact speed is the velocity
 -- lost into the obstacle's surface, measured in world metres per second.
 local M = require('src.commute.vendor.mathx')
-local Damage = {MAX=100, LIMP_SPEED=2.2352, SAFE_SPEED=3, EJECTION_SPEED=11.5}
+local Damage = {MAX=100, LIMP_SPEED=2.2352, SAFE_SPEED=5, MAX_PER_HIT=24, EJECTION_SPEED=11.5}
 
 function Damage.valid(value)
     return value == nil or M.finite(value) and value % 1 == 0 and value >= 0 and value <= Damage.MAX
@@ -13,7 +13,7 @@ end
 
 function Damage.impact(bike, speed, nx, nz, vx, vz, kind)
     local excess = math.max(speed - Damage.SAFE_SPEED, 0)
-    local points = math.floor(excess * (.6 + .42 * excess) + .5)
+    local points = math.min(Damage.MAX_PER_HIT,math.floor(excess * (.35 + .105 * excess) + .5))
     bike.damage = math.min(Damage.MAX, (bike.damage or 0) + points)
     if speed >= Damage.EJECTION_SPEED then
         local travelSpeed = M.length(vx, vz)

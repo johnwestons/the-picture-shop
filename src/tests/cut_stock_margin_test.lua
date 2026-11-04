@@ -95,10 +95,18 @@ local function renderedMargins(check)
     local paper = offer.pallets[1].paper
     local canvas = love.graphics.newCanvas(960, 680)
     -- Inspect the real stock/artwork draw calls, including every cut and rotation.
-    -- The first fills are shadow, stock, then artwork; later fills are decoration.
     local rectangle, fills = love.graphics.rectangle, {}
+    local artR, artG, artB = runtime.artworkColor(paper.artworkId, 1)
     love.graphics.rectangle = function(mode, x, y, width, height, ...)
-        if mode == "fill" then fills[#fills + 1] = { x = x, y = y, w = width, h = height } end
+        local r,g,b = love.graphics.getColor()
+        local function matches(a,b) return math.abs(a-b)<0.005 end
+        local kind = matches(r,0.98) and matches(g,0.97) and matches(b,0.90) and "stock"
+            or matches(r,artR) and matches(g,artG) and matches(b,artB) and "artwork"
+        if mode == "fill" and kind then
+            local x1,y1 = love.graphics.transformPoint(x,y)
+            local x2,y2 = love.graphics.transformPoint(x+width,y+height)
+            fills[kind] = {x=math.min(x1,x2),y=math.min(y1,y2),w=math.abs(x2-x1),h=math.abs(y2-y1)}
+        end
         return rectangle(mode, x, y, width, height, ...)
     end
     love.graphics.push("all")
@@ -109,7 +117,7 @@ local function renderedMargins(check)
                 paper.orientation, fills = turns * 90, {}
                 love.graphics.clear(0, 0, 0, 1)
                 runtime.drawPaper(nil, { loaded = true, step = "loaded", paper = paper, programIndex = completed + 1 })
-                local stock, artwork = fills[2], fills[3]
+                local stock, artwork = fills.stock, fills.artwork
                 local borders = { artwork.y - stock.y, stock.x + stock.w - artwork.x - artwork.w,
                     stock.y + stock.h - artwork.y - artwork.h, artwork.x - stock.x }
                 local visible, flush = true, true

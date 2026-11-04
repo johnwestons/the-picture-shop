@@ -1,6 +1,24 @@
 -- Cutter help and maintenance hub presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local bladeUpgradeFont
+
+local function drawBladeUpgradeCard(rect, label, enabled, pointerX, pointerY)
+    local hovered = enabled and pointerX and pointerX >= rect.x and pointerX <= rect.x + rect.width
+        and pointerY >= rect.y and pointerY <= rect.y + rect.height
+    love.graphics.push("all")
+    love.graphics.setColor(enabled and (hovered and 0.13 or 0.08), enabled and 0.20 or 0.10,
+        enabled and 0.20 or 0.11, 1)
+    love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4)
+    love.graphics.setColor(enabled and 0.34 or 0.25, enabled and 0.65 or 0.29, enabled and 0.57 or 0.30, 1)
+    love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 4)
+    bladeUpgradeFont = bladeUpgradeFont or love.graphics.newFont(12)
+    love.graphics.setFont(bladeUpgradeFont)
+    love.graphics.setColor(enabled and 0.92 or 0.49, enabled and 0.85 or 0.54, enabled and 0.63 or 0.54, 1)
+    love.graphics.printf(label, rect.x + 8, rect.y + 8, rect.width - 16, "center")
+    love.graphics.pop()
+end
 
 function Component.install(Runtime)
     function Runtime.drawHelp(state, assets, pointerX, pointerY)
@@ -67,9 +85,11 @@ function Component.install(Runtime)
         love.graphics.print(tostring(stock.maintenance_kit or 0) .. " AVAILABLE", 74, 153)
         love.graphics.setColor(0.76, 0.84, 0.84)
         love.graphics.print("BLADE", 330, 126)
-        love.graphics.print(cutter.spareBladeInstalled and "SPARE INSTALLED • DULL SLEEVED"
+        local bladeState = cutter.spareBladeInstalled and "SPARE INSTALLED • DULL SLEEVED"
             or cutter.bladeInSleeve and "SECURED IN WOODEN SLEEVE"
-            or cutter.bladeRemoved and "REMOVED" or "INSTALLED", 330, 153)
+            or cutter.bladeRemoved and "REMOVED" or "INSTALLED"
+        local installedGrade = BladeProfiles.get(cutter.bladeGrade) or BladeProfiles.get("standard")
+        love.graphics.printf(installedGrade.shortName .. " / " .. bladeState, 330, 153, 270, "left")
         love.graphics.print("TECHNICIAN", 620, 126)
         local appointment = cutter.nextTechnicianDay
             and Runtime.BusinessCalendar.dateFromTotalDay(cutter.nextTechnicianDay) or nil
@@ -93,16 +113,38 @@ function Component.install(Runtime)
             and not cutter.spareBladeInstalled and bladeStock > 0
         local spareDetail
         if spareReady then
-            spareDetail = string.format("%d sharp spare blade(s) in stock. Install one now; the dull blade stays sleeved for pickup.", bladeStock)
+            spareDetail = string.format("%d sharp spare(s); dull blade stays sleeved.", bladeStock)
         elseif cutter.spareBladeInstalled then
-            spareDetail = "Your sharp spare is installed. The old blade remains in its sleeve."
+            spareDetail = "Spare installed; dull blade remains sleeved."
         elseif bladeStock <= 0 then
-            spareDetail = "Buy a sharpened spare on CritterNet WrenchWorks before removing the dull blade."
+            spareDetail = "Buy a spare on CritterNet WrenchWorks."
         else
-            spareDetail = "Sleeve the removed dull blade first, then install a spare while it waits for pickup."
+            spareDetail = "Sleeve the dull blade, then install a spare."
         end
         Runtime.drawMaintenanceCard(Runtime.spareBladeButton, "INSTALL SPARE BLADE", spareDetail,
             spareReady, pointerX, pointerY)
+        for _, grade in ipairs(BladeProfiles.ORDER) do
+            local profile = BladeProfiles.get(grade)
+            local rect = Runtime.bladeUpgradeButtons[grade]
+            local alreadyInstalled = cutter.bladeGrade == grade
+            local isUpgrade = BladeProfiles.isUpgrade(cutter.bladeGrade, grade)
+            local pending = cutter.orderedBladeGrade ~= nil
+            local affordable = (state.money or 0) >= profile.price
+            local enabled = isUpgrade and not pending and not cutter.spareBladeInstalled and affordable
+            local label
+            if pending then
+                label = "ORDERED: " .. BladeProfiles.get(cutter.orderedBladeGrade).name .. " / MARA FITS NEXT EXCHANGE"
+            elseif alreadyInstalled then label = "INSTALLED: " .. profile.name
+            elseif not isUpgrade then label = "CURRENT BLADE IS A HIGHER GRADE"
+            elseif cutter.spareBladeInstalled then label = "FINISH CURRENT SPARE-BLADE EXCHANGE FIRST"
+            elseif not affordable then label = string.format("NEED $%d AVAILABLE", profile.price)
+            else
+                local wearReduction = math.floor((1 - profile.wearMultiplier) * 100 + 0.5)
+                label = string.format("%s $%d  ·  %d%% SLOWER  ·  %d%% EDGE FLOOR",
+                    profile.shortName, profile.price, wearReduction, math.floor(profile.qualityFloor * 100 + 0.5))
+            end
+            drawBladeUpgradeCard(rect, label, enabled, pointerX, pointerY)
+        end
         Runtime.drawMaintenanceCard(Runtime.weeklyButton, cutter.weeklyTechnician and "WEEKLY SERVICE: ON" or "WEEKLY SERVICE: OFF",
             cutter.weeklyTechnician and "Click to cancel the recurring blade exchange."
                 or "Schedule a blade exchange every seven game days. Delays arrive by email.",

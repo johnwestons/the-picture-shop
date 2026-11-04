@@ -248,7 +248,7 @@ function Component.install(Runtime)
                     if not succeeded then state.message = tostring(result); return { action = "blocked" } end
                     Runtime.ComputerScreen.promoJobId, Runtime.ComputerScreen.promoText = nil, ""
                     Runtime.ComputerScreen.promoFocused = false
-                    state.message = "Sent " .. result.recipient .. " a 10% returning-client offer."
+                    state.message = "Sent " .. result.recipient .. " a 10% offer. Check EMAIL for a reply after 12 shop hours."
                     return { action = "promotion_sent", promotion = result }
                 end
                 Runtime.ComputerScreen.promoFocused = false
@@ -486,7 +486,7 @@ function Component.install(Runtime)
         then
             Runtime.ComputerScreen.promoJobId = selected.id
             Runtime.ComputerScreen.promoText = ""
-            Runtime.ComputerScreen.promoFocused = false
+            Runtime.ComputerScreen.promoFocused = true
             Runtime.ComputerScreen.tabDropdownOpen = false
             Runtime.ComputerScreen.tab = "email"
             return { action = "promotion_compose", job = selected }

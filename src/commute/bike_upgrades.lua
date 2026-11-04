@@ -1,15 +1,16 @@
 -- Household-owned progression; commands run through the authoritative host.
 local M=require('src.commute.vendor.mathx')
 local Upgrades={MAX_LEVEL=3,DOOR_RADIUS=2.2,BIKE_RADIUS=7}
+local mph=1/2.236936
 Upgrades.CATALOG={
-    {level=1,name='Trail tune',costCents=35000,maxSpeed=15,boostMaxSpeed=18,acceleration=1.2,
+    {level=1,name='Trail tune',costCents=35000,maxSpeed=55*mph,boostMaxSpeed=60*mph,acceleration=1.38,
         description='Carburetor tuning, fresh filter and trail gearing.',parts='Intake service / gearing / tune'},
-    {level=2,name='Performance kit',costCents=85000,maxSpeed=18.8,boostMaxSpeed=22.5,acceleration=1.5,
+    {level=2,name='Performance kit',costCents=85000,maxSpeed=65*mph,boostMaxSpeed=70*mph,acceleration=1.73,
         description='A freer exhaust and revised fueling for stronger acceleration.',parts='Exhaust / fuel kit / final drive'},
-    {level=3,name='High-output kit',costCents=180000,maxSpeed=22.35,boostMaxSpeed=26.8,acceleration=1.85,
-        description='Engine and transmission work for the full 60 mph boost range.',parts='Engine kit / clutch / road gearing'},
+    {level=3,name='High-output kit',costCents=180000,maxSpeed=70*mph,boostMaxSpeed=75*mph,acceleration=2.13,
+        description='Engine and transmission work for the full 75 mph boost range.',parts='Engine kit / clutch / road gearing'},
 }
-local base={level=0,name='Standard trail bike',costCents=0,maxSpeed=12,boostMaxSpeed=14.4,acceleration=1}
+local base={level=0,name='Standard trail bike',costCents=0,maxSpeed=45*mph,boostMaxSpeed=50*mph,acceleration=1.15}
 function Upgrades.validLevel(level)
     return level==nil or M.finite(level) and level%1==0 and level>=0 and level<=Upgrades.MAX_LEVEL
 end

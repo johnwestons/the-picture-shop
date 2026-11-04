@@ -9,11 +9,14 @@ local Flow=require('src.weekend_flow')
 local Calendar=require('src.business_calendar')
 local Residents=require('src.home_residents')
 local Test={}
+local Bays=require('src.commute.parking_bays')
 local function at(state,hours) state.calendar=Calendar.dateFromHours(hours);state.calendar.elapsed=hours%24/24*Calendar.secondsPerDay(state) end
 local function request(state,token) state.home.weekend.travelToken=token;state.home.weekend.readyMask=3 end
-local function readyAtDoor(part,anchor,world)
-    part.rider=Rider.new(anchor.x,anchor.z,0,{version=1,outfit='geared',mounted=false,engine=false,revision=1})
-    part.rider.ped.x,part.rider.ped.z=anchor.x,anchor.z-3;Rider.update(part.rider,{},0,world)
+local function readyAtDoor(part,id,world)
+    local anchor=assert(Trip.parking(world,id,part.slot))
+    local entry=world.sites.byId[id].door
+    part.rider=Rider.new(anchor.x,anchor.z,anchor.heading,{version=1,outfit='geared',mounted=false,engine=false,revision=1})
+    part.rider.ped.x,part.rider.ped.z=entry.x,entry.z;Rider.update(part.rider,{},0,world)
 end
 local function rotatedTownTravel(check)
     local Town=require('src.commute.town');local Home=require('src.home');local Bike=require('src.commute.motorcycle')
@@ -24,7 +27,8 @@ local function rotatedTownTravel(check)
     end
     local function atParking(part,id)
         local a=assert(Trip.parking(world,id,part.slot));local r=part.rider
-        return clear(part) and math.abs(r.bike.x-a.x)+math.abs(r.bike.z-a.z)<1e-6
+        return clear(part) and Bays.slotAt(world.sites.byId[id],r.bike.x,r.bike.z)==part.slot
+            and math.abs(r.bike.x-a.x)+math.abs(r.bike.z-a.z)<1e-6
             and math.abs(r.ped.x-a.pedX)+math.abs(r.ped.z-a.pedZ)<1e-6
             and math.abs(r.bike.heading-a.heading)<1e-6
     end
@@ -96,13 +100,20 @@ function Test.run(check)
     local ownerBike=state.home.commute.participants.owner.rider.bike
     ownerBike.brake=.7;ownerBike.slip=.4;ownerBike.tireSlip=.6;ownerBike.lateralSpeed=-2.5
     Animation.request(ownerBike,'boost');Animation.update(ownerBike,.2);Animation.request(ownerBike,'shift')
+    ownerBike.ridingAnimation.accelerationWeight=.42;ownerBike.ridingAnimation.brakingWeight=.61
     local snapshot=assert(Schema.snapshot(state))
     local visual=snapshot.home.commute.participants.owner.presentation
     check('commute_trip_snapshot_replicates_sequenced_riding_pose',visual.ridingAction=='boost'
         and math.abs(visual.ridingActionTime-.58)<1e-7)
     check('commute_trip_snapshot_preserves_braking_and_sliding_feedback',visual.brake==.7
         and visual.slip==.4 and visual.tireSlip==.6 and visual.lateralSpeed==-2.5)
+    check('commute_trip_snapshot_preserves_smoothed_action_pose_feedback',visual.accelerationPose==.42 and visual.brakingPose==.61)
     local feedback=Schema.copy(snapshot.home.commute)
+    feedback.participants.owner.presentation.accelerationPose=1.01
+    check('commute_trip_rejects_unbounded_action_pose_feedback',not Trip.valid(feedback))
+    feedback.participants.owner.presentation.accelerationPose=.42;feedback.participants.owner.presentation.brakingPose=0/0
+    check('commute_trip_rejects_nonfinite_action_pose_feedback',not Trip.valid(feedback))
+    feedback.participants.owner.presentation.brakingPose=.61
     feedback.participants.owner.presentation.slip=2
     check('commute_trip_rejects_invalid_slip_feedback',not Trip.valid(feedback))
     feedback.participants.owner.presentation.slip=.4;feedback.participants.owner.presentation.lateralSpeed=0/0
@@ -120,11 +131,16 @@ function Test.run(check)
     check('commute_trip_clock_frozen_while_outbound',Flow.limitCalendarStep(state,100)==0)
     check('commute_trip_cannot_arrive_at_origin',not Trip.command(state,host,12,'arrive',world))
     local t=state.home.commute;local dest=world.roads.destinations[t.destination]
-    readyAtDoor(t.participants.owner,dest,world)
+    readyAtDoor(t.participants.owner,t.destination,world)
+    local parked=t.participants.owner.rider.bike
+    parked.x=parked.x+world.sites.byId[t.destination].cos*7.2
+    parked.z=parked.z+world.sites.byId[t.destination].sin*7.2
+    check('commute_trip_door_rejects_bike_outside_marked_stalls',not Trip.command(state,host,12,'arrive',world))
+    readyAtDoor(t.participants.owner,t.destination,world)
     assert(Trip.command(state,host,12,'arrive',world))
     check('commute_trip_host_waits_for_other_riders',not Trip.finish(state,host,12,false) and state.home.weekend.phase=='ready')
     check('commute_trip_guest_cannot_commit_household',not Trip.finish(state,guest,12,true))
-    readyAtDoor(t.participants[guestId],dest,world);assert(Trip.command(state,guest,12,'arrive',world))
+    readyAtDoor(t.participants[guestId],t.destination,world);assert(Trip.command(state,guest,12,'arrive',world))
     local okay,event=Trip.finish(state,host,12,false)
     check('commute_trip_home_arrival_exactly_once_with_suit',okay and event.destination==state.home.apartmentId
         and state.home.weekend.phase=='home' and state.home.commute==nil
@@ -137,7 +153,7 @@ function Test.run(check)
     t=state.home.commute;local p=t.participants.owner
     assert(Gear.begin(p.rider.gear,'mount',{nearBike=true}));Gear.update(p.rider.gear,2)
     check('commute_trip_mounted_player_cannot_enter_door',not Trip.command(state,host,13,'arrive',world))
-    readyAtDoor(p,world.roads.destinations.warehouse,world);assert(Trip.command(state,host,13,'arrive',world))
+    readyAtDoor(p,'warehouse',world);assert(Trip.command(state,host,13,'arrive',world))
     check('commute_trip_explicit_host_bring_everyone_retains_gear',Trip.finish(state,host,13,true)
         and state.home.residents[guestId].ridingGear.outfit=='geared' and state.home.weekend.phase=='working')
     -- Saved map versions recover at their safe origin with equipment retained.

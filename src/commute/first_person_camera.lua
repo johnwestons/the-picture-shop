@@ -1,6 +1,7 @@
 -- Rider-eye projection shared by the perspective renderer and screen markers.
 local M=require('src.commute.vendor.mathx')
 local Damping=require('src.commute.damping')
+local Landing=require('src.commute.landing_camera')
 local FP={EYE_HEIGHT=1.65,NEUTRAL_PITCH=-.035,NEAR=.15,FAR=110,FOV=82,LOOK_YAW=180,LOOK_DOWN=90,LOOK_UP=60,
     HEADING_SMOOTH_TIME=.22,ROLL_SMOOTH_TIME=.42,PITCH_SMOOTH_TIME=.30,LOOK_SMOOTH_TIME=.12}
 -- Rotate a view's forward and right vectors about the motorcycle's lateral
@@ -42,11 +43,27 @@ function FP.update(camera,actor,dt,visual)
     camera.centerZ=actor.z+camera.eyeForward*math.sin(camera.bikeHeading)
     smooth('eyeHeight',camera.focusHeight+FP.EYE_HEIGHT*math.cos(pitch),.18)
     smooth('ridePitch',pitch,FP.PITCH_SMOOTH_TIME)
+    local landing=Landing.target(camera.world,actor,visual)
+    camera.landingTarget=landing
+    local lookCorrection=0
+    if landing then
+        local distance=M.length(landing.x-camera.centerX,landing.z-camera.centerZ)
+        local aim=M.clamp(math.atan2(landing.h+.25-camera.eyeHeight,math.max(6,distance)),
+            -math.rad(32),-math.rad(8))
+        -- A gentle head movement keeps the bars in view on steep takeoffs;
+        -- automatic aiming must not turn into a look beneath the motorcycle.
+        lookCorrection=M.clamp(aim-(FP.NEUTRAL_PITCH+camera.ridePitch),-math.rad(45),math.rad(45))
+    end
+    smooth('landingLookPitch',lookCorrection,.22)
     local lean=visual.lean or actor.lean or 0
     smooth('rideRoll',M.clamp(-lean*.35,-.13,.13),FP.ROLL_SMOOTH_TIME)
     local heading,headPitch,roll=FP.tiltView(camera.rideHeading-camera.bikeHeading+camera.headYaw,
         FP.NEUTRAL_PITCH+camera.headPitch,camera.rideRoll,camera.ridePitch)
-    camera.viewHeading,camera.viewPitch,camera.roll=camera.bikeHeading+heading,headPitch,roll
+    -- Manual head look retains control; the landing hint fades when looking
+    -- sideways/behind or deliberately up/down, then eases out after touchdown.
+    local assist=math.max(0,math.cos(camera.headYaw))*(1-M.smooth(math.abs(camera.headPitch)/math.rad(30)))
+    camera.viewHeading,camera.viewPitch,camera.roll=camera.bikeHeading+heading,
+        M.clamp(headPitch+camera.landingLookPitch*assist,-math.pi*.5+.001,math.pi*.5-.001),roll
     smooth('barSteer',visual.steer or visual.steering or actor.steering or 0,.16)
     camera.fov=camera.fov or FP.FOV
     camera.focal=640/math.tan(math.rad(camera.fov)*.5)

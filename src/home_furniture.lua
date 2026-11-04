@@ -300,9 +300,6 @@ function Furniture.command(state,player,command,players)
         item.x,item.y=0,0;item.location="surface";item.parentId=c.parentId;item.slot=c.slot;item.direction=c.direction
     elseif c.action=="place" then
         local x,y=Grid.decode(c.cell,Furniture.GRID)
-        if not Catalog.ITEMS[item.kind].hookup and (x-player.x)^2+(y-player.y)^2>160^2 then
-            return false,"Choose a space near your character."
-        end
         local candidate={id=item.id,kind=item.kind,x=x,y=y,direction=c.direction,location="floor"}
         local okay,message=Furniture.canPlace(state,candidate,players or {player})
         if not okay then return false,message end

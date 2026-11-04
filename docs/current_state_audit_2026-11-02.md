@@ -56,3 +56,16 @@ The current Windows LÖVE environment has no attached Android device. This audit
 - The static commute sprite audit reported 10 animations, zero errors, and one center-jitter warning on east walk. That warning is retained because frame anchors are fixed and shifting them risks foot slide. No audit thresholds were relaxed.
 - This visual pass received static code/art review only. No test suite, game launch, Android device run, or device performance measurement was performed for this pass; earlier audit verification above refers to the previously completed runtime/state audit.
 - Remaining review: dedicated boot-fastening art and additional gear-transition views/species; authored animated seated TV/sleep cycles beyond the current settle, breathing, and TV reflection; final warehouse and apartment visual review; Android frame-time, memory, and thermal measurements on device.
+
+## November 4 follow-up | Android 84
+
+The road-only Android 83 build omitted newer PC gameplay and motorcycle art. Android 84 was built from commit `0c4798c`, which includes the current PC runtime and the 64-view mounted motorcycle. The mobile asset list now includes the upright atlas, all 56 action pages (14 poses at 64 headings), and the paint and wheel metadata. The packaged assets were checked against the PC inputs. On the connected Samsung SM-S938U, the installed APK matched the signed artifact by SHA-256. The rider mounted, started the engine, drove and turned in town.
+
+| Workshop exit measurement | Before | After |
+| --- | ---: | ---: |
+| Windows CPU time to build the full terrain mesh, two runs per build | 2.58–2.60 s | 1.75–1.76 s |
+| Samsung SM-S938U, exit confirmation to first exterior frame, one run per build | 27.38 s | 16.33 s |
+
+Both measurements used town seed `1829594680`. The terrain builder now looks up nearby parking pads and coastal edges spatially. Hashing every generated vertex attribute and index yielded identical results before and after the change (285,156 vertices, 1,572,864 indices). Terrain resolution and the ride's frame budgets stay the same.
+
+The 64-view motorcycle graphic checks cover upright and action poses. The updated camera test uses the current automatic shift threshold and distinguishes the parked HUD icon from the in-world rider. All 375 checks in the focused graphics run passed. The phone trial measures one workshop exit per build. Sustained Android frame times, peak memory, thermal behavior and a live two-device session on this release still need measurement.

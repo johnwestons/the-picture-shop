@@ -46,10 +46,24 @@ function Test.run(check)
             else proper=proper and frontage.role=='local' end
         end
         check('town_center_core_frontages_join_main_and_residences_join_side_streets_'..seed,
-            town.generatorVersion==3 and proper and centerCount==8)
+            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==9)
         check('town_center_has_promised_junction_and_one_way_alternative_'..seed,
             arms==(main.pattern=='crossroads' and 4 or 2) and oneWay>=1)
         local world=Town.world(town)
+        -- A visible lane and both wheel tracks must follow the same profile,
+        -- including beside driveways and across junction pavement.
+        local peak,errorHeight=0,0
+        for _,s in ipairs(world.roads.segments) do
+            if s.role=='main' or s.role=='local' then
+                peak=math.max(peak,math.abs(s.a.h-s.b.h)/s.len)
+                for _,side in ipairs({-.3,0,.3}) do
+                    local x=(s.a.x+s.b.x)*.5+s.nx*s.width*side
+                    local z=(s.a.z+s.b.z)*.5+s.nz*s.width*side
+                    errorHeight=math.max(errorHeight,math.abs(world:supportHeight(x,z)-(s.a.h+s.b.h)*.5))
+                end
+            end
+        end
+        check('town_graded_streets_follow_visible_lanes_'..seed,peak<.061 and errorHeight<.03)
         local routes=Routes.new(world.roads)
         local connected=true
         for id in pairs(town.destinations) do

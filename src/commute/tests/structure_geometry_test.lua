@@ -93,10 +93,17 @@ function Test.run(check)
         for _,site in ipairs(registry.all) do
             blocked=blocked or site:blocked(x,z)
             local distance=site:distance(x,z,true)
-            allowed=allowed and distance>=3
-            if distance<1e-8 then flat=site.h
-            elseif distance<Sites.GRADE_APRON then
-                local b=distance/Sites.GRADE_APRON;local blend=1-b*b*(3-2*b)
+            local hardscape=site:hardscapeDistance(x,z)
+            allowed=allowed and distance>=3 and hardscape>=1.2
+            if distance<1e-8 or hardscape<1e-8 then flat=site.h
+            elseif distance<Sites.GRADE_APRON or hardscape<5 then
+                local blend=0
+                if distance<Sites.GRADE_APRON then
+                    local b=distance/Sites.GRADE_APRON;blend=1-b*b*(3-2*b)
+                end
+                if hardscape<5 then
+                    local b=hardscape/5;blend=math.max(blend,1-b*b*(3-2*b))
+                end
                 local weight=blend/(distance*distance)
                 total,weighted=total+weight,weighted+site.h*weight;influence=math.max(influence,blend)
             end

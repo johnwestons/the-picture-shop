@@ -6,6 +6,14 @@ local Motion=require("src.screens.cutter_motion")
 local Test={}
 
 function Test.run(_,check)
+    local home, previous = Motion.bladeDepthPose(0), Motion.bladeDepthPose(0)
+    for _, depth in ipairs({0.25,0.5,0.75,1}) do
+        local pose = Motion.bladeDepthPose(depth)
+        check("cutter_guided_knife_keeps_angle_and_slices_one_way_"..depth,
+            pose.angle==home.angle and pose.y>previous.y and pose.x>=previous.x
+            and pose.x-home.x<=4 and pose.y-home.y<=30)
+        previous = pose
+    end
     local startCell,startOffset=Motion.sample("cutterBlade",.3)
     local midCell,midOffset=Motion.sample("cutterBlade",.15)
     local returningCell,returningOffset=Motion.sample("cutterBlade",.7)
@@ -38,9 +46,7 @@ function Test.run(_,check)
         machine.update(machine.cycleTime*cyclePhase,state)
         local depth=machine.bladeProgress
         motions={};runtime.drawMachine(assets,machine)
-        -- Atlas poses 1/5 and 2/4 are identical. The same physical blade
-        -- depth can therefore use either half of the cycle after stopping.
-        local before=math.min(motions.cutterBlade,1-motions.cutterBlade)
+        local before=motions.cutterBlade
         if stop=="emergency" then machine.emergencyStop(state)
         else machine.setBarrier(false,state) end
         machine.update(.1,state)

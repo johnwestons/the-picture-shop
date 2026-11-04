@@ -13,6 +13,9 @@ function Component.install(Runtime)
             if Runtime.inside(Runtime.oilServiceButton, x, y) then return action("begin_lubrication") end
             if Runtime.inside(Runtime.bladeServiceButton, x, y) then return action("begin_blade") end
             if Runtime.inside(Runtime.spareBladeButton, x, y) then return action("install_spare_blade") end
+            for grade, rect in pairs(Runtime.bladeUpgradeButtons) do
+                if Runtime.inside(rect, x, y) then return action("order_blade_upgrade", { bladeGrade = grade }) end
+            end
             if Runtime.inside(Runtime.technicianButton, x, y) then return action("book_blade_technician") end
             if Runtime.inside(Runtime.weeklyButton, x, y) then
                 local _, cutter = Runtime.MachineMaintenance.cutterStatus(state)

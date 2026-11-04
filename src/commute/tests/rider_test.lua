@@ -14,13 +14,13 @@ function Test.run(check)
     local safeX,safeZ=r.bike.safeX,r.bike.safeZ
     r.bike.x,r.bike.z=safeX+8,safeZ;r.bike.speed=4;r.bike.vx=4;r.bike.vz=0
     assert(Rider.command(r,'rescue',world))
-    check('commute_rider_rescue_command_stops_engine_and_returns_bike_to_checkpoint',
-        r.bike.x==safeX and r.bike.z==safeZ and r.bike.speed==0 and not r.gear.engine
+    check('commute_rider_rescue_moves_bike_to_clear_ground_and_stops_engine',
+        (r.bike.x-safeX-8)^2+(r.bike.z-safeZ)^2>=25 and r.bike.speed==0 and not r.gear.engine
         and r.ped.x==r.bike.x and r.ped.z==r.bike.z)
     assert(Rider.command(r,'dismount',world))
     local saved=Rider.snapshot(r);local recovered=assert(Rider.restore(saved,world,world.roads.destinations.warehouse))
     check('commute_rider_interrupted_dismount_recovers_beside_bike',not recovered.gear.mounted
-        and recovered.gear.outfit=='geared' and math.abs(recovered.ped.z-recovered.bike.z)>1)
+        and recovered.gear.outfit=='geared' and (recovered.ped.x-recovered.bike.x)^2+(recovered.ped.z-recovered.bike.z)^2>1)
     for _=1,15 do Rider.update(r,{},.1,world) end
     local distance=r.ped.distance;local bikeX,bikeZ=r.bike.x,r.bike.z
     for _=1,30 do Rider.update(r,{walkX=1},1/30,world) end

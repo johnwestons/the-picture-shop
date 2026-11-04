@@ -94,6 +94,7 @@ function Component.install(Runtime)
             sleeve_blade = false,
             book_blade_technician = false,
             install_spare_blade = false,
+            order_blade_upgrade = "bladeGrade",
             set_weekly_technician = "enabled",
         },
         windmill = {

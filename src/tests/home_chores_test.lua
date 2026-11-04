@@ -59,9 +59,10 @@ function Test.run(context,check)
     check("home_chores_cycle_finishes_without_auto_unloading",l.phase=="ready" and l.clean==0 and l.cycle==1)
     fixture(s,p,"laundry");assert(Residents.command(s,p,"unload:laundry"));advance(s,people,5)
     check("home_chores_unload_delivers_exactly_one_clean_bundle",l.phase=="idle" and l.clean==1 and not l.dueAt and not Residents.command(s,p,"unload:laundry"))
-    s.home.residents.owner.hygiene=10;assert(Residents.command(s,p,"change:laundry"));advance(s,people,2)
+    s.home.residents.owner.hygiene=10;s.home.residents.owner.dirtyClothes=true
+    assert(Residents.command(s,p,"change:laundry"));advance(s,people,2)
     check("home_chores_fresh_clothes_restore_hygiene_once",l.clean==0 and s.home.residents.owner.hygiene>44 and s.home.residents.owner.hygiene<45
-        and not Residents.command(s,p,"change:laundry"))
+        and not s.home.residents.owner.dirtyClothes and not Residents.command(s,p,"change:laundry"))
     local copy=State.new();assert(State.applySharedSnapshot(copy,Schema.snapshot(s)))
     check("home_chores_shared_snapshot_keeps_counts",copy.home.chores.laundry.dirty==1 and copy.home.chores.laundry.clean==0 and copy.home.chores.laundry.cycle==1)
     local a,pa=fresh();local b,pb=fresh();assert(Residents.command(a,pa,"loadwash:laundry"));assert(Residents.command(b,pb,"loadwash:laundry"))

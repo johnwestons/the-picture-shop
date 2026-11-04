@@ -63,6 +63,26 @@ function Infrastructure:sidewalkHeight(x,z)
         if h then return h end
     end end
 end
+function Infrastructure:sidewalkDistance(x,z,reach)
+    if self:sidewalkHeight(x,z) then return 0 end
+    reach=reach or 3
+    local best,seen=math.huge,{}
+    for ix=math.floor((x-reach)/CELL),math.floor((x+reach)/CELL) do
+        for iz=math.floor((z-reach)/CELL),math.floor((z+reach)/CELL) do
+            for _,walk in ipairs(self.walkBins[ix..':'..iz] or {}) do
+                if not seen[walk] then
+                    seen[walk]=true;local p=walk.corners
+                    for i=1,4 do
+                        local a,b=p[i],p[i%4+1]
+                        local distance2=closest(x,z,a[1],a[2],b[1],b[2])
+                        best=math.min(best,distance2)
+                    end
+                end
+            end
+        end
+    end
+    return math.sqrt(best)
+end
 -- Most slabs need only their two end cross-sections. Resolve a local rise
 -- between them before indexing, so the walk and its support follow the ground.
 local function refineWalks(plan)

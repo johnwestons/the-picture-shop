@@ -21,18 +21,43 @@ function Component.install(Runtime)
         local view = Runtime.Screen.view or {}
         local status = Runtime.cutterMaintenanceStatus(state)
         local step = tostring(view.serviceStep or "idle")
+        local BladeProfiles = require("src.machine.cutter.blade_profiles")
+        local installedGrade = BladeProfiles.get(status.bladeGrade) or BladeProfiles.get("standard")
+        local bladeState = status.bladeInSleeve and "SLEEVED"
+            or status.bladeRemoved and "REMOVED" or "INSTALLED"
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("CUTTER SERVICE  ·  HOST-AUTHORITATIVE LOCKOUT", 122, 132)
-        love.graphics.printf(string.format("KITS %d  ·  SPARES %d%s  ·  BLADE %s  ·  COURIER %s",
+        love.graphics.printf(string.format("KITS %d  ·  SPARES %d%s  ·  %s %s  ·  COURIER %s",
             status.maintenanceKits,
             status.spareBlades,
             status.spareBladeInstalled and " (INSTALLED)" or "",
-            status.bladeInSleeve and "SLEEVED" or status.bladeRemoved and "REMOVED" or "INSTALLED",
+            installedGrade.shortName,
+            bladeState,
             status.technicianScheduled and "SCHEDULED" or "NOT SCHEDULED"),
             122, 156, 690, "left")
         Runtime.cutterBar(122, 180, 690, view.servicePermille, { 0.18, 0.58, 0.29 })
 
         if step == "idle" then
+            local pendingGrade = status.orderedBladeGrade ~= "none" and BladeProfiles.get(status.orderedBladeGrade)
+            love.graphics.setColor(0.32, 0.35, 0.36)
+            love.graphics.printf(pendingGrade
+                and ("SPECIALTY BLADE ORDERED: " .. pendingGrade.name .. " / SLEEVE + BOOK MARA")
+                or "SPECIALTY BLADES  ·  MARA FITS YOUR ORDER AT THE NEXT PREPARED BLADE EXCHANGE",
+                122, 438, 690, "center")
+            local function orderLabel(grade)
+                if pendingGrade then return "ORDERED: " .. pendingGrade.name end
+                local profile = BladeProfiles.get(grade)
+                local wearReduction = math.floor((1 - profile.wearMultiplier) * 100 + 0.5)
+                return string.format("%s  ·  $%d  ·  %d%% SLOWER WEAR  ·  %d%% EDGE QUALITY FLOOR",
+                    profile.shortName, profile.price, wearReduction,
+                    math.floor(profile.qualityFloor * 100 + 0.5))
+            end
+            local premiumLabel = orderLabel("premium_hss")
+            local carbideLabel = orderLabel("carbide_edge")
+            Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.premiumBlade, premiumLabel, pointerX, pointerY,
+                not pendingGrade and Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "premium_hss"), false)
+            Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.carbideBlade, carbideLabel, pointerX, pointerY,
+                not pendingGrade and Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "carbide_edge"), false)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.lubrication, "LUBRICATION SERVICE", pointerX, pointerY,
                 Runtime.cutterServiceButtonEnabled("begin_lubrication", state), true)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.blade, "REMOVE + SLEEVE BLADE", pointerX, pointerY,
@@ -46,9 +71,6 @@ function Component.install(Runtime)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.installSpare,
                 status.spareBladeInstalled and "SHARP SPARE INSTALLED" or "INSTALL PURCHASED SHARP SPARE",
                 pointerX, pointerY, Runtime.cutterServiceButtonEnabled("install_spare_blade", state), true)
-            love.graphics.setColor(0.32, 0.35, 0.36)
-            love.graphics.printf("Buy one or two spare blades on CritterNet first. After sleeving the dull blade, install a sharp spare while the courier pickup is pending.",
-                142, 442, 650, "center")
         elseif step == "lockout_disconnect" or step == "lockout_key"
             or step == "lockout_tag" or step == "prep_cartridge" or step == "prep_prime"
         then

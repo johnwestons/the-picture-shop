@@ -36,7 +36,8 @@ end
 local compass={'E','SE','S','SW','W','NW','N','NE'}
 function Map.headingLabel(heading)return compass[math.floor((heading+math.pi/8)/(math.pi/4))%8+1]end
 function Map.new(world)
-    local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0},Map)
+    local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0,
+        mapBounds=bounds(world),miniLevel=2},Map)
     local destinations=world.roads and world.roads.destinations or {}
     for _,site in ipairs(world.sites and world.sites.all or {})do
         local destination=destinations[site.id]
@@ -89,6 +90,75 @@ function Map:snapshot(rect,actor,options)
         result.recreation[#result.recreation+1]={id=area.id,x=px,y=py,kind=area.kind,label=area.label}
     end
     return result
+end
+function Map:label(id)
+    for _,entry in ipairs(self.entries) do if entry.id==id then return entry.label end end
+end
+local miniScales={1,1.5,2,2.5}
+
+function Map.miniZoomButton(rect,direction)
+    local size=math.min(30,(rect.height-32)/2)
+    return {x=rect.x+rect.width-size-5,y=rect.y+24+(direction<0 and size+4 or 0),width=size,height=size}
+end
+function Map:pressMiniZoom(rect,x,y)
+    for direction=-1,1,2 do
+        local b=Map.miniZoomButton(rect,direction)
+        if x>=b.x and x<=b.x+b.width and y>=b.y and y<=b.y+b.height then
+            self.miniLevel=clamp(self.miniLevel+direction,1,#miniScales)
+            return true
+        end
+    end
+    return false
+end
+local function miniOrigin(start,space,extent,focus)
+    if extent<=space then return start+(space-extent)/2 end
+    return clamp(start+space/2-focus,start+space-extent,start)
+end
+function Map:miniSnapshot(rect,actor,options)
+    options=options or {};actor=actor or {}
+    local button=Map.miniZoomButton(rect,1)
+    local area={x=rect.x+6,y=rect.y+24,width=math.max(1,button.x-rect.x-10),height=math.max(1,rect.height-30)}
+    local b=self.mapBounds
+    local scale=miniScales[self.miniLevel]*math.min(area.width/(b.x1-b.x0),area.height/(b.z1-b.z0))
+    local w,h=(b.x1-b.x0)*scale,(b.z1-b.z0)*scale
+    local px,pz=(finite(actor.x,0)-b.x0)*scale,(finite(actor.z,0)-b.z0)*scale
+    local x=miniOrigin(area.x,area.width,w,px)
+    local y=miniOrigin(area.y,area.height,h,pz)
+    local heading=finite(actor.heading,0)
+    local result={area=area,viewport={x=x,y=y,width=w,height=h,scale=scale,bounds=b},
+        marker={x=x+px,y=y+pz,dx=math.cos(heading),dz=math.sin(heading),heading=heading}}
+    local destinations=self.world.roads and self.world.roads.destinations
+    local target=destinations and destinations[options.destination]
+    if target and target.x and target.z then
+        result.goal={x=x+(target.x-b.x0)*scale,y=y+(target.z-b.z0)*scale}
+    end
+    return result
+end
+function Map:hit(rect,x,y,actor,options)
+    local s=self:snapshot(rect,actor,options)
+    local nearest,best
+    for _,entry in ipairs(s.buildings) do
+        local k=entry.keyRect
+        if x>=k.x and x<=k.x+k.width and y>=k.y and y<=k.y+k.height then return entry.id end
+        local distance=(x-entry.x)^2+(y-entry.y)^2
+        if distance<=15*15 and (not best or distance<best) then nearest,best=entry.id,distance end
+    end
+    return nearest
+end
+function Map:hitMini(rect,x,y,actor,options)
+    local s=self:miniSnapshot(rect,actor,options);local v,area=s.viewport,s.area
+    if x<area.x or y<area.y or x>area.x+area.width or y>area.y+area.height then return nil end
+    -- Keep tap-to-navigate attached to the actual building on the cached map.
+    local nearest,best
+    for _,entry in ipairs(self.entries) do
+        local site=entry.site
+        local bx=v.x+((site.x or site.origin.x)-v.bounds.x0)*v.scale
+        local by=v.y+((site.z or site.origin.z)-v.bounds.z0)*v.scale
+        local distance=(x-bx)^2+(y-by)^2
+        if bx>=area.x and by>=area.y and bx<=area.x+area.width and by<=area.y+area.height
+            and distance<=9^2 and (not best or distance<best) then nearest,best=entry.id,distance end
+    end
+    return nearest
 end
 function Map:prepare()
     if self.background or self.released then return end
@@ -197,6 +267,68 @@ function Map:draw(rect,actor,options)
     g.setColor(1,.73,.24,1);g.print('Gold: destination',rect.x+218,s.layout.footerY)
     g.setColor(.55,.91,.61,1);g.print('Green: your home',rect.x+370,s.layout.footerY)
     g.setColor(.79,.86,.81,1);g.printf(#s.recreation>0 and 'Brown: trails · P/C: park / camp' or 'Numbers identify buildings',rect.x+540,s.layout.footerY,rect.width-556,'right')
+    g.pop()
+    return s
+end
+function Map:drawMini(rect,actor,options)
+    if self.released then return end
+    options=options or {};self:prepare()
+    local s=self:miniSnapshot(rect,actor,options);local g=love.graphics;local v,area=s.viewport,s.area
+    g.push('all');g.setShader();g.setColor(.025,.05,.047,.96)
+    g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,7)
+    g.setColor(.43,.57,.51,.96);g.setLineWidth(1);g.rectangle('line',rect.x,rect.y,rect.width,rect.height,7)
+    g.setFont(self:font(11));g.setColor(.98,.87,.52,1)
+    local title='NAV  ·  '..(self:label(options.destination) or 'Town map')
+    if options.route and options.route.length then title=title..('  ·  %dm'):format(math.floor(options.route.length+.5)) end
+    local titleScale=math.min(1,(rect.width-16)/math.max(1,g.getFont():getWidth(title)))
+    g.print(title,rect.x+8,rect.y+7,0,titleScale,titleScale)
+
+    g.push('all')
+    local sx,sy=g.transformPoint(area.x,area.y)
+    local ex,ey=g.transformPoint(area.x+area.width,area.y+area.height)
+    g.intersectScissor(sx,sy,ex-sx,ey-sy)
+    g.setColor(1,1,1);g.draw(self.background,v.x,v.y,0,v.width/512,v.height/512)
+    if options.route and options.route.points then
+        local points={}
+        for _,p in ipairs(options.route.points) do
+            points[#points+1]=v.x+(p.x-v.bounds.x0)*v.scale
+            points[#points+1]=v.y+(p.z-v.bounds.z0)*v.scale
+        end
+        if #points>=4 then
+            g.setColor(.02,.05,.04,.95);g.setLineWidth(4);g.line(points)
+            g.setColor(1,.66,.18,1);g.setLineWidth(2.4);g.line(points)
+        end
+    end
+    local m=s.marker
+    if s.goal then
+        local x,y=s.goal.x,s.goal.y
+        local dx,dy=x-m.x,y-m.y
+        -- Place a distant goal on the edge in its true direction from the rider.
+        local t=1
+        if dx>0 then t=math.min(t,(area.x+area.width-5-m.x)/dx)
+        elseif dx<0 then t=math.min(t,(area.x+5-m.x)/dx) end
+        if dy>0 then t=math.min(t,(area.y+area.height-5-m.y)/dy)
+        elseif dy<0 then t=math.min(t,(area.y+5-m.y)/dy) end
+        x,y=m.x+dx*math.max(0,t),m.y+dy*math.max(0,t)
+        g.setColor(1,.73,.27);g.polygon('fill',x,y-4,x+4,y,x,y+4,x-4,y)
+    end
+    local dx,dz=m.dx,m.dz
+    g.setColor(.02,.06,.06,1);g.circle('fill',m.x,m.y,7)
+    g.setColor(.24,1,.94,1);g.circle('line',m.x,m.y,7)
+    g.polygon('fill',m.x+dx*7,m.y+dz*7,
+        m.x-dx*5-dz*5,m.y-dz*5+dx*5,
+        m.x-dx*5+dz*5,m.y-dz*5-dx*5)
+    g.pop()
+
+    for direction=-1,1,2 do
+        local b=Map.miniZoomButton(rect,direction)
+        local enabled=direction>0 and self.miniLevel<#miniScales or direction<0 and self.miniLevel>1
+        local x,y=b.x+b.width*.5,b.y+b.height*.5
+        g.setColor(.12,.18,.16);g.rectangle('fill',b.x,b.y,b.width,b.height,4)
+        if enabled then g.setColor(.87,.91,.79) else g.setColor(.40,.46,.42) end
+        g.setLineWidth(2);g.line(x-5,y,x+5,y)
+        if direction>0 then g.line(x,y-5,x,y+5) end
+    end
     g.pop()
     return s
 end

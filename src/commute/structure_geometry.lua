@@ -324,7 +324,7 @@ local function pergola(m,x,z,width,height)
     end
     feature(m,'pergolas',{x=x,z=z,width=width})
 end
-local services={mechanic=true,grocery=true,['post-office']=true,police=true,['fire-station']=true,
+local services={['gas-station']=true,mechanic=true,grocery=true,['post-office']=true,police=true,['fire-station']=true,
     diner=true,['coffee-shop']=true,['general-store']=true}
 local function commercial(m,d,r)
     local b=Geometry.box;local style=d.style;local height=d.height
@@ -353,6 +353,14 @@ local function commercial(m,d,r)
         b(m,r.minX+.5,r.maxZ-.2,3.20,r.maxX-.5,r.maxZ+1.35,3.38,colors.metal)
         feature(m,'workCanopies',{width=d.width-1,depth=1.55})
         sign(m,d,r,mechanicSign,height-.48)
+    elseif style=='gas-station' then
+        b(m,-4,r.maxZ,2.75,4,r.maxZ+2.6,2.98,colors.roof)
+        for _,x in ipairs({-3,3}) do
+            b(m,x-.4,4.5,0,x+.4,5.1,1.45,colors.trim)
+            b(m,x-.26,5.1,.84,x+.26,5.13,1.27,colors.recess)
+            b(m,x-.08,4.7,1.45,x+.08,4.9,2.76,colors.metal)
+        end
+        sign(m,d,r,'GAS',3.21)
     elseif style=='grocery' then
         b(m,r.minX+.3,r.maxZ-.1,3.22,r.maxX-.3,r.maxZ+1.20,3.40,colors.roof)
         for i=0,5 do

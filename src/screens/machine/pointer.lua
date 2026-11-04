@@ -160,6 +160,10 @@ function Component.install(Runtime)
         elseif Runtime.Screen.maintenanceView == "hub" then
             local _, cutter = Runtime.MachineMaintenance.cutterStatus(state)
             local stock = state.inventory and state.inventory.stock or {}
+            local upgradeGrade
+            for grade, rect in pairs(Runtime.bladeUpgradeButtons or {}) do
+                if Runtime.inside(rect, x, y) then upgradeGrade = grade; break end
+            end
             if Runtime.inside(Runtime.maintenanceBack, x, y) then
                 Runtime.Screen.maintenanceView = nil
                 return { action = "maintenance_close" }
@@ -179,6 +183,13 @@ function Component.install(Runtime)
                     and "Sharp spare blade installed. The dull blade remains sleeved for the courier."
                     or tostring(result)
                 return installed and { action = "spare_blade_installed" } or true
+            elseif upgradeGrade then
+                local purchased, result = Runtime.MachineMaintenance.buyBladeUpgrade(state, upgradeGrade)
+                local profile = require("src.machine.cutter.blade_profiles").get(upgradeGrade)
+                state.message = purchased
+                    and (profile.name .. " ordered. Sleeve the current blade and book Mara; she will fit it at the exchange.")
+                    or tostring(result)
+                return purchased and { action = "blade_upgrade_ordered" } or true
             elseif Runtime.inside(Runtime.technicianButton, x, y) and cutter.bladeInSleeve and not cutter.nextTechnicianDay then
                 local booked, day = Runtime.MachineMaintenance.requestTechnician(state)
                 if booked then state.message = "Mara Mouse booked for a blade exchange on game day " .. tostring(day) .. "." end

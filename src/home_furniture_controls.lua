@@ -49,14 +49,12 @@ local function editing(R)
 end
 function Controls.snapshot(R)
     local item=editing(R);if not item then return nil end
-    local p=player(R);local candidate=Controls.candidate;local people=require("src.weekend_runtime").players(R)
+    local candidate=Controls.candidate;local people=require("src.weekend_runtime").players(R)
     if candidate.location=="surface" then return nil end
-    local appliance=Catalog.ITEMS[item.kind].hookup~=nil
     local key=R.state.home.furniture.revision..":"..candidate.x..":"..candidate.y..":"..candidate.direction
     for _,actor in ipairs(people) do key=key..":"..actor.x..":"..actor.y end
     if Controls.cache and Controls.cacheKey==key then return Controls.cache end
     local cells=Grid.cells(candidate.x,candidate.y,Furniture.GRID,function(x,y)
-        if not appliance and (x-p.x)^2+(y-p.y)^2>160^2 then return false end
         return Furniture.canPlace(R.state,{id=item.id,kind=item.kind,x=x,y=y,direction=candidate.direction},people,true)
     end)
     Controls.cache={config=Furniture.GRID,cells=cells,selected=Grid.find(cells,candidate.x,candidate.y),footprint=Furniture.footprint(candidate)}

@@ -1,6 +1,7 @@
 -- Exercise the triangles uploaded to both cameras, with distinguishable lane
 -- elevations and wet/dirt exclusions rather than relying on a screenshot alone.
 local Paint=require('src.commute.road_markings')
+local Bays=require('src.commute.parking_bays')
 local Roads=require('src.commute.roads')
 local Test={}
 local function close(a,b)return math.abs(a-b)<.000001 end
@@ -53,5 +54,20 @@ function Test.run(check)
         and close(oneMin,60-1.9) and close(oneMax,60+1.9))
     check('road_markings_two_way_stop_bar_only_covers_right_hand_approach',
         close(twoMin,140-2.8) and close(twoMax,140-.2))
+    local lot=world()
+    local site={parking={x=80,z=215,h=height(80)},cos=1,sin=0,front={x=0,z=1}}
+    lot.roads.destinations.sample={x=80,z=215,h=height(80)}
+    lot.roads.sites.byId.sample=site
+    local painted,lotStats=Paint.build(lot)
+    local first=#vertices+1
+    local aligned=true
+    for i=first,#painted do
+        local v=painted[i]
+        aligned=aligned and v[1]>=80-Bays.HALF_WIDTH-.051 and v[1]<=80+Bays.HALF_WIDTH+.051
+            and v[2]>=215+Bays.REAR-.051 and v[2]<=215+Bays.OPEN+.051
+            and close(v[3],height(v[1])+.09)
+    end
+    check('road_markings_four_stalls_are_ground_mesh_for_both_cameras',
+        lotStats.parkingStalls==4 and #painted-#vertices==36 and aligned)
 end
 return Test

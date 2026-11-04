@@ -189,6 +189,7 @@ function Component.install(Runtime)
             "paper", "candidates", "genericSheets", "serviceStep", "servicePermille",
             "serviceView", "serviceTool", "serviceItems", "centralInstalled",
             "gearInspected", "gearLevelPermille", "bladeBoltsDone", "bladeBoltMask",
+            "bladeGrade", "orderedBladeGrade", "moneyCents",
         })
         if not valid then return nil, shapeError end
         local runtimeRevision, fieldError = Runtime.integerInRange(
@@ -269,6 +270,23 @@ function Component.install(Runtime)
             programIndex = programIndex,
             memoryCentiInch = memoryCentiInch,
         }
+        if value.bladeGrade ~= nil then
+            if value.bladeGrade ~= "standard" and value.bladeGrade ~= "premium_hss"
+                and value.bladeGrade ~= "carbide_edge"
+            then return nil, label .. ".bladeGrade is invalid" end
+            normalized.bladeGrade = value.bladeGrade
+        end
+        if value.orderedBladeGrade ~= nil then
+            if value.orderedBladeGrade ~= "none" and value.orderedBladeGrade ~= "premium_hss"
+                and value.orderedBladeGrade ~= "carbide_edge"
+            then return nil, label .. ".orderedBladeGrade is invalid" end
+            normalized.orderedBladeGrade = value.orderedBladeGrade
+        end
+        if value.moneyCents ~= nil then
+            normalized.moneyCents, fieldError = Runtime.integerInRange(
+                value.moneyCents, 0, 1000000000000, label .. ".moneyCents")
+            if normalized.moneyCents == nil then return nil, fieldError end
+        end
         if serviceStep then
             normalized.serviceStep = serviceStep
             normalized.servicePermille = servicePermille

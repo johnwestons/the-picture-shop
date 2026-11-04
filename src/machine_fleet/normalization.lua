@@ -1,6 +1,7 @@
 -- Owned machines, placements, deliveries, and fleet normalization.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 function Component.install(Runtime)
     -- Derived data belongs to the runtime, never saves or network payloads.
@@ -72,6 +73,9 @@ function Component.install(Runtime)
             cutter.bladeRemoved = cutter.bladeRemoved == true
             cutter.bladeInSleeve = cutter.bladeInSleeve == true
             cutter.spareBladeInstalled = cutter.spareBladeInstalled == true
+            cutter.bladeGrade = BladeProfiles.get(cutter.bladeGrade) and cutter.bladeGrade or "standard"
+            cutter.orderedBladeGrade = BladeProfiles.isUpgrade(cutter.bladeGrade, cutter.orderedBladeGrade)
+                and cutter.orderedBladeGrade or nil
             cutter.weeklyTechnician = cutter.weeklyTechnician == true
             cutter.nextTechnicianDay = tonumber(cutter.nextTechnicianDay)
             cutter.appointmentType = cutter.appointmentType == "weekly" and "weekly"

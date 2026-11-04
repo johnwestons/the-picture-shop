@@ -1,6 +1,7 @@
 local M = require("src.commute.vendor.mathx")
 local FirstPerson = require('src.commute.first_person_camera')
 local Damping = require('src.commute.damping')
+local Landing = require('src.commute.landing_camera')
 
 local Camera = {}
 Camera.__index = Camera
@@ -10,17 +11,21 @@ Camera.SCREEN_HEIGHT = 880
 Camera.CENTER_X = 640
 Camera.CENTER_Y = 440
 Camera.TILT_DEFAULT = 55
-Camera.TILT_MIN = 20
-Camera.TILT_MAX = 85
+Camera.TILT_MIN = 6
+-- Third-person orbit can get close to a straight-down view without reaching
+-- the singular 90-degree projection limit.
+Camera.TILT_MAX = 89
 Camera.ZOOM_DEFAULT = 1.35
 Camera.ZOOM_MIN = 0.55
-Camera.ZOOM_MAX = 3.5
+Camera.ZOOM_MAX = 6.5
 Camera.FOLLOW_SMOOTH_TIME = 0.18
 Camera.FOLLOW_LOOKAHEAD_DISTANCE = 2.4
 Camera.FOLLOW_LOOKAHEAD_FULL_SPEED = 8
 Camera.FOLLOW_YAW_SMOOTH_TIME = 0.18
 Camera.FOLLOW_ORBIT_HOLD = 0.8
 Camera.FOLLOW_TILT_DEFAULT = 62
+Camera.SHOULDER_TILT = 14
+Camera.SHOULDER_ZOOM = 1.45
 
 local rad = math.pi / 180
 local defaultGroundSin = math.sin(Camera.TILT_DEFAULT * rad)
@@ -231,16 +236,23 @@ local function behindYaw(actor)
 end
 
 function Camera:setOutsideMode(mode,actor,mounted)
-    if mode~='fixed' and mode~='follow' then return false end
+    if mode~='fixed' and mode~='follow' and mode~='shoulder' then return false end
     self.lastActor=actor or self.lastActor
     if type(mounted)=='boolean' then self.followMounted=mounted end
     if self.outsideMode==mode then return true end
-    if mode=='follow' then
-        self.fixedYaw=self.yaw
+    if self.outsideMode=='shoulder' then
+        self.tilt,self.targetZoom=self.previousTilt,self.previousZoom
+        self.shoulderView=nil
+    end
+    if self.outsideMode=='fixed' then self.fixedYaw=self.yaw end
+    if mode~='fixed' then
         if not self.firstPerson and self.followMounted~=false then self.yaw=behindYaw(self.lastActor) end
         -- A slightly steeper default gives the rider a closer over-the-shoulder
         -- view while leaving an existing manual tilt untouched.
-        if self.tilt==Camera.TILT_DEFAULT then self.tilt=Camera.FOLLOW_TILT_DEFAULT end
+        if mode=='shoulder' then
+            self.previousTilt,self.previousZoom=self.tilt,self.targetZoom
+            self.tilt,self.targetZoom=Camera.SHOULDER_TILT,Camera.SHOULDER_ZOOM
+        elseif self.tilt==Camera.TILT_DEFAULT then self.tilt=Camera.FOLLOW_TILT_DEFAULT end
     else self.yaw=self.fixedYaw or self.yaw end
     self.outsideMode=mode
     self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
@@ -249,6 +261,7 @@ end
 
 function Camera:setFirstPerson(enabled, actor)
     self.firstPerson = enabled == true
+    self.shoulderView=nil
     self.lastActor = actor or self.lastActor
     self.centerVelocityX, self.centerVelocityZ = 0, 0
     if self.firstPerson then
@@ -259,7 +272,7 @@ function Camera:setFirstPerson(enabled, actor)
         self.centerX, self.centerZ = self.lastActor.x, self.lastActor.z
         self.focusHeight = actorHeight(self.world,self.lastActor,self.centerX,self.centerZ)
         self.heightVelocity=0
-        if self.outsideMode=='follow' and self.followMounted~=false then
+        if self.outsideMode~='fixed' and self.followMounted~=false then
             self.yaw=behindYaw(self.lastActor)
             self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
         end
@@ -294,7 +307,7 @@ function Camera:update(actor, dt, visual)
     dt = math.max(0, finiteNumber(dt, 0))
     if self.firstPerson then FirstPerson.update(self, actor, dt, visual);return end
     local followDt = math.min(dt, 0.1)
-    if self.outsideMode=='follow' and self.followMounted~=false then
+    if self.outsideMode~='fixed' and self.followMounted~=false then
         -- Orbit is a temporary look around in follow mode. Once released, the
         -- camera eases back behind the bike, including when the bike is sliding.
         local count=math.max(1,math.ceil(followDt*120-1e-9))
@@ -332,14 +345,25 @@ function Camera:update(actor, dt, visual)
     self.centerZ, self.centerVelocityZ = smoothDamp(self.centerZ, targetZ,
         self.centerVelocityZ or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
     local height=actorHeight(self.world,actor,self.centerX,self.centerZ)
+    self.landingTarget=Landing.target(self.world,actor,visual)
+    if self.landingTarget then
+        -- Keep both the jumping rider and the lower landing surface in view.
+        height=height-M.clamp(height-self.landingTarget.h,0,4)*.6
+    end
     if finiteNumber(actor.h,nil)~=nil then
         self.focusHeight,self.heightVelocity=smoothDamp(self.focusHeight,height,self.heightVelocity or 0,.18,followDt)
     else self.focusHeight=height;self.heightVelocity=0 end
     self.x, self.y = Camera.project(self.centerX, self.centerZ, self.focusHeight)
     self.zoom = M.lerp(self.zoom, self.targetZoom, 1 - math.exp(-dt * 12))
+    if self.outsideMode=='shoulder' and self.followMounted~=false then
+        self._shoulderCamera=self._shoulderCamera or Camera.new(actor,self.world)
+        self.shoulderView=self._shoulderCamera
+        require('src.commute.shoulder_camera').update(self.shoulderView,self,actor)
+    else self.shoulderView=nil end
 end
 
 function Camera:screen(x, z, height)
+    if self.shoulderView then return self.shoulderView:screen(x,z,height) end
     -- Lua evaluates function arguments eagerly. Do not sample the terrain as
     -- a fallback argument when scenery already supplies its cached elevation.
     height = finiteNumber(height, nil)
@@ -532,6 +556,20 @@ function Camera:screenVectorToWorld(right, depth)
     return right * c + depth * s, -right * s + depth * c
 end
 
+-- Invert the ground-plane scale used by screen(), including the orbit tilt.
+function Camera:screenGroundDirection(dx,dy,actor)
+    if self.shoulderView and actor then
+        -- Invert the perspective ground-plane projection at the rider.
+        local eye=self.shoulderView
+        local h=actor.h or eye.focusHeight
+        local sx,_,depth=eye:screen(actor.x,actor.z,h)
+        local forward=dy*depth/math.min(-.01,h-eye.eyeHeight)
+        local right=dx+(sx-(eye.viewportWidth or 1280)*.5)/eye.focal*math.cos(eye.viewPitch)*forward
+        return eye.viewCos*forward-eye.viewSin*right,eye.viewSin*forward+eye.viewCos*right
+    end
+    return self:screenVectorToWorld(dx/48,dy/(29*self:groundScale()))
+end
+
 function Camera:orbit(yawDeltaDegrees, tiltDeltaDegrees)
     if self.firstPerson then
         self.lookYaw=M.clamp((self.lookYaw or 0)+finiteNumber(yawDeltaDegrees,0)*rad,-FirstPerson.LOOK_YAW*rad,FirstPerson.LOOK_YAW*rad)
@@ -540,11 +578,11 @@ function Camera:orbit(yawDeltaDegrees, tiltDeltaDegrees)
         return
     end
     self.yaw = (self.yaw + finiteNumber(yawDeltaDegrees, 0)) % 360
-    if self.outsideMode=='follow' and self.followMounted~=false and finiteNumber(yawDeltaDegrees,0)~=0 then
+    if self.outsideMode~='fixed' and self.followMounted~=false and finiteNumber(yawDeltaDegrees,0)~=0 then
         self.followYawOffset=M.clamp((self.followYawOffset or 0)+yawDeltaDegrees,-180,180)
         self.followOrbitHold=Camera.FOLLOW_ORBIT_HOLD
         self.followYawVelocity=0
-    elseif self.outsideMode~='follow' then self.fixedYaw=self.yaw end
+    elseif self.outsideMode=='fixed' then self.fixedYaw=self.yaw end
     self.tilt = M.clamp(self.tilt + finiteNumber(tiltDeltaDegrees, 0), Camera.TILT_MIN, Camera.TILT_MAX)
 end
 
@@ -570,12 +608,12 @@ function Camera:recenter()
         return
     end
     self.offsetX, self.offsetY = 0, 0
-    self.targetZoom = Camera.ZOOM_DEFAULT
-    self.zoom = Camera.ZOOM_DEFAULT
-    self.yaw = self.outsideMode=='follow' and self.followMounted~=false and behindYaw(self.lastActor) or 0
-    self.tilt = Camera.TILT_DEFAULT
+    self.targetZoom = self.outsideMode=='shoulder' and Camera.SHOULDER_ZOOM or Camera.ZOOM_DEFAULT
+    self.zoom = self.targetZoom
+    self.yaw = self.outsideMode~='fixed' and self.followMounted~=false and behindYaw(self.lastActor) or 0
+    self.tilt = self.outsideMode=='shoulder' and Camera.SHOULDER_TILT or Camera.TILT_DEFAULT
     self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
-    if self.outsideMode~='follow' then self.fixedYaw=self.yaw end
+    if self.outsideMode=='fixed' then self.fixedYaw=self.yaw end
     self.centerVelocityX, self.centerVelocityZ = 0, 0
     if self.lastActor then
         self.centerX, self.centerZ = clampToWorld(self.world,

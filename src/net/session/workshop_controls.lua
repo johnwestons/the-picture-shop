@@ -56,6 +56,8 @@ function Component.install(Runtime)
             request.barrierClear = arguments.barrierClear
         elseif action == "set_weekly_technician" then
             request.enabled = arguments.enabled
+        elseif action == "order_blade_upgrade" then
+            request.bladeGrade = arguments.bladeGrade
         elseif action == "move_machine" then
             request.machineIndex = arguments.machineIndex
             request.machineId = arguments.machineId

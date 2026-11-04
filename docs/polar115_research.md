@@ -52,6 +52,8 @@ Use a modal “Operate Polar 115” screen opened by interacting with the isomet
 
 The cutter should make money through accuracy and throughput rather than dangerous timing. A correct stack height, appropriate clamp pressure, and complete cut list improve yield. Wrong dimensions, misalignment, excessive pressure, or dull-knife condition can create waste and rework. Upgrades can unlock air-table handling, faster backgauge, better process visualization, automatic trim/waste removal, or more program memory. Safety failures should be recoverable interruptions and training feedback, not graphic injury.
 
+The game also offers specialty blade orders through the Polar Maintenance Center. A premium ground blade and a carbide-edge blade have progressively slower wear and higher cut-quality floors, and Mara Mouse installs an order during a prepared blade exchange. These names, prices, and balance values are game systems, not claims about POLAR accessory SKUs or manufacturer performance ratings.
+
 ## Sources
 
 * [POLAR / Heidelberg, High-Speed Cutter POLAR N 115 product sheet (2024)](https://www.heidelberg.com/global/media/en/global_media/products___postpress_cutting/pdf_11/07_polar_high_speed_cutter_115_producsheet.pdf) — current N 115 variants, 1,150 mm cutting/feeding format, 165 mm loading height, clamp pressures, backgauge speed, knife cycles, minimum cuts, touchscreen/process features.
@@ -61,4 +63,10 @@ The cutter should make money through accuracy and throughput rather than dangero
 
 ## Art implementation notes
 
-Create separate pixel layers for `body`, `table_left/right`, `control_panel`, `paper_stack`, `backgauge`, `clamp`, `knife_bar`, `cut_line`, `left_button`, `right_button`, `pedal`, `barrier_status`, and `e_stop`. Keep the knife and clamp as independent animation strips so the same machine sprite supports idle, alignment, clamping, cutting, blocked, and reset states. The provided XT photo is a visual reference only; simplify small labels and display text into readable iconography at game resolution.
+Create separate pixel layers for `body`, `table_left/right`, `control_panel`, `paper_stack`, `backgauge`, `clamp`, `knife_bar`, `cut_line`, `left_button`, `right_button`, `pedal`, `barrier_status`, and `e_stop`. Keep the knife and clamp as independent animated layers so the same machine sprite supports idle, alignment, clamping, cutting, blocked, and reset states. The provided XT photo is a visual reference only; simplify small labels and display text into readable iconography at game resolution.
+
+## Motion refinement — November 3, 2026
+
+The cutter GUI now uses separate detailed transparent sprites for the clamp and knife. Show the knife's diagonal edge and a short lateral shear during the downstroke so one end meets the stack first. Keep the operating order legible: paper leaves the skid for the table, advances to the backgauge, clamps, shears, returns home, releases, and moves back to the skid. Paper rotation is a visual quarter-turn around the stack center. These eased poses are presentation only; host paper size, cut history, and safety state remain authoritative.
+
+The production console uses the lower cross-rail as a foreground occlusion layer. Recess the raised knife and clamp in the throat, use the selected gauge to position the stack against a rear stop, and place the cut edge at the fixed knife line before clamping. Heidelberg lists the N 115 with a 1,150 mm feeding depth; the compressed console view is illustrative, while the work surface and rear-stop relationship should remain clear.

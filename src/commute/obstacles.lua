@@ -2,7 +2,12 @@
 -- Trees contribute only a narrow central trunk; shrubs, fallen logs and pebble
 -- clutter never enter the solid set. Dimensions are in world metres (48px/m).
 local Flora=require('src.commute.flora')
-local Obstacles={MAX_RADIUS=4.34}
+local Obstacles={MAX_RADIUS=4.34,MIN_TREE_RADIUS=.14}
+-- A forgiving solid-stem threshold, not the canopy's footprint. Slender
+-- understory/open forms and young stems must not inherit a full oak trunk.
+local trunks={oak={radius=.28,understory=.12},pine={radius=.24,open=.12},
+    redbud={radius=.18,understory=.10},dogwood={radius=.16,understory=.10},
+    persimmon={radius=.20}}
 local rockTops={85,133,8,122,30,15,8,117,11,39,45}
 local upland={2,4,7,8,9,10}
 local alpine={2,4,5,6,7,8,9,10}
@@ -28,7 +33,13 @@ function Obstacles.shape(p,seed,calendar)
     -- Seeds and sprouts are not trunks. The decay artwork is a fallen log,
     -- whereas dead trees still have a standing central trunk.
     if not state or state=='seed' or state=='sprout' or state=='decay' then return nil end
-    return .28*scale,3.8*scale
+    local profile=trunks[p.kind]
+    local radius=(profile[p.visualVariant] or profile.radius)*scale
+    if state=='young' then radius=radius*.3 end
+    -- Small trees remain scenery that the motorcycle can push through. The
+    -- same rule also clears tiny scaled mature trees and slender dead stems.
+    if radius<Obstacles.MIN_TREE_RADIUS then return nil end
+    return radius,3.8*scale
 end
 
 -- Sweep the bike's horizontal disc against an upright solid. Returns a time

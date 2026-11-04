@@ -119,6 +119,15 @@ function Test.run(context,check)
             and map.background==background and map.backgroundBuilds==builds and map.terrainSamples==samples)
         R.App.keypressed('m')
         check('route_map_keyboard_closes_without_leaving_travel',not R._commute.mapOpen and R.state.screen=='world')
+        local mini=C.miniMapRect(R);local level=map.miniLevel
+        local target=C.activeWaypoint(R);local camera=R._commute.camera
+        local zoom=camera.targetZoom
+        tap(map.miniZoomButton(mini,1))
+        check('mini_plus_touch_only_zooms_navigation',map.miniLevel==level+1 and not R._commute.mapOpen
+            and camera.targetZoom==zoom and C.activeWaypoint(R)==target and C.touch(R).x==0)
+        draw(R,'mini-map-zoomed')
+        click(map.miniZoomButton(mini,-1))
+        check('mini_minus_pointer_restores_scale_and_route',map.miniLevel==level and C.activeWaypoint(R)==target)
         click(C.mapButton(R))
         check('route_map_pc_button_opens_map',R._commute.mapOpen==true)
         tap(C.mapButton(R))

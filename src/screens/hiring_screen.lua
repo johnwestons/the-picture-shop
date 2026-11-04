@@ -349,24 +349,7 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         if ui.view=="finances" then
             local f=Finances.summary(state)
             local plan=Finances.plan(f)
-            line("WEEKLY SHOP BUDGET",100,250,740,{1,.85,.45})
-            line(string.format("Wages incl. rest / overtime: $%.2f",f.weeklyWages),100,284,370)
-            line(string.format("Shop bills allowance: $%.2f",f.weeklyOperating),100,310,370)
-            line(string.format("Machine payments: $%.2f",f.weeklyLoans),100,336,370)
-            line(string.format("Full payroll cycle reserve: $%.2f",f.cycleReserve),100,374,370)
-            line(string.format("Cash after earned wages / bills: $%.2f",f.freeCash),100,410,370,
-                f.freeCash<0 and {1,.55,.40} or {.65,.9,.72})
-            line(string.format("Break-even: %d cutting lifts / week",f.breakEvenLifts),490,284,350,{1,.85,.45})
-            line(string.format("Budget-covering charge: $%.2f / lift",f.pricePerLift),490,310,350)
-            line(string.format("Estimated staff capacity: %d lifts / week",f.capacity),490,336,350)
-            line("IN-HOUSE ORDER FORECAST",490,394,350)
-            line(string.format("%d delivered jobs | %d work units left",f.inHouseJobs,f.inHouseWorkUnits),490,424,350)
-            line(string.format("Automatic forecast: %d units / week",plan.forecastUnits),490,450,350)
-            line(string.format("Income $%.2f | Machine reserve $%.2f",plan.revenue,plan.machineReserve),490,480,350)
-            line(string.format("Money for growth: $%.2f / week",plan.profit),490,510,350,
-                plan.profit<0 and {1,.55,.40} or {.65,.9,.72})
-            line("Only delivered, unpaid orders count; ready jobs count at full value.",100,526,740,{.61,.78,.67})
-            line("Output follows remaining in-house work and staff capacity. Wages, bills and loans are deducted.",100,606,740,{.61,.78,.67})
+            require("src.screens.shop_budget").draw(state.money or 0, f, plan)
             button("finances","BACK TO PAYROLL",pointerX,pointerY)
             return
         end

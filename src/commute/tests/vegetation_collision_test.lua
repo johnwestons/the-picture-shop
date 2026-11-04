@@ -23,7 +23,7 @@ function Test.run(check)
     -- Pick an existing mature tree by ID so lifecycle calendar remains forward.
     for id=1,100 do
         tree.id=id;Flora.present(tree,4261,{totalDays=0})
-        if tree.plantAge>Flora.catalog.types.oak.mature and tree.lifePhase=='live' then break end
+        if tree.plantAge>Flora.catalog.types.oak.mature and tree.lifePhase=='live' and not tree.visualVariant then break end
     end
     local calendar={month=5,totalDays=0}
     local radius,height=Obstacles.shape(tree,4261,calendar)
@@ -104,5 +104,6 @@ function Test.run(check)
     local repeatTime,_,_,repeatKind,repeatId=actual:sweepObstacles(target.x,target.z,target.x,target.z,.01,target.h,target.h+1)
     check('commute_solid_identity_survives_patch_eviction_and_regeneration',
         repeatTime==hitTime and repeatKind==hitKind and repeatId==hitId and cached:stats().patches<=1)
+    require('src.commute.tests.thin_tree_collision_test').run(check)
 end
 return Test

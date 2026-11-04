@@ -1,12 +1,6 @@
 local Fleet=require("src.machine_fleet")
 local Shutdown={}
 local busy={armed=true,cutting=true,loading=true,positioning=true,unloading=true,lift_returning=true,resetting=true}
-function Shutdown.prepare(state)
-    require("src.windmill").releaseAllOperators(state)
-    for _,unit in ipairs(Fleet.installedUnits(state,"polar_115")) do
-        Fleet.withUnit(state,unit.id,function() require("src.machine").forId(unit.id).releaseOperator(state) end)
-    end
-end
 function Shutdown.checklist(state,world)
     local rows={}
     local function wait(text) rows[#rows+1]=text end
@@ -23,18 +17,21 @@ function Shutdown.checklist(state,world)
     end
     if state.forklift and state.forklift.operating then wait("Park the forklift before leaving.") end
     for _,worker in ipairs(state.employment and state.employment.staff or {}) do
-        if worker.clockedIn or not require("src.employee_work").safe(worker,state) then
+        if worker.visible or worker.clockedIn or not require("src.employee_work").safe(worker,state) then
             wait(worker.name..": "..tostring(worker.activity or "finishing and parking work")..".")
         end
     end
     local truck=world and world.truck
     if truck then
-        local moving={backing=true,cargo_opening=true,cargo_closing=true,departing=true}
-        if moving[truck.state] then wait("Truck: finishing "..truck.state:gsub("_"," ")..".")
-        elseif truck.mode=="pickup" and truck.state~="absent" and truck.state~="scheduled"
-            and require("src.job_service").remainingPickup(state,truck.jobId)==0 then
-            wait("Committing the completed customer pickup and payment.")
+        if truck.state~="absent" then
+            wait("Truck: finish "..truck.state:gsub("_"," ").." and close the loading bay.")
         end
+    end
+    if world and world.bayDoor and world.bayDoor.state~="closed" then
+        wait("Close the loading bay door.")
+    end
+    for scene,door in pairs(world and world.roomDoors or {}) do
+        if door.state~="closed" then wait("Close the "..scene:gsub("_"," ").." loading bay door.") end
     end
     return rows
 end

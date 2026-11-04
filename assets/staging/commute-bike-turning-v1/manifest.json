@@ -1,0 +1,724 @@
+{
+  "version": 1,
+  "character": "commute-motorcycle-rider",
+  "specType": "vehicle_pose",
+  "status": "staged_for_visual_review",
+  "frameCount": 32,
+  "frameSize": 320,
+  "columns": 8,
+  "anchor": [
+    160,
+    260
+  ],
+  "runtimeScale": 0.46,
+  "headHeightAboveAnchor": 190,
+  "mirror": false,
+  "source": "assets/source/commute-bike-turning-v1/upright-32-source.png",
+  "sourceSha256": "ee1ee4cadc8d48a8db0593b523712436b4803be8ffeb2f49b91f9a1601b81ecd",
+  "frames": [
+    {
+      "frame": 1,
+      "yawFromRearDegrees": 0.0,
+      "sourceRect": [
+        0,
+        0,
+        222,
+        222
+      ],
+      "sourceAnchor": [
+        123.5,
+        186.0
+      ],
+      "uniformScale": 1.165644171779141,
+      "bbox": [
+        104,
+        69,
+        217,
+        285
+      ],
+      "sha256": "99cb138a8af294ccfe636b9fb7747a2b370d43d449fc5241ba1f707126b5787c"
+    },
+    {
+      "frame": 2,
+      "yawFromRearDegrees": 11.25,
+      "sourceRect": [
+        222,
+        0,
+        443,
+        222
+      ],
+      "sourceAnchor": [
+        124.5,
+        185.42272383112893
+      ],
+      "uniformScale": 1.1626290123296097,
+      "bbox": [
+        105,
+        69,
+        214,
+        285
+      ],
+      "sha256": "ddd7d70c238587e34e6008283757572ea876f5097b252ffe5d722028eadbe07b"
+    },
+    {
+      "frame": 3,
+      "yawFromRearDegrees": 22.5,
+      "sourceRect": [
+        443,
+        0,
+        665,
+        222
+      ],
+      "sourceAnchor": [
+        128.5,
+        183.6746502847517
+      ],
+      "uniformScale": 1.1679754630940777,
+      "bbox": [
+        91,
+        69,
+        228,
+        283
+      ],
+      "sha256": "6f85c01d942baa467f0e5e1d93ddbad9ff32144f23ca0e2be5490ed019a54d1b"
+    },
+    {
+      "frame": 4,
+      "yawFromRearDegrees": 33.75,
+      "sourceRect": [
+        665,
+        0,
+        887,
+        222
+      ],
+      "sourceAnchor": [
+        126.0,
+        183.707668529344
+      ],
+      "uniformScale": 1.1606053748541607,
+      "bbox": [
+        84,
+        70,
+        237,
+        282
+      ],
+      "sha256": "2a5587cb5f1e3aacdf443055817ca4628c42d1ab196910b1fdfdc8d8d711692a"
+    },
+    {
+      "frame": 5,
+      "yawFromRearDegrees": 45.0,
+      "sourceRect": [
+        887,
+        0,
+        1109,
+        222
+      ],
+      "sourceAnchor": [
+        123.5,
+        185.44365081389594
+      ],
+      "uniformScale": 1.1415274723362256,
+      "bbox": [
+        74,
+        70,
+        245,
+        277
+      ],
+      "sha256": "d4c8b2f880cca0aa7bf817466872cac6b452bf629bfd2d6f423f9f6dfdc35c0c"
+    },
+    {
+      "frame": 6,
+      "yawFromRearDegrees": 56.25,
+      "sourceRect": [
+        1109,
+        0,
+        1330,
+        222
+      ],
+      "sourceAnchor": [
+        122.5,
+        186.77745487356876
+      ],
+      "uniformScale": 1.13924271205623,
+      "bbox": [
+        67,
+        69,
+        253,
+        274
+      ],
+      "sha256": "e7b419f82e97cac22f8faa072e26fcc1dc718d004cfd1bf0d7a4273763de939f"
+    },
+    {
+      "frame": 7,
+      "yawFromRearDegrees": 67.5,
+      "sourceRect": [
+        1330,
+        0,
+        1552,
+        222
+      ],
+      "sourceAnchor": [
+        121.5,
+        189.58096448796803
+      ],
+      "uniformScale": 1.1270548877038884,
+      "bbox": [
+        63,
+        69,
+        257,
+        269
+      ],
+      "sha256": "4d115faf5219e635f613757dbaeec4a40c70ef1f179b07a2d0cc67786d0825cd"
+    },
+    {
+      "frame": 8,
+      "yawFromRearDegrees": 78.75,
+      "sourceRect": [
+        1552,
+        0,
+        1774,
+        222
+      ],
+      "sourceAnchor": [
+        117.0,
+        191.70801291564518
+      ],
+      "uniformScale": 1.106529606707062,
+      "bbox": [
+        61,
+        70,
+        260,
+        265
+      ],
+      "sha256": "a2bf85394aae69cb166d9b99b69a44798104e80b92bdd30e96e52e5ba9528ab7"
+    },
+    {
+      "frame": 9,
+      "yawFromRearDegrees": 90.0,
+      "sourceRect": [
+        0,
+        222,
+        222,
+        443
+      ],
+      "sourceAnchor": [
+        119.5,
+        193.0
+      ],
+      "uniformScale": 1.0919540229885059,
+      "bbox": [
+        58,
+        70,
+        261,
+        260
+      ],
+      "sha256": "303c6c8e86daf180daf0e9fff9fcaacce3aafd5347b1eccdb75eab2224942734"
+    },
+    {
+      "frame": 10,
+      "yawFromRearDegrees": 101.25,
+      "sourceRect": [
+        222,
+        222,
+        443,
+        443
+      ],
+      "sourceAnchor": [
+        122.5,
+        190.70801291564518
+      ],
+      "uniformScale": 1.106529606707062,
+      "bbox": [
+        60,
+        71,
+        259,
+        265
+      ],
+      "sha256": "46455ea834acc77497d919198fc6308a875e1d7bb34e4f785377d64688b0c21d"
+    },
+    {
+      "frame": 11,
+      "yawFromRearDegrees": 112.5,
+      "sourceRect": [
+        443,
+        222,
+        665,
+        443
+      ],
+      "sourceAnchor": [
+        122.5,
+        188.58096448796803
+      ],
+      "uniformScale": 1.120408770958964,
+      "bbox": [
+        68,
+        70,
+        253,
+        270
+      ],
+      "sha256": "0982b3ddd776cbd87a78e33508a93330c1bc557fffddf20fdb7e0375d3339bd0"
+    },
+    {
+      "frame": 12,
+      "yawFromRearDegrees": 123.75,
+      "sourceRect": [
+        665,
+        222,
+        887,
+        443
+      ],
+      "sourceAnchor": [
+        123.0,
+        188.77745487356876
+      ],
+      "uniformScale": 1.1191120761086373,
+      "bbox": [
+        80,
+        70,
+        238,
+        273
+      ],
+      "sha256": "6f9989134b1cbadd1b2131634926214d44545c6ba67f52cbc9853a52beec7768"
+    },
+    {
+      "frame": 13,
+      "yawFromRearDegrees": 135.0,
+      "sourceRect": [
+        887,
+        222,
+        1109,
+        443
+      ],
+      "sourceAnchor": [
+        120.0,
+        187.44365081389594
+      ],
+      "uniformScale": 1.1279736522091917,
+      "bbox": [
+        93,
+        71,
+        228,
+        278
+      ],
+      "sha256": "d62562167e3b0e282d8085b676d6b4f072f31a43fd49d8ba902dad864872be04"
+    },
+    {
+      "frame": 14,
+      "yawFromRearDegrees": 146.25,
+      "sourceRect": [
+        1109,
+        222,
+        1330,
+        443
+      ],
+      "sourceAnchor": [
+        116.0,
+        185.707668529344
+      ],
+      "uniformScale": 1.1397196162368264,
+      "bbox": [
+        103,
+        69,
+        218,
+        280
+      ],
+      "sha256": "59e94954eebcfea88b9be597414474ba40d0ef67c729b196191afd5c06a9fc9c"
+    },
+    {
+      "frame": 15,
+      "yawFromRearDegrees": 157.5,
+      "sourceRect": [
+        1330,
+        222,
+        1552,
+        443
+      ],
+      "sourceAnchor": [
+        115.5,
+        185.6746502847517
+      ],
+      "uniformScale": 1.1399453946679872,
+      "bbox": [
+        110,
+        69,
+        209,
+        283
+      ],
+      "sha256": "6356af0e5f3dde3435672541f1481904c30d7b334b1a364ac0798586c00bb0ec"
+    },
+    {
+      "frame": 16,
+      "yawFromRearDegrees": 168.75,
+      "sourceRect": [
+        1552,
+        222,
+        1774,
+        443
+      ],
+      "sourceAnchor": [
+        110.5,
+        182.42272383112893
+      ],
+      "uniformScale": 1.1626290123296097,
+      "bbox": [
+        107,
+        70,
+        213,
+        285
+      ],
+      "sha256": "a1f340b6bd00527fbca245d442be914b08b35306c59df60533152c05238f7bfb"
+    },
+    {
+      "frame": 17,
+      "yawFromRearDegrees": 180.0,
+      "sourceRect": [
+        0,
+        443,
+        222,
+        665
+      ],
+      "sourceAnchor": [
+        114.0,
+        184.0
+      ],
+      "uniformScale": 1.1515151515151516,
+      "bbox": [
+        103,
+        70,
+        218,
+        286
+      ],
+      "sha256": "671406e7e780b788bc7c0ed4db4573c4cdc2aba0bf406b86a21cda62dc41148f"
+    },
+    {
+      "frame": 18,
+      "yawFromRearDegrees": 191.25,
+      "sourceRect": [
+        222,
+        443,
+        443,
+        665
+      ],
+      "sourceAnchor": [
+        112.0,
+        184.42272383112893
+      ],
+      "uniformScale": 1.148572551579798,
+      "bbox": [
+        105,
+        70,
+        215,
+        285
+      ],
+      "sha256": "7796c118abd7e0192d08994c8a8bd9872db022979f0aca19e40a693a245285af"
+    },
+    {
+      "frame": 19,
+      "yawFromRearDegrees": 202.5,
+      "sourceRect": [
+        443,
+        443,
+        665,
+        665
+      ],
+      "sourceAnchor": [
+        120.5,
+        182.6746502847517
+      ],
+      "uniformScale": 1.160839504892474,
+      "bbox": [
+        97,
+        70,
+        222,
+        284
+      ],
+      "sha256": "4d91e0a272626ba44a2e7a309503148e48bcefc4bd525b3e32cf9b61b2febc0f"
+    },
+    {
+      "frame": 20,
+      "yawFromRearDegrees": 213.75,
+      "sourceRect": [
+        665,
+        443,
+        887,
+        665
+      ],
+      "sourceAnchor": [
+        119.5,
+        184.707668529344
+      ],
+      "uniformScale": 1.1465975092537992,
+      "bbox": [
+        85,
+        69,
+        236,
+        282
+      ],
+      "sha256": "a2cd69462a62e54f1037b00107d67d372473a7d53bb64ccd74a8ee11073de712"
+    },
+    {
+      "frame": 21,
+      "yawFromRearDegrees": 225.0,
+      "sourceRect": [
+        887,
+        443,
+        1109,
+        665
+      ],
+      "sourceAnchor": [
+        117.5,
+        187.44365081389594
+      ],
+      "uniformScale": 1.1213167273448421,
+      "bbox": [
+        74,
+        70,
+        246,
+        278
+      ],
+      "sha256": "292f2e2a099346a6a2c1365ded4c691bfefce2acbf5ee0f146fef077b5577946"
+    },
+    {
+      "frame": 22,
+      "yawFromRearDegrees": 236.25,
+      "sourceRect": [
+        1109,
+        443,
+        1330,
+        665
+      ],
+      "sourceAnchor": [
+        116.0,
+        190.77745487356876
+      ],
+      "uniformScale": 1.0996805117834034,
+      "bbox": [
+        67,
+        70,
+        252,
+        273
+      ],
+      "sha256": "01aca818421dd85666bbbb40aeb79d7be6d8fb617283448429b8da74ac697b52"
+    },
+    {
+      "frame": 23,
+      "yawFromRearDegrees": 247.5,
+      "sourceRect": [
+        1330,
+        443,
+        1552,
+        665
+      ],
+      "sourceAnchor": [
+        116.5,
+        192.580964487968
+      ],
+      "uniformScale": 1.0945900695993085,
+      "bbox": [
+        61,
+        69,
+        258,
+        269
+      ],
+      "sha256": "2b14cffc8b9c481396405aaeb8bbe1242c2499b16e4e392cf57a0fa4da3e4f26"
+    },
+    {
+      "frame": 24,
+      "yawFromRearDegrees": 258.75,
+      "sourceRect": [
+        1552,
+        443,
+        1774,
+        665
+      ],
+      "sourceAnchor": [
+        114.0,
+        194.70801291564516
+      ],
+      "uniformScale": 1.0813394155861078,
+      "bbox": [
+        61,
+        69,
+        260,
+        265
+      ],
+      "sha256": "69be2a378730968d763d3bd2845014c10db3c51e77a0e36291a9e4f99d0852f5"
+    },
+    {
+      "frame": 25,
+      "yawFromRearDegrees": 270.0,
+      "sourceRect": [
+        0,
+        665,
+        222,
+        887
+      ],
+      "sourceAnchor": [
+        113.0,
+        199.0
+      ],
+      "uniformScale": 1.0497237569060773,
+      "bbox": [
+        61,
+        70,
+        258,
+        260
+      ],
+      "sha256": "c7917a5042b0b7785c44077e9bd9dfefda2975eb8931e138adbe428bf71165c5"
+    },
+    {
+      "frame": 26,
+      "yawFromRearDegrees": 281.25,
+      "sourceRect": [
+        222,
+        665,
+        443,
+        887
+      ],
+      "sourceAnchor": [
+        112.5,
+        196.70801291564518
+      ],
+      "uniformScale": 1.0631867978392493,
+      "bbox": [
+        64,
+        71,
+        255,
+        264
+      ],
+      "sha256": "91ccacf56f9c90c31a5c5d030c11fc95606d31ca3ab8e608fc13157ddb8f4af4"
+    },
+    {
+      "frame": 27,
+      "yawFromRearDegrees": 292.5,
+      "sourceRect": [
+        443,
+        665,
+        665,
+        887
+      ],
+      "sourceAnchor": [
+        114.0,
+        195.58096448796803
+      ],
+      "uniformScale": 1.0759936698213375,
+      "bbox": [
+        70,
+        70,
+        249,
+        269
+      ],
+      "sha256": "19495af825539fe3a86223d3c3c3f92815527bd0b5ff1a8061c226b956647079"
+    },
+    {
+      "frame": 28,
+      "yawFromRearDegrees": 303.75,
+      "sourceRect": [
+        665,
+        665,
+        887,
+        887
+      ],
+      "sourceAnchor": [
+        116.0,
+        192.77745487356876
+      ],
+      "uniformScale": 1.0933524152384089,
+      "bbox": [
+        79,
+        70,
+        241,
+        274
+      ],
+      "sha256": "c97ca4b6b115dbf1cbdf9041c6090618aa62f87a37c3c8653627975e32dbcad0"
+    },
+    {
+      "frame": 29,
+      "yawFromRearDegrees": 315.0,
+      "sourceRect": [
+        887,
+        665,
+        1109,
+        887
+      ],
+      "sourceAnchor": [
+        117.5,
+        190.44365081389597
+      ],
+      "uniformScale": 1.108235849493471,
+      "bbox": [
+        87,
+        71,
+        233,
+        277
+      ],
+      "sha256": "9aac89f543ccfe4cce5ff0137b17280a8393f5a7830ceaac1ca36f40067356f1"
+    },
+    {
+      "frame": 30,
+      "yawFromRearDegrees": 326.25,
+      "sourceRect": [
+        1109,
+        665,
+        1330,
+        887
+      ],
+      "sourceAnchor": [
+        118.0,
+        187.707668529344
+      ],
+      "uniformScale": 1.132923745623209,
+      "bbox": [
+        93,
+        69,
+        225,
+        281
+      ],
+      "sha256": "c6c7afab038aa7ff7b99597a640a6160b452218351f9565a4cf246ef045c622f"
+    },
+    {
+      "frame": 31,
+      "yawFromRearDegrees": 337.5,
+      "sourceRect": [
+        1330,
+        665,
+        1552,
+        887
+      ],
+      "sourceAnchor": [
+        118.0,
+        185.6746502847517
+      ],
+      "uniformScale": 1.1468260212014292,
+      "bbox": [
+        102,
+        70,
+        219,
+        284
+      ],
+      "sha256": "38149447a7da79542be7b2ee3b15a2c38908e84f31959dc6acbec43c60440ecc"
+    },
+    {
+      "frame": 32,
+      "yawFromRearDegrees": 348.75,
+      "sourceRect": [
+        1552,
+        665,
+        1774,
+        887
+      ],
+      "sourceAnchor": [
+        115.0,
+        184.42272383112893
+      ],
+      "uniformScale": 1.1555580370699874,
+      "bbox": [
+        107,
+        70,
+        214,
+        286
+      ],
+      "sha256": "163d4d6e7179e08b4a76a2abe0906241bbc1b9cae1d546edaefbdfe70943fae4"
+    }
+  ]
+}

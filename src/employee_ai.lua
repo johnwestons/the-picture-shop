@@ -203,9 +203,13 @@ function AI.worker(state,w,dt,now,context)
         w.greetingKind,w.greetingUntilHours=nil,nil
     end
     local day=Contracts.shiftDay(w.contract,now)
+    local week=state.home and state.home.weekend
+    local finishingFriday=week and week.phase=="closing" and w.visible and w.clockedIn
+        and w.assignment~=nil
     local onShift=w.status=="employed" and not w.terminationRequested
-        and w.sentHomeShiftDay~=day and Contracts.onShift(w.contract,now)
-        and require("src.weekend_flow").acceptsNewWork(state)
+        and w.sentHomeShiftDay~=day
+        and (Contracts.onShift(w.contract,now)
+            and require("src.weekend_flow").acceptsNewWork(state) or finishingFriday)
     local overdue=Payroll.overdueSince(w,now)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
     if onShift and not w.visible then
@@ -307,7 +311,7 @@ function AI.worker(state,w,dt,now,context)
             else w.phase="idle" end
         end
     else
-        local b=breakChoice(w,now)
+        local b=not finishingFriday and breakChoice(w,now)
         if b and Work.safe(w,state) then beginBreak(state,w,b,context)
         elseif overdue then
             local parked=Transport.owns(state,w)
@@ -340,6 +344,12 @@ function AI.worker(state,w,dt,now,context)
                     palletEmergencyDropPoint=context.palletEmergencyDropPoint,
                     move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
                 local changed,blockedReason=Work.update(state,w,dt,workContext)
+                if finishingFriday and blockedReason and Work.safe(w,state) then
+                    Work.release(state,w,context)
+                    w.assignment=nil
+                    w.activity="Handing unfinished job to the next shift"
+                    return true
+                end
                 if w.phase=="working" then w.idleClock=w.idleClock+dt end
                 local deferred=false
                 if blockedReason=="Machine access is blocked" and w.assignment

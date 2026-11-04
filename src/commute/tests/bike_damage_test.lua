@@ -49,9 +49,14 @@ function Test.run(check)
     local maximum = approach(26.8, 0, false, 60)
     check('bike_low_speed_bump_stops_and_braces_without_damage',
         bump.speed==0 and bump.impactPulse>0 and bump.impactStrength>0 and bump.damage==0 and not bump.crashPending)
-    check('bike_damage_increases_with_direct_impact_speed_and_caps_at_100',
-        medium.damage>0 and not medium.crashPending and hard.damage>medium.damage*2 and maximum.damage==100
+    check('bike_collision_wear_is_small_for_bumps_and_capped_per_crash',
+        medium.damage==2 and not medium.crashPending and hard.damage>medium.damage*2 and maximum.damage==24
         and medium.impactStrength>bump.impactStrength)
+    local parked=Bike.new(0,0,0)
+    Damage.impact(parked,5,-1,0,5,0,'tree')
+    check('bike_parking_speed_contacts_cost_no_condition',parked.damage==0)
+    parked.damage=92;Damage.impact(parked,27,-1,0,27,0,'tree')
+    check('bike_accumulated_wear_still_caps_at_100',parked.damage==100)
     check('bike_hard_hit_stops_bike_and_reports_safe_ejection_direction', hard.speed==0
         and hard.crashPending and hard.crashPending.dx>.99 and hard.crashPending.nx<-.99 and hard.crashPending.kind=='tree')
 

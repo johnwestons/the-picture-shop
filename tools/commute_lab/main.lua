@@ -1,3 +1,18 @@
+if os.getenv('PICTURE_SHOP_BIKE_REVIEW') == 'grass' then
+    require('tools.commute_lab.grass_review').install();return
+end
+if os.getenv('PICTURE_SHOP_BIKE_REVIEW') == 'multiplayer' then
+    require('tools.commute_lab.bike_multiplayer_review').install();return
+end
+if os.getenv('PICTURE_SHOP_BIKE_REVIEW') == 'motionfx' then
+    require('tools.commute_lab.bike_motion_fx_review').install();return
+end
+if os.getenv('PICTURE_SHOP_BIKE_REVIEW') == 'actions64' then
+    require('tools.commute_lab.bike_actions_review').install();return
+end
+if os.getenv('PICTURE_SHOP_BIKE_REVIEW') == 'turning' then
+    require('tools.commute_lab.turning_review').install();return
+end
 if os.getenv('PICTURE_SHOP_RIDER_SCALE_REVIEW') == '1' then
     require('tools.commute_lab.rider_scale_review').install();return
 end
@@ -76,6 +91,15 @@ local function viewportLayout()
     return scale,width,height,(width-1280)*.5,(height-880)*.5
 end
 local rider,controlMessage,pointerBoost
+local Station=require('src.commute.gas_station')
+local stationPanel
+local previewWallet={balanceCents=20000}
+local function stationArgs()
+    return rider.bike.service,function(id,rev)
+        local _,message=Station.buy(rider,world,previewWallet,id,rev)
+        return message
+    end,function() stationPanel=nil end
+end
 local rideAudio,audioMuted,audioVolume=nil,false,.8
 local routes,route
 local townSeedText=os.getenv('PICTURE_SHOP_TOWN_SEED')
@@ -202,7 +226,7 @@ function love.load()
         world=Town.world(assert(Town.generate(townSeed)));roads=world.roads
         startX,startZ=roads.destinations.warehouse.x,roads.destinations.warehouse.z
         print('TOWN PREVIEW '..world.townId..' buildings='..#roads.sites.all)
-    else roads=Roads.new();world=roads:attach(Terrain.new()) end
+    else world=require('src.commute.town').world();roads=world.roads end
     if routeMap then routeMap:release();routeMap=nil end
     renderer=Renderer.new(world)
     if bridgeReview then
@@ -311,18 +335,19 @@ function love.load()
 end
 function love.update(dt)
     if not renderer then return end
-    if controlsPanel then return end
+    if controlsPanel or stationPanel then return end
     dt=math.min(dt,.1);elapsed=elapsed+dt;frames=frames+1
     local k=love.keyboard.isDown
     local ix=(k('d','right') and 1 or 0)-(k('a','left') and 1 or 0)
     local iy=(k('s','down') and 1 or 0)-(k('w','up') and 1 or 0)
     local mappedBoost
-    if rider.gear.mounted then ix,iy,mappedBoost=Bindings.drive(profile(),touchControls)
+    if rider.gear.mounted then ix,iy,mappedBoost=Bindings.drive(profile(),touchControls,camera,rider.bike)
     elseif math.abs(touchControls.x)+math.abs(touchControls.y)>0 then ix,iy=touchControls.x,touchControls.y end
     local wx,wz=camera:screenVectorToWorld(ix,iy)
-    local finished=Rider.update(rider,{throttle=math.max(0,-iy),brake=k('space') and 1 or math.max(0,iy),
+    local finished=Rider.update(rider,{drive=iy,
         steer=ix,boost=mappedBoost or pointerBoost,walkX=wx,walkZ=wz},dt,world)
     if finished or ix~=0 or iy~=0 then controlMessage=nil end
+    if Station.atCounter(rider,world) then controlMessage=Bindings.hint(profile(),'interact')..' / USE: Gas & Tire counter' end
     actor=Rider.actor(rider)
     if firstPersonCheck then
         local p=cases[caseIndex];actor.lean=p.lean or 0;actor.steering=p.steering or 0
@@ -330,8 +355,10 @@ function love.update(dt)
     local outsideMode=profile().outsideCamera=='follow' and 'follow' or 'fixed'
     if camera.outsideMode~=outsideMode then camera:setOutsideMode(outsideMode,actor,rider.gear.mounted and not rider.gear.transition) end
     camera:updateRide(rider,dt);renderer:prepare(camera,dt)
+    renderer:updateTireTracks('preview',rider.gear.mounted and rider.bike or nil,world,dt)
     Bindings.camera(profile(),camera,dt,touchControls)
-    rideAudio:update(dt,rider.bike,rider.gear.engine)
+    rider.bike.horn=rider.gear.mounted and Bindings.value(profile(),'horn',touchControls)>0 or false
+    rideAudio:update(dt,rider.bike,rider.gear.engine,{horn=rider.bike.horn})
     if captureDir and frames>100 and renderer.pending==0
         and renderer.plantSprites:readyFor(renderer.visibleProps,renderer.calendar,renderer.clock) and not waiting then waiting=true end
 end
@@ -341,7 +368,13 @@ local function map()
         home=apartmentIds[apartmentIndex],bike=not rider.gear.mounted and rider.bike or nil,
         closeHint=Bindings.hint(profile(),'map')..' / Esc: close'})
 end
+local function controlContext()
+    return {mounted=rider.gear.mounted,engine=rider.gear.engine,transmission=rider.bike.transmission,
+        reverse=rider.bike.reverse,headlight=rider.bike.headlight,headlightHighBeam=rider.bike.headlightHighBeam,
+        horn=Bindings.value(profile(),'horn',touchControls)>0,camera=camera}
+end
 function love.draw()
+    if stationPanel then return Station.draw(stationPanel,rider.bike.service,previewWallet.balanceCents,love.graphics.getDimensions()) end
     if controlsPanel then
         local w,h=love.graphics.getDimensions();local s=math.min(w/960,h/678)
         love.graphics.push();love.graphics.translate((w-960*s)*.5,(h-678*s)*.5);love.graphics.scale(s)
@@ -355,6 +388,7 @@ function love.draw()
     renderer:draw(camera,actor,actors)
     if not warehouseReview and not bridgeReview and not (townSeed and captureDir and not previewCheck and not firstPersonCheck) then
     g.push();g.translate(uiX,uiY)
+    if playablePreview then cockpit.drawCondition(rider.bike,16,camera.firstPerson and 126 or 246) end
     if camera.firstPerson then
         local destination=roads.destinations[route.to]
         local distance=math.sqrt((actor.x-destination.x)^2+(actor.z-destination.z)^2)
@@ -369,7 +403,7 @@ function love.draw()
     g.setColor(.035,.06,.05,.88);g.rectangle('fill',18,18,790,96,8)
     g.setColor(.94,.91,.78);g.print((playablePreview and 'THE WAY HOME  /  Playable motorcycle preview' or 'THE WAY HOME  /  Scenic terrain development ride')..cockpit.conditionLabel(rider.bike),34,29)
     g.setColor(.80,.85,.79);g.print(Bindings.label(profile().mouse.orbit)..': rotate/tilt · '..Bindings.label(profile().mouse.pan)..': pan · '..Bindings.hint(profile(),'recenter')..': center · F10: controls',34,53)
-    g.print(cockpit.riderHint(rider) or controlMessage or (rider.gear.mounted and (Bindings.hint(profile(),'ignition')..': engine · '..Bindings.hint(profile(),'reverse')..': reverse · '..Bindings.hint(profile(),'headlight')..': light · '..Bindings.hint(profile(),'interact')..': dismount')
+    g.print(cockpit.riderHint(rider) or controlMessage or (rider.gear.mounted and (Bindings.hint(profile(),'ignition')..': engine · '..Bindings.hint(profile(),'reverse')..': reverse · '..Bindings.hint(profile(),'headlight')..': light · '..Bindings.hint(profile(),'beam')..': HI/LO · '..Bindings.hint(profile(),'horn')..': horn · '..Bindings.hint(profile(),'interact')..': dismount')
         or ('WASD: walk · '..Bindings.hint(profile(),'interact')..': remount beside bike · F10: controls · Esc: close')),34,78)
     local destination=roads.destinations[route.to]
     local distance=math.sqrt((actor.x-destination.x)^2+(actor.z-destination.z)^2)
@@ -386,7 +420,7 @@ function love.draw()
     end
     end
     if rider.gear.mounted then cockpit:draw(rider.bike,rider.gear.engine,1280,880,nil,camera,profile()) end
-    touchControls:draw(1280,880,profile())
+    touchControls:draw(1280,880,profile(),controlContext(),{camera=camera})
     if showMap then map() end
     g.setColor(.08,.13,.10,.95);g.rectangle('fill',mapButton.x,mapButton.y,mapButton.width,mapButton.height,5)
     g.setColor(.94,.92,.76);g.printf(Bindings.hint(profile(),'map')..(showMap and '  CLOSE MAP' or '  MAP'),mapButton.x,mapButton.y+14,mapButton.width,'center')
@@ -438,6 +472,7 @@ local function perform(id)
     if a and a.preview and a.preview~='' then love.keypressed(a.preview,true) end
 end
 function love.keypressed(key,semantic)
+    if stationPanel then return Station.key(stationPanel,key,stationArgs()) end
     semantic=semantic==true
     if controlsPanel then return controlsPanel:keypressed(key) end
     if not camera then return end
@@ -447,7 +482,7 @@ function love.keypressed(key,semantic)
         if id then
             if Bindings.byId[id].held or Bindings.byId[id].modifier then return end
             key=Bindings.byId[id].preview;if not key or key=='' then return end
-        elseif ({p=true,o=true,m=true,q=true,t=true,e=true,i=true,h=true,b=true,r=true,f=true,c=true,v=true,z=true,x=true,g=true,['=']=true,['-']=true})[key] then return end
+        elseif ({p=true,o=true,m=true,q=true,t=true,e=true,i=true,h=true,b=true,n=true,r=true,f=true,c=true,v=true,z=true,x=true,g=true,['=']=true,['-']=true})[key] then return end
     end
     if key=='escape' then if showMap then toggleMap() else love.event.quit() end
     elseif key=='p' then
@@ -464,13 +499,16 @@ function love.keypressed(key,semantic)
             ..(saved and '' or ' (session only; settings could not be saved)')
     elseif key=='q' then camera:orbit(-15,0)
     elseif key=='t' then camera:orbit(15,0)
+    elseif key=='u' then
+        local _,message=Rider.command(rider,'rescue',world);controlMessage=message
     elseif key=='e' then
+        if Station.atCounter(rider,world) then stationPanel=Station.open();touchControls:cancel();return end
         local _,message=Rider.command(rider,rider.gear.mounted and 'dismount' or 'mount',world)
         controlMessage=message or (rider.gear.mounted and 'Getting off the motorcycle…' or 'Mounting and starting the motorcycle…')
     elseif key=='g' then
         local _,message=Rider.command(rider,rider.gear.outfit=='normal' and 'equip' or 'remove',world);controlMessage=message
-    elseif key=='i' or key=='h' or key=='b' then
-        local _,message=Rider.command(rider,({i='ignition',h='headlight',b='reverse'})[key],world);controlMessage=message
+    elseif key=='i' or key=='h' or key=='b' or key=='n' then
+        local _,message=Rider.command(rider,({i='ignition',h='headlight',b='reverse',n='beam'})[key],world);controlMessage=message
     elseif key=='r' then camera:orbit(0,5)
     elseif key=='f' then camera:orbit(0,-5)
     elseif key=='c' then camera:recenter()
@@ -514,13 +552,27 @@ local function ridePoint(x,y)
     return x/scale-uiX,y/scale-uiY,scale
 end
 function love.mousepressed(x,y,button,isTouch)
+    if stationPanel then
+        local w,h=love.graphics.getDimensions()
+        return Station.pointer(stationPanel,x*960/w,y*678/h,stationArgs())
+    end
     if isTouch then return end
     if controlsPanel then local px,py=panelPoint(x,y);return controlsPanel:mousepressed(px,py,button) end
     local ux,uy=ridePoint(x,y)
     if button==1 and ux>=1120 and ux<=1262 and uy>=18 and uy<=60 then openControls();return end
     if button==1 and contains(mapButton,ux,uy) then toggleMap();return end
     if showMap then return end
-    if button==1 and profile().showTouch and touchControls:press('mouse',ux,uy,1280,880,profile(),perform) then return end
+    if button==1 then
+        local action=Touch.actionAt(ux,uy,1280,880,profile(),controlContext(),{camera=camera})
+        if action then
+            if action.enabled then
+                if Bindings.byId[action.action].held then
+                    touchControls.contacts.mouse={action=action.action};touchControls.held[action.action]=true
+                else perform(action.action) end
+            end
+            return
+        end
+    end
     local modifier=profile().keyboard.panModifier
     if camera and CameraControls.press(cameraDrag,button,modifier~='' and love.keyboard.isDown(modifier),profile()) then return end
     if button~=1 then perform(Bindings.action(profile(),'mouse','mouse'..button));return end
@@ -549,6 +601,11 @@ function love.focus(focused)
     if rideAudio then rideAudio:setPaused(not focused) end
 end
 function love.gamepadpressed(joy,button)
+    if stationPanel then
+        local key=({a='return',b='escape',dpup='up',dpdown='down'})[button]
+        if key then Station.key(stationPanel,key,stationArgs()) end
+        return
+    end
     if controlsPanel then return controlsPanel:gamepadpressed(joy,button) end
     if button=='start' then openControls();return end
     local id=Bindings.action(profile(),'controller',button);if id and not Bindings.byId[id].held then perform(id) end
@@ -563,12 +620,17 @@ function love.gamepadaxis(joy,axis,value)
     if math.abs(value)<.3 or sign then padEdges[edge]=sign end
 end
 function love.touchpressed(id,x,y)
+    if stationPanel then
+        local w,h=love.graphics.getDimensions()
+        return Station.pointer(stationPanel,x*960/w,y*678/h,stationArgs())
+    end
     if controlsPanel then local px,py=panelPoint(x,y);return controlsPanel:mousepressed(px,py,1) end
     local px,py=ridePoint(x,y)
     if px>=1120 and py<70 then openControls();return end
     if contains(mapButton,px,py) then toggleMap();return end
     if showMap then return end
-    if touchControls:press(id,px,py,1280,880,profile(),perform) then return end
+    if touchControls:press(id,px,py,1280,880,profile(),perform,controlContext(),
+        {mobile=true,camera=camera}) then return end
     if rider.gear.mounted then
         local key=require('src.commute.cockpit').keyAt(px,py,1280,880,rider.bike,nil,camera)
         if key=='boost' then touchControls.contacts[id]={action='boost'};touchControls.held.boost=true

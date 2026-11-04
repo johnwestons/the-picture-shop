@@ -1,6 +1,7 @@
 -- Fleet component inspection and persistent-state validation.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 function Component.install(Runtime)
     function Runtime.Fleet.weakestComponent(item)
@@ -70,6 +71,11 @@ function Component.install(Runtime)
                     or type(cutter.bladeRemoved) ~= "boolean" or type(cutter.bladeInSleeve) ~= "boolean"
                     or (cutter.spareBladeInstalled ~= nil and type(cutter.spareBladeInstalled) ~= "boolean")
                     or (cutter.spareBladeInstalled == true and (cutter.bladeRemoved or not cutter.bladeInSleeve))
+                    or (cutter.bladeGrade ~= nil and not BladeProfiles.get(cutter.bladeGrade))
+                    or (cutter.orderedBladeGrade ~= nil
+                        and not BladeProfiles.isOrderable(cutter.orderedBladeGrade))
+                    or (cutter.orderedBladeGrade ~= nil
+                        and not BladeProfiles.isUpgrade(cutter.bladeGrade or "standard", cutter.orderedBladeGrade))
                     or type(cutter.weeklyTechnician) ~= "boolean"
                     or (cutter.nextTechnicianDay ~= nil and type(cutter.nextTechnicianDay) ~= "number")
                     or (cutter.appointmentType ~= nil and cutter.appointmentType ~= "weekly"

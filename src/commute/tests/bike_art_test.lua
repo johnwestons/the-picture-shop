@@ -11,20 +11,28 @@ function Test.run(check)
     local sixteen=true
     for i=1,16 do sixteen=sixteen and Art.frame(camera,-math.pi/2+(i-1)*math.pi/8,16)==i end
     check('commute_bike_art_sixteen_independent_views_resolve',sixteen)
-    local first,second,blend=Art.frameBlend(camera,-math.pi/2+math.pi/16,16)
-    local wrapFirst,wrapSecond,wrapBlend=Art.frameBlend(camera,-math.pi/2-math.pi/16,16)
-    check('commute_bike_art_blends_adjacent_heading_views_without_sector_pop',first==1 and second==2
-        and math.abs(blend-.5)<1e-8 and wrapFirst==16 and wrapSecond==1 and math.abs(wrapBlend-.5)<1e-8)
+    local sixtyFour=true
+    for i=1,64 do sixtyFour=sixtyFour and Art.frame(camera,-math.pi/2+(i-1)*math.pi/32,64)==i end
+    check('commute_bike_art_sixty_four_upright_views_resolve',sixtyFour)
     camera:orbit(90,0)
     check('commute_bike_art_view_follows_camera_orbit',Art.frame(camera,0,8)==5 and Art.frame(camera,0,16)==9)
     local art=Art.new()
     local atlases=true;local count=0
     for _,image in pairs(art.images) do
         count=count+1
-        atlases=atlases and image:getWidth()==1280 and image:getHeight()==art.atlasHeight
+        if image==art.images.upright then
+            atlases=atlases and image:getWidth()==2560 and image:getHeight()==2560
+        else atlases=atlases and image:getWidth()==1280 and image:getHeight()==art.atlasHeight end
     end
-    check('commute_bike_art_all_pose_atlases_match_selected_layout',atlases and count==14
-        and #art.quads==16 and art.frameCount==16 and art.atlasHeight==1280)
+    check('commute_bike_art_base_atlases_and_lazy_action_pages_match_layout',atlases and count==2
+        and #art.quads==16 and #art.uprightQuads==64 and art.frameCount==64 and art.parkedFrameCount==16
+        and #art.actionPages.quads==16 and art.actionPages.count==0 and art.atlasHeight==1280)
+    local actions=true
+    for _,state in ipairs(Art.ACTION_STATES) do for frame=1,64 do
+        local image,quad=art:resolve(state,frame);local info=art:describe(image,quad)
+        actions=actions and info.state==state and info.frame==frame and info.page==math.floor((frame-1)/16)+1
+    end end
+    check('commute_bike_art_all_896_action_views_resolve_without_legacy_atlases',actions and art.actionPages.peakCount==12)
     local cells=true
     for i,quad in ipairs(art.quads) do
         local x,y,w,h=quad:getViewport()
@@ -33,37 +41,75 @@ function Test.run(check)
             and tw==1280 and th==art.atlasHeight
     end
     check('commute_bike_art_quads_match_installed_atlas_rows',cells)
+    local denseCells=true
+    for i,quad in ipairs(art.uprightQuads) do
+        local x,y,w,h=quad:getViewport();local tw,th=quad:getTextureDimensions()
+        denseCells=denseCells and x==(i-1)%8*320 and y==math.floor((i-1)/8)*320
+            and w==320 and h==320 and tw==2560 and th==2560
+    end
+    check('commute_bike_art_sixty_four_quads_cover_every_row_including_final_cell',denseCells)
+    -- Read actual packaged pixels: a valid layout alone cannot catch the
+    -- alternating head-size pulse that affected the previous 64-view set.
+    local previous=love.image.newImageData('assets/commute/bike/mounted-upright-64.png')
+    local regenerated=love.image.newImageData(Art.UPRIGHT_PATH)
+    local oldCell,newCell=love.image.newImageData(320,320),love.image.newImageData(320,320)
+    local hashes,widths={},{};local unique,changed,registered=true,true,true
+    for i=0,63 do
+        local x,y=i%8*320,math.floor(i/8)*320
+        oldCell:paste(previous,0,0,x,y,320,320)
+        newCell:paste(regenerated,0,0,x,y,320,320)
+        local hash=love.data.hash('sha256',newCell:getString())
+        unique=unique and not hashes[hash];hashes[hash]=true
+        changed=changed and hash~=love.data.hash('sha256',oldCell:getString())
+        local left,right,top=320,-1,320
+        for py=65,105 do for px=0,319 do
+            local _,_,_,a=newCell:getPixel(px,py)
+            if a>=16/255 then left=math.min(left,px);right=math.max(right,px);top=math.min(top,py) end
+        end end
+        widths[i+1]=right-left+1
+        registered=registered and top>=69 and top<=71 and widths[i+1]>=47 and widths[i+1]<=60
+    end
+    check('commute_bike_art_all_64_views_are_independently_regenerated_and_unique',unique and changed)
+    check('commute_bike_art_regenerated_helmet_height_and_scale_stay_registered',registered)
+    local maximum,total=0,0
+    for i=1,64 do
+        local delta=math.abs(widths[i]-widths[i%64+1]);maximum=math.max(maximum,delta);total=total+delta
+    end
+    check('commute_bike_art_adjacent_sizes_and_wrap_avoid_previous_alternating_pulse',maximum<=3 and total/64<=1.15)
+    previous:release();regenerated:release();oldCell:release();newCell:release()
     art:release()
 
-    -- Missing sixteen-view art is an explicit packaging error. Legacy eight
-    -- atlases must never silently reduce the number of displayed directions.
+    -- Validate every action page before uploading any texture.
     local getInfo,newImage=love.filesystem.getInfo,love.graphics.newImage
     local okay,err=xpcall(function()
-        for _,scenario in ipairs({'absent','partial','complete'}) do
+        for _,scenario in ipairs({'absent','partial','uprightAbsent','complete'}) do
             love.filesystem.getInfo=function(path)
-                if scenario=='absent' or (scenario=='partial' and path:find('mounted%-aero%-tuck%-16')) then return nil end
+                if scenario=='absent' or (scenario=='partial' and path:find('actions%-64/brake%-4%.png')) then return nil end
+                if scenario=='uprightAbsent' and path==Art.UPRIGHT_PATH then return nil end
                 return {type='file'}
             end
             local loaded=0
             love.graphics.newImage=function(path)
-                assert(path:match('%-16%.png$'),'Eight-view fallback must not load: '..path)
+                assert(path=='assets/commute/bike/parked-16.png' or path==Art.UPRIGHT_PATH,'Legacy action must not load: '..path)
                 loaded=loaded+1
-                return {getWidth=function()return 1280 end,getHeight=function()return 1280 end,
+                return {getWidth=function()return path==Art.UPRIGHT_PATH and 2560 or 1280 end,
+                    getHeight=function()return path==Art.UPRIGHT_PATH and 2560 or 1280 end,
                     setFilter=function()end,release=function()end}
             end
             local created,fixture=pcall(Art.new)
             if scenario=='complete' then
                 local lastX,lastY=fixture.quads[16]:getViewport()
-                check('commute_bike_art_complete_sixteen_view_install_loads_all_poses',created and loaded==14
-                    and fixture.frameCount==16 and #fixture.quads==16 and lastX==960 and lastY==960)
+                check('commute_bike_art_complete_install_loads_two_base_textures_and_validates_64_view_actions',created and loaded==2
+                    and fixture.frameCount==64 and #fixture.quads==16 and #fixture.uprightQuads==64 and lastX==960 and lastY==960)
                 fixture:release()
             else
-                check('commute_bike_art_'..scenario..'_sixteen_view_install_fails_before_image_load',not created and loaded==0
-                    and tostring(fixture):find('Missing sixteen-view motorcycle atlas',1,true)~=nil)
+                check('commute_bike_art_'..scenario..'_install_fails_before_image_load',not created and loaded==0
+                    and tostring(fixture):find('Missing',1,true)~=nil)
             end
         end
     end,debug.traceback)
     love.filesystem.getInfo,love.graphics.newImage=getInfo,newImage
     assert(okay,err)
+    require('src.commute.tests.bike_view_test').run(check)
 end
 return Test

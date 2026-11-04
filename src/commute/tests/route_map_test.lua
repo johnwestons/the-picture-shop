@@ -57,6 +57,32 @@ function Test.run(check)
     map:prepare();map:snapshot(rect,{x=301,z=241,heading=2});map:prepare()
     check('travel_map_terrain_and_static_geometry_are_cached_once',map.background==background
         and samples==Map.RESOLUTION^2 and oldCalls==samples and map.terrainSamples==samples and map.backgroundBuilds==1)
+    local small={x=110,y=40,width=240,height=160};local actor={x=300,z=240,heading=0}
+    local options={destination='building-03',route={points={{x=300,z=240},{x=125,z=80}}}}
+    local plus,minus=Map.miniZoomButton(small,1),Map.miniZoomButton(small,-1)
+    local initial=map:miniSnapshot(small,actor,options)
+    map:pressMiniZoom(small,plus.x+5,plus.y+5)
+    local closer=map:miniSnapshot(small,actor,options)
+    check('mini_zoom_enlarges_cached_map_about_rider',closer.viewport.scale>initial.viewport.scale
+        and near(closer.marker.x,initial.marker.x) and near(closer.marker.y,initial.marker.y))
+    for _=1,8 do map:pressMiniZoom(small,plus.x+5,plus.y+5) end
+    check('mini_zoom_in_is_bounded',map.miniLevel==4)
+    local edge=map:miniSnapshot(small,{x=bounds.x1-2,z=bounds.z1-2,heading=0},options)
+    check('mini_map_follows_rider_and_stops_at_world_edge',near(edge.viewport.x+edge.viewport.width,edge.area.x+edge.area.width)
+        and near(edge.viewport.y+edge.viewport.height,edge.area.y+edge.area.height)
+        and edge.marker.x<=edge.area.x+edge.area.width and edge.marker.y<=edge.area.y+edge.area.height)
+    for _=1,8 do map:pressMiniZoom(small,minus.x+5,minus.y+5) end
+    local far=map:miniSnapshot(small,actor,options)
+    check('mini_zoom_out_fits_full_island_and_retains_goal',map.miniLevel==1 and far.goal and far.viewport.scale<initial.viewport.scale
+        and far.viewport.width<=far.area.width+.01 and far.viewport.height<=far.area.height+.01)
+    local oldPrintf=love.graphics.printf;local labels=0
+    love.graphics.printf=function(t,...)if tostring(t):match('^%d+$') then labels=labels+1 end;return oldPrintf(t,...) end
+    local okay,reason=pcall(map.drawMini,map,small,actor,options);love.graphics.printf=oldPrintf;assert(okay,reason)
+    check('mini_draw_omits_number_badges_without_rebuilding_terrain',labels==0 and map.backgroundBuilds==1 and oldCalls==samples)
+    local site=world.sites.all[3]
+    check('mini_unnumbered_footprints_remain_selectable',map:hitMini(small,
+        far.viewport.x+(site.x-bounds.x0)*far.viewport.scale,
+        far.viewport.y+(site.z-bounds.z0)*far.viewport.scale,actor,options)==site.id)
     map:release();map:release();map:prepare()
     check('travel_map_release_is_idempotent_and_cannot_recreate_resources',map.released and map.background==nil
         and map.backgroundBuilds==1 and map.terrainSamples==samples)

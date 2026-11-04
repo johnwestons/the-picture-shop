@@ -4,12 +4,22 @@ extern bool firstPerson;
 #ifdef PIXEL
 extern bool rideHeadlight;
 extern vec2 rideForward;
-vec3 riderLight(vec3 surface,vec2 delta) {
-    float forward=dot(delta,rideForward);
-    float side=abs(delta.x*rideForward.y-delta.y*rideForward.x);
-    float beam=(1.0-smoothstep(.3+forward*.12,.6+forward*.22,side))
-        *smoothstep(.3,1.0,forward)*(1.0-smoothstep(4.0,11.0,forward));
-    return surface+vec3(.18,.16,.09)*beam;
+extern vec2 rideLightOffset;
+extern float rideLightHeight;
+extern float rideBeamRange;
+extern float rideBeamSpread;
+extern float rideBeamDrop;
+vec3 riderLight(vec3 surface,vec2 delta,float surfaceHeight) {
+    vec2 fromLamp=delta-rideLightOffset;
+    float forward=max(0.0,dot(fromLamp,rideForward));
+    float side=abs(fromLamp.x*rideForward.y-fromLamp.y*rideForward.x);
+    float width=.14+forward*rideBeamSpread;
+    float lateral=1.0-smoothstep(width*.60,width,side);
+    float range=1.0-smoothstep(rideBeamRange*.72,rideBeamRange,forward);
+    float targetHeight=rideLightHeight-surfaceHeight-forward*rideBeamDrop;
+    float vertical=1.0-smoothstep(.18+forward*.035,.72+forward*.075,abs(targetHeight));
+    float beam=lateral*range*vertical*smoothstep(.15,.9,forward);
+    return surface+vec3(.30,.27,.15)*beam;
 }
 #endif
 #ifdef VERTEX

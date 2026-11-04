@@ -4,6 +4,9 @@
 -- original views. Coordinates never modify or duplicate the source artwork.
 local Masks={FRAME=320}
 Masks.minY={
+    -- New upright views share a normalized helmet/tire-plane registration.
+    -- Keep recoloring below the rider's torso for every one of the 64 views.
+    upright={},
     parked={130,130,130,130,130,130,130,130,130,130,130,130,130,130,130,130},
     mounted={137,137,101,101,101,116,116,129,129,129,118,118,113,130,130,137},
     aero={160,160,160,160,160,160,160,164,164,165,165,165,163,172,172,172},
@@ -19,6 +22,8 @@ Masks.minY={
     turnLeftMid={161,161,136,136,134,141,141,156,156,156,137,140,140,165,165,165},
     turnRightMid={164,164,147,148,148,148,147,161,161,161,147,147,142,158,158,164},
 }
+for frame=1,64 do Masks.minY.upright[frame]=155 end
+for state,row in pairs(require('assets.commute.bike.actions-64.paint_regions')) do Masks.minY[state]=row end
 function Masks.lower(pose,frame)
     local row=assert(Masks.minY[pose or "parked"],"Unknown bike paint pose")
     return assert(row[frame],"Unknown bike paint frame")

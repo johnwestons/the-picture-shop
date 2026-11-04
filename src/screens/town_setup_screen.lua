@@ -7,6 +7,7 @@ local Ui=require('src.screens.ui')
 local Skin=require('src.screens.title_skin')
 local Fonts=require('src.screens.title_fonts')
 local Preview=require('src.commute.town_preview')
+local Options=require('src.commute.island_options')
 local Setup={}
 local buttons={terrain={x=405,y=73,width=150,height=28},generate={x=590,y=170,width=175,height=42},random={x=775,y=170,width=125,height=42},
     save={x=590,y=309,width=310,height=40},previous={x=590,y=511,width=52,height=36},
@@ -14,6 +15,7 @@ local buttons={terrain={x=405,y=73,width=150,height=28},generate={x=590,y=170,wi
     delete={x=750,y=555,width=150,height=36},back={x=55,y=597,width=150,height=43},
     cancel={x=215,y=597,width=150,height=43},start={x=700,y=597,width=200,height=43}}
 local fields={seed={x=590,y=118,width=310,height=42},name={x=590,y=259,width=310,height=40}}
+buttons.island={x=215,y=73,width=180,height=28}
 local pageSize=4
 function Setup.buttonCenter(name)
     local b=buttons[name] or fields[name];return b.x+b.width/2,b.y+b.height/2
@@ -24,6 +26,7 @@ end
 local function show(state,town)
     if state.terrainImage then state.terrainImage:release() end
     state.terrainImage=nil;state.terrainSamples=nil;state.selectedSite=nil
+    state.settings=Options.copy(town.terrain.settings)
     state.town=Town.copy(town);state.seedText=tostring(town.seed)
     state.sites=Sites.create({placements=town.placements,designs=town.designs})
     state.dirty=false;state.focus=nil
@@ -34,7 +37,7 @@ function Setup.generate(state)
     if not seed or seed%1~=0 or seed<1 or seed>2147483646 then
         state.message='Enter a seed from 1 to 2147483646.';return false
     end
-    local town,err=Town.generate(seed)
+    local town,err=Town.generate(seed,{island=state.settings})
     if not town then state.message=err or 'Could not generate this town.';return false end
     show(state,town);state.message='Town ready. Create shop to use this exact layout.';return true
 end
@@ -61,7 +64,8 @@ end
 local function action(state,name,options)
     state.focus=nil;state.replaceText=false
     if name=='back' or name=='cancel' then return name end
-    if name=='terrain' then state.terrainVisible=not state.terrainVisible
+    if name=='island' then state.settings=state.settings or Options.copy();state.optionsPage=1
+    elseif name=='terrain' then state.terrainVisible=not state.terrainVisible
     elseif name=='generate' then Setup.generate(state)
     elseif name=='random' then state.seedText=tostring(randomSeed());Setup.generate(state)
     elseif name=='start' then
@@ -90,6 +94,10 @@ local function action(state,name,options)
     return 'changed'
 end
 function Setup.keypressed(state,key,options)
+    if state.optionsPage then
+        if key=='escape' or key=='back' then state.optionsPage=nil end
+        return 'changed'
+    end
     if key=='escape' or key=='back' then
         if state.focus then state.focus=nil;return 'changed' end
         return 'back'
@@ -108,7 +116,47 @@ function Setup.keypressed(state,key,options)
     if key=='r' then return action(state,'random',options) end
     if key=='t' then return action(state,'terrain',options) end
 end
+local function optionRows(state)
+    local rows={}
+    local function row(x,y,width,label,click)
+        rows[#rows+1]={x=x,y=y,width=width,height=39,label=label,click=click}
+    end
+    if state.optionsPage==1 then
+        for i,field in ipairs(Options.fields) do
+            local key,values=field[1],field[3]
+            row(180,95+(i-1)*46,600,field[2]..'     '..values[state.settings[key]],function()
+                state.settings[key]=state.settings[key]%#values+1
+                state.dirty=true
+            end)
+        end
+    else
+        local first=(state.optionsPage-2)*16
+        for j=1,16 do
+            local kind=Options.species[first+j]
+            if not kind then break end
+            row(155+(j-1)%2*330,95+math.floor((j-1)/2)*46,320,
+                kind..(state.settings.excluded[kind] and '   Off' or '   On'),function()
+                    state.settings.excluded[kind]=not state.settings.excluded[kind] or nil
+                    state.dirty=true
+                end)
+        end
+    end
+    local pages=1+math.ceil(#Options.species/16)
+    row(180,485,290,state.optionsPage==1 and 'Advanced foliage' or state.optionsPage<pages and 'More species' or 'Island settings',
+        function() state.optionsPage=state.optionsPage%pages+1 end)
+    row(490,485,290,'Back to preview',function()
+        state.optionsPage=nil
+        if state.dirty then Setup.generate(state) end
+    end)
+    return rows
+end
 function Setup.mousepressed(state,x,y,options)
+    if state.optionsPage then
+        for _,row in ipairs(optionRows(state)) do
+            if Ui.contains(row,x,y) then row.click();break end
+        end
+        return 'changed'
+    end
     for name,b in pairs(fields) do if Ui.contains(b,x,y) then state.focus=name;state.replaceText=true;return 'changed' end end
     for name,b in pairs(buttons) do if Ui.contains(b,x,y) then return action(state,name,options) end end
     for row=1,pageSize do
@@ -183,7 +231,15 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
     love.graphics.setColor(.015,.025,.03,.98);love.graphics.rectangle('fill',0,0,960,684)
     Skin.panel(assets,{x=30,y=30,width=900,height=624})
     text('CHOOSE YOUR TOWN  /  SLOT '..slot,55,48,845,23,{1,.86,.36,1},'center')
-    text('Preview your roads, shops and homes.',55,80,345,14)
+    text('Town preview',55,80,145,14)
+    if state.optionsPage then
+        text(state.optionsPage==1 and 'Island settings • Tap a value to change it' or 'Advanced foliage • Tap a species to toggle it',120,72,720,16,nil,'center')
+        for _,row in ipairs(optionRows(state)) do
+            Skin.button(assets,row,'normal')
+            text(row.label,row.x+6,row.y+9,row.width-12,16,nil,'center')
+        end
+        return
+    end
     map(state,options)
     for i,id in ipairs(Catalog.ORDER) do
         text(i..'  '..Catalog.APARTMENTS[id].name,55+((i-1)%2)*250,544+math.floor((i-1)/2)*23,245,13,
@@ -209,6 +265,7 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
     text(state.message or '',377,597,309,13,state.dirty and {1,.79,.35,1} or nil)
     local labels={terrain=state.terrainVisible and 'TERRAIN: ON' or 'TERRAIN: OFF',generate='GENERATE PREVIEW',random='REROLL',save='SAVE NAMED TOWN',previous='<',next='>',
         load='LOAD PRESET',delete='DELETE PRESET',back='BACK',cancel='CANCEL',start='CREATE SHOP'}
+    labels.island='ISLAND SETTINGS'
     for name,b in pairs(buttons) do
         local hovered=mouseX and mouseY and Ui.contains(b,mouseX,mouseY)
         local disabled=(name=='start' or name=='save') and (state.dirty or not state.town)

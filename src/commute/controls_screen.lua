@@ -125,8 +125,9 @@ function Screen:mousepressed(x,y,button)
 end
 function Screen:mousemoved(x,y)
     if self.drag then
-        local margin=self.drag=='stick' and .10 or .06
-        self:profile().layout[self.drag]={x=math.max(margin,math.min(1-margin,(x-100)/760)),y=math.max(margin,math.min(1-margin,(y-165)/380))}
+        local stick=self.drag=='stick' or self.drag=='cameraStick'
+        local mx,my=stick and .10 or .04,stick and .10 or .06
+        self:profile().layout[self.drag]={x=math.max(mx,math.min(1-mx,(x-100)/760)),y=math.max(my,math.min(1-my,(y-165)/380))}
     end
     return true
 end
@@ -141,7 +142,8 @@ function Screen:draw()
         g.setColor(.92,.94,.80);g.printf(text,x+5,y+11,w-10,'center')
     end
     g.setColor(1,.85,.4);g.print('MOTORCYCLE CONTROLS',70,30)
-    box(355,24,395,38,'O / LB  OUTSIDE: '..(self:profile().outsideCamera=='follow' and 'FOLLOW RIDER' or 'FIXED ANGLE'),
+    local outside=self:profile().outsideCamera
+    box(355,24,395,38,'O / LB  OUTSIDE: '..(outside=='shoulder' and 'OVER THE SHOULDER' or outside=='follow' and 'FOLLOW RIDER' or 'FIXED ANGLE'),
         self:profile().outsideCamera=='follow')
     box(790,24,120,38,'BACK')
     for i,d in ipairs(B.devices) do box(70+(i-1)*210,82,200,42,d:upper(),d==self.device) end

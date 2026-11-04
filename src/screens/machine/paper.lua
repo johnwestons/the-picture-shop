@@ -1,6 +1,7 @@
 -- Paper selection, loading, and sheet presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local CutterMotion = require("src.screens.cutter_motion")
 
 function Component.install(Runtime)
     function Runtime.openLoadMenu(state)
@@ -89,34 +90,136 @@ function Component.install(Runtime)
         return 0.25 + (hash % 55) / 100, 0.25 + ((hash * 3) % 55) / 100, 0.25 + ((hash * 7) % 55) / 100
     end
 
-    function Runtime.drawPaper(assets, machine)
+    function Runtime.drawPaper(assets, machine, visualOrientation, turnProgress)
         local paper = machine.paper
         if not machine.loaded or not paper then return end
-        local step, t = machine.step, 1
-        if step == "loading" then t = math.min(1, machine.progress / machine.transferTime)
-        elseif step == "positioning" then t = math.min(1, machine.progress / machine.transferTime)
-        elseif step == "unloading" or step == "lift_returning" then
-            t = 1 - math.min(1, machine.progress / machine.transferTime)
+        local step = machine.step
+        local transfer = math.max(0.001, tonumber(machine.transferTime) or 1)
+        local t = math.max(0, math.min(1, (tonumber(machine.progress) or 0) / transfer))
+        local function ease(value)
+            value = math.max(0, math.min(1, value))
+            return value * value * (3 - 2 * value)
         end
-        local startY, bedY, gaugeY = 355, 264, 218
-        local y
-        if step == "loading" then y = startY + (bedY - startY) * t
-        elseif step == "loaded" then y = bedY
-        elseif step == "positioning" then y = bedY + (gaugeY - bedY) * t
-        elseif step == "unloading" or step == "lift_returning" then y = startY + (gaugeY - startY) * t
-        else y = gaugeY end
-        local rotated = paper.orientation % 180 == 90
-        local widthValue = rotated and paper.currentSize.height or paper.currentSize.width
-        local heightValue = rotated and paper.currentSize.width or paper.currentSize.height
-        local width = math.max(100, math.min(270, widthValue / 25 * 270))
-        local height = math.max(50, math.min(125, heightValue / 25 * 125))
-        local x = 662 - width / 2
+        local startY, cutLineY = 355, CutterMotion.cutLineY
+        local orientation = (tonumber(paper.orientation) or 0) % 360
+        visualOrientation = (tonumber(visualOrientation) or orientation) % 360
+        local angle = math.rad(visualOrientation)
+        local sourceWidth = tonumber(paper.currentSize.width) or 10
+        local sourceHeight = tonumber(paper.currentSize.height) or 10
+        local paperWidth = math.max(100, math.min(270, sourceWidth / 25 * 270))
+        local paperHeight = math.max(50, math.min(270, sourceHeight / 25 * 270))
+        local depthScale = 0.45
+        local cosAngle, sinAngle = math.abs(math.cos(angle)), math.abs(math.sin(angle))
+        local boundsWidth = cosAngle * paperWidth + sinAngle * paperHeight
+        local boundsHeight = (sinAngle * paperWidth + cosAngle * paperHeight) * depthScale
+        local bedY = math.max(cutLineY + 4, 271 - boundsHeight)
+        local centerX, topY = 662, bedY
+        local rotated = orientation % 180 == 90
+        local gaugeAxisInches = rotated and sourceWidth or sourceHeight
+        gaugeAxisInches = math.max(0.01, gaugeAxisInches)
+        local gaugeInches = math.max(0, tonumber(machine.gauge) or gaugeAxisInches)
+        local gaugePixels = gaugeInches / gaugeAxisInches * boundsHeight
+        local workingY = cutLineY - gaugePixels
+
+        if step == "loading" then
+            if t < 0.56 then
+                local phase = ease(t / 0.56)
+                centerX = 690 - 16 * phase
+                topY = startY + (296 - startY) * phase
+            else
+                local phase = ease((t - 0.56) / 0.44)
+                centerX = 674 + (662 - 674) * phase
+                topY = 296 + (bedY - 296) * phase
+            end
+        elseif step == "loaded" then
+            -- On successive cuts the clamp still has to lift before the
+            -- operator can draw the stock forward for the next turn.
+            local withdrawal = ease(1 - (tonumber(machine.clampProgress) or 0) / 0.72)
+            topY = workingY + (bedY - workingY) * withdrawal
+        elseif step == "positioning" then
+            -- Most of the push happens immediately, followed by a short settle against the stop.
+            local phase = 1 - (1 - math.min(1, t / 0.82)) ^ 2
+            topY = bedY + (workingY - bedY) * phase
+        elseif step == "unloading" or step == "lift_returning" then
+            if t < 0.54 then
+                local phase = ease(t / 0.54)
+                centerX = 662 + 6 * phase
+                topY = workingY + (296 - workingY) * phase
+            else
+                local phase = ease((t - 0.54) / 0.46)
+                centerX = 668 + (690 - 668) * phase
+                topY = 296 + (startY - 296) * phase
+            end
+        else
+            topY = workingY
+        end
+
+        local boundsX = centerX - boundsWidth / 2
+        local boundsY = topY
+        local centerY = boundsY + boundsHeight / 2
+        local skidAlpha = 0
+        if step == "loading" then skidAlpha = 1 - ease(t / 0.48)
+        elseif step == "unloading" or step == "lift_returning" then skidAlpha = ease((t - 0.72) / 0.28) end
+        if skidAlpha > 0.01 then
+            local skidWidth = math.min(310, boundsWidth + 22)
+            local skidX = 690 - skidWidth / 2
+            local skidY = startY + boundsHeight + 5
+            love.graphics.setColor(0.15, 0.11, 0.08, 0.26 * skidAlpha)
+            love.graphics.rectangle("fill", skidX + 4, skidY + 6, skidWidth, 9, 2, 2)
+            love.graphics.setColor(0.37, 0.25, 0.15, 0.96 * skidAlpha)
+            love.graphics.rectangle("fill", skidX, skidY, skidWidth, 7, 2, 2)
+            love.graphics.setColor(0.61, 0.43, 0.25, 0.92 * skidAlpha)
+            for plank = 1, 4 do
+                local plankX = skidX + skidWidth * (plank - 1) / 4 + 4
+                love.graphics.rectangle("fill", plankX, skidY + 1, 3, 5)
+            end
+            love.graphics.setColor(0.21, 0.15, 0.1, 0.9 * skidAlpha)
+            love.graphics.line(skidX + 3, skidY + 7, skidX + skidWidth - 3, skidY + 7)
+        end
+
+        -- A small rear stop sits in the throat. As the stack moves off the skid,
+        -- its back edge advances up to this fixed gauge line.
+        local stopAlpha = 1
+        if step == "unloading" or step == "lift_returning" then
+            stopAlpha = 1 - ease(t / 0.42)
+        end
+        if stopAlpha > 0.01 then
+            local stopWidth = 192
+            local stopX = 662 - stopWidth / 2
+            local stopY = workingY - 10
+            love.graphics.setColor(0.06, 0.08, 0.09, 0.8 * stopAlpha)
+            love.graphics.rectangle("fill", stopX + 2, stopY + 5, stopWidth, 8, 2, 2)
+            love.graphics.setColor(0.29, 0.34, 0.36, 0.96 * stopAlpha)
+            love.graphics.rectangle("fill", stopX, stopY, stopWidth, 10, 2, 2)
+            love.graphics.setColor(0.64, 0.69, 0.69, 0.92 * stopAlpha)
+            love.graphics.line(stopX + 4, stopY + 1, stopX + stopWidth - 4, stopY + 1)
+            love.graphics.setColor(0.14, 0.17, 0.18, 0.95 * stopAlpha)
+            love.graphics.rectangle("fill", stopX + 5, stopY + 3, 4, 4, 1, 1)
+            love.graphics.rectangle("fill", stopX + stopWidth - 9, stopY + 3, 4, 4, 1, 1)
+        end
+
+        love.graphics.push()
+        love.graphics.translate(centerX, centerY)
+        love.graphics.scale(1, depthScale)
+        love.graphics.rotate(angle)
+        local left, top = -paperWidth / 2, -paperHeight / 2
+        local right, bottom = left + paperWidth, top + paperHeight
         love.graphics.setColor(0, 0, 0, 0.25)
-        love.graphics.rectangle("fill", x + 5, y + 8, width, height)
-        love.graphics.setColor(0.96, 0.95, 0.86)
-        love.graphics.rectangle("fill", x, y, width, height)
-        love.graphics.setColor(0.72, 0.74, 0.72)
-        love.graphics.rectangle("line", x, y, width, height)
+        love.graphics.rectangle("fill", left + 5, top + 7, paperWidth, paperHeight, 2, 2)
+        for layer = 5, 1, -1 do
+            local shade = 0.72 + layer * 0.025
+            love.graphics.setColor(shade, shade * 0.99, shade * 0.92)
+            love.graphics.rectangle("fill", left, top + layer * 1.35, paperWidth, paperHeight, 1, 1)
+        end
+        love.graphics.setColor(0.91, 0.90, 0.82)
+        for layer = 1, 5 do
+            love.graphics.line(left + 1, bottom + layer * 1.35, right - 1, bottom + layer * 1.35)
+            love.graphics.line(right + layer * 1.35, top + 3, right + layer * 1.35, bottom + layer * 1.35)
+        end
+        love.graphics.setColor(0.98, 0.97, 0.90)
+        love.graphics.rectangle("fill", left, top, paperWidth, paperHeight)
+        love.graphics.setColor(0.70, 0.71, 0.68)
+        love.graphics.rectangle("line", left, top, paperWidth, paperHeight)
         local removed = {}
         for _, cut in ipairs(paper.history or {}) do removed[cut.edge] = true end
         local margins = {
@@ -125,22 +228,16 @@ function Component.install(Runtime)
             top = removed.top and 0 or paper.margins.top,
             bottom = removed.bottom and 0 or paper.margins.bottom,
         }
-        local orientation = paper.orientation % 360
-        local screenMargins
-        if orientation == 90 then
-            screenMargins = { left = margins.bottom, right = margins.top, top = margins.left, bottom = margins.right }
-        elseif orientation == 180 then
-            screenMargins = { left = margins.right, right = margins.left, top = margins.bottom, bottom = margins.top }
-        elseif orientation == 270 then
-            screenMargins = { left = margins.top, right = margins.bottom, top = margins.right, bottom = margins.left }
-        else
-            screenMargins = margins
+        -- Measure the guide in projected pixels, including after a quarter turn.
+        local scaleX = math.sqrt(cosAngle^2 + (depthScale * sinAngle)^2)
+        local scaleY = math.sqrt(sinAngle^2 + (depthScale * cosAngle)^2)
+        local function inset(margin, size, inches, scale)
+            return Runtime.CutGuide.marginPixels(margin, size * scale, inches) / scale
         end
-        -- Keep real uncut trim readable at bed scale; a cut edge stays flush.
-        local innerX = x + Runtime.CutGuide.marginPixels(screenMargins.left, width, widthValue)
-        local innerY = y + Runtime.CutGuide.marginPixels(screenMargins.top, height, heightValue)
-        local innerRight = x + width - Runtime.CutGuide.marginPixels(screenMargins.right, width, widthValue)
-        local innerBottom = y + height - Runtime.CutGuide.marginPixels(screenMargins.bottom, height, heightValue)
+        local innerX = left + inset(margins.left, paperWidth, sourceWidth, scaleX)
+        local innerY = top + inset(margins.top, paperHeight, sourceHeight, scaleY)
+        local innerRight = right - inset(margins.right, paperWidth, sourceWidth, scaleX)
+        local innerBottom = bottom - inset(margins.bottom, paperHeight, sourceHeight, scaleY)
         local innerWidth, innerHeight = math.max(8, innerRight - innerX), math.max(8, innerBottom - innerY)
         local r1, g1, b1 = Runtime.artworkColor(paper.artworkId, 1)
         local r2, g2, b2 = Runtime.artworkColor(paper.artworkId, 2)
@@ -148,13 +245,11 @@ function Component.install(Runtime)
         love.graphics.rectangle("fill", innerX, innerY, innerWidth, innerHeight)
         local artwork = assets and assets.getArtwork and assets.getArtwork(paper.artworkKey)
         if artwork then
-            local angle = Runtime.Screen.artworkRotation(paper)
-            local quarterTurn = paper.orientation % 180 == 90
-            local scaleX = (quarterTurn and innerHeight or innerWidth) / artwork:getWidth()
-            local scaleY = (quarterTurn and innerWidth or innerHeight) / artwork:getHeight()
+            local scaleX = innerWidth / artwork:getWidth()
+            local scaleY = innerHeight / artwork:getHeight()
             love.graphics.setColor(1, 1, 1, 0.96)
             love.graphics.draw(artwork, innerX + innerWidth / 2, innerY + innerHeight / 2,
-                angle, scaleX, scaleY, artwork:getWidth() / 2, artwork:getHeight() / 2)
+                0, scaleX, scaleY, artwork:getWidth() / 2, artwork:getHeight() / 2)
         else
             love.graphics.setColor(r2, g2, b2)
             love.graphics.rectangle("fill", innerX + innerWidth * 0.25, innerY + innerHeight * 0.25,
@@ -163,31 +258,40 @@ function Component.install(Runtime)
         love.graphics.setColor(0.86, 0.18, 0.18, 0.9)
         love.graphics.setLineStyle("rough")
         love.graphics.rectangle("line", innerX, innerY, innerWidth, innerHeight)
-        local guide=Runtime.CutGuide.current(paper,machine.programIndex)
-        local band=Runtime.CutGuide.band(guide,x,y,width,height,widthValue,heightValue)
-        if band then
-            local ready=guide.rotationReady
-            love.graphics.setColor(1,.71,.10,.70)
-            love.graphics.rectangle("fill",band.x,band.y,band.width,band.height)
-            love.graphics.setLineWidth(3)
-            love.graphics.setColor(ready and .35 or 1,ready and 1 or .87,ready and .48 or .18,1)
-            love.graphics.rectangle("line",band.x,band.y,band.width,band.height)
-            local ax,ay=band.x+band.width/2,band.y+band.height/2
-            local dx=guide.screenEdge=="left" and -1 or guide.screenEdge=="right" and 1 or 0
-            local dy=guide.screenEdge=="top" and -1 or guide.screenEdge=="bottom" and 1 or 0
-            local distance=(dx~=0 and band.width/2 or band.height/2)+16
-            local tipX,tipY=ax+dx*distance,ay+dy*distance
-            love.graphics.line(tipX+dx*12,tipY+dy*12,tipX,tipY)
-            love.graphics.polygon("fill",tipX,tipY,tipX+dx*7-dy*5,tipY+dy*7+dx*5,
-                tipX+dx*7+dy*5,tipY+dy*7-dx*5)
-            love.graphics.setLineWidth(1)
-        end
         if paper.offSpec then
             local lineWidth = love.graphics.getLineWidth()
             love.graphics.setLineWidth(3)
-            love.graphics.line(x, y, x + width, y + height)
-            love.graphics.line(x + width, y, x, y + height)
+            love.graphics.line(left, top, right, bottom)
+            love.graphics.line(right, top, left, bottom)
             love.graphics.setLineWidth(lineWidth)
+        end
+        love.graphics.pop()
+
+        local orientationDifference = math.abs((visualOrientation - orientation + 180) % 360 - 180)
+        local turning = orientationDifference > 0.5 or (tonumber(turnProgress) or 1) < 0.999
+        if not turning and (step == "loading" or step == "loaded") then
+            local guide = Runtime.CutGuide.current(paper, machine.programIndex)
+            local widthValue = rotated and sourceHeight or sourceWidth
+            local heightValue = rotated and sourceWidth or sourceHeight
+            local band = Runtime.CutGuide.band(guide,
+                boundsX, boundsY, boundsWidth, boundsHeight, widthValue, heightValue)
+            if band then
+                local ready = guide.rotationReady
+                love.graphics.setColor(1, 0.71, 0.10, 0.70)
+                love.graphics.rectangle("fill", band.x, band.y, band.width, band.height)
+                love.graphics.setLineWidth(3)
+                love.graphics.setColor(ready and 0.35 or 1, ready and 1 or 0.87, ready and 0.48 or 0.18, 1)
+                love.graphics.rectangle("line", band.x, band.y, band.width, band.height)
+                local ax, ay = band.x + band.width / 2, band.y + band.height / 2
+                local dx = guide.screenEdge == "left" and -1 or guide.screenEdge == "right" and 1 or 0
+                local dy = guide.screenEdge == "top" and -1 or guide.screenEdge == "bottom" and 1 or 0
+                local distance = (dx ~= 0 and band.width / 2 or band.height / 2) + 16
+                local tipX, tipY = ax + dx * distance, ay + dy * distance
+                love.graphics.line(tipX + dx * 12, tipY + dy * 12, tipX, tipY)
+                love.graphics.polygon("fill", tipX, tipY, tipX + dx * 7 - dy * 5, tipY + dy * 7 + dx * 5,
+                    tipX + dx * 7 + dy * 5, tipY + dy * 7 - dx * 5)
+                love.graphics.setLineWidth(1)
+            end
         end
         love.graphics.setLineStyle("smooth")
     end

@@ -7,6 +7,10 @@ local Utilities=require("src.home_utilities")
 local Dining=require("src.home_dining")
 local Residents={NEEDS={"hunger","thirst","hygiene","energy"}}
 local rates={hunger=2.5,thirst=4,hygiene=1.1,energy=2.7}
+-- The shop week includes meals, drinks and brief rests off camera, but it
+-- still wears the owner down. These needs remain durable across every scene.
+local workRates={hunger=.72,thirst=.82,hygiene=.72,energy=.86}
+local fridayCeiling={hunger=30,thirst=25,hygiene=18,energy=12}
 Residents.ACTIONS={
     drink={label="Drink tap water",minutes=2,targets={sink=true,basin=true},gain={thirst=75}},
     wash={label="Wash hands and face",minutes=5,targets={sink=true,basin=true},gain={hygiene=18}},
@@ -62,7 +66,7 @@ function Residents.available(state,kind,target)
     return Residents.furnitureAvailable(state,a,item) and (not a.chore or Chores.available(state,kind,item))
 end
 local function person(name)
-    return {name=name,hunger=100,thirst=100,hygiene=100,energy=100,revision=0,
+    return {name=name,hunger=100,thirst=100,hygiene=100,energy=100,dirtyClothes=false,revision=0,
         ridingPaintId=require('src.commute.bike_paint').DEFAULT,ridingPaintRevision=0,
         ridingDamage=0,ridingRepairRevision=0}
 end
@@ -92,7 +96,8 @@ function Residents.valid(records)
         local Paint=require('src.commute.bike_paint')
         if p.ridingPaintId~=nil and not Paint.valid(p.ridingPaintId)
             or p.ridingPaintRevision~=nil and not Paint.validRevision(p.ridingPaintRevision) then return false end
-        if not require('src.commute.bike_damage').valid(p.ridingDamage)
+        if not require('src.commute.bike_service').valid(p.ridingService)
+            or not require('src.commute.bike_damage').valid(p.ridingDamage)
             or p.ridingRepairRevision~=nil and not require('src.commute.bike_repairs').validRevision(p.ridingRepairRevision) then return false end
         if p.activePlayerId~=nil and (type(p.activePlayerId)~="number" or p.activePlayerId<1
             or p.activePlayerId>4 or p.activePlayerId~=math.floor(p.activePlayerId)) then return false end
@@ -100,6 +105,7 @@ function Residents.valid(records)
             local value=p[need]
             if type(value)~="number" or value~=value or value<0 or value>100 then return false end
         end
+        if p.dirtyClothes~=nil and type(p.dirtyClothes)~="boolean" then return false end
         local a=p.activity
         if a~=nil then
             if type(a)~="table" or not Residents.ACTIONS[a.kind] or not Residents.validCommand(tostring(a.kind)..":"..tostring(a.target)) then return false end
@@ -124,6 +130,7 @@ end
 function Residents.ensure(state)
     state.home.residents=state.home.residents or Residents.new()
     for _,resident in pairs(state.home.residents)do
+        if resident.dirtyClothes==nil then resident.dirtyClothes=false end
         if resident.ridingPaintId==nil then resident.ridingPaintId=require('src.commute.bike_paint').DEFAULT end
         if resident.ridingPaintRevision==nil then resident.ridingPaintRevision=0 end
         if resident.ridingDamage==nil then resident.ridingDamage=0 end
@@ -284,13 +291,22 @@ function Residents.command(state,player,command,served)
     if Sleep.ACTIONS[kind] then return true,"started","Sleeping. Time speeds up only when every connected resident chooses sleep. Stop or move to wake." end
     return true,"started",definition.label..(Cooking.RECIPES[kind] and ". Tend once in the green timing band. Stopping wastes the ingredients." or ". Move away or choose Stop to cancel.")
 end
-local function segment(p,hours,activity)
+local function segment(p,hours,activity,decay)
     if hours<=0 then return end
     local definition=activity and Residents.ACTIONS[activity.kind]
+    decay=decay or rates
     for _,need in ipairs(Residents.NEEDS) do
         local gain=definition and (definition.gain[need] or 0)/(definition.minutes/60) or 0
         if activity and need=="energy" then gain=gain*(activity.comfort or 1) end
-        p[need]=math.max(0,math.min(100,p[need]+hours*(gain-rates[need])))
+        p[need]=math.max(0,math.min(100,p[need]+hours*(gain-decay[need])))
+    end
+end
+function Residents.fridayArrival(state)
+    for id,p in pairs(Residents.ensure(state)) do
+        if id=="owner" or p.activePlayerId then
+            for _,need in ipairs(Residents.NEEDS) do p[need]=math.min(p[need],fridayCeiling[need]) end
+            p.dirtyClothes=true
+        end
     end
 end
 function Residents.advance(state,players,first,last)
@@ -328,9 +344,10 @@ function Residents.advance(state,players,first,last)
             else segment(p,math.max(0,last-from)) end
             changed=changed or last>from
         elseif player and state.home.weekend.phase=="working" then
-            for _,need in ipairs(Residents.NEEDS) do
-                if p[need]~=100 then p[need]=100;changed=true end
-            end
+            local from=math.max(first,player.homeJoinedAtHours or first)
+            segment(p,math.max(0,last-from),nil,workRates)
+            if p.hygiene<=40 then p.dirtyClothes=true end
+            changed=changed or last>from
         end
         changed=Sleep.fire(state,p,player,last) or changed
     end

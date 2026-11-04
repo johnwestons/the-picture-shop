@@ -135,7 +135,7 @@ function Test.run(context, check)
         assert(rider.ped.crash,'Severe impact did not eject the rider from the motorcycle')
         local damage=bike.damage
         check('bike_damage_runtime_real_wall_crash_dismounts_and_persists_to_owner',
-            bike.collisionKind=='barrier' and damage==100 and home.residents.owner.ridingDamage==damage
+            bike.collisionKind=='barrier' and damage>0 and damage<=24 and home.residents.owner.ridingDamage==damage
             and not rider.gear.mounted and not rider.gear.engine and bike.speed==0)
         local publicTrip=Trip.snapshot(home.commute)
         local publicRider=publicTrip.participants.owner
@@ -157,18 +157,19 @@ function Test.run(context, check)
         assert(rider.gear.transition and rider.gear.transition.kind=='mount','Could not begin ordinary remount after crash')
         for _=1,120 do R.App.update(1/60) end
         check('bike_damage_runtime_normal_remount_starts_damaged_motorcycle',rider.gear.mounted and rider.gear.engine and bike.damage==damage)
-        R.dispatchKeyPressed('b')
-        assert(bike.reverse,'Could not select reverse to back away from wall')
         local initialX,initialZ=bike.x,bike.z
-        drive=-1
+        drive=1
         for _=1,420 do
             R.App.update(1/60)
             if distance(bike.x,bike.z,initialX,initialZ)>2.8 then break end
         end
-        drive=1
-        for _=1,90 do R.App.update(1/60) end
+        drive=-1
+        for _=1,90 do
+            R.App.update(1/120)
+            if bike.speed<.05 then break end
+        end
         drive=0
-        check('bike_damage_runtime_totaled_bike_can_back_into_mechanic_parking',distance(bike.x,bike.z,initialX,initialZ)>2.8 and bike.speed<.05)
+        check('bike_damage_runtime_crashed_bike_can_back_into_mechanic_parking',distance(bike.x,bike.z,initialX,initialZ)>2.8 and bike.speed<.05)
         R.dispatchKeyPressed('e')
         for _=1,120 do R.App.update(1/60) end
         assert(not rider.gear.mounted,'Could not dismount to visit mechanic')
@@ -205,7 +206,8 @@ function Test.run(context, check)
         local balance=home.balanceCents
         local quote=assert(Shop.repairQuote(R))
         check('bike_damage_runtime_mechanic_shows_current_condition_and_price',
-            offer.page=='catalog' and offer.service=='repair' and quote.damage==damage and quote.condition==0 and quote.priceCents==20000)
+            offer.page=='catalog' and offer.service=='repair' and quote.damage==damage
+            and quote.condition==100-damage and quote.priceCents==damage*200)
         frame(R,canvas,'damage-repair-estimate')
         tap(R,Shop.layout().buy)
         check('bike_damage_runtime_review_does_not_charge',offer.page=='confirm' and balance==home.balanceCents and bike.damage==damage)

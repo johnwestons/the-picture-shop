@@ -5,6 +5,7 @@ varying vec2 groundTextureUV;
 varying vec3 surfaceNormal;
 varying float viewDistance;
 varying vec2 worldPosition;
+varying float worldHeight;
 varying float waterDepth;
 varying float cloudLight;
 #ifdef VERTEX
@@ -32,6 +33,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
     // preserving the same world-anchored 8-unit repeat across chunk edges.
     groundTextureUV=GroundTextureCoord+GroundTexturePhase;
     surfaceNormal=GroundNormal;
+    worldHeight=WorldHeight;
     // Camera-relative interpolation protects mediump mobile fragment precision.
     // CPU phase offsets retain world anchoring through camera movement.
     worldPosition=vertex_position.xy-cameraCenter;
@@ -143,7 +145,7 @@ vec4 effect(vec4 color,Image image,vec2 uv,vec2 screen_coords)
     surface*=vec3(ambientLight)+sunColor*(sunlight*diffuse)+moonColor*(moonlight*moonDiffuse);
     if (waterDepth>0.0 && waterDetail>0.0) surface=waterSurface(surface);
     surface*=cloudLight;
-    if(firstPerson && rideHeadlight) surface=riderLight(surface,worldPosition);
+    if(firstPerson && rideHeadlight) surface=riderLight(surface,worldPosition,worldHeight);
     surface=mix(surface,firstPerson ? vec3(.57,.68,.70) : vec3(0.22,0.27,0.26),smoothstep(viewRadius*.74,viewRadius,viewDistance));
     return vec4(surface,color.a);
 }

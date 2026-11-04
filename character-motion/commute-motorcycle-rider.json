@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 11,
   "character": "commute-motorcycle-rider",
   "specType": "vehicle_pose",
   "atlas": {
@@ -36,112 +36,207 @@
       "northwest",
       "north-northwest"
     ],
-    "direction_step_degrees": 22.5
+    "direction_step_degrees": 22.5,
+    "scope": "Parked bike only. All mounted poses use 64 directions."
+  },
+  "upright_turntable": {
+    "path": "assets/commute/bike/mounted-upright-64-v2.png",
+    "frame_count": 64,
+    "frame_width": 320,
+    "frame_height": 320,
+    "columns": 8,
+    "rows": 8,
+    "anchor": [
+      160,
+      260
+    ],
+    "nominal_direction_step_degrees": 5.625,
+    "order": "clockwise from north/rear, row-major",
+    "mirror_x": false,
+    "camera": "Fixed third person, follow and perspective other-rider billboards",
+    "source": "assets/source/commute-bike-turning-v3/source-sheets.json",
+    "generation": "All 64 views regenerated through built-in ImageGen in eight template-preserving groups; no interleaving of generations.",
+    "registration": "Uniform per-cell scale, fixed helmet top at 70 px and ground-plane midpoint at [160,260], continuous near-tire depth extent; no axis stretching or mirroring.",
+    "builder": "tools/commute_lab/compile_bike_turning_quality.py",
+    "validation": "tools/commute_lab/review_bike_turning.ps1",
+    "scope": "Approved neutral base for all camera modes; action poses below share 64 nominal yaw sectors."
   },
   "animations": {
     "mounted": {
-      "path": "assets/commute/bike/mounted-16.png",
+      "path": "assets/commute/bike/mounted-upright-64-v2.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
       "role": "mounted_base"
     },
     "aero_tuck": {
-      "path": "assets/commute/bike/mounted-aero-tuck-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "speed_pose"
+      "role": "speed_pose",
+      "pages": [
+        "assets/commute/bike/actions-64/aero-1.png",
+        "assets/commute/bike/actions-64/aero-2.png",
+        "assets/commute/bike/actions-64/aero-3.png",
+        "assets/commute/bike/actions-64/aero-4.png"
+      ],
+      "state": "aero"
     },
     "boost_response": {
-      "path": "assets/commute/bike/mounted-acceleration-response-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "boost_event"
+      "role": "boost_event",
+      "pages": [
+        "assets/commute/bike/actions-64/boost-1.png",
+        "assets/commute/bike/actions-64/boost-2.png",
+        "assets/commute/bike/actions-64/boost-3.png",
+        "assets/commute/bike/actions-64/boost-4.png"
+      ],
+      "state": "boost"
     },
     "gear_shift": {
-      "path": "assets/commute/bike/mounted-gear-shift-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "gear_event"
+      "role": "gear_event",
+      "pages": [
+        "assets/commute/bike/actions-64/shift-1.png",
+        "assets/commute/bike/actions-64/shift-2.png",
+        "assets/commute/bike/actions-64/shift-3.png",
+        "assets/commute/bike/actions-64/shift-4.png"
+      ],
+      "state": "shift"
     },
     "hard_turn_left": {
-      "path": "assets/commute/bike/mounted-hard-turn-left-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "cornering_pose"
+      "role": "cornering_pose",
+      "pages": [
+        "assets/commute/bike/actions-64/turnLeft-1.png",
+        "assets/commute/bike/actions-64/turnLeft-2.png",
+        "assets/commute/bike/actions-64/turnLeft-3.png",
+        "assets/commute/bike/actions-64/turnLeft-4.png"
+      ],
+      "state": "turnLeft"
     },
     "hard_turn_right": {
-      "path": "assets/commute/bike/mounted-hard-turn-right-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "cornering_pose"
+      "role": "cornering_pose",
+      "pages": [
+        "assets/commute/bike/actions-64/turnRight-1.png",
+        "assets/commute/bike/actions-64/turnRight-2.png",
+        "assets/commute/bike/actions-64/turnRight-3.png",
+        "assets/commute/bike/actions-64/turnRight-4.png"
+      ],
+      "state": "turnRight"
     },
     "impact_brace": {
-      "path": "assets/commute/bike/mounted-impact-brace-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "collision_event"
+      "role": "collision_event",
+      "pages": [
+        "assets/commute/bike/actions-64/impact-1.png",
+        "assets/commute/bike/actions-64/impact-2.png",
+        "assets/commute/bike/actions-64/impact-3.png",
+        "assets/commute/bike/actions-64/impact-4.png"
+      ],
+      "state": "impact"
     },
     "aero_tuck_transition": {
-      "path": "assets/commute/bike/mounted-aero-tuck-transition-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "pose_transition"
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/aeroMid-1.png",
+        "assets/commute/bike/actions-64/aeroMid-2.png",
+        "assets/commute/bike/actions-64/aeroMid-3.png",
+        "assets/commute/bike/actions-64/aeroMid-4.png"
+      ],
+      "state": "aeroMid"
     },
     "boost_transition": {
-      "path": "assets/commute/bike/mounted-boost-transition-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "pose_transition"
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/boostMid-1.png",
+        "assets/commute/bike/actions-64/boostMid-2.png",
+        "assets/commute/bike/actions-64/boostMid-3.png",
+        "assets/commute/bike/actions-64/boostMid-4.png"
+      ],
+      "state": "boostMid"
     },
     "gear_shift_transition": {
-      "path": "assets/commute/bike/mounted-gear-shift-transition-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "pose_transition"
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/shiftMid-1.png",
+        "assets/commute/bike/actions-64/shiftMid-2.png",
+        "assets/commute/bike/actions-64/shiftMid-3.png",
+        "assets/commute/bike/actions-64/shiftMid-4.png"
+      ],
+      "state": "shiftMid"
     },
     "hard_turn_left_transition": {
-      "path": "assets/commute/bike/mounted-turn-left-transition-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "pose_transition"
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/turnLeftMid-1.png",
+        "assets/commute/bike/actions-64/turnLeftMid-2.png",
+        "assets/commute/bike/actions-64/turnLeftMid-3.png",
+        "assets/commute/bike/actions-64/turnLeftMid-4.png"
+      ],
+      "state": "turnLeftMid"
     },
     "hard_turn_right_transition": {
-      "path": "assets/commute/bike/mounted-turn-right-transition-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "pose_transition"
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/turnRightMid-1.png",
+        "assets/commute/bike/actions-64/turnRightMid-2.png",
+        "assets/commute/bike/actions-64/turnRightMid-3.png",
+        "assets/commute/bike/actions-64/turnRightMid-4.png"
+      ],
+      "state": "turnRightMid"
     },
     "impact_transition": {
-      "path": "assets/commute/bike/mounted-impact-transition-16.png",
       "frame_width": 320,
       "frame_height": 320,
-      "frame_count": 16,
+      "frame_count": 64,
       "loop": false,
-      "role": "pose_transition"
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/impactMid-1.png",
+        "assets/commute/bike/actions-64/impactMid-2.png",
+        "assets/commute/bike/actions-64/impactMid-3.png",
+        "assets/commute/bike/actions-64/impactMid-4.png"
+      ],
+      "state": "impactMid"
     },
     "parked": {
       "path": "assets/commute/bike/parked-16.png",
@@ -150,6 +245,34 @@
       "frame_count": 16,
       "loop": false,
       "role": "parked_base"
+    },
+    "hard_brake": {
+      "frame_width": 320,
+      "frame_height": 320,
+      "loop": false,
+      "role": "braking_pose",
+      "pages": [
+        "assets/commute/bike/actions-64/brake-1.png",
+        "assets/commute/bike/actions-64/brake-2.png",
+        "assets/commute/bike/actions-64/brake-3.png",
+        "assets/commute/bike/actions-64/brake-4.png"
+      ],
+      "frame_count": 64,
+      "state": "brake"
+    },
+    "hard_brake_transition": {
+      "frame_width": 320,
+      "frame_height": 320,
+      "loop": false,
+      "role": "pose_transition",
+      "pages": [
+        "assets/commute/bike/actions-64/brakeMid-1.png",
+        "assets/commute/bike/actions-64/brakeMid-2.png",
+        "assets/commute/bike/actions-64/brakeMid-3.png",
+        "assets/commute/bike/actions-64/brakeMid-4.png"
+      ],
+      "frame_count": 64,
+      "state": "brakeMid"
     }
   },
   "controls": {
@@ -157,38 +280,40 @@
       "input": "left/right movement",
       "direction": "continuous bike heading",
       "lean": "smoothed from steering and speed",
-      "maximum_lean_radians": 0.16
+      "maximum_lean_radians": 0.3,
+      "follow_pose_rotation_limit_radians": 0.16
     },
     "boost": {
       "input": "Left Shift held with throttle; touch-and-hold BOOST control",
       "speed_multiplier": 1.2,
       "response_pose_seconds": 0.78,
-      "response_trigger": "boost activation only",
-      "return_pose": "mounted or aerodynamic tuck according to speed"
+      "response_trigger": "Boost activation plus smoothed ordinary forward acceleration feedback",
+      "return_pose": "Current upright, turn or tuck base"
     },
     "aerodynamic_tuck": {
       "enter_speed": 13.35,
-      "full_blend_speed": 14.4,
-      "transition": "smoothly blend in and out as speed crosses the threshold"
+      "full_pose_speed": 14.4,
+      "transition": "select one opaque authored base, midpoint or target pose as speed changes"
     },
     "gear_shift": {
       "trigger": "successful manual or automatic gear change",
       "duration_seconds": 0.16,
-      "foot": "left"
+      "foot": "left",
+      "pose_duration_seconds": 0.32
     },
     "hard_turn_lean": {
       "trigger": "smoothed steering lean during a fast, sharp turn",
-      "blend_start_lean_radians": 0.15,
-      "full_blend_lean_radians": 0.3,
+      "pose_start_lean_radians": 0.15,
+      "full_pose_lean_radians": 0.3,
       "direction": "positive lean selects left; negative lean selects right",
-      "transition": "crossfade back to mounted or tuck pose as bike lean eases"
+      "transition": "All camera modes select authored 64-view upright/midpoint/full poses; whole-rig bank remains continuous."
     },
     "collision": {
       "trigger": "bike movement is blocked while moving faster than 0.35 metres per second",
       "duration_seconds": 0.62,
       "strength": "scales with impact speed",
       "pose": "rider braces forward while staying seated and holding the handlebars",
-      "transition": "crossfade back to current riding pose"
+      "transition": "return through opaque authored midpoint poses to current riding pose"
     },
     "pose_transition": {
       "keyframes": [
@@ -196,7 +321,7 @@
         "authored_midpoint",
         "target"
       ],
-      "interpolation": "smoothstep blend across each adjacent pair",
+      "interpolation": "one opaque authored pose: base below 0.25, midpoint below 0.75, target thereafter; no alpha crossfade",
       "return": "reverse midpoint keyframes to recover the current base pose",
       "states": [
         "aerodynamic_tuck",
@@ -204,8 +329,140 @@
         "gear_shift",
         "hard_turn_left",
         "hard_turn_right",
-        "collision"
+        "collision",
+        "hard_brake"
       ]
+    },
+    "acceleration": {
+      "trigger": "Grounded forward acceleration above 0.6 m/s² with throttle above 0.2",
+      "full_acceleration_mps2": 3,
+      "attack_seconds": 0.07,
+      "decay_seconds": 0.1
+    },
+    "hard_braking": {
+      "trigger": "Grounded braking above 0.35, speed above 0.7 m/s",
+      "full_brake": 0.85,
+      "full_speed_mps": 3.2,
+      "attack_seconds": 0.05,
+      "decay_seconds": 0.09
+    }
+  },
+  "action_turntables": {
+    "source": "assets/source/commute-bike-actions-v1/selected-sources.json",
+    "production": "assets/source/commute-bike-actions-v1/production.json",
+    "frame_count": 64,
+    "nominal_direction_step_degrees": 5.625,
+    "authored_action_cells": 896,
+    "states": 14,
+    "pages_per_state": 4,
+    "views_per_page": 16,
+    "page_size": [
+      1280,
+      1280
+    ],
+    "frame_size": [
+      320,
+      320
+    ],
+    "anchor": [
+      160,
+      260
+    ],
+    "mirror_x": false,
+    "registration": "Uniform scale and tire-plane translation, with robust smooth per-pose upper-rig-envelope yaw profiles; no stretching or mirroring.",
+    "texture_cache_pages": 12,
+    "builder": [
+      "tools/commute_lab/compile_bike_actions.py",
+      "tools/commute_lab/register_bike_action_profiles.py",
+      "tools/commute_lab/publish_bike_actions.py --publish"
+    ],
+    "validation": "tools/commute_lab/review_bike_actions.ps1"
+  },
+  "multiplayer_observers": {
+    "first_person_facing": "Each rider's physical heading relative to the actual eye-to-rider bearing, using the displayed interpolated position.",
+    "third_person_facing": "Camera-relative parallel projection in fixed and follow modes.",
+    "camera_preferences": "Local to each observer; never used as the other rider's physical heading or replicated pose.",
+    "self_visibility": "Explicit participant identity hides the local rider and bike only in first person, including copied render actors.",
+    "mounted_views": 64,
+    "parked_views": 16,
+    "review": "tools/commute_lab/review_bike_multiplayer.ps1",
+    "native_checks_per_configuration": 42,
+    "configurations": ["desktop", "simulated_mobile"],
+    "coverage": "Two simulated observers, all nine independent camera-mode pairs, all 64 headings, all 15 mounted poses, network-codec snapshot round trips and reversing.",
+    "evidence": "output/bike-multiplayer-review/",
+    "limitation": "Native rendering and snapshot simulation; not a live LAN-device test."
+  },
+  "procedural_motion": {
+    "presentation_only": true,
+    "tire_motion": {
+      "implementation": "src/commute/bike_tire_motion.lua and the shared bike_paint material shader",
+      "phase": "resolved travel distance; signed for reverse; no wall-clock animation",
+      "strength": "speed-dependent; disabled at or below 0.06 m/s and for parked/cockpit artwork",
+      "region_metadata": "assets/commute/bike/wheel_regions.lua",
+      "region_coverage": {
+        "mounted_poses": 15,
+        "views_per_pose": 64,
+        "cells": 960
+      },
+      "material": "dark low-chroma rubber within conservative lower-wheel annuli",
+      "invariants": [
+        "exact stopped pixels",
+        "unchanged sprite alpha",
+        "one opaque bike draw",
+        "paint and perspective depth/fog preserved"
+      ],
+      "builder": "tools/commute_lab/compile_bike_wheel_regions.py",
+      "builder_changes": "geometry metadata only; no sprite pixel edits"
+    },
+    "particles": {
+      "implementation": "src/commute/bike_particles.lua",
+      "dust": {
+        "trigger": "ground contact and actual movement above 0.7 m/s",
+        "trail_spacing_metres": 0.32,
+        "trail_strength": 0.62,
+        "lifetime_seconds": [
+          1.25,
+          1.75
+        ],
+        "paved_spacing_metres": 2.6,
+        "slipping_paved_spacing_metres": 0.85
+      },
+      "exhaust": {
+        "trigger": "engine running, including idle",
+        "puffs_per_second": [
+          6,
+          14
+        ],
+        "strength": [
+          0.4,
+          0.5
+        ],
+        "physical_side": "right",
+        "rear_offset_metres": 0.8,
+        "right_offset_metres": 0.27,
+        "height_metres": 0.83
+      },
+      "outside_vertical_scale": "48/22 relative to the ground height projection to match sprite billboards",
+      "max_particles": 192,
+      "max_emitters": 8,
+      "save_fields": false,
+      "global_rng": false
+    },
+    "validation": {
+      "native_action_checks_passed": 460,
+      "native_fx_checks_passed": 49,
+      "native_tire_pixel_samples": 120,
+      "native_tire_sample_coverage": "15 mounted poses times eight angle blocks",
+      "broader_commute_checks_passed": 1195,
+      "final_desktop_mobile_status": "passed_motorcycle_effects_focus_99_checks_each; native trail scenes verified separately",
+      "runner": "tools/commute_lab/review_bike_motion_fx.ps1",
+      "evidence": "output/bike-motion-fx-review/",
+      "previews": [
+        "particles-preview.png",
+        "bike-motion-fx.gif",
+        "tire-motion-closeup.gif"
+      ],
+      "full_suite": "blocked by independently reproduced cutter inactive-cache overflow; motorcycle code not loaded in the reproduction"
     }
   }
 }
