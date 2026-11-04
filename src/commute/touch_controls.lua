@@ -108,9 +108,9 @@ function Touch.actionButtons(width,height,p,context,options)
         x,y=touchPoint(p,'brake',width,height,left,right)
         addButton(buttons,'brake','BRAKE','brake',x,y,mainRadius,false,true,mainRadius+pad)
         x,y=touchPoint(p,'boost',width,height,left,right)
-        addButton(buttons,'boost','BOOST','boost',x,y,actionRadius,false,true,actionRadius+pad)
+        if context.vehicle~='truck' then addButton(buttons,'boost','BOOST','boost',x,y,actionRadius,false,true,actionRadius+pad) end
         x,y=touchPoint(p,'interact',width,height,left,right)
-        addButton(buttons,'interact',context.arrived and 'FINISH' or 'GET OFF','dismount',
+        addButton(buttons,'interact',context.arrived and 'FINISH' or context.vehicle=='truck' and 'EXIT' or 'GET OFF','dismount',
             x,y,actionRadius,false,not context.gearTransition,actionRadius+pad)
         local states={
             horn={label='HORN',icon='horn',active=context.horn==true},
@@ -118,7 +118,7 @@ function Touch.actionButtons(width,height,p,context,options)
             ignition={label=context.engine and 'RUN' or 'OFF',icon='ignition',active=context.engine==true},
             headlight={label=context.headlight and 'ON' or 'OFF',icon='headlight',active=context.headlight==true},
         }
-        for _,control in ipairs(Cockpit.handlebarControls(width,height,options.camera)) do
+        for _,control in ipairs(context.vehicle=='truck' and {} or Cockpit.handlebarControls(width,height,options.camera)) do
             local state=states[control.action]
             buttons[#buttons+1]={action=control.action,label=state.label,icon=state.icon,
                 x=control.x,y=control.y,radius=control.visualRadius,hitRadius=mobile and 25 or 15,
@@ -126,7 +126,8 @@ function Touch.actionButtons(width,height,p,context,options)
         end
     else
         local x,y=touchPoint(p,'interact',width,height)
-        addButton(buttons,'interact',context.arrived and 'FINISH' or 'USE','dismount',
+        addButton(buttons,'interact',context.arrived and 'FINISH' or context.nearTruck and 'TRUCK' or 'USE',
+            context.nearTruck and 'more' or 'dismount',
             x,y,actionRadius,false,not context.gearTransition)
     end
 
@@ -144,7 +145,7 @@ function Touch.actionButtons(width,height,p,context,options)
         cameraRadius,false,not context.gearTransition and not context.pedCrash and not context.arrived)
 
     local utilities={}
-    if mounted then
+    if mounted and context.vehicle~='truck' then
         utilities={
             {'transmission',context.transmission=='manual' and 'MANUAL' or 'AUTO',
                 'transmission',context.transmission=='manual'},
@@ -154,11 +155,11 @@ function Touch.actionButtons(width,height,p,context,options)
             utilities[#utilities+1]={'shiftDown','DOWN','shift',false}
             utilities[#utilities+1]={'shiftUp','UP','shift',false}
         end
-    elseif not context.arrived then
+    elseif not mounted and not context.arrived then
         local label=context.gearTransition and 'WAIT' or context.gearOutfit=='geared' and 'REMOVE' or 'GEAR'
         utilities={{'gear',label,'helmet',context.gearOutfit=='geared',not context.gearTransition}}
     end
-    if mounted then
+    if mounted and #utilities>0 then
         addGearButtons(buttons,utilities,width,height,utilityRadius,left,right)
     elseif #utilities>0 then
         local rowScale=math.min(1.25,width*.64/720,height*.32/230)

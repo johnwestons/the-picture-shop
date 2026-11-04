@@ -168,6 +168,8 @@ function View:draw(renderer,camera,actor,actors)
                     local falling=presentation.beginFallPose(p,entry.presentation,proxy,0,0)
                     presentation.foot(0,0,scale,entry.gear,p.distance,p.speed,entry.presentation,entry.appearance)
                     if falling then g.pop() end
+                elseif entry.truck then
+                    renderer.truckArt:draw(p,proxy,renderer.world)
                 else
                     local y=renderer.bikeArt:draw(p,proxy,renderer.world,entry.bikeOnly,entry.presentation)
                     if y and camera.includeLocalRider and entry.localPlayer and not entry.bikeOnly then

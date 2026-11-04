@@ -7,6 +7,7 @@ local Flora=require('src.commute.flora')
 local PlantSprites=require('src.commute.vendor.plant_sprites')
 local PlantMotion=require('src.commute.vendor.plant_motion')
 local BikeArt=require('src.commute.bike_art')
+local TruckArt=require('src.commute.truck_art')
 local Structures=require('src.commute.structures')
 local FP=require('src.commute.first_person_camera')
 local TireTracks=require('src.commute.tire_tracks')
@@ -40,6 +41,7 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     self.grassFields=GrassFields.new(world)
     self.plantSprites=PlantSprites.new();self.plantMotion=PlantMotion.new(world)
     self.bikeArt=BikeArt.new()
+    self.truckArt=TruckArt.new()
     self.structures=Structures.new(world)
     self.bridgeArt={piers=self.structures.piers} -- Review tools consume layout metadata only.
     self:buildRoadMeshes()
@@ -335,7 +337,7 @@ function Renderer:draw(camera,actor,actors)
     g.draw(canvas,0,0);g.pop()
     self:drawRoads(camera,true)
     if actors then
-        for _,entry in ipairs(actors) do if not entry.gear then self:headlight(camera,entry.actor) end end
+        for _,entry in ipairs(actors) do if not entry.gear and not entry.truck then self:headlight(camera,entry.actor) end end
     else self:headlight(camera,actor) end
     local props={}
     for _,piece in ipairs(self.structures:visible(camera,self.effectiveRadius,'props')) do props[#props+1]=piece end
@@ -348,7 +350,8 @@ function Renderer:draw(camera,actor,actors)
     table.sort(props,function(a,b)return a.depth<b.depth end)
     for _,p in ipairs(props) do
         if p.actor then
-            if p.gear and not p.gear.mounted then
+            if p.truck then self.truckArt:draw(p.actor,camera,self.world)
+            elseif p.gear and not p.gear.mounted then
                 local a=p.actor;local x,y=camera:screen(a.x,a.z,a.h or self.world:supportHeight(a.x,a.z))
                 local presentation=require('src.commute.presentation')
                 local falling=presentation.beginFallPose(a,p.presentation,camera,x,y)
@@ -371,6 +374,7 @@ function Renderer:release()
     self.chunks={};self.visible={}
     self.plantSprites:release()
     self.bikeArt:release()
+    if self.truckArt then self.truckArt:release() end
     if self.bikeParticles then self.bikeParticles:release() end
     if self.grassFields then self.grassFields:release() end
     self.structures:release()

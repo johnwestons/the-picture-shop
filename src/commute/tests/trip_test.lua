@@ -1,4 +1,5 @@
 local Trip=require('src.commute.trip')
+local Truck=require('src.commute.delivery_truck')
 local Gear=require('src.commute.gear')
 local Rider=require('src.commute.rider')
 local Roads=require('src.commute.roads')
@@ -88,6 +89,47 @@ function Test.run(check)
     check('commute_trip_uses_resident_transmission_preference',state.home.commute.participants.owner.rider.bike.transmission=='manual')
     require('src.home_travel').clearRequest(state.home.weekend)
     check('commute_trip_starts_outside_without_home_phase',state.home.weekend.phase=='ready' and state.home.commute.origin=='warehouse')
+    local deliveryTruck=state.home.commute.truck
+    check('commute_trip_spawns_one_unassigned_delivery_truck',Truck.valid(deliveryTruck)
+        and not deliveryTruck.owner and not deliveryTruck.driver)
+    local truckX,truckZ=deliveryTruck.x,deliveryTruck.z
+    assert(Trip.command(state,host,12,'truck',world))
+    local truckRider=state.home.commute.participants.owner.rider
+    check('commute_truck_interaction_assigns_a_single_driver',truckRider.vehicle=='truck'
+        and deliveryTruck.owner=='owner' and deliveryTruck.driver=='owner' and Rider.actor(truckRider)==deliveryTruck)
+    check('commute_truck_rejects_a_second_driver',not Trip.command(state,guest,12,'truck',world))
+    for _=1,12 do Trip.update(state,host,{drive=-1,steer=0},.1,world) end
+    check('commute_truck_drive_input_moves_and_accelerates',deliveryTruck.speed>0
+        and math.abs(deliveryTruck.x-truckX)+math.abs(deliveryTruck.z-truckZ)>.05)
+    local truckSnapshot=Trip.snapshot(state.home.commute)
+    local truckPart=truckSnapshot.participants.owner
+    check('commute_truck_shared_snapshot_carries_driver_and_vehicle',Trip.valid(truckSnapshot,state.home)
+        and truckSnapshot.truck.driver=='owner' and truckPart.rider.vehicle=='truck'
+        and truckPart.rider.truck.x==truckSnapshot.truck.x)
+    state.home.commute=assert(Trip.restore(truckSnapshot,world))
+    deliveryTruck=state.home.commute.truck;truckRider=state.home.commute.participants.owner.rider
+    check('commute_truck_restore_rebinds_one_shared_actor',truckRider.truck==deliveryTruck
+        and Rider.actor(truckRider)==deliveryTruck and deliveryTruck.driver=='owner')
+    for _=1,24 do Trip.update(state,host,{drive=0,steer=0},.1,world) end
+    assert(Trip.command(state,host,12,'truck',world))
+    check('commute_truck_exit_releases_driver_at_rest',truckRider.vehicle==nil and deliveryTruck.driver==nil
+        and math.abs(truckRider.ped.x-deliveryTruck.x)<=2 and math.abs(truckRider.ped.z-deliveryTruck.z)<=2)
+    local destinationSite=world.sites.byId[state.home.commute.destination]
+    truckRider.ped.x,truckRider.ped.z=destinationSite.door.x,destinationSite.door.z
+    deliveryTruck.x=destinationSite.parking.x+destinationSite.cos*9
+    deliveryTruck.z=destinationSite.parking.z+destinationSite.sin*9
+    deliveryTruck.h=world:supportHeight(deliveryTruck.x,deliveryTruck.z)
+    check('commute_truck_arrival_rejects_parking_outside_lot',not Trip.command(state,host,12,'arrive',world))
+    deliveryTruck.x,deliveryTruck.z=destinationSite.parking.x,destinationSite.parking.z
+    deliveryTruck.h=world:supportHeight(deliveryTruck.x,deliveryTruck.z)
+    local truckArrived=Trip.command(state,host,12,'arrive',world)
+    check('commute_truck_can_complete_trip_from_loading_zone',truckArrived and state.home.commute.participants.owner.arrived)
+    state.home.commute.participants.owner.arrived=false
+    local originSite=world.sites.byId[state.home.commute.origin]
+    truckRider.transport=nil
+    truckRider.ped.x,truckRider.ped.z=originSite.door.x,originSite.door.z
+    deliveryTruck.x,deliveryTruck.z=deliveryTruck.homeX,deliveryTruck.homeZ
+    deliveryTruck.h=world:supportHeight(deliveryTruck.x,deliveryTruck.z)
     local guestRider=state.home.commute.participants[guestId].rider
     guestRider.gear={version=1,outfit='geared',mounted=true,engine=true,revision=0}
     assert(Trip.command(state,guest,12,'reverse',world))

@@ -2,6 +2,7 @@
 -- positions. Movement never equips gear and no scene transition removes it.
 local Gear=require('src.commute.gear')
 local Bike=require('src.commute.motorcycle')
+local Truck=require('src.commute.delivery_truck')
 local Fall=require('src.commute.rider_fall')
 local M=require('src.commute.vendor.mathx')
 local Service=require('src.commute.bike_service')
@@ -16,7 +17,7 @@ function Rider.new(x,z,heading,savedGear)
     return {ped={x=x,z=z+1.2,heading=heading or 0,distance=0,speed=0,vx=0,vz=0},
         bike=Bike.new(x,z,heading),gear=assert(Gear.restore(savedGear))}
 end
-function Rider.actor(r) return r.gear.mounted and r.bike or r.ped end
+function Rider.actor(r) return r.vehicle=='truck' and r.truck or r.gear.mounted and r.bike or r.ped end
 function Rider.pose(r)
     if r.ped.crash then return 'crash',r.ped.crash.elapsed/Fall.DURATION end
     return Gear.pose(r.gear)
@@ -153,16 +154,21 @@ function Rider.snapshot(r)
     if r.gear.transition and r.gear.transition.kind=='dismount' and r.dismountPoint then
         ped.x,ped.z=r.dismountPoint.x,r.dismountPoint.z
     end
-    return {gear=gear,ped=ped,bike={x=r.bike.x,z=r.bike.z,heading=r.bike.heading,
+    local result={gear=gear,ped=ped,bike={x=r.bike.x,z=r.bike.z,heading=r.bike.heading,
         gear=r.bike.gear or 1,transmission=r.bike.transmission or 'automatic',
         upgradeLevel=r.bike.upgradeLevel or 0,paintId=r.bike.paintId or require('src.commute.bike_paint').DEFAULT,
         damage=r.bike.damage or 0,service=Service.copy(r.bike.service),
         reverse=r.bike.reverse==true,headlight=r.bike.headlight==true,
-        headlightHighBeam=r.bike.headlightHighBeam==true}}
+        headlightHighBeam=r.bike.headlightHighBeam==true},
+        vehicle=r.vehicle,transport=r.transport}
+    if r.vehicle=='truck' and Truck.valid(r.truck) then result.truck=Truck.snapshot(r.truck) end
+    return result
 end
 function Rider.restore(saved,world,anchor)
     if type(saved)~='table' then return nil,'Invalid saved rider.' end
     local gear,reason=Gear.restore(saved.gear);if not gear then return nil,reason end
+    if saved.vehicle~=nil and saved.vehicle~='truck' or saved.transport~=nil and saved.transport~='truck'
+        or saved.vehicle=='truck' and (gear.mounted or not Truck.valid(saved.truck)) then return nil,'Invalid saved vehicle.' end
     if not Bike.valid(saved.bike) then return nil,'Invalid saved transmission.' end
     local function validPosition(p,radius,solidBike)
         if not (type(p)=='table' and M.finite(p.x) and M.finite(p.z) and M.finite(p.heading)
@@ -196,6 +202,8 @@ function Rider.restore(saved,world,anchor)
     r.bike.headlightHighBeam=saved.bike.headlightHighBeam==true
     r.bike.gear=r.bike.transmission=='manual' and (saved.bike.gear or 1) or 1
     r.ped.x,r.ped.z,r.ped.heading=saved.ped.x,saved.ped.z,saved.ped.heading
+    r.transport=saved.transport
+    if saved.vehicle=='truck' then r.vehicle='truck';r.truck=Truck.snapshot(saved.truck) end
     if gear.mounted then r.ped.x,r.ped.z=r.bike.x,r.bike.z end
     Rider.update(r,{},0,world);return r
 end
