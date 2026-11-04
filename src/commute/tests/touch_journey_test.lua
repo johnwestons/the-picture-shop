@@ -61,11 +61,18 @@ function Test.run(check)
     player.sceneId='commute'
     check('touch_gear_default_button_is_explicit',C.gearTouchButton(R).label=='PUT ON GEAR')
     useTap();step(.1)
-    check('touch_gear_use_does_not_automatically_dress',rider.gear.outfit=='normal' and not rider.gear.transition and saves==0)
-    check('touch_gear_button_starts_real_equip_command',gearTap() and rider.gear.transition.kind=='equip' and saves==1)
+    check('touch_use_enters_nearby_delivery_truck_without_dressing',rider.vehicle=='truck'
+        and rider.gear.outfit=='normal' and not rider.gear.transition and saves==1 and C.gearTouchButton(R)==nil)
+    useTap();step(.1)
+    check('touch_use_exits_delivery_truck_before_gear_actions',rider.vehicle==nil
+        and rider.gear.outfit=='normal' and not rider.gear.transition and saves==2)
+    state.home.commute.truck=nil
+    rider.ped.x,rider.ped.z=rider.bike.x,rider.bike.z
+    step(.1)
+    check('touch_gear_button_starts_real_equip_command',gearTap() and rider.gear.transition.kind=='equip' and saves==3)
     local revision=rider.gear.revision
     gearTap()
-    check('touch_gear_transition_button_disabled',not C.gearTouchButton(R).enabled and rider.gear.revision==revision and saves==1)
+    check('touch_gear_transition_button_disabled',not C.gearTouchButton(R).enabled and rider.gear.revision==revision and saves==3)
     local graphics=love.graphics;local label
     love.graphics={push=function()end,pop=function()end,setColor=function()end,rectangle=function()end,
         printf=function(text)label=text end}
