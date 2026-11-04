@@ -156,10 +156,45 @@ function B.value(p,id,touch)
     return result
 end
 local function wrapRadians(angle) return (angle+math.pi)%(math.pi*2)-math.pi end
-function B.drive(p,touch,camera,bike)
+function B.freeCameraTouch(mobile,camera)
+    return mobile and camera and not camera.firstPerson and camera.outsideMode=='fixed'
+end
+
+local function steerToTouch(touch,camera,bike,throttle,brake)
+    local x,y=touch.aimX,touch.aimY
+    local amount=math.sqrt(x*x+y*y)
+    local wx,wz=camera:screenGroundDirection(x,y)
+    -- The stick points along the desired direction of travel in either gear.
+    -- Only the pedals or gear button can request a change of direction.
+    local backing=bike.reverse and throttle==0
+    local travelHeading=bike.heading+(backing and math.pi or 0)
+    local error=wrapRadians(math.atan2(wz,wx)-travelHeading)
+    local sign=backing and -1 or 1
+    if math.abs(error)>math.pi-.10 then
+        -- Keep a U-turn on one side when a thumb jitters across the antipode.
+        local turning=(bike.steering or 0)*sign
+        error=turning<-.05 and -math.abs(error) or math.abs(error)
+    end
+    local steer=sign*math.max(-1,math.min(1,error/.62))
+    if brake>0 then return steer,brake end
+    if backing then return steer,amount end
+
+    local sharpness=math.max(0,math.min(1,(math.abs(error)-.20)/1.1))
+    -- Coast into a sharp turn at speed, but keep enough power to start it
+    -- from rest. Positive drive would request reverse after a collision.
+    local pace=math.max(0,math.min(1,(5-(bike.speed or 0)*sharpness)/2))
+    return steer,-math.max(throttle,amount*(1-.58*sharpness)*pace)
+end
+
+function B.drive(p,touch,camera,bike,mobile)
     local x=B.value(p,'right',touch)-B.value(p,'left',touch)
     local throttle=B.value(p,'accelerate',touch)
     local brake=math.max(B.value(p,'brake',touch),B.value(p,'handbrake',touch))
+    if bike and touch and B.freeCameraTouch(mobile,camera) and
+        ((touch.aimX or 0)~=0 or (touch.aimY or 0)~=0) then
+        local steer,drive=steerToTouch(touch,camera,bike,throttle,brake)
+        return steer,drive,B.value(p,'boost',touch)>.1
+    end
     local touchX,touchY=touch and touch.x or 0,touch and touch.y or 0
     local magnitude=math.sqrt(touchX*touchX+touchY*touchY)
     if magnitude>.001 then

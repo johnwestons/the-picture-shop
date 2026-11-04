@@ -540,6 +540,11 @@ function Camera:screenVectorToWorld(right, depth)
     return right * c + depth * s, -right * s + depth * c
 end
 
+-- Invert the ground-plane scale used by screen(), including the orbit tilt.
+function Camera:screenGroundDirection(dx,dy)
+    return self:screenVectorToWorld(dx/48,dy/(29*self:groundScale()))
+end
+
 function Camera:orbit(yawDeltaDegrees, tiltDeltaDegrees)
     if self.firstPerson then
         self.lookYaw=M.clamp((self.lookYaw or 0)+finiteNumber(yawDeltaDegrees,0)*rad,-FirstPerson.LOOK_YAW*rad,FirstPerson.LOOK_YAW*rad)

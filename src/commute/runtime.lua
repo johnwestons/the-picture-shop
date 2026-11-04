@@ -397,7 +397,7 @@ function C.localInput(R)
     local touch=C.touch(R);local keyboardBoost
     if part.rider.gear.mounted then
         local view=R._commute
-        x,y,keyboardBoost=Bindings.drive(C.bindings(R),touch,view and view.camera,part.rider.bike)
+        x,y,keyboardBoost=Bindings.drive(C.bindings(R),touch,view and view.camera,part.rider.bike,C.mobileInputEnabled(R))
     else
         if math.abs(touch.x)+math.abs(touch.y)>0 then x,y=touch.x,touch.y end
         local camera=R._commute and R._commute.camera
@@ -527,8 +527,13 @@ function C.draw(R)
         if not r.gear.mounted then actors[#actors+1]={actor=r.ped,gear=r.gear,presentation=p.presentation,
             appearance=p.appearance,localPlayer=p.slot==localId} end
     end
-    view.renderer:draw(view.camera,Rider.actor(C.visualRider(part,R.World.player)),actors)
+    local actor=Rider.actor(C.visualRider(part,R.World.player))
+    view.renderer:draw(view.camera,actor,actors)
     if showHud then
+        if part.rider.gear.mounted and part.rider.gear.engine and not part.arrived
+            and Bindings.freeCameraTouch(C.mobileInputEnabled(R),view.camera) then
+            C.touch(R):drawAim(view.camera,actor)
+        end
         for _,id in ipairs({R.state.home.commute.origin,R.state.home.commute.destination}) do
             local p=view.world.sites.byId[id].door;local sx,sy=view.camera:screen(p.x,p.z,p.h+.1)
             g.setColor(.9,.8,.45);g.circle('line',sx,sy,18);g.print('DOOR',sx-18,sy-30)

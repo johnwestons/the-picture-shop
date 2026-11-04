@@ -6,6 +6,7 @@ local C=require('src.commute.runtime')
 local Test={}
 function Test.run(check)
     require('src.commute.tests.camera_preferences_test').run(check)
+    require('src.commute.tests.free_touch_test').run(check)
     local p=B.defaults()
     check('mapping_has_four_device_profiles',p.keyboard.accelerate=='w' and p.controller.accelerate=='axis:triggerright+' and p.mouse.orbit=='mouse3' and p.touch.accelerate=='touch1')
     local okay,message=B.assign(p,'keyboard','ignition','h')

@@ -53,8 +53,30 @@ function Test.run(R,check,realDrive,capture)
             and bike.vx*math.cos(heading)+bike.vz*math.sin(heading)>0)
         C.touchReleased(R,'auto-reverse-stick')
         capture(R,'condition-readout-clear')
+        if C.mobileInputEnabled(R) then
+            place();local cam=R._commute.camera
+            profile.outsideCamera='fixed';cam:setOutsideMode('fixed',bike)
+            cam:orbit(-heading*180/math.pi-cam.yaw,0)
+            assert(C.touchPressed(R,'free-stick',cx,cy))
+            assert(C.touchMoved(R,'free-stick',cx+reach,cy))
+            local aligned,power=C.localInput(R)
+            assert(C.touchPressed(R,'free-orbit',R.Config.baseWidth*.5,R.Config.baseHeight*.4))
+            assert(C.touchMoved(R,'free-orbit',R.Config.baseWidth*.5+160,R.Config.baseHeight*.4))
+            local turn,afterOrbit=C.localInput(R)
+            check('free_touch_runtime_second_finger_orbits_held_stick',math.abs(aligned)<.001 and power<-.99
+                and math.abs(turn)>.2 and afterOrbit<0)
+            assert(C.touchReleased(R,'free-orbit'))
+            x,z=bike.x,bike.z;ticks(30)
+            check('free_touch_runtime_moves_after_orbit_without_retouching',not bike.reverse
+                and (bike.x-x)^2+(bike.z-z)^2>.01)
+            capture(R,'free-camera-mobile-aim')
+            C.touchReleased(R,'free-stick')
+            local neutral,coast=C.localInput(R)
+            check('free_touch_runtime_lift_returns_to_coast',neutral==0 and coast==0)
+        end
     end,debug.traceback)
     C.touchReleased(R,'auto-reverse-stick')
+    C.touchReleased(R,'free-orbit');C.touchReleased(R,'free-stick')
     Bindings.drive,love.keyboard.isDown=oldDrive,oldKeys
     for key in pairs(bike) do bike[key]=nil end
     for key,value in pairs(saved) do bike[key]=value end

@@ -7,10 +7,10 @@ local RESPONSE_POWER=1.65
 local DEFAULT_TOUCH={accelerate='touch1',brake='touch2',boost='touch3',interact='touch4'}
 
 local function clamp(value,lo,hi) return math.max(lo,math.min(hi,value)) end
-local function shape(x,y)
+local function shape(x,y,deadzone,power)
     local length=math.sqrt(x*x+y*y)
-    if length<=DEADZONE then return 0,0 end
-    local magnitude=math.min(1,(length-DEADZONE)/(1-DEADZONE))^RESPONSE_POWER
+    if length<=deadzone then return 0,0 end
+    local magnitude=math.min(1,(length-deadzone)/(1-deadzone))^power
     return x/length*magnitude,y/length*magnitude
 end
 local function touchPoint(p,id,width,height)
@@ -31,6 +31,7 @@ function Touch.new()
 end
 function Touch:cancel()
     self.contacts={};self.held={};self.x=0;self.y=0;self.cameraX=0;self.cameraY=0
+    self.aimX,self.aimY=0,0
 end
 
 -- These same hit targets are drawn for mouse and touch, so the visible labels
@@ -142,7 +143,8 @@ function Touch:move(id,x,y,width,height,p)
     if c.stick then
         local point=p.layout.stick;local radius=math.min(width,height)*.09
         local dx,dy=(x-point.x*width)/radius,(y-point.y*height)/radius
-        self.x,self.y=shape(dx,dy)
+        self.x,self.y=shape(dx,dy,DEADZONE,RESPONSE_POWER)
+        self.aimX,self.aimY=shape(dx,dy,.10,1)
     end
     return true
 end
@@ -174,7 +176,7 @@ end
 function Touch:release(id)
     local c=self.contacts[id];if not c then return false end
     self.contacts[id]=nil
-    if c.stick then self.x,self.y=0,0 end
+    if c.stick then self.x,self.y,self.aimX,self.aimY=0,0,0,0 end
     if c.action then
         self.held[c.action]=nil
         for _,other in pairs(self.contacts) do if other.action==c.action then self.held[c.action]=true end end
@@ -192,6 +194,27 @@ local function fontFor(self,size)
     return self.fonts[size]
 end
 
+-- Render in the same viewport transform as the local rider. The arrow marks
+-- stick intent immediately, while the motorcycle physically steers into it.
+function Touch:drawAim(camera,bike)
+    local x,y=self.aimX or 0,self.aimY or 0
+    local length=math.sqrt(x*x+y*y)
+    if length==0 then return end
+    x,y=x/length,y/length
+    local cx,cy=camera:screen(bike.x,bike.z,bike.h)
+    local reach=math.max(48,78*camera.zoom)
+    local tipX,tipY=cx+x*reach,cy-20*camera.zoom+y*reach
+    local tailX,tailY=tipX-x*17,tipY-y*17
+    local g=love.graphics
+    g.push('all')
+    for pass=1,2 do
+        if pass==1 then g.setColor(.06,.08,.06,.95);g.setLineWidth(8)
+        else g.setColor(1,.86,.39,1);g.setLineWidth(4) end
+        g.line(tailX-y*9,tailY+x*9,tipX,tipY,tailX+y*9,tailY-x*9)
+    end
+    g.pop()
+end
+
 function Touch:draw(width,height,p,context,options)
     context=context or {};options=options or {}
     local mobile=options.mobile==true
@@ -202,12 +225,15 @@ function Touch:draw(width,height,p,context,options)
     local minDim=math.min(width,height);local radius=minDim*.045
     if showStick then
         local stick=p.layout.stick;local cx,cy=stick.x*width,stick.y*height
+        local aim=context.mounted and B.freeCameraTouch(mobile,options.camera)
+        local knobX,knobY=self.x,self.y
+        if aim then knobX,knobY=self.aimX or 0,self.aimY or 0 end
         g.setColor(.025,.055,.045,.84);g.circle('fill',cx,cy,radius*2)
         g.setColor(.72,.81,.61,.94);g.setLineWidth(2);g.circle('line',cx,cy,radius*2)
-        g.setColor(.72,.84,.53,.98);g.circle('fill',cx+self.x*radius*1.5,cy+self.y*radius*1.5,radius*.52)
+        g.setColor(.72,.84,.53,.98);g.circle('fill',cx+knobX*radius*1.5,cy+knobY*radius*1.5,radius*.52)
         Icons.draw('steer',cx,cy-radius*1.20,radius*.68)
         g.setColor(.92,.95,.84,.98);g.setFont(fontFor(self,math.max(10,radius*.42)))
-        g.printf('STEER',cx-radius,cy+radius*2.15,radius*2,'center')
+        g.printf(aim and 'POINT TO RIDE' or 'STEER',cx-radius*2,cy+radius*2.15,radius*4,'center')
     end
     if showActions then
         for _,button in ipairs(Touch.actionButtons(width,height,p,context,options)) do
