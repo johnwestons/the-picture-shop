@@ -1,6 +1,7 @@
 local B=require('src.commute.bindings')
 local Icons=require('src.commute.ui_icons')
 local Cockpit=require('src.commute.cockpit')
+local TruckCockpit=require('src.commute.truck_cockpit')
 local Beacon=require('src.interaction_beacon')
 local Touch={};Touch.__index=Touch
 local DEADZONE=.16
@@ -118,11 +119,19 @@ function Touch.actionButtons(width,height,p,context,options)
             ignition={label=context.engine and 'RUN' or 'OFF',icon='ignition',active=context.engine==true},
             headlight={label=context.headlight and 'ON' or 'OFF',icon='headlight',active=context.headlight==true},
         }
-        for _,control in ipairs(context.vehicle=='truck' and {} or Cockpit.handlebarControls(width,height,options.camera)) do
-            local state=states[control.action]
-            buttons[#buttons+1]={action=control.action,label=state.label,icon=state.icon,
-                x=control.x,y=control.y,radius=control.visualRadius,hitRadius=mobile and 25 or 15,
-                active=state.active,enabled=not context.gearTransition,physical=true}
+        if context.vehicle=='truck' then
+            for _,control in ipairs(TruckCockpit.controls(width,height,options.camera,context)) do
+                buttons[#buttons+1]={action=control.action,label=control.label,icon=control.icon,
+                    x=control.x,y=control.y,radius=control.visualRadius,hitRadius=control.hitRadius,
+                    active=control.active,enabled=not context.gearTransition,physical=true}
+            end
+        else
+            for _,control in ipairs(Cockpit.handlebarControls(width,height,options.camera)) do
+                local state=states[control.action]
+                buttons[#buttons+1]={action=control.action,label=state.label,icon=state.icon,
+                    x=control.x,y=control.y,radius=control.visualRadius,hitRadius=mobile and 25 or 15,
+                    active=state.active,enabled=not context.gearTransition,physical=true}
+            end
         end
     else
         local x,y=touchPoint(p,'interact',width,height)
@@ -327,6 +336,18 @@ function Touch:draw(width,height,p,context,options)
                     g.circle('fill',cx,cyPressed,cap)
                     g.setColor(1,.80,.48,active and .92 or .53);g.setLineWidth(math.max(.7,r*.08))
                     g.circle('line',cx,cyPressed,cap*.87)
+                elseif button.action=='signalLeft' or button.action=='signalRight' then
+                    local cap=math.max(5,r*.62)
+                    g.setColor(.02,.025,.02,.58);g.circle('fill',cx,cy+cap*.15,cap*1.12)
+                    g.setColor(active and 1 or .40,active and .68 or .43,active and .18 or .22,.96)
+                    g.circle('fill',cx,cy,cap)
+                    g.setColor(1,.88,.61,active and .98 or .62);g.setLineWidth(math.max(1,r*.10))
+                    g.circle('line',cx,cy,cap*.87)
+                    local direction=button.action=='signalLeft' and -1 or 1
+                    g.polygon('fill',cx+direction*cap*.28,cy-cap*.43,
+                        cx-direction*cap*.40,cy,cx+direction*cap*.28,cy+cap*.43)
+                    g.setColor(.10,.12,.09,active and 1 or .82)
+                    g.line(cx-direction*cap*.30,cy,cx+direction*cap*.36,cy)
                 else
                     local width=math.max(4,r*.66);local height=math.max(6,r*1.22)
                     local travel=button.action=='beam' and (active and -.17 or .17)

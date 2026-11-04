@@ -49,6 +49,51 @@ function Test.run(check)
     camera:toggleView(r)
     check('first_person_restores_outside_settings',not camera.firstPerson and camera.yaw==35 and camera.tilt==65 and camera.zoom==.8)
     check('first_person_toggle_never_changes_physics',r.bike.x==bx and r.bike.z==bz and r.bike.heading==heading and r.bike.speed==speed)
+    local truck={x=140,z=110,heading=.2,speed=0,h=4,pitch=.08,engine=true}
+    local truckRider={truck=truck,vehicle='truck',gear={mounted=false,transition=nil}}
+    local truckCamera=Camera.new(truck,world)
+    truckCamera:setOutsideMode('follow',truck,true)
+    local CameraMenu=require('src.commute.camera_menu')
+    check('truck_camera_menu_enables_first_person_and_shoulder',
+        CameraMenu.enabled('first',truckRider) and CameraMenu.enabled('shoulder',truckRider))
+    check('truck_camera_toggle_enters_and_stays_in_first_person',truckCamera:toggleView(truckRider)
+        and truckCamera.firstPerson)
+    truckCamera:updateRide(truckRider,1/60)
+    check('truck_first_person_camera_tracks_truck_heading_and_eye',truckCamera.firstPerson
+        and truckCamera.lastActor==truck and near(truckCamera.eyeHeight,4+FP.EYE_HEIGHT*math.cos(truck.pitch)))
+    truckCamera:orbit(24,-8);truckCamera:zoomBy(2)
+    check('truck_first_person_keeps_free_look_and_fov_controls',truckCamera.lookYaw>0 and truckCamera.fov<FP.FOV)
+    truckCamera:recenter()
+    check('truck_first_person_recenter_resets_free_look',truckCamera.firstPerson and truckCamera.lookYaw==0
+        and truckCamera.lookPitch==0)
+    truckCamera:setFirstPerson(false,truck);truckCamera:setOutsideMode('shoulder',truck,true)
+    truckCamera:updateRide(truckRider,1/60)
+    local localView=View.actorCamera(truckCamera.shoulderView,truck,1,true)
+    local offsetView=View.actorCamera(truckCamera.shoulderView,truck,1)
+    check('shoulder_local_rider_heading_stays_rear_facing_when_eye_is_offset',
+        truckCamera.shoulderView and localView.viewHeading==truck.heading
+        and math.abs(localView.viewHeading-offsetView.viewHeading)>.01)
+    check('truck_shoulder_view_includes_only_the_driven_truck_from_local_vehicles',
+        View.shouldDrawLocalActor(truckCamera.shoulderView,{localPlayer=true,truck=true})
+        and not View.shouldDrawLocalActor(truckCamera.shoulderView,{localPlayer=true,bikeOnly=true}))
+    local touchButtons=require('src.commute.touch_controls').actionButtons(1280,880,Bindings.defaults(),
+        {mounted=true,vehicle='truck',engine=true,headlight=false,headlightHighBeam=false,
+            gearTransition=false,cameraMenu=false},
+        {mobile=true,camera={firstPerson=true}})
+    local truckControls={}
+    for _,button in ipairs(touchButtons) do truckControls[button.action]=button end
+    check('truck_mobile_controls_include_ignition_lights_and_both_turn_signals',
+        truckControls.ignition and truckControls.headlight and truckControls.beam
+        and truckControls.signalLeft and truckControls.signalRight)
+    local controlContext={mounted=true,vehicle='truck',engine=true,headlight=false,
+        headlightHighBeam=false,gearTransition=false,cameraMenu=false}
+    local ignitionTouch=require('src.commute.touch_controls').actionAt(
+        truckControls.ignition.x,truckControls.ignition.y,1280,880,Bindings.defaults(),controlContext,
+        {mobile=true,camera={firstPerson=true},hiddenHud=true})
+    check('truck_cockpit_ignition_switch_is_a_mobile_hit_target_even_with_hud_hidden',
+        ignitionTouch and ignitionTouch.action=='ignition')
+    check('truck_cockpit_switches_have_clear_visual_hit_sizes',
+        truckControls.ignition.radius>=15 and truckControls.ignition.hitRadius>=26)
     local player={id=1}
     local part={slot=1,rider=r}
     local inputRuntime={state={screen='world',home={commute={participants={owner=part}}}},

@@ -5,13 +5,13 @@ local Component = {}
 function Component.install(Runtime)
     local checkpoint = require("src.save_checkpoint").new(5)
     function Runtime.saveCurrent(immediate)
-        if Runtime.multiplayer:isClient() then return false end
-        if not Runtime.state.activeSlot then return false end
-        local saved = Runtime.Save.queue(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
-        if saved and immediate then saved=Runtime.Save.flush() end
+        if Runtime.multiplayer:isClient() then return false,"multiplayer_client" end
+        if not Runtime.state.activeSlot then return false,"no_active_slot" end
+        local saved,reason = Runtime.Save.queue(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
+        if saved and immediate then saved,reason=Runtime.Save.flush() end
         if saved then checkpoint:reset() end
         if saved and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty(true) end
-        return saved
+        return saved,reason
     end
 
     function Runtime.pollSaves()

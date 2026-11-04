@@ -24,6 +24,10 @@ Sites.designs={
         threshold={x=0,z=5},door={x=0,z=6},parking={x=0,z=9},
         obstacles={rect(5.65,8.40,1.4,5.40)}},
 }
+-- Keep dock routing metadata outside the serialized structure design so old
+-- seeded towns retain their original fingerprints and road layouts.
+Sites.warehouseTruckLayout={truckParking={x=9.3,z=0},
+    truckParkingArea=rect(7.2,11.4,-2.5,2.5),truckApproach=rect(7.2,11.4,2.5,8.8)}
 local function service(id,label,width,depth,height,floors,entryX)
     entryX=entryX or 0
     Sites.designs[id]={style=id,label=label,width=width,depth=depth,height=height,floors=floors or 1,
@@ -117,6 +121,13 @@ function Sites.validDesign(d)
         if type(a)~='table' or not M.finite(a.x) or not M.finite(a.z) or (a.h~=nil and not M.finite(a.h))
             or math.abs(a.x)>256 or math.abs(a.z)>256 or math.abs(a.h or 0)>64 then return false,'Invalid '..name..' anchor' end
     end
+    if d.truckParking~=nil then
+        local a=d.truckParking
+        if type(a)~='table' or not M.finite(a.x) or not M.finite(a.z)
+            or math.abs(a.x)>256 or math.abs(a.z)>256
+            or not validRect(d.truckParkingArea) or not validRect(d.truckApproach)
+            or not contains(d.truckParkingArea,a.x,a.z) then return false,'Invalid truck parking layout' end
+    elseif d.truckParkingArea~=nil or d.truckApproach~=nil then return false,'Truck parking needs a parking anchor' end
     local foundation=d.foundation or rect(-d.width*.5,d.width*.5,-d.depth*.5,d.depth*.5)
     if math.abs(d.threshold.z-foundation.maxZ)>1e-6 or d.threshold.x<foundation.minX+.7
         or d.threshold.x>foundation.maxX-.7 or math.abs(d.door.x-d.threshold.x)>1e-6
@@ -139,6 +150,12 @@ function Sites.validDesign(d)
     end
     for _,r in ipairs(d.obstacles or {}) do
         if contains(r,d.door.x,d.door.z) or contains(r,d.parking.x,d.parking.z) then return false,'Entry or parking intersects an obstacle' end
+        if d.truckParking and contains(r,d.truckParking.x,d.truckParking.z) then return false,'Truck parking intersects an obstacle' end
+    end
+    if d.truckParking then
+        for _,r in ipairs(d.footprints or {foundation}) do
+            if contains(r,d.truckParking.x,d.truckParking.z) then return false,'Truck parking is inside a building' end
+        end
     end
     return true
 end
@@ -169,7 +186,10 @@ local function rectDistance(site,r,x,z)
         math.max(r.minZ-z,0,z-r.maxZ)*site.scale.z)
 end
 function Site:parkingDistance(x,z)
-    return rectDistance(self,self.localParking,x,z)
+    local distance=rectDistance(self,self.localParking,x,z)
+    if self.localTruckParkingArea then distance=math.min(distance,rectDistance(self,self.localTruckParkingArea,x,z)) end
+    if self.localTruckApproach then distance=math.min(distance,rectDistance(self,self.localTruckApproach,x,z)) end
+    return distance
 end
 function Site:approachDistance(x,z)
     return rectDistance(self,self.localApproach,x,z)
@@ -191,6 +211,14 @@ local function placement(designs,p)
     local source=type(p.design)=='table' and p.design or assert(designs[p.design or p.id],'Unknown structure design')
     local valid,reason=Sites.validDesign(source);assert(valid,reason)
     local design=copy(source)
+    -- Older saved towns carry the original warehouse design. Inherit only the
+    -- new dock apron fields so their sites receive the matching truck bay.
+    if design.style=='warehouse' and not design.truckParking then
+        local current=Sites.warehouseTruckLayout
+        design.truckParking=copy(current.truckParking)
+        design.truckParkingArea=copy(current.truckParkingArea)
+        design.truckApproach=copy(current.truckApproach)
+    end
     local origin=assert(p.origin,'Structure placement needs an origin')
     local size=p.size or {}
     local sx,sz,sh=(size.width or design.width)/design.width,(size.depth or design.depth)/design.depth,
@@ -207,6 +235,8 @@ local function placement(designs,p)
     self.localObstacles=design.obstacles or {}
     local parking=design.parking
     self.localParking=rect(parking.x-4,parking.x+4,parking.z-3.75,parking.z+3.75)
+    self.localTruckParkingArea=design.truckParkingArea
+    self.localTruckApproach=design.truckApproach
     self.localApproach=rect(math.min(design.threshold.x,parking.x)-2,
         math.max(design.threshold.x,parking.x)+2,design.threshold.z-.75,parking.z+2)
     self.foundation=worldRect(self,self.localFoundation)
@@ -216,6 +246,10 @@ local function placement(designs,p)
     for _,name in ipairs({'door','threshold','parking'}) do
         local a=assert(design[name],'Structure design needs '..name)
         local x,z,h=self:toWorld(a.x,a.z,a.h or 0);self[name]={x=x,z=z,h=h}
+    end
+    if design.truckParking then
+        local x,z,h=self:toWorld(design.truckParking.x,design.truckParking.z,design.truckParking.h or 0)
+        self.truckParking={x=x,z=z,h=h}
     end
     self.front={x=-self.sin,z=self.cos}
     return self

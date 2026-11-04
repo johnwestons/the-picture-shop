@@ -30,6 +30,13 @@ local function truckParkedInBay(world,id,truck)
     local site=world and world.sites and world.sites.byId[id]
     if site then
         local x,z=site:toLocal(truck.x,truck.z)
+        if id=='warehouse' and site.localTruckParkingArea and site.design.truckParking then
+            local area=site.localTruckParkingArea
+            local halfX=(area.maxX-area.minX)*.5-Truck.RADIUS/site.scale.x
+            local halfZ=(area.maxZ-area.minZ)*.5-Truck.RADIUS/site.scale.z
+            return math.abs(x-site.design.truckParking.x)<=math.max(0,halfX)
+                and math.abs(z-site.design.truckParking.z)<=math.max(0,halfZ)
+        end
         local safeHalfWidth=4-Truck.RADIUS/site.scale.x
         local safeHalfDepth=3.75-Truck.RADIUS/site.scale.z
         return math.abs(x-site.design.parking.x)<=safeHalfWidth
@@ -41,8 +48,10 @@ end
 function Trip.truckParking(world)
     local site=world and world.sites and world.sites.byId.warehouse
     if not site then return nil end
-    local heading=math.atan2(site.front.z,site.front.x)
-    for _,localPoint in ipairs({{-3.5,7.8},{-4.4,10.1},{-4.0,5.6}}) do
+    local heading=site.design.truckParking and site.yaw or math.atan2(site.front.z,site.front.x)
+    local candidates=site.design.truckParking and {{site.design.truckParking.x,site.design.truckParking.z}}
+        or {{-3.5,7.8},{-4.4,10.1},{-4.0,5.6}}
+    for _,localPoint in ipairs(candidates) do
         local x,z=site:toWorld(localPoint[1],localPoint[2],0)
         local h=world:supportHeight(x,z)
         local clear=true
@@ -289,7 +298,16 @@ function Trip.command(state,player,token,action,world)
             state.home.revision=state.home.revision+1
             return true,'Delivery truck ready. Use the riding controls to drive; stop and interact to get out.'
         end
-        if part.rider.vehicle=='truck' then return false,'Get out of the delivery truck before using motorcycle controls.' end
+        if part.rider.vehicle=='truck' then
+            if action=='ignition' or action=='headlight' or action=='beam'
+                or action=='signalLeft' or action=='signalRight' then
+                if t.truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
+                local okay,message=Truck.command(t.truck,action)
+                if okay then state.home.revision=state.home.revision+1 end
+                return okay,message
+            end
+            return false,'Get out of the delivery truck before using motorcycle controls.'
+        end
         local okay,message=Rider.command(part.rider,action,world)
         if okay and action=='mount' then part.rider.transport=nil end
         if okay and action=='rescue' then state.home.revision=state.home.revision+1 end

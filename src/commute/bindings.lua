@@ -13,6 +13,8 @@ B.actions={
  {id='reverse',label='Forward / reverse',key='b',pad='leftstick',main='b',preview='b'},
  {id='headlight',label='Headlight',key='h',pad='y',touch='touch5',main='h',preview='h'},
  {id='beam',label='High / low beam',key='n',main='n',preview='n'},
+ {id='signalLeft',label='Truck turn signal left',key=',',main=',',preview=''},
+ {id='signalRight',label='Truck turn signal right',key='.',main='.',preview=''},
  {id='view',label='Camera view',key='p',pad='rightstick',touch='touch6',main='p',preview='p'},
  {id='transmission',label='Auto / manual gearbox',key='v',pad='dpup',main='v',preview='v'},
  {id='shiftDown',label='Shift down',key='z',pad='dpleft',main='z',preview='z'},

@@ -6,7 +6,8 @@ function Menu.row(button,i)
     return {x=button.x+button.width-175,y=button.y+button.height+4+(i-1)*38,width=175,height=37}
 end
 function Menu.enabled(id,rider)
-    return id~='first' and id~='shoulder' or rider.gear.mounted and not rider.gear.transition
+    local mounted=rider and (rider.gear.mounted or rider.vehicle=='truck')
+    return id~='first' and id~='shoulder' or mounted and not rider.gear.transition
 end
 function Menu.currentLabel(camera)
     local id=camera.firstPerson and 'first' or camera.outsideMode

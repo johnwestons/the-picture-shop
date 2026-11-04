@@ -60,11 +60,16 @@ end
 function View.shouldDrawActor(entry,localActor)
     return entry.localPlayer~=true and entry.actor~=localActor
 end
-function View.actorCamera(camera,actor,scale)
+function View.shouldDrawLocalActor(camera,entry)
+    if camera.includeLocalRider~=true or entry.localPlayer~=true then return false end
+    return (entry.truck==true)==(camera.localVehicle=='truck')
+end
+function View.actorCamera(camera,actor,scale,lockToActorHeading)
     -- Perspective rays are not parallel: two riders with the same heading
     -- can expose different sides when they occupy different parts of the view.
     local dx,dz=actor.x-camera.centerX,actor.z-camera.centerZ
-    local bearing=dx*dx+dz*dz>1e-10 and math.atan2(dz,dx) or camera.viewHeading
+    local bearing=lockToActorHeading and actor.heading or
+        dx*dx+dz*dz>1e-10 and math.atan2(dz,dx) or camera.viewHeading
     return {zoom=scale,firstPerson=true,viewHeading=bearing,projectionCamera=camera,
         screen=function()return 0,0 end,
         headingDirection=Camera.headingDirection,headingDirection16=Camera.headingDirection16}
@@ -149,7 +154,7 @@ function View:draw(renderer,camera,actor,actors)
     camera.riderSpriteScale=nil
     for _,entry in ipairs(actors or {}) do
         local p=entry.actor
-        if camera.includeLocalRider or View.shouldDrawActor(entry,actor) then
+        if View.shouldDrawLocalActor(camera,entry) or View.shouldDrawActor(entry,actor) then
             local height=not entry.gear and entry.presentation and entry.presentation.h
                 or p.h or renderer.world:supportHeight(p.x,p.z)
             local surfaceTop
@@ -162,7 +167,8 @@ function View:draw(renderer,camera,actor,actors)
                 surfaceTop=support+.09 -- top of the road and parking paint
             end
             self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
-                local proxy=View.actorCamera(camera,p,scale)
+                local proxy=View.actorCamera(camera,p,scale,
+                    camera.includeLocalRider and entry.localPlayer==true and not entry.truck)
                 if entry.gear then
                     local presentation=require('src.commute.presentation')
                     local falling=presentation.beginFallPose(p,entry.presentation,proxy,0,0)
@@ -170,6 +176,7 @@ function View:draw(renderer,camera,actor,actors)
                     if falling then g.pop() end
                 elseif entry.truck then
                     renderer.truckArt:draw(p,proxy,renderer.world)
+                    renderer.truckArt:drawSignals(p,proxy,renderer.world,renderer.clock)
                 else
                     local y=renderer.bikeArt:draw(p,proxy,renderer.world,entry.bikeOnly,entry.presentation)
                     if y and camera.includeLocalRider and entry.localPlayer and not entry.bikeOnly then

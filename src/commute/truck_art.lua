@@ -30,6 +30,25 @@ function Art:draw(actor,camera,world)
         Art.ANCHOR_X,Art.ANCHOR_Y)
 end
 
+function Art:drawSignals(actor,camera,world,clock)
+    if actor.turnSignal~='left' and actor.turnSignal~='right' then return end
+    if math.floor((clock or 0)*2.4)%2~=0 then return end
+    local g=love.graphics;local heading=actor.heading or 0
+    local fx,fz=math.cos(heading),math.sin(heading)
+    local sx,sz=-fz,fx
+    local side=actor.turnSignal=='left' and 1 or -1
+    for _,forward in ipairs({-1.45,1.35}) do
+        local x=actor.x+fx*forward+sx*side*.72
+        local z=actor.z+fz*forward+sz*side*.72
+        local h=(actor.h or world:supportHeight(actor.x,actor.z))+.92
+        local px,py=camera:screen(x,z,h)
+        local radius=math.max(2,3.5*camera.zoom)
+        g.setColor(.16,.08,.015,.9);g.circle('fill',px,py,radius+1.4*camera.zoom)
+        g.setColor(1,.61,.12,.98);g.circle('fill',px,py,radius)
+    end
+    g.setColor(1,1,1,1)
+end
+
 function Art:release()
     self.image:release()
     for _,quad in ipairs(self.quads) do quad:release() end

@@ -103,6 +103,7 @@ function C.controlContext(R,part,controlsTop)
     local rider=part and part.rider
     local gear=rider and rider.gear or {}
     local bike=rider and rider.bike or {}
+    local isTruck=rider and rider.vehicle=='truck'
     local view=R._commute or {}
     local trip=R.state.home.commute
     local truck=trip and trip.truck
@@ -112,10 +113,13 @@ function C.controlContext(R,part,controlsTop)
     if not controlsTop then controlsTop=select(3,Cockpit.infoLayout(C.mobileInputEnabled(R),rideNotice(R,part))) end
     return {
         cameraMenu=true,controlsTop=controlsTop,mounted=gear.mounted==true or rider and rider.vehicle=='truck',
-        vehicle=rider and rider.vehicle,nearTruck=nearTruck,engine=gear.engine==true,gearOutfit=gear.outfit,
+        vehicle=rider and rider.vehicle,nearTruck=nearTruck,
+        engine=isTruck and truck.engine~=false or not isTruck and gear.engine==true,gearOutfit=gear.outfit,
         gearTransition=gear.transition~=nil,arrived=part and part.arrived==true,
         transmission=bike.transmission,reverse=bike.reverse==true,
-        headlight=bike.headlight==true,headlightHighBeam=bike.headlightHighBeam==true,
+        headlight=isTruck and truck.headlight==true or not isTruck and bike.headlight==true,
+        headlightHighBeam=isTruck and truck.headlightHighBeam==true or not isTruck and bike.headlightHighBeam==true,
+        turnSignal=isTruck and truck.turnSignal or nil,
         horn=Bindings.value(C.bindings(R),'horn',C.touch(R))>0,
         outsideMode=view.camera and view.camera.outsideMode
             or C.bindings(R).outsideCamera or 'fixed',
@@ -275,7 +279,7 @@ function C.cameraPointer(R,x,y)
             local id=mode[1]
             if not CameraMenu.enabled(id,rider) then return true end
             if id=='center' then view.camera:recenter()
-            elseif id=='first' then view.camera:setFirstPerson(true,rider.bike)
+            elseif id=='first' then view.camera:setFirstPerson(true,Rider.actor(rider))
             else
                 if view.camera.firstPerson then view.camera:setFirstPerson(false,Rider.actor(rider)) end
                 C.bindings(R).outsideCamera=id
@@ -578,6 +582,10 @@ function C.draw(R)
     if trip.truck and not trip.truck.driver then actors[#actors+1]={actor=trip.truck,truck=true,parkedTruck=true} end
     local actor=Rider.actor(C.visualRider(part,R.World.player))
     view.renderer:draw(view.camera,actor,actors)
+    if part.rider.vehicle=='truck' and view.camera.firstPerson then
+        if not view.truckCockpit then view.truckCockpit=require('src.commute.truck_cockpit').new() end
+        view.truckCockpit:draw(part.rider.truck,1280,880)
+    end
     if showHud then
         if part.rider.gear.mounted and part.rider.gear.engine and not part.arrived
             and Bindings.freeCameraTouch(C.mobileInputEnabled(R),view.camera) then
@@ -701,6 +709,8 @@ function C.keypressed(R,key,semantic)
     elseif key=='i' then C.request(R,'ignition:'..t.token)
     elseif key=='h' then C.request(R,'headlight:'..t.token)
     elseif key=='n' then C.request(R,'beam:'..t.token)
+    elseif key==',' then C.request(R,'signalLeft:'..t.token)
+    elseif key=='.' then C.request(R,'signalRight:'..t.token)
     elseif key=='b' then C.request(R,'reverse:'..t.token)
     elseif key=='v' then C.request(R,(r.bike.transmission=='manual' and 'automatic:' or 'manual:')..t.token)
     elseif key=='z' then C.request(R,'shiftdown:'..t.token)
@@ -941,6 +951,7 @@ function C.release(R)
     if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').close(R) end
     if R._commute and R._commute.renderer then R._commute.renderer:release() end
     if R._commute and R._commute.cockpit then R._commute.cockpit:release() end
+    if R._commute and R._commute.truckCockpit then R._commute.truckCockpit:release() end
     if R._commute and R._commute.routeMap then R._commute.routeMap:release() end
     Icons.release()
     R._commute=nil

@@ -18,6 +18,16 @@ function Test.run(check)
     check('commute_warehouse_footprint_blocks_actors_and_flora',excluded)
     check('commute_warehouse_front_door_and_parking_remain_clear',Rider.clear(world,site.door.x,site.door.z,Rider.RADIUS)
         and Rider.clear(world,pad.x,pad.z,Bike.RADIUS))
+    local dock=assert(site.truckParking)
+    local dockLocalX,dockLocalZ=site:toLocal(dock.x,dock.z)
+    check('commute_warehouse_has_a_separate_clear_truck_dock_bay',
+        site.localTruckParkingArea and site.localTruckApproach and site.design.truckParking
+        and math.abs(dockLocalX-site.design.truckParking.x)<.001
+        and math.abs(dockLocalZ-site.design.truckParking.z)<.001
+        and Rider.clear(world,dock.x,dock.z,require('src.commute.delivery_truck').RADIUS))
+    check('commute_warehouse_dock_apron_is_paved_and_kept_clear_of_grass',
+        not world.roads:vegetationAllowed(dock.x,dock.z)
+        and math.abs(world:height(dock.x,dock.z)-site.h)<.001)
     local bike=Bike.new(site.x,380,-math.pi/2);bike.speed=12
     for _=1,20 do Bike.update(bike,{throttle=1},.1,world) end
     check('commute_warehouse_fast_vehicle_cannot_tunnel_into_wall',bike.z>site.maxZ and bike.speed==0)

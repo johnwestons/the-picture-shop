@@ -2,7 +2,7 @@
 -- Curve samples drive rendering, grading, collision and route measurements.
 local M=require('src.commute.vendor.mathx')
 local Sites=require('src.commute.sites')
-local Roads={VERSION=4};Roads.__index=Roads
+local Roads={VERSION=5};Roads.__index=Roads
 local DefaultLayout=require("src.commute.town_layout")
 Roads.destinations=DefaultLayout.destinations
 local function cat(a,b,c,d,t)
@@ -111,8 +111,14 @@ local function indexGround(roads)
         local anchor=site and site.parking or p
         local reach=9
         if site then
-            local rect=site.localParking
-            reach=reach+.5*M.length((rect.maxX-rect.minX)*site.scale.x,(rect.maxZ-rect.minZ)*site.scale.z)
+            for _,rect in ipairs({site.localParking,site.localTruckParkingArea,site.localTruckApproach}) do
+                if rect then
+                    local parking=site.design.parking
+                    local dx=math.max(math.abs(rect.minX-parking.x),math.abs(rect.maxX-parking.x))*site.scale.x
+                    local dz=math.max(math.abs(rect.minZ-parking.z),math.abs(rect.maxZ-parking.z))*site.scale.z
+                    reach=math.max(reach,M.length(dx,dz)+9)
+                end
+            end
         end
         local pad={site=site,anchor=anchor,id=id}
         cells(anchor.x-reach,anchor.z-reach,anchor.x+reach,anchor.z+reach,size,function(k)

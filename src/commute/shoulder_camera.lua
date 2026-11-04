@@ -31,6 +31,7 @@ function Shoulder.update(eye,camera,rider)
     eye.eyeHeight=math.max(ground+.35,h+1.35+math.sin(tilt)*arm*fraction)
     eye.focusHeight=h
     eye.firstPerson,eye.includeLocalRider=true,true
+    eye.localVehicle=camera.localVehicle
     eye.viewHeading,eye.viewPitch,eye.roll=yaw,-tilt,0
     eye.viewCos,eye.viewSin=forwardX,forwardZ
     eye.viewportWidth,eye.viewportHeight=camera.viewportWidth,camera.viewportHeight

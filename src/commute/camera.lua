@@ -280,8 +280,9 @@ function Camera:setFirstPerson(enabled, actor)
 end
 
 function Camera:toggleView(rider)
-    if not rider.gear.mounted or rider.gear.transition then return false end
-    self:setFirstPerson(not self.firstPerson, rider.bike)
+    local truck=rider.vehicle=='truck' and rider.truck or nil
+    if (not rider.gear.mounted and not truck) or rider.gear.transition then return false end
+    self:setFirstPerson(not self.firstPerson, truck or rider.bike)
     return true
 end
 
@@ -289,16 +290,17 @@ function Camera:updateRide(rider, dt, visual)
     local truck=rider.vehicle=='truck' and rider.truck or nil
     local actor = truck or rider.gear.mounted and rider.bike or rider.ped
     local mounted=(rider.gear.mounted or truck~=nil) and not rider.gear.transition
+    self.localVehicle=truck and 'truck' or rider.gear.mounted and 'bike' or 'ped'
     if not mounted and self.followMounted then
         -- Leaving the bike keeps the current outside angle, but a later mount
         -- should not resume an old head-look offset or angular momentum.
         self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
     end
     self.followMounted=mounted
-    if self.firstPerson and (not rider.gear.mounted or rider.gear.transition or truck~=nil) then
+    if self.firstPerson and (not mounted or rider.gear.transition) then
         self:setFirstPerson(false, actor)
     end
-    self:update(actor, dt, visual)
+    self:update(actor, dt, truck or visual)
 end
 
 function Camera:update(actor, dt, visual)

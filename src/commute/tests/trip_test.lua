@@ -91,13 +91,32 @@ function Test.run(check)
     check('commute_trip_starts_outside_without_home_phase',state.home.weekend.phase=='ready' and state.home.commute.origin=='warehouse')
     local deliveryTruck=state.home.commute.truck
     check('commute_trip_spawns_one_unassigned_delivery_truck',Truck.valid(deliveryTruck)
-        and not deliveryTruck.owner and not deliveryTruck.driver)
+        and not deliveryTruck.owner and not deliveryTruck.driver and deliveryTruck.engine==true)
+    local truckSite=world.sites.byId.warehouse
+    local spawnLocalX,spawnLocalZ=truckSite:toLocal(deliveryTruck.x,deliveryTruck.z)
+    check('commute_truck_spawns_in_its_loading_dock_space',
+        math.abs(spawnLocalX-truckSite.design.truckParking.x)<.001
+        and math.abs(spawnLocalZ-truckSite.design.truckParking.z)<.001
+        and Truck.RADIUS>0)
     local truckX,truckZ=deliveryTruck.x,deliveryTruck.z
+    local ownerRider=state.home.commute.participants.owner.rider
+    -- The dock bay is intentionally separate from the motorcycle stalls, so
+    -- simulate the short walk to the truck before interacting with it.
+    ownerRider.ped.x,ownerRider.ped.z=truckX,truckZ
     assert(Trip.command(state,host,12,'truck',world))
     local truckRider=state.home.commute.participants.owner.rider
     check('commute_truck_interaction_assigns_a_single_driver',truckRider.vehicle=='truck'
         and deliveryTruck.owner=='owner' and deliveryTruck.driver=='owner' and Rider.actor(truckRider)==deliveryTruck)
     check('commute_truck_rejects_a_second_driver',not Trip.command(state,guest,12,'truck',world))
+    assert(Trip.command(state,host,12,'ignition',world))
+    for _=1,12 do Trip.update(state,host,{drive=-1,steer=0},.1,world) end
+    check('commute_truck_engine_off_prevents_throttle',deliveryTruck.engine==false and deliveryTruck.speed==0)
+    assert(Trip.command(state,host,12,'ignition',world))
+    assert(Trip.command(state,host,12,'headlight',world))
+    assert(Trip.command(state,host,12,'beam',world))
+    assert(Trip.command(state,host,12,'signalLeft',world))
+    check('commute_truck_controls_switch_engine_lights_and_signals',deliveryTruck.engine
+        and deliveryTruck.headlight and deliveryTruck.headlightHighBeam and deliveryTruck.turnSignal=='left')
     for _=1,12 do Trip.update(state,host,{drive=-1,steer=0},.1,world) end
     check('commute_truck_drive_input_moves_and_accelerates',deliveryTruck.speed>0
         and math.abs(deliveryTruck.x-truckX)+math.abs(deliveryTruck.z-truckZ)>.05)
@@ -105,7 +124,9 @@ function Test.run(check)
     local truckPart=truckSnapshot.participants.owner
     check('commute_truck_shared_snapshot_carries_driver_and_vehicle',Trip.valid(truckSnapshot,state.home)
         and truckSnapshot.truck.driver=='owner' and truckPart.rider.vehicle=='truck'
-        and truckPart.rider.truck.x==truckSnapshot.truck.x)
+        and truckPart.rider.truck.x==truckSnapshot.truck.x
+        and truckSnapshot.truck.engine and truckSnapshot.truck.headlight
+        and truckSnapshot.truck.headlightHighBeam and truckSnapshot.truck.turnSignal=='left')
     state.home.commute=assert(Trip.restore(truckSnapshot,world))
     deliveryTruck=state.home.commute.truck;truckRider=state.home.commute.participants.owner.rider
     check('commute_truck_restore_rebinds_one_shared_actor',truckRider.truck==deliveryTruck

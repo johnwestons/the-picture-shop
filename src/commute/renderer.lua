@@ -78,6 +78,25 @@ function Renderer:buildRoadMeshes()
             rim(b)
         end
     end
+    local function siteRect(site,r,padding,height,layer,color)
+        local x0,x1,z0,z1=r.minX-padding,r.maxX+padding,r.minZ-padding,r.maxZ+padding
+        local points={}
+        for _,localPoint in ipairs({{x0,z0},{x1,z0},{x1,z1},{x0,z1}}) do
+            local x,z,h=site:toWorld(localPoint[1],localPoint[2],0)
+            points[#points+1]={x=x,z=z,h=h}
+        end
+        for _,index in ipairs({1,2,3,1,3,4}) do
+            local p=points[index];vertex(layer,p.x,p.z,p.h,height,color,1)
+        end
+    end
+    local function siteLine(site,a,b,width,height,layer,color)
+        local ax,az,ah=site:toWorld(a[1],a[2],0)
+        local bx,bz,bh=site:toWorld(b[1],b[2],0)
+        local dx,dz=bx-ax,bz-az;local length=M.length(dx,dz)
+        if length<1e-5 then return end
+        quad({a={x=ax,z=az,h=ah,nx=-dz/length,nz=dx/length},
+            b={x=bx,z=bz,h=bh,nx=-dz/length,nz=dx/length}},width,height,layer,color,1)
+    end
     for _,s in ipairs(self.world.roads.segments) do
         if not s.bridge then
             if s.surface=='dirt' then
@@ -106,6 +125,20 @@ function Renderer:buildRoadMeshes()
     end
     local sites=self.world.roads.sites and self.world.roads.sites.byId or {}
     for id,site in pairs(sites) do
+        if site.localTruckParkingArea and site.localTruckApproach then
+            for _,rect in ipairs({site.localTruckParkingArea,site.localTruckApproach}) do
+                siteRect(site,rect,.34,.02,layers.shoulder,{.41,.39,.30})
+                siteRect(site,rect,0,.04,layers.asphalt,{.23,.25,.24})
+            end
+            local area=site.localTruckParkingArea;local inset=.16
+            local z0,z1=area.minZ+inset,area.maxZ-inset
+            local x0,x1=area.minX+inset,area.maxX-inset
+            local mark={.95,.70,.24}
+            siteLine(site,{x0,z0},{x1,z0},.075,.065,layers.approach,mark)
+            siteLine(site,{x0,z1},{x1,z1},.075,.065,layers.approach,mark)
+            siteLine(site,{x0,z0},{x0,z1},.11,.065,layers.approach,mark)
+            siteLine(site,{x1,z0},{x1,z1},.075,.065,layers.approach,mark)
+        end
         if self.world.roads.destinations[id] then
             local a,b=site.threshold,site.parking
             local dx,dz=b.x-a.x,b.z-a.z;local length=M.length(dx,dz)
@@ -337,7 +370,7 @@ function Renderer:draw(camera,actor,actors)
     g.draw(canvas,0,0);g.pop()
     self:drawRoads(camera,true)
     if actors then
-        for _,entry in ipairs(actors) do if not entry.gear and not entry.truck then self:headlight(camera,entry.actor) end end
+        for _,entry in ipairs(actors) do if not entry.gear then self:headlight(camera,entry.actor) end end
     else self:headlight(camera,actor) end
     local props={}
     for _,piece in ipairs(self.structures:visible(camera,self.effectiveRadius,'props')) do props[#props+1]=piece end
@@ -350,7 +383,9 @@ function Renderer:draw(camera,actor,actors)
     table.sort(props,function(a,b)return a.depth<b.depth end)
     for _,p in ipairs(props) do
         if p.actor then
-            if p.truck then self.truckArt:draw(p.actor,camera,self.world)
+            if p.truck then
+                self.truckArt:draw(p.actor,camera,self.world)
+                self.truckArt:drawSignals(p.actor,camera,self.world,self.clock)
             elseif p.gear and not p.gear.mounted then
                 local a=p.actor;local x,y=camera:screen(a.x,a.z,a.h or self.world:supportHeight(a.x,a.z))
                 local presentation=require('src.commute.presentation')
