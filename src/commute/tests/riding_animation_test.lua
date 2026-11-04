@@ -57,7 +57,7 @@ function Test.run(check)
     local restored=assert(Rider.restore(Rider.snapshot(r),world,{x=100,z=100}))
     check('riding_save_load_starts_neutral_without_stale_queue',A.sample(restored.bike)=='idle'
         and #restored.bike.ridingAnimation.queue==0)
-    local automatic=Bike.new(100,100,0);automatic.speed=3.7
+    local automatic=Bike.new(100,100,0);automatic.speed=Bike.GEARS[1].up+.1
     Bike.update(automatic,{throttle=1,boost=true},.05,world)
     check('riding_automatic_shift_queues_behind_new_boost_once',automatic.gear==2
         and A.sample(automatic)=='boost' and #automatic.ridingAnimation.queue==1)

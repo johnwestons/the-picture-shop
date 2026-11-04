@@ -24,8 +24,17 @@ local function auditDrawnViews(R,check,rider)
     local camera=require('src.commute.camera').new(bike,C.world(R));view.camera=camera
     local art=view.renderer.bikeArt;local g=love.graphics
     local originalDraw=g.draw;local calls={}
+    -- The condition HUD also draws a parked-bike quad from this atlas.
+    -- Count only draws issued for a world actor, including any incorrect pose.
+    local drawBike,instanceDraw=art.draw,rawget(art,'draw')
+    local drawingBike=false
+    art.draw=function(self,...)
+        drawingBike=true
+        drawBike(self,...)
+        drawingBike=false
+    end
     g.draw=function(image,quad,...)
-        local info=art:describe(image,quad)
+        local info=drawingBike and art:describe(image,quad)
         if info then local _,_,_,alpha=g.getColor();info.alpha=alpha;calls[#calls+1]=info end
         return originalDraw(image,quad,...)
     end
@@ -83,6 +92,7 @@ local function auditDrawnViews(R,check,rider)
         check('camera_runtime_airborne_view_aims_below_horizon_with_pitched_bars',camera.viewPitch<-.1 and camera.bikePitch==.6)
     end,debug.traceback)
     g.draw=originalDraw
+    art.draw=instanceDraw
     for _,key in ipairs(fields) do bike[key]=saved[key] end
     view.camera=originalCamera;part.presentation=originalPresentation
     assert(okay,reason)
