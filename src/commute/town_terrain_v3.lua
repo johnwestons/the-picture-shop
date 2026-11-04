@@ -48,6 +48,13 @@ function V3.valid(terrain)
     return true
 end
 
+local function segmentDistance2(segment,x,z)
+    local u=segment.length2>1e-8 and M.clamp(((x-segment.x)*segment.dx+(z-segment.z)*segment.dz)/segment.length2,0,1) or 0
+    local dx,dz=x-segment.x-segment.dx*u,z-segment.z-segment.dz*u
+    return dx*dx+dz*dz
+end
+
+local COAST_CELL=16
 local function shorelineBins(shoreline,config)
     local points,bins={},{}
     local c=config.center
@@ -69,7 +76,28 @@ local function shorelineBins(shoreline,config)
             end
         end
     end
-    return points,bins,binWidth
+    -- Within a subcell each distance changes by at most half a diagonal.
+    -- Segments farther than the closest by a whole diagonal cannot win the
+    -- exact distance query anywhere in that cell. Retain the original coast mask.
+    local refined={}
+    local stride=math.ceil(config.size/COAST_CELL)+2
+    for bx=0,math.floor(config.size/COAST_CELL) do
+        for bz=0,math.floor(config.size/COAST_CELL) do
+            local x,z=(bx+.5)*COAST_CELL,(bz+.5)*COAST_CELL
+            local original=bins[math.floor(z/64)*binWidth+math.floor(x/64)+1]
+            if original then
+                local nearest=math.huge
+                for _,s in ipairs(original) do nearest=math.min(nearest,segmentDistance2(s,x,z)) end
+                local limit=(math.sqrt(nearest)+COAST_CELL*math.sqrt(2)+1e-8)^2
+                local list={}
+                for _,s in ipairs(original) do
+                    if segmentDistance2(s,x,z)<=limit then list[#list+1]=s end
+                end
+                refined[bz*stride+bx+1]=list
+            end
+        end
+    end
+    return points,refined,stride
 end
 
 local function insideRadius(shoreline,config,x,z)
@@ -110,9 +138,10 @@ function V3.new(terrain,config)
 end
 
 function Plan:shoreDistance(x,z)
+    if x==self.lastShoreX and z==self.lastShoreZ then return self.lastShoreDistance end
     local c=self.config
     local inside=insideRadius(self.shoreline,c,x,z)
-    local bx,bz=math.floor(x/64),math.floor(z/64)
+    local bx,bz=math.floor(x/COAST_CELL),math.floor(z/COAST_CELL)
     local list=self.shoreBins[bz*self.shoreBinWidth+bx+1]
     -- Coast segments are binned with a 48 m margin. No segment in this bin
     -- means the query is safely inland or deep offshore, so retain a distance
@@ -120,13 +149,13 @@ function Plan:shoreDistance(x,z)
     local best=(self.config.size*2)^2
     if list then
         for _,segment in ipairs(list) do
-            local u=segment.length2>1e-8 and M.clamp(((x-segment.x)*segment.dx+(z-segment.z)*segment.dz)/segment.length2,0,1) or 0
-            local dx,dz=x-segment.x-segment.dx*u,z-segment.z-segment.dz*u
-            best=math.min(best,dx*dx+dz*dz)
+            best=math.min(best,segmentDistance2(segment,x,z))
         end
     end
     local distance=math.sqrt(best)
-    return inside and distance or -distance
+    local signed=inside and distance or -distance
+    self.lastShoreX,self.lastShoreZ,self.lastShoreDistance=x,z,signed
+    return signed
 end
 
 function Plan:landHeight(x,z)

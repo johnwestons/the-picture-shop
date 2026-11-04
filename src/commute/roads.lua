@@ -77,6 +77,52 @@ local function junctionCandidates(definitions)
     return result
 end
 Roads.junctionsFor=junctionCandidates
+local empty={}
+local function cells(x0,z0,x1,z1,size,visit)
+    for bx=math.floor(x0/size),math.floor(x1/size) do
+        for bz=math.floor(z0/size),math.floor(z1/size) do visit(bx..':'..bz) end
+    end
+end
+
+-- A town is immutable. Mark the cells whose ground can be modified once,
+-- instead of searching every address at every height and normal sample.
+local function indexGround(roads)
+    local size=roads.binSize
+    local marked={}
+    local function mark(k) marked[k]=true end
+    for k in pairs(roads.bins) do mark(k) end
+    for k in pairs(roads.junctionBins) do mark(k) end
+    for _,area in ipairs(roads.recreation) do
+        local r=area.radius+2
+        cells(area.x-r,area.z-r,area.x+r,area.z+r,size,mark)
+    end
+    if roads.sites.bins then
+        local siteSize=roads.sites.binSize
+        for k in pairs(roads.sites.bins) do
+            local x,z=k:match('^(%-?%d+):(%-?%d+)$')
+            x,z=tonumber(x)*siteSize,tonumber(z)*siteSize
+            cells(x,z,x+siteSize-.001,z+siteSize-.001,size,mark)
+        end
+        roads.gradedCells=marked
+    end
+    roads.padBins={}
+    for id,p in pairs(roads.destinations) do
+        local site=roads.sites.byId and roads.sites.byId[id]
+        local anchor=site and site.parking or p
+        local reach=9
+        if site then
+            local rect=site.localParking
+            reach=reach+.5*M.length((rect.maxX-rect.minX)*site.scale.x,(rect.maxZ-rect.minZ)*site.scale.z)
+        end
+        local pad={site=site,anchor=anchor,id=id}
+        cells(anchor.x-reach,anchor.z-reach,anchor.x+reach,anchor.z+reach,size,function(k)
+            mark(k)
+            local bin=roads.padBins[k] or {}
+            roads.padBins[k]=bin
+            bin[#bin+1]=pad
+        end)
+    end
+end
 function Roads.new(options)
     options=options or {}
     local definitions=options.definitions or DefaultLayout.roads
@@ -134,10 +180,12 @@ function Roads.new(options)
             end
         end
     end
+    indexGround(self)
     return self
 end
 function Roads:nearest(x,z,pavedOnly)
-    local list=self.bins[math.floor(x/16)..':'..math.floor(z/16)] or {}
+    local key=math.floor(x/16)..':'..math.floor(z/16)
+    local list=self.bins[key] or empty
     local best,segment,u,priority=math.huge,nil,0,0
     for _,s in ipairs(list) do
         if not pavedOnly or s.surface~='dirt' then
@@ -148,7 +196,7 @@ function Roads:nearest(x,z,pavedOnly)
         end
     end
     if priority>=2 then return best,segment,u end
-    local junctions=self.junctionBins[math.floor(x/16)..':'..math.floor(z/16)] or {}
+    local junctions=self.junctionBins[key] or empty
     for _,junction in ipairs(junctions) do
         if not pavedOnly or junction.surface~='dirt' then
             local d=math.max(0,M.length(x-junction.x,z-junction.z)-junction.outerRadius)
@@ -164,14 +212,14 @@ function Roads:sample(x,z)
     return d,nil,nil
 end
 function Roads:padAt(x,z)
-    for id,p in pairs(self.destinations) do
-        local site=self.sites.byId and self.sites.byId[id]
-        local anchor=site and site.parking or p
-        local d=site and site:parkingDistance(x,z) or M.length(x-p.x,z-p.z)
-        if d<9 then return anchor,d,id end
+    local key=math.floor(x/self.binSize)..':'..math.floor(z/self.binSize)
+    for _,pad in ipairs(self.padBins[key] or empty) do
+        local d=pad.site and pad.site:parkingDistance(x,z) or M.length(x-pad.anchor.x,z-pad.anchor.z)
+        if d<9 then return pad.anchor,d,pad.id end
     end
 end
 function Roads:grade(base,x,z)
+    if self.gradedCells and not self.gradedCells[math.floor(x/self.binSize)..':'..math.floor(z/self.binSize)] then return base end
     local distance,s,h=self:sample(x,z)
     if s and not s.bridge and distance<=s.width*.5 then return self.sites:foundationHeight(x,z) or h end
     local graded=self.sites:grade(base,x,z)
