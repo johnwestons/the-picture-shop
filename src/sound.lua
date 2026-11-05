@@ -331,7 +331,6 @@ function Sound:syncPersistentLoops(snapshot)
     local shopScene=scene=="warehouse" or scene=="front_left" or scene=="front_right"
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
         and shopScene
-        and not (self.context.state.home and self.context.state.home.commute)
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end
     if snapshot.presses ~= nil then
@@ -466,7 +465,7 @@ function Sound:syncCommuteAudio(dt)
     local screen=state.screen=='options' and state.optionsReturnScreen or state.screen
     local part=trip and screen=='world' and world and world.player
         and trip.participants[require('src.home_residents').key(world.player)]
-    if not part then
+    if not part or part.interior then
         if self.commuteAudio then self.commuteAudio:release();self.commuteAudio=nil end
         return
     end
@@ -476,6 +475,14 @@ function Sound:syncCommuteAudio(dt)
         self.commuteAudio:setMuted(self.muted)
     end
     self.commuteAudio:setLevels(self.masterVolume,self.sfxVolume,self.ambientVolume)
+    if part.rider.vehicle=='truck' and part.rider.truck then
+        local truck=part.rider.truck
+        local speed=truck.speed or 0
+        local throttle=truck.throttle or math.min(1,speed/8)
+        self.commuteAudio:update(dt,{speed=speed,throttle=throttle,brake=truck.brake,
+            rpm=1400+speed*135+throttle*650},truck.engine~=false,{truck=true})
+        return
+    end
     self.commuteAudio:update(dt,require('src.commute.audio').partBike(part),part.rider.gear.engine,
         {horn=part.rider.bike.horn==true})
 end

@@ -1,10 +1,11 @@
 local Placement = {}
+local MachineRotation = require("src.machine_rotation")
 local frames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
-local clockwise = { northwest = "northeast", northeast = "southeast", southeast = "southwest", southwest = "northwest" }
-local operatorSigns = { northwest = {1, 1}, northeast = {-1, 1}, southwest = {1, -1}, southeast = {-1, -1} }
 
 function Placement.defaultState(config)
-    return { x = config.spawnX, y = config.spawnY, direction = config.defaultDirection or "northwest",
+    local direction = config.defaultDirection or "northwest"
+    return { x = config.spawnX, y = config.spawnY, direction = direction,
+        rotationIndex = MachineRotation.frameForDirection("windmill", direction) or 1,
         moving = false, inMotion = false }
 end
 
@@ -14,15 +15,18 @@ function Placement.ensure(state, config)
     item.x = type(item.x) == "number" and item.x or config.spawnX
     item.y = type(item.y) == "number" and item.y or config.spawnY
     item.direction = frames[item.direction] and item.direction or config.defaultDirection or "northwest"
+    item.rotationIndex = MachineRotation.normalizedFrame("windmill", item, config.defaultDirection or "northwest")
+    item.direction = MachineRotation.directionForFrame("windmill", item.rotationIndex)
     item.moving, item.inMotion = item.moving == true, item.inMotion == true
     return item
 end
 
 function Placement.frame(state, config) return frames[Placement.ensure(state, config).direction] end
+function Placement.rotationFrameFor(placement) return MachineRotation.frameFor("windmill", placement) end
 function Placement.operatorPosition(state, config)
-    local item, sign = Placement.ensure(state, config)
-    sign = operatorSigns[item.direction]
-    return item.x + sign[1] * config.operatorDistanceX, item.y + sign[2] * config.operatorDistanceY
+    local item = Placement.ensure(state, config)
+    local signX, signY = MachineRotation.operatorVector("windmill", item.rotationIndex)
+    return item.x + signX * config.operatorDistanceX, item.y + signY * config.operatorDistanceY
 end
 function Placement.obstacle(state, config)
     local item = Placement.ensure(state, config)
@@ -42,7 +46,8 @@ end
 function Placement.beginMove(state, config)
     local item = Placement.ensure(state, config)
     if item.moving then return false end
-    item._relocationOrigin = { x = item.x, y = item.y, direction = item.direction }
+    item._relocationOrigin = { x = item.x, y = item.y, direction = item.direction,
+        rotationIndex = item.rotationIndex }
     item.moving = true
     return true
 end
@@ -57,8 +62,9 @@ function Placement.move(state, dx, dy, dt, config, canMove)
 end
 function Placement.rotate(state, config)
     local item = Placement.ensure(state, config)
-    item.direction = clockwise[item.direction]
-    return true, item.direction
+    item.rotationIndex = item.rotationIndex % 64 + 1
+    item.direction = MachineRotation.directionForFrame("windmill", item.rotationIndex)
+    return true, item.direction, item.rotationIndex
 end
 function Placement.place(state, config)
     local item = Placement.ensure(state, config)
@@ -70,7 +76,7 @@ end
 function Placement.snapshot(state, config)
     local item = Placement.ensure(state, config)
     return { x = item.x, y = item.y, direction = item.direction, frame = frames[item.direction],
-        moving = item.moving, inMotion = item.inMotion }
+        rotationIndex = item.rotationIndex, moving = item.moving, inMotion = item.inMotion }
 end
 
 return Placement

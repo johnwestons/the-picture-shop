@@ -113,6 +113,20 @@ function Component.install(Runtime)
         end
         Runtime.multiplayer:update(dt, {
             localPlayer = localPlayer,
+            getBikeMotion = function(id)
+                local trip=Runtime.state.home and Runtime.state.home.commute
+                if not trip then return end
+                local actor=id==(localPlayer.id or 1) and localPlayer or Runtime.multiplayer.players[id]
+                local part=actor and trip.participants[require('src.home_residents').key(actor)]
+                if part then
+                    local rider=part.rider
+                    if not part.interior and rider.gear.mounted and rider.vehicle~='truck' and not part.arrived then
+                        local bike=rider.bike
+                        return {token=trip.token, heading=bike.heading, speed=bike.speed,
+                            steer=bike.steering or 0, brake=bike.brake or 0}
+                    end
+                end
+            end,
             inputX = inputX or 0,
             inputY = inputY or 0,
             inputBoost = inputBoost == true,
@@ -124,7 +138,8 @@ function Component.install(Runtime)
             arcade = Runtime.state.screen=='critter_kombat'
                 and require('src.screens.critter_crisis_screen').arcadeInputs(Runtime) or nil,
             moveRemote = function(player, moveDt, moveX, moveY)
-                if require('src.commute.runtime').active(Runtime) then return end
+                local trip=Runtime.state.home and Runtime.state.home.commute
+                if trip and trip.participants[require('src.home_residents').key(player)] then return end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
             end,

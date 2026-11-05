@@ -28,6 +28,9 @@ function Component.install(Runtime)
                     Runtime.App.syncPlayerColorways()
                     Runtime.state.screen = "world"
                     Runtime.state.message = "Joined the host shop. Movement, doors, reception, office, cutter, wrapper, and Windmill controls are live."
+                    local recorded,reason=require('src.portable_pay').recordSnapshot(Runtime.state,
+                        Runtime.multiplayer.residentId,Runtime.multiplayer.residentToken)
+                    if not recorded then Runtime.state.message='Portable wages could not be saved: '..tostring(reason) end
                     Runtime.DirectScreen.leave()
                 end
                 Runtime.syncMobileKeyboard()
@@ -36,6 +39,10 @@ function Component.install(Runtime)
                     Runtime.showConnectionError(
                         "The host sent a shop update this build could not apply.",
                         "Invalid durable shop update")
+                else
+                    local recorded,reason=require('src.portable_pay').recordSnapshot(Runtime.state,
+                        Runtime.multiplayer.residentId,Runtime.multiplayer.residentToken)
+                    if not recorded then Runtime.state.message='Portable wages could not be saved: '..tostring(reason) end
                 end
             elseif event.type == "radio_state" then
                 require("src.jukebox").applyNetworkState(event)

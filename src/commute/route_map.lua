@@ -37,7 +37,7 @@ local compass={'E','SE','S','SW','W','NW','N','NE'}
 function Map.headingLabel(heading)return compass[math.floor((heading+math.pi/8)/(math.pi/4))%8+1]end
 function Map.new(world)
     local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0,
-        mapBounds=bounds(world),miniLevel=2},Map)
+        mapBounds=bounds(world),miniLevel=2,miniFollow=true},Map)
     local destinations=world.roads and world.roads.destinations or {}
     for _,site in ipairs(world.sites and world.sites.all or {})do
         local destination=destinations[site.id]
@@ -96,9 +96,16 @@ function Map:label(id)
 end
 local miniScales={1,1.5,2,2.5}
 
+local function miniButtonSize(rect)
+    return math.min(28,(rect.height-44)/3)
+end
 function Map.miniZoomButton(rect,direction)
-    local size=math.min(30,(rect.height-32)/2)
-    return {x=rect.x+rect.width-size-5,y=rect.y+24+(direction<0 and size+4 or 0),width=size,height=size}
+    local size=miniButtonSize(rect)
+    return {x=rect.x+rect.width-size-5,y=rect.y+24+(direction<0 and (size+4)*2 or 0),width=size,height=size}
+end
+function Map.miniFollowButton(rect)
+    local size=miniButtonSize(rect)
+    return {x=rect.x+rect.width-size-5,y=rect.y+24+size+4,width=size,height=size}
 end
 function Map:pressMiniZoom(rect,x,y)
     for direction=-1,1,2 do
@@ -110,9 +117,22 @@ function Map:pressMiniZoom(rect,x,y)
     end
     return false
 end
-local function miniOrigin(start,space,extent,focus)
-    if extent<=space then return start+(space-extent)/2 end
-    return clamp(start+space/2-focus,start+space-extent,start)
+function Map:pressMiniFollow(rect,x,y,actor)
+    local b=Map.miniFollowButton(rect)
+    if x<b.x or x>b.x+b.width or y<b.y or y>b.y+b.height then return false end
+    actor=actor or {}
+    if self.miniFollow==false then
+        self.miniFollow=true;self.miniCenter=nil
+    else
+        self.miniFollow=false
+        self.miniCenter={x=finite(actor.x,0),z=finite(actor.z,0)}
+    end
+    return true
+end
+local function miniPoint(snapshot,x,z)
+    local t=snapshot.transform
+    local dx,dz=x-t.centerX,z-t.centerZ
+    return t.x+t.scale*(t.cos*dx-t.sin*dz),t.y+t.scale*(t.sin*dx+t.cos*dz)
 end
 function Map:miniSnapshot(rect,actor,options)
     options=options or {};actor=actor or {}
@@ -120,17 +140,38 @@ function Map:miniSnapshot(rect,actor,options)
     local area={x=rect.x+6,y=rect.y+24,width=math.max(1,button.x-rect.x-10),height=math.max(1,rect.height-30)}
     local b=self.mapBounds
     local scale=miniScales[self.miniLevel]*math.min(area.width/(b.x1-b.x0),area.height/(b.z1-b.z0))
-    local w,h=(b.x1-b.x0)*scale,(b.z1-b.z0)*scale
-    local px,pz=(finite(actor.x,0)-b.x0)*scale,(finite(actor.z,0)-b.z0)*scale
-    local x=miniOrigin(area.x,area.width,w,px)
-    local y=miniOrigin(area.y,area.height,h,pz)
     local heading=finite(actor.heading,0)
-    local result={area=area,viewport={x=x,y=y,width=w,height=h,scale=scale,bounds=b},
-        marker={x=x+px,y=y+pz,dx=math.cos(heading),dz=math.sin(heading),heading=heading}}
+    if self.miniFollow~=false then self.miniCenter={x=finite(actor.x,0),z=finite(actor.z,0)} end
+    self.miniCenter=self.miniCenter or {x=finite(actor.x,0),z=finite(actor.z,0)}
+    local angle=-heading-math.pi/2
+    local centerX,centerY=area.x+area.width*.5,area.y+area.height*.5
+    local transform={x=centerX,y=centerY,scale=scale,rotation=angle,
+        cos=math.cos(angle),sin=math.sin(angle),centerX=self.miniCenter.x,centerZ=self.miniCenter.z}
+    local result={area=area,transform=transform,center=self.miniCenter,heading=heading,
+        viewport={x=area.x,y=area.y,width=area.width,height=area.height,scale=scale,bounds=b},
+        marker={x=centerX,y=centerY,dx=0,dz=-1,heading=heading,label=Map.headingLabel(heading)}}
+    if self.miniFollow==false then
+        result.marker.x,result.marker.y=miniPoint(result,finite(actor.x,0),finite(actor.z,0))
+    end
     local destinations=self.world.roads and self.world.roads.destinations
     local target=destinations and destinations[options.destination]
     if target and target.x and target.z then
-        result.goal={x=x+(target.x-b.x0)*scale,y=y+(target.z-b.z0)*scale}
+        result.goal={x=target.x,y=target.z}
+        result.goal.screenX,result.goal.screenY=miniPoint(result,target.x,target.z)
+    end
+    local home=destinations and destinations[options.home]
+    if home and home.x and home.z then
+        result.home={id=options.home,x=home.x,y=home.z}
+        result.home.screenX,result.home.screenY=miniPoint(result,home.x,home.z)
+    end
+    result.players={}
+    for i,player in ipairs(options.players or {}) do
+        local x,z=finite(player.x,nil),finite(player.z,nil)
+        if x and z then
+            local screenX,screenY=miniPoint(result,x,z)
+            result.players[#result.players+1]={x=screenX,y=screenY,
+                name=tostring(player.name or ('Player '..tostring(player.id or i))),id=player.id}
+        end
     end
     return result
 end
@@ -146,14 +187,13 @@ function Map:hit(rect,x,y,actor,options)
     return nearest
 end
 function Map:hitMini(rect,x,y,actor,options)
-    local s=self:miniSnapshot(rect,actor,options);local v,area=s.viewport,s.area
+    local s=self:miniSnapshot(rect,actor,options);local area=s.area
     if x<area.x or y<area.y or x>area.x+area.width or y>area.y+area.height then return nil end
     -- Keep tap-to-navigate attached to the actual building on the cached map.
     local nearest,best
     for _,entry in ipairs(self.entries) do
         local site=entry.site
-        local bx=v.x+((site.x or site.origin.x)-v.bounds.x0)*v.scale
-        local by=v.y+((site.z or site.origin.z)-v.bounds.z0)*v.scale
+        local bx,by=miniPoint(s,site.x or site.origin.x,site.z or site.origin.z)
         local distance=(x-bx)^2+(y-by)^2
         if bx>=area.x and by>=area.y and bx<=area.x+area.width and by<=area.y+area.height
             and distance<=9^2 and (not best or distance<best) then nearest,best=entry.id,distance end
@@ -287,38 +327,84 @@ function Map:drawMini(rect,actor,options)
     local sx,sy=g.transformPoint(area.x,area.y)
     local ex,ey=g.transformPoint(area.x+area.width,area.y+area.height)
     g.intersectScissor(sx,sy,ex-sx,ey-sy)
-    g.setColor(1,1,1);g.draw(self.background,v.x,v.y,0,v.width/512,v.height/512)
+    local b=v.bounds;local t=s.transform
+    g.push()
+    g.translate(t.x,t.y);g.rotate(t.rotation);g.scale(t.scale,t.scale);g.translate(-t.centerX,-t.centerZ)
+    g.setColor(1,1,1);g.draw(self.background,b.x0,b.z0,0,(b.x1-b.x0)/512,(b.z1-b.z0)/512)
     if options.route and options.route.points then
         local points={}
         for _,p in ipairs(options.route.points) do
-            points[#points+1]=v.x+(p.x-v.bounds.x0)*v.scale
-            points[#points+1]=v.y+(p.z-v.bounds.z0)*v.scale
+            points[#points+1]=p.x
+            points[#points+1]=p.z
         end
         if #points>=4 then
-            g.setColor(.02,.05,.04,.95);g.setLineWidth(4);g.line(points)
-            g.setColor(1,.66,.18,1);g.setLineWidth(2.4);g.line(points)
+            g.setColor(.02,.05,.04,.95);g.setLineWidth(4/t.scale);g.line(points)
+            g.setColor(1,.66,.18,1);g.setLineWidth(2.4/t.scale);g.line(points)
         end
     end
-    local m=s.marker
-    if s.goal then
-        local x,y=s.goal.x,s.goal.y
-        local dx,dy=x-m.x,y-m.y
-        -- Place a distant goal on the edge in its true direction from the rider.
-        local t=1
-        if dx>0 then t=math.min(t,(area.x+area.width-5-m.x)/dx)
-        elseif dx<0 then t=math.min(t,(area.x+5-m.x)/dx) end
-        if dy>0 then t=math.min(t,(area.y+area.height-5-m.y)/dy)
-        elseif dy<0 then t=math.min(t,(area.y+5-m.y)/dy) end
-        x,y=m.x+dx*math.max(0,t),m.y+dy*math.max(0,t)
-        g.setColor(1,.73,.27);g.polygon('fill',x,y-4,x+4,y,x,y+4,x-4,y)
-    end
-    local dx,dz=m.dx,m.dz
-    g.setColor(.02,.06,.06,1);g.circle('fill',m.x,m.y,7)
-    g.setColor(.24,1,.94,1);g.circle('line',m.x,m.y,7)
-    g.polygon('fill',m.x+dx*7,m.y+dz*7,
-        m.x-dx*5-dz*5,m.y-dz*5+dx*5,
-        m.x-dx*5+dz*5,m.y-dz*5-dx*5)
     g.pop()
+    local m=s.marker
+    local playerX=clamp(m.x,area.x+6,area.x+area.width-6)
+    local playerY=clamp(m.y,area.y+6,area.y+area.height-6)
+    local function edgePoint(x,y)
+        local dx,dy=x-playerX,y-playerY;local f=1
+        if dx>0 then f=math.min(f,(area.x+area.width-6-playerX)/dx)
+        elseif dx<0 then f=math.min(f,(area.x+6-playerX)/dx) end
+        if dy>0 then f=math.min(f,(area.y+area.height-6-playerY)/dy)
+        elseif dy<0 then f=math.min(f,(area.y+6-playerY)/dy) end
+        f=math.max(0,math.min(1,f))
+        return playerX+dx*f,playerY+dy*f,f<.999,dx,dy
+    end
+    local function drawHome(x,y)
+        local edge
+        x,y,edge=edgePoint(x,y)
+        g.setColor(.025,.07,.05,.98);g.circle('fill',x,y,8)
+        g.setColor(.55,.96,.62,1);g.setLineWidth(1.5);g.circle('line',x,y,8)
+        g.polygon('fill',x,y-4,x+4,y,x+3,y,x+3,y+4,x-3,y+4,x-3,y,x-4,y)
+        local labelX=x+8
+        if labelX+31>area.x+area.width then labelX=x-39 end
+        g.setColor(.02,.06,.04,.96);g.rectangle('fill',labelX,y-7,31,13,3)
+        g.setColor(.65,1,.69,1);g.setFont(self:font(9));g.print(edge and 'HOME  ›' or 'HOME',labelX+2,y-6)
+    end
+    if s.home then drawHome(s.home.screenX,s.home.screenY) end
+    if s.goal then
+        local x,y=edgePoint(s.goal.screenX,s.goal.screenY)
+        local dx,dy=x-playerX,y-playerY;local len=math.max(1,math.sqrt(dx*dx+dy*dy));dx,dy=dx/len,dy/len
+        g.setColor(1,.73,.27,1)
+        g.polygon('fill',x+dx*5,y+dy*5,x-dy*4-dx*3,y+dx*4-dy*3,
+            x+dy*4-dx*3,y-dx*4-dy*3)
+    end
+    g.setFont(self:font(9))
+    for _,player in ipairs(s.players) do
+        local x,y,edge,dx,dy=edgePoint(player.x,player.y)
+        local color={.82,.48,1,1}
+        g.setColor(.015,.045,.045,.98);g.circle('fill',x,y,6)
+        g.setColor(color);g.circle('fill',x,y,4)
+        if edge then
+            local length=math.max(1,math.sqrt(dx*dx+dy*dy));dx,dy=dx/length,dy/length
+            g.polygon('fill',x+dx*7,y+dy*7,x-dy*3-dx*2,y+dx*3-dy*2,
+                x+dy*3-dx*2,y-dx*3-dy*2)
+        end
+        local label=player.name:gsub('[%c]',''):sub(1,12)
+        local font=self:font(9);local labelWidth=math.min(font:getWidth(label)+6,82)
+        local labelX=x+8
+        if labelX+labelWidth>area.x+area.width then labelX=x-labelWidth-8 end
+        labelX=clamp(labelX,area.x+2,area.x+area.width-labelWidth-2)
+        local labelY=clamp(y-7,area.y+2,area.y+area.height-15)
+        g.setColor(.015,.04,.045,.92);g.rectangle('fill',labelX,labelY,labelWidth,13,3)
+        g.setColor(.94,.88,1,1);g.print(label,labelX+3,labelY+1)
+    end
+    g.setColor(.02,.06,.06,1);g.circle('fill',playerX,playerY,7)
+    g.setColor(.24,1,.94,1);g.circle('line',playerX,playerY,7)
+    g.polygon('fill',playerX,playerY-7,playerX-5,playerY+5,playerX,playerY+3,playerX+5,playerY+5)
+    local northX,northY=math.sin(t.rotation),-math.cos(t.rotation)
+    local nx,ny=area.x+16,area.y+17
+    g.setColor(.02,.06,.06,.88);g.circle('fill',nx,ny,10)
+    g.setColor(.93,.94,.84,1);g.setLineWidth(1.6);g.line(nx,ny,nx+northX*8,ny+northY*8)
+    g.polygon('fill',nx+northX*9,ny+northY*9,nx+northX*3-northY*3,ny+northY*3+northX*3,
+        nx+northX*3+northY*3,ny+northY*3-northX*3)
+    g.setFont(self:font(8));g.print('N',nx-3,ny+9)
+    g.pop() -- Restore the viewport clip before drawing the map controls.
 
     for direction=-1,1,2 do
         local b=Map.miniZoomButton(rect,direction)
@@ -329,6 +415,15 @@ function Map:drawMini(rect,actor,options)
         g.setLineWidth(2);g.line(x-5,y,x+5,y)
         if direction>0 then g.line(x,y-5,x,y+5) end
     end
+    local follow=Map.miniFollowButton(rect)
+    local fx,fy=follow.x+follow.width*.5,follow.y+follow.height*.5
+    g.setColor(self.miniFollow==false and {.12,.18,.16,1} or {.20,.34,.25,1})
+    g.rectangle('fill',follow.x,follow.y,follow.width,follow.height,4)
+    g.setColor(self.miniFollow==false and {.72,.79,.70,1} or {.65,1,.69,1})
+    local radius,arm=math.min(5,follow.width*.2),math.min(8,follow.width*.29)
+    g.setLineWidth(1.6);g.circle('line',fx,fy,radius);g.circle('fill',fx,fy,1.6)
+    g.line(fx-arm,fy,fx-radius,fy);g.line(fx+radius,fy,fx+arm,fy)
+    g.line(fx,fy-arm,fx,fy-radius);g.line(fx,fy+radius,fx,fy+arm)
     g.pop()
     return s
 end

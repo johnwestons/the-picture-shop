@@ -148,6 +148,8 @@ function Component.install(Runtime)
         self.snapshotAccumulator = 0
         self.shopStateAccumulator = 0
         self.shopFallbackAccumulator = 0
+        self.broadcastTownId=nil
+        self.receivedTown=nil
         self.shopRevision = 0
         self.lastShopRevision = -1
         self.radioRevision = 0

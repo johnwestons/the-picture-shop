@@ -6,6 +6,7 @@ local aqua = {0.40, 0.84, 0.81}
 local amber = {0.96, 0.77, 0.47}
 local green = {0.59, 0.89, 0.67}
 local red = {1, 0.59, 0.50}
+local Chart = require("src.screens.finance_charts")
 local valueFont
 
 local function money(value)
@@ -36,6 +37,14 @@ local function row(x, y, width, name, value, color)
     label(name, x, y, width*0.66, muted)
     label(value, x, y, width, color or ink, "right")
 end
+local function compact(value)
+    local amount=math.abs(value or 0)
+    local sign=(value or 0)<0 and "−" or ""
+    if amount>=1000000 then return string.format("%s$%.1fm",sign,amount/1000000) end
+    if amount>=10000 then return string.format("%s$%.0fk",sign,amount/1000) end
+    if amount>=1000 then return string.format("%s$%.1fk",sign,amount/1000) end
+    return money(value or 0)
+end
 
 function Budget.draw(cash, f, plan)
     love.graphics.push("all")
@@ -45,31 +54,34 @@ function Budget.draw(cash, f, plan)
     card(588, 250, plan.profit < 0 and "Forecast weekly shortfall" or "Forecast weekly surplus",
         plan.profit, plan.profit < 0 and red or green)
 
-    label("TODAY  /  CASH ON HAND", 100, 339, 330, aqua)
-    row(100, 363, 328, "Bank balance", money(cash))
-    row(100, 385, 328, "Less unpaid wages", money(f.earnedUnpaid))
-    row(100, 407, 328, "Less bills and loans due", money(f.billsDue))
+    label("TODAY  /  CASH ON HAND", 100, 339, 220, aqua)
+    row(100, 363, 212, "Bank balance", money(cash))
+    row(100, 385, 212, "Less unpaid wages", money(f.earnedUnpaid), amber)
+    row(100, 407, 212, "Less bills + loans", money(f.billsDue), red)
     love.graphics.setColor(0.22, 0.34, 0.36)
-    love.graphics.line(100, 430, 428, 430)
-    row(100, 438, 328, "Payroll reserve target", money(f.cycleReserve))
-    label("Covers one full pay cycle.", 100, 458, 328, muted)
+    love.graphics.line(100, 430, 310, 430)
+    row(100, 438, 212, "Free cash", money(f.freeCash), green)
+    row(100, 459, 212, "Payroll reserve", money(f.cycleReserve), aqua)
+    Chart.donut(365, 410, 43, {
+        {label="Free cash",value=math.max(0,f.freeCash),color=green},
+        {label="Unpaid wages",value=f.earnedUnpaid,color=amber},
+        {label="Bills + loans",value=f.billsDue,color=red},
+    }, "ON HAND", compact(cash))
 
     local costs = {
-        {"Staff wages", f.weeklyWages}, {"Shop bills", f.weeklyOperating},
-        {"Loan payments", f.weeklyLoans}, {"Machine reserve", plan.machineReserve},
+        {"Staff wages", f.weeklyWages,green}, {"Shop bills", f.weeklyOperating,aqua},
+        {"Loan payments", f.weeklyLoans,amber}, {"Machine reserve", plan.machineReserve,{.77,.63,.94,1}},
     }
     local total = f.weeklyFixed + plan.machineReserve
     label("THIS WEEK  /  FORECAST COSTS", 455, 339, 377, amber)
     for i, cost in ipairs(costs) do
         local y = 362 + (i-1)*21
-        label(cost[1], 455, y, 130, muted)
-        love.graphics.setColor(0.13, 0.20, 0.22)
-        love.graphics.rectangle("fill", 586, y+5, 108, 7)
-        love.graphics.setColor(amber)
-        love.graphics.rectangle("fill", 586, y+5, total > 0 and 108*cost[2]/total or 0, 7)
-        label(money(cost[2]), 697, y, 139, ink, "right")
+        label(cost[1], 455, y, 102, muted)
+        Chart.bar(559,y+5,66,7,cost[2],total,cost[3])
+        label(money(cost[2]), 630, y, 82, ink, "right")
     end
-    row(455, 453, 381, "Total forecast costs", money(total), amber)
+    row(455, 453, 257, "Total weekly costs", money(total), amber)
+    Chart.donut(772, 407, 47, costs, "WEEKLY", compact(total))
 
     love.graphics.setColor(0.09, 0.14, 0.16)
     love.graphics.rectangle("fill", 98, 480, 740, 67, 3)

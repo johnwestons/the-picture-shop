@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local MachineRotation = require("src.machine_rotation")
 
 function Component.install(Runtime)
     -- Derived data belongs to the runtime, never saves or network payloads.
@@ -98,6 +99,14 @@ function Component.install(Runtime)
         end
         if type(item.world) == "table" and type(item.world.x) == "number" and type(item.world.y) == "number" then
             item.world.direction = type(item.world.direction) == "string" and item.world.direction or "northwest"
+            local rotationKind = item.modelId == "polar_115" and "cutter"
+                or item.modelId == "heidelberg_10x15" and "windmill" or nil
+            if rotationKind then
+                item.world.rotationIndex = MachineRotation.normalizedFrame(rotationKind, item.world, "northwest")
+                item.world.direction = MachineRotation.directionForFrame(rotationKind, item.world.rotationIndex)
+            else
+                item.world.rotationIndex = nil
+            end
         else
             item.world = nil
         end
@@ -190,6 +199,9 @@ function Component.install(Runtime)
         for _, slot in ipairs(Runtime.floorSlots) do
             if clearSlot(slot) then
                 item.world = { x = slot[1], y = slot[2], direction = "northwest" }
+                if item.modelId == "polar_115" or item.modelId == "heidelberg_10x15" then
+                    item.world.rotationIndex = 1
+                end
                 return true
             end
         end
@@ -197,6 +209,9 @@ function Component.install(Runtime)
             for x = 345, 775, 55 do
                 if clearSlot({ x, y }) then
                     item.world = { x = x, y = y, direction = "northwest" }
+                    local rotationKind = item.modelId == "polar_115" and "cutter"
+                        or item.modelId == "heidelberg_10x15" and "windmill" or nil
+                    if rotationKind then item.world.rotationIndex = 1 end
                     return true
                 end
             end

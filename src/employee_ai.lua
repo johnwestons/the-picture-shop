@@ -19,6 +19,7 @@ local GaitMotion=require("src.gait_motion")
 local entrance=Config.customer.route[1]
 local reception=Config.warehouse.roomScenes and require("src.warehouse_registration").reception or {x=759,y=358}
 local applicantWaitSeconds=60
+local openingWaitActivity="Waiting for the shop to open"
 local function afterShiftGame(state,w,day)
     local options={}
     for _,bayId in ipairs(require("src.warehouse_layout").BAY_IDS) do
@@ -395,6 +396,64 @@ function AI.worker(state,w,dt,now,context)
     end
     return false
 end
+
+-- When the owner remains home after the weekend, employees still report for
+-- scheduled shifts. Keep them queued at the entrance and accrue only contracted
+-- time; the closed warehouse simulation continues to hold machines and jobs.
+function AI.updateClosedShop(state,firstAt,lastAt)
+    if not state or not state.employment or lastAt<=firstAt then return false end
+    local employment=state.employment
+    local changed=false
+    local registration=require("src.warehouse_registration")
+    local door=registration.entrance
+    local fromDay=math.max(0,math.floor(firstAt/24)-1)
+    local throughDay=math.floor(lastAt/24)+1
+    local function waitAtDoor(w,index)
+        if w.phase=="waiting" and w.activity==openingWaitActivity and w.visible and w.clockedIn then return end
+        local column=(index-1)%4
+        local row=math.floor((index-1)/4)
+        w.x=door.x-36+column*24
+        w.y=door.y+36+row*18
+        w.intentX,w.intentY=0,-1
+        w.visible,w.clockedIn,w.phase=true,true,"waiting"
+        w.sceneId="warehouse";w.moving=false;w.idleClock=0
+        w.activity=openingWaitActivity
+        w.greetingKind,w.greetingUntilHours=nil,nil
+        changed=true
+    end
+    for index,w in ipairs(employment.staff) do
+        local eligible=w.status=="employed" and not w.terminationRequested
+        if eligible then
+            for shiftDay=fromDay,throughDay do
+                if w.sentHomeShiftDay~=shiftDay then
+                    local shiftStart,shiftEnd=Contracts.shiftBounds(w.contract,shiftDay)
+                    if shiftStart then
+                        local paidStart,paidEnd=math.max(firstAt,shiftStart),math.min(lastAt,shiftEnd)
+                        if paidEnd>paidStart then
+                            waitAtDoor(w,index)
+                            local earned=Payroll.accrue(w,paidStart,paidEnd,false,state)
+                            changed=earned>0 or changed
+                        end
+                    end
+                end
+            end
+        end
+        local shiftDay=Contracts.shiftDay(w.contract,lastAt)
+        local currentlyScheduled=eligible and w.sentHomeShiftDay~=shiftDay
+            and Contracts.onShift(w.contract,lastAt)
+        if currentlyScheduled then
+            waitAtDoor(w,index)
+        elseif w.phase=="waiting" and w.activity==openingWaitActivity then
+            w.visible,w.clockedIn,w.phase=false,false,"hidden"
+            w.sceneId=nil;w.activity="Shift ended";w.moving=false
+            changed=true
+        end
+    end
+    employment.lastAtHours=lastAt
+    if Payroll.pay(state,lastAt,true) then changed=true end
+    return changed
+end
+
 function AI.update(state,dt,context)
     local e=Employees.ensure(state)
     local now=Calendar.absoluteHours(state)

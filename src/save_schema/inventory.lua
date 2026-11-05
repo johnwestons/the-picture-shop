@@ -133,12 +133,14 @@ function Component.install(Runtime)
             and Runtime.stock(value.stock)
     end
 
-    function Runtime.placement(value)
+    function Runtime.placement(value, supports64ViewRotation)
         return type(value) == "table"
             and Runtime.number(value.x) and Runtime.number(value.y)
             and Runtime.directions[value.direction] == true
             and type(value.moving) == "boolean"
             and type(value.inMotion) == "boolean"
+            and (value.rotationIndex == nil or (supports64ViewRotation == true
+                and Runtime.integer(value.rotationIndex) and value.rotationIndex >= 1 and value.rotationIndex <= 64))
     end
 
     function Runtime.setupScores(value)

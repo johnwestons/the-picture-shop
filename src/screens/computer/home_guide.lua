@@ -31,7 +31,7 @@ function Guide.content(state,page)
             "Buy groceries or pizza/Chinese takeout with household funds. Groceries arrive in one game hour; takeout in 30 minutes. Receive parcels at the entrance. Take food out of a fridge or cabinet before use.",
             "At a table/counter or kitchen sink, choose Meals [D] to serve a portion in a clear slot. Eat there or from a nearby chair/couch facing the surface. Packing returns uneaten portions; stopping an eating activity does not.",
             "Tap water is free at either sink. A cup is optional: pick it up, fill it, drink, then wash before refilling. Home routines also eat directly from supplies; furniture is optional. Food does not spoil.",
-            "Prepare two sandwiches using 1 bread + 1 vegetable at a kitchen work area. A stove makes two meals using 1 bread + 2 vegetables. Tend once in the green band. Moving or stopping discards the batch; poor timing still makes edible food."},
+            "Open the fridge to manage its portions. Prepare two sandwiches using 1 bread + 1 vegetable at a kitchen work area. The stove opens cooking; tend once in the green band. Moving or stopping discards the batch; poor timing still makes edible food."},
             action={"GROCERIES","groceries"},secondary={"TAKEOUT","takeout"}}
     elseif page==3 then
         return {title="Buy, unpack and arrange",blocks={
@@ -42,13 +42,13 @@ function Guide.content(state,page)
             action={"HOME & LIVING","furniture"},secondary={"DELIVERY STATUS","home_orders"}}
     elseif page==4 then
         return {title="Keep the apartment usable",blocks={
-            "Walk beside a fixture or object and choose Interact to see its routines. Shower or bathe for hygiene; use a sink for hands, drinking water, dishes and cup washing. Shared fixtures serve one resident at a time.",
+            "The washer opens its own laundry controls. Use Home routines for sinks, baths and shared chores; shared fixtures serve one resident at a time.",
             "Laundry: load/start for 5 game minutes, leave it washing for 45, then return to unload for 5. Change into fresh clothes for 2 minutes to use a clean bundle. Store clean bundles in a wardrobe and change there too.",
             "Wash dishes and wipe the kitchen at the sink, clean the bathroom, or use Home routines to sweep. A trash can collects loose waste; remove a bag, then take it out beside the entrance. New mess stays for the next batch.",
             "Move away or choose Stop to cancel. Unfinished cleaning gives no result; a washer already running continues by itself. Weekday routines cover basic needs, and absent guests' needs stay frozen."}}
     elseif page==5 then
         return {title="Sleep together, return on time",blocks={
-            "Home / Sleep & Alarms offers floor sleep. Interact with a bed, couch or guest mat for more comfortable rest; each holds one sleeper. An on TV offers nearby chair/couch rest without fast time. Set your alarm for next 07:00, next 09:00 or Monday morning; it rings once.",
+            "Interact with a bed to lie down, or a chair/couch to sit. If a TV is on and visible from the couch, that interaction starts watching. Home / Sleep & Alarms lets you choose overnight sleep and set an alarm. Each bed, couch or mat holds one sleeper.",
             "Time speeds up only when every connected resident chooses sleep. An awake or joining guest, cancellation or the first alarm restores normal speed. Needs, rent, laundry and deliveries continue during sleep.",
             "From Sunday 20:00, choose Sleep until Monday 07:00. The wake reminder stops shared acceleration. Home / Readiness shows everyone's needs; eat, drink and wash before leaving.",
             "At the apartment door on Monday, the host starts Return to shop. Guests confirm readiness, or the host can bring everyone. Return becomes available at 07:30, before the 08:00 employee shift; the shop opens at 09:00, and a late return opens late. On Friday, shut down and leave through the shop's front entrance."},

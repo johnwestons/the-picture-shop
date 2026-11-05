@@ -12,7 +12,7 @@ local Service=require('src.commute.bike_service')
 local Bike={MAX_SPEED=baseMaxSpeed,REVERSE_MAX_SPEED=1.2,BOOST_MAX_SPEED=75*metersPerMph,BOOST_ACCELERATION=1.6,BOOST_PULSE=.78,
     TUCK_START_SPEED=13.35,IMPACT_DURATION=.62,IMPACT_MIN_SPEED=.35,
     ACCELERATION=3.4,BRAKE=9,COAST=1.0,WHEELBASE=1.25,RADIUS=.42,
-    IDLE_RPM=1400,REDLINE=8000,SHIFT_TIME=.16,STEER_SMOOTH_TIME=.20,LEAN_SMOOTH_TIME=.30,
+    IDLE_RPM=1400,REDLINE=8000,SHIFT_TIME=.16,STEER_SMOOTH_TIME=.11,LEAN_SMOOTH_TIME=.30,
     OFFROAD_SCALE=.82,GRAVITY=9.81,SUSPENSION_SPRING=110,SUSPENSION_DAMPING=21,
     SUSPENSION_REACH=.22,MAX_COMPRESSION=.16,PITCH_INERTIA=.8,MAX_PITCH=.82,MAX_PRESENTATION_SPEED=40,
     ROAD_GRIP=13,DIRT_GRIP=5.6,ROAD_RESPONSE=14,DIRT_RESPONSE=8,COLLISION_HEIGHT=1.2,
@@ -78,7 +78,7 @@ local function safeRecoveryPoint(world,x,z)
     end
     return true
 end
-function Bike.rescue(p,world)
+function Bike.findRecoveryPoint(p,world,clearance,height,blocked)
     local x,z,heading
     local history=p.rescueHistory or {}
     local function open(cx,cz)
@@ -87,10 +87,11 @@ function Bike.rescue(p,world)
         end
         if not safeRecoveryPoint(world,cx,cz) then return false end
         local h=world:supportHeight(cx,cz)
-        if world.sweepObstacles and world:sweepObstacles(cx,cz,cx,cz,1.9,h,h+Bike.COLLISION_HEIGHT) then return false end
+        if world.sweepObstacles and world:sweepObstacles(cx,cz,cx,cz,clearance,h,h+height) then return false end
         for i=0,7 do
             local a=i*math.pi/4
-            local nx,nz=cx+2*math.cos(a),cz+2*math.sin(a)
+            local radius=clearance+.1
+            local nx,nz=cx+radius*math.cos(a),cz+radius*math.sin(a)
             if not safeRecoveryPoint(world,nx,nz) or math.abs(world:supportHeight(nx,nz)-h)>.65 then return false end
         end
         return true
@@ -100,7 +101,7 @@ function Bike.rescue(p,world)
         for i=0,31 do
             local a=p.heading+(i+(p.rescueCount or 0)*7)*math.pi/16
             local cx,cz=p.x+radius*math.cos(a),p.z+radius*math.sin(a)
-            if open(cx,cz) then
+            if open(cx,cz) and not (blocked and blocked(world,cx,cz,a)) then
                 local d=world.roads.nearest and world.roads:nearest(cx,cz,true) or 0
                 if not x or d<best then x,z,heading,best=cx,cz,a,d end
             end
@@ -111,6 +112,11 @@ function Bike.rescue(p,world)
     history[#history+1]={x=p.x,z=p.z}
     if #history>6 then table.remove(history,1) end
     p.rescueHistory=history;p.rescueCount=(p.rescueCount or 0)+1
+    return x,z,heading
+end
+function Bike.rescue(p,world)
+    local x,z,heading=Bike.findRecoveryPoint(p,world,1.9,Bike.COLLISION_HEIGHT)
+    if not x then return false,z end
     p.safeX,p.safeZ,p.safeHeading=x,z,heading
     p.x,p.z=x,z;p.heading=p.safeHeading or p.heading
     p.speed,p.vx,p.vz,p._velocitySpeed=0,0,0,0

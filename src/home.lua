@@ -2,6 +2,7 @@
 local Catalog=require("src.home_catalog")
 local Calendar=require("src.business_calendar")
 local Town=require("src.commute.town")
+local PortablePay=require('src.portable_pay')
 local Home={}
 local function integer(n,minimum,maximum)
     return type(n)=="number" and n==n and n==math.floor(n) and n>=minimum and n<=maximum
@@ -32,6 +33,7 @@ function Home.new(options,day)
     local due=nextMonth(day)
     if due-day<7 then due=nextMonth(due) end
     local result={version=1,revision=0,apartmentId=id,furnishingPreset=preset,town=Town.copy(town),
+        shopId=PortablePay.newShopId(),portableClaims={},
         balanceCents=Catalog.ALLOWANCE_CENTS,allowanceGranted=true,payPercent=25,
         weekend=require("src.weekend_flow").new(day*24),
         finance=require("src.household_finances").new(day*24),
@@ -53,6 +55,8 @@ function Home.valid(home)
         or not Catalog.PRESETS[home.furnishingPreset] or home.allowanceGranted~=true
         or not integer(home.revision,0,1e12) or not integer(home.balanceCents,0,1e12)
         or not integer(home.payPercent,0,100) or type(home.inventory)~="table"
+        or home.shopId~=nil and not PortablePay.validShopId(home.shopId)
+        or not PortablePay.validClaims(home.portableClaims)
         or not require("src.weekend_flow").valid(home.weekend)
         or not require("src.household_finances").valid(home.finance)
         or not require("src.home_residents").valid(home.residents)
@@ -98,10 +102,12 @@ function Home.normalize(home,day)
     if home==nil then return Home.new(nil,day) end
     if not Home.valid(home) then return nil,"Invalid household or apartment lease." end
     local result=copy(home);require("src.home_furniture").ensure({home=result})
+    result.shopId=result.shopId or PortablePay.newShopId()
+    result.portableClaims=result.portableClaims or {}
     require('src.home_residents').ensure({home=result})
     -- Existing shops keep their original geography. Saved layouts are copied,
     -- never regenerated from a seed when generator code changes.
-    result.town=Town.copy(home.town or Town.legacy())
+    if not result.town then result.town=Town.legacy() end
     if result.commute then result.commute=require('src.commute.trip').snapshot(result.commute) end
     result.chores=result.chores or require("src.home_chores").new((day or 0)*24)
     result.dining=result.dining or require("src.home_dining").new()

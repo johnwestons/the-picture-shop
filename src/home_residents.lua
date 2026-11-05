@@ -5,6 +5,7 @@ local Cooking=require("src.home_cooking")
 local Sleep=require("src.home_sleep")
 local Utilities=require("src.home_utilities")
 local Dining=require("src.home_dining")
+local BikeCargo=require("src.home_bike_cargo")
 local Residents={NEEDS={"hunger","thirst","hygiene","energy"}}
 local rates={hunger=2.5,thirst=4,hygiene=1.1,energy=2.7}
 -- The shop week includes meals, drinks and brief rests off camera, but it
@@ -19,7 +20,7 @@ Residents.ACTIONS={
     laundry={label="Old laundry action",minutes=45,targets={laundry=true},gain={hygiene=30},legacy=true},
     rest={label="Rest on the floor",minutes=60,targets={floor=true},gain={energy=22}},
     nap={label="Nap in bed",minutes=60,targets={},furnitureKind="bed",gain={energy=65}},
-    sit={label="Sit and rest",minutes=30,targets={},furnitureKind="chair",gain={energy=8}},
+    sit={label="Sit and rest",minutes=30,targets={},furnitureKinds={chair=true,couch=true},gain={energy=8}},
     couchrest={label="Nap on the couch",minutes=60,targets={},furnitureKind="couch",gain={energy=42}},
     matrest={label="Nap on the guest mat",minutes=60,targets={},furnitureKind="guest_mat",gain={energy=32}},
     watch={label="Watch nearby TV",minutes=30,targets={},furnitureKinds={chair=true,couch=true,old_tv=true},gain={energy=9}},
@@ -39,6 +40,7 @@ for kind,action in pairs(Cooking.RECIPES) do Residents.ACTIONS[kind]=action end
 for kind,action in pairs(Cooking.FOODS) do Residents.ACTIONS[kind]=action end
 for kind,action in pairs(Sleep.ACTIONS) do Residents.ACTIONS[kind]=action end
 function Residents.validCommand(command)
+    if BikeCargo.decode(command) then return true end
     if Dining.decode(command) then return true end
     if command=="cancel" then return true end
     if Objects.decode(command) then return true end
@@ -68,7 +70,7 @@ end
 local function person(name)
     return {name=name,hunger=100,thirst=100,hygiene=100,energy=100,dirtyClothes=false,revision=0,
         ridingPaintId=require('src.commute.bike_paint').DEFAULT,ridingPaintRevision=0,
-        ridingDamage=0,ridingRepairRevision=0}
+        ridingDamage=0,ridingRepairRevision=0,bikeInventory=BikeCargo.new(),bikeParkedAtHome=true}
 end
 function Residents.new() return {owner=person("Host")} end
 function Residents.validId(id)
@@ -84,12 +86,15 @@ function Residents.valid(records)
         if count>65 or id~="owner" and not Residents.validId(id)
             or type(p)~="table" or type(p.name)~="string" or #p.name>64
             or type(p.revision)~="number" or p.revision<0 or p.revision>1e12 or p.revision~=math.floor(p.revision) then return false end
+        if not BikeCargo.valid(p.bikeInventory)
+            or p.bikeParkedAtHome~=nil and type(p.bikeParkedAtHome)~='boolean' then return false end
         if id~="owner" and not require("src.resident_credentials").valid(p.credentialHash) or id=="owner" and p.credentialHash~=nil then return false end
         if p.credentialHash then
             if credentials[p.credentialHash] then return false end
             credentials[p.credentialHash]=true
         end
         if not Sleep.validResident(p) then return false end
+        if p.sceneId~=nil and p.sceneId~='home' and p.sceneId~='warehouse' and p.sceneId~='commute' then return false end
         if p.ridingGear~=nil and not require('src.commute.gear').valid(p.ridingGear) then return false end
         if p.ridingTransmission~=nil and p.ridingTransmission~='automatic' and p.ridingTransmission~='manual' then return false end
         if not require('src.commute.bike_upgrades').validLevel(p.ridingUpgradeLevel) then return false end
@@ -99,6 +104,7 @@ function Residents.valid(records)
         if not require('src.commute.bike_service').valid(p.ridingService)
             or not require('src.commute.bike_damage').valid(p.ridingDamage)
             or p.ridingRepairRevision~=nil and not require('src.commute.bike_repairs').validRevision(p.ridingRepairRevision) then return false end
+        if id~='owner' and not require('src.guest_payroll').valid(p) then return false end
         if p.activePlayerId~=nil and (type(p.activePlayerId)~="number" or p.activePlayerId<1
             or p.activePlayerId>4 or p.activePlayerId~=math.floor(p.activePlayerId)) then return false end
         for _,need in ipairs(Residents.NEEDS) do
@@ -135,6 +141,11 @@ function Residents.ensure(state)
         if resident.ridingPaintRevision==nil then resident.ridingPaintRevision=0 end
         if resident.ridingDamage==nil then resident.ridingDamage=0 end
         if resident.ridingRepairRevision==nil then resident.ridingRepairRevision=0 end
+        BikeCargo.ensure(resident)
+        if resident.bikeParkedAtHome==nil then resident.bikeParkedAtHome=true end
+    end
+    for id,resident in pairs(state.home.residents) do
+        if id~='owner' then require('src.guest_payroll').ensure(resident) end
     end
     return state.home.residents
 end
@@ -161,12 +172,14 @@ function Residents.bind(state,player,token,players)
         records[id].credentialHash=digest
         state.home.revision=state.home.revision+1
     end
+    require('src.guest_payroll').ensure(records[id])
     player.homeResidentId=id
     -- Rejoining never inherits an unfinished interaction or a sleep vote, even
     -- if disconnect/reconnect happens before the next simulation cleanup tick.
     records[id].activity=nil
     for _,row in pairs(records) do if row.activePlayerId==player.id then row.activePlayerId=nil end end
     records[id].activePlayerId=player.id
+    records[id].wageProposal=nil
     player.homeJoinedAtHours=Calendar.absoluteHours(state)
     return id
 end
@@ -180,7 +193,7 @@ function Residents.householdAllowed(state,player)
     return require("src.commute.outfit").allowed(state,player,"household")
 end
 function Residents.recover(state)
-    for _,p in pairs(Residents.ensure(state)) do p.activity=nil;p.activePlayerId=nil end
+    for _,p in pairs(Residents.ensure(state)) do p.activity=nil;p.activePlayerId=nil;p.wageProposal=nil end
     require("src.home_furniture").recover(state)
 end
 function Residents.display(state,player)
@@ -256,6 +269,7 @@ function Residents.command(state,player,command,served)
         local allowed,reason=Residents.householdAllowed(state,player)
         if not allowed then return false,'riding_gear',reason end
     end
+    if BikeCargo.decode(command) then return BikeCargo.command(state,player,command) end
     if Dining.decode(command) then return Dining.command(state,player,command) end
     if Sleep.decode(command)~=nil then return Sleep.command(state,player,command) end
     if Objects.decode(command) then return Objects.command(state,player,command) end
@@ -321,6 +335,7 @@ function Residents.advance(state,players,first,last)
         local lostCup=a and Residents.ACTIONS[a.kind].objectAction and (not cup or cup.location~="carried" or cup.holderId~=id)
         local activeId=player and (player.id or 1)
         if p.activePlayerId~=activeId then p.activePlayerId=activeId;changed=true end
+        if id~='owner' and not activeId and p.wageProposal then p.wageProposal=nil;changed=true end
         if a and (lostCup or not player or not home or player.sceneId~="home" or (player.x-a.x)^2+(player.y-a.y)^2>12^2
             or a.kind=="watch" and not Utilities.watchValid(state,player,a) or not Chores.accessible(state,a)) then
             p.activity=nil;p.revision=p.revision+1;changed=true

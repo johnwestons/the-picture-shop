@@ -14,6 +14,13 @@ local function selectComputerTab(context, state, tabId, throughInput)
 end
 
 function Test.run(context, check)
+    local function finishTownBake()
+        local deadline=love.timer.getTime()+90
+        while context.title.mode=="terrain-bake" and love.timer.getTime()<deadline do
+            context.title.update(1/60)
+        end
+        assert(context.title.mode~="terrain-bake","Town terrain preparation timed out")
+    end
     -- Let the title's press/rebound finish before checking its screen transition.
     local function pressTitleKey(key)
         local consumed = context.input.keypressed(key, context.inputContext)
@@ -103,6 +110,7 @@ function Test.run(context, check)
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
     local previewTown=context.title.townSetup.town
     pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("start"))
+    finishTownBake()
     check("title_mouse_setup_creates_selected_shop",
         #titleStarts == 1
         and titleStarts[1].mode == "new"
@@ -120,6 +128,7 @@ function Test.run(context, check)
     pressTitleKey("y")
     pressTitleKey("return")
     pressTitleKey("return")
+    finishTownBake()
     check("title_keyboard_overwrite_confirmation_starts",
         #titleStarts == 2
         and titleStarts[2].mode == "new"
@@ -133,6 +142,7 @@ function Test.run(context, check)
     check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
     pressTitleKey("return")
     pressTitleKey("return")
+    finishTownBake()
     check("title_empty_slot_setup_creates_shop",
         #titleStarts == 3
         and titleStarts[3].mode == "new"

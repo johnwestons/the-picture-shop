@@ -94,7 +94,8 @@ function Finances.summary(state,proposed,skill)
         local budgetCharge=math.ceil(costPerLift/math.max(.01,1-margin)/5)*5
         result.pricePerLift=math.max(result.pricePerLift,budgetCharge)
     end
-    result.earnedUnpaid=state.employment and Payroll.total(state,Calendar.absoluteHours(state),true)/100 or 0
+    result.earnedUnpaid=(state.employment and Payroll.total(state,Calendar.absoluteHours(state),true) or 0)
+        /100+require('src.guest_payroll').totalOwed(state)/100
     result.billsDue=(state.bills and state.bills.balance or 0)+loanDue
     result.freeCash=cents((state.money or 0)-result.earnedUnpaid-result.billsDue)
     result.contributionPerLift=result.pricePerLift-result.machinePerLift

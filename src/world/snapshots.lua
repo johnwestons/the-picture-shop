@@ -172,8 +172,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.snapshot()
-        if Runtime.World.player.sceneId=='commute' then
-            return {x=Runtime.World.player.x,y=Runtime.World.player.y,sceneId='commute',character=Runtime.World.player.character}
+        if Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery' then
+            return {x=Runtime.World.player.x,y=Runtime.World.player.y,sceneId=Runtime.World.player.sceneId,character=Runtime.World.player.character}
         end
         if require("src.shop_rooms").scene(Runtime.World.player)=="home" then
             return {x=Runtime.World.player.x,y=Runtime.World.player.y,sceneId="home",character=Runtime.World.player.character}

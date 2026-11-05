@@ -48,7 +48,7 @@ function V2.valid(t)
     for _,p in ipairs(t.forestRegions)do if not region(p) or type(p.open)~='boolean' then return false end end
     return true
 end
-function V2.generate(seed,frame)
+function V2.generate(seed,frame,naturalRivers)
     local rng=V2.random(seed,2)
     local t={mode=V2.MODE,seed=seed,size=512,heights={},rivers={},lakes={},ridges={},forestRegions={}}
     local function transform(x,z)return frame.x+x*frame.c-z*frame.s,frame.z+x*frame.s+z*frame.c end
@@ -56,10 +56,22 @@ function V2.generate(seed,frame)
     local family=math.floor(rng(1,5));t.family=({'river-valley','tributary-town','twin-waterways','lake-district'})[family]
     local function river(id,along,at,start,finish,width,endAt)
         local r={id=id,waterWidth=width,valleyWidth=width+rng(13,19),depth=rng(.55,.95),points={}}
-        local phase=rng(0,math.pi*2);local amplitude=rng(5,12)
+        local phase=rng(0,math.pi*2)
+        local phase2,phase3=phase,phase
+        local amplitude,secondary,small
+        if naturalRivers then
+            -- Several broad bends give the channel a recognizable natural
+            -- course instead of reading as a straight divider.
+            phase2,phase3=rng(0,math.pi*2),rng(0,math.pi*2)
+            amplitude,secondary,small=rng(18,30),rng(7,14),rng(2,6)
+        else
+            amplitude,secondary,small=rng(5,12),3,0
+        end
         for i=0,24 do
             local u=i/24;local v=M.lerp(start,finish,u)
-            local bend=math.sin(u*math.pi*2+phase)*amplitude+math.sin(u*math.pi*4+phase)*3
+            local bend=math.sin(u*math.pi*2+phase)*amplitude
+                +math.sin(u*math.pi*4+phase2)*secondary
+                +math.sin(u*math.pi*6+phase3)*small
             local center=at+((endAt or at)-at)*M.smooth((v+75)/150)
             local x,z=center+bend,v;if along==1 then x,z=z,x end
             x,z=transform(x,z);r.points[#r.points+1]={x=q(x),z=q(z)}

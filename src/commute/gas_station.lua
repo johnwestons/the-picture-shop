@@ -9,6 +9,11 @@ function Station.atCounter(rider,world)
     return site and not rider.gear.mounted and not rider.gear.transition and not rider.ped.crash
         and near(rider.ped,site.door,2)
 end
+function Station.nearCounter(rider,world)
+    local sites=world and (world.sites or world.roads and world.roads.sites)
+    local site=sites and sites.byId['gas-station']
+    return site and near(rider.ped,site.door,3.5)
+end
 function Station.buy(rider,world,wallet,id,revision)
     if not Station.atCounter(rider,world) then return false,'Walk to the gas station counter first.' end
     local bike=rider.bike

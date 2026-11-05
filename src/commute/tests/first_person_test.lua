@@ -111,7 +111,16 @@ function Test.run(check)
     camera:toggleView(r);r.gear.transition={action='dismount'};camera:updateRide(r,.016)
     check('first_person_dismount_returns_outside',not camera.firstPerson and not camera:toggleView(r))
     r.gear.transition=nil;r.gear.mounted=false
-    check('first_person_on_foot_toggle_rejected',not camera:toggleView(r))
+    check('first_person_on_foot_available',CameraMenu.enabled('first',r) and camera:toggleView(r))
+    local walkHeading=camera.viewHeading
+    r.ped.heading=walkHeading+math.pi/2
+    camera:updateRide(r,.1,{h=99,lean=.3})
+    local wx,wz=camera:screenVectorToWorld(0,-1)
+    check('first_person_walking_keeps_look_independent_of_strafing',camera.firstPerson
+        and near(wx,math.cos(walkHeading)) and near(wz,math.sin(walkHeading))
+        and near(camera.eyeHeight,4+FP.EYE_HEIGHT))
+    check('first_person_walking_shows_local_parked_bike',View.shouldDrawLocalActor(camera,
+        {localPlayer=true,bikeOnly=true}))
     require('src.commute.tests.terrain_renderer_test').run(check)
     require('src.commute.tests.bike_multiplayer_view_test').run(check)
 end

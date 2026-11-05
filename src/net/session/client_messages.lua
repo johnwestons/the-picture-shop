@@ -20,6 +20,19 @@ function Component.install(Runtime)
         then
             return false
         end
+        local home=payload.state.home
+        if type(home)=='table' then
+            if home.networkTownId then
+                if type(self.receivedTown)~='table' or self.receivedTown.id~=home.networkTownId then
+                    self:_queue("error",{message="The island update did not match the joined town."})
+                    return false
+                end
+                home.town=self.receivedTown
+                home.networkTownId=nil
+            else
+                self.receivedTown=home.town
+            end
+        end
         self.lastShopRevision = payload.revision
         self:_queue("shop_state", {
             revision = payload.revision,
@@ -36,6 +49,7 @@ function Component.install(Runtime)
             return false
         end
         self.lastShopRevision = payload.revision
+        self.receivedTown=type(payload.state.home)=='table' and payload.state.home.town or nil
         self.ready = true
         self.status = "Connected to the host"
         self:_queue("ready", {
@@ -88,8 +102,18 @@ function Component.install(Runtime)
                     or (player.resting==true)~=(record.resting==true) then
                     Runtime.copyMotion(player,record,true)
                 end
+                player._rideVX,player._rideVY=0,0
+                player._rideAge=record.sceneId=='commute' and 0 or nil
+                local previous=player._targetRecord
+                if previous and previous.sceneId=='commute' and record.sceneId=='commute'
+                    and record.moving and payload.serverTick-previousTick<=3 then
+                    local elapsed=(payload.serverTick-previousTick)*Runtime.SNAPSHOT_INTERVAL
+                    local vx,vy=(record.x-previous.x)/elapsed,(record.y-previous.y)/elapsed
+                    if vx*vx+vy*vy<40*40 then player._rideVX,player._rideVY=vx,vy end
+                end
                 player._targetX, player._targetY = record.x, record.y
                 player._targetRecord = record
+                player._rideMotion = payload.bike
                 if record.id == self.localId then
                     self.localTarget = record
                 elseif (player.x - record.x) ^ 2 + (player.y - record.y) ^ 2

@@ -14,6 +14,15 @@ local function finite(n) return type(n)=="number" and n==n and n>=0 and n<=24000
 function Sleep.validResident(r) return (r.alarmAt==nil or finite(r.alarmAt)) and (r.lastAlarmAt==nil or finite(r.lastAlarmAt)) end
 function Sleep.decode(command)
     if command=="alarm:off" or command=="alarm:work" then return command:sub(7) end
+    local hour,minute
+    if type(command)=="string" then hour,minute=command:match("^alarm:time:(%d%d):(%d%d)$") end
+    if hour and minute then
+        hour,minute=tonumber(hour),tonumber(minute)
+        if hour>=0 and hour<=23 and minute>=0 and minute<=59 then
+            return {hour=hour,minute=minute}
+        end
+        return nil
+    end
     local hour=type(command)=="string" and command:match("^alarm:(%d+)$")
     if hour and tostring(tonumber(hour))==hour and tonumber(hour)<=23 then return tonumber(hour) end
 end
@@ -24,10 +33,15 @@ function Sleep.command(state,player,command)
     if choice=="work" then
         at=state.home.weekend.opensAtHours-2
         if at<=now then return false,"past_alarm","Monday's 07:00 wake time has passed. Return opens at 07:30, before the 08:00 employee shift." end
+    elseif type(choice)=="table" then
+        at=math.floor(now/24)*24+choice.hour+choice.minute/60
+        if at<=now+1e-7 then at=at+24 end
     elseif type(choice)=="number" then
         at=math.floor(now/24)*24+choice;if at<=now+1e-7 then at=at+24 end
     end
-    if r.alarmAt==at then return false,"unchanged","Your alarm is already set that way." end
+    if r.alarmAt==at then
+        return false,"unchanged",at and "Your alarm is already set that way." or "Your alarm is already off."
+    end
     r.alarmAt=at;r.revision=r.revision+1
     return true,"changed",at and "Your alarm: "..Calendar.dateTimeTextAtHours(at)..". Other residents keep their own alarms." or "Your alarm is off. Monday's household wake reminder still applies."
 end

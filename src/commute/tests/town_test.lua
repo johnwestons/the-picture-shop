@@ -56,6 +56,7 @@ function Test.fixture(town,crowded)
 end
 function Test.run(check)
     require('src.commute.tests.town_generation_test').run(check)
+    require('src.commute.tests.island_variation_test').run(check)
     local town=assert(Town.generate(712345))
     local repeated=assert(Town.generate(712345));local different=assert(Town.generate(712346))
     local encoded=assert(Codec.encode(town,limits))

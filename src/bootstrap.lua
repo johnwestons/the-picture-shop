@@ -46,6 +46,9 @@ function Bootstrap.install()
     elseif os.getenv("PICTURE_SHOP_WAREHOUSE_ART_REVIEW") == "1" then
         love.filesystem.setIdentity("the-picture-shop-warehouse-art-review")
         require("tools.warehouse_art_review.main")
+    elseif os.getenv("PICTURE_SHOP_WAREHOUSE_PERSPECTIVE_LAB") == "1" then
+        love.filesystem.setIdentity("the-picture-shop-warehouse-perspective-lab")
+        require("tools.warehouse_perspective_lab.main").install()
     elseif os.getenv("PICTURE_SHOP_WAREHOUSE_ACCEPTANCE") == "1" then
         love.filesystem.setIdentity("the-picture-shop-warehouse-acceptance")
         require("src.warehouse_acceptance_runner").install()

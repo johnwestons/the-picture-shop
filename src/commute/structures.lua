@@ -97,6 +97,28 @@ function Structures:drawOutsideDepth(camera,actor,range)
     g.setShader()
     return #visible
 end
+function Structures:drawOutsidePropsDepth(camera,actor,range)
+    local g=love.graphics;local visible=self:visible(camera,range,'props')
+    if #visible==0 then return 0 end
+    self:send(camera,range,actor)
+    g.setBlendMode('alpha');g.setDepthMode('lequal',true);g.setMeshCullMode('none')
+    g.setShader(self.shader)
+    for _,piece in ipairs(visible) do
+        local alpha=1
+        if piece.kind=='building' and actor then
+            local height=actor.h or self.world:supportHeight(actor.x,actor.z)
+            if camera:depth(actor.x,actor.z,height)<piece.depth then
+                local x,y,w,h=Structures.screenBounds(piece,camera)
+                local ax,ay=camera:screen(actor.x,actor.z,height)
+                ay=ay-20*camera.zoom
+                if ax>x and ax<x+w and ay>y and ay<y+h then alpha=.32 end
+            end
+        end
+        g.setColor(1,1,1,alpha);g.draw(piece.mesh)
+    end
+    g.setShader();g.setColor(1,1,1)
+    return #visible
+end
 function Structures.screenBounds(p,camera)
     local b=p.bounds;local x0,y0,x1,y1=math.huge,math.huge,-math.huge,-math.huge
     for _,x in ipairs({b.minX,b.maxX}) do for _,z in ipairs({b.minZ,b.maxZ}) do for _,h in ipairs({b.minH,b.maxH}) do

@@ -19,7 +19,17 @@ if (Test-Path -LiteralPath $loveExecutable) {
     $previousSmoke = $env:PICTURE_SHOP_SMOKE
     $previousMobile = $env:PICTURE_SHOP_MOBILE
     $previousReport = $env:PICTURE_SHOP_SMOKE_REPORT
+    $previousCrypto = $env:TPS_CRYPTO_LIBRARY
     try {
+        # The Android package contains ARM libraries. Its desktop smoke run
+        # needs the Windows provider to create multiplayer resident identities.
+        if (-not $previousCrypto) {
+            $provider = Join-Path $projectRoot 'output/native-crypto/build/windows-x64/tps_crypto.dll'
+            if (-not (Test-Path -LiteralPath $provider -PathType Leaf)) {
+                & (Join-Path $projectRoot 'tools/build_native_crypto.ps1')
+            }
+            $env:TPS_CRYPTO_LIBRARY = (Resolve-Path -LiteralPath $provider).Path
+        }
         $env:PICTURE_SHOP_SMOKE = '1'
         $env:PICTURE_SHOP_MOBILE = '1'
         $env:PICTURE_SHOP_SMOKE_REPORT = (Join-Path $projectRoot '.stabilization\mobile-package-smoke.rpt')
@@ -30,6 +40,7 @@ if (Test-Path -LiteralPath $loveExecutable) {
         $env:PICTURE_SHOP_SMOKE = $previousSmoke
         $env:PICTURE_SHOP_MOBILE = $previousMobile
         $env:PICTURE_SHOP_SMOKE_REPORT = $previousReport
+        $env:TPS_CRYPTO_LIBRARY = $previousCrypto
     }
 }
 

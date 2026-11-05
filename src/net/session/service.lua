@@ -214,6 +214,8 @@ function Component.install(Runtime)
                     sessionId = self.sessionId,
                     serverTick = self.serverTick,
                     players = Runtime.Codec.array({ record }),
+                    bike = record.sceneId=='commute' and context and context.getBikeMotion
+                        and context.getBikeMotion(record.id) or nil,
                     games = index==1 and Runtime.Codec.array(games) or nil,
                     balls = nil,
                 })
@@ -416,14 +418,30 @@ function Component.install(Runtime)
                 self.shopStateAccumulator = 0
             else
                 local revision = self.shopRevision + 1
+                local state = shop.state
+                local town = state.home and state.home.town
+                if town and town.id and town.id == self.broadcastTownId then
+                    -- The reliable stream already delivered this frozen layout.
+                    local delta, home = {}, {}
+                    for key,value in pairs(state) do delta[key]=value end
+                    for key,value in pairs(state.home) do
+                        if key~='town' then home[key]=value end
+                    end
+                    delta.home=home
+                    home.networkTownId=town.id
+                    state=delta
+                end
                 local stateOk, stateError, recipientCount = self:_broadcastJoined("shop_state", {
                     sessionId = self.sessionId,
                     revision = revision,
-                    state = shop.state,
+                    state = state,
                 })
                 self.shopStateAccumulator = 0
                 if stateOk then
-                    if recipientCount > 0 then self.shopRevision = revision end
+                    if recipientCount > 0 then
+                        self.shopRevision = revision
+                        self.broadcastTownId = town and town.id
+                    end
                     self.shopDirty = false
                     self.shopFallbackAccumulator = 0
                 else

@@ -129,13 +129,15 @@ function Component.install(Runtime)
         if not record then return false, "no_machine", "No machine is attached to this pallet jack." end
         local _, _, unit = Runtime.MachineTransport.active(state)
         local moveState = Runtime.MachineTransport.view(state, record.kind, unit)
-        local rotated, direction = record.placement.rotate(moveState, record.config)
+        local rotated, direction, rotationIndex = record.placement.rotate(moveState, record.config)
         if not rotated then return false, "rotation_blocked", "The machine could not be rotated." end
         local item = record.placement.ensure(moveState, record.config)
         item.inMotion = false
         Runtime.PalletJack.followPlacement(state, item, 0, Runtime.Config.palletJack)
         player.x, player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
-        state.message = record.label .. " rotated " .. tostring(direction) .. "."
+        state.message = rotationIndex
+            and string.format("%s view %d/64.", record.label, rotationIndex)
+            or (record.label .. " rotated " .. tostring(direction) .. ".")
         return true, "machine_rotated", state.message, Runtime.World.networkPalletJackSnapshot(state)
     end
 

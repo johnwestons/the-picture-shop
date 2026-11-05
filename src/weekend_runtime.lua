@@ -16,11 +16,11 @@ function Weekend.command(R,player,command)
         release=function(players)
             for _,p in ipairs(players) do
                 if R.workshopAuthority then R.workshopAuthority:cleanupPlayer({id=p.id or 1},"weekend_travel",{state=R.state}) end
+                if (p.id or 1)==(R.World.player.id or 1) then
+                    R.localWorkshopLease=nil;R.state._localWorkshopMachineId=nil
+                    R.World.selectedInteraction=nil;R.state.screen='world'
+                end
             end
-            R.localWorkshopLease=nil;R.state._localWorkshopMachineId=nil
-            R.World.selectedInteraction=nil;R.state.screen="world"
-            require("src.air_hockey").clear();require("src.basketball").clear()
-            require("src.critter_kombat").clear();require("src.critter_crisis").clear()
         end,
     })
     if okay then

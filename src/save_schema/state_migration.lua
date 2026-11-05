@@ -184,9 +184,9 @@ function Component.install(Runtime)
             and Runtime.copy(source.machines) or result.machines
         Runtime.MachineFleet.ensure(result)
         Runtime.BusinessCalendar.ensure(result)
-        result.cutter = Runtime.mergePlacement(result.cutter, source.cutter)
+        result.cutter = Runtime.mergePlacement(result.cutter, source.cutter, "cutter")
         result.wrapper = Runtime.mergePlacement(result.wrapper, source.wrapper)
-        result.windmill = Runtime.mergePlacement(result.windmill, source.windmill)
+        result.windmill = Runtime.mergePlacement(result.windmill, source.windmill, "windmill")
         if type(source.windmill) == "table" and source.windmill.tutorialComplete ~= nil then
             result.windmill.tutorialComplete = source.windmill.tutorialComplete == true
         end

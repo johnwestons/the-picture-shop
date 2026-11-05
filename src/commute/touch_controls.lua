@@ -108,11 +108,30 @@ function Touch.actionButtons(width,height,p,context,options)
         addButton(buttons,'accelerate','GO','throttle',x,y,gasRadius,false,true,gasRadius+pad)
         x,y=touchPoint(p,'brake',width,height,left,right)
         addButton(buttons,'brake','BRAKE','brake',x,y,mainRadius,false,true,mainRadius+pad)
-        x,y=touchPoint(p,'boost',width,height,left,right)
-        if context.vehicle~='truck' then addButton(buttons,'boost','BOOST','boost',x,y,actionRadius,false,true,actionRadius+pad) end
         x,y=touchPoint(p,'interact',width,height,left,right)
         addButton(buttons,'interact',context.arrived and 'FINISH' or context.vehicle=='truck' and 'EXIT' or 'GET OFF','dismount',
             x,y,actionRadius,false,not context.gearTransition,actionRadius+pad)
+        if context.vehicle~='truck' then
+            x,y=touchPoint(p,'boost',width,height,left,right)
+            local hit=actionRadius+pad
+            local gas=buttons[1]
+            local gap=gas.hitRadius+hit+pad
+            if (x-gas.x)^2+(y-gas.y)^2<gap^2 then
+                local gx,gy,scale=Cockpit.throttleGrip(width,height)
+                local best=math.huge
+                local bx,by=x,y
+                for _,offset in ipairs({{0,-1},{-1,0},{0,1},{1,0},{-1,-1},{-1,1},{1,-1},{1,1}}) do
+                    local px,py=gas.x+offset[1]*gap,gas.y+offset[2]*gap
+                    local distance=(px-x)^2+(py-y)^2
+                    if distance<best and px>=hit and px<=width-hit and py>=hit and py<=height-hit
+                        and driveUtilityFits(buttons,px,py,hit,gx,gy,scale) then
+                        bx,by,best=px,py,distance
+                    end
+                end
+                x,y=bx,by
+            end
+            addButton(buttons,'boost','BOOST','boost',x,y,actionRadius,false,true,hit)
+        end
         local states={
             horn={label='HORN',icon='horn',active=context.horn==true},
             beam={label=context.headlightHighBeam and 'HI' or 'LO',icon='headlight',active=context.headlightHighBeam==true},
@@ -279,7 +298,7 @@ end
 
 -- Every visible pixel in the 960 registered mounted views is within 94
 -- world-render pixels of the wheel anchor at zoom 1, including rotation.
-function Touch:drawAim(camera,bike)
+function Touch:drawAim(camera,bike,truck)
     local x,y=self.aimX or 0,self.aimY or 0
     local length=math.sqrt(x*x+y*y)
     if length==0 then return end
@@ -293,7 +312,8 @@ function Touch:drawAim(camera,bike)
     else
         cx,cy=camera:screen(bike.x,bike.z,bike.h);scale=camera.zoom
     end
-    local reach=96*scale+26
+    local reach=(truck and 150 or 96)*scale+26
+    if truck then cy=cy-65*scale end
     Beacon.drawDirectionGem(cx+x*reach,cy+y*reach,math.atan2(y,x))
 end
 

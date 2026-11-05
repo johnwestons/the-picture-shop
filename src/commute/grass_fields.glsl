@@ -1,4 +1,4 @@
-// Critter Party's stepped comb blades and shared-root wind, projected into
+// Shared-root triangular tufts and wind, projected into
 // the commute's depth buffer and its roll-aware first-person camera.
 varying vec2 fromCameraCenter;
 varying float grassDistance;

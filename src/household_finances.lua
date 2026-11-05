@@ -159,7 +159,8 @@ end
 function Finance.reserves(state)
     local f=state.home.finance or Finance.new(Calendar.absoluteHours(state))
     local now=Calendar.absoluteHours(state);local date=Calendar.dateFromTotalDay(math.floor(now/24))
-    local wages=state.employment and require("src.payroll").total(state,now,true) or 0
+    local wages=(state.employment and require("src.payroll").total(state,now,true) or 0)
+        +require('src.guest_payroll').totalOwed(state)
     local result={buffer=f.reserveCents,unpaid=cents(state.bills and state.bills.balance or 0)+math.ceil(wages),payroll=0,operating=0,loans=0}
     -- A conservative next-week payroll reserve; forecasts never enter profit.
     local Contracts=require("src.employment_contracts")

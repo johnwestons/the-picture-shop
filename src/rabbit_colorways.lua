@@ -132,7 +132,10 @@ function Colorways.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, or
         love.graphics.pop()
         return
     end
-    local activeShader = getShader()
+    local incoming=love.graphics.getShader()
+    local activeShader=incoming and incoming:hasUniform('furTint')
+        and incoming:hasUniform('overallsTint') and incoming:hasUniform('furEnabled')
+        and incoming:hasUniform('overallsEnabled') and incoming or getShader()
     if not activeShader then
         love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
         return

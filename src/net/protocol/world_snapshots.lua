@@ -89,7 +89,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizeSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "snapshot payload",
-            { "sessionId", "serverTick", "players" }, { "games", "balls" })
+            { "sessionId", "serverTick", "players" }, { "games", "balls", "bike" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(payload.sessionId, Runtime.MAX_TOKEN_BYTES, "snapshot.sessionId")
         if not sessionId then return nil, fieldError end
@@ -104,6 +104,18 @@ function Component.install(Runtime)
         local players
         if ballShard then players=Runtime.Codec.array({}) else players,fieldError=Runtime.normalizePlayers(payload.players,"snapshot.players") end
         if not players then return nil, fieldError end
+        local bike=payload.bike
+        if bike~=nil then
+            if not players[1] or players[1].sceneId~='commute'
+                or not Runtime.shape(bike,"snapshot.bike",{"token","heading","speed","steer","brake"})
+                or not Runtime.integerInRange(bike.token,1,1e12,"bike.token")
+                or not Runtime.numberInRange(bike.heading,-2*math.pi,2*math.pi,"bike.heading")
+                or not Runtime.numberInRange(bike.speed,0,100,"bike.speed")
+                or not Runtime.numberInRange(bike.steer,-1,1,"bike.steer")
+                or not Runtime.numberInRange(bike.brake,0,1,"bike.brake") then
+                return nil,"snapshot.bike is invalid"
+            end
+        end
         local games
         if payload.games ~= nil then
             if not Runtime.Codec.isArray(payload.games) or #payload.games > 2 then
@@ -208,7 +220,7 @@ function Component.install(Runtime)
                 balls[index]=entry
             end
         end
-        return { sessionId = sessionId, serverTick = serverTick, players = players,
+        return { sessionId = sessionId, serverTick = serverTick, players = players, bike = bike,
             games = games and Runtime.Codec.array(games) or nil,
             balls = balls and Runtime.Codec.array(balls) or nil }
     end

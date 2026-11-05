@@ -20,7 +20,7 @@ function Test.run(R,check)
     end
     local function advance(minutes) R.App.update(Calendar.secondsPerDay(state)/1440*minutes) end
     open(items.mini_fridge);local pantry=state.home.inventory.basic_meal
-    Activity.mousepressed(400,320,1,R)
+    Activity.mousepressed(650,285,1,R)
     check("home_objects_runtime_touch_stores_food",items.mini_fridge.contents.basic_meal==1 and state.home.inventory.basic_meal==pantry-1)
     capture("home-fridge-storage",true)
     R.App.keypressed("2")

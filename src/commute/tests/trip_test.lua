@@ -91,7 +91,12 @@ function Test.run(check)
     check('commute_trip_starts_outside_without_home_phase',state.home.weekend.phase=='ready' and state.home.commute.origin=='warehouse')
     local deliveryTruck=state.home.commute.truck
     check('commute_trip_spawns_one_unassigned_delivery_truck',Truck.valid(deliveryTruck)
-        and not deliveryTruck.owner and not deliveryTruck.driver and deliveryTruck.engine==true)
+        and not deliveryTruck.owner and not deliveryTruck.driver and deliveryTruck.engine==true
+        and deliveryTruck.livery=='picture_shop')
+    local plain=Truck.new(10,10,0)
+    check('commute_truck_plain_livery_round_trip',Truck.valid(plain) and Truck.snapshot(plain).livery=='plain')
+    plain.livery=nil
+    check('commute_truck_legacy_livery',Truck.valid(plain) and Truck.snapshot(plain).livery=='picture_shop')
     local truckSite=world.sites.byId.warehouse
     local spawnLocalX,spawnLocalZ=truckSite:toLocal(deliveryTruck.x,deliveryTruck.z)
     check('commute_truck_spawns_in_its_loading_dock_space',

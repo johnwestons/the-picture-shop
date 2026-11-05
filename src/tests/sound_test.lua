@@ -76,6 +76,11 @@ function Test.run(context, check)
     instance:syncPersistentLoops(active)
     check("sound_shop_loops_resume_in_shop_rooms",started.warehouse=="warehouse_ambience_loop"
         and started.press=="press_running_loop")
+    state.home={commute={independent=true,participants={}}};started,stopped={},{}
+    instance:syncPersistentLoops(active)
+    check('sound_indoor_player_keeps_shop_loops_during_remote_travel',started.warehouse=='warehouse_ambience_loop'
+        and started.press=='press_running_loop')
+    state.home=nil
     instance.context.world={player={sceneId="home"}}
     state.screen,state.optionsReturnScreen="options","world"
     local homeSnapshot=instance:capture();started,stopped={},{}

@@ -14,7 +14,8 @@ end
 local function capture(R,name)
     local directory=os.getenv('PICTURE_SHOP_COMMUTE_CAPTURE');if not directory then return end
     local canvas=love.graphics.newCanvas(R.Config.baseWidth,R.Config.baseHeight)
-    love.graphics.push('all');love.graphics.setCanvas(canvas);R.App.draw();love.graphics.pop()
+    love.graphics.setCanvas();love.graphics.push('all');love.graphics.setCanvas(canvas);R.App.draw()
+    love.graphics.setCanvas();love.graphics.pop();love.graphics.setCanvas()
     local data=canvas:newImageData();local bytes=data:encode('png')
     local file=assert(io.open(directory..'/'..name..'.png','wb'));file:write(bytes:getString());file:close()
     bytes:release();data:release();canvas:release()
@@ -41,12 +42,18 @@ function Test.run(context,check)
         assert(Weekend.command(R,R.World.player,'depart:'..token))
         tripNumber=tripNumber+1
         require('src.commute.tests.loading_test_support').wait(R,check,'commute_runtime_departure_'..tripNumber)
+        capture(R,'runtime-first-reveal-'..tripNumber)
         return token
     end
     at(R.state,44);R.state.home.weekend.phase='ready';R.state.home.weekend.closedAtHours=44
     R.World.truck.state='absent'
     R.World.player.furColorway=2;R.World.player.overallsColorway=3
     local token=beginTrip()
+    ix,iy=1,0
+    local walkX,walkY=C.localInput(R)
+    ix,iy=0,0
+    check('commute_runtime_local_walking_opens_before_full_town',not R._commute.renderer:terrainReady()
+        and walkX*walkX+walkY*walkY>.01)
     check('commute_runtime_front_door_enters_lot_before_home_phase',R.World.player.sceneId=='commute'
         and R.state.home.weekend.phase=='ready' and not C.localPart(R).rider.gear.mounted)
     local appearance=C.localPart(R).appearance
@@ -159,6 +166,7 @@ function Test.run(context,check)
         end
         ix,iy=0,0;ticks(12);R.App.keypressed('e');ticks(2)
         check('commute_runtime_destination_entry_finishes_trip_'..label,R.state.home.commute==nil)
+        check('commute_runtime_destination_releases_outdoor_renderer_'..label,R._commute==nil)
     end
     rideRoute('home')
     check('commute_runtime_arrives_home_geared',R.World.player.sceneId=='home' and R.state.home.weekend.phase=='home'

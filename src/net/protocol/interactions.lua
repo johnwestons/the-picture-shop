@@ -46,10 +46,12 @@ function Component.install(Runtime)
             or targetKind=="homeActivity" and require("src.home_residents").validCommand(payload.desiredState)
             or targetKind=="homeDelivery" and payload.desiredState=="collect"
             or targetKind=="homeFurniture" and require("src.home_furniture").decode(payload.desiredState)~=nil
-            or targetKind=="homeTravel" and type(payload.desiredState)=="string" and #payload.desiredState<=24
-                and (payload.desiredState=="request" or payload.desiredState=="cancel"
+            or targetKind=="homeTravel" and type(payload.desiredState)=="string" and (
+                #payload.desiredState<=24 and (payload.desiredState=="request" or payload.desiredState=="cancel"
+                    or payload.desiredState=='explore' or payload.desiredState=='outing' or payload.desiredState=='shutdown'
                     or payload.desiredState:match("^ready:%d+$") or payload.desiredState:match("^depart:%d+$")
                     or payload.desiredState:match("^force:%d+$"))
+                or #payload.desiredState<=900 and payload.desiredState:match("^delivery:[%w_%-]+[,%w_%-]*$"))
             or targetKind=="roomRest" and (payload.desiredState=="rest" or payload.desiredState=="stand")
             or targetKind=="roomStock" and type(payload.desiredState)=="string" and #payload.desiredState<=150
                 and (payload.desiredState:match("^store:[%w_.%-]+$") or payload.desiredState:match("^retrieve:[%w_.%-]+$"))

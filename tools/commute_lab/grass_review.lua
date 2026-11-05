@@ -83,7 +83,7 @@ function Review.scenes(check)
         g.push('all');g.setCanvas({canvas,depth=true});g.origin();g.clear(.2,.27,.26,1,0,1)
         renderer:draw(camera,actor,{{actor=actor,localPlayer=true}})
         g.setShader();g.setColor(1,1,1);g.print(location.label..' / '..mode,16,16)
-        g.print(('Grass patches %d | comb sections %d'):format(calls,sections),16,36)
+        g.print(('Grass patches %d | triangle tufts %d'):format(calls,sections),16,36)
         g.pop();renderer.grassFields.drawPatch=original
         check('grass_native_'..location.label..'_'..mode..'_submits_cached_depth_tested_meshes',calls==#renderer.visibleGrass)
         if location==meadow then check('grass_native_meadow_'..mode..'_has_visible_grass',sections>0) end

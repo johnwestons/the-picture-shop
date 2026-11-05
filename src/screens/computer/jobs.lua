@@ -222,6 +222,12 @@ function Component.install(Runtime)
             love.graphics.print("Delivery state: " .. Runtime.StatusLabels.get(delivery.status), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 212)
             love.graphics.print("Pallet state: " .. Runtime.StatusLabels.get(pallet.status), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 242)
             love.graphics.print("Pallet location: " .. Runtime.StatusLabels.get(pallet.location), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 272)
+            local shipment=Runtime.Procurement.orderById(state,selected.shipmentId) or selected
+            local location=require('src.commute.delivery_traffic').tracking(shipment,
+                require('src.business_calendar').absoluteHours(state),os.time())
+            love.graphics.setColor(0.45,0.88,0.69)
+            love.graphics.printf("Live truck location: "..location,
+                Runtime.DETAIL.x+20,Runtime.DETAIL.y+300,Runtime.DETAIL.width-40,'left')
             love.graphics.setColor(0.55, 0.63, 0.65)
             love.graphics.printf("Purchase orders are paid when placed. Received supplies appear in Inventory.",
                 Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 326, Runtime.DETAIL.width - 40, "left")

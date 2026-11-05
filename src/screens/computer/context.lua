@@ -94,6 +94,7 @@ function Component.install(Runtime)
         { id = "inventory", label = "INVENTORY", group = "shop", url = "www.thecritternet.com/job-desk/inventory" },
         { id = "hiring", label = "HIRING", group = "shop", url = "www.thecritternet.com/shop/hiring" },
         { id = "schedule", label = "SCHEDULE", group = "shop", url = "www.thecritternet.com/shop/schedule" },
+        { id = "player_wages", label = "PLAYER WAGES", group = "shop", url = "www.thecritternet.com/shop/player-wages" },
         { id = "warehouse", label = "WAREHOUSE", group = "shop", url = "www.thecritternet.com/warehouse" },
         { id = "radio", label = "RADIO", group = "shop", url = "www.thecritternet.com/shop/radio" },
         { id = "calendar", label = "CALENDAR", group = "office", url = "www.thecritternet.com/job-desk/calendar" },

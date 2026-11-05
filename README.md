@@ -100,6 +100,10 @@ storage room, break room or empty utility room on the computer's **Warehouse**
 page. The raccoon calls, arrives through the front entrance and builds over four
 game days. Use **E / ROOMS** at the front entrance beside reception to enter a
 completed room. Multiplayer players can occupy different rooms independently.
+**Explore Town** at the warehouse or apartment exit now moves only that player.
+The host can stay at work while guests drive deliveries, visit the apartment or
+shop in the grocery interior in the same hosted world. See the
+[independent-scene implementation and verification](docs/independent_multiplayer_scenes.md).
 
 After completing a storage or utility room, buy its **Truck garage door** for
 **$1,800** on **CritterNet / Warehouse**. The room gains a working truck loading
@@ -143,11 +147,11 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest public Android test installer is [Android 61](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61),
-which uses multiplayer protocol 41. The current source uses protocol 47 and is
-configured for Android 68; build a matching private installer with
-`PACK_ANDROID.bat`. Every multiplayer participant needs the same build and
-protocol. Android 68's handoff and device verification are in
+The latest public Android test installer is [Android 93](https://github.com/johnwestons/the-picture-shop/releases/tag/android.93).
+It is built from the same source as the PC game and includes the 64-angle cutter
+and Windmill, the complete 64-view machine art package, and the delivery-truck
+traffic and livery updates. Every multiplayer participant needs the same build
+and protocol. Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
 [the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
 [the Android 66 release notes](docs/android_66_release.md) and

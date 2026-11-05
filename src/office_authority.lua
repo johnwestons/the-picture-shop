@@ -69,6 +69,9 @@ function Office.command(options)
             local staged = Projection.copy(state)
             local ok, result, domainCode
             if Home.isIntent(intent.kind) then ok,result,domainCode=Home.command(staged,intent,player)
+            elseif intent.kind=='player_wage_propose' or intent.kind=='player_wage_accept' then
+                ok,result=require('src.guest_payroll').command(staged,intent,player,
+                    type(options.players)=='function' and options.players() or nil)
             elseif Employees.isIntent(intent.kind) then ok,result=Employees.command(staged,intent)
             elseif intent.kind == "estimate" then ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time())
             elseif intent.kind == "decline" then ok, result = JobService.respondToEmail(staged, intent.id, "declined", os.time())
@@ -129,9 +132,17 @@ function Office.command(options)
             if intent.kind == "finance_machine" and domainCode == "replayed" then
                 return true, "replayed", "This financing agreement was already signed; no second loan was created.", {}
             end
+            local wageAction=intent.kind=='player_wage_propose' or intent.kind=='player_wage_accept'
+            local before=wageAction and Projection.copy(state) or nil
             merge(state, staged)
-            options.save()
-            if Home.isIntent(intent.kind) then return true,domainCode or "completed",tostring(result),{} end
+            local saved,saveReason=options.save(wageAction)
+            if wageAction and not saved then
+                merge(state,before)
+                return false,'save_failed',saveReason or 'Could not save the wage agreement.',{}
+            end
+            if Home.isIntent(intent.kind) or wageAction then
+                return true,domainCode or "completed",tostring(result),{}
+            end
             return true, "completed", "Office action completed and saved by the host.", {}
         end,
     }

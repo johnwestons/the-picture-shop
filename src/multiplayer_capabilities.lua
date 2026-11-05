@@ -14,9 +14,9 @@ Capabilities.MODES = {
 }
 
 Capabilities.INTERACTIONS = {
-    homeTravel = {label="Weekend household travel",mode="full",supported={"host_request","guest_ready","host_bring_everyone"}},
-    commute = {label='Scenic commute',mode='candidate',supported={'gear','ride','park','door','host_bring_everyone'}},
-    homeActivity = {label="Individual home routines",mode="full",supported={"fixture_use","floor_rest","eat","cancel"}},
+    homeTravel = {label="Independent town travel",mode="full",supported={"explore","delivery","shutdown","host_request","guest_ready","host_bring_everyone"}},
+    commute = {label='Shared town and deliveries',mode='candidate',supported={'gear','ride','park','door','independent_arrival','grocery','delivery','host_bring_everyone'}},
+    homeActivity = {label="Individual home routines",mode="full",supported={"fixture_use","floor_rest","eat","cancel","bike_cargo"}},
     homeDelivery = {label="Shared home deliveries",mode="full",supported={"collect"}},
     homeFurniture = {label="Home furnishing",mode="full",supported={"move","rotate","store","sell","permissions"}},
     shopEntrance = {label="Shop room entrance",mode="full",supported={"enter_room","leave_room"}},

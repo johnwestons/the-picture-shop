@@ -46,6 +46,10 @@ function Flow.ensure(state)
 end
 function Flow.atHome(state)
     local home=state and state.home
+    if home and home.commute and home.commute.independent then
+        for _,resident in pairs(home.residents or {}) do if resident.sceneId=='home' then return true end end
+        return false
+    end
     if home and home.visit and home.visit.kind=="outing" then return home.visit.scene~="warehouse" end
     return home~=nil and home.weekend~=nil and home.weekend.phase=="home"
 end
@@ -62,7 +66,7 @@ end
 function Flow.limitCalendarStep(state,dt)
     local week=Flow.ensure(state)
     dt=math.max(0,dt)
-    if state.home.commute and state.home.commute.purpose~="outing" then return 0 end
+    if state.home.commute and state.home.commute.purpose~="outing" and state.home.commute.purpose~='delivery' then return 0 end
     if week.phase=="ready" and not Flow.isOuting(state) then return 0 end
     if week.phase=="working" then
         local remaining=math.max(0,week.closesAtHours-Calendar.absoluteHours(state))
@@ -127,10 +131,25 @@ function Flow.returnToWork(state,expectedRevision)
     if now<Flow.returnAtHours(week) or w>=6 or w==5 and now%24>=Flow.CLOSE_HOUR then
         return false,"Return to the shop starting Monday at 07:30, before the 08:00 employee shift."
     end
+    local lateOpening=now>week.opensAtHours+1e-7
     local nextWeek=Flow.new(now);nextWeek.transition=week.transition+1
     state.home.weekend=nextWeek
     state.home.visit=nil
-    return changed(state,"Back at the shop. Your unfinished work is ready to resume.")
+    local waitingEmployees=false
+    if lateOpening and state.employment then
+        local speech=require("src.employee_speech")
+        local untilHours=now+speech.GREETING_SECONDS*24/Calendar.secondsPerDay(state)
+        for _,worker in ipairs(state.employment.staff or {}) do
+            if worker.visible and worker.clockedIn and worker.phase=="waiting" then
+                worker.greetingKind=speech.EMPLOYEE_LATE_OPENING
+                worker.greetingUntilHours=untilHours
+                waitingEmployees=true
+            end
+        end
+    end
+    return changed(state,waitingEmployees
+        and "Back at the shop. Your employees have been waiting to open."
+        or "Back at the shop. Your unfinished work is ready to resume.")
 end
 function Flow.outingArrival(state,atHome)
     -- Called while the outing still exists, so a due Monday rollover is not

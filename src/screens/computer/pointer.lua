@@ -52,6 +52,7 @@ function Component.install(Runtime)
             end
         end
         if Runtime.ComputerScreen.tab=="home" then return Runtime.homeMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab=='player_wages' then return Runtime.playerWagesMousepressed(state,x,y) end
         if Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
             return Runtime.homeShopMousepressed(state,x,y)
         end

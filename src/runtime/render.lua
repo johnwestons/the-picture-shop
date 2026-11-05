@@ -20,7 +20,7 @@ function Component.install(Runtime)
             Runtime.Smoke.drawn()
             return
         end
-        if Runtime.state.screen=='world' and Runtime.World.player.sceneId=='commute' then
+        if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery') then
             local destination,objective=require('src.commute.runtime').draw(Runtime)
             if Runtime.controller and showHud then Runtime.controller:draw() end
             local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()

@@ -1,5 +1,6 @@
 local MachinePose = {}
 local Transport = require("src.machine_transport")
+local MachineRotation = require("src.machine_rotation")
 
 local ORDER = { "cutter", "wrapper", "windmill" }
 local DIRECTIONS = {
@@ -51,7 +52,9 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
     for _, kind in ipairs(ORDER) do
         local pose = value[kind]
         local poseLabel = label .. "." .. kind
-        if not exactShape(pose, { "x", "y", "direction", "moving", "inMotion" }, { "machineId", "sceneId" }) then
+        local optional = { "machineId", "sceneId" }
+        if kind == "cutter" or kind == "windmill" then optional[#optional + 1] = "rotationIndex" end
+        if not exactShape(pose, { "x", "y", "direction", "moving", "inMotion" }, optional) then
             return nil, poseLabel .. " has an invalid shape"
         end
         if not finite(pose.x, maxCoordinate) or not finite(pose.y, maxCoordinate) then
@@ -66,6 +69,13 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
         if type(pose.direction) ~= "string" or not DIRECTIONS[kind][pose.direction] then
             return nil, poseLabel .. ".direction is invalid"
         end
+        if pose.rotationIndex ~= nil and (kind == "wrapper" or not MachineRotation.validFrame(pose.rotationIndex)) then
+            return nil, poseLabel .. ".rotationIndex is invalid"
+        end
+        if pose.rotationIndex ~= nil
+            and MachineRotation.directionForFrame(kind, pose.rotationIndex) ~= pose.direction then
+            return nil, poseLabel .. ".direction does not match rotationIndex"
+        end
         if type(pose.moving) ~= "boolean" or type(pose.inMotion) ~= "boolean" then
             return nil, poseLabel .. " motion flags must be boolean"
         end
@@ -76,7 +86,7 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
             if activeKind then return nil, label .. " has more than one active relocation" end
             activeKind, activePose = kind, pose
         end
-        normalized[kind] = {
+        local normalizedPose = {
             machineId = pose.machineId,
             x = pose.x,
             y = pose.y,
@@ -85,6 +95,11 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
             inMotion = pose.inMotion,
             sceneId=pose.sceneId or "warehouse",
         }
+        if kind == "cutter" or kind == "windmill" then
+            normalizedPose.rotationIndex = MachineRotation.validFrame(pose.rotationIndex)
+                and pose.rotationIndex or MachineRotation.frameForDirection(kind, pose.direction)
+        end
+        normalized[kind] = normalizedPose
     end
 
     if activeKind and jack ~= nil then
@@ -125,7 +140,7 @@ function MachinePose.snapshot(state)
         local activeKind, activePose, activeUnit = Transport.active(state)
         if activeKind == kind then item, machineId = activePose, activeUnit and activeUnit.id or nil end
         if type(item) ~= "table" then return nil end
-        poses[kind] = {
+        local snapshot = {
             machineId = machineId,
             x = item.x,
             y = item.y,
@@ -134,6 +149,11 @@ function MachinePose.snapshot(state)
             inMotion = item.inMotion == true,
             sceneId=item.sceneId or "warehouse",
         }
+        if kind == "cutter" or kind == "windmill" then
+            snapshot.rotationIndex = MachineRotation.normalizedFrame(kind, item, "northwest")
+            snapshot.direction = MachineRotation.directionForFrame(kind, snapshot.rotationIndex)
+        end
+        poses[kind] = snapshot
     end
     return MachinePose.normalize(poses)
 end
@@ -201,6 +221,7 @@ function MachinePose.apply(state, value)
         end
         target.x, target.y = source.x, source.y
         target.direction = source.direction
+        target.rotationIndex = source.rotationIndex
         target.sceneId=source.sceneId or "warehouse"
         target.moving, target.inMotion = source.moving, source.inMotion
         state._machinePoseUnits[kind] = source.machineId

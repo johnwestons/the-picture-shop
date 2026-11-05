@@ -129,7 +129,8 @@ function Component.install(Runtime)
         for _, job in ipairs(state.jobs.active) do
             local pickupStatus = job.pickup and job.pickup.status
             if job.status == "ready_for_pickup"
-                or (job.status == "pickup_in_progress" and pickupStatus ~= "completed")
+                or (job.status == "pickup_in_progress" and pickupStatus ~= "completed"
+                    and pickupStatus ~= "player_delivery")
             then
                 return job
             end

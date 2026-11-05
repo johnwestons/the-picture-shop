@@ -24,7 +24,6 @@ local WarehouseScene = require("src.warehouse_scene")
 
 local Renderer = {}
 local World
-local checkerShader
 local palletPickup
 function Renderer.beginFrame() WarehouseRenderer.beginFrame() end
 function Renderer.endFrame() WarehouseRenderer.endFrame() end
@@ -346,10 +345,7 @@ end
 local function drawCutter(assets, state, placement)
     local cutter = placement or CutterPlacement.ensure(state, Config.cutterPlacement)
     local image = assets.get("polarDirections")
-    local cutterFrames = { northwest = 1, north = 2, northeast = 3, east = 4,
-        southeast = 5, south = 6, southwest = 7, west = 8 }
-    local frame = placement and (cutterFrames[placement.direction] or placement.frame or 1)
-        or CutterPlacement.frame(state, Config.cutterPlacement)
+    local frame = CutterPlacement.rotationFrameFor(cutter)
     local sprite = assets.getQuad("polarDirection" .. frame)
     if image and sprite then
         local scale = Config.cutterPlacement.drawScale
@@ -414,27 +410,13 @@ end
 local function drawWindmill(assets, state, placement)
     local item = placement or WindmillPlacement.ensure(state, Config.windmillPlacement)
     local image = assets.get("windmillDirections")
-    local windmillFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
-    local frame = placement and (windmillFrames[placement.direction] or placement.frame or 1)
-        or WindmillPlacement.frame(state, Config.windmillPlacement)
+    local frame = WindmillPlacement.rotationFrameFor(item)
     local sprite = assets.getQuad("windmillDirection" .. frame)
     if not image or not sprite then return end
-    if not checkerShader then
-        checkerShader = love.graphics.newShader([[
-            vec4 effect(vec4 color, Image texture, vec2 uv, vec2 screen_coords) {
-                vec4 px = Texel(texture, uv);
-                float spread = max(max(abs(px.r-px.g), abs(px.g-px.b)), abs(px.r-px.b));
-                if (px.r > 0.86 && px.g > 0.86 && px.b > 0.86 && spread < 0.018) discard;
-                return px * color;
-            }
-        ]])
-    end
-    love.graphics.setShader(checkerShader)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, item.x, item.y, 0,
         Config.windmillPlacement.drawScale, Config.windmillPlacement.drawScale,
         sprite.width / 2, sprite.height * 0.94)
-    love.graphics.setShader()
 end
 
 local function drawInteractionFocus()

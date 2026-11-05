@@ -45,6 +45,11 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         names = {p.relative_to(package.ROOT).as_posix() for p in paths}
         self.assertIn("assets/commute/terrain/ground-desktop-v1.png", names)
         self.assertIn("assets/commute/terrain/ground-mobile-v1.png", names)
+        self.assertIn("assets/commute/truck/decals/picture-shop.png", names)
+        for kind in ("chase", "isometric"):
+            for page in range(1, 5):
+                self.assertIn(f"assets/commute/truck/turntables/{kind}-64-{page}.png", names)
+        self.assertFalse(any("picture-shop" in name and "/turntables/" in name for name in names))
         self.assertIn("assets/commute/cockpit/first-person-bike-v2.png", names)
         self.assertIn("assets/commute/bike/mounted-upright-64-v2.png", names)
         self.assertIn("assets/commute/bike/wheel_regions.lua", names)

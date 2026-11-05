@@ -1,6 +1,7 @@
 -- Physical ownership, machine placement, and state validation.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local MachineRotation = require("src.machine_rotation")
 
 function Component.install(Runtime)
     function Runtime.physicalOwnership(value)
@@ -51,6 +52,14 @@ function Component.install(Runtime)
                     or not Runtime.directions[world.direction]
                     or (world.sceneId~=nil and world.sceneId~="warehouse"
                         and world.sceneId~="front_left" and world.sceneId~="front_right")
+                    or (world.rotationIndex ~= nil and ((item.modelId ~= "polar_115"
+                        and item.modelId ~= "heidelberg_10x15")
+                        or not Runtime.integer(world.rotationIndex)
+                        or world.rotationIndex < 1 or world.rotationIndex > 64))
+                    or (world.rotationIndex ~= nil and ((item.modelId == "polar_115"
+                        and MachineRotation.directionForFrame("cutter", world.rotationIndex) ~= world.direction)
+                        or (item.modelId == "heidelberg_10x15"
+                            and MachineRotation.directionForFrame("windmill", world.rotationIndex) ~= world.direction)))
                     or not Runtime.optionalBoolean(world.moving)
                     or not Runtime.optionalBoolean(world.inMotion)
                     or (item.modelId == "heidelberg_10x15"
@@ -105,11 +114,15 @@ function Component.install(Runtime)
             and type(value.storage) == "table" and Runtime.PalletStorage.normalize(value.storage) ~= nil
             and Runtime.Forklift.validState(value.forklift, Runtime.Config.forklift)
             and (not value.forklift.owned or value.warehouse.forkliftOwned)
-            and Runtime.placement(value.cutter)
+            and Runtime.placement(value.cutter, true)
+            and (value.cutter.rotationIndex == nil or MachineRotation.directionForFrame(
+                "cutter", value.cutter.rotationIndex) == value.cutter.direction)
             and Runtime.palletJack(value.palletJack)
             and (value.extraPalletJacks==nil or Runtime.array(value.extraPalletJacks,Runtime.palletJack))
             and Runtime.placement(value.wrapper)
-            and Runtime.placement(value.windmill)
+            and Runtime.placement(value.windmill, true)
+            and (value.windmill.rotationIndex == nil or MachineRotation.directionForFrame(
+                "windmill", value.windmill.rotationIndex) == value.windmill.direction)
             and Runtime.optionalBoolean(value.windmill.tutorialComplete)
             and Runtime.windmillProcess(value.windmill.process)
             and Runtime.physicalOwnership(value)

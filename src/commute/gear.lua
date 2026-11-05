@@ -31,6 +31,12 @@ function Gear.duration(kind)
 end
 function Gear.pose(g)
     if g.transition then
+        if g.transition.kind=='mount' then
+            return 'mount',math.min(1,g.transition.elapsed/Gear.duration('mount'))
+        end
+        if g.transition.kind=='dismount' then
+            return 'dismount',math.min(1,g.transition.elapsed/Gear.duration('dismount'))
+        end
         local elapsed=g.transition.elapsed
         for _,step in ipairs(sequences[g.transition.kind]) do
             if elapsed<step[2] then return step[1],elapsed/step[2] end

@@ -62,6 +62,7 @@ function Component.install(Runtime)
         end
         local purchase = Runtime.Procurement.nextInbound(state)
         if purchase then
+            if not require('src.commute.delivery_traffic').arrived(purchase) then return false end
             if Runtime.World.truck:schedule(purchase.id, "vendor_delivery") then
                 purchase.delivery.status = "scheduled"
                 state.message = "Vendor delivery scheduled for " .. purchase.id .. "."
@@ -76,6 +77,7 @@ function Component.install(Runtime)
             if (job.status == "awaiting_delivery" or job.status == "in_production")
                 and hasInboundPallets and deliveryStatus ~= "received"
                 and Runtime.JobService.deliveryReady(state, job)
+                and require('src.commute.delivery_traffic').arrived(job)
             then
                 if Runtime.World.truck:schedule(job.id, "delivery") then
                     job.delivery = job.delivery or {}
@@ -202,7 +204,9 @@ function Component.install(Runtime)
         elseif doorEvent == "closed" and state then
             state.message = "Loading bay door closed."
         end
-        local saveNeeded = Runtime.updateTruck(dt, motionDt, state)
+        local trafficChanged=require('src.commute.delivery_traffic').update(state,
+            state and state.home and state.home.town,Runtime.BusinessCalendar.absoluteHours(state),os.time())
+        local saveNeeded = Runtime.updateTruck(dt, motionDt, state) or trafficChanged
         Runtime.PalletLogistics.update(state, dt, Runtime.Config.palletLogistics.unloadDuration)
         -- Only one reception visitor advances at a time. The other visitor keeps
         -- their full cooldown while the entrance, lounge, or desk is occupied.
@@ -304,6 +308,10 @@ function Component.install(Runtime)
         return background:advance(state,dt,acceptedMotion,function(game,motion)
             return simulate(game,assets,state,motion)
         end,state.home.weekend.phase=="closing")
+    end
+    function Runtime.World.updateClosedShopEmployees(state,firstAt,lastAt)
+        -- The application calls this only during host or solo simulation.
+        return Runtime.EmployeeAI.updateClosedShop(state,firstAt,lastAt)
     end
     function Runtime.World.hasBackgroundClockDebt() return background:hasDebt() end
     function Runtime.World.backgroundSimulationStats() return background:stats() end

@@ -2,6 +2,9 @@ local Renderer=require('src.commute.renderer')
 local Mesh=require('src.commute.terrain_mesh')
 local Test={}
 function Test.run(check)
+    check('mobile_commute_limits_foliage_distance_and_keeps_nearby_plants',
+        Renderer.foliageRadius(96,true)==72 and Renderer.foliageRadius(48,true)==48
+            and Renderer.foliageRadius(96,false)==96)
     local oldMesh,oldClock,oldBudget=love.graphics.newMesh,love.timer.getTime,Renderer.LOAD_BUDGET_SECONDS
     local elapsed,created,releases=0,0,0
     local resources={}

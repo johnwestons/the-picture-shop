@@ -36,6 +36,40 @@ function Travel.command(state,player,command,context)
     local week=Flow.ensure(state);local id=tonumber(player.id) or 1
     local function denied(message) return false,"not_allowed",message end
     if id%1~=0 or id<1 or id>4 or type(command)~="string" then return denied("Invalid traveler.") end
+    if command=='explore' or command=='shutdown' or command:match('^delivery:') then
+        local target=Travel.target(player,state)
+        if not target or (player.x-target.x)^2+(player.y-target.y)^2>(target.radius+10)^2 then
+            return denied('Go to the warehouse entrance or apartment exit first.')
+        end
+        if not context.commuteWorld then return denied('The town is not available.') end
+        if command=='shutdown' then
+            if id~=1 or week.phase~='closing' then return denied('The host can close the shop after Friday closing.') end
+            local Shutdown=require('src.shop_shutdown')
+            local pending=Shutdown.checklist(state,context.world)
+            if #pending>0 then return denied('Finish shutdown first: '..pending[1]) end
+            Shutdown.pauseConstruction(state);Flow.update(state,true)
+        end
+        local run
+        if command:match('^delivery:') then
+            if (player.sceneId or 'warehouse')~='warehouse' then return denied('Load deliveries at the warehouse entrance.') end
+            local ids={}
+            for job in command:sub(10):gmatch('[^,]+') do
+                if not job:match('^[%w_%-]+$') or #job>80 then return denied('Invalid delivery job.') end
+                ids[#ids+1]=job
+            end
+            if #ids<1 or #ids>10 then return denied('Choose between one and ten jobs.') end
+            local reason;run,reason=require('src.commute.delivery_run').build(state,ids,context.commuteWorld)
+            if not run then return denied(reason) end
+        end
+        local okay,trip=require('src.commute.free_travel').enter(state,player,context.commuteWorld,run,context.players())
+        if not okay then return denied(trip) end
+        if context.release then context.release({player}) end
+        local ped=trip.participants[require('src.home_residents').key(player)].rider.ped
+        require('src.player_controller').reset(player,{x=ped.x,y=ped.z},Config.player)
+        player.sceneId='commute';player.resting=false
+        player.inputX,player.inputY,player.gameInputX,player.gameInputY,player.combatButtons=0,0,0,0,0
+        return true,'accepted',run and 'Your route is planned. Walk to the truck in the loading bay to load the pallets.' or 'Explore town. Other players can stay where they are.'
+    end
     local action,token=command:match("^(%a+):(%d+)$")
     if action=="ready" then
         if not week.travelToken or tonumber(token)~=week.travelToken then return denied("That travel request has ended.") end

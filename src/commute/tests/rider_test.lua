@@ -29,7 +29,10 @@ function Test.run(check)
     local stopped=r.ped.distance;local facing=r.ped.heading;Rider.update(r,{},.1,world)
     check('commute_rider_idle_preserves_facing_and_gait',r.ped.distance==stopped and r.ped.heading==facing)
     local a,b=Rider.new(100,380,0),Rider.new(100,380,0)
+    a.ped.distance,b.ped.distance=nil,nil
     for _=1,60 do Rider.update(a,{walkX=1},1/60,world);Rider.update(b,{walkX=1,walkZ=1},1/60,world) end
+    check('commute_rider_missing_gait_distance_recovers_during_walk',
+        type(a.ped.distance)=='number' and type(b.ped.distance)=='number' and a.ped.distance>0)
     check('commute_rider_diagonal_speed_normalized',math.abs(a.ped.distance-b.ped.distance)<.001)
     local blocked={supportHeight=function()return 1 end,roads={blocked=function()return true end}}
     local before=r.ped.distance

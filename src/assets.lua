@@ -216,15 +216,34 @@ function Assets.load()
     if polarDirections then
         local size = Config.cutterPlacement.frameSize
         local width, height = polarDirections:getDimensions()
-        local expectedWidth = size * Config.cutterPlacement.frameCount
-        if width ~= expectedWidth or height ~= size then
+        local columns = Config.cutterPlacement.frameColumns or Config.cutterPlacement.frameCount
+        local rows = math.ceil(Config.cutterPlacement.frameCount / columns)
+        if width ~= columns * size or height ~= rows * size then
             recordFailure(Config.paths.polarDirections, string.format(
-                "expected %dx%d cutter-direction strip, got %dx%d",
-                expectedWidth, size, width, height))
+                "expected %dx%d cutter turntable, got %dx%d",
+                columns * size, rows * size, width, height))
         else
             for frame = 1, Config.cutterPlacement.frameCount do
+                local column, row = (frame - 1) % columns, math.floor((frame - 1) / columns)
                 makeQuad("polarDirection" .. frame, polarDirections,
-                    (frame - 1) * size, 0, size, size)
+                    column * size, row * size, size, size)
+            end
+        end
+    end
+    if windmillDirections then
+        local size = Config.windmillPlacement.frameSize
+        local columns = Config.windmillPlacement.frameColumns or Config.windmillPlacement.frameCount
+        local rows = math.ceil(Config.windmillPlacement.frameCount / columns)
+        local width, height = windmillDirections:getDimensions()
+        if width ~= columns * size or height ~= rows * size then
+            recordFailure(Config.paths.windmillDirections, string.format(
+                "expected %dx%d Windmill turntable, got %dx%d",
+                columns * size, rows * size, width, height))
+        else
+            for frame = 1, Config.windmillPlacement.frameCount do
+                local column, row = (frame - 1) % columns, math.floor((frame - 1) / columns)
+                makeQuad("windmillDirection" .. frame, windmillDirections,
+                    column * size, row * size, size, size)
             end
         end
     end
@@ -242,20 +261,6 @@ function Assets.load()
             makeQuad("wrapMast", skidWrapperDirections,0,246,203,91)
             makeQuad("wrapRoll", skidWrapperDirections,203,246,33,91)
             makeQuad("wrapOuter", skidWrapperDirections,236,246,276,91)
-        end
-    end
-    if windmillDirections then
-        local width, height = windmillDirections:getDimensions()
-        local cellWidth, cellHeight = Config.windmillPlacement.frameWidth,
-            Config.windmillPlacement.frameHeight
-        if width ~= cellWidth * 2 or height ~= cellHeight * 2 then
-            recordFailure(Config.paths.windmillDirections, "Windmill atlas must be a 2x2 grid of 768x512 cells")
-        else
-            for frame = 1, 4 do
-                local column, row = (frame - 1) % 2, math.floor((frame - 1) / 2)
-                makeQuad("windmillDirection" .. frame, windmillDirections,
-                    column * cellWidth, row * cellHeight, cellWidth, cellHeight)
-            end
         end
     end
     if technicianNpcs and hasExactDimensions(technicianNpcs, Config.paths.technicianNpcs, 2048, 1024) then

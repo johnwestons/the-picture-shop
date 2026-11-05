@@ -1,6 +1,17 @@
 -- Warehouse, bills, and credit presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local FinanceCharts=require("src.screens.finance_charts")
+
+local function shortMoney(value)
+    value=tonumber(value) or 0
+    local sign=value<0 and "−" or ""
+    value=math.abs(value)
+    if value>=1000000 then return string.format("%s$%.1fm",sign,value/1000000) end
+    if value>=10000 then return string.format("%s$%.0fk",sign,value/1000) end
+    if value>=1000 then return string.format("%s$%.1fk",sign,value/1000) end
+    return string.format("%s$%.0f",sign,value)
+end
 
 function Component.install(Runtime)
     function Runtime.drawWarehouse(state,pointerX,pointerY,assets)
@@ -275,8 +286,9 @@ function Component.install(Runtime)
 
     function Runtime.drawBills(state, pointerX, pointerY)
         local charges, monthlyTotal = Runtime.BusinessCalendar.monthlyCharges()
-        local balance,_,wages = Runtime.BusinessCalendar.amountDue(state)
-        local accrued=state.employment and Runtime.Payroll.total(state,Runtime.BusinessCalendar.absoluteHours(state),true)/100 or 0
+        local balance,operatingDue,wages = Runtime.BusinessCalendar.amountDue(state)
+        local accrued=(state.employment and Runtime.Payroll.total(state,Runtime.BusinessCalendar.absoluteHours(state),true) or 0)
+            /100+require('src.guest_payroll').totalOwed(state)/100
         local weekly=0
         for _,w in ipairs(state.employment and state.employment.staff or {}) do
             if w.status=="employed" and not w.terminationRequested then weekly=weekly+require("src.employment_contracts").weeklyEstimate(w.contract) end
@@ -293,7 +305,7 @@ function Component.install(Runtime)
         love.graphics.print("OPERATING BILLS, CLAIMS & PAYROLL", 108, 214)
         love.graphics.setColor(0.76, 0.83, 0.84)
         love.graphics.print(Runtime.BusinessCalendar.dateText(state), 108, 242)
-        love.graphics.print("Monthly shop invoices. Wages: agreed 1-4 week cycle, Monday 09:00.", 108, 266)
+        love.graphics.print("Staff wages follow their pay cycle. Connected player wages settle as cash is available.", 108, 266)
 
         love.graphics.setColor(0.16, 0.22, 0.24)
         love.graphics.rectangle("fill", 108, 302, 470, 28)
@@ -317,7 +329,7 @@ function Component.install(Runtime)
         love.graphics.print("Customer stock replacement claims", 122, 510)
         love.graphics.printf(Runtime.money(claimTotal), 402, 510, 150, "right")
         love.graphics.setColor(.78,.84,.84,1)
-        love.graphics.print("Employee wages currently due",122,534)
+        love.graphics.print("Staff and player wages due",122,534)
         love.graphics.printf(Runtime.money(wages),402,534,150,"right")
         love.graphics.print("Wages earned, not yet due",122,556)
         love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),402,556,150,"right")
@@ -331,8 +343,14 @@ function Component.install(Runtime)
         love.graphics.setColor(balance > 0 and 0.96 or 0.54, balance > 0 and 0.48 or 0.84, balance > 0 and 0.30 or 0.65)
         love.graphics.printf(Runtime.money(balance), 620, 370, 172, "center")
         love.graphics.setColor(0.58, 0.66, 0.67)
-        love.graphics.printf(balance > 0 and "Includes due wages. Unpaid balances carry forward." or "All currently due bills and wages are paid.",
-            620, 410, 172, "center")
+        love.graphics.printf("Breakdown of current amount due.",620,408,172,"center")
+        local obligationMix={
+            {label="Bills",value=math.max(0,operatingDue-claimTotal),color={.40,.84,.81,1},valueText=shortMoney(math.max(0,operatingDue-claimTotal))},
+            {label="Claims",value=claimTotal,color={1,.59,.50,1},valueText=shortMoney(claimTotal)},
+            {label="Wages due",value=wages,color={.96,.77,.47,1},valueText=shortMoney(wages)},
+        }
+        FinanceCharts.donut(758,455,29,obligationMix,"COSTS")
+        FinanceCharts.legend(615,435,obligationMix,105,14,3)
 
         local ownerOnly=Runtime.dependencies.remoteCommand~=nil and wages>0
         local payable = not ownerOnly and balance > 0

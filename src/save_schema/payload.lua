@@ -1,6 +1,7 @@
 -- Save reconciliation, snapshots, payload validation, and migration.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local MachineRotation = require("src.machine_rotation")
 
 function Component.install(Runtime)
     function Runtime.Schema.reconcile(state)
@@ -86,6 +87,8 @@ function Component.install(Runtime)
                     x = origin.x,
                     y = origin.y,
                     direction = origin.direction,
+                    rotationIndex = MachineRotation.validFrame(origin.rotationIndex)
+                        and origin.rotationIndex or nil,
                 }
             end
         end
@@ -93,7 +96,13 @@ function Component.install(Runtime)
         if not result then return nil, reason end
         for kind, origin in pairs(committedPlacements) do
             result[kind].x, result[kind].y = origin.x, origin.y
-            result[kind].direction = origin.direction
+            if kind == "cutter" or kind == "windmill" then
+                result[kind].rotationIndex = MachineRotation.validFrame(origin.rotationIndex)
+                    and origin.rotationIndex or MachineRotation.frameForDirection(kind, origin.direction) or 1
+                result[kind].direction = MachineRotation.directionForFrame(kind, result[kind].rotationIndex)
+            else
+                result[kind].direction = origin.direction
+            end
         end
         result.cutter.moving, result.cutter.inMotion = false, false
         result.wrapper.moving, result.wrapper.inMotion = false, false
@@ -105,6 +114,14 @@ function Component.install(Runtime)
                 if type(origin) == "table" and Runtime.number(origin.x) and Runtime.number(origin.y)
                     and Runtime.directions[origin.direction] then
                     pose.x, pose.y, pose.direction = origin.x, origin.y, origin.direction
+                    local rotationKind = unit.modelId == "polar_115" and "cutter"
+                        or unit.modelId == "heidelberg_10x15" and "windmill" or nil
+                    if rotationKind then
+                        pose.rotationIndex = MachineRotation.validFrame(origin.rotationIndex)
+                            and origin.rotationIndex
+                            or MachineRotation.frameForDirection(rotationKind, origin.direction) or 1
+                        pose.direction = MachineRotation.directionForFrame(rotationKind, pose.rotationIndex)
+                    end
                 end
                 pose.moving, pose.inMotion, pose._relocationOrigin = false, false, nil
             end
@@ -150,7 +167,7 @@ function Component.install(Runtime)
             and Runtime.number(payload.player.x)
             and Runtime.number(payload.player.y)
             and (payload.player.sceneId==nil or payload.player.sceneId=="warehouse" or payload.player.sceneId=="home"
-                or payload.player.sceneId=='commute' and payload.state.home and payload.state.home.commute~=nil)
+                or (payload.player.sceneId=='commute' or payload.player.sceneId=='grocery') and payload.state.home and payload.state.home.commute~=nil)
     end
 
     function Runtime.legacyCore(payload)
@@ -187,7 +204,7 @@ function Component.install(Runtime)
             or payload.version == 5 or payload.version == 6 or payload.version == 7
             or payload.version == 8 or payload.version == 9 or payload.version == 10
             or payload.version == 11 or payload.version == 12 or payload.version == 13
-            or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20 or payload.version == 21 or payload.version == 22 or payload.version == 23 or payload.version == 24 or payload.version == 25 or payload.version == 26 or payload.version == 27 or payload.version == 28 or payload.version == 29 or payload.version == 30 or payload.version == 31 or payload.version == 32 or payload.version == 33 or payload.version == 34 or payload.version == 35 or payload.version == 36 or payload.version == 37 or payload.version == 38
+            or payload.version == 14 or payload.version == 15 or payload.version == 16 or payload.version == 17 or payload.version == 18 or payload.version == 19 or payload.version == 20 or payload.version == 21 or payload.version == 22 or payload.version == 23 or payload.version == 24 or payload.version == 25 or payload.version == 26 or payload.version == 27 or payload.version == 28 or payload.version == 29 or payload.version == 30 or payload.version == 31 or payload.version == 32 or payload.version == 33 or payload.version == 34 or payload.version == 35 or payload.version == 36 or payload.version == 37 or payload.version == 38 or payload.version == 39
         then
             if not Runtime.validV2Core(payload) then return nil end
         else

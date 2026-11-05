@@ -17,9 +17,14 @@ function Test.run(R,check)
     x,y=screen.tabCenter("home");screen.mousepressed(state,x,y,1)
     x,y=screen.homeControlCenter("sleep");screen.mousepressed(state,x,y,1)
     check("home_sleep_runtime_laptop_opens_personal_controls",state.screen=="home_activity" and Activity.mode=="sleep")
-    Activity.mousepressed(400,375,1,R)
+    Activity.mousepressed(160,309,1,R) -- Set an alarm before the eight-hour sleep ends.
+    Activity.mousepressed(475,309,1,R) -- Fine tune the selected minute.
+    local now=Calendar.absoluteHours(state)
+    local expectedAlarm=math.floor(now/24)*24+Activity.alarmHour+Activity.alarmMinute/60
+    if expectedAlarm<=now+1e-7 then expectedAlarm=expectedAlarm+24 end
+    Activity.mousepressed(635,309,1,R) -- Confirm the custom time.
     local owner=state.home.residents.owner;local alarm=owner.alarmAt
-    check("home_sleep_runtime_touch_sets_next_morning_alarm",alarm and alarm%24==7)
+    check("home_sleep_runtime_touch_sets_custom_alarm_time",alarm and math.abs(alarm-expectedAlarm)<1e-7)
     assert(R.saveCurrent(true));local saved=assert(R.Save.load(3))
     check("home_sleep_runtime_personal_alarm_saved",saved.state.home.residents.owner.alarmAt==alarm)
     local pantryBefore=state.home.inventory.basic_meal or 0
@@ -32,7 +37,9 @@ function Test.run(R,check)
     local updates=0
     while owner.activity and updates<250 do R.App.update(.5);updates=updates+1 end
     check("home_sleep_runtime_fast_sleep_stops_at_personal_alarm",not owner.activity and math.abs(Calendar.absoluteHours(state)-alarm)<1e-6
-        and owner.lastAlarmAt==alarm and math.abs(owner.energy-math.min(100,(alarm-sleepStarted)*19.3))<1e-5 and updates<100)
+        and owner.lastAlarmAt==alarm and math.abs(owner.energy-math.min(100,(alarm-sleepStarted)*19.3))<1e-5 and updates<100,
+        ("time=%.6f alarm=%.6f start=%.6f last=%s energy=%.6f updates=%d"):format(
+            Calendar.absoluteHours(state),alarm,sleepStarted,tostring(owner.lastAlarmAt),owner.energy,updates))
     check("home_sleep_runtime_delivery_waits_safely_during_sleep",Shopping.waiting(state)==1 and (state.home.inventory.basic_meal or 0)==pantryBefore)
     local revision=owner.revision;R.App.update(.01)
     check("home_sleep_runtime_alarm_does_not_repeat",owner.revision==revision and not owner.alarmAt)

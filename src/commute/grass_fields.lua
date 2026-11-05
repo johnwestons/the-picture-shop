@@ -1,11 +1,10 @@
--- Large, seed-stable tall-grass fields. Dense comb sections share a root and
--- move together; static world-space meshes are bent by the vertex shader.
--- Adapted from Critter Party/src/grass_fields.lua, 2026-11-04.
+-- Sparse, seed-stable triangular grass tufts. Three faces share base corners
+-- and rise at different angles so the tuft reads from either ride camera.
 local M=require('src.commute.vendor.mathx')
 local Terrain=require('src.commute.vendor.terrain')
 local Placement=require('src.commute.grass_placement')
-local Fields={PATCH_SIZE=8,FAR_VIEW_RADIUS=32,MAX_CACHE_ENTRIES=196,MAX_MESH_BYTES=12*1024*1024,
-    BUILDS_PER_FRAME=2,BUILD_SECONDS=.0025,STEPS_PER_FRAME=192,GRID=9}
+local Fields={PATCH_SIZE=8,FAR_VIEW_RADIUS=20,MAX_CACHE_ENTRIES=80,MAX_MESH_BYTES=4*1024*1024,
+    BUILDS_PER_FRAME=2,BUILD_SECONDS=.0025,STEPS_PER_FRAME=128,GRID=7}
 Fields.__index=Fields
 
 local FORMAT={
@@ -22,83 +21,26 @@ local seasonTint={
     winter={1.30,1.08,.76},
 }
 
-local function pushBlade(vertices,indices,x,z,ground,height,width,direction,lean,color,windPhase,seed,token)
-    local dx,dz=math.cos(direction),math.sin(direction)
-    local tangentX,tangentZ=-dz,dx
-    local steps={0,.34+M.hash(seed+2467,token,89)*.12,
-        .66+M.hash(seed+2473,token,97)*.17,1}
-    local widths={1,.68+M.hash(seed+2489,token,101)*.28,
-        .36+M.hash(seed+2503,token,103)*.30,
-        .05+M.hash(seed+2521,token,107)*.18}
-    local offsets={0}
-    for step=2,3 do
-        offsets[step]=(math.floor(M.hash(seed+2441,token,step)*3)-1)*width*.20
+local function pushTuft(vertices,indices,x,z,ground,height,width,direction,lean,color,windPhase,seed,token)
+    local first=#vertices+1
+    vertices[first]={x,z,ground,0,windPhase,color[1]*.66,color[2]*.72,color[3]*.60,1}
+    local radius=width*.26
+    for side=0,2 do
+        local angle=direction+side*math.pi*2/3
+        vertices[#vertices+1]={x+math.cos(angle)*radius,z+math.sin(angle)*radius,
+            ground,0,windPhase,color[1]*.65,color[2]*.72,color[3]*.60,1}
     end
-    offsets[4]=(math.floor(M.hash(seed+2459,token,83)*3)-1)*width*.14
-    local middleShade=.84+M.hash(seed+2531,token,109)*.28
-    local tipShade=.92+M.hash(seed+2539,token,113)*.28
-    local vertexColors={{color[1]*.66,color[2]*.72,color[3]*.60,1},
-        {M.clamp(color[1]*middleShade,0,1),M.clamp(color[2]*middleShade,0,1),
-            M.clamp(color[3]*middleShade,0,1),1},
-        {M.clamp(color[1]*tipShade,0,1),M.clamp(color[2]*tipShade,0,1),
-            M.clamp(color[3]*tipShade,0,1),1}}
-    -- Three flat, tapered bands give each blade a stepped pixel-art silhouette.
-    for segment=1,3 do
-        local low,high=steps[segment],steps[segment+1]
-        local lowWidth,highWidth=width*widths[segment],width*widths[segment+1]
-        local lowX=x+dx*lean*low+tangentX*offsets[segment]
-        local lowZ=z+dz*lean*low+tangentZ*offsets[segment]
-        local highX=x+dx*lean*high+tangentX*offsets[segment+1]
-        local highZ=z+dz*lean*high+tangentZ*offsets[segment+1]
-        local lowSideX,lowSideZ=-dz*lowWidth*.5,dx*lowWidth*.5
-        local highSideX,highSideZ=-dz*highWidth*.5,dx*highWidth*.5
-        local lowHeight,highHeight=height*low,height*high
-        local bandColor=vertexColors[segment]
-        local first=#vertices+1
-        vertices[first]={lowX-lowSideX,lowZ-lowSideZ,ground+lowHeight,lowHeight,
-            windPhase,bandColor[1],bandColor[2],bandColor[3],bandColor[4]}
-        vertices[first+1]={lowX+lowSideX,lowZ+lowSideZ,ground+lowHeight,lowHeight,
-            windPhase,bandColor[1],bandColor[2],bandColor[3],bandColor[4]}
-        vertices[first+2]={highX+highSideX,highZ+highSideZ,ground+highHeight,highHeight,
-            windPhase,bandColor[1],bandColor[2],bandColor[3],bandColor[4]}
-        vertices[first+3]={highX-highSideX,highZ-highSideZ,ground+highHeight,highHeight,
-            windPhase,bandColor[1],bandColor[2],bandColor[3],bandColor[4]}
-        indices[#indices+1]=first;indices[#indices+1]=first+1;indices[#indices+1]=first+2
-        indices[#indices+1]=first;indices[#indices+1]=first+2;indices[#indices+1]=first+3
-    end
-end
-
-local function pushCombSection(vertices,indices,x,z,ground,height,width,direction,lean,
-    bladeCount,color,seed,token,windPhase,world)
-    local spineColor={color[1]*.74,color[2]*.78,color[3]*.66}
-    pushBlade(vertices,indices,x,z,ground,height*.14,width*1.08,direction,lean*.24,
-        spineColor,windPhase,seed,token+31)
-    local tangentX,tangentZ=-math.sin(direction),math.cos(direction)
-    local spacing=width/bladeCount
-    for blade=1,bladeCount do
-        local bladeToken=token+blade*173
-        local lateral=((blade-.5)/bladeCount-.5)*width
-            +(M.hash(seed+2273,bladeToken,63)-.5)*spacing*.68
-        local rootX=x+tangentX*lateral
-        local rootZ=z+tangentZ*lateral
-        local variation=M.hash(seed+2281,bladeToken,61)
-        local lengthScale
-        if variation<.28 then lengthScale=.32+variation*.93
-        elseif variation>.82 then lengthScale=.93+(variation-.82)*1.50
-        else lengthScale=.58+(variation-.28)*.73 end
-        local length=height*lengthScale
-        local bladeWidth=spacing*(1.05+M.hash(seed+2293,bladeToken,67)*.65)
-        local directionJitter=(M.hash(seed+2309,bladeToken,69)-.5)*.06
-        local individualLean=lean+(.5-M.hash(seed+2317,bladeToken,73))*.20
-        local shade=.82+M.hash(seed+2333,bladeToken,71)*.40
-        local bladeWindPhase=windPhase+(M.hash(seed+2347,bladeToken,79)-.5)*.38
-        local bladeColor={
-            M.clamp(color[1]*shade,0,1),
-            M.clamp(color[2]*shade,0,1),
-            M.clamp(color[3]*shade,0,1),
-        }
-        pushBlade(vertices,indices,rootX,rootZ,world:height(rootX,rootZ)+.018,length,bladeWidth,
-            direction+directionJitter,individualLean,bladeColor,bladeWindPhase,seed,bladeToken)
+    for side=0,2 do
+        local angle=direction+side*math.pi*2/3
+        local tall=height*(.70+M.hash(seed+2281,token,side)*.36)
+        local shade=.86+M.hash(seed+2333,token,side)*.25
+        vertices[#vertices+1]={x+math.cos(angle)*(radius+lean),
+            z+math.sin(angle)*(radius+lean),ground+tall,tall,windPhase,
+            M.clamp(color[1]*shade,0,1),M.clamp(color[2]*shade,0,1),
+            M.clamp(color[3]*shade,0,1),1}
+        indices[#indices+1]=first
+        indices[#indices+1]=first+1+side
+        indices[#indices+1]=first+4+side
     end
 end
 
@@ -149,7 +91,7 @@ local function buildPatch(world,tx,tz,key)
 
     local vertices,indices,sections={},{},{}
     local spacing=Fields.PATCH_SIZE/Fields.GRID
-    local bladeCount=0
+    local tuftCount=0
     for gx=0,Fields.GRID-1 do for gz=0,Fields.GRID-1 do
         coroutine.yield()
         local roll=M.hash(seed+2053,key+gx*37,gz*53+7)
@@ -187,16 +129,15 @@ local function buildPatch(world,tx,tz,key)
                     or localCommunity=='river-margin' and .66
                     or localCommunity=='shrub-edge' and .90 or 1
                 local density=M.clamp(fieldCoverage*openness*groundFactor
-                    *3.4*fineFactor*communityFactor,0,.94)
+                    *2.4*fineFactor*communityFactor,0,.65)
                 if roll<density then
                     local areaDirection=M.noise(seed+2111,x*.065,z*.065)
                     local tuftVariation=(M.hash(seed+2159,key+gx*103,gz*107+17)-.5)*.08
                     local direction=.42+(areaDirection-.5)*.70+tuftVariation
-                    local sectionWidth=.92+M.hash(seed+2129,key+gx*109,gz*113+19)*.90
-                    local strands=7+math.floor(M.hash(seed+2137,key+gx*127,gz*131+23)*10)
+                    local sectionWidth=.50+M.hash(seed+2129,key+gx*109,gz*113+19)*.45
                     local token=key+gx*149+gz*157
                     local length=(.58+M.hash(seed+2161,token,37)*.78)*(.82+localMoisture*.28)*.72
-                    local lean=.03+M.hash(seed+2203,token,43)*.28
+                    local lean=.03+M.hash(seed+2203,token,43)*.10
                     local windPhase=M.hash(seed+2341,token,83)*math.pi*2
                     local palette={
                         .13+M.hash(seed+2213,token,47)*.18,
@@ -204,20 +145,20 @@ local function buildPatch(world,tx,tz,key)
                         .09+M.hash(seed+2237,token,59)*.10,
                     }
                     local firstVertex=#vertices+1
-                    pushCombSection(vertices,indices,x,z,ground+.018,length,sectionWidth,
-                        direction,lean,strands,palette,seed,token,windPhase,world)
-                    sections[#sections+1]={x=x,z=z,h=ground,blades=strands,firstVertex=firstVertex,lastVertex=#vertices}
-                    bladeCount=bladeCount+strands
+                    pushTuft(vertices,indices,x,z,ground+.018,length,sectionWidth,
+                        direction,lean,palette,windPhase,seed,token)
+                    sections[#sections+1]={x=x,z=z,h=ground,blades=3,firstVertex=firstVertex,lastVertex=#vertices}
+                    tuftCount=tuftCount+1
                 end
             end
         end
     end end
-    if bladeCount==0 then return nil end
+    if tuftCount==0 then return nil end
     local mesh=love.graphics.newMesh(FORMAT,vertices,'triangles','static')
     mesh:setVertexMap(indices)
     return {key=key,tx=tx,tz=tz,x0=x0,z0=z0,
         x=centerX,z=centerZ,height=height,mesh=mesh,
-        bytes=#vertices*36+#indices*4,bladeCount=bladeCount,fieldStrength=fieldStrength,
+        bytes=#vertices*36+#indices*4,bladeCount=tuftCount*3,fieldStrength=fieldStrength,
         sections=sections,vertices=#vertices,indices=#indices}
 end
 
@@ -247,7 +188,7 @@ function Fields:_entry(tx,tz)
     if not self.job then
         self.job={key=key,tx=tx,tz=tz,thread=coroutine.create(function()return buildPatch(self.world,tx,tz,key)end)}
     end
-    -- Yield between anchor cells and individual comb sections. A dense tile
+    -- Yield between anchor cells and individual tufts. A dense tile
     -- cannot monopolize an interactive frame; upload only its completed mesh.
     while self.stepsThisFrame<Fields.STEPS_PER_FRAME
         and love.timer.getTime()-self.buildStarted<Fields.BUILD_SECONDS do

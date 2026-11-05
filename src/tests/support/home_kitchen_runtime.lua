@@ -54,7 +54,7 @@ function Test.run(R,check)
     check("home_kitchen_runtime_cooking_pose",pose.routine=="cook" and pose.item==stove and pose.bowlX~=nil
         and pose.action=="home_cook_"..pose.direction)
     capture("home-kitchen-cooking-pose")
-    Activity.mousepressed(400,322,1,R)
+    Activity.mousepressed(650,403,1,R)
     check("home_kitchen_runtime_touch_timing_uses_current_batch",state.home.residents.owner.activity.cookQuality==3)
     assert(R.saveCurrent(true));local saved=assert(R.Save.load(3))
     check("home_kitchen_runtime_saves_active_stove_recipe",saved.state.home.residents.owner.activity.cookQuality==3 and saved.state.home.residents.owner.activity.fixtureId==nil)

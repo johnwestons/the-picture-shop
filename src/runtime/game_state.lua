@@ -85,6 +85,11 @@ function Component.install(Runtime)
                 and "This device could not create the new shop save."
                 or "This device could not save the safely stopped Windmill state."
         end
+        local imported,amount=require('src.portable_pay').claim(Runtime.state,Runtime.Save,Runtime.saveCurrent)
+        if not imported then return false,'Portable wages could not be imported: '..tostring(amount) end
+        if amount>0 then
+            Runtime.state.message=string.format('Transferred $%.2f in wages from hosted shops to your household.',amount/100)
+        end
         if payload.recovered then
             Runtime.state.message = "Recovered this shop from its last valid " .. tostring(payload.recoverySource) .. " copy."
         end

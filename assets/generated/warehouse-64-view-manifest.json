@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "atlas": {
+    "columns": 8,
+    "rows": 8,
+    "frame_count": 64,
+    "frame_width": 256,
+    "frame_height": 256,
+    "angle_step_degrees": 5.625,
+    "order": "clockwise_row_major"
+  },
+  "assets": {
+    "paper_cutter": "assets/generated/polar-cutter-64-v1.png",
+    "skid_wrapper": "assets/generated/skid-wrapper-64-v1.png",
+    "loaded_paper_pallet": "assets/generated/loaded-paper-pallet-64-v1.png",
+    "pallet_jack_empty": "assets/generated/pallet-jack-64-v1.png",
+    "pallet_jack_loaded": "assets/generated/pallet-jack-loaded-64-v1.png",
+    "empty_wood_pallet": "assets/generated/empty-pallet-64-v1.png",
+    "two_color_press": "assets/generated/printing-press-64-v1.png",
+    "heidelberg_windmill": "assets/generated/heidelberg-windmill-64-v1.png"
+  },
+  "pallet_jack_push": {
+    "motion_spec": "character-motion/rabbit-pallet-jack.json",
+    "directional_gait_frames": 16,
+    "directional_idle_frames": 2,
+    "direction_sectors": 8,
+    "authored_directional_strips": [
+      "assets/generated/pallet-jack-motion-v2/push.png",
+      "assets/generated/pallet-jack-motion-v2/push_northeast.png",
+      "assets/generated/pallet-jack-motion-v2/push_north.png",
+      "assets/generated/pallet-jack-motion-v2/push_southeast.png",
+      "assets/generated/pallet-jack-motion-v2/push_south.png"
+    ],
+    "note": "Keep the animated gait separate from the 64-angle pallet-jack turntable."
+  },
+  "integration_status": "polar_cutter_and_heidelberg_windmill_integrated_into_isometric_machine_placement; all_other_assets_remain_candidates"
+}

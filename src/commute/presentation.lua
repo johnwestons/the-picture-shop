@@ -17,21 +17,30 @@ local function getGearActionArt()
     if ok then gearActionArt=art else gearActionArtFailed=true end
     return gearActionArt
 end
-local function drawGearAction(pose,progress,x,y,baseScale,appearance)
+local function drawGearAction(pose,progress,x,y,baseScale,appearance,depthShader,spriteDepth)
     if type(appearance)~='table' or appearance.character~='rabbit-worker' then return false end
     local art=getGearActionArt()
     if not art then return false end
     local action,frame=GearActionArt.actionFrameForPose(pose,progress,art.registration)
     if not action then return false end
     local scale=baseScale*GearActionArt.normalization(action,art.registration)
-    return art:draw(action,frame,x,y,scale,appearance)
+    return art:draw(action,frame,x,y,scale,appearance,depthShader,spriteDepth)
 end
-local function visualPose(gear,presentation)
+local function visualPose(gear,presentation,actor)
+    if actor and actor.crash then
+        local crash=actor.crash
+        return 'crash',crash.elapsed/Fall.DURATION
+    end
     local pose,progress=Gear.pose(gear)
     if type(presentation)=='table' and type(presentation.pose)=='string' then
         pose,progress=presentation.pose,presentation.progress or 0
     end
     return pose,progress
+end
+function P.hasAuthoredCrash(appearance)
+    if type(appearance)~='table' or appearance.character~='rabbit-worker' then return false end
+    local art=getGearActionArt()
+    return art~=nil and art:has('crash')
 end
 -- Transform the selected character's usual sprite around its boots. The host
 -- supplies the same progress to other views through the existing pose packet.
@@ -149,7 +158,7 @@ local function smooth(value)
     return value*value*(3-2*value)
 end
 
-local function drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,clock,opacity)
+local function drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,clock,opacity,depthShader)
     if not characterAssets then return false end
     local direction=camera:headingDirection(actor.heading or 0) or 'east'
     local mirrored=roadMirrorFor[direction]
@@ -171,20 +180,21 @@ local function drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,cl
     local anchorX,anchorY=characterAssets.getAnchor(character,action,frame)
     local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
     local scale=RoadScale.sprite(camera.zoom,characterAssets.getNormalization(character,action))
-    love.graphics.push('all');love.graphics.setShader();love.graphics.setColor(1,1,1,opacity or 1)
+    love.graphics.push('all');love.graphics.setShader(depthShader);love.graphics.setColor(1,1,1,opacity or 1)
     love.graphics.draw(image,quad,x,y,0,scale*(mirrored and -1 or 1),scale,anchorX,anchorY)
     love.graphics.pop()
     return true
 end
 
-function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock)
+function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock,depthShader,actionDepthShader,spriteDepth)
     if not characterAssets or type(gear)~='table' then return false end
     local Normal=require('src.commute.normal_art')
     local selected=Normal.appearance(appearance)
-    local pose,progress=visualPose(gear,visual)
+    local pose,progress=visualPose(gear,visual,actor)
     if selected.character=='rabbit-worker' then
         local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
-        if drawGearAction(pose,progress,x,y,RoadScale.base(camera.zoom,GearActionArt.REFERENCE_HEIGHT),selected) then return true end
+        if drawGearAction(pose,progress,x,y,RoadScale.base(camera.zoom,GearActionArt.REFERENCE_HEIGHT),
+            selected,actionDepthShader,spriteDepth) then return true end
     end
     -- The production suit art is rabbit-specific. Keep other selected species
     -- intact until matching suit sheets are authored for them.
@@ -204,7 +214,14 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
         drew=Normal.draw(characterAssets,actor,camera,world,selected,visual,clock,normal) or drew
     end
     if suited>.001 then
-        drew=drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,clock,suited) or drew
+        local suitedDrew=drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,clock,suited,depthShader)
+        drew=suitedDrew or drew
+        if not suitedDrew and normal<.001 then
+            -- Keep the multiplayer avatar visible if a suit direction is
+            -- missing from an older or partial art pack; the fallback remains
+            -- the selected worker's animated sprite and colorway.
+            drew=Normal.draw(characterAssets,actor,camera,world,selected,visual,clock,1) or drew
+        end
     end
     return drew
 end

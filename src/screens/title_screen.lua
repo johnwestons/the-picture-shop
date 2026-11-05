@@ -8,6 +8,7 @@ local TitleControl = require("src.screens.title_control")
 local Props = require("src.screens.title_props")
 local Fonts = require("src.screens.title_fonts")
 local Motion = require("src.screens.title_motion")
+local TerrainCache = require("src.commute.terrain_cache")
 
 local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil,
     onLocal = nil, onDirect = nil, hover = nil, pressed = nil, hoverSlot = nil, pressedSlot = nil }
@@ -76,6 +77,7 @@ function TitleScreen.enter(onStart, onLocal, onDirect)
     TitleScreen.pendingAction, TitleScreen.keyboardFocus = nil, nil
     TitleScreen.pointerX, TitleScreen.pointerY = nil, nil
     TitleScreen.setup, TitleScreen.townSetup = nil, nil
+    TitleScreen.bakeJob, TitleScreen.pendingNewPayload = nil, nil
     Motion.reset()
 end
 -- Pass nil to return to live menu feedback. The sprite's LCD stays unlettered,
@@ -103,6 +105,18 @@ end
 function TitleScreen.update(dt)
     dt = math.max(0, tonumber(dt) or 0)
     Motion.update(dt)
+    if TitleScreen.bakeJob then
+        local done,reason=pcall(TitleScreen.bakeJob.step,TitleScreen.bakeJob,.008)
+        if not done then print('Terrain cache bake skipped: '..tostring(reason)) end
+        if not done or TitleScreen.bakeJob.done then
+            local payload=TitleScreen.pendingNewPayload
+            TitleScreen.bakeJob,TitleScreen.pendingNewPayload=nil,nil
+            TitleScreen.mode="normal"
+            TitleScreen.message="New shop created in slot "..TitleScreen.selected
+            if TitleScreen.onStart then TitleScreen.onStart(payload,"new") end
+        end
+        return
+    end
     local cycleDt = dt
     if TitleScreen.message ~= TitleScreen.observedMessage then
         TitleScreen.observedMessage, TitleScreen.feedbackRemaining = TitleScreen.message, 3
@@ -139,6 +153,14 @@ local function startNew()
         TitleScreen.message=err or "Could not create this shop."
         if TitleScreen.townSetup then TitleScreen.townSetup.message=TitleScreen.message end
         return false
+    end
+    local okay,job=pcall(TerrainCache.bake,payload.state.home.town)
+    if not okay then print('Terrain cache bake skipped: '..tostring(job)) end
+    if okay and not job.done then
+        TitleScreen.bakeJob,TitleScreen.pendingNewPayload=job,payload
+        TitleScreen.mode="terrain-bake"
+        TitleScreen.message="Preparing your town terrain."
+        return true
     end
     TitleScreen.mode="normal"
     TitleScreen.message = "New shop created in slot " .. TitleScreen.selected
@@ -286,6 +308,7 @@ local function nextFocus(delta)
 end
 
 function TitleScreen.keypressed(key)
+    if TitleScreen.mode=="terrain-bake" then return true end
     if TitleScreen.pendingAction then return true end
     if TitleScreen.mode=="town-setup" then
         return handleTownAction(TownSetup.keypressed(TitleScreen.townSetup,key,TitleScreen.setup))
@@ -325,6 +348,7 @@ function TitleScreen.wantsTextInput()
 end
 
 function TitleScreen.mousepressed(x, y, button)
+    if TitleScreen.mode=="terrain-bake" then return true end
     if button ~= 1 then return false end
     if TitleScreen.pendingAction then return true end
     TitleScreen.keyboardFocus = nil
@@ -448,7 +472,16 @@ function TitleScreen.draw(assets, mouseX, mouseY)
                 left.width - 166, "right")
         end
     end
-    if TitleScreen.mode == "town-setup" then
+    if TitleScreen.mode == "terrain-bake" then
+        Skin.panel(assets,{x=210,y=268,width=540,height=188})
+        love.graphics.setFont(sectionFont);love.graphics.setColor(.96,.89,.65)
+        love.graphics.printf("PREPARING YOUR TOWN",230,294,500,"center")
+        love.graphics.setColor(.16,.23,.23);love.graphics.rectangle('fill',260,356,440,20)
+        local progress=TitleScreen.bakeJob and TitleScreen.bakeJob:progress() or 0
+        love.graphics.setColor(.55,.76,.61);love.graphics.rectangle('fill',260,356,440*progress,20)
+        love.graphics.setFont(bodyFont);love.graphics.setColor(.82,.89,.83)
+        love.graphics.printf(('%d%%  ·  Saving terrain for future trips'):format(math.floor(progress*100)),230,392,500,'center')
+    elseif TitleScreen.mode == "town-setup" then
         TownSetup.draw(TitleScreen.townSetup,TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)
     elseif TitleScreen.mode == "shop-setup" then
         ShopSetup.draw(TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)

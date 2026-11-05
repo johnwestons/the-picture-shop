@@ -178,8 +178,23 @@ function Component.install(Runtime)
                     if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
                 end
             end
+            if require('src.guest_payroll').advance(Runtime.state,
+                Runtime.multiplayer:isHost() and Runtime.multiplayer:remotePlayers() or {},
+                homeBefore,Runtime.BusinessCalendar.absoluteHours(Runtime.state)) then
+                checkpointNeeded=true
+                Runtime.guestPayrollSyncClock=(Runtime.guestPayrollSyncClock or 0)+dt
+                if Runtime.guestPayrollSyncClock>=1 then
+                    Runtime.guestPayrollSyncClock=0
+                    if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
+                end
+            end
             if require("src.weekend_flow").update(Runtime.state,false) then saveNeeded=true end
             local closed=require("src.weekend_flow").shopClosed(Runtime.state)
+            if wasClosed and Runtime.World.updateClosedShopEmployees then
+                local closedStaffChanged=Runtime.World.updateClosedShopEmployees(
+                    Runtime.state,homeBefore,Runtime.BusinessCalendar.absoluteHours(Runtime.state))
+                if closedStaffChanged then saveNeeded=true end
+            end
             -- The elapsed interval still belongs to the closed shop when its
             -- endpoint reopens Monday. Queued later time runs next frame.
             if wasClosed and not closed then gameDt,shopMotionDt=0,0 end

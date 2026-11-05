@@ -194,7 +194,9 @@ end
 
 function Calendar.amountDue(state)
     local _,bills=Calendar.ensure(state)
-    local wages=state.employment and require("src.payroll").total(state,Calendar.absoluteHours(state),false)/100 or 0
+    local wages=(state.employment and require("src.payroll").total(state,Calendar.absoluteHours(state),false) or 0)
+        +require('src.guest_payroll').totalOwed(state)
+    wages=wages/100
     return bills.balance+wages,bills.balance,wages
 end
 
@@ -215,6 +217,7 @@ function Calendar.pay(state)
     end
     if operating>0 then require("src.credit").recordBillsPaid(state, bills.ledger) end
     if state.employment then require("src.payroll").pay(state,Calendar.absoluteHours(state),false) end
+    require('src.guest_payroll').advance(state,nil,0,0)
     return true, amount
 end
 

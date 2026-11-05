@@ -55,11 +55,11 @@ function Terrain.new(options)
         return self.plan:riverCenterX(z)
     end
 
-    function world:sweepObstacles(x,z,nx,nz,radius,bottom,top)
+    function world:sweepObstacles(x,z,nx,nz,radius,bottom,top,truckCos,truckSin)
         -- The renderer shares this cache. Headless simulation still resolves
         -- nearby trunks/rocks before they have ever been requested for draw.
         self.vegetation=self.vegetation or require('src.commute.vegetation').new(self)
-        return self.vegetation:sweepObstacles(x,z,nx,nz,radius,bottom,top,self.calendar)
+        return self.vegetation:sweepObstacles(x,z,nx,nz,radius,bottom,top,self.calendar,truckCos,truckSin)
     end
 
     return world

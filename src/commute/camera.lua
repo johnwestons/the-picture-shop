@@ -259,10 +259,11 @@ function Camera:setOutsideMode(mode,actor,mounted)
     return true
 end
 
-function Camera:setFirstPerson(enabled, actor)
+function Camera:setFirstPerson(enabled, actor, onFoot)
     self.firstPerson = enabled == true
     self.shoulderView=nil
     self.lastActor = actor or self.lastActor
+    self.walkViewHeading = self.firstPerson and onFoot and (self.lastActor.heading or 0) or nil
     self.centerVelocityX, self.centerVelocityZ = 0, 0
     if self.firstPerson then
         self.eyeHeight = nil
@@ -281,8 +282,9 @@ end
 
 function Camera:toggleView(rider)
     local truck=rider.vehicle=='truck' and rider.truck or nil
-    if (not rider.gear.mounted and not truck) or rider.gear.transition then return false end
-    self:setFirstPerson(not self.firstPerson, truck or rider.bike)
+    if rider.gear.transition then return false end
+    local onFoot=not truck and not rider.gear.mounted
+    self:setFirstPerson(not self.firstPerson, truck or (onFoot and rider.ped or rider.bike),onFoot)
     return true
 end
 
@@ -297,10 +299,10 @@ function Camera:updateRide(rider, dt, visual)
         self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
     end
     self.followMounted=mounted
-    if self.firstPerson and (not mounted or rider.gear.transition) then
+    if self.firstPerson and (rider.gear.transition or (self.walkViewHeading~=nil)==mounted) then
         self:setFirstPerson(false, actor)
     end
-    self:update(actor, dt, truck or visual)
+    self:update(actor, dt, self.walkViewHeading and actor or truck or visual)
 end
 
 function Camera:update(actor, dt, visual)
@@ -555,6 +557,9 @@ function Camera:headingDirection16(radians)
 end
 
 function Camera:screenVectorToWorld(right, depth)
+    if self.walkViewHeading then
+        return -right*self.viewSin-depth*self.viewCos,right*self.viewCos-depth*self.viewSin
+    end
     local c, s = self:_orientationBasis()
     return right * c + depth * s, -right * s + depth * c
 end
@@ -575,7 +580,11 @@ end
 
 function Camera:orbit(yawDeltaDegrees, tiltDeltaDegrees)
     if self.firstPerson then
-        self.lookYaw=M.clamp((self.lookYaw or 0)+finiteNumber(yawDeltaDegrees,0)*rad,-FirstPerson.LOOK_YAW*rad,FirstPerson.LOOK_YAW*rad)
+        if self.walkViewHeading then
+            self.walkViewHeading=(self.walkViewHeading+finiteNumber(yawDeltaDegrees,0)*rad)%(2*math.pi)
+        else
+            self.lookYaw=M.clamp((self.lookYaw or 0)+finiteNumber(yawDeltaDegrees,0)*rad,-FirstPerson.LOOK_YAW*rad,FirstPerson.LOOK_YAW*rad)
+        end
         self.lookPitch=M.clamp((self.lookPitch or 0)+finiteNumber(tiltDeltaDegrees,0)*rad,-FirstPerson.LOOK_DOWN*rad,FirstPerson.LOOK_UP*rad)
         FirstPerson.update(self,self.lastActor,0)
         return

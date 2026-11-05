@@ -15,6 +15,8 @@ local fields = {
     home_order_food = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
     home_order_furniture = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
     home_set_food_limit = {expectedRevision="home_revision",limitCents="home_food_limit"},
+    player_wage_propose = {residentId="resident_id",expectedRevision="home_revision",wageCents="player_wage"},
+    player_wage_accept = {residentId="resident_id",expectedRevision="home_revision"},
     finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
     pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
@@ -68,6 +70,8 @@ function Intent.normalize(value)
             if not integer(item,1,10) then return nil,"Choose a quantity from 1 to 10." end
         elseif rule == "home_food_limit" then
             if not integer(item,0,1000000) then return nil,"Choose a valid shared guest food budget." end
+        elseif rule == "resident_id" then
+            if not require('src.home_residents').validId(item) then return nil,'Choose a saved guest resident.' end
         elseif rule == "revision" then
             if not integer(item,1,1000000000) then return nil,"Review the latest record revision." end
         elseif rule == "queue_direction" then
@@ -100,6 +104,8 @@ function Intent.normalize(value)
             end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
+        elseif rule == "player_wage" then
+            if not integer(item,100,10000) then return nil,"Choose $1-$100 per hour." end
         elseif rule == "days" then
             if not integer(item,1,127) then return nil,"Choose at least one working day." end
         elseif rule == "pay_cycle" then

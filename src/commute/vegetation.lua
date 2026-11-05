@@ -194,7 +194,7 @@ function Vegetation:_solids(patch,calendar)
     return solids
 end
 
-function Vegetation:sweepObstacles(x,z,nx,nz,radius,bottom,top,calendar)
+function Vegetation:sweepObstacles(x,z,nx,nz,radius,bottom,top,calendar,truckCos,truckSin)
     if not M.finite(x) or not M.finite(z) or not M.finite(nx) or not M.finite(nz)
         or not M.finite(radius) or radius<0 then return nil end
     -- Include neighbouring candidate patches whose solid footprint crosses
@@ -209,6 +209,8 @@ function Vegetation:sweepObstacles(x,z,nx,nz,radius,bottom,top,calendar)
         local solids=self:_solids(self:_getPatch(px,pz),calendar)
         for _,p in ipairs(solids) do
             local t,hx,hz=Obstacles.sweep(x,z,nx,nz,radius,p,bottom,top)
+            if t and truckCos and not require('src.commute.truck_footprint').overlaps(
+                nx,nz,truckCos,truckSin,p.x,p.z,p.x,p.z,p.collisionRadius) then t=nil end
             if t and (not best or t<best-1e-10 or math.abs(t-best)<=1e-10 and p.id<id) then
                 best,normalX,normalZ,kind,id=t,hx,hz,p.kind,p.id
             end

@@ -44,6 +44,19 @@ function Infrastructure:occupied(x,z,margin)
     return false
 end
 
+function Infrastructure:blocksTruck(x,z,c,s)
+    local f=require('src.commute.truck_footprint')
+    for ix=math.floor((x-f.radius)/CELL),math.floor((x+f.radius)/CELL) do
+        for iz=math.floor((z-f.radius)/CELL),math.floor((z+f.radius)/CELL) do
+            local bin=self.bins[key(ix*CELL,iz*CELL)]
+            if bin then for _,shape in ipairs(bin) do
+                if f.overlaps(x,z,c,s,shape.ax,shape.az,shape.bx,shape.bz,shape.radius) then return true end
+            end end
+        end
+    end
+    return false
+end
+
 local function triangleHeight(x,z,a,b,c)
     local bx,bz=b[1]-a[1],b[2]-a[2]
     local cx,cz=c[1]-a[1],c[2]-a[2]
@@ -120,6 +133,47 @@ local function joins(a,b)
     if not a or not b or a.roadId~=b.roadId or a.side~=b.side then return false end
     local left,right=a.corners[2],b.corners[1]
     return math.abs(left[1]-right[1])+math.abs(left[2]-right[2])<.0001
+end
+local function smoothWalkStations(plan)
+    local walks=plan.walks
+    local first=1
+    while first<=#walks do
+        local last=first
+        while last<#walks and joins(walks[last],walks[last+1]) do last=last+1 end
+        local stations={}
+        local function add(w,start)
+            local p=w.corners
+            local a,b=start and p[1] or p[2],start and p[4] or p[3]
+            local centerX,centerZ=(a[1]+b[1])*.5,(a[2]+b[2])*.5
+            stations[#stations+1]={a=a,b=b,raw=math.max(a[3],b[3]),
+                support=math.max(a[4],b[4],plan.world:height(centerX,centerZ))+.105}
+        end
+        add(walks[first],true)
+        for i=first,last do add(walks[i],false) end
+        local profile={}
+        for i,station in ipairs(stations) do
+            local before=stations[math.max(1,i-1)].raw
+            local after=stations[math.min(#stations,i+1)].raw
+            profile[i]=math.max((before+2*station.raw+after)*.25,station.support)
+        end
+        for i=first,last do
+            local walk=walks[i]
+            local needed=plan.world:height(walk.x,walk.z)+.105
+            local average=(profile[i-first+1]+profile[i-first+2])*.5
+            if average<needed then
+                profile[i-first+1]=math.max(profile[i-first+1],needed)
+                profile[i-first+2]=math.max(profile[i-first+2],needed)
+            end
+        end
+        for i,station in ipairs(stations) do station.a[3],station.b[3]=profile[i],profile[i] end
+        for i=first,last do
+            local p=walks[i].corners
+            local startHeight,endHeight=profile[i-first+1],profile[i-first+2]
+            p[1][3],p[4][3]=startHeight,startHeight
+            p[2][3],p[3][3]=endHeight,endHeight
+        end
+        first=last+1
+    end
 end
 local function indexWalks(plan)
     for i,walk in ipairs(plan.walks) do
@@ -426,6 +480,7 @@ function Infrastructure.new(world,options)
     end
     for _,path in ipairs(streets) do walksAndRails(plan,path) end
     refineWalks(plan)
+    smoothWalkStations(plan)
     indexWalks(plan)
     signs(plan,junctions)
     mailboxes(plan,lookup,town)

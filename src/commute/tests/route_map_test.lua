@@ -80,9 +80,11 @@ function Test.run(check)
     local okay,reason=pcall(map.drawMini,map,small,actor,options);love.graphics.printf=oldPrintf;assert(okay,reason)
     check('mini_draw_omits_number_badges_without_rebuilding_terrain',labels==0 and map.backgroundBuilds==1 and oldCalls==samples)
     local site=world.sites.all[3]
+    -- With the rider facing east, a site ten metres ahead appears above the rider.
+    local nearby={x=site.x-10,z=site.z,heading=0}
+    local facing=map:miniSnapshot(small,nearby,options)
     check('mini_unnumbered_footprints_remain_selectable',map:hitMini(small,
-        far.viewport.x+(site.x-bounds.x0)*far.viewport.scale,
-        far.viewport.y+(site.z-bounds.z0)*far.viewport.scale,actor,options)==site.id)
+        facing.marker.x,facing.marker.y-10*facing.viewport.scale,nearby,options)==site.id)
     map:release();map:release();map:prepare()
     check('travel_map_release_is_idempotent_and_cannot_recreate_resources',map.released and map.background==nil
         and map.backgroundBuilds==1 and map.terrainSamples==samples)

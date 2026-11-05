@@ -4,7 +4,7 @@ local Sites=require('src.commute.sites')
 local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
 local Options=require('src.commute.island_options')
-local Town={VERSION=1,GENERATOR_VERSION=6,MIN_SEED=1,MAX_SEED=2147483646}
+local Town={VERSION=1,GENERATOR_VERSION=9,MIN_SEED=1,MAX_SEED=2147483646}
 local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- Generated labels are part of the saved seed fingerprint. Current signage
 -- is applied to the runtime destinations without mutating a town or preset.
@@ -112,10 +112,11 @@ function Town.valid(t)
     end
     local roadIds={}
     for _,r in ipairs(t.roads) do
+        local maxRoadPoints=t.generatorVersion>=7 and type(r)=='table' and r.role=='trail' and 128 or 64
         if type(r)~='table' or type(r.id)~='string' or #r.id>64 or roadIds[r.id]
             or (r.interpolation~=nil and r.interpolation~='linear')
             or not M.finite(r.width) or r.width<2 or r.width>12
-            or not array(r.points,64) or #r.points<2 then return false end
+            or not array(r.points,maxRoadPoints) or #r.points<2 then return false end
         roadIds[r.id]=r
         if t.generatorVersion>=3 then
             local role=r.role
@@ -137,6 +138,21 @@ function Town.valid(t)
                 if not integer(k,1,#r.points-1) or type(v)~='boolean' then return false end
             end
         end
+    end
+    if t.generatorVersion>=9 then
+        local exit=t.mainlandExit
+        local road=type(exit)=='table' and roadIds[exit.roadId]
+        local last=road and road.points[#road.points]
+        local coordsFinite=type(exit)=='table' and M.finite(exit.x) and M.finite(exit.z) and M.finite(exit.h)
+        local atBoundary=coordsFinite and
+            (math.abs(exit.x-expectedBounds.x0)<.01 or math.abs(exit.x-expectedBounds.x1)<.01
+                or math.abs(exit.z-expectedBounds.z0)<.01 or math.abs(exit.z-expectedBounds.z1)<.01)
+        if type(exit)~='table' or exit.city~='Millhaven' or not atBoundary
+            or not road or road.role~='main' or road.surface~='paved'
+            or not coordsFinite
+            or not M.finite(exit.heading) or math.abs(exit.heading)>math.pi*2
+            or not last or math.abs(last[1]-exit.x)>.01 or math.abs(last[2]-exit.z)>.01
+                or math.abs(last[3]-exit.h)>.01 then return false end
     end
     if t.generatorVersion>=3 then
         local main=type(t.topology)=='table' and t.topology.mainStreet
@@ -182,7 +198,7 @@ function Town.fingerprint(t)
             local keys={};for k in pairs(v) do if not (root and k=='id') then keys[#keys+1]=k end end
             table.sort(keys,function(a,b)return tostring(a)<tostring(b) end)
             for _,k in ipairs(keys) do add(tostring(k));visit(v[k]) end
-        elseif type(v)=='number' then add(('%.12g'):format(v)) else add(tostring(v)) end
+        elseif type(v)=='number' then add(v==0 and '0' or ('%.12g'):format(v)) else add(tostring(v)) end
     end
     visit(t,true);return tostring(math.floor(hash))
 end
@@ -239,14 +255,26 @@ function Town.world(t)
     t=t or Town.legacy();assert(Town.valid(t),'Invalid saved town definition')
     local world=require('src.commute.terrain').new(t.terrain)
     t=stationLayout(t,world)
-    local sites=Sites.create({placements=t.placements,designs=t.designs})
-    local destinations=copy(t.destinations)
+    local runtimeTown=t
+    local sites=Sites.create({placements=runtimeTown.placements,designs=runtimeTown.designs})
+    if not runtimeTown.mainlandExit then
+        runtimeTown=copy(runtimeTown)
+        local planner=require('src.commute.town_generator_v3')
+        local exit,reason=planner.attachMainlandExit(runtimeTown,world.plan,sites)
+        assert(exit,reason)
+    end
+    local destinations=copy(runtimeTown.destinations)
     if destinations.mechanic then destinations.mechanic.label=Sites.MECHANIC_NAME end
+    if runtimeTown.mainlandExit then
+        local exit=runtimeTown.mainlandExit
+        destinations.mainland_exit={x=exit.x,z=exit.z,h=exit.h,label=exit.city..' Gate'}
+    end
     local roadVersion=require('src.commute.roads').VERSION
-    local roads=require('src.commute.roads').new({definitions=t.roads,destinations=destinations,
-        bounds=t.bounds,sites=sites,layoutId=t.id,version=roadVersion,recreation=t.recreation})
-    roads:attach(world);world.townId=t.id;world.town=t
-    if t.generatorVersion>=3 then require('src.commute.infrastructure').ensure(world) end
+    local roads=require('src.commute.roads').new({definitions=runtimeTown.roads,destinations=destinations,
+        bounds=runtimeTown.bounds,sites=sites,layoutId=runtimeTown.id,version=roadVersion,recreation=runtimeTown.recreation})
+    roads:attach(world);world.townId=runtimeTown.id;world.town=runtimeTown
+    world.mainlandExit=runtimeTown.mainlandExit;world.neighboringCity='Millhaven'
+    if runtimeTown.generatorVersion>=3 then require('src.commute.infrastructure').ensure(world) end
     return world
 end
 local function random(seed)

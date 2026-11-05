@@ -9,6 +9,7 @@ function Shoulder.update(eye,camera,rider)
     local forwardX,forwardZ=math.cos(yaw),math.sin(yaw)
     local tilt=math.rad(camera.tilt)
     local arm=M.clamp(6.4/camera.zoom,2.5,11)
+    if camera.localVehicle=='truck' then arm=arm*1.55 end
     local back=math.cos(tilt)*arm
     local dx,dz=-forwardX*back-forwardZ*.78,-forwardZ*back+forwardX*.78
     local fraction=1

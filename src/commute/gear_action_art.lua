@@ -9,6 +9,7 @@ Art.__index = Art
 local reverseActionForPose={helmet_off='helmet_on',unzip='zip_up',suit_off='suit_on'}
 
 local SHADER = [[
+#ifdef PIXEL
 extern vec3 furTint;
 extern vec3 overallsTint;
 extern float furEnabled;
@@ -31,6 +32,7 @@ vec3 hsvToRgb(vec3 c) {
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
     vec4 pixel = Texel(texture, texture_coords) * color;
+    if(pixel.a<0.02) discard;
     vec2 masks = Texel(actionMask, texture_coords).rg;
     vec3 hsv = rgbToHsv(pixel.rgb);
     if (furEnabled > 0.5 && masks.r > 0.0) {
@@ -46,6 +48,17 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     }
     return pixel;
 }
+#endif
+]]
+local DEPTH_VERTEX=[[
+#ifdef VERTEX
+extern float spriteDepth;
+vec4 position(mat4 transform_projection,vec4 vertex_position) {
+    vec4 clip=transform_projection*vertex_position;
+    clip.z=spriteDepth*clip.w;
+    return clip;
+}
+#endif
 ]]
 
 local function finite(value)
@@ -92,21 +105,30 @@ function Art.new(options)
     else
         error('gear action art requires an explicit runtime or review mode')
     end
-    local self = setmetatable({images = {}, masks = {}, quads = {}, actions = registration.actions,
-        registration = registration}, Art)
-    for name, entry in pairs(registration.actions) do
+    local rideRegistration=require('assets.generated.commute-ride-actions-v1.registration')
+    assert(rideRegistration.status=='runtime_approved','ride-action loader requires approved art')
+    local actions={}
+    for name,entry in pairs(registration.actions) do actions[name]=entry end
+    for name,entry in pairs(rideRegistration.actions) do actions[name]=entry end
+    local combinedRegistration={}
+    for key,value in pairs(registration) do combinedRegistration[key]=value end
+    combinedRegistration.actions=actions
+    local self = setmetatable({images = {}, masks = {}, quads = {}, actions = actions,
+        registration = combinedRegistration}, Art)
+    for name, entry in pairs(actions) do
         local image = love.graphics.newImage(entry.path)
         local mask = love.graphics.newImage(entry.maskPath)
-        assert(image:getWidth() == registration.frameSize * entry.frameCount
-            and image:getHeight() == registration.frameSize, 'invalid gear action strip: ' .. name)
+        local frameSize=entry.frameSize or registration.frameSize
+        assert(image:getWidth() == frameSize * entry.frameCount
+            and image:getHeight() == frameSize, 'invalid gear action strip: ' .. name)
         assert(mask:getWidth() == image:getWidth() and mask:getHeight() == image:getHeight(),
             'gear color mask dimensions differ: ' .. name)
         image:setFilter('linear', 'linear')
         mask:setFilter('linear', 'linear')
         self.images[name], self.masks[name], self.quads[name] = image, mask, {}
         for frame = 1, entry.frameCount do
-            self.quads[name][frame] = love.graphics.newQuad((frame - 1) * registration.frameSize, 0,
-                registration.frameSize, registration.frameSize, image:getWidth(), image:getHeight())
+            self.quads[name][frame] = love.graphics.newQuad((frame - 1) * frameSize, 0,
+                frameSize, frameSize, image:getWidth(), image:getHeight())
         end
     end
     local ok, shader = pcall(love.graphics.newShader, SHADER)
@@ -119,7 +141,7 @@ function Art:has(action)
     return self.actions[action] ~= nil
 end
 
-function Art:draw(action, frame, x, baseline, scale, appearance)
+function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, spriteDepth)
     if not Art.supportsAppearance(appearance, self.registration) then return false, 'unsupported_character' end
     local entry = self.actions[action]
     if not entry then return false, 'missing_staged_action' end
@@ -129,22 +151,33 @@ function Art:draw(action, frame, x, baseline, scale, appearance)
     frame = math.floor(tonumber(frame) or 1)
     frame = (frame - 1) % entry.frameCount + 1
     local fur, overalls = Colorways.normalize(appearance.furColorway, appearance.overallsColorway)
+    local anchor=entry.anchor or self.registration.anchor
+    local colored=fur~=1 or overalls~=1
+    local target
+    if colored and self.shader then
+        target=self.shader
+        if spriteDepth~=nil then
+            if not self.depthShader then self.depthShader=love.graphics.newShader(DEPTH_VERTEX..SHADER) end
+            target=self.depthShader
+        end
+    else target=depthShader end
     love.graphics.push('all')
     love.graphics.setColor(1, 1, 1, 1)
-    if self.shader and (fur ~= 1 or overalls ~= 1) then
+    if colored and self.shader then
         local furColor = Colorways.fur[fur].color
         local overallsColor = Colorways.overalls[overalls].color
-        self.shader:send('furTint', furColor)
-        self.shader:send('overallsTint', overallsColor)
-        self.shader:send('furEnabled', fur == 1 and 0 or 1)
-        self.shader:send('overallsEnabled', overalls == 1 and 0 or 1)
-        self.shader:send('actionMask', self.masks[action])
-        love.graphics.setShader(self.shader)
-    else
-        love.graphics.setShader()
+        for _,shader in ipairs({self.shader,self.depthShader}) do
+            if shader then
+                shader:send('furTint',furColor);shader:send('overallsTint',overallsColor)
+                shader:send('furEnabled',fur==1 and 0 or 1);shader:send('overallsEnabled',overalls==1 and 0 or 1)
+                shader:send('actionMask',self.masks[action])
+            end
+        end
     end
+    if spriteDepth~=nil and target==self.depthShader then target:send('spriteDepth',spriteDepth) end
+    love.graphics.setShader(target)
     love.graphics.draw(self.images[action], self.quads[action][frame], x, baseline, 0,
-        scale, scale, self.registration.anchor[1], self.registration.anchor[2])
+        scale, scale, anchor[1], anchor[2])
     love.graphics.pop()
     return true
 end
@@ -154,6 +187,7 @@ function Art:release()
     for _, image in pairs(self.masks) do image:release() end
     for _, quads in pairs(self.quads) do for _, quad in ipairs(quads) do quad:release() end end
     if self.shader then self.shader:release() end
+    if self.depthShader then self.depthShader:release() end
     self.images, self.masks, self.quads = {}, {}, {}
 end
 

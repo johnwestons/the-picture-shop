@@ -32,6 +32,13 @@ function Test.run(check)
         for _=1,24 do visible=a:collect(32,32,64,64,camera,22) end
         for _=1,24 do b:collect(32,32,64,64,camera,22) end
         check('grass_fields_builds_indexed_native_geometry',#visible>0 and visible[1].indices>visible[1].vertices)
+        local triangles=true
+        for _,patch in ipairs(visible) do
+            triangles=triangles and patch.vertices==#patch.sections*7
+                and patch.indices==#patch.sections*9
+        end
+        check('grass_fields_three_joined_triangles_per_tuft',triangles)
+        check('grass_fields_short_draw_distance',Fields.FAR_VIEW_RADIUS<=20 and Fields.GRID<=7)
         check('grass_fields_seeded_blades_match_across_independent_instances',digest(a)==digest(b))
         local rootOkay,sections,footprint=true,0,true
         for _,p in ipairs(visible) do

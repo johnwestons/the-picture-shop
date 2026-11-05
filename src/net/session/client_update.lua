@@ -6,8 +6,17 @@ function Component.install(Runtime)
     function Runtime.Session:_sendClientInput(dt, context)
         if not self.ready or not self.sessionId then return end
         self.inputAccumulator = self.inputAccumulator + dt
-        if self.inputAccumulator < Runtime.INPUT_INTERVAL then return end
-        self.inputAccumulator = self.inputAccumulator % Runtime.INPUT_INTERVAL
+        local riding=context and context.localPlayer and context.localPlayer.sceneId=='commute'
+        -- Dispatch discrete control edges this frame. Analog variation within
+        -- a direction still uses the normal input rate.
+        local function direction(value)
+            return value and (value > .1 and 1 or value < -.1 and -1) or 0
+        end
+        local changed=riding and (direction(context.inputX)~=direction(self.sentRideX)
+            or direction(context.inputY)~=direction(self.sentRideY) or context.inputBoost~=self.sentRideBoost)
+        if not changed and self.inputAccumulator < Runtime.INPUT_INTERVAL then return end
+        self.inputAccumulator = changed and 0 or self.inputAccumulator % Runtime.INPUT_INTERVAL
+        if riding then self.sentRideX,self.sentRideY,self.sentRideBoost=context.inputX,context.inputY,context.inputBoost end
         self.inputSequence = self.inputSequence + 1
         local ok, errorMessage = self:_sendToServer("input", {
             sessionId = self.sessionId,
@@ -25,19 +34,34 @@ function Component.install(Runtime)
                 or self.localOverallsColorway or 1,
             taskAction = context and context.localPlayer and context.localPlayer.taskAction or "none",
         })
+        if ok and changed and self.transport.flush then self.transport:flush() end
         if not ok then self:_queue("error", { message = errorMessage }) end
     end
 
     function Runtime.Session:_updateClientVisuals(dt, localPlayer)
         if not self.ready then return end
+        for _,player in pairs(self.players) do
+            if player._rideAge then
+                player._rideAge=player._rideAge+dt
+                if player._rideAge>.3 then player._rideMotion=nil end
+            end
+        end
+        local function lead(player)
+            if not player or not player._rideAge then return 0,0 end
+            local age=math.min(.12,player._rideAge)
+            return player._rideVX*age,player._rideVY*age
+        end
         if localPlayer and self.localTarget then
             if (localPlayer.sceneId or "warehouse")~=(self.localTarget.sceneId or "warehouse")
                 or (localPlayer.resting==true)~=(self.localTarget.resting==true) then
                 Runtime.copyMotion(localPlayer,self.localTarget,true)
             end
             localPlayer.resting=self.localTarget.resting==true
-            local dx = self.localTarget.x - localPlayer.x
-            local dy = self.localTarget.y - localPlayer.y
+            local own=self.players[self.localId]
+            localPlayer._rideMotion=own and own._rideMotion
+            local lx,ly=lead(self.players[self.localId])
+            local dx = self.localTarget.x + lx - localPlayer.x
+            local dy = self.localTarget.y + ly - localPlayer.y
             local distanceSquared = dx * dx + dy * dy
             if distanceSquared > Runtime.TELEPORT_DISTANCE * Runtime.TELEPORT_DISTANCE then
                 localPlayer.x, localPlayer.y = self.localTarget.x, self.localTarget.y
@@ -50,8 +74,9 @@ function Component.install(Runtime)
         for id, player in pairs(self.players) do
             if id ~= self.localId and player._targetRecord then
                 local startX, startY = player.x, player.y
-                player.x = player.x + (player._targetX - player.x) * alpha
-                player.y = player.y + (player._targetY - player.y) * alpha
+                local lx,ly=lead(player)
+                player.x = player.x + (player._targetX + lx - player.x) * alpha
+                player.y = player.y + (player._targetY + ly - player.y) * alpha
                 local dx, dy = player.x - startX, player.y - startY
                 local distance = math.sqrt(dx * dx + dy * dy)
                 Runtime.copyMotion(player, player._targetRecord, false)

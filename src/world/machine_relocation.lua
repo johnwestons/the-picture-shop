@@ -65,14 +65,16 @@ function Component.install(Runtime)
             state.message = "Unload the paper and clear the cutting bed before rotating the cutter."
             return false
         end
-        local succeeded, direction = Runtime.CutterPlacement.rotate(state, Runtime.Config.cutterPlacement)
+        local succeeded, direction, rotationIndex = Runtime.CutterPlacement.rotate(state, Runtime.Config.cutterPlacement)
         if not succeeded then return false end
         if state.cutter.moving then
             state.cutter.inMotion = false
             Runtime.PalletJack.followPlacement(state, state.cutter, 0, Runtime.Config.palletJack)
             Runtime.World.player.x, Runtime.World.player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
         end
-        state.message = "Cutter rotated " .. direction .. "."
+        state.message = rotationIndex
+            and string.format("Cutter view %d/64.", rotationIndex)
+            or ("Cutter rotated " .. direction .. ".")
         return true
     end
 
@@ -295,14 +297,16 @@ function Component.install(Runtime)
             state.message = "Unload the press and return the Windmill to idle before rotating it."
             return false
         end
-        local succeeded, direction = Runtime.WindmillPlacement.rotate(state, Runtime.Config.windmillPlacement)
+        local succeeded, direction, rotationIndex = Runtime.WindmillPlacement.rotate(state, Runtime.Config.windmillPlacement)
         if not succeeded then return false end
         if state.windmill.moving then
             state.windmill.inMotion = false
             Runtime.PalletJack.followPlacement(state, state.windmill, 0, Runtime.Config.palletJack)
             Runtime.World.player.x, Runtime.World.player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
         end
-        state.message = "Windmill rotated " .. direction .. "."
+        state.message = rotationIndex
+            and string.format("Windmill view %d/64.", rotationIndex)
+            or ("Windmill rotated " .. direction .. ".")
         return true
     end
 

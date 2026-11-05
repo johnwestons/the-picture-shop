@@ -136,13 +136,18 @@ function Layout.mask(id)
     masks[id]=mask;return mask
 end
 function Layout.targets(player,state)
+    local HomeInteractions=require("src.home_interactions")
     local entry=Layout.get(state);local targets={}
     targets.computer=require("src.home_surfaces").computer(state,player)
+    local bikeCargo=require('src.home_bike_cargo').target(player,state)
+    if bikeCargo then targets.bikeCargo=bikeCargo end
     for id,fixture in pairs(entry.fixtures) do
         local fx,fy=Layout.toWorld(unpack(fixture.approach))
         local hx,hy=Layout.toWorld(fixture.x,fixture.y)
+        local interaction=HomeInteractions.describe(nil,id)
         targets["home_"..id]={kind="homeActivity",fixtureId=id,x=fx,y=fy,radius=48,
-            hoverX=hx,hoverY=hy,hoverRadius=24,prompt="E: "..id.." / home activities",actionLabel="USE"}
+            hoverX=hx,hoverY=hy,hoverRadius=24,prompt="E: "..interaction.prompt,
+            interaction=interaction.category,actionLabel=interaction.actionLabel}
     end
     for id,target in pairs(require("src.home_furniture").targets(state,player)) do targets[id]=target end
     return targets

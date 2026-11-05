@@ -66,6 +66,42 @@ function Art.pitchRotation(actor,camera,height,pitch)
     local dot=flatX*raisedX+flatY*raisedY
     return weight*math.atan2(cross,math.max(dot,.25*length2))
 end
+local function spriteRotation(actor,camera,height,parked,presentation)
+    local chassisPitch=presentation and presentation.pitch or actor.pitch
+    if chassisPitch==nil then chassisPitch=math.atan(presentation and presentation.grade or actor.grade or 0) end
+    local pitch=Art.pitchRotation(actor,camera,height,chassisPitch)
+    if parked then return pitch end
+    local lean=presentation and presentation.lean or actor.lean or 0
+    local fixed=not camera.firstPerson and camera.outsideMode~='follow'
+    return Art.bank(actor,camera,lean,fixed and .3 or .16)+pitch
+end
+local function lowestTireArc(state,frame,rotation)
+    local stateWheels=Wheels[state]
+    local row=stateWheels and stateWheels[frame]
+    if not row then return 0 end
+    local s,c=math.sin(rotation),math.cos(rotation)
+    local lowest=-math.huge
+    for i=1,5,4 do
+        local rx,ry=row[i+2],row[i+3]
+        if ry>0 then
+            local center=s*(row[i]-Art.ANCHOR_X)+c*(row[i+1]-Art.ANCHOR_Y)
+            lowest=math.max(lowest,center+math.sqrt((rx*s)^2+(ry*c)^2))
+        end
+    end
+    return lowest==-math.huge and 0 or math.max(0,lowest)
+end
+-- Convert the authored tire contact edge below the sprite pivot into an
+-- equivalent depth offset. This keeps the billboard's ground-contact pixels
+-- in front of the terrain depth buffer without changing its screen position.
+function Art:groundedDepthBias(actor,camera,height,presentation)
+    local state=Pose.select(actor,presentation)
+    local frame=Art.frame(camera,actor.heading,64)
+    local rotation=spriteRotation(actor,camera,height,false,presentation)
+    local lowest=lowestTireArc(state,frame,rotation)
+    local groundScale=math.max(.01,camera:groundScale())
+    return (lowest+1)*Art.SCALE*22*camera:heightScale()
+        /(29*29*groundScale*groundScale)
+end
 function Art.new()
     local parked='assets/commute/bike/parked-16.png'
     assert(love.filesystem.getInfo(parked,'file'),'Missing parked motorcycle atlas: '..parked)
@@ -102,18 +138,12 @@ end
 function Art:draw(actor,camera,world,parked,presentation)
     local height=presentation and presentation.h or actor.h or world:supportHeight(actor.x,actor.z)
     local x,y=camera:screen(actor.x,actor.z,height)
-    local chassisPitch=presentation and presentation.pitch or actor.pitch
-    if chassisPitch==nil then chassisPitch=math.atan(presentation and presentation.grade or actor.grade or 0) end
-    local pitch=Art.pitchRotation(actor,camera,height,chassisPitch)
     local frame=Art.frame(camera,actor.heading,parked and 16 or 64)
     local state,action,turnBlend
-    local rotation=pitch
+    local rotation=spriteRotation(actor,camera,height,parked,presentation)
     if parked then state='parked'
     else
         state,action,turnBlend=Pose.select(actor,presentation)
-        local lean=presentation and presentation.lean or actor.lean or 0
-        local fixed=not camera.firstPerson and camera.outsideMode~='follow'
-        rotation=Art.bank(actor,camera,lean,fixed and .3 or .16)+pitch
         if self.actionPages then
             -- Warm one family per rider. Warming overridden tuck/turn/action
             -- poses together can churn the bounded cache with four riders.
@@ -129,16 +159,7 @@ function Art:draw(actor,camera,world,parked,presentation)
     if not parked and camera.projectionCamera and camera.projectionCamera.includeLocalRider then
         -- The shared pivot is at the wheelbase midpoint. Align the lowest
         -- rotated tire arc to the surface in the over-the-shoulder view.
-        local row=Wheels[state][frame]
-        local s,c=math.sin(rotation),math.cos(rotation)
-        local lowest=-math.huge
-        for i=1,5,4 do
-            local rx,ry=row[i+2],row[i+3]
-            if ry>0 then
-                local center=s*(row[i]-Art.ANCHOR_X)+c*(row[i+1]-Art.ANCHOR_Y)
-                lowest=math.max(lowest,center+math.sqrt((rx*s)^2+(ry*c)^2))
-            end
-        end
+        local lowest=lowestTireArc(state,frame,rotation)
         -- Region coordinates identify pixel centers; include the filtered edge.
         y=y-(lowest+1)*scale
     end

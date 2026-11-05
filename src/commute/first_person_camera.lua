@@ -30,7 +30,7 @@ function FP.update(camera,actor,dt,visual)
     end
     camera.focusHeight=M.finite(visual.h) and visual.h or M.finite(actor.h) and actor.h
         or (camera.world.supportHeight or camera.world.height)(camera.world,actor.x,actor.z)
-    camera.bikeHeading=actor.heading or 0
+    camera.bikeHeading=camera.walkViewHeading or actor.heading or 0
     smooth('rideHeading',camera.bikeHeading,FP.HEADING_SMOOTH_TIME,true)
     smooth('headYaw',camera.lookYaw or 0,FP.LOOK_SMOOTH_TIME)
     smooth('headPitch',camera.lookPitch or 0,FP.LOOK_SMOOTH_TIME)
@@ -74,6 +74,7 @@ function FP.recenter(camera)
     camera.lookYaw,camera.lookPitch,camera.headYaw,camera.headPitch=0,0,0,0
     camera.headYawVelocity,camera.headPitchVelocity=0,0
     camera.rideHeading=camera.lastActor.heading or 0
+    if camera.walkViewHeading then camera.walkViewHeading=camera.rideHeading end
     camera.rideHeadingVelocity=0
     -- Center the head without changing the chosen field of view or bank.
     FP.update(camera,camera.lastActor,0)

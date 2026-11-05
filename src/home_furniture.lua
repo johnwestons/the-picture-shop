@@ -5,6 +5,7 @@ local Grid=require("src.placement_grid")
 local Residents=require("src.home_residents")
 local Surface=require("src.home_surfaces")
 local Objects=require("src.home_objects")
+local HomeInteractions=require("src.home_interactions")
 local Furniture={GRID={cellWidth=8,cellHeight=6,originX=0,originY=0,previewRadius=8,selectionRadius=80}}
 local function clock() return love and love.timer and love.timer.getTime() or os.clock() end
 local function integer(n,a,b) return type(n)=="number" and n==n and n>=a and n<=b and n==math.floor(n) end
@@ -119,9 +120,14 @@ function Furniture.targets(state,player)
                 if (not distance or d<distance) and Navigation.isWalkable(assets,point.x,point.y,obstacles) then best,distance=point,d end
             end
             local pose=Surface.pose(state,item)
-            if best then targets["furniture"..item.id]={kind="homeActivity",fixtureId="furniture"..item.id,
+            if best then
+                local interaction=HomeInteractions.describe(item.kind)
+                targets["furniture"..item.id]={kind="homeActivity",fixtureId="furniture"..item.id,
                 x=best.x,y=best.y,radius=42,hoverX=pose.x,hoverY=pose.y-20,hoverRadius=26,
-                prompt="E: "..Catalog.ITEMS[item.kind].name.." / activities",actionLabel="USE"} end
+                prompt=interaction.category=="menu" and ("E: "..Catalog.ITEMS[item.kind].name.." / activities")
+                    or ("E: "..interaction.prompt),interaction=interaction.category,
+                actionLabel=interaction.actionLabel}
+            end
         end
     end
     return targets

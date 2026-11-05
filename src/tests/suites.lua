@@ -8,10 +8,14 @@ local function legacyGeometry(suite)
 end
 
 local DOMAIN_SUITES = {
+    require('src.tests.independent_scenes_test'),
+    require('src.tests.independent_scenes_runtime_test'),
     require('src.tests.menu_exit_test'),
     require("src.tests.town_setup_test"),
+    {run=function(_,check)require('src.commute.tests.island_variation_test').run(check)end},
     {run=function(_,check)require("src.tests.home_art_preload_test").run(check)end},
     {run=function(_,check)
+        require('src.commute.tests.mobile_vehicle_test').run(check)
         for _,name in ipairs({'camera','follow_camera','camera_controls','camera_preferences','route_map','town_center','town_trails','infrastructure','road_markings'}) do
             require('src.commute.tests.'..name..'_test').run(check)
         end
@@ -23,6 +27,7 @@ local DOMAIN_SUITES = {
         end
     end},
     require("src.tests.home_residents_test"),
+    require("src.tests.guest_payroll_test"),
     require("src.tests.home_shopping_test"),
     require("src.tests.home_furniture_test"),
     require("src.tests.household_finances_test"),
@@ -82,6 +87,7 @@ local DOMAIN_SUITES = {
     require("src.tests.cutter_maintenance_authority_test"),
     require("src.tests.cutter_maintenance_session_test"),
     require("src.tests.cutter_presentation_test"),
+    require("src.tests.machine_64_rotation_test"),
     require("src.tests.machine_motion_test"),
     require("src.tests.cut_stock_margin_test"),
     require("src.tests.cutter_production_session_test"),

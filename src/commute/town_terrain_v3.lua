@@ -1,5 +1,5 @@
--- Frozen island-town terrain. Relief, rivers and habitats retain the current
--- town preset; its coast shape is seeded from Critter Party's island planner.
+-- Saved island-town terrain. Version 7 uses a more winding river course while
+-- keeping the coast and relief generated from the same seeded terrain plan.
 local M=require('src.commute.vendor.mathx')
 local Config=require('src.commute.vendor.world_config')
 local Inland=require('src.commute.town_terrain_v2')
@@ -29,8 +29,9 @@ function V3.shoreline(seed)
     return radii
 end
 
-function V3.generate(seed,frame,shoreline,settings)
-    local terrain=Inland.generate(seed,frame)
+function V3.generate(seed,frame,shoreline,settings,generatorVersion)
+    local naturalRivers=(generatorVersion or 0)>=7
+    local terrain=Inland.generate(seed,frame,naturalRivers)
     if settings then
         terrain.settings=settings
         local scale=({.25,1,1.85})[settings.elevation]
@@ -48,8 +49,10 @@ function V3.generate(seed,frame,shoreline,settings)
             local pts={}
             for i=0,16 do
                 local u=i/16
-                pts[#pts+1]={x=q(join.x+dz/span*220*u+dx/span*10*math.sin(u*5)),
-                    z=q(join.z-dx/span*220*u+dz/span*10*math.sin(u*5))}
+                local bend=naturalRivers and (24*math.sin(u*math.pi*2)+10*math.sin(u*math.pi*4))
+                    or 10*math.sin(u*5)
+                pts[#pts+1]={x=q(join.x+dz/span*220*u+dx/span*bend),
+                    z=q(join.z-dx/span*220*u+dz/span*bend)}
             end
             terrain.rivers[2]={id='tributary',points=pts,waterWidth=4,valleyWidth=17,depth=.55}
         end

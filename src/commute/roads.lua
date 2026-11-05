@@ -146,9 +146,11 @@ function Roads.new(options)
             local steps=math.max(1,math.ceil(M.length(c[1]-b[1],c[2]-b[2])/1.5))
             for j=0,steps-1 do
                 local t=j/steps
+                local height=def.interpolation=='linear' and M.lerp(b[3],c[3],t)
+                    or M.clamp(cat(a[3],b[3],c[3],d[3],t),math.min(b[3],c[3]),math.max(b[3],c[3]))
                 path.points[#path.points+1]={x=def.interpolation=='linear' and M.lerp(b[1],c[1],t) or cat(a[1],b[1],c[1],d[1],t),
                     z=def.interpolation=='linear' and M.lerp(b[2],c[2],t) or cat(a[2],b[2],c[2],d[2],t),
-                    h=M.lerp(b[3],c[3],def.interpolation=='linear' and t or M.smooth(t)),
+                    h=height,
                     bridge=def.bridgeEdges and def.bridgeEdges[i]==true}
             end
         end

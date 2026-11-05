@@ -176,6 +176,113 @@ local function bendValues(ctx,pair)
     values[#values+1]=0
     return values
 end
+local function perimeterRadius(ctx,angle)
+    local shore=ctx.plan.shoreline
+    local position=(angle%(math.pi*2))/(math.pi*2)*#shore+1
+    local base=math.floor(position)
+    local fraction=position-base
+    local total,weight=0,0
+    for offset=-2,2 do
+        local index=(base+offset-1)%#shore+1
+        local w=3-math.abs(offset)
+        total=total+shore[index]*w;weight=weight+w
+    end
+    local nextIndex=base%#shore+1
+    local smooth=total/weight
+    return M.lerp(smooth,shore[nextIndex],fraction*.15)
+end
+local function perimeterPoints(ctx,inset)
+    local center=ctx.plan.config.center or 256
+    local points={}
+    for i=0,94 do
+        local angle=i/95*math.pi*2
+        local radius=perimeterRadius(ctx,angle)-inset
+        local x,z=q(center+math.cos(angle)*radius),q(center+math.sin(angle)*radius)
+        local h=ctx.plan:height(x,z)
+        if h<.85 or not clearLot(ctx,x,z,Trails.WIDTH*.5+1.2)
+            or not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8) then return end
+        points[#points+1]={x,z,q(h)}
+    end
+    points[#points+1]=points[1]
+    for i=1,#points-1 do
+        local previous=points[i==1 and #points-1 or i-1]
+        local current,nextPoint=points[i],points[i+1]
+        local d=distance(previous,nextPoint)
+        if d<1 then return end
+        local nx,nz=-(nextPoint[2]-previous[2])/d,(nextPoint[1]-previous[1])/d
+        for _,side in ipairs({-1,1}) do
+            if ctx.plan:height(current[1]+nx*2.4*side,current[2]+nz*2.4*side)<.8 then return end
+        end
+        if math.abs(previous[3]-current[3])>d*.28 then return end
+        for _,t in ipairs({1/3,2/3}) do
+            local x,z=M.lerp(current[1],nextPoint[1],t),M.lerp(current[2],nextPoint[2],t)
+            if ctx.plan:height(x,z)<.85 or not clearLot(ctx,x,z,Trails.WIDTH*.5+1.2)
+                or not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8) then return end
+        end
+    end
+    if math.abs(points[#points-1][3]-points[1][3])>distance(points[#points-1],points[1])*.28 then return end
+    return points
+end
+local function perimeterAccess(ctx,anchor,target)
+    local a,b=anchor.p,target
+    local direct=distance(a,b)
+    if direct<4 or direct>100 then return end
+    local dx,dz=b[1]-a[1],b[2]-a[2]
+    local nx,nz=-dz/direct,dx/direct
+    local steps=math.ceil(direct/4.2)
+    for _,bend in ipairs({0,10,-10,20,-20,30,-30}) do
+        local points={a};local valid=true
+        for i=1,steps do
+            local t=i/steps
+            local side=bend*math.sin(t*math.pi)
+            local x,z=q(a[1]+dx*t+nx*side),q(a[2]+dz*t+nz*side)
+            local h=ctx.plan:height(x,z)
+            if h<.85 or not clearLot(ctx,x,z,Trails.WIDTH*.5+1.2)
+                or t*direct>8 and (1-t)*direct>8 and not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8) then
+                valid=false;break
+            end
+            if t*direct<10 then h=M.lerp(a[3],h,t*direct/10) end
+            if (1-t)*direct<10 then h=M.lerp(b[3],h,(1-t)*direct/10) end
+            local p=i==steps and b or {x,z,q(h)}
+            local previous=points[#points]
+            if math.abs(previous[3]-p[3])>distance(previous,p)*.28 then valid=false;break end
+            points[#points+1]=p
+        end
+        if valid then return points end
+    end
+end
+local function addPerimeterTrail(ctx,anchors,used)
+    for inset=8,68,4 do
+        local points=perimeterPoints(ctx,inset)
+        if points then
+            local candidates={}
+            for _,anchor in ipairs(anchors) do
+                if not used[anchor] then
+                    local best=math.huge;local index
+                    for i=1,#points-1 do
+                        local d=distance(anchor.p,points[i])
+                        if d<best then best,index=d,i end
+                    end
+                    if best<100 then candidates[#candidates+1]={anchor=anchor,index=index,distance=best} end
+                end
+            end
+            table.sort(candidates,function(a,b)return a.distance<b.distance end)
+            for _,candidate in ipairs(candidates) do
+                local loopId='island-perimeter-trail'
+                local access=perimeterAccess(ctx,candidate.anchor,points[candidate.index])
+                if access then
+                    local function addRoad(id,path)
+                        ctx.town.roads[#ctx.town.roads+1]={id=id,role='trail',surface='dirt',width=Trails.WIDTH,
+                            lanes=1,oneWay=false,turnLane=false,sidewalks=false,points=path,interpolation='linear'}
+                        for i=1,#path-1 do ctx.edges[#ctx.edges+1]=edge(path[i],path[i+1],Trails.WIDTH) end
+                    end
+                    addRoad(loopId,points);addRoad(loopId..'-access',access);used[candidate.anchor]=true
+                    return true
+                end
+            end
+        end
+    end
+end
 local kinds={'picnic','camp','park'}
 local labels={picnic='Shaded Picnic Grove',camp='Pine Campground',park='Woodland Park'}
 local function clearing(ctx,points,index,trailId)
@@ -236,6 +343,10 @@ function Trails.generate(town,plan)
     local settings=town.terrain.settings
     local target=settings and ({0,1,3,7})[settings.trails] or town.seed%2+3
     if target==0 then return 0 end
+    if town.generatorVersion>=7 and plan.island and settings and settings.trails>=3
+        and addPerimeterTrail(ctx,anchors,used) then
+        count=1
+    end
     for _,pair in ipairs(pairsByUsefulness(ctx,nodes,anchors)) do
         if not used[pair.a] and not used[pair.b] then
             for _,bend in ipairs(bendValues(ctx,pair)) do

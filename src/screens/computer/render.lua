@@ -45,6 +45,8 @@ function Component.install(Runtime)
                 pointerX,pointerY,Runtime.drawComputerButton,twelveHourTime)
         elseif Runtime.ComputerScreen.tab == "home" then
             Runtime.drawHome(state,pointerX,pointerY)
+        elseif Runtime.ComputerScreen.tab == 'player_wages' then
+            Runtime.drawPlayerWages(state,pointerX,pointerY)
         elseif Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
             Runtime.drawHomeShop(state,pointerX,pointerY)
         elseif Runtime.ComputerScreen.tab == "inventory" then

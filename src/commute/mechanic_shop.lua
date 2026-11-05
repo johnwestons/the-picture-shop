@@ -5,6 +5,7 @@ local Repairs=require('src.commute.bike_repairs')
 local Residents=require('src.home_residents')
 local Fonts=require('src.screens.title_fonts')
 local Station=require('src.commute.gas_station')
+local TownStore=require('src.commute.town_store')
 local Shop={}
 local shopName=require('src.commute.sites').MECHANIC_NAME:upper()
 local function interior() return require('src.commute.mechanic_interior') end
@@ -19,6 +20,11 @@ end
 local function current(R) return Residents.get(R.state,R.World.player) end
 local function money(cents) return ('$%.2f'):format(cents/100) end
 local function mph(speed) return ('%d mph'):format(math.floor(speed*2.236936+.5)) end
+local function releaseInterior(v)
+    if not v or not v.interior then return end
+    if v.interiorKind=='grocery' then require('src.commute.grocery_interior').release(v.interior)
+    else interior().release(v.interior) end
+end
 function Shop.quote(R,level) return Upgrades.quote(R.state,R.World.player,level) end
 function Shop.paintQuote(R,id) return Paint.quote(R.state,R.World.player,id) end
 function Shop.repairQuote(R) return Repairs.quote(R.state,R.World.player) end
@@ -27,9 +33,13 @@ local function quote(R,v)
     if v.service=='paint' then return Shop.paintQuote(R,v.selectedPaintId) end
     return Shop.quote(R,v.selected)
 end
-function Shop.close(R)
+function Shop.close(R,silent)
     local v=view(R)
-    if v and v.interior then interior().release(v.interior) end
+    if not silent and v and v.interiorKind=='grocery' and R.state.home.commute and R.state.home.commute.independent then
+        R._commute.groceryExiting=true
+        require('src.commute.runtime').request(R,'exitgrocery:'..R.state.home.commute.token)
+    end
+    releaseInterior(v)
     if R._commute then R._commute.mechanicOffer=nil end
 end
 function Shop.open(R)
@@ -42,6 +52,25 @@ function Shop.open(R)
         selected=math.min(Upgrades.MAX_LEVEL,(resident.ridingUpgradeLevel or 0)+1),
         selectedPaintId=resident.ridingPaintId or Paint.DEFAULT,previewFrame=5,
         interior=interior().new(R),elapsed=0}
+    return true
+end
+function Shop.openTownStore(R,storeId,confirmed)
+    local C=require('src.commute.runtime')
+    local part=C.localPart(R)
+    if not part or not TownStore.counter(part.rider,C.world(R),storeId) then
+        R.state.message='Walk up to the store counter on foot first.';return false
+    end
+    if storeId=='grocery' and R.state.home.commute.independent and not confirmed then
+        return C.request(R,'grocery:'..R.state.home.commute.token)
+    end
+    Shop.close(R,true);C.cancelCameraDrag(R)
+    if R._commute then R._commute.mapOpen=false end
+    local offer=TownStore.open(storeId,R.state.home.commute.token)
+    if storeId=='grocery' then
+        offer.page='groceryFloor';offer.interiorKind='grocery';offer.elapsed=0
+        offer.interior=require('src.commute.grocery_interior').new(R)
+    end
+    R._commute.mechanicOffer=offer
     return true
 end
 function Shop.catalog(R)
@@ -111,7 +140,13 @@ function Shop.update(R,dt)
     if v.page=='station' then return true end
     local trip=R.state.home.commute
     if not trip or trip.token~=v.token then Shop.close(R);return false end
+    if v.page=='store' then TownStore.update(v,R.state,dt);return true end
     dt=math.max(0,math.min(.1,dt or 0));v.elapsed=v.elapsed+dt
+    if v.interiorKind=='grocery' then
+        local action=require('src.commute.grocery_interior').update(v.interior,R,dt)
+        if action=='catalog' then v.page='store';v.notice=nil;v.review=nil end
+        return true
+    end
     interior().update(v.interior,R,dt)
     if v.pending then
         local p=v.pending;local resident=current(R);p.elapsed=p.elapsed+dt
@@ -143,6 +178,25 @@ end
 function Shop.keypressed(R,key)
     local v=view(R);if not v then return false end
     if v.page=='station' then return Station.key(v,key,stationArgs(R)) end
+    if v.page=='store' then
+        local C=require('src.commute.runtime')
+        local function buy(storeId,productId,quantity,revision)
+            local okay=C.request(R,('storebuy:%d:%d:%s:%s:%d'):format(v.token,revision,storeId,productId,quantity))
+            if R.multiplayer:isClient() and okay then return 'Purchase sent to the host.',true end
+            return R.state.message or (okay and 'Purchase complete.' or 'Purchase declined.'),okay
+        end
+        local function closeStore()
+            if v.interiorKind=='grocery' then v.page='groceryFloor';v.notice=nil;v.review=nil
+            else Shop.close(R) end
+        end
+        return TownStore.key(v,key,R.state.home.revision,buy,closeStore)
+    end
+    if v.interiorKind=='grocery' and v.page=='groceryFloor' then
+        local action=require('src.commute.grocery_interior').keypressed(v.interior,key)
+        if action=='catalog' then v.page='store';v.notice=nil;v.review=nil
+        elseif action=='exit' then Shop.close(R) end
+        return true
+    end
     if key=='escape' or key=='back' then
         if v.page=='lobby' then Shop.close(R)
         elseif not v.pending and v.page~='install' then v.page='lobby';v.notice=nil end
@@ -194,6 +248,26 @@ end
 function Shop.pointer(R,x,y)
     local v=view(R);if not v then return false end
     if v.page=='station' then return Station.pointer(v,x*960/R.Config.baseWidth,y*678/R.Config.baseHeight,stationArgs(R)) end
+    if v.page=='store' then
+        local C=require('src.commute.runtime')
+        local function buy(storeId,productId,quantity,revision)
+            local okay=C.request(R,('storebuy:%d:%d:%s:%s:%d'):format(v.token,revision,storeId,productId,quantity))
+            if R.multiplayer:isClient() and okay then return 'Purchase sent to the host.',true end
+            return R.state.message or (okay and 'Purchase complete.' or 'Purchase declined.'),okay
+        end
+        local function closeStore()
+            if v.interiorKind=='grocery' then v.page='groceryFloor';v.notice=nil;v.review=nil
+            else Shop.close(R) end
+        end
+        return TownStore.pointer(v,x*960/R.Config.baseWidth,y*678/R.Config.baseHeight,
+            R.state.home.revision,buy,closeStore)
+    end
+    if v.interiorKind=='grocery' and v.page=='groceryFloor' then
+        local action=require('src.commute.grocery_interior').pointer(v.interior,R,x,y)
+        if action=='catalog' then v.page='store';v.notice=nil;v.review=nil
+        elseif action=='exit' then Shop.close(R) end
+        return true
+    end
     if v.page=='lobby' then
         local action=interior().pointer(v.interior,R,x,y)
         if action=='catalog' then browse(R) elseif action=='exit' then Shop.close(R) end
@@ -340,6 +414,15 @@ end
 function Shop.draw(R)
     local v=view(R);if not v then return false end
     if v.page=='station' then return Station.draw(v,require('src.commute.runtime').localPart(R).rider.bike.service,R.state.home.balanceCents,R.Config.baseWidth,R.Config.baseHeight) end
+    if v.page=='store' then
+        local resident=Residents.get(R.state,R.World.player)
+        return TownStore.draw(v,R.state.home.balanceCents,resident and resident.bikeInventory,
+            R.state.home.revision,R.Config.baseWidth,R.Config.baseHeight,
+            v.interiorKind=='grocery' and 'Back to floor' or nil)
+    end
+    if v.interiorKind=='grocery' and v.page=='groceryFloor' then
+        return require('src.commute.grocery_interior').draw(v.interior,R)
+    end
     interior().draw(v.interior,R)
     if v.page=='lobby' then return true end
     local g=love.graphics;g.push('all');g.scale(R.Config.baseWidth/960,R.Config.baseHeight/678)

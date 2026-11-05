@@ -656,6 +656,12 @@ if ($gameActivity -notmatch 'PICTURE_SHOP_GAME_CACHE') {
 '@
     $gameActivity = $gameActivity.Replace('    private void copyGameInsideArchive() {',$replacement.TrimEnd())
 }
+# First launch can be interrupted while the runtime extracts game.love.
+# Reuse only a complete copy of this build's embedded payload.
+$payloadBytes = (Get-Item -LiteralPath $resolvedPackage).Length
+$cacheLengthCheck = 'cachedGame\.length\(\) (?:> 0|== [0-9]+L)'
+if ($gameActivity -notmatch $cacheLengthCheck) { throw 'Android cache length guard was not found.' }
+$gameActivity = $gameActivity -replace $cacheLengthCheck,("cachedGame.length() == " + $payloadBytes + 'L')
 if ($gameActivity -notmatch 'PICTURE_SHOP_STATIC_LIBCPP') {
     $gameActivity = $gameActivity.Replace('            "c++_shared",',
         '            // PICTURE_SHOP_STATIC_LIBCPP: linked into each native library.')

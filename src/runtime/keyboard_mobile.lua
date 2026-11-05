@@ -7,7 +7,7 @@ local function mobileActionLabel(Runtime, selected)
     local kind = selected.kind
     local target = selected.target or {}
     if kind=="homeTravel" then return target.actionLabel or "TRAVEL" end
-    if kind=="homeActivity" then return "USE" end
+    if kind=="homeActivity" then return target.actionLabel or "USE" end
     if kind=="homeDelivery" then return "RECEIVE" end
     if kind == "applicant" or kind == "employeeHighFive" then return target.actionLabel or "TALK" end
     if kind == "workPhone" then
@@ -200,7 +200,8 @@ function Component.install(Runtime)
             if part and part.rider.gear.mounted then
                 return {{key='z',label='SHIFT DOWN'},{key='x',label='SHIFT UP'}}
             end
-            return {{key='g',label='GEAR'},{key='f',label='BRING ALL'},{key='c',label='CAMERA'}}
+            local trip=Runtime.state.home and Runtime.state.home.commute
+            return {{key='g',label='GEAR'},{key='f',label=trip and trip.independent and 'ENTER' or 'BRING ALL'},{key='c',label='CAMERA'}}
         end
         local gear=require('src.commute.outfit').get(Runtime.state,Runtime.World.player)
         if gear and gear.outfit=='geared' then return {{key='g',label='REMOVE GEAR'}} end

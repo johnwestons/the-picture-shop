@@ -61,6 +61,7 @@ function View.shouldDrawActor(entry,localActor)
     return entry.localPlayer~=true and entry.actor~=localActor
 end
 function View.shouldDrawLocalActor(camera,entry)
+    if camera.localVehicle=='ped' and entry.localPlayer and entry.bikeOnly then return true end
     if camera.includeLocalRider~=true or entry.localPlayer~=true then return false end
     return (entry.truck==true)==(camera.localVehicle=='truck')
 end
@@ -143,8 +144,9 @@ function View:draw(renderer,camera,actor,actors)
     g.setShader(self.shader)
     for _,entry in ipairs(self.meshes) do g.setColor(entry.color);g.draw(entry.mesh) end
     renderer.structures:drawFirstPerson(camera,actor,renderer.effectiveRadius)
+    local foliageRadius=renderer.visiblePropsRadius or renderer.effectiveRadius
     for _,p in ipairs(renderer.visibleProps or {}) do
-        self:billboard(camera,p.x,p.z,p.h,renderer.effectiveRadius,function(scale)
+        self:billboard(camera,p.x,p.z,p.h,foliageRadius,function(scale)
             g.setColor(.91,.94,.87)
             renderer.plantSprites:drawPlant(p,renderer.calendar,renderer.clock,0,0,p.scale*scale,renderer.plantMotion:sway(p))
         end)
@@ -168,15 +170,29 @@ function View:draw(renderer,camera,actor,actors)
             end
             self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
                 local proxy=View.actorCamera(camera,p,scale,
-                    camera.includeLocalRider and entry.localPlayer==true and not entry.truck)
-                if entry.gear then
+                    camera.includeLocalRider and entry.localPlayer==true)
+                proxy.localTruckChase=entry.truck and entry.localPlayer and camera.includeLocalRider
+                if entry.dismounting then
                     local presentation=require('src.commute.presentation')
-                    local falling=presentation.beginFallPose(p,entry.presentation,proxy,0,0)
-                    presentation.foot(0,0,scale,entry.gear,p.distance,p.speed,entry.presentation,entry.appearance)
+                    renderer.bikeArt:draw(p,proxy,renderer.world,true,entry.presentation)
+                    presentation.world(renderer.characterAssets,entry.actionActor or p,proxy,renderer.world,
+                        entry.gear,entry.appearance,entry.presentation,renderer.clock)
+                elseif entry.gear then
+                    local presentation=require('src.commute.presentation')
+                    g.setShader()
+                    local authoredCrash=presentation.hasAuthoredCrash(entry.appearance)
+                        and (p.crash~=nil or entry.presentation and entry.presentation.pose=='crash')
+                    local falling=not authoredCrash and presentation.beginFallPose(p,entry.presentation,proxy,0,0)
+                    presentation.world(renderer.characterAssets,p,proxy,renderer.world,
+                        entry.gear,entry.appearance,entry.presentation,renderer.clock)
                     if falling then g.pop() end
                 elseif entry.truck then
                     renderer.truckArt:draw(p,proxy,renderer.world)
                     renderer.truckArt:drawSignals(p,proxy,renderer.world,renderer.clock)
+                    if camera.includeLocalRider and entry.localPlayer then
+                        camera.riderSpriteX,camera.riderSpriteY=g.transformPoint(0,0)
+                        camera.riderSpriteScale=scale
+                    end
                 else
                     local y=renderer.bikeArt:draw(p,proxy,renderer.world,entry.bikeOnly,entry.presentation)
                     if y and camera.includeLocalRider and entry.localPlayer and not entry.bikeOnly then

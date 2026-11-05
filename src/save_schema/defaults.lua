@@ -1,16 +1,22 @@
 -- Default save state and legacy job normalization helpers.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local MachineRotation = require("src.machine_rotation")
 
 function Component.install(Runtime)
     function Runtime.defaultPlacement(config)
-        return {
+        local placement = {
             x = config.spawnX,
             y = config.spawnY,
             direction = config.defaultDirection or "northwest",
             moving = false,
             inMotion = false,
         }
+        if config.rotationKind then
+            placement.rotationIndex = MachineRotation.frameForDirection(
+                config.rotationKind, placement.direction) or 1
+        end
+        return placement
     end
 
     function Runtime.Schema.defaultState()
@@ -60,12 +66,19 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.mergePlacement(fallback, source)
+    function Runtime.mergePlacement(fallback, source, rotationKind)
         local result = Runtime.copy(fallback)
         if type(source) ~= "table" then return result end
         if Runtime.number(source.x) then result.x = source.x end
         if Runtime.number(source.y) then result.y = source.y end
         if Runtime.directions[source.direction] then result.direction = source.direction end
+        if rotationKind then
+            result.rotationIndex = MachineRotation.normalizedFrame(rotationKind, {
+                direction = result.direction,
+                rotationIndex = source.rotationIndex,
+            }, result.direction)
+            result.direction = MachineRotation.directionForFrame(rotationKind, result.rotationIndex)
+        end
         result.moving = source.moving == true
         result.inMotion = source.inMotion == true
         return result

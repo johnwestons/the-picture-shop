@@ -7,6 +7,7 @@ local Paint=require('src.commute.bike_paint')
 local Repairs=require('src.commute.bike_repairs')
 local Service=require('src.commute.bike_service')
 local Station=require('src.commute.gas_station')
+local TownStore=require('src.commute.town_store')
 local Residents=require('src.home_residents')
 local M=require('src.commute.vendor.mathx')
 local CameraControls=require('src.commute.camera_controls')
@@ -47,7 +48,8 @@ function C.touch(R)
     end
     return R._commute.touchControls
 end
-function C.active(R) return R.state.home and R.state.home.commute~=nil end
+function C.hasWorld(R) return R.state.home and R.state.home.commute~=nil end
+function C.active(R) return C.localPart(R)~=nil end
 function C.world(R)
     R._commute=R._commute or {}
     local town=R.state.home and R.state.home.town
@@ -60,6 +62,14 @@ end
 function C.localPart(R)
     local t=R.state.home and R.state.home.commute
     return t and t.participants[Residents.key(R.World.player)]
+end
+function C.localTrip(R)
+    local t=R.state.home and R.state.home.commute
+    local part=C.localPart(R)
+    if not t or not t.independent or not part then return t end
+    local run=t.deliveryDriver==Residents.key(R.World.player) and t.deliveryRun or false
+    return setmetatable({origin=part.origin,destination=part.destination,deliveryRun=run,
+        purpose=run and 'delivery' or 'outing'},{__index=t})
 end
 function C.mapRect(R)
     return {x=24,y=132,width=R.Config.baseWidth-48,height=R.Config.baseHeight-156}
@@ -87,14 +97,47 @@ function C.mobileInputEnabled(R)
 end
 local function rideNotice(R,part)
     if not part then return nil end
+    local trip=C.localTrip(R)
+    if trip and trip.deliveryRun then
+        local run=trip.deliveryRun;local stop=run.stops[run.stopIndex]
+        if run.status=='loading' then
+            if part.rider.vehicle=='truck' then return 'Park in the marked loading bay, exit the truck, then interact to load pallets' end
+            return 'Interact beside the truck in the marked loading bay to load the selected pallets'
+        end
+        if run.status=='offmap' then return 'Delivering in Millhaven · returning to the town gate shortly' end
+        if run.status=='returning' or not stop then
+            return part.rider.vehicle=='truck' and 'Return to The Picture Shop · park in the warehouse loading area · interact to get out'
+                or 'Return the delivery truck to the warehouse'
+        end
+        local progress=('STOP %d/%d · '):format(run.stopIndex,#run.stops)
+        if part.rider.vehicle=='truck' then
+            local label=stop.kind=='city' and ('Drive to the Millhaven gate · '..stop.label)
+                or ('Drive to '..stop.label)
+            return progress..label..' · interact to get out'
+        end
+        if stop.kind=='town' then return progress..'Walk to '..stop.label..' and interact to hand off the pallets' end
+        return progress..'Drive to the Millhaven gate for the off-map delivery'
+    end
     if part.rider.vehicle=='truck' then return 'Delivery truck  ·  steer, accelerate and brake  ·  interact to get out' end
-    local trip=R.state.home.commute
     local truck=trip and trip.truck
     if truck and trip.origin=='warehouse' and M.length(part.rider.ped.x-truck.x,part.rider.ped.z-truck.z)<=5.5 then
         return 'Delivery truck nearby  ·  interact to drive it'
     end
     if Station.atCounter(part.rider,R._commute and R._commute.world) then
         return Bindings.hint(C.bindings(R),'interact')..' / USE: Gas & Tire counter'
+    end
+    if Station.nearCounter(part.rider,R._commute and R._commute.world) then
+        return part.rider.gear.mounted and 'Dismount to use the Gas & Tire counter'
+            or Bindings.hint(C.bindings(R),'interact')..' / USE: Gas & Tire counter'
+    end
+    local storeId=TownStore.nearCounter(part.rider,R._commute and R._commute.world)
+    if storeId then
+        local label=storeId=='grocery' and 'Town grocery' or storeId=='diner' and 'Diner takeout' or 'General store'
+        if part.rider.gear.mounted then return 'Dismount to shop at '..label end
+        if not TownStore.bikeNearby(part.rider,R._commute and R._commute.world,storeId) then
+            return 'Park your bike in the marked space to shop at '..label
+        end
+        return Bindings.hint(C.bindings(R),'interact')..(storeId=='grocery' and ' / ENTER: ' or ' / SHOP: ')..label
     end
     return Cockpit.riderHint(part.rider,part.presentation) or R.state.message
 end
@@ -105,7 +148,7 @@ function C.controlContext(R,part,controlsTop)
     local bike=rider and rider.bike or {}
     local isTruck=rider and rider.vehicle=='truck'
     local view=R._commute or {}
-    local trip=R.state.home.commute
+    local trip=C.localTrip(R)
     local truck=trip and trip.truck
     local nearTruck=truck and trip.origin=='warehouse' and rider and not gear.mounted and not gear.transition
         and M.length(rider.ped.x-truck.x,
@@ -148,7 +191,13 @@ function C.toggleMiniMap(R)
     return true
 end
 function C.activeWaypoint(R)
-    local view=R._commute or {};local trip=R.state.home and R.state.home.commute
+    local view=R._commute or {};local trip=C.localTrip(R)
+    if trip and trip.purpose=='delivery' and trip.deliveryRun then
+        if trip.deliveryRun.status=='loading' then return 'warehouse' end
+        local stop=trip.deliveryRun.stops[trip.deliveryRun.stopIndex]
+        local target=stop and stop.kind=='city' and 'mainland_exit' or stop and stop.id or 'warehouse'
+        return C.world(R).roads.destinations[target] and target or 'warehouse'
+    end
     local target=view.waypointId or trip and trip.destination
     local destinations=C.world(R).roads.destinations
     return destinations[target] and target or trip and trip.destination
@@ -168,8 +217,9 @@ function C.refreshNavigation(R,part,dt,force)
     end
 end
 function C.setWaypoint(R,id)
-    local trip=R.state.home and R.state.home.commute
+    local trip=C.localTrip(R)
     if not trip or not C.world(R).roads.destinations[id] then return false end
+    if trip.purpose=='delivery' then return id==C.activeWaypoint(R) end
     local view=R._commute;view.waypointId=id~=trip.destination and id or nil
     C.refreshNavigation(R,C.localPart(R),0,true)
     local destination=C.world(R).roads.destinations[id]
@@ -191,7 +241,7 @@ function C.mapPointer(R,x,y)
     local view=R._commute;local part=C.localPart(R)
     if view.mapOpen then
         if part and view.routeMap then
-            local id=view.routeMap:hit(C.mapRect(R),x,y,Rider.actor(C.visualRider(part,R.World.player)),
+            local id=view.routeMap:hit(C.mapRect(R),x,y,Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),
                 {destination=C.activeWaypoint(R),home=R.state.home.apartmentId})
             if id then C.setWaypoint(R,id) end
         end
@@ -202,9 +252,11 @@ function C.mapPointer(R,x,y)
         local rect=C.miniMapRect(R)
         if x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height then
             if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
+            local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
+            if view.routeMap:pressMiniFollow(rect,x,y,actor) then return true end
             if view.routeMap:pressMiniZoom(rect,x,y) then return true end
-            local id=view.routeMap:hitMini(rect,x,y,Rider.actor(C.visualRider(part,R.World.player)),
-                {destination=C.activeWaypoint(R)})
+            local id=view.routeMap:hitMini(rect,x,y,actor,
+                {destination=C.activeWaypoint(R),home=R.state.home.apartmentId})
             if id then C.setWaypoint(R,id) end
             return true
         end
@@ -219,16 +271,23 @@ function C.drawMap(R,part)
     C.refreshNavigation(R,part,0,false)
     if view.mapOpen then
         if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
-        local trip=R.state.home.commute
-        view.routeMap:draw(C.mapRect(R),Rider.actor(C.visualRider(part,R.World.player)),{
+        local trip=C.localTrip(R)
+        view.routeMap:draw(C.mapRect(R),Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),{
             origin=trip.origin,destination=C.activeWaypoint(R),home=R.state.home.apartmentId,
             bike=not part.rider.gear.mounted and part.rider.bike or nil,
             route=view.navigationRoute,
             closeHint='Tap a numbered building for a route · Esc: close'})
     elseif view.miniMapVisible~=false then
         if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
-        view.routeMap:drawMini(C.miniMapRect(R),Rider.actor(C.visualRider(part,R.World.player)),{
-            destination=C.activeWaypoint(R),route=view.navigationRoute})
+        local otherPlayers={}
+        for _,player in ipairs(R.multiplayer:remotePlayers()) do
+            if player.sceneId=='commute' and M.finite(player.x) and M.finite(player.y) then
+                otherPlayers[#otherPlayers+1]={id=player.id,name=player.name,x=player.x,z=player.y}
+            end
+        end
+        view.routeMap:drawMini(C.miniMapRect(R),Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),{
+            destination=C.activeWaypoint(R),home=R.state.home.apartmentId,route=view.navigationRoute,
+            players=otherPlayers})
     end
     require('src.screens.ui').panel(button,{.10,.15,.15,1},{.43,.53,.51,1},6,1)
     g.setColor(.94,.95,.89)
@@ -279,7 +338,8 @@ function C.cameraPointer(R,x,y)
             local id=mode[1]
             if not CameraMenu.enabled(id,rider) then return true end
             if id=='center' then view.camera:recenter()
-            elseif id=='first' then view.camera:setFirstPerson(true,Rider.actor(rider))
+            elseif id=='first' then view.camera:setFirstPerson(true,Rider.actor(rider),
+                not rider.gear.mounted and rider.vehicle~='truck')
             else
                 if view.camera.firstPerson then view.camera:setFirstPerson(false,Rider.actor(rider)) end
                 C.bindings(R).outsideCamera=id
@@ -293,12 +353,21 @@ function C.cameraPointer(R,x,y)
     return true
 end
 function C.syncPlayer(player,part)
+    if part.interior then
+        local pose=part.interiorPose
+        player.sceneId=part.interior;player.x,player.y=pose.x,pose.y
+        player.moving=pose.moving==true;player.intentX,player.intentY=pose.intentX or 0,pose.intentY or 1
+        player.animationDistance=pose.animationDistance or 0;player.resting=false
+        return
+    end
     local actor=Rider.actor(part.rider)
+    local transition=part.rider.gear.transition
+    if transition and transition.kind=='dismount' then actor=part.rider.ped end
     player.sceneId='commute';player.x,player.y=actor.x,actor.z
     player.moving=(part.presentation and part.presentation.speed or actor.speed or 0)>.01
     player.animationDistance=(actor.distance or 0)*48;player.resting=false
 end
-function C.visualRider(part,player)
+function C.visualRider(part,player,token)
     local source=part and part.rider
     if not source then return nil end
     if type(player)~='table' or player.sceneId~='commute'
@@ -311,7 +380,11 @@ function C.visualRider(part,player)
         local positioned={}
         for key,value in pairs(actor) do positioned[key]=value end
         positioned.x,positioned.z=player.x,player.y
-        if (name=='bike' or name=='truck') and part.presentation then
+        if name=='bike' and player._rideMotion and player._rideMotion.token==token then
+            visual.motion=player._rideMotion
+            positioned.speed,positioned.heading=visual.motion.speed,visual.motion.heading
+        end
+        if name=='bike' and part.presentation then
             for _,key in ipairs({'h','vy','grounded','suspension','landingPulse','pitch'}) do
                 if part.presentation[key]~=nil then positioned[key]=part.presentation[key] end
             end
@@ -321,17 +394,22 @@ function C.visualRider(part,player)
     return visual
 end
 function C.restore(R)
-    if not C.active(R) then return end
+    if not C.hasWorld(R) then return end
     R.state.home.commute=assert(Trip.restore(R.state.home.commute,C.world(R)))
     local part=C.localPart(R);if part then C.syncPlayer(R.World.player,part) end
 end
 function C.bind(R,player,connected)
-    if not C.active(R) then return true end
+    if not C.hasWorld(R) then return true end
     local okay,part=Trip.rebind(R.state,player,connected,C.world(R))
-    if okay then C.syncPlayer(player,part) end
+    if okay and part then C.syncPlayer(player,part)
+    elseif okay then
+        local resident=Residents.get(R.state,player)
+        require('src.home_travel').placeArrival(R.state,{player},resident and resident.sceneId=='home',{
+            resolveShopSpawn=function(x,y,id,party)return R.World.resolveNetworkSpawn(x,y,id,R.Assets,R.state,party) end})
+    end
     return okay,part
 end
-local actions={equip=true,remove=true,mount=true,dismount=true,arrive=true,finish=true,force=true,cancel=true,
+local actions={grocery=true,exitgrocery=true,equip=true,remove=true,mount=true,dismount=true,arrive=true,load_delivery=true,deliver_stop=true,finish=true,force=true,cancel=true,
     automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,beam=true,reverse=true,rescue=true,truck=true}
 function C.decode(command)
     if type(command)~='string' or #command>80 then return nil end
@@ -340,6 +418,16 @@ function C.decode(command)
         local token,rev=tonumber(stationToken),tonumber(revision)
         if token>=1 and token<=1e12 and rev<=1e12 and (Service.tires[item] or item=='fuel' or item=='oil' or item=='chain') then
             return 'station',token,{item=item,revision=rev}
+        end
+        return nil
+    end
+    local storeToken,storeRevision,storeId,productId,quantity=command:match('^storebuy:(%d+):(%d+):([a-z%-]+):([a-z_]+):(%d+)$')
+    if storeToken then
+        storeToken,storeRevision,quantity=tonumber(storeToken),tonumber(storeRevision),tonumber(quantity)
+        if storeToken>=1 and storeToken<=1e12 and storeRevision>=0 and storeRevision<=1e12
+            and quantity>=1 and quantity<=10
+            and TownStore.quote(storeId,productId,quantity) then
+            return 'storebuy',storeToken,{storeId=storeId,productId=productId,quantity=quantity,expectedRevision=storeRevision}
         end
         return nil
     end
@@ -376,7 +464,7 @@ function C.decode(command)
         return nil
     end
     if command=='remove' then return 'remove',0 end
-    local action;action,token=command:match('^(%a+):(%d+)$');token=tonumber(token)
+    local action;action,token=command:match('^([a-z_]+):(%d+)$');token=tonumber(token)
     if not actions[action] or not token or token<1 or token>1e12 then return nil end
     return action,token
 end
@@ -384,7 +472,22 @@ function C.command(R,player,command)
     local action,token,intent=C.decode(command)
     if not action then return false,'invalid_action','Choose an available riding action.','commute' end
     local okay,message,event
-    if action=='station' then
+    if action=='grocery' or action=='exitgrocery' then
+        local part,t=Trip.participant(R.state,player,token)
+        if not part or not t.independent then return false,'wrong_scene','This store visit has ended.','commute' end
+        if action=='grocery' then
+            if part.interior or not TownStore.counter(part.rider,C.world(R),'grocery') then
+                return false,'out_of_range','Park your bike and walk to the grocery entrance.','commute'
+            end
+            part.interior='grocery';part.interiorPose={x=480,y=548,intentX=0,intentY=-1,animationDistance=0,moving=false}
+        else
+            if part.interior~='grocery' then return false,'wrong_scene','You are not in the grocery store.','commute' end
+            part.interior=nil;part.interiorPose=nil
+        end
+        player.inputX,player.inputY=0,0;C.syncPlayer(player,part)
+        R.state.home.revision=R.state.home.revision+1;okay=true
+        message=action=='grocery' and 'Welcome to the grocery store.' or 'Back outside the grocery store.'
+    elseif action=='station' then
         local part,reason=Trip.participant(R.state,player,token)
         if part and not part.arrived and player.sceneId=='commute' then
             okay,message=Station.buy(part.rider,C.world(R),R.state.home,intent.item,intent.revision)
@@ -393,6 +496,11 @@ function C.command(R,player,command)
                 resident.ridingService=Service.copy(part.rider.bike.service)
                 resident.revision=resident.revision+1;R.state.home.revision=R.state.home.revision+1
             end
+        else okay,message=false,reason or 'This ride is over.' end
+    elseif action=='storebuy' then
+        local part,reason=Trip.participant(R.state,player,token)
+        if part and not part.arrived and (player.sceneId=='commute' or player.sceneId=='grocery' and intent.storeId=='grocery') then
+            okay,message=TownStore.purchase(R.state,player,part.rider,C.world(R),intent.storeId,intent)
         else okay,message=false,reason or 'This ride is over.' end
     elseif action=='bikerepair' then
         okay,message=Repairs.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
@@ -403,20 +511,31 @@ function C.command(R,player,command)
         if action=='upgrade' and R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').close(R) end
     elseif token==0 then
         local resident=Residents.get(R.state,player);local gear=resident and resident.ridingGear
-        if C.active(R) or not gear then return false,'wrong_scene','Use the motorcycle controls outside.','commute' end
+        if R.state.home.commute and R.state.home.commute.participants[Residents.key(player)] or not gear then return false,'wrong_scene','Use the motorcycle controls outside.','commute' end
         okay,message=Gear.begin(gear,'remove',{moving=player.moving==true})
         if okay then resident.revision=resident.revision+1;R.state.home.revision=R.state.home.revision+1 end
     elseif action=='finish' or action=='force' or action=='cancel' then
-        if action=='cancel' then okay,event=Trip.cancel(R.state,player,token,C.world(R))
+        local t=R.state.home.commute
+        if t and t.independent then
+            local part=t.participants[Residents.key(player)]
+            if not part then return false,'wrong_scene','You are not outside.','commute' end
+            okay,event=require('src.commute.free_travel').leave(R.state,player,token,
+                action=='cancel' and part.origin or part.destination,C.world(R))
+        elseif action=='cancel' then okay,event=Trip.cancel(R.state,player,token,C.world(R))
         else okay,event=Trip.finish(R.state,player,token,action=='force') end
         if okay then
-            local players=require('src.weekend_runtime').players(R)
-            require('src.home_residents').recover(R.state)
+            local players={}
+            for _,p in ipairs(require('src.weekend_runtime').players(R)) do
+                if event.participants[Residents.key(p)] then players[#players+1]=p end
+            end
             require('src.home_travel').placeArrival(R.state,players,event.destination~='warehouse',{
                 resolveShopSpawn=function(x,y,id,party)return R.World.resolveNetworkSpawn(x,y,id,R.Assets,R.state,party) end})
-            message=event.message;R.state.screen='world';R.World.selectedInteraction=nil
+            message=event.message
+            if (player.id or 1)==(R.World.player.id or 1) then R.state.screen='world';R.World.selectedInteraction=nil end
         else message=event end
     else
+        local t=R.state.home.commute
+        if action=='arrive' and t and t.independent then return C.command(R,player,'finish:'..token) end
         okay,message=Trip.command(R.state,player,token,action,C.world(R))
         if okay and action=='arrive' and (player.id or 1)==1 then
             local ready=true
@@ -426,7 +545,11 @@ function C.command(R,player,command)
         end
     end
     message=message or (okay and 'Riding action started.' or 'That riding action is unavailable.')
-    if okay then R.state.message=message;R.saveCurrent();if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end end
+    if okay then
+        R.state.message=message;R.saveCurrent()
+        if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end
+        if (action=='finish' or action=='force' or action=='cancel') and not C.active(R) then C.releaseView(R) end
+    end
     return okay,okay and 'accepted' or 'not_allowed',message,'commute'
 end
 function C.request(R,command)
@@ -438,6 +561,11 @@ function C.request(R,command)
 end
 function C.localInput(R)
     local x,y=R.Input.movement();local part=C.localPart(R)
+    if part and part.interior then
+        local offer=R._commute and R._commute.mechanicOffer
+        local view=offer and offer.page=='groceryFloor' and offer.interior
+        return view and view.netInputX or 0,view and view.netInputY or 0,false
+    end
     if R._commute and (R._commute.mechanicOffer or R._commute.loading) then return 0,0,false end
     if not part or part.arrived or part.rider.gear.transition or part.presentation and part.presentation.pose~='normal_idle'
         and part.presentation.pose~='geared_idle' and part.presentation.pose~='riding' and part.presentation.pose~='seated' then return 0,0 end
@@ -452,6 +580,14 @@ function C.localInput(R)
         if camera then x,y=camera:screenVectorToWorld(x,y) end
     end
     local view=R._commute
+    if view and view.renderer and not view.renderer:terrainReady() then
+        if part.rider.gear.mounted or part.rider.vehicle=='truck' then return 0,0,false end
+        local starter=view.renderer.starter
+        if starter then
+            local dx,dz=part.rider.ped.x-starter.x,part.rider.ped.z-starter.z
+            if dx*dx+dz*dz>(starter.radius-6)^2 and dx*x+dz*y>0 then return 0,0,false end
+        end
+    end
     return x,y,part.rider.gear.mounted and (keyboardBoost or view and view.touchBoost==true) or false
 end
 local function input(rider,x,y,boost)
@@ -462,12 +598,26 @@ local function input(rider,x,y,boost)
         or {walkX=x,walkZ=y}
 end
 function C.update(R,dt,x,y,boost)
+    if R._commute and R._commute.renderer and not C.active(R) then C.releaseView(R) end
+    local localPart=C.localPart(R)
+    if localPart and localPart.interior and R._commute and R._commute.renderer then C.releaseView(R) end
+    local offer=R._commute and R._commute.mechanicOffer
+    if offer and offer.interiorKind=='grocery' and localPart and not localPart.interior then
+        require('src.commute.mechanic_shop').close(R,true)
+    end
     if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').update(R,dt) end
     local dirty=false
     if not R.multiplayer:isClient() then
         local players=require('src.weekend_runtime').players(R)
-        if C.active(R) then
+        if C.hasWorld(R) then
             local world=C.world(R)
+            local motionActive=false
+            R._commute.trafficClock=(R._commute.trafficClock or 0)+dt
+            if R._commute.trafficClock>=1 then
+                R._commute.trafficClock=0
+                dirty=require('src.commute.delivery_traffic').update(R.state,R.state.home.town,
+                    require('src.business_calendar').absoluteHours(R.state),os.time()) or dirty
+            end
             for _,player in ipairs(players) do
                 local part=R.state.home.commute.participants[Residents.key(player)]
                 if part then
@@ -478,17 +628,22 @@ function C.update(R,dt,x,y,boost)
                     end
                     dirty=Trip.update(R.state,player,input(part.rider,ix,iy,boostInput),dt,world) or dirty
                     C.syncPlayer(player,part)
+                    motionActive=motionActive or player.moving or part.rider.gear.transition~=nil
+                        or math.abs(ix)+math.abs(iy)>.001
                 end
             end
+            if R._commute.motionActive and not motionActive then dirty=true end
+            R._commute.motionActive=motionActive
             R._commute.networkClock=(R._commute.networkClock or 0)+dt
-            if R._commute.networkClock>=.1 then
+            if motionActive and R._commute.networkClock>=.25 then
                 R._commute.networkClock=0
                 if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end
             end
             R._commute.saveClock=(R._commute.saveClock or 0)+dt
-            if R._commute.saveClock>=5 then R._commute.saveClock=0;dirty=true end
-        else
-            for _,player in ipairs(players) do
+            if motionActive and R._commute.saveClock>=5 then R._commute.saveClock=0;dirty=true end
+        end
+        for _,player in ipairs(players) do
+            if not C.hasWorld(R) or not R.state.home.commute.participants[Residents.key(player)] then
                 local resident=Residents.get(R.state,player);local gear=resident and resident.ridingGear
                 if gear and Gear.update(gear,dt) then resident.revision=resident.revision+1;R.state.home.revision=R.state.home.revision+1;dirty=true end
             end
@@ -497,14 +652,39 @@ function C.update(R,dt,x,y,boost)
     end
     local part=C.localPart(R)
     if part then
-        local world=C.world(R);local rider=C.visualRider(part,R.World.player)
+        if part.interior=='grocery' then
+            local view=R._commute or {};R._commute=view
+            if not view.mechanicOffer and not view.groceryExiting then
+                require('src.commute.mechanic_shop').openTownStore(R,'grocery',true)
+            end
+            return dirty
+        elseif R._commute then R._commute.groceryExiting=nil end
+        local world=C.world(R);local rider=C.visualRider(part,R.World.player,R.state.home.commute.token)
         local horn=rider.gear.mounted and Bindings.value(C.bindings(R),'horn',C.touch(R))>0 or false
         rider.bike.horn=horn;part.rider.bike.horn=horn
         local actor=Rider.actor(rider);local view=R._commute
+        local visual=part.presentation
+        view.controlFeedback=nil
+        if R.multiplayer:isClient() and visual and visual.pose=='riding' and rider.gear.mounted
+            and rider.vehicle~='truck' and not part.arrived then
+            -- Only the local rider's visible controls lead the network. The
+            -- host continues to supply position, speed, impacts and gear.
+            local steer=input(rider,x or 0,y or 0,false).steer
+            local axis=y or 0
+            local speed=rider.motion and rider.motion.speed or visual.speed or 0
+            local braking=visual.grounded==false and axis>0 or visual.grounded~=false
+                and speed>0 and ((axis>0)~=(actor.reverse==true))
+            local brake=braking and math.abs(axis) or 0
+            visual=setmetatable({steer=steer,brake=brake,speed=speed,
+                lean=M.clamp(-steer*speed*.025,-.8,.8),
+                brakingPose=M.smooth((brake-.35)/.5)*M.smooth((speed-.7)/2.5)},
+                {__index=part.presentation})
+            view.controlFeedback=visual
+        end
         if not view.camera then view.camera=require('src.commute.camera').new(actor,world);view.camera.zoom=1;view.camera.targetZoom=1 end
         C.applyCameraPreference(R,view.camera,rider)
         if not rider.gear.mounted or rider.vehicle=='truck' or not M.finite(actor.h) then actor.h=world:supportHeight(actor.x,actor.z) end
-        view.camera:updateRide(rider,dt,part.presentation)
+        view.camera:updateRide(rider,dt,visual)
         C.refreshNavigation(R,part,dt,false)
         if R.state.screen=='world' and not view.mechanicOffer and not view.loading and not view.mapOpen
             and not require('src.screens.hud_visibility').cameraLocked(R) then
@@ -514,7 +694,7 @@ function C.update(R,dt,x,y,boost)
         if not view.renderer then
             -- Present a loading frame before decoding/uploading shared ride art.
             if not view.loading then view.loading=true;return dirty end
-            view.renderer=require('src.commute.renderer').new(world)
+            view.renderer=require('src.commute.renderer').new(world,{x=actor.x,z=actor.z})
             view.renderer:prewarmViews()
             view.cockpit=require('src.commute.cockpit').new()
             view.cockpit:prewarmFirstPerson()
@@ -528,14 +708,13 @@ function C.update(R,dt,x,y,boost)
         for _,player in ipairs(R.multiplayer:remotePlayers()) do playersBySlot[player.id]=player end
         for id,p in pairs(R.state.home.commute.participants) do
             local player=p==part and R.World.player or playersBySlot[p.slot]
-            local r=p==part and rider or C.visualRider(p,player)
+            if player and Residents.key(player)~=id then player=nil end
+            local r=p==part and rider or C.visualRider(p,player,R.state.home.commute.token)
             particleRiders[#particleRiders+1]={id=id,bike=r.bike,visual=p.presentation,
-                engine=r.gear.engine==true,mounted=r.gear.mounted==true}
+                engine=player~=nil and r.gear.engine==true,mounted=player~=nil and r.gear.mounted==true}
         end
         view.renderer:updateBikeParticles(particleRiders,dt)
-        if view.loading and view.renderer:terrainReady()
-            and view.renderer.vegetation:stats().pending==0
-            and view.renderer.plantSprites:readyFor(view.renderer.visibleProps,view.renderer.calendar,view.renderer.clock) then
+        if view.loading and view.renderer:starterReady() then
             view.loading=nil
         end
     end
@@ -555,8 +734,7 @@ function C.draw(R)
         local message='Loading your saved town and motorcycle.'
         if view.renderer then
             local stats=view.renderer:terrainStats()
-            message=stats.ready and 'Preparing roadside scenery.'
-                or ('Preparing the complete terrain: %d%%'):format(math.floor(100*stats.completed/math.max(1,stats.total)))
+            message=('Preparing nearby ground: %d tiles left'):format(stats.starterRemaining)
         end
         g.printf(message,20,R.Config.baseHeight*.46+30,R.Config.baseWidth-40,'center')
         g.setColor(1,1,1);return
@@ -570,43 +748,106 @@ function C.draw(R)
     local actors={}
     for id,p in pairs(R.state.home.commute.participants) do
         local player=p.slot==localId and R.World.player or playersById[p.slot]
-        local r=C.visualRider(p,player)
-        actors[#actors+1]={actor=r.bike,bikeOnly=not r.gear.mounted,presentation=p.presentation,
-            localPlayer=p.slot==localId}
-        if r.vehicle=='truck' then actors[#actors+1]={actor=r.truck,truck=true,presentation=p.presentation,
-            localPlayer=p.slot==localId}
-        elseif not r.gear.mounted then actors[#actors+1]={actor=r.ped,gear=r.gear,presentation=p.presentation,
-            appearance=p.appearance,localPlayer=p.slot==localId} end
+        if player and Residents.key(player)~=id then player=nil end
+        local r=C.visualRider(p,player,R.state.home.commute.token)
+        if p==part and view.controlFeedback and r.bike~=p.rider.bike then
+            -- Lead the drawn heading slightly while the host turn catches up.
+            local feedback=view.controlFeedback
+            local delta=feedback.steer-(r.motion and r.motion.steer or p.presentation.steer or 0)
+            r.bike.heading=r.bike.heading+delta*math.min(feedback.speed*.025,.14)
+                *(r.bike.reverse and -1 or 1)
+        end
+        local dismounting=r.gear.transition and r.gear.transition.kind=='dismount'
+            or p.presentation and p.presentation.pose=='dismount'
+        actors[#actors+1]={actor=r.bike,bike=true,bikeOnly=not player or not r.gear.mounted or dismounting,
+            dismounting=dismounting==true,actionActor=dismounting and r.ped or nil,
+            gear=dismounting and r.gear or nil,appearance=dismounting and p.appearance or nil,
+            presentation=p==part and view.controlFeedback or p.presentation,localPlayer=p==part}
+        if r.vehicle=='truck' then actors[#actors+1]={actor=r.truck,truck=true,
+            localPlayer=p==part}
+        elseif player and not p.interior and not r.gear.mounted and not dismounting then actors[#actors+1]={actor=r.ped,gear=r.gear,presentation=p.presentation,
+            appearance=p.appearance,localPlayer=p==part} end
     end
-    local trip=R.state.home.commute
+    local trip=C.localTrip(R)
     if trip.truck and not trip.truck.driver then actors[#actors+1]={actor=trip.truck,truck=true,parkedTruck=true} end
-    local actor=Rider.actor(C.visualRider(part,R.World.player))
+    local traffic=require('src.commute.delivery_traffic').actors(R.state,R.state.home.town,
+        require('src.business_calendar').absoluteHours(R.state),os.time())
+    for _,entry in ipairs(traffic) do actors[#actors+1]=entry end
+    local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
     view.renderer:draw(view.camera,actor,actors)
+    if not view.renderer:terrainReady() and not view.mapOpen then
+        local stats=view.renderer:terrainStats()
+        local message=part.rider.gear.mounted
+            and ('Town loading %d%% · riding opens when ready'):format(
+                math.floor(100*stats.completed/math.max(1,stats.total)))
+            or ('Town loading %d%% · walk and gear up while it finishes'):format(
+                math.floor(100*stats.completed/math.max(1,stats.total)))
+        g.setColor(.025,.04,.035,.82)
+        g.rectangle('fill',18,810,math.min(800,g.getFont():getWidth(message)*1.35+24),42,6)
+        g.setColor(.87,.91,.82,.95)
+        g.print(message,30,819,0,1.35,1.35)
+        g.setColor(1,1,1)
+    end
     if part.rider.vehicle=='truck' and view.camera.firstPerson then
         if not view.truckCockpit then view.truckCockpit=require('src.commute.truck_cockpit').new() end
-        view.truckCockpit:draw(part.rider.truck,1280,880)
+        view.truckCockpit:draw(part.rider.truck,1280,880,view.camera)
     end
     if showHud then
-        if part.rider.gear.mounted and part.rider.gear.engine and not part.arrived
+        local truck=part.rider.vehicle=='truck' and part.rider.truck
+        if (truck and truck.engine~=false or part.rider.gear.mounted and part.rider.gear.engine) and not part.arrived
             and Bindings.freeCameraTouch(C.mobileInputEnabled(R),view.camera) then
-            C.touch(R):drawAim(view.camera,actor)
+            C.touch(R):drawAim(view.camera,actor,truck)
         end
-        for _,id in ipairs({R.state.home.commute.origin,R.state.home.commute.destination}) do
-            local p=view.world.sites.byId[id].door;local sx,sy=view.camera:screen(p.x,p.z,p.h+.1)
-            g.setColor(.9,.8,.45);g.circle('line',sx,sy,18);g.print('DOOR',sx-18,sy-30)
+        local markerIds
+        if trip.purpose=='delivery' then
+            local waypoint=C.activeWaypoint(R)
+            markerIds=waypoint~='mainland_exit' and {waypoint} or {}
+        else markerIds={trip.origin,trip.destination} end
+        for _,id in ipairs(markerIds) do
+            local site=view.world.sites.byId[id]
+            local p=site and site.door
+            if p then
+                local sx,sy=view.camera:screen(p.x,p.z,p.h+.1)
+                g.setColor(.9,.8,.45);g.circle('line',sx,sy,18);g.print('STOP',sx-18,sy-30)
+            end
         end
     end
     g.pop()
     end
+    local activeTrip=C.localTrip(R)
+    if activeTrip.deliveryRun and activeTrip.deliveryRun.status=='offmap' then
+        local w,h=R.Config.baseWidth,R.Config.baseHeight
+        local phase=love.timer.getTime();local left=math.max(0,
+            (activeTrip.deliveryRun.cutsceneEndsAtEpoch or os.time())-os.time())
+        local stop=activeTrip.deliveryRun.stops[activeTrip.deliveryRun.stopIndex]
+        g.push('all');g.setColor(.012,.022,.03,1);g.rectangle('fill',0,0,w,h)
+        g.setColor(.14,.19,.20,1);g.rectangle('fill',0,h*.62,w,h*.38)
+        g.setColor(.19,.29,.31,1);g.rectangle('fill',0,h*.50,w,h*.12)
+        for i=0,9 do
+            local x=i*170-(phase*260)%170
+            g.setColor(.88,.75,.45,.82);g.rectangle('fill',x,h*.78,78,5)
+        end
+        g.setColor(.06,.085,.09,1);g.rectangle('fill',w*.22,h*.43,w*.43,h*.19,7)
+        g.setColor(.78,.72,.58,1);g.rectangle('fill',w*.57,h*.48,w*.19,h*.14,7)
+        g.setColor(.08,.11,.12,1);g.rectangle('fill',w*.61,h*.50,w*.08,h*.075,4)
+        for _,x in ipairs({w*.31,w*.52,w*.66,w*.72}) do
+            g.setColor(.025,.03,.03,1);g.circle('fill',x,h*.63,h*.035)
+            g.setColor(.62,.59,.50,1);g.circle('fill',x,h*.63,h*.017)
+        end
+        g.setColor(.95,.91,.77,1);g.printf('DELIVERING IN '..(stop and stop.city or 'MILLHAVEN'),0,h*.20,w,'center')
+        g.setColor(.72,.80,.76,1);g.printf('A short run beyond the town gate · returning to the island',0,h*.27,w,'center')
+        g.setColor(.95,.81,.47,1);g.printf(('RETURNING IN %d'):format(math.ceil(left)),0,h*.86,w,'center')
+        g.pop();g.setColor(1,1,1,1);return
+    end
     if not showHud then
         if part.rider.gear.mounted and view.camera.firstPerson then
             if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
-            view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,part.presentation,view.camera,C.bindings(R))
+            view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
         end
         g.setColor(1,1,1);return
     end
-    local trip=R.state.home.commute
-    local target=view.world.roads.destinations[trip.purpose=='outing' and C.activeWaypoint(R) or trip.destination]
+    local trip=C.localTrip(R)
+    local target=view.world.roads.destinations[(trip.purpose=='outing' or trip.purpose=='delivery') and C.activeWaypoint(R) or trip.destination]
     local toolbar=require('src.screens.hud_visibility').buttons(R)[1]
     local right=(toolbar and toolbar.x or R.Config.baseWidth)-12
     local cameraWidth=math.max(1,math.min(224,right-Cockpit.CARD_X-Cockpit.CARD_WIDTH-8))
@@ -645,7 +886,7 @@ function C.draw(R)
     end
     if part.rider.gear.mounted and part.rider.vehicle~='truck' and not view.mapOpen then
         if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
-        view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,part.presentation,view.camera,C.bindings(R))
+        view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
     end
     if not view.mapOpen then
         C.touch(R):draw(R.Config.baseWidth,R.Config.baseHeight,bindings,C.controlContext(R,part,controlsTop),
@@ -654,7 +895,7 @@ function C.draw(R)
     C.drawMap(R,part)
     C.drawCameraButton(R)
     g.setColor(1,1,1)
-    return target.label,trip.purpose=='outing' and 'TOWN OUTING' or trip.destination=='warehouse' and 'RIDE TO WORK' or 'RIDE HOME'
+    return target.label,trip.purpose=='delivery' and 'CUSTOMER DELIVERY' or trip.purpose=='outing' and 'TOWN OUTING' or trip.destination=='warehouse' and 'RIDE TO WORK' or 'RIDE HOME'
 end
 function C.keypressed(R,key,semantic)
     if R.state.screen~='world' then return false end
@@ -674,7 +915,7 @@ function C.keypressed(R,key,semantic)
     end
     local part=C.localPart(R);if not part then return false end
     if R._commute.cameraMenu and (key=='escape' or key=='back') then R._commute.cameraMenu=false;return true end
-    if R._commute and R._commute.loading and key~='escape' and key~='back' and key~='f10' then return true end
+    if R._commute and R._commute.loading and not part.interior and key~='escape' and key~='back' and key~='f10' then return true end
     if R._commute and R._commute.mechanicOffer then
         if key==(semantic and 'e' or C.bindings(R).keyboard.interact) then key='e' end
         return require('src.commute.mechanic_shop').keypressed(R,key)
@@ -696,7 +937,8 @@ function C.keypressed(R,key,semantic)
         key=Bindings.byId[id].main
         if not key or key=='' then return true end
     end
-    local t=R.state.home.commute;local r=part.rider;local camera=R._commute and R._commute.camera
+    local t=C.localTrip(R);local r=part.rider;local camera=R._commute and R._commute.camera
+    if t.deliveryRun and t.deliveryRun.status=='offmap' then return true end
     if require('src.screens.hud_visibility').cameraLocked(R)
         and (key=='q' or key=='r' or key=='t' or key=='y' or key=='c' or key=='=' or key=='-') then return true end
     if key=='m' then C.toggleMap(R)
@@ -723,12 +965,25 @@ function C.keypressed(R,key,semantic)
         elseif r.gear.mounted then C.request(R,'dismount:'..t.token)
         else
             local sites=C.world(R).sites.byId
-            local function near(p)return p and M.length(r.ped.x-p.door.x,r.ped.z-p.door.z)<=1.8 end
-            if Station.atCounter(r,C.world(R)) then
+            local function near(p)return p and p.door and M.length(r.ped.x-p.door.x,r.ped.z-p.door.z)<=1.8 end
+            local run=t.deliveryRun;local stop=run and run.stops[run.stopIndex]
+            if stop and stop.kind=='town' and near(C.world(R).sites.byId[stop.id]) then
+                C.request(R,'deliver_stop:'..t.token)
+            elseif Station.atCounter(r,C.world(R)) then
                 C.cancelCameraDrag(R);R._commute.mechanicOffer=Station.open()
             elseif near(sites.mechanic) then C.openMechanic(R)
+            elseif TownStore.counter(r,C.world(R),'grocery') then C.openTownStore(R,'grocery')
+            elseif TownStore.counter(r,C.world(R),'general-store') then C.openTownStore(R,'general-store')
+            elseif TownStore.counter(r,C.world(R),'diner') then C.openTownStore(R,'diner')
+            elseif run and run.status=='loading' and t.truck
+                and M.length(r.ped.x-t.truck.x,r.ped.z-t.truck.z)<=5.5 then
+                if Trip.truckAtLoadingBay(C.world(R),t.truck) then
+                    C.request(R,'load_delivery:'..t.token)
+                else
+                    C.request(R,'truck:'..t.token)
+                end
             elseif t.origin=='warehouse' and t.truck and M.length(r.ped.x-t.truck.x,r.ped.z-t.truck.z)<=5.5 then C.request(R,'truck:'..t.token)
-            else C.request(R,(near(sites[t.destination]) and 'arrive:' or near(sites[t.origin]) and 'cancel:' or 'mount:')..t.token) end
+            else C.request(R,(near(sites[part.destination or t.destination]) and 'arrive:' or near(sites[part.origin or t.origin]) and 'cancel:' or 'mount:')..t.token) end
         end
     elseif key=='q' and camera then camera:orbit(-15,0)
     elseif key=='r' and camera then camera:orbit(15,0)
@@ -794,10 +1049,10 @@ function C.drawGearTouch(R)
     g.pop();return true
 end
 function C.touchPressed(R,id,x,y)
-    if R.state.screen~='world' or R.World.player.sceneId~='commute' or not C.localPart(R) then return false end
+    if R.state.screen~='world' or not C.localPart(R) then return false end
     local view=R._commute
-    if not view or not view.renderer or view.loading then return true end
     if R._commute and R._commute.mechanicOffer then C.pointer(R,x,y,id);return true end
+    if not view or not view.renderer or view.loading then return true end
     if C.cameraPointer(R,x,y) then return true end
     if C.mapPointer(R,x,y) then return true end
     local touch=C.touch(R)
@@ -948,7 +1203,7 @@ function C.cameraTouchReleased(R,id)
     return true
 end
 function C.release(R)
-    if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').close(R) end
+    if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').close(R,true) end
     if R._commute and R._commute.renderer then R._commute.renderer:release() end
     if R._commute and R._commute.cockpit then R._commute.cockpit:release() end
     if R._commute and R._commute.truckCockpit then R._commute.truckCockpit:release() end
@@ -956,10 +1211,22 @@ function C.release(R)
     Icons.release()
     R._commute=nil
 end
+function C.releaseView(R)
+    -- Keep terrain/collision data for remote riders on an indoor host. GPU
+    -- assets, camera, maps and cockpit only belong to the local scene.
+    local world=R._commute and R._commute.world
+    C.release(R)
+    if world and C.hasWorld(R) then R._commute={world=world} end
+end
 function C.openMechanic(R)
     C.cancelCameraDrag(R)
     if R._commute then R._commute.mapOpen=false end
     return require('src.commute.mechanic_shop').open(R)
+end
+function C.openTownStore(R,storeId)
+    C.cancelCameraDrag(R)
+    if R._commute then R._commute.mapOpen=false end
+    return require('src.commute.mechanic_shop').openTownStore(R,storeId)
 end
 function C.buyUpgrade(R) return require('src.commute.mechanic_shop').confirm(R) end
 function C.drawMechanic(R) return require('src.commute.mechanic_shop').draw(R) end

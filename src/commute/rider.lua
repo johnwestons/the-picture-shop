@@ -80,14 +80,30 @@ function Rider.command(r,action,world)
         moving=r.ped.speed>.05,speed=r.gear.mounted and r.bike.speed or 0,safeFooting=x~=nil})
     if okay then
         r.ped.speed=0;r.ped.vx=0;r.ped.vz=0
-        if action=='dismount' then r.dismountPoint={x=x,z=z} end
+        if action=='dismount' then r.dismountPoint={x=x,z=z}
+        elseif action=='mount' then r.mountPoint={x=r.ped.x,z=r.ped.z} end
     end
     return okay,reason
 end
 function Rider.update(r,input,dt,world)
     dt=M.clamp(dt,0,.1)
+    -- Ped snapshots omit this presentation-only gait phase, so a rider
+    -- restored during a multiplayer disconnect may not have one yet.
+    if not M.finite(r.ped.distance) then r.ped.distance=0 end
     local previousMounted=r.gear.mounted
     local finished=Gear.update(r.gear,dt)
+    local transition=r.gear.transition
+    if transition and transition.kind=='mount' and r.mountPoint then
+        local progress=math.min(1,transition.elapsed/Gear.duration('mount'))
+        r.ped.x=M.lerp(r.mountPoint.x,r.bike.x,progress)
+        r.ped.z=M.lerp(r.mountPoint.z,r.bike.z,progress)
+        r.ped.heading=r.bike.heading
+    elseif transition and transition.kind=='dismount' and r.dismountPoint then
+        local progress=math.min(1,transition.elapsed/Gear.duration('dismount'))
+        r.ped.x=M.lerp(r.bike.x,r.dismountPoint.x,progress)
+        r.ped.z=M.lerp(r.bike.z,r.dismountPoint.z,progress)
+        r.ped.heading=r.bike.heading
+    end
     if not Gear.allowed(r.gear,'ride') then
         require('src.commute.riding_animation').reset(r.bike)
     end
@@ -98,6 +114,8 @@ function Rider.update(r,input,dt,world)
         -- The controller reserves clear footing before beginning dismount.
         if x then r.ped.x,r.ped.z=x,z end
         r.ped.heading=r.bike.heading;r.dismountPoint=nil
+    elseif r.gear.mounted then
+        r.mountPoint=nil
     end
     if r.gear.engine and r.bike.service.fuel<=0 then
         r.gear.engine=false;r.gear.revision=r.gear.revision+1;finished=true

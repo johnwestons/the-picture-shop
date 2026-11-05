@@ -1,4 +1,5 @@
 local CutterPlacement = {}
+local MachineRotation = require("src.machine_rotation")
 
 local directionFrames = {
     northwest = 1,
@@ -10,32 +11,13 @@ local directionFrames = {
     southwest = 7,
     west = 8,
 }
-local clockwise = {
-    northwest = "north",
-    north = "northeast",
-    northeast = "east",
-    east = "southeast",
-    southeast = "south",
-    south = "southwest",
-    southwest = "west",
-    west = "northwest",
-}
-local operatorSigns = {
-    northwest = { x = 1, y = 1 },
-    north = { x = 0, y = 1 },
-    northeast = { x = -1, y = 1 },
-    east = { x = -1, y = 0 },
-    southeast = { x = -1, y = -1 },
-    south = { x = 0, y = -1 },
-    southwest = { x = 1, y = -1 },
-    west = { x = 1, y = 0 },
-}
-
 function CutterPlacement.defaultState(config)
+    local direction = config.defaultDirection or "northwest"
     return {
         x = config.spawnX,
         y = config.spawnY,
-        direction = config.defaultDirection or "northwest",
+        direction = direction,
+        rotationIndex = MachineRotation.frameForDirection("cutter", direction) or 1,
         moving = false,
         inMotion = false,
     }
@@ -48,6 +30,8 @@ function CutterPlacement.ensure(state, config)
     cutter.y = type(cutter.y) == "number" and cutter.y or config.spawnY
     cutter.direction = directionFrames[cutter.direction] and cutter.direction
         or config.defaultDirection or "northwest"
+    cutter.rotationIndex = MachineRotation.normalizedFrame("cutter", cutter, config.defaultDirection or "northwest")
+    cutter.direction = MachineRotation.directionForFrame("cutter", cutter.rotationIndex)
     cutter.moving = cutter.moving == true
     cutter.inMotion = cutter.inMotion == true
     return cutter
@@ -57,11 +41,15 @@ function CutterPlacement.frame(state, config)
     return directionFrames[CutterPlacement.ensure(state, config).direction]
 end
 
+function CutterPlacement.rotationFrameFor(placement)
+    return MachineRotation.frameFor("cutter", placement)
+end
+
 function CutterPlacement.operatorPosition(state, config)
     local cutter = CutterPlacement.ensure(state, config)
-    local sign = operatorSigns[cutter.direction]
-    return cutter.x + sign.x * config.operatorDistanceX,
-        cutter.y + sign.y * config.operatorDistanceY
+    local signX, signY = MachineRotation.operatorVector("cutter", cutter.rotationIndex)
+    return cutter.x + signX * config.operatorDistanceX,
+        cutter.y + signY * config.operatorDistanceY
 end
 
 function CutterPlacement.obstacle(state, config)
@@ -91,6 +79,7 @@ function CutterPlacement.beginMove(state, config)
         x = cutter.x,
         y = cutter.y,
         direction = cutter.direction,
+        rotationIndex = cutter.rotationIndex,
     }
     cutter.moving = true
     return true
@@ -108,8 +97,9 @@ end
 
 function CutterPlacement.rotate(state, config)
     local cutter = CutterPlacement.ensure(state, config)
-    cutter.direction = clockwise[cutter.direction]
-    return true, cutter.direction
+    cutter.rotationIndex = cutter.rotationIndex % 64 + 1
+    cutter.direction = MachineRotation.directionForFrame("cutter", cutter.rotationIndex)
+    return true, cutter.direction, cutter.rotationIndex
 end
 
 function CutterPlacement.place(state, config)
@@ -127,6 +117,7 @@ function CutterPlacement.snapshot(state, config)
         y = cutter.y,
         direction = cutter.direction,
         frame = directionFrames[cutter.direction],
+        rotationIndex = cutter.rotationIndex,
         moving = cutter.moving,
         inMotion = cutter.inMotion,
     }

@@ -100,7 +100,8 @@ function Audio:update(dt,bike,engine,options)
         local weight
         if self.rpm<=base then weight=i==1 and 1 or clamp((self.rpm-bands[i-1])/(base-bands[i-1]),0,1)
         else weight=i==#bands and 1 or clamp((bands[i+1]-self.rpm)/(bands[i+1]-base),0,1) end
-        self:loop('engine-'..base,math.sqrt(weight)*self.fade*(.28+.26*self.load)*gearDip*(1-.76*miss),self.rpm/base*(1-.21*miss))
+        local pitch=self.rpm/base*(options.truck and .60 or 1)*(1-.21*miss)
+        self:loop('engine-'..base,math.sqrt(weight)*self.fade*(.28+.26*self.load)*gearDip*(1-.76*miss),pitch)
     end
     self:loop('intake',self.fade*self.load*.12*(.4+speed),.85+self.rpm/12000)
     self:loop('wind',speed^1.7*.27, .8+speed*.35,true)

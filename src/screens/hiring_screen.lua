@@ -7,6 +7,7 @@ local Schedule=require("src.employee_schedule")
 local Ui=require("src.screens.ui")
 local CharacterAssets=require("src.character_assets")
 local Finances=require("src.staff_finances")
+local FinanceCharts=require("src.screens.finance_charts")
 local Hiring={}
 local function rect(x,y,w,h) return {x=x,y=y,width=w,height=h} end
 local buttons={applications=rect(92,192,186,40),staff=rect(288,192,186,40),payroll=rect(484,192,166,40),
@@ -353,20 +354,41 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             button("finances","BACK TO PAYROLL",pointerX,pointerY)
             return
         end
-        line(string.format("Wages due: $%.2f",Payroll.total(state,now,false)/100),100,252,700,{1,.85,.45})
-        line(string.format("Total earned and unpaid: $%.2f",Payroll.total(state,now,true)/100),100,278,700)
-        local jobCents,shopCents=0,0
-        for _,w in ipairs(e.staff) do jobCents=jobCents+w.laborTotals.jobCents;shopCents=shopCents+w.laborTotals.shopCents end
-        line(string.format("Tracked job labor: $%.2f  |  Idle / breaks / shop labor: $%.2f",jobCents/100,shopCents/100),100,304,730)
-        line(string.format("Cash after earned wages / bills: $%.2f  |  Payday every 1-4 weeks.",Finances.summary(state).freeCash),100,330,730)
+        local finances=Finances.summary(state)
+        local due=Payroll.total(state,now,false)/100
+        local unpaid=Payroll.total(state,now,true)/100
+        local metrics={
+            {"DUE NOW",string.format("$%.2f",due),due>0 and {1,.72,.43,1} or { .59,.89,.67,1}},
+            {"EARNED / UNPAID",string.format("$%.2f",unpaid),{.96,.77,.47,1}},
+            {"WEEKLY WAGES",string.format("$%.2f",finances.weeklyWages),{.40,.84,.81,1}},
+            {"CASH AFTER OBLIGATIONS",string.format("$%.2f",finances.freeCash),finances.freeCash<0 and {1,.59,.50,1} or {.59,.89,.67,1}},
+        }
+        for i,item in ipairs(metrics)do FinanceCharts.metric(98+(i-1)*187,250,178,72,item[1],item[2],item[3])end
+        line("EMPLOYEE PAY  /  current page",100,337,450,{1,.85,.45})
+        local maxEarned=1
+        for i=1,4 do
+            local w=e.staff[(ui.page-1)*4+i]
+            if w then maxEarned=math.max(maxEarned,Payroll.balance(w,now,true)/100) end
+        end
         for i=1,4 do
             local w=e.staff[(ui.page-1)*4+i]
             if w then
                 local hours=w.laborTotals.jobHours+w.laborTotals.shopHours
-                line(string.format("%s  |  %s  |  %.2f paid hours",w.name,w.status,hours),100,358+(i-1)*45,730)
-                line(string.format("Due $%.2f  /  earned unpaid $%.2f",Payroll.balance(w,now,false)/100,Payroll.balance(w,now,true)/100),116,378+(i-1)*45,700,{.6,.76,.69})
+                local y=358+(i-1)*40
+                line(string.format("%s  ·  %.1f paid h",w.name,hours),100,y,205)
+                local earned=Payroll.balance(w,now,true)/100
+                line(string.format("$%.2f due  /  $%.2f earned",Payroll.balance(w,now,false)/100,earned),310,y,245,{.68,.81,.77})
+                FinanceCharts.bar(310,y+20,235,7,earned,maxEarned,{.40,.84,.81,1})
             end
         end
+        line("WEEKLY COST MIX",590,337,244,{1,.85,.45})
+        local weeklyCosts={
+            {label="Staff wages",value=finances.weeklyWages,color={.40,.84,.81,1},valueText=string.format("$%.0f",finances.weeklyWages)},
+            {label="Shop bills",value=finances.weeklyOperating,color={.96,.77,.47,1},valueText=string.format("$%.0f",finances.weeklyOperating)},
+            {label="Loan payments",value=finances.weeklyLoans,color={.77,.63,.94,1},valueText=string.format("$%.0f",finances.weeklyLoans)},
+        }
+        FinanceCharts.donut(710,406,54,weeklyCosts,"WEEKLY",string.format("$%.0f",finances.weeklyFixed))
+        FinanceCharts.legend(590,466,weeklyCosts,244,16,3)
         button("pay",canPayWages and "PAY DUE WAGES" or "OWNER PAYS WAGES",pointerX,pointerY,
             readOnly or not canPayWages or Payroll.total(state,now,false)==0)
         button("finances","SHOP BUDGET",pointerX,pointerY)
