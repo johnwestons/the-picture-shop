@@ -8,6 +8,7 @@ local function legacyGeometry(suite)
 end
 
 local DOMAIN_SUITES = {
+    {run=function(_,check)require('src.tests.rabbit_colorways_shader_test').run(check)end},
     require('src.tests.independent_scenes_test'),
     require('src.tests.independent_scenes_runtime_test'),
     require('src.tests.menu_exit_test'),

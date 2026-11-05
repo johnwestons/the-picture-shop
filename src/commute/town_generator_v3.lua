@@ -84,7 +84,13 @@ function Planner.attachMainlandExit(result,plan,sites)
         local z=endpoint.start[2]+endpoint.dz*endpoint.distance*t
         local ground=plan and plan.height and plan:height(x,z) or endpoint.start[3]
         local h=ground>.9 and plan and plan.landHeight and plan:landHeight(x,z) or deck
-        points[#points+1]={Frontage.round(x),Frontage.round(z),Frontage.round(math.max(.35,h))}
+        if i==0 then
+            -- Keep the connector's junction identical to the authored road
+            -- endpoint in x, z and elevation so the route graph joins exactly.
+            points[#points+1]={endpoint.start[1],endpoint.start[2],endpoint.start[3]}
+        else
+            points[#points+1]={Frontage.round(x),Frontage.round(z),Frontage.round(math.max(.35,h))}
+        end
         wet[i+1]=ground<=.9
     end
     local bridgeEdges={}

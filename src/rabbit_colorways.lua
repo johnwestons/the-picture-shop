@@ -21,6 +21,7 @@ Colorways.overalls = {
 local shader
 local shaderFailed = false
 local SHADER_SOURCE = [[
+#ifdef PIXEL
 extern vec3 furTint;
 extern vec3 overallsTint;
 extern float furEnabled;
@@ -73,6 +74,7 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     }
     return pixel;
 }
+#endif
 ]]
 
 local function index(value, choices)

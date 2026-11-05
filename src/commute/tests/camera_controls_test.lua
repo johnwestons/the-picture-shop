@@ -62,7 +62,9 @@ function Test.run(check)
 
     -- Exercise the actual production callback routing, not just the helper.
     local dispatched=0
-    local R={App={},Assets={},state={screen='world',home={commute={}}},
+    local owner={id=1}
+    local R={App={},Assets={},World={player=owner},
+        state={screen='world',home={commute={participants={owner={}}}}},
         Config={baseWidth=1280,baseHeight=880},_commute={camera=camera,renderer={}},
         toPointerCoordinates=function(x,y)return x*.5,y*.5 end,
         dispatchMousePressed=function()dispatched=dispatched+1 end,
@@ -88,7 +90,7 @@ function Test.run(check)
         R.state.screen='world';R.state.home.commute=nil
         R.App.mousepressed(300,200,3,false)
         check('main_noncommute_input_keeps_existing_controls',dispatched==2 and not R._commute.cameraDrag.mode)
-        R.state.home.commute={};R.state.screen='world';alt=false
+        R.state.home.commute={participants={owner={}}};R.state.screen='world';alt=false
         local actor={x=100,z=100,heading=math.pi*2-.02,speed=0}
         local eye=Camera.new(actor,{height=function()return 0 end})
         eye:setFirstPerson(true,actor);R._commute.camera=eye

@@ -65,7 +65,10 @@ function Test.run(check)
     end
     local front,frontSwitches=sample(0)
     local back,backSwitches=sample(math.pi)
-    check('mobile_cab_and_switches_stay_on_truck',front>.5 and frontSwitches==5 and back<.01 and backSwitches==0)
+    check('mobile_cab_interior_stays_on_truck_without_rear_switches',
+        front>.5 and frontSwitches==5 and back>.5 and backSwitches==0,
+        ('frontAlpha=%.3f frontSwitches=%d backAlpha=%.3f backSwitches=%d')
+            :format(front,frontSwitches,back,backSwitches))
     canvas:release();cab:release()
 end
 return Test

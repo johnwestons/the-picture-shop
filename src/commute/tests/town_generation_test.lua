@@ -22,23 +22,47 @@ local function physical(world,routes)
         if roads:blocked(world,x,z)then return false,'blocked center '..segment.id end
         for _,side in ipairs({-1,1})do
             local offset=side*(segment.width*.5-.3)
-            if roads:blocked(world,x+segment.nx*offset,z+segment.nz*offset)then return false,'blocked lane '..segment.id end
+            local lx,lz=x+segment.nx*offset,z+segment.nz*offset
+            local blocked,reason=roads:blocked(world,lx,lz)
+            if blocked then
+                local bounds=roads.bounds
+                local outside=lx<bounds.x0 or lz<bounds.z0 or lx>bounds.x1 or lz>bounds.z1
+                -- The mainland connector reaches the island boundary. Its
+                -- shoulder may extend past the playable limit while the
+                -- centerline remains driveable up to that limit.
+                if segment.id~='mainland-connector' or not outside then
+                    local support,kind=roads:supportHeight(world,lx,lz)
+                    local distance,nearest=roads:sample(lx,lz)
+                    return false,('blocked lane %s side=%d point=(%.2f,%.2f) reason=%s support=%.2f kind=%s nearest=%s distance=%.2f')
+                        :format(segment.id,side,lx,lz,tostring(reason),support,tostring(kind),
+                            nearest and tostring(nearest.id) or 'none',distance or -1)
+                end
+            end
         end
         if math.abs(segment.a.h-segment.b.h)/segment.len>.42 then return false,'unsafe road grade' end
     end
     local Trip=require('src.commute.trip');local Rider=require('src.commute.rider');local Bike=require('src.commute.motorcycle')
     for id,pad in pairs(roads.destinations)do
         if not routes:find('warehouse',id)then return false,'unreachable '..id end
-        local door=world.sites.byId[id].door
-        for i=0,12 do
-            local u=i/12
-            if roads:blocked(world,pad.x+(door.x-pad.x)*u,pad.z+(door.z-pad.z)*u)then return false,'blocked entrance '..id end
-        end
-        for slot=1,4 do
-            local anchor=Trip.parking(world,id,slot)
-            if not anchor or not Rider.clear(world,anchor.x,anchor.z,Bike.RADIUS)
-                or not Rider.clear(world,anchor.pedX,anchor.pedZ,Rider.RADIUS)then return false,'blocked parking '..id end
-            if math.abs(world:supportHeight(anchor.x,anchor.z)-world:supportHeight(anchor.pedX,anchor.pedZ))>=.45 then return false,'parking drop '..id end
+        local site=world.sites.byId[id]
+        if id=='mainland_exit' then
+            local gate=world.mainlandExit
+            if not gate or math.abs(pad.x-gate.x)>.01 or math.abs(pad.z-gate.z)>.01 then
+                return false,'missing mainland gate destination'
+            end
+        else
+            if not site then return false,'missing destination site '..id end
+            local door=site.door
+            for i=0,12 do
+                local u=i/12
+                if roads:blocked(world,pad.x+(door.x-pad.x)*u,pad.z+(door.z-pad.z)*u)then return false,'blocked entrance '..id end
+            end
+            for slot=1,4 do
+                local anchor=Trip.parking(world,id,slot)
+                if not anchor or not Rider.clear(world,anchor.x,anchor.z,Bike.RADIUS)
+                    or not Rider.clear(world,anchor.pedX,anchor.pedZ,Rider.RADIUS)then return false,'blocked parking '..id end
+                if math.abs(world:supportHeight(anchor.x,anchor.z)-world:supportHeight(anchor.pedX,anchor.pedZ))>=.45 then return false,'parking drop '..id end
+            end
         end
     end
     return true

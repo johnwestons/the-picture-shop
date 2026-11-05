@@ -182,6 +182,7 @@ function Smoke.start(context)
             end
             require('src.commute.tests.camera_runtime_test').run(context,check)
         elseif focus=='scene-exits' then
+            require('src.tests.rabbit_colorways_shader_test').run(check)
             require('src.tests.menu_exit_test').run(context,check)
             require('src.tests.scene_exit_runtime_test').run(context,check)
         elseif focus=='route-map' then
