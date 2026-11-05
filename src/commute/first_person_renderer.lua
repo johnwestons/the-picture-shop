@@ -166,7 +166,7 @@ function View:draw(renderer,camera,actor,actors)
                 local support,kind=renderer.world:supportHeight(p.x,p.z)
                 local paved=kind=='road' or kind=='trail'
                 height=math.max(height,support+(paved and .04 or 0))
-                surfaceTop=support+.09 -- top of the road and parking paint
+                surfaceTop=support+.11 -- road paint plane plus a small depth precision margin
             end
             self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
                 local proxy=View.actorCamera(camera,p,scale,

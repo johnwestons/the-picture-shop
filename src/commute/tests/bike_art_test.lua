@@ -1,5 +1,6 @@
 local Art=require('src.commute.bike_art')
 local Camera=require('src.commute.camera')
+local PaintArt=require('src.commute.bike_paint_art')
 local Test={}
 function Test.run(check)
     local world=require('src.commute.roads').new():attach(require('src.commute.terrain').new())
@@ -111,5 +112,26 @@ function Test.run(check)
     love.filesystem.getInfo,love.graphics.newImage=getInfo,newImage
     assert(okay,err)
     require('src.commute.tests.bike_view_test').run(check)
+
+    -- Reproduce the small first-person lean blend reached around a wall hit.
+    -- The cache warmer needs the rider's lean even while the selected atlas
+    -- state is still upright.
+    local prepared={}
+    local drawArt=setmetatable({images={upright={}},uprightQuads={[1]={}},actionPages={
+        prepare=function(_,state,frame) prepared[#prepared+1]={state=state,frame=frame} end,
+        get=function() return {},{} end,
+    }},Art)
+    local draw, setColor, previousLean=PaintArt.draw,love.graphics.setColor,rawget(_G,'lean')
+    PaintArt.draw=function() end
+    love.graphics.setColor=function() end
+    _G.lean=nil
+    local okay=pcall(function()
+        drawArt:draw({x=100,z=100,heading=0,lean=.18,speed=0,grounded=true,paintId='bronze'},
+            {firstPerson=true,viewHeading=0,zoom=1,screen=function() return 640,440,.5 end},
+            {supportHeight=function() return 0 end},false)
+    end)
+    PaintArt.draw,love.graphics.setColor, _G.lean=draw,setColor,previousLean
+    check('commute_bike_art_first_person_turn_cache_uses_actor_lean_during_wall_crash',
+        okay and prepared[1] and prepared[1].state=='turnLeft')
 end
 return Test

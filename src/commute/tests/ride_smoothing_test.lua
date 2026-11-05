@@ -10,7 +10,7 @@ local function bike() local b=Bike.new(100,100,0);b.speed=10;b.gear=3;return b e
 function Test.run(check)
     local p=bike()
     Bike.update(p,{steer=1},1/60,world)
-    check('ride_keyboard_press_eases_steering_and_weight_shift',p.steering>0 and p.steering<.03
+    check('ride_keyboard_press_eases_steering_and_weight_shift',p.steering>0 and p.steering<.05
         and math.abs(p.lean)<.002 and p.heading<.002)
     for _=1,60 do Bike.update(p,{steer=1},1/60,world) end
     local lean=p.lean

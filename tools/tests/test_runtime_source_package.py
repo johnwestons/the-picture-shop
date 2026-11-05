@@ -46,6 +46,8 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         self.assertIn("assets/commute/terrain/ground-desktop-v1.png", names)
         self.assertIn("assets/commute/terrain/ground-mobile-v1.png", names)
         self.assertIn("assets/commute/truck/decals/picture-shop.png", names)
+        for image in ("driver-seat.png", "floorboard.png", "headliner.png", "rear-wall.png", "side-door.png"):
+            self.assertIn(f"assets/commute/truck/interior-v1/{image}", names)
         for kind in ("chase", "isometric"):
             for page in range(1, 5):
                 self.assertIn(f"assets/commute/truck/turntables/{kind}-64-{page}.png", names)

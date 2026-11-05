@@ -140,6 +140,8 @@ function Art:draw(actor,camera,world,parked,presentation)
     local x,y=camera:screen(actor.x,actor.z,height)
     local frame=Art.frame(camera,actor.heading,parked and 16 or 64)
     local state,action,turnBlend
+    local lean=presentation and presentation.lean
+    if lean==nil then lean=actor.lean or 0 end
     local rotation=spriteRotation(actor,camera,height,parked,presentation)
     if parked then state='parked'
     else
