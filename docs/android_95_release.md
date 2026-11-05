@@ -2,7 +2,8 @@
 
 - Version: `0.1.0-android.95` (version code `95`)
 - Artifact: `ThePictureShop-0.1.0-android.95-debug.apk`
-- APK SHA-256: pending build
+- APK size: 904,131,079 bytes (about 862 MiB)
+- APK SHA-256: `d2ff6708b859ed359cd2948f8a8b84a08ba88417045de5bf7b204f0421093934`
 
 This build fixes a motorcycle draw crash during a small turn blend. Bike art
 cache warming now reads lean from the rider presentation or actor instead of
@@ -28,12 +29,17 @@ check covering its dashboard and cab panels.
   real shop wall impact, rider fall, recovery, remount, and repair flow.
 - Mobile commute smoke passed both home and work route loops, save/network
   checks, and three rendered frames.
+- Scene exit/re-entry runtime smoke passed 54 checks on desktop and 54 on the
+  forced-mobile layout, including terrain loading, outdoor reveal/streaming,
+  trip save/reload, apartment return, and three rendered frames.
 - The packaged Android archive passed the camera/cockpit, wall-collision, and
   commute smokes after adding the missing cab textures. Runtime package tests
   passed 14 checks.
-- ADB started but listed no connected devices, so this build has no handset
-  launch verification.
-- The full all-domain suite was not run; the previous build's startup texture
-  memory gate and town-center frontage assertion remain outside this fix.
+- The full desktop smoke was attempted but stopped before gameplay checks at
+  the existing startup texture-memory gate: 117.04 MiB against a 100 MiB limit.
+  The town-center frontage assertion was not reached in this run.
+- ADB listed no connected devices, so this build has no handset install or
+  launch verification. The APK report confirms a signed, 16 KB-compatible
+  package; native crypto remains an engineering candidate, not production-ready.
 
 This is a debug engineering build, not a production release.
