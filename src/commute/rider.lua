@@ -174,7 +174,9 @@ function Rider.snapshot(r)
     end
     local result={gear=gear,ped=ped,bike={x=r.bike.x,z=r.bike.z,heading=r.bike.heading,
         gear=r.bike.gear or 1,transmission=r.bike.transmission or 'automatic',
-        upgradeLevel=r.bike.upgradeLevel or 0,paintId=r.bike.paintId or require('src.commute.bike_paint').DEFAULT,
+        upgradeLevel=r.bike.upgradeLevel or 0,
+        upgradeParts=require('src.commute.bike_upgrades').copyParts(r.bike.upgradeParts),
+        paintId=r.bike.paintId or require('src.commute.bike_paint').DEFAULT,
         damage=r.bike.damage or 0,service=Service.copy(r.bike.service),
         reverse=r.bike.reverse==true,headlight=r.bike.headlight==true,
         headlightHighBeam=r.bike.headlightHighBeam==true},
@@ -205,6 +207,7 @@ function Rider.restore(saved,world,anchor)
         if anchor.pedX then r.ped.x,r.ped.z=anchor.pedX,anchor.pedZ end
         r.bike.transmission=saved.bike.transmission or 'automatic'
         r.bike.upgradeLevel=saved.bike.upgradeLevel or 0
+        r.bike.upgradeParts=require('src.commute.bike_upgrades').copyParts(saved.bike.upgradeParts)
         r.bike.service=Service.copy(saved.bike.service)
         r.bike.damage=saved.bike.damage or 0
         r.bike.paintId=saved.bike.paintId or require('src.commute.bike_paint').DEFAULT
@@ -213,6 +216,7 @@ function Rider.restore(saved,world,anchor)
     local r=Rider.new(saved.bike.x,saved.bike.z,saved.bike.heading,gear)
     r.bike.transmission=saved.bike.transmission or 'automatic'
     r.bike.upgradeLevel=saved.bike.upgradeLevel or 0
+    r.bike.upgradeParts=require('src.commute.bike_upgrades').copyParts(saved.bike.upgradeParts)
     r.bike.service=Service.copy(saved.bike.service)
     r.bike.damage=saved.bike.damage or 0
     r.bike.paintId=saved.bike.paintId or require('src.commute.bike_paint').DEFAULT

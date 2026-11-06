@@ -211,7 +211,7 @@ function Controls.draw(R)
     local week=R.state.home.weekend;local lines={
         'Leave on your own. Other players stay where they are and keep playing.',
         'The shop keeps its normal schedule while you are away.',
-        'Park, dismount, and walk to the warehouse or your apartment door to enter.'}
+        'Dismount and walk to the warehouse or your apartment door to enter.'}
     if week and week.phase=='closing' then
         lines[#lines+1]='Friday closing: finish jobs, call pickups, and clear the dock before leaving.'
         local pending=require('src.shop_shutdown').checklist(R.state,R.World)

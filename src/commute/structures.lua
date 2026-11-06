@@ -104,17 +104,7 @@ function Structures:drawOutsidePropsDepth(camera,actor,range)
     g.setBlendMode('alpha');g.setDepthMode('lequal',true);g.setMeshCullMode('none')
     g.setShader(self.shader)
     for _,piece in ipairs(visible) do
-        local alpha=1
-        if piece.kind=='building' and actor then
-            local height=actor.h or self.world:supportHeight(actor.x,actor.z)
-            if camera:depth(actor.x,actor.z,height)<piece.depth then
-                local x,y,w,h=Structures.screenBounds(piece,camera)
-                local ax,ay=camera:screen(actor.x,actor.z,height)
-                ay=ay-20*camera.zoom
-                if ax>x and ax<x+w and ay>y and ay<y+h then alpha=.32 end
-            end
-        end
-        g.setColor(1,1,1,alpha);g.draw(piece.mesh)
+        g.setColor(1,1,1,1);g.draw(piece.mesh)
     end
     g.setShader();g.setColor(1,1,1)
     return #visible
@@ -133,15 +123,6 @@ end
 function Structures:drawOutside(p,camera,actor,range)
     local x,y,w,h=Structures.screenBounds(p,camera)
     if w<=0 or h<=0 then return end
-    local alpha=1
-    if p.kind=='building' and actor then
-        local ah=actor.h or self.world:supportHeight(actor.x,actor.z)
-        if camera:depth(actor.x,actor.z,ah)<p.depth then
-            local ax,ay=camera:screen(actor.x,actor.z,ah)
-            ay=ay-20*camera.zoom
-            if ax>x and ax<x+w and ay>y and ay<y+h then alpha=.32 end
-        end
-    end
     local g=love.graphics
     g.push('all');g.origin();g.setCanvas({self.canvas,depth=true})
     g.setScissor(x,y,w,h);g.clear(0,0,0,0,0,1)
@@ -151,7 +132,7 @@ function Structures:drawOutside(p,camera,actor,range)
     -- Only the projected rectangle is cleared and copied. A bridge with many
     -- wall bays therefore does not clear the full viewport once per bay.
     self.crop:setViewport(x,y,w,h,self.viewportWidth,self.viewportHeight)
-    g.push('all');g.setShader();g.setColor(alpha,alpha,alpha,alpha)
+    g.push('all');g.setShader();g.setColor(1,1,1,1)
     g.setBlendMode('alpha','premultiplied');g.draw(self.canvas,self.crop,x,y);g.pop()
 end
 function Structures:drawFirstPerson(camera,actor,range)

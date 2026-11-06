@@ -5,6 +5,7 @@ local Town=require('src.commute.town')
 local Upgrades=require('src.commute.bike_upgrades')
 local Paint=require('src.commute.bike_paint')
 local Repairs=require('src.commute.bike_repairs')
+local BikeTires=require('src.commute.bike_tires')
 local Service=require('src.commute.bike_service')
 local Station=require('src.commute.gas_station')
 local TownStore=require('src.commute.town_store')
@@ -106,7 +107,7 @@ local function rideNotice(R,part)
         end
         if run.status=='offmap' then return 'Delivering in Millhaven · returning to the town gate shortly' end
         if run.status=='returning' or not stop then
-            return part.rider.vehicle=='truck' and 'Return to The Picture Shop · park in the warehouse loading area · interact to get out'
+            return part.rider.vehicle=='truck' and 'Return to The Picture Shop · exit the truck and walk to the door'
                 or 'Return the delivery truck to the warehouse'
         end
         local progress=('STOP %d/%d · '):format(run.stopIndex,#run.stops)
@@ -118,25 +119,30 @@ local function rideNotice(R,part)
         if stop.kind=='town' then return progress..'Walk to '..stop.label..' and interact to hand off the pallets' end
         return progress..'Drive to the Millhaven gate for the off-map delivery'
     end
-    if part.rider.vehicle=='truck' then return 'Delivery truck  ·  steer, accelerate and brake  ·  interact to get out' end
+    if part.rider.vehicle=='truck' then
+        local truck=trip and trip.truck
+        if truck and (truck.fuel or require('src.commute.delivery_truck').TANK_LITERS)<=0 then
+            return 'Delivery truck out of fuel  ·  walk to the gas station and refuel'
+        elseif truck and (truck.fuel or require('src.commute.delivery_truck').TANK_LITERS)<=12 then
+            return 'Low delivery truck fuel  ·  refill at the gas station soon'
+        end
+        return 'Delivery truck  ·  steer, accelerate and brake  ·  interact to get out'
+    end
     local truck=trip and trip.truck
     if truck and trip.origin=='warehouse' and M.length(part.rider.ped.x-truck.x,part.rider.ped.z-truck.z)<=5.5 then
         return 'Delivery truck nearby  ·  interact to drive it'
     end
     if Station.atCounter(part.rider,R._commute and R._commute.world) then
-        return Bindings.hint(C.bindings(R),'interact')..' / USE: Gas & Tire counter'
+        return Bindings.hint(C.bindings(R),'interact')..' / USE: Gas station service counter'
     end
     if Station.nearCounter(part.rider,R._commute and R._commute.world) then
-        return part.rider.gear.mounted and 'Dismount to use the Gas & Tire counter'
-            or Bindings.hint(C.bindings(R),'interact')..' / USE: Gas & Tire counter'
+        return part.rider.gear.mounted and 'Dismount to use the gas station counter'
+            or Bindings.hint(C.bindings(R),'interact')..' / USE: Gas station service counter'
     end
     local storeId=TownStore.nearCounter(part.rider,R._commute and R._commute.world)
     if storeId then
         local label=storeId=='grocery' and 'Town grocery' or storeId=='diner' and 'Diner takeout' or 'General store'
         if part.rider.gear.mounted then return 'Dismount to shop at '..label end
-        if not TownStore.bikeNearby(part.rider,R._commute and R._commute.world,storeId) then
-            return 'Park your bike in the marked space to shop at '..label
-        end
         return Bindings.hint(C.bindings(R),'interact')..(storeId=='grocery' and ' / ENTER: ' or ' / SHOP: ')..label
     end
     return Cockpit.riderHint(part.rider,part.presentation) or R.state.message
@@ -320,6 +326,21 @@ function C.drawCameraButton(R)
     if view.cameraMenu then CameraMenu.draw(button,view.camera,C.localPart(R).rider) end
     return true
 end
+function C.adjustTruckCabView(R,direction)
+    local view=R._commute;local part=C.localPart(R)
+    if not view or not view.camera or not part
+        or not CameraMenu.hasTruckSeatPad(view.camera,part.rider) then return false end
+    local seat=C.bindings(R).truckCabView
+    local step=.04
+    if direction=='left' then seat.side=math.max(-.72,seat.side-step)
+    elseif direction=='right' then seat.side=math.min(.72,seat.side+step)
+    elseif direction=='up' then seat.up=math.min(.45,seat.up+step)
+    elseif direction=='down' then seat.up=math.max(-.05,seat.up-step)
+    else return false end
+    view.camera.truckCabSide,view.camera.truckCabUp=seat.side,seat.up
+    require('src.settings').save(R.App.settings)
+    return true
+end
 function C.cameraPointer(R,x,y)
     if not require('src.screens.hud_visibility').isVisible(R) then return false end
     local button=C.cameraButton(R)
@@ -333,6 +354,8 @@ function C.cameraPointer(R,x,y)
     end
     if not view.cameraMenu then return false end
     local rider=C.localPart(R).rider
+    local seatDirection=CameraMenu.adjustmentAt(button,x,y,view.camera,rider)
+    if seatDirection then C.adjustTruckCabView(R,seatDirection);return true end
     for i,mode in ipairs(CameraMenu.modes) do
         if hit(CameraMenu.row(button,i)) then
             local id=mode[1]
@@ -395,7 +418,8 @@ function C.visualRider(part,player,token)
 end
 function C.restore(R)
     if not C.hasWorld(R) then return end
-    R.state.home.commute=assert(Trip.restore(R.state.home.commute,C.world(R)))
+    R.state.home.commute=assert(Trip.restore(R.state.home.commute,C.world(R),
+        require('src.company_delivery_driver').ensure(R.state)))
     local part=C.localPart(R);if part then C.syncPlayer(R.World.player,part) end
 end
 function C.bind(R,player,connected)
@@ -410,14 +434,23 @@ function C.bind(R,player,connected)
     return okay,part
 end
 local actions={grocery=true,exitgrocery=true,equip=true,remove=true,mount=true,dismount=true,arrive=true,load_delivery=true,deliver_stop=true,finish=true,force=true,cancel=true,
-    automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,beam=true,reverse=true,rescue=true,truck=true}
+    automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,beam=true,reverse=true,rescue=true,truck=true,
+    signalLeft=true,signalRight=true,radioPrevious=true,radioPlay=true,radioNext=true,radioMute=true}
 function C.decode(command)
     if type(command)~='string' or #command>80 then return nil end
     local stationToken,revision,item=command:match('^station:(%d+):(%d+):([a-z]+)$')
     if stationToken then
         local token,rev=tonumber(stationToken),tonumber(revision)
-        if token>=1 and token<=1e12 and rev<=1e12 and (Service.tires[item] or item=='fuel' or item=='oil' or item=='chain') then
+        if token>=1 and token<=1e12 and rev<=1e12 and (item=='fuel' or item=='oil' or item=='chain' or item=='truckfuel') then
             return 'station',token,{item=item,revision=rev}
+        end
+        return nil
+    end
+    local tireToken,tireRevision,tireId=command:match('^biketire:(%d+):(%d+):([a-z]+)$')
+    if tireToken then
+        tireToken,tireRevision=tonumber(tireToken),tonumber(tireRevision)
+        if tireToken>=1 and tireToken<=1e12 and BikeTires.validRevision(tireRevision) and BikeTires.valid(tireId) then
+            return 'biketire',tireToken,{token=tireToken,tireId=tireId,expectedServiceRevision=tireRevision}
         end
         return nil
     end
@@ -455,6 +488,14 @@ function C.decode(command)
         end
         return nil
     end
+    local partToken,category,partExpected,partLevel=command:match('^bikepart:(%d+):([a-z]+):([012]):([123])$')
+    if partToken then
+        partToken,partExpected,partLevel=tonumber(partToken),tonumber(partExpected),tonumber(partLevel)
+        if partToken>=1 and partToken<=1e12 and Upgrades.validCategory(category) and partLevel==partExpected+1 then
+            return 'bikepart',partToken,{token=partToken,category=category,expectedCategoryLevel=partExpected,level=partLevel}
+        end
+        return nil
+    end
     local revision;token,revision,level=command:match('^upgrade:(%d+):(%d+):([123])$')
     if token then
         token,revision,level=tonumber(token),tonumber(revision),tonumber(level)
@@ -464,7 +505,7 @@ function C.decode(command)
         return nil
     end
     if command=='remove' then return 'remove',0 end
-    local action;action,token=command:match('^([a-z_]+):(%d+)$');token=tonumber(token)
+    local action;action,token=command:match('^([%a_]+):(%d+)$');token=tonumber(token)
     if not actions[action] or not token or token<1 or token>1e12 then return nil end
     return action,token
 end
@@ -477,7 +518,7 @@ function C.command(R,player,command)
         if not part or not t.independent then return false,'wrong_scene','This store visit has ended.','commute' end
         if action=='grocery' then
             if part.interior or not TownStore.counter(part.rider,C.world(R),'grocery') then
-                return false,'out_of_range','Park your bike and walk to the grocery entrance.','commute'
+                return false,'out_of_range','Dismount and walk to the grocery entrance.','commute'
             end
             part.interior='grocery';part.interiorPose={x=480,y=548,intentX=0,intentY=-1,animationDistance=0,moving=false}
         else
@@ -490,7 +531,8 @@ function C.command(R,player,command)
     elseif action=='station' then
         local part,reason=Trip.participant(R.state,player,token)
         if part and not part.arrived and player.sceneId=='commute' then
-            okay,message=Station.buy(part.rider,C.world(R),R.state.home,intent.item,intent.revision)
+            okay,message=Station.buy(part.rider,C.world(R),R.state.home,intent.item,intent.revision,
+                require('src.company_delivery_driver').ensure(R.state),R.state.home.commute.truck,R.state)
             if okay then
                 local resident=Residents.get(R.state,player)
                 resident.ridingService=Service.copy(part.rider.bike.service)
@@ -504,9 +546,11 @@ function C.command(R,player,command)
         else okay,message=false,reason or 'This ride is over.' end
     elseif action=='bikerepair' then
         okay,message=Repairs.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
+    elseif action=='biketire' then
+        okay,message=BikeTires.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
     elseif action=='bikepaint' then
         okay,message=Paint.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
-    elseif action=='upgrade' or action=='bikeupgrade' then
+    elseif action=='upgrade' or action=='bikeupgrade' or action=='bikepart' then
         okay,message=Upgrades.purchase(R.state,player,R.state.home.commute,C.world(R),intent)
         if action=='upgrade' and R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').close(R) end
     elseif token==0 then
@@ -609,15 +653,19 @@ function C.update(R,dt,x,y,boost)
     local dirty=false
     if not R.multiplayer:isClient() then
         local players=require('src.weekend_runtime').players(R)
+        R._commute=R._commute or {}
+        local traffic= require('src.commute.delivery_traffic')
+        R._commute.trafficClock=(R._commute.trafficClock or 0)+dt
+        if R._commute.trafficClock>=1 then
+            R._commute.trafficClock=R._commute.trafficClock-1
+            dirty=traffic.update(R.state,R.state.home and R.state.home.town,
+                require('src.business_calendar').absoluteHours(R.state),os.time()) or dirty
+        end
+        local commuteWorld=C.hasWorld(R) and C.world(R) or nil
+        if commuteWorld then traffic.installVehicleObstacles(R.state,commuteWorld) end
         if C.hasWorld(R) then
-            local world=C.world(R)
+            local world=commuteWorld
             local motionActive=false
-            R._commute.trafficClock=(R._commute.trafficClock or 0)+dt
-            if R._commute.trafficClock>=1 then
-                R._commute.trafficClock=0
-                dirty=require('src.commute.delivery_traffic').update(R.state,R.state.home.town,
-                    require('src.business_calendar').absoluteHours(R.state),os.time()) or dirty
-            end
             for _,player in ipairs(players) do
                 local part=R.state.home.commute.participants[Residents.key(player)]
                 if part then
@@ -632,6 +680,7 @@ function C.update(R,dt,x,y,boost)
                         or math.abs(ix)+math.abs(iy)>.001
                 end
             end
+            world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil
             if R._commute.motionActive and not motionActive then dirty=true end
             R._commute.motionActive=motionActive
             R._commute.networkClock=(R._commute.networkClock or 0)+dt
@@ -641,6 +690,22 @@ function C.update(R,dt,x,y,boost)
             end
             R._commute.saveClock=(R._commute.saveClock or 0)+dt
             if motionActive and R._commute.saveClock>=5 then R._commute.saveClock=0;dirty=true end
+        end
+        local trafficChanged,trafficMoving=traffic.simulate(R.state,R.state.home and R.state.home.town,
+            dt,os.time(),commuteWorld)
+        dirty=trafficChanged or dirty
+        if trafficMoving then
+            R._commute.trafficNetworkClock=(R._commute.trafficNetworkClock or 0)+dt
+            R._commute.trafficSaveClock=(R._commute.trafficSaveClock or 0)+dt
+            if R._commute.trafficNetworkClock>=.25 then
+                R._commute.trafficNetworkClock=0
+                if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end
+            end
+            if R._commute.trafficSaveClock>=5 then
+                R._commute.trafficSaveClock=0;dirty=true
+            end
+        else
+            R._commute.trafficNetworkClock=0;R._commute.trafficSaveClock=0
         end
         for _,player in ipairs(players) do
             if not C.hasWorld(R) or not R.state.home.commute.participants[Residents.key(player)] then
@@ -682,6 +747,8 @@ function C.update(R,dt,x,y,boost)
             view.controlFeedback=visual
         end
         if not view.camera then view.camera=require('src.commute.camera').new(actor,world);view.camera.zoom=1;view.camera.targetZoom=1 end
+        local cabView=C.bindings(R).truckCabView
+        view.camera.truckCabSide,view.camera.truckCabUp=cabView.side,cabView.up
         C.applyCameraPreference(R,view.camera,rider)
         if not rider.gear.mounted or rider.vehicle=='truck' or not M.finite(actor.h) then actor.h=world:supportHeight(actor.x,actor.z) end
         view.camera:updateRide(rider,dt,visual)
@@ -772,6 +839,39 @@ function C.draw(R)
     if trip.truck and not trip.truck.driver then actors[#actors+1]={actor=trip.truck,truck=true,parkedTruck=true} end
     local traffic=require('src.commute.delivery_traffic').actors(R.state,R.state.home.town,
         require('src.business_calendar').absoluteHours(R.state),os.time())
+    if R.multiplayer:isClient() then
+        view.trafficPresentation=view.trafficPresentation or {}
+        local now=love.timer.getTime();local live={}
+        for _,entry in ipairs(traffic) do
+            local actor=entry.actor;local cache=view.trafficPresentation[entry.id]
+            live[entry.id]=true
+            if not cache then
+                cache={x=actor.x,z=actor.z,h=actor.h or 0,heading=actor.heading,
+                    targetX=actor.x,targetZ=actor.z,targetH=actor.h or 0,targetHeading=actor.heading,startedAt=now}
+                view.trafficPresentation[entry.id]=cache
+            elseif math.abs(cache.targetX-actor.x)+math.abs(cache.targetZ-actor.z)>.01
+                or math.abs(cache.targetH-(actor.h or 0))>.01
+                or math.abs(math.atan2(math.sin(cache.targetHeading-actor.heading),math.cos(cache.targetHeading-actor.heading)))>.01 then
+                local a=math.min(1,(now-cache.startedAt)/.28)
+                cache.x=cache.x+(cache.targetX-cache.x)*a
+                cache.z=cache.z+(cache.targetZ-cache.z)*a
+                cache.h=cache.h+(cache.targetH-cache.h)*a
+                local headingDelta=math.atan2(math.sin(cache.targetHeading-cache.heading),math.cos(cache.targetHeading-cache.heading))
+                cache.heading=cache.heading+headingDelta*a
+                cache.targetX,cache.targetZ,cache.targetH,cache.targetHeading=actor.x,actor.z,actor.h or 0,actor.heading
+                cache.startedAt=now
+            end
+            local a=math.min(1,(now-cache.startedAt)/.28)
+            actor.x=cache.x+(cache.targetX-cache.x)*a
+            actor.z=cache.z+(cache.targetZ-cache.z)*a
+            actor.h=cache.h+(cache.targetH-cache.h)*a
+            local headingDelta=math.atan2(math.sin(cache.targetHeading-cache.heading),math.cos(cache.targetHeading-cache.heading))
+            actor.heading=cache.heading+headingDelta*a
+        end
+        for id in pairs(view.trafficPresentation) do
+            if not live[id] then view.trafficPresentation[id]=nil end
+        end
+    end
     for _,entry in ipairs(traffic) do actors[#actors+1]=entry end
     local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
     view.renderer:draw(view.camera,actor,actors)
@@ -970,7 +1070,7 @@ function C.keypressed(R,key,semantic)
             if stop and stop.kind=='town' and near(C.world(R).sites.byId[stop.id]) then
                 C.request(R,'deliver_stop:'..t.token)
             elseif Station.atCounter(r,C.world(R)) then
-                C.cancelCameraDrag(R);R._commute.mechanicOffer=Station.open()
+                C.cancelCameraDrag(R);R._commute.mechanicOffer=Station.open(r.transport=='truck' and 'truck' or 'bike')
             elseif near(sites.mechanic) then C.openMechanic(R)
             elseif TownStore.counter(r,C.world(R),'grocery') then C.openTownStore(R,'grocery')
             elseif TownStore.counter(r,C.world(R),'general-store') then C.openTownStore(R,'general-store')
@@ -996,6 +1096,10 @@ function C.keypressed(R,key,semantic)
     return true
 end
 function C.perform(R,id)
+    if id=='radioPrevious' or id=='radioPlay' or id=='radioNext' or id=='radioMute' then
+        local trip=C.localTrip(R)
+        return trip and C.request(R,id..':'..trip.token) or false
+    end
     local spec=Bindings.byId[id]
     return spec and spec.main and spec.main~='' and C.keypressed(R,spec.main,true) or false
 end

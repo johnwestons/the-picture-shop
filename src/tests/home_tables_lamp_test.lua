@@ -81,7 +81,7 @@ function Test.run(context,check)
     local invalid=Schema.copy(lamp);invalid.kind="coffee_table"
     check("home_tables_non_lamp_cannot_keep_light_state",not Objects.valid(invalid))
     local old=State.new();local migrated=assert(Schema.migrate({version=35,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(old),player={x=300,y=400}}))
-    check("home_tables_v35_migration_no_free_furniture",migrated.version==39 and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
+    check("home_tables_v35_migration_no_free_furniture",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
     local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR")
     if folder then for _,kind in ipairs(kinds) do
         local canvas=love.graphics.newCanvas(1024,600);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.17,.22,.24,1)

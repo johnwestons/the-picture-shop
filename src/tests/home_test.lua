@@ -108,7 +108,7 @@ function Test.run(context,check)
     local old={version=23,slot=1,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=320,y=400}}
     old.state.home=nil
     local migrated=assert(Schema.migrate(old))
-    check("home_legacy_gets_separate_allowance_once",migrated.version==39 and migrated.state.home.balanceCents==30000
+    check("home_legacy_gets_separate_allowance_once",migrated.version==Schema.VERSION and migrated.state.home.balanceCents==30000
         and migrated.state.money==180 and Schema.migrate(migrated).state.home.balanceCents==30000)
     local bad=Schema.copy(migrated);bad.state.home.balanceCents=0/0
     check("home_rejects_corrupt_local_and_guest_state",not Schema.validPayload(bad)

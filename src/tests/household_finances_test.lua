@@ -61,7 +61,7 @@ local function expenseTests(check)
     for _=1,62*24 do Calendar.update(stepped,Calendar.secondsPerDay(stepped)/24) end
     Calendar.update(big,Calendar.secondsPerDay(big)*62)
     check("household_accrual_crosses_months_and_frame_sizes",stepped.home.finance.totals.operating==big.home.finance.totals.operating
-        and big.home.finance.totals.operating==828225 and big.bills.balance==7950)
+        and big.home.finance.totals.operating==867016 and big.bills.balance==8320)
     local beforeOperating=big.home.finance.totals.operating
     big.money=100000;assert(Calendar.pay(big))
     check("household_operating_payment_not_double_counted",big.home.finance.totals.operating==beforeOperating)

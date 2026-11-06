@@ -16,6 +16,7 @@ local AI={}
 local EmployeeHighFive=require("src.employee_high_five")
 local Navigator=require("src.npc_navigation")
 local GaitMotion=require("src.gait_motion")
+local CompanyTruck=require("src.company_delivery_driver")
 local entrance=Config.customer.route[1]
 local reception=Config.warehouse.roomScenes and require("src.warehouse_registration").reception or {x=759,y=358}
 local applicantWaitSeconds=60
@@ -83,7 +84,7 @@ local function applications(state,dt,now,context)
         if a.status=="visiting" and not actor.visible and not present
             and not context.receptionBusy() and not Calendar.isWeekend(state) then
             actor.visible=true;actor.phase="entering";actor.x,actor.y=entrance.x,entrance.y
-            present=a;state.message=a.name.." is applying for a cutter job. Talk to them before they leave in one minute."
+            present=a;state.message=a.name.." is applying for a job. Talk to them before they leave in one minute."
             changed=true
         end
         if actor.visible then
@@ -191,6 +192,10 @@ end
 function AI.worker(state,w,dt,now,context)
     if EmployeeHighFive.get(w.id) then
         w.moving=false
+        return false
+    end
+    if w.awayForDelivery then
+        w.visible=false;w.clockedIn=true;w.phase="hidden";w.sceneId=nil;w.moving=false
         return false
     end
     if w.pendingSchedule and not Contracts.onShift(w.contract,now) then
@@ -486,6 +491,8 @@ function AI.update(state,dt,context)
         at=nextAt
     end
     e.lastAtHours=now
+    if CompanyTruck.update(state,now) then changed=true end
+    CompanyTruck.syncTripVehicle(state)
     if Payroll.pay(state,now,true) then changed=true end
     return changed
 end

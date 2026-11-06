@@ -5,6 +5,9 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.tabById(tabId)
         if tabId == "online" then tabId = "www" end
+        local financialAliases={bills='bills',player_wages='players',payroll='staff',shop_budget='overview'}
+        local financialAlias=financialAliases[tabId]
+        if financialAlias then Runtime.ComputerScreen.financialSection=financialAlias;tabId='financials' end
         for _, tab in ipairs(Runtime.visibleTabs()) do
             if tab.id == tabId then return tab end
         end

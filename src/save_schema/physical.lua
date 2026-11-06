@@ -53,11 +53,13 @@ function Component.install(Runtime)
                     or (world.sceneId~=nil and world.sceneId~="warehouse"
                         and world.sceneId~="front_left" and world.sceneId~="front_right")
                     or (world.rotationIndex ~= nil and ((item.modelId ~= "polar_115"
-                        and item.modelId ~= "heidelberg_10x15")
+                        and item.modelId ~= "skid_wrapper" and item.modelId ~= "heidelberg_10x15")
                         or not Runtime.integer(world.rotationIndex)
                         or world.rotationIndex < 1 or world.rotationIndex > 64))
                     or (world.rotationIndex ~= nil and ((item.modelId == "polar_115"
                         and MachineRotation.directionForFrame("cutter", world.rotationIndex) ~= world.direction)
+                        or (item.modelId == "skid_wrapper"
+                            and MachineRotation.directionForFrame("wrapper", world.rotationIndex) ~= world.direction)
                         or (item.modelId == "heidelberg_10x15"
                             and MachineRotation.directionForFrame("windmill", world.rotationIndex) ~= world.direction)))
                     or not Runtime.optionalBoolean(world.moving)
@@ -119,7 +121,9 @@ function Component.install(Runtime)
                 "cutter", value.cutter.rotationIndex) == value.cutter.direction)
             and Runtime.palletJack(value.palletJack)
             and (value.extraPalletJacks==nil or Runtime.array(value.extraPalletJacks,Runtime.palletJack))
-            and Runtime.placement(value.wrapper)
+            and Runtime.placement(value.wrapper, true)
+            and (value.wrapper.rotationIndex == nil or MachineRotation.directionForFrame(
+                "wrapper", value.wrapper.rotationIndex) == value.wrapper.direction)
             and Runtime.placement(value.windmill, true)
             and (value.windmill.rotationIndex == nil or MachineRotation.directionForFrame(
                 "windmill", value.windmill.rotationIndex) == value.windmill.direction)

@@ -50,8 +50,8 @@ function HUD.drawCondition(bike,x,y,bikeArt)
 end
 function HUD.riderHint(rider,visual)
     if rider.gear.mounted and not rider.gear.engine then
-        if rider.bike.service and rider.bike.service.fuel<=0 then return 'Out of fuel. Walk to Gas & Tire for a refill.' end
-        if require('src.commute.bike_service').rough(rider.bike)>.1 then return 'Engine stopped. Use the ignition to restart and visit Gas & Tire for service.' end
+        if rider.bike.service and rider.bike.service.fuel<=0 then return 'Out of fuel. Walk to the gas station for a refill.' end
+        if require('src.commute.bike_service').rough(rider.bike)>.1 then return 'Engine stopped. Use the ignition to restart and visit the gas station for service.' end
     end
     if rider.ped.crash or visual and visual.pose=='crash' then
         return 'Thrown from the bike. Get back on your feet, then walk over and remount.'

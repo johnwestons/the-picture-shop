@@ -118,7 +118,7 @@ function Test.run(context,check)
     local legacy={version=29,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}
     legacy.state.home.furniture=nil;legacy.state.home.furnishingPreset="modest";legacy.state.home.inventory=Schema.copy(require("src.home_catalog").PRESETS.modest.contents)
     local migrated=assert(Schema.migrate(legacy))
-    check("home_furniture_legacy_contents_materialize_once",migrated.version==39 and #migrated.state.home.furniture.items==9 and migrated.state.home.inventory.bed==0)
+    check("home_furniture_legacy_contents_materialize_once",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==9 and migrated.state.home.inventory.bed==0)
     local Shopping=require("src.home_shopping");local shop,purchaser=state("brick-walkup")
     local buyer={id=2,sceneId="home",x=purchaser.x,y=purchaser.y};Residents.bind(shop,buyer,string.rep("f",64),{purchaser})
     local intent={kind="home_order_furniture",productId="chair",quantity=1,requestId="furniture-guest",expectedRevision=shop.home.revision}

@@ -21,7 +21,9 @@ local function loadFridge(kind)
     asset.door=love.graphics.newQuad(cell,0,cell,h,w,h)
     if kind=="mini_fridge" then
         asset.slots={{265,290},{430,290},{595,290},{265,465},{430,465},{595,465},{430,648}}
-        asset.hingeX,asset.hingeY=164,444
+        -- The door layer has a transparent left margin; use the visible hinge
+        -- edge, not the cell's earlier estimate, as the swing pivot.
+        asset.hingeX,asset.hingeY=226,460
     else
         asset.slots={{310,226},{402,226},{494,226},{586,226},
             {310,354},{402,354},{494,354},{586,354},

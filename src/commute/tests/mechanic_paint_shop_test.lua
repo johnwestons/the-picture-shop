@@ -58,7 +58,7 @@ local function run(check)
     local R,host=fixture();local before=R.state.home.balanceCents
     assert(C.openMechanic(R));local v=R._commute.mechanicOffer
     check('mechanic_paint_shop_opens_with_performance_service',v.page=='lobby' and v.service=='performance')
-    assert(C.keypressed(R,'e'));assert(C.keypressed(R,'tab'))
+    assert(C.keypressed(R,'e'));assert(C.keypressed(R,'tab'));assert(C.keypressed(R,'tab'))
     check('mechanic_paint_shop_tab_exposes_eight_finishes',v.page=='catalog' and v.service=='paint' and #Paint.CATALOG==8)
     local all=true
     for n,finish in ipairs(Paint.CATALOG) do
@@ -85,11 +85,11 @@ local function run(check)
         and not Shop.selectPaint(R,'neon-invalid') and bike(R).paintId=='bronze' and R.saves==0)
     assert(C.keypressed(R,'tab'));local repair=v.service=='repair'
     assert(C.keypressed(R,'tab'));local performance=v.service=='performance'
-    assert(C.deviceInput(R,'controller','x'));local paint=v.service=='paint'
-    assert(C.deviceInput(R,'controller','rightshoulder'));local rightRepair=v.service=='repair'
-    assert(C.deviceInput(R,'controller','leftshoulder'));local leftPerformance=v.service=='performance'
-    check('mechanic_paint_shop_keyboard_and_controller_reach_all_three_services',
-        repair and performance and paint and rightRepair and leftPerformance)
+    assert(C.deviceInput(R,'controller','x'));local tires=v.service=='tires'
+    assert(C.deviceInput(R,'controller','rightshoulder'));local paint=v.service=='paint'
+    assert(C.deviceInput(R,'controller','leftshoulder'));local rightRepair=v.service=='repair'
+    check('mechanic_paint_shop_keyboard_and_controller_reach_all_four_services',
+        repair and performance and tires and paint and rightRepair)
     assert(Shop.selectPaint(R,'red'));assert(Shop.confirm(R))
     check('mechanic_paint_shop_first_approval_only_reviews_fixed_quote',v.page=='confirm' and not v.pending
         and Shop.paintQuote(R,'red').priceCents==12500 and R.state.home.balanceCents==before and R.saves==0)
@@ -124,9 +124,9 @@ local function run(check)
         and R.state.home.balanceCents==before-Paint.COST_CENTS and R.saves==1)
     C.keypressed(R,'return');C.keypressed(R,'escape')
     check('mechanic_paint_shop_receipt_returns_to_shop_then_outdoors',not R._commute.mechanicOffer and bike(R).paintId=='red')
-    assert(C.command(R,host,'bikeupgrade:23:0:1'));assert(C.command(R,host,'bikeupgrade:23:1:2'))
-    assert(C.command(R,host,'bikeupgrade:23:2:3'));assert(C.openMechanic(R));assert(Shop.paint(R));assert(Shop.selectPaint(R,'teal'))
-    check('mechanic_paint_shop_max_engine_still_allows_cosmetic_service',bike(R).upgradeLevel==3
+    assert(C.command(R,host,'bikepart:23:engine:0:1'));assert(C.command(R,host,'bikepart:23:engine:1:2'))
+    assert(C.command(R,host,'bikepart:23:engine:2:3'));assert(C.openMechanic(R));assert(Shop.paint(R));assert(Shop.selectPaint(R,'teal'))
+    check('mechanic_paint_shop_max_engine_still_allows_cosmetic_service',bike(R).upgradeParts.engine==3
         and Shop.paintQuote(R,'teal').status=='available' and Shop.confirm(R))
     C.release(R)
 

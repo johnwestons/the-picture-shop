@@ -70,6 +70,7 @@ end
 local function person(name)
     return {name=name,hunger=100,thirst=100,hygiene=100,energy=100,dirtyClothes=false,revision=0,
         ridingPaintId=require('src.commute.bike_paint').DEFAULT,ridingPaintRevision=0,
+        ridingUpgradeParts=require('src.commute.bike_upgrades').emptyParts(),
         ridingDamage=0,ridingRepairRevision=0,bikeInventory=BikeCargo.new(),bikeParkedAtHome=true}
 end
 function Residents.new() return {owner=person("Host")} end
@@ -98,6 +99,7 @@ function Residents.valid(records)
         if p.ridingGear~=nil and not require('src.commute.gear').valid(p.ridingGear) then return false end
         if p.ridingTransmission~=nil and p.ridingTransmission~='automatic' and p.ridingTransmission~='manual' then return false end
         if not require('src.commute.bike_upgrades').validLevel(p.ridingUpgradeLevel) then return false end
+        if not require('src.commute.bike_upgrades').validParts(p.ridingUpgradeParts) then return false end
         local Paint=require('src.commute.bike_paint')
         if p.ridingPaintId~=nil and not Paint.valid(p.ridingPaintId)
             or p.ridingPaintRevision~=nil and not Paint.validRevision(p.ridingPaintRevision) then return false end
@@ -141,6 +143,7 @@ function Residents.ensure(state)
         if resident.ridingPaintRevision==nil then resident.ridingPaintRevision=0 end
         if resident.ridingDamage==nil then resident.ridingDamage=0 end
         if resident.ridingRepairRevision==nil then resident.ridingRepairRevision=0 end
+        if resident.ridingUpgradeParts==nil then resident.ridingUpgradeParts=require('src.commute.bike_upgrades').emptyParts() end
         BikeCargo.ensure(resident)
         if resident.bikeParkedAtHome==nil then resident.bikeParkedAtHome=true end
     end

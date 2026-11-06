@@ -96,7 +96,7 @@ function Component.install(Runtime)
         if not result then return nil, reason end
         for kind, origin in pairs(committedPlacements) do
             result[kind].x, result[kind].y = origin.x, origin.y
-            if kind == "cutter" or kind == "windmill" then
+            if kind == "cutter" or kind == "wrapper" or kind == "windmill" then
                 result[kind].rotationIndex = MachineRotation.validFrame(origin.rotationIndex)
                     and origin.rotationIndex or MachineRotation.frameForDirection(kind, origin.direction) or 1
                 result[kind].direction = MachineRotation.directionForFrame(kind, result[kind].rotationIndex)
@@ -115,6 +115,7 @@ function Component.install(Runtime)
                     and Runtime.directions[origin.direction] then
                     pose.x, pose.y, pose.direction = origin.x, origin.y, origin.direction
                     local rotationKind = unit.modelId == "polar_115" and "cutter"
+                        or unit.modelId == "skid_wrapper" and "wrapper"
                         or unit.modelId == "heidelberg_10x15" and "windmill" or nil
                     if rotationKind then
                         pose.rotationIndex = MachineRotation.validFrame(origin.rotationIndex)

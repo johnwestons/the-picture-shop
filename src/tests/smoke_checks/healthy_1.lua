@@ -22,8 +22,14 @@ function Component.run(Context)
     Context.check("asset_diagnostic_explains_malformed_dimensions",
         Context.startupDiagnostics[2]:find("expected 1252x1252, got 1251x1252", 1, true))
     Context.check("skid_wrapper_loaded", Context.context.assets.get("skidWrapperDirections") ~= nil)
-    for frame = 1, Context.context.config.wrapperPlacement.frameCount do
+    for frame = 1, 4 do
         Context.check("skid_wrapper_direction_" .. frame, Context.context.assets.getQuad("skidWrapperDirection" .. frame) ~= nil)
+    end
+    Context.check("skid_wrapper_64_view_atlas_loaded",
+        Context.context.assets.get("skidWrapper64Directions") ~= nil)
+    for frame = 1, Context.context.config.wrapperPlacement.frameCount do
+        Context.check("skid_wrapper_64_direction_" .. frame,
+            Context.context.assets.getQuad("skidWrapper64Direction" .. frame) ~= nil)
     end
     Context.check("wall_vent_fan_three_frame_asset", Context.context.assets.get("wallVentFan") ~= nil
         and Context.context.assets.getQuad("wallVentFan1") ~= nil
@@ -109,7 +115,6 @@ function Component.run(Context)
         and Context.context.wrapper.pallet.id == "WRAP-SELECT-P02")
     Context.context.wrapper.update(Context.context.wrapper.cycleTime + 0.1, Context.wrapperSelectionState)
     Context.context.wrapper.reset(Context.wrapperSelectionState)
-    Context.wrapperDirection = Context.wrapperState.wrapper.direction
     Context.wrapperState.palletJack.operating = true
     Context.wrapperState.palletJack.carriedPalletId = nil
     Context.wrapperState.palletJack.x, Context.wrapperState.palletJack.y = Context.wrapperState.wrapper.x, Context.wrapperState.wrapper.y
@@ -118,8 +123,9 @@ function Component.run(Context)
     -- purchased machines; choose a real grid cell before committing it.
     local _,wrapperMovingPose=require("src.machine_transport").active(Context.wrapperState)
     Context.wrapperMovingPose=wrapperMovingPose
+    Context.wrapperRotationIndex=wrapperMovingPose.rotationIndex
     Context.check("skid_wrapper_rotate", Context.context.world.rotateWrapper(Context.wrapperState)
-        and Context.wrapperMovingPose.direction ~= Context.wrapperDirection)
+        and Context.wrapperMovingPose.rotationIndex == Context.wrapperRotationIndex % 64 + 1)
     Context.wrapperGrid=Context.context.world.placementGridSnapshot(Context.wrapperState,Context.context.assets)
     for _,cell in ipairs(Context.wrapperGrid and Context.wrapperGrid.cells or {}) do
         if cell.valid then Context.context.world.selectPlacement(Context.wrapperState,Context.context.assets,cell.x,cell.y);break end

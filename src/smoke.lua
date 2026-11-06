@@ -210,6 +210,14 @@ function Smoke.start(context)
             require('src.tests.save_contract_test').run(context,check)
         elseif focus=='delivery-traffic' then
             require('src.commute.tests.delivery_traffic_test').run(check)
+        elseif focus=='truck-cab' then
+            require('src.commute.tests.trip_test').run(check)
+            require('src.commute.tests.mobile_vehicle_test').run(check)
+            require('src.commute.tests.first_person_test').run(check)
+            require('src.commute.tests.truck_cab_test').run(check)
+        elseif focus=='late-game-traffic' then
+            require('src.commute.tests.delivery_traffic_test').run(check)
+            require('src.tests.late_game_load_test').run(context,check)
         elseif focus=='commute' then
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)

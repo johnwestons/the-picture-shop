@@ -77,7 +77,7 @@ function Interior.new(R)
             {key='use',path=Registration.use.path}},loadIndex=1}
     local renderer=R._commute and R._commute.renderer
     local bike=renderer and renderer.bikeArt
-    if bike and bike.frameCount==16 and bike.images and bike.images.parked then
+    if bike and (bike.parkedFrameCount==16 or bike.frameCount==16) and bike.images and bike.images.parked then
         view.bikeImage=bike.images.parked;view.bikeQuad=bike.quads[5]
         view.bikeQuads=bike.quads;view.bikeFrameCount=bike.frameCount;view.bikeFrame=5
     else view.requests[#view.requests+1]={key='bike',path='assets/commute/bike/parked-16.png'}end

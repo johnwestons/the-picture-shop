@@ -19,23 +19,16 @@ local function door(world,id)
     local sites=world and world.sites or require('src.commute.sites')
     return sites.byId[id].door
 end
-local function parkedInBay(world,id,bike)
-    local site=world and world.sites and world.sites.byId[id]
-    if site then return Bays.slotAt(site,bike.x,bike.z)~=nil end
-    local pad=destinations(world)[id]
-    return M.length(bike.x-pad.x,bike.z-pad.z)<=5
-end
 local function participantId(id) return id=='owner' or Residents.validId(id) end
 local function truckParkedInBay(world,id,truck)
     local site=world and world.sites and world.sites.byId[id]
     if site then
         local x,z=site:toLocal(truck.x,truck.z)
         if id=='warehouse' and site.localTruckParkingArea and site.design.truckParking then
-            local area=site.localTruckParkingArea
-            local halfX=(area.maxX-area.minX)*.5-Truck.RADIUS/site.scale.x
-            local halfZ=(area.maxZ-area.minZ)*.5-Truck.RADIUS/site.scale.z
-            return math.abs(x-site.design.truckParking.x)<=math.max(0,halfX)
-                and math.abs(z-site.design.truckParking.z)<=math.max(0,halfZ)
+            -- The enlarged hardscape includes a staging slot. Only the marked
+            -- primary anchor counts as the loading bay for pallet interactions.
+            return math.abs(x-site.design.truckParking.x)<=1.1/site.scale.x
+                and math.abs(z-site.design.truckParking.z)<=.9/site.scale.z
         end
         local safeHalfWidth=4-Truck.RADIUS/site.scale.x
         local safeHalfDepth=3.75-Truck.RADIUS/site.scale.z
@@ -48,7 +41,7 @@ end
 function Trip.truckAtLoadingBay(world,truck)
     return truck~=nil and truckParkedInBay(world,'warehouse',truck)
 end
-function Trip.truckParking(world)
+function Trip.truckParking(world,companyTruck)
     local site=world and world.sites and world.sites.byId.warehouse
     if not site then return nil end
     local heading=site.design.truckParking and site.yaw or math.atan2(site.front.z,site.front.x)
@@ -59,6 +52,7 @@ function Trip.truckParking(world)
         local h=world:supportHeight(x,z)
         if not Truck.blocked(world,x,z,heading) then
             local truck=Truck.new(x,z,heading,'picture_shop');truck.h=h;truck.homeX=x;truck.homeZ=z
+            require('src.company_delivery_driver').apply(companyTruck,truck)
             return truck
         end
     end
@@ -199,7 +193,7 @@ function Trip.start(state,players,token,world)
     local origin=homeward and 'warehouse' or state.home.apartmentId
     local destination=homeward and state.home.apartmentId or 'warehouse'
     local t={version=Trip.VERSION,mapVersion=Roads.VERSION,mapId=world and world.townId,token=token,purpose=outing and 'outing' or 'weekend',origin=origin,destination=destination,participants={}}
-    t.truck=Trip.truckParking(world)
+    t.truck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state))
     if not t.truck then return false,'No safe loading area is available for the delivery truck.' end
     for _,player in ipairs(players) do
         local id=Residents.key(player);local resident=Residents.get(state,player)
@@ -213,6 +207,7 @@ function Trip.start(state,players,token,world)
         local rider=parkedRider(anchor,gear)
         rider.bike.transmission=resident.ridingTransmission or 'automatic'
         rider.bike.upgradeLevel=resident.ridingUpgradeLevel or 0
+        rider.bike.upgradeParts=require('src.commute.bike_upgrades').copyParts(resident.ridingUpgradeParts)
         rider.bike.paintId=resident.ridingPaintId or Paint.DEFAULT
         rider.bike.service=Service.copy(resident.ridingService)
         rider.bike.damage=resident.ridingDamage or 0
@@ -263,12 +258,12 @@ function Trip.snapshot(t)
     end
     return result
 end
-function Trip.restore(t,world)
+function Trip.restore(t,world,companyTruck)
     if not t then return nil end
     if not Trip.valid(t) then return nil,'Invalid saved commute.' end
     if t.mapId and world.townId and t.mapId~=world.townId then return nil,'The saved trip belongs to another town.' end
     local result=Trip.snapshot(t)
-    if not result.truck or t.mapVersion~=Roads.VERSION then result.truck=Trip.truckParking(world) end
+    if not result.truck or t.mapVersion~=Roads.VERSION then result.truck=Trip.truckParking(world,companyTruck) end
     if t.mapVersion~=Roads.VERSION and result.deliveryRun and result.deliveryRun.status=='offmap' then
         -- Re-enter the gate cinematic after a road-map migration instead of
         -- restoring an off-map driver with no usable vehicle controls.
@@ -290,6 +285,13 @@ function Trip.restore(t,world)
         if rider.vehicle=='truck' then rider.truck=result.truck end
         p.presentation=nil
         if t.mapVersion~=Roads.VERSION then p.arrived=false end
+    end
+    if companyTruck and result.truck then
+        if t.truck and t.truck.fuel~=nil and t.mapVersion==Roads.VERSION then
+            companyTruck.fuelLiters=result.truck.fuel
+        else
+            require('src.company_delivery_driver').apply(companyTruck,result.truck)
+        end
     end
     result.mapVersion=Roads.VERSION;result.mapId=world.townId;return result
 end
@@ -363,6 +365,9 @@ function Trip.command(state,player,token,action,world)
             local rider=t.participants[Residents.key(player)].rider
             local truck=t.truck
             if not truck then return false,'The delivery truck is unavailable.' end
+            if require('src.company_delivery_driver').busy(state) then
+                return false,'The scheduled driver is using the delivery truck right now.'
+            end
             if rider.vehicle=='truck' then
                 if truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
                 if truck.speed>.05 then return false,'Stop the delivery truck before getting out.' end
@@ -387,6 +392,7 @@ function Trip.command(state,player,token,action,world)
             if truck.owner and truck.owner~=Residents.key(player) then return false,'The delivery truck is assigned to another rider.' end
             if truck.driver then return false,'Another rider is driving the delivery truck.' end
             if M.length(rider.ped.x-truck.x,rider.ped.z-truck.z)>5.5 then return false,'Walk over to the delivery truck first.' end
+            truck.fuel=require('src.company_delivery_driver').ensure(state).fuelLiters
             truck.owner=Residents.key(player);truck.driver=Residents.key(player)
             rider.vehicle='truck';rider.transport='truck';rider.truck=truck
             rider.ped.x,rider.ped.z,rider.ped.heading=truck.x,truck.z,truck.heading
@@ -395,6 +401,13 @@ function Trip.command(state,player,token,action,world)
             return true,'Delivery truck ready. Use the riding controls to drive; stop and interact to get out.'
         end
         if part.rider.vehicle=='truck' then
+            local radioAction=({radioPrevious='previous',radioPlay='play',radioNext='next',radioMute='mute'})[action]
+            if radioAction then
+                if t.truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
+                local okay=require('src.jukebox').control(radioAction)
+                if okay then state.home.revision=state.home.revision+1 end
+                return okay,okay and 'Truck radio updated.' or 'That radio control is unavailable.'
+            end
             if action=='ignition' or action=='headlight' or action=='beam'
                 or action=='signalLeft' or action=='signalRight' or action=='rescue' then
                 if t.truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
@@ -418,14 +431,6 @@ function Trip.command(state,player,token,action,world)
     local r=part.rider;local entrance=door(world,t.destination)
     if r.vehicle=='truck' then return false,'Stop and get out of the delivery truck before walking to the door.' end
     if r.ped.crash or not Gear.allowed(r.gear,'door') or r.ped.speed>.05 then return false,'Stop on foot at the destination door.' end
-    local isTruck=r.transport=='truck'
-    local vehicle=isTruck and t.truck or r.bike
-    local inBay=vehicle and (isTruck and truckParkedInBay(world,t.destination,vehicle)
-        or not isTruck and parkedInBay(world,t.destination,vehicle))
-    if not vehicle or not inBay or (vehicle.speed or 0)>.05 then
-        return false,isTruck and 'Park the delivery truck in the loading area first.'
-            or 'Park your motorcycle inside a marked space first.'
-    end
     if M.length(r.ped.x-entrance.x,r.ped.z-entrance.z)>1.8 then return false,'Walk to the destination door.' end
     part.arrived=true;state.home.revision=state.home.revision+1;return true
 end
@@ -475,6 +480,8 @@ function Trip.update(state,player,input,dt,world)
         local truck=t.truck
         if not truck or truck.driver~=Residents.key(player) then return false end
         changed=Truck.update(truck,input,dt,world)>0
+        if require('src.company_delivery_driver').syncFromVehicle(
+            require('src.company_delivery_driver').ensure(state),truck) then changed=true end
         part.rider.truck=truck
         part.rider.ped.x,part.rider.ped.z,part.rider.ped.heading=truck.x,truck.z,truck.heading
         part.rider.ped.h=truck.h;part.rider.ped.speed=0
@@ -514,7 +521,7 @@ function Trip.finish(state,host,token,bringEveryone)
     local owner,t=Trip.participant(state,host,token)
     if not owner then return false,t end
     if not Trip.valid(t,state.home) then return false,'The commute no longer matches this household.' end
-    if not owner.arrived then return false,'Park, dismount and walk to the destination door first.' end
+    if not owner.arrived then return false,'Dismount and walk to the destination door first.' end
     if t.deliveryRun and (t.deliveryRun.status~='returning'
         or t.deliveryRun.stopIndex<=#t.deliveryRun.stops) then
         return false,'Complete the delivery route and return the truck to the warehouse first.'
@@ -534,6 +541,7 @@ function Trip.finish(state,host,token,bringEveryone)
         local resident=state.home.residents[id]
         local gear=Gear.snapshot(part.rider.gear);gear.mounted=false;gear.engine=false
         resident.ridingGear=gear;resident.ridingUpgradeLevel=part.rider.bike.upgradeLevel or 0
+        resident.ridingUpgradeParts=require('src.commute.bike_upgrades').copyParts(part.rider.bike.upgradeParts)
         resident.ridingPaintId=part.rider.bike.paintId or Paint.DEFAULT;resident.revision=resident.revision+1
         resident.bikeParkedAtHome=t.destination==state.home.apartmentId and part.arrived
             and part.rider.vehicle~='truck' and part.rider.transport~='truck'
@@ -589,6 +597,7 @@ function Trip.rebind(state,player,connected,world)
         part={slot=slot,arrived=false,rider=parkedRider(anchor,gear)}
         part.rider.bike.transmission=resident.ridingTransmission or 'automatic'
         part.rider.bike.upgradeLevel=resident.ridingUpgradeLevel or 0
+        part.rider.bike.upgradeParts=require('src.commute.bike_upgrades').copyParts(resident.ridingUpgradeParts)
         part.rider.bike.paintId=resident.ridingPaintId or Paint.DEFAULT
         part.rider.bike.service=Service.copy(resident.ridingService)
         part.rider.bike.damage=resident.ridingDamage or 0
@@ -611,13 +620,9 @@ function Trip.cancel(state,host,token,world)
     if not Gear.allowed(r.gear,'door') or r.ped.speed>.05
         or M.length(r.ped.x-entrance.x,r.ped.z-entrance.z)>1.8 then return false,'Walk to the origin door first.' end
     for _,part in pairs(t.participants) do
-        if part.rider.ped.crash or part.rider.gear.mounted or part.rider.vehicle=='truck' or part.rider.gear.transition
-            or not parkedInBay(world,t.origin,part.rider.bike) then
+        if part.rider.ped.crash or part.rider.gear.mounted or part.rider.vehicle=='truck' or part.rider.gear.transition then
             return false,'Other riders need to return and dismount before going back inside.'
         end
-    end
-    if t.truck and t.truck.owner and M.length(t.truck.x-t.truck.homeX,t.truck.z-t.truck.homeZ)>5.5 then
-        return false,'Return the delivery truck to the loading area before going back inside.'
     end
     for id,part in pairs(t.participants) do
         local resident=state.home.residents[id]

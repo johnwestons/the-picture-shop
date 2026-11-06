@@ -2,7 +2,8 @@
 local M=require('src.commute.vendor.mathx')
 local Damping=require('src.commute.damping')
 local Landing=require('src.commute.landing_camera')
-local FP={EYE_HEIGHT=1.65,NEUTRAL_PITCH=-.035,NEAR=.15,FAR=110,FOV=82,LOOK_YAW=180,LOOK_DOWN=90,LOOK_UP=60,
+local FP={EYE_HEIGHT=1.65,TRUCK_SEAT_SIDE=-.34,TRUCK_SEAT_UP=.26,
+    NEUTRAL_PITCH=-.035,NEAR=.15,FAR=110,FOV=82,LOOK_YAW=180,LOOK_DOWN=90,LOOK_UP=60,
     HEADING_SMOOTH_TIME=.22,ROLL_SMOOTH_TIME=.42,PITCH_SMOOTH_TIME=.30,LOOK_SMOOTH_TIME=.12}
 -- Rotate a view's forward and right vectors about the motorcycle's lateral
 -- axis. This lets the head look sideways or behind on the pitched chassis.
@@ -39,9 +40,13 @@ function FP.update(camera,actor,dt,visual)
     if not M.finite(pitch) then pitch=actor.pitch or math.atan(actor.grade or 0) end
     camera.bikePitch=pitch
     camera.eyeForward=-FP.EYE_HEIGHT*math.sin(pitch)
-    camera.centerX=actor.x+camera.eyeForward*math.cos(camera.bikeHeading)
-    camera.centerZ=actor.z+camera.eyeForward*math.sin(camera.bikeHeading)
-    smooth('eyeHeight',camera.focusHeight+FP.EYE_HEIGHT*math.cos(pitch),.18)
+    local truck=camera.localVehicle=='truck'
+    local seatSide=truck and (camera.truckCabSide or FP.TRUCK_SEAT_SIDE) or 0
+    local seatUp=truck and (camera.truckCabUp or FP.TRUCK_SEAT_UP) or 0
+    local rightX,rightZ=-math.sin(camera.bikeHeading),math.cos(camera.bikeHeading)
+    camera.centerX=actor.x+camera.eyeForward*math.cos(camera.bikeHeading)+rightX*seatSide
+    camera.centerZ=actor.z+camera.eyeForward*math.sin(camera.bikeHeading)+rightZ*seatSide
+    smooth('eyeHeight',camera.focusHeight+FP.EYE_HEIGHT*math.cos(pitch)+seatUp,.18)
     smooth('ridePitch',pitch,FP.PITCH_SMOOTH_TIME)
     local landing=Landing.target(camera.world,actor,visual)
     camera.landingTarget=landing

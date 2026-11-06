@@ -45,8 +45,9 @@ function Component.install(Runtime)
                 pointerX,pointerY,Runtime.drawComputerButton,twelveHourTime)
         elseif Runtime.ComputerScreen.tab == "home" then
             Runtime.drawHome(state,pointerX,pointerY)
-        elseif Runtime.ComputerScreen.tab == 'player_wages' then
-            Runtime.drawPlayerWages(state,pointerX,pointerY)
+        elseif Runtime.ComputerScreen.tab == 'financials' or Runtime.ComputerScreen.tab == 'bills'
+            or Runtime.ComputerScreen.tab == 'player_wages' then
+            Runtime.drawFinancials(state,pointerX,pointerY,twelveHourTime)
         elseif Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
             Runtime.drawHomeShop(state,pointerX,pointerY)
         elseif Runtime.ComputerScreen.tab == "inventory" then
@@ -65,8 +66,6 @@ function Component.install(Runtime)
             Runtime.drawEmail(state, pointerX, pointerY, assets)
         elseif Runtime.ComputerScreen.tab == "calendar" then
             Runtime.drawCalendar(state, pointerX, pointerY,twelveHourTime)
-        elseif Runtime.ComputerScreen.tab == "bills" then
-            Runtime.drawBills(state, pointerX, pointerY)
         elseif Runtime.ComputerScreen.tab == "credit" then
             Runtime.drawCredit(state, pointerX, pointerY)
         elseif Runtime.ComputerScreen.tab == "radio" then

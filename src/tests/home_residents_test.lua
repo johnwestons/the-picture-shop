@@ -121,7 +121,7 @@ function Test.run(context,check)
     check("home_resident_invalid_activity_rejected",not Schema.validState(invalid))
     local legacy=Schema.copy(loaded);legacy.version=27;legacy.state.home.residents=nil
     local migrated=assert(Schema.migrate(legacy));Residents.recover(migrated.state)
-    check("home_resident_legacy_gets_owner_once",migrated.version==39 and migrated.state.home.residents.owner.energy==100)
+    check("home_resident_legacy_gets_owner_once",migrated.version==Schema.VERSION and migrated.state.home.residents.owner.energy==100)
     assert(context.save.delete(3))
     local private=assert(require("src.resident_credentials").get())
     check("home_resident_local_credential_persists",require("src.resident_credentials").get()==private)

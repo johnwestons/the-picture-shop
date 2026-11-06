@@ -88,7 +88,7 @@ function Test.run(context,check)
     local legacy={version=28,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}
     legacy.state.home.shopping=nil
     local migrated=assert(Schema.migrate(legacy))
-    check("home_food_legacy_migration_has_empty_ledger",migrated.version==39 and #migrated.state.home.shopping.orders==0 and migrated.state.home.balanceCents==30000)
+    check("home_food_legacy_migration_has_empty_ledger",migrated.version==Schema.VERSION and #migrated.state.home.shopping.orders==0 and migrated.state.home.balanceCents==30000)
     -- Real office authorization validates the laptop range for each guest action.
     local officeState=State.new();officeState.home.weekend.phase="home";officeState.home.weekend.closedAtHours=44
     local shopper={id=2,sceneId="home",x=0,y=0};Residents.bind(officeState,shopper,string.rep("b",64),{p})

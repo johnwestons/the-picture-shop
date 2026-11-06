@@ -19,6 +19,20 @@ function Bootstrap.install()
         end
     end
 
+    if os.getenv("PICTURE_SHOP_PRIVATE_SERVER") == "1" then
+        -- Keep failures visible in the console on the windowless server target.
+        function love.errorhandler(message)
+            io.stderr:write(tostring(message) .. "\n" .. debug.traceback() .. "\n")
+            io.stderr:flush()
+            return function() return 1 end
+        end
+        local server = require("src.dedicated_server")
+        function love.load() server.load() end
+        function love.update(dt) server.update(dt) end
+        function love.quit() return server.quit() end
+        return
+    end
+
     if os.getenv("PICTURE_SHOP_COMMUTE_RESET") == "1" then
         require("tools.commute_lab.reset_saves")
     elseif os.getenv("PICTURE_SHOP_COMMUTE_PERFORMANCE_PROBE") == "1" then

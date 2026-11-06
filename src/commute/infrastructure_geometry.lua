@@ -150,13 +150,15 @@ local function fixture(piece,f)
             v[4]*f.fz+v[6]*f.fx,v[5],-v[4]*f.fx+v[6]*f.fz,0,0,v[9],v[10],v[11],1})
     end
 end
-local function walk(piece,w,index)
+local function walk(piece,w)
     local p=w.corners
     local m=G.new()
-    local shade=(index%3)*.012
-    local concrete={.67+shade,.65+shade,.58+shade}
+    local concrete={.67,.65,.58}
     G.quad(m,p[1],p[2],p[3],p[4],concrete,{0,1,0})
-    for i=1,4 do
+    -- Adjacent sidewalk sections share their end vertices. Skip those end
+    -- caps: drawing both coplanar caps creates depth-buffer seams in first
+    -- person perspective. Keep only the two exposed long sides.
+    for i=1,3,2 do
         local a,b=p[i],p[i%4+1]
         G.quad(m,a,b,{b[1],b[2],b[4]-.025},{a[1],a[2],a[4]-.025},concrete)
     end
@@ -193,7 +195,7 @@ function Geo.build(plan)
         end
         return tiles[id]
     end
-    for i,w in ipairs(plan.walks) do walk(tile(w,'sidewalk'),w,i) end
+    for _,w in ipairs(plan.walks) do walk(tile(w,'sidewalk'),w) end
     for _,r in ipairs(plan.rails) do rail(tile(r,'streetFurniture'),r) end
     for _,f in ipairs(plan.fixtures) do fixture(tile(f,'streetFurniture'),f) end
     for _,p in ipairs(pieces) do

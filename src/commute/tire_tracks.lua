@@ -79,7 +79,7 @@ function Tracks:update(id,bike,world,dt,visual)
     return active
 end
 
-local function screenLine(points,camera,firstPerson)
+local function screenLine(points,camera,firstPerson,depthSpan)
     local lines,runs={},{}
     local sumDepth,depthCount=0,0
     local function flush()
@@ -87,37 +87,47 @@ local function screenLine(points,camera,firstPerson)
         runs={};sumDepth,depthCount=0,0
     end
     for _,p in ipairs(points) do
-        local x,y,depth=camera:screen(p.x,p.z,p.h)
-        if M.finite(x) and M.finite(y) and (not firstPerson or depth>=FP.NEAR and depth<=FP.FAR) then
+        local x,y,viewDepth=camera:screen(p.x,p.z,p.h)
+        local depth=firstPerson and viewDepth or camera:depth(p.x,p.z,p.h)
+        local visible=not firstPerson or viewDepth>=FP.NEAR and viewDepth<=FP.FAR
+        if M.finite(x) and M.finite(y) and M.finite(depth) and visible then
+            local value=firstPerson and FP.depthValue(depth) or -depth/math.max(1,depthSpan or 1)
             runs[#runs+1]=x;runs[#runs+1]=y
-            if firstPerson then sumDepth=sumDepth+depth;depthCount=depthCount+1 end
+            sumDepth=sumDepth+value;depthCount=depthCount+1
         else flush() end
     end
     flush()
     return lines
 end
 
-function Tracks:draw(camera)
+function Tracks:draw(camera,depthShader,depthSpan)
     if #self.chunks==0 then return end
     local g=love.graphics;local firstPerson=camera.firstPerson==true
     g.push('all');g.origin();g.setScissor();g.setShader();g.setBlendMode('alpha')
-    g.setDepthMode('always',false)
+    g.setDepthMode(depthShader and 'lequal' or 'always',false)
+    if depthShader then g.setShader(depthShader) end
     for _,chunk in ipairs(self.chunks) do
         local age=self.time-chunk.started
         local fade=M.clamp(1-age/Tracks.TTL,0,1)
         if fade>0 then
             if chunk.surface=='road' then g.setColor(.025,.027,.025,.78*fade*chunk.intensity)
             else g.setColor(.25,.18,.105,.72*fade*chunk.intensity) end
-            local front=screenLine(chunk.front,camera,firstPerson)
-            local rear=screenLine(chunk.rear,camera,firstPerson)
+            local front=screenLine(chunk.front,camera,firstPerson,depthSpan)
+            local rear=screenLine(chunk.rear,camera,firstPerson,depthSpan)
             local width
             if firstPerson then
                 local depth=(front[1] and front[1].depth) or (rear[1] and rear[1].depth) or FP.FAR
                 width=M.clamp(camera.focal*.12/depth,1.25,10)
             else width=M.clamp(48*camera.zoom*.12,1.5,7) end
             g.setLineWidth(width*(.85+.3*chunk.intensity))
-            for _,line in ipairs(front) do g.line(line.points) end
-            for _,line in ipairs(rear) do g.line(line.points) end
+            for _,line in ipairs(front) do
+                if depthShader and line.depth then depthShader:send('spriteDepth',line.depth) end
+                g.line(line.points)
+            end
+            for _,line in ipairs(rear) do
+                if depthShader and line.depth then depthShader:send('spriteDepth',line.depth) end
+                g.line(line.points)
+            end
         end
     end
     g.setDepthMode('lequal',true);g.setLineWidth(1);g.setColor(1,1,1);g.pop()

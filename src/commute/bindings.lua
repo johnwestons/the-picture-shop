@@ -1,5 +1,6 @@
 -- Local preferences only: the network still receives semantic riding commands.
 local B={}
+local function clamp(value,lo,hi)return math.max(lo,math.min(hi,value))end
 B.actions={
  {id='accelerate',label='Accelerate / lift the nose in air',held=true,key='w',pad='axis:triggerright+',touch='touch1'},
  {id='brake',label='Brake / reverse; level in air',held=true,key='s',pad='axis:triggerleft+',touch='touch2'},
@@ -72,7 +73,8 @@ B.TOUCH_LEFT,B.TOUCH_RIGHT=.87,.96
 local actionRows={.76,.62,.62,.76,.90,.90}
 function B.defaults()
     local p={keyboard={},mouse={},controller={},touch={},layout={stick={x=.10,y=.80},cameraStick={x=.90,y=.34}},
-        layoutVersion=4,showTouch=false,outsideCamera='fixed'}
+        layoutVersion=4,showTouch=false,outsideCamera='fixed',
+        truckCabView={side=-.34,up=.26}}
     for _,a in ipairs(B.actions) do
         p.keyboard[a.id]=a.key or '';p.mouse[a.id]=a.mouse or ''
         p.controller[a.id]=a.pad or '';p.touch[a.id]=a.touch or ''
@@ -95,6 +97,11 @@ function B.normalize(value)
     end
     p.showTouch=value.showTouch==true
     if value.outsideCamera=='follow' or value.outsideCamera=='shoulder' then p.outsideCamera=value.outsideCamera end
+    local truckCabView=type(value.truckCabView)=='table' and value.truckCabView or {}
+    local side,up=tonumber(truckCabView.side),tonumber(truckCabView.up)
+    if not side or side~=side then side=-.34 end
+    if not up or up~=up then up=.26 end
+    p.truckCabView={side=clamp(side,-.72,.72),up=clamp(up,-.05,.45)}
     local oldLayout=tonumber(value.layoutVersion) or 1
     for id,point in pairs(p.layout) do
         local sourceId=id=='cameraStick' and 'cameraStick' or id

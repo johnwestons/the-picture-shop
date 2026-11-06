@@ -2,13 +2,14 @@
 local M=require('src.commute.vendor.mathx')
 local liveries=require('src.commute.truck_liveries')
 local footprint=require('src.commute.truck_footprint')
-local Truck={MAX_SPEED=12.5,REVERSE_SPEED=3.2,ACCELERATION=1.55,BRAKE=4.4,COAST=1.15,
-    WHEELBASE=3.6,STEER_LOCK=math.rad(34),RADIUS=1.18,COLLISION_HEIGHT=footprint.height,FRAME_DISTANCE=.12}
+local Truck={MAX_SPEED=13.6,REVERSE_SPEED=3.2,ACCELERATION=1.75,BRAKE=4.4,COAST=1.15,
+    WHEELBASE=3.5,STEER_LOCK=math.rad(38),RADIUS=1.18,COLLISION_HEIGHT=footprint.height,FRAME_DISTANCE=.12,
+    TANK_LITERS=60,FUEL_PER_METER=.0003}
 
 function Truck.new(x,z,heading,livery)
     return {x=x,z=z,heading=heading or 0,livery=livery or 'plain',speed=0,reverse=false,distance=0,
         h=0,pitch=0,steering=0,throttle=0,brake=0,acceleration=0,
-        engine=true,headlight=false,headlightHighBeam=false,turnSignal=nil}
+        fuel=Truck.TANK_LITERS,engine=true,headlight=false,headlightHighBeam=false,turnSignal=nil}
 end
 
 function Truck.valid(p)
@@ -18,6 +19,7 @@ function Truck.valid(p)
         and M.finite(p.speed) and p.speed>=0 and p.speed<=Truck.MAX_SPEED
         and (p.reverse==nil or type(p.reverse)=='boolean')
         and (p.engine==nil or type(p.engine)=='boolean')
+        and (p.fuel==nil or M.finite(p.fuel) and p.fuel>=0 and p.fuel<=Truck.TANK_LITERS)
         and (p.headlight==nil or type(p.headlight)=='boolean')
         and (p.headlightHighBeam==nil or type(p.headlightHighBeam)=='boolean')
         and (p.turnSignal==nil or p.turnSignal=='left' or p.turnSignal=='right')
@@ -34,6 +36,7 @@ function Truck.snapshot(p)
         livery=p.livery or 'picture_shop', -- Older towns only had the shop's delivery truck.
         distance=p.distance or 0,h=p.h,pitch=p.pitch or 0,homeX=p.homeX,homeZ=p.homeZ,
         steering=p.steering or 0,slipAngle=p.slipAngle or 0,
+        fuel=p.fuel==nil and Truck.TANK_LITERS or p.fuel,
         engine=p.engine~=false,headlight=p.headlight==true,
         headlightHighBeam=p.headlightHighBeam==true,turnSignal=p.turnSignal}
 end
@@ -49,6 +52,9 @@ function Truck.command(p,action,world)
     end
     if action=='ignition' then
         if (p.speed or 0)>.05 then return false,'Stop completely before switching the truck engine.' end
+        if p.engine==false and (p.fuel or Truck.TANK_LITERS)<=0 then
+            return false,'The delivery truck is out of fuel. Walk to the gas station to refill it.'
+        end
         p.engine=not (p.engine~=false)
         if not p.engine then p.throttle=0;p.headlightHighBeam=false end
         return true,p.engine and 'Truck engine started.' or 'Truck engine off.'
@@ -66,7 +72,7 @@ function Truck.command(p,action,world)
     return false,'That truck control is unavailable.'
 end
 
-function Truck.blocked(world,x,z,heading)
+function Truck.blocked(world,x,z,heading,subject)
     local c,s=math.cos(heading),math.sin(heading)
     if world.infrastructure and world.infrastructure:blocksTruck(x,z,c,s) then return true end
     if world.sites and world.sites.nearby then
@@ -81,12 +87,15 @@ function Truck.blocked(world,x,z,heading)
             if world.roads:blocked(world,x+c*along-s*side,z+s*along+c*side,true) then return true end
         end
     end
+    if world.vehicleObstacles and world.vehicleObstacles(x,z,heading,subject) then return true end
     local h=world:supportHeight(x,z)
     return world.sweepObstacles and world:sweepObstacles(x,z,x,z,footprint.radius,h,h+footprint.height,c,s)~=nil
 end
 
 function Truck.update(p,input,dt,world)
     dt=M.clamp(dt or 0,0,.1)
+    p.fuel=M.clamp(p.fuel==nil and Truck.TANK_LITERS or p.fuel,0,Truck.TANK_LITERS)
+    if p.fuel<=0 then p.engine=false end
     input=input or {}
     local axis=M.clamp(input.drive or 0,-1,1)
     local steer=M.clamp(input.steer or 0,-1,1)
@@ -104,7 +113,11 @@ function Truck.update(p,input,dt,world)
     local rolling=Truck.COAST*(loose and 1.45 or 1)
     local opposite=magnitude>.001 and wantedReverse~=(p.reverse==true)
     local throttle,brake=0,0
-    if p.engine==false then
+    local serviceBrake=M.clamp(input.brake or 0,0,1)
+    if serviceBrake>.001 then
+        brake=serviceBrake
+        p.speed=math.max(0,before-braking*serviceBrake*dt)
+    elseif p.engine==false or p.fuel<=0 then
         if magnitude>.001 then
             brake=magnitude
             p.speed=math.max(0,before-braking*magnitude*dt)
@@ -142,7 +155,7 @@ function Truck.update(p,input,dt,world)
         local pathHeading=heading+p.slipAngle
         local nx=p.x+math.cos(pathHeading)*travel/steps
         local nz=p.z+math.sin(pathHeading)*travel/steps
-        if Truck.blocked(world,nx,nz,heading) then
+        if Truck.blocked(world,nx,nz,heading,p) then
             p.speed=0;p.throttle=0;p.brake=1
             break
         end
@@ -155,6 +168,10 @@ function Truck.update(p,input,dt,world)
     local behind=world:supportHeight(p.x-forwardX*.7,p.z-forwardZ*.7)
     p.pitch=math.atan2(ahead-behind,1.4)
     p.distance=(p.distance or 0)+moved
+    if p.engine~=false and moved>0 then
+        p.fuel=math.max(0,p.fuel-moved*Truck.FUEL_PER_METER)
+        if p.fuel<=0 then p.engine=false;p.throttle=0 end
+    end
     if p.throttle==0 and p.speed<.025 then p.speed=0;p.slipAngle=0 end
     p.acceleration=dt>0 and (p.speed-before)/dt or 0
     return moved

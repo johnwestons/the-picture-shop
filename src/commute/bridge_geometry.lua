@@ -92,6 +92,67 @@ end
 local function terrain(world,x,z)
     return world.ungradedHeight and world:ungradedHeight(x,z) or world:height(x,z)
 end
+local function clipRange(origin,delta,minimum,maximum,low,high)
+    if math.abs(delta)<1e-9 then
+        if origin<minimum or origin>maximum then return nil end
+        return low,high
+    end
+    local a,b=(minimum-origin)/delta,(maximum-origin)/delta
+    if a>b then a,b=b,a end
+    low,high=math.max(low,a),math.min(high,b)
+    if low>high then return nil end
+    return low,high
+end
+local function visibleWallIntervals(a,b,ownId,segments)
+    -- At a same-level bridge junction, parapets and girders stop at the other
+    -- deck's edge instead of continuing across its driveable surface.
+    local dx,dz=b.x-a.x,b.z-a.z
+    local blocked={}
+    for _,other in ipairs(segments) do
+        if other.bridge and other.id~=ownId then
+            local tx,tz=other.dx/other.len,other.dz/other.len
+            local nx,nz=-tz,tx
+            local ox,oz=a.x-other.a.x,a.z-other.a.z
+            local along0,alongD=ox*tx+oz*tz,dx*tx+dz*tz
+            local side0,sideD=ox*nx+oz*nz,dx*nx+dz*nz
+            -- Road segment.a is the segment start, so the along interval is
+            -- [0,len]. Centering it on the start clips only half of each
+            -- crossing segment and leaves bridge supports inconsistently cut.
+            local low,high=clipRange(along0,alongD,-.04,other.len+.04,0,1)
+            if low then
+                low,high=clipRange(side0,sideD,-other.width*.5-.32,other.width*.5+.32,low,high)
+                if low then
+                    -- Only remove parapets/girders where the other bridge is
+                    -- at the same elevation. A crossing at a different level
+                    -- must keep its solid sides and underside.
+                    local otherGrade=(other.b.h-other.a.h)/other.len
+                    local height0=a.h-other.a.h-otherGrade*along0
+                    local heightD=(b.h-a.h)-otherGrade*alongD
+                    low,high=clipRange(height0,heightD,-BridgeArt.DECK_LEVEL_TOLERANCE,
+                        BridgeArt.DECK_LEVEL_TOLERANCE,low,high)
+                    if low then blocked[#blocked+1]={low,high} end
+                end
+            end
+        end
+    end
+    table.sort(blocked,function(left,right)return left[1]<right[1] end)
+    local merged={}
+    for _,range in ipairs(blocked) do
+        local last=merged[#merged]
+        if last and range[1]<=last[2]+1e-5 then last[2]=math.max(last[2],range[2])
+        else merged[#merged+1]={range[1],range[2]} end
+    end
+    local visible={};local cursor=0
+    for _,range in ipairs(merged) do
+        if range[1]>cursor+1e-4 then visible[#visible+1]={cursor,range[1]} end
+        cursor=math.max(cursor,range[2])
+    end
+    if cursor<1-1e-4 then visible[#visible+1]={cursor,1} end
+    return visible
+end
+local function lerpPoint(a,b,t)
+    return point(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t,a.h+(b.h-a.h)*t)
+end
 local function finish(target)
     local bounds={minX=math.huge,minZ=math.huge,minH=math.huge,maxX=-math.huge,maxZ=-math.huge,maxH=-math.huge}
     for _,v in ipairs(target.vertices) do
@@ -130,7 +191,13 @@ function Geometry.build(world)
             beam(deck,s.a,s.b,nx,nz,s.width,Geometry.DECK_CLEARANCE-Geometry.SLAB_DEPTH,
                 Geometry.DECK_CLEARANCE,colors.asphalt)
             for _,side in ipairs({-1,1}) do
-                beam(deck,s.a,s.b,nx,nz,.42,girderBottom,-.27,colors.girder,side*s.width*.32)
+                local offset=side*s.width*.32
+                local a=point(s.a.x+nx*offset,s.a.z+nz*offset,s.a.h)
+                local b=point(s.b.x+nx*offset,s.b.z+nz*offset,s.b.h)
+                for _,interval in ipairs(visibleWallIntervals(a,b,group.id,world.roads.segments)) do
+                    beam(deck,lerpPoint(a,b,interval[1]),lerpPoint(a,b,interval[2]),
+                        nx,nz,.42,girderBottom,-.27,colors.girder)
+                end
             end
             local spacing=group.length/bays
             local firstBay=math.min(bays,math.floor(traversed/spacing)+1)
@@ -149,9 +216,12 @@ function Geometry.build(world)
                     local a,b=at(ta),at(tb)
                     local wall=walls[bay..':'..side]
                     local shift=side*BridgeArt.CAP_WIDTH_METERS*(BridgeArt.CAP_OUTER_FRACTION-.5)
-                    beam(wall,a,b,nx,nz,.34,-.15,above-.14,colors.concrete,shift)
-                    beam(wall,a,b,nx,nz,BridgeArt.CAP_WIDTH_METERS,above-.16,above+.02,
-                        colors.coping,shift,.035)
+                    for _,interval in ipairs(visibleWallIntervals(a,b,group.id,world.roads.segments)) do
+                        local clippedA,clippedB=lerpPoint(a,b,interval[1]),lerpPoint(a,b,interval[2])
+                        beam(wall,clippedA,clippedB,nx,nz,.34,-.15,above-.14,colors.concrete,shift)
+                        beam(wall,clippedA,clippedB,nx,nz,BridgeArt.CAP_WIDTH_METERS,above-.16,above+.02,
+                            colors.coping,shift,.035)
+                    end
                 end
                 end
             end
@@ -165,12 +235,14 @@ function Geometry.build(world)
             local tx,tz=tangentAt(group,distance)
             local shift=side.side*BridgeArt.CAP_WIDTH_METERS*(BridgeArt.CAP_OUTER_FRACTION-.5)
             for _,endPoint in ipairs({side.a,side.b}) do
-                local c=point(endPoint.x-tz*shift,endPoint.z+tx*shift,endPoint.h)
-                box(target,c,tx,tz,.13,.40,.09,above-.16,colors.rib)
+                if not BridgeArt.onOtherBridgeDeck(endPoint.x,endPoint.z,group.id,world.roads,.32,endPoint.h) then
+                    local c=point(endPoint.x-tz*shift,endPoint.z+tx*shift,endPoint.h)
+                    box(target,c,tx,tz,.13,.40,.09,above-.16,colors.rib)
+                end
             end
         end
         -- Terminal posts belong to their adjacent wall items for painter order.
-        for _,post in ipairs(BridgeArt.endPostLayout(roads)) do
+        for _,post in ipairs(BridgeArt.endPostLayout(roads,world.roads)) do
             local bay=post.endName=='start' and 1 or bays
             local target=walls[bay..':'..post.side]
             local tx,tz=tangentAt(group,post.endName=='start' and 0 or group.length)
@@ -184,14 +256,19 @@ function Geometry.build(world)
         for _,fraction in ipairs(BridgeArt.PIER_FRACTIONS) do joints[#joints+1]=group.length*fraction end
         for _,distance in ipairs(joints) do
             local c=BridgeArt.pointAt(group,distance,0,0);local tx,tz=tangentAt(group,distance)
-            box(deck,c,tx,tz,.045,c.width-.72,Geometry.DECK_CLEARANCE+.001,
-                Geometry.DECK_CLEARANCE+.008,colors.joint)
+            if not BridgeArt.onOtherBridgeDeck(c.x,c.z,group.id,world.roads,nil,c.h) then
+                box(deck,c,tx,tz,.045,c.width-.72,Geometry.DECK_CLEARANCE+.001,
+                    Geometry.DECK_CLEARANCE+.008,colors.joint)
+            end
         end
         result[#result+1]=finish(deck)
-        for _,side in ipairs(sides) do result[#result+1]=finish(walls[side.bay..':'..side.side]) end
+        for _,side in ipairs(sides) do
+            local wall=walls[side.bay..':'..side.side]
+            if #wall.vertices>0 then result[#result+1]=finish(wall) end
+        end
         local subworld={roads=roads,height=function(_,x,z)return world:height(x,z) end,
             ungradedHeight=function(_,x,z)return terrain(world,x,z) end}
-        for _,pier in ipairs(BridgeArt.pierLayout(subworld)) do
+        for _,pier in ipairs(BridgeArt.pierLayout(subworld,nil,world.roads)) do
             local tx,tz=tangentAt(group,group.length*BridgeArt.PIER_FRACTIONS[pier.pier])
             local target=piece(prefix..':pier:'..pier.pier,'bridgePier',point(pier.x,pier.z,pier.baseHeight),
                 {bridgeId=group.id,pier=pier.pier,deckHeight=pier.deckHeight,

@@ -10,9 +10,9 @@ local function roadDistance(edge,x,z)
     local t=M.clamp(((x-edge.a[1])*edge.dx+(z-edge.a[2])*edge.dz)/edge.length2,0,1)
     return (x-edge.a[1]-edge.dx*t)^2+(z-edge.a[2]-edge.dz*t)^2
 end
-local function edge(a,b,width)
+local function edge(a,b,width,bridge)
     local dx,dz=b[1]-a[1],b[2]-a[2]
-    return {a=a,b=b,dx=dx,dz=dz,length2=dx*dx+dz*dz,width=width}
+    return {a=a,b=b,dx=dx,dz=dz,length2=dx*dx+dz*dz,width=width,bridge=bridge==true}
 end
 local function buildNetwork(town)
     local nodes,byKey,edges,anchors={},{},{},{}
@@ -33,7 +33,7 @@ local function buildNetwork(town)
         for i=1,#road.points-1 do
             local a,b=road.points[i],road.points[i+1]
             local start,finish=node(a),node(b)
-            edges[#edges+1]=edge(a,b,road.width)
+            edges[#edges+1]=edge(a,b,road.width,road.bridgeEdges and road.bridgeEdges[i])
             if road.role~='drive' and not road.id:match('%-drive$') and not (road.bridgeEdges and road.bridgeEdges[i]) then
                 -- Short control edges describe the curve, not extra trailheads.
                 -- Keep enough separated entrances without scoring every pair of
@@ -86,12 +86,14 @@ local function clearLot(ctx,x,z,radius)
     end
     return true
 end
-local function clearEdges(ctx,x,z,radius)
+local function clearEdges(ctx,x,z,radius,roadMouth)
     for _,j in ipairs(ctx.junctions) do
         if (x-j.x)^2+(z-j.z)^2<(j.outerRadius+radius)^2 then return false end
     end
     for _,e in ipairs(ctx.edges) do
-        if roadDistance(e,x,z)<(radius+e.width*.5)^2 then return false end
+        local bridgeRail=e.bridge and 1.2 or 0
+        if (not roadMouth or e.bridge)
+            and roadDistance(e,x,z)<(radius+e.width*.5+bridgeRail)^2 then return false end
     end
     return true
 end
@@ -141,7 +143,8 @@ local function path(ctx,pair,bend)
         local x,z=q(a[1]+dx*t+nx*side),q(a[2]+dz*t+nz*side)
         if not clearLot(ctx,x,z,Trails.WIDTH*.5+1.2) then return end
         -- Keep away from other pavement except inside the two trail mouths.
-        if t*pair.direct>8 and (1-t)*pair.direct>8 and not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8) then return end
+        local roadMouth=t*pair.direct<=8 or (1-t)*pair.direct<=8
+        if not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8,roadMouth) then return end
         local h=ctx.plan:height(x,z)
         local half=Trails.WIDTH*.5+1
         if h<.85 or ctx.plan:height(x+nx*half,z+nz*half)<.8
@@ -237,8 +240,9 @@ local function perimeterAccess(ctx,anchor,target)
             local side=bend*math.sin(t*math.pi)
             local x,z=q(a[1]+dx*t+nx*side),q(a[2]+dz*t+nz*side)
             local h=ctx.plan:height(x,z)
+            local roadMouth=t*direct<=8 or (1-t)*direct<=8
             if h<.85 or not clearLot(ctx,x,z,Trails.WIDTH*.5+1.2)
-                or t*direct>8 and (1-t)*direct>8 and not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8) then
+                or not clearEdges(ctx,x,z,Trails.WIDTH*.5+.8,roadMouth) then
                 valid=false;break
             end
             if t*direct<10 then h=M.lerp(a[3],h,t*direct/10) end

@@ -17,14 +17,14 @@ local function getGearActionArt()
     if ok then gearActionArt=art else gearActionArtFailed=true end
     return gearActionArt
 end
-local function drawGearAction(pose,progress,x,y,baseScale,appearance,depthShader,spriteDepth)
+local function drawGearAction(pose,progress,x,y,baseScale,appearance,depthShader,spriteDepth,silhouetteMode)
     if type(appearance)~='table' or appearance.character~='rabbit-worker' then return false end
     local art=getGearActionArt()
     if not art then return false end
     local action,frame=GearActionArt.actionFrameForPose(pose,progress,art.registration)
     if not action then return false end
     local scale=baseScale*GearActionArt.normalization(action,art.registration)
-    return art:draw(action,frame,x,y,scale,appearance,depthShader,spriteDepth)
+    return art:draw(action,frame,x,y,scale,appearance,depthShader,spriteDepth,silhouetteMode)
 end
 local function visualPose(gear,presentation,actor)
     if actor and actor.crash then
@@ -186,7 +186,7 @@ local function drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,cl
     return true
 end
 
-function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock,depthShader,actionDepthShader,spriteDepth)
+function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock,depthShader,actionDepthShader,spriteDepth,silhouetteMode)
     if not characterAssets or type(gear)~='table' then return false end
     local Normal=require('src.commute.normal_art')
     local selected=Normal.appearance(appearance)
@@ -194,7 +194,7 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
     if selected.character=='rabbit-worker' then
         local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
         if drawGearAction(pose,progress,x,y,RoadScale.base(camera.zoom,GearActionArt.REFERENCE_HEIGHT),
-            selected,actionDepthShader,spriteDepth) then return true end
+            selected,actionDepthShader,spriteDepth,silhouetteMode) then return true end
     end
     -- The production suit art is rabbit-specific. Keep other selected species
     -- intact until matching suit sheets are authored for them.

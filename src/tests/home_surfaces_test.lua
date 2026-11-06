@@ -75,7 +75,7 @@ function Test.run(context,check)
     data.version=1;data.nextId=3
     local payload={version=30,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(legacy),player={x=300,y=400}}
     local migrated=assert(Schema.migrate(payload));local again=assert(Schema.migrate(migrated))
-    check("home_surface_v30_migration_keeps_existing_poses_and_counts",migrated.version==39 and migrated.state.home.furniture.version==3
+    check("home_surface_v30_migration_keeps_existing_poses_and_counts",migrated.version==Schema.VERSION and migrated.state.home.furniture.version==3
         and #migrated.state.home.furniture.items==9 and #again.state.home.furniture.items==9 and migrated.state.home.inventory.laptop==0
         and migrated.state.home.furniture.items[1].x==data.items[1].x and migrated.state.home.furniture.items[8].parentId==0)
     local couch=byKind.couch;local approach=Furniture.targets(s,p)["furniture"..couch.id];p.x,p.y=approach.x,approach.y

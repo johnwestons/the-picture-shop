@@ -30,5 +30,6 @@ require("src.runtime.simulation").install(Runtime)
 require("src.runtime.render").install(Runtime)
 require("src.runtime.input_callbacks").install(Runtime)
 require("src.runtime.lifecycle").install(Runtime)
+require("src.runtime.dedicated_server").install(Runtime)
 
 return Runtime.App

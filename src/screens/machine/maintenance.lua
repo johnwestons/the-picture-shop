@@ -149,7 +149,7 @@ function Component.install(Runtime)
         end
         Runtime.drawMaintenanceCard(Runtime.weeklyButton, cutter.weeklyTechnician and "WEEKLY SERVICE: ON" or "WEEKLY SERVICE: OFF",
             cutter.weeklyTechnician and "Click to cancel the recurring blade exchange."
-                or "Schedule a blade exchange every seven game days. Delays arrive by email.",
+                or "Mara removes, sleeves and replaces the blade every seven game days. Delays arrive by email.",
             true, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.maintenanceBack, "RETURN TO CUTTER", "", true, pointerX, pointerY)
         love.graphics.setColor(0.70, 0.78, 0.79)

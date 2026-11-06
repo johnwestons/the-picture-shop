@@ -115,6 +115,6 @@ function Test.run(context,check)
     assert(context.save.save(3,s,{sceneId="home",x=p.x,y=p.y}));local saved=assert(context.save.load(3))
     check("home_utilities_disk_contents_and_power",require("src.home_surfaces").find(saved.state,tv.id).powered and saved.state.home.chores.trash==2)
     local migrated=assert(Schema.migrate({version=37,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))
-    check("home_utilities_v37_no_free_items",migrated.version==39 and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
+    check("home_utilities_v37_no_free_items",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
 end
 return Test

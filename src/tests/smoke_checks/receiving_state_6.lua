@@ -115,8 +115,10 @@ function Component.run(Context)
     Context.context.computerScreen.enter(Context.navigationState)
     Context.allTabsReachable = true
     for _, tabId in ipairs({
-        "active", "completed", "deliveries", "estimating", "calendar",
-        "inventory", "www", "email", "bills",
+        "active", "completed", "deliveries", "estimating", "email", "reviews",
+        "clock", "financials", "inventory", "hiring", "schedule", "warehouse",
+        "radio", "calendar", "www", "credit", "home", "groceries", "takeout",
+        "home_orders", "furniture",
     }) do
         local result = Context.selectComputerTab(Context.context.computerScreen, Context.navigationState, tabId)
         Context.allTabsReachable = Context.allTabsReachable and result and result.tab == tabId
@@ -124,6 +126,15 @@ function Component.run(Context)
             and Context.context.computerScreen.activeUrl():find("www.thecritternet.com", 1, true) == 1
     end
     Context.check("computer_dropdown_reaches_every_section", Context.allTabsReachable)
+    Context.billsAliasX,Context.billsAliasY=Context.context.computerScreen.tabCenter("bills")
+    Context.dropdownArrowX,Context.dropdownArrowY=Context.context.computerScreen.dropdownCenter()
+    Context.context.computerScreen.mousepressed(Context.navigationState,
+        Context.dropdownArrowX,Context.dropdownArrowY,1)
+    Context.billsAliasResult=Context.context.computerScreen.mousepressed(Context.navigationState,
+        Context.billsAliasX,Context.billsAliasY,1)
+    Context.check("computer_bills_alias_opens_financials_section",
+        Context.billsAliasResult and Context.billsAliasResult.tab=="financials"
+        and Context.context.computerScreen.financialSection=="bills")
 
     Context.context.computerScreen.enter(Context.serviceState)
     Context.arrowX, Context.arrowY = Context.context.computerScreen.dropdownCenter()
@@ -178,12 +189,26 @@ function Component.run(Context)
     Context.selectedDelivery = Context.context.computerScreen.mousepressed(Context.serviceState, Context.rowX, Context.rowY, 1)
     Context.check("computer_inbound_delivery_list", Context.selectedDelivery
         and Context.selectedDelivery.job.status == "awaiting_delivery")
-    Context.purchaseRowX, Context.purchaseRowY = Context.context.computerScreen.rowCenter(2)
-    Context.selectedPurchase = Context.context.computerScreen.mousepressed(
-        Context.serviceState, Context.purchaseRowX, Context.purchaseRowY, 1)
+    Context.selectedPurchaseShipment = nil
+    for row = 1, 2 do
+        local purchaseRowX, purchaseRowY = Context.context.computerScreen.rowCenter(row)
+        local result = Context.context.computerScreen.mousepressed(
+            Context.serviceState, purchaseRowX, purchaseRowY, 1)
+        local shipment = result and result.job
+        if shipment and shipment.id == Context.purchaseOrder.shipmentId then
+            Context.selectedPurchase = result
+            Context.selectedPurchaseShipment = shipment
+            break
+        end
+    end
+    Context.purchaseOrderInShipment = false
+    for _, order in ipairs((Context.selectedPurchaseShipment and Context.selectedPurchaseShipment.orders) or {}) do
+        if order.id == Context.purchaseOrder.id then Context.purchaseOrderInShipment = true end
+    end
     Context.check("computer_purchase_order_delivery_list", Context.selectedPurchase
-        and Context.selectedPurchase.job == Context.purchaseOrder
-        and Context.context.computerScreen.statusLabel(Context.purchaseOrder.delivery.status)
+        and Context.selectedPurchase.action == "select"
+        and Context.purchaseOrderInShipment
+        and Context.context.computerScreen.statusLabel(Context.selectedPurchaseShipment.delivery.status)
             == "Awaiting truck schedule")
 end
 

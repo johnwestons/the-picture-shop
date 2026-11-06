@@ -110,7 +110,7 @@ function Test.run(context,check)
     check("home_objects_one_carried_cup_per_resident",not Home.valid(invalid))
     local legacy=State.new();legacy.home=Home.new({furnishingPreset="modest"});legacy.home.furniture.version=2
     local migrated=assert(Schema.migrate({version=31,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(legacy),player={x=300,y=400}}))
-    check("home_objects_v31_migration_keeps_placements_and_empty_contents",migrated.version==39 and migrated.state.home.furniture.version==3
+    check("home_objects_v31_migration_keeps_placements_and_empty_contents",migrated.version==Schema.VERSION and migrated.state.home.furniture.version==3
         and #migrated.state.home.furniture.items==9 and migrated.state.home.furniture.items[8].parentId==5
         and next(migrated.state.home.furniture.items[4].contents)==nil)
 end

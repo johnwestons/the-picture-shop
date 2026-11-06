@@ -98,7 +98,7 @@ function Test.run(_,check)
     computer.mousepressed(state,plusX,plusY,1)
     local offerX,offerY=computer.playerWageControlCenter('propose',1)
     computer.mousepressed(state,offerX,offerY,1)
-    check('guest_wage_office_tab_sends_checked_offer',computer.tab=='player_wages' and sent
+    check('guest_wage_office_tab_sends_checked_offer',computer.tab=='financials' and computer.financialSection=='players' and sent
         and sent.kind=='player_wage_propose' and sent.residentId==id
         and sent.wageCents==3100 and sent.expectedRevision==2)
     local canvas=love.graphics.newCanvas(960,678)

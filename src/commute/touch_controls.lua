@@ -368,6 +368,18 @@ function Touch:draw(width,height,p,context,options)
                         cx-direction*cap*.40,cy,cx+direction*cap*.28,cy+cap*.43)
                     g.setColor(.10,.12,.09,active and 1 or .82)
                     g.line(cx-direction*cap*.30,cy,cx+direction*cap*.36,cy)
+                elseif button.action:sub(1,5)=='radio' then
+                    local cap=math.max(5,r*.62)
+                    g.setColor(.02,.025,.02,.58);g.circle('fill',cx,cy+cap*.15,cap*1.12)
+                    g.setColor(active and .18 or .08,active and .72 or .39,active and .47 or .31,.96)
+                    g.circle('fill',cx,cy,cap)
+                    g.setColor(1,.88,.61,active and .98 or .70);g.setLineWidth(math.max(1,r*.10))
+                    g.circle('line',cx,cy,cap*.87)
+                    local glyph=button.action=='radioPrevious' and '<<'
+                        or button.action=='radioNext' and '>>'
+                        or button.action=='radioMute' and 'M' or active and '||' or '>'
+                    g.setColor(1,.91,.72,1);g.setFont(fontFor(self,clamp(r*.62,7,10)))
+                    g.printf(glyph,cx-cap,cy-cap*.50,cap*2,'center')
                 else
                     local width=math.max(4,r*.66);local height=math.max(6,r*1.22)
                     local travel=button.action=='beam' and (active and -.17 or .17)

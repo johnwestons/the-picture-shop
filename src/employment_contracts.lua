@@ -36,7 +36,7 @@ function Contracts.productiveHours(t)
     return duration-.75-Contracts.paidRestHours(t)
 end
 function Contracts.validTerms(t)
-    return type(t)=="table" and t.role=="cutter"
+    return type(t)=="table" and (t.role=="cutter" or t.role=="driver")
         and integer(t.wageCents,1000,10000) and integer(t.days,1,127)
         and integer(t.startHour,0,23) and integer(t.endHour,0,23)
         and integer(t.payWeeks,1,4)
@@ -53,8 +53,8 @@ function Contracts.same(a,b)
     end
     return true
 end
-function Contracts.terms(wage,days,startHour,endHour,payWeeks)
-    return {role="cutter",wageCents=wage,days=days,startHour=startHour,endHour=endHour,payWeeks=payWeeks or 1}
+function Contracts.terms(wage,days,startHour,endHour,payWeeks,role)
+    return {role=role or "cutter",wageCents=wage,days=days,startHour=startHour,endHour=endHour,payWeeks=payWeeks or 1}
 end
 -- Terms keep their signed start-day identity. Actual attendance is their
 -- intersection with opening hours, including the tail of an overnight shift.
@@ -111,7 +111,8 @@ function Contracts.summary(t,twelveHour)
     local names={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"}
     local days={}
     for i,name in ipairs(names) do if Contracts.hasDay(t.days,i) then days[#days+1]=name end end
-    return string.format("$%.2f/hr | %s | %s-%s%s | Pay %dw",t.wageCents/100,table.concat(days," "),
+    local role=t.role=="driver" and "Delivery driver" or "Production cutter"
+    return string.format("%s | $%.2f/hr | %s | %s-%s%s | Pay %dw",role,t.wageCents/100,table.concat(days," "),
         Contracts.formatHour(t.startHour,twelveHour),Contracts.formatHour(t.endHour,twelveHour),
         t.endHour<t.startHour and " (+1 day)" or "",t.payWeeks)
 end

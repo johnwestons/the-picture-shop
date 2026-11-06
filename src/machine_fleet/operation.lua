@@ -93,6 +93,29 @@ function Component.install(Runtime)
             cutter.guideLubrication = Runtime.clamp(cutter.guideLubrication - cycles * 0.24, 0, 100)
             cutter.crankLubrication = Runtime.clamp(cutter.crankLubrication - cycles * 0.20, 0, 100)
             cutter.gearOilLevel = Runtime.clamp(cutter.gearOilLevel - cycles * 0.00035, 0, 1)
+            local sharpness = Runtime.clamp(item.variables.bladeSharpness or 100, 0, 100)
+            if sharpness <= 50 and not cutter.bladeDullNoticeSent then
+                cutter.bladeDullNoticeSent = true
+                local Speech = require("src.employee_speech")
+                local Calendar = require("src.business_calendar")
+                local now = Calendar.absoluteHours(state)
+                local speaker
+                for _, worker in ipairs(state.employment and state.employment.staff or {}) do
+                    if worker.status == "employed" and worker.visible then speaker = worker; break end
+                end
+                if speaker then
+                    speaker.greetingKind = Speech.EMPLOYEE_BLADE_DULL
+                    speaker.greetingUntilHours = now + Speech.GREETING_SECONDS * 24 / Calendar.secondsPerDay(state)
+                end
+                local serviceAdvice = cutter.weeklyTechnician
+                    and "Mara Mouse's weekly service will remove and replace it automatically."
+                    or "Schedule weekly service with Mara Mouse to have it removed and replaced automatically."
+                local report = "The Polar 115 blade has dropped to " .. math.floor(sharpness)
+                    .. "% sharpness. " .. serviceAdvice
+                Runtime.Fleet.addServiceNotice(state, "Paper cutter blade is getting dull", report, "Shop Floor Team")
+                state.message = speaker and (speaker.name .. " says: " .. Speech.message(Speech.EMPLOYEE_BLADE_DULL))
+                    or ("Your employees say: " .. Speech.message(Speech.EMPLOYEE_BLADE_DULL))
+            end
         end
         item.condition = Runtime.calculateCondition(item)
         return true, item

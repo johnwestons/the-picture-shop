@@ -1,15 +1,16 @@
 -- Fuel in litres. Service intervals are shortened for town-scale rides.
-local S={tank=4,oilLife=18,chainLife=42,tires={},orders={'fuel','oil','chain'}}
-local function tire(id,name,cents,road,dirt,life)
-    S.tires[id]={name=name,price=cents,road=road,dirt=dirt,life=life}
-    S.orders[#S.orders+1]=id
+local S={tank=4,oilLife=18,chainLife=42,tires={},tireOrder={},orders={'fuel','oil','chain'}}
+local function tire(id,name,cents,road,dirt,life,roadAcceleration,dirtAcceleration,description)
+    S.tires[id]={name=name,price=cents,road=road,dirt=dirt,life=life,
+        roadAcceleration=roadAcceleration,dirtAcceleration=dirtAcceleration,description=description}
+    S.tireOrder[#S.tireOrder+1]=id
 end
-tire('street','Street',2600,1.14,.78,24)
-tire('streetplus','Premium street',4900,1.24,.83,46)
-tire('mixed','Dual sport',3200,1,1,28)
-tire('mixedplus','Premium dual sport',5700,1.08,1.09,52)
-tire('dirt','Off-road',3700,.82,1.25,22)
-tire('dirtplus','Premium off-road',6400,.88,1.36,44)
+tire('street','Street',2600,1.14,.70,24,1.12,.92,'Strong concrete grip and acceleration; slides more on dirt.')
+tire('streetplus','Premium street',4900,1.24,.74,46,1.20,.94,'Best concrete grip and acceleration; loses traction quickly on dirt.')
+tire('mixed','Standard',3200,1,1,28,1,1,'Factory tires with the current balanced, predictable handling.')
+tire('mixedplus','Dual-purpose',5700,1.10,1.15,52,1.06,1.04,'Extra grip on both concrete and dirt with balanced acceleration.')
+tire('dirt','Dirt',3700,.82,1.25,22,.92,1.06,'Trades some concrete grip for stronger dirt traction and control.')
+tire('dirtplus','Premium dirt',6400,.88,1.36,44,.94,1.10,'Maximum dirt grip and reduced sliding on loose terrain.')
 function S.copy(s)
     s=s or {}
     return {fuel=s.fuel or S.tank,miles=s.miles or 0,tread=s.tread or 0,oil=s.oil or 0,
@@ -28,6 +29,15 @@ function S.grip(s,road)
     if not s then return 1 end
     local tire=S.tires[s.tire]
     return (tire.dirt+(tire.road-tire.dirt)*road)*(1-.48*math.min(1,s.tread/tire.life))
+end
+function S.acceleration(s,road)
+    if not s then return 1 end
+    local tire=S.tires[s.tire]
+    if not tire then return 1 end
+    road=math.max(0,math.min(1,road or 0))
+    local surface=tire.dirtAcceleration+(tire.roadAcceleration-tire.dirtAcceleration)*road
+    local wear=1-.1*math.min(1,s.tread/tire.life)
+    return surface*wear
 end
 function S.rough(bike)
     local s=bike.service

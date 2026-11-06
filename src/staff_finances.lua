@@ -38,21 +38,23 @@ function Finances.summary(state,proposed,skill)
     local operators={}
     -- A standard cutting lift has 500 customer-supplied sheets and four trims.
     local standard={pallets={{requiredLifts=1,paper={cuts={1,2,3,4}}}}}
-    local function budget(w)
+    local function budget(w,productionRole)
         local weekly=Contracts.weeklyEstimate(w.contract)
         if weekly<=0 then return end
-        local allowance=Labor.estimate(state,standard,w)
         result.weeklyWages=result.weeklyWages+weekly
         result.cycleReserve=result.cycleReserve+weekly*w.contract.payWeeks
-        result.pricePerLift=math.max(result.pricePerLift,allowance.minimumCuttingCharge)
-        result.machinePerLift=math.max(result.machinePerLift,allowance.machineCost)
-        operators[#operators+1]={terms=w.contract,perHour=1/allowance.productiveHours}
+        if productionRole then
+            local allowance=Labor.estimate(state,standard,w)
+            result.pricePerLift=math.max(result.pricePerLift,allowance.minimumCuttingCharge)
+            result.machinePerLift=math.max(result.machinePerLift,allowance.machineCost)
+            operators[#operators+1]={terms=w.contract,perHour=1/allowance.productiveHours}
+        end
     end
     for _,w in ipairs(state.employment and state.employment.staff or {}) do
-        if w.status=="employed" and not w.terminationRequested then budget(w) end
+        if w.status=="employed" and not w.terminationRequested then budget(w,w.contract.role~="driver") end
     end
     if proposed and Contracts.validTerms(proposed) then
-        budget({id="EMP-PREVIEW",name="Proposed employee",contract=proposed,cutterSkill=skill or 60,focus=80})
+        budget({id="EMP-PREVIEW",name="Proposed employee",contract=proposed,cutterSkill=skill or 60,focus=80},proposed.role~="driver")
     end
     -- Workers sharing the same hours still need separate installed cutters.
     -- Overnight shifts anchor their weekday to the day they start.

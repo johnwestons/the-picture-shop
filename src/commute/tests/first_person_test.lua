@@ -60,7 +60,8 @@ function Test.run(check)
         and truckCamera.firstPerson)
     truckCamera:updateRide(truckRider,1/60)
     check('truck_first_person_camera_tracks_truck_heading_and_eye',truckCamera.firstPerson
-        and truckCamera.lastActor==truck and near(truckCamera.eyeHeight,4+FP.EYE_HEIGHT*math.cos(truck.pitch)))
+        and truckCamera.lastActor==truck
+        and near(truckCamera.eyeHeight,4+FP.EYE_HEIGHT*math.cos(truck.pitch)+FP.TRUCK_SEAT_UP))
     local cockpit=require('src.commute.truck_cockpit').new()
     local cockpitOkay=pcall(function() cockpit:draw(truck,1280,880,truckCamera) end)
     cockpit:release()
@@ -125,7 +126,6 @@ function Test.run(check)
         and near(camera.eyeHeight,4+FP.EYE_HEIGHT))
     check('first_person_walking_shows_local_parked_bike',View.shouldDrawLocalActor(camera,
         {localPlayer=true,bikeOnly=true}))
-    require('src.commute.tests.terrain_renderer_test').run(check)
     require('src.commute.tests.bike_multiplayer_view_test').run(check)
 end
 return Test

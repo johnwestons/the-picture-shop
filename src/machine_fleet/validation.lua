@@ -70,6 +70,7 @@ function Component.install(Runtime)
                         and type(cutter.centralLubricationInstalled) ~= "boolean")
                     or type(cutter.bladeRemoved) ~= "boolean" or type(cutter.bladeInSleeve) ~= "boolean"
                     or (cutter.spareBladeInstalled ~= nil and type(cutter.spareBladeInstalled) ~= "boolean")
+                    or (cutter.bladeDullNoticeSent ~= nil and type(cutter.bladeDullNoticeSent) ~= "boolean")
                     or (cutter.spareBladeInstalled == true and (cutter.bladeRemoved or not cutter.bladeInSleeve))
                     or (cutter.bladeGrade ~= nil and not BladeProfiles.get(cutter.bladeGrade))
                     or (cutter.orderedBladeGrade ~= nil

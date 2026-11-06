@@ -122,6 +122,26 @@ function Test.run(check)
     assert(Trip.command(state,host,12,'signalLeft',world))
     check('commute_truck_controls_switch_engine_lights_and_signals',deliveryTruck.engine
         and deliveryTruck.headlight and deliveryTruck.headlightHighBeam and deliveryTruck.turnSignal=='left')
+    local Jukebox=require('src.jukebox')
+    local realRadioControl=Jukebox.control
+    local radioActions={}
+    Jukebox.control=function(action)radioActions[#radioActions+1]=action;return true end
+    local radioDenied,radioRun= false,false
+    local driverBeforeRadio=deliveryTruck.driver
+    local radioOkay,radioError=pcall(function()
+        for _,entry in ipairs({{'radioPrevious','previous'},{'radioPlay','play'},
+            {'radioNext','next'},{'radioMute','mute'}}) do
+            assert(Trip.command(state,host,12,entry[1],world))
+        end
+        deliveryTruck.driver='guest'
+        radioDenied=not Trip.command(state,host,12,'radioMute',world)
+        deliveryTruck.driver=driverBeforeRadio
+        radioRun=table.concat(radioActions,',')=='previous,play,next,mute'
+    end)
+    deliveryTruck.driver=driverBeforeRadio
+    Jukebox.control=realRadioControl
+    check('commute_truck_cab_radio_controls_route_to_shared_radio',radioOkay and radioRun and radioDenied,
+        tostring(radioError or table.concat(radioActions,',')))
     for _=1,12 do Trip.update(state,host,{drive=-1,steer=0},.1,world) end
     check('commute_truck_drive_input_moves_and_accelerates',deliveryTruck.speed>0
         and math.abs(deliveryTruck.x-truckX)+math.abs(deliveryTruck.z-truckZ)>.05)
@@ -145,12 +165,16 @@ function Test.run(check)
     deliveryTruck.x=destinationSite.parking.x+destinationSite.cos*9
     deliveryTruck.z=destinationSite.parking.z+destinationSite.sin*9
     deliveryTruck.h=world:supportHeight(deliveryTruck.x,deliveryTruck.z)
-    check('commute_truck_arrival_rejects_parking_outside_lot',not Trip.command(state,host,12,'arrive',world))
+    local ownerPart=state.home.commute.participants.owner
+    local outsideSlotArrival=Trip.command(state,host,12,'arrive',world)
+    check('commute_truck_arrival_uses_destination_door_not_parking_slot',
+        not Trip.truckAtLoadingBay(world,deliveryTruck) and outsideSlotArrival and ownerPart.arrived)
+    ownerPart.arrived=false
     deliveryTruck.x,deliveryTruck.z=destinationSite.parking.x,destinationSite.parking.z
     deliveryTruck.h=world:supportHeight(deliveryTruck.x,deliveryTruck.z)
     local truckArrived=Trip.command(state,host,12,'arrive',world)
-    check('commute_truck_can_complete_trip_from_loading_zone',truckArrived and state.home.commute.participants.owner.arrived)
-    state.home.commute.participants.owner.arrived=false
+    check('commute_truck_can_complete_trip_from_destination_parking',truckArrived and ownerPart.arrived)
+    ownerPart.arrived=false
     local originSite=world.sites.byId[state.home.commute.origin]
     truckRider.transport=nil
     truckRider.ped.x,truckRider.ped.z=originSite.door.x,originSite.door.z
@@ -203,7 +227,12 @@ function Test.run(check)
     local parked=t.participants.owner.rider.bike
     parked.x=parked.x+world.sites.byId[t.destination].cos*7.2
     parked.z=parked.z+world.sites.byId[t.destination].sin*7.2
-    check('commute_trip_door_rejects_bike_outside_marked_stalls',not Trip.command(state,host,12,'arrive',world))
+    local outsideStallArrival=Trip.command(state,host,12,'arrive',world)
+    check('commute_trip_arrival_uses_door_after_leaving_bike',outsideStallArrival
+        and t.participants.owner.arrived)
+    t.participants.owner.arrived=false
+    local stall=Trip.parking(world,t.destination,1)
+    parked.x,parked.z=stall.x,stall.z
     readyAtDoor(t.participants.owner,t.destination,world)
     assert(Trip.command(state,host,12,'arrive',world))
     check('commute_trip_host_waits_for_other_riders',not Trip.finish(state,host,12,false) and state.home.weekend.phase=='ready')

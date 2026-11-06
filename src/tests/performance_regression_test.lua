@@ -154,6 +154,7 @@ local function frameChecks(check)
         MachineMaintenance={updateTechnician=changed},WorkPhone={update=changed},
         syncCamera=noop,updateLanConvenience=noop,warehouseSaveClock=.99,employmentSaveClock=.99,
         updateMultiplayer=function() networkServiced=true end,
+        updatePrivateServerReconnect=noop,updatePrivateServerClientTimer=noop,
         saveCurrent=function() saves=saves+1 end,
         updateCheckpoint=noop,
     }

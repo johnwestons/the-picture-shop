@@ -73,7 +73,9 @@ local function spriteRotation(actor,camera,height,parked,presentation)
     if parked then return pitch end
     local lean=presentation and presentation.lean or actor.lean or 0
     local fixed=not camera.firstPerson and camera.outsideMode~='follow'
-    return Art.bank(actor,camera,lean,fixed and .3 or .16)+pitch
+    local shoulder=camera.projectionCamera and (camera.projectionCamera.shoulderPerspective
+        or camera.projectionCamera.outsideMode=='shoulder')
+    return Art.bank(actor,camera,lean,(fixed or shoulder) and .3 or .16)+pitch
 end
 local function lowestTireArc(state,frame,rotation)
     local stateWheels=Wheels[state]

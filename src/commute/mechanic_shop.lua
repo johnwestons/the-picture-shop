@@ -2,6 +2,7 @@
 local Upgrades=require('src.commute.bike_upgrades')
 local Paint=require('src.commute.bike_paint')
 local Repairs=require('src.commute.bike_repairs')
+local Tires=require('src.commute.bike_tires')
 local Residents=require('src.home_residents')
 local Fonts=require('src.screens.title_fonts')
 local Station=require('src.commute.gas_station')
@@ -12,10 +13,16 @@ local function interior() return require('src.commute.mechanic_interior') end
 local function view(R) return R._commute and R._commute.mechanicOffer end
 local function stationArgs(R)
     local C=require('src.commute.runtime')
-    return C.localPart(R).rider.bike.service,function(id,rev)
+    local part=C.localPart(R)
+    local trip=R.state.home.commute
+    return {service=part.rider.bike.service,truck=trip.truck,
+        companyTruck=require('src.company_delivery_driver').ensure(R.state),
+        householdCents=R.state.home.balanceCents,companyCash=R.state.money or 0,world=C.world(R),
+        buy=function(id,rev)
         local okay=C.request(R,('station:%d:%d:%s'):format(R.state.home.commute.token,rev,id))
-        return R.state.message or (okay and 'Order submitted.' or 'Order declined.')
-    end,function() Shop.close(R) end
+        if R.multiplayer:isClient() and okay then return true,'Purchase sent to the host.' end
+        return okay,R.state.message or (okay and 'Order submitted.' or 'Order declined.')
+    end,close=function() Shop.close(R) end}
 end
 local function current(R) return Residents.get(R.state,R.World.player) end
 local function money(cents) return ('$%.2f'):format(cents/100) end
@@ -28,10 +35,15 @@ end
 function Shop.quote(R,level) return Upgrades.quote(R.state,R.World.player,level) end
 function Shop.paintQuote(R,id) return Paint.quote(R.state,R.World.player,id) end
 function Shop.repairQuote(R) return Repairs.quote(R.state,R.World.player) end
+function Shop.tireQuote(R,id)
+    local part=require('src.commute.runtime').localPart(R)
+    return part and Tires.quote(R.state,part.rider.bike.service,id)
+end
 local function quote(R,v)
     if v.service=='repair' then return Shop.repairQuote(R) end
     if v.service=='paint' then return Shop.paintQuote(R,v.selectedPaintId) end
-    return Shop.quote(R,v.selected)
+    if v.service=='tires' then return Shop.tireQuote(R,v.selectedTireId) end
+    return Shop.quote(R,v.selectedCategory or v.selected)
 end
 function Shop.close(R,silent)
     local v=view(R)
@@ -49,8 +61,9 @@ function Shop.open(R)
     Shop.close(R);C.cancelCameraDrag(R)
     local resident=current(R)
     R._commute.mechanicOffer={token=R.state.home.commute.token,page='lobby',service='performance',
-        selected=math.min(Upgrades.MAX_LEVEL,(resident.ridingUpgradeLevel or 0)+1),
-        selectedPaintId=resident.ridingPaintId or Paint.DEFAULT,previewFrame=5,
+        selectedCategory='engine',selected=math.min(Upgrades.MAX_LEVEL,(resident.ridingUpgradeLevel or 0)+1),
+        selectedPaintId=resident.ridingPaintId or Paint.DEFAULT,
+        selectedTireId=C.localPart(R).rider.bike.service.tire,previewFrame=5,
         interior=interior().new(R),elapsed=0}
     return true
 end
@@ -81,6 +94,12 @@ function Shop.paint(R)
     local v=view(R);if not v or v.pending or v.page=='install' then return false end
     v.service='paint';v.page='catalog';v.notice=nil;v.review=nil;return true
 end
+function Shop.tires(R)
+    local v=view(R);if not v or v.pending or v.page=='install' then return false end
+    local part=require('src.commute.runtime').localPart(R)
+    v.service='tires';v.page='catalog';v.selectedTireId=part.rider.bike.service.tire;v.notice=nil;v.review=nil
+    return true
+end
 function Shop.repair(R)
     local v=view(R);if not v or v.pending or v.page=='install' then return false end
     v.service='repair';v.page='catalog';v.notice=nil;v.review=nil;return true
@@ -99,20 +118,24 @@ function Shop.confirm(R)
     local q=quote(R,v);if not q then return false end
     if q.status~='available' then
         v.notice=q.status=='healthy' and 'Your bike is in full working order.'
+            or q.status=='current' and v.service=='tires' and 'These tires are installed and in good condition.'
             or q.status=='current' and 'Your bike already has this finish.'
             or q.status=='installed' and 'This kit is already installed.'
             or q.status=='locked' and 'Install the earlier kit first.'
+            or q.status=='maxed' and 'This component is already at its highest level.'
             or ('You need '..money(q.shortfallCents)..' more in household funds.')
         return false
     end
     if v.page~='confirm' or not v.review then
-        v.review={service=v.service,revision=q.revision,paintId=v.selectedPaintId,level=q.level,damage=q.damage}
+        v.review={service=v.service,revision=q.revision,paintId=v.selectedPaintId,tireId=v.selectedTireId,
+            level=q.level,damage=q.damage,category=v.selectedCategory}
         v.page='confirm';v.notice=nil;return true
     end
     if v.review.service~=v.service or v.service=='paint'
         and (v.review.revision~=q.revision or v.review.paintId~=v.selectedPaintId)
         or v.service=='repair' and (v.review.revision~=q.revision or v.review.damage~=q.damage)
-        or v.service=='performance' and v.review.level~=q.level then
+        or v.service=='tires' and (v.review.revision~=q.revision or v.review.tireId~=v.selectedTireId)
+        or v.service=='performance' and (v.review.category~=v.selectedCategory or v.review.level~=q.level) then
         v.page='catalog';v.review=nil
         v.notice='Your bike changed after this quote. Review the current service before paying.'
         return false
@@ -125,6 +148,14 @@ function Shop.confirm(R)
         v.pending={kind='paint',paintId=v.selectedPaintId,previous=q.revision,
             costCents=q.priceCents,name=q.offer.name,elapsed=0}
         command=('bikepaint:%d:%d:%s'):format(v.token,q.revision,v.selectedPaintId)
+    elseif v.service=='tires' then
+        v.pending={kind='tire',tireId=v.selectedTireId,previous=q.revision,
+            costCents=q.priceCents,name=q.offer.name,elapsed=0}
+        command=('biketire:%d:%d:%s'):format(v.token,q.revision,v.selectedTireId)
+    elseif v.service=='performance' then
+        v.pending={kind='performance',category=v.selectedCategory,level=q.offer.level,previous=q.currentLevel,
+            costCents=q.offer.costCents,name=q.offer.name,elapsed=0}
+        command=('bikepart:%d:%s:%d:%d'):format(v.token,v.selectedCategory,q.currentLevel,q.offer.level)
     else
         v.pending={kind='performance',level=v.selected,previous=q.level,
             costCents=q.offer.costCents,name=q.offer.name,elapsed=0}
@@ -153,14 +184,21 @@ function Shop.update(R,dt)
         local confirmed=resident and (p.kind=='paint'
             and (resident.ridingPaintRevision or 0)==p.previous+1 and resident.ridingPaintId==p.paintId
             or p.kind=='repair' and (resident.ridingRepairRevision or 0)==p.previous+1 and resident.ridingDamage==0
-            or p.kind=='performance' and (resident.ridingUpgradeLevel or 0)>=p.level)
+            or p.kind=='tire' and resident.ridingService and (resident.ridingService.revision or 0)==p.previous+1
+                and resident.ridingService.tire==p.tireId
+            or p.kind=='performance' and p.category and resident.ridingUpgradeParts
+                and (resident.ridingUpgradeParts[p.category] or 0)>=p.level
+            or p.kind=='performance' and not p.category and (resident.ridingUpgradeLevel or 0)>=p.level)
         if confirmed then
-            v.receipt={kind=p.kind,name=p.name,costCents=p.costCents,level=p.level,paintId=p.paintId}
+            v.receipt={kind=p.kind,name=p.name,costCents=p.costCents,level=p.level,category=p.category,paintId=p.paintId}
             v.pending=nil;v.page='install';v.installTime=0;v.notice=nil
         elseif p.kind=='paint' and resident and (resident.ridingPaintRevision or 0)>p.previous then
             v.pending=nil;v.page='catalog';v.notice='Your bike finish changed. Review the current finish before ordering again.'
         elseif p.kind=='repair' and resident and (resident.ridingRepairRevision or 0)>p.previous then
             v.pending=nil;v.page='catalog';v.notice='Your repair record changed. Check the bike condition before ordering again.'
+        elseif p.kind=='tire' and resident and resident.ridingService
+            and (resident.ridingService.revision or 0)>p.previous then
+            v.pending=nil;v.page='catalog';v.notice='Your tire record changed. Review the current tires before ordering again.'
         elseif p.elapsed>=5 then
             v.pending=nil;v.page='catalog'
             v.notice='No installation confirmed. Review your balance and retry; completed orders are never charged twice.'
@@ -211,7 +249,8 @@ function Shop.keypressed(R,key)
             v.page='lobby';v.selected=math.min(3,(current(R).ridingUpgradeLevel or 0)+1)
         end
     elseif key=='tab' and v.page=='catalog' then
-        if v.service=='performance' then Shop.paint(R)
+        if v.service=='performance' then Shop.tires(R)
+        elseif v.service=='tires' then Shop.paint(R)
         elseif v.service=='paint' then Shop.repair(R)
         else Shop.catalog(R) end
     elseif key=='return' or key=='e' or key=='kpenter' then Shop.confirm(R)
@@ -226,23 +265,39 @@ function Shop.keypressed(R,key)
         elseif key=='r' then v.previewFrame=v.previewFrame%16+1 end
     elseif v.page=='catalog' and v.service=='performance' then
         local n=tonumber(key)
-        if n and n>=1 and n<=3 then v.selected=n;v.notice=nil
-        elseif key=='up' or key=='left' then v.selected=math.max(1,v.selected-1);v.notice=nil
-        elseif key=='down' or key=='right' then v.selected=math.min(3,v.selected+1);v.notice=nil end
+        local index=1;for i,category in ipairs(Upgrades.CATEGORIES) do if category.id==v.selectedCategory then index=i;break end end
+        if n and n>=1 and n<=#Upgrades.CATEGORIES then v.selectedCategory=Upgrades.CATEGORIES[n].id;v.notice=nil;v.review=nil
+        elseif key=='up' or key=='left' then v.selectedCategory=Upgrades.CATEGORIES[math.max(1,index-1)].id;v.notice=nil;v.review=nil
+        elseif key=='down' or key=='right' then v.selectedCategory=Upgrades.CATEGORIES[math.min(#Upgrades.CATEGORIES,index+1)].id;v.notice=nil;v.review=nil end
+    elseif v.page=='catalog' and v.service=='tires' then
+        local n=tonumber(key);local index=1
+        for i,id in ipairs(require('src.commute.bike_service').tireOrder) do
+            if id==v.selectedTireId then index=i;break end
+        end
+        if n and n>=1 and n<=#require('src.commute.bike_service').tireOrder then
+            v.selectedTireId=require('src.commute.bike_service').tireOrder[n];v.notice=nil;v.review=nil
+        elseif key=='up' or key=='left' then
+            v.selectedTireId=require('src.commute.bike_service').tireOrder[math.max(1,index-1)];v.notice=nil;v.review=nil
+        elseif key=='down' or key=='right' then
+            v.selectedTireId=require('src.commute.bike_service').tireOrder[math.min(#require('src.commute.bike_service').tireOrder,index+1)];v.notice=nil;v.review=nil
+        end
     end
     return true
 end
 local function contains(b,x,y) return x>=b.x and y>=b.y and x<=b.x+b.w and y<=b.y+b.h end
 local buttons={back={x=96,y=574,w=205,h=44},buy={x=570,y=574,w=292,h=44},
-    performance={x=470,y=114,w=130,h=44},paint={x=610,y=114,w=120,h=44},repair={x=740,y=114,w=122,h=44},
+    performance={x=430,y=114,w=130,h=44},tires={x=568,y=114,w=88,h=44},
+    paint={x=664,y=114,w=88,h=44},repair={x=760,y=114,w=102,h=44},
     previous={x=500,y=396,w=44,h=40},next={x=678,y=396,w=44,h=40}}
+local function categoryRow(index) return {x=96,y=170+(index-1)*49,w=238,h=45} end
 local function swatch(index)
     return {x=96+(index-1)%2*124,y=170+math.floor((index-1)/2)*92,w=114,h=80}
 end
 function Shop.layout()
-    local layout={performance=buttons.performance,paint=buttons.paint,repair=buttons.repair,back=buttons.back,buy=buttons.buy,
-        previous=buttons.previous,next=buttons.next,swatches={}}
+    local layout={performance=buttons.performance,tires=buttons.tires,paint=buttons.paint,repair=buttons.repair,back=buttons.back,buy=buttons.buy,
+        previous=buttons.previous,next=buttons.next,swatches={},categories={}}
     for i=1,#Paint.CATALOG do layout.swatches[i]=swatch(i) end
+    for i=1,#Upgrades.CATEGORIES do layout.categories[i]=categoryRow(i) end
     return layout
 end
 function Shop.pointer(R,x,y)
@@ -280,6 +335,7 @@ function Shop.pointer(R,x,y)
         if v.page=='receipt' then Shop.keypressed(R,'return') else Shop.confirm(R) end
     elseif v.page=='catalog' then
         if contains(buttons.performance,x,y) then Shop.catalog(R)
+        elseif contains(buttons.tires,x,y) then Shop.tires(R)
         elseif contains(buttons.paint,x,y) then Shop.paint(R)
         elseif contains(buttons.repair,x,y) then Shop.repair(R)
         elseif v.service=='paint' then
@@ -289,8 +345,13 @@ function Shop.pointer(R,x,y)
                 if contains(swatch(n),x,y) then Shop.selectPaint(R,finish.id);break end
             end end
         elseif v.service=='performance' then
-            for n=1,3 do if contains({x=96,y=170+(n-1)*116,w=238,h=104},x,y) then
-                v.selected=n;v.notice=nil;break
+            for n,category in ipairs(Upgrades.CATEGORIES) do if contains(categoryRow(n),x,y) then
+                v.selectedCategory=category.id;v.notice=nil;v.review=nil;break
+            end end
+        elseif v.service=='tires' then
+            local Service=require('src.commute.bike_service')
+            for n,id in ipairs(Service.tireOrder) do if contains({x=96,y=170+(n-1)*52,w=238,h=46},x,y) then
+                v.selectedTireId=id;v.notice=nil;v.review=nil;break
             end end
         end
     end
@@ -334,33 +395,86 @@ local function drawPaint(R,v,q)
 end
 local function drawPerformance(R,v,q)
     local g=love.graphics
-        for n,offer in ipairs(Upgrades.CATALOG) do
-            local b={x=96,y=170+(n-1)*116,w=238,h=104};local row=Shop.quote(R,n)
-            g.setColor(n==v.selected and .16 or .075,n==v.selected and .25 or .12,n==v.selected and .21 or .11,1)
-            g.rectangle('fill',b.x,b.y,b.w,b.h,5,5)
-            text(n..'  '..offer.name,b.x+12,b.y+13,b.w-24,20)
-            text(money(offer.costCents),b.x+12,b.y+42,b.w-24,20,{1,.84,.45,1})
-            text(row.status=='installed' and 'INSTALLED' or row.status=='locked' and 'PREVIOUS KIT REQUIRED'
-                or row.status=='unaffordable' and 'SAVE UP FOR THIS KIT' or 'AVAILABLE',b.x+12,b.y+75,b.w-24,13)
-        end
-        text(v.page=='confirm' and 'CONFIRM WORK ORDER' or q.offer.name,366,172,468,27,{1,.85,.47,1})
-        text(q.offer.description,366,215,468,19)
-        text(q.offer.parts,366,276,468,16,{.66,.79,.76,1})
-        text('YOUR BIKE',366,318,210,16);text('AFTER THIS KIT',606,318,235,16)
-        local rows={{'Road',q.current.maxSpeed,q.offer.maxSpeed},{'Boost',q.current.boostMaxSpeed,q.offer.boostMaxSpeed},
-            {'Dirt boost',q.current.boostMaxSpeed*.82,q.offer.boostMaxSpeed*.82}}
-        for n,row in ipairs(rows) do
-            text(row[1]..'  '..mph(row[2]),366,344+(n-1)*30,225,20)
-            text(mph(row[3]),606,344+(n-1)*30,225,20,{.90,.88,.60,1})
-        end
-        text(('Acceleration %.0f%%  >  %.0f%%'):format(q.current.acceleration*100,q.offer.acceleration*100),366,444,468,18)
-        local note=v.notice or (q.status=='locked' and 'Install '..Upgrades.profile(v.selected-1).name..' first.'
-            or q.status=='installed' and 'This upgrade is already on your motorcycle.'
-            or q.status=='unaffordable' and 'Need '..money(q.shortfallCents)..' more in household funds.'
-            or v.page=='confirm' and 'Pay '..money(q.offer.costCents)..' now? Parts and labor are included.'
-            or 'Choose a kit, review the quote, then approve the work.')
-        text(note,366,490,468,18,{1,.85,.47,1})
+    for n,category in ipairs(Upgrades.CATEGORIES) do
+        local b=categoryRow(n);local row=Shop.quote(R,category.id);local selected=category.id==v.selectedCategory
+        g.setColor(selected and .16 or .075,selected and .25 or .12,selected and .21 or .11,1)
+        g.rectangle('fill',b.x,b.y,b.w,b.h,5,5)
+        text(category.name,b.x+10,b.y+5,b.w-20,17)
+        local detail=row.status=='maxed' and 'LEVEL 3 / 3   MAXED'
+            or ('LEVEL %d / 3   NEXT %s'):format(row.currentLevel,money(row.offer.costCents))
+        text(detail,b.x+10,b.y+27,b.w-20,12,row.status=='unaffordable' and {1,.66,.52,1} or {.68,.79,.72,1})
+    end
+    local compare=q.after or q.current
+    local heading=q.status=='maxed' and 'FULLY UPGRADED' or q.offer.name
+    text(v.page=='confirm' and 'CONFIRM COMPONENT UPGRADE' or heading,366,172,468,25,{1,.85,.47,1})
+    text(q.category.part..('   /   Level %d -> %d'):format(q.currentLevel,q.offer and q.offer.level or q.currentLevel),366,208,468,16,{.66,.79,.76,1})
+    if q.offer then text(q.offer.description,366,230,468,17) end
+    text('STAT',366,258,88,12,{.68,.79,.72,1})
+    text('NOW',461,258,48,12,{.68,.79,.72,1},'center')
+    text('WITH',512,258,52,12,{1,.85,.47,1},'center')
+    text('RELATIVE OUTPUT',572,258,158,12,{.68,.79,.72,1},'center')
+    text('CHANGE',738,258,118,12,{.68,.79,.72,1},'right')
+    local rows={
+        {name='Power',a=q.current.powerHp,b=compare.powerHp,limit=25,format=function(x)return ('%.1f hp'):format(x)end},
+        {name='Torque',a=q.current.torqueNm,b=compare.torqueNm,limit=30,format=function(x)return ('%.1f Nm'):format(x)end},
+        {name='Top speed',a=q.current.maxSpeed*2.236936,b=compare.maxSpeed*2.236936,limit=80,format=function(x)return ('%.0f mph'):format(x)end},
+        {name='Boost speed',a=q.current.boostMaxSpeed*2.236936,b=compare.boostMaxSpeed*2.236936,limit=80,format=function(x)return ('%.0f mph'):format(x)end},
+        {name='Acceleration',a=q.current.acceleration/1.15*100,b=compare.acceleration/1.15*100,limit=250,format=function(x)return ('%.0f%%'):format(x)end},
+        {name='Hill pull',a=q.current.hillPull*100,b=compare.hillPull*100,limit=250,format=function(x)return ('%.0f%%'):format(x)end},
+        {name='Braking',a=q.current.brakeMultiplier*100,b=compare.brakeMultiplier*100,limit=200,format=function(x)return ('%.0f%%'):format(x)end},
+        {name='Handling',a=(q.current.gripMultiplier+q.current.responseMultiplier+q.current.turnMultiplier)/3*100,
+            b=(compare.gripMultiplier+compare.responseMultiplier+compare.turnMultiplier)/3*100,limit=200,format=function(x)return ('%.0f%%'):format(x)end},
+        {name='Durability',a=(1-q.current.damageMultiplier)*100,b=(1-compare.damageMultiplier)*100,limit=50,format=function(x)return ('%.0f%% less'):format(x)end},
+    }
+    for n,row in ipairs(rows) do
+        local y=276+(n-1)*23
+        text(row.name,366,y,91,14)
+        text(row.format(row.a),457,y,53,13,nil,'right')
+        text(row.format(row.b),512,y,54,13,{1,.88,.56,1},'right')
+        local x,width=574,154
+        g.setColor(.10,.16,.145,1);g.rectangle('fill',x,y+2,width,5,2);g.rectangle('fill',x,y+10,width,5,2)
+        g.setColor(.28,.57,.48,1);g.rectangle('fill',x,y+2,width*math.min(1,row.a/row.limit),5,2)
+        g.setColor(.94,.72,.32,1);g.rectangle('fill',x,y+10,width*math.min(1,row.b/row.limit),5,2)
+        local delta=row.b-row.a
+        local change=row.name=='Power' and ('%+.1f hp'):format(delta)
+            or row.name=='Torque' and ('%+.1f Nm'):format(delta)
+            or (row.name=='Top speed' or row.name=='Boost speed') and ('%+.0f mph'):format(delta) or ('%+.0f%%'):format(delta)
+        text(change,738,y,118,13,delta>0 and {1,.85,.47,1} or {.69,.77,.72,1},'right')
+    end
+    local note=v.notice or (q.status=='maxed' and 'This component is already at its highest level.'
+        or q.status=='unaffordable' and 'Need '..money(q.shortfallCents)..' more in household funds.'
+        or v.page=='confirm' and 'Pay '..money(q.offer.costCents)..' for parts and installation?'
+        or 'Select a component to compare its current and upgraded performance.')
+    text(note,366,493,468,18,{1,.85,.47,1})
 
+end
+local function drawTires(R,v,q)
+    local Service=require('src.commute.bike_service')
+    local g=love.graphics
+    for n,id in ipairs(Service.tireOrder) do
+        local tire=Service.tires[id];local b={x=96,y=170+(n-1)*52,w=238,h=46}
+        local selected=id==v.selectedTireId
+        g.setColor(selected and .16 or .075,selected and .25 or .12,selected and .21 or .11,1)
+        g.rectangle('fill',b.x,b.y,b.w,b.h,5,5)
+        text(n..'  '..tire.name,b.x+10,b.y+5,b.w-20,17)
+        text(('Road %d%%   Dirt %d%%'):format(math.floor(tire.road*100+.5),math.floor(tire.dirt*100+.5)),
+            b.x+10,b.y+26,b.w-20,13,{.68,.78,.72,1})
+        if id==q.tireId then text('FITTED',b.x+157,b.y+7,70,11,{1,.85,.47,1},'right') end
+    end
+    text(v.page=='confirm' and 'CONFIRM TIRE ORDER' or q.offer.name,366,172,468,27,{1,.85,.47,1})
+    text(q.offer.description,366,215,468,17,nil)
+    text('CURRENTLY FITTED',366,282,220,16,{.66,.79,.76,1})
+    text(q.current.name,366,309,468,20)
+    text(('Tread remaining  %.1f / %.0f mi'):format(math.max(0,q.current.life-q.tread),q.current.life),366,340,468,18)
+    text(('Grip  Concrete %.0f%%  /  Dirt %.0f%%'):format(q.offer.road*100,q.offer.dirt*100),366,382,468,18)
+    text(('Acceleration  Concrete %+.0f%%  /  Dirt %+.0f%%'):format(
+        (q.offer.roadAcceleration-1)*100,(q.offer.dirtAcceleration-1)*100),366,414,468,18)
+    text('Parts, balancing and installation',366,453,468,18,{.66,.79,.76,1})
+    local note=v.notice or (q.status=='current' and 'These tires are fitted and have tread remaining.'
+        or q.status=='unaffordable' and 'Need '..money(q.shortfallCents)..' more in household funds.'
+        or v.page=='confirm' and 'Approve the quote to fit this tire set.'
+        or 'Choose a compound for your usual terrain, review the quote, then approve installation.')
+    text(note,366,490,468,18,{1,.85,.47,1})
 end
 local function drawRepair(R,v,q)
     local g=love.graphics
@@ -388,8 +502,10 @@ local function drawRepair(R,v,q)
 end
 local function drawReceipt(R,v)
     local g=love.graphics;local receipt=v.receipt;local working=v.page=='install'
-    text(working and (receipt.kind=='paint' and 'PAINT SERVICE IN PROGRESS' or 'FINISHING YOUR SERVICE') or 'READY TO RIDE',96,181,766,29,{1,.85,.47,1},'center')
-    local description=receipt.kind=='repair' and 'Collision repairs' or receipt.name..(receipt.kind=='paint' and ' finish' or ' installed')
+    text(working and (receipt.kind=='paint' and 'PAINT SERVICE IN PROGRESS' or receipt.kind=='tire'
+        and 'FITTING NEW TIRES' or 'FINISHING YOUR SERVICE') or 'READY TO RIDE',96,181,766,29,{1,.85,.47,1},'center')
+    local description=receipt.kind=='repair' and 'Collision repairs' or receipt.name..(receipt.kind=='paint' and ' finish'
+        or receipt.kind=='tire' and ' tires' or ' installed')
     text(description,96,228,766,24,nil,'center')
     g.setColor(.025,.06,.055,1);g.rectangle('fill',120,282,232,242,8)
     interior().drawMechanic(v.interior,R,236,449,.40)
@@ -399,8 +515,11 @@ local function drawReceipt(R,v)
     if receipt.kind=='repair' then
         text('Condition restored to 100%.',390,456,446,19,nil,'center')
     elseif receipt.kind=='performance' then
-        local profile=Upgrades.profile(receipt.level)
-        text('Road '..mph(profile.maxSpeed)..' / Boost '..mph(profile.boostMaxSpeed),390,456,446,19,nil,'center')
+        local resident=current(R)
+        local profile=Upgrades.profile(resident and resident.ridingUpgradeParts,resident and resident.ridingUpgradeLevel)
+        text(('Power %.1f hp  /  Road %s  /  Hill pull %.0f%%'):format(
+            profile.powerHp,mph(profile.maxSpeed),profile.hillPull*100),390,456,446,19,nil,'center')
+    elseif receipt.kind=='tire' then text('Your new tire compound is saved with your motorcycle.',390,456,446,18,nil,'center')
     else text('Your new color is saved with your motorcycle.',390,456,446,18,nil,'center') end
     if working then
         g.setColor(.14,.22,.19,1);g.rectangle('fill',408,505,410,12,4,4)
@@ -413,7 +532,7 @@ local function drawReceipt(R,v)
 end
 function Shop.draw(R)
     local v=view(R);if not v then return false end
-    if v.page=='station' then return Station.draw(v,require('src.commute.runtime').localPart(R).rider.bike.service,R.state.home.balanceCents,R.Config.baseWidth,R.Config.baseHeight) end
+    if v.page=='station' then return Station.draw(v,stationArgs(R),R.Config.baseWidth,R.Config.baseHeight) end
     if v.page=='store' then
         local resident=Residents.get(R.state,R.World.player)
         return TownStore.draw(v,R.state.home.balanceCents,resident and resident.bikeInventory,
@@ -435,6 +554,7 @@ function Shop.draw(R)
     else
         local q=quote(R,v)
         button(buttons.performance,'UPGRADES',v.page=='catalog' and not v.pending)
+        button(buttons.tires,'TIRES',v.page=='catalog' and not v.pending)
         button(buttons.paint,'PAINT',v.page=='catalog' and not v.pending)
         button(buttons.repair,'REPAIRS',v.page=='catalog' and not v.pending)
         local active=buttons[v.service]
@@ -442,12 +562,16 @@ function Shop.draw(R)
         if q then
             if v.service=='repair' then drawRepair(R,v,q)
             elseif v.service=='paint' then drawPaint(R,v,q)
+            elseif v.service=='tires' then drawTires(R,v,q)
             else drawPerformance(R,v,q) end
             button(buttons.back,'SHOP FLOOR / ESC',not v.pending)
             local cost=q.priceCents or q.offer.costCents
-            local action=v.service=='repair' and ' & REPAIR' or v.service=='paint' and ' & REPAINT' or ' & INSTALL'
+            local action=v.service=='repair' and ' & REPAIR' or v.service=='paint' and ' & REPAINT'
+                or v.service=='tires' and ' & FIT TIRES' or ' & INSTALL'
             local label=v.pending and 'AWAITING CONFIRMATION' or v.page=='confirm'
-                and ('PAY '..money(cost)..action) or q.status=='healthy' and 'NO REPAIRS NEEDED' or 'REVIEW QUOTE'
+                and ('PAY '..money(cost)..action) or q.status=='healthy' and 'NO REPAIRS NEEDED'
+                or q.status=='maxed' and 'COMPONENT MAXED'
+                or q.status=='current' and v.service=='tires' and 'TIRES IN GOOD CONDITION' or 'REVIEW QUOTE'
             button(buttons.buy,label,q.status=='available' and not v.pending)
         end
     end

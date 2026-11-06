@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "purpose": "Texture set for the delivery truck's 3D first-person cab shell.",
+  "floorboard": {
+    "file": "floorboard.png",
+    "source": "Generated from the existing interior-v1 floorboard material as a clean rubber-only texture.",
+    "pedals": "None baked; rendered separately from accelerator-pedal.png and brake-pedal.png.",
+    "sha256": "4ec7c1464632e7e2f1244199b3e06f48787d1582aee6692516bb7d4b2e6bdcac"
+  }
+}

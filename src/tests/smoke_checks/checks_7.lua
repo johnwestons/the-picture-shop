@@ -50,9 +50,10 @@ function Component.run(Context)
     Context.billsTabResult = Context.selectComputerTab(Context.context.computerScreen, Context.billUiState, "bills")
     Context.payBillsX, Context.payBillsY = Context.context.computerScreen.payBillsCenter()
     Context.billPayment = Context.context.computerScreen.mousepressed(Context.billUiState, Context.payBillsX, Context.payBillsY, 1)
-    Context.check("computer_bills_tab_pays_monthly_expenses", Context.billsTabResult and Context.billsTabResult.tab == "bills"
-        and Context.billPayment and Context.billPayment.action == "bill_paid" and Context.billPayment.amount == 3950
-        and Context.billUiState.money == 1050 and Context.billUiState.bills.balance == 0)
+    Context.check("computer_bills_tab_pays_monthly_expenses", Context.billsTabResult and Context.billsTabResult.tab == "financials"
+        and Context.context.computerScreen.financialSection == "bills"
+        and Context.billPayment and Context.billPayment.action == "bill_paid" and Context.billPayment.amount == 4135
+        and Context.billUiState.money == 865 and Context.billUiState.bills.balance == 0)
 
     Context.calendarUiState = Context.context.State.new()
     Context.calendarUiState.clientEmails.pending = {}

@@ -142,6 +142,24 @@ end
 
 function Procurement.currentSale(state) return currentSale(state) end
 
+local function canAppendToShipment(state,shipment,now)
+    local delivery=shipment and shipment.delivery
+    if not shipment or shipment.status~="awaiting_delivery" or not delivery
+        or delivery.status=="received" then return false end
+    local traffic=require("src.commute.delivery_traffic")
+    local route=delivery.route
+    local load,canLoad
+    if route then
+        load,canLoad=traffic.inboundTruckPallets(state,shipment.id)
+        if not canLoad then return false end
+    else
+        if now>(shipment.closesAtHours or -1) then return false end
+        load=Procurement.remainingOnTruck(state,shipment.id)
+        canLoad=true
+    end
+    return canLoad and load+1<=traffic.TRUCK_CAPACITY
+end
+
 function Procurement.retailPrice(state,categoryIndex,itemIndex)
     categoryIndex = math.floor(tonumber(categoryIndex) or 0)
     itemIndex = math.floor(tonumber(itemIndex) or 0)
@@ -183,10 +201,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local shipment
     for index = #procurement.shipments, 1, -1 do
         local candidate = procurement.shipments[index]
-        if candidate.status == "awaiting_delivery"
-            and candidate.delivery and candidate.delivery.status == "awaiting_schedule"
-            and now <= (candidate.closesAtHours or -1)
-        then shipment = candidate; break end
+        if canAppendToShipment(state,candidate,now) then shipment = candidate; break end
     end
     if not shipment then
         local shipmentNumber = procurement.nextShipmentId

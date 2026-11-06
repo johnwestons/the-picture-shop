@@ -9,7 +9,8 @@ local DIRECTIONS = {
         southeast = true, south = true, southwest = true, west = true,
     },
     wrapper = {
-        northwest = true, northeast = true, southeast = true, southwest = true,
+        northwest = true, north = true, northeast = true, east = true,
+        southeast = true, south = true, southwest = true, west = true,
     },
     windmill = {
         northwest = true, northeast = true, southeast = true, southwest = true,
@@ -53,7 +54,9 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
         local pose = value[kind]
         local poseLabel = label .. "." .. kind
         local optional = { "machineId", "sceneId" }
-        if kind == "cutter" or kind == "windmill" then optional[#optional + 1] = "rotationIndex" end
+        if kind == "cutter" or kind == "wrapper" or kind == "windmill" then
+            optional[#optional + 1] = "rotationIndex"
+        end
         if not exactShape(pose, { "x", "y", "direction", "moving", "inMotion" }, optional) then
             return nil, poseLabel .. " has an invalid shape"
         end
@@ -69,7 +72,7 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
         if type(pose.direction) ~= "string" or not DIRECTIONS[kind][pose.direction] then
             return nil, poseLabel .. ".direction is invalid"
         end
-        if pose.rotationIndex ~= nil and (kind == "wrapper" or not MachineRotation.validFrame(pose.rotationIndex)) then
+        if pose.rotationIndex ~= nil and not MachineRotation.validFrame(pose.rotationIndex) then
             return nil, poseLabel .. ".rotationIndex is invalid"
         end
         if pose.rotationIndex ~= nil
@@ -95,7 +98,7 @@ function MachinePose.normalize(value, jack, maxCoordinate, label)
             inMotion = pose.inMotion,
             sceneId=pose.sceneId or "warehouse",
         }
-        if kind == "cutter" or kind == "windmill" then
+        if kind == "cutter" or kind == "wrapper" or kind == "windmill" then
             normalizedPose.rotationIndex = MachineRotation.validFrame(pose.rotationIndex)
                 and pose.rotationIndex or MachineRotation.frameForDirection(kind, pose.direction)
         end
@@ -149,7 +152,7 @@ function MachinePose.snapshot(state)
             inMotion = item.inMotion == true,
             sceneId=item.sceneId or "warehouse",
         }
-        if kind == "cutter" or kind == "windmill" then
+        if kind == "cutter" or kind == "wrapper" or kind == "windmill" then
             snapshot.rotationIndex = MachineRotation.normalizedFrame(kind, item, "northwest")
             snapshot.direction = MachineRotation.directionForFrame(kind, snapshot.rotationIndex)
         end

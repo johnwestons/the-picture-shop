@@ -64,7 +64,8 @@ function Component.install(Runtime)
             return nil, "Direct Internet Play requires a base transport factory."
         end
         local baseFactory = options.baseFactory
-        local provider, providerError = Runtime.validateProvider(options.cryptoProvider)
+        local provider, providerError = Runtime.validateProvider(
+            options.cryptoProvider, options.allowEngineeringProvider == true)
         if not provider then return nil, providerError end
         if type(options.key) ~= "string" or #options.key ~= Runtime.DirectTransport.KEY_BYTES then
             return nil, "Direct Internet Play requires a 32-byte shared key."

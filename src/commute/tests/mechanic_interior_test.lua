@@ -32,7 +32,7 @@ function Test.run(check)
         end
         local R={World={player=original},state=persisted,Config={baseWidth=960,baseHeight=678},
             Input={movement=function()return inputX,inputY end},_commute={mechanicOffer={page='lobby'},
-                renderer={bikeArt={frameCount=16,images={parked={getDimensions=function()return 1280,1280 end,release=function()borrowReleased=borrowReleased+1 end}},quads=borrowedQuads}}}}
+                renderer={bikeArt={frameCount=64,parkedFrameCount=16,images={parked={getDimensions=function()return 1280,1280 end,release=function()borrowReleased=borrowReleased+1 end}},quads=borrowedQuads}}}}
         local view=Interior.new(R)
         Interior.update(view,R,.016)
         check('mechanic_interior_new_and_pre_draw_update_do_no_resource_work',calls==0 and not view.ready)

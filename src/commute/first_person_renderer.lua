@@ -3,6 +3,7 @@
 local FP=require('src.commute.first_person_camera')
 local M=require('src.commute.vendor.mathx')
 local PaintArt=require('src.commute.bike_paint_art')
+local Colorways=require('src.rabbit_colorways')
 local Camera=require('src.commute.camera')
 local View={};View.__index=View
 local format={{'VertexPosition','float',2},{'WorldHeight','float',1},{'VertexTexCoord','float',2}}
@@ -32,7 +33,7 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
 }
 #endif
 ]]
-local spriteShader=[[
+local spriteShader=Colorways.blendShaderSource()..[[
 #ifdef VERTEX
 extern float spriteDepth;
 vec4 position(mat4 transform_projection,vec4 vertex_position) {
@@ -43,9 +44,13 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 #endif
 #ifdef PIXEL
 extern float spriteFog;
+extern bool silhouetteMode;
+extern vec3 silhouetteColor;
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     vec4 surface=bikePaintSurface(Texel(tex,uv),uv)*color;
     if(surface.a<.08) discard;
+    surface=applyRabbitColorways(surface);
+    if(silhouetteMode) return vec4(silhouetteColor,surface.a);
     surface.rgb=mix(surface.rgb,vec3(.57,.68,.70),spriteFog);
     return surface;
 }
@@ -65,12 +70,15 @@ function View.shouldDrawLocalActor(camera,entry)
     if camera.includeLocalRider~=true or entry.localPlayer~=true then return false end
     return (entry.truck==true)==(camera.localVehicle=='truck')
 end
-function View.actorCamera(camera,actor,scale,lockToActorHeading)
+function View.actorCamera(camera,actor,scale,lockToActorHeading,calibrateShoulder)
     -- Perspective rays are not parallel: two riders with the same heading
     -- can expose different sides when they occupy different parts of the view.
     local dx,dz=actor.x-camera.centerX,actor.z-camera.centerZ
     local bearing=lockToActorHeading and actor.heading or
         dx*dx+dz*dz>1e-10 and math.atan2(dz,dx) or camera.viewHeading
+    if calibrateShoulder and camera.shoulderPerspective and camera.shoulderHeadingOffset then
+        bearing=bearing-camera.shoulderHeadingOffset
+    end
     return {zoom=scale,firstPerson=true,viewHeading=bearing,projectionCamera=camera,
         screen=function()return 0,0 end,
         headingDirection=Camera.headingDirection,headingDirection16=Camera.headingDirection16}
@@ -94,7 +102,7 @@ function View:resizeViewport(width,height)
     self.viewportWidth,self.viewportHeight=width,height
     return true
 end
-function View:billboard(camera,x,z,h,radius,draw,surfaceTop)
+function View:billboard(camera,x,z,h,radius,draw,surfaceTop,silhouetteMode)
     local sx,sy,depth=camera:screen(x,z,h)
     local distance=M.length(x-camera.centerX,z-camera.centerZ)
     if depth<FP.NEAR or depth>FP.FAR or distance>=radius then return end
@@ -108,12 +116,17 @@ function View:billboard(camera,x,z,h,radius,draw,surfaceTop)
         -- paint plane along the same eye ray without lifting the tire onscreen.
         testDepth=depth*(camera.eyeHeight-surfaceTop)/(camera.eyeHeight-h)
     end
-    self.spriteShader:send('spriteDepth',FP.depthValue(math.max(FP.NEAR,testDepth)))
+    self.spriteDepthValue=FP.depthValue(math.max(FP.NEAR,testDepth))
+    self.spriteShader:send('spriteDepth',self.spriteDepthValue)
     self.spriteShader:send('spriteFog',M.smooth((distance-radius*.74)/(radius*.26)))
+    self.spriteShader:send('silhouetteMode',silhouetteMode==true)
+    self.spriteShader:send('silhouetteColor',{1,.72,.08})
+    self.spriteShader:send('furEnabled',0);self.spriteShader:send('overallsEnabled',0)
     g.setShader(self.spriteShader)
     g.push();g.translate(sx,sy);g.rotate(camera.roll)
     draw(scale)
     g.pop()
+    self.spriteShader:send('silhouetteMode',false)
 end
 function View:draw(renderer,camera,actor,actors)
     local g=love.graphics
@@ -137,7 +150,7 @@ function View:draw(renderer,camera,actor,actors)
     end
     for _,mesh in ipairs(renderer.roadMeshes) do g.draw(mesh) end
     if renderer.grassFields then renderer:drawGrass(camera,actor) end
-    if renderer.tireTracks then renderer.tireTracks:draw(camera) end
+    if renderer.tireTracks then renderer.tireTracks:draw(camera,renderer.tireTrackShader,renderer:depthSpan()) end
     FP.send(camera,self.shader);self.shader:send('sceneryRadius',renderer.effectiveRadius)
     self.shader:send('cameraCenter',{camera.centerX,camera.centerZ})
     Headlight.send(self.shader,camera,actor)
@@ -160,7 +173,12 @@ function View:draw(renderer,camera,actor,actors)
             local height=not entry.gear and entry.presentation and entry.presentation.h
                 or p.h or renderer.world:supportHeight(p.x,p.z)
             local surfaceTop
-            if camera.includeLocalRider and not entry.gear and not entry.bikeOnly then
+            if entry.truck then
+                local support,kind=renderer.world:supportHeight(p.x,p.z)
+                local paved=kind=='road' or kind=='trail'
+                height=math.max(height,support+(paved and .04 or 0))
+                surfaceTop=renderer.truckArt:firstPersonOcclusionTop(p,camera,height,renderer.world)
+            elseif camera.includeLocalRider and not entry.gear and not entry.bikeOnly then
                 -- Suspension can place the chassis below the collision
                 -- surface. Register the art to the drawn road or terrain.
                 local support,kind=renderer.world:supportHeight(p.x,p.z)
@@ -168,23 +186,28 @@ function View:draw(renderer,camera,actor,actors)
                 height=math.max(height,support+(paved and .04 or 0))
                 surfaceTop=support+.11 -- road paint plane plus a small depth precision margin
             end
-            self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
-                local proxy=View.actorCamera(camera,p,scale,
-                    camera.includeLocalRider and entry.localPlayer==true)
+            local function drawActor(scale,silhouette)
+                local lockLocalHeading=camera.includeLocalRider and entry.localPlayer==true
+                    and (not camera.shoulderPerspective or entry.truck==true)
+                local calibrateShoulder=camera.shoulderPerspective and entry.localPlayer==true
+                    and not entry.truck
+                local proxy=View.actorCamera(camera,p,scale,lockLocalHeading,calibrateShoulder)
                 proxy.localTruckChase=entry.truck and entry.localPlayer and camera.includeLocalRider
                 if entry.dismounting then
                     local presentation=require('src.commute.presentation')
                     renderer.bikeArt:draw(p,proxy,renderer.world,true,entry.presentation)
                     presentation.world(renderer.characterAssets,entry.actionActor or p,proxy,renderer.world,
-                        entry.gear,entry.appearance,entry.presentation,renderer.clock)
+                        entry.gear,entry.appearance,entry.presentation,renderer.clock,self.spriteShader,
+                        self.spriteShader,self.spriteDepthValue,silhouette)
                 elseif entry.gear then
                     local presentation=require('src.commute.presentation')
-                    g.setShader()
+                    g.setShader(self.spriteShader)
                     local authoredCrash=presentation.hasAuthoredCrash(entry.appearance)
                         and (p.crash~=nil or entry.presentation and entry.presentation.pose=='crash')
                     local falling=not authoredCrash and presentation.beginFallPose(p,entry.presentation,proxy,0,0)
                     presentation.world(renderer.characterAssets,p,proxy,renderer.world,
-                        entry.gear,entry.appearance,entry.presentation,renderer.clock)
+                        entry.gear,entry.appearance,entry.presentation,renderer.clock,self.spriteShader,
+                        self.spriteShader,self.spriteDepthValue,silhouette)
                     if falling then g.pop() end
                 elseif entry.truck then
                     renderer.truckArt:draw(p,proxy,renderer.world)
@@ -200,7 +223,17 @@ function View:draw(renderer,camera,actor,actors)
                         camera.riderSpriteScale=scale
                     end
                 end
-            end,surfaceTop)
+            end
+            self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
+                drawActor(scale,false)
+            end,surfaceTop,false)
+            if entry.localPlayer then
+                g.setDepthMode('greater',false)
+                self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
+                    drawActor(scale,true)
+                end,surfaceTop,true)
+                g.setDepthMode('lequal',true)
+            end
         end
     end
     if renderer.bikeParticles then renderer.bikeParticles:draw(camera,renderer.effectiveRadius,renderer:depthSpan()) end

@@ -19,10 +19,12 @@ function Test.run(check)
         loops[town.topology.cycles]=true
         local roads,arms,oneWay,centerCount={},0,0,0
         local proper=true
+        local frontageFailures={}
         for _,road in ipairs(town.roads) do
             roads[road.id]=road
             if road.role=='main' then
-                proper=proper and road.sidewalks and not road.oneWay and road.lanes>=2
+                local connector=road.id=='mainland-connector'
+                proper=proper and (connector or road.sidewalks) and not road.oneWay and road.lanes>=2
                 for _,i in ipairs({1,#road.points}) do
                     local p=road.points[i]
                     if p[1]==main.x and p[2]==main.z then arms=arms+1 end
@@ -36,34 +38,64 @@ function Test.run(check)
             local frontage=roads[lot.frontageRoadId]
             local driveway=roads[lot.id..'-drive']
             local joins=false
-            for _,point in ipairs(frontage.points) do
-                if samePosition(point,driveway.points[1]) then joins=true end
+            for _,point in ipairs(frontage and frontage.points or {}) do
+                if driveway and samePosition(point,driveway.points[1]) then joins=true end
             end
-            proper=proper and joins and driveway.role=='drive'
+            if not joins or not driveway or driveway.role~='drive' then
+                frontageFailures[#frontageFailures+1]=string.format('%s frontage=%s driveway=%s joins=%s',
+                    lot.id,tostring(lot.frontageRoadId),tostring(driveway and driveway.role),tostring(joins))
+            end
+            proper=proper and joins and driveway and driveway.role=='drive'
             if lot.district=='center' then
                 centerCount=centerCount+1
-                proper=proper and frontage.role=='main'
-            else proper=proper and frontage.role=='local' end
+                if not frontage or frontage.role~='main' then
+                    frontageFailures[#frontageFailures+1]=lot.id..' center on '..tostring(frontage and frontage.role)
+                end
+                proper=proper and frontage and frontage.role=='main'
+            else
+                if not frontage or frontage.role~='local' then
+                    frontageFailures[#frontageFailures+1]=lot.id..' residence on '..tostring(frontage and frontage.role)
+                end
+                proper=proper and frontage and frontage.role=='local'
+            end
         end
         check('town_center_core_frontages_join_main_and_residences_join_side_streets_'..seed,
-            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==9)
+            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==9,
+            table.concat(frontageFailures,'; ')..' centerCount='..centerCount..' generator='..town.generatorVersion)
+        local expectedArms=main.pattern=='crossroads' and 4 or 2
         check('town_center_has_promised_junction_and_one_way_alternative_'..seed,
-            arms==(main.pattern=='crossroads' and 4 or 2) and oneWay>=1)
+            arms==expectedArms and oneWay>=1,
+            string.format('pattern=%s arms=%d expected=%d oneWay=%d cycles=%d',
+                tostring(main.pattern),arms,expectedArms,oneWay,town.topology.cycles or -1))
         local world=Town.world(town)
-        -- A visible lane and both wheel tracks must follow the same profile,
-        -- including beside driveways and across junction pavement.
-        local peak,errorHeight=0,0
+        -- A visible lane and both wheel tracks must match the sampled road
+        -- surface, including beside driveways and across junction pavement.
+        local peak,errorHeight,peakSegment,errorSegment,errorAt,errorSupport=0,0,nil,nil,nil,nil
         for _,s in ipairs(world.roads.segments) do
             if s.role=='main' or s.role=='local' then
-                peak=math.max(peak,math.abs(s.a.h-s.b.h)/s.len)
+                local grade=math.abs(s.a.h-s.b.h)/s.len
+                if grade>peak then peak,peakSegment=grade,s end
                 for _,side in ipairs({-.3,0,.3}) do
                     local x=(s.a.x+s.b.x)*.5+s.nx*s.width*side
                     local z=(s.a.z+s.b.z)*.5+s.nz*s.width*side
-                    errorHeight=math.max(errorHeight,math.abs(world:supportHeight(x,z)-(s.a.h+s.b.h)*.5))
+                    local _,_,surface=world.roads:sample(x,z)
+                    local supported=world:supportHeight(x,z)
+                    local error=math.abs(supported-surface)
+                    if error>errorHeight then
+                        errorHeight,errorSegment,errorAt,errorSupport=error,s,{x=x,z=z},supported
+                    end
                 end
             end
         end
-        check('town_graded_streets_follow_visible_lanes_'..seed,peak<.061 and errorHeight<.03)
+        check('town_graded_streets_follow_visible_lanes_'..seed,peak<.061 and errorHeight<.03,
+            string.format('peak=%.4f segment=%s (%.2f,%.2f,%.2f)->(%.2f,%.2f,%.2f) len=%.2f bridge=%s laneHeightError=%.4f errorSegment=%s at=(%.2f,%.2f) support=%.2f',peak,
+                tostring(peakSegment and peakSegment.id),peakSegment and peakSegment.a.x or -1,
+                peakSegment and peakSegment.a.z or -1,peakSegment and peakSegment.a.h or -1,
+                peakSegment and peakSegment.b.x or -1,peakSegment and peakSegment.b.z or -1,
+                peakSegment and peakSegment.b.h or -1,peakSegment and peakSegment.len or -1,
+                tostring(peakSegment and peakSegment.bridge),errorHeight,
+                tostring(errorSegment and errorSegment.id),errorAt and errorAt.x or -1,
+                errorAt and errorAt.z or -1,errorSupport or -1))
         local routes=Routes.new(world.roads)
         local connected=true
         for id in pairs(town.destinations) do

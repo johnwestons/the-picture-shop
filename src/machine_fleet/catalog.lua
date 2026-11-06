@@ -190,6 +190,7 @@ function Component.install(Runtime)
                 backgaugeLubrication = 100, guideLubrication = 100,
                 crankLubrication = 100, gearOilLevel = 0.48,
                 bladeRemoved = false, bladeInSleeve = false, spareBladeInstalled = false,
+                bladeDullNoticeSent = false,
                 bladeGrade = "standard", weeklyTechnician = false,
                 technicianSequence = 0, technicianRescheduled = false,
             }

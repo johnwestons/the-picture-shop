@@ -66,7 +66,7 @@ function Test.run(context,check)
     check("home_mat_sunday_sleep_ends_monday_seven",not gr.activity and not Residents.command(s,g,"sleepmat:furniture"..mat.id))
     assert(Residents.command(s,g,"matrest:furniture"..mat.id));check("home_mat_monday_short_nap_available",gr.activity.kind=="matrest")
     local migrated=assert(Schema.migrate({version=36,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))
-    check("home_desk_mat_v36_no_free_items",migrated.version==39 and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
+    check("home_desk_mat_v36_no_free_items",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
     local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR")
     if folder then
         local canvas=love.graphics.newCanvas(1024,600);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.17,.22,.24,1)

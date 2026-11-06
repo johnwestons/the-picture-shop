@@ -413,6 +413,7 @@ function Maintenance.installSpareBlade(state)
     cutter.spareBladeInstalled = true
     cutter.bladeGrade = "standard"
     item.variables.bladeSharpness = 100
+    cutter.bladeDullNoticeSent = false
     item.condition = MachineFleet.condition(item)
     return true, cutter
 end
@@ -496,6 +497,14 @@ local function updateCutterTechnician(state)
         cutter.nextTechnicianDay = appointmentDay + 1
         cutter.technicianRescheduled = true
         state.message = "Mara Mouse emailed that the blade exchange is running late."
+    elseif cutter.weeklyTechnician and not cutter.bladeInSleeve then
+        -- Weekly service is a hands-off maintenance cycle: Mara removes the
+        -- installed blade and sleeves it before bringing the machine offline.
+        cutter.bladeRemoved, cutter.bladeInSleeve = true, true
+        local Technician = require("src.technician")
+        if not Technician.schedule(state, "cutter", appointmentDay, cutter.weeklyTechnician) then return false end
+        cutter.nextTechnicianDay = nil
+        cutter.technicianStatus = "traveling"
     elseif not cutter.bladeInSleeve then
         MachineFleet.addServiceNotice(state, "Blade was not ready for service",
             "The dull cutter blade was not removed and secured in its wooden sleeve, so Mara Mouse could not collect it or install a fresh blade.",
@@ -561,8 +570,10 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
         cutter.bladeGrade = orderedGrade
         cutter.orderedBladeGrade = nil
         item.variables.bladeSharpness = 100
+        cutter.bladeDullNoticeSent = false
     elseif not spareInstalled then
         item.variables.bladeSharpness = 100
+        cutter.bladeDullNoticeSent = false
     end
     item.condition = MachineFleet.condition(item)
     cutter.bladeRemoved, cutter.bladeInSleeve = false, false

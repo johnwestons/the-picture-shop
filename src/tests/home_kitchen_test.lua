@@ -133,6 +133,6 @@ function Test.run(context,check)
         ("storage=%s/%s/%s items=%d retry=%s valid=%s message=%s"):format(tostring(found.refrigerator),
             tostring(found.countertop),tostring(found.kitchen_table),#a.home.furniture.items,tostring(repeated),tostring(valid),tostring(collectMessage)))
     local migrated=assert(Schema.migrate({version=33,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))
-    check("home_kitchen_legacy_migration_no_free_ingredients",migrated.version==39 and (migrated.state.home.inventory.bread or 0)==0)
+    check("home_kitchen_legacy_migration_no_free_ingredients",migrated.version==Schema.VERSION and (migrated.state.home.inventory.bread or 0)==0)
 end
 return Test

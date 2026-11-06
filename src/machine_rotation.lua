@@ -1,8 +1,16 @@
--- Shared frame and facing helpers for the two 64-view movable machines.
+-- Shared frame and facing helpers for the 64-view movable machines.
 local Rotation = {}
 
 local specs = {
     cutter = {
+        directions = { "northwest", "north", "northeast", "east", "southeast", "south", "southwest", "west" },
+        signs = {
+            { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 },
+            { -1, -1 }, { 0, -1 }, { 1, -1 }, { 1, 0 },
+        },
+        stepsPerDirection = 8,
+    },
+    wrapper = {
         directions = { "northwest", "north", "northeast", "east", "southeast", "south", "southwest", "west" },
         signs = {
             { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 },

@@ -26,15 +26,15 @@ Sites.designs={
 }
 -- Keep dock routing metadata outside the serialized structure design so old
 -- seeded towns retain their original fingerprints and road layouts.
-Sites.warehouseTruckLayout={truckParking={x=9.3,z=0},
-    truckParkingArea=rect(7.2,11.4,-2.5,2.5),truckApproach=rect(7.2,11.4,2.5,8.8)}
+Sites.warehouseTruckLayout={truckParking={x=9.3,z=0},truckWaiting={x=9.3,z=3.25},
+    truckParkingArea=rect(6.2,15.4,-5.4,5.4),truckApproach=rect(6.2,15.4,5.4,11.8)}
 local function service(id,label,width,depth,height,floors,entryX)
     entryX=entryX or 0
     Sites.designs[id]={style=id,label=label,width=width,depth=depth,height=height,floors=floors or 1,
         threshold={x=entryX,z=depth*.5},door={x=entryX,z=depth*.5+1},parking={x=entryX,z=depth*.5+4}}
 end
 service('mechanic','Mechanic',16,9,4.7,1,-6.1)
-service('gas-station','Gas & Tire',9,6,3.5,1)
+service('gas-station','Gas Station',9,6,3.5,1)
 Sites.designs['gas-station'].obstacles={rect(-3.4,-2.6,4.5,5.1),rect(2.6,3.4,4.5,5.1)}
 service('grocery','Town grocery',18,11,5,1)
 service('post-office','Post office',13,9,5.5,1)
@@ -128,6 +128,14 @@ function Sites.validDesign(d)
             or not validRect(d.truckParkingArea) or not validRect(d.truckApproach)
             or not contains(d.truckParkingArea,a.x,a.z) then return false,'Invalid truck parking layout' end
     elseif d.truckParkingArea~=nil or d.truckApproach~=nil then return false,'Truck parking needs a parking anchor' end
+    if d.truckWaiting~=nil then
+        local a=d.truckWaiting
+        if not d.truckParking or type(a)~='table' or not M.finite(a.x) or not M.finite(a.z)
+            or math.abs(a.x)>256 or math.abs(a.z)>256 or not contains(d.truckParkingArea,a.x,a.z)
+            or (a.x-d.truckParking.x)^2+(a.z-d.truckParking.z)^2<9 then
+            return false,'Invalid truck waiting-space anchor'
+        end
+    end
     local foundation=d.foundation or rect(-d.width*.5,d.width*.5,-d.depth*.5,d.depth*.5)
     if math.abs(d.threshold.z-foundation.maxZ)>1e-6 or d.threshold.x<foundation.minX+.7
         or d.threshold.x>foundation.maxX-.7 or math.abs(d.door.x-d.threshold.x)>1e-6
@@ -213,9 +221,10 @@ local function placement(designs,p)
     local design=copy(source)
     -- Older saved towns carry the original warehouse design. Inherit only the
     -- new dock apron fields so their sites receive the matching truck bay.
-    if design.style=='warehouse' and not design.truckParking then
+    if design.style=='warehouse' then
         local current=Sites.warehouseTruckLayout
-        design.truckParking=copy(current.truckParking)
+        design.truckParking=design.truckParking or copy(current.truckParking)
+        design.truckWaiting=design.truckWaiting or copy(current.truckWaiting)
         design.truckParkingArea=copy(current.truckParkingArea)
         design.truckApproach=copy(current.truckApproach)
     end
@@ -237,6 +246,7 @@ local function placement(designs,p)
     self.localParking=rect(parking.x-4,parking.x+4,parking.z-3.75,parking.z+3.75)
     self.localTruckParkingArea=design.truckParkingArea
     self.localTruckApproach=design.truckApproach
+    self.localTruckWaiting=design.truckWaiting
     self.localApproach=rect(math.min(design.threshold.x,parking.x)-2,
         math.max(design.threshold.x,parking.x)+2,design.threshold.z-.75,parking.z+2)
     self.foundation=worldRect(self,self.localFoundation)
@@ -250,6 +260,10 @@ local function placement(designs,p)
     if design.truckParking then
         local x,z,h=self:toWorld(design.truckParking.x,design.truckParking.z,design.truckParking.h or 0)
         self.truckParking={x=x,z=z,h=h}
+    end
+    if design.truckWaiting then
+        local x,z,h=self:toWorld(design.truckWaiting.x,design.truckWaiting.z,design.truckWaiting.h or 0)
+        self.truckWaiting={x=x,z=z,h=h}
     end
     self.front={x=-self.sin,z=self.cos}
     return self

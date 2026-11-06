@@ -127,6 +127,7 @@ function Calendar.monthlyCharges()
         { id = "power", label = "Power", amount = tonumber(configured.power) or 240 },
         { id = "water", label = "Water", amount = tonumber(configured.water) or 85 },
         { id = "internet", label = "Internet", amount = tonumber(configured.internet) or 125 },
+        { id = "truckInsurance", label = "Delivery truck insurance", amount = tonumber(configured.truckInsurance) or 185 },
     }
     local total = 0
     for _, charge in ipairs(charges) do total = total + charge.amount end
@@ -242,6 +243,25 @@ function Calendar.addCharge(state, label, amount, reference, kind)
     bills.ledger[#bills.ledger + 1] = invoice
     require("src.household_finances").record(state,"refunds",amount*100)
     return invoice
+end
+
+-- Record a company purchase that has already been paid at the point of sale.
+-- It remains in the bills ledger for accounting without increasing the unpaid
+-- monthly balance or being charged a second time by Calendar.pay.
+function Calendar.recordPaidExpenseCents(state,label,amountCents,reference)
+    local date,bills=Calendar.ensure(state)
+    amountCents=math.max(0,math.floor(tonumber(amountCents) or 0))
+    local available=math.max(0,math.floor((state.money or 0)*100+.000001))
+    if amountCents<=0 or amountCents>available then return false end
+    local amount=amountCents/100
+    state.money=math.max(0,(state.money or 0)-amount)
+    local id=string.format("EXP-%04d",bills.nextInvoiceId)
+    bills.nextInvoiceId=bills.nextInvoiceId+1
+    bills.ledger[#bills.ledger+1]={id=id,year=date.year,month=date.month,
+        charges={{id=reference or "operating_expense",label=tostring(label or "Company expense"),amount=amount}},
+        total=amount,status="paid",kind="operating_expense",reference=reference,
+        issuedOnDay=date.totalDays,paidOnDay=date.totalDays}
+    return true,id
 end
 
 function Calendar.dateText(state)

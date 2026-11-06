@@ -27,12 +27,13 @@ function Free.enter(state,player,world,run,players)
     local bike=rider.bike
     bike.transmission=resident.ridingTransmission or 'automatic'
     bike.upgradeLevel=resident.ridingUpgradeLevel or 0
+    bike.upgradeParts=require('src.commute.bike_upgrades').copyParts(resident.ridingUpgradeParts)
     bike.paintId=resident.ridingPaintId or require('src.commute.bike_paint').DEFAULT
     bike.service=require('src.commute.bike_service').copy(resident.ridingService)
     bike.damage=resident.ridingDamage or 0
     Rider.update(rider,{},0,world)
     if not t then
-        local truck=Trip.truckParking(world)
+        local truck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state))
         if not truck then return false,'No safe loading area is available.' end
         t={version=Trip.VERSION,mapVersion=require('src.commute.roads').VERSION,mapId=world.townId,
             token=state.home.revision+1,independent=true,purpose='outing',origin='warehouse',
@@ -67,6 +68,7 @@ function Free.leave(state,player,token,destination,world)
     local resident=Residents.get(state,player);local r=part.rider
     resident.ridingGear=Gear.snapshot(r.gear)
     resident.ridingUpgradeLevel=r.bike.upgradeLevel or 0
+    resident.ridingUpgradeParts=require('src.commute.bike_upgrades').copyParts(r.bike.upgradeParts)
     resident.ridingPaintId=r.bike.paintId
     resident.ridingService=require('src.commute.bike_service').copy(r.bike.service)
     resident.ridingDamage=r.bike.damage or 0

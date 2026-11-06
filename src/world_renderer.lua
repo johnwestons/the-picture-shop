@@ -395,15 +395,23 @@ end
 
 local function drawWrapper(assets, state, placement)
     local wrapper = placement or WrapperPlacement.ensure(state, Config.wrapperPlacement)
-    local image = assets.get("skidWrapperDirections")
-    local directions = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
-    local frame = placement and (directions[placement.direction] or placement.frame or 1)
-        or WrapperPlacement.frame(state, Config.wrapperPlacement)
-    local sprite = assets.getQuad("skidWrapperDirection" .. frame)
+    local image = assets.get("skidWrapper64Directions")
+    local frame = WrapperPlacement.rotationFrameFor(wrapper)
+    local sprite = assets.getQuad("skidWrapper64Direction" .. frame)
+    local scale = Config.wrapperPlacement.drawScale
+    if not image or not sprite then
+        image = assets.get("skidWrapperDirections")
+        local legacyFrame = ({
+            northwest = 1, north = 1, northeast = 2, east = 2,
+            southeast = 4, south = 4, southwest = 3, west = 3,
+        })[wrapper.direction] or 1
+        sprite = assets.getQuad("skidWrapperDirection" .. legacyFrame)
+        scale = scale * .5
+    end
     if not image or not sprite then return end
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, wrapper.x, wrapper.y, 0,
-        Config.wrapperPlacement.drawScale, Config.wrapperPlacement.drawScale,
+        scale, scale,
         sprite.width / 2, sprite.height * 0.94)
 end
 

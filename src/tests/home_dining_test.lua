@@ -106,7 +106,7 @@ function Test.run(context,check)
     check("home_dining_cannot_serve_from_across_apartment",not Test.serve(sale,sp,0,2,"pizza_slice") and sale.home.inventory.pizza_slice==1)
     local legacy=Schema.snapshot(State.new());legacy.home.dining=nil
     local migrated=assert(Schema.migrate({version=38,slot=3,createdAt=1,updatedAt=2,state=legacy,player={x=300,y=400}}))
-    check("home_dining_legacy_migration_empty_no_free_food",migrated.version==39 and #migrated.state.home.dining.items==0 and migrated.state.home.balanceCents==30000)
+    check("home_dining_legacy_migration_empty_no_free_food",migrated.version==Schema.VERSION and #migrated.state.home.dining.items==0 and migrated.state.home.balanceCents==30000)
     for _,command in ipairs({"dine:serve:00:1:basic_meal:0","dine:serve:0:4:basic_meal:0","dine:serve:0:1:vegetables:0","dine:eat:0:0:0","dine:return:1:01"}) do
         check("home_dining_reject_bad_command_"..command,not Residents.validCommand(command))
     end

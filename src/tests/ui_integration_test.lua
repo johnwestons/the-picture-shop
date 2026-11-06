@@ -287,9 +287,25 @@ function Test.run(context, check)
     context.businessCalendar.update(context.state,
         inboundDelay / 24 * context.config.businessCalendar.secondsPerDay + 0.01)
     context.world.update(context.config.truck.scheduleDelay + 0.1, 0, 0, context.assets, context.state)
-    check("accepted_job_schedules_truck", context.world.truckSnapshot().state == "waiting_for_bay"
-        and context.world.truckSnapshot().jobId == context.state.jobs.active[1].id
-        and context.state.jobs.active[1].delivery.status == "scheduled")
+    local deliveryTraffic = require("src.commute.delivery_traffic")
+    local inboundRoute = context.state.jobs.active[1].delivery.route
+    if inboundRoute and inboundRoute.arrivedAtEpoch then
+        -- This integration test drives World directly, outside the normal
+        -- commute runtime that advances the town-road traffic simulation.
+        deliveryTraffic.simulate(context.state, context.state.home.town, 0.1,
+            inboundRoute.arrivedAtEpoch + 1)
+    end
+    context.world.update(context.config.truck.scheduleDelay + 0.1, 0, 0, context.assets, context.state)
+    local scheduledTruck = context.world.truckSnapshot()
+    local scheduledDelivery = context.state.jobs.active[1].delivery
+    check("accepted_job_schedules_truck", scheduledTruck.state == "waiting_for_bay"
+        and scheduledTruck.jobId == context.state.jobs.active[1].id
+        and scheduledDelivery.status == "scheduled",
+        string.format("truck=%s truck_job=%s delivery=%s now=%.3f ready=%.3f route=%s",
+            tostring(scheduledTruck.state), tostring(scheduledTruck.jobId),
+            tostring(scheduledDelivery.status), context.businessCalendar.absoluteHours(context.state),
+            tonumber(scheduledDelivery.readyAtHours) or -1,
+            tostring(scheduledDelivery.route and scheduledDelivery.route.arrivalAtHours)))
     check("truck_auto_opens_bay", context.world.bayDoorSnapshot().state == "opening")
     context.world.update(context.config.loadingBay.duration + 0.1, 0, 0, context.assets, context.state)
     check("truck_backs_after_bay_opens", context.world.bayDoorSnapshot().state == "open"
@@ -493,6 +509,11 @@ function Test.run(context, check)
     context.state.palletJack.x, context.state.palletJack.y = context.state.cutter.x, context.state.cutter.y
     local cutterUnit=require("src.machine_fleet").installedUnits(context.state,"polar_115")[1]
     local function cutterPose() return cutterUnit.world or context.state.cutter end
+    context.state.cutter.rotationIndex=1
+    if cutterUnit.world then
+        cutterUnit.world.rotationIndex=1
+        cutterUnit.world.direction="northwest"
+    end
     local mountedForCutterMove=context.PalletJack.mount(context.state,context.config.palletJack,1)
     context.world.player.x = context.state.cutter.x
     context.world.player.y = context.state.cutter.y + 70
@@ -508,24 +529,28 @@ function Test.run(context, check)
     check("cutter_relocation_moves", cutterPose().x < cutterBeforeMove.x
         and cutterPose().inMotion
         and context.world.player.moving)
-    check("cutter_floor_sprites_are_twenty_percent_smaller",
-        math.abs(context.config.cutterPlacement.drawScale - 0.272) < 0.0001)
+    check("cutter_384px_views_preserve_machine_footprint",
+        math.abs(context.config.cutterPlacement.frameSize * context.config.cutterPlacement.drawScale
+            - 256 * 0.67) < 0.001)
     context.input.keypressed("q", context.inputContext)
+    check("cutter_rotation_advances_one_of_64_views", cutterPose().rotationIndex == 2
+        and cutterPose().direction == "northwest")
+    for _ = 1, 3 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_north", cutterPose().direction == "north")
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_northeast", cutterPose().direction == "northeast")
     if os.getenv("PICTURE_SHOP_CUTTER_PLACEMENT_PREVIEW") == "1" then return end
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_east", cutterPose().direction == "east")
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_southeast", cutterPose().direction == "southeast")
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_south", cutterPose().direction == "south")
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_southwest", cutterPose().direction == "southwest")
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_west", cutterPose().direction == "west")
-    context.input.keypressed("q", context.inputContext)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
     check("cutter_rotates_northwest", cutterPose().direction == "northwest")
     context.input.keypressed("e", context.inputContext)
     check("cutter_relocation_places", not cutterPose().moving)
@@ -535,8 +560,10 @@ function Test.run(context, check)
     check("customer_arrival_is_neutral_before_paperwork_exists",
         context.world.customerArrivalMessage({})
             == "A customer is waiting at reception with a client job.")
-    check("windmill_visual_and_footprint_scale_are_reduced_together",
-        math.abs(context.config.windmillPlacement.drawScale - 0.196) < 0.0001
+    check("windmill_64_view_scale_and_footprint_are_configured",
+        math.abs(context.config.windmillPlacement.drawScale - 0.605) < 0.0001
+        and context.config.windmillPlacement.frameSize == 256
+        and context.config.windmillPlacement.frameCount == 64
         and context.config.windmillPlacement.collisionHalfWidth == 50
         and context.config.windmillPlacement.collisionHalfHeight == 17
         and context.config.windmillPlacement.operatorDistanceX == 53
@@ -552,6 +579,7 @@ function Test.run(context, check)
     context.state.windmill.x = context.config.windmillPlacement.spawnX
     context.state.windmill.y = context.config.windmillPlacement.spawnY
     context.state.windmill.direction = "northwest"
+    context.state.windmill.rotationIndex = 1
     context.state.windmill.moving, context.state.windmill.inMotion = false, false
     context.windmill.ensure(context.state).status = "idle"
     context.windmill.ensure(context.state).palletId = nil
@@ -582,10 +610,15 @@ function Test.run(context, check)
     local windmillBeforeMove = context.world.windmillSnapshot(context.state)
     context.world.update(0.1, 0, -1, context.assets, context.state)
     local windmillAfterMove = context.world.windmillSnapshot(context.state)
-    local windmillRotated = context.world.rotateWindmill(context.state)
+    local windmillFirstStep = context.world.rotateWindmill(context.state)
+    local windmillFirstFrame = context.world.windmillSnapshot(context.state)
+    local windmillRotated
+    for _ = 2, 8 do windmillRotated = context.world.rotateWindmill(context.state) end
     local windmillDirection = context.world.windmillSnapshot(context.state).direction
     check("windmill_moves_on_jack_and_rotates", windmillAfterMove.y < windmillBeforeMove.y
-        and windmillAfterMove.inMotion and windmillRotated and windmillDirection == "northeast",
+        and windmillAfterMove.inMotion and windmillFirstStep and windmillRotated
+        and windmillFirstFrame.rotationIndex == 2 and windmillFirstFrame.direction == "northwest"
+        and windmillDirection == "northeast",
         string.format("before=%.2f after=%.2f motion=%s rotated=%s direction=%s",
             windmillBeforeMove.y, windmillAfterMove.y, tostring(windmillAfterMove.inMotion),
             tostring(windmillRotated), tostring(windmillDirection)))

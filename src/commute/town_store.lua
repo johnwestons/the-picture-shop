@@ -32,7 +32,6 @@ function Store.counter(rider,world,storeId)
     return store and site and not rider.gear.mounted and not rider.gear.transition
         and rider.vehicle~='truck' and rider.transport~='truck'
         and not rider.ped.crash and near(rider.ped,site.door,2)
-        and near(rider.bike,site.parking,8)
 end
 function Store.nearCounter(rider,world)
     for _,id in ipairs(storeOrder) do

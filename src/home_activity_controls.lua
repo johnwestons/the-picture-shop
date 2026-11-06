@@ -8,7 +8,7 @@ local Dining=require("src.home_dining")
 local BikeCargo=require("src.home_bike_cargo")
 local HomeInteractions=require("src.home_interactions")
 local Controls={target="floor",page=1,mode="routines",appliance=nil,appliancePage=1,alarmHour=nil,alarmMinute=nil}
-local font,small,hudRect,alarmLabelFont
+local font,small,hudRect,alarmLabelFont,hudNeedFont,hudValueFont,hudActionFont
 local applianceSmall
 local function applianceNow()
     return love.timer and love.timer.getTime and love.timer.getTime() or os.clock()
@@ -291,19 +291,67 @@ local function needs(p,x,y,width)
         love.graphics.rectangle("fill",left,y+20,(cell-12)*p[need]/100,8,3)
     end
 end
+local HUD_NEED_COLORS={
+    hunger={.95,.67,.31},
+    thirst={.38,.72,.91},
+    hygiene={.54,.82,.68},
+    energy={.88,.76,.39},
+}
+local function drawHudNeeds(resident,x,y,width)
+    if not resident then
+        love.graphics.setColor(.68,.75,.74,1)
+        love.graphics.printf("Resident status unavailable",x,y+8,width,"center")
+        return
+    end
+    local rowHeight=29
+    for i,need in ipairs(Residents.NEEDS) do
+        local top=y+(i-1)*rowHeight
+        local value=math.max(0,math.min(100,tonumber(resident[need]) or 0))
+        local label=need:sub(1,1):upper()..need:sub(2)
+        local color=HUD_NEED_COLORS[need] or {.63,.78,.72}
+        if value<20 then color={.94,.39,.32}
+        elseif value<35 then color={.96,.68,.34} end
+        love.graphics.setFont(hudNeedFont)
+        love.graphics.setColor(.82,.88,.86,1)
+        love.graphics.print(label,x,top)
+        love.graphics.setFont(hudValueFont)
+        love.graphics.setColor(value<20 and {.98,.52,.43,1} or {.92,.94,.88,1})
+        love.graphics.printf(tostring(math.floor(value)),x,top,width,"right")
+        love.graphics.setColor(.09,.15,.16,1)
+        love.graphics.rectangle("fill",x,top+16,width,7,3)
+        love.graphics.setColor(color[1],color[2],color[3],1)
+        love.graphics.rectangle("fill",x,top+16,width*(value/100),7,3)
+    end
+end
 function Controls.hideHud() hudRect=nil end
 function Controls.drawHud(state,player,left,right)
     small=small or love.graphics.newFont(15)
-    hudRect={x=left+18,y=120,width=math.min(720,right-left-36),height=63}
-    love.graphics.push("all");love.graphics.setFont(small)
-    love.graphics.setColor(.025,.05,.065,.94);love.graphics.rectangle("fill",hudRect.x,hudRect.y,hudRect.width,hudRect.height,6)
+    hudNeedFont=hudNeedFont or love.graphics.newFont(12)
+    hudValueFont=hudValueFont or love.graphics.newFont(12)
+    hudActionFont=hudActionFont or love.graphics.newFont(10)
+    hudRect={x=left+18,y=120,width=math.max(1,math.min(286,right-left-36)),height=198}
+    love.graphics.push("all")
     local resident=Residents.get(state,player)
-    needs(resident,hudRect.x+10,126,hudRect.width-110)
+    love.graphics.setColor(.025,.05,.065,.96)
+    love.graphics.rectangle("fill",hudRect.x,hudRect.y,hudRect.width,hudRect.height,7)
+    love.graphics.setColor(.25,.38,.38,.92)
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line",hudRect.x+.5,hudRect.y+.5,hudRect.width-1,hudRect.height-1,7)
+    love.graphics.setFont(small)
+    love.graphics.setColor(.96,.86,.45,1)
+    love.graphics.print("PERSONAL NEEDS",hudRect.x+12,hudRect.y+10)
+    love.graphics.setColor(.34,.47,.46,.7)
+    love.graphics.line(hudRect.x+12,hudRect.y+31,hudRect.x+hudRect.width-12,hudRect.y+31)
+    drawHudNeeds(resident,hudRect.x+12,hudRect.y+38,hudRect.width-24)
     if resident and resident.dirtyClothes then
         love.graphics.setColor(.98,.67,.37,1)
-        love.graphics.print("STINKY CLOTHES / WASH & CHANGE",hudRect.x+10,159)
+        love.graphics.setFont(hudActionFont)
+        love.graphics.print("CLOTHES NEED WASH",hudRect.x+12,hudRect.y+153)
     end
-    love.graphics.setColor(.96,.86,.45,1);love.graphics.printf("HOME [H]\nFurnish [M]",hudRect.x+hudRect.width-105,126,100,"center")
+    love.graphics.setColor(.68,.78,.74,1)
+    love.graphics.setFont(hudActionFont)
+    love.graphics.print("H  ROUTINES",hudRect.x+12,hudRect.y+176)
+    love.graphics.printf("M  FURNISH",hudRect.x+hudRect.width-108,hudRect.y+176,96,"right")
     love.graphics.pop()
 end
 local function drawApplianceRows(R)

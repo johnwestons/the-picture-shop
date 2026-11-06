@@ -185,14 +185,16 @@ function Component.install(Runtime)
         end
         if state.wrapper and state.wrapper.moving
             and not Runtime.PalletJack.isOperator(state, Runtime.Config.palletJack, 1) then return false end
-        local succeeded, direction = Runtime.WrapperPlacement.rotate(state, Runtime.Config.wrapperPlacement)
+        local succeeded, direction, rotationIndex = Runtime.WrapperPlacement.rotate(state, Runtime.Config.wrapperPlacement)
         if not succeeded then return false end
         if state.wrapper.moving then
             state.wrapper.inMotion = false
             Runtime.PalletJack.followPlacement(state, state.wrapper, 0, Runtime.Config.palletJack)
             Runtime.World.player.x, Runtime.World.player.y = Runtime.PalletJack.operatorPosition(state, Runtime.Config.palletJack)
         end
-        state.message = "Skid wrapper rotated " .. direction .. "."
+        state.message = rotationIndex
+            and string.format("Skid wrapper view %d/64.", rotationIndex)
+            or ("Skid wrapper rotated " .. direction .. ".")
         return true
     end
 

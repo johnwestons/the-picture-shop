@@ -13,38 +13,63 @@ end
 
 function Test.run(check)
     local town=assert(Town.generate(712345))
-    local state={calendar={secondsPerDay=300},procurement={
-        orders={{id='PO-TRAFFIC-1',category='paper',company='CritterNet Paper Depot'}},
-        shipments={{id='SHIP-TRAFFIC-1',orderIds={'PO-TRAFFIC-1'},delivery={
+    local state={calendar={secondsPerDay=300},inventory={stock={}},procurement={
+        orders={{id='PO-TRAFFIC-1',shipmentId='SHIP-TRAFFIC-1',category='paper',
+            company='CritterNet Paper Depot',pallets={{id='PO-TRAFFIC-1-PALLET',location='awaiting_delivery'}}}},
+        shipments={{id='SHIP-TRAFFIC-1',status='awaiting_delivery',orderIds={'PO-TRAFFIC-1'},delivery={
             status='awaiting_schedule',expectedAtHours=100}}},
     },jobs={active={{id='JOB-TRAFFIC-1',company='Blue Ridge Packaging',delivery={
-        status='pending_arrival',readyAtHours=100}}},completed={}}}
+        status='pending_arrival',readyAtHours=100},pallets={{id='JOB-TRAFFIC-1-P1',location='awaiting_delivery'}}}},completed={}}}
     local epoch=1700000000
+    local routesChanged=Network.update(state,town,100,epoch)
+    local supplierRoute=state.procurement.shipments[1].delivery.route
+    local jobRoute=state.jobs.active[1].delivery.route
     check('delivery_traffic_routes_supplier_and_client_shipments',
-        Network.update(state,town,100,epoch)
-        and state.procurement.shipments[1].delivery.route.originCompany=='CritterNet Paper Depot'
-        and state.jobs.active[1].delivery.route.originCompany=='Blue Ridge Packaging')
+        routesChanged and supplierRoute and jobRoute
+        and supplierRoute.transportId==state.jobs.active[1].id
+        and supplierRoute.originCompany=='CritterNet Paper Depot'
+        and jobRoute.originCompany=='Millhaven Freight',
+        string.format("changed=%s supplierTransport=%s supplierCompany=%s jobCompany=%s",
+            tostring(routesChanged),tostring(supplierRoute and supplierRoute.transportId),
+            tostring(supplierRoute and supplierRoute.originCompany),tostring(jobRoute and jobRoute.originCompany)))
 
     local shipment=state.procurement.shipments[1]
     local job=state.jobs.active[1]
     local duration=shipment.delivery.route.arrivedAtEpoch-epoch
     local midEpoch=epoch+duration*.5
     local midway=byCompany(Network.actors(state,town,100,midEpoch))
-    check('delivery_traffic_renders_named_suppliers_on_the_shared_truck',
-        midway['CritterNet Paper Depot'] and midway['Blue Ridge Packaging']
-        and midway['CritterNet Paper Depot'].phase=='approaching'
-        and midway['Blue Ridge Packaging'].phase=='approaching'
-        and midway['Blue Ridge Packaging'].actor.livery=='plain')
+    check('delivery_traffic_merges_manifests_into_one_shared_freight_truck',
+        midway['Millhaven Freight'] and #Network.actors(state,town,100,midEpoch)==1
+        and midway['Millhaven Freight'].phase=='approaching'
+        and midway['Millhaven Freight'].actor.livery=='plain')
+    local sharedTruck={phase='approaching'}
+    job.delivery.route.vehicle=sharedTruck
+    shipment.delivery.route.vehicle=sharedTruck
+    local earlyArrival=Network.arrived(job,midEpoch)
+    sharedTruck.phase='at_bay'
+    local arrivalEpoch=job.delivery.route.arrivedAtEpoch
+    local finalArrival=Network.arrived(job,arrivalEpoch)
     check('delivery_traffic_gates_warehouse_dropoff_until_arrival',
-        not Network.arrived(job,midEpoch) and Network.arrived(job,job.delivery.route.arrivedAtEpoch))
+        not earlyArrival and finalArrival,
+        string.format("duration=%.3f shipArrival=%s jobArrival=%s early=%s final=%s vehicle=%s phase=%s",
+            duration,tostring(shipment.delivery.route.arrivedAtEpoch),tostring(arrivalEpoch),
+            tostring(earlyArrival),tostring(finalArrival),tostring(job.delivery.route.vehicle),
+            tostring(job.delivery.route.vehicle and job.delivery.route.vehicle.phase)))
 
     job.delivery.status='received'
     job.delivery.receivedAtHours=100.5
+    shipment.delivery.status='received'
+    shipment.delivery.receivedAtHours=100.5
     local returnEpoch=job.delivery.route.arrivedAtEpoch+1
+    local returnChanged=Network.update(state,town,101,returnEpoch)
+    local returning=byCompany(Network.actors(state,town,101,returnEpoch+1))
     check('delivery_traffic_preserves_client_brand_on_return_route',
-        Network.update(state,town,101,returnEpoch)
+        returnChanged
         and job.delivery.returnRoute.originCompany=='Blue Ridge Packaging'
-        and byCompany(Network.actors(state,town,101,returnEpoch+1))['Blue Ridge Packaging']~=nil)
+        and returning['Blue Ridge Packaging']~=nil,
+        string.format("changed=%s returnCompany=%s actorCount=%d shipmentStatus=%s jobStatus=%s",
+            tostring(returnChanged),tostring(job.delivery.returnRoute and job.delivery.returnRoute.originCompany),
+            #Network.actors(state,town,101,returnEpoch+1),tostring(shipment.delivery.status),tostring(job.delivery.status)))
 
     local art=TruckArt.new()
     local g=love.graphics

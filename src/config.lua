@@ -7,7 +7,7 @@ local Config = {
     businessCalendar = {
         secondsPerDay = 1200,
         -- A 3,000 sq ft light-industrial shop at roughly $14/sq ft/year.
-        monthlyExpenses = { rent = 3500, power = 240, water = 85, internet = 125 },
+        monthlyExpenses = { rent = 3500, power = 240, water = 85, internet = 125, truckInsurance = 185 },
     },
     outdoorWeather = {
         rainChance = 0.28,
@@ -221,8 +221,8 @@ local Config = {
         collisionHalfHeight = 19,
         operatorDistanceX = 82,
         operatorDistanceY = 48,
-        drawScale = 0.670,
-        frameSize = 256,
+        drawScale = 0.4466666667,
+        frameSize = 384,
         frameCount = 64,
         frameColumns = 8,
         rotationKind = "cutter",
@@ -244,9 +244,11 @@ local Config = {
         -- Accept and stage skids around the whole turntable; the reach is
         -- measured between pallet and machine floor footprints, on every side.
         palletReach = 120,
-        drawScale = 0.22,
-        frameSize = 512,
-        frameCount = 4,
+        drawScale = 0.44,
+        frameSize = 256,
+        frameCount = 64,
+        frameColumns = 8,
+        rotationKind = "wrapper",
     },
     windmillPlacement = {
         spawnX = 855,
@@ -386,7 +388,7 @@ local Config = {
         warehouseArchitecture = "assets/source/warehouse-expansion-v1/warehouse-base-v3-top-remake.png",
         walkmask = "assets/generated/warehouse-layout-final-walkmask.png",
         polar = "assets/generated/polar-115-sprite-sheet-clear-table-transparent.png",
-        polarDirections = "assets/generated/polar-cutter-64-v1.png",
+        polarDirections = "assets/generated/polar-cutter-64-v2.png",
         emptyPallet = "assets/generated/empty-pallet.png",
         paperStack = "assets/generated/paper-stack.png",
         toolboxSmall = "assets/generated/toolbox-small.png",
@@ -426,6 +428,7 @@ local Config = {
         cutterMaintenanceTools = "assets/generated/cutter-maintenance-tools-atlas.png",
         cutterMaintenanceScenes = "assets/generated/cutter-maintenance-scenes-atlas.png",
         skidWrapperDirections = "assets/generated/skid-wrapper-directions-strip.png",
+        skidWrapper64Directions = "assets/generated/skid-wrapper-64-v1.png",
         wrapperMaintenanceAtlas = "assets/generated/skid-wrapper-maintenance-atlas.png",
         wrappedPalletStages = "assets/generated/wrapped-pallet-stages-strip.png",
         loadedPaperPallet = "assets/generated/loaded-paper-pallet.png",

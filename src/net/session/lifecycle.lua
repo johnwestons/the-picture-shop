@@ -9,6 +9,7 @@ function Component.install(Runtime)
             mode = "offline",
             status = "Offline",
             networkKind = "lan",
+            dedicatedServer = false,
             transportFactory = options.transportFactory or Runtime.Transport,
             clock = options.clock or Runtime.defaultClock,
             transport = nil,
@@ -132,6 +133,7 @@ function Component.install(Runtime)
         self.localAddress = nil
         self.hostAddress = nil
         self.networkKind = "lan"
+        self.dedicatedServer = false
         self.serverTick = 0
         self.lastServerTick = -1
         self.lastFightTick = -1
@@ -261,7 +263,9 @@ function Component.install(Runtime)
         self:_resetRuntime()
         self.transport = transport
         self.mode = "host"
-        self.networkKind = options.networkKind == "direct" and "direct" or "lan"
+        self.networkKind = options.networkKind == "direct" and "direct"
+            or options.networkKind == "server" and "server" or "lan"
+        self.dedicatedServer = options.dedicatedServer == true
         -- Internet Direct always requires a final, in-game host decision. This is
         -- intentionally not controlled by a caller option: no production path may
         -- silently auto-admit an Internet peer and disclose the host save.
@@ -283,7 +287,9 @@ function Component.install(Runtime)
         self.ready = true
         self.status = self.networkKind == "direct"
             and "Hosting a Direct Internet shop"
-            or ("Hosting on " .. tostring(self.localAddress or "local network"))
+            or self.networkKind == "server"
+                and ("Private server listening on UDP " .. tostring(port))
+                or ("Hosting on " .. tostring(self.localAddress or "local network"))
         self:_queue("host_started", {
             address = self.localAddress,
             port = self.port,
@@ -320,7 +326,8 @@ function Component.install(Runtime)
         self:_resetRuntime()
         self.transport = transport
         self.mode = "client"
-        self.networkKind = options.networkKind == "direct" and "direct" or "lan"
+        self.networkKind = options.networkKind == "direct" and "direct"
+            or options.networkKind == "server" and "server" or "lan"
         self.clientConnectTimeout = self.networkKind == "direct"
             and Runtime.DIRECT_CLIENT_TIMEOUT or Runtime.CONNECT_TIMEOUT
         self.port = parsed.port

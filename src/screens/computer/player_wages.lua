@@ -28,7 +28,7 @@ function Component.install(Runtime)
     end
     function Runtime.ComputerScreen.playerWageControlCenter(name,index)
         local rect=name=='previous' and previous or name=='next' and nextPage or rowRect(index or 1)[name]
-        return rect.x+rect.width/2,rect.y+rect.height/2
+        return rect.x+rect.width/2,rect.y+rect.height/2+30
     end
     function Runtime.playerWagesMousepressed(state,x,y)
         local rows=entries(state);local maxPage=math.max(1,math.ceil(#rows/3))

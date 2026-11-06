@@ -55,6 +55,9 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.tabCenter(tabId)
         if tabId == "online" then tabId = "www" end
+        local financialAliases={bills='bills',player_wages='players',payroll='staff',shop_budget='overview'}
+        local financialAlias=financialAliases[tabId]
+        if financialAlias then Runtime.ComputerScreen.financialSection=financialAlias;tabId='financials' end
         for index, tab in ipairs(Runtime.visibleTabs()) do
             if tab.id == tabId then
                 local rect = Runtime.tabDropdownRect(index)
@@ -164,7 +167,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.payBillsCenter()
-        return Runtime.PAY_BILLS.x + Runtime.PAY_BILLS.width / 2, Runtime.PAY_BILLS.y + Runtime.PAY_BILLS.height / 2
+        local tab=Runtime.ComputerScreen.tab
+        local yOffset = (tab == "bills" or tab == "financials"
+            and Runtime.ComputerScreen.financialSection == "bills") and 30 or 0
+        return Runtime.PAY_BILLS.x + Runtime.PAY_BILLS.width / 2,
+            Runtime.PAY_BILLS.y + Runtime.PAY_BILLS.height / 2 + yOffset
     end
 
     function Runtime.creditMachineRect(index)
@@ -318,9 +325,14 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.hiringMousepressed(state,x,y)
-        return Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.hiring,x,y,function(intent)
+        local result=Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.hiring,x,y,function(intent)
             return Runtime.ComputerScreen.employeeCommand(state,intent)
         end,false,Runtime.dependencies.remoteCommand==nil)
+        if Runtime.ComputerScreen.hiring.section=="payroll" then
+            Runtime.ComputerScreen.tab="financials"
+            Runtime.ComputerScreen.financialSection="staff"
+        end
+        return result
     end
 
     function Runtime.ComputerScreen.scheduleMousepressed(state,x,y)

@@ -71,6 +71,38 @@ function Component.install(Runtime)
             Runtime.state.message = "A screen asset pack could not be loaded."
         end
         if mobileUi then Runtime.App.mobileCamera:beginDraw() end
+        if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime) then
+            local firstPersonDrawn=Runtime.WarehouseFirstPerson:draw(Runtime)
+            if firstPersonDrawn then
+                local mouseX,mouseY=Runtime.pointerPosition()
+                if showHud then
+                    Runtime.RuntimeDependencies.Hud.draw(Runtime.state,Runtime.World.prompt(),
+                        Runtime.Assets,mouseX,mouseY,
+                        Runtime.mobileControls and Runtime.mobileControls:isEnabled(),
+                        Runtime.controller and Runtime.controller:isActive(),nil,
+                        Runtime.App.settings and Runtime.App.settings.followPlayerCamera,
+                        Runtime.App.settings and Runtime.App.settings.twelveHourTime,
+                        Runtime.App.playerFeedback,Runtime.World.player.sceneId,
+                        require("src.home_activity_controls").localPlayer(Runtime))
+                    Runtime.MultiplayerHud.draw(Runtime.multiplayerHudInfo())
+                    Runtime.warehouseControls:draw(Runtime.Assets)
+                    local accessScreen,accessBounds=Runtime.optionsAccessLayout()
+                    Runtime.OptionsScreen.drawAccessButton(mouseX,mouseY,accessScreen,accessBounds,Runtime.Assets)
+                    if Runtime.App.playerFeedback then
+                        Runtime.App.playerFeedback:drawToast(viewBounds,Runtime.state.screen)
+                    end
+                end
+                HudVisibility.draw(Runtime)
+                Runtime.Ui.drawPressFeedback()
+                if Runtime.controller and showHud then Runtime.controller:draw() end
+                if Runtime.mobileControls and showHud then Runtime.mobileControls:draw() end
+                Runtime.WorldRenderer.endFrame()
+                Runtime.CharacterAssets.endFrame()
+                Runtime.Viewport.endDraw()
+                Runtime.Smoke.drawn()
+                return
+            end
+        end
         if Runtime.state.screen == "asset_error" then
             Runtime.CharacterAssets.retainCharacters({}, true)
             Runtime.AssetErrorScreen.draw(Runtime.state.assetErrors)

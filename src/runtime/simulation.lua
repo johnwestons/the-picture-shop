@@ -82,7 +82,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.update(dt)
-        require("src.image_loader").update()
+        local headlessServer = Runtime.privateServerMode == true
+        if not headlessServer then require("src.image_loader").update() end
         local employeeHighFive=Runtime.World.player.employeeHighFiveAnimation
         if employeeHighFive then
             employeeHighFive.elapsed=(employeeHighFive.elapsed or 0)+math.max(0,tonumber(dt) or 0)
@@ -92,25 +93,33 @@ function Component.install(Runtime)
         end
         require("src.employee_high_five").update(dt)
         if Runtime.pollSaves then Runtime.pollSaves() end
-        Runtime.Assets.pruneCache()
-        Runtime.CharacterAssets.pruneCache()
-        Runtime.WorldRenderer.pruneCache()
-        require("src.jukebox").update(Runtime.state.screen ~= "title" and Runtime.state.screen ~= "asset_error",
-            Runtime.multiplayer:isClient())
-        require("src.jukebox").syncMultiplayer(Runtime.multiplayer)
+        if not headlessServer then
+            Runtime.Assets.pruneCache()
+            Runtime.CharacterAssets.pruneCache()
+            Runtime.WorldRenderer.pruneCache()
+            require("src.jukebox").update(Runtime.state.screen ~= "title" and Runtime.state.screen ~= "asset_error",
+                Runtime.multiplayer:isClient())
+            require("src.jukebox").syncMultiplayer(Runtime.multiplayer)
+        end
         if Runtime.App.multiplayerFocusGrace:isExpired() then
             Runtime.App.multiplayerFocusGrace:clear()
             Runtime.App.expireBackgroundMultiplayer()
         end
-        Runtime.App.syncPlayerColorways()
-        Runtime.syncCamera()
-        if Runtime.controller then Runtime.controller:update(dt) end
+        if not headlessServer then
+            Runtime.App.syncPlayerColorways()
+            Runtime.syncCamera()
+            if Runtime.controller then Runtime.controller:update(dt) end
+        end
         if Runtime.spriteLabActive then Runtime.SpriteMotionLab.update(dt, Runtime.CharacterAssets); return end
-        Runtime.DirectIpv4Runtime.updateHosts()
-        Runtime.DirectIpv4Runtime.updateConnection()
-        Runtime.updateLanConvenience(dt)
+        if not headlessServer then
+            Runtime.DirectIpv4Runtime.updateHosts()
+            Runtime.DirectIpv4Runtime.updateConnection()
+            Runtime.updateLanConvenience(dt)
+        end
+        Runtime.updatePrivateServerReconnect(dt)
+        Runtime.updatePrivateServerClientTimer(dt)
         Runtime.Machine.setMultiplayerSingleControl(Runtime.multiplayer:isActive())
-        require("src.basketball_controls").update(dt,Runtime)
+        if not headlessServer then require("src.basketball_controls").update(dt,Runtime) end
         local saveNeeded = false
         local checkpointNeeded = false
         local networkInputX, networkInputY, networkInputBoost = 0, 0, false
@@ -227,7 +236,11 @@ function Component.install(Runtime)
                 commuteInputX,commuteInputY,commuteInputBoost=require('src.commute.runtime').localInput(Runtime)
                 networkInputX,networkInputY,networkInputBoost=commuteInputX,commuteInputY,commuteInputBoost
             else
-            local directionX, directionY = Runtime.Input.movement()
+            local directionX, directionY = 0, 0
+            if not headlessServer then directionX, directionY = Runtime.Input.movement() end
+            if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime) then
+                directionX,directionY=Runtime.WarehouseFirstPerson:movement(Runtime,directionX,directionY)
+            end
             if Runtime.basketballCharge or require("src.basketball").isChargingFor(Runtime.state,
                 tonumber(Runtime.World.player.id) or 1) then
                 directionX,directionY=0,0
@@ -235,7 +248,9 @@ function Component.install(Runtime)
             networkInputX, networkInputY = directionX, directionY
             if Runtime.multiplayer:isClient() then
                 local cursorX, cursorY
-                if not (Runtime.controller and Runtime.controller:isActive()) then
+                if not headlessServer
+                    and not (Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime))
+                    and not (Runtime.controller and Runtime.controller:isActive()) then
                     cursorX, cursorY = Runtime.pointerPosition()
                     if Runtime.App.cameraTransformsWorld() then
                         cursorX, cursorY = Runtime.App.mobileCamera:screenToWorld(cursorX, cursorY)
@@ -257,7 +272,9 @@ function Component.install(Runtime)
                 end
             else
                 local cursorX, cursorY
-                if not (Runtime.controller and Runtime.controller:isActive()) then
+                if not headlessServer
+                    and not (Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime))
+                    and not (Runtime.controller and Runtime.controller:isActive()) then
                     cursorX, cursorY = Runtime.pointerPosition()
                     if Runtime.App.cameraTransformsWorld() then
                         cursorX, cursorY = Runtime.App.mobileCamera:screenToWorld(cursorX, cursorY)
@@ -367,8 +384,10 @@ function Component.install(Runtime)
         if simulationActive then require("src.weekend_runtime").syncUi(Runtime) end
         if Runtime.App.playerFeedback then Runtime.App.playerFeedback:update(dt) end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
-        Runtime.syncCamera()
-        if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
+        if not headlessServer then
+            Runtime.syncCamera()
+            if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
+        end
         -- Commit the final frame once when several simulations change together.
         if saveNeeded then
             local saved = Runtime.saveCurrent()

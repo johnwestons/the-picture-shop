@@ -6,11 +6,17 @@
     "frame_count": 64,
     "frame_width": 256,
     "frame_height": 256,
+    "frame_size_overrides": {
+      "paper_cutter": {
+        "frame_width": 384,
+        "frame_height": 384
+      }
+    },
     "angle_step_degrees": 5.625,
     "order": "clockwise_row_major"
   },
   "assets": {
-    "paper_cutter": "assets/generated/polar-cutter-64-v1.png",
+    "paper_cutter": "assets/generated/polar-cutter-64-v2.png",
     "skid_wrapper": "assets/generated/skid-wrapper-64-v1.png",
     "loaded_paper_pallet": "assets/generated/loaded-paper-pallet-64-v1.png",
     "pallet_jack_empty": "assets/generated/pallet-jack-64-v1.png",
@@ -33,5 +39,5 @@
     ],
     "note": "Keep the animated gait separate from the 64-angle pallet-jack turntable."
   },
-  "integration_status": "polar_cutter_and_heidelberg_windmill_integrated_into_isometric_machine_placement; all_other_assets_remain_candidates"
+  "integration_status": "polar_cutter_skid_wrapper_and_heidelberg_windmill_integrated_into_isometric_machine_placement_and_64_step_rotation; all_other_assets_remain_candidates"
 }

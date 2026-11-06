@@ -29,7 +29,7 @@ local fields = {
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
     decline_application = { applicationId = "token" },
     offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
-        days = "days", startHour = "hour", endHour = "hour", payWeeks = "pay_cycle" },
+        role = "employee_role", days = "days", startHour = "hour", endHour = "hour", payWeeks = "pay_cycle" },
     hire_employee = { applicationId = "token", expectedRevision = "revision" },
     change_employee_hours = { employeeId = "token", expectedRevision = "revision",
         days = "days", startHour = "hour", endHour = "hour" },
@@ -104,6 +104,9 @@ function Intent.normalize(value)
             end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
+        elseif rule == "employee_role" then
+            if item==nil then item="cutter" end
+            if item~="cutter" and item~="driver" then return nil,"Choose production cutter or delivery driver." end
         elseif rule == "player_wage" then
             if not integer(item,100,10000) then return nil,"Choose $1-$100 per hour." end
         elseif rule == "days" then

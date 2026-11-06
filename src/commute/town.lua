@@ -10,7 +10,7 @@ local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- is applied to the runtime destinations without mutating a town or preset.
 local names={warehouse='The Picture Shop',['brick-walkup']='Brick walk-up',garden='Garden apartment',
     courtyard='Courtyard apartments',corner='Corner apartment',mechanic='WrenchWorks Garage',
-    ['gas-station']='Gas & Tire',grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
+    ['gas-station']='Gas Station',grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
     ['fire-station']='Fire Station',diner='Town Diner',['coffee-shop']='Coffee Shop',
     ['general-store']='General Store'}
 local function plain(value)
@@ -232,7 +232,7 @@ local function stationLayout(t,world)
                                 local out=copy(t)
                                 out.designs[lot.id]=copy(Sites.designs[lot.id])
                                 out.placements[#out.placements+1]=lot
-                                out.destinations[lot.id]={x=pad.x,z=pad.z,h=pad.h,label='Gas & Tire'}
+                                out.destinations[lot.id]={x=pad.x,z=pad.z,h=pad.h,label='Gas Station'}
                                 local r=out.roads[index]
                                 table.insert(r.points,edge+1,anchor)
                                 if r.bridgeEdges then

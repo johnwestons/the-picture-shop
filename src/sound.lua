@@ -19,7 +19,9 @@ local CATALOG = {
     press_running_loop = {
         path = "assets/audio/sfx/press_running_loop.wav", volume = 0.48, loop = true,
     },
-    wrapper_cycle = { path = "assets/audio/sfx/wrapper_cycle.wav", volume = 0.68 },
+    wrapper_cycle = {
+        path = "assets/audio/sfx/wrapper_cycle.wav", volume = 0.68, loop = true,
+    },
     maintenance_tool = { path = "assets/audio/sfx/maintenance_tool.wav", volume = 0.72 },
     warehouse_ambience_loop = {
         path = "assets/audio/sfx/warehouse_ambience_loop.wav", volume = 0.34,
@@ -191,6 +193,7 @@ end
 
 function Sound:play(name, options)
     options = options or {}
+    if options.loopOwner then return self:startLoop(name, options.loopOwner) end
     local spec, prototype = CATALOG[name], self.prototypes[name]
     if not spec or not prototype or self.paused then return nil end
     local cooldown = tonumber(options.cooldown) or 0
@@ -355,6 +358,24 @@ function Sound:syncPersistentLoops(snapshot)
     else
         self:stopLoop("press")
     end
+    local activeWrappers={}
+    if inShop and snapshot.wrappers~=nil then
+        for id,wrapper in pairs(snapshot.wrappers) do
+            if wrapper.step=="wrapping" then
+                local owner="wrapper:"..tostring(id)
+                self:startLoop("wrapper_cycle",owner)
+                activeWrappers[owner]=true
+            end
+        end
+    elseif inShop and snapshot.wrapper=="wrapping" then
+        self:startLoop("wrapper_cycle","wrapper")
+        activeWrappers.wrapper=true
+    end
+    for owner,entry in pairs(self.loops) do
+        if entry.name=="wrapper_cycle" and not activeWrappers[owner] then
+            self:stopLoop(owner)
+        end
+    end
 end
 
 function Sound:handleTransitions(before, after)
@@ -382,11 +403,11 @@ function Sound:handleTransitions(before, after)
         for id in pairs(ids) do
             local old, current = (before.wrappers or {})[id] or {}, (after.wrappers or {})[id] or {}
             if old.step ~= current.step and current.step == "wrapping" then
-                self:play("wrapper_cycle", { cooldown = 0.5, cooldownKey = id })
+                self:play("wrapper_cycle", { loopOwner = "wrapper:" .. tostring(id) })
             end
         end
     elseif before.wrapper ~= after.wrapper and after.wrapper == "wrapping" then
-        self:play("wrapper_cycle", { cooldown = 0.5 })
+        self:play("wrapper_cycle", { loopOwner = "wrapper" })
     end
     if before.cutters ~= nil or after.cutters ~= nil then
         local ids = {}

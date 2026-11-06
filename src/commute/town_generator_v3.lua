@@ -23,7 +23,13 @@ local function connectorEndpoint(result,desiredAngle,plan,sites)
                     seen[key]=true
                     local vx,vz=p[1]-centerX,p[2]-centerZ
                     local radius=math.sqrt(vx*vx+vz*vz)
-                    if radius>1 then
+                    local core=result.topology and result.topology.mainStreet
+                    local atCore=core and math.abs(p[1]-core.x)<.01 and math.abs(p[2]-core.z)<.01
+                    -- The mainland link belongs on the outer road network;
+                    -- attaching it to the core junction adds a third arm to
+                    -- the town center and sends through-traffic past every
+                    -- service frontage.
+                    if radius>80 and not atCore then
                         local ux,uz=vx/radius,vz/radius
                         local score=(ux*dx+uz*dz)*2+radius/1000
                         local blocked=false
@@ -92,6 +98,17 @@ function Planner.attachMainlandExit(result,plan,sites)
             points[#points+1]={Frontage.round(x),Frontage.round(z),Frontage.round(math.max(.35,h))}
         end
         wet[i+1]=ground<=.9
+    end
+    -- The island surface can fall sharply near the shoreline. Blend the
+    -- connector into a safe road profile instead of reproducing that terrain
+    -- cliff in the driving lane. A small embankment is preferable to a short,
+    -- unexpectedly steep grade.
+    local maxRoadGrade=.055
+    for i=2,#points do
+        local previous,current=points[i-1],points[i]
+        local length=M.length(current[1]-previous[1],current[2]-previous[2])
+        local maxRise=length*maxRoadGrade
+        current[3]=Frontage.round(M.clamp(current[3],previous[3]-maxRise,previous[3]+maxRise))
     end
     local bridgeEdges={}
     for i=1,#points-1 do bridgeEdges[i]=wet[i] or wet[i+1] end

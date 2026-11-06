@@ -145,7 +145,7 @@ function Component.run(Context)
         jack = Context.relocatingJack, machines = Context.incompletePose,
     })
     Context.invalidWrapperDirection = Context.machinePoses()
-    Context.invalidWrapperDirection.wrapper.direction = "north"
+    Context.invalidWrapperDirection.wrapper.direction = "north-northwest"
     Context.invalidWrapperDirectionPacket = Context.Protocol.encode("pallet_jack_snapshot", {
         sessionId = "session-001", serverTick = 45,
         jack = Context.relocatingJack, machines = Context.invalidWrapperDirection,

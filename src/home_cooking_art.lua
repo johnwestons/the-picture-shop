@@ -5,6 +5,7 @@ local R=require("src.home_cooking_registration")
 local Colorways=require("src.rabbit_colorways")
 local Art={};local cache={};local props;local bodyShader,propShader;local use=0
 local root="assets/generated/home-cooking-v2/"
+local PAN_SCALE=.095
 function Art.frame(seconds)return R.sequence[math.floor(math.max(0,seconds)*R.fps)%#R.sequence+1] end
 function Art.contact(direction,frame,bowlX,bowlY)
  local v=assert(R.views[direction]);local r=assert(v.grips[frame]);local spoon=R.spoons[v.index]
@@ -68,7 +69,7 @@ function Art.stoveTop(item)
 end
 function Art.anchor(direction,item)
  local v=R.views[direction];local pan=R.pans[R.views[item.direction].index];local x,y=Art.stoveTop(item)
- return x+(pan[7]-pan[5])*.075-v.bowlX,y+(pan[8]-pan[6])*.075-v.bowlY
+ return x+(pan[7]-pan[5])*PAN_SCALE-v.bowlX,y+(pan[8]-pan[6])*PAN_SCALE-v.bowlY
 end
 function Art.standingPose(state,direction,item)
  local x,y=Art.anchor(direction,item);local Layout=require("src.home_layouts")
@@ -79,7 +80,7 @@ function Art.standingPose(state,direction,item)
   local px,py=x+offset[1],y+offset[2]
   if Navigation.isWalkable(assets,px,py,obstacles) then
    local pan=R.pans[R.views[item.direction].index];local bx,by=Art.stoveTop(item)
-   return px,py,bx+(pan[7]-pan[5])*.075-px,by+(pan[8]-pan[6])*.075-py
+   return px,py,bx+(pan[7]-pan[5])*PAN_SCALE-px,by+(pan[8]-pan[6])*PAN_SCALE-py
   end
  end
 end
@@ -92,7 +93,7 @@ function Art.drawPan(direction,x,y)
  if not Preload.want("cooking",function() local p=propResources();if p then shaders() end;return p~=nil end) then return false end
  local p=propResources().pan;local i=R.views[direction].index;local r=R.pans[i];shaders()
  love.graphics.push("all");love.graphics.setShader(propShader);love.graphics.setColor(1,1,1,1)
- love.graphics.draw(p.image,p.frames[i],x,y,0,.075,.075,r[5],r[6]);love.graphics.pop()
+ love.graphics.draw(p.image,p.frames[i],x,y,0,PAN_SCALE,PAN_SCALE,r[5],r[6]);love.graphics.pop()
 end
 function Art.draw(direction,frame,x,y,player,skipPan,bowlX,bowlY)
  if not Preload.want("cooking",function() return Art.prewarm(direction) end) then return false end
@@ -107,7 +108,7 @@ function Art.draw(direction,frame,x,y,player,skipPan,bowlX,bowlY)
  if not rear then body() end
  love.graphics.setShader(propShader)
  local pan=R.pans[v.index]
- if not skipPan then love.graphics.draw(p.pan.image,p.pan.frames[v.index],x+v.bowlX,y+v.bowlY,0,.075,.075,pan[7],pan[8]) end
+ if not skipPan then love.graphics.draw(p.pan.image,p.pan.frames[v.index],x+v.bowlX,y+v.bowlY,0,PAN_SCALE,PAN_SCALE,pan[7],pan[8]) end
  love.graphics.draw(p.spoon.image,p.spoon.frames[v.index],x+c.x,y+c.y,c.rotation,c.scale,c.scale,c.ox,c.oy)
  if rear then body() else
   love.graphics.setShader(bodyShader);love.graphics.draw(a.hands[frame],x,y,0,v.scale,v.scale,r[1],r[2])

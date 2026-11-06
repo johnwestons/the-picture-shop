@@ -22,6 +22,9 @@ Camera.FOLLOW_SMOOTH_TIME = 0.18
 Camera.FOLLOW_LOOKAHEAD_DISTANCE = 2.4
 Camera.FOLLOW_LOOKAHEAD_FULL_SPEED = 8
 Camera.FOLLOW_YAW_SMOOTH_TIME = 0.18
+Camera.SHOULDER_FOLLOW_SMOOTH_TIME = 0.30
+Camera.SHOULDER_LATERAL_SMOOTH_TIME = 0.52
+Camera.SHOULDER_YAW_SMOOTH_TIME = 0.36
 Camera.FOLLOW_ORBIT_HOLD = 0.8
 Camera.FOLLOW_TILT_DEFAULT = 62
 Camera.SHOULDER_TILT = 14
@@ -243,6 +246,7 @@ function Camera:setOutsideMode(mode,actor,mounted)
     if self.outsideMode=='shoulder' then
         self.tilt,self.targetZoom=self.previousTilt,self.previousZoom
         self.shoulderView=nil
+        self.shoulderHeadingOffset=nil
     end
     if self.outsideMode=='fixed' then self.fixedYaw=self.yaw end
     if mode~='fixed' then
@@ -252,6 +256,7 @@ function Camera:setOutsideMode(mode,actor,mounted)
         if mode=='shoulder' then
             self.previousTilt,self.previousZoom=self.tilt,self.targetZoom
             self.tilt,self.targetZoom=Camera.SHOULDER_TILT,Camera.SHOULDER_ZOOM
+            self.shoulderHeadingOffset=nil
         elseif self.tilt==Camera.TILT_DEFAULT then self.tilt=Camera.FOLLOW_TILT_DEFAULT end
     else self.yaw=self.fixedYaw or self.yaw end
     self.outsideMode=mode
@@ -262,6 +267,7 @@ end
 function Camera:setFirstPerson(enabled, actor, onFoot)
     self.firstPerson = enabled == true
     self.shoulderView=nil
+    self.shoulderHeadingOffset=nil
     self.lastActor = actor or self.lastActor
     self.walkViewHeading = self.firstPerson and onFoot and (self.lastActor.heading or 0) or nil
     self.centerVelocityX, self.centerVelocityZ = 0, 0
@@ -284,6 +290,7 @@ function Camera:toggleView(rider)
     local truck=rider.vehicle=='truck' and rider.truck or nil
     if rider.gear.transition then return false end
     local onFoot=not truck and not rider.gear.mounted
+    self.localVehicle=truck and 'truck' or rider.gear.mounted and 'bike' or 'ped'
     self:setFirstPerson(not self.firstPerson, truck or (onFoot and rider.ped or rider.bike),onFoot)
     return true
 end
@@ -298,6 +305,7 @@ function Camera:updateRide(rider, dt, visual)
         -- should not resume an old head-look offset or angular momentum.
         self.followYawOffset,self.followOrbitHold,self.followYawVelocity=0,0,0
     end
+    if not mounted then self.shoulderHeadingOffset=nil end
     self.followMounted=mounted
     if self.firstPerson and (rider.gear.transition or (self.walkViewHeading~=nil)==mounted) then
         self:setFirstPerson(false, actor)
@@ -317,13 +325,15 @@ function Camera:update(actor, dt, visual)
         -- camera eases back behind the bike, including when the bike is sliding.
         local count=math.max(1,math.ceil(followDt*120-1e-9))
         local yawDt=followDt/count
+        local yawSmoothTime=self.outsideMode=='shoulder'
+            and Camera.SHOULDER_YAW_SMOOTH_TIME or Camera.FOLLOW_YAW_SMOOTH_TIME
         for _=1,count do
             local returnDt=math.max(0,yawDt-(self.followOrbitHold or 0))
             self.followOrbitHold=math.max(0,(self.followOrbitHold or 0)-yawDt)
             self.followYawOffset=(self.followYawOffset or 0)*math.exp(-returnDt*7)
             local angle,velocity=Damping.angle(self.yaw*rad,
                 (behindYaw(actor)+self.followYawOffset)*rad,self.followYawVelocity,
-                Camera.FOLLOW_YAW_SMOOTH_TIME,yawDt)
+                yawSmoothTime,yawDt)
             self.yaw=(angle/rad)%360;self.followYawVelocity=velocity
         end
     end
@@ -345,10 +355,31 @@ function Camera:update(actor, dt, visual)
     end
     targetX, targetZ = clampToWorld(self.world, targetX, targetZ)
 
-    self.centerX, self.centerVelocityX = smoothDamp(self.centerX, targetX,
-        self.centerVelocityX or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
-    self.centerZ, self.centerVelocityZ = smoothDamp(self.centerZ, targetZ,
-        self.centerVelocityZ or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
+    if self.outsideMode=='shoulder' then
+        -- Let the bike move across the shoulder frame more freely side to
+        -- side than it moves toward or away from the camera. Work in the
+        -- camera's local axes so the extra lag follows its current orbit.
+        local currentRight=self.centerX*c-self.centerZ*s
+        local currentForward=self.centerX*s+self.centerZ*c
+        local targetRight=targetX*c-targetZ*s
+        local targetForward=targetX*s+targetZ*c
+        local velocityRight=(self.centerVelocityX or 0)*c-(self.centerVelocityZ or 0)*s
+        local velocityForward=(self.centerVelocityX or 0)*s+(self.centerVelocityZ or 0)*c
+        currentRight,velocityRight=smoothDamp(currentRight,targetRight,velocityRight,
+            Camera.SHOULDER_LATERAL_SMOOTH_TIME,followDt)
+        currentForward,velocityForward=smoothDamp(currentForward,targetForward,velocityForward,
+            Camera.SHOULDER_FOLLOW_SMOOTH_TIME,followDt)
+        self.centerX=currentRight*c+currentForward*s
+        self.centerZ=-currentRight*s+currentForward*c
+        self.centerVelocityX=velocityRight*c+velocityForward*s
+        self.centerVelocityZ=-velocityRight*s+velocityForward*c
+        self.centerX,self.centerZ=clampToWorld(self.world,self.centerX,self.centerZ)
+    else
+        self.centerX, self.centerVelocityX = smoothDamp(self.centerX, targetX,
+            self.centerVelocityX or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
+        self.centerZ, self.centerVelocityZ = smoothDamp(self.centerZ, targetZ,
+            self.centerVelocityZ or 0, Camera.FOLLOW_SMOOTH_TIME, followDt)
+    end
     local height=actorHeight(self.world,actor,self.centerX,self.centerZ)
     self.landingTarget=Landing.target(self.world,actor,visual)
     if self.landingTarget then
@@ -620,6 +651,7 @@ function Camera:recenter()
         return
     end
     self.offsetX, self.offsetY = 0, 0
+    if self.outsideMode=='shoulder' then self.shoulderHeadingOffset=nil end
     self.targetZoom = self.outsideMode=='shoulder' and Camera.SHOULDER_ZOOM or Camera.ZOOM_DEFAULT
     self.zoom = self.targetZoom
     self.yaw = self.outsideMode~='fixed' and self.followMounted~=false and behindYaw(self.lastActor) or 0

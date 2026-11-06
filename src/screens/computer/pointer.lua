@@ -52,7 +52,10 @@ function Component.install(Runtime)
             end
         end
         if Runtime.ComputerScreen.tab=="home" then return Runtime.homeMousepressed(state,x,y) end
-        if Runtime.ComputerScreen.tab=='player_wages' then return Runtime.playerWagesMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab=='financials' or Runtime.ComputerScreen.tab=='bills'
+            or Runtime.ComputerScreen.tab=='player_wages' then
+            return Runtime.financialsMousepressed(state,x,y)
+        end
         if Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
             return Runtime.homeShopMousepressed(state,x,y)
         end
@@ -176,16 +179,6 @@ function Component.install(Runtime)
                     state.message = string.format("Sold %s online for $%d.", result.machine.name, result.price)
                     return { action = "machine_sold", sale = result }
                 end
-            end
-            return nil
-        end
-        if Runtime.ComputerScreen.tab == "bills" then
-            if Runtime.contains(Runtime.PAY_BILLS, x, y) then
-                if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("pay_bills") end
-                local paid, result = Runtime.BusinessCalendar.pay(state)
-                if not paid then state.message = result; return { action = "blocked" } end
-                state.message = string.format("Paid $%.2f in operating bills, customer claims and wages.",result)
-                return { action = "bill_paid", amount = result }
             end
             return nil
         end

@@ -108,7 +108,7 @@ function Test.run(context,check)
     local old=State.new();old.home.chores=nil
     old.home.residents.owner.activity={kind="laundry",target="laundry",startedAt=0,endsAt=.75,x=300,y=400}
     local migrated=assert(Schema.migrate({version=32,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(old),player={x=300,y=400}}))
-    check("home_chores_legacy_laundry_migrates_without_free_clean_clothes",migrated.version==39 and migrated.state.home.chores.laundry.phase=="idle"
+    check("home_chores_legacy_laundry_migrates_without_free_clean_clothes",migrated.version==Schema.VERSION and migrated.state.home.chores.laundry.phase=="idle"
         and migrated.state.home.chores.laundry.clean==0 and migrated.state.home.chores.laundry.dirty==0 and not migrated.state.home.residents.owner.activity)
     check("home_chores_legacy_shortcut_no_longer_usable",not Residents.command(s,p,"laundry:laundry"))
 end

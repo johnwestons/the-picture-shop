@@ -48,7 +48,7 @@ vec4 effect(vec4 color, Image texture, vec2 uv, vec2 pixel) {
 ]]
 
 local objects = {
-    {id="cutter", label="Polar cutter", path="assets/generated/polar-cutter-64-v1.png",
+    {id="cutter", label="Polar cutter", path="assets/generated/polar-cutter-64-v2.png",
         frames=64, frameColumns=8, frameRows=8, frame=1, rotation=0,
         x=Config.cutterPlacement.spawnX, y=Config.cutterPlacement.spawnY,
         drawScale=Config.cutterPlacement.drawScale*2.47, anchor=0.96,
@@ -143,11 +143,24 @@ end
 local function activate(item)
     if not item then return end
     if item.id == "cutter" then
-        state.working = not state.working
-        state.status = state.working and "Cutter: test cycle running" or "Cutter: stopped"
+        if state.working then
+            state.working, state.cutterTimer, state.cutterPhase = false, 0, 0
+            state.status = "Cutter: cycle stopped"
+        else
+            state.working, state.cutterTimer, state.cutterPhase = true, 0, 0
+            state.status = "Cutter: test cycle running"
+        end
     elseif item.id == "wrapper" then
-        state.wrapped = not state.wrapped
-        state.status = state.wrapped and "Paper skid: wrapped" or "Paper skid: unwrapped"
+        if state.wrapping then
+            state.wrapping, state.wrapperTimer, state.wrapperPhase = false, 0, 0
+            state.status = "Wrapper: cycle stopped"
+        elseif state.wrapped then
+            state.wrapped, state.wrapperPhase = false, 0
+            state.status = "Paper skid: unwrapped"
+        else
+            state.wrapping, state.wrapperTimer, state.wrapperPhase = true, 0, 0
+            state.status = "Wrapper: automatic cycle running"
+        end
     elseif item.id == "stock" then
         state.staged = not state.staged
         item.x,item.y=state.staged and 535 or 410,state.staged and 490 or 374
@@ -203,10 +216,19 @@ local function drawHud(width, height)
     if state.mode == "first person" then
         local item, distance=nearestObject()
         if item and distance < 2.4 then
+            local action = item.action
+            if item.id == "cutter" and state.working then
+                action = "Stop the test cycle"
+            elseif item.id == "wrapper" then
+                action = state.wrapping and "Stop the wrapping cycle"
+                    or state.wrapped and "Remove the film" or "Wrap the paper skid"
+            elseif item.id == "stock" and state.staged then
+                action = "Return paper to stock"
+            end
             g.setColor(0.04,0.06,0.07,0.86)
             g.rectangle("fill",width*0.5-165,height-72,330,44,5,5)
             g.setColor(1,0.88,0.55)
-            g.printf("F  "..item.action,width*0.5-155,height-60,310,"center")
+            g.printf("F  "..action,width*0.5-155,height-60,310,"center")
         end
         g.setColor(1,1,1,0.8)
         g.line(width*0.5-7,height*0.5,width*0.5+7,height*0.5)
@@ -299,6 +321,31 @@ function Lab.install()
 
     function love.update(dt)
         dt=math.min(dt,0.1)
+        if state.working then
+            state.cutterTimer = (state.cutterTimer or 0) + dt
+            state.cutterPhase = math.min(1, state.cutterTimer / 3.2)
+            if state.cutterTimer >= 3.2 then
+                state.working, state.cutterPhase = false, 0
+                state.status = "Cutter: test cycle complete"
+            end
+        end
+        if state.wrapping then
+            state.wrapperTimer = (state.wrapperTimer or 0) + dt
+            state.wrapperPhase = math.min(1, state.wrapperTimer / 5)
+            state.wrapperRotation = (state.wrapperRotation or 0) + dt * 1.35
+            if state.wrapperTimer >= 5 then
+                state.wrapping, state.wrapped = false, true
+                state.wrapperPhase = 1
+                state.status = "Wrapper: skid secured with film"
+            end
+        end
+        objects[1].working = state.working
+        objects[1].actionPhase = state.working and (state.cutterPhase or 0) or 0
+        objects[2].wrapping = state.wrapping
+        objects[2].wrapped = state.wrapped
+        objects[2].actionPhase = state.wrapping and (state.wrapperPhase or 0)
+            or state.wrapped and 1 or 0
+        objects[2].loadRotation = state.wrapperRotation or 0
         if state.mode == "first person" then
             local forward, side=0,0
             if love.keyboard.isDown("w") then forward=forward+1 end

@@ -10,6 +10,8 @@ local reverseActionForPose={helmet_off='helmet_on',unzip='zip_up',suit_off='suit
 
 local SHADER = [[
 #ifdef PIXEL
+extern bool silhouetteMode;
+extern vec3 silhouetteColor;
 extern vec3 furTint;
 extern vec3 overallsTint;
 extern float furEnabled;
@@ -33,6 +35,7 @@ vec3 hsvToRgb(vec3 c) {
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
     vec4 pixel = Texel(texture, texture_coords) * color;
     if(pixel.a<0.02) discard;
+    if(silhouetteMode) return vec4(silhouetteColor,pixel.a);
     vec2 masks = Texel(actionMask, texture_coords).rg;
     vec3 hsv = rgbToHsv(pixel.rgb);
     if (furEnabled > 0.5 && masks.r > 0.0) {
@@ -141,7 +144,7 @@ function Art:has(action)
     return self.actions[action] ~= nil
 end
 
-function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, spriteDepth)
+function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, spriteDepth,silhouetteMode)
     if not Art.supportsAppearance(appearance, self.registration) then return false, 'unsupported_character' end
     local entry = self.actions[action]
     if not entry then return false, 'missing_staged_action' end
@@ -175,6 +178,10 @@ function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, sp
         end
     end
     if spriteDepth~=nil and target==self.depthShader then target:send('spriteDepth',spriteDepth) end
+    if target:hasUniform('silhouetteMode') then
+        target:send('silhouetteMode',silhouetteMode==true)
+        target:send('silhouetteColor',{1,.72,.08})
+    end
     love.graphics.setShader(target)
     love.graphics.draw(self.images[action], self.quads[action][frame], x, baseline, 0,
         scale, scale, anchor[1], anchor[2])

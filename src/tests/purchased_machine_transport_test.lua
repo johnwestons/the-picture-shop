@@ -51,7 +51,7 @@ local function controlLoop(context, check, index, channel)
     local kind, pose = kinds[index], unit.world
     local prefix = "purchased_machine_" .. kind .. "_" .. channel .. "_"
     local original = { x = state[kind].x, y = state[kind].y, direction = state[kind].direction }
-    local before = { x = pose.x, y = pose.y, direction = pose.direction }
+    local before = { x = pose.x, y = pose.y, direction = pose.direction, rotationIndex = pose.rotationIndex }
     local selected = context.world.interactionAt(pose.x, pose.y)
     check(prefix .. "target_is_exact_owned_unit",
         selected and selected.target.machineId == unit.id and selected.target.relocatable ~= false)
@@ -103,11 +103,13 @@ local function controlLoop(context, check, index, channel)
     context.world.update(0.2, 1, 0, context.assets, state)
     check(prefix .. "jack_drives_attached_unit", pose.x ~= before.x or pose.y ~= before.y)
     context.input.keypressed("q", input)
-    check(prefix .. "turn_key_rotates_purchased_unit", pose.direction ~= before.direction)
+    check(prefix .. "turn_key_rotates_purchased_unit",
+        pose.rotationIndex ~= before.rotationIndex or pose.direction ~= before.direction)
     local snapshot = assert(SaveSchema.snapshot(state))
     local committed = Fleet.byId(snapshot, unit.id).world
     check(prefix .. "save_during_transport_retains_committed_position",
         committed.x == before.x and committed.y == before.y and committed.direction == before.direction
+        and committed.rotationIndex == before.rotationIndex
         and not committed.moving and not committed.inMotion and committed._relocationOrigin == nil)
     local roomPlayer = { id = 1, x = Rooms.roomEntrance.x, y = Rooms.roomEntrance.y, sceneId = "warehouse" }
     local entered, entryCode = Rooms.transition(roomPlayer, state, "front_left")

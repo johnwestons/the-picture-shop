@@ -32,13 +32,27 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 local function outsideSpriteShader()
     return outsideDepthVertex..[[
 #ifdef PIXEL
+extern bool silhouetteMode;
+extern vec3 silhouetteColor;
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     vec4 surface=Texel(tex,uv)*color;
     if(surface.a<.02) discard;
+    if(silhouetteMode) return vec4(silhouetteColor,surface.a);
     return surface;
 }
 #endif
 ]]
+end
+local function tireTrackDepthShader()
+    return outsideDepthVertex..[[
+#ifdef PIXEL
+vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) { return color; }
+#endif
+]]
+end
+local function setSilhouetteMode(shader,enabled)
+    if shader:hasUniform('silhouetteMode') then shader:send('silhouetteMode',enabled) end
+    if shader:hasUniform('silhouetteColor') then shader:send('silhouetteColor',{1,.72,.08}) end
 end
 local function tileDistance(tile,x,z)
     local dx=math.max(tile.x0-x,0,x-tile.x1)
@@ -52,20 +66,27 @@ function Renderer.new(world,spawn)
         calendar=world.calendar or {month=5,totalDays=0},viewportWidth=1280,viewportHeight=880,
         tireTracks=TireTracks.new(),bikeParticles=BikeParticles.new(),
         outsideSpriteShader=love.graphics.newShader(outsideSpriteShader()),
+        tireTrackShader=love.graphics.newShader(tireTrackDepthShader()),
         outsideColorwaysShader=love.graphics.newShader(outsideDepthVertex..Colorways.blendShaderSource()..[[
 #ifdef PIXEL
+extern bool silhouetteMode;
+extern vec3 silhouetteColor;
 vec4 effect(vec4 color,Image texture,vec2 texture_coords,vec2 screen_coords) {
     vec4 pixel=Texel(texture,texture_coords)*color;
     if(pixel.a<.02) discard;
+    if(silhouetteMode) return vec4(silhouetteColor,pixel.a);
     return applyRabbitColorways(pixel);
 }
 #endif
 ]]),
         outsideBikePaintShader=love.graphics.newShader(outsideDepthVertex..BikePaintArt.source()..[[
 #ifdef PIXEL
+extern bool silhouetteMode;
+extern vec3 silhouetteColor;
 vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
     vec4 surface=bikePaintSurface(Texel(texture,uv),uv)*color;
     if(surface.a<.02) discard;
+    if(silhouetteMode) return vec4(silhouetteColor,surface.a);
     return surface;
 }
 #endif
@@ -388,6 +409,8 @@ function Renderer:drawGrass(camera,actor)
     local season=Flora.season(self.calendar)
     self.grassFields:prepareDraw(camera,self.clock,season,
         math.min(self.effectiveRadius,GrassFields.FAR_VIEW_RADIUS),self:depthSpan(),actor)
+    -- Grass is geometry in the shared scene; let nearer blades occlude later
+    -- billboards, with the local player's silhouette pass preserving visibility.
     g.setDepthMode('lequal',true);g.setShader(self.grassFields.shader);g.setColor(.91,.94,.87,1)
     for _,patch in ipairs(self.visibleGrass or {}) do self.grassFields:drawPatch(patch) end
 end
@@ -484,12 +507,15 @@ function Renderer:drawOutsideActor(entry,camera)
     local actorHeight=p.h or support
     local height=actorHeight
     if kind=='road' or kind=='trail' then height=math.max(height,support+.055) end
-    local mountedBike=not entry.bikeOnly and not entry.dismounting
-        and (entry.bike or entry.gear and entry.gear.mounted)
     local grounded=(not entry.presentation or entry.presentation.grounded~=false)
         and p.grounded~=false
+    local mountedBike=not entry.bikeOnly and not entry.dismounting
+        and (entry.bike or entry.gear and entry.gear.mounted)
     local bikeHeight=entry.presentation and entry.presentation.h or actorHeight
-    if mountedBike and grounded and bikeHeight-support<.4 then
+    if entry.truck and grounded then
+        local depthBias=self.truckArt:groundedDepthBias(p,camera,actorHeight,self.world)
+        height=math.max(height,support+depthBias+.055)
+    elseif mountedBike and grounded and bikeHeight-support<.4 then
         -- Match depth to the lowest authored tire pixels for this pose and
         -- camera angle. The scene actor entries mark bikes directly; mounted
         -- players do not carry gear on the bike entry.
@@ -499,40 +525,56 @@ function Renderer:drawOutsideActor(entry,camera)
         height=bikeHeight
     end
     local spriteDepth=-camera:depth(p.x,p.z,height)/self:depthSpan()
-    g.push('all');g.setDepthMode('lequal',true);g.setColor(1,1,1,1)
-    if entry.truck then
-        self.outsideSpriteShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideSpriteShader)
-        self.truckArt:draw(p,camera,self.world)
-        self.truckArt:drawSignals(p,camera,self.world,self.clock)
-    elseif entry.dismounting then
-        self.outsideBikePaintShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideBikePaintShader)
-        self.bikeArt:draw(p,camera,self.world,true,entry.presentation)
-        local presentation=require('src.commute.presentation')
-        local rider=entry.actionActor or p
-        self.outsideColorwaysShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideColorwaysShader)
-        presentation.world(self.characterAssets,rider,camera,self.world,
-            entry.gear,entry.appearance,entry.presentation,self.clock,self.outsideColorwaysShader,
-            self.outsideSpriteShader,spriteDepth)
-    elseif entry.gear and not entry.gear.mounted then
-        self.outsideColorwaysShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideColorwaysShader)
-        local presentation=require('src.commute.presentation')
-        local authoredCrash=presentation.hasAuthoredCrash(entry.appearance)
-            and (p.crash~=nil or entry.presentation and entry.presentation.pose=='crash')
-        local x,y=camera:screen(p.x,p.z,height)
-        local falling=not authoredCrash and presentation.beginFallPose(p,entry.presentation,camera,x,y)
-        presentation.world(self.characterAssets,p,camera,self.world,
-            entry.gear,entry.appearance,entry.presentation,self.clock,self.outsideColorwaysShader,
-            self.outsideSpriteShader,spriteDepth)
-        if falling then g.pop() end
-    else
-        self.outsideBikePaintShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideBikePaintShader)
-        self.bikeArt:draw(p,camera,self.world,entry.bikeOnly,entry.presentation)
+    local function drawPass(silhouette)
+        -- The reverse depth pass draws only actor pixels hidden by nearer
+        -- geometry, leaving the ordinary sprite fully depth-correct.
+        g.push('all');g.setDepthMode(silhouette and 'greater' or 'lequal',not silhouette)
+        g.setColor(1,1,1,1)
+        setSilhouetteMode(self.outsideSpriteShader,silhouette)
+        setSilhouetteMode(self.outsideColorwaysShader,silhouette)
+        setSilhouetteMode(self.outsideBikePaintShader,silhouette)
+        if entry.truck then
+            self.outsideSpriteShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideSpriteShader)
+            self.truckArt:draw(p,camera,self.world)
+            self.truckArt:drawSignals(p,camera,self.world,self.clock)
+        elseif entry.dismounting then
+            self.outsideBikePaintShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideBikePaintShader)
+            self.bikeArt:draw(p,camera,self.world,true,entry.presentation)
+            local presentation=require('src.commute.presentation')
+            local rider=entry.actionActor or p
+            self.outsideColorwaysShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideColorwaysShader)
+            presentation.world(self.characterAssets,rider,camera,self.world,
+                entry.gear,entry.appearance,entry.presentation,self.clock,self.outsideColorwaysShader,
+                self.outsideSpriteShader,spriteDepth,silhouette)
+        elseif entry.gear and not entry.gear.mounted then
+            self.outsideColorwaysShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideColorwaysShader)
+            local presentation=require('src.commute.presentation')
+            local authoredCrash=presentation.hasAuthoredCrash(entry.appearance)
+                and (p.crash~=nil or entry.presentation and entry.presentation.pose=='crash')
+            local x,y=camera:screen(p.x,p.z,height)
+            local falling=not authoredCrash and presentation.beginFallPose(p,entry.presentation,camera,x,y)
+            presentation.world(self.characterAssets,p,camera,self.world,
+                entry.gear,entry.appearance,entry.presentation,self.clock,self.outsideColorwaysShader,
+                self.outsideSpriteShader,spriteDepth,silhouette)
+            if falling then g.pop() end
+        else
+            self.outsideBikePaintShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideBikePaintShader)
+            self.bikeArt:draw(p,camera,self.world,entry.bikeOnly,entry.presentation)
+        end
+        g.pop()
     end
-    g.pop()
+    drawPass(false)
+    if entry.localPlayer then
+        drawPass(true)
+        setSilhouetteMode(self.outsideSpriteShader,false)
+        setSilhouetteMode(self.outsideColorwaysShader,false)
+        setSilhouetteMode(self.outsideBikePaintShader,false)
+    end
 end
 function Renderer:draw(camera,actor,actors)
     camera=camera.shoulderView or camera
     if not self:starterReady() then self:drawLoading();return end
+    if not actors then actors={{actor=actor,localPlayer=true}} end
     if camera.firstPerson then
         return self:prewarmViews():draw(self,camera,actor,actors)
     end
@@ -548,11 +590,14 @@ function Renderer:draw(camera,actor,actors)
     g.setColor(1,1,1);g.setShader(self:shader(camera))
     for _,tile in ipairs(self.visible) do g.draw(tile.mesh) end
     for _,mesh in ipairs(self.roadMeshes) do g.draw(mesh) end
-    self:drawGrass(camera,actor)
-    self.tireTracks:draw(camera)
     self.structures:drawOutsideDepth(camera,actor,self.effectiveRadius)
+    self.structures:drawOutsidePropsDepth(camera,actor,self.effectiveRadius)
+    self:drawGrass(camera,actor)
+    self.tireTracks:draw(camera,self.tireTrackShader,self:depthSpan())
     local depthSpan=self:depthSpan()
     local actorX,actorY=camera:screen(actor.x,actor.z,actor.h or self.world:supportHeight(actor.x,actor.z))
+    -- Share depth across billboards and solid geometry so plants behind a
+    -- building or actor cannot paint over it, and foreground foliage can occlude.
     g.setDepthMode('lequal',true);g.setShader(self.outsideSpriteShader)
     for _,p in ipairs(self.visibleProps or {}) do
         local x,y=camera:screen(p.x,p.z,p.h)
@@ -566,17 +611,13 @@ function Renderer:draw(camera,actor,actors)
         g.setColor(.91,.94,.87,fade)
         self.plantSprites:drawPlant(p,self.calendar,self.clock,x,y,p.scale*camera.zoom,self.plantMotion:sway(p))
     end
-    local sceneActors=actors or {{actor=actor}}
-    for _,entry in ipairs(sceneActors) do self:drawOutsideActor(entry,camera) end
+    for _,entry in ipairs(actors) do self:drawOutsideActor(entry,camera) end
     if self.bikeParticles then self.bikeParticles:draw(camera,self.effectiveRadius,depthSpan) end
-    self.structures:drawOutsidePropsDepth(camera,actor,self.effectiveRadius)
     g.pop()
     g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
     g.draw(canvas,0,0);g.pop()
     self:drawRoads(camera,true)
-    if actors then
-        for _,entry in ipairs(actors) do if not entry.gear then self:headlight(camera,entry.actor) end end
-    else self:headlight(camera,actor) end
+    for _,entry in ipairs(actors) do if not entry.gear then self:headlight(camera,entry.actor) end end
     g.setColor(1,1,1);g.setLineWidth(1)
 end
 function Renderer:release()
@@ -594,6 +635,7 @@ function Renderer:release()
     if self.outsideSpriteShader then self.outsideSpriteShader:release() end
     if self.outsideColorwaysShader then self.outsideColorwaysShader:release() end
     if self.outsideBikePaintShader then self.outsideBikePaintShader:release() end
+    if self.tireTrackShader then self.tireTrackShader:release() end
     for _,mesh in ipairs(self.roadMeshes) do mesh:release() end
     self.ground:release()
 end

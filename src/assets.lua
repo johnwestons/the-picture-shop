@@ -15,6 +15,18 @@ local Assets = {
     activePack = nil,
 }
 
+-- Direction atlases are only needed when the matching machine is drawn. Check
+-- their file dimensions during startup, then upload the GPU texture on demand
+-- so the large 64-view sheets do not inflate the initial mobile texture set.
+local machineAtlases = {
+    polarDirections = {path=Config.paths.polarDirections, placement=Config.cutterPlacement,
+        quadPrefix="polarDirection", linear=true},
+    skidWrapper64Directions = {path=Config.paths.skidWrapper64Directions,
+        placement=Config.wrapperPlacement, quadPrefix="skidWrapper64Direction"},
+    windmillDirections = {path=Config.paths.windmillDirections,
+        placement=Config.windmillPlacement, quadPrefix="windmillDirection"},
+}
+
 local function recordFailure(path, reason)
     Assets.failures[#Assets.failures + 1] = path .. ": " .. tostring(reason)
 end
@@ -129,9 +141,7 @@ function Assets.load()
         walkmask=require("src.shop_rooms").assets(Assets,"warehouse").getData("walkmask")
         Assets.data.walkmask=walkmask
     else walkmask=loadData("walkmask", Config.paths.walkmask) end
-    local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
-    local windmillDirections = loadImage("windmillDirections", Config.paths.windmillDirections, false)
     local regalFolderDirections = loadImage("regalFolderDirections", Config.paths.regalFolderDirections, false)
     if regalFolderDirections then
         local width, height = regalFolderDirections:getDimensions()
@@ -213,47 +223,19 @@ function Assets.load()
         end
     end
 
-    if polarDirections then
-        local size = Config.cutterPlacement.frameSize
-        local width, height = polarDirections:getDimensions()
-        local columns = Config.cutterPlacement.frameColumns or Config.cutterPlacement.frameCount
-        local rows = math.ceil(Config.cutterPlacement.frameCount / columns)
-        if width ~= columns * size or height ~= rows * size then
-            recordFailure(Config.paths.polarDirections, string.format(
-                "expected %dx%d cutter turntable, got %dx%d",
-                columns * size, rows * size, width, height))
-        else
-            for frame = 1, Config.cutterPlacement.frameCount do
-                local column, row = (frame - 1) % columns, math.floor((frame - 1) / columns)
-                makeQuad("polarDirection" .. frame, polarDirections,
-                    column * size, row * size, size, size)
-            end
-        end
-    end
-    if windmillDirections then
-        local size = Config.windmillPlacement.frameSize
-        local columns = Config.windmillPlacement.frameColumns or Config.windmillPlacement.frameCount
-        local rows = math.ceil(Config.windmillPlacement.frameCount / columns)
-        local width, height = windmillDirections:getDimensions()
-        if width ~= columns * size or height ~= rows * size then
-            recordFailure(Config.paths.windmillDirections, string.format(
-                "expected %dx%d Windmill turntable, got %dx%d",
-                columns * size, rows * size, width, height))
-        else
-            for frame = 1, Config.windmillPlacement.frameCount do
-                local column, row = (frame - 1) % columns, math.floor((frame - 1) / columns)
-                makeQuad("windmillDirection" .. frame, windmillDirections,
-                    column * size, row * size, size, size)
-            end
-        end
+    for _, spec in pairs(machineAtlases) do
+        local placement=spec.placement
+        local columns=placement.frameColumns or placement.frameCount
+        local rows=math.ceil(placement.frameCount/columns)
+        validateExactPath(spec.path,columns*placement.frameSize,rows*placement.frameSize)
     end
     if skidWrapperDirections then
-        local size = Config.wrapperPlacement.frameSize
+        local size = 512
         local width, height = skidWrapperDirections:getDimensions()
-        if width ~= size * Config.wrapperPlacement.frameCount or height ~= size then
+        if width ~= size * 4 or height ~= size then
             recordFailure(Config.paths.skidWrapperDirections, "wrapper direction strip must be a 4x1 grid of 512px cells")
         else
-            for frame = 1, Config.wrapperPlacement.frameCount do
+            for frame = 1, 4 do
                 makeQuad("skidWrapperDirection" .. frame, skidWrapperDirections, (frame - 1) * size, 0, size, size)
             end
             makeQuad("wrapUpper", skidWrapperDirections,0,0,512,246)
@@ -775,12 +757,50 @@ function Assets.textureBytes()
     return bytes
 end
 
+local function loadMachineAtlas(name)
+    local spec=machineAtlases[name]
+    if not spec then return nil end
+    local image=Assets.images[name]
+    if image then return image end
+    local placement=spec.placement
+    local size=placement.frameSize
+    local columns=placement.frameColumns or placement.frameCount
+    local rows=math.ceil(placement.frameCount/columns)
+    image=loadImage(name,spec.path,false)
+    if not image then return nil end
+    local width,height=image:getDimensions()
+    if width~=columns*size or height~=rows*size then
+        recordFailure(spec.path,string.format("expected %dx%d machine turntable, got %dx%d",
+            columns*size,rows*size,width,height))
+        image:release()
+        Assets.images[name]=nil
+        return nil
+    end
+    if spec.linear then image:setFilter("linear","linear") end
+    for frame=1,placement.frameCount do
+        local column,row=(frame-1)%columns,math.floor((frame-1)/columns)
+        makeQuad(spec.quadPrefix..frame,image,column*size,row*size,size,size)
+    end
+    return image
+end
+
+local function ensureMachineQuad(name)
+    if Assets.quads[name] then return end
+    for imageName,spec in pairs(machineAtlases) do
+        if name:sub(1,#spec.quadPrefix)==spec.quadPrefix then
+            loadMachineAtlas(imageName)
+            return
+        end
+    end
+end
+
 function Assets.get(name)
     -- The platen is a purchased optional station. Load its large world image
     -- only when that machine is visible, keeping starter-shop textures lean.
     if name == "chandlerPriceFrontLeft" and not Assets.images[name] then
         return loadImage(name, Config.paths.chandlerPriceFrontLeft, false)
     end
+    if machineAtlases[name] and not Assets.images[name] then return loadMachineAtlas(name) end
     return Assets.images[name]
 end
 
@@ -789,6 +809,7 @@ function Assets.getData(name)
 end
 
 function Assets.getQuad(name)
+    ensureMachineQuad(name)
     return Assets.quads[name]
 end
 

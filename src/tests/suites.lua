@@ -16,7 +16,11 @@ local DOMAIN_SUITES = {
     {run=function(_,check)require('src.commute.tests.island_variation_test').run(check)end},
     {run=function(_,check)require("src.tests.home_art_preload_test").run(check)end},
     {run=function(_,check)
+        require('src.commute.tests.trip_test').run(check)
         require('src.commute.tests.mobile_vehicle_test').run(check)
+        require('src.commute.tests.first_person_test').run(check)
+        require('src.commute.tests.truck_cab_test').run(check)
+        require('src.commute.tests.delivery_traffic_test').run(check)
         for _,name in ipairs({'camera','follow_camera','camera_controls','camera_preferences','route_map','town_center','town_trails','infrastructure','road_markings'}) do
             require('src.commute.tests.'..name..'_test').run(check)
         end
@@ -48,6 +52,7 @@ local DOMAIN_SUITES = {
     require("src.tests.critter_crisis_controller_test"),
     require("src.tests.performance_regression_test"),
     require("src.tests.scaling_performance_test"),
+    require("src.tests.late_game_load_test"),
     require("src.tests.async_save_test"),
     require("src.tests.streaming_images_test"),
     require("src.tests.acceptance_host_bootstrap_test"),

@@ -46,6 +46,9 @@ function Interaction.directCommand(state,player,item)
 
     if item.kind=="bed" then return "nap:"..target end
     if item.kind=="chair" or item.kind=="couch" then
+        for _,row in ipairs(require("src.home_dining").rows(state,player,target)) do
+            if row.command:find("^dine:eat:") then return nil end
+        end
         local tv=require("src.home_utilities").findTV(state,player,item)
         return (tv and "watch:" or "sit:")..target
     end

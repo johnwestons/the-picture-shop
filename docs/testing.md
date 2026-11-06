@@ -506,6 +506,20 @@ The hidden LÖVE smoke run uses the isolated `the-picture-shop-smoke` save ident
 
 `RUN_SPRITE_MOTION_TEST.bat` uses that same isolated identity and smoke suite, then opens a visible motion lab. Use Left/Right to switch characters, Space to pause on a frame, and Esc to close. Visitors and the player show all eight directions together: enlarged walking poses use distance timing, while matching idle poses show actual shop size and brief blinks. Older auxiliary character actions retain the raw/normalized comparison.
 
+The `truck-cab` smoke focus covers the delivery truck trip, first person camera
+and cab rendering, cab window transparency, separate steering wheel and pedal
+layers, live instruments, dashboard hit targets, and radio state. It also runs
+in the `domain` smoke focus. Set `PICTURE_SHOP_SMOKE_FOCUS=truck-cab`
+before launching `RUN_SMOKE_TEST.bat` to run just the truck checks.
+
+The `late-game-traffic` focus creates a year-three shop with ten working
+employees, twelve five-pallet client deliveries, and twelve supplier truck
+manifests. It drives delivery traffic in three-truck waves, unloads all 72
+pallets through warehouse receiving, then advances employee movement around the
+crowded floor. Run it with `PICTURE_SHOP_SMOKE_FOCUS=late-game-traffic` before
+launching `RUN_SMOKE_TEST.bat`. The scenario also runs in the `domain` smoke
+focus.
+
 The lab also covers employees and technicians. Tab switches to individual action contact sheets; Up/Down selects an action. `tools/run_animation_review.ps1` captures the paired local/remote eight-frame high-five, employee directions/work/break poses, technician idles and north/south/east walks through host/interpolated guest poses at desktop and phone sizes. The `animation` smoke focus covers movement, character timing, visitors, technician wire/presentation, pallet-jack motion, title animation, mechanic work and world layers. See `docs/animation_overhaul.md` for source provenance, rebuild steps, evidence and the remaining active goal.
 
 The completed visitor pack covers the dragon, fox and tabby clients plus the tan-cardigan, blue-shirt and green-blazer cat salespeople. Five authored views and deliberate western mirrors give every design eight directions, an eight-frame forward walk loop and two-frame matching idles. Suppliers stand while waiting; seated clients keep the existing lounge poses. Walk phase follows achieved path distance, including turns, and freezes during courtesy stops. LAN snapshots already carry that distance and facing.

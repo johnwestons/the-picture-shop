@@ -759,6 +759,10 @@ function Schedule.idleActivity(state,w)
     return "No jobs on the schedule"
 end
 function Schedule.advance(state,w,now,canClaim)
+    if w.contract and w.contract.role=="driver" then
+        w.activity="Awaiting delivery orders"
+        return false
+    end
     local q=Schedule.ensure(w)
     local team=Schedule.team(state)
     local hasTeamMirror=false

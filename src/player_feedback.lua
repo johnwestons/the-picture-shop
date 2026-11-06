@@ -5,6 +5,8 @@ local MENU_SCREENS = { title = true, lan = true, direct = true, asset_error = tr
 local NOTICE_LIMIT = 3
 local NOTICE_SECONDS = 2.35
 local CASH_SECONDS = 1.05
+local CASH_FEEDBACK_THRESHOLD = 1.00
+local CASH_CHANGE_EPSILON = 0.005
 
 local function currentCall(state)
     local call = state.workPhone and state.workPhone.incoming
@@ -40,6 +42,7 @@ function Feedback.new(context)
         emailState = {},
         cashDelta = 0,
         cashTimer = 0,
+        pendingCashDelta = 0,
         notices = {},
     }, Feedback)
 end
@@ -52,7 +55,7 @@ function Feedback:seed()
     local call = currentCall(state)
     self.callId = call and tostring(call.id) or nil
     self.emailState = emailStates(state)
-    self.cashDelta, self.cashTimer = 0, 0
+    self.cashDelta, self.cashTimer, self.pendingCashDelta = 0, 0, 0
     self.notices = {}
     self.initialized = true
 end
@@ -148,9 +151,19 @@ function Feedback:update(dt)
 
     local money = tonumber(state.money) or 0
     local delta = money - self.previousMoney
-    if math.abs(delta) >= 0.005 then
+    if math.abs(delta) >= CASH_FEEDBACK_THRESHOLD then
+        -- Keep meaningful purchases and payouts immediate. Discard any
+        -- sub-dollar drift already accumulated before this distinct event.
         self.cashDelta = delta
         self.cashTimer = CASH_SECONDS
+        self.pendingCashDelta = 0
+    elseif math.abs(delta) >= CASH_CHANGE_EPSILON then
+        self.pendingCashDelta = self.pendingCashDelta + delta
+        if math.abs(self.pendingCashDelta) >= CASH_FEEDBACK_THRESHOLD then
+            self.cashDelta = self.pendingCashDelta
+            self.cashTimer = CASH_SECONDS
+            self.pendingCashDelta = 0
+        end
     end
     self.previousMoney = money
 

@@ -4,6 +4,18 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.load()
+        local privateServerClient = os.getenv("PICTURE_SHOP_PRIVATE_SERVER_JOIN") == "1"
+        if privateServerClient then
+            local identity = os.getenv("PICTURE_SHOP_PRIVATE_SERVER_CLIENT_IDENTITY")
+                or "the-picture-shop-server-client-private"
+            if #identity > 80 or identity:sub(1, 31) ~= "the-picture-shop-server-client-"
+                or not identity:match("^[a-z0-9%-]+$")
+            then
+                error("Private server client identity must use the the-picture-shop-server-client- namespace.")
+            end
+            -- Keep the prototype client isolated from ordinary local saves and settings.
+            love.filesystem.setIdentity(identity)
+        end
         Runtime.World.configureEmployees({players=function() return Runtime.multiplayer:remotePlayers() end,
             isNetworkClient=function() return Runtime.multiplayer:isClient() end,
             canLoadTruck=function()
@@ -74,6 +86,7 @@ function Component.install(Runtime)
             gameplayActive = function() return Runtime.state.screen == "world" and not require('src.commute.runtime').active(Runtime) end,
             gestureActive = function()
                 if require('src.commute.runtime').active(Runtime) then return false end
+                if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime) then return false end
                 return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and not Runtime.spriteLabActive
                     and not Runtime.App.officeFitsScreen()
                     and not (Runtime.state.screen == "options" and Runtime.OptionsScreen.isControlsTab())
@@ -188,6 +201,20 @@ function Component.install(Runtime)
         end
         print("[PICTURE SHOP] Startup complete")
         require("src.image_loader").setEnabled(not Runtime.Smoke.requested())
+        if privateServerClient then
+            local invite = os.getenv("PICTURE_SHOP_SERVER_INVITE")
+            if type(invite) ~= "string" or invite == "" then
+                Runtime.state.screen = "lan"
+                Runtime.state.message = "Set PICTURE_SHOP_SERVER_INVITE to the private server invite code."
+            else
+                local joined, joinError = Runtime.startPrivateServerClient(invite,
+                    os.getenv("PICTURE_SHOP_SERVER_PLAYER_NAME"))
+                if not joined then
+                    Runtime.state.screen = "lan"
+                    Runtime.state.message = "Private server join failed: " .. tostring(joinError)
+                end
+            end
+        end
     end
 end
 

@@ -79,10 +79,9 @@ function Component.install(Runtime)
         -- workers arrive through the next sharded motion tick. Keeping this roster
         -- bounded prevents real-world floating-point poses from exceeding the
         -- realtime packet ceiling when the fourth worker joins.
-        local welcomePlayers = Runtime.Codec.array({
-            Runtime.playerRecord(host),
-            Runtime.playerRecord(player),
-        })
+        local welcomePlayers = self.dedicatedServer
+            and Runtime.Codec.array({ Runtime.playerRecord(player) })
+            or Runtime.Codec.array({ Runtime.playerRecord(host), Runtime.playerRecord(player) })
         local welcomeOk, welcomeError = self:_send(peer, "welcome", {
             sessionId = self.sessionId,
             playerId = id,

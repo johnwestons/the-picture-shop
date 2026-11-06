@@ -12,6 +12,7 @@ local BridgeArt = {
     END_BLOCK_WIDTH_METERS = 0.58,
     END_BLOCK_HEIGHT_METERS = 3.0 * 0.53,
     DECK_TEXTURE_TILE_METERS = 3.2,
+    DECK_LEVEL_TOLERANCE = 0.65,
     PIER_FRACTIONS = {0.33, 0.67},
 }
 BridgeArt.__index = BridgeArt
@@ -60,6 +61,25 @@ local function pointAt(group, distance, side, extraOffset)
         traversed = endDistance
     end
     error('Cannot place bridge art on an empty span')
+end
+
+function BridgeArt.onOtherBridgeDeck(x,z,ownId,roads,extraWidth,deckHeight)
+    for _,segment in ipairs(roads.segments or {}) do
+        if segment.bridge and segment.id~=ownId then
+            local dx,dz=segment.dx or segment.b.x-segment.a.x,segment.dz or segment.b.z-segment.a.z
+            local length2=segment.length2 or dx*dx+dz*dz
+            local t=M.clamp(((x-segment.a.x)*dx+(z-segment.a.z)*dz)/length2,0,1)
+            local height=segment.a.h+(segment.b.h-segment.a.h)*t
+            local sameLevel=deckHeight==nil or math.abs(height-deckHeight)<=BridgeArt.DECK_LEVEL_TOLERANCE
+            if sameLevel then
+                local offsetX=x-(segment.a.x+dx*t)
+                local offsetZ=z-(segment.a.z+dz*t)
+                local reach=segment.width*.5+(extraWidth or 0)
+                if offsetX*offsetX+offsetZ*offsetZ<=reach*reach then return true end
+            end
+        end
+    end
+    return false
 end
 
 function BridgeArt.layout(roads, spanMeters, offsetMeters)
@@ -113,7 +133,8 @@ function BridgeArt.capLayout(roads)
     return caps
 end
 
-function BridgeArt.endPostLayout(roads)
+function BridgeArt.endPostLayout(roads,collisionRoads)
+    collisionRoads=collisionRoads or roads
     local posts = {}
     for _, group in ipairs(bridgeGroups(roads)) do
         local first, last = group.segments[1], group.segments[#group.segments]
@@ -127,14 +148,16 @@ function BridgeArt.endPostLayout(roads)
             local tangentX, tangentZ = (s.b.x - s.a.x) / length, (s.b.z - s.a.z) / length
             for _, side in ipairs(SIDES) do
                 local lateral = side * s.width * 0.5
-                posts[#posts + 1] = {
-                    bridgeEndPost = true, bridgeId = group.id, endName = endpoint.name,
-                    side = side,
-                    x = point.x + s.nx * lateral + tangentX * inset,
-                    z = point.z + s.nz * lateral + tangentZ * inset,
-                    h = point.h, width = BridgeArt.END_BLOCK_WIDTH_METERS,
-                    height = BridgeArt.END_BLOCK_HEIGHT_METERS,
-                }
+                local x=point.x+s.nx*lateral+tangentX*inset
+                local z=point.z+s.nz*lateral+tangentZ*inset
+                if not BridgeArt.onOtherBridgeDeck(x,z,group.id,collisionRoads,.35,point.h) then
+                    posts[#posts + 1] = {
+                        bridgeEndPost = true, bridgeId = group.id, endName = endpoint.name,
+                        side = side,x = x,z = z,h = point.h,
+                        width = BridgeArt.END_BLOCK_WIDTH_METERS,
+                        height = BridgeArt.END_BLOCK_HEIGHT_METERS,
+                    }
+                end
             end
         end
     end
@@ -181,20 +204,23 @@ function BridgeArt.projectDeck(segments, camera, tileMeters)
     return vertices
 end
 
-function BridgeArt.pierLayout(world, fractions)
+function BridgeArt.pierLayout(world, fractions,collisionRoads)
     fractions = fractions or BridgeArt.PIER_FRACTIONS
+    collisionRoads=collisionRoads or world.roads
     local piers = {}
     for _, group in ipairs(bridgeGroups(world.roads)) do
         for index, fraction in ipairs(fractions) do
             local point = pointAt(group, group.length * fraction, 0, 0)
             local base = world.ungradedHeight and world:ungradedHeight(point.x, point.z)
                 or world:height(point.x, point.z)
-            piers[#piers + 1] = {
-                bridgePier = true, bridgeId = group.id, pier = index,
-                x = point.x, z = point.z, deckHeight = point.h,
-                topHeight = point.h - BridgeArt.GIRDER_DEPTH_METERS,
-                baseHeight = base, width = point.width + 0.35,
-            }
+            if not BridgeArt.onOtherBridgeDeck(point.x,point.z,group.id,collisionRoads,nil,point.h) then
+                piers[#piers + 1] = {
+                    bridgePier = true, bridgeId = group.id, pier = index,
+                    x = point.x, z = point.z, deckHeight = point.h,
+                    topHeight = point.h - BridgeArt.GIRDER_DEPTH_METERS,
+                    baseHeight = base, width = point.width + 0.35,
+                }
+            end
         end
     end
     return piers

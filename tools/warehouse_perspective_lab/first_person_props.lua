@@ -39,12 +39,15 @@ local function build(item, white)
             h,
         }
     end
-    local function box(x, z, width, depth, bottom, height, color)
+    local function box(x, z, width, depth, bottom, height, color, rotation)
         local points = {}
+        local rotation = rotation or 0
+        local rc, rs = math.cos(rotation), math.sin(rotation)
         for _, h in ipairs({bottom, bottom + height}) do
             for _, p in ipairs({{-1,-1},{1,-1},{1,1},{-1,1}}) do
-                points[#points + 1] = worldPoint(x + p[1] * width * .5,
-                    z + p[2] * depth * .5, h)
+                local px, pz = p[1] * width * .5, p[2] * depth * .5
+                points[#points + 1] = worldPoint(x + rc * px - rs * pz,
+                    z + rs * px + rc * pz, h)
             end
         end
         for faceIndex, face in ipairs(faces) do
@@ -83,6 +86,11 @@ local function build(item, white)
             cap[#cap + 1] = {p[1],p[2],p[3],0,0}
         end
         append(shade(color, 1.04), cap)
+    end
+    local function turntableBox(x, z, width, depth, bottom, height, color, rotation)
+        local c, s = math.cos(rotation), math.sin(rotation)
+        box(x * c - z * s, x * s + z * c, width, depth,
+            bottom, height, color, rotation)
     end
     local function cylinderY(x, z, radius, bottom, height, color, segments)
         segments = segments or 16
@@ -178,6 +186,7 @@ local function build(item, white)
         local charcoal, dark = {.16,.18,.19}, {.055,.065,.07}
         local warmWhite, steel, bed = {.84,.84,.79}, {.48,.53,.53}, {.67,.69,.67}
         local yellow, red = {.96,.66,.04}, {.83,.055,.035}
+        local cutterStroke = item.working and math.sin((item.actionPhase or 0) * math.pi) * .50 or 0
         -- Low service cabinet, separated access doors, kick trim and leveling feet.
         bevelBox(0, 0, 2.16, 1.34, .13, .71, charcoal, .055)
         box(0, -.018, 2.19, 1.37, .07, .10, dark)
@@ -216,19 +225,20 @@ local function build(item, white)
         box(-.97, -.235, .38, .04, 1.23, .31, steel)
         box(.97, -.235, .38, .04, 1.23, .31, steel)
         -- Actual cutter opening, yellow safety beam and individually segmented blade guard.
-        box(0, -.168, 1.60, .075, 1.15, .20, dark)
-        box(0, -.218, 1.80, .06, 1.34, .085, yellow)
-        box(0, -.224, 1.56, .025, 1.12, .20, {.10,.12,.13})
+        box(0, -.168, 1.60, .075, 1.15 - cutterStroke, .20, dark)
+        box(0, -.218, 1.80, .06, 1.34 - cutterStroke, .085, yellow)
+        box(0, -.224, 1.56, .025, 1.12 - cutterStroke, .20, {.10,.12,.13})
         for x = -.72, .73, .105 do
-            box(x, -.244, .044, .025, 1.12, .18, {.13,.15,.16})
-            box(x, -.26, .025, .012, 1.33, .045, {.22,.23,.22})
+            box(x, -.244, .044, .025, 1.12 - cutterStroke, .18, {.13,.15,.16})
+            box(x, -.26, .025, .012, 1.33 - cutterStroke, .045, {.22,.23,.22})
         end
         -- Raised operator console: LCD, bezel, physical keys and emergency stop.
         bevelBox(0, -.184, .72, .09, 1.54, .35, steel, .035)
         bevelBox(0, -.238, .57, .025, 1.64, .19, dark, .012)
         box(-.055, -.255, .40, .018, 1.67, .12, {.06,.15,.18})
         box(-.07, -.267, .26, .012, 1.69, .055, {.18,.68,.72})
-        box(.25, -.257, .10, .014, 1.68, .08, {.28,.72,.32})
+        box(.25, -.257, .10, .014, 1.68, .08,
+            item.working and {.98,.53,.08} or {.28,.72,.32})
         pixelWord("POLAR", -.98, -.155, 1.65, .022, {.16,.19,.19})
         for _, x in ipairs({-.88,.88}) do
             cylinderZ(x,-.238,.022,1.69,.018,{.30,.32,.31},10)
@@ -288,6 +298,9 @@ local function build(item, white)
     elseif item.id == "wrapper" then
         local blue, blueLight = {.12,.32,.50}, {.19,.43,.63}
         local steel, dark, white = {.55,.59,.59}, {.075,.09,.11}, {.89,.89,.84}
+        local loadRotation = item.loadRotation or 0
+        local carriageLift = item.wrapping
+            and .45 * (.5 - .5 * math.cos((item.actionPhase or 0) * math.pi * 2)) or 0
         -- Wide welded base and brushed-metal turntable with concentric lip.
         box(0,0,1.14,1.15,.06,.15,blue)
         box(0,0,1.08,1.08,.20,.035,dark)
@@ -301,15 +314,15 @@ local function build(item, white)
         box(-.32,.34,.27,.29,1.72,.12,blueLight)
         bevelBox(-.32,.34,.31,.32,1.82,.055,dark,.014)
         -- Moving carriage, visible roller hardware and a full-height film roll.
-        bevelBox(-.06,.34,.39,.32,.99,.42,blue,.035)
-        box(-.06,.505,.43,.08,1.38,.07,blueLight)
-        box(-.06,.553,.37,.018,1.43,.025,dark)
-        box(.06,.49,.33,.11,1.18,.11,steel)
-        cylinderY(.15,.62,.14,1.02,.52,white,24)
-        cylinderY(.15,.62,.055,.99,.58,{.18,.21,.22},20)
-        cylinderY(.15,.62,.075,.99,.045,steel,20)
-        cylinderY(.15,.62,.075,1.53,.045,steel,20)
-        box(.15,.542,.16,.018,.52,.48,{.73,.83,.83})
+        bevelBox(-.06,.34,.39,.32,.99 + carriageLift,.42,blue,.035)
+        box(-.06,.505,.43,.08,1.38 + carriageLift,.07,blueLight)
+        box(-.06,.553,.37,.018,1.43 + carriageLift,.025,dark)
+        box(.06,.49,.33,.11,1.18 + carriageLift,.11,steel)
+        cylinderY(.15,.62,.14,1.02 + carriageLift,.52,white,24)
+        cylinderY(.15,.62,.055,.99 + carriageLift,.58,{.18,.21,.22},20)
+        cylinderY(.15,.62,.075,.99 + carriageLift,.045,steel,20)
+        cylinderY(.15,.62,.075,1.53 + carriageLift,.045,steel,20)
+        box(.15,.542,.16,.018,.52 + carriageLift,.48,{.73,.83,.83})
         cylinderX(-.48,-.18,.42,.105,.25,dark,20)
         cylinderX(-.48,-.18,.27,.067,.25,steel,16)
         box(-.48,-.18,.45,.36,.14,.12,dark)
@@ -318,9 +331,39 @@ local function build(item, white)
         bevelBox(.40,.552,.22,.025,1.51,.16,dark,.01)
         box(.37,.569,.13,.012,1.54,.09,{.11,.51,.62})
         for i=0,2 do cylinderZ(.31+i*.065,.574,.019,1.36,.025,
-            ({red or {.80,.08,.05},yellow or {.95,.67,.08},green or {.12,.68,.23}})[i+1],10) end
+            ({red or {.80,.08,.05},yellow or {.95,.67,.08},
+                item.wrapping and {.98,.53,.08} or {.12,.68,.23}})[i+1],10) end
         box(.31,.34,.32,.38,.22,.08,dark)
         box(.31,.34,.18,.21,.30,.08,blueLight)
+        -- A loaded paper skid makes the film path and wrapping action legible.
+        for _, x in ipairs({-.22, 0, .22}) do
+            turntableBox(x, -.04, .11, .60, .495, .09, {.42,.27,.13}, loadRotation)
+        end
+        for z = -.27, .25, .13 do
+            turntableBox(0, z, .64, .10, .585, .075, {.60,.42,.23}, loadRotation)
+        end
+        local paper, side = {.88,.88,.82}, {.71,.74,.71}
+        for level = 0, 2 do
+            for column = 0, 1 do
+                local x = column == 0 and -.16 or .16
+                turntableBox(x, -.04, .29, .25, .66 + level * .20, .19, paper, loadRotation)
+                turntableBox(x, -.171, .27, .014, .68 + level * .20, .16, side, loadRotation)
+                for sheet = 1, 2 do
+                    turntableBox(x, -.181, .24, .006, .68 + level * .20 + sheet * .055,
+                        .008, {.82,.83,.79}, loadRotation)
+                end
+            end
+        end
+        local filmBands = item.wrapped and 4 or item.wrapping
+            and math.floor((item.actionPhase or 0) * 4 + .5) or 0
+        for band = 1, filmBands do
+            local bottom = .72 + (band - 1) * .18
+            local film = {.49,.70,.72}
+            turntableBox(0, -.205, .54, .018, bottom, .105, film, loadRotation)
+            turntableBox(0, .125, .54, .018, bottom, .105, film, loadRotation)
+            turntableBox(-.27, -.04, .018, .33, bottom, .105, film, loadRotation)
+            turntableBox(.27, -.04, .018, .33, bottom, .105, film, loadRotation)
+        end
         item.fpDimensions = {width=1.14, depth=1.15, height=1.88}
     end
 
@@ -331,13 +374,21 @@ local function build(item, white)
         parts[#parts + 1] = {mesh=mesh, color=batch.color}
     end
     item.fpModel = {parts=parts, rotation=item.rotation or 0,
-        x=item.worldX, z=item.worldZ}
+        x=item.worldX, z=item.worldZ,
+        animationFrame=math.floor((item.actionPhase or 0) * 12 + .5),
+        working=item.working == true, wrapping=item.wrapping == true,
+        wrapped=item.wrapped == true}
 end
 
 function P.draw(item, white)
     local model = item.fpModel
+    local animationFrame = math.floor((item.actionPhase or 0) * 12 + .5)
     if not model or model.rotation ~= (item.rotation or 0)
-        or model.x ~= item.worldX or model.z ~= item.worldZ then
+        or model.x ~= item.worldX or model.z ~= item.worldZ
+        or model.animationFrame ~= animationFrame
+        or model.working ~= (item.working == true)
+        or model.wrapping ~= (item.wrapping == true)
+        or model.wrapped ~= (item.wrapped == true) then
         build(item, white)
         model = item.fpModel
     end

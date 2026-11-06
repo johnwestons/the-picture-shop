@@ -1,5 +1,6 @@
 local Pages=require('src.commute.truck_turntable_pages')
 local Decals=require('src.commute.truck_decals')
+local Footprint=require('src.commute.truck_footprint')
 local Art={}
 Art.__index=Art
 
@@ -10,6 +11,51 @@ end
 
 function Art.frame(camera,heading)
     return Pages.frame(relativeAngle(camera,heading))
+end
+
+-- The truck sprite spans its full chassis around the road anchor. Bias its
+-- shared billboard depth to the nearest wheel-contact edge so terrain depth
+-- does not cut off the lower tires as it does with an anchor-only depth.
+function Art:groundedDepthBias(actor,camera,height,world)
+    local heading=actor.heading or 0
+    local fx,fz=math.cos(heading),math.sin(heading)
+    local sx,sz=-fz,fx
+    local center=camera:depth(actor.x,actor.z,height)
+    local nearest=center
+    for _,along in ipairs({-Footprint.halfLength,Footprint.halfLength}) do
+        for _,side in ipairs({-Footprint.halfWidth,Footprint.halfWidth}) do
+            local x=actor.x+fx*along+sx*side
+            local z=actor.z+fz*along+sz*side
+            local ground=world and world.supportHeight and world:supportHeight(x,z) or height
+            nearest=math.max(nearest,camera:depth(x,z,ground))
+        end
+    end
+    local groundScale=math.max(.01,camera:groundScale())
+    return math.max(0,nearest-center)/(29*groundScale)
+end
+
+-- Perspective billboards also use one depth value for the whole sprite. Move
+-- their depth test to the nearest ground point under the truck without moving
+-- the sprite itself on screen, so the road cannot crop its near-side tires.
+function Art:firstPersonOcclusionTop(actor,camera,height,world)
+    local _,_,centerDepth=camera:screen(actor.x,actor.z,height)
+    local eyeHeight=camera.eyeHeight
+    if type(centerDepth)~='number' or centerDepth<=.15 or type(eyeHeight)~='number'
+        or eyeHeight<=height+.05 then return height end
+    local nearest=centerDepth
+    local heading=actor.heading or 0
+    local fx,fz=math.cos(heading),math.sin(heading)
+    local sx,sz=-fz,fx
+    for _,along in ipairs({-Footprint.halfLength,Footprint.halfLength}) do
+        for _,side in ipairs({-Footprint.halfWidth,Footprint.halfWidth}) do
+            local x=actor.x+fx*along+sx*side
+            local z=actor.z+fz*along+sz*side
+            local ground=world and world.supportHeight and world:supportHeight(x,z) or height
+            local _,_,depth=camera:screen(x,z,ground)
+            if type(depth)=='number' and depth>.15 then nearest=math.min(nearest,depth) end
+        end
+    end
+    return math.max(height,eyeHeight-nearest*(eyeHeight-height)/centerDepth)
 end
 
 local function elevation(camera,actor,h)

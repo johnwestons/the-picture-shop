@@ -30,6 +30,7 @@ addMessage("APPLICANT_DECLINE_REPLY", "No worries. Thanks anyway!")
 addMessage("EMPLOYEE_HIGH_FIVE_REQUEST", "Hey, boss! Can I get a high five?")
 addMessage("EMPLOYEE_HIGH_FIVE_THANKS", "Thanks for the high five!")
 addMessage("EMPLOYEE_LATE_OPENING", "You're late! We've been waiting to open.")
+addMessage("EMPLOYEE_BLADE_DULL", "The paper cutter blade is getting dull.")
 Speech.MAX_CODE=customCode
 function Speech.reason(activity)
     local value=string.lower(tostring(activity or ""))
@@ -58,7 +59,8 @@ function Speech.code(entry)
         and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
     if a.greetingKind==Speech.EMPLOYEE_HIGH_FIVE_REQUEST
         or a.greetingKind==Speech.EMPLOYEE_HIGH_FIVE_THANKS
-        or a.greetingKind==Speech.EMPLOYEE_LATE_OPENING then return a.greetingKind end
+        or a.greetingKind==Speech.EMPLOYEE_LATE_OPENING
+        or a.greetingKind==Speech.EMPLOYEE_BLADE_DULL then return a.greetingKind end
     local reason=Speech.reason(w.activity)
     if reason then return reason end
     if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=Speech.MAX_CODE then return a.greetingKind end

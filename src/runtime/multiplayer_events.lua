@@ -241,6 +241,10 @@ function Component.install(Runtime)
                 Runtime.state.message = "The Direct join request expired. Create fresh codes to try again."
             elseif event.type == "player_joined" then
                 Runtime.state.message = tostring(event.name or "A worker") .. " joined the shop."
+                if Runtime.privateServerMode then
+                    print(string.format("[PRIVATE SERVER] Worker joined id=%s name=%s",
+                        tostring(event.playerId), tostring(event.name or "Worker")))
+                end
             elseif event.type == "player_left" then
                 if Runtime.workshopAuthority then
                     Runtime.workshopAuthority:cleanupPlayer({ id = event.playerId }, "disconnected",
@@ -248,6 +252,10 @@ function Component.install(Runtime)
                 end
                 local label = Runtime.multiplayer.networkKind == "direct" and "Direct" or "LAN"
                 Runtime.state.message = tostring(event.name or "A worker") .. " left the " .. label .. " shop."
+                if Runtime.privateServerMode then
+                    print(string.format("[PRIVATE SERVER] Worker left id=%s name=%s reason=%s",
+                        tostring(event.playerId), tostring(event.name or "Worker"), tostring(event.reason or "unknown")))
+                end
             elseif event.type == "player_kicked" then
                 Runtime.state.message = tostring(event.name or "A worker") .. " was removed by the host."
             elseif event.type == "direct_closed" then
@@ -265,11 +273,19 @@ function Component.install(Runtime)
                 Runtime.clearWorkshopAuthority("transport_failed")
                 Runtime.WorkshopRemoteScreen.clear()
                 require("src.jukebox").stopNetworkPlayback()
-                local lanClient = Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan"
-                if not lanClient or not Runtime.handleLanReconnectFailure(
-                    event.message or "The host connection ended.")
+                if Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "server"
+                    and Runtime.schedulePrivateServerReconnect
+                    and Runtime.schedulePrivateServerReconnect(event.message)
                 then
-                    Runtime.showConnectionError(event.message or "The host connection ended.", "Host disconnected")
+                    -- The private-server invite is retained in memory so this worker
+                    -- can re-authenticate after a server restart or brief outage.
+                else
+                    local lanClient = Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan"
+                    if not lanClient or not Runtime.handleLanReconnectFailure(
+                        event.message or "The host connection ended.")
+                    then
+                        Runtime.showConnectionError(event.message or "The host connection ended.", "Host disconnected")
+                    end
                 end
             elseif event.type == "error" then
                 local lanClient = Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan"

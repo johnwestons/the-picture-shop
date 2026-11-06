@@ -294,9 +294,14 @@ function Component.install(Runtime)
             if w.status=="employed" and not w.terminationRequested then weekly=weekly+require("src.employment_contracts").weeklyEstimate(w.contract) end
         end
         local claimTotal = 0
+        local fuelPaidThisMonth=0
         for _, invoice in ipairs(state.bills and state.bills.ledger or {}) do
             if invoice.status == "unpaid" and invoice.kind == "spoil_claim" then
                 claimTotal = claimTotal + (invoice.total or 0)
+            end
+            local date=state.calendar or {}
+            if invoice.reference=="truck-fuel" and invoice.year==date.year and invoice.month==date.month then
+                fuelPaidThisMonth=fuelPaidThisMonth+(invoice.total or 0)
             end
         end
         Runtime.panel({ x = 82, y = 190, width = 770, height = 408 },
@@ -313,28 +318,33 @@ function Component.install(Runtime)
         love.graphics.print("EXPENSE", 122, 310)
         love.graphics.print("FLAT MONTHLY RATE", 408, 310)
         for index, charge in ipairs(charges) do
-            local y = 330 + (index - 1) * 34
+            local y = 330 + (index - 1) * 27
             love.graphics.setColor(index % 2 == 0 and 0.085 or 0.105, 0.12, 0.14, 1)
-            love.graphics.rectangle("fill", 108, y, 470, 32)
+            love.graphics.rectangle("fill", 108, y, 470, 25)
             love.graphics.setColor(0.78, 0.84, 0.84)
-            love.graphics.print(charge.label, 122, y + 9)
+            love.graphics.print(charge.label, 122, y + 6)
             love.graphics.setColor(0.95, 0.84, 0.30)
-            love.graphics.printf(Runtime.money(charge.amount), 402, y + 9, 150, "right")
+            love.graphics.printf(Runtime.money(charge.amount), 402, y + 6, 150, "right")
         end
+        local summaryY=330+#charges*27+4
         love.graphics.setColor(0.72, 0.79, 0.80)
-        love.graphics.print("Normal monthly total", 122, 478)
+        love.graphics.print("Normal monthly total", 122, summaryY)
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.printf(Runtime.money(monthlyTotal), 402, 478, 150, "right")
-        love.graphics.setColor(claimTotal > 0 and 0.92 or 0.72, claimTotal > 0 and 0.48 or 0.79, 0.44)
-        love.graphics.print("Customer stock replacement claims", 122, 510)
-        love.graphics.printf(Runtime.money(claimTotal), 402, 510, 150, "right")
+        love.graphics.printf(Runtime.money(monthlyTotal), 402, summaryY, 150, "right")
         love.graphics.setColor(.78,.84,.84,1)
-        love.graphics.print("Staff and player wages due",122,534)
-        love.graphics.printf(Runtime.money(wages),402,534,150,"right")
-        love.graphics.print("Wages earned, not yet due",122,556)
-        love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),402,556,150,"right")
-        love.graphics.print("Estimated staff pay / week",122,578)
-        love.graphics.printf(Runtime.money(weekly),402,578,150,"right")
+        love.graphics.print("Delivery truck fuel paid this month",122,summaryY+24)
+        love.graphics.setColor(0.95, 0.84, 0.30)
+        love.graphics.printf(Runtime.money(fuelPaidThisMonth),402,summaryY+24,150,"right")
+        love.graphics.setColor(claimTotal > 0 and 0.92 or 0.72, claimTotal > 0 and 0.48 or 0.79, 0.44)
+        love.graphics.print("Customer stock replacement claims", 122, summaryY+48)
+        love.graphics.printf(Runtime.money(claimTotal), 402, summaryY+48, 150, "right")
+        love.graphics.setColor(.78,.84,.84,1)
+        love.graphics.print("Staff and player wages due",122,summaryY+70)
+        love.graphics.printf(Runtime.money(wages),402,summaryY+70,150,"right")
+        love.graphics.print("Wages earned, not yet due",122,summaryY+91)
+        love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),402,summaryY+91,150,"right")
+        love.graphics.print("Estimated staff pay / week",122,summaryY+112)
+        love.graphics.printf(Runtime.money(weekly),402,summaryY+112,150,"right")
 
         Runtime.panel({ x = 604, y = 302, width = 204, height = 188 },
             { 0.08, 0.10, 0.11, 1 }, { 0.31, 0.48, 0.49, 1 })

@@ -74,6 +74,7 @@ function Component.install(Runtime)
             cutter.bladeRemoved = cutter.bladeRemoved == true
             cutter.bladeInSleeve = cutter.bladeInSleeve == true
             cutter.spareBladeInstalled = cutter.spareBladeInstalled == true
+            cutter.bladeDullNoticeSent = cutter.bladeDullNoticeSent == true
             cutter.bladeGrade = BladeProfiles.get(cutter.bladeGrade) and cutter.bladeGrade or "standard"
             cutter.orderedBladeGrade = BladeProfiles.isUpgrade(cutter.bladeGrade, cutter.orderedBladeGrade)
                 and cutter.orderedBladeGrade or nil
@@ -100,6 +101,7 @@ function Component.install(Runtime)
         if type(item.world) == "table" and type(item.world.x) == "number" and type(item.world.y) == "number" then
             item.world.direction = type(item.world.direction) == "string" and item.world.direction or "northwest"
             local rotationKind = item.modelId == "polar_115" and "cutter"
+                or item.modelId == "skid_wrapper" and "wrapper"
                 or item.modelId == "heidelberg_10x15" and "windmill" or nil
             if rotationKind then
                 item.world.rotationIndex = MachineRotation.normalizedFrame(rotationKind, item.world, "northwest")
@@ -199,7 +201,8 @@ function Component.install(Runtime)
         for _, slot in ipairs(Runtime.floorSlots) do
             if clearSlot(slot) then
                 item.world = { x = slot[1], y = slot[2], direction = "northwest" }
-                if item.modelId == "polar_115" or item.modelId == "heidelberg_10x15" then
+                if item.modelId == "polar_115" or item.modelId == "skid_wrapper"
+                    or item.modelId == "heidelberg_10x15" then
                     item.world.rotationIndex = 1
                 end
                 return true
@@ -210,6 +213,7 @@ function Component.install(Runtime)
                 if clearSlot({ x, y }) then
                     item.world = { x = x, y = y, direction = "northwest" }
                     local rotationKind = item.modelId == "polar_115" and "cutter"
+                        or item.modelId == "skid_wrapper" and "wrapper"
                         or item.modelId == "heidelberg_10x15" and "windmill" or nil
                     if rotationKind then item.world.rotationIndex = 1 end
                     return true

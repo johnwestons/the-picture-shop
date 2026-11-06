@@ -7,6 +7,7 @@ local Schedule=require("src.employee_schedule")
 local Labor=require("src.employee_labor")
 local WorkerCatalog=require("src.worker_catalog")
 local Speech=require("src.employee_speech")
+local CompanyTruck=require("src.company_delivery_driver")
 local Employees={}
 Employees.MAX_STAFF=10
 local trainingSkills={
@@ -95,14 +96,17 @@ local function validActor(a)
         and (a.greetingKind==nil or int(a.greetingKind,1,Speech.MAX_CODE))
         and (a.greetingUntilHours==nil or number(a.greetingUntilHours,0,1e12))
         and (a.lastHighFiveRequestAtHours==nil or number(a.lastHighFiveRequestAtHours,0,1e12))
+        and (a.awayForDelivery==nil or type(a.awayForDelivery)=="boolean")
 end
 function Employees.defaultState(now)
-    return {version=6,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+    return {version=7,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
         teamSchedule=Schedule.defaultState(true),
-        nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={}}
+        nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={},
+        companyTruck=CompanyTruck.defaultState()}
 end
 function Employees.ensure(state)
     state.employment=state.employment or Employees.defaultState(Calendar.absoluteHours(state))
+    if not state.employment.companyTruck then state.employment.companyTruck=CompanyTruck.defaultState() end
     return state.employment
 end
 function Employees.employedCount(state)
@@ -125,7 +129,7 @@ function Employees.trainingPlan(worker,skill)
             *(worker.contract and worker.contract.wageCents or 0))}
 end
 function Employees.valid(e)
-    if type(e)~="table" or e.version~=6 or not int(e.nextApplicantId,1,1000000)
+    if type(e)~="table" or e.version~=7 or not CompanyTruck.valid(e.companyTruck) or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
         or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12)
         or (e.teamSchedule~=nil and not Schedule.valid(e.teamSchedule,true)) then return false end
@@ -307,7 +311,29 @@ function Employees.normalize(e,now)
         end
         normalizePreferences(result.applications)
         normalizePreferences(result.staff)
+        -- Employee contracts predate role selection; keep existing workers,
+        -- offers and counters on their original production-worker role.
+        for _,worker in ipairs(result.staff) do
+            if type(worker.contract)=="table" and worker.contract.role==nil then
+                worker.contract.role="cutter"
+            end
+            if type(worker.pendingSchedule)=="table" and worker.pendingSchedule.role==nil then
+                worker.pendingSchedule.role=worker.contract and worker.contract.role or "cutter"
+            end
+        end
+        for _,application in ipairs(result.applications) do
+            if type(application.offer)=="table" and application.offer.role==nil then
+                application.offer.role="cutter"
+            end
+            if type(application.counter)=="table" and application.counter.role==nil then
+                application.counter.role="cutter"
+            end
+        end
         refreshLegacyNames(result)
+    end
+    if result.version==6 then
+        result.companyTruck=result.companyTruck or CompanyTruck.defaultState()
+        result.version=7
     end
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
@@ -380,8 +406,8 @@ function Employees.advance(state,now)
     for _,a in ipairs(e.applications) do
         if a.status=="resume_requested" and a.replyAtHours<=now then
             a.status="resume_received";a.replyAtHours=nil;a.revision=a.revision+1
-            notice(state,a,"RESUME","Resume attached: production operator",
-                string.format("Thanks for considering me. My resume is attached. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, attention %d/100, reliability %d/100. I prefer %s and ask $%.2f/hr. Open my resume to discuss days, hours and pay cycle.",
+            notice(state,a,"RESUME","Employee resume attached",
+                string.format("Thanks for considering me. My resume is attached. I am available for production or delivery-driver work. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, attention %d/100, reliability %d/100. I prefer %s and ask $%.2f/hr. Open my resume to discuss role, days, hours and pay cycle.",
                     a.cutterSkill,a.pressSkill,a.wrappingSkill,a.attention,a.reliability,
                     Contracts.shiftPreferenceDescription(a.shiftPreference),a.requestedWage/100))
             changed=true
@@ -426,7 +452,7 @@ function Employees.command(state,intent,now)
         if a.actor.visible then a.actor.phase="leaving" end
         return true,"Application declined."
     elseif intent.kind=="offer_employee" then
-        local terms=Contracts.terms(intent.wageCents,intent.days,intent.startHour,intent.endHour,intent.payWeeks)
+        local terms=Contracts.terms(intent.wageCents,intent.days,intent.startHour,intent.endHour,intent.payWeeks,intent.role)
         if not Contracts.validTerms(terms) then return false,"Choose $10-$100/hr, a 4-12 hour shift and a 1-4 week pay cycle." end
         if not Contracts.hasOpenHours(terms) then return false,"Choose hours while the shop is open. It closes Friday 20:00 through Monday 09:00." end
         if not a or (a.status~="resume_received" and a.status~="offer_accepted" and a.status~="negotiating") then return false,"Request the resume before making an offer." end
@@ -466,17 +492,23 @@ function Employees.command(state,intent,now)
         w.schedule=Schedule.defaultState()
         w.laborTotals=Labor.defaultTotals()
         e.staff[#e.staff+1]=w;a.status="hired";a.employeeId=w.id;a.revision=a.revision+1
-        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week. Build ordered production jobs in Schedule, or assign one staged pallet in Hiring > Staff. Employees can train on the paper cutter, press, and pallet wrapper during paid shift hours in Hiring > Staff.")
+        local roleInstructions=w.contract.role=="driver"
+            and " During scheduled shifts, the driver automatically ships ready orders and refuels the company truck when needed."
+            or " Build ordered production jobs in Schedule, or assign one staged pallet in Hiring > Staff. Employees can train on the paper cutter, press, and pallet wrapper during paid shift hours in Hiring > Staff."
+        notice(state,a,"SIGNED","Employment agreement signed",Contracts.summary(w.contract)..". Starting on game day "..(w.contract.startDay+1)..". Pay every "..w.contract.payWeeks.." week(s), Monday 09:00, with 1.5x pay after 40 paid hours in each week."..roleInstructions)
         return true,w.name.." hired. Starts on the next agreed day."
     end
     local w=intent.employeeId and Employees.worker(state,intent.employeeId)
     if not w or w.status~="employed" then return false,"Choose a current employee." end
+    if w.contract.role=="driver" and Schedule.isIntent(intent.kind) then
+        return false,"Delivery drivers are assigned to shipments instead of production schedules."
+    end
     if Schedule.isIntent(intent.kind) then return Schedule.command(state,w,intent,now) end
     if intent.kind=="change_employee_hours" then
         if intent.expectedRevision~=w.contract.revision then
             return false,"Review the employee's current schedule before changing it." end
         local terms=Contracts.terms(w.contract.wageCents,intent.days,
-            intent.startHour,intent.endHour,w.contract.payWeeks)
+            intent.startHour,intent.endHour,w.contract.payWeeks,w.contract.role)
         if not Contracts.validTerms(terms) then
             return false,"Choose at least one workday and a 4-12 hour shift." end
         if not Contracts.hasOpenHours(terms) then return false,"Choose some open hours. The shop closes Friday 20:00 through Monday 09:00." end
@@ -497,6 +529,7 @@ function Employees.command(state,intent,now)
         return true,"Schedule agreed. New hours begin on the next selected workday."
     end
     if intent.kind=="train_employee" then
+        if w.contract.role=="driver" then return false,"Delivery drivers do not train on production machines." end
         if w.assignment and w.reserved then
             return false,"Let the current machine cycle finish before starting training."
         end
@@ -538,6 +571,7 @@ function Employees.command(state,intent,now)
         if #w.schedule.items>0 then w.schedule.enabled=false;w.schedule.revision=w.schedule.revision+1 end
         return true,"Work will pause at the next safe machine checkpoint."
     elseif intent.kind=="assign_employee" then
+        if w.contract.role=="driver" then return false,"Delivery drivers are assigned to shipments, not production jobs." end
         if Payroll.balance(w,now,false)>0 then return false,"Pay overdue wages before assigning more work." end
         if w.assignment then return false,"Pause the current assignment before selecting another." end
         local job,pallet

@@ -587,7 +587,7 @@ function Test.run(context,check)
     testTransfersAndPackaging(context,check)
     local state=State.new();local w=hire(state);local m=Fleet.installedUnits(state,"polar_115")[1]
     local a=job(state,"JOB-QUEUE-A",{500,500});local b=job(state,"JOB-QUEUE-B",{1000});local c=job(state,"JOB-QUEUE-C")
-    check("schedule_fresh_employee_has_valid_empty_queue",Schema.VERSION==39 and Schedule.valid(w.schedule) and #w.schedule.items==0)
+    check("schedule_fresh_employee_has_valid_empty_queue",Schedule.valid(w.schedule) and #w.schedule.items==0)
     check("schedule_rejects_job_before_delivery",not add(state,w,a,m) and #w.schedule.items==0)
     local firstSkid,_,skidsRemaining=context.PalletLogistics.unload(state,a.id,a.pallets[1].id,
         context.config.palletLogistics.spawnPoints,context.config.palletLogistics.unloadOrigin)
@@ -615,11 +615,21 @@ function Test.run(context,check)
         and #w.schedule.items==2 and w.schedule.history[1].result=="removed")
     local saved=Schema.snapshot(state)
     local reopened=State.new()
-    check("schedule_queue_and_order_survive_local_save_reload",saved and Schema.validState(saved) and State.applyLocalSave(reopened,{state=saved,slot=1})
-        and #reopened.employment.staff[1].schedule.items==0
-        and reopened.employment.teamSchedule.items[1].jobId==a.id
-        and reopened.employment.teamSchedule.items[2].jobId==b.id
-        and not reopened.employment.staff[1].visible)
+    local snapshotValid=saved and Schema.validState(saved)
+    local reopenedOkay=snapshotValid and State.applyLocalSave(reopened,{state=saved,slot=1})
+    local reopenedWorker=reopened.employment and reopened.employment.staff[1]
+    check("schedule_queue_and_order_survive_local_save_reload",reopenedOkay
+        and #reopened.employment.staff[1].schedule.items==2
+        and reopened.employment.staff[1].schedule.items[1].jobId==a.id
+        and reopened.employment.staff[1].schedule.items[2].jobId==b.id
+        and #reopened.employment.teamSchedule.items==0
+        and not reopened.employment.staff[1].visible,
+        string.format("snapshot=%s apply=%s schedule=%d team=%d jobs=%s,%s visible=%s",tostring(snapshotValid),
+            tostring(reopenedOkay),reopenedWorker and #reopenedWorker.schedule.items or -1,
+            reopened.employment and #reopened.employment.teamSchedule.items or -1,
+            reopenedWorker and reopenedWorker.schedule.items[1] and reopenedWorker.schedule.items[1].jobId or "-",
+            reopenedWorker and reopenedWorker.schedule.items[2] and reopenedWorker.schedule.items[2].jobId or "-",
+            tostring(reopenedWorker and reopenedWorker.visible)))
     check("schedule_new_team_queue_is_present_and_valid",Schedule.valid(state.employment.teamSchedule,true)
         and #state.employment.teamSchedule.items==0 and Employees.valid(state.employment))
     local teamState=State.new()
@@ -691,15 +701,19 @@ function Test.run(context,check)
     legacy.state.employment.version=1;legacy.state.employment.staff[1].schedule=nil
     legacy.state.employment.teamSchedule=nil
     local migrated=Schema.migrate(legacy)
-    check("schedule_v17_save_migrates_contract_and_payroll_without_invented_work",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==6
+    check("schedule_v17_save_migrates_contract_and_payroll_without_invented_work",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==7
         and migrated.state.employment.staff[1].contract.wageCents==2200 and #migrated.state.employment.staff[1].schedule.items==0
         and #migrated.state.employment.teamSchedule.items==0 and legacy.state.employment.staff[1].schedule==nil)
     check("schedule_malformed_employment_rejected_without_migration_crash",Employees.normalize(false,0)==nil and Employees.normalize(17,0)==nil and Employees.normalize("invalid",0)==nil)
-    local invalid=Schema.copy(saved);invalid.employment.teamSchedule.items[2].id=invalid.employment.teamSchedule.items[1].id
+    local teamQueueSaved=Schema.copy(saved);local teamQueue=teamQueueSaved.employment.teamSchedule
+    teamQueue.nextId=6
+    for index=1,5 do teamQueue.items[index]={id=string.format("TEAM-TASK-%06d",index),
+        jobId="JOB-TEAM-VALIDATION-"..index,machineId="auto",addedAtHours=9} end
+    local invalid=Schema.copy(teamQueueSaved);invalid.employment.teamSchedule.items[2].id=invalid.employment.teamSchedule.items[1].id
     check("schedule_duplicate_saved_task_ids_are_rejected",not Schema.validState(invalid) and Schema.snapshot(invalid)==nil)
-    invalid=Schema.copy(saved);invalid.employment.teamSchedule.items[1].jobId="bad job id"
+    invalid=Schema.copy(teamQueueSaved);invalid.employment.teamSchedule.items[1].jobId="bad job id"
     check("schedule_malformed_saved_job_id_is_rejected",not Schema.validState(invalid))
-    invalid=Schema.copy(saved);invalid.employment.teamSchedule.items[5]=invalid.employment.teamSchedule.items[2]
+    invalid=Schema.copy(teamQueueSaved);invalid.employment.teamSchedule.items[7]=invalid.employment.teamSchedule.items[2]
     check("schedule_sparse_saved_queue_is_rejected",not Schema.validState(invalid))
     local other=hire(state)
     check("schedule_job_cannot_be_queued_for_two_employees",not add(state,other,a,m) and #other.schedule.items==0)

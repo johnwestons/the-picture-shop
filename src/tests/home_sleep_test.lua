@@ -67,7 +67,7 @@ function Test.run(context,check)
     check("home_sleep_late_sunday_start_still_stops_at_seven",not sunday.home.residents.owner.activity and Calendar.absoluteHours(sunday)==103)
     sunday,sp=fresh(71);check("home_sleep_workday_skip_is_not_available_all_weekend",not Residents.command(sunday,sp,"workfloor:floor"))
     local migrated=assert(Schema.migrate({version=34,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))
-    check("home_sleep_legacy_migration_no_invented_alarm",migrated.version==39 and not migrated.state.home.residents.owner.alarmAt)
+    check("home_sleep_legacy_migration_no_invented_alarm",migrated.version==Schema.VERSION and not migrated.state.home.residents.owner.alarmAt)
     local sound=require("src.sound").new({state=s,world={player=p}});local chimes=0
     function sound:play(name) if name=="job_complete" then chimes=chimes+1 end;return true end
     r.alarmAt=127;local beforeSound=sound:capture();r.lastAlarmAt=127;r.alarmAt=nil;local afterSound=sound:capture()

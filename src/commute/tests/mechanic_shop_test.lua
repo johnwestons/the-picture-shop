@@ -45,53 +45,57 @@ local function run(check,counters)
     assert(C.deviceInput(R,'controller','a'));check('mechanic_shop_controller_opens_catalog',v.page=='catalog')
     local all=true
     for n=1,3 do
-        assert(C.keypressed(R,tostring(n)));local q=Shop.quote(R,n)
-        all=all and v.selected==n and q.offer==Upgrades.CATALOG[n] and q.current.level==0
-            and q.status==(n==1 and 'available' or 'locked')
+        assert(C.keypressed(R,tostring(n)));local category=Upgrades.CATEGORIES[n]
+        local q=Shop.quote(R,category.id)
+        all=all and v.selectedCategory==category.id and q.category==category and q.currentLevel==0
+            and q.offer==category.offers[1] and q.status=='available'
     end
-    check('mechanic_shop_all_three_tiers_are_browsable_with_live_status',all)
+    check('mechanic_shop_component_categories_are_browsable_with_live_status',all)
     R.Config.baseWidth,R.Config.baseHeight=640,452
-    assert(C.pointer(R,200*640/960,202*452/678))
-    local firstTouch=v.selected==1
-    assert(C.pointer(R,200*640/960,434*452/678))
-    check('mechanic_shop_pointer_selects_scaled_catalog_tiers',firstTouch and v.selected==3)
+    assert(C.pointer(R,200*640/960,192*452/678))
+    local firstTouch=v.selectedCategory=='engine'
+    assert(C.pointer(R,200*640/960,486*452/678))
+    check('mechanic_shop_pointer_selects_scaled_component_categories',firstTouch and v.selectedCategory=='durability')
     R.Config.baseWidth,R.Config.baseHeight=960,678
+    assert(C.keypressed(R,'1'))
     local before=state.home.balanceCents
-    check('mechanic_shop_locked_tier_cannot_start_confirmation',not C.buyUpgrade(R) and v.page=='catalog' and state.home.balanceCents==before)
+    check('mechanic_shop_cannot_forge_a_skipped_component_level',not C.decode('bikepart:17:engine:0:2')
+        and v.page=='catalog' and state.home.balanceCents==before)
     C.keypressed(R,'1');assert(C.buyUpgrade(R))
     check('mechanic_shop_first_confirm_only_reviews_quote',v.page=='confirm' and not v.pending and state.home.balanceCents==before and R.saves==0)
     C.keypressed(R,'escape')
-    check('mechanic_shop_cancel_quote_does_not_purchase',v.page=='lobby' and rider.bike.upgradeLevel==0 and R.saves==0)
-    Shop.catalog(R);state.home.balanceCents=Upgrades.CATALOG[1].costCents-1
-    local q=Shop.quote(R,1)
+    check('mechanic_shop_cancel_quote_does_not_purchase',v.page=='lobby' and rider.bike.upgradeParts.engine==0 and R.saves==0)
+    Shop.catalog(R);state.home.balanceCents=Upgrades.CATEGORY_BY_ID.engine.offers[1].costCents-1
+    local q=Shop.quote(R,'engine')
     check('mechanic_shop_unaffordable_quote_reports_exact_shortfall',q.status=='unaffordable' and q.shortfallCents==1
         and not C.buyUpgrade(R) and v.page=='catalog')
-    state.home.balanceCents=balance;assert(C.buyUpgrade(R))
+    state.home.balanceCents=balance;assert(C.keypressed(R,'1'));assert(C.buyUpgrade(R))
     state.home.revision=state.home.revision+100 -- payroll/needs may advance behind the quote
     assert(C.buyUpgrade(R))
-    check('mechanic_shop_install_accepts_unrelated_household_revision',rider.bike.upgradeLevel==1
-        and state.home.residents.owner.ridingUpgradeLevel==1 and state.home.balanceCents==balance-Upgrades.CATALOG[1].costCents
+    local engineOffer=Upgrades.CATEGORY_BY_ID.engine.offers[1]
+    check('mechanic_shop_install_accepts_unrelated_household_revision',rider.bike.upgradeParts.engine==1
+        and state.home.residents.owner.ridingUpgradeParts.engine==1 and state.home.balanceCents==balance-engineOffer.costCents
         and R._commute.mechanicOffer==v and v.pending~=nil and R.saves==1 and R.dirty==1)
     local spent=state.home.balanceCents
-    check('mechanic_shop_replayed_expected_level_debits_once',not C.command(R,host,'bikeupgrade:17:0:1')
+    check('mechanic_shop_replayed_expected_level_debits_once',not C.command(R,host,'bikepart:17:engine:0:1')
         and state.home.balanceCents==spent and R.saves==1)
     Shop.update(R,.1)
     check('mechanic_shop_receipt_follows_authoritative_install',not v.pending and v.page=='install'
-        and v.receipt.level==1 and v.receipt.costCents==Upgrades.CATALOG[1].costCents)
+        and v.receipt.category=='engine' and v.receipt.level==1 and v.receipt.costCents==engineOffer.costCents)
     for _=1,21 do Shop.update(R,.1) end
     check('mechanic_shop_service_finishes_in_open_shop',v.page=='receipt' and R._commute.mechanicOffer==v)
     assert(C.deviceInput(R,'controller','a'));assert(C.deviceInput(R,'controller','b'))
     check('mechanic_shop_controller_exit_releases_only_interior',not R._commute.mechanicOffer and counters.released==1
-        and state.home.commute~=nil and rider.bike.upgradeLevel==1)
+        and state.home.commute~=nil and rider.bike.upgradeParts.engine==1)
     park(guest);local guestId=Residents.key(guest);local guestBike=state.home.commute.participants[guestId].rider.bike
-    check('mechanic_shop_guest_cannot_impersonate_another_slot',not C.command(R,{id=3,sceneId='commute',homeResidentId=guestId},'bikeupgrade:17:0:1'))
-    assert(C.command(R,guest,'bikeupgrade:17:0:1'))
-    check('mechanic_shop_host_dispatch_upgrades_assigned_guest_only',guestBike.upgradeLevel==1
-        and state.home.residents[guestId].ridingUpgradeLevel==1 and rider.bike.upgradeLevel==1)
-    assert(C.command(R,host,'bikeupgrade:17:1:2'));assert(C.command(R,host,'bikeupgrade:17:2:3'))
+    check('mechanic_shop_guest_cannot_impersonate_another_slot',not C.command(R,{id=3,sceneId='commute',homeResidentId=guestId},'bikepart:17:engine:0:1'))
+    assert(C.command(R,guest,'bikepart:17:engine:0:1'))
+    check('mechanic_shop_host_dispatch_upgrades_assigned_guest_only',guestBike.upgradeParts.engine==1
+        and state.home.residents[guestId].ridingUpgradeParts.engine==1 and rider.bike.upgradeParts.engine==1)
+    assert(C.command(R,host,'bikepart:17:engine:1:2'));assert(C.command(R,host,'bikepart:17:engine:2:3'))
     assert(C.openMechanic(R));Shop.catalog(R)
-    check('mechanic_shop_maxed_bike_can_still_visit_and_review_all_tiers',R._commute.mechanicOffer~=nil
-        and Shop.quote(R,1).status=='installed' and Shop.quote(R,2).status=='installed' and Shop.quote(R,3).status=='installed'
+    check('mechanic_shop_maxed_component_does_not_lock_other_categories',R._commute.mechanicOffer~=nil
+        and Shop.quote(R,'engine').status=='maxed' and Shop.quote(R,'clutch').status=='available'
         and not C.buyUpgrade(R))
     C.release(R);check('mechanic_shop_runtime_release_closes_interior',not R._commute and counters.released==2)
 
@@ -111,10 +115,11 @@ local function run(check,counters)
     Shop.update(Client,.1)
     check('mechanic_shop_client_transport_ack_does_not_claim_install',#requests==1 and requests[1].kind=='commute'
         and pending.pending~=nil and pending.page=='confirm' and not pending.receipt
-        and (Client.state.home.residents[remoteId].ridingUpgradeLevel or 0)==0 and Client.state.home.balanceCents==clientBalance)
+        and Upgrades.copyParts(Client.state.home.residents[remoteId].ridingUpgradeParts).engine==0
+        and Client.state.home.balanceCents==clientBalance)
     H.state.home.balanceCents=0
     check('mechanic_shop_host_denies_quote_when_funds_changed',not C.command(H,remote,requests[1].command)
-        and (H.state.home.residents[remoteId].ridingUpgradeLevel or 0)==0 and H.saves==0)
+        and Upgrades.copyParts(H.state.home.residents[remoteId].ridingUpgradeParts).engine==0 and H.saves==0)
     for _=1,51 do Shop.update(Client,.1) end
     check('mechanic_shop_unconfirmed_order_returns_to_retry_without_success',not pending.pending and not pending.receipt
         and pending.page=='catalog' and pending.notice:find('No installation confirmed',1,true)~=nil)
@@ -123,12 +128,12 @@ local function run(check,counters)
     Client.state.screen='world';assert(C.buyUpgrade(Client));assert(C.buyUpgrade(Client))
     local retry=requests[2];assert(C.command(H,remote,retry.command));Shop.update(Client,.1)
     check('mechanic_shop_client_waits_for_replicated_level_even_after_host_purchase',pending.pending~=nil and not pending.receipt
-        and (Client.state.home.residents[remoteId].ridingUpgradeLevel or 0)==0)
+        and Upgrades.copyParts(Client.state.home.residents[remoteId].ridingUpgradeParts).engine==0)
     assert(State.applySharedSnapshot(Client.state,assert(Schema.snapshot(H.state))))
     Client.state.screen='world';Shop.update(Client,.1)
     check('mechanic_shop_fresh_retry_confirms_only_after_host_replication',pending.page=='install' and pending.receipt.level==1
-        and Client.state.home.residents[remoteId].ridingUpgradeLevel==1 and H.saves==1
-        and (H.state.home.residents.owner.ridingUpgradeLevel or 0)==0)
+        and Upgrades.copyParts(Client.state.home.residents[remoteId].ridingUpgradeParts).engine==1 and H.saves==1
+        and Upgrades.copyParts(H.state.home.residents.owner.ridingUpgradeParts).engine==0)
     local finalBalance=H.state.home.balanceCents
     check('mechanic_shop_late_duplicate_order_still_cannot_charge_again',not C.command(H,remote,retry.command)
         and H.state.home.balanceCents==finalBalance and H.saves==1)

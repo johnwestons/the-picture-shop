@@ -203,7 +203,6 @@ function Roads:nearest(x,z,pavedOnly)
         if rank>priority or rank==priority and d<best then best,segment,u,priority=d,s,t,rank end
         end
     end
-    if priority>=2 then return best,segment,u end
     local junctions=self.junctionBins[key] or empty
     for _,junction in ipairs(junctions) do
         if not pavedOnly or junction.surface~='dirt' then
@@ -268,6 +267,24 @@ function Roads:blocked(world,x,z,skipFixtureCollision)
     if x<bounds.x0 or z<bounds.z0 or x>bounds.x1 or z>bounds.z1 then return true,'travelLimit' end
     if self.sites:blocked(x,z) then return true end
     if not skipFixtureCollision and world.infrastructure and world.infrastructure:blocked(x,z) then return true end
+    -- Treat bridge parapets as solid road boundaries. At a joined bridge
+    -- intersection, any overlapping deck keeps the shared junction open.
+    local bridgeDeck,bridgeRail=false,false
+    local nearby=self.bins[math.floor(x/self.binSize)..':'..math.floor(z/self.binSize)] or empty
+    for _,segment in ipairs(nearby) do
+        if segment.bridge then
+            local t=((x-segment.a.x)*segment.dx+(z-segment.a.z)*segment.dz)/segment.length2
+            if t>=0 and t<=1 then
+                local dx=x-segment.a.x-t*segment.dx
+                local dz=z-segment.a.z-t*segment.dz
+                local distance=M.length(dx,dz)
+                if distance<=segment.width*.5-.18 then bridgeDeck=true;break end
+                if distance<segment.width*.5+1.2 then bridgeRail=true end
+            end
+        end
+    end
+    if bridgeDeck then return false end
+    if bridgeRail then return true,'bridgeRail' end
     local h,kind=self:supportHeight(world,x,z)
     if kind=='bridge' then return false end
     local d,s=self:sample(x,z)

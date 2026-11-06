@@ -5,7 +5,11 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.Session:_records()
         local ids = {}
-        for id in pairs(self.players) do ids[#ids + 1] = id end
+        for id in pairs(self.players) do
+            if not (self.dedicatedServer and id == self.localId) then
+                ids[#ids + 1] = id
+            end
+        end
         table.sort(ids)
         local records = {}
         for _, id in ipairs(ids) do records[#records + 1] = Runtime.playerRecord(self.players[id]) end

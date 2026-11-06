@@ -16,7 +16,8 @@ local function bucket(worker,day)
     return row
 end
 function Payroll.accrue(worker,startAt,endAt,finishingCycle,state)
-    if not worker.visible or not worker.clockedIn or worker.phase=="hidden"
+    if not worker.visible and not worker.awayForDelivery or not worker.clockedIn
+        or worker.phase=="hidden" and not worker.awayForDelivery
         or (worker.phase=="break" and worker.breakKind=="meal") then return 0 end
     local t=worker.contract
     local accrued,paidHours=0,0
